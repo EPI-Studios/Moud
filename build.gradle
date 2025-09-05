@@ -5,6 +5,7 @@ plugins {
 
 subprojects {
     apply plugin: 'java'
+    apply plugin: 'checkstyle'
 
     repositories {
         mavenCentral()
@@ -12,9 +13,19 @@ subprojects {
         maven { url 'https://jitpack.io' }
     }
 
+    checkstyle {
+        toolVersion = '11.0.1'
+        configFile = rootProject.file('config/checkstyle/checkstyle.xml')
+    }
+
+
     java {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
+    }
+
+    tasks.named('check') {
+        dependsOn tasks.named('checkstyleMain')
     }
 
     tasks.withType(JavaCompile) {
