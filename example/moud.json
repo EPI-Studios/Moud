@@ -1,0 +1,14 @@
+{
+  "world": {
+    "spawnPoint": { "x": 0, "y": 100, "z": 0 },
+    "generator": {
+      "name": "flat",
+      "options": { "biome": "plains" }
+    }
+  },
+  "permissions": {
+    "network": {
+      "allow": []
+    }
+  }
+}

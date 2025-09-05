@@ -23,4 +23,8 @@ dependencies {
 
     implementation 'org.graalvm.polyglot:polyglot:24.1.0'
     implementation 'org.graalvm.polyglot:js:24.1.0'
+
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.17.0'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.0'
+    implementation 'com.fasterxml.jackson.core:jackson-annotations:2.17.0'
 }
