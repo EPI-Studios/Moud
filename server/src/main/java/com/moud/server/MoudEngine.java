@@ -1,10 +1,10 @@
 package com.moud.server;
 
-
 import com.moud.server.api.ScriptingAPI;
+import com.moud.server.assets.AssetManager;
 import com.moud.server.events.EventDispatcher;
 import com.moud.server.project.ProjectLoader;
-
+import com.moud.server.proxy.AssetProxy;
 import com.moud.server.scripting.JavaScriptRuntime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,16 +15,38 @@ public class MoudEngine {
     private static final Logger LOGGER = LoggerFactory.getLogger(MoudEngine.class);
 
     private final JavaScriptRuntime runtime;
+    private final AssetManager assetManager;
 
     public MoudEngine() {
-        EventDispatcher eventDispatcher = new EventDispatcher();
-        this.runtime = new JavaScriptRuntime();
-        ScriptingAPI scriptingAPI = new ScriptingAPI(eventDispatcher);
+        try {
+            Path projectRoot = findProjectRoot();
 
-        runtime.bindGlobal("api", scriptingAPI);
-        runtime.bindGlobal("console", new ConsoleAPI());
+            this.assetManager = new AssetManager(projectRoot);
+            assetManager.initialize();
 
-        loadUserScript();
+            EventDispatcher eventDispatcher = new EventDispatcher();
+            this.runtime = new JavaScriptRuntime();
+            ScriptingAPI scriptingAPI = new ScriptingAPI(eventDispatcher);
+            AssetProxy assetProxy = new AssetProxy(assetManager);
+
+            runtime.bindGlobal("api", scriptingAPI);
+            runtime.bindGlobal("assets", assetProxy);
+            runtime.bindGlobal("console", new ConsoleAPI());
+
+            loadUserScript();
+        } catch (Exception e) {
+            LOGGER.error("Failed to initialize Moud engine", e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    private Path findProjectRoot() {
+        try {
+            return ProjectLoader.findEntryPoint().getParent().getParent();
+        } catch (Exception e) {
+            LOGGER.error("Failed to find project root", e);
+            throw new RuntimeException(e);
+        }
     }
 
     private void loadUserScript() {
