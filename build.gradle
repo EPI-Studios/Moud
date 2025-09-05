@@ -1,0 +1,23 @@
+plugins {
+    id 'java'
+    id 'fabric-loom' version "1.11-SNAPSHOT" apply false
+}
+
+subprojects {
+    apply plugin: 'java'
+
+    repositories {
+        mavenCentral()
+        // Repository for Minestom SNAPSHOTS
+        maven { url 'https://jitpack.io' }
+    }
+
+    java {
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+}
