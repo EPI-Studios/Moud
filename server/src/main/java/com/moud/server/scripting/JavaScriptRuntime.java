@@ -1,6 +1,9 @@
 package com.moud.server.scripting;
 
+import com.moud.server.typescript.TypeScriptTranspiler;
 import org.graalvm.polyglot.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -9,6 +12,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class JavaScriptRuntime {
+    private static final Logger LOGGER = LoggerFactory.getLogger(JavaScriptRuntime.class);
     private static final String LANGUAGE_ID = "js";
 
     private final Context context;
@@ -35,6 +39,7 @@ public class JavaScriptRuntime {
                 .allowCreateProcess(false)
                 .allowEnvironmentAccess(EnvironmentAccess.NONE)
                 .allowPolyglotAccess(PolyglotAccess.NONE)
+                .option("engine.WarnInterpreterOnly", "false")
                 .build();
     }
 
@@ -45,11 +50,20 @@ public class JavaScriptRuntime {
     public CompletableFuture<Value> executeScript(Path scriptPath) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                String content = Files.readString(scriptPath);
+                String content;
+
+                if (scriptPath.toString().endsWith(".ts")) {
+                    LOGGER.info("Transpiling TypeScript file: {}", scriptPath);
+                    content = TypeScriptTranspiler.transpile(scriptPath).get();
+                } else {
+                    content = Files.readString(scriptPath);
+                }
+
                 Source source = Source.newBuilder(LANGUAGE_ID, content, scriptPath.getFileName().toString())
                         .build();
                 return context.eval(source);
             } catch (Exception e) {
+                LOGGER.error("Script execution failed for: {}", scriptPath, e);
                 throw new RuntimeException(e);
             }
         }, executor);
