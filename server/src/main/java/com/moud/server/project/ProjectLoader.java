@@ -23,29 +23,36 @@ public class ProjectLoader {
         return entryPoint.toString().endsWith(".ts");
     }
 
-    private static Path findProjectRoot() {
-        Path current = Paths.get("").toAbsolutePath();
+    public static Path findProjectRoot() {
+        // NEED REMOVAL LATER
+        Path rootDir = Paths.get("").toAbsolutePath();
 
+        if (rootDir.getFileName().toString().equals("server")) {
+            rootDir = rootDir.getParent();
+        }
+
+        Path exampleTsDir = rootDir.resolve("example/ts");
+
+        if (Files.exists(exampleTsDir.resolve("package.json"))) {
+            return exampleTsDir;
+        }
+
+        Path exampleJsDir = rootDir.resolve("example/js");
+        if (Files.exists(exampleJsDir.resolve("package.json"))) {
+            return exampleJsDir;
+        }
+
+        Path exampleDir = rootDir.resolve("example");
+        if (Files.exists(exampleDir.resolve("package.json"))) {
+            return exampleDir;
+        }
+
+        Path current = rootDir;
         while (current != null) {
             if (Files.exists(current.resolve("package.json"))) {
                 return current;
             }
             current = current.getParent();
-        }
-
-        Path exampleTsDir = Paths.get("example/ts").toAbsolutePath();
-        if (Files.exists(exampleTsDir.resolve("package.json"))) {
-            return exampleTsDir;
-        }
-
-        Path exampleJsDir = Paths.get("example/js").toAbsolutePath();
-        if (Files.exists(exampleJsDir.resolve("package.json"))) {
-            return exampleJsDir;
-        }
-
-        Path exampleDir = Paths.get("example").toAbsolutePath();
-        if (Files.exists(exampleDir.resolve("package.json"))) {
-            return exampleDir;
         }
 
         throw new IllegalStateException("No package.json found");
@@ -59,10 +66,10 @@ public class ProjectLoader {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class PackageInfo {
         @JsonProperty("moud:main")
-        private String moudMain = "src/main.js";
+        private String moudMain;
 
         public String getMoudMain() {
-            return moudMain;
+            return moudMain != null ? moudMain : "src/main.js";
         }
     }
 }

@@ -2,7 +2,6 @@ plugins {
     id 'fabric-loom'
 }
 
-
 repositories {
     mavenCentral()
     maven { url = "https://maven.fabricmc.net/" }
@@ -11,18 +10,16 @@ repositories {
 }
 
 dependencies {
-    implementation project(':api')
-
-    // Minecraft and Fabric
     minecraft "com.mojang:minecraft:1.21.1"
     mappings "net.fabricmc:yarn:1.21.1+build.1:v2"
+    modImplementation "net.fabricmc:fabric-loader:0.16.14"
 
-    // Fabric Loader
-    modImplementation "net.fabricmc:fabric-loader:0.17.2"
-
-    // Fabric API
     modImplementation "net.fabricmc.fabric-api:fabric-api:0.116.6+1.21.1"
-
-    // Veil
     modImplementation "foundry.veil:veil-fabric-1.21.1:1.0.0.238"
+
+    implementation "org.graalvm.polyglot:polyglot:24.1.0"
+    implementation "org.graalvm.js:js-language:24.1.0"       // Direct language implementation
+    implementation "org.graalvm.truffle:truffle-api:24.1.0"  // Required for JavaScript execution
+    implementation "org.graalvm.sdk:graal-sdk:24.1.0"
+    implementation "org.graalvm.sdk:collections:24.1.0"      // Contains UnmodifiableEconomicSet
 }

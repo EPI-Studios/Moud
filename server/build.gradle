@@ -8,7 +8,7 @@ application {
 }
 
 run {
-    jvmArgs '--enable-preview', '-XX:+EnableJVMCI'
+    jvmArgs '--enable-preview', '-XX:+UnlockExperimentalVMOptions', '-XX:+EnableJVMCI'
 }
 
 repositories {
@@ -18,7 +18,7 @@ repositories {
 
 dependencies {
     implementation project(':api')
-    implementation 'net.minestom:minestom-snapshots:7135080bbc'
+    implementation 'net.minestom:minestom-snapshots:f966351cb7'
     implementation 'ch.qos.logback:logback-classic:1.4.14'
 
     implementation 'org.graalvm.polyglot:polyglot:24.1.0'
