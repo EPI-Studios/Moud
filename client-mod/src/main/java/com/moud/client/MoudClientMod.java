@@ -40,8 +40,22 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private static final Logger LOGGER = LoggerFactory.getLogger(MoudClientMod.class);
     private static final Identifier MOUDPACK_ID = Identifier.of("moud", "dynamic_resources");
 
+    private static boolean smoothCameraActive = false;
+
     private ClientScriptingRuntime scriptingRuntime;
     private final AtomicReference<InMemoryPackResources> dynamicPack = new AtomicReference<>(null);
+
+    public static boolean isSmoothCameraActive() {
+        return smoothCameraActive;
+    }
+
+    public static void setSmoothCameraActive(boolean active) {
+        smoothCameraActive = active;
+    }
+
+    public static float getSmoothPitch() {
+        // TODO : Using lerp function to have smooth pitch values
+    }
 
     @Override
     public void onInitializeClient() {
@@ -143,6 +157,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         if (scriptingRuntime != null) {
             scriptingRuntime.shutdown();
         }
+        smoothCameraActive = false;
     }
 
     private void handleSyncScripts(MoudPackets.SyncClientScripts packet, ClientPlayNetworking.Context context) {

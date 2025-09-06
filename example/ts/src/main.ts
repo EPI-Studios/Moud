@@ -1,4 +1,3 @@
-
 try {
     console.log("Attempting to load shader...");
     const myShader = assets.loadShader('shaders/my_shader.glsl');
@@ -10,9 +9,12 @@ try {
 const world: World = api.createWorld();
 world.setFlatGenerator().setSpawn(0, 65, 0);
 
+const playerSmoothCameraStatus = new Map<string, boolean>();
+
 api.on('player.join', (player: Player) => {
     console.log(`Player joined: ${player.getName()}`);
     player.sendMessage('§6Welcome to the Moud TypeScript server!');
+    playerSmoothCameraStatus.set(player.getUuid(), false);
 
     const server: Server = api.getServer();
     server.broadcast(`§7${player.getName()} joined the server`);
@@ -31,7 +33,15 @@ api.on('player.chat', (chatEvent: ChatEvent) => {
     if (message.startsWith('!')) {
         chatEvent.cancel();
 
-        if (message === '!effect') {
+        if (message === '!smoothcamera') {
+            const currentStatus = playerSmoothCameraStatus.get(player.getUuid()) || false;
+            const newStatus = !currentStatus;
+            playerSmoothCameraStatus.set(player.getUuid(), newStatus);
+
+            player.getClient().send('camera:toggle_smooth', { enabled: newStatus });
+            player.sendMessage(`§eCinematic camera: §${newStatus ? 'aENABLED' : 'cDISABLED'}`);
+        }
+        else if (message === '!effect') {
             player.sendMessage('§eToggling screen invert effect...');
             player.getClient().send('rendering:toggle_invert', {});
         }

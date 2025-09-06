@@ -4,7 +4,10 @@
   "package": "com.moud.client.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [],
-  "client": [],
+  "client": [
+    "GameRendererMixin",
+    "MouseInputMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }
