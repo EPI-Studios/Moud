@@ -1,10 +1,13 @@
 package com.moud.server;
 
-
 import com.moud.server.api.ScriptingAPI;
+import com.moud.server.assets.AssetManager;
+import com.moud.server.client.ClientScriptManager;
 import com.moud.server.events.EventDispatcher;
+import com.moud.server.network.ServerNetworkManager;
+import com.moud.server.network.ServerPacketHandler;
 import com.moud.server.project.ProjectLoader;
-
+import com.moud.server.proxy.AssetProxy;
 import com.moud.server.scripting.JavaScriptRuntime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,16 +18,40 @@ public class MoudEngine {
     private static final Logger LOGGER = LoggerFactory.getLogger(MoudEngine.class);
 
     private final JavaScriptRuntime runtime;
+    private final AssetManager assetManager;
+    private final ClientScriptManager clientScriptManager;
+    private final ServerNetworkManager networkManager;
 
     public MoudEngine() {
-        EventDispatcher eventDispatcher = new EventDispatcher();
-        this.runtime = new JavaScriptRuntime();
-        ScriptingAPI scriptingAPI = new ScriptingAPI(eventDispatcher);
+        try {
+            Path projectRoot = ProjectLoader.findProjectRoot();
 
-        runtime.bindGlobal("api", scriptingAPI);
-        runtime.bindGlobal("console", new ConsoleAPI());
+            // --- LA MODIFICATION EST ICI ---
+            // 1. Initialiser l'AssetManager (votre code existant était correct)
+            this.assetManager = new AssetManager(projectRoot);
+            assetManager.initialize();
 
-        loadUserScript();
+            this.clientScriptManager = new ClientScriptManager();
+            clientScriptManager.initialize();
+
+            EventDispatcher eventDispatcher = new EventDispatcher();
+            this.runtime = new JavaScriptRuntime();
+            ScriptingAPI scriptingAPI = new ScriptingAPI(eventDispatcher);
+            AssetProxy assetProxy = new AssetProxy(assetManager);
+
+            ServerPacketHandler packetHandler = new ServerPacketHandler(eventDispatcher);
+            this.networkManager = new ServerNetworkManager(packetHandler, clientScriptManager);
+            networkManager.initialize();
+
+            runtime.bindGlobal("api", scriptingAPI);
+            runtime.bindGlobal("assets", assetProxy);
+            runtime.bindGlobal("console", new ConsoleAPI());
+
+            loadUserScript();
+        } catch (Exception e) {
+            LOGGER.error("Failed to initialize Moud engine", e);
+            throw new RuntimeException(e);
+        }
     }
 
     private void loadUserScript() {

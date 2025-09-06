@@ -1,5 +1,6 @@
 declare global {
     const api: MoudAPI;
+    const assets: Assets;
     const console: Console;
 }
 
@@ -10,6 +11,27 @@ interface MoudAPI {
 
     getServer(): Server;
     createWorld(): World;
+}
+
+interface Assets {
+    loadShader(path: string): ShaderAsset;
+    loadTexture(path: string): TextureAsset;
+    loadData(path: string): DataAsset;
+}
+
+interface ShaderAsset {
+    getId(): string;
+    getCode(): string;
+}
+
+interface TextureAsset {
+    getId(): string;
+    getData(): Uint8Array;
+}
+
+interface DataAsset {
+    getId(): string;
+    getContent(): string;
 }
 
 interface Player {

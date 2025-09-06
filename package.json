@@ -1,0 +1,16 @@
+{
+  "name": "moud-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "example/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "dev": "npm run dev --workspace example-ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "esbuild": "^0.19.0"
+  }
+}
