@@ -15,7 +15,7 @@ public class EventConverter {
             }
             case "player.chat" -> {
                 PlayerChatEvent event = (PlayerChatEvent) minestomEvent;
-                yield new ChatEventProxy(event.getPlayer(), event.getRawMessage(), event);
+                yield new ChatEventProxy(event.getPlayer(), event.getMessage(), event);
             }
             default -> throw new IllegalArgumentException("Unknown event: " + eventName);
         };

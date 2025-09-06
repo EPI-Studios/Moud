@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "moud",
+  "version": "${version}",
+  "name": "Moud Client",
+  "description": "Client-side scripting runtime for Moud servers",
+  "authors": [
+    "Moud Team"
+  ],
+  "contact": {
+    "website": "https://github.com/Epitygmata/moud"
+  },
+  "license": "MIT",
+  "icon": "assets/moud/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.moud.client.MoudClientMod"
+    ]
+  },
+  "mixins": [
+    "moud.client.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.14",
+    "fabric": "*",
+    "minecraft": "1.21.1"
+  }
+}
