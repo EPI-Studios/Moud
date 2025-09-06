@@ -1,3 +1,12 @@
+
+try {
+    console.log("Attempting to load shader...");
+    const myShader = assets.loadShader('shaders/my_shader.glsl');
+    console.log(`Shader loaded successfully! ID: ${myShader.getId()}`);
+} catch (e) {
+    console.error("Failed to load shader:", e);
+}
+
 const world: World = api.createWorld();
 world.setFlatGenerator().setSpawn(0, 65, 0);
 
@@ -22,7 +31,11 @@ api.on('player.chat', (chatEvent: ChatEvent) => {
     if (message.startsWith('!')) {
         chatEvent.cancel();
 
-        if (message === '!players') {
+        if (message === '!effect') {
+            player.sendMessage('§eToggling screen invert effect...');
+            player.getClient().send('rendering:toggle_invert', {});
+        }
+        else if (message === '!players') {
             const playerCount: number = api.getServer().getPlayerCount();
             player.sendMessage(`§eOnline players: ${playerCount}`);
         } else if (message.startsWith('!say ')) {
@@ -35,13 +48,6 @@ api.on('player.chat', (chatEvent: ChatEvent) => {
                 duration: 5000
             });
             player.sendMessage('§aTest event sent to client');
-        } else if (message === '!effect') {
-            player.getClient().send('render:applyEffect', {
-                effect: 'damage_overlay',
-                intensity: 0.5,
-                duration: 2000
-            });
-            player.sendMessage('§cApplied damage effect');
         }
     }
 });
