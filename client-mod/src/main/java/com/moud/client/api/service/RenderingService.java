@@ -59,6 +59,16 @@ public final class RenderingService {
             handler.execute(data);
         }
     }
+
+    public void triggerRenderEvents() {
+        long currentTime = System.currentTimeMillis();
+        float deltaTime = (currentTime / 1000.0f);
+
+        triggerRenderEvent("beforeWorldRender", deltaTime);
+        triggerRenderEvent("beforeRender", deltaTime);
+        triggerRenderEvent("render", deltaTime);
+    }
+
     public void cleanUp() {
         postProcessingManager.clearAllEffects();
         renderHandlers.clear();
