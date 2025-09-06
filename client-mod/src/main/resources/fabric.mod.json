@@ -14,6 +14,7 @@
   "icon": "assets/moud/icon.png",
   "environment": "client",
   "entrypoints": {
+    "main": [],
     "client": [
       "com.moud.client.MoudClientMod"
     ]

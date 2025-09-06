@@ -5,12 +5,10 @@ import org.graalvm.polyglot.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
 public final class ClientScriptingRuntime {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientScriptingRuntime.class);
@@ -44,7 +42,7 @@ public final class ClientScriptingRuntime {
         LOGGER.info("Client scripting runtime initialized");
     }
 
-    public CompletableFuture<Void> loadScripts(byte[] scriptArchive) {
+    public CompletableFuture<Void> loadScripts(Map<String, byte[]> scriptsData) {
         return CompletableFuture.runAsync(() -> {
             try {
                 if (this.context != null) {
@@ -70,13 +68,10 @@ public final class ClientScriptingRuntime {
 
                 this.context.getBindings(LANGUAGE_ID).putMember("Moud", apiService);
 
-                try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(scriptArchive))) {
-                    ZipEntry entry;
-                    while ((entry = zis.getNextEntry()) != null) {
-                        if (entry.getName().endsWith(".js")) {
-                            String content = new String(zis.readAllBytes());
-                            executeScript(entry.getName(), content);
-                        }
+                for (Map.Entry<String, byte[]> entry : scriptsData.entrySet()) {
+                    if (entry.getKey().endsWith(".js")) {
+                        String content = new String(entry.getValue());
+                        executeScript(entry.getKey(), content);
                     }
                 }
 
@@ -113,6 +108,10 @@ public final class ClientScriptingRuntime {
     }
 
     public void shutdown() {
+        if (apiService != null) {
+            apiService.rendering.cleanUp();
+        }
+
         if (context != null) {
             try {
                 context.close();
