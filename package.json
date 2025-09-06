@@ -6,8 +6,8 @@
     "example/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces",
-    "dev": "npm run dev --workspace example-ts"
+    "build": "pnpm --filter \"./packages/*\" build",
+    "dev": "pnpm --filter example-ts dev"
   },
   "devDependencies": {
     "typescript": "^5.0.0",
