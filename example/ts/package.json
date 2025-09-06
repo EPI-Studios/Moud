@@ -2,10 +2,12 @@
   "name": "example-ts",
   "version": "1.0.0",
   "moud:main": "src/main.ts",
-  "devDependencies": {
-    "@moud/sdk": "workspace:*"
-  },
   "scripts": {
-    "dev": "echo 'Run dev from root'"
+    "dev": "moud dev",
+    "build": "moud build"
+  },
+  "devDependencies": {
+    "@moud/sdk": "workspace:*",
+    "moud-cli": "workspace:*"
   }
 }
