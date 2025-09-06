@@ -1,6 +1,7 @@
 package com.moud.server.events;
 
 import net.minestom.server.MinecraftServer;
+import net.minestom.server.entity.Player;
 import net.minestom.server.event.Event;
 import net.minestom.server.event.EventNode;
 import net.minestom.server.event.player.PlayerChatEvent;
@@ -53,6 +54,17 @@ public class EventDispatcher {
                 handler.execute(scriptEvent);
             } catch (Exception e) {
                 throw new RuntimeException("Event handler failed: " + eventName, e);
+            }
+        }
+    }
+
+    public void dispatchScriptEvent(String eventName, String eventData, Player player) {
+        Value handler = handlers.get(eventName);
+        if (handler != null && handler.canExecute()) {
+            try {
+                handler.execute(eventData, player);
+            } catch (Exception e) {
+                throw new RuntimeException("Script event handler failed: " + eventName, e);
             }
         }
     }
