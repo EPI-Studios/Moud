@@ -3,6 +3,8 @@ package com.moud.client.api.service;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.moud.client.network.ClientNetworkManager;
+import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +17,16 @@ public final class NetworkService {
     private static final Gson GSON = new Gson();
 
     private final Map<String, Value> eventHandlers = new ConcurrentHashMap<>();
+    private Context jsContext;
+
+    public NetworkService() {
+
+    }
+
+    public void setContext(Context jsContext) {
+        this.jsContext = jsContext;
+        LOGGER.debug("NetworkService received new GraalVM Context.");
+    }
 
     public void sendToServer(String eventName, Object data) {
         String serializedData = serializeData(data);
@@ -26,30 +38,38 @@ public final class NetworkService {
         eventHandlers.put(eventName, callback);
     }
 
-    /**
-     * Triggers a network event and passes the data to the corresponding JavaScript handler.
-     * This method automatically parses the JSON data into JavaScript objects.
-     *
-     * @param eventName The name of the event.
-     * @param eventData The raw JSON string received from the server.
-     */
     public void triggerEvent(String eventName, String eventData) {
         Value handler = eventHandlers.get(eventName);
         if (handler != null && handler.canExecute()) {
-            Object finalData;
-
-            if (eventData == null || eventData.isEmpty()) {
-                finalData = null;
-            } else {
+            if (jsContext != null) {
+                jsContext.enter();
                 try {
-                    // parsing json chain to a java generic object
-                    finalData = GSON.fromJson(eventData, Object.class);
-                } catch (JsonSyntaxException e) {
-                    LOGGER.warn("Failed to parse JSON for event '{}'. Passing raw string instead. JSON: {}", eventName, eventData, e);
-                    finalData = eventData;
+                    Object finalData;
+
+                    if (eventData == null || eventData.isEmpty()) {
+                        finalData = null;
+                    } else {
+                        try {
+                            finalData = GSON.fromJson(eventData, Object.class);
+                        } catch (JsonSyntaxException e) {
+                            LOGGER.warn("Failed to parse JSON for event '{}'. Passing raw string instead. JSON: {}", eventName, eventData, e);
+                            finalData = eventData;
+                        }
+                    }
+                    handler.execute(finalData);
+                } catch (PolyglotException e) {
+                    LOGGER.error("Error executing JavaScript network handler for event '{}': {}", eventName, e.getMessage());
+                    if (e.isGuestException()) {
+                        LOGGER.error("Guest stack trace:\n{}", e.getStackTrace());
+                    }
+                } catch (Exception e) {
+                    LOGGER.error("Unexpected error executing JavaScript network handler for event '{}'", eventName, e);
+                } finally {
+                    jsContext.leave();
                 }
+            } else {
+                LOGGER.warn("Cannot trigger network event '{}': JavaScript context is not initialized in NetworkService.", eventName);
             }
-            handler.execute(finalData);
         }
     }
 
@@ -58,8 +78,16 @@ public final class NetworkService {
             throw new IllegalArgumentException("Callback must be executable");
         }
     }
+
     private String serializeData(Object data) {
         if (data == null) return "";
+
         return data.toString();
+    }
+
+    public void cleanUp() {
+        eventHandlers.clear();
+        jsContext = null;
+        LOGGER.info("NetworkService cleaned up.");
     }
 }

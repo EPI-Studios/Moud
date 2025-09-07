@@ -1,10 +1,14 @@
 package com.moud.client.api.service;
 
+import com.moud.client.camera.CameraManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
+import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 import org.lwjgl.glfw.GLFW;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,6 +24,9 @@ public final class InputService {
     private double mouseDeltaX, mouseDeltaY;
 
     private boolean isCapturingMouse = false;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(InputService.class);
+    private Context jsContext;
 
     public InputService() {
         this.client = MinecraftClient.getInstance();
@@ -114,6 +121,10 @@ public final class InputService {
     }
 
     public void triggerMouseMoveEvent(double deltaX, double deltaY) {
+        if (CameraManager.isCameraActive()) {
+            CameraManager.handleInput(deltaX, deltaY, 0);
+        }
+
         if (mouseMoveCallback != null && mouseMoveCallback.canExecute()) {
             mouseMoveCallback.execute(deltaX, deltaY);
         }
@@ -146,7 +157,6 @@ public final class InputService {
     }
 
     public void update() {
-
         if (isCapturingMouse && mouseMoveCallback != null) {
             double currentX = client.mouse.getX();
             double currentY = client.mouse.getY();
@@ -161,5 +171,16 @@ public final class InputService {
             lastMouseX = currentX;
             lastMouseY = currentY;
         }
+    }
+
+    public void setContext(Context jsContext) {
+        this.jsContext = jsContext;
+        LOGGER.debug("NetworkService received new GraalVM Context.");
+    }
+
+    public void cleanUp() {
+
+        jsContext = null;
+        LOGGER.info("InputService cleaned up.");
     }
 }

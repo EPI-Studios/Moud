@@ -1,108 +1,239 @@
 package com.moud.server;
 
 import com.moud.server.api.ScriptingAPI;
+import com.moud.server.api.exception.APIException;
 import com.moud.server.assets.AssetManager;
 import com.moud.server.client.ClientScriptManager;
 import com.moud.server.events.EventDispatcher;
+import com.moud.server.logging.MoudLogger;
 import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.network.ServerPacketHandler;
 import com.moud.server.project.ProjectLoader;
 import com.moud.server.proxy.AssetProxy;
 import com.moud.server.scripting.JavaScriptRuntime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MoudEngine {
-    private static final Logger LOGGER = LoggerFactory.getLogger(MoudEngine.class);
+    private static final MoudLogger LOGGER = MoudLogger.getLogger(MoudEngine.class);
+    private static final long SHUTDOWN_TIMEOUT_SECONDS = 10;
 
     private final JavaScriptRuntime runtime;
     private final AssetManager assetManager;
     private final ClientScriptManager clientScriptManager;
     private final ServerNetworkManager networkManager;
+    private final EventDispatcher eventDispatcher;
+    private final ScriptingAPI scriptingAPI;
+    private final AtomicBoolean initialized = new AtomicBoolean(false);
+    private final AtomicBoolean shutdownInitiated = new AtomicBoolean(false);
 
     public MoudEngine() {
+        LOGGER.startup("Initializing Moud Engine...");
+
+        try {
+            Path projectRoot = initializeProject();
+
+            this.assetManager = initializeAssetManager(projectRoot);
+            this.clientScriptManager = initializeClientScriptManager();
+            this.eventDispatcher = new EventDispatcher();
+            this.runtime = new JavaScriptRuntime();
+
+            this.scriptingAPI = new ScriptingAPI(eventDispatcher);
+            bindGlobalAPIs();
+
+            this.networkManager = initializeNetworking();
+
+            loadUserScripts();
+
+            initialized.set(true);
+            LOGGER.startup("Moud Engine initialized successfully");
+
+        } catch (Exception e) {
+            LOGGER.critical("Failed to initialize Moud engine: {}", e.getMessage(), e);
+            throw new RuntimeException("Engine initialization failed", e);
+        }
+    }
+
+    private Path initializeProject() throws Exception {
         try {
             Path projectRoot = ProjectLoader.findProjectRoot();
+            LOGGER.info("Project root found: {}", projectRoot);
+            return projectRoot;
+        } catch (Exception e) {
+            throw new APIException("PROJECT_INIT_FAILED", "Failed to initialize project", e);
+        }
+    }
 
-            // --- LA MODIFICATION EST ICI ---
-            // 1. Initialiser l'AssetManager (votre code existant était correct)
-            this.assetManager = new AssetManager(projectRoot);
+    private AssetManager initializeAssetManager(Path projectRoot) throws Exception {
+        try {
+            AssetManager assetManager = new AssetManager(projectRoot);
             assetManager.initialize();
+            LOGGER.success("Asset manager initialized");
+            return assetManager;
+        } catch (Exception e) {
+            throw new APIException("ASSET_MANAGER_INIT_FAILED", "Failed to initialize asset manager", e);
+        }
+    }
 
-            this.clientScriptManager = new ClientScriptManager();
+    private ClientScriptManager initializeClientScriptManager() throws Exception {
+        try {
+            ClientScriptManager clientScriptManager = new ClientScriptManager();
             clientScriptManager.initialize();
+            LOGGER.success("Client script manager initialized");
+            return clientScriptManager;
+        } catch (Exception e) {
+            throw new APIException("CLIENT_SCRIPT_MANAGER_INIT_FAILED", "Failed to initialize client script manager", e);
+        }
+    }
 
-            EventDispatcher eventDispatcher = new EventDispatcher();
-            this.runtime = new JavaScriptRuntime();
-            ScriptingAPI scriptingAPI = new ScriptingAPI(eventDispatcher);
+    private void bindGlobalAPIs() {
+        try {
             AssetProxy assetProxy = new AssetProxy(assetManager);
-
-            ServerPacketHandler packetHandler = new ServerPacketHandler(eventDispatcher);
-            this.networkManager = new ServerNetworkManager(packetHandler, clientScriptManager);
-            networkManager.initialize();
+            ConsoleAPI consoleAPI = new ConsoleAPI();
 
             runtime.bindGlobal("api", scriptingAPI);
             runtime.bindGlobal("assets", assetProxy);
-            runtime.bindGlobal("console", new ConsoleAPI());
+            runtime.bindGlobal("console", consoleAPI);
 
-            loadUserScript();
+            LOGGER.success("Global APIs bound successfully");
         } catch (Exception e) {
-            LOGGER.error("Failed to initialize Moud engine", e);
-            throw new RuntimeException(e);
+            throw new APIException("API_BINDING_FAILED", "Failed to bind global APIs", e);
         }
     }
 
-    private void loadUserScript() {
+    private ServerNetworkManager initializeNetworking() throws Exception {
         try {
-            Path entryPoint = ProjectLoader.findEntryPoint();
-
-            if (!entryPoint.toFile().exists()) {
-                LOGGER.warn("No entry point found at: {}", entryPoint);
-                return;
-            }
-
-            runtime.executeScript(entryPoint)
-                    .thenAccept(result -> LOGGER.info("Script loaded successfully"))
-                    .exceptionally(throwable -> {
-                        LOGGER.error("Failed to load script", throwable);
-                        return null;
-                    });
+            ServerPacketHandler packetHandler = new ServerPacketHandler(eventDispatcher);
+            ServerNetworkManager networkManager = new ServerNetworkManager(packetHandler, clientScriptManager);
+            networkManager.initialize();
+            LOGGER.success("Network manager initialized");
+            return networkManager;
         } catch (Exception e) {
-            LOGGER.error("Failed to find project", e);
+            throw new APIException("NETWORK_INIT_FAILED", "Failed to initialize networking", e);
         }
+    }
+
+    private void loadUserScripts() {
+        CompletableFuture.runAsync(() -> {
+            try {
+                Path entryPoint = ProjectLoader.findEntryPoint();
+
+                if (!entryPoint.toFile().exists()) {
+                    LOGGER.warn("No entry point found at: {}", entryPoint);
+                    return;
+                }
+
+                LOGGER.info("Loading user script: {}", entryPoint.getFileName());
+
+                runtime.executeScript(entryPoint)
+                        .thenAccept(result -> {
+                            LOGGER.success("User script loaded successfully");
+                        })
+                        .exceptionally(throwable -> {
+                            if (throwable.getCause() instanceof APIException apiException) {
+                                LOGGER.scriptError("Script loading failed [{}]: {}",
+                                        apiException.getErrorCode(), apiException.getMessage());
+                            } else {
+                                LOGGER.scriptError("Script loading failed: {}", throwable.getMessage(), throwable);
+                            }
+                            return null;
+                        });
+
+            } catch (Exception e) {
+                LOGGER.error("Failed to find or load project script", e);
+            }
+        });
     }
 
     public void shutdown() {
-        runtime.shutdown();
+        if (!shutdownInitiated.compareAndSet(false, true)) {
+            LOGGER.warn("Shutdown already initiated");
+            return;
+        }
+
+        LOGGER.shutdown("Initiating Moud Engine shutdown...");
+
+        try {
+            CompletableFuture<Void> shutdownFuture = CompletableFuture.runAsync(() -> {
+                try {
+                    if (scriptingAPI != null) {
+                        scriptingAPI.shutdown();
+                        LOGGER.debug("Scripting API shutdown completed");
+                    }
+                    if (runtime != null) {
+                        runtime.shutdown();
+                        LOGGER.debug("JavaScript runtime shutdown completed");
+                    }
+                    if (clientScriptManager != null) {
+                        LOGGER.debug("Client script manager cleanup completed");
+                    }
+                    if (assetManager != null) {
+                        LOGGER.debug("Asset manager cleanup completed");
+                    }
+
+                    LOGGER.shutdown("All systems shutdown successfully");
+
+                } catch (Exception e) {
+                    LOGGER.error("Error during shutdown", e);
+                }
+            });
+            try {
+                shutdownFuture.get(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                LOGGER.warn("Shutdown timeout exceeded, forcing shutdown");
+            }
+
+        } catch (Exception e) {
+            LOGGER.error("Critical error during shutdown", e);
+        } finally {
+            initialized.set(false);
+            LOGGER.shutdown("Moud Engine shutdown completed");
+        }
     }
 
-    public static class ConsoleAPI {
-        private static final Logger CONSOLE_LOGGER = LoggerFactory.getLogger("Script.Console");
+    public boolean isInitialized() {
+        return initialized.get();
+    }
 
-        public void log(Object... args) {
-            CONSOLE_LOGGER.info(formatArgs(args));
+    public boolean isShuttingDown() {
+        return shutdownInitiated.get();
+    }
+
+    public ScriptingAPI getScriptingAPI() {
+        if (!isInitialized()) {
+            throw new APIException("ENGINE_NOT_INITIALIZED", "Engine not initialized");
         }
+        return scriptingAPI;
+    }
 
-        public void warn(Object... args) {
-            CONSOLE_LOGGER.warn(formatArgs(args));
+    public EventDispatcher getEventDispatcher() {
+        if (!isInitialized()) {
+            throw new APIException("ENGINE_NOT_INITIALIZED", "Engine not initialized");
         }
+        return eventDispatcher;
+    }
 
-        public void error(Object... args) {
-            CONSOLE_LOGGER.error(formatArgs(args));
+    public AssetManager getAssetManager() {
+        if (!isInitialized()) {
+            throw new APIException("ENGINE_NOT_INITIALIZED", "Engine not initialized");
         }
+        return assetManager;
+    }
 
-        private String formatArgs(Object[] args) {
-            if (args.length == 0) return "";
-            if (args.length == 1) return String.valueOf(args[0]);
-
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < args.length; i++) {
-                if (i > 0) sb.append(" ");
-                sb.append(args[i]);
-            }
-            return sb.toString();
+    public JavaScriptRuntime getRuntime() {
+        if (!isInitialized()) {
+            throw new APIException("ENGINE_NOT_INITIALIZED", "Engine not initialized");
         }
+        return runtime;
+    }
+
+    public ServerNetworkManager getNetworkManager() {
+        if (!isInitialized()) {
+            throw new APIException("ENGINE_NOT_INITIALIZED", "Engine not initialized");
+        }
+        return networkManager;
     }
 }

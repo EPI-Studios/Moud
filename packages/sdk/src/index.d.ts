@@ -1,32 +1,63 @@
-// --- SHARED TYPES ---
+interface Vector3 {
+    readonly x: number;
+    readonly y: number;
+    readonly z: number;
+}
 
-interface Player {
+interface Entity {
+
+    getId(): number;
+
+    getPosition(): Vector3;
+
+    getDirection(): Vector3;
+
+    teleport(x: number, y: number, z: number): void;
+
+    lookAt(x: number, y: number, z: number): void;
+
+    destroy(): void;
+}
+
+interface Player extends Entity {
+
     getName(): string;
+
     getUuid(): string;
+
     sendMessage(message: string): void;
+
     kick(reason: string): void;
+
     isOnline(): boolean;
+
     getClient(): PlayerClient;
 }
 
 interface PlayerClient {
+
     send(eventName: string, data: any): void;
 }
 
-// --- SERVER-SIDE API ---
-
 declare global {
+
     const api: MoudAPI;
+
     const assets: ServerAssets;
+
     const console: MoudConsole;
 }
 
 interface MoudAPI {
+
     on(eventName: 'player.join', callback: (player: Player) => void): void;
     on(eventName: 'player.chat', callback: (event: ChatEvent) => void): void;
+
     on(eventName: string, callback: (data: any, player: Player) => void): void;
+
     getServer(): Server;
-    createWorld(): World;
+
+    getWorld(): World;
 }
 
 interface ChatEvent {
@@ -46,6 +77,12 @@ interface World {
     setFlatGenerator(): World;
     setVoidGenerator(): World;
     setSpawn(x: number, y: number, z: number): World;
+
+    getBlock(x: number, y: number, z: number): string;
+
+    setBlock(x: number, y: number, z: number, blockId: string): void;
+
+    spawnScriptedEntity(entityType: string, x: number, y: number, z: number, jsInstance: any): Entity;
 }
 
 interface ServerAssets {
@@ -69,8 +106,6 @@ interface DataAsset {
     getContent(): string;
 }
 
-// --- CLIENT-SIDE API ---
-
 declare const Moud: ClientAPI;
 
 interface ClientAPI {
@@ -78,6 +113,7 @@ interface ClientAPI {
     readonly rendering: RenderingService;
     readonly ui: UIService;
     readonly console: MoudConsole;
+    readonly camera: CameraService;
 }
 
 interface NetworkService {
@@ -88,16 +124,37 @@ interface NetworkService {
 interface RenderingService {
     applyPostEffect(effectId: string): void;
     removePostEffect(effectId: string): void;
-    on(eventName: string, callback: (deltaTime: number) => void): void;
+    on(eventName: 'beforeWorldRender', callback: (deltaTime: number) => void): void;
 }
 
 interface UIService {
+
 }
 
 interface MoudConsole {
     log(...args: any[]): void;
     warn(...args: any[]): void;
     error(...args: any[]): void;
+}
+
+interface CameraService {
+    enableCustomCamera(): void;
+    disableCustomCamera(): void;
+    isCustomCameraActive(): boolean;
+    getPitch(): number;
+    setPitch(pitch: number): void;
+    getYaw(): number;
+    setYaw(yaw: number): void;
+    getX(): number;
+    getY(): number;
+    getZ(): number;
+    setPosition(x: number, y: number, z: number): void;
+    addRotation(pitchDelta: number, yawDelta: number): void;
+    getFov(): number;
+    setFov(fov: number): void;
+    isThirdPerson(): boolean;
+    setThirdPerson(thirdPerson: boolean): void;
+    lookAt(targetX: number, targetY: number, targetZ: number): void;
 }
 
 export {};
