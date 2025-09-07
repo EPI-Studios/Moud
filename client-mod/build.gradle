@@ -9,10 +9,16 @@ repositories {
     maven { url = "https://api.modrinth.com/maven" }
 }
 
+loom {
+    accessWidenerPath = file("src/main/resources/moud.accesswidener")
+}
+
 dependencies {
     minecraft "com.mojang:minecraft:1.21.1"
     mappings "net.fabricmc:yarn:1.21.1+build.1:v2"
     modImplementation "net.fabricmc:fabric-loader:0.16.14"
+
+    implementation project(':api')
 
     modImplementation "net.fabricmc.fabric-api:fabric-api:0.116.6+1.21.1"
     modImplementation "foundry.veil:veil-fabric-1.21.1:1.0.0.238"

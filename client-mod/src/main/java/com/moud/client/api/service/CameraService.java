@@ -1,5 +1,8 @@
 package com.moud.client.api.service;
 
+import com.moud.client.camera.CameraAPI;
+import com.moud.client.camera.CameraManager;
+import com.moud.client.camera.impl.ScriptableCameraImpl;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.MathHelper;
@@ -9,70 +12,140 @@ public final class CameraService {
 
     public CameraService() {
         this.client = MinecraftClient.getInstance();
+        initializeScriptableCamera();
+    }
+
+    private void initializeScriptableCamera() {
+        ScriptableCameraImpl camera = new ScriptableCameraImpl();
+        CameraManager.setCamera(camera);
+    }
+
+    public void enableCustomCamera() {
+        CameraManager.enableCamera();
+    }
+
+    public void disableCustomCamera() {
+        CameraManager.disableCamera();
+    }
+
+    public boolean isCustomCameraActive() {
+        return CameraManager.isCameraActive();
     }
 
     public float getPitch() {
-        Entity camera = client.getCameraEntity();
-        return camera != null ? camera.getPitch() : 0.0f;
+        CameraAPI camera = CameraManager.getCurrentCamera();
+        if (camera != null && camera.isEnabled()) {
+            return camera.getPitch();
+        }
+        Entity cameraEntity = client.getCameraEntity();
+        return cameraEntity != null ? cameraEntity.getPitch() : 0.0f;
     }
 
     public void setPitch(float pitch) {
-        Entity camera = client.getCameraEntity();
-        if (camera != null) {
+        CameraAPI camera = CameraManager.getCurrentCamera();
+        if (camera != null && camera.isEnabled()) {
             camera.setPitch(MathHelper.clamp(pitch, -90.0f, 90.0f));
+        } else {
+            Entity cameraEntity = client.getCameraEntity();
+            if (cameraEntity != null) {
+                cameraEntity.setPitch(MathHelper.clamp(pitch, -90.0f, 90.0f));
+            }
         }
     }
 
     public float getYaw() {
-        Entity camera = client.getCameraEntity();
-        return camera != null ? camera.getYaw() : 0.0f;
+        CameraAPI camera = CameraManager.getCurrentCamera();
+        if (camera != null && camera.isEnabled()) {
+            return camera.getYaw();
+        }
+        Entity cameraEntity = client.getCameraEntity();
+        return cameraEntity != null ? cameraEntity.getYaw() : 0.0f;
     }
 
     public void setYaw(float yaw) {
-        Entity camera = client.getCameraEntity();
-        if (camera != null) {
+        CameraAPI camera = CameraManager.getCurrentCamera();
+        if (camera != null && camera.isEnabled()) {
             camera.setYaw(yaw);
+        } else {
+            Entity cameraEntity = client.getCameraEntity();
+            if (cameraEntity != null) {
+                cameraEntity.setYaw(yaw);
+            }
         }
     }
 
     public double getX() {
-        Entity camera = client.getCameraEntity();
-        return camera != null ? camera.getX() : 0.0;
+        CameraAPI camera = CameraManager.getCurrentCamera();
+        if (camera != null && camera.isEnabled()) {
+            return camera.getPosition().x;
+        }
+        Entity cameraEntity = client.getCameraEntity();
+        return cameraEntity != null ? cameraEntity.getX() : 0.0;
     }
 
     public double getY() {
-        Entity camera = client.getCameraEntity();
-        return camera != null ? camera.getY() : 0.0;
+        CameraAPI camera = CameraManager.getCurrentCamera();
+        if (camera != null && camera.isEnabled()) {
+            return camera.getPosition().y;
+        }
+        Entity cameraEntity = client.getCameraEntity();
+        return cameraEntity != null ? cameraEntity.getY() : 0.0;
     }
 
     public double getZ() {
-        Entity camera = client.getCameraEntity();
-        return camera != null ? camera.getZ() : 0.0;
+        CameraAPI camera = CameraManager.getCurrentCamera();
+        if (camera != null && camera.isEnabled()) {
+            return camera.getPosition().z;
+        }
+        Entity cameraEntity = client.getCameraEntity();
+        return cameraEntity != null ? cameraEntity.getZ() : 0.0;
     }
 
     public void setPosition(double x, double y, double z) {
-        Entity camera = client.getCameraEntity();
-        if (camera != null) {
+        CameraAPI camera = CameraManager.getCurrentCamera();
+        if (camera != null && camera.isEnabled()) {
             camera.setPosition(x, y, z);
+        } else {
+            Entity cameraEntity = client.getCameraEntity();
+            if (cameraEntity != null) {
+                cameraEntity.setPosition(x, y, z);
+            }
         }
     }
 
     public void addRotation(float pitchDelta, float yawDelta) {
-        Entity camera = client.getCameraEntity();
-        if (camera != null) {
+        CameraAPI camera = CameraManager.getCurrentCamera();
+        if (camera != null && camera.isEnabled()) {
             float newPitch = MathHelper.clamp(camera.getPitch() + pitchDelta, -90.0f, 90.0f);
             float newYaw = camera.getYaw() + yawDelta;
             camera.setPitch(newPitch);
             camera.setYaw(newYaw);
+        } else {
+            Entity cameraEntity = client.getCameraEntity();
+            if (cameraEntity != null) {
+                float newPitch = MathHelper.clamp(cameraEntity.getPitch() + pitchDelta, -90.0f, 90.0f);
+                float newYaw = cameraEntity.getYaw() + yawDelta;
+                cameraEntity.setPitch(newPitch);
+                cameraEntity.setYaw(newYaw);
+            }
         }
     }
 
     public float getFov() {
+        CameraAPI camera = CameraManager.getCurrentCamera();
+        if (camera != null && camera.isEnabled()) {
+            return camera.getFOV();
+        }
         return (float) client.options.getFov().getValue();
     }
 
     public void setFov(double fov) {
-        client.options.getFov().setValue((int) fov);
+        CameraAPI camera = CameraManager.getCurrentCamera();
+        if (camera != null && camera.isEnabled()) {
+            camera.setFOV((float) fov);
+        } else {
+            client.options.getFov().setValue((int) fov);
+        }
     }
 
     public boolean isThirdPerson() {
@@ -88,18 +161,19 @@ public final class CameraService {
     }
 
     public void lookAt(double targetX, double targetY, double targetZ) {
-        Entity camera = client.getCameraEntity();
-        if (camera != null) {
-            double deltaX = targetX - camera.getX();
-            double deltaY = targetY - camera.getY();
-            double deltaZ = targetZ - camera.getZ();
+        double currentX = getX();
+        double currentY = getY();
+        double currentZ = getZ();
 
-            double distance = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
-            float yaw = (float) (Math.atan2(-deltaX, deltaZ) * 180.0 / Math.PI);
-            float pitch = (float) (Math.atan2(-deltaY, distance) * 180.0 / Math.PI);
+        double deltaX = targetX - currentX;
+        double deltaY = targetY - currentY;
+        double deltaZ = targetZ - currentZ;
 
-            camera.setYaw(yaw);
-            camera.setPitch(MathHelper.clamp(pitch, -90.0f, 90.0f));
-        }
+        double distance = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
+        float yaw = (float) (Math.atan2(-deltaX, deltaZ) * 180.0 / Math.PI);
+        float pitch = (float) (Math.atan2(-deltaY, distance) * 180.0 / Math.PI);
+
+        setYaw(yaw);
+        setPitch(MathHelper.clamp(pitch, -90.0f, 90.0f));
     }
 }

@@ -41,6 +41,8 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private static final Identifier MOUDPACK_ID = Identifier.of("moud", "dynamic_resources");
 
     private static boolean smoothCameraActive = false;
+    private static float smoothYaw = 0.0f;
+    private static float smoothPitch = 0.0f;
 
     private ClientScriptingRuntime scriptingRuntime;
     private final AtomicReference<InMemoryPackResources> dynamicPack = new AtomicReference<>(null);
@@ -51,10 +53,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
     public static void setSmoothCameraActive(boolean active) {
         smoothCameraActive = active;
-    }
-
-    public static float getSmoothPitch() {
-        // TODO : Using lerp function to have smooth pitch values
     }
 
     @Override
