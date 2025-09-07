@@ -100,4 +100,6 @@ public class Vector3 {
     public static Vector3 back() { return new Vector3(0, 0, -1); }
     public static Vector3 left() { return new Vector3(-1, 0, 0); }
     public static Vector3 right() { return new Vector3(1, 0, 0); }
+
+
 }
