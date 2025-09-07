@@ -5,8 +5,10 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [],
   "client": [
-    "GameRendererMixin",
-    "MouseInputMixin"
+    "CameraMixin",
+    "MinecraftMixin",
+    "MouseInputMixin",
+    "MouseMixin"
   ],
   "injectors": {
     "defaultRequire": 1
