@@ -1,11 +1,12 @@
 package com.moud.client.api.service;
 
+import org.graalvm.polyglot.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class ConsoleAPI {
     private static final Logger LOGGER = LoggerFactory.getLogger("ClientScript.Console");
-
+    private Context jsContext;
     public void log(Object... args) {
         LOGGER.info(formatArgs(args));
     }
@@ -29,4 +30,16 @@ public final class ConsoleAPI {
         }
         return sb.toString();
     }
+
+    public void cleanUp() {
+
+        jsContext = null;
+        LOGGER.info("ConsoleAPI cleaned up.");
+    }
+
+    public void setContext(Context jsContext) {
+        this.jsContext = jsContext;
+        LOGGER.debug("NetworkService received new GraalVM Context.");
+    }
+
 }

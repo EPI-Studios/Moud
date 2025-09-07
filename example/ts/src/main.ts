@@ -1,70 +1,92 @@
-try {
-    console.log("Attempting to load shader...");
-    const myShader = assets.loadShader('shaders/my_shader.glsl');
-    console.log(`Shader loaded successfully! ID: ${myShader.getId()}`);
-} catch (e) {
-    console.error("Failed to load shader:", e);
+class Guardian {
+    private self: Entity;
+    private target: Player | null = null;
+    private speed: number = 0.05;
+
+    onSpawn(entity: Entity) {
+        this.self = entity;
+        console.log(`Guardian spawned with ID: ${this.self.getId()}`);
+    }
+
+    onTick() {
+        if (!this.target || !this.target.isOnline()) {
+            return;
+        }
+
+        const targetPos = this.target.getPosition();
+        const myPos = this.self.getPosition();
+        const dirX = targetPos.x - myPos.x;
+        const dirY = targetPos.y - myPos.y;
+        const dirZ = targetPos.z - myPos.z;
+        const distance = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
+
+        if (distance < 2.0) {
+            this.self.lookAt(targetPos.x, targetPos.y + 1.6, targetPos.z);
+            return;
+        }
+
+        const newX = myPos.x + (dirX / distance) * this.speed;
+        const newY = myPos.y + (dirY / distance) * this.speed;
+        const newZ = myPos.z + (dirZ / distance) * this.speed;
+
+        this.self.teleport(newX, newY, newZ);
+        this.self.lookAt(targetPos.x, targetPos.y + 1.6, targetPos.z);
+    }
+
+    setTarget(player: Player) {
+        this.target = player;
+        console.log(`Guardian's new target: ${player.getName()}`);
+    }
 }
 
-const world: World = api.createWorld();
-world.setFlatGenerator().setSpawn(0, 65, 0);
+console.log('Moud Guardian Example loaded successfully.');
 
+const world = api.getWorld();
+world.setFlatGenerator();
+let guardianInstance: Guardian | null = null;
 const playerSmoothCameraStatus = new Map<string, boolean>();
 
 api.on('player.join', (player: Player) => {
-    console.log(`Player joined: ${player.getName()}`);
-    player.sendMessage('§6Welcome to the Moud TypeScript server!');
+    player.sendMessage('§6Welcome! Type §e!spawn§6 to create a guardian.');
     playerSmoothCameraStatus.set(player.getUuid(), false);
-
-    const server: Server = api.getServer();
-    server.broadcast(`§7${player.getName()} joined the server`);
-
-    player.getClient().send('hud:welcome', {
-        playerName: player.getName(),
-        serverInfo: 'Moud Test Server',
-        timestamp: Date.now()
-    });
 });
 
-api.on('player.chat', (chatEvent: ChatEvent) => {
-    const player: Player = chatEvent.getPlayer();
-    const message: string = chatEvent.getMessage();
+api.on('player.chat', (event) => {
+    const player = event.getPlayer();
+    const message = event.getMessage();
 
-    if (message.startsWith('!')) {
-        chatEvent.cancel();
-
-        if (message === '!smoothcamera') {
-            const currentStatus = playerSmoothCameraStatus.get(player.getUuid()) || false;
-            const newStatus = !currentStatus;
-            playerSmoothCameraStatus.set(player.getUuid(), newStatus);
-
-            player.getClient().send('camera:toggle_smooth', { enabled: newStatus });
-            player.sendMessage(`§eCinematic camera: §${newStatus ? 'aENABLED' : 'cDISABLED'}`);
+    if (message === '!spawn') {
+        event.cancel();
+        if (guardianInstance) {
+            player.sendMessage('§cA guardian already exists. Type §e!targetme§c.');
+            return;
         }
-        else if (message === '!effect') {
-            player.sendMessage('§eToggling screen invert effect...');
-            player.getClient().send('rendering:toggle_invert', {});
-        }
-        else if (message === '!players') {
-            const playerCount: number = api.getServer().getPlayerCount();
-            player.sendMessage(`§eOnline players: ${playerCount}`);
-        } else if (message.startsWith('!say ')) {
-            const text: string = message.substring(5);
-            api.getServer().broadcast(`§c[BROADCAST] §f${text}`);
-        } else if (message === '!test') {
-            player.getClient().send('test:notification', {
-                type: 'success',
-                message: 'Client-server communication working!',
-                duration: 5000
-            });
-            player.sendMessage('§aTest event sent to client');
+
+        const pos = player.getPosition();
+        const logic = new Guardian();
+        const entityProxy = world.spawnScriptedEntity("minecraft:iron_golem", pos.x + 2, pos.y, pos.z, logic);
+        logic.onSpawn(entityProxy);
+        guardianInstance = logic;
+        api.getServer().broadcast('§aA Guardian has been spawned!');
+    }
+
+    if (message === '!targetme') {
+        event.cancel();
+        if (guardianInstance) {
+            guardianInstance.setTarget(player);
+            player.sendMessage('§aThe Guardian is now following you.');
+        } else {
+            player.sendMessage('§cNo guardian exists. Type §e!spawn§c first.');
         }
     }
-});
 
-api.on('test:clientResponse', (data: any, player: Player) => {
-    console.log(`Received client response from ${player.getName()}:`, data);
-    player.sendMessage('§bClient response received!');
-});
+    if (message === '!smooth_camera') {
+        event.cancel();
+        const currentStatus = playerSmoothCameraStatus.get(player.getUuid()) || false;
+        const newStatus = !currentStatus;
+        playerSmoothCameraStatus.set(player.getUuid(), newStatus);
 
-console.log('Moud TypeScript project loaded successfully');
+        player.getClient().send('camera:toggle_smooth', { enabled: newStatus });
+        player.sendMessage(`§eCinematic camera: §${newStatus ? 'aENABLED' : 'cDISABLED'}`);
+    }
+});

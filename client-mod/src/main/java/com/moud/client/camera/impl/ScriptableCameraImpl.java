@@ -13,6 +13,8 @@ public class ScriptableCameraImpl extends CameraAPI {
         if (mc.player != null) {
             Vec3d playerPos = mc.player.getEyePos();
             position = new com.moud.api.math.Vector3((float)playerPos.x, (float)playerPos.y, (float)playerPos.z);
+            prevPosition = position;
+            targetPosition = position;
             yaw = mc.player.getYaw();
             pitch = mc.player.getPitch();
         }
@@ -23,8 +25,10 @@ public class ScriptableCameraImpl extends CameraAPI {
         if (!enabled) return;
 
         if (isTrackingEntity() && trackedEntity != null) {
+            prevPosition = targetPosition;
             Vec3d entityPos = trackedEntity.getEyePos();
-            setPosition(entityPos.x, entityPos.y, entityPos.z);
+            targetPosition = new com.moud.api.math.Vector3((float)entityPos.x, (float)entityPos.y, (float)entityPos.z);
+            setPosition(targetPosition.x, targetPosition.y, targetPosition.z);
         }
     }
 
@@ -43,7 +47,9 @@ public class ScriptableCameraImpl extends CameraAPI {
             java.lang.reflect.Field pitchField = Camera.class.getDeclaredField("pitch");
             pitchField.setAccessible(true);
             pitchField.set(camera, pitch);
+
         } catch (Exception e) {
+
         }
     }
 
@@ -59,5 +65,6 @@ public class ScriptableCameraImpl extends CameraAPI {
             float newFov = fov + (float) deltaZ * 2.0f;
             setFOV(newFov);
         }
+
     }
 }

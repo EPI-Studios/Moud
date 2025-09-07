@@ -8,6 +8,8 @@ public abstract class CameraAPI {
 
     protected boolean enabled = false;
     protected Vector3 position = Vector3.zero();
+    public Vector3 prevPosition = Vector3.zero();
+    public Vector3 targetPosition = Vector3.zero();
     protected float yaw = 0.0f;
     protected float pitch = 0.0f;
     protected float roll = 0.0f;
@@ -35,6 +37,8 @@ public abstract class CameraAPI {
     }
 
     protected void onEnable() {
+        prevPosition = position;
+        targetPosition = position;
     }
 
     protected void onDisable() {
@@ -54,6 +58,14 @@ public abstract class CameraAPI {
 
     public Vector3 getPosition() {
         return position;
+    }
+
+    public Vector3 getPrevPosition() {
+        return prevPosition;
+    }
+
+    public Vector3 getTargetPosition() {
+        return targetPosition;
     }
 
     public void setRotation(float yaw, float pitch, float roll) {
@@ -119,6 +131,7 @@ public abstract class CameraAPI {
 
     public void trackEntity(Entity entity) {
         this.trackedEntity = entity;
+
     }
 
     public void stopTracking() {
@@ -159,6 +172,8 @@ public abstract class CameraAPI {
 
     public void reset() {
         position = Vector3.zero();
+        prevPosition = Vector3.zero();
+        targetPosition = Vector3.zero();
         yaw = 0.0f;
         pitch = 0.0f;
         roll = 0.0f;

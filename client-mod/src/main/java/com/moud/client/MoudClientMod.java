@@ -1,11 +1,19 @@
 package com.moud.client;
 
 import com.moud.client.api.service.ClientAPIService;
+import com.moud.client.api.service.NetworkService;
+import com.moud.client.api.service.RenderingService;
+import com.moud.client.api.service.UIService;
+import com.moud.client.api.service.ConsoleAPI;
+import com.moud.client.api.service.CameraService;
+import com.moud.client.api.service.InputService;
+import com.moud.client.update.ClientUpdateManager;
 import com.moud.client.network.MoudPackets;
 import com.moud.client.resources.InMemoryPackResources;
 import com.moud.client.runtime.ClientScriptingRuntime;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
@@ -22,6 +30,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.graalvm.polyglot.Context;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -62,6 +71,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         registerResourcePackProvider();
         setupNetworking();
         registerEventHandlers();
+
         LOGGER.info("Moud client initialized successfully");
     }
 
@@ -115,8 +125,12 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     }
 
     private void initializeServices() {
+
         ClientAPIService apiService = new ClientAPIService();
+
         scriptingRuntime = new ClientScriptingRuntime(apiService);
+
+        scriptingRuntime.initialize();
     }
 
     private void setupNetworking() {
@@ -153,6 +167,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             client.reloadResources();
         }
         if (scriptingRuntime != null) {
+
             scriptingRuntime.shutdown();
         }
         smoothCameraActive = false;
@@ -186,20 +201,23 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
         context.client().reloadResources().thenRunAsync(() -> {
             LOGGER.info("Resources reloaded; loading scripts");
-            if (!scriptingRuntime.isInitialized()) {
-                scriptingRuntime.initialize();
+
+            if (scriptingRuntime != null) {
+                scriptingRuntime.loadScripts(scriptsData)
+                        .thenRun(() -> LOGGER.info("Scripts loaded successfully"))
+                        .exceptionally(t -> {
+                            LOGGER.error("Script load failed", t);
+                            return null;
+                        });
+            } else {
+                LOGGER.error("Scripting runtime is null, cannot load scripts after resource reload.");
             }
-            scriptingRuntime.loadScripts(scriptsData)
-                    .thenRun(() -> LOGGER.info("Scripts loaded successfully"))
-                    .exceptionally(t -> {
-                        LOGGER.error("Script load failed", t);
-                        return null;
-                    });
         }, context.client());
     }
 
     private void handleScriptEvent(MoudPackets.ClientboundScriptEvent packet, ClientPlayNetworking.Context context) {
         if (scriptingRuntime != null && scriptingRuntime.isInitialized()) {
+
             scriptingRuntime.triggerNetworkEvent(packet.eventName(), packet.eventData());
         }
     }

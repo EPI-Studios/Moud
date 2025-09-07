@@ -6,10 +6,14 @@ import com.moud.client.camera.impl.ScriptableCameraImpl;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.MathHelper;
+import org.graalvm.polyglot.Context;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class CameraService {
     private final MinecraftClient client;
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(CameraService.class);
+    private Context jsContext;
     public CameraService() {
         this.client = MinecraftClient.getInstance();
         initializeScriptableCamera();
@@ -20,12 +24,35 @@ public final class CameraService {
         CameraManager.setCamera(camera);
     }
 
+    public void setContext(Context jsContext) {
+        this.jsContext = jsContext;
+        LOGGER.debug("NetworkService received new GraalVM Context.");
+    }
+
     public void enableCustomCamera() {
+        Entity player = client.player;
+        if (player != null) {
+            CameraAPI camera = CameraManager.getCurrentCamera();
+            if (camera != null) {
+                camera.setPosition(player.getX(), player.getEyeY(), player.getZ());
+                camera.setYaw(player.getYaw());
+                camera.setPitch(player.getPitch());
+                camera.trackEntity(player);
+                camera.prevPosition = camera.getPosition();
+                camera.targetPosition = camera.getPosition();
+            }
+        }
         CameraManager.enableCamera();
+
     }
 
     public void disableCustomCamera() {
+        CameraAPI camera = CameraManager.getCurrentCamera();
+        if (camera != null) {
+            camera.stopTracking();
+        }
         CameraManager.disableCamera();
+
     }
 
     public boolean isCustomCameraActive() {
@@ -175,5 +202,11 @@ public final class CameraService {
 
         setYaw(yaw);
         setPitch(MathHelper.clamp(pitch, -90.0f, 90.0f));
+    }
+
+    public void cleanUp() {
+
+        jsContext = null;
+        LOGGER.info("CameraService cleaned up.");
     }
 }

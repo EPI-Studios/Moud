@@ -4,7 +4,7 @@ let smoothYaw = 0.0;
 let targetPitch = 0.0;
 let targetYaw = 0.0;
 let smoothingFactor = 0.7;
-let mouseSensitivity = 0.1;
+let mouseSensitivity = 1.0;
 let lastTime = Date.now();
 let smoothCameraEnabled = false;
 
@@ -14,9 +14,10 @@ function framerate_independent_lerp(source: number, destination: number, smoothi
 
 Moud.input.onMouseMove((deltaX: number, deltaY: number) => {
     if (smoothCameraEnabled) {
-        targetYaw += deltaX * mouseSensitivity;
-        targetPitch -= deltaY * mouseSensitivity;
+        targetYaw += deltaX;
+        targetPitch += deltaY;
         targetPitch = Math.max(-90, Math.min(90, targetPitch));
+        Moud.console.log('Debug: Mouse move - DeltaX: ' + deltaX + ', DeltaY: ' + deltaY + ' | Target Yaw: ' + targetYaw + ', Target Pitch: ' + targetPitch);
     }
 });
 
@@ -28,8 +29,10 @@ Moud.network.on('camera:toggle_smooth', (data: any) => {
         targetPitch = Moud.camera.getPitch();
         smoothYaw = targetYaw;
         smoothPitch = targetPitch;
+        Moud.camera.enableCustomCamera();
         Moud.console.log('Cinematic camera enabled');
     } else {
+        Moud.camera.disableCustomCamera();
         Moud.console.log('Cinematic camera disabled');
     }
 });
@@ -46,6 +49,7 @@ Moud.rendering.on('beforeWorldRender', () => {
 
     Moud.camera.setYaw(smoothYaw);
     Moud.camera.setPitch(smoothPitch);
+    Moud.console.log('Debug: Smoothed rotation - Yaw: ' + smoothYaw + ', Pitch: ' + smoothPitch);
 });
 
 Moud.network.on('rendering:toggle_invert', () => {
