@@ -46,7 +46,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     public void onInitializeClient() {
         LOGGER.info("Initializing Moud client...");
 
-        this.scriptingRuntime = new ClientScriptingRuntime();
+        this.scriptingRuntime = new ClientScriptingRuntime(this.apiService);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (scriptingRuntime != null) {
@@ -73,7 +73,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         this.scriptingRuntime.initialize();
         this.apiService.setRuntime(this.scriptingRuntime);
     }
-
     private void setupNetworking() {
         LOGGER.info("Setting up networking...");
         PayloadTypeRegistry.playS2C().register(MoudPackets.SyncClientScripts.ID, MoudPackets.SyncClientScripts.CODEC);

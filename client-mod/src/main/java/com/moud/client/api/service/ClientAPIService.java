@@ -61,6 +61,7 @@ public final class ClientAPIService {
         this.network.setContext(context);
         this.rendering.setContext(context);
         this.ui.setContext(context);
+        this.ui.setExecutor(this.scriptingRuntime.getExecutor());
         this.console.setContext(context);
         this.camera.setContext(context);
 
