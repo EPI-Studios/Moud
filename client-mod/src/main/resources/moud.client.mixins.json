@@ -7,7 +7,9 @@
   "client": [
     "CameraMixin",
     "GameRendererMixin",
-    "MinecraftMixin"
+    "InGameHudMixin",
+    "MinecraftMixin",
+    "MouseMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -26,31 +26,32 @@ public final class CameraService {
         this.jsContext = jsContext;
     }
 
-
     public void enableCustomCamera() {
         MoudClientMod.setCustomCameraActive(true);
     }
 
     public void disableCustomCamera() {
         MoudClientMod.setCustomCameraActive(false);
-        clearRenderOverrides(); // Also clear any leftover overrides.
+        clearRenderOverrides();
     }
+
     public boolean isCustomCameraActive() {
         return MoudClientMod.isCustomCameraActive();
     }
 
-    public void setRenderYawOverride(float yaw) {
-        this.overrideYaw = yaw;
+    public void setRenderYawOverride(double yaw) {
+        this.overrideYaw = (float) yaw;
     }
 
-    public void setRenderPitchOverride(float pitch) {
-        this.overridePitch = pitch;
+    public void setRenderPitchOverride(double pitch) {
+        this.overridePitch = (float) pitch;
     }
 
     public void clearRenderOverrides() {
         this.overrideYaw = null;
         this.overridePitch = null;
     }
+
     @Nullable
     public Float getRenderYawOverride() {
         return this.overrideYaw;
@@ -93,28 +94,30 @@ public final class CameraService {
         }
     }
 
-    public void addRotation(float pitchDelta, float yawDelta) {
+    public void addRotation(double pitchDelta, double yawDelta) {
         Entity cameraEntity = client.getCameraEntity();
         if (cameraEntity != null) {
-            float newPitch = MathHelper.clamp(cameraEntity.getPitch() + pitchDelta, -90.0f, 90.0f);
-            float newYaw = cameraEntity.getYaw() + yawDelta;
+            float newPitch = MathHelper.clamp(cameraEntity.getPitch() + (float)pitchDelta, -90.0f, 90.0f);
+            float newYaw = cameraEntity.getYaw() + (float)yawDelta;
             cameraEntity.setPitch(newPitch);
             cameraEntity.setYaw(newYaw);
         }
     }
-    public void setPitch(float pitch) {
+
+    public void setPitch(double pitch) {
         Entity cameraEntity = client.getCameraEntity();
         if (cameraEntity != null) {
-            cameraEntity.setPitch(MathHelper.clamp(pitch, -90.0f, 90.0f));
+            cameraEntity.setPitch(MathHelper.clamp((float)pitch, -90.0f, 90.0f));
         }
     }
 
-    public void setYaw(float yaw) {
+    public void setYaw(double yaw) {
         Entity cameraEntity = client.getCameraEntity();
         if (cameraEntity != null) {
-            cameraEntity.setYaw(yaw);
+            cameraEntity.setYaw((float)yaw);
         }
     }
+
     public float getFov() {
         return (float) client.options.getFov().getValue();
     }

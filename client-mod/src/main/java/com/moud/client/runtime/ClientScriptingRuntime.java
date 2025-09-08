@@ -6,8 +6,12 @@ import org.graalvm.polyglot.HostAccess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ClientScriptingRuntime {
@@ -17,6 +21,7 @@ public class ClientScriptingRuntime {
 
     private final ClientAPIService apiService;
     private Context graalContext;
+    private final ExecutorService scriptExecutor;
 
     private static final Queue<Runnable> scriptExecutionQueue = new ConcurrentLinkedQueue<>();
 
@@ -28,6 +33,11 @@ public class ClientScriptingRuntime {
         }
         instance = this;
         this.apiService = apiService;
+        this.scriptExecutor = Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "ClientScript-Executor");
+            t.setDaemon(true);
+            return t;
+        });
     }
 
     public static ClientScriptingRuntime getInstance() {
@@ -47,22 +57,51 @@ public class ClientScriptingRuntime {
         }
     }
 
-    public void loadScripts() {
+    public CompletableFuture<Void> loadScripts(Map<String, byte[]> scriptsData) {
         LOGGER.info("Scheduling script loading...");
-        scheduleScriptTask(() -> {
+        return CompletableFuture.runAsync(() -> {
+            graalContext.enter();
+            try {
+                graalContext.getBindings("js").putMember("Moud", this.apiService);
+
+                for (Map.Entry<String, byte[]> entry : scriptsData.entrySet()) {
+                    String scriptName = entry.getKey();
+                    String scriptContent = new String(entry.getValue());
+
+                    LOGGER.debug("Loading client script: {}", scriptName);
+                    graalContext.eval("js", scriptContent);
+                }
+                LOGGER.info("Client scripts loaded and executed successfully.");
+                this.initialized.set(true);
+            } catch (Exception e) {
+                LOGGER.error("Failed to load client scripts", e);
+                this.initialized.set(false);
+                throw new RuntimeException(e);
+            } finally {
+                graalContext.leave();
+            }
+        }, scriptExecutor);
+    }
+
+    public CompletableFuture<Void> loadScripts() {
+        LOGGER.info("Scheduling script loading...");
+        return CompletableFuture.runAsync(() -> {
             try {
                 LOGGER.info("Client scripts loaded and executed successfully.");
                 this.initialized.set(true);
             } catch (Exception e) {
                 LOGGER.error("Failed to load client scripts", e);
                 this.initialized.set(false);
+                throw new RuntimeException(e);
             }
-        });
+        }, scriptExecutor);
     }
 
     public void triggerNetworkEvent(String eventName, String data) {
-        scheduleScriptTask(() -> {
-            if (!isInitialized()) return;
+        if (!isInitialized()) return;
+
+        scriptExecutor.execute(() -> {
+            graalContext.enter();
             try {
                 graalContext.getBindings("js")
                         .getMember("moudAPI")
@@ -70,6 +109,8 @@ public class ClientScriptingRuntime {
                         .invokeMember("triggerEvent", eventName, data);
             } catch (Exception e) {
                 LOGGER.error("Failed to trigger network event '{}' in script", eventName, e);
+            } finally {
+                graalContext.leave();
             }
         });
     }
@@ -78,10 +119,18 @@ public class ClientScriptingRuntime {
         return this.initialized.get();
     }
 
+    public Context getContext() {
+        return graalContext;
+    }
+
+    public ExecutorService getExecutor() {
+        return scriptExecutor;
+    }
 
     public void error(String message, Throwable throwable) {
         LOGGER.error(message, throwable);
     }
+
     public static void scheduleScriptTask(Runnable scriptTask) {
         scriptExecutionQueue.add(scriptTask);
     }
@@ -101,7 +150,7 @@ public class ClientScriptingRuntime {
     }
 
     public void shutdown() {
-        scheduleScriptTask(() -> {
+        scriptExecutor.execute(() -> {
             if (graalContext != null) {
                 LOGGER.info("Closing GraalVM context.");
                 graalContext.close();
@@ -109,5 +158,6 @@ public class ClientScriptingRuntime {
                 this.initialized.set(false);
             }
         });
+        scriptExecutor.shutdown();
     }
 }
