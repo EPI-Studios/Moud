@@ -1,8 +1,8 @@
 package com.moud.client.api.service;
 
 import com.moud.client.camera.CameraManager;
+import com.moud.client.runtime.ClientScriptingRuntime; // Import the runtime
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService; // Import ExecutorService
 
 public final class InputService {
     private final MinecraftClient client;
@@ -23,13 +24,17 @@ public final class InputService {
     private double lastMouseX, lastMouseY;
     private double mouseDeltaX, mouseDeltaY;
 
-    private boolean isCapturingMouse = false;
-
     private static final Logger LOGGER = LoggerFactory.getLogger(InputService.class);
     private Context jsContext;
-
-    public InputService() {
+    private final ExecutorService scriptExecutor;
+    public InputService(ClientScriptingRuntime runtime) {
         this.client = MinecraftClient.getInstance();
+        this.scriptExecutor = runtime.getExecutor();
+    }
+
+    public void setContext(Context jsContext) {
+        this.jsContext = jsContext;
+        LOGGER.debug("InputService received new GraalVM Context.");
     }
 
     public boolean isKeyPressed(int keyCode) {
@@ -51,97 +56,74 @@ public final class InputService {
         return GLFW.glfwGetMouseButton(window, button) == GLFW.GLFW_PRESS;
     }
 
-    public double getMouseX() {
-        return client.mouse.getX();
-    }
 
-    public double getMouseY() {
-        return client.mouse.getY();
-    }
+    public double getMouseX() { return client.mouse.getX(); }
+    public double getMouseY() { return client.mouse.getY(); }
+    public double getMouseDeltaX() { return mouseDeltaX; }
+    public double getMouseDeltaY() { return mouseDeltaY; }
 
-    public double getMouseDeltaX() {
-        return mouseDeltaX;
-    }
-
-    public double getMouseDeltaY() {
-        return mouseDeltaY;
-    }
-
-    public void updateMouseDelta() {
-        double currentX = getMouseX();
-        double currentY = getMouseY();
-
-        mouseDeltaX = currentX - lastMouseX;
-        mouseDeltaY = currentY - lastMouseY;
-
-        lastMouseX = currentX;
-        lastMouseY = currentY;
-    }
 
     public void onKey(String keyName, Value callback) {
-        if (callback == null || !callback.canExecute()) {
-            throw new IllegalArgumentException("Callback must be executable");
-        }
+        if (callback == null || !callback.canExecute()) throw new IllegalArgumentException("Callback must be executable");
         keyCallbacks.put(keyName, callback);
     }
 
     public void onMouseButton(String buttonName, Value callback) {
-        if (callback == null || !callback.canExecute()) {
-            throw new IllegalArgumentException("Callback must be executable");
-        }
+        if (callback == null || !callback.canExecute()) throw new IllegalArgumentException("Callback must be executable");
         mouseCallbacks.put(buttonName, callback);
     }
 
     public void onMouseMove(Value callback) {
-        if (callback == null || !callback.canExecute()) {
-            throw new IllegalArgumentException("Callback must be executable");
-        }
+        if (callback == null || !callback.canExecute()) throw new IllegalArgumentException("Callback must be executable");
         this.mouseMoveCallback = callback;
     }
 
     public void onScroll(Value callback) {
-        if (callback == null || !callback.canExecute()) {
-            throw new IllegalArgumentException("Callback must be executable");
-        }
+        if (callback == null || !callback.canExecute()) throw new IllegalArgumentException("Callback must be executable");
         this.scrollCallback = callback;
     }
 
     public void triggerKeyEvent(String keyName, boolean pressed) {
         Value callback = keyCallbacks.get(keyName);
-        if (callback != null && callback.canExecute()) {
-            callback.execute(keyName, pressed);
-        }
+        if (callback != null) executeCallback(callback, keyName, pressed);
     }
 
     public void triggerMouseButtonEvent(String buttonName, boolean pressed) {
         Value callback = mouseCallbacks.get(buttonName);
-        if (callback != null && callback.canExecute()) {
-            callback.execute(buttonName, pressed);
-        }
+        if (callback != null) executeCallback(callback, buttonName, pressed);
     }
 
     public void triggerMouseMoveEvent(double deltaX, double deltaY) {
         if (CameraManager.isCameraActive()) {
             CameraManager.handleInput(deltaX, deltaY, 0);
         }
-
-        if (mouseMoveCallback != null && mouseMoveCallback.canExecute()) {
-            mouseMoveCallback.execute(deltaX, deltaY);
-        }
+        if (mouseMoveCallback != null) executeCallback(mouseMoveCallback, deltaX, deltaY);
     }
 
     public void triggerScrollEvent(double scrollDelta) {
-        if (scrollCallback != null && scrollCallback.canExecute()) {
-            scrollCallback.execute(scrollDelta);
-        }
+        if (scrollCallback != null) executeCallback(scrollCallback, scrollDelta);
     }
 
+    private void executeCallback(Value callback, Object... args) {
+        if (scriptExecutor == null || scriptExecutor.isShutdown() || jsContext == null) return;
+
+        scriptExecutor.execute(() -> {
+            jsContext.enter();
+            try {
+                if (callback.canExecute()) {
+                    callback.execute(args);
+                }
+            } catch (Exception e) {
+                LOGGER.error("Error executing script callback", e);
+            } finally {
+                jsContext.leave();
+            }
+        });
+    }
+
+
     public void lockMouse(boolean locked) {
-        if (locked) {
-            GLFW.glfwSetInputMode(client.getWindow().getHandle(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_DISABLED);
-        } else {
-            GLFW.glfwSetInputMode(client.getWindow().getHandle(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
-        }
+        GLFW.glfwSetInputMode(client.getWindow().getHandle(), GLFW.GLFW_CURSOR, locked ? GLFW.GLFW_CURSOR_DISABLED : GLFW.GLFW_CURSOR_NORMAL);
     }
 
     public boolean isMouseLocked() {
@@ -156,30 +138,15 @@ public final class InputService {
         client.options.getMouseSensitivity().setValue((double) sensitivity);
     }
 
+
     public void update() {
-        if (isCapturingMouse && mouseMoveCallback != null) {
-            double currentX = client.mouse.getX();
-            double currentY = client.mouse.getY();
-
-            mouseDeltaX = currentX - lastMouseX;
-            mouseDeltaY = currentY - lastMouseY;
-
-            if (mouseDeltaX != 0 || mouseDeltaY != 0) {
-                mouseMoveCallback.execute(mouseDeltaX, mouseDeltaY);
-            }
-
-            lastMouseX = currentX;
-            lastMouseY = currentY;
-        }
-    }
-
-    public void setContext(Context jsContext) {
-        this.jsContext = jsContext;
-        LOGGER.debug("NetworkService received new GraalVM Context.");
     }
 
     public void cleanUp() {
-
+        keyCallbacks.clear();
+        mouseCallbacks.clear();
+        mouseMoveCallback = null;
+        scrollCallback = null;
         jsContext = null;
         LOGGER.info("InputService cleaned up.");
     }

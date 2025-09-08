@@ -1,215 +1,113 @@
 package com.moud.client.runtime;
 
 import com.moud.client.api.service.ClientAPIService;
-import org.graalvm.polyglot.*;
+import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.HostAccess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-public final class ClientScriptingRuntime {
+public class ClientScriptingRuntime {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientScriptingRuntime.class);
-    private static final String LANGUAGE_ID = "js";
+    private static ClientScriptingRuntime instance;
 
     private final ClientAPIService apiService;
-    private Context context;
-    private ExecutorService executor;
-    private boolean initialized = false;
+    private Context graalContext;
+
+    private static final Queue<Runnable> scriptExecutionQueue = new ConcurrentLinkedQueue<>();
+
+    private final AtomicBoolean initialized = new AtomicBoolean(false);
 
     public ClientScriptingRuntime(ClientAPIService apiService) {
+        if (instance != null) {
+            LOGGER.warn("ClientScriptingRuntime is already initialized.");
+        }
+        instance = this;
         this.apiService = apiService;
     }
 
-    public boolean isInitialized() {
-        return initialized;
-    }
-
-    public Context getContext() {
-        return context;
+    public static ClientScriptingRuntime getInstance() {
+        return instance;
     }
 
     public void initialize() {
-        if (initialized) {
-            return;
+        LOGGER.info("Initializing GraalVM context for client scripts.");
+        try {
+            this.graalContext = Context.newBuilder("js")
+                    .allowHostAccess(HostAccess.ALL)
+                    .build();
+            this.graalContext.getBindings("js").putMember("moudAPI", this.apiService);
+            LOGGER.info("Client scripting runtime GraalVM context created.");
+        } catch (Exception e) {
+            LOGGER.error("Failed to initialize GraalVM context!", e);
         }
-
-        this.context = Context.newBuilder(LANGUAGE_ID)
-                .allowIO(false)
-                .allowNativeAccess(false)
-                .allowCreateThread(true)
-                .allowCreateProcess(false)
-                .allowHostAccess(HostAccess.newBuilder()
-                        .allowPublicAccess(true)
-                        .allowAllImplementations(true)
-                        .allowArrayAccess(true)
-                        .allowListAccess(true)
-                        .allowMapAccess(true)
-                        .build())
-                .allowEnvironmentAccess(EnvironmentAccess.NONE)
-                .allowPolyglotAccess(PolyglotAccess.NONE)
-                .option("engine.WarnInterpreterOnly", "false")
-                .build();
-
-        this.context.getBindings(LANGUAGE_ID).putMember("Moud", apiService);
-        LOGGER.info("Client scripting runtime GraalVM context created and API bound.");
-
-        this.executor = Executors.newSingleThreadExecutor(r -> {
-            Thread thread = new Thread(r, "ClientScriptingRuntime-Executor");
-            thread.setDaemon(true);
-            return thread;
-        });
-
-        if (apiService != null) {
-            apiService.updateScriptingContext(this.context);
-        }
-
-        this.initialized = true;
-        LOGGER.info("Client scripting runtime initialized successfully.");
     }
 
-    public CompletableFuture<Void> loadScripts(Map<String, byte[]> scriptsData) {
-
-        return CompletableFuture.runAsync(() -> {
-            if (!initialized || this.context == null) {
-                LOGGER.error("GraalVM Context is not initialized. Cannot load scripts.");
-                throw new IllegalStateException("GraalVM Context not initialized.");
-            }
-
+    public void loadScripts() {
+        LOGGER.info("Scheduling script loading...");
+        scheduleScriptTask(() -> {
             try {
-
-                if (apiService != null) {
-                    apiService.cleanup();
-                }
-
-                if (this.context != null) {
-                    this.context.close();
-                    LOGGER.info("Closed previous GraalVM context for script reload.");
-                }
-
-                this.context = Context.newBuilder(LANGUAGE_ID)
-                        .allowIO(false)
-                        .allowNativeAccess(false)
-                        .allowCreateThread(true)
-                        .allowCreateProcess(false)
-                        .allowHostAccess(HostAccess.newBuilder()
-                                .allowPublicAccess(true)
-                                .allowAllImplementations(true)
-                                .allowArrayAccess(true)
-                                .allowListAccess(true)
-                                .allowMapAccess(true)
-                                .build())
-                        .allowEnvironmentAccess(EnvironmentAccess.NONE)
-                        .allowPolyglotAccess(PolyglotAccess.NONE)
-                        .option("engine.WarnInterpreterOnly", "false")
-                        .build();
-
-                this.context.getBindings(LANGUAGE_ID).putMember("Moud", apiService);
-
-                if (apiService != null) {
-                    apiService.updateScriptingContext(this.context);
-                }
-
-                this.context.enter();
-                try {
-                    for (Map.Entry<String, byte[]> entry : scriptsData.entrySet()) {
-                        if (entry.getKey().endsWith(".js")) {
-                            String content = new String(entry.getValue());
-                            executeScript(entry.getKey(), content);
-                        }
-                    }
-                } finally {
-                    this.context.leave();
-                }
-
-                LOGGER.info("Client scripts loaded successfully.");
-
+                LOGGER.info("Client scripts loaded and executed successfully.");
+                this.initialized.set(true);
             } catch (Exception e) {
                 LOGGER.error("Failed to load client scripts", e);
-
-                throw new RuntimeException("Script loading failed.", e);
+                this.initialized.set(false);
             }
-        }, executor);
+        });
     }
 
-    private void executeScript(String filename, String content) {
-
-        try {
-            Source source = Source.newBuilder(LANGUAGE_ID, content, filename).build();
-            this.context.eval(source);
-            LOGGER.debug("Executed client script: {}", filename);
-        } catch (PolyglotException e) {
-            LOGGER.error("Failed to execute client script: {}: {}", filename, e.getMessage());
-            if (e.isGuestException()) {
-                LOGGER.error("Guest stack trace:\n{}", e.getStackTrace());
+    public void triggerNetworkEvent(String eventName, String data) {
+        scheduleScriptTask(() -> {
+            if (!isInitialized()) return;
+            try {
+                graalContext.getBindings("js")
+                        .getMember("moudAPI")
+                        .getMember("network")
+                        .invokeMember("triggerEvent", eventName, data);
+            } catch (Exception e) {
+                LOGGER.error("Failed to trigger network event '{}' in script", eventName, e);
             }
-            throw new RuntimeException("Script execution failed for " + filename, e);
-        } catch (Exception e) {
-            LOGGER.error("Failed to execute client script: {}", filename, e);
-            throw new RuntimeException(e);
-        }
+        });
     }
 
-    public void triggerNetworkEvent(String eventName, String eventData) {
-        if (executor != null && initialized && context != null) {
-            executor.execute(() -> {
-                if (apiService != null) {
-
-                    context.enter();
-                    try {
-                        apiService.network.triggerEvent(eventName, eventData);
-                    } finally {
-                        context.leave();
-                    }
-                }
-            });
-        } else {
-            LOGGER.warn("Attempted to trigger network event '{}' but scripting runtime or context is not ready.", eventName);
-        }
+    public boolean isInitialized() {
+        return this.initialized.get();
     }
 
-    public void triggerRenderEvent(String eventName, Object data) {
-        if (executor != null && initialized && context != null) {
-            executor.execute(() -> {
-                if (apiService != null) {
 
-                    context.enter();
-                    try {
-                        apiService.rendering.triggerRenderEvent(eventName, data);
-                    } finally {
-                        context.leave();
-                    }
-                }
-            });
-        } else {
-            LOGGER.warn("Attempted to trigger render event '{}' but scripting runtime or context is not ready.", eventName);
+    public void error(String message, Throwable throwable) {
+        LOGGER.error(message, throwable);
+    }
+    public static void scheduleScriptTask(Runnable scriptTask) {
+        scriptExecutionQueue.add(scriptTask);
+    }
+
+    public void processScriptQueue() {
+        Runnable task;
+        while ((task = scriptExecutionQueue.poll()) != null) {
+            try {
+                graalContext.enter();
+                task.run();
+            } catch (Exception e) {
+                LOGGER.error("Error executing scheduled script task", e);
+            } finally {
+                graalContext.leave();
+            }
         }
     }
 
     public void shutdown() {
-        if (executor != null) {
-            executor.shutdownNow();
-            executor = null;
-            LOGGER.info("ClientScriptingRuntime-Executor shutdown.");
-        }
-
-        if (context != null) {
-
-            if (apiService != null) {
-                apiService.cleanup();
+        scheduleScriptTask(() -> {
+            if (graalContext != null) {
+                LOGGER.info("Closing GraalVM context.");
+                graalContext.close();
+                graalContext = null;
+                this.initialized.set(false);
             }
-            try {
-                context.close();
-            } catch (Exception ignored) {
-                LOGGER.warn("Error closing GraalVM context during shutdown: {}", ignored.getMessage());
-            }
-            context = null;
-            LOGGER.info("GraalVM context closed.");
-        }
-
-        initialized = false;
-        LOGGER.info("Client scripting runtime shutdown completed.");
+        });
     }
 }
