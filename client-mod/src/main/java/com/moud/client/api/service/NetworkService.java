@@ -60,7 +60,7 @@ public final class NetworkService {
                 } catch (PolyglotException e) {
                     LOGGER.error("Error executing JavaScript network handler for event '{}': {}", eventName, e.getMessage());
                     if (e.isGuestException()) {
-                        LOGGER.error("Guest stack trace:\n{}", e.getStackTrace());
+                        LOGGER.error("Guest stack trace:\n{}", (Object) e.getStackTrace());
                     }
                 } catch (Exception e) {
                     LOGGER.error("Unexpected error executing JavaScript network handler for event '{}'", eventName, e);

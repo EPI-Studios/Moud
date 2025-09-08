@@ -18,7 +18,6 @@ public class ClientUpdateManager {
     private void registerTickHandlers() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             apiService.input.update();
-            apiService.rendering.triggerRenderEvents();
         });
     }
     public void cleanup() {
