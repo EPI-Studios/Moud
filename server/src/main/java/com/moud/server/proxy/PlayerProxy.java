@@ -3,6 +3,7 @@ package com.moud.server.proxy;
 import com.moud.api.math.Vector3;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.api.validation.APIValidator;
+import com.moud.server.shared.api.SharedValueApiProxy;
 import com.moud.server.logging.MoudLogger;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
@@ -14,6 +15,8 @@ public class PlayerProxy {
     private final ClientProxy client;
     private final APIValidator validator;
 
+    private final SharedValueApiProxy sharedValues;
+
     public PlayerProxy(Player player) {
         if (player == null) {
             throw new APIException("INVALID_PLAYER", "Player cannot be null");
@@ -22,6 +25,7 @@ public class PlayerProxy {
         this.player = player;
         this.client = new ClientProxy(player);
         this.validator = new APIValidator();
+        this.sharedValues = new SharedValueApiProxy(player);
 
         LOGGER.debug("PlayerProxy created for: {}", player.getUsername());
     }
@@ -209,6 +213,10 @@ public class PlayerProxy {
             LOGGER.error("Failed to check permission for player: {}", getName(), e);
             return false;
         }
+    }
+
+    public SharedValueApiProxy getShared() {
+        return sharedValues;
     }
 
     @Override
