@@ -46,25 +46,14 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     public void onInitializeClient() {
         LOGGER.info("Initializing Moud client...");
 
-        this.scriptingRuntime = new ClientScriptingRuntime(this.apiService);
-
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (scriptingRuntime != null) {
-                scriptingRuntime.processScriptQueue();
-            }
-        });
-
-        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
-            if (scriptingRuntime != null) {
-                scriptingRuntime.shutdown();
-            }
-        });
-
         initializeServices();
         registerResourcePackProvider();
         setupNetworking();
         registerEventHandlers();
+        registerTickHandler();
+        registerShutdownHandler();
 
+        LOGGER.info("Moud client initialization complete.");
     }
 
     private void initializeServices() {
@@ -72,7 +61,25 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         this.scriptingRuntime = new ClientScriptingRuntime(this.apiService);
         this.scriptingRuntime.initialize();
         this.apiService.setRuntime(this.scriptingRuntime);
+
+        LOGGER.debug("Services initialized successfully");
     }
+
+    private void registerTickHandler() {
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (scriptingRuntime != null && scriptingRuntime.isInitialized()) {
+                scriptingRuntime.processScriptQueue();
+            }
+        });
+    }
+
+    private void registerShutdownHandler() {
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+            LOGGER.info("Client stopping, cleaning up resources...");
+            cleanupResources();
+        });
+    }
+
     private void setupNetworking() {
         LOGGER.info("Setting up networking...");
         PayloadTypeRegistry.playS2C().register(MoudPackets.SyncClientScripts.ID, MoudPackets.SyncClientScripts.CODEC);
@@ -101,14 +108,24 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
     private void onDisconnectServer(ClientPlayNetworkHandler handler, MinecraftClient client) {
         LOGGER.info("Disconnected from server. Cleaning up client-side state.");
+
         if (dynamicPack.getAndSet(null) != null) {
             LOGGER.info("Deactivating dynamic resources, reloading client resources.");
             client.reloadResources();
         }
+
+        cleanupResources();
+        setCustomCameraActive(false);
+    }
+
+    private void cleanupResources() {
         if (scriptingRuntime != null) {
             scriptingRuntime.shutdown();
         }
-        setCustomCameraActive(false);
+        if (apiService != null) {
+            apiService.cleanup();
+        }
+        LOGGER.debug("Resource cleanup completed");
     }
 
     private void handleSyncScripts(MoudPackets.SyncClientScripts packet, ClientPlayNetworking.Context context) {
@@ -137,14 +154,19 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         dynamicPack.set(new InMemoryPackResources(MOUDPACK_ID.toString(), Text.of("Moud Dynamic Server Resources"), assetsData));
 
         context.client().reloadResources().thenRunAsync(() -> {
-            LOGGER.info("Dynamic resources reloaded; loading client scripts into runtime.");
+            LOGGER.info("Dynamic resources reloaded; reinitializing and loading client scripts.");
+
             if (scriptingRuntime != null) {
-                scriptingRuntime.loadScripts(scriptsData)
-                        .thenRun(() -> LOGGER.info("Client scripts loaded and executed successfully."))
-                        .exceptionally(t -> {
-                            LOGGER.error("Failed to load and execute client scripts", t);
-                            return null;
-                        });
+                scriptingRuntime.reinitialize();
+
+                if (!scriptsData.isEmpty()) {
+                    scriptingRuntime.loadScripts(scriptsData)
+                            .thenRun(() -> LOGGER.info("Client scripts loaded and executed successfully."))
+                            .exceptionally(t -> {
+                                LOGGER.error("Failed to load and execute client scripts", t);
+                                return null;
+                            });
+                }
             }
         }, context.client());
     }
@@ -152,6 +174,8 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private void handleScriptEvent(MoudPackets.ClientboundScriptEvent packet, ClientPlayNetworking.Context context) {
         if (scriptingRuntime != null && scriptingRuntime.isInitialized()) {
             scriptingRuntime.triggerNetworkEvent(packet.eventName(), packet.eventData());
+        } else {
+            LOGGER.debug("Ignoring script event '{}' - runtime not ready", packet.eventName());
         }
     }
 
@@ -164,13 +188,11 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             ResourcePackProfile.PackFactory factory = new ResourcePackProfile.PackFactory() {
                 @Override
                 public ResourcePack open(ResourcePackInfo info) {
-
                     return pack;
                 }
 
                 @Override
                 public ResourcePack openWithOverlays(ResourcePackInfo info, ResourcePackProfile.Metadata metadata) {
-
                     return pack;
                 }
             };

@@ -6,6 +6,8 @@ import org.graalvm.polyglot.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public final class ClientAPIService {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientAPIService.class);
     public static ClientAPIService INSTANCE;
@@ -20,6 +22,7 @@ public final class ClientAPIService {
     public InputService input;
 
     private ClientScriptingRuntime scriptingRuntime;
+    private final AtomicBoolean contextUpdated = new AtomicBoolean(false);
 
     public ClientAPIService() {
         if (INSTANCE != null) {
@@ -45,9 +48,7 @@ public final class ClientAPIService {
         }
         this.scriptingRuntime = runtime;
 
-
         this.input = new InputService(runtime);
-
         LOGGER.info("InputService initialized.");
 
         if (runtime.getContext() != null) {
@@ -58,33 +59,55 @@ public final class ClientAPIService {
     }
 
     public void updateScriptingContext(Context context) {
-        this.network.setContext(context);
-        this.rendering.setContext(context);
-        this.ui.setContext(context);
-        this.ui.setExecutor(this.scriptingRuntime.getExecutor());
-        this.console.setContext(context);
-        this.camera.setContext(context);
-
-        if (this.input != null) {
-            this.input.setContext(context);
-        } else {
-            LOGGER.warn("Attempted to update script context before InputService was initialized.");
+        if (context == null) {
+            LOGGER.warn("Attempted to update with null context");
+            contextUpdated.set(false);
+            return;
         }
 
-        LOGGER.debug("ClientAPIService updated scripting context for all child services.");
+        try {
+            this.network.setContext(context);
+            this.rendering.setContext(context);
+            this.ui.setContext(context);
+            this.ui.setExecutor(this.scriptingRuntime != null ? this.scriptingRuntime.getExecutor() : null);
+            this.console.setContext(context);
+            this.camera.setContext(context);
+
+            if (this.input != null) {
+                this.input.setContext(context);
+            } else {
+                LOGGER.warn("Attempted to update script context before InputService was initialized.");
+            }
+
+            contextUpdated.set(true);
+            LOGGER.debug("ClientAPIService updated scripting context for all child services.");
+        } catch (Exception e) {
+            LOGGER.error("Failed to update scripting context", e);
+            contextUpdated.set(false);
+        }
+    }
+
+    public boolean isContextValid() {
+        return contextUpdated.get();
     }
 
     public void cleanup() {
-        if (network != null) network.cleanUp();
-        if (rendering != null) rendering.cleanUp();
-        if (ui != null) ui.cleanUp();
-        if (console != null) console.cleanUp();
-        if (camera != null) camera.cleanUp();
-        if (input != null) input.cleanUp();
-        if (updateManager != null) updateManager.cleanup();
+        contextUpdated.set(false);
 
-        this.scriptingRuntime = null; // Release reference
-        LOGGER.info("ClientAPIService cleaned up all child services.");
+        try {
+            if (network != null) network.cleanUp();
+            if (rendering != null) rendering.cleanUp();
+            if (ui != null) ui.cleanUp();
+            if (console != null) console.cleanUp();
+            if (camera != null) camera.cleanUp();
+            if (input != null) input.cleanUp();
+            if (updateManager != null) updateManager.cleanup();
+
+            this.scriptingRuntime = null;
+            LOGGER.info("ClientAPIService cleaned up all child services.");
+        } catch (Exception e) {
+            LOGGER.error("Error during cleanup", e);
+        }
     }
 
     public ClientUpdateManager getUpdateManager() {
