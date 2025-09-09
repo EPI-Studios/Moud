@@ -2,6 +2,7 @@ package com.moud.client.api.service;
 
 import com.moud.client.runtime.ClientScriptingRuntime;
 import com.moud.client.update.ClientUpdateManager;
+import com.moud.client.shared.api.ClientSharedApiProxy;
 import org.graalvm.polyglot.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,7 @@ public final class ClientAPIService {
     public final UIService ui;
     public final ConsoleAPI console;
     public final CameraService camera;
+    public final ClientSharedApiProxy shared;
     private final ClientUpdateManager updateManager;
 
     public InputService input;
@@ -35,6 +37,7 @@ public final class ClientAPIService {
         this.ui = new UIService();
         this.console = new ConsoleAPI();
         this.camera = new CameraService();
+        this.shared = new ClientSharedApiProxy();
 
         this.updateManager = new ClientUpdateManager(this);
 
