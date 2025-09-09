@@ -1,6 +1,7 @@
 package com.moud.client.api.service;
 
 import com.moud.client.rendering.PostProcessingManager;
+import com.moud.client.runtime.ClientScriptingRuntime;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Value;
@@ -9,27 +10,23 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class RenderingService {
     private static final Logger LOGGER = LoggerFactory.getLogger(RenderingService.class);
     private final PostProcessingManager postProcessingManager = new PostProcessingManager();
     private final Map<String, Value> renderHandlers = new ConcurrentHashMap<>();
-    private final ExecutorService scriptExecutor;
 
-    private Context jsContext;
+    private volatile Context jsContext;
+    private final AtomicBoolean contextValid = new AtomicBoolean(false);
 
     public RenderingService() {
-        this.scriptExecutor = Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, "RenderingService-Script");
-            t.setDaemon(true);
-            return t;
-        });
     }
 
     public void setContext(Context jsContext) {
         this.jsContext = jsContext;
+        this.contextValid.set(jsContext != null);
+        LOGGER.debug("RenderingService received new GraalVM Context, valid: {}", contextValid.get());
     }
 
     public void applyPostEffect(String effectId) {
@@ -48,25 +45,46 @@ public final class RenderingService {
     }
 
     public void triggerRenderEvents() {
+        if (!contextValid.get()) {
+            return;
+        }
         triggerRenderEvent("beforeWorldRender", System.currentTimeMillis() / 1000.0f);
     }
 
     public void triggerRenderEvent(String eventName, Object data) {
         Value handler = renderHandlers.get(eventName);
-        if (handler == null) {
+        if (handler == null || !contextValid.get()) {
             return;
         }
 
-        if (jsContext == null) {
-            LOGGER.warn("Cannot trigger render event '{}': JavaScript context is not initialized.", eventName);
+        ClientScriptingRuntime runtime = ClientScriptingRuntime.getInstance();
+        if (runtime == null || !runtime.isInitialized()) {
             return;
         }
 
-        scriptExecutor.execute(() -> {
+        runtime.getExecutor().execute(() -> {
+            if (jsContext == null || !contextValid.get()) {
+                contextValid.set(false);
+                return;
+            }
+
             try {
                 jsContext.enter();
-                if (handler.canExecute()) {
-                    handler.execute(data);
+                try {
+                    if (handler.canExecute()) {
+                        handler.execute(data);
+                    }
+                } finally {
+                    jsContext.leave();
+                }
+            } catch (IllegalStateException e) {
+                if (e.getMessage() != null && (e.getMessage().contains("Context is already closed") ||
+                        e.getMessage().contains("not entered explicitly") ||
+                        e.getMessage().contains("Multi threaded access"))) {
+                    LOGGER.debug("Context access error during render event execution: {}", e.getMessage());
+                    contextValid.set(false);
+                } else {
+                    LOGGER.error("State error executing render handler for event '{}'", eventName, e);
                 }
             } catch (PolyglotException e) {
                 LOGGER.error("Error executing JavaScript render handler for event '{}': {}", eventName, e.getMessage());
@@ -75,24 +93,14 @@ public final class RenderingService {
                 }
             } catch (Exception e) {
                 LOGGER.error("Unexpected error executing JavaScript render handler for event '{}'", eventName, e);
-            } finally {
-                try {
-                    jsContext.leave();
-                } catch (Exception e) {
-                    LOGGER.warn("Error leaving script context", e);
-                }
             }
         });
     }
 
     public void cleanUp() {
+        contextValid.set(false);
         postProcessingManager.clearAllEffects();
         renderHandlers.clear();
-
-        if (scriptExecutor != null) {
-            scriptExecutor.shutdown();
-        }
-
         jsContext = null;
         LOGGER.info("RenderingService cleaned up.");
     }
