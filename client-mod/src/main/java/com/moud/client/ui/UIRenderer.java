@@ -13,14 +13,13 @@ public class UIRenderer {
     private final MinecraftClient client = MinecraftClient.getInstance();
 
     public void renderComponent(DrawContext context, UIComponent component) {
-        if (!component.isVisible()) {
+        if (!component.visible) {
             return;
         }
 
         if (component instanceof UIImage image) {
             renderImage(context, image);
         } else {
-
             renderDefaultComponent(context, component);
         }
 
@@ -30,10 +29,10 @@ public class UIRenderer {
     }
 
     private void renderDefaultComponent(DrawContext context, UIComponent component) {
-        int x = (int) component.getX();
-        int y = (int) component.getY();
-        int width = (int) component.getWidth();
-        int height = (int) component.getHeight();
+        int x = component.getX();
+        int y = component.getY();
+        int width = component.getWidth();
+        int height = component.getHeight();
 
         int bgColor = parseColor(component.getBackgroundColor(), component.getOpacity());
         int borderColor = parseColor(component.getBorderColor(), component.getOpacity());
@@ -58,10 +57,10 @@ public class UIRenderer {
             return;
         }
 
-        int x = (int) component.getX();
-        int y = (int) component.getY();
-        int width = (int) component.getWidth();
-        int height = (int) component.getHeight();
+        int x = component.getX();
+        int y = component.getY();
+        int width = component.getWidth();
+        int height = component.getHeight();
         int textColor = parseColor(component.getTextColor(), component.getOpacity());
 
         int textWidth = client.textRenderer.getWidth(text);
@@ -83,11 +82,10 @@ public class UIRenderer {
     }
 
     private void renderCursor(DrawContext context, UIInput input) {
-
         if ((System.currentTimeMillis() / 500) % 2 == 0) {
             String textBeforeCursor = input.getValue();
-            int cursorX = (int) input.getX() + (int) input.getPaddingLeft() + client.textRenderer.getWidth(textBeforeCursor);
-            int cursorY = (int) input.getY() + (int) (input.getHeight() - client.textRenderer.fontHeight) / 2;
+            int cursorX = input.getX() + (int) input.getPaddingLeft() + client.textRenderer.getWidth(textBeforeCursor);
+            int cursorY = input.getY() + (input.getHeight() - client.textRenderer.fontHeight) / 2;
             int cursorColor = parseColor(input.getTextColor(), input.getOpacity());
 
             context.fill(cursorX, cursorY, cursorX + 1, cursorY + client.textRenderer.fontHeight, cursorColor);
@@ -97,19 +95,19 @@ public class UIRenderer {
     private void renderImage(DrawContext context, UIImage image) {
         try {
             Identifier textureId = Identifier.of(image.getSource());
-            int x = (int) image.getX();
-            int y = (int) image.getY();
-            int width = (int) image.getWidth();
-            int height = (int) image.getHeight();
+            int x = image.getX();
+            int y = image.getY();
+            int width = image.getWidth();
+            int height = image.getHeight();
 
             context.drawTexture(textureId, x, y, 0, 0, width, height, width, height);
         } catch (Exception e) {
             LOGGER.error("Failed to render image with source: {}", image.getSource(), e);
 
-            int x = (int) image.getX();
-            int y = (int) image.getY();
-            int width = (int) image.getWidth();
-            int height = (int) image.getHeight();
+            int x = image.getX();
+            int y = image.getY();
+            int width = image.getWidth();
+            int height = image.getHeight();
             context.fill(x, y, x + width, y + height, 0xFFFF00FF);
         }
     }
@@ -119,7 +117,6 @@ public class UIRenderer {
             return 0;
         }
         try {
-
             String hex = colorStr.substring(1);
             long value;
             if (hex.length() == 8) {

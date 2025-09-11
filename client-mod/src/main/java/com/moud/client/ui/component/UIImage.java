@@ -8,9 +8,7 @@ public final class UIImage extends UIComponent {
     public UIImage(String source, UIService service) {
         super("image", service);
         this.source = source;
-
         setBackgroundColor("#00000000");
-        // transparent by default
     }
 
     public UIImage setSource(String source) {

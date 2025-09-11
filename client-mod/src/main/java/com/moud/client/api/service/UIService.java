@@ -1,29 +1,18 @@
 package com.moud.client.api.service;
 
-import com.moud.client.ui.UIOverlayManager;
-import com.moud.client.ui.UIRenderer;
-import com.moud.client.ui.animation.AnimationEngine;
 import com.moud.client.ui.component.*;
-import com.moud.client.ui.layout.LayoutEngine;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.text.Text;
 import org.graalvm.polyglot.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 
 public final class UIService {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIService.class);
     private final MinecraftClient client;
-    private final LayoutEngine layoutEngine = new LayoutEngine();
-    private final AnimationEngine animationEngine = new AnimationEngine();
-    private final UIRenderer renderer = new UIRenderer();
 
     private Context jsContext;
     private ExecutorService scriptExecutor;
@@ -48,14 +37,8 @@ public final class UIService {
         return scriptExecutor;
     }
 
-    public void render(DrawContext context, int mouseX, int mouseY, float delta, List<UIComponent> elementsToRender) {
-        animationEngine.update(delta);
-        for (UIComponent element : elementsToRender) {
-            if (element.isVisible()) {
-                layoutEngine.updateLayout(element);
-                renderer.renderComponent(context, element);
-            }
-        }
+    public MinecraftClient getMinecraftClient() {
+        return client;
     }
 
     public int getScreenWidth() {
@@ -66,10 +49,23 @@ public final class UIService {
         return this.client.getWindow().getScaledHeight();
     }
 
+    public int getMouseX() {
+        return (int) (client.mouse.getX() * getScreenWidth() / client.getWindow().getWidth());
+    }
+
+    public int getMouseY() {
+        return (int) (client.mouse.getY() * getScreenHeight() / client.getWindow().getHeight());
+    }
+
     public UIComponent createElement(String type) {
-        UIComponent component = new UIComponent(type, this);
-        component.setId(UUID.randomUUID().toString());
-        return component;
+        return switch (type.toLowerCase()) {
+            case "container" -> createContainer();
+            case "text" -> createText("");
+            case "button" -> createButton("Button");
+            case "input" -> createInput("");
+            case "image" -> createImage("");
+            default -> new UIComponent(type, this);
+        };
     }
 
     public UIContainer createContainer() {
@@ -100,85 +96,137 @@ public final class UIService {
         client.execute(() -> client.setScreen(screen));
     }
 
+    public UIComponent positionRelative(UIComponent component, String position) {
+        int screenWidth = getScreenWidth();
+        int screenHeight = getScreenHeight();
+
+        switch (position.toLowerCase()) {
+            case "center" -> {
+                component.setPosition(
+                        (screenWidth - component.getWidth()) / 2,
+                        (screenHeight - component.getHeight()) / 2
+                );
+                return component;
+            }
+            case "top-left" -> {
+                component.setPosition(10, 10);
+                return component;
+            }
+            case "top-right" -> {
+                component.setPosition(screenWidth - component.getWidth() - 10, 10);
+                return component;
+            }
+            case "bottom-left" -> {
+                component.setPosition(10, screenHeight - component.getHeight() - 10);
+                return component;
+            }
+            case "bottom-right" -> {
+                component.setPosition(
+                        screenWidth - component.getWidth() - 10,
+                        screenHeight - component.getHeight() - 10
+                );
+                return component;
+            }
+            case "top-center" -> {
+                component.setPosition((screenWidth - component.getWidth()) / 2, 10);
+                return component;
+            }
+            case "bottom-center" -> {
+                component.setPosition(
+                        (screenWidth - component.getWidth()) / 2,
+                        screenHeight - component.getHeight() - 10
+                );
+                return component;
+            }
+            default -> {
+                return component;
+            }
+        }
+    }
+
+    public UIComponent setPositionPercent(UIComponent component, double xPercent, double yPercent) {
+        int x = (int) (getScreenWidth() * xPercent / 100.0);
+        int y = (int) (getScreenHeight() * yPercent / 100.0);
+        component.setPosition(x, y);
+        return component;
+    }
+
+    public UIComponent setSizePercent(UIComponent component, double widthPercent, double heightPercent) {
+        int width = (int) (getScreenWidth() * widthPercent / 100.0);
+        int height = (int) (getScreenHeight() * heightPercent / 100.0);
+        component.setSize(width, height);
+        return component;
+    }
+
+    public UIContainer createGrid(int columns, int rows) {
+        UIContainer grid = createContainer();
+        grid.setSize(getScreenWidth() - 20, getScreenHeight() - 20);
+        grid.setPosition(10, 10);
+
+        int cellWidth = (grid.getWidth() - (int)((columns - 1) * 10)) / columns;
+        int cellHeight = (grid.getHeight() - (int)((rows - 1) * 10)) / rows;
+
+        for (int row = 0; row < rows; row++) {
+            UIContainer rowContainer = createContainer();
+            rowContainer.setFlexDirection("row");
+            rowContainer.setGap(10);
+            rowContainer.setSize(grid.getWidth(), cellHeight);
+
+            for (int col = 0; col < columns; col++) {
+                UIContainer cell = createContainer();
+                cell.setSize(cellWidth, cellHeight);
+                cell.setBorder(1, "#CCCCCC");
+                rowContainer.appendChild(cell);
+            }
+
+            grid.appendChild(rowContainer);
+        }
+
+        grid.setFlexDirection("column");
+        grid.setGap(10);
+        return grid;
+    }
+
+    public UIComponent animateToPosition(UIComponent component, int targetX, int targetY, int durationMs) {
+        long startTime = System.currentTimeMillis();
+        int startX = component.getX();
+        int startY = component.getY();
+
+        scheduleAnimation(() -> {
+            long elapsed = System.currentTimeMillis() - startTime;
+            double progress = Math.min(1.0, (double) elapsed / durationMs);
+
+            progress = easeInOutCubic(progress);
+
+            int currentX = (int) (startX + (targetX - startX) * progress);
+            int currentY = (int) (startY + (targetY - startY) * progress);
+
+            component.setPosition(currentX, currentY);
+
+            return progress >= 1.0;
+        });
+
+        return component;
+    }
+
+    private void scheduleAnimation(AnimationCallback callback) {
+        if (scriptExecutor != null) {
+            scriptExecutor.execute(() -> callback.update());
+        }
+    }
+
+    private double easeInOutCubic(double t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
     public void cleanUp() {
-        animationEngine.cleanup();
-        UIOverlayManager.getInstance().clear();
         jsContext = null;
         scriptExecutor = null;
         LOGGER.info("UIService cleaned up.");
     }
 
-    public static final class UIScreen extends Screen {
-        private final UIService service;
-        private final List<UIComponent> elements = new CopyOnWriteArrayList<>();
-
-        public UIScreen(String title, UIService service) {
-            super(Text.literal(title));
-            this.service = service;
-        }
-
-        public UIScreen addElement(UIComponent element) {
-            elements.add(element);
-            return this;
-        }
-
-        public UIScreen removeElement(UIComponent element) {
-            elements.remove(element);
-            return this;
-        }
-
-        @Override
-        public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-            super.renderBackground(context, mouseX, mouseY, delta);
-            service.render(context, mouseX, mouseY, delta, this.elements);
-        }
-
-        @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            boolean elementClicked = false;
-            for (int i = elements.size() - 1; i >= 0; i--) {
-                UIComponent element = elements.get(i);
-                if (element.isVisible() && element.isPointInside(mouseX, mouseY)) {
-                    element.triggerClick(mouseX, mouseY, button);
-                    com.moud.client.ui.UIFocusManager.setFocus(element);
-                    elementClicked = true;
-                    break;
-                }
-            }
-            if (!elementClicked) {
-                com.moud.client.ui.UIFocusManager.clearFocus();
-            }
-            return elementClicked || super.mouseClicked(mouseX, mouseY, button);
-        }
-
-        @Override
-        public void close() {
-            com.moud.client.ui.UIFocusManager.clearFocus();
-            this.client.setScreen(null);
-        }
-
-        @Override
-        public boolean charTyped(char chr, int modifiers) {
-            UIComponent focused = com.moud.client.ui.UIFocusManager.getFocusedComponent();
-            if (focused instanceof UIInput input) {
-                input.handleCharTyped(chr);
-                return true;
-            }
-            return super.charTyped(chr, modifiers);
-        }
-
-        @Override
-        public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-            UIComponent focused = com.moud.client.ui.UIFocusManager.getFocusedComponent();
-            if (focused instanceof UIInput input) {
-                input.handleKeyPressed(keyCode);
-
-                if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE) {
-                    return super.keyPressed(keyCode, scanCode, modifiers);
-                }
-                return true;
-            }
-            return super.keyPressed(keyCode, scanCode, modifiers);
-        }
+    @FunctionalInterface
+    private interface AnimationCallback {
+        boolean update();
     }
 }
