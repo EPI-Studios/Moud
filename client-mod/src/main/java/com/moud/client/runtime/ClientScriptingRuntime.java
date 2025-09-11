@@ -1,10 +1,11 @@
 package com.moud.client.runtime;
 
 import com.moud.client.api.service.ClientAPIService;
-import net.minecraft.client.MinecraftClient;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.PolyglotException;
+import org.graalvm.polyglot.Value;
+import org.graalvm.polyglot.proxy.ProxyExecutable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,60 +50,50 @@ public class ClientScriptingRuntime {
         });
     }
 
-    public static synchronized ClientScriptingRuntime getInstance(ClientAPIService apiService) {
-        if (instance == null) {
-            if (apiService == null) {
-                throw new IllegalArgumentException("ClientAPIService cannot be null");
-            }
-            instance = new ClientScriptingRuntime(apiService);
-        } else {
-            LOGGER.warn("ClientScriptingRuntime is already initialized. Returning existing instance.");
-        }
-        return instance;
-    }
-
-    public static ClientScriptingRuntime getInstance() {
-        if (instance == null) {
-            throw new IllegalStateException("ClientScriptingRuntime not initialized. Call getInstance(ClientAPIService) first.");
-        }
-        return instance;
-    }
-
-    public void initialize() {
-        if (shuttingDown.get()) {
-            LOGGER.warn("Cannot initialize runtime during shutdown");
+    public static void scheduleScriptTask(Runnable scriptTask) {
+        if (scriptTask == null) {
             return;
         }
+        scriptExecutionQueue.add(scriptTask);
+    }
 
-        contextLock.writeLock().lock();
-        try {
-            if (initialized.get()) {
-                LOGGER.info("Runtime already initialized. Skipping.");
-                return;
-            }
-
-            closeExistingContext();
-
-            LOGGER.info("Initializing GraalVM context for client scripts.");
-            this.graalContext = createGraalContext();
-            bindApiToContext();
-            bindTimerFunctionsToContext();
-
-            this.initialized.set(true);
-            LOGGER.info("Client scripting runtime GraalVM context created.");
-        } catch (Exception e) {
-            LOGGER.error("Failed to initialize GraalVM context!", e);
-            this.initialized.set(false);
-            closeExistingContext();
-        } finally {
-            contextLock.writeLock().unlock();
+    public CompletableFuture<Void> initialize() {
+        if (shuttingDown.get()) {
+            LOGGER.warn("Cannot initialize runtime during shutdown");
+            return CompletableFuture.failedFuture(new IllegalStateException("Runtime is shutting down"));
         }
+
+        return CompletableFuture.runAsync(() -> {
+            contextLock.writeLock().lock();
+            try {
+                if (initialized.get()) {
+                    LOGGER.info("Runtime already initialized. Skipping.");
+                    return;
+                }
+                closeExistingContext();
+
+                LOGGER.info("Initializing GraalVM context for client scripts.");
+                this.graalContext = createGraalContext();
+                bindApiToContext();
+                bindTimerFunctionsToContext();
+
+                this.initialized.set(true);
+                LOGGER.info("Client scripting runtime GraalVM context created.");
+            } catch (Exception e) {
+                LOGGER.error("Failed to initialize GraalVM context!", e);
+                this.initialized.set(false);
+                closeExistingContext();
+                throw new CompletionException(e);
+            } finally {
+                contextLock.writeLock().unlock();
+            }
+        }, scriptExecutor);
     }
 
     private void closeExistingContext() {
         if (graalContext != null) {
             try {
-                graalContext.close(true); // Force close to interrupt threads
+                graalContext.close(true);
                 LOGGER.info("Previous GraalVM context closed.");
             } catch (Exception e) {
                 LOGGER.warn("Error closing previous context", e);
@@ -123,14 +114,50 @@ public class ClientScriptingRuntime {
 
     private void bindApiToContext() {
         this.graalContext.getBindings("js").putMember("moudAPI", this.apiService);
-        this.graalContext.getBindings("js").putMember("Moud", this.apiService); // Duplicate binding for compatibility
+        this.graalContext.getBindings("js").putMember("Moud", this.apiService);
     }
 
     private void bindTimerFunctionsToContext() {
-        this.graalContext.getBindings("js").putMember("setTimeout", new TimeoutFunction());
-        this.graalContext.getBindings("js").putMember("clearTimeout", new ClearTimeoutFunction());
-        this.graalContext.getBindings("js").putMember("setInterval", new IntervalFunction());
-        this.graalContext.getBindings("js").putMember("clearInterval", new ClearIntervalFunction());
+        this.graalContext.getBindings("js").putMember("setTimeout", (ProxyExecutable) args -> {
+            if (args.length < 2 || !args[0].canExecute() || !args[1].isNumber()) {
+                LOGGER.warn("Invalid arguments for setTimeout. Expected (function, number).");
+                return -1L;
+            }
+            Value callback = args[0];
+            long delay = args[1].asLong();
+            long id = timerIdCounter.incrementAndGet();
+            ScheduledFuture<?> future = timerExecutor.schedule(() -> executeCallback(callback, id, false), delay, TimeUnit.MILLISECONDS);
+            activeTimers.put(id, future);
+            return id;
+        });
+
+        this.graalContext.getBindings("js").putMember("clearTimeout", (ProxyExecutable) args -> {
+            if (args.length < 1 || !args[0].isNumber()) return null;
+            cancelTimer(args[0].asLong());
+            return null;
+        });
+
+        this.graalContext.getBindings("js").putMember("setInterval", (ProxyExecutable) args -> {
+            if (args.length < 2 || !args[0].canExecute() || !args[1].isNumber()) {
+                LOGGER.warn("Invalid arguments for setInterval. Expected (function, number).");
+                return -1L;
+            }
+            Value callback = args[0];
+            long delay = args[1].asLong();
+            if (delay <= 0) {
+                LOGGER.warn("setInterval delay must be greater than 0.");
+                return -1L;
+            }
+            long id = timerIdCounter.incrementAndGet();
+            ScheduledFuture<?> future = timerExecutor.scheduleAtFixedRate(() -> executeCallback(callback, id, true), delay, delay, TimeUnit.MILLISECONDS);
+            activeTimers.put(id, future);
+            return id;
+        });
+        this.graalContext.getBindings("js").putMember("clearInterval", (ProxyExecutable) args -> {
+            if (args.length < 1 || !args[0].isNumber()) return null;
+            cancelTimer(args[0].asLong());
+            return null;
+        });
     }
 
     public CompletableFuture<Void> loadScripts(Map<String, byte[]> scriptsData) {
@@ -143,34 +170,36 @@ public class ClientScriptingRuntime {
 
         LOGGER.info("Scheduling script loading with {} scripts...", scriptsData.size());
         return CompletableFuture.runAsync(() -> loadScriptsInternal(scriptsData), scriptExecutor)
-                .exceptionally(ex -> {
-                    LOGGER.error("Exception during script loading", ex);
-                    return null;
+                .whenComplete((res, ex) -> {
+                    if (ex != null) {
+                        LOGGER.error("Script loading completed with error", ex);
+                    } else {
+                        LOGGER.debug("Script loading internal process finished.");
+                    }
                 });
     }
 
     private void loadScriptsInternal(Map<String, byte[]> scriptsData) {
         contextLock.readLock().lock();
+        LOGGER.info("Starting script loading internal process");
         try {
             if (graalContext == null || shuttingDown.get()) {
                 throw new IllegalStateException("Context is not available");
             }
-
             graalContext.enter();
             try {
                 for (Map.Entry<String, byte[]> entry : scriptsData.entrySet()) {
                     String scriptName = entry.getKey();
                     String scriptContent = new String(entry.getValue());
-
-                    LOGGER.debug("Loading client script: {}", scriptName);
+                    LOGGER.info("Loading client script: {}", scriptName);
                     try {
                         graalContext.eval("js", scriptContent);
                     } catch (PolyglotException e) {
-                        LOGGER.error("Syntax or runtime error in script '{}'", scriptName, e);
+                        LOGGER.error("Polyglot error in script '{}'", scriptName, e);
+                        LOGGER.error("Guest exception details: {}", e.getMessage());
                         throw e;
                     }
                 }
-                LOGGER.info("Client scripts loaded and executed successfully.");
             } finally {
                 graalContext.leave();
             }
@@ -183,15 +212,6 @@ public class ClientScriptingRuntime {
         }
     }
 
-    public CompletableFuture<Void> loadScripts() {
-        if (!initialized.get() || shuttingDown.get()) {
-            return CompletableFuture.failedFuture(new IllegalStateException("Runtime not initialized or shutting down"));
-        }
-
-        LOGGER.info("Scheduling empty script loading (no-op)...");
-        return CompletableFuture.runAsync(() -> LOGGER.info("No scripts to load."), scriptExecutor);
-    }
-
     public void triggerNetworkEvent(String eventName, String data) {
         if (!isInitialized() || shuttingDown.get()) {
             LOGGER.debug("Skipping network event '{}' - runtime not ready", eventName);
@@ -201,7 +221,6 @@ public class ClientScriptingRuntime {
             LOGGER.warn("Invalid event name provided");
             return;
         }
-
         scriptExecutor.execute(() -> triggerNetworkEventInternal(eventName, data));
     }
 
@@ -212,7 +231,6 @@ public class ClientScriptingRuntime {
                 LOGGER.debug("Skipping network event '{}' - context closed", eventName);
                 return;
             }
-
             graalContext.enter();
             try {
                 graalContext.getBindings("js")
@@ -255,26 +273,13 @@ public class ClientScriptingRuntime {
         LOGGER.error(message, throwable);
     }
 
-    public static void scheduleScriptTask(Runnable scriptTask) {
-        if (scriptTask == null) {
-            return;
-        }
-        scriptExecutionQueue.add(scriptTask);
-    }
-
     public void processScriptQueue() {
-        if (!isInitialized()) {
-            return;
-        }
-
+        if (!isInitialized()) return;
         Runnable task;
         while ((task = scriptExecutionQueue.poll()) != null) {
             contextLock.readLock().lock();
             try {
-                if (graalContext == null || shuttingDown.get() || !initialized.get()) {
-                    break;
-                }
-
+                if (graalContext == null || shuttingDown.get() || !initialized.get()) break;
                 graalContext.enter();
                 try {
                     task.run();
@@ -296,24 +301,17 @@ public class ClientScriptingRuntime {
             LOGGER.debug("Shutdown already initiated");
             return;
         }
-
         LOGGER.info("Shutting down client scripting runtime");
         this.initialized.set(false);
-
-        // Cancel all timers
         activeTimers.forEach((id, future) -> future.cancel(true));
         activeTimers.clear();
-
-        // Clear queues
         scriptExecutionQueue.clear();
-
         contextLock.writeLock().lock();
         try {
             closeExistingContext();
         } finally {
             contextLock.writeLock().unlock();
         }
-
         shutdownExecutor(scriptExecutor, "scriptExecutor");
         shutdownExecutor(timerExecutor, "timerExecutor");
     }
@@ -337,62 +335,17 @@ public class ClientScriptingRuntime {
         }
     }
 
-    public void reinitialize() {
-        LOGGER.info("Reinitializing client scripting runtime");
-        shutdown();
-        shuttingDown.set(false);
-        initialize();
-        if (apiService != null) {
-            apiService.updateScriptingContext(graalContext);
-        }
-    }
-
-    public class TimeoutFunction {
-        public long setTimeout(Runnable callback, long delay) {
-            if (callback == null || delay < 0) {
-                LOGGER.warn("Invalid setTimeout parameters");
-                return -1;
-            }
-            long id = timerIdCounter.incrementAndGet();
-            ScheduledFuture<?> future = timerExecutor.schedule(() -> executeCallback(callback, id, false), delay, TimeUnit.MILLISECONDS);
-            activeTimers.put(id, future);
-            return id;
-        }
-    }
-
-    public class ClearTimeoutFunction {
-        public void clearTimeout(long id) {
-            cancelTimer(id);
-        }
-    }
-
-    public class IntervalFunction {
-        public long setInterval(Runnable callback, long delay) {
-            if (callback == null || delay <= 0) {
-                LOGGER.warn("Invalid setInterval parameters");
-                return -1;
-            }
-            long id = timerIdCounter.incrementAndGet();
-            ScheduledFuture<?> future = timerExecutor.scheduleAtFixedRate(() -> executeCallback(callback, id, true), delay, delay, TimeUnit.MILLISECONDS);
-            activeTimers.put(id, future);
-            return id;
-        }
-    }
-
-    public class ClearIntervalFunction {
-        public void clearInterval(long id) {
-            cancelTimer(id);
-        }
-    }
-
-    private void executeCallback(Runnable callback, long id, boolean isInterval) {
+    private void executeCallback(Value callback, long id, boolean isInterval) {
+        if (shuttingDown.get()) return;
         scriptExecutor.execute(() -> {
             contextLock.readLock().lock();
             try {
                 if (graalContext != null && !shuttingDown.get()) {
                     graalContext.enter();
                     try {
-                        callback.run();
+                        if (callback.canExecute()) {
+                            callback.executeVoid();
+                        }
                     } catch (PolyglotException e) {
                         LOGGER.error("Polyglot error executing {} callback", isInterval ? "setInterval" : "setTimeout", e);
                     } finally {

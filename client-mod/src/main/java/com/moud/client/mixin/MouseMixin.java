@@ -1,5 +1,8 @@
+// File: client-mod/src/main/java/com/moud/client/mixin/MouseMixin.java
+
 package com.moud.client.mixin;
 
+import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.ui.UIOverlayManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
@@ -17,20 +20,28 @@ public class MouseMixin {
 
     @Inject(method = "onMouseButton", at = @At("HEAD"), cancellable = true)
     private void moud_onMouseButton(long window, int button, int action, int mods, CallbackInfo ci) {
+        // action == 1 means PRESS
         if (action == 1 && client.currentScreen == null) {
-            Mouse mouse = (Mouse) (Object) this;
-            double rawMouseX = mouse.getX();
-            double rawMouseY = mouse.getY();
+            if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.cursor != null && ClientAPIService.INSTANCE.cursor.isVisible()) {
 
-            int scaledWidth = client.getWindow().getScaledWidth();
-            int scaledHeight = client.getWindow().getScaledHeight();
-            int windowWidth = client.getWindow().getWidth();
-            int windowHeight = client.getWindow().getHeight();
+                Mouse mouse = (Mouse) (Object) this;
+                double rawMouseX = mouse.getX();
+                double rawMouseY = mouse.getY();
 
-            double mouseX = rawMouseX * scaledWidth / windowWidth;
-            double mouseY = rawMouseY * scaledHeight / windowHeight;
+                int scaledWidth = client.getWindow().getScaledWidth();
+                int scaledHeight = client.getWindow().getScaledHeight();
+                int windowWidth = client.getWindow().getWidth();
+                int windowHeight = client.getWindow().getHeight();
 
-            UIOverlayManager.getInstance().handleOverlayClick(mouseX, mouseY, button);
+                double mouseX = rawMouseX * scaledWidth / windowWidth;
+                double mouseY = rawMouseY * scaledHeight / windowHeight;
+
+                boolean uiClicked = UIOverlayManager.getInstance().handleOverlayClick(mouseX, mouseY, button);
+
+                if (uiClicked) {
+                    ci.cancel();
+                }
+            }
         }
     }
 }
