@@ -16,6 +16,7 @@ public final class RenderingService {
     private static final Logger LOGGER = LoggerFactory.getLogger(RenderingService.class);
     private final PostProcessingManager postProcessingManager = new PostProcessingManager();
     private final Map<String, Value> renderHandlers = new ConcurrentHashMap<>();
+    private final Map<String, Value> animationFrameCallbacks = new ConcurrentHashMap<>();
 
     private ClientScriptingRuntime scriptingRuntime;
     private volatile Context jsContext;
@@ -49,11 +50,74 @@ public final class RenderingService {
         renderHandlers.put(eventName, callback);
     }
 
+    public String requestAnimationFrame(Value callback) {
+        if (!callback.canExecute()) {
+            throw new IllegalArgumentException("Callback must be an executable function.");
+        }
+        String id = "raf_" + System.nanoTime();
+        animationFrameCallbacks.put(id, callback);
+        return id;
+    }
+
+    public void cancelAnimationFrame(String id) {
+        animationFrameCallbacks.remove(id);
+    }
+
     public void triggerRenderEvents() {
         if (!contextValid.get()) {
             return;
         }
-        triggerRenderEvent("beforeWorldRender", System.currentTimeMillis() / 1000.0f);
+        float deltaTime = System.currentTimeMillis() / 1000.0f;
+        triggerRenderEvent("beforeWorldRender", deltaTime);
+        processAnimationFrames(deltaTime);
+    }
+
+    private void processAnimationFrames(float deltaTime) {
+        if (animationFrameCallbacks.isEmpty() || !contextValid.get()) {
+            return;
+        }
+
+        Map<String, Value> currentCallbacks = new ConcurrentHashMap<>(animationFrameCallbacks);
+        animationFrameCallbacks.clear();
+
+        if (scriptingRuntime == null || !scriptingRuntime.isInitialized()) {
+            return;
+        }
+
+        scriptingRuntime.getExecutor().execute(() -> {
+            if (jsContext == null || !contextValid.get()) {
+                return;
+            }
+
+            try {
+                jsContext.enter();
+                try {
+                    for (Value callback : currentCallbacks.values()) {
+                        if (callback.canExecute()) {
+                            callback.execute(deltaTime);
+                        }
+                    }
+                } finally {
+                    jsContext.leave();
+                }
+            } catch (IllegalStateException e) {
+                if (e.getMessage() != null && (e.getMessage().contains("Context is already closed") ||
+                        e.getMessage().contains("not entered explicitly") ||
+                        e.getMessage().contains("Multi threaded access"))) {
+                    LOGGER.debug("Context access error during animation frame processing: {}", e.getMessage());
+                    contextValid.set(false);
+                } else {
+                    LOGGER.error("State error executing animation frame callbacks", e);
+                }
+            } catch (PolyglotException e) {
+                LOGGER.error("Error executing animation frame callbacks: {}", e.getMessage());
+                if (e.isGuestException()) {
+                    LOGGER.error("Guest stack trace:", e);
+                }
+            } catch (Exception e) {
+                LOGGER.error("Unexpected error executing animation frame callbacks", e);
+            }
+        });
     }
 
     public void triggerRenderEvent(String eventName, Object data) {
@@ -105,7 +169,8 @@ public final class RenderingService {
         contextValid.set(false);
         postProcessingManager.clearAllEffects();
         renderHandlers.clear();
-        scriptingRuntime = null; // Clean up the reference
+        animationFrameCallbacks.clear();
+        scriptingRuntime = null;
         jsContext = null;
         LOGGER.info("RenderingService cleaned up.");
     }

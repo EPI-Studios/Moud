@@ -9,6 +9,7 @@ public class UIContainer extends UIComponent {
     private String alignItems = "stretch";
     private double gap = 0;
     private boolean autoResize = true;
+    private boolean isUpdatingLayout = false;
 
     public UIContainer(UIService service) {
         super("container", service, 0, 0, 100, 100, Text.literal(""));
@@ -67,21 +68,26 @@ public class UIContainer extends UIComponent {
     }
 
     public void updateLayout() {
-        if (children.isEmpty()) return;
+        if (children.isEmpty() || isUpdatingLayout) return;
 
-        int containerX = getX() + (int) paddingLeft;
-        int containerY = getY() + (int) paddingTop;
-        int containerWidth = getWidth() - (int) paddingLeft - (int) paddingRight;
-        int containerHeight = getHeight() - (int) paddingTop - (int) paddingBottom;
+        isUpdatingLayout = true;
+        try {
+            int containerX = getX() + (int) paddingLeft;
+            int containerY = getY() + (int) paddingTop;
+            int containerWidth = getWidth() - (int) paddingLeft - (int) paddingRight;
+            int containerHeight = getHeight() - (int) paddingTop - (int) paddingBottom;
 
-        if ("row".equalsIgnoreCase(flexDirection)) {
-            layoutRow(containerX, containerY, containerWidth, containerHeight);
-        } else {
-            layoutColumn(containerX, containerY, containerWidth, containerHeight);
-        }
+            if ("row".equalsIgnoreCase(flexDirection)) {
+                layoutRow(containerX, containerY, containerWidth, containerHeight);
+            } else {
+                layoutColumn(containerX, containerY, containerWidth, containerHeight);
+            }
 
-        if (autoResize) {
-            resizeToContent();
+            if (autoResize) {
+                resizeToContent();
+            }
+        } finally {
+            isUpdatingLayout = false;
         }
     }
 
@@ -181,6 +187,9 @@ public class UIContainer extends UIComponent {
         int newWidth = maxX - getX() + (int) paddingRight;
         int newHeight = maxY - getY() + (int) paddingBottom;
 
-        setSize(newWidth, newHeight);
+        if (newWidth != getWidth() || newHeight != getHeight()) {
+            setWidth(newWidth);
+            setHeight(newHeight);
+        }
     }
 }

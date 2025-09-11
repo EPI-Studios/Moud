@@ -1,6 +1,7 @@
 package com.moud.client.runtime;
 
 import com.moud.client.api.service.ClientAPIService;
+import com.moud.client.ui.UIOverlayManager;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.PolyglotException;
@@ -71,6 +72,7 @@ public class ClientScriptingRuntime {
                     return;
                 }
                 closeExistingContext();
+                clearUIState();
 
                 LOGGER.info("Initializing GraalVM context for client scripts.");
                 this.graalContext = createGraalContext();
@@ -88,6 +90,11 @@ public class ClientScriptingRuntime {
                 contextLock.writeLock().unlock();
             }
         }, scriptExecutor);
+    }
+
+    private void clearUIState() {
+        UIOverlayManager.getInstance().clear();
+        LOGGER.debug("Cleared UI state before script initialization");
     }
 
     private void closeExistingContext() {
@@ -115,6 +122,24 @@ public class ClientScriptingRuntime {
     private void bindApiToContext() {
         this.graalContext.getBindings("js").putMember("moudAPI", this.apiService);
         this.graalContext.getBindings("js").putMember("Moud", this.apiService);
+        bindAnimationFrameFunctions();
+    }
+
+    private void bindAnimationFrameFunctions() {
+        this.graalContext.getBindings("js").putMember("requestAnimationFrame", (ProxyExecutable) args -> {
+            if (args.length < 1 || !args[0].canExecute()) {
+                LOGGER.warn("Invalid arguments for requestAnimationFrame. Expected (function).");
+                return null;
+            }
+            Value callback = args[0];
+            return apiService.rendering.requestAnimationFrame(callback);
+        });
+
+        this.graalContext.getBindings("js").putMember("cancelAnimationFrame", (ProxyExecutable) args -> {
+            if (args.length < 1 || !args[0].isString()) return null;
+            apiService.rendering.cancelAnimationFrame(args[0].asString());
+            return null;
+        });
     }
 
     private void bindTimerFunctionsToContext() {
@@ -303,6 +328,7 @@ public class ClientScriptingRuntime {
         }
         LOGGER.info("Shutting down client scripting runtime");
         this.initialized.set(false);
+        clearUIState();
         activeTimers.forEach((id, future) -> future.cancel(true));
         activeTimers.clear();
         scriptExecutionQueue.clear();

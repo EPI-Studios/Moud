@@ -280,6 +280,17 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
         return visible;
     }
 
+    public UIComponent showAsOverlay() {
+        com.moud.client.ui.UIOverlayManager.getInstance().addOverlayElement(this);
+        this.visible = true;
+        return this;
+    }
+
+    public UIComponent hideOverlay() {
+        com.moud.client.ui.UIOverlayManager.getInstance().removeOverlayElement(this);
+        return this;
+    }
+
     public UIComponent onClick(Value callback) {
         addEventHandler("click", callback);
         return this;

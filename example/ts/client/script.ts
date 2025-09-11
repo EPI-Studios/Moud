@@ -1,48 +1,55 @@
-console.log("Testing new UI system...");
+const container = Moud.ui.createContainer();
+container.setPosition(10, 10);
+container.setSize(200, 50);
+container.setBackgroundColor("#00000000");
 
-var ui = Moud.ui;
-var cursor = Moud.cursor;
+const letters = ["M", "o", "u", "d", " ", "A", "l", "p", "h", "a"];
+const letterElements = [];
+const letterStates = [];
 
-cursor.show();
+letters.forEach((letter, index) => {
+    const letterElement = Moud.ui.createText(letter);
+    const baseX = index * 18;
+    letterElement.setPosition(baseX, 0);
+    letterElement.setSize(18, 30);
+    letterElement.setTextColor("#FFFFFF");
+    letterElement.setBackgroundColor("#00000000");
 
-var container = ui.createContainer();
-container.setPosition(50, 50);
-container.setSize(400, 300);
-container.setBackgroundColor("#2C2C2C");
-container.setBorder(2, "#4A4A4A");
-container.setFlexDirection("column");
-container.setGap(10);
-container.setPadding(20, 20, 20, 20);
+    letterElements.push(letterElement);
+    container.appendChild(letterElement);
 
-var title = ui.createText("UI System Test");
-title.setTextColor("#FFFFFF");
-title.setTextAlign("center");
-title.setSize(360, 30);
-
-var button = ui.createButton("Click Me");
-button.setSize(150, 30);
-button.setBackgroundColor("#4CAF50");
-button.setTextColor("#FFFFFF");
-button.onClick(function() {
-    console.log("Button clicked!");
-    input.setValue("Button was clicked at " + new Date().toLocaleTimeString());
+    letterStates.push({
+        baseX: baseX,
+        baseY: 0,
+        currentX: baseX,
+        currentY: 0,
+        phase: Math.random() * Math.PI * 2,
+        amplitude: 2,
+        frequency: 2
+    });
 });
-
-var input = ui.createInput("Type something here...");
-input.setSize(300, 25);
-input.onChange(function(element, newValue, oldValue) {
-    console.log("Input changed:", newValue);
-});
-
-container.appendChild(title);
-container.appendChild(button);
-container.appendChild(input);
 
 container.showAsOverlay();
 
-console.log("UI test setup complete. Screen size:", ui.getScreenWidth(), "x", ui.getScreenHeight());
+function updateAnimation(deltaTime) {
+    letterStates.forEach((state, index) => {
+        const time = deltaTime + state.phase;
+        const wiggleX = Math.sin(time * state.frequency) * state.amplitude;
+        const wiggleY = Math.cos(time * state.frequency * 1.3) * state.amplitude * 0.6;
 
-setTimeout(function() {
-    console.log("Testing position change...");
-    container.setPosition(100, 80);
-}, 3000);
+        const targetX = state.baseX + wiggleX;
+        const targetY = state.baseY + wiggleY;
+
+        state.currentX += (targetX - state.currentX) * 0.2;
+        state.currentY += (targetY - state.currentY) * 0.2;
+
+        letterElements[index].setPosition(
+            Math.round(state.currentX),
+            Math.round(state.currentY)
+        );
+    });
+
+    requestAnimationFrame(updateAnimation);
+}
+
+requestAnimationFrame(updateAnimation);
