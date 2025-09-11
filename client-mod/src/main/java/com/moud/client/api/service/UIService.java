@@ -1,6 +1,7 @@
 package com.moud.client.api.service;
 
 import com.moud.client.ui.component.*;
+import com.moud.client.ui.UIOverlayManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import org.graalvm.polyglot.Context;
@@ -55,6 +56,10 @@ public final class UIService {
 
     public int getMouseY() {
         return (int) (client.mouse.getY() * getScreenHeight() / client.getWindow().getHeight());
+    }
+
+    public void clearOverlays() {
+        UIOverlayManager.getInstance().clear();
     }
 
     public UIComponent createElement(String type) {
