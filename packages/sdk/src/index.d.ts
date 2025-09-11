@@ -91,6 +91,7 @@ interface ClientAPI {
     readonly ui: UIService;
     readonly console: MoudConsole;
     readonly camera: CameraService;
+        readonly cursor: CursorService;
 }
 
 interface NetworkService {
@@ -150,6 +151,13 @@ interface UIElement {
     getY(): number;
     getWidth(): number;
     getHeight(): number;
+}
+
+interface CursorService {
+    show(): void;
+    hide(): void;
+    toggle(): void;
+    isVisible(): boolean;
 }
 
 interface UIContainer extends UIElement {

@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
@@ -44,29 +45,46 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private ClientAPIService apiService;
     private SharedValueManager sharedValueManager;
     private final AtomicReference<InMemoryPackResources> dynamicPack = new AtomicReference<>(null);
+    private String currentResourcesHash = ""; // Stores the hash of the currently active resource pack
 
     @Override
     public void onInitializeClient() {
         LOGGER.info("Initializing Moud client...");
         setupNetworking();
-        initializeServices();
-        registerResourcePackProvider();
         registerEventHandlers();
+        registerResourcePackProvider();
         registerTickHandler();
         registerShutdownHandler();
-
-        LOGGER.info("Moud client initialization complete.");
+        LOGGER.info("Moud client initialization complete. Waiting for server connection...");
     }
 
-    private void initializeServices() {
+    private void initializeMoudServices() {
+        LOGGER.info("Initializing Moud services for new connection...");
+        if (apiService != null) {
+            LOGGER.warn("Services already exist. Cleaning up before re-initializing.");
+            cleanupMoudServices();
+        }
+
         this.apiService = new ClientAPIService();
         this.scriptingRuntime = new ClientScriptingRuntime(this.apiService);
-        this.scriptingRuntime.initialize();
         this.apiService.setRuntime(this.scriptingRuntime);
         this.sharedValueManager = SharedValueManager.getInstance();
         this.sharedValueManager.initialize();
+    }
 
-        LOGGER.debug("Services initialized successfully");
+    private void cleanupMoudServices() {
+        LOGGER.info("Cleaning up Moud services...");
+        if (scriptingRuntime != null) {
+            scriptingRuntime.shutdown();
+            scriptingRuntime = null;
+        }
+        if (apiService != null) {
+            apiService.cleanup();
+            apiService = null;
+        }
+        if (sharedValueManager != null) {
+            sharedValueManager.cleanup();
+        }
     }
 
     private void registerTickHandler() {
@@ -79,8 +97,8 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
     private void registerShutdownHandler() {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
-            LOGGER.info("Client stopping, cleaning up resources...");
-            cleanupResources();
+            LOGGER.info("Client stopping, cleaning up Moud services...");
+            cleanupMoudServices();
         });
     }
 
@@ -98,18 +116,13 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         LOGGER.info("Networking setup complete.");
     }
 
-    private void initializeSharedValues() {
-        this.sharedValueManager = SharedValueManager.getInstance();
-        this.sharedValueManager.initialize();
-        LOGGER.debug("SharedValueManager initialized");
-    }
-
     private void registerEventHandlers() {
         ClientPlayConnectionEvents.JOIN.register(this::onJoinServer);
         ClientPlayConnectionEvents.DISCONNECT.register(this::onDisconnectServer);
     }
 
     private void onJoinServer(ClientPlayNetworkHandler handler, net.fabricmc.fabric.api.networking.v1.PacketSender sender, MinecraftClient client) {
+        initializeMoudServices();
         try {
             LOGGER.info("Connected to server, sending hello packet.");
             ClientPlayNetworking.send(new MoudPackets.HelloPacket(PROTOCOL_VERSION));
@@ -120,31 +133,26 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
     private void onDisconnectServer(ClientPlayNetworkHandler handler, MinecraftClient client) {
         LOGGER.info("Disconnected from server. Cleaning up client-side state.");
-
         if (dynamicPack.getAndSet(null) != null) {
             LOGGER.info("Deactivating dynamic resources, reloading client resources.");
             client.reloadResources();
         }
-
-        cleanupResources();
+        this.currentResourcesHash = ""; // Clear the hash on disconnect
+        cleanupMoudServices();
         setCustomCameraActive(false);
     }
 
-    private void cleanupResources() {
-        if (scriptingRuntime != null) {
-            scriptingRuntime.shutdown();
-        }
-        if (apiService != null) {
-            apiService.cleanup();
-        }
-        if (sharedValueManager != null) {
-            sharedValueManager.cleanup();
-        }
-        LOGGER.debug("Resource cleanup completed");
-    }
-
     private void handleSyncScripts(MoudPackets.SyncClientScripts packet, ClientPlayNetworking.Context context) {
-        LOGGER.info("Received script & asset archive: hash={}, size={} bytes", packet.hash(), packet.scriptData().length);
+        if (currentResourcesHash.equals(packet.hash())) {
+            LOGGER.info("Received script & asset archive, but hash is unchanged ({}). Skipping resource reload.", packet.hash());
+            loadScriptsOnly(packet.scriptData(), context);
+            return;
+        }
+
+        LOGGER.info("Received new script & asset archive: oldHash={}, newHash={}, size={} bytes",
+                currentResourcesHash.isEmpty() ? "none" : currentResourcesHash, packet.hash(), packet.scriptData().length);
+        this.currentResourcesHash = packet.hash();
+
         Map<String, byte[]> scriptsData = new HashMap<>();
         Map<String, byte[]> assetsData = new HashMap<>();
 
@@ -169,22 +177,47 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         dynamicPack.set(new InMemoryPackResources(MOUDPACK_ID.toString(), Text.of("Moud Dynamic Server Resources"), assetsData));
 
         context.client().reloadResources().thenRunAsync(() -> {
-            LOGGER.info("Dynamic resources reloaded; reinitializing and loading client scripts.");
-
-            if (scriptingRuntime != null) {
-                scriptingRuntime.reinitialize();
-
-                if (!scriptsData.isEmpty()) {
-                    scriptingRuntime.loadScripts(scriptsData)
-                            .thenRun(() -> LOGGER.info("Client scripts loaded and executed successfully."))
-                            .exceptionally(t -> {
-                                LOGGER.error("Failed to load and execute client scripts", t);
-                                return null;
-                            });
-                }
-            }
+            loadScriptsOnly(scriptsData, context);
         }, context.client());
     }
+
+    private void loadScriptsOnly(byte[] zippedScriptData, ClientPlayNetworking.Context context) {
+        Map<String, byte[]> scriptsData = new HashMap<>();
+        try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(zippedScriptData))) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                if (entry.isDirectory() || !entry.getName().startsWith("scripts/")) continue;
+                scriptsData.put(entry.getName().substring("scripts/".length()), zis.readAllBytes());
+            }
+        } catch (IOException e) {
+            LOGGER.error("Error unpacking scripts from archive for script-only load", e);
+            return;
+        }
+        loadScriptsOnly(scriptsData, context);
+    }
+
+    private void loadScriptsOnly(Map<String, byte[]> scriptsData, ClientPlayNetworking.Context context) {
+        LOGGER.info("Dynamic resources reloaded (or skipped); initializing runtime and loading scripts.");
+
+        if (scriptingRuntime == null || apiService == null) {
+            LOGGER.error("Scripting runtime or API service is null. Aborting script load.");
+            return;
+        }
+
+        scriptingRuntime.initialize().thenCompose(v -> {
+            apiService.updateScriptingContext(scriptingRuntime.getContext());
+            if (!scriptsData.isEmpty()) {
+                return scriptingRuntime.loadScripts(scriptsData);
+            }
+            return CompletableFuture.completedFuture(null);
+        }).thenRun(() -> {
+            LOGGER.info("Client scripts loaded and executed successfully.");
+        }).exceptionally(t -> {
+            LOGGER.error("A failure occurred during runtime initialization or script loading", t);
+            return null;
+        });
+    }
+
 
     private void handleScriptEvent(MoudPackets.ClientboundScriptEvent packet, ClientPlayNetworking.Context context) {
         if (scriptingRuntime != null && scriptingRuntime.isInitialized()) {
@@ -217,7 +250,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             profileAdder.accept(profile);
         }
     }
-
     private void registerResourcePackProvider() {
         try {
             Field providerField = MinecraftClient.getInstance().getResourcePackManager().getClass().getDeclaredField("providers");
@@ -238,4 +270,5 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     public static void setCustomCameraActive(boolean active) {
         customCameraActive = active;
     }
+
 }

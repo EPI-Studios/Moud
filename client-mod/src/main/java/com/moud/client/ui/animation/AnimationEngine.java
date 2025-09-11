@@ -1,22 +1,25 @@
 package com.moud.client.ui.animation;
 
-import com.moud.client.api.service.UIService;
+import com.moud.client.ui.component.UIComponent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class AnimationEngine {
     private static final Logger LOGGER = LoggerFactory.getLogger(AnimationEngine.class);
     private final List<Animation> activeAnimations = new CopyOnWriteArrayList<>();
 
-    public void animate(UIService.UIElement element, String property, Object from, Object to, int duration) {
+    public void animate(UIComponent element, String property, Object from, Object to, int duration) {
         Animation animation = new Animation(element, property, from, to, duration);
         activeAnimations.add(animation);
     }
 
     public void update(float deltaTime) {
+        if (activeAnimations.isEmpty()) {
+            return;
+        }
         activeAnimations.removeIf(animation -> {
             animation.update(deltaTime);
             return animation.isComplete();
@@ -28,7 +31,7 @@ public class AnimationEngine {
     }
 
     private static class Animation {
-        private final UIService.UIElement element;
+        private final UIComponent element;
         private final String property;
         private final Object startValue;
         private final Object endValue;
@@ -36,7 +39,7 @@ public class AnimationEngine {
         private float elapsed = 0f;
         private boolean complete = false;
 
-        public Animation(UIService.UIElement element, String property, Object from, Object to, int duration) {
+        public Animation(UIComponent element, String property, Object from, Object to, int duration) {
             this.element = element;
             this.property = property;
             this.startValue = from;
@@ -53,47 +56,41 @@ public class AnimationEngine {
 
             updateProperty(progress);
 
-            if (progress >= 1.0f) {
+            if (elapsed >= duration) {
                 complete = true;
             }
         }
 
         private void updateProperty(float progress) {
             try {
-                switch (property) {
-                    case "x" -> {
-                        double start = ((Number) startValue).doubleValue();
-                        double end = ((Number) endValue).doubleValue();
-                        double current = start + (end - start) * progress;
+
+                double start = ((Number) startValue).doubleValue();
+                double end = ((Number) endValue).doubleValue();
+                double current = start + (end - start) * progress;
+
+                switch (property.toLowerCase()) {
+                    case "x":
                         element.setPosition(current, element.getY());
-                    }
-                    case "y" -> {
-                        double start = ((Number) startValue).doubleValue();
-                        double end = ((Number) endValue).doubleValue();
-                        double current = start + (end - start) * progress;
+                        break;
+                    case "y":
                         element.setPosition(element.getX(), current);
-                    }
-                    case "width" -> {
-                        double start = ((Number) startValue).doubleValue();
-                        double end = ((Number) endValue).doubleValue();
-                        double current = start + (end - start) * progress;
+                        break;
+                    case "width":
                         element.setSize(current, element.getHeight());
-                    }
-                    case "height" -> {
-                        double start = ((Number) startValue).doubleValue();
-                        double end = ((Number) endValue).doubleValue();
-                        double current = start + (end - start) * progress;
+                        break;
+                    case "height":
                         element.setSize(element.getWidth(), current);
-                    }
-                    case "opacity" -> {
-                        double start = ((Number) startValue).doubleValue();
-                        double end = ((Number) endValue).doubleValue();
-                        double current = start + (end - start) * progress;
+                        break;
+                    case "opacity":
                         element.setOpacity(current);
-                    }
+                        break;
+                    default:
+                        LOGGER.warn("Unsupported animation property: {}", property);
+                        complete = true;
+                        break;
                 }
             } catch (Exception e) {
-                LOGGER.error("Error updating animation property: {}", property, e);
+                LOGGER.error("Error updating animation property '{}'", property, e);
                 complete = true;
             }
         }

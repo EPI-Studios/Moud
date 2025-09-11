@@ -1,3 +1,5 @@
+// File: server/src/main/java/com/moud/server/client/ClientScriptManager.java
+
 package com.moud.server.client;
 
 import com.moud.server.project.ProjectLoader;
@@ -9,16 +11,19 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.ExecutionException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import java.util.stream.Stream;
+// import javax.xml.bind.DatatypeConverter;
 
 public class ClientScriptManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientScriptManager.class);
 
-    private byte[] compiledClientScripts;
-    private String clientScriptsHash;
+    private byte[] compiledClientResources;
+    private String clientResourcesHash;
 
     public void initialize() throws IOException {
         Path projectRoot = ProjectLoader.findProjectRoot();
@@ -30,10 +35,11 @@ public class ClientScriptManager {
         }
 
         LOGGER.info("Compiling client scripts and packaging assets...");
-        this.compiledClientScripts = packageClientResources(projectRoot, clientDir, assetsDir);
-        this.clientScriptsHash = generateHash(compiledClientScripts);
+        this.compiledClientResources = packageClientResources(projectRoot, clientDir, assetsDir);
+        this.clientResourcesHash = generateHash(compiledClientResources);
 
-        LOGGER.info("Client resources packaged successfully, size: {} bytes", compiledClientScripts.length);
+        LOGGER.info("Client resources packaged successfully. Hash: {}, Size: {} bytes",
+                clientResourcesHash, compiledClientResources.length);
     }
 
     private byte[] packageClientResources(Path projectRoot, Path clientDir, Path assetsDir) throws IOException {
@@ -91,16 +97,40 @@ public class ClientScriptManager {
     }
 
     private String generateHash(byte[] data) {
-        return String.valueOf(data.length);
+        if (data == null || data.length == 0) {
+            return "empty";
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = digest.digest(data);
+            return bytesToHex(hashBytes);
+        } catch (NoSuchAlgorithmException e) {
+            LOGGER.error("SHA-256 algorithm not found! Falling back to simple hash.", e);
+            return String.valueOf(data.length);
+        }
+    }
+
+    private static final char[] HEX_ARRAY = "0123456789abcdef".toCharArray();
+
+    private static String bytesToHex(byte[] bytes) {
+        char[] hexChars = new char[bytes.length * 2];
+        for (int i = 0; i < bytes.length; i++) {
+            int v = bytes[i] & 0xFF;
+            hexChars[i * 2] = HEX_ARRAY[v >>> 4];
+            hexChars[i * 2 + 1] = HEX_ARRAY[v & 0x0F];
+        }
+        return new String(hexChars);
     }
 
     public byte[] getCompiledScripts() {
-        return compiledClientScripts;
+        return compiledClientResources;
     }
+
     public String getScriptsHash() {
-        return clientScriptsHash;
+        return clientResourcesHash;
     }
+
     public boolean hasClientScripts() {
-        return compiledClientScripts != null && compiledClientScripts.length > 0;
+        return compiledClientResources != null && compiledClientResources.length > 0;
     }
 }

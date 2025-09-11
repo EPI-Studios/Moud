@@ -8,6 +8,7 @@
     "CameraMixin",
     "GameRendererMixin",
     "InGameHudMixin",
+    "KeyboardMixin",
     "MinecraftMixin",
     "MouseMixin"
   ],

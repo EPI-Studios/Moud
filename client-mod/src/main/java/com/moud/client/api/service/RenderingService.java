@@ -17,10 +17,15 @@ public final class RenderingService {
     private final PostProcessingManager postProcessingManager = new PostProcessingManager();
     private final Map<String, Value> renderHandlers = new ConcurrentHashMap<>();
 
+    private ClientScriptingRuntime scriptingRuntime;
     private volatile Context jsContext;
     private final AtomicBoolean contextValid = new AtomicBoolean(false);
 
     public RenderingService() {
+    }
+
+    public void setRuntime(ClientScriptingRuntime runtime) {
+        this.scriptingRuntime = runtime;
     }
 
     public void setContext(Context jsContext) {
@@ -57,12 +62,11 @@ public final class RenderingService {
             return;
         }
 
-        ClientScriptingRuntime runtime = ClientScriptingRuntime.getInstance();
-        if (runtime == null || !runtime.isInitialized()) {
+        if (scriptingRuntime == null || !scriptingRuntime.isInitialized()) {
             return;
         }
 
-        runtime.getExecutor().execute(() -> {
+        scriptingRuntime.getExecutor().execute(() -> {
             if (jsContext == null || !contextValid.get()) {
                 contextValid.set(false);
                 return;
@@ -101,6 +105,7 @@ public final class RenderingService {
         contextValid.set(false);
         postProcessingManager.clearAllEffects();
         renderHandlers.clear();
+        scriptingRuntime = null; // Clean up the reference
         jsContext = null;
         LOGGER.info("RenderingService cleaned up.");
     }

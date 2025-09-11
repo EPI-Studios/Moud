@@ -17,6 +17,7 @@ public final class ClientAPIService {
     public final RenderingService rendering;
     public final UIService ui;
     public final ConsoleAPI console;
+    public final CursorService cursor;
     public final CameraService camera;
     public final ClientSharedApiProxy shared;
     private final ClientUpdateManager updateManager;
@@ -35,6 +36,7 @@ public final class ClientAPIService {
         this.network = new NetworkService();
         this.rendering = new RenderingService();
         this.ui = new UIService();
+        this.cursor = new CursorService();
         this.console = new ConsoleAPI();
         this.camera = new CameraService();
         this.shared = new ClientSharedApiProxy();
@@ -50,15 +52,10 @@ public final class ClientAPIService {
             return;
         }
         this.scriptingRuntime = runtime;
-
         this.input = new InputService(runtime);
         LOGGER.info("InputService initialized.");
+        // i don't want to see a pr of someone getting scriptingcontext here
 
-        if (runtime.getContext() != null) {
-            updateScriptingContext(runtime.getContext());
-        } else {
-            LOGGER.warn("Runtime was set, but its GraalVM context is null.");
-        }
     }
 
     public void updateScriptingContext(Context context) {
@@ -103,6 +100,7 @@ public final class ClientAPIService {
             if (ui != null) ui.cleanUp();
             if (console != null) console.cleanUp();
             if (camera != null) camera.cleanUp();
+            if (cursor != null) cursor.cleanUp();
             if (input != null) input.cleanUp();
             if (updateManager != null) updateManager.cleanup();
 

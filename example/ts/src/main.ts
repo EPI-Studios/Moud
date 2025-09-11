@@ -1,92 +1,78 @@
-class Guardian {
-    private self: Entity;
-    private target: Player | null = null;
-    private speed: number = 0.05;
+api.on('player.join', (player) => {
+    const stats = player.getShared().getStore('stats');
+    const inventory = player.getShared().getStore('inventory');
 
-    onSpawn(entity: Entity) {
-        this.self = entity;
-        console.log(`Guardian spawned with ID: ${this.self.getId()}`);
-    }
+    stats.set('health', 100, 'immediate', 'hybrid');
+    stats.set('mana', 50, 'batched', 'hybrid');
+    stats.set('level', 1, 'batched', 'server-only');
+    stats.set('score', 0, 'immediate', 'hybrid');
 
-    onTick() {
-        if (!this.target || !this.target.isOnline()) {
-            return;
+    inventory.set('coins', 100, 'batched', 'hybrid');
+    inventory.set('items', ['sword', 'potion'], 'batched', 'hybrid');
+
+    stats.onChange('health', (newHealth, oldHealth) => {
+        console.log(`${player.getName()} health changed: ${oldHealth} -> ${newHealth}`);
+        if (newHealth <= 0) {
+            player.sendMessage('You died!');
+            stats.set('health', 100, 'immediate', 'hybrid');
         }
+    });
 
-        const targetPos = this.target.getPosition();
-        const myPos = this.self.getPosition();
-        const dirX = targetPos.x - myPos.x;
-        const dirY = targetPos.y - myPos.y;
-        const dirZ = targetPos.z - myPos.z;
-        const distance = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
+    inventory.onChange('coins', (newCoins, oldCoins) => {
+        console.log(`${player.getName()} coins: ${oldCoins} -> ${newCoins}`);
+    });
 
-        if (distance < 2.0) {
-            this.self.lookAt(targetPos.x, targetPos.y + 1.6, targetPos.z);
-            return;
-        }
-
-        const newX = myPos.x + (dirX / distance) * this.speed;
-        const newY = myPos.y + (dirY / distance) * this.speed;
-        const newZ = myPos.z + (dirZ / distance) * this.speed;
-
-        this.self.teleport(newX, newY, newZ);
-        this.self.lookAt(targetPos.x, targetPos.y + 1.6, targetPos.z);
-    }
-
-    setTarget(player: Player) {
-        this.target = player;
-        console.log(`Guardian's new target: ${player.getName()}`);
-    }
-}
-
-console.log('Moud Guardian Example loaded successfully.');
-
-const world = api.getWorld();
-world.setFlatGenerator();
-let guardianInstance: Guardian | null = null;
-const playerSmoothCameraStatus = new Map<string, boolean>();
-
-api.on('player.join', (player: Player) => {
-    player.sendMessage('§6Welcome! Type §e!spawn§6 to create a guardian.');
-    playerSmoothCameraStatus.set(player.getUuid(), false);
+    player.sendMessage(`Welcome! Health: ${stats.get('health')}, Coins: ${inventory.get('coins')}`);
 });
 
 api.on('player.chat', (event) => {
     const player = event.getPlayer();
     const message = event.getMessage();
 
-    if (message === '!spawn') {
+    if (message.startsWith('!damage')) {
+        const stats = player.getShared().getStore('stats');
+        const currentHealth = stats.get('health');
+        stats.set('health', currentHealth - 10, 'immediate', 'hybrid');
+        player.sendMessage(`Took 10 damage! Health: ${currentHealth - 10}`);
         event.cancel();
-        if (guardianInstance) {
-            player.sendMessage('§cA guardian already exists. Type §e!targetme§c.');
-            return;
-        }
-
-        const pos = player.getPosition();
-        const logic = new Guardian();
-        const entityProxy = world.spawnScriptedEntity("minecraft:iron_golem", pos.x + 2, pos.y, pos.z, logic);
-        logic.onSpawn(entityProxy);
-        guardianInstance = logic;
-        api.getServer().broadcast('§aA Guardian has been spawned!');
     }
 
-    if (message === '!targetme') {
+    if (message.startsWith('!coins')) {
+        const inventory = player.getShared().getStore('inventory');
+        const currentCoins = inventory.get('coins');
+        inventory.set('coins', currentCoins + 50, 'batched', 'hybrid');
+        player.sendMessage('Added 50 coins!');
         event.cancel();
-        if (guardianInstance) {
-            guardianInstance.setTarget(player);
-            player.sendMessage('§aThe Guardian is now following you.');
-        } else {
-            player.sendMessage('§cNo guardian exists. Type §e!spawn§c first.');
-        }
     }
 
-    if (message === '!smooth_camera') {
-        event.cancel();
-        const currentStatus = playerSmoothCameraStatus.get(player.getUuid()) || false;
-        const newStatus = !currentStatus;
-        playerSmoothCameraStatus.set(player.getUuid(), newStatus);
+    if (message.startsWith('!levelup')) {
+        const stats = player.getShared().getStore('stats');
+        const currentLevel = stats.get('level');
+        stats.set('level', currentLevel + 1, 'batched', 'server-only');
+        player.sendMessage(`Level up! Now level ${currentLevel + 1}`);
 
-        player.getClient().send('camera:toggle_smooth', { enabled: newStatus });
-        player.sendMessage(`§eCinematic camera: §${newStatus ? 'aENABLED' : 'cDISABLED'}`);
+        player.getClient().send('level_up_effect', {
+            newLevel: currentLevel + 1,
+            timestamp: Date.now()
+        });
+
+        event.cancel();
+    }
+
+    if (message.startsWith('!heal')) {
+        const stats = player.getShared().getStore('stats');
+        const currentHealth = stats.get('health');
+        const newHealth = Math.min(100, currentHealth + 25);
+        stats.set('health', newHealth, 'immediate', 'hybrid');
+        player.sendMessage(`Healed! Health: ${newHealth}`);
+        event.cancel();
+    }
+
+    if (message.startsWith('!status')) {
+        const stats = player.getShared().getStore('stats');
+        const inventory = player.getShared().getStore('inventory');
+
+        player.sendMessage(`Health: ${stats.get('health')}, Mana: ${stats.get('mana')}, Level: ${stats.get('level')}, Coins: ${inventory.get('coins')}`);
+        event.cancel();
     }
 });
