@@ -63,23 +63,22 @@ public class AnimationEngine {
 
         private void updateProperty(float progress) {
             try {
-
                 double start = ((Number) startValue).doubleValue();
                 double end = ((Number) endValue).doubleValue();
                 double current = start + (end - start) * progress;
 
                 switch (property.toLowerCase()) {
                     case "x":
-                        element.setPosition(current, element.getY());
+                        element.setPosition((int) current, element.getY());
                         break;
                     case "y":
-                        element.setPosition(element.getX(), current);
+                        element.setPosition(element.getX(), (int) current);
                         break;
                     case "width":
-                        element.setSize(current, element.getHeight());
+                        element.setSize((int) current, element.getHeight());
                         break;
                     case "height":
-                        element.setSize(element.getWidth(), current);
+                        element.setSize(element.getWidth(), (int) current);
                         break;
                     case "opacity":
                         element.setOpacity(current);

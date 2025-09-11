@@ -73,7 +73,7 @@ public class LayoutEngine {
                 case "flex-end": childY += containerHeight - child.getHeight(); break;
             }
 
-            child.setPosition(currentX, childY);
+            child.setPosition((int) currentX, (int) childY);
             currentX += child.getWidth() + gap;
         }
     }
@@ -107,7 +107,7 @@ public class LayoutEngine {
                 case "flex-end": childX += containerWidth - child.getWidth(); break;
             }
 
-            child.setPosition(childX, currentY);
+            child.setPosition((int) childX, (int) currentY);
             currentY += child.getHeight() + gap;
         }
     }

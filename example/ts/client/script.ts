@@ -1,72 +1,48 @@
+console.log("Testing new UI system...");
 
+var ui = Moud.ui;
+var cursor = Moud.cursor;
 
-moudAPI.console.log("Client Script: Loading Command Bar UI Test...");
+cursor.show();
 
-function createCommandBarUI() {
-    const commandContainer = moudAPI.ui.createContainer();
-    commandContainer
-        .setSize(400, 30)
-        .setBackgroundColor("#00000088")
-        .setFlexDirection("row")
-        .setAlignItems("center")
-        .setGap(5)
-        .setPadding(0, 5, 0, 5);
+var container = ui.createContainer();
+container.setPosition(50, 50);
+container.setSize(400, 300);
+container.setBackgroundColor("#2C2C2C");
+container.setBorder(2, "#4A4A4A");
+container.setFlexDirection("column");
+container.setGap(10);
+container.setPadding(20, 20, 20, 20);
 
-    const screenWidth = moudAPI.ui.getScreenWidth();
-    const screenHeight = moudAPI.ui.getScreenHeight();
+var title = ui.createText("UI System Test");
+title.setTextColor("#FFFFFF");
+title.setTextAlign("center");
+title.setSize(360, 30);
 
-    commandContainer.setPosition(
-        (screenWidth / 2) - (commandContainer.getWidth() / 2),
-        screenHeight - commandContainer.getHeight() - 10
-    );
+var button = ui.createButton("Click Me");
+button.setSize(150, 30);
+button.setBackgroundColor("#4CAF50");
+button.setTextColor("#FFFFFF");
+button.onClick(function() {
+    console.log("Button clicked!");
+    input.setValue("Button was clicked at " + new Date().toLocaleTimeString());
+});
 
-    const icon = moudAPI.ui.createImage("minecraft:textures/item/writable_book.png");
-    icon.setSize(20, 20);
+var input = ui.createInput("Type something here...");
+input.setSize(300, 25);
+input.onChange(function(element, newValue, oldValue) {
+    console.log("Input changed:", newValue);
+});
 
-    const commandInput = moudAPI.ui.createInput("Appuyez sur F8 pour écrire...");
-    commandInput
-        .setSize(300, 24)
-        .setBackgroundColor("#222222")
-        .setTextColor("#E0E0E0")
-        .setBorder(1, "#555555");
+container.appendChild(title);
+container.appendChild(button);
+container.appendChild(input);
 
-    const sendButton = moudAPI.ui.createButton("Envoyer");
-    sendButton.setSize(50, 24).setBackgroundColor("#4A90E2").setTextColor("#FFFFFF");
+container.showAsOverlay();
 
-    commandContainer.appendChild(icon);
-    commandContainer.appendChild(commandInput);
-    commandContainer.appendChild(sendButton);
+console.log("UI test setup complete. Screen size:", ui.getScreenWidth(), "x", ui.getScreenHeight());
 
-
-    commandInput.onFocus(() => {
-        moudAPI.console.log("Champ de commande focus.");
-        commandInput.setBorder(1, "#4A90E2");
-    });
-
-    commandInput.onBlur(() => {
-        moudAPI.console.log("Champ de commande dé-focus.");
-        commandInput.setBorder(1, "#555555");
-
-        if (moudAPI.cursor.isVisible()) {
-            moudAPI.cursor.hide();
-        }
-    });
-
-    const handleSendCommand = () => {
-        const commandText = commandInput.getValue();
-        if (commandText.trim() === "") return;
-
-        moudAPI.console.log(`Envoi de la commande : "${commandText}"`);
-        moudAPI.network.sendToServer("ui:command_sent", { command: commandText });
-        commandInput.setValue("");
-
-        commandInput.triggerBlur();
-    };
-
-    sendButton.onClick(handleSendCommand);
-
-    commandContainer.showAsOverlay();
-    moudAPI.console.log("L'interface de la barre de commande est visible. Appuyez sur F8 pour basculer le curseur.");
-}
-
-createCommandBarUI();
+setTimeout(function() {
+    console.log("Testing position change...");
+    container.setPosition(100, 80);
+}, 3000);
