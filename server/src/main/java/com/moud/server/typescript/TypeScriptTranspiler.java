@@ -1,7 +1,9 @@
 package com.moud.server.typescript;
 
+import com.moud.server.project.ProjectLoader;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
+import org.apache.commons.exec.ExecuteException;
 import org.apache.commons.exec.ExecuteWatchdog;
 import org.apache.commons.exec.PumpStreamHandler;
 import org.slf4j.Logger;
@@ -35,15 +37,18 @@ public class TypeScriptTranspiler {
                 return transpileWithEsbuild(tsFile);
 
             } catch (Exception e) {
-                LOGGER.error("Failed to transpile TypeScript file: {}", tsFile, e);
                 throw new RuntimeException("Failed to transpile TypeScript", e);
             }
         });
     }
 
     private static String transpileWithEsbuild(Path tsFile) throws Exception {
+        Path projectRoot = ProjectLoader.findProjectRoot();
         Path tempDir = Files.createTempDirectory("moud-ts");
         Path jsFile = tempDir.resolve(tsFile.getFileName().toString().replace(".ts", ".js"));
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ByteArrayOutputStream errorStream = new ByteArrayOutputStream();
 
         try {
             CommandLine cmdLine = CommandLine.parse("npx");
@@ -55,9 +60,7 @@ public class TypeScriptTranspiler {
             cmdLine.addArgument("--platform=neutral");
 
             DefaultExecutor executor = DefaultExecutor.builder().get();
-
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            ByteArrayOutputStream errorStream = new ByteArrayOutputStream();
+            executor.setWorkingDirectory(projectRoot.toFile()); // <-- FIX: Set the correct working directory
 
             PumpStreamHandler streamHandler = new PumpStreamHandler(outputStream, errorStream);
             executor.setStreamHandler(streamHandler);
@@ -69,16 +72,24 @@ public class TypeScriptTranspiler {
 
             if (exitCode != 0) {
                 String error = errorStream.toString();
-                LOGGER.error("esbuild failed with exit code {}: {}", exitCode, error);
+                LOGGER.error("esbuild failed with exit code {}:\n{}", exitCode, error);
 
                 String tsContent = Files.readString(tsFile);
                 LOGGER.warn("Falling back to basic transpilation");
                 return performBasicTranspilation(tsContent);
             }
 
-            String transpiledCode = Files.readString(jsFile);
-            return transpiledCode;
+            return Files.readString(jsFile);
 
+        } catch (ExecuteException e) {
+            String errorOutput = errorStream.toString();
+            String standardOutput = outputStream.toString();
+            LOGGER.error("Execution failed during esbuild transpilation. Exit Code: {}", e.getExitValue());
+            LOGGER.error("--> esbuild STDERR:\n{}", errorOutput);
+            if (!standardOutput.isEmpty()) {
+                LOGGER.error("--> esbuild STDOUT:\n{}", standardOutput);
+            }
+            throw e;
         } finally {
             try {
                 if (Files.exists(jsFile)) Files.deleteIfExists(jsFile);
@@ -94,7 +105,7 @@ public class TypeScriptTranspiler {
                 .replaceAll("\\binterface\\s+\\w+\\s*\\{[^}]*\\}", "")
                 .replaceAll("\\btype\\s+\\w+\\s*=.*?;", "")
                 .replaceAll("\\b(let|const|var)\\s+(\\w+)\\s*:\\s*[^=;]+", "$1 $2")
-                .replaceAll("\\bfunction\\s+(\\w+)\\s*\\([^)]*\\)\\s*:\\s*[^{]+", "function $1()")
+                .replaceAll("\\bfunction\\s+(\\w+)\\s*\\([^)]*\\}\\s*:\\s*[^{]+", "function $1()")
                 .replaceAll("\\b(\\w+)\\s*:\\s*[^,;)]+", "$1")
                 .replaceAll("(?m)^\\s*import\\s+.*?;?$", "")
                 .replaceAll("(?m)^\\s*export\\s+.*?;?$", "")
