@@ -191,6 +191,23 @@ interface MoudConsole {
     error(...args: any[]): void;
 }
 
+interface RenderTypeOptions {
+    shader: string;
+    textures?: string[];
+    transparency?: "opaque" | "translucent" | "additive";
+    cull?: boolean;
+    lightmap?: boolean;
+    depthTest?: boolean;
+}
+
+interface RenderingService {
+    applyPostEffect(effectId: string): void;
+    removePostEffect(effectId: string): void;
+    createRenderType(options: RenderTypeOptions): string;
+    setShaderUniform(shaderId: string, uniformName: string, value: number | boolean): void;
+    on(eventName: 'beforeWorldRender', callback: (deltaTime: number) => void): void;
+}
+
 interface CameraService {
     enableCustomCamera(): void;
     disableCustomCamera(): void;
