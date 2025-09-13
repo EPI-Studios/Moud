@@ -84,3 +84,11 @@ Forget long Java compilation cycles; write your server-side and client-side game
 - Asset packaging format modifications
 - UI component API restructuring
 - Event system overhaul for better error handling
+
+## Credits 
+
+- Created, designed and maintained by [@Meekiavelique](https://github.com/Meekiavelique) 
+- Powered by EPI STUDIO - https://discord.gg/PvKeHzTwdU 
+[![Banniereepistudio.jpg](https://i.postimg.cc/50yBMFKZ/Banniereepistudio.jpg)](https://postimg.cc/Fdtdy14Z)
+
+
