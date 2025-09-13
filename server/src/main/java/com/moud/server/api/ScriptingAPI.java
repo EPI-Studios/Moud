@@ -3,6 +3,7 @@ package com.moud.server.api;
 import com.moud.server.events.EventDispatcher;
 import com.moud.server.proxy.ServerProxy;
 import com.moud.server.proxy.WorldProxy;
+import com.moud.server.proxy.LightingAPIProxy;
 import com.moud.server.api.validation.APIValidator;
 import com.moud.server.api.exception.APIException;
 import org.graalvm.polyglot.Value;
@@ -15,15 +16,17 @@ public class ScriptingAPI {
     private final EventDispatcher eventDispatcher;
     private final ServerProxy serverProxy;
     private final WorldProxy worldProxy;
+    private final LightingAPIProxy lightingProxy;
     private final APIValidator validator;
 
     public ScriptingAPI(EventDispatcher eventDispatcher) {
         this.eventDispatcher = eventDispatcher;
         this.serverProxy = new ServerProxy();
         this.worldProxy = new WorldProxy().createInstance();
+        this.lightingProxy = new LightingAPIProxy();
         this.validator = new APIValidator();
 
-        LOGGER.info("Scripting API initialized successfully");
+        LOGGER.info("Scripting API initialized successfully with lighting support");
     }
 
     public void on(String eventName, Value callback) {
@@ -69,6 +72,15 @@ public class ScriptingAPI {
         } catch (Exception e) {
             LOGGER.error("Error accessing world proxy", e);
             throw new APIException("Failed to access world", e);
+        }
+    }
+
+    public LightingAPIProxy getLighting() {
+        try {
+            return this.lightingProxy;
+        } catch (Exception e) {
+            LOGGER.error("Error accessing lighting proxy", e);
+            throw new APIException("Failed to access lighting", e);
         }
     }
 

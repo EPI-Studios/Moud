@@ -219,14 +219,24 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     }
 
 
+
     private void handleScriptEvent(MoudPackets.ClientboundScriptEvent packet, ClientPlayNetworking.Context context) {
+        String eventName = packet.eventName();
+        String eventData = packet.eventData();
+        if (eventName.startsWith("lighting:")) {
+            if (this.apiService != null && this.apiService.lighting != null) {
+                context.client().execute(() -> {
+                    this.apiService.lighting.handleNetworkEvent(eventName, eventData);
+                });
+            }
+            return;
+        }
         if (scriptingRuntime != null && scriptingRuntime.isInitialized()) {
-            scriptingRuntime.triggerNetworkEvent(packet.eventName(), packet.eventData());
+            scriptingRuntime.triggerNetworkEvent(eventName, eventData);
         } else {
-            LOGGER.debug("Ignoring script event '{}' - runtime not ready", packet.eventName());
+            LOGGER.debug("Ignoring script event '{}' - runtime not ready", eventName);
         }
     }
-
     @Override
     public void register(Consumer<ResourcePackProfile> profileAdder) {
         InMemoryPackResources pack = dynamicPack.get();

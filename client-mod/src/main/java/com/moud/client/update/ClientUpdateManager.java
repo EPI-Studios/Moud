@@ -10,6 +10,7 @@ public class ClientUpdateManager {
     private final ClientAPIService apiService;
     private static final Logger LOGGER = LoggerFactory.getLogger("ClientScript.ClientUpdateManager");
     private Context jsContext;
+
     public ClientUpdateManager(ClientAPIService apiService) {
         this.apiService = apiService;
         registerTickHandlers();
@@ -17,13 +18,17 @@ public class ClientUpdateManager {
 
     private void registerTickHandlers() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            apiService.input.update();
+            if (apiService.input != null) {
+                apiService.input.update();
+            }
+            if (apiService.lighting != null) {
+                apiService.lighting.tick();
+            }
         });
     }
+
     public void cleanup() {
-
         jsContext = null;
-        LOGGER.info("InputService cleaned up.");
+        LOGGER.info("ClientUpdateManager cleaned up.");
     }
-
 }
