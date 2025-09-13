@@ -25,9 +25,11 @@ public abstract class GameRendererMixin {
     @Inject(method = "renderWorld(Lnet/minecraft/client/render/RenderTickCounter;)V", at = @At("HEAD"))
     private void moud_triggerRenderEvents(RenderTickCounter tickCounter, CallbackInfo ci) {
         if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.rendering != null) {
+            ClientAPIService.INSTANCE.rendering.applyPendingUniforms();
             ClientAPIService.INSTANCE.rendering.triggerRenderEvents();
         }
     }
+
 
     @Inject(method = "bobView(Lnet/minecraft/client/util/math/MatrixStack;F)V", at = @At("HEAD"))
     private void moud_applyCameraOverrides(MatrixStack matrices, float tickDelta, CallbackInfo ci) {
