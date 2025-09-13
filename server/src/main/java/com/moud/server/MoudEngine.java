@@ -29,11 +29,15 @@ public class MoudEngine {
     private final AsyncManager asyncManager;
     private final AtomicBoolean initialized = new AtomicBoolean(false);
 
-    public MoudEngine() {
+    public MoudEngine(String[] launchArgs) {
         LOGGER.startup("Initializing Moud Engine...");
 
+
         try {
-            Path projectRoot = ProjectLoader.findProjectRoot();
+            Path projectRoot = ProjectLoader.resolveProjectRoot(launchArgs)
+                    .orElseThrow(() -> new IllegalStateException("Could not find a valid Moud project root."));
+
+            LOGGER.info("Loading project from: {}", projectRoot);
 
             this.assetManager = new AssetManager(projectRoot);
             assetManager.initialize();
