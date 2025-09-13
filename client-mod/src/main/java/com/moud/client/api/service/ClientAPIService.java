@@ -19,6 +19,7 @@ public final class ClientAPIService {
     public final ConsoleAPI console;
     public final CursorService cursor;
     public final CameraService camera;
+    public final LightingService lighting;
     public final ClientSharedApiProxy shared;
     private final ClientUpdateManager updateManager;
 
@@ -39,7 +40,10 @@ public final class ClientAPIService {
         this.cursor = new CursorService();
         this.console = new ConsoleAPI();
         this.camera = new CameraService();
+        this.lighting = new LightingService();
         this.shared = new ClientSharedApiProxy();
+
+        this.network.setLightingService(this.lighting);
 
         this.updateManager = new ClientUpdateManager(this);
 
@@ -54,8 +58,6 @@ public final class ClientAPIService {
         this.scriptingRuntime = runtime;
         this.input = new InputService(runtime);
         LOGGER.info("InputService initialized.");
-        // i don't want to see a pr of someone getting scriptingcontext here
-
     }
 
     public void updateScriptingContext(Context context) {
@@ -72,6 +74,7 @@ public final class ClientAPIService {
             this.ui.setExecutor(this.scriptingRuntime != null ? this.scriptingRuntime.getExecutor() : null);
             this.console.setContext(context);
             this.camera.setContext(context);
+            this.lighting.setContext(context);
 
             if (this.input != null) {
                 this.input.setContext(context);
@@ -101,6 +104,7 @@ public final class ClientAPIService {
             if (console != null) console.cleanUp();
             if (camera != null) camera.cleanUp();
             if (cursor != null) cursor.cleanUp();
+            if (lighting != null) lighting.cleanUp();
             if (input != null) input.cleanUp();
             if (updateManager != null) updateManager.cleanup();
 

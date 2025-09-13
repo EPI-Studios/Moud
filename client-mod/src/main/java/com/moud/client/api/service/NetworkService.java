@@ -18,6 +18,7 @@ public final class NetworkService {
 
     private final Map<String, Value> eventHandlers = new ConcurrentHashMap<>();
     private Context jsContext;
+    private LightingService lightingService;
 
     public NetworkService() {
 
@@ -26,6 +27,10 @@ public final class NetworkService {
     public void setContext(Context jsContext) {
         this.jsContext = jsContext;
         LOGGER.debug("NetworkService received new GraalVM Context.");
+    }
+
+    public void setLightingService(LightingService lightingService) {
+        this.lightingService = lightingService;
     }
 
     public void sendToServer(String eventName, Object data) {
@@ -39,6 +44,11 @@ public final class NetworkService {
     }
 
     public void triggerEvent(String eventName, String eventData) {
+        if (eventName.startsWith("lighting:") && lightingService != null) {
+            lightingService.handleNetworkEvent(eventName, eventData);
+            return;
+        }
+
         Value handler = eventHandlers.get(eventName);
         if (handler != null && handler.canExecute()) {
             if (jsContext != null) {
@@ -88,6 +98,7 @@ public final class NetworkService {
     public void cleanUp() {
         eventHandlers.clear();
         jsContext = null;
+        lightingService = null;
         LOGGER.info("NetworkService cleaned up.");
     }
 }
