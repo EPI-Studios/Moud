@@ -2,6 +2,7 @@ package com.moud.server.proxy;
 
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.player.PlayerChatEvent;
+import org.graalvm.polyglot.HostAccess;
 
 public class ChatEventProxy {
     private final Player player;
@@ -14,18 +15,22 @@ public class ChatEventProxy {
         this.event = event;
     }
 
+    @HostAccess.Export
     public PlayerProxy getPlayer() {
         return new PlayerProxy(player);
     }
 
+    @HostAccess.Export
     public String getMessage() {
         return message;
     }
 
+    @HostAccess.Export
     public void cancel() {
         event.setCancelled(true);
     }
 
+    @HostAccess.Export
     public boolean isCancelled() {
         return event.isCancelled();
     }

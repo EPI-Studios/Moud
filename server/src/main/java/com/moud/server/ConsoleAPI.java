@@ -1,11 +1,14 @@
 package com.moud.server;
 
 import com.moud.server.logging.MoudLogger;
+import org.graalvm.polyglot.HostAccess;
 
 public class ConsoleAPI {
     private static final MoudLogger LOGGER = MoudLogger.getLogger("Script.Console".getClass());
     private static final int MAX_LOG_LENGTH = 4096;
 
+
+    @HostAccess.Export
     public void log(Object... args) {
         String message = formatArgs(args);
         if (message.length() > MAX_LOG_LENGTH) {
@@ -14,6 +17,7 @@ public class ConsoleAPI {
         LOGGER.info(message);
     }
 
+    @HostAccess.Export
     public void warn(Object... args) {
         String message = formatArgs(args);
         if (message.length() > MAX_LOG_LENGTH) {
@@ -22,6 +26,7 @@ public class ConsoleAPI {
         LOGGER.warn(message);
     }
 
+    @HostAccess.Export
     public void error(Object... args) {
         String message = formatArgs(args);
         if (message.length() > MAX_LOG_LENGTH) {
@@ -30,57 +35,13 @@ public class ConsoleAPI {
         LOGGER.error(message);
     }
 
+    @HostAccess.Export
     public void debug(Object... args) {
         String message = formatArgs(args);
         if (message.length() > MAX_LOG_LENGTH) {
             message = message.substring(0, MAX_LOG_LENGTH) + "... (truncated)";
         }
         LOGGER.debug(message);
-    }
-
-    public void success(Object... args) {
-        String message = formatArgs(args);
-        if (message.length() > MAX_LOG_LENGTH) {
-            message = message.substring(0, MAX_LOG_LENGTH) + "... (truncated)";
-        }
-        LOGGER.success(message);
-    }
-
-    public void trace(String message, Object... context) {
-        if (context.length > 0) {
-            LOGGER.debug("TRACE: {} | Context: {}", message, formatArgs(context));
-        } else {
-            LOGGER.debug("TRACE: {}", message);
-        }
-    }
-
-    public void assert_(boolean condition, String message) {
-        if (!condition) {
-            LOGGER.error("ASSERTION FAILED: {}", message);
-            throw new AssertionError(message);
-        }
-    }
-
-    public void time(String label) {
-        long timestamp = System.currentTimeMillis();
-        LOGGER.debug("TIMER START: {} at {}", label, timestamp);
-    }
-
-    public void timeEnd(String label) {
-        long timestamp = System.currentTimeMillis();
-        LOGGER.debug("TIMER END: {} at {}", label, timestamp);
-    }
-
-    public void group(String label) {
-        LOGGER.info("┌─ GROUP: {}", label);
-    }
-
-    public void groupEnd() {
-        LOGGER.info("└─ GROUP END");
-    }
-
-    public void table(Object data) {
-        LOGGER.info("TABLE: {}", formatTableData(data));
     }
 
     private String formatArgs(Object[] args) {
@@ -107,9 +68,5 @@ public class ConsoleAPI {
             return "[Object: " + arg.getClass().getSimpleName() + "]";
         }
     }
-
-    private String formatTableData(Object data) {
-        if (data == null) return "null";
-        return data.toString();
-    }
 }
+

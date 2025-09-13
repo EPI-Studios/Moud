@@ -1,6 +1,7 @@
 package com.moud.server.proxy;
 
 import com.moud.server.assets.AssetManager;
+import org.graalvm.polyglot.HostAccess;
 
 import java.io.IOException;
 
@@ -11,6 +12,7 @@ public class AssetProxy {
         this.assetManager = assetManager;
     }
 
+    @HostAccess.Export
     public ShaderAssetProxy loadShader(String path) {
         try {
             AssetManager.ShaderAsset asset = (AssetManager.ShaderAsset) assetManager.loadAsset(path);
@@ -20,6 +22,7 @@ public class AssetProxy {
         }
     }
 
+    @HostAccess.Export
     public TextureAssetProxy loadTexture(String path) {
         try {
             AssetManager.TextureAsset asset = (AssetManager.TextureAsset) assetManager.loadAsset(path);
@@ -29,6 +32,7 @@ public class AssetProxy {
         }
     }
 
+    @HostAccess.Export
     public DataAssetProxy loadData(String path) {
         try {
             AssetManager.DataAsset asset = (AssetManager.DataAsset) assetManager.loadAsset(path);
@@ -40,49 +44,34 @@ public class AssetProxy {
 
     public static class ShaderAssetProxy {
         private final AssetManager.ShaderAsset asset;
+        public ShaderAssetProxy(AssetManager.ShaderAsset asset) { this.asset = asset; }
 
-        public ShaderAssetProxy(AssetManager.ShaderAsset asset) {
-            this.asset = asset;
-        }
+        @HostAccess.Export
+        public String getId() { return asset.getId(); }
 
-        public String getId() {
-            return asset.getId();
-        }
-
-        public String getCode() {
-            return asset.getShaderCode();
-        }
+        @HostAccess.Export
+        public String getCode() { return asset.getShaderCode(); }
     }
 
     public static class TextureAssetProxy {
         private final AssetManager.TextureAsset asset;
+        public TextureAssetProxy(AssetManager.TextureAsset asset) { this.asset = asset; }
 
-        public TextureAssetProxy(AssetManager.TextureAsset asset) {
-            this.asset = asset;
-        }
+        @HostAccess.Export
+        public String getId() { return asset.getId(); }
 
-        public String getId() {
-            return asset.getId();
-        }
-
-        public byte[] getData() {
-            return asset.getData();
-        }
+        @HostAccess.Export
+        public byte[] getData() { return asset.getData(); }
     }
 
     public static class DataAssetProxy {
         private final AssetManager.DataAsset asset;
+        public DataAssetProxy(AssetManager.DataAsset asset) { this.asset = asset; }
 
-        public DataAssetProxy(AssetManager.DataAsset asset) {
-            this.asset = asset;
-        }
+        @HostAccess.Export
+        public String getId() { return asset.getId(); }
 
-        public String getId() {
-            return asset.getId();
-        }
-
-        public String getContent() {
-            return asset.getJsonContent();
-        }
+        @HostAccess.Export
+        public String getContent() { return asset.getJsonContent(); }
     }
 }
