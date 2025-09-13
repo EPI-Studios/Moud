@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moud.server.network.ServerNetworkManager;
 import net.minestom.server.entity.Player;
+import org.graalvm.polyglot.HostAccess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,11 +18,7 @@ public class ClientProxy {
         this.player = player;
     }
 
-    /**
-     * Sends a custom event to this player's client-side script environment.
-     * @param eventName The name of the event to trigger on the client.
-     * @param data The data payload for the event, which will be serialized to JSON.
-     */
+    @HostAccess.Export
     public void send(String eventName, Object data) {
         String serializedData;
         try {
