@@ -8,6 +8,6 @@
   },
   "devDependencies": {
     "@moud/sdk": "workspace:*",
-    "moud-cli": "workspace:*"
+    "@moud/cli": "workspace:*"
   }
 }

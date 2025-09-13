@@ -1,53 +1,95 @@
 import { Command } from 'commander';
-import chalk from 'chalk';
-import { spawn } from 'child_process';
+import { logger } from '../services/logger.js';
+import { EnvironmentManager } from '../services/environment.js';
+import { Transpiler } from '../services/transpiler.js';
+import { spawn, ChildProcess } from 'child_process';
 import chokidar from 'chokidar';
 import path from 'path';
 
-export const devCommand = new Command('dev')
-  .description('Start the development server')
-  .action(async () => {
-    console.log(chalk.cyan('Starting Moud in development mode...'));
+let serverProcess: ChildProcess | null = null;
+let isRestarting = false;
 
-    // TODO: Make sure to be in a MOUD project
+async function startServer(environment: EnvironmentManager, transpiler: Transpiler) {
+    logger.step('Transpiling scripts...');
+    await transpiler.transpileProject();
+    logger.success('Scripts transpiled successfully.');
 
     const projectRoot = process.cwd();
-    const moudRoot = path.resolve(projectRoot, '../..');
+    const javaExecutable = environment.getJavaExecutablePath();
+    const serverJar = environment.getServerJarPath();
 
-    const serverProcess = spawn(
-        path.join(moudRoot, 'gradlew'),
-        [':server:run'],
-        {
-            cwd: moudRoot,
-            stdio: 'pipe'
+    if (!javaExecutable || !serverJar) {
+        logger.error('Environment is not correctly configured. Cannot start server.');
+        process.exit(1);
+    }
+
+    logger.step('Starting Moud Server...');
+
+    serverProcess = spawn(javaExecutable, [
+        '-jar', serverJar,
+        '--project-root', projectRoot
+    ], { stdio: 'pipe' });
+
+    serverProcess.stdout?.on('data', (data) => {
+        process.stdout.write(`[Moud Engine] ${data.toString()}`);
+    });
+
+    serverProcess.stderr?.on('data', (data) => {
+        process.stderr.write(`[Moud Engine] ${data.toString()}`);
+    });
+
+    serverProcess.on('close', (code) => {
+        if (!isRestarting) {
+            logger.warn(`Moud Server process exited with code ${code}.`);
         }
-    );
+    });
+}
 
-    serverProcess.stdout.on('data', (data) => {
-      console.log(`${chalk.gray('[SERVER]')} ${data.toString().trim()}`);
+async function restartServer(environment: EnvironmentManager, transpiler: Transpiler) {
+    if (isRestarting) return;
+    isRestarting = true;
+    logger.info('Restarting Moud Server...');
+
+    if (serverProcess) {
+        serverProcess.kill('SIGINT');
+        await new Promise(resolve => serverProcess?.on('close', resolve));
+        serverProcess = null;
+    }
+
+    await startServer(environment, transpiler);
+    isRestarting = false;
+    logger.success('Server restarted.');
+}
+
+export const devCommand = new Command('dev')
+  .description('Start the development server with hot-reloading')
+  .action(async () => {
+    logger.info('Starting Moud in development mode...');
+
+    const environment = new EnvironmentManager();
+    const transpiler = new Transpiler();
+
+    await environment.initialize();
+    await startServer(environment, transpiler);
+
+    const watcher = chokidar.watch(['src/**/*', 'client/**/*', 'assets/**/*'], {
+        ignored: /(^|[\/\\])\../,
+        persistent: true,
     });
 
-    serverProcess.stderr.on('data', (data) => {
-      console.error(`${chalk.red('[SERVER-ERROR]')} ${data.toString().trim()}`);
-    });
+    logger.info('Watching for file changes...');
 
-    const watcher = chokidar.watch([
-        path.join(projectRoot, 'src/**/*.ts'),
-        path.join(projectRoot, 'client/**/*.ts')
-    ], { persistent: true });
-
-    console.log(chalk.yellow('Watching for file changes...'));
-
-    watcher.on('change', (filePath) => {
-      console.log(chalk.green(`File changed: ${path.basename(filePath)}`));
-      // TODO: Trigger hot-reloading to the java part
-      console.log(chalk.blue('Triggering hot-reload... (not yet implemented)'));
+    watcher.on('change', async (filePath) => {
+        logger.info(`File changed detected: ${path.basename(filePath)}`);
+        await restartServer(environment, transpiler);
     });
 
     process.on('SIGINT', () => {
-        console.log(chalk.cyan('\nShutting down Moud development server...'));
+        logger.info('Shutting down Moud Server...');
+        if (serverProcess) {
+            serverProcess.kill('SIGINT');
+        }
         watcher.close();
-        serverProcess.kill();
         process.exit(0);
     });
   });

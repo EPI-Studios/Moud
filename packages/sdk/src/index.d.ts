@@ -1,45 +1,236 @@
+/**
+ * Moud Engine - Server-Side API Definitions
+**/
+
+// --- Core & Global Types ---
+
+/**
+ * Represents a 3D vector with x, y, and z components.
+ * This class can be instantiated in scripts.
+ */
 interface Vector3 {
     readonly x: number;
     readonly y: number;
     readonly z: number;
+    add(other: Vector3): Vector3;
 }
 
-interface Entity {
-    getId(): number;
-    getPosition(): Vector3;
-    getDirection(): Vector3;
-    teleport(x: number, y: number, z: number): void;
-    lookAt(x: number, y: number, z: number): void;
-    destroy(): void;
+declare global {
+    /**
+     * The main entry point to all server-side Moud APIs.
+     */
+    const api: MoudAPI;
+
+    /**
+     * A secure console API for logging messages to the server console.
+     */
+    const console: {
+        log(...args: any[]): void;
+        warn(...args: any[]): void;
+        error(...args: any[]): void;
+        debug(...args: any[]): void;
+    };
+
+    /**
+     * The constructor for the Vector3 class, allowing instantiation in scripts.
+     * @example const position = new Vector3(10, 20, 30);
+     */
+    const Vector3: {
+        new(x: number, y: number, z: number): Vector3;
+    };
 }
 
-interface Player extends Entity {
+
+// --- Main API Interfaces ---
+
+/**
+ * The root interface for all server-side Moud APIs.
+ */
+interface MoudAPI {
+    /**
+     * Registers a callback function to be executed when a specific game event occurs.
+     * @param eventName The name of the event (e.g., 'player.join', 'player.chat').
+     * @param callback The function to execute when the event is triggered.
+     */
+    on(eventName: 'player.join', callback: (player: Player) => void): void;
+    on(eventName: 'player.leave', callback: (player: Player) => void): void;
+    on(eventName: 'player.chat', callback: (event: ChatEvent) => void): void;
+    on(eventName: string, callback: (...args: any[]) => void): void;
+
+    /**
+     * Accesses the server-wide API for managing players and broadcasting messages.
+     * @returns The Server API proxy.
+     */
+    getServer(): Server;
+
+    /**
+     * Accesses the main world/instance API for block manipulation and entity spawning.
+     * @returns The World API proxy.
+     */
+    getWorld(): World;
+
+    /**
+     * Accesses the lighting API for creating and managing dynamic lights.
+     * @returns The Lighting API proxy.
+     */
+    getLighting(): LightingAPI;
+
+    /**
+     * Accesses the asynchronous task manager for running long-running, non-blocking operations.
+     * @returns The AsyncManager API proxy.
+     */
+    getAsync(): AsyncManager;
+}
+
+/**
+ * API for managing server-level operations.
+ */
+interface Server {
+    /**
+     * Sends a message to every online player.
+     * @param message The message to broadcast.
+     */
+    broadcast(message: string): void;
+
+    /**
+     * Gets the current number of online players.
+     * @returns The number of players.
+     */
+    getPlayerCount(): number;
+
+    /**
+     * Gets an array of all currently online players.
+     * @returns An array of Player objects.
+     */
+    getPlayers(): Player[];
+}
+
+/**
+ * API for managing the main game world.
+ */
+interface World {
+    /**
+     * Sets the world generator to a flat grass plain.
+     * @returns The World object for chaining.
+     */
+    setFlatGenerator(): World;
+
+    /**
+     * Sets the world generator to a completely empty void.
+     * @returns The World object for chaining.
+     */
+    setVoidGenerator(): World;
+
+    /**
+     * Sets the default spawn point for new players.
+     * @returns The World object for chaining.
+     */
+    setSpawn(x: number, y: number, z: number): World;
+
+    /**
+     * Gets the namespaced ID of a block at a specific coordinate.
+     * @returns The block ID (e.g., 'minecraft:stone').
+     */
+    getBlock(x: number, y: number, z: number): string;
+
+    /**
+     * Places a block at a specific coordinate.
+     * @param blockId The namespaced ID of the block to place.
+     */
+    setBlock(x: number, y: number, z: number, blockId: string): void;
+
+    /**
+     * Spawns a new entity in the world that is controlled by a script object.
+     * @param entityType The namespaced ID of the entity (e.g., 'minecraft:zombie').
+     * @param jsInstance The script object with an `onTick` method to control the entity.
+     */
+    spawnScriptedEntity(entityType: string, x: number, y: number, z: number, jsInstance: any): any;
+}
+
+/**
+ * API for creating and managing dynamic lights in the world.
+ */
+interface LightingAPI {
+    /**
+     * Creates a new point light (emits light in all directions).
+     * @param lightId A unique numeric ID for this light.
+     */
+    createPointLight(lightId: number, position: Vector3, color: Vector3, radius: number, brightness: number): void;
+
+    /**
+     * Creates a new area light (a directional spotlight).
+     * @param lightId A unique numeric ID for this light.
+     */
+    createAreaLight(lightId: number, position: Vector3, direction: Vector3, color: Vector3, width: number, height: number, brightness: number): void;
+
+    /**
+     * Updates the properties of an existing light.
+     * @param lightId The ID of the light to update.
+     * @param properties An object containing the properties to change (e.g., { x: 10, y: 20, z: 30 }).
+     */
+    updateLight(lightId: number, properties: { [key: string]: any }): void;
+
+    /**
+     * Removes a light from the world.
+     * @param lightId The ID of the light to remove.
+     */
+    removeLight(lightId: number): void;
+}
+
+/**
+ * API for running tasks on a separate thread to avoid lagging the server.
+ */
+interface AsyncManager {
+    /**
+     * Submits a task to be executed on a worker thread.
+     * @param task A function containing the long-running computation.
+     * @returns A Promise that resolves with the return value of the task.
+     */
+    submit(task: () => any): Promise<any>;
+
+    /**
+     * Schedules a task to be run on the main server thread on the next tick.
+     * Useful for applying results from an async task (e.g., setting blocks).
+     * @param task The function to execute on the main thread.
+     */
+    runOnServerThread(task: () => void): void;
+}
+
+
+// --- Entity & Event Interfaces ---
+
+/**
+ * Represents a player in the game.
+ */
+interface Player {
     getName(): string;
     getUuid(): string;
     sendMessage(message: string): void;
     kick(reason: string): void;
     isOnline(): boolean;
     getClient(): PlayerClient;
+    getPosition(): Vector3;
+    getDirection(): Vector3;
+    getCameraDirection(): Vector3;
+    teleport(x: number, y: number, z: number): void;
+    getShared(): SharedValueApiProxy;
 }
 
+/**
+ * Represents the client-side of a player connection, for sending client-only events.
+ */
 interface PlayerClient {
+    /**
+     * Sends a custom event to this specific player's client script.
+     * @param eventName The name of the event to trigger on the client.
+     * @param data The data payload for the event.
+     */
     send(eventName: string, data: any): void;
 }
 
-declare global {
-    const api: MoudAPI;
-    const assets: ServerAssets;
-    const console: MoudConsole;
-}
-
-interface MoudAPI {
-    on(eventName: 'player.join', callback: (player: Player) => void): void;
-    on(eventName: 'player.chat', callback: (event: ChatEvent) => void): void;
-    on(eventName: string, callback: (data: any, player: Player) => void): void;
-    getServer(): Server;
-    getWorld(): World;
-}
-
+/**
+ * Represents a player chat event.
+ */
 interface ChatEvent {
     getPlayer(): Player;
     getMessage(): string;
@@ -47,190 +238,63 @@ interface ChatEvent {
     isCancelled(): boolean;
 }
 
-interface Server {
-    broadcast(message: string): void;
-    getPlayerCount(): number;
-    getPlayers(): Player[];
+
+// --- Shared Value Synchronization ---
+
+/**
+ * Entry point to the Shared Values API for a specific player.
+ */
+interface SharedValueApiProxy {
+    /**
+     * Gets or creates a named data store for this player.
+     * @param storeName A unique name for the store (e.g., 'inventory', 'playerStats').
+     * @returns The SharedStore proxy.
+     */
+    getStore(storeName: string): SharedStoreProxy;
 }
 
-interface World {
-    setFlatGenerator(): World;
-    setVoidGenerator(): World;
-    setSpawn(x: number, y: number, z: number): World;
-    getBlock(x: number, y: number, z: number): string;
-    setBlock(x: number, y: number, z: number, blockId: string): void;
-    spawnScriptedEntity(entityType: string, x: number, y: number, z: number, jsInstance: any): Entity;
-}
+/**
+ * A key-value data store that can be synchronized between the server and a client.
+ */
+interface SharedStoreProxy {
+    /**
+     * Sets a value in the store. This will be synchronized to the client.
+     * @param key The key for the data.
+     * @param value The value to store. Must be serializable (numbers, strings, booleans, nested objects/arrays).
+     * @param syncMode 'batched' (default) groups changes, 'immediate' sends instantly.
+     * @param permission 'hybrid' (default) allows client to request changes, 'server-only' is read-only for client.
+     */
+    set(key: string, value: any, syncMode?: 'batched' | 'immediate', permission?: 'hybrid' | 'server-only' | 'client-readonly'): void;
 
-interface ServerAssets {
-    loadShader(path: string): ShaderAsset;
-    loadTexture(path: string): TextureAsset;
-    loadData(path: string): DataAsset;
-}
+    /**
+     * Gets a value from the store.
+     * @param key The key of the data to retrieve.
+     */
+    get(key: string): any;
 
-interface ShaderAsset {
-    getId(): string;
-    getCode(): string;
-}
+    /**
+     * Checks if a key exists in the store.
+     */
+    has(key: string): boolean;
 
-interface TextureAsset {
-    getId(): string;
-    getData(): Uint8Array;
-}
+    /**
+     * Removes a key-value pair from the store.
+     */
+    remove(key: string): void;
 
-interface DataAsset {
-    getId(): string;
-    getContent(): string;
-}
+    /**
+     * Registers a callback that fires when any value in this store changes.
+     * @param event Must be 'change'.
+     * @param callback Function to execute.
+     */
+    on(event: 'change', callback: (key: string, newValue: any, oldValue: any) => void): void;
 
-declare const Moud: ClientAPI;
-
-interface ClientAPI {
-    readonly network: NetworkService;
-    readonly rendering: RenderingService;
-    readonly ui: UIService;
-    readonly console: MoudConsole;
-    readonly camera: CameraService;
-        readonly cursor: CursorService;
-}
-
-interface NetworkService {
-    sendToServer(eventName: string, data: any): void;
-    on(eventName: string, callback: (data: any) => void): void;
-}
-
-interface RenderingService {
-    applyPostEffect(effectId: string): void;
-    removePostEffect(effectId: string): void;
-    on(eventName: 'beforeWorldRender', callback: (deltaTime: number) => void): void;
-}
-
-interface UIService {
-    createElement(type: string): UIElement;
-    createContainer(): UIContainer;
-    createText(content: string): UIText;
-    createButton(text: string): UIButton;
-    createInput(placeholder: string): UIInput;
-    createScreen(title: string): UIScreen;
-    showScreen(screen: UIScreen): void;
-}
-
-interface UIElement {
-    setId(id: string): void;
-    getId(): string;
-    setProperty(key: string, value: any): UIElement;
-    getProperty(key: string): any;
-    setText(text: string): UIElement;
-    getText(): string;
-    setPosition(x: number, y: number): UIElement;
-    setPositionMode(mode: string): UIElement;
-    setSize(width: number, height: number): UIElement;
-    setBackgroundColor(color: string): UIElement;
-    setTextColor(color: string): UIElement;
-    setBorder(width: number, color: string): UIElement;
-    setBorderRadius(radius: string): UIElement;
-    setBoxShadow(shadow: string): UIElement;
-    setFont(family: string, size: number, weight: string): UIElement;
-    setTextAlign(align: string): UIElement;
-    setPadding(top: number, right: number, bottom: number, left: number): UIElement;
-    setMargin(top: number, right: number, bottom: number, left: number): UIElement;
-    setOpacity(opacity: number): UIElement;
-    onClick(callback: (...args: any[]) => void): UIElement;
-    onHover(callback: (...args: any[]) => void): UIElement;
-    onFocus(callback: (...args: any[]) => void): UIElement;
-    onBlur(callback: (...args: any[]) => void): UIElement;
-    appendChild(child: UIElement): UIElement;
-    removeChild(child: UIElement): UIElement;
-    show(): UIElement;
-    hide(): UIElement;
-    showAsOverlay(): UIElement;
-    hideOverlay(): UIElement;
-    isVisible(): boolean;
-    animate(property: string, from: any, to: any, duration: number): UIElement;
-    getX(): number;
-    getY(): number;
-    getWidth(): number;
-    getHeight(): number;
-}
-
-interface CursorService {
-    show(): void;
-    hide(): void;
-    toggle(): void;
-    isVisible(): boolean;
-}
-
-interface UIContainer extends UIElement {
-    setFlexDirection(direction: string): UIContainer;
-    setJustifyContent(justify: string): UIContainer;
-    setAlignItems(align: string): UIContainer;
-    setFlexWrap(wrap: string): UIContainer;
-    setGap(gap: number): UIContainer;
-}
-
-interface UIText extends UIElement {
-}
-
-interface UIButton extends UIElement {
-}
-
-interface UIInput extends UIElement {
-    getValue(): string;
-    setValue(value: string): UIInput;
-    setFocused(focused: boolean): UIInput;
-}
-
-interface UIScreen {
-    addElement(element: UIElement): UIScreen;
-    removeElement(element: UIElement): UIScreen;
-}
-
-interface MoudConsole {
-    log(...args: any[]): void;
-    warn(...args: any[]): void;
-    error(...args: any[]): void;
-}
-
-interface RenderTypeOptions {
-    shader: string;
-    textures?: string[];
-    transparency?: "opaque" | "translucent" | "additive";
-    cull?: boolean;
-    lightmap?: boolean;
-    depthTest?: boolean;
-}
-
-interface RenderingService {
-    applyPostEffect(effectId: string): void;
-    removePostEffect(effectId: string): void;
-    createRenderType(options: RenderTypeOptions): string;
-    setShaderUniform(shaderId: string, uniformName: string, value: number | boolean): void;
-    on(eventName: 'beforeWorldRender', callback: (deltaTime: number) => void): void;
-}
-
-interface CameraService {
-    enableCustomCamera(): void;
-    disableCustomCamera(): void;
-    isCustomCameraActive(): boolean;
-    setRenderYawOverride(yaw: number): void;
-    setRenderPitchOverride(pitch: number): void;
-    clearRenderOverrides(): void;
-    getRenderYawOverride(): number | null;
-    getRenderPitchOverride(): number | null;
-    getPitch(): number;
-    setPitch(pitch: number): void;
-    getYaw(): number;
-    setYaw(yaw: number): void;
-    getX(): number;
-    getY(): number;
-    getZ(): number;
-    setPosition(x: number, y: number, z: number): void;
-    addRotation(pitchDelta: number, yawDelta: number): void;
-    getFov(): number;
-    setFov(fov: number): void;
-    isThirdPerson(): boolean;
-    setThirdPerson(thirdPerson: boolean): void;
-    lookAt(targetX: number, targetY: number, targetZ: number): void;
+    /**
+     * Registers a callback that fires only when a specific key's value changes.
+     * @param key The specific key to watch.
+     * @param callback Function to execute.
+     */
+    onChange(key: string, callback: (newValue: any, oldValue: any) => void): void;
 }
 
 export {}
