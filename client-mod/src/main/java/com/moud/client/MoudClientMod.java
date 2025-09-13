@@ -3,6 +3,7 @@ package com.moud.client;
 import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.network.MoudPackets;
 import com.moud.client.network.packets.SharedValuePackets;
+import com.moud.client.player.ClientCameraManager;
 import com.moud.client.resources.InMemoryPackResources;
 import com.moud.client.runtime.ClientScriptingRuntime;
 import com.moud.client.shared.SharedValueManager;
@@ -44,8 +45,9 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private ClientScriptingRuntime scriptingRuntime;
     private ClientAPIService apiService;
     private SharedValueManager sharedValueManager;
+    private ClientCameraManager clientCameraManager;
     private final AtomicReference<InMemoryPackResources> dynamicPack = new AtomicReference<>(null);
-    private String currentResourcesHash = ""; // Stores the hash of the currently active resource pack
+    private String currentResourcesHash = "";
 
     @Override
     public void onInitializeClient() {
@@ -55,13 +57,12 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         registerResourcePackProvider();
         registerTickHandler();
         registerShutdownHandler();
-        LOGGER.info("Moud client initialization complete. Waiting for server connection...");
+        LOGGER.info("Moud client initialization complete.");
     }
 
     private void initializeMoudServices() {
         LOGGER.info("Initializing Moud services for new connection...");
         if (apiService != null) {
-            LOGGER.warn("Services already exist. Cleaning up before re-initializing.");
             cleanupMoudServices();
         }
 
@@ -70,6 +71,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         this.apiService.setRuntime(this.scriptingRuntime);
         this.sharedValueManager = SharedValueManager.getInstance();
         this.sharedValueManager.initialize();
+        this.clientCameraManager = new ClientCameraManager();
     }
 
     private void cleanupMoudServices() {
@@ -85,6 +87,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         if (sharedValueManager != null) {
             sharedValueManager.cleanup();
         }
+        this.clientCameraManager = null;
     }
 
     private void registerTickHandler() {
@@ -92,28 +95,33 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             if (scriptingRuntime != null && scriptingRuntime.isInitialized()) {
                 scriptingRuntime.processScriptQueue();
             }
+            if (apiService != null) {
+                apiService.getUpdateManager().tick();
+            }
+            if (clientCameraManager != null) {
+                clientCameraManager.tick();
+            }
         });
     }
 
     private void registerShutdownHandler() {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
-            LOGGER.info("Client stopping, cleaning up Moud services...");
             cleanupMoudServices();
         });
     }
 
     private void setupNetworking() {
-        LOGGER.info("Setting up networking...");
         PayloadTypeRegistry.playS2C().register(MoudPackets.SyncClientScripts.ID, MoudPackets.SyncClientScripts.CODEC);
         PayloadTypeRegistry.playS2C().register(MoudPackets.ClientboundScriptEvent.ID, MoudPackets.ClientboundScriptEvent.CODEC);
         PayloadTypeRegistry.playS2C().register(SharedValuePackets.ServerSyncValuePacket.ID, SharedValuePackets.ServerSyncValuePacket.CODEC);
+
         PayloadTypeRegistry.playC2S().register(MoudPackets.HelloPacket.ID, MoudPackets.HelloPacket.CODEC);
         PayloadTypeRegistry.playC2S().register(MoudPackets.ServerboundScriptEvent.ID, MoudPackets.ServerboundScriptEvent.CODEC);
         PayloadTypeRegistry.playC2S().register(SharedValuePackets.ClientUpdateValuePacket.ID, SharedValuePackets.ClientUpdateValuePacket.CODEC);
+        PayloadTypeRegistry.playC2S().register(MoudPackets.ClientUpdateCameraPacket.ID, MoudPackets.ClientUpdateCameraPacket.CODEC);
 
         ClientPlayNetworking.registerGlobalReceiver(MoudPackets.SyncClientScripts.ID, this::handleSyncScripts);
         ClientPlayNetworking.registerGlobalReceiver(MoudPackets.ClientboundScriptEvent.ID, this::handleScriptEvent);
-        LOGGER.info("Networking setup complete.");
     }
 
     private void registerEventHandlers() {
@@ -123,34 +131,23 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
     private void onJoinServer(ClientPlayNetworkHandler handler, net.fabricmc.fabric.api.networking.v1.PacketSender sender, MinecraftClient client) {
         initializeMoudServices();
-        try {
-            LOGGER.info("Connected to server, sending hello packet.");
-            ClientPlayNetworking.send(new MoudPackets.HelloPacket(PROTOCOL_VERSION));
-        } catch (Exception e) {
-            LOGGER.error("Failed to send hello packet", e);
-        }
+        ClientPlayNetworking.send(new MoudPackets.HelloPacket(PROTOCOL_VERSION));
     }
 
     private void onDisconnectServer(ClientPlayNetworkHandler handler, MinecraftClient client) {
-        LOGGER.info("Disconnected from server. Cleaning up client-side state.");
         if (dynamicPack.getAndSet(null) != null) {
-            LOGGER.info("Deactivating dynamic resources, reloading client resources.");
             client.reloadResources();
         }
-        this.currentResourcesHash = ""; // Clear the hash on disconnect
+        this.currentResourcesHash = "";
         cleanupMoudServices();
         setCustomCameraActive(false);
     }
 
     private void handleSyncScripts(MoudPackets.SyncClientScripts packet, ClientPlayNetworking.Context context) {
         if (currentResourcesHash.equals(packet.hash())) {
-            LOGGER.info("Received script & asset archive, but hash is unchanged ({}). Skipping resource reload.", packet.hash());
             loadScriptsOnly(packet.scriptData(), context);
             return;
         }
-
-        LOGGER.info("Received new script & asset archive: oldHash={}, newHash={}, size={} bytes",
-                currentResourcesHash.isEmpty() ? "none" : currentResourcesHash, packet.hash(), packet.scriptData().length);
         this.currentResourcesHash = packet.hash();
 
         Map<String, byte[]> scriptsData = new HashMap<>();
@@ -172,7 +169,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             LOGGER.error("Error unpacking script & asset archive", e);
             return;
         }
-        LOGGER.info("Unpacked {} assets and {} scripts.", assetsData.size(), scriptsData.size());
 
         dynamicPack.set(new InMemoryPackResources(MOUDPACK_ID.toString(), Text.of("Moud Dynamic Server Resources"), assetsData));
 
@@ -197,44 +193,25 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     }
 
     private void loadScriptsOnly(Map<String, byte[]> scriptsData, ClientPlayNetworking.Context context) {
-        LOGGER.info("Dynamic resources reloaded (or skipped); initializing runtime and loading scripts.");
-
         if (scriptingRuntime == null || apiService == null) {
             LOGGER.error("Scripting runtime or API service is null. Aborting script load.");
             return;
         }
-
         scriptingRuntime.initialize().thenCompose(v -> {
             apiService.updateScriptingContext(scriptingRuntime.getContext());
             if (!scriptsData.isEmpty()) {
                 return scriptingRuntime.loadScripts(scriptsData);
             }
             return CompletableFuture.completedFuture(null);
-        }).thenRun(() -> {
-            LOGGER.info("Client scripts loaded and executed successfully.");
         }).exceptionally(t -> {
             LOGGER.error("A failure occurred during runtime initialization or script loading", t);
             return null;
         });
     }
 
-
-
     private void handleScriptEvent(MoudPackets.ClientboundScriptEvent packet, ClientPlayNetworking.Context context) {
-        String eventName = packet.eventName();
-        String eventData = packet.eventData();
-        if (eventName.startsWith("lighting:")) {
-            if (this.apiService != null && this.apiService.lighting != null) {
-                context.client().execute(() -> {
-                    this.apiService.lighting.handleNetworkEvent(eventName, eventData);
-                });
-            }
-            return;
-        }
         if (scriptingRuntime != null && scriptingRuntime.isInitialized()) {
-            scriptingRuntime.triggerNetworkEvent(eventName, eventData);
-        } else {
-            LOGGER.debug("Ignoring script event '{}' - runtime not ready", eventName);
+            scriptingRuntime.triggerNetworkEvent(packet.eventName(), packet.eventData());
         }
     }
     @Override
@@ -260,6 +237,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             profileAdder.accept(profile);
         }
     }
+
     private void registerResourcePackProvider() {
         try {
             Field providerField = MinecraftClient.getInstance().getResourcePackManager().getClass().getDeclaredField("providers");
@@ -267,7 +245,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             @SuppressWarnings("unchecked")
             Set<ResourcePackProvider> providers = (Set<ResourcePackProvider>) providerField.get(MinecraftClient.getInstance().getResourcePackManager());
             providers.add(this);
-            LOGGER.info("Registered dynamic resource pack provider.");
         } catch (Exception e) {
             LOGGER.error("Failed to register dynamic resource pack provider via reflection", e);
         }
@@ -280,5 +257,4 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     public static void setCustomCameraActive(boolean active) {
         customCameraActive = active;
     }
-
 }
