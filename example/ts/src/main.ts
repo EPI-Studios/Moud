@@ -1,78 +1,137 @@
+const world = api.getWorld();
+world.setFlatGenerator();
+world.setSpawn(0, 65, 0);
+
+const playerStates = new Map();
+const activeLights = new Map();
+
+function getPlayerLightId(player) {
+    return parseInt(player.getUuid().substring(0, 8), 16);
+}
+
+function getPlayerSpotlightId(player) {
+    return parseInt(player.getUuid().substring(8, 16), 16);
+}
+
+function removePlayerFlashlight(player) {
+    const lightInfo = activeLights.get(player.getUuid());
+    if (lightInfo) {
+        api.getLighting().removeLight(lightInfo.mainLight);
+        api.getLighting().removeLight(lightInfo.spotlight);
+        activeLights.delete(player.getUuid());
+    }
+}
+
+function createPlayerFlashlight(player) {
+    removePlayerFlashlight(player);
+
+    const mainLightId = getPlayerLightId(player);
+    const spotlightId = getPlayerSpotlightId(player);
+    const lightColor = new Vector3(1.0, 0.95, 0.8);
+
+    api.getLighting().createAreaLight(mainLightId, player.getPosition(), player.getCameraDirection(), lightColor, 0, 0, 1.0);
+    api.getLighting().createAreaLight(spotlightId, player.getPosition(), player.getCameraDirection(), lightColor, 0, 0, 1.0);
+
+    activeLights.set(player.getUuid(), {
+        mainLight: mainLightId,
+        spotlight: spotlightId
+    });
+}
+
+function updatePlayerFlashlight(player) {
+    const state = playerStates.get(player.getUuid());
+    const lightInfo = activeLights.get(player.getUuid());
+
+    if (!state || !state.flashlightOn || !lightInfo) {
+        return;
+    }
+
+    const playerPos = player.getPosition();
+    const eyePos = new Vector3(playerPos.x, playerPos.y + 1.62, playerPos.z);
+    const direction = player.getCameraDirection();
+
+    api.getLighting().updateLight(lightInfo.mainLight, {
+        x: eyePos.x, y: eyePos.y, z: eyePos.z,
+        dirX: direction.x, dirY: direction.y, dirZ: direction.z,
+        brightness: 1.0,
+        distance: 25.0,
+        width: 0,
+        height: 0,
+        angle: 0.25
+    });
+
+    api.getLighting().updateLight(lightInfo.spotlight, {
+        x: eyePos.x, y: eyePos.y, z: eyePos.z,
+        dirX: direction.x, dirY: direction.y, dirZ: direction.z,
+        brightness: 1.0,
+        distance: 25.0,
+        width: 0,
+        height: 0,
+    });
+}
+
 api.on('player.join', (player) => {
-    const stats = player.getShared().getStore('stats');
-    const inventory = player.getShared().getStore('inventory');
+    playerStates.set(player.getUuid(), { flashlightOn: false });
+});
 
-    stats.set('health', 100, 'immediate', 'hybrid');
-    stats.set('mana', 50, 'batched', 'hybrid');
-    stats.set('level', 1, 'batched', 'server-only');
-    stats.set('score', 0, 'immediate', 'hybrid');
+api.on('player.leave', (player) => {
+    removePlayerFlashlight(player);
+    playerStates.delete(player.getUuid());
+});
 
-    inventory.set('coins', 100, 'batched', 'hybrid');
-    inventory.set('items', ['sword', 'potion'], 'batched', 'hybrid');
+api.on('flashlight.toggle', (player) => {
+    const state = playerStates.get(player.getUuid());
+    if (!state) return;
 
-    stats.onChange('health', (newHealth, oldHealth) => {
-        console.log(`${player.getName()} health changed: ${oldHealth} -> ${newHealth}`);
-        if (newHealth <= 0) {
-            player.sendMessage('You died!');
-            stats.set('health', 100, 'immediate', 'hybrid');
+    state.flashlightOn = !state.flashlightOn;
+
+    if (state.flashlightOn) {
+        player.sendMessage("Flashlight ON");
+        createPlayerFlashlight(player);
+    } else {
+        player.sendMessage("Flashlight OFF");
+        removePlayerFlashlight(player);
+    }
+});
+api.on('player.chat', (chatEvent) => {
+    const player = chatEvent.getPlayer();
+    const message = chatEvent.getMessage().toLowerCase();
+
+    if (message.startsWith('!wall')) {
+        chatEvent.cancel();
+
+        const WALL_WIDTH = 11;
+        const WALL_HEIGHT = 5;
+        const DISTANCE_FROM_PLAYER = 5;
+
+        const pos = player.getPosition();
+        const dir = player.getDirection();
+
+        const right = new Vector3(-dir.z, 0, dir.x);
+
+        const wallCenterBase = pos.add(dir.multiply(DISTANCE_FROM_PLAYER));
+
+        const startPos = wallCenterBase.add(right.multiply(-(WALL_WIDTH - 1) / 2));
+
+        player.sendMessage("Building a wall...");
+
+        for (let y = 0; y < WALL_HEIGHT; y++) {
+            for (let x = 0; x < WALL_WIDTH; x++) {
+                const blockPos = startPos.add(right.multiply(x));
+                api.getWorld().setBlock(
+                    Math.floor(blockPos.x),
+                    Math.floor(wallCenterBase.y) + y,
+                    Math.floor(blockPos.z),
+                    "minecraft:stone_bricks"
+                );
+            }
         }
-    });
-
-    inventory.onChange('coins', (newCoins, oldCoins) => {
-        console.log(`${player.getName()} coins: ${oldCoins} -> ${newCoins}`);
-    });
-
-    player.sendMessage(`Welcome! Health: ${stats.get('health')}, Coins: ${inventory.get('coins')}`);
-});
-
-api.on('player.chat', (event) => {
-    const player = event.getPlayer();
-    const message = event.getMessage();
-
-    if (message.startsWith('!damage')) {
-        const stats = player.getShared().getStore('stats');
-        const currentHealth = stats.get('health');
-        stats.set('health', currentHealth - 10, 'immediate', 'hybrid');
-        player.sendMessage(`Took 10 damage! Health: ${currentHealth - 10}`);
-        event.cancel();
-    }
-
-    if (message.startsWith('!coins')) {
-        const inventory = player.getShared().getStore('inventory');
-        const currentCoins = inventory.get('coins');
-        inventory.set('coins', currentCoins + 50, 'batched', 'hybrid');
-        player.sendMessage('Added 50 coins!');
-        event.cancel();
-    }
-
-    if (message.startsWith('!levelup')) {
-        const stats = player.getShared().getStore('stats');
-        const currentLevel = stats.get('level');
-        stats.set('level', currentLevel + 1, 'batched', 'server-only');
-        player.sendMessage(`Level up! Now level ${currentLevel + 1}`);
-
-        player.getClient().send('level_up_effect', {
-            newLevel: currentLevel + 1,
-            timestamp: Date.now()
-        });
-
-        event.cancel();
-    }
-
-    if (message.startsWith('!heal')) {
-        const stats = player.getShared().getStore('stats');
-        const currentHealth = stats.get('health');
-        const newHealth = Math.min(100, currentHealth + 25);
-        stats.set('health', newHealth, 'immediate', 'hybrid');
-        player.sendMessage(`Healed! Health: ${newHealth}`);
-        event.cancel();
-    }
-
-    if (message.startsWith('!status')) {
-        const stats = player.getShared().getStore('stats');
-        const inventory = player.getShared().getStore('inventory');
-
-        player.sendMessage(`Health: ${stats.get('health')}, Mana: ${stats.get('mana')}, Level: ${stats.get('level')}, Coins: ${inventory.get('coins')}`);
-        event.cancel();
     }
 });
+
+setInterval(() => {
+    const players = api.getServer().getPlayers();
+    for (const player of players) {
+        updatePlayerFlashlight(player);
+    }
+}, 16);

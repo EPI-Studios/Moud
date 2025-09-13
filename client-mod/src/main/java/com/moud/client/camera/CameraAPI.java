@@ -2,6 +2,7 @@ package com.moud.client.camera;
 
 import com.moud.api.math.Vector3;
 import net.minecraft.client.render.Camera;
+import com.moud.api.math.MathUtils;
 import net.minecraft.entity.Entity;
 
 public abstract class CameraAPI {
@@ -184,9 +185,7 @@ public abstract class CameraAPI {
         collisionEnabled = false;
     }
 
-    protected Vector3 lerp(Vector3 start, Vector3 end, float factor) {
-        return start.lerp(end, factor);
-    }
+
 
     protected float lerpAngle(float start, float end, float factor) {
         float diff = end - start;

@@ -121,6 +121,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         PayloadTypeRegistry.playC2S().register(MoudPackets.ClientUpdateCameraPacket.ID, MoudPackets.ClientUpdateCameraPacket.CODEC);
 
         ClientPlayNetworking.registerGlobalReceiver(MoudPackets.SyncClientScripts.ID, this::handleSyncScripts);
+
         ClientPlayNetworking.registerGlobalReceiver(MoudPackets.ClientboundScriptEvent.ID, this::handleScriptEvent);
     }
 

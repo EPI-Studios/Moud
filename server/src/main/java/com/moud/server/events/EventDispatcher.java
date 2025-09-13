@@ -4,6 +4,7 @@ import com.moud.server.MoudEngine;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.lighting.ServerLightingManager;
 import com.moud.server.logging.MoudLogger;
+import com.moud.server.proxy.PlayerProxy;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.Event;
@@ -76,7 +77,10 @@ public class EventDispatcher {
         Value handler = handlers.get(eventName);
         if (handler == null) return;
 
-        // TODO: parse this as JSON.
-        engine.getRuntime().executeCallback(handler, eventData, player);
+        try {
+            engine.getRuntime().executeCallback(handler, new PlayerProxy(player), eventData);
+        } catch (Exception e) {
+            LOGGER.error("Error during script event dispatch for '{}'", eventName, e);
+        }
     }
 }

@@ -24,9 +24,14 @@ public abstract class GameRendererMixin {
 
     @Inject(method = "renderWorld(Lnet/minecraft/client/render/RenderTickCounter;)V", at = @At("HEAD"))
     private void moud_triggerRenderEvents(RenderTickCounter tickCounter, CallbackInfo ci) {
-        if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.rendering != null) {
-            ClientAPIService.INSTANCE.rendering.applyPendingUniforms();
-            ClientAPIService.INSTANCE.rendering.triggerRenderEvents();
+        if (ClientAPIService.INSTANCE != null) {
+            if (ClientAPIService.INSTANCE.rendering != null) {
+                ClientAPIService.INSTANCE.rendering.applyPendingUniforms();
+                ClientAPIService.INSTANCE.rendering.triggerRenderEvents();
+            }
+            if (ClientAPIService.INSTANCE.lighting != null) {
+                ClientAPIService.INSTANCE.lighting.tick();
+            }
         }
     }
 

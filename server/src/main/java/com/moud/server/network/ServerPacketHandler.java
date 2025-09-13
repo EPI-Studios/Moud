@@ -6,8 +6,6 @@ import com.moud.server.network.ServerNetworkPackets.HelloPacket;
 import com.moud.server.network.ServerNetworkPackets.ServerboundScriptEventPacket;
 import com.moud.server.player.PlayerCameraManager;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.player.PlayerDisconnectEvent;
-import net.minestom.server.event.player.PlayerPluginMessageEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,27 +21,6 @@ public final class ServerPacketHandler {
 
     public ServerPacketHandler(EventDispatcher eventDispatcher) {
         this.eventDispatcher = eventDispatcher;
-    }
-
-    public void handlePluginMessage(PlayerPluginMessageEvent event) {
-        String channel = event.getIdentifier();
-        Player player = event.getPlayer();
-        byte[] data = event.getMessage();
-
-        switch (channel) {
-            case "moud:hello" -> {
-                HelloPacket packet = new HelloPacket(data);
-                handleHelloPacket(packet, player);
-            }
-            case "moud:script_event_s" -> {
-                ServerboundScriptEventPacket packet = new ServerboundScriptEventPacket(data);
-                handleScriptEvent(packet, player);
-            }
-            case "moud:update_camera" -> {
-                ClientUpdateCameraPacket packet = new ClientUpdateCameraPacket(data);
-                PlayerCameraManager.getInstance().updateCameraDirection(player, packet.getDirection());
-            }
-        }
     }
 
     public void handleHelloPacket(HelloPacket packet, Player player) {
@@ -65,6 +42,12 @@ public final class ServerPacketHandler {
         }
         eventDispatcher.dispatchScriptEvent(packet.getEventName(), packet.getEventData(), player);
     }
+
+
+    public void handleCameraUpdate(ClientUpdateCameraPacket packet, Player player) {
+        PlayerCameraManager.getInstance().updateCameraDirection(player, packet.getDirection());
+    }
+
 
     public void onPlayerDisconnect(Player player) {
         moudClients.remove(player);
