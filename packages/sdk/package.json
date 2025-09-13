@@ -1,5 +1,5 @@
 {
-  "name": "@moud/sdk",
+  "name": "@epi-studio/moud-sdk",
   "version": "0.1.0-alpha",
   "description": "The official Scripting Development Kit for the Moud Engine.",
   "types": "dist/index.d.ts",
