@@ -1,34 +1,19 @@
 package com.moud.client.update;
 
 import com.moud.client.api.service.ClientAPIService;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import org.graalvm.polyglot.Context;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class ClientUpdateManager {
-    private final ClientAPIService apiService;
-    private static final Logger LOGGER = LoggerFactory.getLogger("ClientScript.ClientUpdateManager");
-    private Context jsContext;
+public record ClientUpdateManager(ClientAPIService apiService) {
 
-    public ClientUpdateManager(ClientAPIService apiService) {
-        this.apiService = apiService;
-        registerTickHandlers();
-    }
-
-    private void registerTickHandlers() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (apiService.input != null) {
-                apiService.input.update();
-            }
-            if (apiService.lighting != null) {
-                apiService.lighting.tick();
-            }
-        });
+    public void tick() {
+        if (apiService.input != null) {
+            apiService.input.update();
+        }
+        if (apiService.lighting != null) {
+            apiService.lighting.tick();
+        }
     }
 
     public void cleanup() {
-        jsContext = null;
-        LOGGER.info("ClientUpdateManager cleaned up.");
+        // No resources to clean up in this version
     }
 }
