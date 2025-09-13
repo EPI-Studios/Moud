@@ -1,7 +1,11 @@
-
 package com.moud.server.proxy;
 
+import com.moud.api.math.Vector3;
 import com.moud.server.lighting.ServerLightingManager;
+import org.graalvm.polyglot.HostAccess;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class LightingAPIProxy {
 
@@ -11,26 +15,46 @@ public class LightingAPIProxy {
         this.manager = ServerLightingManager.getInstance();
     }
 
-    public long createPointLight(double x, double y, double z, double radius, double r, double g, double b, double brightness) {
-        return manager.createPointLight(x, y, z, radius, r, g, b, brightness);
+    @HostAccess.Export
+    public void createPointLight(long lightId, Vector3 position, Vector3 color, double radius, double brightness) {
+        Map<String, Object> props = new HashMap<>();
+        props.put("type", "point");
+        props.put("x", position.x);
+        props.put("y", position.y);
+        props.put("z", position.z);
+        props.put("r", color.x);
+        props.put("g", color.y);
+        props.put("b", color.z);
+        props.put("radius", radius);
+        props.put("brightness", brightness);
+        manager.createOrUpdateLight(lightId, props);
     }
 
-    public long createAreaLight(double x, double y, double z, double width, double height, double r, double g, double b, double brightness) {
-        return manager.createAreaLight(x, y, z, width, height, r, g, b, brightness);
+    @HostAccess.Export
+    public void createAreaLight(long lightId, Vector3 position, Vector3 direction, Vector3 color, double width, double height, double brightness) {
+        Map<String, Object> props = new HashMap<>();
+        props.put("type", "area");
+        props.put("x", position.x);
+        props.put("y", position.y);
+        props.put("z", position.z);
+        props.put("dirX", direction.x);
+        props.put("dirY", direction.y);
+        props.put("dirZ", direction.z);
+        props.put("r", color.x);
+        props.put("g", color.y);
+        props.put("b", color.z);
+        props.put("width", width);
+        props.put("height", height);
+        props.put("brightness", brightness);
+        manager.createOrUpdateLight(lightId, props);
     }
 
-    public void updateLightPosition(long lightId, double x, double y, double z) {
-        manager.updateLightPosition(lightId, x, y, z);
+    @HostAccess.Export
+    public void updateLight(long lightId, Map<String, Object> properties) {
+        manager.createOrUpdateLight(lightId, properties);
     }
 
-    public void updateLightColor(long lightId, double r, double g, double b) {
-        manager.updateLightColor(lightId, r, g, b);
-    }
-
-    public void updateLightBrightness(long lightId, double brightness) {
-        manager.updateLightBrightness(lightId, brightness);
-    }
-
+    @HostAccess.Export
     public void removeLight(long lightId) {
         manager.removeLight(lightId);
     }

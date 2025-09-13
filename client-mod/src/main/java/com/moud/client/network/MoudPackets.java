@@ -1,5 +1,6 @@
 package com.moud.client.network;
 
+import com.moud.api.math.Vector3;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
@@ -86,6 +87,29 @@ public final class MoudPackets {
         private void write(PacketByteBuf buf) {
             buf.writeString(eventName);
             buf.writeString(eventData);
+        }
+
+        @Override
+        public CustomPayload.Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    public record ClientUpdateCameraPacket(Vector3 direction) implements CustomPayload {
+        public static final CustomPayload.Id<ClientUpdateCameraPacket> ID =
+                new CustomPayload.Id<>(Identifier.of("moud", "update_camera"));
+
+        public static final PacketCodec<PacketByteBuf, ClientUpdateCameraPacket> CODEC =
+                PacketCodec.of(ClientUpdateCameraPacket::write, ClientUpdateCameraPacket::new);
+
+        private ClientUpdateCameraPacket(PacketByteBuf buf) {
+            this(new Vector3(buf.readFloat(), buf.readFloat(), buf.readFloat()));
+        }
+
+        private void write(PacketByteBuf buf) {
+            buf.writeFloat(direction.x);
+            buf.writeFloat(direction.y);
+            buf.writeFloat(direction.z);
         }
 
         @Override

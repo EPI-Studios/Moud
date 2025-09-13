@@ -1,5 +1,6 @@
 package com.moud.server.network;
 
+import com.moud.api.math.Vector3;
 import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.packet.server.common.PluginMessagePacket;
 
@@ -54,6 +55,22 @@ public final class ServerNetworkPackets {
 
         public int getProtocolVersion() {
             return protocolVersion;
+        }
+    }
+
+    public static final class ClientUpdateCameraPacket {
+        private final Vector3 direction;
+
+        public ClientUpdateCameraPacket(byte[] data) {
+            NetworkBuffer buffer = new NetworkBuffer(ByteBuffer.wrap(data));
+            float x = buffer.read(FLOAT);
+            float y = buffer.read(FLOAT);
+            float z = buffer.read(FLOAT);
+            this.direction = new Vector3(x, y, z);
+        }
+
+        public Vector3 getDirection() {
+            return direction;
         }
     }
 }
