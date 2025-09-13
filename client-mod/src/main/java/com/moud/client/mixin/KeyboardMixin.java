@@ -14,8 +14,13 @@ public class KeyboardMixin {
 
     @Inject(method = "onKey(JIIII)V", at = @At("HEAD"), cancellable = true)
     private void moud_onKey(long window, int key, int scancode, int action, int modifiers, CallbackInfo ci) {
+        if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.input != null) {
+            if (action == GLFW.GLFW_PRESS || action == GLFW.GLFW_RELEASE) {
+                ClientAPIService.INSTANCE.input.handleKeyEvent(key, action);
+            }
+        }
+
         if (key == GLFW.GLFW_KEY_P && action == GLFW.GLFW_PRESS) {
-            // to remove, it needs to be something that can be bound in client script
             if (ClientAPIService.INSTANCE != null) {
                 ClientAPIService.INSTANCE.cursor.toggle();
                 ci.cancel();
@@ -27,6 +32,7 @@ public class KeyboardMixin {
             ci.cancel();
         }
     }
+
     @Inject(method = "onChar(JII)V", at = @At("HEAD"), cancellable = true)
     private void moud_onChar(long window, int codePoint, int modifiers, CallbackInfo ci) {
         if (UIInputManager.handleGlobalCharTyped((char) codePoint)) {

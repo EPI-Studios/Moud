@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moud.api.math.Conversion;
 import com.moud.client.lighting.ClientLightingService;
+import net.minecraft.client.MinecraftClient;
 import org.graalvm.polyglot.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +32,7 @@ public class LightingService {
             Map<String, Object> data = MAPPER.readValue(eventData, MAP_TYPE_REFERENCE);
 
             switch (eventName) {
-                case "lighting:operation" -> {
+                case "lighting:operation": {
                     String operation = (String) data.get("operation");
                     Map<String, Object> lightData = (Map<String, Object>) data.get("light");
                     if (operation == null || lightData == null) return;
@@ -43,8 +44,11 @@ public class LightingService {
                             lightingService.handleRemoveLight(id);
                         }
                     }
+                    break;
                 }
-                case "lighting:sync" -> lightingService.handleLightSync(data);
+                case "lighting:sync":
+                    lightingService.handleLightSync(data);
+                    break;
             }
         } catch (Exception e) {
             LOGGER.error("Failed to handle lighting network event: {}", eventName, e);

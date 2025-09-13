@@ -57,12 +57,16 @@ public final class ServerNetworkManager {
                 ServerboundScriptEventPacket packet = new ServerboundScriptEventPacket(data);
                 packetHandler.handleScriptEvent(packet, player);
             }
+            case "moud:update_camera" -> {
+                LOGGER.debug("Processing camera update from {}", player.getUsername());
+                ClientUpdateCameraPacket packet = new ClientUpdateCameraPacket(data);
+                packetHandler.handleCameraUpdate(packet, player);
+            }
             default -> {
                 LOGGER.debug("Ignoring unknown plugin message channel: {}", channel);
             }
         }
     }
-
     private void handlePlayerDisconnect(PlayerDisconnectEvent event) {
         packetHandler.onPlayerDisconnect(event.getPlayer());
     }

@@ -8,12 +8,8 @@ public record ClientUpdateManager(ClientAPIService apiService) {
         if (apiService.input != null) {
             apiService.input.update();
         }
-        if (apiService.lighting != null) {
-            apiService.lighting.tick();
-        }
     }
 
     public void cleanup() {
-        // No resources to clean up in this version
     }
 }

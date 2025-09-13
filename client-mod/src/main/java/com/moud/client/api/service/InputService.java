@@ -42,6 +42,18 @@ public final class InputService {
         return GLFW.glfwGetKey(window, keyCode) == GLFW.GLFW_PRESS;
     }
 
+
+    public void handleKeyEvent(int key, int action) {
+        if (key == GLFW.GLFW_KEY_UNKNOWN) return;
+
+        String keyName = InputUtil.fromKeyCode(key, -1).getTranslationKey();
+
+        // We only care about the initial press action.
+        boolean isPressed = (action == GLFW.GLFW_PRESS);
+
+        // Trigger for both press and release to allow scripts to handle both if needed in the future
+        triggerKeyEvent(keyName, isPressed);
+    }
     public boolean isKeyPressed(String keyName) {
         try {
             InputUtil.Key key = InputUtil.fromTranslationKey(keyName);
@@ -64,10 +76,12 @@ public final class InputService {
 
 
     public void onKey(String keyName, Value callback) {
-        if (callback == null || !callback.canExecute()) throw new IllegalArgumentException("Callback must be executable");
+        if (callback == null || !callback.canExecute()) {
+            throw new IllegalArgumentException("Callback must be executable");
+        }
         keyCallbacks.put(keyName, callback);
+        LOGGER.info("Successfully registered key callback for: {}", keyName); // Added log for confirmation
     }
-
     public void onMouseButton(String buttonName, Value callback) {
         if (callback == null || !callback.canExecute()) throw new IllegalArgumentException("Callback must be executable");
         mouseCallbacks.put(buttonName, callback);
@@ -85,8 +99,29 @@ public final class InputService {
 
     public void triggerKeyEvent(String keyName, boolean pressed) {
         Value callback = keyCallbacks.get(keyName);
-        if (callback != null) executeCallback(callback, keyName, pressed);
+        if (callback != null) {
+            // Schedule the execution on the script's own thread for safety.
+            scriptExecutor.execute(() -> {
+                if (jsContext == null) {
+                    LOGGER.warn("jsContext is null, cannot execute key event for {}", keyName);
+                    return;
+                }
+                jsContext.enter();
+                try {
+                    if (callback.canExecute()) {
+                        // Correctly execute the callback, passing the 'pressed' boolean.
+                        callback.execute(pressed);
+                    }
+                } catch (Exception e) {
+                    LOGGER.error("Error executing script key event callback for '{}'", keyName, e);
+                } finally {
+                    jsContext.leave();
+                }
+            });
+        }
     }
+
+
 
     public void triggerMouseButtonEvent(String buttonName, boolean pressed) {
         Value callback = mouseCallbacks.get(buttonName);

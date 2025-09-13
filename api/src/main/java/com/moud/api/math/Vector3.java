@@ -21,6 +21,10 @@ public class Vector3 {
         this.z = (float) z;
     }
 
+    public static Vector3 zero()
+    {
+        return new Vector3(0f, 0f, 0f);
+    }
     public Vector3 add(Vector3 other) {
         return new Vector3(x + other.x, y + other.y, z + other.z);
     }

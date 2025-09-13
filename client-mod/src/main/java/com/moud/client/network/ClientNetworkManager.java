@@ -53,14 +53,11 @@ public final class ClientNetworkManager {
     }
 
     public static void sendToServer(String eventName, String eventData) {
-        if (ClientPlayNetworking.canSend(MoudPackets.ServerboundScriptEvent.ID)) {
-            ClientPlayNetworking.send(new MoudPackets.ServerboundScriptEvent(eventName, eventData));
-        }
+        LOGGER.info("Sending script event packet to server: '{}'", eventName);
+        ClientPlayNetworking.send(new MoudPackets.ServerboundScriptEvent(eventName, eventData));
     }
 
     public static void sendHello(int protocolVersion) {
-        if (ClientPlayNetworking.canSend(MoudPackets.HelloPacket.ID)) {
-            ClientPlayNetworking.send(new MoudPackets.HelloPacket(protocolVersion));
-        }
+        ClientPlayNetworking.send(new MoudPackets.HelloPacket(protocolVersion));
     }
 }

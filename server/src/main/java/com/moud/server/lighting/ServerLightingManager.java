@@ -28,10 +28,13 @@ public class ServerLightingManager {
     }
 
     public void createOrUpdateLight(long lightId, Map<String, Object> properties) {
+
+        boolean isNewLight = !lights.containsKey(lightId);
         Map<String, Object> lightData = lights.computeIfAbsent(lightId, k -> new ConcurrentHashMap<>());
         lightData.putAll(properties);
-        lightData.put("id", lightId); // Ensure ID is part of the data
-        broadcastLightOperation("create", lightData);
+        lightData.put("id", lightId);
+
+        broadcastLightOperation(isNewLight ? "create" : "update", lightData);
     }
 
     public void removeLight(long lightId) {
