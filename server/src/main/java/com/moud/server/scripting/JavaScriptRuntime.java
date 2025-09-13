@@ -1,20 +1,20 @@
 package com.moud.server.scripting;
 
+
 import com.moud.server.api.exception.APIException;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.typescript.TypeScriptTranspiler;
 import org.graalvm.polyglot.*;
 import org.graalvm.polyglot.io.IOAccess;
+import org.graalvm.polyglot.proxy.ProxyExecutable;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class JavaScriptRuntime {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(JavaScriptRuntime.class);
@@ -24,21 +24,31 @@ public class JavaScriptRuntime {
 
     private final Context context;
     private final ExecutorService executor;
+    private final ScheduledExecutorService timerExecutor;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private volatile Instant lastExecutionTime;
+    private final AtomicLong timerIdCounter = new AtomicLong(0);
+    private final ConcurrentHashMap<Long, ScheduledFuture<?>> activeTimers = new ConcurrentHashMap<>();
 
     public JavaScriptRuntime() {
         LOGGER.info("Initializing JavaScript runtime with GraalVM");
 
         this.executor = Executors.newSingleThreadExecutor(r -> {
-            Thread thread = new Thread(r, "JavaScriptRuntime");
+            Thread thread = new Thread(r, "JavaScriptRuntime-Main");
             thread.setDaemon(true);
             thread.setUncaughtExceptionHandler(this::handleUncaughtException);
             return thread;
         });
 
+        this.timerExecutor = Executors.newScheduledThreadPool(2, r -> {
+            Thread thread = new Thread(r, "JavaScriptRuntime-Timer");
+            thread.setDaemon(true);
+            return thread;
+        });
+
         try {
             this.context = createSecureContext();
+            bindTimerFunctionsToContext();
             this.running.set(true);
             LOGGER.success("JavaScript runtime initialized successfully");
 
@@ -50,6 +60,7 @@ public class JavaScriptRuntime {
 
     private Context createSecureContext() {
         return Context.newBuilder(LANGUAGE_ID)
+                .allowAllAccess(true) // <-- FIX: Allow multi-threaded access
                 .allowHostAccess(HostAccess.newBuilder()
                         .allowPublicAccess(true)
                         .allowAllImplementations(true)
@@ -74,6 +85,81 @@ public class JavaScriptRuntime {
                         .statementLimit(1000000, null)
                         .build())
                 .build();
+    }
+
+    private void bindTimerFunctionsToContext() {
+        Value bindings = context.getBindings(LANGUAGE_ID);
+
+        bindings.putMember("setTimeout", (ProxyExecutable) args -> {
+            if (args.length < 2 || !args[0].canExecute() || !args[1].isNumber()) {
+                LOGGER.warn("Invalid arguments for setTimeout. Expected (function, number).");
+                return -1L;
+            }
+            Value callback = args[0];
+            long delay = args[1].asLong();
+            long id = timerIdCounter.incrementAndGet();
+            ScheduledFuture<?> future = timerExecutor.schedule(() -> executeCallback(callback, id, false), delay, TimeUnit.MILLISECONDS);
+            activeTimers.put(id, future);
+            return id;
+        });
+
+        bindings.putMember("clearTimeout", (ProxyExecutable) args -> {
+            if (args.length < 1 || !args[0].isNumber()) return null;
+            cancelTimer(args[0].asLong());
+            return null;
+        });
+
+        bindings.putMember("setInterval", (ProxyExecutable) args -> {
+            if (args.length < 2 || !args[0].canExecute() || !args[1].isNumber()) {
+                LOGGER.warn("Invalid arguments for setInterval. Expected (function, number).");
+                return -1L;
+            }
+            Value callback = args[0];
+            long delay = args[1].asLong();
+            if (delay <= 0) {
+                LOGGER.warn("setInterval delay must be greater than 0.");
+                return -1L;
+            }
+            long id = timerIdCounter.incrementAndGet();
+            ScheduledFuture<?> future = timerExecutor.scheduleAtFixedRate(() -> executeCallback(callback, id, true), delay, delay, TimeUnit.MILLISECONDS);
+            activeTimers.put(id, future);
+            return id;
+        });
+
+        bindings.putMember("clearInterval", (ProxyExecutable) args -> {
+            if (args.length < 1 || !args[0].isNumber()) return null;
+            cancelTimer(args[0].asLong());
+            return null;
+        });
+    }
+
+    private void executeCallback(Value callback, long id, boolean isInterval) {
+        if (!running.get()) return;
+
+        executor.execute(() -> {
+            if (context != null && running.get()) {
+                context.enter();
+                try {
+                    if (callback.canExecute()) {
+                        callback.executeVoid();
+                    }
+                } catch (PolyglotException e) {
+                    LOGGER.scriptError("Error executing timer callback: {}", e.getMessage());
+                } finally {
+                    context.leave();
+                }
+            }
+            if (!isInterval) {
+                activeTimers.remove(id);
+            }
+        });
+    }
+
+    private void cancelTimer(long id) {
+        ScheduledFuture<?> future = activeTimers.remove(id);
+        if (future != null) {
+            future.cancel(false);
+        }
     }
 
     public void bindGlobal(String name, Object value) {
@@ -225,6 +311,9 @@ public class JavaScriptRuntime {
 
         LOGGER.info("Shutting down JavaScript runtime");
 
+        activeTimers.values().forEach(future -> future.cancel(true));
+        activeTimers.clear();
+
         try {
 
             if (context != null) {
@@ -236,19 +325,23 @@ public class JavaScriptRuntime {
         }
 
         try {
-
+            timerExecutor.shutdownNow();
             executor.shutdown();
             if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
                 LOGGER.warn("Executor did not terminate gracefully, forcing shutdown");
                 executor.shutdownNow();
             }
-            LOGGER.debug("Executor shutdown completed");
+            if (!timerExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                LOGGER.warn("Timer executor did not terminate gracefully");
+            }
+            LOGGER.debug("Executors shutdown completed");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             LOGGER.warn("Shutdown interrupted");
             executor.shutdownNow();
+            timerExecutor.shutdownNow();
         } catch (Exception e) {
-            LOGGER.error("Error shutting down executor", e);
+            LOGGER.error("Error shutting down executors", e);
         }
 
         LOGGER.success("JavaScript runtime shutdown completed");
