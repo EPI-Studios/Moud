@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Optional;
 
 public class ProjectLoader {
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -62,6 +63,19 @@ public class ProjectLoader {
         Path packageFile = projectRoot.resolve("package.json");
         return MAPPER.readValue(packageFile.toFile(), PackageInfo.class);
     }
+
+    public static Optional<Path> resolveProjectRoot(String[] launchArgs) {
+        for (int i = 0; i < launchArgs.length - 1; i++) {
+            if ("--project-root".equalsIgnoreCase(launchArgs[i])) {
+                Path projectPath = Paths.get(launchArgs[i + 1]);
+                if (Files.isDirectory(projectPath) && Files.exists(projectPath.resolve("package.json"))) {
+                    return Optional.of(projectPath);
+                }
+            }
+        }
+        return Optional.of(findProjectRoot());
+    }
+
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class PackageInfo {

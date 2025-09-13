@@ -12,7 +12,7 @@ public class App {
         MinecraftServer minecraftServer = MinecraftServer.init();
 
         try {
-            MoudEngine moudEngine = new MoudEngine();
+            MoudEngine moudEngine = new MoudEngine(args);
 
             Runtime.getRuntime().addShutdownHook(new Thread(moudEngine::shutdown));
 
