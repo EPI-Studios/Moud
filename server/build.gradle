@@ -1,32 +1,50 @@
 plugins {
     id 'java'
-    id 'application'
+    id 'com.gradleup.shadow' version "8.3.5"
 }
 
-application {
-    mainClass = 'com.moud.App'
-}
-
-run {
-    jvmArgs '--enable-preview', '-XX:+UnlockExperimentalVMOptions', '-XX:+EnableJVMCI'
-}
+group = 'com.moud'
+version = '0.1.0-alpha'
 
 repositories {
     mavenCentral()
-    maven { url = "https://repo.minestom.com/" }
+    maven {
+        url = "https://repo.minestom.com/"
+    }
 }
 
 dependencies {
     implementation project(':api')
     implementation 'net.minestom:minestom-snapshots:f966351cb7'
     implementation 'ch.qos.logback:logback-classic:1.4.14'
-
     implementation 'org.graalvm.polyglot:polyglot:24.1.0'
     implementation 'org.graalvm.polyglot:js:24.1.0'
-
     implementation 'com.fasterxml.jackson.core:jackson-core:2.17.0'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.0'
     implementation 'com.fasterxml.jackson.core:jackson-annotations:2.17.0'
-
     implementation 'org.apache.commons:commons-exec:1.4.0'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+jar {
+    manifest {
+        attributes["Main-Class"] = "com.moud.App"
+    }
+}
+
+shadowJar {
+    mergeServiceFiles()
+    archiveClassifier = ""
+    manifest {
+        attributes["Main-Class"] = "com.moud.App"
+    }
+}
+
+build {
+    dependsOn(shadowJar)
 }
