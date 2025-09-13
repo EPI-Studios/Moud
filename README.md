@@ -128,4 +128,4 @@ Moud is open source software licensed under the MIT License.
 
 ----------
 
-**Ready to build something?** Get started with Moud →
+**Ready to build something?** Get started with Moud → (Wiki is comming soon)
