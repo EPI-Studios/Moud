@@ -1,0 +1,27 @@
+{
+  "versions": {
+    "cli": "0.1.3",
+    "sdk": "0.1.1-alpha",
+    "engine": "0.1.0-alpha",
+    "jdk": "21"
+  },
+  "compatibility": {
+    "0.1.3": {
+      "sdk": "0.1.1-alpha",
+      "engine": "0.1.0-alpha"
+    },
+    "0.1.4": {
+      "sdk": "0.1.1-alpha",
+      "engine": "0.1.0-alpha"
+    }
+  },
+  "downloads": {
+    "engine": {
+      "baseUrl": "https://github.com/EPI-Studios/Moud/releases/download",
+      "fileName": "moud-server.jar"
+    },
+    "jdk": {
+      "baseUrl": "https://api.adoptium.net/v3/binary/latest/21/ga"
+    }
+  }
+}

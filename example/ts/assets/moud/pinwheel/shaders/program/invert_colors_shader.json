@@ -1,4 +1,0 @@
-{
-  "vertex": "veil:blit_screen",
-  "fragment": "moud:invert_colors_shader_frag"
-}
