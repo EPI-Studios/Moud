@@ -10,7 +10,7 @@ const program = new Command();
 program
   .name('moud')
   .description('The official CLI for the Moud Project')
-  .version('0.1.0-alpha');
+  .version('0.1.3');
 
 program.addCommand(createCommand);
 program.addCommand(devCommand);
