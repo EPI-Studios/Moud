@@ -8,6 +8,7 @@ import foundry.veil.api.client.render.light.data.PointLightData;
 import foundry.veil.api.client.render.light.renderer.LightRenderer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -123,8 +124,16 @@ public class ClientLightingService {
         } else if (managed.veilLightData instanceof AreaLightData areaLight) {
             areaLight.getPosition().set(managed.interpolatedPosition.x, managed.interpolatedPosition.y, managed.interpolatedPosition.z);
 
-            Vector3f direction = new Vector3f((float)managed.interpolatedDirection.x, (float)managed.interpolatedDirection.y, (float)managed.interpolatedDirection.z);
-            areaLight.getOrientation().lookAlong(direction, UP_VECTOR);
+            Quaternionf tempOrientation = new Quaternionf();
+
+            Vector3f direction = new Vector3f(
+                    (float)managed.interpolatedDirection.x * -1.0f,
+                    (float)managed.interpolatedDirection.y * -1.0f,
+                    (float)managed.interpolatedDirection.z * -1.0f
+            );
+            tempOrientation.lookAlong(direction, UP_VECTOR);
+            areaLight.getOrientation().set(tempOrientation);
+
 
             areaLight.setColor(managed.r, managed.g, managed.b)
                     .setBrightness(managed.brightness)
@@ -133,12 +142,11 @@ public class ClientLightingService {
                     .setAngle(managed.angle);
         }
     }
-
     private void destroyVeilLight(ManagedLight managed) {
         if (managed.veilLightData != null) {
             try {
                 LightRenderer lightRenderer = VeilRenderSystem.renderer().getLightRenderer();
-                lightRenderer.getLights(managed.veilLightData.getType()).remove(managed.veilLightData);
+                lightRenderer.getLights(managed.veilLightData.getType()).removeIf(handle -> handle.getLightData() == managed.veilLightData);
                 managed.veilLightData = null;
             } catch (Exception e) {
                 LOGGER.error("Failed to destroy Veil light", e);

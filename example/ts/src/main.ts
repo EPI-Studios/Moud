@@ -53,20 +53,21 @@ function updatePlayerFlashlight(player) {
     api.getLighting().updateLight(lightInfo.mainLight, {
         x: eyePos.x, y: eyePos.y, z: eyePos.z,
         dirX: direction.x, dirY: direction.y, dirZ: direction.z,
-        brightness: 1.0,
-        distance: 25.0,
-        width: 0,
-        height: 0,
-        angle: 0.25
+        brightness: 5.0,
+        distance: 40.0,
+        width: 0.1,
+        height: 0.1,
+        angle: 0.4
     });
 
     api.getLighting().updateLight(lightInfo.spotlight, {
         x: eyePos.x, y: eyePos.y, z: eyePos.z,
         dirX: direction.x, dirY: direction.y, dirZ: direction.z,
         brightness: 1.0,
-        distance: 25.0,
-        width: 0,
-        height: 0,
+        distance: 15.0,
+        width: 0.0,
+        height: 0.0,
+        angle: 1.5
     });
 }
 
