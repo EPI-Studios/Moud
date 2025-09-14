@@ -14,12 +14,6 @@ public class KeyboardMixin {
 
     @Inject(method = "onKey(JIIII)V", at = @At("HEAD"), cancellable = true)
     private void moud_onKey(long window, int key, int scancode, int action, int modifiers, CallbackInfo ci) {
-        if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.input != null) {
-            if (action == GLFW.GLFW_PRESS || action == GLFW.GLFW_RELEASE) {
-                ClientAPIService.INSTANCE.input.handleKeyEvent(key, action);
-            }
-        }
-
         if (key == GLFW.GLFW_KEY_P && action == GLFW.GLFW_PRESS) {
             if (ClientAPIService.INSTANCE != null) {
                 ClientAPIService.INSTANCE.cursor.toggle();
@@ -30,6 +24,17 @@ public class KeyboardMixin {
 
         if (UIInputManager.handleGlobalKeyPress(key, action)) {
             ci.cancel();
+            return;
+        }
+
+        if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.input != null) {
+            if (action == GLFW.GLFW_PRESS || action == GLFW.GLFW_RELEASE) {
+                boolean handled = ClientAPIService.INSTANCE.input.handleKeyEvent(key, action);
+                if (handled) {
+                    ci.cancel();
+                    return;
+                }
+            }
         }
     }
 

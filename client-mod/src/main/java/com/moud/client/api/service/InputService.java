@@ -29,6 +29,8 @@ public final class InputService {
     private final ExecutorService scriptExecutor;
 
     private final Map<String, Boolean> keyStates = new ConcurrentHashMap<>();
+    private final Map<String, Long> lastKeyTriggerTime = new ConcurrentHashMap<>();
+    private static final long DEBOUNCE_TIME_MS = 100;
 
     public InputService(ClientScriptingRuntime runtime) {
         this.client = MinecraftClient.getInstance();
@@ -40,8 +42,8 @@ public final class InputService {
         LOGGER.debug("InputService received new GraalVM Context.");
     }
 
-    public void handleKeyEvent(int key, int action) {
-        if (key == GLFW.GLFW_KEY_UNKNOWN) return;
+    public boolean handleKeyEvent(int key, int action) {
+        if (key == GLFW.GLFW_KEY_UNKNOWN) return false;
 
         String keyName = InputUtil.fromKeyCode(key, -1).getTranslationKey();
         boolean isPressed = (action == GLFW.GLFW_PRESS);
@@ -49,11 +51,17 @@ public final class InputService {
         boolean wasPressed = keyStates.getOrDefault(keyName, false);
 
         if (isPressed == wasPressed) {
-            return;
+            return false;
         }
 
         keyStates.put(keyName, isPressed);
-        triggerKeyEvent(keyName, isPressed);
+
+        boolean hasCallback = keyCallbacks.containsKey(keyName);
+        if (hasCallback) {
+            triggerKeyEvent(keyName, isPressed);
+        }
+
+        return hasCallback;
     }
 
     public boolean isKeyPressed(int keyCode) {
@@ -75,10 +83,21 @@ public final class InputService {
         return GLFW.glfwGetMouseButton(window, button) == GLFW.GLFW_PRESS;
     }
 
-    public double getMouseX() { return client.mouse.getX(); }
-    public double getMouseY() { return client.mouse.getY(); }
-    public double getMouseDeltaX() { return mouseDeltaX; }
-    public double getMouseDeltaY() { return mouseDeltaY; }
+    public double getMouseX() {
+        return client.mouse.getX();
+    }
+
+    public double getMouseY() {
+        return client.mouse.getY();
+    }
+
+    public double getMouseDeltaX() {
+        return mouseDeltaX;
+    }
+
+    public double getMouseDeltaY() {
+        return mouseDeltaY;
+    }
 
     public void onKey(String keyName, Value callback) {
         if (callback == null || !callback.canExecute()) {
@@ -89,23 +108,38 @@ public final class InputService {
     }
 
     public void onMouseButton(String buttonName, Value callback) {
-        if (callback == null || !callback.canExecute()) throw new IllegalArgumentException("Callback must be executable");
+        if (callback == null || !callback.canExecute()) {
+            throw new IllegalArgumentException("Callback must be executable");
+        }
         mouseCallbacks.put(buttonName, callback);
     }
 
     public void onMouseMove(Value callback) {
-        if (callback == null || !callback.canExecute()) throw new IllegalArgumentException("Callback must be executable");
+        if (callback == null || !callback.canExecute()) {
+            throw new IllegalArgumentException("Callback must be executable");
+        }
         this.mouseMoveCallback = callback;
     }
 
     public void onScroll(Value callback) {
-        if (callback == null || !callback.canExecute()) throw new IllegalArgumentException("Callback must be executable");
+        if (callback == null || !callback.canExecute()) {
+            throw new IllegalArgumentException("Callback must be executable");
+        }
         this.scrollCallback = callback;
     }
 
     public void triggerKeyEvent(String keyName, boolean pressed) {
         Value callback = keyCallbacks.get(keyName);
         if (callback != null) {
+            long currentTime = System.currentTimeMillis();
+            Long lastTrigger = lastKeyTriggerTime.get(keyName);
+
+            if (lastTrigger != null && (currentTime - lastTrigger) < DEBOUNCE_TIME_MS) {
+                return;
+            }
+
+            lastKeyTriggerTime.put(keyName, currentTime);
+
             scriptExecutor.execute(() -> {
                 if (jsContext == null) {
                     LOGGER.warn("jsContext is null, cannot execute key event for {}", keyName);
@@ -127,22 +161,30 @@ public final class InputService {
 
     public void triggerMouseButtonEvent(String buttonName, boolean pressed) {
         Value callback = mouseCallbacks.get(buttonName);
-        if (callback != null) executeCallback(callback, buttonName, pressed);
+        if (callback != null) {
+            executeCallback(callback, buttonName, pressed);
+        }
     }
 
     public void triggerMouseMoveEvent(double deltaX, double deltaY) {
         if (CameraManager.isCameraActive()) {
             CameraManager.handleInput(deltaX, deltaY, 0);
         }
-        if (mouseMoveCallback != null) executeCallback(mouseMoveCallback, deltaX, deltaY);
+        if (mouseMoveCallback != null) {
+            executeCallback(mouseMoveCallback, deltaX, deltaY);
+        }
     }
 
     public void triggerScrollEvent(double scrollDelta) {
-        if (scrollCallback != null) executeCallback(scrollCallback, scrollDelta);
+        if (scrollCallback != null) {
+            executeCallback(scrollCallback, scrollDelta);
+        }
     }
 
     private void executeCallback(Value callback, Object... args) {
-        if (scriptExecutor == null || scriptExecutor.isShutdown() || jsContext == null) return;
+        if (scriptExecutor == null || scriptExecutor.isShutdown() || jsContext == null) {
+            return;
+        }
 
         scriptExecutor.execute(() -> {
             jsContext.enter();
@@ -183,8 +225,8 @@ public final class InputService {
         mouseMoveCallback = null;
         scrollCallback = null;
         jsContext = null;
-
         keyStates.clear();
+        lastKeyTriggerTime.clear();
         LOGGER.info("InputService cleaned up.");
     }
 }

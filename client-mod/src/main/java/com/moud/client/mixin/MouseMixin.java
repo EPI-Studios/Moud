@@ -18,7 +18,6 @@ public class MouseMixin {
 
     @Inject(method = "onMouseButton", at = @At("HEAD"), cancellable = true)
     private void moud_onMouseButton(long window, int button, int action, int mods, CallbackInfo ci) {
-        // press events (action == 1)
         if (action != 1) return;
 
         if (client.currentScreen != null) return;
@@ -27,7 +26,6 @@ public class MouseMixin {
                 ClientAPIService.INSTANCE.cursor != null &&
                 ClientAPIService.INSTANCE.cursor.isVisible()) {
 
-            // raw mouse position
             Mouse mouse = (Mouse) (Object) this;
             double rawMouseX = mouse.getX();
             double rawMouseY = mouse.getY();
@@ -36,7 +34,10 @@ public class MouseMixin {
 
             if (uiClicked) {
                 ci.cancel();
+                return;
             }
+
+            ci.cancel();
         }
     }
 
