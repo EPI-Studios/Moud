@@ -1,6 +1,6 @@
 {
   "name": "@epi-studio/moud-cli",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "description": "The official CLI for Moud",
   "bin": {
     "moud": "dist/index.js"

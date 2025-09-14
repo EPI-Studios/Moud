@@ -4,7 +4,8 @@
     "declaration": true,
     "emitDeclarationOnly": true,
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    "lib": ["ES2022"]
   },
   "include": ["src/**/*"]
 }

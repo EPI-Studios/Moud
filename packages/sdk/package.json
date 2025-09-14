@@ -1,12 +1,12 @@
 {
   "name": "@epi-studio/moud-sdk",
-  "version": "0.1.0-alpha",
+  "version": "0.1.1-alpha",
   "description": "The official Scripting Development Kit for the Moud Engine.",
   "types": "dist/index.d.ts",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc"
+    "build": "rm -rf dist && mkdir dist && cp src/index.d.ts dist/index.d.ts"
   }
 }
