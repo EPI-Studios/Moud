@@ -9,7 +9,7 @@ Instead of wrestling with Java compilation cycles, write your entire game, serve
 
 ```bash
 # Install the CLI
-npm install -g @moud/cli
+npm install -g @epi-studio/moud-cli@latest
 
 # Create a new project
 moud create my-game
