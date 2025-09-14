@@ -7,7 +7,7 @@
     "build": "moud build"
   },
   "devDependencies": {
-    "@moud/sdk": "workspace:*",
-    "@moud/cli": "workspace:*"
+    "@epi-studio/moud-sdk": "workspace:*",
+    "@epi-studio/moud-cli": "workspace:*"
   }
 }

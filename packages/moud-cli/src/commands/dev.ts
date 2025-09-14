@@ -2,63 +2,163 @@ import { Command } from 'commander';
 import { logger } from '../services/logger.js';
 import { EnvironmentManager } from '../services/environment.js';
 import { Transpiler } from '../services/transpiler.js';
+import { CleanupManager } from '../services/cleanup-manager.js';
 import { spawn, ChildProcess } from 'child_process';
 import chokidar from 'chokidar';
 import path from 'path';
 
-let serverProcess: ChildProcess | null = null;
-let isRestarting = false;
+export class DevServer {
+  private serverProcess: ChildProcess | null = null;
+  private isRestarting = false;
+  private isShuttingDown = false;
+  private cleanupManager: CleanupManager;
 
-async function startServer(environment: EnvironmentManager, transpiler: Transpiler) {
-    logger.step('Transpiling scripts...');
-    await transpiler.transpileProject();
-    logger.success('Scripts transpiled successfully.');
+  constructor(private environment: EnvironmentManager, private transpiler: Transpiler) {
+    this.cleanupManager = new CleanupManager();
+    this.setupGracefulShutdown();
+  }
 
-    const projectRoot = process.cwd();
-    const javaExecutable = environment.getJavaExecutablePath();
-    const serverJar = environment.getServerJarPath();
+  private setupGracefulShutdown(): void {
+    process.on('SIGINT', () => this.shutdown());
+    process.on('SIGTERM', () => this.shutdown());
+  }
 
-    if (!javaExecutable || !serverJar) {
-        logger.error('Environment is not correctly configured. Cannot start server.');
-        process.exit(1);
-    }
+  async startServer(): Promise<void> {
+    if (this.isShuttingDown) return;
 
-    logger.step('Starting Moud Server...');
+    try {
+      logger.step('Transpiling scripts...');
+      await this.transpiler.transpileProject();
+      logger.success('Scripts transpiled successfully.');
 
-    serverProcess = spawn(javaExecutable, [
+      const projectRoot = process.cwd();
+      const javaExecutable = this.environment.getJavaExecutablePath();
+      const serverJar = this.environment.getServerJarPath();
+
+      if (!javaExecutable || !serverJar) {
+        throw new Error('Environment is not correctly configured. Cannot start server.');
+      }
+
+      logger.step('Starting Moud Server...');
+
+      this.serverProcess = spawn(javaExecutable, [
         '-jar', serverJar,
         '--project-root', projectRoot
-    ], { stdio: 'pipe' });
+      ], {
+        stdio: 'pipe',
+        detached: false
+      });
 
-    serverProcess.stdout?.on('data', (data) => {
+      if (this.serverProcess.pid) {
+        this.cleanupManager.registerProcess(this.serverProcess.pid);
+      }
+
+      this.serverProcess.stdout?.on('data', (data) => {
         process.stdout.write(`[Moud Engine] ${data.toString()}`);
-    });
+      });
 
-    serverProcess.stderr?.on('data', (data) => {
+      this.serverProcess.stderr?.on('data', (data) => {
         process.stderr.write(`[Moud Engine] ${data.toString()}`);
-    });
+      });
 
-    serverProcess.on('close', (code) => {
-        if (!isRestarting) {
-            logger.warn(`Moud Server process exited with code ${code}.`);
+      this.serverProcess.on('error', (error) => {
+        if (!this.isShuttingDown) {
+          logger.error(`Server process error: ${error.message}`);
         }
-    });
-}
+      });
 
-async function restartServer(environment: EnvironmentManager, transpiler: Transpiler) {
-    if (isRestarting) return;
-    isRestarting = true;
+      this.serverProcess.on('close', (code, signal) => {
+        if (!this.isRestarting && !this.isShuttingDown) {
+          logger.warn(`Moud Server process exited with code ${code} (signal: ${signal}).`);
+        }
+        this.serverProcess = null;
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        if (!this.serverProcess) {
+          reject(new Error('Failed to start server process'));
+          return;
+        }
+
+        const timeout = setTimeout(() => {
+          reject(new Error('Server startup timeout'));
+        }, 10000);
+
+        this.serverProcess.once('spawn', () => {
+          clearTimeout(timeout);
+          resolve();
+        });
+
+        this.serverProcess.once('error', (error) => {
+          clearTimeout(timeout);
+          reject(error);
+        });
+      });
+
+    } catch (error) {
+      throw new Error(`Failed to start server: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async stopServer(): Promise<void> {
+    if (!this.serverProcess) return;
+
+    return new Promise<void>((resolve) => {
+      const cleanup = () => {
+        this.serverProcess = null;
+        resolve();
+      };
+
+      const forceKillTimeout = setTimeout(() => {
+        if (this.serverProcess) {
+          this.serverProcess.kill('SIGKILL');
+          cleanup();
+        }
+      }, 5000);
+
+      // Add null check before accessing serverProcess
+      if (this.serverProcess) {
+        this.serverProcess.once('close', () => {
+          clearTimeout(forceKillTimeout);
+          cleanup();
+        });
+
+        this.serverProcess.kill('SIGTERM');
+      } else {
+        clearTimeout(forceKillTimeout);
+        cleanup();
+      }
+    });
+  }
+
+  async restartServer(): Promise<void> {
+    if (this.isRestarting || this.isShuttingDown) return;
+
+    this.isRestarting = true;
     logger.info('Restarting Moud Server...');
 
-    if (serverProcess) {
-        serverProcess.kill('SIGINT');
-        await new Promise(resolve => serverProcess?.on('close', resolve));
-        serverProcess = null;
+    try {
+      await this.stopServer();
+      await this.startServer();
+      logger.success('Server restarted.');
+    } catch (error) {
+      logger.error(`Failed to restart server: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      this.isRestarting = false;
     }
+  }
 
-    await startServer(environment, transpiler);
-    isRestarting = false;
-    logger.success('Server restarted.');
+  async shutdown(): Promise<void> {
+    if (this.isShuttingDown) return;
+
+    this.isShuttingDown = true;
+    logger.info('Shutting down Moud Server...');
+
+    await this.stopServer();
+    await this.cleanupManager.cleanup();
+
+    process.exit(0);
+  }
 }
 
 export const devCommand = new Command('dev')
@@ -66,30 +166,33 @@ export const devCommand = new Command('dev')
   .action(async () => {
     logger.info('Starting Moud in development mode...');
 
-    const environment = new EnvironmentManager();
-    const transpiler = new Transpiler();
+    try {
+      const environment = new EnvironmentManager();
+      const transpiler = new Transpiler();
+      const devServer = new DevServer(environment, transpiler);
 
-    await environment.initialize();
-    await startServer(environment, transpiler);
+      await environment.initialize();
+      await devServer.startServer();
 
-    const watcher = chokidar.watch(['src/**/*', 'client/**/*', 'assets/**/*'], {
+      const watcher = chokidar.watch(['src/**/*', 'client/**/*', 'assets/**/*'], {
         ignored: /(^|[\/\\])\../,
         persistent: true,
-    });
+        ignoreInitial: true
+      });
 
-    logger.info('Watching for file changes...');
+      logger.info('Watching for file changes...');
 
-    watcher.on('change', async (filePath) => {
+      watcher.on('change', async (filePath) => {
         logger.info(`File changed detected: ${path.basename(filePath)}`);
-        await restartServer(environment, transpiler);
-    });
+        await devServer.restartServer();
+      });
 
-    process.on('SIGINT', () => {
-        logger.info('Shutting down Moud Server...');
-        if (serverProcess) {
-            serverProcess.kill('SIGINT');
-        }
-        watcher.close();
-        process.exit(0);
-    });
+      watcher.on('error', (error) => {
+        logger.error(`Watcher error: ${error.message}`);
+      });
+
+    } catch (error) {
+      logger.error(`Failed to start development server: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    }
   });

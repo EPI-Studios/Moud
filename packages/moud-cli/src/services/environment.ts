@@ -5,122 +5,183 @@ import { exec } from 'child_process';
 import { logger } from './logger.js';
 import inquirer from 'inquirer';
 import { Downloader } from './downloader.js';
+import { VersionManager } from './version-manager.js';
+import { CleanupManager } from './cleanup-manager.js';
 
-const MOUD_JDK_VERSION = '21';
-const MOUD_SERVER_VERSION = '0.1.0-alpha';
+interface PlatformInfo {
+  os: string;
+  arch: string;
+  ext: string;
+}
 
 export class EnvironmentManager {
-    private moudHome: string;
-    private jdkPath: string | null = null;
-    private serverJarPath: string | null = null;
+  private moudHome: string;
+  private jdkPath: string | null = null;
+  private serverJarPath: string | null = null;
+  private versionManager: VersionManager;
+  private cleanupManager: CleanupManager;
 
-    constructor() {
-        this.moudHome = path.join(os.homedir(), '.moud');
+  constructor() {
+    this.moudHome = path.join(os.homedir(), '.moud');
+    this.versionManager = new VersionManager();
+    this.cleanupManager = new CleanupManager();
+  }
+
+  public async initialize(): Promise<void> {
+    try {
+      if (!this.versionManager.validateCompatibility()) {
+        throw new Error('Current CLI version is not supported. Please update to a compatible version.');
+      }
+
+      await this.ensureMoudHome();
+      this.jdkPath = await this.checkAndInstallJava();
+      this.serverJarPath = await this.checkAndDownloadServer();
+    } catch (error) {
+      logger.error('Failed to initialize environment');
+      throw error;
+    }
+  }
+
+  public getJavaExecutablePath(): string | null {
+    return this.jdkPath;
+  }
+
+  public getServerJarPath(): string | null {
+    return this.serverJarPath;
+  }
+
+  private async ensureMoudHome(): Promise<void> {
+    try {
+      await fs.promises.mkdir(this.moudHome, { recursive: true });
+      await fs.promises.mkdir(path.join(this.moudHome, 'jdks'), { recursive: true });
+      await fs.promises.mkdir(path.join(this.moudHome, 'servers'), { recursive: true });
+      await fs.promises.mkdir(path.join(this.moudHome, 'temp'), { recursive: true });
+    } catch (error) {
+      throw new Error(`Failed to create Moud home directory: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private getPlatformInfo(): PlatformInfo {
+    const platform = os.platform();
+    const arch = os.arch();
+
+    if (platform === 'darwin') {
+      const mappedArch = arch === 'arm64' ? 'aarch64' : 'x64';
+      return { os: 'macos', arch: mappedArch, ext: 'tar.gz' };
     }
 
-    public async initialize(): Promise<void> {
-        await this.ensureMoudHome();
-        this.jdkPath = await this.checkAndInstallJava();
-        this.serverJarPath = await this.checkAndDownloadServer();
+    if (platform === 'win32') {
+      return { os: 'windows', arch: 'x64', ext: 'zip' };
     }
 
-    public getJavaExecutablePath(): string | null {
-        return this.jdkPath;
+    if (platform === 'linux') {
+      const mappedArch = arch === 'arm64' ? 'aarch64' : 'x64';
+      return { os: 'linux', arch: mappedArch, ext: 'tar.gz' };
     }
 
-    public getServerJarPath(): string | null {
-        return this.serverJarPath;
+    throw new Error(`Unsupported platform: ${platform} ${arch}`);
+  }
+
+  private async checkAndInstallJava(): Promise<string> {
+    const jdkVersion = this.versionManager.getJDKVersion();
+    logger.step(`Checking for Java ${jdkVersion} installation...`);
+
+    const localJdkDir = path.join(this.moudHome, 'jdks', jdkVersion);
+    const javaExecutable = path.join(localJdkDir, 'bin', os.platform() === 'win32' ? 'java.exe' : 'java');
+
+    if (fs.existsSync(javaExecutable)) {
+      logger.success(`Found local Java ${jdkVersion} installation.`);
+      return javaExecutable;
     }
 
-    private async ensureMoudHome(): Promise<void> {
-        try {
-            await fs.promises.mkdir(this.moudHome, { recursive: true });
-            await fs.promises.mkdir(path.join(this.moudHome, 'jdks'), { recursive: true });
-            await fs.promises.mkdir(path.join(this.moudHome, 'servers'), { recursive: true });
-        } catch (error) {
-            logger.error('Failed to create Moud home directory.');
-            throw error;
+    const systemJava = await this.findSystemJava();
+    if (systemJava) {
+      logger.success(`Found compatible system Java at: ${systemJava}`);
+      return systemJava;
+    }
+
+    logger.warn(`Java ${jdkVersion} not found.`);
+    const { shouldDownload } = await inquirer.prompt([{
+      type: 'confirm',
+      name: 'shouldDownload',
+      message: `Moud requires Java ${jdkVersion}. Download a local version for Moud projects?`,
+      default: true,
+    }]);
+
+    if (!shouldDownload) {
+      throw new Error('Java installation cancelled. Cannot proceed.');
+    }
+
+    try {
+      const platformInfo = this.getPlatformInfo();
+      const jdkUrl = this.versionManager.getJDKDownloadUrl(platformInfo.os, platformInfo.arch);
+      const tempFilePath = path.join(this.moudHome, 'temp', `jdk-${jdkVersion}.${platformInfo.ext}`);
+
+      this.cleanupManager.registerTempDir(path.dirname(tempFilePath));
+
+      await Downloader.downloadFile(jdkUrl, tempFilePath);
+      await Downloader.extractTarGz(tempFilePath, localJdkDir);
+
+      await fs.promises.unlink(tempFilePath).catch(() => {});
+
+      if (!fs.existsSync(javaExecutable)) {
+        throw new Error('Java executable not found after installation');
+      }
+
+      logger.success(`Java ${jdkVersion} installed successfully for Moud.`);
+      return javaExecutable;
+    } catch (error) {
+      throw new Error(`Failed to install Java: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private async findSystemJava(): Promise<string | null> {
+    const jdkVersion = this.versionManager.getJDKVersion();
+
+    return new Promise(resolve => {
+      exec('java -version', { timeout: 5000 }, (error, stdout, stderr) => {
+        if (error) {
+          resolve(null);
+          return;
         }
-    }
 
-    private getPlatformInfo(): { os: string; arch: string; ext: string } {
-        const platform = os.platform();
-        const arch = os.arch();
+        const output = stderr || stdout;
+        const versionMatch = output.match(/version "(\d+)\.?/);
 
-        if (platform === 'darwin') return { os: 'macos', arch: arch, ext: 'tar.gz' };
-        if (platform === 'win32') return { os: 'windows', arch: 'x64', ext: 'zip' };
-        return { os: 'linux', arch: 'x64', ext: 'tar.gz' };
-    }
-
-    private async checkAndInstallJava(): Promise<string> {
-        logger.step(`Checking for Java ${MOUD_JDK_VERSION} installation...`);
-
-        const localJdkDir = path.join(this.moudHome, 'jdks', MOUD_JDK_VERSION);
-        const javaExecutable = path.join(localJdkDir, 'bin', os.platform() === 'win32' ? 'java.exe' : 'java');
-
-        if (fs.existsSync(javaExecutable)) {
-            logger.success(`Found local Java ${MOUD_JDK_VERSION} installation.`);
-            return javaExecutable;
+        if (versionMatch && versionMatch[1] === jdkVersion) {
+          resolve('java');
+        } else {
+          resolve(null);
         }
+      });
+    });
+  }
 
-        const systemJava = await this.findSystemJava();
-        if (systemJava) {
-            logger.success(`Found compatible system Java at: ${systemJava}`);
-            return systemJava;
-        }
+  private async checkAndDownloadServer(): Promise<string> {
+    const serverVersion = this.versionManager.getCompatibleEngineVersion();
+    logger.step('Checking for Moud Server binary...');
 
-        logger.warn(`Java ${MOUD_JDK_VERSION} not found.`);
-        const { shouldDownload } = await inquirer.prompt([{
-            type: 'confirm',
-            name: 'shouldDownload',
-            message: `Moud requires Java ${MOUD_JDK_VERSION}. Download a local version for Moud projects?`,
-            default: true,
-        }]);
+    const serverFileName = `moud-server-${serverVersion}.jar`;
+    const serverPath = path.join(this.moudHome, 'servers', serverFileName);
 
-        if (!shouldDownload) {
-            logger.error('Java installation cancelled. Cannot proceed.');
-            process.exit(1);
-        }
-
-        const { os: platformOs, arch, ext } = this.getPlatformInfo();
-        const jdkUrl = `https://api.adoptium.net/v3/binary/latest/21/ga/${platformOs}/${arch}/jdk/hotspot/normal/eclipse`;
-        const tempFilePath = path.join(this.moudHome, `jdk-${MOUD_JDK_VERSION}.${ext}`);
-
-        await Downloader.downloadFile(jdkUrl, tempFilePath);
-        await Downloader.extractTarGz(tempFilePath, localJdkDir);
-        await fs.promises.unlink(tempFilePath);
-
-        logger.success(`Java ${MOUD_JDK_VERSION} installed successfully for Moud.`);
-        return javaExecutable;
+    if (fs.existsSync(serverPath)) {
+      logger.success(`Found Moud Server v${serverVersion} in cache.`);
+      return serverPath;
     }
 
-    private async findSystemJava(): Promise<string | null> {
-        return new Promise(resolve => {
-            exec('java -version', (error, stdout, stderr) => {
-                const output = stderr || stdout;
-                if (output.includes(`version "${MOUD_JDK_VERSION}.`)) {
-                    resolve('java');
-                } else {
-                    resolve(null);
-                }
-            });
-        });
+    logger.info(`Moud Server v${serverVersion} not found in cache.`);
+
+    try {
+      const serverUrl = this.versionManager.getEngineDownloadUrl();
+      await Downloader.downloadFile(serverUrl, serverPath);
+
+      if (!fs.existsSync(serverPath)) {
+        throw new Error('Server JAR not found after download');
+      }
+
+      return serverPath;
+    } catch (error) {
+      throw new Error(`Failed to download server: ${error instanceof Error ? error.message : String(error)}`);
     }
-
-    private async checkAndDownloadServer(): Promise<string> {
-        logger.step('Checking for Moud Server binary...');
-        const serverFileName = `moud-server-${MOUD_SERVER_VERSION}.jar`;
-        const serverPath = path.join(this.moudHome, 'servers', serverFileName);
-
-        if (fs.existsSync(serverPath)) {
-            logger.success(`Found Moud Server v${MOUD_SERVER_VERSION} in cache.`);
-            return serverPath;
-        }
-
-        logger.info(`Moud Server v${MOUD_SERVER_VERSION} not found in cache.`);
-        const serverUrl = `https://github.com/Epitygmata/moud/releases/download/v${MOUD_SERVER_VERSION}/moud-server.jar`;
-
-        await Downloader.downloadFile(serverUrl, serverPath);
-        return serverPath;
-    }
+  }
 }
