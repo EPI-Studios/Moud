@@ -2,11 +2,24 @@
   "name": "@epi-studio/moud-sdk",
   "version": "0.1.1-alpha",
   "description": "The official Scripting Development Kit for the Moud Engine.",
+  "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "rm -rf dist && mkdir dist && cp src/index.d.ts dist/index.d.ts"
+    "build": "pnpm run clean && tsc && pnpm run build:js",
+    "build:js": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.js --external:@epi-studio/moud-sdk",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.4"
   }
 }

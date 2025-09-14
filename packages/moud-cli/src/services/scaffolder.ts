@@ -1,75 +1,174 @@
 import fs from 'fs';
 import path from 'path';
 import { logger } from './logger.js';
-import { execSync } from 'child_process';
 
-function findMonorepoRoot(startDir: string): string | null {
-    let currentDir = startDir;
-    while (currentDir !== path.parse(currentDir).root) {
-        if (fs.existsSync(path.join(currentDir, 'pnpm-workspace.yaml'))) {
-            return currentDir;
-        }
-        currentDir = path.dirname(currentDir);
-    }
-    return null;
-}
+const packageJsonTemplate = (projectName: string) => ({
+  name: projectName,
+  version: "1.0.0",
+  description: `A Moud game: ${projectName}`,
+  "moud:main": "src/main.ts",
+  scripts: {
+    dev: "moud dev",
+    build: "moud pack"
+  },
+  devDependencies: {
+    "@epi-studio/moud-sdk": "^0.1.1-alpha",
+    "@epi-studio/moud-cli": "^0.1.3",
+    "typescript": "^5.0.0"
+  }
+});
+
+const mainTsTemplate = `/// <reference types="@epi-studio/moud-sdk" />
+
+console.log('Game server starting...');
+
+api.on('player.join', (player) => {
+  console.log(\`Player \${player.getName()} joined the game\`);
+  player.sendMessage('Welcome to the game!');
+
+  api.getServer().broadcast(\`\${player.getName()} has joined the game!\`);
+});
+
+api.on('player.leave', (player) => {
+  console.log(\`Player \${player.getName()} left the game\`);
+  api.getServer().broadcast(\`\${player.getName()} has left the game!\`);
+});
+
+api.on('player.chat', (event) => {
+  const player = event.getPlayer();
+  const message = event.getMessage();
+
+  console.log(\`[\${player.getName()}]: \${message}\`);
+
+  if (message.toLowerCase() === '/spawn') {
+    event.cancel();
+    player.teleport(0, 64, 0);
+    player.sendMessage('Teleported to spawn!');
+  }
+});
+
+const world = api.getWorld();
+world.setFlatGenerator();
+world.setSpawn(0, 64, 0);
+
+console.log('Game server initialized!');
+`;
+
+const clientMainTsTemplate = `console.log('Client script loaded');
+
+window.addEventListener('moud:custom', (event) => {
+  console.log('Received custom event:', event.detail);
+});
+`;
+
+const tsconfigTemplate = {
+  compilerOptions: {
+    target: "ES2022",
+    module: "ESNext",
+    moduleResolution: "node",
+    esModuleInterop: true,
+    allowSyntheticDefaultImports: true,
+    strict: true,
+    skipLibCheck: true,
+    forceConsistentCasingInFileNames: true,
+    lib: ["ES2022"],
+    allowImportingTsExtensions: true,
+    noEmit: true
+  },
+  include: ["src/**/*", "client/**/*"],
+  exclude: ["node_modules", "dist"]
+};
+
+const readmeTemplate = (projectName: string) => `# ${projectName}
+
+A Moud game project.
+
+## Getting Started
+
+1. Install dependencies:
+   \`\`\`bash
+   npm install
+   \`\`\`
+
+2. Start development server:
+   \`\`\`bash
+   npm run dev
+   \`\`\`
+
+3. Build for distribution:
+   \`\`\`bash
+   npm run build
+   \`\`\`
+
+## Project Structure
+
+- \`src/main.ts\` - Server-side game logic
+- \`client/\` - Client-side scripts
+- \`assets/\` - Game assets (textures, models, etc.)
+
+## Documentation
+
+Visit [Moud Documentation](https://moud.dev) for more information.
+`;
 
 export async function createProjectStructure(projectName: string): Promise<void> {
-    const monorepoRoot = findMonorepoRoot(process.cwd());
+  const projectDir = path.join(process.cwd(), projectName);
 
-    if (!monorepoRoot) {
-        throw new Error("Could not find monorepo root. Make sure you are running this command from within the moud project.");
-    }
+  logger.step(`Creating project directory: ${projectName}`);
 
-    const templateDir = path.join(monorepoRoot, 'example', 'ts');
-    const projectDir = path.join(monorepoRoot, 'example', projectName);
+  if (fs.existsSync(projectDir)) {
+    throw new Error(`Directory '${projectName}' already exists.`);
+  }
 
-    logger.step(`Creating project in: ${projectDir}`);
+  await fs.promises.mkdir(projectDir);
+  await fs.promises.mkdir(path.join(projectDir, 'src'));
+  await fs.promises.mkdir(path.join(projectDir, 'client'));
+  await fs.promises.mkdir(path.join(projectDir, 'assets'));
 
-    if (!fs.existsSync(templateDir)) {
-        throw new Error(`Template directory not found at: ${templateDir}`);
-    }
-    if (fs.existsSync(projectDir)) {
-        throw new Error(`Directory '${projectName}' already exists in the example folder.`);
-    }
+  logger.step('Creating package.json...');
+  await fs.promises.writeFile(
+    path.join(projectDir, 'package.json'),
+    JSON.stringify(packageJsonTemplate(projectName), null, 2)
+  );
 
-    await fs.promises.cp(templateDir, projectDir, { recursive: true });
-    logger.success(`Copied template to '${projectName}'`);
+  logger.step('Creating main server file...');
+  await fs.promises.writeFile(
+    path.join(projectDir, 'src', 'main.ts'),
+    mainTsTemplate
+  );
 
-    const packageJsonPath = path.join(projectDir, 'package.json');
-    if (fs.existsSync(packageJsonPath)) {
-        try {
-            const packageJsonContent = await fs.promises.readFile(packageJsonPath, 'utf-8');
-            const packageJson = JSON.parse(packageJsonContent);
+  logger.step('Creating client script...');
+  await fs.promises.writeFile(
+    path.join(projectDir, 'client', 'main.ts'),
+    clientMainTsTemplate
+  );
 
-            packageJson.name = projectName;
+  logger.step('Creating TypeScript configuration...');
+  await fs.promises.writeFile(
+    path.join(projectDir, 'tsconfig.json'),
+    JSON.stringify(tsconfigTemplate, null, 2)
+  );
 
-            const newPackageJson = {
-              name: projectName,
-              version: "1.0.0",
-              description: `A new Moud game: ${projectName}`,
-              "moud:main": "src/main.ts",
-              scripts: {
-                dev: `pnpm --filter ${projectName} dev-server`,
-                build: `pnpm --filter ${projectName} build-game`
-              },
-              devDependencies: {
-                "@epi-studio/moud-sdk": "workspace:*",
-                "@epi-studio/moud-cli": "workspace:*"
-              }
-            };
+  logger.step('Creating README...');
+  await fs.promises.writeFile(
+    path.join(projectDir, 'README.md'),
+    readmeTemplate(projectName)
+  );
 
-            await fs.promises.writeFile(packageJsonPath, JSON.stringify(newPackageJson, null, 2));
-            logger.success(`Updated package.json for '${projectName}'`);
-        } catch (error) {
-            throw new Error(`Failed to update package.json: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
+  logger.step('Creating .gitignore...');
+  await fs.promises.writeFile(
+    path.join(projectDir, '.gitignore'),
+    `node_modules/
+dist/
+.moud-build/
+*.log
+.DS_Store
+`
+  );
 
-    logger.step('Linking new project and installing dependencies...');
-    execSync('pnpm install', { cwd: monorepoRoot, stdio: 'inherit' });
-
-    logger.success(`Project '${projectName}' created successfully!`);
-    logger.info(`You can now run your new game example:`);
-    logger.info(`  pnpm --filter ${projectName} dev`);
+  logger.success(`Project '${projectName}' created successfully!`);
+  logger.info(`Next steps:`);
+  logger.info(`  cd ${projectName}`);
+  logger.info(`  npm install`);
+  logger.info(`  npm run dev`);
 }
