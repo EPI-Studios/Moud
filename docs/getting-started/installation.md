@@ -20,7 +20,8 @@ This guide covers setting up Moud for development and testing
 ## Step 1: Install Moud CLI
 
 ```bash
-npm install -g @moud/cli
+npm install -g @epi-studio/moud-cli@latest
+
 ```
 
 Verify installation:
