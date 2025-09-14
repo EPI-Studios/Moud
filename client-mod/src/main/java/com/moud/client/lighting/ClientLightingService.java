@@ -2,12 +2,13 @@ package com.moud.client.lighting;
 
 import com.moud.api.math.Conversion;
 import foundry.veil.api.client.render.VeilRenderSystem;
-import foundry.veil.api.client.render.light.AreaLight;
-import foundry.veil.api.client.render.light.Light;
-import foundry.veil.api.client.render.light.PointLight;
+import foundry.veil.api.client.render.light.data.AreaLightData;
+import foundry.veil.api.client.render.light.data.LightData;
+import foundry.veil.api.client.render.light.data.PointLightData;
+import foundry.veil.api.client.render.light.renderer.LightRenderer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.Vec3d;
-import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +23,8 @@ public class ClientLightingService {
     private final Map<Long, ManagedLight> managedLights = new ConcurrentHashMap<>();
     private final MinecraftClient client;
     private long lastFrameTime = 0;
+
+    private static final Vector3f UP_VECTOR = new Vector3f(0, 1, 0);
 
     public ClientLightingService() {
         this.client = MinecraftClient.getInstance();
@@ -51,13 +54,11 @@ public class ClientLightingService {
     public void handleRemoveLight(long id) {
         ManagedLight managed = managedLights.remove(id);
         if (managed != null) {
-
             client.execute(() -> destroyVeilLight(managed));
         }
     }
 
     private void clearAllLights() {
-
         managedLights.values().forEach(this::destroyVeilLight);
         managedLights.clear();
     }
@@ -79,58 +80,69 @@ public class ClientLightingService {
             boolean shouldBeVisible = playerPos.squaredDistanceTo(light.targetPosition) < LIGHT_RENDER_DISTANCE_SQUARED;
 
             if (shouldBeVisible) {
-                if (light.veilLight == null) {
+                if (light.veilLightData == null) {
                     createVeilLight(light);
                 }
                 light.interpolate(deltaTime);
                 updateVeilLight(light);
-            } else if (light.veilLight != null) {
+            } else if (light.veilLightData != null) {
                 destroyVeilLight(light);
             }
         }
     }
 
     private void createVeilLight(ManagedLight managed) {
-        if ("point".equals(managed.type)) {
-            managed.veilLight = new PointLight();
-        } else if ("area".equals(managed.type)) {
-            managed.veilLight = new AreaLight();
-        }
+        try {
+            if ("point".equals(managed.type)) {
+                PointLightData pointLight = new PointLightData();
+                managed.veilLightData = pointLight;
+                updateVeilLight(managed);
+                VeilRenderSystem.renderer().getLightRenderer().addLight(pointLight);
 
-        if (managed.veilLight != null) {
-            VeilRenderSystem.renderer().getLightRenderer().addLight(managed.veilLight);
+            } else if ("area".equals(managed.type)) {
+                AreaLightData areaLight = new AreaLightData();
+                managed.veilLightData = areaLight;
+                updateVeilLight(managed);
+                VeilRenderSystem.renderer().getLightRenderer().addLight(areaLight);
+
+            } else {
+                LOGGER.warn("Attempted to create a Veil light with an unknown type: {}", managed.type);
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to create Veil light of type '{}' with id {}", managed.type, managed.id, e);
         }
     }
 
     private void updateVeilLight(ManagedLight managed) {
-        if (managed.veilLight instanceof PointLight pointLight) {
+        if (managed.veilLightData instanceof PointLightData pointLight) {
             pointLight.setPosition(managed.interpolatedPosition.x, managed.interpolatedPosition.y, managed.interpolatedPosition.z)
                     .setColor(managed.r, managed.g, managed.b)
                     .setBrightness(managed.brightness)
                     .setRadius(managed.radius);
-        } else if (managed.veilLight instanceof AreaLight areaLight) {
-            Quaternionf orientation = new Quaternionf().lookAlong(
-                    (float)managed.interpolatedDirection.x * -1.0f,
-                    (float)managed.interpolatedDirection.y * -1.0f,
-                    (float)managed.interpolatedDirection.z * -1.0f,
-                    0, 1, 0
-            );
 
-            areaLight.setPosition(managed.interpolatedPosition.x, managed.interpolatedPosition.y, managed.interpolatedPosition.z)
-                    .setOrientation(orientation)
-                    .setColor(managed.r, managed.g, managed.b)
+        } else if (managed.veilLightData instanceof AreaLightData areaLight) {
+            areaLight.getPosition().set(managed.interpolatedPosition.x, managed.interpolatedPosition.y, managed.interpolatedPosition.z);
+
+            Vector3f direction = new Vector3f((float)managed.interpolatedDirection.x, (float)managed.interpolatedDirection.y, (float)managed.interpolatedDirection.z);
+            areaLight.getOrientation().lookAlong(direction, UP_VECTOR);
+
+            areaLight.setColor(managed.r, managed.g, managed.b)
                     .setBrightness(managed.brightness)
-                    .setSize(managed.width, managed.height);
-
-            if (managed.angle > 0) areaLight.setAngle(managed.angle);
-            if (managed.distance > 0) areaLight.setDistance(managed.distance);
+                    .setSize(managed.width, managed.height)
+                    .setDistance(managed.distance)
+                    .setAngle(managed.angle);
         }
     }
 
     private void destroyVeilLight(ManagedLight managed) {
-        if (managed.veilLight != null) {
-            VeilRenderSystem.renderer().getLightRenderer().removeLight(managed.veilLight);
-            managed.veilLight = null;
+        if (managed.veilLightData != null) {
+            try {
+                LightRenderer lightRenderer = VeilRenderSystem.renderer().getLightRenderer();
+                lightRenderer.getLights(managed.veilLightData.getType()).remove(managed.veilLightData);
+                managed.veilLightData = null;
+            } catch (Exception e) {
+                LOGGER.error("Failed to destroy Veil light", e);
+            }
         }
     }
 
@@ -141,7 +153,7 @@ public class ClientLightingService {
     private static class ManagedLight {
         final long id;
         final String type;
-        Light veilLight;
+        LightData veilLightData;
 
         float r, g, b, brightness, radius, width, height, angle, distance;
         Vec3d interpolatedPosition = Vec3d.ZERO;
@@ -171,6 +183,10 @@ public class ClientLightingService {
                 if (data.containsKey("dirX")) {
                     targetDirection = new Vec3d(Conversion.toDouble(data.get("dirX")), Conversion.toDouble(data.get("dirY")), Conversion.toDouble(data.get("dirZ"))).normalize();
                 }
+            }
+
+            if (this.veilLightData == null) {
+                snap();
             }
         }
 

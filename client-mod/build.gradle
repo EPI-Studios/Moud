@@ -5,7 +5,10 @@ plugins {
 repositories {
     mavenCentral()
     maven { url = "https://maven.fabricmc.net/" }
-    maven { url = "https://maven.blamejared.com/" }
+    maven {
+        name = 'BlameJared Maven (CrT / Bookshelf)'
+        url = 'https://maven.blamejared.com'
+    }
     maven { url = "https://api.modrinth.com/maven" }
 }
 
@@ -18,19 +21,26 @@ dependencies {
     mappings "net.fabricmc:yarn:1.21.1+build.1:v2"
     modImplementation "net.fabricmc:fabric-loader:0.16.14"
 
-    implementation project(':api')
-
     modImplementation "net.fabricmc.fabric-api:fabric-api:0.116.6+1.21.1"
-    modImplementation "foundry.veil:veil-fabric-1.21.1:1.0.0.238"
 
-    implementation "org.graalvm.polyglot:polyglot:24.1.0"
-    implementation "org.graalvm.js:js-language:24.1.0"
-    implementation "org.graalvm.truffle:truffle-api:24.1.0"
-    implementation "org.graalvm.sdk:graal-sdk:24.1.0"
-    implementation "org.graalvm.sdk:collections:24.1.0"
+    include implementation(project(':api'))
 
+    modImplementation("foundry.veil:veil-fabric-1.21.1:2.3.2") {
+        transitive = false
+    }
+    include("foundry.veil:veil-fabric-1.21.1:2.3.2") {
+        transitive = false
+    }
 
-    implementation 'com.fasterxml.jackson.core:jackson-core:2.17.0'
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.0'
-    implementation 'com.fasterxml.jackson.core:jackson-annotations:2.17.0'
+    include implementation("org.graalvm.polyglot:polyglot:24.1.0")
+    include implementation("org.graalvm.js:js-language:24.1.0")
+    include implementation("org.graalvm.truffle:truffle-api:24.1.0")
+    include implementation("org.graalvm.sdk:graal-sdk:24.1.0")
+    include implementation("org.graalvm.sdk:collections:24.1.0")
+    include implementation("org.graalvm.sdk:nativeimage:24.1.0")
+    include implementation("org.graalvm.shadowed:icu4j:24.0.0")
+
+    include implementation('com.fasterxml.jackson.core:jackson-core:2.17.0')
+    include implementation('com.fasterxml.jackson.core:jackson-databind:2.17.0')
+    include implementation('com.fasterxml.jackson.core:jackson-annotations:2.17.0')
 }
