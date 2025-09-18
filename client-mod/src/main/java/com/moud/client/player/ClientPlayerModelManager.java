@@ -34,36 +34,51 @@ public class ClientPlayerModelManager {
     }
 
     public void createModel(long modelId, Vector3 position, String skinUrl) {
-        ManagedPlayerModel model = new ManagedPlayerModel(modelId, position, skinUrl);
-        models.put(modelId, model);
-        LOGGER.debug("Created player model {} at position {}", modelId, position);
+        client.execute(() -> {
+            ManagedPlayerModel model = new ManagedPlayerModel(modelId, position, skinUrl);
+            models.put(modelId, model);
+            LOGGER.info("Created player model {} at position {} with skin {}", modelId, position, skinUrl);
+        });
     }
 
     public void updateModel(long modelId, Vector3 position, float yaw, float pitch) {
-        ManagedPlayerModel model = models.get(modelId);
-        if (model != null) {
-            model.setPosition(position);
-            model.setRotation(yaw, pitch);
-        }
+        client.execute(() -> {
+            ManagedPlayerModel model = models.get(modelId);
+            if (model != null) {
+                model.setPosition(position);
+                model.setRotation(yaw, pitch);
+                LOGGER.debug("Updated player model {} position and rotation", modelId);
+            } else {
+                LOGGER.warn("Attempted to update non-existent model {}", modelId);
+            }
+        });
     }
 
     public void updateSkin(long modelId, String skinUrl) {
-        ManagedPlayerModel model = models.get(modelId);
-        if (model != null) {
-            model.setSkinUrl(skinUrl);
-        }
+        client.execute(() -> {
+            ManagedPlayerModel model = models.get(modelId);
+            if (model != null) {
+                model.setSkinUrl(skinUrl);
+                LOGGER.debug("Updated player model {} skin", modelId);
+            }
+        });
     }
 
     public void playAnimation(long modelId, String animationName) {
-        ManagedPlayerModel model = models.get(modelId);
-        if (model != null) {
-            model.setCurrentAnimation(animationName);
-        }
+        client.execute(() -> {
+            ManagedPlayerModel model = models.get(modelId);
+            if (model != null) {
+                model.setCurrentAnimation(animationName);
+                LOGGER.debug("Playing animation '{}' on model {}", animationName, modelId);
+            }
+        });
     }
 
     public void removeModel(long modelId) {
-        models.remove(modelId);
-        LOGGER.debug("Removed player model {}", modelId);
+        client.execute(() -> {
+            models.remove(modelId);
+            LOGGER.info("Removed player model {}", modelId);
+        });
     }
 
     public ManagedPlayerModel getModel(long modelId) {
@@ -99,16 +114,24 @@ public class ClientPlayerModelManager {
         }
 
         private void initializeModel() {
-
-            ModelPart root = PlayerEntityModel.getTexturedModelData(Dilation.NONE, false).getRoot().createPart(64, 64);
-            this.model = new PlayerEntityModel<>(root, false);
+            try {
+                ModelPart root = PlayerEntityModel.getTexturedModelData(Dilation.NONE, false).getRoot().createPart(64, 64);
+                this.model = new PlayerEntityModel<>(root, false);
+            } catch (Exception e) {
+                LOGGER.error("Failed to initialize player model", e);
+            }
         }
 
         private void loadSkinTexture() {
             try {
-                GameProfile profile = new GameProfile(UUID.randomUUID(), "PlayerModel_" + modelId);
-                this.skinTexture = MinecraftClient.getInstance().getSkinProvider().getSkinTextures(profile).texture();
+                if (skinUrl != null && !skinUrl.isEmpty()) {
+                    GameProfile profile = new GameProfile(UUID.randomUUID(), "PlayerModel_" + modelId);
+                    this.skinTexture = MinecraftClient.getInstance().getSkinProvider().getSkinTextures(profile).texture();
+                } else {
+                    this.skinTexture = Identifier.of("textures/entity/player/wide/steve.png");
+                }
             } catch (Exception e) {
+                LOGGER.warn("Failed to load custom skin, using default", e);
                 this.skinTexture = Identifier.of("textures/entity/player/wide/steve.png");
             }
         }

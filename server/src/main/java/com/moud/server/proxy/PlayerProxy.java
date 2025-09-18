@@ -79,6 +79,22 @@ public class PlayerProxy {
     }
 
     @HostAccess.Export
+    public Vector3 getHeadRotation() {
+        Pos pos = player.getPosition();
+        return new Vector3(pos.yaw(), pos.pitch(), 0.0f);
+    }
+
+    @HostAccess.Export
+    public float getYaw() {
+        return player.getPosition().yaw();
+    }
+
+    @HostAccess.Export
+    public float getPitch() {
+        return player.getPosition().pitch();
+    }
+
+    @HostAccess.Export
     public void teleport(double x, double y, double z) {
         validator.validateCoordinates(x, y, z);
         player.teleport(new Pos(x, y, z));

@@ -15,7 +15,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import java.util.Optional;
 
@@ -26,12 +25,14 @@ public abstract class MouseMixin {
     @Shadow private double x;
     @Shadow private double y;
 
+    private double lastX = 0.0;
+    private double lastY = 0.0;
+
     @Inject(method = "onMouseButton", at = @At("HEAD"), cancellable = true)
     private void moud_onMouseButton(long window, int button, int action, int mods, CallbackInfo ci) {
         if (client.currentScreen != null || action != 1) {
             return;
         }
-
 
         ClientPlayerModelManager modelManager = ClientPlayerModelManager.getInstance();
         if (!modelManager.getAllModels().isEmpty() && client.player != null) {
@@ -53,7 +54,6 @@ public abstract class MouseMixin {
             }
         }
 
-
         if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.cursor.isVisible()) {
             if (UIOverlayManager.getInstance().handleOverlayClick(this.x, this.y, button)) {
                 ci.cancel();
@@ -66,20 +66,27 @@ public abstract class MouseMixin {
         }
     }
 
-    @Inject(
-            method = "onCursorPos(JDD)V",
-            at = @At("HEAD"),
-            cancellable = true
-    )
-    private void moud_onMouseMove(long window, double x, double y, CallbackInfo ci) {
-        if (ClientPlayNetworking.canSend(MoudPackets.C2S_MouseMovementPacket.ID)) {
-            double dx = x - this.x;
-            double dy = y - this.y;
-            ClientPlayNetworking.send(new MoudPackets.C2S_MouseMovementPacket((float) dx, (float) dy));
+    @Inject(method = "updateMouse", at = @At("HEAD"))
+    private void moud_updateMouse(CallbackInfo ci) {
+        double currentX = client.mouse.getX();
+        double currentY = client.mouse.getY();
+
+        if (lastX != 0.0 || lastY != 0.0) {
+            double dx = currentX - lastX;
+            double dy = currentY - lastY;
+
+            if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
+                if (ClientPlayNetworking.canSend(MoudPackets.C2S_MouseMovementPacket.ID)) {
+                    ClientPlayNetworking.send(new MoudPackets.C2S_MouseMovementPacket((float) dx, (float) dy));
+                }
+
+                if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.input != null) {
+                    ClientAPIService.INSTANCE.input.triggerMouseMoveEvent(dx, dy);
+                }
+            }
         }
 
-        if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.camera.isCustomCameraActive()) {
-            ci.cancel();
-        }
+        lastX = currentX;
+        lastY = currentY;
     }
 }

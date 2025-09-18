@@ -9,10 +9,12 @@ import net.minestom.server.entity.Player;
 import net.minestom.server.event.player.PlayerSpawnEvent;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
+import org.graalvm.polyglot.proxy.ProxyObject;
 
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.Map;
 
 public class PlayerModelProxy {
     private static final AtomicLong ID_COUNTER = new AtomicLong(1);
@@ -38,7 +40,6 @@ public class PlayerModelProxy {
         });
     }
 
-
     public PlayerModelProxy(Vector3 position, String skinUrl) {
         this.modelId = ID_COUNTER.getAndIncrement();
         this.position = position;
@@ -47,6 +48,11 @@ public class PlayerModelProxy {
         this.pitch = 0.0f;
         ALL_MODELS.put(modelId, this);
         broadcastCreate();
+    }
+
+    @HostAccess.Export
+    public Vector3 getPosition() {
+        return position;
     }
 
     @HostAccess.Export
@@ -134,12 +140,13 @@ public class PlayerModelProxy {
     public void triggerClick(Player player, double mouseX, double mouseY, int button) {
         if (clickCallback != null) {
             try {
-                Value clickData = Value.asValue(new ConcurrentHashMap<String, Object>());
-                clickData.putMember("button", button);
-                clickData.putMember("mouseX", mouseX);
-                clickData.putMember("mouseY", mouseY);
-
-                clickCallback.execute(new PlayerProxy(player), clickData);
+                Map<String, Object> clickData = Map.of(
+                        "button", button,
+                        "mouseX", mouseX,
+                        "mouseY", mouseY
+                );
+                ProxyObject data = ProxyObject.fromMap(clickData);
+                clickCallback.execute(new PlayerProxy(player), data);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -148,10 +155,6 @@ public class PlayerModelProxy {
 
     public long getModelId() {
         return modelId;
-    }
-
-    public Vector3 getPosition() {
-        return position;
     }
 
     public String getSkinUrl() {

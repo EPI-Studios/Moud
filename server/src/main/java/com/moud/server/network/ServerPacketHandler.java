@@ -39,14 +39,20 @@ public final class ServerPacketHandler {
             LOGGER.warn("Received script event from non-Moud client: {}", player.getUsername());
             return;
         }
+        LOGGER.debug("Dispatching script event '{}' from player {}", packet.getEventName(), player.getUsername());
         eventDispatcher.dispatchScriptEvent(packet.getEventName(), packet.getEventData(), player);
     }
 
     public void handleCameraUpdate(ClientUpdateCameraPacket packet, Player player) {
+        if (!isMoudClient(player)) return;
+        LOGGER.debug("Camera update from {}: {}", player.getUsername(), packet.getDirection());
         PlayerCameraManager.getInstance().updateCameraDirection(player, packet.getDirection());
     }
 
     public void handlePlayerModelClick(PlayerModelPackets.ServerboundPlayerModelClickPacket packet, Player player) {
+        if (!isMoudClient(player)) return;
+        LOGGER.debug("Player model click from {}: model {} at ({}, {})",
+                player.getUsername(), packet.getModelId(), packet.getMouseX(), packet.getMouseY());
         PlayerModelProxy model = PlayerModelProxy.getById(packet.getModelId());
         if (model != null) {
             model.triggerClick(player, packet.getMouseX(), packet.getMouseY(), packet.getButton());
@@ -55,17 +61,21 @@ public final class ServerPacketHandler {
 
     public void handleMouseMovement(C2S_MouseMovementPacket packet, Player player) {
         if (!isMoudClient(player)) return;
+        LOGGER.trace("Mouse movement from {}: dx={}, dy={}",
+                player.getUsername(), packet.deltaX, packet.deltaY);
         eventDispatcher.dispatchMouseMoveEvent(player, packet.deltaX, packet.deltaY);
     }
 
     public void handlePlayerClick(C2S_PlayerClickPacket packet, Player player) {
         if (!isMoudClient(player)) return;
+        LOGGER.debug("Player click from {}: button={}", player.getUsername(), packet.button);
         eventDispatcher.dispatchPlayerClickEvent(player, packet.button);
     }
 
     public void onPlayerDisconnect(Player player) {
         moudClients.remove(player);
         PlayerCameraManager.getInstance().onPlayerDisconnect(player);
+        LOGGER.debug("Player {} disconnected, cleaned up client state", player.getUsername());
     }
 
     public boolean isMoudClient(Player player) {
