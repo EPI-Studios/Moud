@@ -24,13 +24,7 @@ public class MathUtils {
         return Math.max(min, Math.min(max, value));
     }
 
-    public static Vector3 clamp(Vector3 value, Vector3 min, Vector3 max) {
-        return new Vector3(
-                clamp(value.x, min.x, max.x),
-                clamp(value.y, min.y, max.y),
-                clamp(value.z, min.z, max.z)
-        );
-    }
+
 
     public static float deltaAngle(float current, float target) {
         float delta = repeat(target - current, 360.0f);

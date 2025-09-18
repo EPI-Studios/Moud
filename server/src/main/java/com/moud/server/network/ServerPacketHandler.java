@@ -45,7 +45,7 @@ public final class ServerPacketHandler {
 
     public void handleCameraUpdate(ClientUpdateCameraPacket packet, Player player) {
         if (!isMoudClient(player)) return;
-        LOGGER.debug("Camera update from {}: {}", player.getUsername(), packet.getDirection());
+        // LOGGER.debug("Camera update from {}: {}", player.getUsername(), packet.getDirection());
         PlayerCameraManager.getInstance().updateCameraDirection(player, packet.getDirection());
     }
 

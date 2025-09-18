@@ -92,14 +92,13 @@ public class EventDispatcher {
     public void dispatchMouseMoveEvent(Player player, float deltaX, float deltaY) {
         Value handler = handlers.get("player.mousemove");
         if (handler == null) {
-            LOGGER.info("No handler for mouse move event");
+            LOGGER.debug("No handler for mouse move event");
             return;
         }
 
         try {
             ProxyObject data = ProxyObject.fromMap(Map.of("deltaX", deltaX, "deltaY", deltaY));
             engine.getRuntime().executeCallback(handler, new PlayerProxy(player), data);
-            LOGGER.info("Dispatched mouse move event for {}: dx={}, dy={}", player.getUsername(), deltaX, deltaY);
         } catch (Exception e) {
             LOGGER.error("Error during mouse move event dispatch for player {}", player.getUsername(), e);
         }

@@ -40,43 +40,34 @@ public final class ServerNetworkManager {
     private void handlePluginMessage(PlayerPluginMessageEvent event) {
         String channel = event.getIdentifier();
         Player player = event.getPlayer();
+
         byte[] data = event.getMessage();
 
-        switch (channel) {
-            case "moud:hello" -> {
-                LOGGER.info("Processing hello packet from {}", player.getUsername());
-                HelloPacket packet = new HelloPacket(data);
-                packetHandler.handleHelloPacket(packet, player);
-                sendClientScripts(player);
-            }
-            case "moud:script_event_s" -> {
-                LOGGER.debug("Processing script event from {}", player.getUsername());
-                ServerboundScriptEventPacket packet = new ServerboundScriptEventPacket(data);
-                packetHandler.handleScriptEvent(packet, player);
-            }
-            case "moud:update_camera" -> {
-                LOGGER.trace("Processing camera update from {}", player.getUsername());
-                ClientUpdateCameraPacket packet = new ClientUpdateCameraPacket(data);
-                packetHandler.handleCameraUpdate(packet, player);
-            }
-            case "moud:mouse_move" -> {
-                LOGGER.trace("Processing mouse movement from {}", player.getUsername());
-                C2S_MouseMovementPacket packet = new C2S_MouseMovementPacket(data);
-                packetHandler.handleMouseMovement(packet, player);
-            }
-            case "moud:player_click" -> {
-                LOGGER.debug("Processing player click from {}", player.getUsername());
-                C2S_PlayerClickPacket packet = new C2S_PlayerClickPacket(data);
-                packetHandler.handlePlayerClick(packet, player);
-            }
-            case "moud:player_model_click" -> {
-                LOGGER.debug("Processing player model click from {}", player.getUsername());
-                PlayerModelPackets.ServerboundPlayerModelClickPacket packet = new PlayerModelPackets.ServerboundPlayerModelClickPacket(data);
-                packetHandler.handlePlayerModelClick(packet, player);
-            }
-            default -> {
-                LOGGER.trace("Ignoring unknown plugin message channel: {}", channel);
-            }
+        if ("moud:hello".equals(channel)) {
+            LOGGER.trace("Processing 'moud:hello' packet from {}", player.getUsername());
+            HelloPacket packet = new HelloPacket(data);
+            packetHandler.handleHelloPacket(packet, player);
+            sendClientScripts(player);
+        } else if ("moud:script_event_s".equals(channel)) {
+            LOGGER.trace("Processing 'moud:script_event_s' packet from {}", player.getUsername());
+            ServerboundScriptEventPacket packet = new ServerboundScriptEventPacket(data);
+            packetHandler.handleScriptEvent(packet, player);
+        } else if ("moud:update_camera".equals(channel)) {
+            // LOGGER.trace("Processing 'moud:update_camera' packet from {}", player.getUsername());
+            ClientUpdateCameraPacket packet = new ClientUpdateCameraPacket(data);
+            packetHandler.handleCameraUpdate(packet, player);
+        } else if ("moud:mouse_move".equals(channel)) {
+            //LOGGER.trace("Processing 'moud:mouse_move' packet from {}", player.getUsername());
+            C2S_MouseMovementPacket packet = new C2S_MouseMovementPacket(data);
+            packetHandler.handleMouseMovement(packet, player);
+        } else if ("moud:player_click".equals(channel)) {
+            // LOGGER.trace("Processing 'moud:player_click' packet from {}", player.getUsername());
+            C2S_PlayerClickPacket packet = new C2S_PlayerClickPacket(data);
+            packetHandler.handlePlayerClick(packet, player);
+        } else if ("moud:player_model_click".equals(channel)) {
+            // LOGGER.trace("Processing 'moud:player_model_click' packet from {}", player.getUsername());
+            PlayerModelPackets.ServerboundPlayerModelClickPacket packet = new PlayerModelPackets.ServerboundPlayerModelClickPacket(data);
+            packetHandler.handlePlayerModelClick(packet, player);
         }
     }
 
