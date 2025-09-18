@@ -51,16 +51,27 @@ public class TypeScriptTranspiler {
         ByteArrayOutputStream errorStream = new ByteArrayOutputStream();
 
         try {
-            CommandLine cmdLine = CommandLine.parse("npx");
+            boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
+
+            CommandLine cmdLine;
+            if (isWindows) {
+                cmdLine = new CommandLine("cmd.exe");
+                cmdLine.addArgument("/c");
+                cmdLine.addArgument("npx");
+            } else {
+                cmdLine = new CommandLine("npx");
+            }
+
             cmdLine.addArgument("esbuild");
-            cmdLine.addArgument(tsFile.toAbsolutePath().toString());
-            cmdLine.addArgument("--outfile=" + jsFile.toAbsolutePath().toString());
+            cmdLine.addArgument(tsFile.toAbsolutePath().toString(), true);
+            cmdLine.addArgument("--outfile=" + jsFile.toAbsolutePath().toString(), true);
             cmdLine.addArgument("--target=es2020");
             cmdLine.addArgument("--format=cjs");
             cmdLine.addArgument("--platform=neutral");
 
+
             DefaultExecutor executor = DefaultExecutor.builder().get();
-            executor.setWorkingDirectory(projectRoot.toFile()); // <-- FIX: Set the correct working directory
+            executor.setWorkingDirectory(projectRoot.toFile());
 
             PumpStreamHandler streamHandler = new PumpStreamHandler(outputStream, errorStream);
             executor.setStreamHandler(streamHandler);
@@ -116,7 +127,18 @@ public class TypeScriptTranspiler {
 
     private static boolean isNodeAvailable() {
         try {
-            CommandLine cmdLine = CommandLine.parse("node --version");
+            boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
+            CommandLine cmdLine;
+            if (isWindows) {
+                cmdLine = new CommandLine("cmd.exe");
+                cmdLine.addArgument("/c");
+                cmdLine.addArgument("node");
+                cmdLine.addArgument("--version");
+            } else {
+                cmdLine = new CommandLine("node");
+                cmdLine.addArgument("--version");
+            }
+
             DefaultExecutor executor = DefaultExecutor.builder().get();
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
