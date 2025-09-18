@@ -17,12 +17,16 @@ public class PlayerProxy {
     private final ClientProxy client;
     private final APIValidator validator;
     private final SharedValueApiProxy sharedValues;
+    private final CameraLockProxy camera;
+    private final PlayerUIProxy ui;
 
     public PlayerProxy(Player player) {
         this.player = player;
         this.client = new ClientProxy(player);
         this.validator = new APIValidator();
         this.sharedValues = new SharedValueApiProxy(player);
+        this.camera = new CameraLockProxy(player);
+        this.ui = new PlayerUIProxy(player);
     }
 
     @HostAccess.Export
@@ -83,5 +87,15 @@ public class PlayerProxy {
     @HostAccess.Export
     public SharedValueApiProxy getShared() {
         return sharedValues;
+    }
+
+    @HostAccess.Export
+    public CameraLockProxy getCamera() {
+        return camera;
+    }
+
+    @HostAccess.Export
+    public PlayerUIProxy getUi() {
+        return ui;
     }
 }

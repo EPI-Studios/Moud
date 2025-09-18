@@ -43,11 +43,9 @@ public final class ServerPacketHandler {
         eventDispatcher.dispatchScriptEvent(packet.getEventName(), packet.getEventData(), player);
     }
 
-
     public void handleCameraUpdate(ClientUpdateCameraPacket packet, Player player) {
         PlayerCameraManager.getInstance().updateCameraDirection(player, packet.getDirection());
     }
-
 
     public void onPlayerDisconnect(Player player) {
         moudClients.remove(player);
