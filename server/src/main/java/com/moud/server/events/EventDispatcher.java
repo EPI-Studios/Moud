@@ -12,11 +12,11 @@ import net.minestom.server.event.EventNode;
 import net.minestom.server.event.player.PlayerChatEvent;
 import net.minestom.server.event.player.PlayerDisconnectEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
-import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Value;
+import org.graalvm.polyglot.proxy.ProxyObject;
 
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class EventDispatcher {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(EventDispatcher.class);
@@ -81,6 +81,30 @@ public class EventDispatcher {
             engine.getRuntime().executeCallback(handler, new PlayerProxy(player), eventData);
         } catch (Exception e) {
             LOGGER.error("Error during script event dispatch for '{}'", eventName, e);
+        }
+    }
+
+    public void dispatchMouseMoveEvent(Player player, float deltaX, float deltaY) {
+        Value handler = handlers.get("player.mousemove");
+        if (handler == null) return;
+
+        try {
+            ProxyObject data = ProxyObject.fromMap(Map.of("deltaX", deltaX, "deltaY", deltaY));
+            engine.getRuntime().executeCallback(handler, new PlayerProxy(player), data);
+        } catch (Exception e) {
+            LOGGER.error("Error during mouse move event dispatch", e);
+        }
+    }
+
+    public void dispatchPlayerClickEvent(Player player, int button) {
+        Value handler = handlers.get("player.click");
+        if (handler == null) return;
+
+        try {
+            ProxyObject data = ProxyObject.fromMap(Map.of("button", button));
+            engine.getRuntime().executeCallback(handler, new PlayerProxy(player), data);
+        } catch (Exception e) {
+            LOGGER.error("Error during player click event dispatch", e);
         }
     }
 }

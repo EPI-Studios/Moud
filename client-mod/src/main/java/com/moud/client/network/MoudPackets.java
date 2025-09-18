@@ -8,163 +8,171 @@ import net.minecraft.util.Identifier;
 
 public final class MoudPackets {
 
-    public record HelloPacket(int protocolVersion) implements CustomPayload {
-        public static final CustomPayload.Id<HelloPacket> ID =
-                new CustomPayload.Id<>(Identifier.of("moud", "hello"));
-
-        public static final PacketCodec<PacketByteBuf, HelloPacket> CODEC =
-                PacketCodec.of(HelloPacket::write, HelloPacket::new);
-
-        private HelloPacket(PacketByteBuf buf) {
-            this(buf.readVarInt());
-        }
-
-        private void write(PacketByteBuf buf) {
-            buf.writeVarInt(protocolVersion);
-        }
-
-        @Override
-        public CustomPayload.Id<? extends CustomPayload> getId() {
-            return ID;
-        }
-    }
 
     public record SyncClientScripts(String hash, byte[] scriptData) implements CustomPayload {
-        public static final CustomPayload.Id<SyncClientScripts> ID =
-                new CustomPayload.Id<>(Identifier.of("moud", "sync_scripts"));
-
-        public static final PacketCodec<PacketByteBuf, SyncClientScripts> CODEC =
-                PacketCodec.of(SyncClientScripts::write, SyncClientScripts::new);
-
-        private SyncClientScripts(PacketByteBuf buf) {
-            this(buf.readString(), buf.readByteArray());
-        }
-
-        private void write(PacketByteBuf buf) {
-            buf.writeString(hash);
-            buf.writeByteArray(scriptData);
-        }
-
-        @Override
-        public CustomPayload.Id<? extends CustomPayload> getId() {
-            return ID;
-        }
+        public static final Id<SyncClientScripts> ID = new Id<>(Identifier.of("moud", "sync_scripts"));
+        public static final PacketCodec<PacketByteBuf, SyncClientScripts> CODEC = PacketCodec.of(SyncClientScripts::write, SyncClientScripts::new);
+        private SyncClientScripts(PacketByteBuf buf) { this(buf.readString(), buf.readByteArray()); }
+        private void write(PacketByteBuf buf) { buf.writeString(this.hash); buf.writeByteArray(this.scriptData); }
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
     public record ClientboundScriptEvent(String eventName, String eventData) implements CustomPayload {
-        public static final CustomPayload.Id<ClientboundScriptEvent> ID =
-                new CustomPayload.Id<>(Identifier.of("moud", "script_event_c"));
-
-        public static final PacketCodec<PacketByteBuf, ClientboundScriptEvent> CODEC =
-                PacketCodec.of(ClientboundScriptEvent::write, ClientboundScriptEvent::new);
-
-        private ClientboundScriptEvent(PacketByteBuf buf) {
-            this(buf.readString(), buf.readString());
-        }
-
-        private void write(PacketByteBuf buf) {
-            buf.writeString(eventName);
-            buf.writeString(eventData);
-        }
-
-        @Override
-        public CustomPayload.Id<? extends CustomPayload> getId() {
-            return ID;
-        }
-    }
-
-    public record ServerboundScriptEvent(String eventName, String eventData) implements CustomPayload {
-        public static final CustomPayload.Id<ServerboundScriptEvent> ID =
-                new CustomPayload.Id<>(Identifier.of("moud", "script_event_s"));
-
-        public static final PacketCodec<PacketByteBuf, ServerboundScriptEvent> CODEC =
-                PacketCodec.of(ServerboundScriptEvent::write, ServerboundScriptEvent::new);
-
-        private ServerboundScriptEvent(PacketByteBuf buf) {
-            this(buf.readString(), buf.readString());
-        }
-
-        private void write(PacketByteBuf buf) {
-            buf.writeString(eventName);
-            buf.writeString(eventData);
-        }
-
-        @Override
-        public CustomPayload.Id<? extends CustomPayload> getId() {
-            return ID;
-        }
-    }
-
-    public record ClientUpdateCameraPacket(Vector3 direction) implements CustomPayload {
-        public static final CustomPayload.Id<ClientUpdateCameraPacket> ID =
-                new CustomPayload.Id<>(Identifier.of("moud", "update_camera"));
-
-        public static final PacketCodec<PacketByteBuf, ClientUpdateCameraPacket> CODEC =
-                PacketCodec.of(ClientUpdateCameraPacket::write, ClientUpdateCameraPacket::new);
-
-        private ClientUpdateCameraPacket(PacketByteBuf buf) {
-            this(new Vector3(buf.readFloat(), buf.readFloat(), buf.readFloat()));
-        }
-
-        private void write(PacketByteBuf buf) {
-            buf.writeFloat(direction.x);
-            buf.writeFloat(direction.y);
-            buf.writeFloat(direction.z);
-        }
-
-        @Override
-        public CustomPayload.Id<? extends CustomPayload> getId() {
-            return ID;
-        }
+        public static final Id<ClientboundScriptEvent> ID = new Id<>(Identifier.of("moud", "script_event_c"));
+        public static final PacketCodec<PacketByteBuf, ClientboundScriptEvent> CODEC = PacketCodec.of(ClientboundScriptEvent::write, ClientboundScriptEvent::new);
+        private ClientboundScriptEvent(PacketByteBuf buf) { this(buf.readString(), buf.readString()); }
+        private void write(PacketByteBuf buf) { buf.writeString(this.eventName); buf.writeString(this.eventData); }
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
     public record ClientboundCameraLockPacket(Vector3 position, float yaw, float pitch, boolean isLocked) implements CustomPayload {
-        public static final CustomPayload.Id<ClientboundCameraLockPacket> ID =
-                new CustomPayload.Id<>(Identifier.of("moud", "camera_lock"));
-
-        public static final PacketCodec<PacketByteBuf, ClientboundCameraLockPacket> CODEC =
-                PacketCodec.of(ClientboundCameraLockPacket::write, ClientboundCameraLockPacket::new);
-
-        private ClientboundCameraLockPacket(PacketByteBuf buf) {
-            this(new Vector3(buf.readFloat(), buf.readFloat(), buf.readFloat()),
-                    buf.readFloat(), buf.readFloat(), buf.readBoolean());
-        }
-
-        private void write(PacketByteBuf buf) {
-            buf.writeFloat(position.x);
-            buf.writeFloat(position.y);
-            buf.writeFloat(position.z);
-            buf.writeFloat(yaw);
-            buf.writeFloat(pitch);
-            buf.writeBoolean(isLocked);
-        }
-
-        @Override
-        public CustomPayload.Id<? extends CustomPayload> getId() {
-            return ID;
-        }
+        public static final Id<ClientboundCameraLockPacket> ID = new Id<>(Identifier.of("moud", "camera_lock"));
+        public static final PacketCodec<PacketByteBuf, ClientboundCameraLockPacket> CODEC = PacketCodec.of(ClientboundCameraLockPacket::write, ClientboundCameraLockPacket::new);
+        private ClientboundCameraLockPacket(PacketByteBuf buf) { this(new Vector3(buf.readFloat(), buf.readFloat(), buf.readFloat()), buf.readFloat(), buf.readFloat(), buf.readBoolean()); }
+        private void write(PacketByteBuf buf) { buf.writeFloat(this.position.x); buf.writeFloat(this.position.y); buf.writeFloat(this.position.z); buf.writeFloat(this.yaw); buf.writeFloat(this.pitch); buf.writeBoolean(this.isLocked); }
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
     public record ClientboundPlayerStatePacket(boolean hideHotbar, boolean hideHand, boolean hideExperience) implements CustomPayload {
-        public static final CustomPayload.Id<ClientboundPlayerStatePacket> ID =
-                new CustomPayload.Id<>(Identifier.of("moud", "player_state"));
+        public static final Id<ClientboundPlayerStatePacket> ID = new Id<>(Identifier.of("moud", "player_state"));
+        public static final PacketCodec<PacketByteBuf, ClientboundPlayerStatePacket> CODEC = PacketCodec.of(ClientboundPlayerStatePacket::write, ClientboundPlayerStatePacket::new);
+        private ClientboundPlayerStatePacket(PacketByteBuf buf) { this(buf.readBoolean(), buf.readBoolean(), buf.readBoolean()); }
+        private void write(PacketByteBuf buf) { buf.writeBoolean(this.hideHotbar); buf.writeBoolean(this.hideHand); buf.writeBoolean(this.hideExperience); }
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
 
-        public static final PacketCodec<PacketByteBuf, ClientboundPlayerStatePacket> CODEC =
-                PacketCodec.of(ClientboundPlayerStatePacket::write, ClientboundPlayerStatePacket::new);
+    public record S2C_PlayerModelCreatePacket(long modelId, Vector3 position, String skinUrl) implements CustomPayload {
+        public static final Id<S2C_PlayerModelCreatePacket> ID = new Id<>(Identifier.of("moud", "player_model_create"));
+        public static final PacketCodec<PacketByteBuf, S2C_PlayerModelCreatePacket> CODEC = PacketCodec.of(S2C_PlayerModelCreatePacket::write, S2C_PlayerModelCreatePacket::new);
 
-        private ClientboundPlayerStatePacket(PacketByteBuf buf) {
-            this(buf.readBoolean(), buf.readBoolean(), buf.readBoolean());
+        private S2C_PlayerModelCreatePacket(PacketByteBuf buf) {
+            this(buf.readLong(), new Vector3(buf.readFloat(), buf.readFloat(), buf.readFloat()), buf.readString());
         }
 
         private void write(PacketByteBuf buf) {
-            buf.writeBoolean(hideHotbar);
-            buf.writeBoolean(hideHand);
-            buf.writeBoolean(hideExperience);
+            buf.writeLong(this.modelId);
+            buf.writeFloat(this.position.x);
+            buf.writeFloat(this.position.y);
+            buf.writeFloat(this.position.z);
+            buf.writeString(this.skinUrl);
         }
 
-        @Override
-        public CustomPayload.Id<? extends CustomPayload> getId() {
-            return ID;
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record S2C_PlayerModelUpdatePacket(long modelId, Vector3 position, float yaw, float pitch) implements CustomPayload {
+        public static final Id<S2C_PlayerModelUpdatePacket> ID = new Id<>(Identifier.of("moud", "player_model_update"));
+        public static final PacketCodec<PacketByteBuf, S2C_PlayerModelUpdatePacket> CODEC = PacketCodec.of(S2C_PlayerModelUpdatePacket::write, S2C_PlayerModelUpdatePacket::new);
+
+        private S2C_PlayerModelUpdatePacket(PacketByteBuf buf) {
+            this(buf.readLong(), new Vector3(buf.readFloat(), buf.readFloat(), buf.readFloat()), buf.readFloat(), buf.readFloat());
         }
+
+        private void write(PacketByteBuf buf) {
+            buf.writeLong(this.modelId);
+            buf.writeFloat(this.position.x);
+            buf.writeFloat(this.position.y);
+            buf.writeFloat(this.position.z);
+            buf.writeFloat(this.yaw);
+            buf.writeFloat(this.pitch);
+        }
+
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record S2C_PlayerModelSkinPacket(long modelId, String skinUrl) implements CustomPayload {
+        public static final Id<S2C_PlayerModelSkinPacket> ID = new Id<>(Identifier.of("moud", "player_model_skin"));
+        public static final PacketCodec<PacketByteBuf, S2C_PlayerModelSkinPacket> CODEC = PacketCodec.of(S2C_PlayerModelSkinPacket::write, S2C_PlayerModelSkinPacket::new);
+
+        private S2C_PlayerModelSkinPacket(PacketByteBuf buf) {
+            this(buf.readLong(), buf.readString());
+        }
+
+        private void write(PacketByteBuf buf) {
+            buf.writeLong(this.modelId);
+            buf.writeString(this.skinUrl);
+        }
+
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record S2C_PlayerModelAnimationPacket(long modelId, String animationName) implements CustomPayload {
+        public static final Id<S2C_PlayerModelAnimationPacket> ID = new Id<>(Identifier.of("moud", "player_model_animation"));
+        public static final PacketCodec<PacketByteBuf, S2C_PlayerModelAnimationPacket> CODEC = PacketCodec.of(S2C_PlayerModelAnimationPacket::write, S2C_PlayerModelAnimationPacket::new);
+
+        private S2C_PlayerModelAnimationPacket(PacketByteBuf buf) {
+            this(buf.readLong(), buf.readString());
+        }
+
+        private void write(PacketByteBuf buf) {
+            buf.writeLong(this.modelId);
+            buf.writeString(this.animationName);
+        }
+
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record S2C_PlayerModelRemovePacket(long modelId) implements CustomPayload {
+        public static final Id<S2C_PlayerModelRemovePacket> ID = new Id<>(Identifier.of("moud", "player_model_remove"));
+        public static final PacketCodec<PacketByteBuf, S2C_PlayerModelRemovePacket> CODEC = PacketCodec.of(S2C_PlayerModelRemovePacket::write, S2C_PlayerModelRemovePacket::new);
+
+        private S2C_PlayerModelRemovePacket(PacketByteBuf buf) {
+            this(buf.readLong());
+        }
+
+        private void write(PacketByteBuf buf) {
+            buf.writeLong(this.modelId);
+        }
+
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+
+    public record HelloPacket(int protocolVersion) implements CustomPayload {
+        public static final Id<HelloPacket> ID = new Id<>(Identifier.of("moud", "hello"));
+        public static final PacketCodec<PacketByteBuf, HelloPacket> CODEC = PacketCodec.of(HelloPacket::write, HelloPacket::new);
+        private HelloPacket(PacketByteBuf buf) { this(buf.readVarInt()); }
+        private void write(PacketByteBuf buf) { buf.writeVarInt(this.protocolVersion); }
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record ServerboundScriptEvent(String eventName, String eventData) implements CustomPayload {
+        public static final Id<ServerboundScriptEvent> ID = new Id<>(Identifier.of("moud", "script_event_s"));
+        public static final PacketCodec<PacketByteBuf, ServerboundScriptEvent> CODEC = PacketCodec.of(ServerboundScriptEvent::write, ServerboundScriptEvent::new);
+        private ServerboundScriptEvent(PacketByteBuf buf) { this(buf.readString(), buf.readString()); }
+        private void write(PacketByteBuf buf) { buf.writeString(this.eventName); buf.writeString(this.eventData); }
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record ClientUpdateCameraPacket(Vector3 direction) implements CustomPayload {
+        public static final Id<ClientUpdateCameraPacket> ID = new Id<>(Identifier.of("moud", "update_camera"));
+        public static final PacketCodec<PacketByteBuf, ClientUpdateCameraPacket> CODEC = PacketCodec.of(ClientUpdateCameraPacket::write, ClientUpdateCameraPacket::new);
+        private ClientUpdateCameraPacket(PacketByteBuf buf) { this(new Vector3(buf.readFloat(), buf.readFloat(), buf.readFloat())); }
+        private void write(PacketByteBuf buf) { buf.writeFloat(this.direction.x); buf.writeFloat(this.direction.y); buf.writeFloat(this.direction.z); }
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record C2S_MouseMovementPacket(float deltaX, float deltaY) implements CustomPayload {
+        public static final Id<C2S_MouseMovementPacket> ID = new Id<>(Identifier.of("moud", "mouse_move"));
+        public static final PacketCodec<PacketByteBuf, C2S_MouseMovementPacket> CODEC = PacketCodec.of(C2S_MouseMovementPacket::write, C2S_MouseMovementPacket::new);
+        private C2S_MouseMovementPacket(PacketByteBuf buf) { this(buf.readFloat(), buf.readFloat()); }
+        private void write(PacketByteBuf buf) { buf.writeFloat(this.deltaX); buf.writeFloat(this.deltaY); }
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record C2S_PlayerClickPacket(int button) implements CustomPayload {
+        public static final Id<C2S_PlayerClickPacket> ID = new Id<>(Identifier.of("moud", "player_click"));
+        public static final PacketCodec<PacketByteBuf, C2S_PlayerClickPacket> CODEC = PacketCodec.of(C2S_PlayerClickPacket::write, C2S_PlayerClickPacket::new);
+        private C2S_PlayerClickPacket(PacketByteBuf buf) { this(buf.readVarInt()); }
+        private void write(PacketByteBuf buf) { buf.writeVarInt(this.button); }
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record PlayerModelClickPacket(long modelId, double mouseX, double mouseY, int button) implements CustomPayload {
+        public static final Id<PlayerModelClickPacket> ID = new Id<>(Identifier.of("moud", "player_model_click"));
+        public static final PacketCodec<PacketByteBuf, PlayerModelClickPacket> CODEC = PacketCodec.of(PlayerModelClickPacket::write, PlayerModelClickPacket::new);
+        private PlayerModelClickPacket(PacketByteBuf buf) { this(buf.readLong(), buf.readDouble(), buf.readDouble(), buf.readInt()); }
+        private void write(PacketByteBuf buf) { buf.writeLong(this.modelId); buf.writeDouble(this.mouseX); buf.writeDouble(this.mouseY); buf.writeInt(this.button); }
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 }

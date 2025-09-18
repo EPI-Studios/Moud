@@ -47,6 +47,27 @@ public final class ServerNetworkPackets {
         return new PluginMessagePacket("moud:player_state", data);
     }
 
+    public static final class C2S_MouseMovementPacket {
+        public final float deltaX;
+        public final float deltaY;
+
+        public C2S_MouseMovementPacket(byte[] data) {
+            NetworkBuffer buffer = new NetworkBuffer(ByteBuffer.wrap(data));
+            this.deltaX = buffer.read(FLOAT);
+            this.deltaY = buffer.read(FLOAT);
+        }
+    }
+
+    public static final class C2S_PlayerClickPacket {
+        public final int button; // 0: left-click, 1: right-click
+
+        public C2S_PlayerClickPacket(byte[] data) {
+            NetworkBuffer buffer = new NetworkBuffer(ByteBuffer.wrap(data));
+            this.button = buffer.read(VAR_INT);
+        }
+    }
+
+
     public static final class ServerboundScriptEventPacket {
         private final String eventName;
         private final String eventData;
@@ -92,65 +113,6 @@ public final class ServerNetworkPackets {
 
         public Vector3 getDirection() {
             return direction;
-        }
-    }
-
-    public static final class ClientboundCameraLockPacket {
-        private final Vector3 position;
-        private final float yaw;
-        private final float pitch;
-        private final boolean isLocked;
-
-        public ClientboundCameraLockPacket(byte[] data) {
-            NetworkBuffer buffer = new NetworkBuffer(ByteBuffer.wrap(data));
-            float x = buffer.read(FLOAT);
-            float y = buffer.read(FLOAT);
-            float z = buffer.read(FLOAT);
-            this.position = new Vector3(x, y, z);
-            this.yaw = buffer.read(FLOAT);
-            this.pitch = buffer.read(FLOAT);
-            this.isLocked = buffer.read(BOOLEAN);
-        }
-
-        public Vector3 getPosition() {
-            return position;
-        }
-
-        public float getYaw() {
-            return yaw;
-        }
-
-        public float getPitch() {
-            return pitch;
-        }
-
-        public boolean isLocked() {
-            return isLocked;
-        }
-    }
-
-    public static final class ClientboundPlayerStatePacket {
-        private final boolean hideHotbar;
-        private final boolean hideHand;
-        private final boolean hideExperience;
-
-        public ClientboundPlayerStatePacket(byte[] data) {
-            NetworkBuffer buffer = new NetworkBuffer(ByteBuffer.wrap(data));
-            this.hideHotbar = buffer.read(BOOLEAN);
-            this.hideHand = buffer.read(BOOLEAN);
-            this.hideExperience = buffer.read(BOOLEAN);
-        }
-
-        public boolean isHideHotbar() {
-            return hideHotbar;
-        }
-
-        public boolean isHideHand() {
-            return hideHand;
-        }
-
-        public boolean isHideExperience() {
-            return hideExperience;
         }
     }
 }

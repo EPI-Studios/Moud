@@ -42,9 +42,6 @@ public final class ServerNetworkManager {
         Player player = event.getPlayer();
         byte[] data = event.getMessage();
 
-        LOGGER.debug("Received plugin message: channel={}, player={}, dataSize={}",
-                channel, player.getUsername(), data.length);
-
         switch (channel) {
             case "moud:hello" -> {
                 LOGGER.info("Processing hello packet from {}", player.getUsername());
@@ -58,12 +55,23 @@ public final class ServerNetworkManager {
                 packetHandler.handleScriptEvent(packet, player);
             }
             case "moud:update_camera" -> {
-                LOGGER.debug("Processing camera update from {}", player.getUsername());
                 ClientUpdateCameraPacket packet = new ClientUpdateCameraPacket(data);
                 packetHandler.handleCameraUpdate(packet, player);
             }
+            case "moud:mouse_move" -> {
+                C2S_MouseMovementPacket packet = new C2S_MouseMovementPacket(data);
+                packetHandler.handleMouseMovement(packet, player);
+            }
+            case "moud:player_click" -> {
+                C2S_PlayerClickPacket packet = new C2S_PlayerClickPacket(data);
+                packetHandler.handlePlayerClick(packet, player);
+            }
+            case "moud:player_model_click" -> {
+                PlayerModelPackets.ServerboundPlayerModelClickPacket packet = new PlayerModelPackets.ServerboundPlayerModelClickPacket(data);
+                packetHandler.handlePlayerModelClick(packet, player);
+            }
             default -> {
-                LOGGER.debug("Ignoring unknown plugin message channel: {}", channel);
+                LOGGER.trace("Ignoring unknown plugin message channel: {}", channel);
             }
         }
     }
