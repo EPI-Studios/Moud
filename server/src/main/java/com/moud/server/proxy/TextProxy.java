@@ -14,12 +14,20 @@ public class TextProxy {
     private final Entity textEntity;
     private final TextDisplayMeta meta;
 
+
     public TextProxy(Vector3 position, String content, String billboard) {
         this.textEntity = new Entity(EntityType.TEXT_DISPLAY);
+
         this.meta = (TextDisplayMeta) this.textEntity.getEntityMeta();
 
         meta.setText(Component.text(content));
         meta.setBillboardRenderConstraints(parseBillboard(billboard));
+        meta.setBackgroundColor(0xFF00FFFF);
+        meta.setShadow(true);
+        meta.setSeeThrough(false);
+        meta.setLineWidth(200);
+        meta.setPosRotInterpolationDuration(1);
+        meta.setTransformationInterpolationDuration(1);
     }
 
     @HostAccess.Export
