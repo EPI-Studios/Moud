@@ -3,14 +3,13 @@ package com.moud.client.player;
 import com.moud.client.player.ClientPlayerModelManager.ManagedPlayerModel;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.OverlayTexture;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.*;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.RotationAxis;
+import net.minecraft.world.LightType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,22 +49,35 @@ public class PlayerModelRenderer {
 
         matrices.push();
 
-        matrices.translate(model.getPosition().x, model.getPosition().y, model.getPosition().z);
+        matrices.translate(
+                model.getPosition().x - client.gameRenderer.getCamera().getPos().x,
+                model.getPosition().y - client.gameRenderer.getCamera().getPos().y,
+                model.getPosition().z - client.gameRenderer.getCamera().getPos().z
+        );
+
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-model.getYaw()));
-        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(model.getPitch()));
+
+        matrices.scale(1.0f, 1.0f, 1.0f);
 
         PlayerEntityModel<PlayerEntity> playerModel = model.getModel();
         Identifier skinTexture = model.getSkinTexture();
 
-        int light = client.world.getLightLevel(
-                net.minecraft.util.math.BlockPos.ofFloored(model.getPosition().x, model.getPosition().y, model.getPosition().z)
-        );
+        int blockX = (int) model.getPosition().x;
+        int blockY = (int) model.getPosition().y;
+        int blockZ = (int) model.getPosition().z;
 
-        playerModel.render(matrices,
-                vertexConsumers.getBuffer(RenderLayer.getEntitySolid(skinTexture)),
-                light,
-                OverlayTexture.DEFAULT_UV
-        );
+        int blockLight = client.world.getLightLevel(LightType.BLOCK,
+                new net.minecraft.util.math.BlockPos(blockX, blockY, blockZ));
+        int skyLight = client.world.getLightLevel(LightType.SKY,
+                new net.minecraft.util.math.BlockPos(blockX, blockY, blockZ));
+
+        int packedLight = LightmapTextureManager.pack(blockLight, skyLight);
+
+        if (playerModel != null) {
+            VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayer.getEntitySolid(skinTexture));
+
+            playerModel.render(matrices, vertexConsumer, packedLight, OverlayTexture.DEFAULT_UV);
+        }
 
         matrices.pop();
     }

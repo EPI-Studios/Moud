@@ -55,18 +55,22 @@ public final class ServerNetworkManager {
                 packetHandler.handleScriptEvent(packet, player);
             }
             case "moud:update_camera" -> {
+                LOGGER.trace("Processing camera update from {}", player.getUsername());
                 ClientUpdateCameraPacket packet = new ClientUpdateCameraPacket(data);
                 packetHandler.handleCameraUpdate(packet, player);
             }
             case "moud:mouse_move" -> {
+                LOGGER.trace("Processing mouse movement from {}", player.getUsername());
                 C2S_MouseMovementPacket packet = new C2S_MouseMovementPacket(data);
                 packetHandler.handleMouseMovement(packet, player);
             }
             case "moud:player_click" -> {
+                LOGGER.debug("Processing player click from {}", player.getUsername());
                 C2S_PlayerClickPacket packet = new C2S_PlayerClickPacket(data);
                 packetHandler.handlePlayerClick(packet, player);
             }
             case "moud:player_model_click" -> {
+                LOGGER.debug("Processing player model click from {}", player.getUsername());
                 PlayerModelPackets.ServerboundPlayerModelClickPacket packet = new PlayerModelPackets.ServerboundPlayerModelClickPacket(data);
                 packetHandler.handlePlayerModelClick(packet, player);
             }
@@ -77,6 +81,7 @@ public final class ServerNetworkManager {
     }
 
     private void handlePlayerDisconnect(PlayerDisconnectEvent event) {
+        LOGGER.debug("Handling disconnect for player: {}", event.getPlayer().getUsername());
         packetHandler.onPlayerDisconnect(event.getPlayer());
     }
 
