@@ -1,6 +1,5 @@
 package com.moud.client.player;
 
-import com.moud.client.player.ClientPlayerModelManager.ManagedPlayerModel;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
@@ -8,8 +7,9 @@ import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.world.LightType;
+import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,47 +37,64 @@ public class PlayerModelRenderer {
     }
 
     private void renderAllModels(MatrixStack matrices, VertexConsumerProvider vertexConsumers, float tickDelta) {
-        Map<Long, ManagedPlayerModel> models = modelManager.getAllModels();
-
+        Map<Long, ? extends ManagedPlayerModel> models = modelManager.getAllModels();
         for (ManagedPlayerModel model : models.values()) {
             renderModel(model, matrices, vertexConsumers, tickDelta);
         }
     }
 
     private void renderModel(ManagedPlayerModel model, MatrixStack matrices, VertexConsumerProvider vertexConsumers, float tickDelta) {
-        if (client.world == null || client.player == null) return;
+        if (client.world == null || client.player == null) {
+            return;
+        }
 
         matrices.push();
 
-        matrices.translate(
-                model.getPosition().x - client.gameRenderer.getCamera().getPos().x,
-                model.getPosition().y - client.gameRenderer.getCamera().getPos().y,
-                model.getPosition().z - client.gameRenderer.getCamera().getPos().z
-        );
+        Vec3d cameraPos = client.gameRenderer.getCamera().getPos();
+//        Vec3d modelPos = modelet moi mtn.getPosition();
+//        matrices.translate(
+//                modelPos.x - cameraPos.x,
+//                modelPos.y - cameraPos.y,
+//                modelPos.z - cameraPos.z
+//        );
 
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-model.getYaw()));
-
-        matrices.scale(1.0f, 1.0f, 1.0f);
-
-        PlayerEntityModel<PlayerEntity> playerModel = model.getModel();
-        Identifier skinTexture = model.getSkinTexture();
-
-        int blockX = (int) model.getPosition().x;
-        int blockY = (int) model.getPosition().y;
-        int blockZ = (int) model.getPosition().z;
-
-        int blockLight = client.world.getLightLevel(LightType.BLOCK,
-                new net.minecraft.util.math.BlockPos(blockX, blockY, blockZ));
-        int skyLight = client.world.getLightLevel(LightType.SKY,
-                new net.minecraft.util.math.BlockPos(blockX, blockY, blockZ));
-
-        int packedLight = LightmapTextureManager.pack(blockLight, skyLight);
-
-        if (playerModel != null) {
-            VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayer.getEntitySolid(skinTexture));
-
-            playerModel.render(matrices, vertexConsumer, packedLight, OverlayTexture.DEFAULT_UV);
-        }
+//        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-model.getYaw() + 180));
+//
+//        PlayerEntityModel<PlayerEntity> playerModel = model.getModel();
+//        Identifier skinTexture = model.getSkinTexture();
+//
+//        if (playerModel == null || skinTexture == null) {
+//            LOGGER.warn("Modèle ou texture invalide pour l'ID : {}", model.getId());
+//            matrices.pop();
+//            return;
+//        }
+//
+//        matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180));
+//        matrices.translate(0, -1.5, 0);
+//
+//        Float scale = model.getScale();
+//        if (scale != null) {
+//            matrices.scale(scale, scale, scale);
+//        }
+//
+//        float limbAngle = model.getLimbAngle() != null ? model.getLimbAngle() : 0.0F;
+//        float limbDistance = model.getLimbDistance() != null ? model.getLimbDistance() : 0.0F;
+//        float ageInTicks = client.player.age + tickDelta;
+//        float headYaw = model.getYaw();
+//        Float headPitch = model.getPitch();
+//
+//        playerModel.handSwingProgress = 0.0f;
+//        playerModel.riding = false;
+//        playerModel.child = false;
+//
+//        // **** LA CORRECTION EST ICI ****
+//        // On remplace 'null' par 'client.player' pour éviter le crash.
+//        playerModel.setAngles(client.player, limbAngle, limbDistance, ageInTicks, headYaw, headPitch != null ? headPitch : 0.0F);
+//
+//        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayer.getEntityTranslucent(skinTexture));
+//        int light = WorldRenderer.getLightmapCoordinates(client.world, BlockPos.ofFloored(modelPos));
+//
+//        playerModel.render(matrices, vertexConsumer, light, OverlayTexture.DEFAULT_UV);
 
         matrices.pop();
     }
