@@ -25,8 +25,14 @@ public abstract class MouseMixin {
     @Shadow private double x;
     @Shadow private double y;
 
+    private boolean firstMouseMove = true;
     private double lastX = 0.0;
     private double lastY = 0.0;
+
+    @Inject(method = "lockCursor", at = @At("HEAD"))
+    private void onCursorLock(CallbackInfo ci) {
+        this.firstMouseMove = true;
+    }
 
     @Inject(method = "onMouseButton", at = @At("HEAD"), cancellable = true)
     private void moud_onMouseButton(long window, int button, int action, int mods, CallbackInfo ci) {
@@ -35,24 +41,24 @@ public abstract class MouseMixin {
         }
 
         ClientPlayerModelManager modelManager = ClientPlayerModelManager.getInstance();
-        if (!modelManager.getAllModels().isEmpty() && client.player != null) {
-            Vec3d cameraPos = client.gameRenderer.getCamera().getPos();
-            Vec3d cameraDir = Vec3d.fromPolar(client.player.getPitch(), client.player.getYaw());
-
-            for (ClientPlayerModelManager.ManagedPlayerModel model : modelManager.getAllModels().values()) {
-                Vec3d modelVecPos = new Vec3d(model.getPosition().x, model.getPosition().y, model.getPosition().z);
-                Box modelBox = new Box(modelVecPos.x - 0.5, modelVecPos.y, modelVecPos.z - 0.5,
-                        modelVecPos.x + 0.5, modelVecPos.y + 2.0, modelVecPos.z + 0.5);
-
-                Optional<Vec3d> intersection = modelBox.raycast(cameraPos, cameraPos.add(cameraDir.multiply(100.0)));
-
-                if (intersection.isPresent()) {
-                    ClientPlayNetworking.send(new MoudPackets.PlayerModelClickPacket(model.getModelId(), this.x, this.y, button));
-                    ci.cancel();
-                    return;
-                }
-            }
-        }
+//        if (!modelManager.getAllModels().isEmpty() && client.player != null) {
+//            Vec3d cameraPos = client.gameRenderer.getCamera().getPos();
+//            Vec3d cameraDir = Vec3d.fromPolar(client.player.getPitch(), client.player.getYaw());
+//
+//            for (ClientPlayerModelManager.ManagedPlayerModel model : modelManager.getAllModels().values()) {
+//                Vec3d modelVecPos = new Vec3d(model.getPosition().x, model.getPosition().y, model.getPosition().z);
+//                Box modelBox = new Box(modelVecPos.x - 0.5, modelVecPos.y, modelVecPos.z - 0.5,
+//                        modelVecPos.x + 0.5, modelVecPos.y + 2.0, modelVecPos.z + 0.5);
+//
+//                Optional<Vec3d> intersection = modelBox.raycast(cameraPos, cameraPos.add(cameraDir.multiply(100.0)));
+//
+//                if (intersection.isPresent()) {
+//                    ClientPlayNetworking.send(new MoudPackets.PlayerModelClickPacket(model.getModelId(), this.x, this.y, button));
+//                    ci.cancel();
+//                    return;
+//                }
+//            }
+//        }
 
         if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.cursor.isVisible()) {
             if (UIOverlayManager.getInstance().handleOverlayClick(this.x, this.y, button)) {
@@ -61,9 +67,7 @@ public abstract class MouseMixin {
             }
         }
 
-        if(ClientPlayNetworking.canSend(MoudPackets.C2S_PlayerClickPacket.ID)) {
-            ClientPlayNetworking.send(new MoudPackets.C2S_PlayerClickPacket(button));
-        }
+        ClientPlayNetworking.send(new MoudPackets.C2S_PlayerClickPacket(button));
     }
 
     @Inject(method = "updateMouse", at = @At("HEAD"))
@@ -71,18 +75,21 @@ public abstract class MouseMixin {
         double currentX = client.mouse.getX();
         double currentY = client.mouse.getY();
 
-        if (lastX != 0.0 || lastY != 0.0) {
-            double dx = currentX - lastX;
-            double dy = currentY - lastY;
+        if (firstMouseMove) {
+            lastX = currentX;
+            lastY = currentY;
+            firstMouseMove = false;
+            return;
+        }
 
-            if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
-                if (ClientPlayNetworking.canSend(MoudPackets.C2S_MouseMovementPacket.ID)) {
-                    ClientPlayNetworking.send(new MoudPackets.C2S_MouseMovementPacket((float) dx, (float) dy));
-                }
+        double dx = currentX - lastX;
+        double dy = currentY - lastY;
 
-                if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.input != null) {
-                    ClientAPIService.INSTANCE.input.triggerMouseMoveEvent(dx, dy);
-                }
+        if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
+            ClientPlayNetworking.send(new MoudPackets.C2S_MouseMovementPacket((float) dx, (float) dy));
+
+            if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.input != null) {
+                ClientAPIService.INSTANCE.input.triggerMouseMoveEvent(dx, dy);
             }
         }
 

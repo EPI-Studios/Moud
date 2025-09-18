@@ -28,9 +28,9 @@ public final class ServerNetworkPackets {
 
     public static PluginMessagePacket createClientboundCameraLockPacket(Vector3 position, float yaw, float pitch, boolean isLocked) {
         byte[] data = NetworkBuffer.makeArray(buffer -> {
-            buffer.write(FLOAT, position.x);
-            buffer.write(FLOAT, position.y);
-            buffer.write(FLOAT, position.z);
+            buffer.write(DOUBLE, position.x);
+            buffer.write(DOUBLE, position.y);
+            buffer.write(DOUBLE, position.z);
             buffer.write(FLOAT, yaw);
             buffer.write(FLOAT, pitch);
             buffer.write(BOOLEAN, isLocked);

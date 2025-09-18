@@ -14,8 +14,11 @@ repositories {
 }
 
 dependencies {
+
     implementation project(':api')
-    implementation 'net.minestom:minestom-snapshots:f966351cb7'
+    implementation('net.minestom:minestom-snapshots:f966351cb7') {
+        exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j2-impl'
+    }
     implementation 'ch.qos.logback:logback-classic:1.4.14'
     implementation 'org.graalvm.polyglot:polyglot:24.1.0'
     implementation 'org.graalvm.polyglot:js:24.1.0'

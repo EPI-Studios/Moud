@@ -47,16 +47,20 @@ public class JavaScriptRuntime {
                 .allowAccessAnnotatedBy(HostAccess.Export.class)
                 .allowImplementations(ProxyArray.class);
 
+       // TODO : REMOVE THIS AND MAKE A MATH PROXY CLASS
         hostAccessBuilder.allowAccess(Vector3.class.getConstructor());
+        hostAccessBuilder.allowAccess(Vector3.class.getConstructor(double.class, double.class, double.class));
         hostAccessBuilder.allowAccess(Vector3.class.getConstructor(float.class, float.class, float.class));
 
-        hostAccessBuilder.allowAccess(Vector3.class.getConstructor(double.class, double.class, double.class));
+
         hostAccessBuilder.allowAccess(Vector3.class.getMethod("add", Vector3.class));
-        hostAccessBuilder.allowAccess(Vector3.class.getMethod("multiply", float.class));
+        hostAccessBuilder.allowAccess(Vector3.class.getMethod("multiply", double.class)); // LA CORRECTION PRINCIPALE
         hostAccessBuilder.allowAccess(Vector3.class.getMethod("toString"));
+
         hostAccessBuilder.allowAccess(Vector3.class.getField("x"));
         hostAccessBuilder.allowAccess(Vector3.class.getField("y"));
         hostAccessBuilder.allowAccess(Vector3.class.getField("z"));
+        // ------------------------------------
 
         HostAccess hostAccess = hostAccessBuilder.build();
 
@@ -71,14 +75,56 @@ public class JavaScriptRuntime {
                 .build();
     }
 
+    private Object convertPolyglotValue(Value value) {
+        if (value.isHostObject()) {
+            return value.asHostObject();
+        }
+        if (value.isString()) {
+            return value.asString();
+        }
+        if (value.isNumber()) {
+            return value.asDouble();
+        }
+        if (value.isBoolean()) {
+            return value.asBoolean();
+        }
+        if (value.isNull()) {
+            return "null";
+        }
+        return value.toString();
+    }
+
     public void bindConsole(ConsoleAPI consoleImpl) {
         executeTask(() -> {
             Value bindings = context.getBindings(LANGUAGE_ID);
             Value consoleObj = context.eval(LANGUAGE_ID, "({})");
-            consoleObj.putMember("log", (ProxyExecutable) args -> { consoleImpl.log(Arrays.stream(args).toArray()); return null; });
-            consoleObj.putMember("warn", (ProxyExecutable) args -> { consoleImpl.warn(Arrays.stream(args).toArray()); return null; });
-            consoleObj.putMember("error", (ProxyExecutable) args -> { consoleImpl.error(Arrays.stream(args).toArray()); return null; });
-            consoleObj.putMember("debug", (ProxyExecutable) args -> { consoleImpl.debug(Arrays.stream(args).toArray()); return null; });
+
+            ProxyExecutable logProxy = args -> {
+                Object[] javaArgs = Arrays.stream(args).map(this::convertPolyglotValue).toArray();
+                consoleImpl.log(javaArgs);
+                return null;
+            };
+            ProxyExecutable warnProxy = args -> {
+                Object[] javaArgs = Arrays.stream(args).map(this::convertPolyglotValue).toArray();
+                consoleImpl.warn(javaArgs);
+                return null;
+            };
+            ProxyExecutable errorProxy = args -> {
+                Object[] javaArgs = Arrays.stream(args).map(this::convertPolyglotValue).toArray();
+                consoleImpl.error(javaArgs);
+                return null;
+            };
+            ProxyExecutable debugProxy = args -> {
+                Object[] javaArgs = Arrays.stream(args).map(this::convertPolyglotValue).toArray();
+                consoleImpl.debug(javaArgs);
+                return null;
+            };
+
+            consoleObj.putMember("log", logProxy);
+            consoleObj.putMember("warn", warnProxy);
+            consoleObj.putMember("error", errorProxy);
+            consoleObj.putMember("debug", debugProxy);
+
             bindings.putMember("console", consoleObj);
         });
     }
