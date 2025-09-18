@@ -5,15 +5,17 @@ import com.mojang.authlib.GameProfile;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.model.Dilation;
 import net.minecraft.client.model.ModelPart;
+import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
-import net.minecraft.client.texture.PlayerSkinProvider;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ClientPlayerModelManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientPlayerModelManager.class);
@@ -47,7 +49,6 @@ public class ClientPlayerModelManager {
             if (model != null) {
                 model.setPosition(position);
                 model.setRotation(yaw, pitch);
-                LOGGER.debug("Updated player model {} position and rotation", modelId);
             } else {
                 LOGGER.warn("Attempted to update non-existent model {}", modelId);
             }
@@ -59,7 +60,6 @@ public class ClientPlayerModelManager {
             ManagedPlayerModel model = models.get(modelId);
             if (model != null) {
                 model.setSkinUrl(skinUrl);
-                LOGGER.debug("Updated player model {} skin", modelId);
             }
         });
     }
@@ -69,7 +69,6 @@ public class ClientPlayerModelManager {
             ManagedPlayerModel model = models.get(modelId);
             if (model != null) {
                 model.setCurrentAnimation(animationName);
-                LOGGER.debug("Playing animation '{}' on model {}", animationName, modelId);
             }
         });
     }
@@ -93,7 +92,7 @@ public class ClientPlayerModelManager {
         models.clear();
     }
 
-    public static class ManagedPlayerModel {
+    public static class ManagedPlayerModel implements com.moud.client.player.ManagedPlayerModel {
         private final long modelId;
         private Vector3 position;
         private float yaw;
@@ -101,6 +100,8 @@ public class ClientPlayerModelManager {
         private String skinUrl;
         private String currentAnimation;
         private Identifier skinTexture;
+        private Float scale = 1.0F;
+        private final Map<String, Boolean> partVisibility = new ConcurrentHashMap<>();
         private PlayerEntityModel<net.minecraft.entity.player.PlayerEntity> model;
 
         public ManagedPlayerModel(long modelId, Vector3 position, String skinUrl) {
@@ -136,60 +137,49 @@ public class ClientPlayerModelManager {
             }
         }
 
-        public long getModelId() {
-            return modelId;
-        }
+//        // **** LA CORRECTION EST ICI ****
+//        // La méthode s'appelle maintenant getId() et retourne un Long
+//        @Override
+//        public Long getId() {
+//            return this.modelId;
+//        }
+//
+//        @Override
+//        public PlayerEntityModel<net.minecraft.entity.player.PlayerEntity> getModel() {
+//            return model;
+//        }
+//
+//        @Override
+//        public Vec3d getPosition() { return new Vec3d(position.x, position.y, position.z); }
+//        @Override
+//        public float getYaw() { return yaw; }
+//        @Override
+//        public Float getPitch() { return pitch; }
+//        @Override
+//        public Float getScale() { return this.scale; }
+//        @Override
+//        public Float getLimbAngle() { return 0.0F; }
+//        @Override
+//        public Float getLimbDistance() { return 0.0F; }
+//        @Override
+//        public Identifier getSkinTexture() { return skinTexture; }
+//        @Override
+//        public Map<String, PartAnimation> getPartAnimations() { return Collections.emptyMap(); }
+//        @Override
+//        public Map<String, RenderLayer> getPartRenderLayers() { return Collections.emptyMap(); }
+//        @Override
+//        public boolean isPartVisible(String partName) { return this.partVisibility.getOrDefault(partName, true); }
+//
+//        @Override
+//        public long getModelId() {
+//            return modelId;
+//        }
 
-        public Vector3 getPosition() {
-            return position;
-        }
-
-        public void setPosition(Vector3 position) {
-            this.position = position;
-        }
-
-        public float getYaw() {
-            return yaw;
-        }
-
-        public float getPitch() {
-            return pitch;
-        }
-
-        public void setRotation(float yaw, float pitch) {
-            this.yaw = yaw;
-            this.pitch = pitch;
-        }
-
-        public String getSkinUrl() {
-            return skinUrl;
-        }
-
-        public void setSkinUrl(String skinUrl) {
-            this.skinUrl = skinUrl;
-            loadSkinTexture();
-        }
-
-        public String getCurrentAnimation() {
-            return currentAnimation;
-        }
-
-        public void setCurrentAnimation(String currentAnimation) {
-            this.currentAnimation = currentAnimation;
-        }
-
-        public Identifier getSkinTexture() {
-            return skinTexture;
-        }
-
-        public PlayerEntityModel<net.minecraft.entity.player.PlayerEntity> getModel() {
-            return model;
-        }
-
-        public boolean isInBounds(double x, double y, double z, double width, double height, double depth) {
-            return x >= position.x - width/2 && x <= position.x + width/2 &&
-                    y >= position.y && y <= position.y + height &&
-                    z >= position.z - depth/2 && z <= position.z + depth/2;
-        }
+        public void setPosition(Vector3 position) { this.position = position; }
+        public void setRotation(float yaw, float pitch) { this.yaw = yaw; this.pitch = pitch; }
+        public void setSkinUrl(String skinUrl) { this.skinUrl = skinUrl; loadSkinTexture(); }
+        public String getSkinUrl() { return skinUrl; }
+        public String getCurrentAnimation() { return currentAnimation; }
+        public void setCurrentAnimation(String currentAnimation) { this.currentAnimation = currentAnimation; }
     }
 }

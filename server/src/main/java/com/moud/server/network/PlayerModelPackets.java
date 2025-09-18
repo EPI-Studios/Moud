@@ -13,9 +13,9 @@ public final class PlayerModelPackets {
     public static PluginMessagePacket createPlayerModelCreatePacket(long modelId, Vector3 position, String skinUrl) {
         byte[] data = NetworkBuffer.makeArray(buffer -> {
             buffer.write(LONG, modelId);
-            buffer.write(FLOAT, position.x);
-            buffer.write(FLOAT, position.y);
-            buffer.write(FLOAT, position.z);
+            buffer.write(DOUBLE, position.x);
+            buffer.write(DOUBLE, position.y);
+            buffer.write(DOUBLE, position.z);
             buffer.write(STRING, skinUrl);
         });
         return new PluginMessagePacket("moud:player_model_create", data);
@@ -24,9 +24,9 @@ public final class PlayerModelPackets {
     public static PluginMessagePacket createPlayerModelUpdatePacket(long modelId, Vector3 position, float yaw, float pitch) {
         byte[] data = NetworkBuffer.makeArray(buffer -> {
             buffer.write(LONG, modelId);
-            buffer.write(FLOAT, position.x);
-            buffer.write(FLOAT, position.y);
-            buffer.write(FLOAT, position.z);
+            buffer.write(DOUBLE, position.x);
+            buffer.write(DOUBLE, position.y);
+            buffer.write(DOUBLE, position.z);
             buffer.write(FLOAT, yaw);
             buffer.write(FLOAT, pitch);
         });
