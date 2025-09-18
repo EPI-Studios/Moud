@@ -1,9 +1,10 @@
 package com.moud.client;
 
 import com.moud.client.api.service.ClientAPIService;
-import com.moud.client.network.MoudPackets;
+import com.moud.client.network.MoudPackets; // L'IMPORT A ÉTÉ SIMPLIFIÉ
 import com.moud.client.network.packets.SharedValuePackets;
 import com.moud.client.player.ClientCameraManager;
+import com.moud.client.player.ClientPlayerModelManager;
 import com.moud.client.player.PlayerModelRenderer;
 import com.moud.client.player.PlayerStateManager;
 import com.moud.client.resources.InMemoryPackResources;
@@ -52,10 +53,13 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private final AtomicReference<InMemoryPackResources> dynamicPack = new AtomicReference<>(null);
     private String currentResourcesHash = "";
     private PlayerModelRenderer playerModelRenderer;
+    private ClientPlayerModelManager playerModelManager;
 
     @Override
     public void onInitializeClient() {
         LOGGER.info("Initializing Moud client...");
+
+        this.playerModelManager = ClientPlayerModelManager.getInstance();
         this.playerModelRenderer = new PlayerModelRenderer();
 
         setupNetworking();
@@ -80,6 +84,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         this.sharedValueManager.initialize();
         this.clientCameraManager = new ClientCameraManager();
         this.playerStateManager = PlayerStateManager.getInstance();
+        this.playerModelManager = ClientPlayerModelManager.getInstance();
     }
 
     private void cleanupMoudServices() {
@@ -98,8 +103,12 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         if (playerStateManager != null) {
             playerStateManager.reset();
         }
+        if (playerModelManager != null) {
+            playerModelManager.cleanup();
+        }
         this.clientCameraManager = null;
         this.playerStateManager = null;
+        this.playerModelManager = null;
     }
 
     private void registerTickHandler() {
@@ -123,21 +132,37 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     }
 
     private void setupNetworking() {
+        // S2C
         PayloadTypeRegistry.playS2C().register(MoudPackets.SyncClientScripts.ID, MoudPackets.SyncClientScripts.CODEC);
         PayloadTypeRegistry.playS2C().register(MoudPackets.ClientboundScriptEvent.ID, MoudPackets.ClientboundScriptEvent.CODEC);
         PayloadTypeRegistry.playS2C().register(MoudPackets.ClientboundCameraLockPacket.ID, MoudPackets.ClientboundCameraLockPacket.CODEC);
         PayloadTypeRegistry.playS2C().register(MoudPackets.ClientboundPlayerStatePacket.ID, MoudPackets.ClientboundPlayerStatePacket.CODEC);
         PayloadTypeRegistry.playS2C().register(SharedValuePackets.ServerSyncValuePacket.ID, SharedValuePackets.ServerSyncValuePacket.CODEC);
+        PayloadTypeRegistry.playS2C().register(MoudPackets.S2C_PlayerModelCreatePacket.ID, MoudPackets.S2C_PlayerModelCreatePacket.CODEC);
+        PayloadTypeRegistry.playS2C().register(MoudPackets.S2C_PlayerModelUpdatePacket.ID, MoudPackets.S2C_PlayerModelUpdatePacket.CODEC);
+        PayloadTypeRegistry.playS2C().register(MoudPackets.S2C_PlayerModelSkinPacket.ID, MoudPackets.S2C_PlayerModelSkinPacket.CODEC);
+        PayloadTypeRegistry.playS2C().register(MoudPackets.S2C_PlayerModelAnimationPacket.ID, MoudPackets.S2C_PlayerModelAnimationPacket.CODEC);
+        PayloadTypeRegistry.playS2C().register(MoudPackets.S2C_PlayerModelRemovePacket.ID, MoudPackets.S2C_PlayerModelRemovePacket.CODEC);
 
+        // C2S
         PayloadTypeRegistry.playC2S().register(MoudPackets.HelloPacket.ID, MoudPackets.HelloPacket.CODEC);
         PayloadTypeRegistry.playC2S().register(MoudPackets.ServerboundScriptEvent.ID, MoudPackets.ServerboundScriptEvent.CODEC);
         PayloadTypeRegistry.playC2S().register(SharedValuePackets.ClientUpdateValuePacket.ID, SharedValuePackets.ClientUpdateValuePacket.CODEC);
         PayloadTypeRegistry.playC2S().register(MoudPackets.ClientUpdateCameraPacket.ID, MoudPackets.ClientUpdateCameraPacket.CODEC);
+        PayloadTypeRegistry.playC2S().register(MoudPackets.C2S_MouseMovementPacket.ID, MoudPackets.C2S_MouseMovementPacket.CODEC);
+        PayloadTypeRegistry.playC2S().register(MoudPackets.C2S_PlayerClickPacket.ID, MoudPackets.C2S_PlayerClickPacket.CODEC);
+        PayloadTypeRegistry.playC2S().register(MoudPackets.PlayerModelClickPacket.ID, MoudPackets.PlayerModelClickPacket.CODEC);
 
+        // Handlers
         ClientPlayNetworking.registerGlobalReceiver(MoudPackets.SyncClientScripts.ID, this::handleSyncScripts);
         ClientPlayNetworking.registerGlobalReceiver(MoudPackets.ClientboundScriptEvent.ID, this::handleScriptEvent);
         ClientPlayNetworking.registerGlobalReceiver(MoudPackets.ClientboundCameraLockPacket.ID, this::handleCameraLock);
         ClientPlayNetworking.registerGlobalReceiver(MoudPackets.ClientboundPlayerStatePacket.ID, this::handlePlayerState);
+        ClientPlayNetworking.registerGlobalReceiver(MoudPackets.S2C_PlayerModelCreatePacket.ID, this::handlePlayerModelCreate);
+        ClientPlayNetworking.registerGlobalReceiver(MoudPackets.S2C_PlayerModelUpdatePacket.ID, this::handlePlayerModelUpdate);
+        ClientPlayNetworking.registerGlobalReceiver(MoudPackets.S2C_PlayerModelSkinPacket.ID, this::handlePlayerModelSkin);
+        ClientPlayNetworking.registerGlobalReceiver(MoudPackets.S2C_PlayerModelAnimationPacket.ID, this::handlePlayerModelAnimation);
+        ClientPlayNetworking.registerGlobalReceiver(MoudPackets.S2C_PlayerModelRemovePacket.ID, this::handlePlayerModelRemove);
     }
 
     private void registerEventHandlers() {
@@ -163,9 +188,10 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         if (apiService != null && apiService.camera != null) {
             if (packet.isLocked()) {
                 apiService.camera.enableCustomCamera();
+                apiService.camera.setLockedPosition(packet.position());
                 apiService.camera.setRenderYawOverride(packet.yaw());
                 apiService.camera.setRenderPitchOverride(packet.pitch());
-                LOGGER.debug("Camera locked at yaw: {}, pitch: {}", packet.yaw(), packet.pitch());
+                LOGGER.debug("Camera locked at pos: {}, yaw: {}, pitch: {}", packet.position(), packet.yaw(), packet.pitch());
             } else {
                 apiService.camera.disableCustomCamera();
                 LOGGER.debug("Camera unlocked");
@@ -252,6 +278,46 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private void handleScriptEvent(MoudPackets.ClientboundScriptEvent packet, ClientPlayNetworking.Context context) {
         if (scriptingRuntime != null && scriptingRuntime.isInitialized()) {
             scriptingRuntime.triggerNetworkEvent(packet.eventName(), packet.eventData());
+        }
+    }
+
+    private void handlePlayerModelCreate(MoudPackets.S2C_PlayerModelCreatePacket packet, ClientPlayNetworking.Context context) {
+        if (playerModelManager != null) {
+            context.client().execute(() -> {
+                playerModelManager.createModel(packet.modelId(), packet.position(), packet.skinUrl());
+            });
+        }
+    }
+
+    private void handlePlayerModelUpdate(MoudPackets.S2C_PlayerModelUpdatePacket packet, ClientPlayNetworking.Context context) {
+        if (playerModelManager != null) {
+            context.client().execute(() -> {
+                playerModelManager.updateModel(packet.modelId(), packet.position(), packet.yaw(), packet.pitch());
+            });
+        }
+    }
+
+    private void handlePlayerModelSkin(MoudPackets.S2C_PlayerModelSkinPacket packet, ClientPlayNetworking.Context context) {
+        if (playerModelManager != null) {
+            context.client().execute(() -> {
+                playerModelManager.updateSkin(packet.modelId(), packet.skinUrl());
+            });
+        }
+    }
+
+    private void handlePlayerModelAnimation(MoudPackets.S2C_PlayerModelAnimationPacket packet, ClientPlayNetworking.Context context) {
+        if (playerModelManager != null) {
+            context.client().execute(() -> {
+                playerModelManager.playAnimation(packet.modelId(), packet.animationName());
+            });
+        }
+    }
+
+    private void handlePlayerModelRemove(MoudPackets.S2C_PlayerModelRemovePacket packet, ClientPlayNetworking.Context context) {
+        if (playerModelManager != null) {
+            context.client().execute(() -> {
+                playerModelManager.removeModel(packet.modelId());
+            });
         }
     }
 

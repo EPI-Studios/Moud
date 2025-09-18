@@ -1,12 +1,16 @@
 package com.moud.server.proxy;
 
+import com.moud.server.MoudEngine;
 import com.moud.api.math.Vector3;
+import com.moud.server.events.EventDispatcher;
 import com.moud.server.network.PlayerModelPackets;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.Player;
+import net.minestom.server.event.player.PlayerSpawnEvent;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 
+import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -21,6 +25,19 @@ public class PlayerModelProxy {
     private String skinUrl;
     private String currentAnimation;
     private Value clickCallback;
+
+    static {
+        MinecraftServer.getGlobalEventHandler().addListener(PlayerSpawnEvent.class, event -> {
+            if (event.isFirstSpawn()) {
+                Player player = event.getPlayer();
+                for (PlayerModelProxy model : ALL_MODELS.values()) {
+                    player.sendPacket(PlayerModelPackets.createPlayerModelCreatePacket(model.modelId, model.position, model.skinUrl));
+                    player.sendPacket(PlayerModelPackets.createPlayerModelUpdatePacket(model.modelId, model.position, model.yaw, model.pitch));
+                }
+            }
+        });
+    }
+
 
     public PlayerModelProxy(Vector3 position, String skinUrl) {
         this.modelId = ID_COUNTER.getAndIncrement();
@@ -39,10 +56,16 @@ public class PlayerModelProxy {
     }
 
     @HostAccess.Export
-    public void setRotation(double yaw, double pitch) {
-        this.yaw = (float) yaw;
-        this.pitch = (float) pitch;
-        broadcastUpdate();
+    public void setRotation(Value rotationValue) {
+        if (rotationValue != null && rotationValue.hasMembers()) {
+            if (rotationValue.hasMember("yaw")) {
+                this.yaw = rotationValue.getMember("yaw").asFloat();
+            }
+            if (rotationValue.hasMember("pitch")) {
+                this.pitch = rotationValue.getMember("pitch").asFloat();
+            }
+            broadcastUpdate();
+        }
     }
 
     @HostAccess.Export
@@ -104,10 +127,19 @@ public class PlayerModelProxy {
         return ALL_MODELS.get(modelId);
     }
 
+    public static Collection<PlayerModelProxy> getAllModels() {
+        return ALL_MODELS.values();
+    }
+
     public void triggerClick(Player player, double mouseX, double mouseY, int button) {
         if (clickCallback != null) {
             try {
-                clickCallback.execute(new PlayerProxy(player), mouseX, mouseY, button);
+                Value clickData = Value.asValue(new ConcurrentHashMap<String, Object>());
+                clickData.putMember("button", button);
+                clickData.putMember("mouseX", mouseX);
+                clickData.putMember("mouseY", mouseY);
+
+                clickCallback.execute(new PlayerProxy(player), clickData);
             } catch (Exception e) {
                 e.printStackTrace();
             }

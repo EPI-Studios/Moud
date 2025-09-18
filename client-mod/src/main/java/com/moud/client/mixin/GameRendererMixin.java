@@ -43,7 +43,6 @@ public abstract class GameRendererMixin {
         }
 
         if (ClientAPIService.INSTANCE == null) {
-            MOUD_DEBUG_LOGGER.warn("[MIXIN-BOBVIEW] FAILED: ClientAPIService.INSTANCE is null!");
             return;
         }
 
@@ -51,7 +50,6 @@ public abstract class GameRendererMixin {
         Float overridePitch = ClientAPIService.INSTANCE.camera.getRenderPitchOverride();
 
         if (overrideYaw == null || overridePitch == null) {
-            MOUD_DEBUG_LOGGER.warn("[MIXIN-BOBVIEW] SKIPPED: Override values were null.");
             return;
         }
 
@@ -61,10 +59,6 @@ public abstract class GameRendererMixin {
         float yawDelta = overrideYaw - currentYaw;
         float pitchDelta = overridePitch - currentPitch;
 
-        MOUD_DEBUG_LOGGER.info(String.format(
-                "[MIXIN-BOBVIEW] APPLYING OVERRIDE | ScriptYaw=%.4f, VanillaYaw=%.4f, Delta=%.4f",
-                overrideYaw, currentYaw, yawDelta
-        ));
 
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(yawDelta));
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pitchDelta));

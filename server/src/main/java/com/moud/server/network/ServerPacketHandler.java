@@ -1,10 +1,9 @@
 package com.moud.server.network;
 
 import com.moud.server.events.EventDispatcher;
-import com.moud.server.network.ServerNetworkPackets.ClientUpdateCameraPacket;
-import com.moud.server.network.ServerNetworkPackets.HelloPacket;
-import com.moud.server.network.ServerNetworkPackets.ServerboundScriptEventPacket;
+import com.moud.server.network.ServerNetworkPackets.*;
 import com.moud.server.player.PlayerCameraManager;
+import com.moud.server.proxy.PlayerModelProxy;
 import net.minestom.server.entity.Player;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +44,23 @@ public final class ServerPacketHandler {
 
     public void handleCameraUpdate(ClientUpdateCameraPacket packet, Player player) {
         PlayerCameraManager.getInstance().updateCameraDirection(player, packet.getDirection());
+    }
+
+    public void handlePlayerModelClick(PlayerModelPackets.ServerboundPlayerModelClickPacket packet, Player player) {
+        PlayerModelProxy model = PlayerModelProxy.getById(packet.getModelId());
+        if (model != null) {
+            model.triggerClick(player, packet.getMouseX(), packet.getMouseY(), packet.getButton());
+        }
+    }
+
+    public void handleMouseMovement(C2S_MouseMovementPacket packet, Player player) {
+        if (!isMoudClient(player)) return;
+        eventDispatcher.dispatchMouseMoveEvent(player, packet.deltaX, packet.deltaY);
+    }
+
+    public void handlePlayerClick(C2S_PlayerClickPacket packet, Player player) {
+        if (!isMoudClient(player)) return;
+        eventDispatcher.dispatchPlayerClickEvent(player, packet.button);
     }
 
     public void onPlayerDisconnect(Player player) {

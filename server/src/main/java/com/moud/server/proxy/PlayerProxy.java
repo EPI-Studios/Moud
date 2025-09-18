@@ -98,4 +98,13 @@ public class PlayerProxy {
     public PlayerUIProxy getUi() {
         return ui;
     }
+
+    @HostAccess.Export
+    public void setVanished(boolean vanished) {
+        if (vanished) {
+            player.setInvisible(true);
+        } else {
+            player.setInvisible(false);
+        }
+    }
 }

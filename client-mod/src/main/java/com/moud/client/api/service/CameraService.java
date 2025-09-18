@@ -1,5 +1,6 @@
 package com.moud.client.api.service;
 
+import com.moud.api.math.Vector3;
 import com.moud.client.MoudClientMod;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.Perspective;
@@ -15,6 +16,7 @@ public final class CameraService {
     private final MinecraftClient client;
     private Context jsContext;
 
+    @Nullable private Vector3 lockedPosition = null;
     @Nullable private Float overrideYaw = null;
     @Nullable private Float overridePitch = null;
 
@@ -47,9 +49,14 @@ public final class CameraService {
         this.overridePitch = (float) pitch;
     }
 
+    public void setLockedPosition(Vector3 position) {
+        this.lockedPosition = position;
+    }
+
     public void clearRenderOverrides() {
         this.overrideYaw = null;
         this.overridePitch = null;
+        this.lockedPosition = null;
     }
 
     @Nullable
@@ -60,6 +67,11 @@ public final class CameraService {
     @Nullable
     public Float getRenderPitchOverride() {
         return this.overridePitch;
+    }
+
+    @Nullable
+    public Vector3 getLockedPosition() {
+        return this.lockedPosition;
     }
 
     public float getPitch() {

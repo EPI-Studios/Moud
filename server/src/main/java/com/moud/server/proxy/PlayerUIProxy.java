@@ -3,12 +3,10 @@ package com.moud.server.proxy;
 import com.moud.server.network.ServerNetworkPackets;
 import net.minestom.server.entity.Player;
 import org.graalvm.polyglot.HostAccess;
+import org.graalvm.polyglot.Value;
 
 public class PlayerUIProxy {
     private final Player player;
-    private boolean hideHotbar = false;
-    private boolean hideHand = false;
-    private boolean hideExperience = false;
 
     public PlayerUIProxy(Player player) {
         this.player = player;
@@ -16,40 +14,31 @@ public class PlayerUIProxy {
 
     @HostAccess.Export
     public void hide() {
-        hide(true, true, true);
+        sendStatePacket(true, true, true);
     }
 
     @HostAccess.Export
-    public void hide(boolean hideHotbar, boolean hideHand, boolean hideExperience) {
-        this.hideHotbar = hideHotbar;
-        this.hideHand = hideHand;
-        this.hideExperience = hideExperience;
+    public void hide(Value options) {
+        if (options == null || !options.hasMembers()) {
+            hide();
+            return;
+        }
 
-        player.sendPacket(ServerNetworkPackets.createClientboundPlayerStatePacket(
-                hideHotbar, hideHand, hideExperience
-        ));
+        boolean hideHotbar = options.hasMember("hideHotbar") ? options.getMember("hideHotbar").asBoolean() : false;
+        boolean hideHand = options.hasMember("hideHand") ? options.getMember("hideHand").asBoolean() : false;
+        boolean hideExperience = options.hasMember("hideExperience") ? options.getMember("hideExperience").asBoolean() : false;
+
+        sendStatePacket(hideHotbar, hideHand, hideExperience);
     }
 
     @HostAccess.Export
     public void show() {
-        this.hideHotbar = false;
-        this.hideHand = false;
-        this.hideExperience = false;
+        sendStatePacket(false, false, false);
+    }
 
+    private void sendStatePacket(boolean hideHotbar, boolean hideHand, boolean hideExperience) {
         player.sendPacket(ServerNetworkPackets.createClientboundPlayerStatePacket(
-                false, false, false
+                hideHotbar, hideHand, hideExperience
         ));
-    }
-
-    public boolean isHideHotbar() {
-        return hideHotbar;
-    }
-
-    public boolean isHideHand() {
-        return hideHand;
-    }
-
-    public boolean isHideExperience() {
-        return hideExperience;
     }
 }

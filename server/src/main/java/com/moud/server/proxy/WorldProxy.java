@@ -6,6 +6,7 @@ import com.moud.server.api.validation.APIValidator;
 import com.moud.server.entity.ScriptedEntity;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
+import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityType;
 import net.minestom.server.event.player.AsyncPlayerConfigurationEvent;
 import net.minestom.server.instance.Instance;
@@ -79,8 +80,30 @@ public class WorldProxy {
     }
 
     @HostAccess.Export
-    public PlayerModelProxy createPlayerModel(Vector3 position, String skinUrl) {
+    public PlayerModelProxy createPlayerModel(Value options) {
+        if (options == null || !options.hasMembers()) {
+            throw new APIException("INVALID_ARGUMENT", "createPlayerModel requires an options object.");
+        }
+        Vector3 position = options.hasMember("position") ? options.getMember("position").as(Vector3.class) : Vector3.zero();
+        String skinUrl = options.hasMember("skinUrl") ? options.getMember("skinUrl").asString() : "";
+
         return new PlayerModelProxy(position, skinUrl);
+    }
+
+    @HostAccess.Export
+    public TextProxy createText(Value options) {
+        if (options == null || !options.hasMembers()) {
+            throw new APIException("INVALID_ARGUMENT", "createText requires an options object.");
+        }
+        Vector3 position = options.hasMember("position") ? options.getMember("position").as(Vector3.class) : Vector3.zero();
+        String content = options.hasMember("content") ? options.getMember("content").asString() : "";
+        String billboard = options.hasMember("billboard") ? options.getMember("billboard").asString() : "fixed";
+
+        TextProxy textProxy = new TextProxy(position, content, billboard);
+        Entity textEntity = textProxy.getEntity();
+        textEntity.setInstance(defaultInstance, new Pos(position.x, position.y, position.z));
+
+        return textProxy;
     }
 
     public Instance getInstance() {
