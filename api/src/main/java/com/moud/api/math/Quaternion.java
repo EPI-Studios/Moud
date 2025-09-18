@@ -18,9 +18,9 @@ public class Quaternion {
         float halfAngle = angle * 0.5f;
         float s = (float) Math.sin(halfAngle);
         this.w = (float) Math.cos(halfAngle);
-        this.x = axis.x * s;
-        this.y = axis.y * s;
-        this.z = axis.z * s;
+        this.x = (float) (axis.x * s);
+        this.y = (float) (axis.y * s);
+        this.z = (float) (axis.z * s);
     }
 
     public Quaternion multiply(Quaternion q) {
@@ -83,11 +83,11 @@ public class Quaternion {
         return new Quaternion(x * scalar, y * scalar, z * scalar, w * scalar);
     }
 
-    public Vector3 rotateVector(Vector3 v) {
-        Quaternion vQ = new Quaternion(v.x, v.y, v.z, 0);
-        Quaternion result = multiply(vQ).multiply(conjugate());
-        return new Vector3(result.x, result.y, result.z);
-    }
+//    public Vector3 rotateVector(Vector3 v) {
+//        Quaternion vQ = new Quaternion(v.x, v.y, v.z, 0);
+//        Quaternion result = multiply(vQ).multiply(conjugate());
+//        return new Vector3(result.x, result.y, result.z);
+//    }
 
     public Vector3 toEulerAngles() {
         float sinr_cosp = 2 * (w * x + y * z);
