@@ -1,5 +1,6 @@
 package com.moud.server.proxy;
 
+import com.moud.api.math.Vector3;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.api.validation.APIValidator;
 import com.moud.server.entity.ScriptedEntity;
@@ -75,6 +76,11 @@ public class WorldProxy {
         if (type == null) throw new APIException("UNKNOWN_ENTITY_TYPE", "Unknown entity type: " + entityType);
         ScriptedEntity entity = new ScriptedEntity(type, jsInstance);
         entity.setInstance(defaultInstance, new Pos(x, y, z));
+    }
+
+    @HostAccess.Export
+    public PlayerModelProxy createPlayerModel(Vector3 position, String skinUrl) {
+        return new PlayerModelProxy(position, skinUrl);
     }
 
     public Instance getInstance() {

@@ -4,6 +4,8 @@ import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.network.MoudPackets;
 import com.moud.client.network.packets.SharedValuePackets;
 import com.moud.client.player.ClientCameraManager;
+import com.moud.client.player.PlayerModelRenderer;
+import com.moud.client.player.PlayerStateManager;
 import com.moud.client.resources.InMemoryPackResources;
 import com.moud.client.runtime.ClientScriptingRuntime;
 import com.moud.client.shared.SharedValueManager;
@@ -46,17 +48,22 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private ClientAPIService apiService;
     private SharedValueManager sharedValueManager;
     private ClientCameraManager clientCameraManager;
+    private PlayerStateManager playerStateManager;
     private final AtomicReference<InMemoryPackResources> dynamicPack = new AtomicReference<>(null);
     private String currentResourcesHash = "";
+    private PlayerModelRenderer playerModelRenderer;
 
     @Override
     public void onInitializeClient() {
         LOGGER.info("Initializing Moud client...");
+        this.playerModelRenderer = new PlayerModelRenderer();
+
         setupNetworking();
         registerEventHandlers();
         registerResourcePackProvider();
         registerTickHandler();
         registerShutdownHandler();
+
         LOGGER.info("Moud client initialization complete.");
     }
 
@@ -72,6 +79,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         this.sharedValueManager = SharedValueManager.getInstance();
         this.sharedValueManager.initialize();
         this.clientCameraManager = new ClientCameraManager();
+        this.playerStateManager = PlayerStateManager.getInstance();
     }
 
     private void cleanupMoudServices() {
@@ -87,7 +95,11 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         if (sharedValueManager != null) {
             sharedValueManager.cleanup();
         }
+        if (playerStateManager != null) {
+            playerStateManager.reset();
+        }
         this.clientCameraManager = null;
+        this.playerStateManager = null;
     }
 
     private void registerTickHandler() {
@@ -113,6 +125,8 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private void setupNetworking() {
         PayloadTypeRegistry.playS2C().register(MoudPackets.SyncClientScripts.ID, MoudPackets.SyncClientScripts.CODEC);
         PayloadTypeRegistry.playS2C().register(MoudPackets.ClientboundScriptEvent.ID, MoudPackets.ClientboundScriptEvent.CODEC);
+        PayloadTypeRegistry.playS2C().register(MoudPackets.ClientboundCameraLockPacket.ID, MoudPackets.ClientboundCameraLockPacket.CODEC);
+        PayloadTypeRegistry.playS2C().register(MoudPackets.ClientboundPlayerStatePacket.ID, MoudPackets.ClientboundPlayerStatePacket.CODEC);
         PayloadTypeRegistry.playS2C().register(SharedValuePackets.ServerSyncValuePacket.ID, SharedValuePackets.ServerSyncValuePacket.CODEC);
 
         PayloadTypeRegistry.playC2S().register(MoudPackets.HelloPacket.ID, MoudPackets.HelloPacket.CODEC);
@@ -121,8 +135,9 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         PayloadTypeRegistry.playC2S().register(MoudPackets.ClientUpdateCameraPacket.ID, MoudPackets.ClientUpdateCameraPacket.CODEC);
 
         ClientPlayNetworking.registerGlobalReceiver(MoudPackets.SyncClientScripts.ID, this::handleSyncScripts);
-
         ClientPlayNetworking.registerGlobalReceiver(MoudPackets.ClientboundScriptEvent.ID, this::handleScriptEvent);
+        ClientPlayNetworking.registerGlobalReceiver(MoudPackets.ClientboundCameraLockPacket.ID, this::handleCameraLock);
+        ClientPlayNetworking.registerGlobalReceiver(MoudPackets.ClientboundPlayerStatePacket.ID, this::handlePlayerState);
     }
 
     private void registerEventHandlers() {
@@ -142,6 +157,30 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         this.currentResourcesHash = "";
         cleanupMoudServices();
         setCustomCameraActive(false);
+    }
+
+    private void handleCameraLock(MoudPackets.ClientboundCameraLockPacket packet, ClientPlayNetworking.Context context) {
+        if (apiService != null && apiService.camera != null) {
+            if (packet.isLocked()) {
+                apiService.camera.enableCustomCamera();
+                apiService.camera.setRenderYawOverride(packet.yaw());
+                apiService.camera.setRenderPitchOverride(packet.pitch());
+                LOGGER.debug("Camera locked at yaw: {}, pitch: {}", packet.yaw(), packet.pitch());
+            } else {
+                apiService.camera.disableCustomCamera();
+                LOGGER.debug("Camera unlocked");
+            }
+        }
+    }
+
+    private void handlePlayerState(MoudPackets.ClientboundPlayerStatePacket packet, ClientPlayNetworking.Context context) {
+        if (playerStateManager != null) {
+            playerStateManager.updatePlayerState(
+                    packet.hideHotbar(),
+                    packet.hideHand(),
+                    packet.hideExperience()
+            );
+        }
     }
 
     private void handleSyncScripts(MoudPackets.SyncClientScripts packet, ClientPlayNetworking.Context context) {
@@ -215,6 +254,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             scriptingRuntime.triggerNetworkEvent(packet.eventName(), packet.eventData());
         }
     }
+
     @Override
     public void register(Consumer<ResourcePackProfile> profileAdder) {
         InMemoryPackResources pack = dynamicPack.get();

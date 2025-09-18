@@ -67,6 +67,7 @@ public final class ServerNetworkManager {
             }
         }
     }
+
     private void handlePlayerDisconnect(PlayerDisconnectEvent event) {
         packetHandler.onPlayerDisconnect(event.getPlayer());
     }

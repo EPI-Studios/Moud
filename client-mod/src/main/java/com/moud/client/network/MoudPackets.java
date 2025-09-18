@@ -117,4 +117,54 @@ public final class MoudPackets {
             return ID;
         }
     }
+
+    public record ClientboundCameraLockPacket(Vector3 position, float yaw, float pitch, boolean isLocked) implements CustomPayload {
+        public static final CustomPayload.Id<ClientboundCameraLockPacket> ID =
+                new CustomPayload.Id<>(Identifier.of("moud", "camera_lock"));
+
+        public static final PacketCodec<PacketByteBuf, ClientboundCameraLockPacket> CODEC =
+                PacketCodec.of(ClientboundCameraLockPacket::write, ClientboundCameraLockPacket::new);
+
+        private ClientboundCameraLockPacket(PacketByteBuf buf) {
+            this(new Vector3(buf.readFloat(), buf.readFloat(), buf.readFloat()),
+                    buf.readFloat(), buf.readFloat(), buf.readBoolean());
+        }
+
+        private void write(PacketByteBuf buf) {
+            buf.writeFloat(position.x);
+            buf.writeFloat(position.y);
+            buf.writeFloat(position.z);
+            buf.writeFloat(yaw);
+            buf.writeFloat(pitch);
+            buf.writeBoolean(isLocked);
+        }
+
+        @Override
+        public CustomPayload.Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    public record ClientboundPlayerStatePacket(boolean hideHotbar, boolean hideHand, boolean hideExperience) implements CustomPayload {
+        public static final CustomPayload.Id<ClientboundPlayerStatePacket> ID =
+                new CustomPayload.Id<>(Identifier.of("moud", "player_state"));
+
+        public static final PacketCodec<PacketByteBuf, ClientboundPlayerStatePacket> CODEC =
+                PacketCodec.of(ClientboundPlayerStatePacket::write, ClientboundPlayerStatePacket::new);
+
+        private ClientboundPlayerStatePacket(PacketByteBuf buf) {
+            this(buf.readBoolean(), buf.readBoolean(), buf.readBoolean());
+        }
+
+        private void write(PacketByteBuf buf) {
+            buf.writeBoolean(hideHotbar);
+            buf.writeBoolean(hideHand);
+            buf.writeBoolean(hideExperience);
+        }
+
+        @Override
+        public CustomPayload.Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
 }
