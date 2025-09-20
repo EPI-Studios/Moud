@@ -10,15 +10,19 @@ import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Player;
 import org.graalvm.polyglot.HostAccess;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PlayerProxy {
-    private static final MoudLogger LOGGER = MoudLogger.getLogger(PlayerProxy.class);
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(PlayerProxy.class);
     private final Player player;
     private final ClientProxy client;
     private final APIValidator validator;
     private final SharedValueApiProxy sharedValues;
     private final CameraLockProxy camera;
     private final PlayerUIProxy ui;
+    private final CursorProxy cursor;
 
     public PlayerProxy(Player player) {
         this.player = player;
@@ -27,6 +31,14 @@ public class PlayerProxy {
         this.sharedValues = new SharedValueApiProxy(player);
         this.camera = new CameraLockProxy(player);
         this.ui = new PlayerUIProxy(player);
+        this.cursor = new CursorProxy(player);
+    }
+
+    @HostAccess.Export
+    public CameraLockProxy getCamera() {
+
+        LOGGER.debug("Script accessed getCamera() for player '{}'", player.getUsername());
+        return camera;
     }
 
     @HostAccess.Export
@@ -106,13 +118,13 @@ public class PlayerProxy {
     }
 
     @HostAccess.Export
-    public CameraLockProxy getCamera() {
-        return camera;
+    public PlayerUIProxy getUi() {
+        return ui;
     }
 
     @HostAccess.Export
-    public PlayerUIProxy getUi() {
-        return ui;
+    public CursorProxy getCursor() {
+        return cursor;
     }
 
     @HostAccess.Export

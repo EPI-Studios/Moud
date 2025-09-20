@@ -14,8 +14,9 @@ repositories {
 }
 
 dependencies {
-
     implementation project(':api')
+    implementation project(':network-engine')
+
     implementation('net.minestom:minestom-snapshots:f966351cb7') {
         exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j2-impl'
     }

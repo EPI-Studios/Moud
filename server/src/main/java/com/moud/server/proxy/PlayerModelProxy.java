@@ -3,7 +3,8 @@ package com.moud.server.proxy;
 import com.moud.server.MoudEngine;
 import com.moud.api.math.Vector3;
 import com.moud.server.events.EventDispatcher;
-import com.moud.server.network.PlayerModelPackets;
+import com.moud.network.MoudPackets;
+import com.moud.server.network.ServerPacketWrapper;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.player.PlayerSpawnEvent;
@@ -33,8 +34,12 @@ public class PlayerModelProxy {
             if (event.isFirstSpawn()) {
                 Player player = event.getPlayer();
                 for (PlayerModelProxy model : ALL_MODELS.values()) {
-                    player.sendPacket(PlayerModelPackets.createPlayerModelCreatePacket(model.modelId, model.position, model.skinUrl));
-                    player.sendPacket(PlayerModelPackets.createPlayerModelUpdatePacket(model.modelId, model.position, model.yaw, model.pitch));
+                    player.sendPacket(ServerPacketWrapper.createPacket(
+                            new MoudPackets.PlayerModelCreatePacket(model.modelId, model.position, model.skinUrl)
+                    ));
+                    player.sendPacket(ServerPacketWrapper.createPacket(
+                            new MoudPackets.PlayerModelUpdatePacket(model.modelId, model.position, model.yaw, model.pitch)
+                    ));
                 }
             }
         });
@@ -100,32 +105,37 @@ public class PlayerModelProxy {
     }
 
     private void broadcastCreate() {
+        MoudPackets.PlayerModelCreatePacket packet = new MoudPackets.PlayerModelCreatePacket(modelId, position, skinUrl);
         for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
-            player.sendPacket(PlayerModelPackets.createPlayerModelCreatePacket(modelId, position, skinUrl));
+            player.sendPacket(ServerPacketWrapper.createPacket(packet));
         }
     }
 
     private void broadcastUpdate() {
+        MoudPackets.PlayerModelUpdatePacket packet = new MoudPackets.PlayerModelUpdatePacket(modelId, position, yaw, pitch);
         for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
-            player.sendPacket(PlayerModelPackets.createPlayerModelUpdatePacket(modelId, position, yaw, pitch));
+            player.sendPacket(ServerPacketWrapper.createPacket(packet));
         }
     }
 
     private void broadcastSkin() {
+        MoudPackets.PlayerModelSkinPacket packet = new MoudPackets.PlayerModelSkinPacket(modelId, skinUrl);
         for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
-            player.sendPacket(PlayerModelPackets.createPlayerModelSkinPacket(modelId, skinUrl));
+            player.sendPacket(ServerPacketWrapper.createPacket(packet));
         }
     }
 
     private void broadcastAnimation() {
+        MoudPackets.PlayerModelAnimationPacket packet = new MoudPackets.PlayerModelAnimationPacket(modelId, currentAnimation);
         for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
-            player.sendPacket(PlayerModelPackets.createPlayerModelAnimationPacket(modelId, currentAnimation));
+            player.sendPacket(ServerPacketWrapper.createPacket(packet));
         }
     }
 
     private void broadcastRemove() {
+        MoudPackets.PlayerModelRemovePacket packet = new MoudPackets.PlayerModelRemovePacket(modelId);
         for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
-            player.sendPacket(PlayerModelPackets.createPlayerModelRemovePacket(modelId));
+            player.sendPacket(ServerPacketWrapper.createPacket(packet));
         }
     }
 

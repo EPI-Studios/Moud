@@ -19,6 +19,11 @@ public final class CameraService {
     @Nullable private Vector3 lockedPosition = null;
     @Nullable private Float overrideYaw = null;
     @Nullable private Float overridePitch = null;
+    @Nullable private Float overrideRoll = null;
+    private boolean smoothTransitions = false;
+    private float transitionSpeed = 1.0f;
+    private boolean disableViewBobbing = true;
+    private boolean disableHandMovement = true;
 
     public CameraService() {
         this.client = MinecraftClient.getInstance();
@@ -29,10 +34,12 @@ public final class CameraService {
     }
 
     public void enableCustomCamera() {
+        LOGGER.debug("[CAMERA-SERVICE] Enabling custom camera.");
         MoudClientMod.setCustomCameraActive(true);
     }
 
     public void disableCustomCamera() {
+        LOGGER.debug("[CAMERA-SERVICE] Disabling custom camera.");
         MoudClientMod.setCustomCameraActive(false);
         clearRenderOverrides();
     }
@@ -41,22 +48,48 @@ public final class CameraService {
         return MoudClientMod.isCustomCameraActive();
     }
 
+    public void setAdvancedCameraLock(Vector3 position, Vector3 rotation, boolean smoothTransitions,
+                                      float transitionSpeed, boolean disableViewBobbing, boolean disableHandMovement) {
+        this.lockedPosition = position;
+        this.overrideYaw = (float) rotation.x;
+        this.overridePitch = (float) rotation.y;
+        this.overrideRoll = (float) rotation.z;
+        this.smoothTransitions = smoothTransitions;
+        this.transitionSpeed = transitionSpeed;
+        this.disableViewBobbing = disableViewBobbing;
+        this.disableHandMovement = disableHandMovement;
+        enableCustomCamera();
+    }
+
     public void setRenderYawOverride(double yaw) {
+        LOGGER.debug("[CAMERA-SERVICE] Setting Yaw Override: {}", yaw);
         this.overrideYaw = (float) yaw;
     }
 
     public void setRenderPitchOverride(double pitch) {
+        LOGGER.debug("[CAMERA-SERVICE] Setting Pitch Override: {}", pitch);
         this.overridePitch = (float) pitch;
     }
 
+    public void setRenderRollOverride(double roll) {
+        LOGGER.debug("[CAMERA-SERVICE] Setting Roll Override: {}", roll);
+        this.overrideRoll = (float) roll;
+    }
+
     public void setLockedPosition(Vector3 position) {
+        LOGGER.debug("[CAMERA-SERVICE] Setting Locked Position: {}", position);
         this.lockedPosition = position;
     }
 
     public void clearRenderOverrides() {
+        LOGGER.debug("[CAMERA-SERVICE] Clearing all render overrides.");
         this.overrideYaw = null;
         this.overridePitch = null;
+        this.overrideRoll = null;
         this.lockedPosition = null;
+        this.smoothTransitions = false;
+        this.disableViewBobbing = true;
+        this.disableHandMovement = true;
     }
 
     @Nullable
@@ -70,8 +103,29 @@ public final class CameraService {
     }
 
     @Nullable
+    public Float getRenderRollOverride() {
+        return this.overrideRoll;
+    }
+
+    @Nullable
     public Vector3 getLockedPosition() {
         return this.lockedPosition;
+    }
+
+    public boolean shouldDisableViewBobbing() {
+        return disableViewBobbing && isCustomCameraActive();
+    }
+
+    public boolean shouldDisableHandMovement() {
+        return disableHandMovement && isCustomCameraActive();
+    }
+
+    public boolean isUsingSmoothing() {
+        return smoothTransitions;
+    }
+
+    public float getTransitionSpeed() {
+        return transitionSpeed;
     }
 
     public float getPitch() {

@@ -5,6 +5,7 @@ import com.moud.server.ConsoleAPI;
 import com.moud.server.MoudEngine;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.logging.MoudLogger;
+import com.moud.server.proxy.CameraLockProxy;
 import com.moud.server.typescript.TypeScriptTranspiler;
 import org.graalvm.polyglot.*;
 import org.graalvm.polyglot.io.IOAccess;
@@ -47,21 +48,22 @@ public class JavaScriptRuntime {
                 .allowAccessAnnotatedBy(HostAccess.Export.class)
                 .allowImplementations(ProxyArray.class);
 
-       // TODO : REMOVE THIS AND MAKE A MATH PROXY CLASS
+        hostAccessBuilder.allowAccess(CameraLockProxy.class.getConstructor(net.minestom.server.entity.Player.class));
+
+
+        // TODO : REMOVE THIS AND MAKE A MATH PROXY CLASS
         hostAccessBuilder.allowAccess(Vector3.class.getConstructor());
         hostAccessBuilder.allowAccess(Vector3.class.getConstructor(double.class, double.class, double.class));
         hostAccessBuilder.allowAccess(Vector3.class.getConstructor(float.class, float.class, float.class));
 
 
         hostAccessBuilder.allowAccess(Vector3.class.getMethod("add", Vector3.class));
-        hostAccessBuilder.allowAccess(Vector3.class.getMethod("multiply", double.class)); // LA CORRECTION PRINCIPALE
+        hostAccessBuilder.allowAccess(Vector3.class.getMethod("multiply", double.class));
         hostAccessBuilder.allowAccess(Vector3.class.getMethod("toString"));
 
         hostAccessBuilder.allowAccess(Vector3.class.getField("x"));
         hostAccessBuilder.allowAccess(Vector3.class.getField("y"));
         hostAccessBuilder.allowAccess(Vector3.class.getField("z"));
-        // ------------------------------------
-
         HostAccess hostAccess = hostAccessBuilder.build();
 
         return Context.newBuilder(LANGUAGE_ID)
@@ -74,6 +76,7 @@ public class JavaScriptRuntime {
                 .allowPolyglotAccess(PolyglotAccess.NONE)
                 .build();
     }
+
 
     private Object convertPolyglotValue(Value value) {
         if (value.isHostObject()) {
