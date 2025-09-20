@@ -1,6 +1,7 @@
 package com.moud.server.shared.network;
 
-import com.moud.server.network.SharedValuePackets;
+import com.moud.network.MoudPackets;
+import com.moud.server.network.ServerPacketWrapper;
 import com.moud.server.shared.SharedValueManager;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.Player;
@@ -18,40 +19,27 @@ public class SharedValuePacketHandler {
     }
 
     public void initialize() {
-        MinecraftServer.getGlobalEventHandler()
-                .addListener(PlayerPluginMessageEvent.class, this::handlePluginMessage);
+        ServerPacketWrapper.registerHandler(MoudPackets.ClientUpdateValuePacket.class, this::handleClientUpdate);
         LOGGER.debug("SharedValuePacketHandler initialized");
     }
 
-    private void handlePluginMessage(PlayerPluginMessageEvent event) {
-        String channel = event.getIdentifier();
-        Player player = event.getPlayer();
-        byte[] data = event.getMessage();
-
-        if ("moud:update_shared_value".equals(channel)) {
-            handleClientUpdate(player, data);
-        }
-    }
-
-    private void handleClientUpdate(Player player, byte[] data) {
+    private void handleClientUpdate(Object player, MoudPackets.ClientUpdateValuePacket packet) {
+        Player minestomPlayer = (Player) player;
         try {
-            SharedValuePackets.ClientUpdateValueData packet =
-                    new SharedValuePackets.ClientUpdateValueData(data);
-
             boolean success = manager.handleClientUpdate(
-                    player,
-                    packet.getStoreName(),
-                    packet.getKey(),
-                    packet.getValue()
+                    minestomPlayer,
+                    packet.storeName(),
+                    packet.key(),
+                    packet.value()
             );
 
             if (!success) {
                 LOGGER.warn("Rejected client update from {}: {}.{}",
-                        player.getUsername(), packet.getStoreName(), packet.getKey());
+                        minestomPlayer.getUsername(), packet.storeName(), packet.key());
             }
 
         } catch (Exception e) {
-            LOGGER.error("Failed to handle client update from {}", player.getUsername(), e);
+            LOGGER.error("Failed to handle client update from {}", minestomPlayer.getUsername(), e);
         }
     }
 }

@@ -1,12 +1,10 @@
 package com.moud.client.ui;
 
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moud.client.network.ClientNetworkManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.spongepowered.include.com.google.gson.JsonParseException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,10 +23,8 @@ public class UINetworking {
             String jsonData = OBJECT_MAPPER.writeValueAsString(payload);
             ClientNetworkManager.sendToServer("ui:interaction", jsonData);
             LOGGER.debug("Sent UI interaction: {} - {}", elementId, action);
-        } catch (JsonParseException e) {
-            LOGGER.error("Failed to serialize UI interaction data", e);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            LOGGER.error("Failed to serialize UI interaction data", e);
         }
     }
 

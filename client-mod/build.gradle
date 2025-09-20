@@ -1,5 +1,3 @@
-// Add to client-mod/build.gradle dependencies section
-
 plugins {
     id 'fabric-loom'
 }
@@ -18,19 +16,16 @@ loom {
     accessWidenerPath = file("src/main/resources/moud.accesswidener")
 }
 
-
-
 dependencies {
     minecraft "com.mojang:minecraft:1.21.1"
     mappings "net.fabricmc:yarn:1.21.1+build.1:v2"
     modImplementation "net.fabricmc:fabric-loader:0.17.2"
-
     modImplementation "net.fabricmc.fabric-api:fabric-api:0.116.6+1.21.1"
 
     include implementation(project(':api'))
+    include implementation(project(':network-engine'))
 
     modImplementation("foundry.veil:veil-fabric-1.21.1:2.3.2")
-
     include("foundry.veil:veil-fabric-1.21.1:2.3.2")
 
     include implementation("org.graalvm.polyglot:polyglot:24.1.0")
@@ -45,27 +40,4 @@ dependencies {
     include implementation('com.fasterxml.jackson.core:jackson-databind:2.17.0')
     include implementation('com.fasterxml.jackson.core:jackson-annotations:2.17.0')
 
-    implementation platform("org.lwjgl:lwjgl-bom:3.3.3")
-    implementation "org.lwjgl:lwjgl"
-    implementation "org.lwjgl:lwjgl-openal"
-    implementation "org.lwjgl:lwjgl-stb"
-
-    runtimeOnly "org.lwjgl:lwjgl::natives-windows"
-    runtimeOnly "org.lwjgl:lwjgl-openal::natives-windows"
-    runtimeOnly "org.lwjgl:lwjgl-stb::natives-windows"
-
-    runtimeOnly "org.lwjgl:lwjgl::natives-linux"
-    runtimeOnly "org.lwjgl:lwjgl-openal::natives-linux"
-    runtimeOnly "org.lwjgl:lwjgl-stb::natives-linux"
-
-    runtimeOnly "org.lwjgl:lwjgl::natives-macos"
-    runtimeOnly "org.lwjgl:lwjgl-openal::natives-macos"
-    runtimeOnly "org.lwjgl:lwjgl-stb::natives-macos"
-
-    runtimeOnly "org.lwjgl:lwjgl::natives-macos-arm64"
-    runtimeOnly "org.lwjgl:lwjgl-openal::natives-macos-arm64"
-    runtimeOnly "org.lwjgl:lwjgl-stb::natives-macos-arm64"
-    include "org.lwjgl:lwjgl"
-    include "org.lwjgl:lwjgl-openal"
-    include "org.lwjgl:lwjgl-stb"
 }

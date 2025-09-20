@@ -1,18 +1,19 @@
 package com.moud.server;
 
 import com.moud.server.api.ScriptingAPI;
-import com.moud.server.api.exception.APIException;
 import com.moud.server.assets.AssetManager;
 import com.moud.server.client.ClientScriptManager;
 import com.moud.server.events.EventDispatcher;
 import com.moud.server.logging.MoudLogger;
+import com.moud.server.network.MinestomByteBuffer;
 import com.moud.server.network.ServerNetworkManager;
-
-import com.moud.server.network.ServerPacketHandler;
 import com.moud.server.project.ProjectLoader;
 import com.moud.server.proxy.AssetProxy;
 import com.moud.server.scripting.JavaScriptRuntime;
 import com.moud.server.task.AsyncManager;
+import com.moud.network.dispatcher.NetworkDispatcher;
+import com.moud.network.engine.PacketEngine;
+import com.moud.network.buffer.ByteBuffer;
 
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
@@ -28,17 +29,33 @@ public class MoudEngine {
     private final EventDispatcher eventDispatcher;
     private final ScriptingAPI scriptingAPI;
     private final AsyncManager asyncManager;
+    private final PacketEngine packetEngine;
     private final AtomicBoolean initialized = new AtomicBoolean(false);
 
     public MoudEngine(String[] launchArgs) {
         LOGGER.startup("Initializing Moud Engine...");
-
 
         try {
             Path projectRoot = ProjectLoader.resolveProjectRoot(launchArgs)
                     .orElseThrow(() -> new IllegalStateException("Could not find a valid Moud project root."));
 
             LOGGER.info("Loading project from: {}", projectRoot);
+
+            this.packetEngine = new PacketEngine();
+            packetEngine.initialize("com.moud.network");
+
+            NetworkDispatcher.ByteBufferFactory bufferFactory = new NetworkDispatcher.ByteBufferFactory() {
+                @Override
+                public ByteBuffer create() {
+                    return new MinestomByteBuffer();
+                }
+
+                @Override
+                public ByteBuffer wrap(byte[] data) {
+                    return new MinestomByteBuffer(data);
+                }
+            };
+            NetworkDispatcher dispatcher = packetEngine.createDispatcher(bufferFactory);
 
             this.assetManager = new AssetManager(projectRoot);
             assetManager.initialize();
@@ -53,7 +70,7 @@ public class MoudEngine {
             this.scriptingAPI = new ScriptingAPI(this);
             bindGlobalAPIs();
 
-            this.networkManager = new ServerNetworkManager(new ServerPacketHandler(eventDispatcher), clientScriptManager);
+            this.networkManager = new ServerNetworkManager(eventDispatcher, clientScriptManager);
             networkManager.initialize();
 
             loadUserScripts();

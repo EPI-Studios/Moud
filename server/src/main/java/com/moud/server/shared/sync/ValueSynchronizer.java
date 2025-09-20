@@ -1,6 +1,7 @@
 package com.moud.server.shared.sync;
 
-import com.moud.server.network.SharedValuePackets;
+import com.moud.network.MoudPackets;
+import com.moud.server.network.ServerPacketWrapper;
 import com.moud.server.shared.SharedValueManager;
 import com.moud.server.shared.core.SharedValueStore;
 import net.minestom.server.entity.Player;
@@ -68,10 +69,11 @@ public class ValueSynchronizer {
         String playerId = player.getUuid().toString();
         long timestamp = System.currentTimeMillis();
 
-        net.minestom.server.network.packet.server.common.PluginMessagePacket packet =
-                SharedValuePackets.createSyncValuePacket(playerId, store.getStoreName(), changes, timestamp);
+        MoudPackets.SyncSharedValuesPacket packet = new MoudPackets.SyncSharedValuesPacket(
+                playerId, store.getStoreName(), changes, timestamp
+        );
 
-        player.sendPacket(packet);
+        player.sendPacket(ServerPacketWrapper.createPacket(packet));
         store.markAllClean();
 
         LOGGER.debug("Immediate sync sent to {}: {} changes in store '{}'",
@@ -93,10 +95,11 @@ public class ValueSynchronizer {
                 if (!dirtyValues.isEmpty()) {
                     long timestamp = System.currentTimeMillis();
 
-                    net.minestom.server.network.packet.server.common.PluginMessagePacket packet =
-                            SharedValuePackets.createSyncValuePacket(playerId, storeName, dirtyValues, timestamp);
+                    MoudPackets.SyncSharedValuesPacket packet = new MoudPackets.SyncSharedValuesPacket(
+                            playerId, storeName, dirtyValues, timestamp
+                    );
 
-                    player.sendPacket(packet);
+                    player.sendPacket(ServerPacketWrapper.createPacket(packet));
                     store.markAllClean();
 
                     LOGGER.debug("Batched sync sent to {}: {} changes in store '{}'",

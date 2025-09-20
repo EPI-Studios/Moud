@@ -2,7 +2,8 @@ package com.moud.client.shared;
 
 import com.moud.client.shared.core.ClientValueCache;
 import com.moud.client.shared.network.ClientPacketSender;
-import com.moud.client.network.packets.SharedValuePackets;
+
+import com.moud.network.MoudPackets;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +37,7 @@ public class SharedValueManager {
         return stores.get(storeName);
     }
 
-    public void handleServerSync(SharedValuePackets.ServerSyncValuePacket packet) {
+    public void handleServerSync(MoudPackets.SyncSharedValuesPacket packet) {
         String storeName = packet.storeName();
         ClientValueCache store = getOrCreateStore(storeName);
 
@@ -60,19 +61,11 @@ public class SharedValueManager {
     }
 
     public void initialize() {
-        ClientPlayNetworking.registerGlobalReceiver(
-                SharedValuePackets.ServerSyncValuePacket.ID,
-                this::handleSyncPacket
-        );
         LOGGER.info("SharedValueManager initialized");
     }
 
     public void cleanup() {
         stores.clear();
         LOGGER.info("SharedValueManager cleaned up");
-    }
-
-    private void handleSyncPacket(SharedValuePackets.ServerSyncValuePacket packet, ClientPlayNetworking.Context context) {
-        handleServerSync(packet);
     }
 }

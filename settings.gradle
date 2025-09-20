@@ -1,4 +1,3 @@
-
 pluginManagement {
     repositories {
         maven {
@@ -13,5 +12,6 @@ pluginManagement {
 rootProject.name = 'moud'
 
 include 'api'
-include 'server'
+include 'network-engine'
 include 'client-mod'
+include 'server'

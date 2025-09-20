@@ -2,154 +2,309 @@ api.getWorld()
     .setFlatGenerator()
     .setSpawn(0, 64, 0);
 
-const VectorMath = {
-    cross: (a, b) => new Vector3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x),
-    normalize: (vec) => {
-        const length = Math.sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
-        return length === 0 ? new Vector3(0, 0, 0) : new Vector3(vec.x / length, vec.y / length, vec.z / length);
-    }
-};
-
-const CURSOR_PLANE_DISTANCE = 10;
-const MOUSE_SENSITIVITY = 0.02;
-const MOVEMENT_THRESHOLD = 0.01;
-const STABILIZATION_SAMPLES = 3;
-const playerState = new Map();
-let isExperienceActive = false;
-
-api.on('player.join', (player) => {
-    try {
-        console.log(`[DEBUG] First player joined: ${player.getName()}. Initializing custom camera experience.`);
-
-        const playerPos = player.getPosition();
-        const playerYaw = player.getYaw();
-        const camPos = new Vector3(playerPos.x, playerPos.y + 2, playerPos.z);
-
-        player.setVanished(true);
-        player.getCamera().lock(camPos, { yaw: playerYaw, pitch: 0 });
-        console.log('[DEBUG] Camera locked.');
-
-        const yawRad = (playerYaw * Math.PI) / 180;
-        const cameraDirection = VectorMath.normalize(new Vector3(Math.sin(yawRad), 0, -Math.cos(yawRad)));
-        const worldUp = new Vector3(0, 1, 0);
-        const screenRight = VectorMath.normalize(VectorMath.cross(worldUp, cameraDirection));
-
-        const initialCursorPos = camPos.add(cameraDirection.multiply(CURSOR_PLANE_DISTANCE));
-
-        const cursor = api.getWorld().createText({
-            content: '+',
-            position: initialCursorPos,
-            billboard: 'fixed'
-        });
-
-        if (!cursor) throw new Error("api.getWorld().createText() returned null!");
-
-        playerState.set(player.getUuid(), {
-            cursor: cursor,
-            cursorWorldPos: initialCursorPos,
-            cameraVectors: { up: worldUp, right: screenRight },
-            lastMovementTime: 0,
-            deltaHistory: [],
-            isStabilized: true
-        });
-        console.log('[DEBUG] Player state has been set successfully.');
-
-    } catch (e) {
-        console.error(`[CRITICAL ERROR] Failed to initialize player ${player.getName()}:`, e);
-        player.sendMessage(`§cScript Error: Could not initialize custom cursor.`);
-        isExperienceActive = false;
-    }
-});
-
-api.on('player.mousemove', (player, data) => {
-    const state = playerState.get(player.getUuid());
-    if (!state) return;
-
-    const deltaX = data.deltaX;
-    const deltaY = data.deltaY;
-    const currentTime = Date.now();
-
-    const deltaHistoryEntry = { deltaX, deltaY, time: currentTime };
-    state.deltaHistory.push(deltaHistoryEntry);
-
-    if (state.deltaHistory.length > STABILIZATION_SAMPLES) {
-        state.deltaHistory.shift();
-    }
-
-    if (Math.abs(deltaX) < MOVEMENT_THRESHOLD && Math.abs(deltaY) < MOVEMENT_THRESHOLD) {
-        if (!state.isStabilized) {
-            console.log('[CURSOR DEBUG] Movement stabilized, ignoring micro-deltas');
-            state.isStabilized = true;
-        }
-        return;
-    }
-
-    if (currentTime - state.lastMovementTime < 16) {
-        return;
-    }
-
-    const avgDeltaX = state.deltaHistory.reduce((sum, entry) => sum + entry.deltaX, 0) / state.deltaHistory.length;
-    const avgDeltaY = state.deltaHistory.reduce((sum, entry) => sum + entry.deltaY, 0) / state.deltaHistory.length;
-
-    if (Math.abs(avgDeltaX) < MOVEMENT_THRESHOLD && Math.abs(avgDeltaY) < MOVEMENT_THRESHOLD) {
-        return;
-    }
-
-    state.isStabilized = false;
-    state.lastMovementTime = currentTime;
-
-    const moveRight = state.cameraVectors.right.multiply(deltaX * MOUSE_SENSITIVITY);
-    const moveUp = new Vector3(0, deltaY * MOUSE_SENSITIVITY, 0);
-
-    state.cursorWorldPos = state.cursorWorldPos.add(moveRight).add(moveUp);
-    state.cursor.setPosition(state.cursorWorldPos);
-
-    const entityPos = state.cursor.getPosition();
-    console.log(`[CURSOR DEBUG] Delta: (${deltaX.toFixed(2)}, ${deltaY.toFixed(2)}) | Calculated: X=${state.cursorWorldPos.x.toFixed(2)}, Y=${state.cursorWorldPos.y.toFixed(2)}, Z=${state.cursorWorldPos.z.toFixed(2)} | Entity: X=${entityPos.x.toFixed(2)}, Y=${entityPos.y.toFixed(2)}, Z=${entityPos.z.toFixed(2)}`);
-
-    setTimeout(() => {
-        const delayedEntityPos = state.cursor.getPosition();
-        console.log(`[CURSOR DELAYED] Entity after 50ms: X=${delayedEntityPos.x.toFixed(2)}, Y=${delayedEntityPos.y.toFixed(2)}, Z=${delayedEntityPos.z.toFixed(2)}`);
-    }, 50);
-});
-
 api.on('player.chat', (event) => {
     const player = event.getPlayer();
     const message = event.getMessage();
 
-    console.log(`[${player.getName()}]: ${message}`);
+    if (message.startsWith('!shake')) {
+        const intensity = 0.5;
+        const durationMs = 2000;
 
-    if (message.toLowerCase() === '/spawn') {
-        event.cancel();
-        player.teleport(0, 64, 0);
-        player.sendMessage('Teleported to spawn!');
+        console.log(`Starting shake effect - intensity: ${intensity}, duration: ${durationMs}ms`);
+
+        player.camera.shake(intensity, durationMs);
     }
 
-    if (message.toLowerCase() === '!tp') {
+    if (message.startsWith('!camera')) {
         event.cancel();
-        const state = playerState.get(player.getUuid());
-        console.log(`[DEBUG] Player ${player.getName()} used !tp command`);
-        console.log(`[DEBUG] Player state exists: ${!!state}`);
-        if (state) {
-            console.log(`[DEBUG] Cursor world pos exists: ${!!state.cursorWorldPos}`);
-            console.log(`[DEBUG] Current cursor position: X=${state.cursorWorldPos?.x}, Y=${state.cursorWorldPos?.y}, Z=${state.cursorWorldPos?.z}`);
+
+        const args = message.split(' ');
+        const command = args[1];
+
+        if (command === 'lock') {
+            const x = args[2] ? parseFloat(args[2]) : player.getPosition().x;
+            const y = args[3] ? parseFloat(args[3]) : player.getPosition().y + 10;
+            const z = args[4] ? parseFloat(args[4]) : player.getPosition().z;
+            const yaw = args[5] ? parseFloat(args[5]) : 0;
+            const pitch = args[6] ? parseFloat(args[6]) : -45;
+
+            player.getCamera().lock(new Vector3(x, y, z), {
+                yaw: yaw,
+                pitch: pitch,
+                smooth: true,
+                speed: 2.0,
+                disableViewBobbing: true,
+                disableHandMovement: true
+            });
+
+            player.sendMessage(`Camera locked at ${x}, ${y}, ${z}`);
         }
 
-        if (state && state.cursorWorldPos) {
-            player.teleport(state.cursorWorldPos.x, state.cursorWorldPos.y, state.cursorWorldPos.z);
-            player.sendMessage(`Teleported to cursor position: ${state.cursorWorldPos.x.toFixed(2)}, ${state.cursorWorldPos.y.toFixed(2)}, ${state.cursorWorldPos.z.toFixed(2)}`);
-        } else {
-            player.sendMessage('No cursor position found!');
+        if (command === 'release') {
+            player.getCamera().release();
+            player.sendMessage('Camera released');
         }
+
+        if (command === 'spin') {
+            if (!player.getCamera().isLocked()) {
+                player.sendMessage('Lock camera first with !camera lock');
+                return;
+            }
+
+            const speed = args[2] ? parseFloat(args[2]) : 1.0;
+            let currentYaw = 0;
+
+            const spinInterval = setInterval(() => {
+                currentYaw += speed;
+                if (currentYaw >= 360) currentYaw = 0;
+
+                player.getCamera().setRotation({
+                    yaw: currentYaw,
+                    pitch: -45
+                });
+            }, 50);
+
+            setTimeout(() => {
+                clearInterval(spinInterval);
+                player.sendMessage('Spin completed');
+            }, 5000);
+
+            player.sendMessage(`Spinning camera at speed ${speed}`);
+        }
+
+        if (command === 'orbit') {
+            const centerX = args[2] ? parseFloat(args[2]) : player.getPosition().x;
+            const centerY = args[3] ? parseFloat(args[3]) : player.getPosition().y + 5;
+            const centerZ = args[4] ? parseFloat(args[4]) : player.getPosition().z;
+            const radius = args[5] ? parseFloat(args[5]) : 10;
+
+            let angle = 0;
+
+            const orbitInterval = setInterval(() => {
+                const x = centerX + Math.cos(angle) * radius;
+                const z = centerZ + Math.sin(angle) * radius;
+
+                player.getCamera().setPosition(new Vector3(x, centerY, z));
+                player.getCamera().lookAt(new Vector3(centerX, centerY - 2, centerZ));
+
+                angle += 0.05;
+
+                if (angle >= Math.PI * 2) {
+                    clearInterval(orbitInterval);
+                    player.sendMessage('Orbit completed');
+                }
+            }, 50);
+
+            player.sendMessage(`Orbiting around ${centerX}, ${centerY}, ${centerZ}`);
+        }
+
+        if (command === 'smooth') {
+            const targetX = args[2] ? parseFloat(args[2]) : player.getPosition().x + 10;
+            const targetY = args[3] ? parseFloat(args[3]) : player.getPosition().y + 5;
+            const targetZ = args[4] ? parseFloat(args[4]) : player.getPosition().z + 10;
+            const duration = args[5] ? parseInt(args[5]) : 3000;
+
+            if (!player.getCamera().isLocked()) {
+                player.getCamera().lock(player.getPosition());
+            }
+
+            player.getCamera().smoothTransitionTo(
+                new Vector3(targetX, targetY, targetZ),
+                { yaw: 90, pitch: -30 },
+                duration
+            );
+
+            player.sendMessage(`Smooth transition to ${targetX}, ${targetY}, ${targetZ} over ${duration}ms`);
+        }
+
+        if (command === 'tilt') {
+            const roll = args[2] ? parseFloat(args[2]) : 15;
+
+            if (!player.getCamera().isLocked()) {
+                player.getCamera().lock(player.getPosition());
+            }
+
+            player.getCamera().setRotation({
+                yaw: player.getYaw(),
+                pitch: player.getPitch(),
+                roll: roll
+            });
+
+            player.sendMessage(`Camera tilted by ${roll} degrees`);
+        }
+
+        if (command === 'help') {
+            player.sendMessage('Camera commands:');
+            player.sendMessage('!camera lock [x] [y] [z] [yaw] [pitch] - Lock camera');
+            player.sendMessage('!camera release - Release camera');
+            player.sendMessage('!camera spin [speed] - Spin camera around');
+            player.sendMessage('!camera orbit [x] [y] [z] [radius] - Orbit around point');
+            player.sendMessage('!camera smooth [x] [y] [z] [duration] - Smooth transition');
+            player.sendMessage('!camera tilt [roll] - Tilt camera');
+        }
+    }
+
+    if (message.startsWith('!cursor')) {
+        event.cancel();
+
+        const args = message.split(' ');
+        const command = args[1];
+
+        if (command === 'show') {
+            player.getCursor().setVisible(true);
+            player.getCursor().setVisibleToAll();
+            player.sendMessage('Cursor enabled for all players');
+        }
+
+        if (command === 'hide') {
+            player.getCursor().setVisible(false);
+            player.sendMessage('Cursor hidden');
+        }
+
+        if (command === 'color') {
+            const r = args[2] ? parseFloat(args[2]) : 1.0;
+            const g = args[3] ? parseFloat(args[3]) : 0.0;
+            const b = args[4] ? parseFloat(args[4]) : 0.0;
+
+            player.getCursor().setColor({ r: r, g: g, b: b });
+            player.sendMessage(`Cursor color set to RGB(${r}, ${g}, ${b})`);
+        }
+
+        if (command === 'scale') {
+            const scale = args[2] ? parseFloat(args[2]) : 2.0;
+            player.getCursor().setScale(scale);
+            player.sendMessage(`Cursor scale set to ${scale}`);
+        }
+
+        if (command === 'texture') {
+            const texture = args[2] || 'minecraft:textures/gui/icons.png';
+            player.getCursor().setTexture(texture);
+            player.sendMessage(`Cursor texture set to ${texture}`);
+        }
+
+        if (command === 'info') {
+            player.getCursor().update();
+            const pos = player.getCursor().getWorldPosition();
+            const hit = player.getCursor().isHit();
+            const block = player.getCursor().getHitBlock();
+            const distance = player.getCursor().getDistance();
+
+            player.sendMessage(`Cursor at: ${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)}`);
+            player.sendMessage(`Hit: ${hit}, Block: ${block}, Distance: ${distance.toFixed(2)}`);
+        }
+
+        if (command === 'help') {
+            player.sendMessage('Cursor commands:');
+            player.sendMessage('!cursor show - Show cursor to all players');
+            player.sendMessage('!cursor hide - Hide cursor');
+            player.sendMessage('!cursor color [r] [g] [b] - Set cursor color');
+            player.sendMessage('!cursor scale [scale] - Set cursor scale');
+            player.sendMessage('!cursor texture [texture] - Set cursor texture');
+            player.sendMessage('!cursor info - Show cursor information');
+        }
+    }
+
+    if (message.startsWith('!ui')) {
+        event.cancel();
+
+        const args = message.split(' ');
+        const command = args[1];
+
+        if (command === 'hide') {
+            const element = args[2];
+
+            if (element === 'all') {
+                player.getUi().hide();
+                player.sendMessage('All UI elements hidden');
+            } else if (element === 'hotbar') {
+                player.getUi().hideHotbar();
+                player.sendMessage('Hotbar hidden');
+            } else if (element === 'health') {
+                player.getUi().hideHealth();
+                player.sendMessage('Health hidden');
+            } else if (element === 'food') {
+                player.getUi().hideFood();
+                player.sendMessage('Food hidden');
+            } else if (element === 'crosshair') {
+                player.getUi().hideCrosshair();
+                player.sendMessage('Crosshair hidden');
+            } else if (element === 'chat') {
+                player.getUi().hideChat();
+                player.sendMessage('Chat hidden');
+            } else {
+                player.getUi().hide({
+                    hotbar: args.includes('hotbar'),
+                    health: args.includes('health'),
+                    food: args.includes('food'),
+                    crosshair: args.includes('crosshair'),
+                    chat: args.includes('chat'),
+                    hand: args.includes('hand'),
+                    experience: args.includes('experience')
+                });
+                player.sendMessage('Selected UI elements hidden');
+            }
+        }
+
+        if (command === 'show') {
+            const element = args[2];
+
+            if (element === 'all') {
+                player.getUi().show();
+                player.sendMessage('All UI elements shown');
+            } else if (element === 'hotbar') {
+                player.getUi().showHotbar();
+                player.sendMessage('Hotbar shown');
+            } else if (element === 'health') {
+                player.getUi().showHealth();
+                player.sendMessage('Health shown');
+            } else if (element === 'food') {
+                player.getUi().showFood();
+                player.sendMessage('Food shown');
+            } else if (element === 'crosshair') {
+                player.getUi().showCrosshair();
+                player.sendMessage('Crosshair shown');
+            } else if (element === 'chat') {
+                player.getUi().showChat();
+                player.sendMessage('Chat shown');
+            } else {
+                player.getUi().show({
+                    hotbar: args.includes('hotbar'),
+                    health: args.includes('health'),
+                    food: args.includes('food'),
+                    crosshair: args.includes('crosshair'),
+                    chat: args.includes('chat'),
+                    hand: args.includes('hand'),
+                    experience: args.includes('experience')
+                });
+                player.sendMessage('Selected UI elements shown');
+            }
+        }
+
+        if (command === 'help') {
+            player.sendMessage('UI commands:');
+            player.sendMessage('!ui hide [all|hotbar|health|food|crosshair|chat|hand|experience]');
+            player.sendMessage('!ui show [all|hotbar|health|food|crosshair|chat|hand|experience]');
+            player.sendMessage('You can specify multiple elements: !ui hide hotbar health food');
+        }
+    }
+
+    if (message === '!help') {
+        event.cancel();
+        player.sendMessage('Available commands:');
+        player.sendMessage('!shake [intensity] [duration] - Shake camera effect');
+        player.sendMessage('!camera help - Camera control commands');
+        player.sendMessage('!cursor help - Cursor control commands');
+        player.sendMessage('!ui help - UI control commands');
     }
 });
 
-api.on('player.leave', (player) => {
-    console.log(`${player.getName()} has left. Cleaning up their resources.`);
-    const state = playerState.get(player.getUuid());
-    if (state) {
-        if (state.cursor) state.cursor.remove();
-        playerState.delete(player.getUuid());
-    }
-    isExperienceActive = false;
+api.on('player.join', (player) => {
+    player.sendMessage('Welcome! Type !help for available commands');
+    player.getCursor().setVisibleToAll();
 });
+
+setInterval(() => {
+    api.getServer().getPlayers().forEach(player => {
+        player.getCursor().update();
+    });
+}, 100);
