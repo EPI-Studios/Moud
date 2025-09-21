@@ -67,14 +67,14 @@ public class CursorProxy {
     }
 
     @HostAccess.Export
-    public void setColor(float r, float g, float b) {
-        cursor.setColor(new Vector3(r, g, b));
+    public void setColor(double r, double g, double b) {
+        cursor.setColor(new Vector3((float) r, (float) g, (float) b));
         cursorService.sendAppearanceUpdate(cursor);
     }
 
     @HostAccess.Export
-    public void setScale(float scale) {
-        cursor.setScale(scale);
+    public void setScale(double scale) {
+        cursor.setScale((float) scale);
         cursorService.sendAppearanceUpdate(cursor);
     }
 
@@ -94,6 +94,27 @@ public class CursorProxy {
     public void setVisibleToAll() {
         cursor.setVisibilityList(new HashSet<>(), true);
         cursorService.sendVisibilityUpdate(cursor);
+    }
+
+    @HostAccess.Export
+    public void projectOntoBlock(boolean enabled) {
+        cursor.setProjectOntoBlock(enabled);
+        cursorService.sendAppearanceUpdate(cursor);
+    }
+
+    @HostAccess.Export
+    public float getScale() {
+        return cursor.getScale();
+    }
+
+    @HostAccess.Export
+    public String getTexture() {
+        return cursor.getTexture();
+    }
+
+    @HostAccess.Export
+    public Vector3 getColor() {
+        return cursor.getColor();
     }
 
     private Set<UUID> getPlayerUuids(Value players) {

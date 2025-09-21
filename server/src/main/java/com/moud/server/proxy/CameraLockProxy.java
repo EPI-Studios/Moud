@@ -1,8 +1,9 @@
 package com.moud.server.proxy;
 
 import com.moud.api.math.Vector3;
-import com.moud.network.MoudPackets; // MODIFIÉ: Import centralisé
-import com.moud.server.network.ServerNetworkManager; // MODIFIÉ: Utilisation du nouveau manager
+import com.moud.network.MoudPackets;
+import com.moud.server.network.ServerNetworkManager;
+import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
@@ -25,6 +26,11 @@ public class CameraLockProxy {
     private float transitionSpeed = 1.0f;
     private boolean disableViewBobbing = true;
     private boolean disableHandMovement = true;
+
+    // Champs pour sauvegarder l'état du joueur avant le verrouillage
+    private Pos originalPosition;
+    private boolean originalNoGravity;
+    private boolean originalHasCollision;
 
     private static final ScheduledExecutorService animationExecutor = Executors.newScheduledThreadPool(2);
     private static final ConcurrentHashMap<Player, ScheduledFuture<?>> activeAnimations = new ConcurrentHashMap<>();
@@ -60,7 +66,19 @@ public class CameraLockProxy {
             if (options.hasMember("disableHandMovement")) this.disableHandMovement = options.getMember("disableHandMovement").asBoolean();
         }
 
+        // 1. Sauvegarder l'état original du joueur
+        this.originalPosition = player.getPosition();
+        this.originalNoGravity = player.hasNoGravity();
+
+        // 2. Rendre le joueur "éthéré"
         player.setInvisible(true);
+        player.setNoGravity(true);
+
+
+        // 3. Téléporter le joueur à la position ET rotation de la caméra
+        player.teleport(new Pos(this.position.x, this.position.y, this.position.z, (float) this.rotation.x, (float) this.rotation.y));
+
+        // 4. Envoyer le paquet au client pour qu'il verrouille sa vue
         ServerNetworkManager.getInstance().send(player, new MoudPackets.AdvancedCameraLockPacket(
                 this.position, this.rotation, this.smoothTransitions, this.transitionSpeed,
                 this.disableViewBobbing, this.disableHandMovement, true));
@@ -71,6 +89,8 @@ public class CameraLockProxy {
         LOGGER.debug("Player '{}' camera setPosition called. New Position: {}", player.getUsername(), newPosition);
         this.position = newPosition;
         if (isLocked) {
+            // Mettre à jour la position du joueur fantôme également
+            player.teleport(new Pos(this.position.x, this.position.y, this.position.z, player.getPosition().yaw(), player.getPosition().pitch()));
             ServerNetworkManager.getInstance().send(player, new MoudPackets.CameraUpdatePacket(this.position, this.rotation));
         }
     }
@@ -85,6 +105,8 @@ public class CameraLockProxy {
             LOGGER.debug("Player '{}' camera setRotation called. New Rotation: {}", player.getUsername(), this.rotation);
 
             if (isLocked) {
+                // Mettre à jour la rotation du joueur fantôme également
+                player.teleport(new Pos(player.getPosition(), (float)this.rotation.x, (float)this.rotation.y));
                 ServerNetworkManager.getInstance().send(player, new MoudPackets.CameraUpdatePacket(this.position, this.rotation));
             }
         }
@@ -100,9 +122,20 @@ public class CameraLockProxy {
 
         this.isLocked = false;
         stopAnimation();
-        player.setInvisible(false);
+
+        // Envoyer les paquets de déverrouillage au client
         ServerNetworkManager.getInstance().send(player, new MoudPackets.CameraReleasePacket(false));
         ServerNetworkManager.getInstance().send(player, new MoudPackets.CameraOffsetPacket(0, 0));
+
+        // Restaurer l'état physique du joueur
+        player.setInvisible(false);
+        player.setNoGravity(originalNoGravity);
+
+
+        // Téléporter le joueur à sa position d'origine
+        if (this.originalPosition != null) {
+            player.teleport(this.originalPosition);
+        }
     }
 
     @HostAccess.Export
@@ -111,7 +144,7 @@ public class CameraLockProxy {
 
         stopAnimation();
 
-        Vector3 startPos = this.position;
+        Pos startPos = player.getPosition();
         Vector3 startRot = this.rotation;
 
         Vector3 endRot;
@@ -132,6 +165,7 @@ public class CameraLockProxy {
             if (elapsed >= durationMs) {
                 this.position = targetPosition;
                 this.rotation = endRot;
+                player.teleport(new Pos(this.position.x, this.position.y, this.position.z, (float)this.rotation.x, (float)this.rotation.y));
                 ServerNetworkManager.getInstance().send(player, new MoudPackets.CameraUpdatePacket(this.position, this.rotation));
                 stopAnimation();
                 return;
@@ -140,9 +174,11 @@ public class CameraLockProxy {
             float progress = (float) elapsed / durationMs;
             progress = easeInOutCubic(progress);
 
-            this.position = lerpVector3(startPos, targetPosition, progress);
+            Vector3 startPosVec = new Vector3(startPos.x(), startPos.y(), startPos.z());
+            this.position = lerpVector3(startPosVec, targetPosition, progress);
             this.rotation = lerpVector3(startRot, endRot, progress);
 
+            player.teleport(new Pos(this.position.x, this.position.y, this.position.z, (float)this.rotation.x, (float)this.rotation.y));
             ServerNetworkManager.getInstance().send(player, new MoudPackets.CameraUpdatePacket(this.position, this.rotation));
 
         }, 0, 16, TimeUnit.MILLISECONDS);

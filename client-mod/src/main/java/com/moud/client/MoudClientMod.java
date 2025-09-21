@@ -98,22 +98,48 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         ClientPacketWrapper.registerHandler(PlayerModelSkinPacket.class, (player, packet) -> handlePlayerModelSkin(packet));
         ClientPacketWrapper.registerHandler(PlayerModelAnimationPacket.class, (player, packet) -> handlePlayerModelAnimation(packet));
         ClientPacketWrapper.registerHandler(PlayerModelRemovePacket.class, (player, packet) -> handlePlayerModelRemove(packet));
+        ClientPacketWrapper.registerHandler(AdvancedCameraLockPacket.class, (player, packet) -> handleAdvancedCameraLock(packet));
+        ClientPacketWrapper.registerHandler(CameraUpdatePacket.class, (player, packet) -> handleCameraUpdate(packet));
+        ClientPacketWrapper.registerHandler(CameraReleasePacket.class, (player, packet) -> handleCameraRelease(packet));
+
         ClientPacketWrapper.registerHandler(CursorPositionUpdatePacket.class, (player, packet) -> {
-            LOGGER.info("[MOUD-CLIENT] Received CursorPositionUpdatePacket with {} updates", packet.updates().size());
-            clientCursorManager.handlePositionUpdates(packet.updates());
+            LOGGER.debug("Received CursorPositionUpdatePacket with {} updates", packet.updates().size());
+            if (clientCursorManager != null) {
+                clientCursorManager.handlePositionUpdates(packet.updates());
+            } else {
+                LOGGER.warn("ClientCursorManager is null when handling position updates");
+            }
         });
+
         ClientPacketWrapper.registerHandler(CursorAppearancePacket.class, (player, packet) -> {
-            LOGGER.info("[MOUD-CLIENT] Received CursorAppearancePacket for player {}", packet.playerId());
-            clientCursorManager.handleAppearanceUpdate(packet.playerId(), packet.texture(), packet.color(), packet.scale(), packet.renderMode());
+            LOGGER.info("Received CursorAppearancePacket for player {}: texture={}, scale={}",
+                    packet.playerId(), packet.texture(), packet.scale());
+            if (clientCursorManager != null) {
+                clientCursorManager.handleAppearanceUpdate(packet.playerId(), packet.texture(), packet.color(), packet.scale(), packet.renderMode());
+            } else {
+                LOGGER.warn("ClientCursorManager is null when handling appearance update");
+            }
         });
+
         ClientPacketWrapper.registerHandler(CursorVisibilityPacket.class, (player, packet) -> {
-            LOGGER.info("[MOUD-CLIENT] Received CursorVisibilityPacket for player {}: visible={}", packet.playerId(), packet.visible());
-            clientCursorManager.handleVisibilityUpdate(packet.playerId(), packet.visible());
+            LOGGER.info("Received CursorVisibilityPacket for player {}: visible={}",
+                    packet.playerId(), packet.visible());
+            if (clientCursorManager != null) {
+                clientCursorManager.handleVisibilityUpdate(packet.playerId(), packet.visible());
+            } else {
+                LOGGER.warn("ClientCursorManager is null when handling visibility update");
+            }
         });
+
         ClientPacketWrapper.registerHandler(RemoveCursorsPacket.class, (player, packet) -> {
-            LOGGER.info("[MOUD-CLIENT] Received RemoveCursorsPacket for {} players", packet.playerIds().size());
-            clientCursorManager.handleRemoveCursors(packet.playerIds());
+            LOGGER.info("Received RemoveCursorsPacket for {} players", packet.playerIds().size());
+            if (clientCursorManager != null) {
+                clientCursorManager.handleRemoveCursors(packet.playerIds());
+            } else {
+                LOGGER.warn("ClientCursorManager is null when handling cursor removal");
+            }
         });
+
         LOGGER.info("Internal packet handlers registered.");
     }
 
@@ -129,6 +155,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         this.playerStateManager = PlayerStateManager.getInstance();
         this.playerModelManager = ClientPlayerModelManager.getInstance();
         this.clientCursorManager = ClientCursorManager.getInstance();
+        LOGGER.info("ClientCursorManager initialized: {}", clientCursorManager != null);
     }
 
     private void cleanupMoudServices() {
@@ -154,35 +181,25 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             if (apiService != null) { apiService.getUpdateManager().tick(); }
             if (clientCameraManager != null) { clientCameraManager.tick(); }
             if (clientCursorManager != null) {
-                LOGGER.debug("[MOUD-CLIENT] Ticking cursor manager");
-                clientCursorManager.tick(0);
+                float delta = client.getRenderTickCounter().getTickDelta(false);
+                clientCursorManager.tick(delta);
             }
         });
     }
 
     private void registerRenderHandler() {
-        LOGGER.info("[MOUD-CLIENT] Registering WorldRenderEvents.LAST handler");
+        LOGGER.info("Registering WorldRenderEvents.LAST handler");
 
         WorldRenderEvents.LAST.register(context -> {
-            LOGGER.debug("[MOUD-CLIENT] WorldRenderEvents.LAST triggered");
-
             if (clientCursorManager != null) {
-                LOGGER.debug("[MOUD-CLIENT] Cursor manager exists, preparing to render");
-
                 if (context.consumers() instanceof VertexConsumerProvider.Immediate immediate) {
                     immediate.draw();
                 }
-
-                LOGGER.debug("[MOUD-CLIENT] Calling cursor manager render");
                 clientCursorManager.render(context.matrixStack(), context.consumers(), context.tickCounter().getTickDelta(true));
-
-                LOGGER.debug("[MOUD-CLIENT] Cursor rendering complete");
-            } else {
-                LOGGER.warn("[MOUD-CLIENT] Cursor manager is null during render");
             }
         });
 
-        LOGGER.info("[MOUD-CLIENT] WorldRenderEvents.LAST handler registered successfully");
+        LOGGER.info("WorldRenderEvents.LAST handler registered successfully");
     }
 
     private void registerShutdownHandler() {
@@ -277,6 +294,38 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private void handlePlayerModelSkin(PlayerModelSkinPacket packet) { if (playerModelManager != null) { playerModelManager.updateSkin(packet.modelId(), packet.skinUrl()); } }
     private void handlePlayerModelAnimation(PlayerModelAnimationPacket packet) { if (playerModelManager != null) { playerModelManager.playAnimation(packet.modelId(), packet.animationName()); } }
     private void handlePlayerModelRemove(PlayerModelRemovePacket packet) { if (playerModelManager != null) { playerModelManager.removeModel(packet.modelId()); } }
+
+    private void handleAdvancedCameraLock(AdvancedCameraLockPacket packet) {
+        if (apiService != null && apiService.camera != null) {
+            if (packet.isLocked()) {
+                apiService.camera.setAdvancedCameraLock(
+                        packet.position(),
+                        packet.rotation(),
+                        packet.smoothTransitions(),
+                        packet.transitionSpeed(),
+                        packet.disableViewBobbing(),
+                        packet.disableHandMovement()
+                );
+            } else {
+                apiService.camera.disableCustomCamera();
+            }
+        }
+    }
+
+    private void handleCameraUpdate(CameraUpdatePacket packet) {
+        if (apiService != null && apiService.camera != null && apiService.camera.isCustomCameraActive()) {
+            apiService.camera.setLockedPosition(packet.position());
+            apiService.camera.setRenderYawOverride(packet.rotation().x);
+            apiService.camera.setRenderPitchOverride(packet.rotation().y);
+            apiService.camera.setRenderRollOverride(packet.rotation().z);
+        }
+    }
+
+    private void handleCameraRelease(CameraReleasePacket packet) {
+        if (apiService != null && apiService.camera != null) {
+            apiService.camera.disableCustomCamera();
+        }
+    }
 
     @Override
     public void register(Consumer<ResourcePackProfile> profileAdder) {

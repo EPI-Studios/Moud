@@ -1,56 +1,72 @@
+// Set up a flat world with a spawn point at (0, 64, 0)
 api.getWorld()
     .setFlatGenerator()
     .setSpawn(0, 64, 0);
 
-console.log("Moud server script loaded!");
+// Fired when a player joins the server
+api.on('player.join', (player) => {
+    console.log(`Player ${player.getName()} has joined. Locking camera and setting up cursor.`);
 
-api.on("player.join", (player) => {
-    console.log(`${player.getName()} has joined the server.`);
+    // Lock the player's camera to a fixed position for a better view.
+    // We create a new Vector3 object for the camera's position.
+    try {
 
-    const cursor = player.getCursor();
+        player.sendMessage("§eYour camera has been locked.");
+    } catch (e) {
+        console.error("Failed to lock camera:", e);
+        player.sendMessage("§cCould not lock your camera.");
+    }
 
-    cursor.setVisible(true);
-    cursor.setVisibleToAll();
-    cursor.setTexture("moud:textures/gui/custom_cursor.png");
-    cursor.setColor(1.0, 1.0, 1.0);
-    cursor.setScale(0.5);
+    // A short delay to ensure the client is ready to handle cursor updates
+    setTimeout(() => {
+        try {
+            const cursor = player.getCursor();
 
-    player.sendMessage("Your custom cursor has been set!");
+            // Make the cursor visible and set its initial size
+            cursor.setVisible(true);
+            cursor.setScale(0.8); // Set a smaller initial size for the cursor
+
+            player.sendMessage("§aYour cursor is now active!");
+            console.log(`Successfully set up cursor for ${player.getName()}`);
+
+        } catch (e) {
+            console.error("Error during cursor setup:", e);
+            player.sendMessage("§cAn error occurred while setting up your cursor: " + e.message);
+        }
+    }, 1000); // 1-second delay
 });
 
-api.on("player.leave", (player) => {
-    console.log(`${player.getName()} has left the server.`);
-});
+// Fired when a player clicks
+api.on('player.click', (player, data) => {
+    try {
+        const cursor = player.getCursor();
+        const pos = cursor.getPosition();
+        const isHittingBlock = cursor.isHittingBlock();
 
-api.on("player.click", (player, button) => {
-    const cursor = player.getCursor();
+        player.sendMessage(`§bClicked at: X=${pos.x.toFixed(2)}, Y=${pos.y.toFixed(2)}, Z=${pos.z.toFixed(2)} | Hitting Block: ${isHittingBlock}`);
 
-    // Scale animation: grow then shrink back
-    cursor.setScale(parseFloat(0.8)); // Grow larger
+        // --- Cursor Animation on Click ---
+        const originalScale = 0.8;
+        const shrinkScale = 0.4;
+        const animationDuration = 100; // in milliseconds
 
-    setTimeout(() => {
-        cursor.setScale(parseFloat(0.5)); // Return to normal
-    }, 150);
+        // 1. Immediately shrink the cursor
+        cursor.setScale(shrinkScale);
 
-    console.log(`${player.getName()} clicked with button ${button}`);
-});
+        // 2. After a short delay, return it to its original size
+        setTimeout(() => {
+            try {
+                const currentCursor = player.getCursor();
+                if (currentCursor) {
+                    currentCursor.setScale(originalScale);
+                }
+            } catch (e) {
+                // Ignore errors here, as the player might have disconnected.
+            }
+        }, animationDuration);
 
-// Alternative version with more dramatic animation
-api.on("player.rightClick", (player) => {
-    const cursor = player.getCursor();
-
-    // Double pulse animation
-    cursor.setScale(parseFloat(0.9));
-
-    setTimeout(() => {
-        cursor.setScale(parseFloat(0.3));
-    }, 100);
-
-    setTimeout(() => {
-        cursor.setScale(parseFloat(0.7));
-    }, 200);
-
-    setTimeout(() => {
-        cursor.setScale(parseFloat(0.5));
-    }, 300);
+    } catch (e) {
+        console.error("Error in player.click event handler:", e);
+        player.sendMessage("§cAn error occurred during click: " + e.message);
+    }
 });

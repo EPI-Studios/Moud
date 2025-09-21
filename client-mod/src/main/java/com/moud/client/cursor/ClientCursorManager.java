@@ -36,40 +36,47 @@ public class ClientCursorManager {
         if (client.player == null) return;
 
         for (MoudPackets.CursorUpdateData update : updates) {
-            LOGGER.info("[CURSOR-MANAGER] Raw packet data: playerId={}, position={}, normal={}",
-                    update.playerId(), update.position(), update.normal());
-
             RemoteCursor cursor = remoteCursors.computeIfAbsent(update.playerId(), id -> {
+                LOGGER.info("Creating new cursor for player {}", id);
                 RemoteCursor newCursor = new RemoteCursor(id);
                 newCursor.setVisible(true);
-                newCursor.setAppearance("moud:textures/gui/cursor_default.png", new Vector3(1.0f, 1.0f, 1.0f), 0.8f, "TEXTURE");
-                LOGGER.info("[CURSOR-MANAGER] Created new cursor for player {}", id);
+                newCursor.setAppearance("minecraft:textures/block/white_concrete.png", new Vector3(1.0f, 1.0f, 1.0f), 0.8f, "TEXTURE");
                 return newCursor;
             });
 
-            Vector3 beforePos = cursor.getCurrentPosition();
             cursor.setTargetPosition(update.position(), update.normal());
-            Vector3 afterPos = cursor.getCurrentPosition();
-
-            LOGGER.info("[CURSOR-MANAGER] Position update: before={}, after={}, target={}",
-                    beforePos, afterPos, update.position());
         }
-
-        LOGGER.info("[CURSOR-MANAGER] Total cursors after update: {}", remoteCursors.size());
     }
 
     public void handleAppearanceUpdate(UUID playerId, String texture, Vector3 color, float scale, String renderMode) {
-        RemoteCursor cursor = remoteCursors.computeIfAbsent(playerId, id -> new RemoteCursor(id));
+        RemoteCursor cursor = remoteCursors.computeIfAbsent(playerId, id -> {
+            LOGGER.info("Creating cursor for appearance update: {}", id);
+            RemoteCursor newCursor = new RemoteCursor(id);
+            newCursor.setVisible(true);
+            return newCursor;
+        });
+
+        LOGGER.info("Updating appearance for cursor {}: texture={}, color={}, scale={}", playerId, texture, color, scale);
         cursor.setAppearance(texture, color, scale, renderMode);
     }
 
     public void handleVisibilityUpdate(UUID playerId, boolean visible) {
-        RemoteCursor cursor = remoteCursors.computeIfAbsent(playerId, id -> new RemoteCursor(id));
+        RemoteCursor cursor = remoteCursors.computeIfAbsent(playerId, id -> {
+            LOGGER.info("Creating cursor for visibility update: {}", id);
+            return new RemoteCursor(id);
+        });
+
+        LOGGER.info("Setting cursor {} visibility to {}", playerId, visible);
         cursor.setVisible(visible);
     }
 
     public void handleRemoveCursors(List<UUID> playerIds) {
-        playerIds.forEach(remoteCursors::remove);
+        for (UUID playerId : playerIds) {
+            RemoteCursor removed = remoteCursors.remove(playerId);
+            if (removed != null) {
+                LOGGER.info("Removed cursor for player {}", playerId);
+            }
+        }
     }
 
     public void tick(float tickDelta) {
@@ -81,20 +88,23 @@ public class ClientCursorManager {
     public void render(MatrixStack matrices, VertexConsumerProvider consumers, float tickDelta) {
         if (remoteCursors.isEmpty()) return;
 
-        LOGGER.info("[CURSOR-MANAGER] Rendering {} cursors", remoteCursors.size());
-
+        int renderedCount = 0;
         for (Map.Entry<UUID, RemoteCursor> entry : remoteCursors.entrySet()) {
             RemoteCursor cursor = entry.getValue();
-            LOGGER.info("[CURSOR-MANAGER] Cursor {}: visible={}, texture={}",
-                    entry.getKey(), cursor.isVisible(), cursor.getTexture());
 
-            if (cursor.isVisible()) {
+            if (cursor.isVisible() && cursor.getTexture() != null) {
                 renderer.render(cursor, matrices, consumers, tickDelta);
+                renderedCount++;
             }
+        }
+
+        if (renderedCount > 0) {
+            LOGGER.debug("Rendered {} cursors", renderedCount);
         }
     }
 
     public void clear() {
+        LOGGER.info("Clearing {} cursors", remoteCursors.size());
         remoteCursors.clear();
     }
 }

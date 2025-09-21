@@ -76,7 +76,7 @@ public class EventDispatcher {
     public void dispatchScriptEvent(String eventName, String eventData, Player player) {
         Value handler = handlers.get(eventName);
         if (handler == null) {
-            LOGGER.debug("No handler found for script event: {}", eventName);
+             LOGGER.debug("No handler found for script event: {}", eventName);
             return;
         }
 
@@ -92,7 +92,7 @@ public class EventDispatcher {
     public void dispatchMouseMoveEvent(Player player, float deltaX, float deltaY) {
         Value handler = handlers.get("player.mousemove");
         if (handler == null) {
-            LOGGER.debug("No handler for mouse move event");
+            // LOGGER.debug("No handler for mouse move event");
             return;
         }
 
