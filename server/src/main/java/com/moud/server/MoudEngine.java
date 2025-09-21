@@ -33,8 +33,13 @@ public class MoudEngine {
     private final PacketEngine packetEngine;
     private final CursorService cursorService;
     private final AtomicBoolean initialized = new AtomicBoolean(false);
+    private static MoudEngine instance;
 
+    public static MoudEngine getInstance() {
+        return instance;
+    }
     public MoudEngine(String[] launchArgs) {
+        instance = this;
         LOGGER.startup("Initializing Moud Engine...");
 
         try {

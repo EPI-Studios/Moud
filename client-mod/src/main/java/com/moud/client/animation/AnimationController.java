@@ -7,15 +7,31 @@ import org.joml.Vector3f;
 
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class AnimationController {
     private final ClientPlayerModelManager.ManagedPlayerModel model;
     private AnimationData currentAnimation;
     private float animationTime;
     private boolean isPlaying;
+    private final Map<String, AnimationData> loadedAnimations = new ConcurrentHashMap<>();
 
     public AnimationController(ClientPlayerModelManager.ManagedPlayerModel model) {
         this.model = model;
+    }
+
+    public void loadAnimation(String name, String jsonContent) {
+        AnimationData animation = AnimationDataParser.parseAnimation(jsonContent);
+        if (animation != null) {
+            loadedAnimations.put(name, animation);
+        }
+    }
+
+    public void playAnimation(String animationName) {
+        AnimationData animation = loadedAnimations.get(animationName);
+        if (animation != null) {
+            playAnimation(animation);
+        }
     }
 
     public void playAnimation(AnimationData animation) {
@@ -24,10 +40,15 @@ public class AnimationController {
         this.isPlaying = true;
     }
 
+    public void stopAnimation() {
+        this.isPlaying = false;
+        this.currentAnimation = null;
+    }
+
     public void tick(float delta) {
         if (!isPlaying || currentAnimation == null) return;
 
-        animationTime += delta;
+        animationTime += delta * 0.05f;
         if (animationTime > currentAnimation.getLength()) {
             if (currentAnimation.isLooping()) {
                 animationTime %= currentAnimation.getLength();
@@ -41,15 +62,23 @@ public class AnimationController {
     }
 
     private void updateModelParts() {
-        if (model.getModel() == null) return;
+        if (model == null) return;
 
         currentAnimation.getBones().forEach((boneName, boneAnimation) -> {
             ModelPart part = getModelPart(boneName);
             if (part != null) {
                 Vector3f rotation = interpolate(boneAnimation.getRotation());
+                Vector3f position = interpolate(boneAnimation.getPosition());
+
                 part.pitch = (float) Math.toRadians(rotation.x());
                 part.yaw = (float) Math.toRadians(rotation.y());
                 part.roll = (float) Math.toRadians(rotation.z());
+
+                if (position.lengthSquared() > 0) {
+                    part.pivotX += position.x();
+                    part.pivotY += position.y();
+                    part.pivotZ += position.z();
+                }
             }
         });
     }
@@ -80,14 +109,31 @@ public class AnimationController {
     }
 
     private ModelPart getModelPart(String boneName) {
-        switch (boneName) {
-            case "head": return model.getModel().head;
-            case "body": return model.getModel().body;
-            case "right_arm": return model.getModel().rightArm;
-            case "left_arm": return model.getModel().leftArm;
-            case "right_leg": return model.getModel().rightLeg;
-            case "left_leg": return model.getModel().leftLeg;
-            default: return null;
+        try {
+            switch (boneName) {
+                case "head": return ((ClientPlayerModelManager.ManagedPlayerModel) model).getModel().head;
+                case "body": return ((ClientPlayerModelManager.ManagedPlayerModel) model).getModel().body;
+                case "right_arm": return ((ClientPlayerModelManager.ManagedPlayerModel) model).getModel().rightArm;
+                case "left_arm": return ((ClientPlayerModelManager.ManagedPlayerModel) model).getModel().leftArm;
+                case "right_leg": return ((ClientPlayerModelManager.ManagedPlayerModel) model).getModel().rightLeg;
+                case "left_leg": return ((ClientPlayerModelManager.ManagedPlayerModel) model).getModel().leftLeg;
+                default: return null;
+            }
+        } catch (Exception e) {
+            return null;
         }
+    }
+
+    public boolean isPlaying() {
+        return isPlaying;
+    }
+
+    public String getCurrentAnimationName() {
+        if (currentAnimation == null) return null;
+        return loadedAnimations.entrySet().stream()
+                .filter(entry -> entry.getValue().equals(currentAnimation))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse(null);
     }
 }

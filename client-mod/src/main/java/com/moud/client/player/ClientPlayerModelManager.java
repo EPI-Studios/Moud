@@ -7,6 +7,7 @@ import net.minecraft.client.model.Dilation;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
@@ -102,7 +103,7 @@ public class ClientPlayerModelManager {
         private Identifier skinTexture;
         private Float scale = 1.0F;
         private final Map<String, Boolean> partVisibility = new ConcurrentHashMap<>();
-        private PlayerEntityModel<net.minecraft.entity.player.PlayerEntity> model;
+        private PlayerEntityModel<PlayerEntity> model;
 
         public ManagedPlayerModel(long modelId, Vector3 position, String skinUrl) {
             this.modelId = modelId;
@@ -137,49 +138,88 @@ public class ClientPlayerModelManager {
             }
         }
 
-//        // **** LA CORRECTION EST ICI ****
-//        // La méthode s'appelle maintenant getId() et retourne un Long
-//        @Override
-//        public Long getId() {
-//            return this.modelId;
-//        }
-//
-//        @Override
-//        public PlayerEntityModel<net.minecraft.entity.player.PlayerEntity> getModel() {
-//            return model;
-//        }
-//
-//        @Override
-//        public Vec3d getPosition() { return new Vec3d(position.x, position.y, position.z); }
-//        @Override
-//        public float getYaw() { return yaw; }
-//        @Override
-//        public Float getPitch() { return pitch; }
-//        @Override
-//        public Float getScale() { return this.scale; }
-//        @Override
-//        public Float getLimbAngle() { return 0.0F; }
-//        @Override
-//        public Float getLimbDistance() { return 0.0F; }
-//        @Override
-//        public Identifier getSkinTexture() { return skinTexture; }
-//        @Override
-//        public Map<String, PartAnimation> getPartAnimations() { return Collections.emptyMap(); }
-//        @Override
-//        public Map<String, RenderLayer> getPartRenderLayers() { return Collections.emptyMap(); }
-//        @Override
-//        public boolean isPartVisible(String partName) { return this.partVisibility.getOrDefault(partName, true); }
-//
-//        @Override
-//        public long getModelId() {
-//            return modelId;
-//        }
+        // Interface implementations
+        public PlayerEntityModel<PlayerEntity> getModel() {
+            return model;
+        }
 
-        public void setPosition(Vector3 position) { this.position = position; }
-        public void setRotation(float yaw, float pitch) { this.yaw = yaw; this.pitch = pitch; }
-        public void setSkinUrl(String skinUrl) { this.skinUrl = skinUrl; loadSkinTexture(); }
-        public String getSkinUrl() { return skinUrl; }
-        public String getCurrentAnimation() { return currentAnimation; }
-        public void setCurrentAnimation(String currentAnimation) { this.currentAnimation = currentAnimation; }
+        public Vec3d getPosition() {
+            return new Vec3d(position.x, position.y, position.z);
+        }
+
+        public float getYaw() {
+            return yaw;
+        }
+
+        public Float getPitch() {
+            return pitch;
+        }
+
+        public Float getScale() {
+            return this.scale;
+        }
+
+        public Float getLimbAngle() {
+            return 0.0F;
+        }
+
+        public Float getLimbDistance() {
+            return 0.0F;
+        }
+
+        public Identifier getSkinTexture() {
+            return skinTexture;
+        }
+
+        public Map<String, PartAnimation> getPartAnimations() {
+            return Collections.emptyMap();
+        }
+
+        public Map<String, RenderLayer> getPartRenderLayers() {
+            return Collections.emptyMap();
+        }
+
+        public boolean isPartVisible(String partName) {
+            return this.partVisibility.getOrDefault(partName, true);
+        }
+
+        public long getModelId() {
+            return modelId;
+        }
+
+        // Setters
+        public void setPosition(Vector3 position) {
+            this.position = position;
+        }
+
+        public void setRotation(float yaw, float pitch) {
+            this.yaw = yaw;
+            this.pitch = pitch;
+        }
+
+        public void setSkinUrl(String skinUrl) {
+            this.skinUrl = skinUrl;
+            loadSkinTexture();
+        }
+
+        public String getSkinUrl() {
+            return skinUrl;
+        }
+
+        public String getCurrentAnimation() {
+            return currentAnimation;
+        }
+
+        public void setCurrentAnimation(String currentAnimation) {
+            this.currentAnimation = currentAnimation;
+        }
+
+        public void setScale(float scale) {
+            this.scale = scale;
+        }
+
+        public void setPartVisible(String partName, boolean visible) {
+            this.partVisibility.put(partName, visible);
+        }
     }
 }

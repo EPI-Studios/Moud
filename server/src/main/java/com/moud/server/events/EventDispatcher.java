@@ -6,6 +6,7 @@ import com.moud.server.lighting.ServerLightingManager;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.proxy.PlayerProxy;
 import net.minestom.server.MinecraftServer;
+import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.Event;
 import net.minestom.server.event.EventNode;
@@ -88,7 +89,22 @@ public class EventDispatcher {
             LOGGER.error("Error during script event dispatch for '{}' from player {}", eventName, player.getUsername(), e);
         }
     }
+    public void dispatchEntityInteraction(Player player, Entity entity, String interactionType) {
+        Value handler = handlers.get("entity.interact");
+        if (handler == null) {
+            return;
+        }
 
+        try {
+            com.moud.server.proxy.EntityInteractionProxy eventProxy =
+                    new com.moud.server.proxy.EntityInteractionProxy(entity, player, interactionType);
+            engine.getRuntime().executeCallback(handler, eventProxy);
+            LOGGER.debug("Dispatched entity interaction '{}' for player {} with entity {}",
+                    interactionType, player.getUsername(), entity.getUuid());
+        } catch (Exception e) {
+            LOGGER.error("Error during entity interaction dispatch for player {}", player.getUsername(), e);
+        }
+    }
     public void dispatchMouseMoveEvent(Player player, float deltaX, float deltaY) {
         Value handler = handlers.get("player.mousemove");
         if (handler == null) {

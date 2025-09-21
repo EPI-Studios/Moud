@@ -88,11 +88,13 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         LOGGER.info("Moud client initialization complete.");
     }
 
+    // Add this to the registerPacketHandlers method in MoudClientMod.java
     private void registerPacketHandlers() {
         ClientPacketWrapper.registerHandler(SyncClientScriptsPacket.class, (player, packet) -> handleSyncScripts(packet));
         ClientPacketWrapper.registerHandler(ClientboundScriptEventPacket.class, (player, packet) -> handleScriptEvent(packet));
         ClientPacketWrapper.registerHandler(CameraLockPacket.class, (player, packet) -> handleCameraLock(packet));
         ClientPacketWrapper.registerHandler(PlayerStatePacket.class, (player, packet) -> handlePlayerState(packet));
+        ClientPacketWrapper.registerHandler(ExtendedPlayerStatePacket.class, (player, packet) -> handleExtendedPlayerState(packet));
         ClientPacketWrapper.registerHandler(SyncSharedValuesPacket.class, (player, packet) -> handleSharedValueSync(packet));
         ClientPacketWrapper.registerHandler(PlayerModelCreatePacket.class, (player, packet) -> handlePlayerModelCreate(packet));
         ClientPacketWrapper.registerHandler(PlayerModelUpdatePacket.class, (player, packet) -> handlePlayerModelUpdate(packet));
@@ -103,39 +105,42 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         ClientPacketWrapper.registerHandler(CameraUpdatePacket.class, (player, packet) -> handleCameraUpdate(packet));
         ClientPacketWrapper.registerHandler(CameraReleasePacket.class, (player, packet) -> handleCameraRelease(packet));
 
+        // Cursor packets
         ClientPacketWrapper.registerHandler(CursorPositionUpdatePacket.class, (player, packet) -> {
             if (clientCursorManager != null) {
                 clientCursorManager.handlePositionUpdates(packet.updates());
-            } else {
-                LOGGER.warn("ClientCursorManager is null when handling position updates");
             }
         });
 
         ClientPacketWrapper.registerHandler(CursorAppearancePacket.class, (player, packet) -> {
             if (clientCursorManager != null) {
                 clientCursorManager.handleAppearanceUpdate(packet.playerId(), packet.texture(), packet.color(), packet.scale(), packet.renderMode());
-            } else {
-                LOGGER.warn("ClientCursorManager is null when handling appearance update");
             }
         });
 
         ClientPacketWrapper.registerHandler(CursorVisibilityPacket.class, (player, packet) -> {
             if (clientCursorManager != null) {
                 clientCursorManager.handleVisibilityUpdate(packet.playerId(), packet.visible());
-            } else {
-                LOGGER.warn("ClientCursorManager is null when handling visibility update");
             }
         });
 
         ClientPacketWrapper.registerHandler(RemoveCursorsPacket.class, (player, packet) -> {
             if (clientCursorManager != null) {
                 clientCursorManager.handleRemoveCursors(packet.playerIds());
-            } else {
-                LOGGER.warn("ClientCursorManager is null when handling cursor removal");
             }
         });
 
         LOGGER.info("Internal packet handlers registered.");
+    }
+
+    private void handleExtendedPlayerState(MoudPackets.ExtendedPlayerStatePacket packet) {
+        if (playerStateManager != null) {
+            playerStateManager.updateExtendedPlayerState(
+                    packet.hideHotbar(), packet.hideHand(), packet.hideExperience(),
+                    packet.hideHealth(), packet.hideFood(), packet.hideCrosshair(),
+                    packet.hideChat(), packet.hidePlayerList(), packet.hideScoreboard()
+            );
+        }
     }
 
     private void initializeMoudServices() {
