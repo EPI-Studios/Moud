@@ -1,19 +1,14 @@
 package com.moud.network.registry;
 
-import com.moud.network.annotation.Packet;
 import com.moud.network.annotation.Field;
+import com.moud.network.annotation.Packet;
 import com.moud.network.metadata.PacketMetadata;
 import org.reflections.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.Set;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Comparator;
 
 public class PacketRegistry {
     private static final Logger LOGGER = LoggerFactory.getLogger(PacketRegistry.class);
@@ -89,9 +84,25 @@ public class PacketRegistry {
         }
     }
 
-    public PacketMetadata getById(String packetId) { return packetById.get(packetId); }
-    public PacketMetadata getByClass(Class<?> clazz) { return packetByClass.get(clazz); }
-    public String getPacketId(Class<?> clazz) { PacketMetadata metadata = getByClass(clazz); return metadata != null ? metadata.getPacketId() : null; }
-    public Class<?> getPacketClass(String packetId) { PacketMetadata metadata = getById(packetId); return metadata != null ? metadata.getPacketClass() : null; }
-    public Collection<PacketMetadata> getAllMetadata() { return packetById.values(); }
+    public PacketMetadata getById(String packetId) {
+        return packetById.get(packetId);
+    }
+
+    public PacketMetadata getByClass(Class<?> clazz) {
+        return packetByClass.get(clazz);
+    }
+
+    public String getPacketId(Class<?> clazz) {
+        PacketMetadata metadata = getByClass(clazz);
+        return metadata != null ? metadata.packetId() : null;
+    }
+
+    public Class<?> getPacketClass(String packetId) {
+        PacketMetadata metadata = getById(packetId);
+        return metadata != null ? metadata.packetClass() : null;
+    }
+
+    public Collection<PacketMetadata> getAllMetadata() {
+        return packetById.values();
+    }
 }

@@ -3,33 +3,12 @@ package com.moud.network.metadata;
 import java.lang.reflect.Field;
 import java.util.List;
 
-public class PacketMetadata {
-    private final String packetId;
-    private final Class<?> packetClass;
-    private final Direction direction;
-    private final List<FieldMetadata> fields;
+public record PacketMetadata(String packetId, Class<?> packetClass, Direction direction, List<FieldMetadata> fields) {
 
-    public PacketMetadata(String packetId, Class<?> packetClass, Direction direction, List<FieldMetadata> fields) {
-        this.packetId = packetId;
-        this.packetClass = packetClass;
-        this.direction = direction;
-        this.fields = fields;
-    }
-
-    public String getPacketId() {
-        return packetId;
-    }
-
-    public Class<?> getPacketClass() {
-        return packetClass;
-    }
-
-    public Direction getDirection() {
-        return direction;
-    }
-
-    public List<FieldMetadata> getFields() {
-        return fields;
+    public enum Direction {
+        CLIENT_TO_SERVER,
+        SERVER_TO_CLIENT,
+        BIDIRECTIONAL
     }
 
     public static class FieldMetadata {
@@ -75,11 +54,5 @@ public class PacketMetadata {
                 throw new RuntimeException("Failed to access field " + field.getName(), e);
             }
         }
-    }
-
-    public enum Direction {
-        CLIENT_TO_SERVER,
-        SERVER_TO_CLIENT,
-        BIDIRECTIONAL
     }
 }

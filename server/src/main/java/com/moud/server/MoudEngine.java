@@ -3,6 +3,7 @@ package com.moud.server;
 import com.moud.server.api.ScriptingAPI;
 import com.moud.server.assets.AssetManager;
 import com.moud.server.client.ClientScriptManager;
+import com.moud.server.cursor.CursorService;
 import com.moud.server.events.EventDispatcher;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.network.MinestomByteBuffer;
@@ -30,6 +31,7 @@ public class MoudEngine {
     private final ScriptingAPI scriptingAPI;
     private final AsyncManager asyncManager;
     private final PacketEngine packetEngine;
+    private final CursorService cursorService;
     private final AtomicBoolean initialized = new AtomicBoolean(false);
 
     public MoudEngine(String[] launchArgs) {
@@ -67,11 +69,14 @@ public class MoudEngine {
             this.runtime = new JavaScriptRuntime(this);
             this.asyncManager = new AsyncManager(this);
 
-            this.scriptingAPI = new ScriptingAPI(this);
-            bindGlobalAPIs();
-
             this.networkManager = new ServerNetworkManager(eventDispatcher, clientScriptManager);
             networkManager.initialize();
+
+            this.cursorService = CursorService.getInstance(networkManager);
+            cursorService.initialize();
+
+            this.scriptingAPI = new ScriptingAPI(this);
+            bindGlobalAPIs();
 
             loadUserScripts();
 
@@ -107,6 +112,7 @@ public class MoudEngine {
     }
 
     public void shutdown() {
+        if (cursorService != null) cursorService.shutdown();
         if (asyncManager != null) asyncManager.shutdown();
         if (runtime != null) runtime.shutdown();
         LOGGER.shutdown("Moud Engine shutdown complete.");
@@ -119,6 +125,8 @@ public class MoudEngine {
     public JavaScriptRuntime getRuntime() {
         return runtime;
     }
+
+
 
     public AsyncManager getAsyncManager() {
         return asyncManager;

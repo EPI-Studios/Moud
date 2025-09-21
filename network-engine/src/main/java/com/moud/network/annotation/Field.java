@@ -9,6 +9,8 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Field {
     int order();
+
     boolean optional() default false;
+
     int maxLength() default -1;
 }

@@ -1,10 +1,11 @@
 package com.moud.client;
 
 import com.moud.client.api.service.ClientAPIService;
-
+import com.moud.client.cursor.ClientCursorManager;
+import com.moud.client.network.ClientPacketReceiver;
 import com.moud.client.network.DataPayload;
-import com.moud.client.network.MoudPayload;
 import com.moud.client.network.ClientPacketWrapper;
+import com.moud.client.network.MoudPayload;
 import com.moud.client.player.ClientCameraManager;
 import com.moud.client.player.ClientPlayerModelManager;
 import com.moud.client.player.PlayerModelRenderer;
@@ -18,15 +19,16 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
+import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.resource.*;
 import net.minecraft.resource.featuretoggle.FeatureSet;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,6 +59,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private PlayerStateManager playerStateManager;
     private PlayerModelRenderer playerModelRenderer;
     private ClientPlayerModelManager playerModelManager;
+    private ClientCursorManager clientCursorManager;
 
     private final AtomicReference<InMemoryPackResources> dynamicPack = new AtomicReference<>(null);
     private String currentResourcesHash = "";
@@ -65,14 +68,21 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     public void onInitializeClient() {
         LOGGER.info("Initializing Moud client...");
 
+        PayloadTypeRegistry.playS2C().register(DataPayload.ID, DataPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(MoudPayload.ID, MoudPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(DataPayload.ID, DataPayload.CODEC);
+
+        ClientPacketReceiver.registerS2CPackets();
 
         this.playerModelManager = ClientPlayerModelManager.getInstance();
         this.playerModelRenderer = new PlayerModelRenderer();
+        this.clientCursorManager = ClientCursorManager.getInstance();
+
         registerPacketHandlers();
         registerEventHandlers();
         registerResourcePackProvider();
         registerTickHandler();
+        registerRenderHandler();
         registerShutdownHandler();
         LOGGER.info("Moud client initialization complete.");
     }
@@ -88,7 +98,23 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         ClientPacketWrapper.registerHandler(PlayerModelSkinPacket.class, (player, packet) -> handlePlayerModelSkin(packet));
         ClientPacketWrapper.registerHandler(PlayerModelAnimationPacket.class, (player, packet) -> handlePlayerModelAnimation(packet));
         ClientPacketWrapper.registerHandler(PlayerModelRemovePacket.class, (player, packet) -> handlePlayerModelRemove(packet));
-        LOGGER.info("Packet handlers registered.");
+        ClientPacketWrapper.registerHandler(CursorPositionUpdatePacket.class, (player, packet) -> {
+            LOGGER.info("[MOUD-CLIENT] Received CursorPositionUpdatePacket with {} updates", packet.updates().size());
+            clientCursorManager.handlePositionUpdates(packet.updates());
+        });
+        ClientPacketWrapper.registerHandler(CursorAppearancePacket.class, (player, packet) -> {
+            LOGGER.info("[MOUD-CLIENT] Received CursorAppearancePacket for player {}", packet.playerId());
+            clientCursorManager.handleAppearanceUpdate(packet.playerId(), packet.texture(), packet.color(), packet.scale(), packet.renderMode());
+        });
+        ClientPacketWrapper.registerHandler(CursorVisibilityPacket.class, (player, packet) -> {
+            LOGGER.info("[MOUD-CLIENT] Received CursorVisibilityPacket for player {}: visible={}", packet.playerId(), packet.visible());
+            clientCursorManager.handleVisibilityUpdate(packet.playerId(), packet.visible());
+        });
+        ClientPacketWrapper.registerHandler(RemoveCursorsPacket.class, (player, packet) -> {
+            LOGGER.info("[MOUD-CLIENT] Received RemoveCursorsPacket for {} players", packet.playerIds().size());
+            clientCursorManager.handleRemoveCursors(packet.playerIds());
+        });
+        LOGGER.info("Internal packet handlers registered.");
     }
 
     private void initializeMoudServices() {
@@ -102,6 +128,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         this.clientCameraManager = new ClientCameraManager();
         this.playerStateManager = PlayerStateManager.getInstance();
         this.playerModelManager = ClientPlayerModelManager.getInstance();
+        this.clientCursorManager = ClientCursorManager.getInstance();
     }
 
     private void cleanupMoudServices() {
@@ -111,6 +138,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         if (sharedValueManager != null) { sharedValueManager.cleanup(); }
         if (playerStateManager != null) { playerStateManager.reset(); }
         if (playerModelManager != null) { playerModelManager.cleanup(); }
+        if (clientCursorManager != null) { clientCursorManager.clear(); }
         this.clientCameraManager = null;
         this.playerStateManager = null;
     }
@@ -125,7 +153,36 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             if (scriptingRuntime != null && scriptingRuntime.isInitialized()) { scriptingRuntime.processScriptQueue(); }
             if (apiService != null) { apiService.getUpdateManager().tick(); }
             if (clientCameraManager != null) { clientCameraManager.tick(); }
+            if (clientCursorManager != null) {
+                LOGGER.debug("[MOUD-CLIENT] Ticking cursor manager");
+                clientCursorManager.tick(0);
+            }
         });
+    }
+
+    private void registerRenderHandler() {
+        LOGGER.info("[MOUD-CLIENT] Registering WorldRenderEvents.LAST handler");
+
+        WorldRenderEvents.LAST.register(context -> {
+            LOGGER.debug("[MOUD-CLIENT] WorldRenderEvents.LAST triggered");
+
+            if (clientCursorManager != null) {
+                LOGGER.debug("[MOUD-CLIENT] Cursor manager exists, preparing to render");
+
+                if (context.consumers() instanceof VertexConsumerProvider.Immediate immediate) {
+                    immediate.draw();
+                }
+
+                LOGGER.debug("[MOUD-CLIENT] Calling cursor manager render");
+                clientCursorManager.render(context.matrixStack(), context.consumers(), context.tickCounter().getTickDelta(true));
+
+                LOGGER.debug("[MOUD-CLIENT] Cursor rendering complete");
+            } else {
+                LOGGER.warn("[MOUD-CLIENT] Cursor manager is null during render");
+            }
+        });
+
+        LOGGER.info("[MOUD-CLIENT] WorldRenderEvents.LAST handler registered successfully");
     }
 
     private void registerShutdownHandler() {
@@ -140,33 +197,12 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
     private void onDisconnectServer(ClientPlayNetworkHandler handler, MinecraftClient client) {
         LOGGER.info("Disconnecting from server, cleaning up...");
-        if (dynamicPack.getAndSet(null) != null) { client.reloadResources(); }
+        if (dynamicPack.getAndSet(null) != null) {
+            client.execute(client::reloadResources);
+        }
         this.currentResourcesHash = "";
         cleanupMoudServices();
         setCustomCameraActive(false);
-    }
-
-    private void handleSharedValueSync(SyncSharedValuesPacket packet) {
-        if (sharedValueManager != null) { sharedValueManager.handleServerSync(packet); }
-    }
-
-    private void handleCameraLock(CameraLockPacket packet) {
-        if (apiService != null && apiService.camera != null) {
-            if (packet.isLocked()) {
-                apiService.camera.enableCustomCamera();
-                apiService.camera.setLockedPosition(packet.position());
-                apiService.camera.setRenderYawOverride(packet.yaw());
-                apiService.camera.setRenderPitchOverride(packet.pitch());
-            } else {
-                apiService.camera.disableCustomCamera();
-            }
-        }
-    }
-
-    private void handlePlayerState(PlayerStatePacket packet) {
-        if (playerStateManager != null) {
-            playerStateManager.updatePlayerState(packet.hideHotbar(), packet.hideHand(), packet.hideExperience());
-        }
     }
 
     private void handleSyncScripts(SyncClientScriptsPacket packet) {
@@ -190,7 +226,10 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             LOGGER.error("Error unpacking script & asset archive", e);
             return;
         }
+
         dynamicPack.set(new InMemoryPackResources(MOUDPACK_ID.toString(), Text.of("Moud Dynamic Server Resources"), assetsData));
+
+        MinecraftClient.getInstance().getResourcePackManager().scanPacks();
         MinecraftClient.getInstance().reloadResources().thenRunAsync(() -> loadScriptsOnly(scriptsData), MinecraftClient.getInstance());
     }
 
@@ -230,46 +269,37 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         }
     }
 
-    private void handlePlayerModelCreate(PlayerModelCreatePacket packet) {
-        if (playerModelManager != null) { playerModelManager.createModel(packet.modelId(), packet.position(), packet.skinUrl()); }
-    }
-
-    private void handlePlayerModelUpdate(PlayerModelUpdatePacket packet) {
-        if (playerModelManager != null) { playerModelManager.updateModel(packet.modelId(), packet.position(), packet.yaw(), packet.pitch()); }
-    }
-
-    private void handlePlayerModelSkin(PlayerModelSkinPacket packet) {
-        if (playerModelManager != null) { playerModelManager.updateSkin(packet.modelId(), packet.skinUrl()); }
-    }
-
-    private void handlePlayerModelAnimation(PlayerModelAnimationPacket packet) {
-        if (playerModelManager != null) { playerModelManager.playAnimation(packet.modelId(), packet.animationName()); }
-    }
-
-    private void handlePlayerModelRemove(PlayerModelRemovePacket packet) {
-        if (playerModelManager != null) { playerModelManager.removeModel(packet.modelId()); }
-    }
+    private void handleCameraLock(CameraLockPacket packet) { if (apiService != null && apiService.camera != null) { if (packet.isLocked()) { apiService.camera.enableCustomCamera(); apiService.camera.setLockedPosition(packet.position()); apiService.camera.setRenderYawOverride(packet.yaw()); apiService.camera.setRenderPitchOverride(packet.pitch()); } else { apiService.camera.disableCustomCamera(); } } }
+    private void handlePlayerState(PlayerStatePacket packet) { if (playerStateManager != null) { playerStateManager.updatePlayerState(packet.hideHotbar(), packet.hideHand(), packet.hideExperience()); } }
+    private void handleSharedValueSync(SyncSharedValuesPacket packet) { if (sharedValueManager != null) { sharedValueManager.handleServerSync(packet); } }
+    private void handlePlayerModelCreate(PlayerModelCreatePacket packet) { if (playerModelManager != null) { playerModelManager.createModel(packet.modelId(), packet.position(), packet.skinUrl()); } }
+    private void handlePlayerModelUpdate(PlayerModelUpdatePacket packet) { if (playerModelManager != null) { playerModelManager.updateModel(packet.modelId(), packet.position(), packet.yaw(), packet.pitch()); } }
+    private void handlePlayerModelSkin(PlayerModelSkinPacket packet) { if (playerModelManager != null) { playerModelManager.updateSkin(packet.modelId(), packet.skinUrl()); } }
+    private void handlePlayerModelAnimation(PlayerModelAnimationPacket packet) { if (playerModelManager != null) { playerModelManager.playAnimation(packet.modelId(), packet.animationName()); } }
+    private void handlePlayerModelRemove(PlayerModelRemovePacket packet) { if (playerModelManager != null) { playerModelManager.removeModel(packet.modelId()); } }
 
     @Override
     public void register(Consumer<ResourcePackProfile> profileAdder) {
         InMemoryPackResources pack = dynamicPack.get();
         if (pack != null) {
-            ResourcePackInfo info = new ResourcePackInfo(MOUDPACK_ID.toString(), Text.of("Moud Dynamic Server Resources"), ResourcePackSource.BUILTIN, null);
-
             ResourcePackProfile.PackFactory factory = new ResourcePackProfile.PackFactory() {
+                @Nullable
                 @Override
                 public ResourcePack open(ResourcePackInfo info) {
                     return pack;
                 }
-
+                @Nullable
                 @Override
                 public ResourcePack openWithOverlays(ResourcePackInfo info, ResourcePackProfile.Metadata metadata) {
                     return pack;
                 }
             };
 
+            ResourcePackInfo info = new ResourcePackInfo(MOUDPACK_ID.toString(), Text.of("Moud Dynamic Server Resources"), ResourcePackSource.SERVER, null);
             ResourcePackProfile.Metadata metadata = new ResourcePackProfile.Metadata(Text.of("Moud Dynamic Server Resources"), ResourcePackCompatibility.COMPATIBLE, FeatureSet.empty(), Collections.emptyList());
-            ResourcePackProfile profile = new ResourcePackProfile(info, factory, metadata, new ResourcePackPosition(true, ResourcePackProfile.InsertionPosition.TOP, false));
+            ResourcePackPosition position = new ResourcePackPosition(true, ResourcePackProfile.InsertionPosition.TOP, false);
+            ResourcePackProfile profile = new ResourcePackProfile(info, factory, metadata, position);
+
             profileAdder.accept(profile);
         }
     }
@@ -281,6 +311,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             @SuppressWarnings("unchecked")
             Set<ResourcePackProvider> providers = (Set<ResourcePackProvider>) providerField.get(MinecraftClient.getInstance().getResourcePackManager());
             providers.add(this);
+            LOGGER.info("Successfully registered dynamic resource pack provider.");
         } catch (Exception e) {
             LOGGER.error("Failed to register dynamic resource pack provider via reflection", e);
         }

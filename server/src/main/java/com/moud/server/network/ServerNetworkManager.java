@@ -2,7 +2,7 @@ package com.moud.server.network;
 
 import com.moud.network.MoudPackets.*;
 import com.moud.server.client.ClientScriptManager;
-import com.moud.server.cursor.CursorManager;
+import com.moud.server.cursor.CursorService;
 import com.moud.server.events.EventDispatcher;
 import com.moud.server.player.PlayerCameraManager;
 import com.moud.server.proxy.PlayerModelProxy;
@@ -10,6 +10,7 @@ import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.player.PlayerDisconnectEvent;
 import net.minestom.server.event.player.PlayerPluginMessageEvent;
+import net.minestom.server.event.player.PlayerSpawnEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +45,8 @@ public final class ServerNetworkManager {
     private void registerMinestomListeners() {
         MinecraftServer.getGlobalEventHandler()
                 .addListener(PlayerPluginMessageEvent.class, this::onPluginMessage)
-                .addListener(PlayerDisconnectEvent.class, this::onPlayerDisconnect);
+                .addListener(PlayerDisconnectEvent.class, this::onPlayerDisconnect)
+                .addListener(PlayerSpawnEvent.class, this::onPlayerJoin);
     }
 
     private void registerPacketHandlers() {
@@ -63,18 +65,13 @@ public final class ServerNetworkManager {
 
         if ("moud:wrapper".equals(outerChannel)) {
             try {
-
                 MinestomByteBuffer buffer = new MinestomByteBuffer(event.getMessage());
                 String innerChannel = buffer.readString();
                 byte[] innerData = buffer.readByteArray();
-
                 ServerPacketWrapper.handleIncoming(innerChannel, innerData, player);
             } catch (Exception e) {
                 LOGGER.error("Failed to unwrap Moud payload from client {}", player.getUsername(), e);
             }
-        } else {
-
-            ServerPacketWrapper.handleIncoming(outerChannel, event.getMessage(), player);
         }
     }
 
@@ -114,7 +111,6 @@ public final class ServerNetworkManager {
         Player minestomPlayer = (Player) player;
         if (!isMoudClient(minestomPlayer)) return;
         PlayerCameraManager.getInstance().updateCameraDirection(minestomPlayer, packet.direction());
-        CursorManager.getInstance().updateCursor(minestomPlayer);
     }
 
     private void handlePlayerModelClick(Object player, PlayerModelClickPacket packet) {
@@ -145,10 +141,17 @@ public final class ServerNetworkManager {
                 minestomPlayer.getUsername(), packet.storeName(), packet.key(), packet.value());
     }
 
+    private void onPlayerJoin(PlayerSpawnEvent event) {
+        if (event.isFirstSpawn()) {
+            CursorService.getInstance().onPlayerJoin(event.getPlayer());
+        }
+    }
+
     private void onPlayerDisconnect(PlayerDisconnectEvent event) {
         Player player = event.getPlayer();
         moudClients.remove(player);
         PlayerCameraManager.getInstance().onPlayerDisconnect(player);
+        CursorService.getInstance().onPlayerQuit(player);
         LOGGER.debug("Player {} disconnected, cleaned up client state", player.getUsername());
     }
 
@@ -162,7 +165,6 @@ public final class ServerNetworkManager {
             String hash = clientScriptManager.getScriptsHash();
             LOGGER.info("Sending client scripts to {}: hash={}, size={} bytes", player.getUsername(), hash, scriptData.length);
             send(player, new SyncClientScriptsPacket(hash, scriptData));
-            LOGGER.info("Successfully sent client scripts to {}", player.getUsername());
         } catch (Exception e) {
             LOGGER.error("Failed to send client scripts to {}", player.getUsername(), e);
         }

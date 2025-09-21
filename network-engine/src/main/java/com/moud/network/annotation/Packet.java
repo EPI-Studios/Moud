@@ -9,6 +9,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Packet {
     String value();
+
     Direction direction() default Direction.BIDIRECTIONAL;
 }
 

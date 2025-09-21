@@ -30,8 +30,8 @@ public class ClientPacketWrapper {
         NetworkDispatcher.PacketData packetData = DISPATCHER.send(null, packet);
 
         DataPayload payload = new DataPayload(
-                Identifier.of(packetData.getChannel()),
-                packetData.getData()
+                Identifier.of(packetData.channel()),
+                packetData.data()
         );
 
         ClientPlayNetworking.send(payload);
