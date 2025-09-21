@@ -147,7 +147,9 @@ public final class ServerNetworkManager {
 
     private void onPlayerJoin(PlayerSpawnEvent event) {
         if (event.isFirstSpawn()) {
-            CursorService.getInstance().onPlayerJoin(event.getPlayer());
+            Player player = event.getPlayer();
+            PlayerCursorDirectionManager.getInstance().onPlayerJoin(player);
+            CursorService.getInstance().onPlayerJoin(player);
         }
     }
 
@@ -155,6 +157,7 @@ public final class ServerNetworkManager {
         Player player = event.getPlayer();
         moudClients.remove(player);
         PlayerCameraManager.getInstance().onPlayerDisconnect(player);
+        PlayerCursorDirectionManager.getInstance().onPlayerDisconnect(player);
         CursorService.getInstance().onPlayerQuit(player);
         LOGGER.debug("Player {} disconnected, cleaned up client state", player.getUsername());
     }

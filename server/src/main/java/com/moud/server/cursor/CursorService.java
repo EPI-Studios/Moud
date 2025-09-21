@@ -27,9 +27,11 @@ public class CursorService {
     private static final Logger LOGGER = LoggerFactory.getLogger(CursorService.class);
     private static final double MAX_RAYCAST_DISTANCE = 100.0;
     private static final long UPDATE_INTERVAL_TICKS = 1L;
+    private static final double MIN_POSITION_CHANGE = 0.001;
 
     private static CursorService instance;
     private final Map<UUID, Cursor> cursors = new ConcurrentHashMap<>();
+    private final Map<UUID, CameraState> cameraStates = new ConcurrentHashMap<>();
     private final ServerNetworkManager networkManager;
     private Task updateTask;
     private long lastUpdateTime = System.nanoTime();
@@ -65,6 +67,7 @@ public class CursorService {
             this.updateTask.cancel();
         }
         cursors.clear();
+        cameraStates.clear();
         LOGGER.info("Cursor service shut down.");
     }
 
@@ -78,8 +81,14 @@ public class CursorService {
         List<MoudPackets.CursorUpdateData> positionUpdates = new ArrayList<>();
         for (Cursor cursor : cursors.values()) {
             if (cursor.isGloballyVisible()) {
+                Vector3 previousPosition = cursor.getTargetPosition();
                 updateCursorState(cursor);
                 cursor.updateInterpolation(deltaTime);
+
+                Vector3 currentPosition = cursor.getTargetPosition();
+                if (hasSignificantPositionChange(previousPosition, currentPosition)) {
+                    cursor.snapToTarget();
+                }
 
                 positionUpdates.add(new MoudPackets.CursorUpdateData(
                         cursor.getOwner().getUuid(),
@@ -95,24 +104,53 @@ public class CursorService {
         }
     }
 
+    private boolean hasSignificantPositionChange(Vector3 prev, Vector3 current) {
+        if (prev == null || current == null) return false;
+        double distance = Math.sqrt(
+                Math.pow(current.x - prev.x, 2) +
+                        Math.pow(current.y - prev.y, 2) +
+                        Math.pow(current.z - prev.z, 2)
+        );
+        return distance > 5.0;
+    }
+
     private void updateCursorState(Cursor cursor) {
         Player owner = cursor.getOwner();
         if (owner == null || !owner.isOnline() || owner.getInstance() == null) return;
 
-        Vector3 camDirVec = PlayerCameraManager.getInstance().getCameraDirection(owner);
-        if (camDirVec == null) {
-            Vec lookDir = owner.getPosition().direction();
-            camDirVec = new Vector3(lookDir.x(), lookDir.y(), lookDir.z());
+        CameraState cameraState = cameraStates.get(owner.getUuid());
+        Pos rayOrigin;
+        Vec rayDirection;
+
+        if (cameraState != null && cameraState.isLocked) {
+            rayOrigin = new Pos(cameraState.position.x, cameraState.position.y, cameraState.position.z);
+            Vector3 cursorDirection = com.moud.server.player.PlayerCursorDirectionManager.getInstance().getCursorDirection(owner, cameraState.rotation);
+            rayDirection = new Vec(cursorDirection.x, cursorDirection.y, cursorDirection.z);
+        } else {
+            rayOrigin = owner.getPosition().add(0, owner.getEyeHeight(), 0);
+            Vector3 cursorDirection = com.moud.server.player.PlayerCursorDirectionManager.getInstance().getCursorDirection(owner);
+            rayDirection = new Vec(cursorDirection.x, cursorDirection.y, cursorDirection.z);
         }
 
-        Vec camDir = new Vec(camDirVec.x, camDirVec.y, camDirVec.z);
-        Pos eyePos = owner.getPosition().add(0, owner.getEyeHeight(), 0);
         Instance instance = owner.getInstance();
-
-        ManualRaycastResult result = performRaycast(instance, eyePos, camDir, MAX_RAYCAST_DISTANCE);
+        ManualRaycastResult result = performRaycast(instance, rayOrigin, rayDirection, MAX_RAYCAST_DISTANCE);
 
         cursor.setTargetPosition(result.hitPosition(), result.blockNormal());
         cursor.setHittingBlock(result.isHit());
+    }
+
+    public void updateCameraState(Player player, Vector3 position, Vector3 rotation, boolean isLocked) {
+        CameraState state = cameraStates.computeIfAbsent(player.getUuid(), k -> new CameraState());
+        state.position = position;
+        state.rotation = rotation;
+        state.isLocked = isLocked;
+    }
+
+    public void releaseCameraState(Player player) {
+        CameraState state = cameraStates.get(player.getUuid());
+        if (state != null) {
+            state.isLocked = false;
+        }
     }
 
     private ManualRaycastResult performRaycast(@NotNull Instance instance, @NotNull Point origin, @NotNull Vec direction, double maxDistance) {
@@ -160,6 +198,12 @@ public class CursorService {
 
     private record ManualRaycastResult(Vector3 hitPosition, Vector3 blockNormal, boolean isHit) {}
 
+    private static class CameraState {
+        Vector3 position = Vector3.zero();
+        Vector3 rotation = Vector3.zero();
+        boolean isLocked = false;
+    }
+
     public void onPlayerJoin(Player player) {
         Cursor newCursor = new Cursor(player);
         newCursor.setTexture("minecraft:textures/block/white_concrete.png");
@@ -184,6 +228,7 @@ public class CursorService {
 
     public void onPlayerQuit(Player player) {
         cursors.remove(player.getUuid());
+        cameraStates.remove(player.getUuid());
         networkManager.broadcast(new MoudPackets.RemoveCursorsPacket(List.of(player.getUuid())));
     }
 
