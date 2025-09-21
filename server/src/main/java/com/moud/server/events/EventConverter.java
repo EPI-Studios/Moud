@@ -2,10 +2,7 @@ package com.moud.server.events;
 
 import com.moud.server.api.exception.APIException;
 import com.moud.server.logging.MoudLogger;
-import com.moud.server.proxy.BlockEventProxy;
-import com.moud.server.proxy.ChatEventProxy;
-import com.moud.server.proxy.PlayerMoveEventProxy;
-import com.moud.server.proxy.PlayerProxy;
+import com.moud.server.proxy.*;
 import net.minestom.server.event.player.PlayerChatEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
 
@@ -25,7 +22,7 @@ public class EventConverter {
             return switch (eventName) {
                 case "player.join" -> convertPlayerJoinEvent(minestomEvent);
                 case "player.chat" -> convertPlayerChatEvent(minestomEvent);
-                case "player.leave" -> convertPlayerLeaveEvent(minestomEvent);
+                case "player.leave" -> convertPlayerLeaveEvent(minestomEvent); // This is the change
                 case "player.move" -> convertPlayerMoveEvent(minestomEvent);
                 case "block.break" -> convertBlockBreakEvent(minestomEvent);
                 case "block.place" -> convertBlockPlaceEvent(minestomEvent);
@@ -50,11 +47,9 @@ public class EventConverter {
         if (!(event instanceof PlayerSpawnEvent playerSpawnEvent)) {
             throw new ClassCastException("Expected PlayerSpawnEvent");
         }
-
         if (playerSpawnEvent.getPlayer() == null) {
             throw new APIException("INVALID_PLAYER", "Player cannot be null in join event");
         }
-
         PlayerProxy playerProxy = new PlayerProxy(playerSpawnEvent.getPlayer());
         LOGGER.debug("Converted player.join event for: {}", playerProxy.getName());
         return playerProxy;
@@ -64,21 +59,17 @@ public class EventConverter {
         if (!(event instanceof PlayerChatEvent playerChatEvent)) {
             throw new ClassCastException("Expected PlayerChatEvent");
         }
-
         if (playerChatEvent.getPlayer() == null) {
             throw new APIException("INVALID_PLAYER", "Player cannot be null in chat event");
         }
-
         if (playerChatEvent.getMessage() == null) {
             throw new APIException("INVALID_MESSAGE", "Message cannot be null in chat event");
         }
-
         ChatEventProxy chatProxy = new ChatEventProxy(
                 playerChatEvent.getPlayer(),
                 playerChatEvent.getMessage(),
                 playerChatEvent
         );
-
         LOGGER.debug("Converted player.chat event for: {} with message: '{}'",
                 chatProxy.getPlayer().getName(), chatProxy.getMessage());
         return chatProxy;
@@ -88,31 +79,26 @@ public class EventConverter {
         if (!(event instanceof net.minestom.server.event.player.PlayerDisconnectEvent playerDisconnectEvent)) {
             throw new ClassCastException("Expected PlayerDisconnectEvent");
         }
-
         if (playerDisconnectEvent.getPlayer() == null) {
             throw new APIException("INVALID_PLAYER", "Player cannot be null in leave event");
         }
 
-        PlayerProxy playerProxy = new PlayerProxy(playerDisconnectEvent.getPlayer());
-        LOGGER.debug("Converted player.leave event for: {}", playerProxy.getName());
-        return playerProxy;
+        PlayerLeaveEventProxy leaveProxy = new PlayerLeaveEventProxy(playerDisconnectEvent.getPlayer());
+        LOGGER.debug("Converted player.leave event for: {}", leaveProxy.getName());
+        return leaveProxy;
     }
-
     private Object convertPlayerMoveEvent(Object event) {
         if (!(event instanceof net.minestom.server.event.player.PlayerMoveEvent playerMoveEvent)) {
             throw new ClassCastException("Expected PlayerMoveEvent");
         }
-
         if (playerMoveEvent.getPlayer() == null) {
             throw new APIException("INVALID_PLAYER", "Player cannot be null in move event");
         }
-
         PlayerMoveEventProxy moveProxy = new PlayerMoveEventProxy(
                 playerMoveEvent.getPlayer(),
                 playerMoveEvent.getNewPosition(),
                 playerMoveEvent
         );
-
         LOGGER.debug("Converted player.move event for: {} to position: {}",
                 moveProxy.getPlayer().getName(), moveProxy.getNewPosition());
         return moveProxy;
@@ -122,15 +108,12 @@ public class EventConverter {
         if (!(event instanceof net.minestom.server.event.player.PlayerBlockBreakEvent blockBreakEvent)) {
             throw new ClassCastException("Expected PlayerBlockBreakEvent");
         }
-
         if (blockBreakEvent.getPlayer() == null) {
             throw new APIException("INVALID_PLAYER", "Player cannot be null in block break event");
         }
-
         if (blockBreakEvent.getBlockPosition() == null) {
             throw new APIException("INVALID_BLOCK_POSITION", "Block position cannot be null in block break event");
         }
-
         BlockEventProxy blockProxy = new BlockEventProxy(
                 blockBreakEvent.getPlayer(),
                 blockBreakEvent.getBlockPosition(),
@@ -138,7 +121,6 @@ public class EventConverter {
                 blockBreakEvent,
                 "break"
         );
-
         LOGGER.debug("Converted block.break event for: {} at position: {}",
                 blockProxy.getPlayer().getName(), blockProxy.getBlockPosition());
         return blockProxy;
@@ -148,15 +130,12 @@ public class EventConverter {
         if (!(event instanceof net.minestom.server.event.player.PlayerBlockPlaceEvent blockPlaceEvent)) {
             throw new ClassCastException("Expected PlayerBlockPlaceEvent");
         }
-
         if (blockPlaceEvent.getPlayer() == null) {
             throw new APIException("INVALID_PLAYER", "Player cannot be null in block place event");
         }
-
         if (blockPlaceEvent.getBlockPosition() == null) {
             throw new APIException("INVALID_BLOCK_POSITION", "Block position cannot be null in block place event");
         }
-
         BlockEventProxy blockProxy = new BlockEventProxy(
                 blockPlaceEvent.getPlayer(),
                 blockPlaceEvent.getBlockPosition(),
@@ -164,7 +143,6 @@ public class EventConverter {
                 blockPlaceEvent,
                 "place"
         );
-
         LOGGER.debug("Converted block.place event for: {} at position: {}",
                 blockProxy.getPlayer().getName(), blockProxy.getBlockPosition());
         return blockProxy;

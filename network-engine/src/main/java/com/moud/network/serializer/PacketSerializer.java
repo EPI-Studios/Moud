@@ -1,14 +1,13 @@
 package com.moud.network.serializer;
 
-import com.moud.network.metadata.PacketMetadata;
-import com.moud.network.buffer.ByteBuffer;
 import com.moud.api.math.Vector3;
+import com.moud.network.MoudPackets;
+import com.moud.network.buffer.ByteBuffer;
+import com.moud.network.metadata.PacketMetadata;
 
-import java.util.UUID;
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.ParameterizedType;
+import java.util.*;
 
 public class PacketSerializer {
     private final Map<Class<?>, TypeSerializer<?>> serializers = new HashMap<>();
@@ -39,7 +38,7 @@ public class PacketSerializer {
     }
 
     public byte[] serialize(Object packet, PacketMetadata metadata, ByteBuffer buffer) {
-        for (PacketMetadata.FieldMetadata field : metadata.getFields()) {
+        for (PacketMetadata.FieldMetadata field : metadata.fields()) {
             Object value = field.getValue(packet);
 
             if (value == null && !field.isOptional()) {
@@ -55,11 +54,11 @@ public class PacketSerializer {
     }
 
     public <T> T deserialize(byte[] data, Class<T> packetClass, PacketMetadata metadata, ByteBuffer buffer) {
-        Object[] args = new Object[metadata.getFields().size()];
+        Object[] args = new Object[metadata.fields().size()];
 
-        for (int i = 0; i < metadata.getFields().size(); i++) {
-            PacketMetadata.FieldMetadata field = metadata.getFields().get(i);
-            args[i] = readValue(buffer, field.getType());
+        for (int i = 0; i < metadata.fields().size(); i++) {
+            PacketMetadata.FieldMetadata field = metadata.fields().get(i);
+            args[i] = readValue(buffer, field);
         }
 
         return createInstance(packetClass, args);
@@ -72,6 +71,11 @@ public class PacketSerializer {
             return;
         }
 
+        if (type == List.class) {
+            writeList(buffer, (List<?>) value);
+            return;
+        }
+
         TypeSerializer<Object> serializer = (TypeSerializer<Object>) serializers.get(type);
 
         if (serializer != null) {
@@ -81,10 +85,33 @@ public class PacketSerializer {
         }
     }
 
+    private void writeList(ByteBuffer buffer, List<?> list) {
+        buffer.writeInt(list.size());
+        for (Object item : list) {
+            if (item instanceof MoudPackets.CursorUpdateData(
+                    UUID playerId, Vector3 position, Vector3 normal, boolean hit
+            )) {
+                writeValue(buffer, playerId, UUID.class);
+                writeValue(buffer, position, Vector3.class);
+                writeValue(buffer, normal, Vector3.class);
+                writeValue(buffer, hit, boolean.class);
+            } else if (item instanceof UUID) {
+                writeValue(buffer, item, UUID.class);
+            } else {
+                throw new UnsupportedOperationException("Cannot serialize unknown type in list: " + item.getClass());
+            }
+        }
+    }
+
     @SuppressWarnings("unchecked")
-    private Object readValue(ByteBuffer buffer, Class<?> type) {
+    private Object readValue(ByteBuffer buffer, PacketMetadata.FieldMetadata field) {
+        Class<?> type = field.getType();
         if (type == Map.class || type.isAssignableFrom(Map.class)) {
             return MapSerializerUtil.readStringObjectMap(buffer);
+        }
+
+        if (type == List.class) {
+            return readList(buffer, field);
         }
 
         TypeSerializer<Object> serializer = (TypeSerializer<Object>) serializers.get(type);
@@ -94,6 +121,47 @@ public class PacketSerializer {
         } else {
             throw new UnsupportedOperationException("No serializer for type: " + type);
         }
+    }
+
+    private List<?> readList(ByteBuffer buffer, PacketMetadata.FieldMetadata field) {
+        int size = buffer.readInt();
+        List<Object> list = new ArrayList<>(size);
+
+        Class<?> listElementType = getListElementType(field);
+
+        for (int i = 0; i < size; i++) {
+            if (listElementType == MoudPackets.CursorUpdateData.class) {
+                UUID playerId = (UUID) readValue(buffer, UUID.class);
+                Vector3 position = (Vector3) readValue(buffer, Vector3.class);
+                Vector3 normal = (Vector3) readValue(buffer, Vector3.class);
+                boolean hit = (boolean) readValue(buffer, boolean.class);
+                list.add(new MoudPackets.CursorUpdateData(playerId, position, normal, hit));
+            } else if (listElementType == UUID.class) {
+                list.add(readValue(buffer, UUID.class));
+            } else {
+                throw new UnsupportedOperationException("Cannot deserialize unknown type in list: " + listElementType);
+            }
+        }
+        return list;
+    }
+
+    private Object readValue(ByteBuffer buffer, Class<?> type) {
+        TypeSerializer<?> serializer = serializers.get(type);
+        if (serializer != null) {
+            return serializer.read(buffer);
+        }
+        throw new UnsupportedOperationException("No serializer for type: " + type);
+    }
+
+    private Class<?> getListElementType(PacketMetadata.FieldMetadata field) {
+        java.lang.reflect.Type genericType = field.getField().getGenericType();
+        if (genericType instanceof ParameterizedType) {
+            java.lang.reflect.Type[] typeArguments = ((ParameterizedType) genericType).getActualTypeArguments();
+            if (typeArguments.length > 0) {
+                return (Class<?>) typeArguments[0];
+            }
+        }
+        throw new UnsupportedOperationException("Cannot deserialize raw List. Use a generic List<T>.");
     }
 
     @SuppressWarnings("unchecked")
@@ -113,6 +181,7 @@ public class PacketSerializer {
 
     public interface TypeSerializer<T> {
         void write(ByteBuffer buffer, T value);
+
         T read(ByteBuffer buffer);
     }
 
@@ -120,6 +189,7 @@ public class PacketSerializer {
         public void write(ByteBuffer buffer, String value) {
             buffer.writeString(value);
         }
+
         public String read(ByteBuffer buffer) {
             return buffer.readString();
         }
@@ -129,6 +199,7 @@ public class PacketSerializer {
         public void write(ByteBuffer buffer, Integer value) {
             buffer.writeInt(value);
         }
+
         public Integer read(ByteBuffer buffer) {
             return buffer.readInt();
         }
@@ -138,6 +209,7 @@ public class PacketSerializer {
         public void write(ByteBuffer buffer, Float value) {
             buffer.writeFloat(value);
         }
+
         public Float read(ByteBuffer buffer) {
             return buffer.readFloat();
         }
@@ -147,6 +219,7 @@ public class PacketSerializer {
         public void write(ByteBuffer buffer, Double value) {
             buffer.writeDouble(value);
         }
+
         public Double read(ByteBuffer buffer) {
             return buffer.readDouble();
         }
@@ -156,6 +229,7 @@ public class PacketSerializer {
         public void write(ByteBuffer buffer, Boolean value) {
             buffer.writeBoolean(value);
         }
+
         public Boolean read(ByteBuffer buffer) {
             return buffer.readBoolean();
         }
@@ -165,6 +239,7 @@ public class PacketSerializer {
         public void write(ByteBuffer buffer, Long value) {
             buffer.writeLong(value);
         }
+
         public Long read(ByteBuffer buffer) {
             return buffer.readLong();
         }
@@ -174,18 +249,19 @@ public class PacketSerializer {
         public void write(ByteBuffer buffer, UUID value) {
             buffer.writeUuid(value);
         }
+
         public UUID read(ByteBuffer buffer) {
             return buffer.readUuid();
         }
     }
 
-    // FIX: Changed Vector3 serializer to use floats instead of doubles.
     private static class Vector3Serializer implements TypeSerializer<Vector3> {
         public void write(ByteBuffer buffer, Vector3 value) {
             buffer.writeFloat((float) value.x);
             buffer.writeFloat((float) value.y);
             buffer.writeFloat((float) value.z);
         }
+
         public Vector3 read(ByteBuffer buffer) {
             return new Vector3(buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
         }
@@ -195,6 +271,7 @@ public class PacketSerializer {
         public void write(ByteBuffer buffer, byte[] value) {
             buffer.writeByteArray(value);
         }
+
         public byte[] read(ByteBuffer buffer) {
             return buffer.readByteArray();
         }

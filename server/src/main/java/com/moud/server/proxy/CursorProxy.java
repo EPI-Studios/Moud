@@ -1,171 +1,116 @@
 package com.moud.server.proxy;
 
 import com.moud.api.math.Vector3;
-import com.moud.server.cursor.CursorManager;
-import com.moud.server.cursor.CursorVisibilityManager;
-import com.moud.server.network.ServerNetworkManager;
+import com.moud.server.cursor.Cursor;
+import com.moud.server.cursor.CursorService;
 import net.minestom.server.entity.Player;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 public class CursorProxy {
     private final Player player;
-    private final CursorManager cursorManager;
-    private final CursorVisibilityManager visibilityManager;
-    private String texture = "default";
-    private Vector3 color = new Vector3(1.0f, 1.0f, 1.0f);
-    private float scale = 1.0f;
-    private boolean visible = true;
+    private final Cursor cursor;
+    private final CursorService cursorService;
 
     public CursorProxy(Player player) {
         this.player = player;
-        this.cursorManager = CursorManager.getInstance();
-        this.visibilityManager = CursorVisibilityManager.getInstance();
-    }
-
-    @HostAccess.Export
-    public Vector3 getWorldPosition() {
-        CursorManager.CursorData data = cursorManager.getCursorData(player);
-        return data != null ? data.getWorldPosition() : Vector3.zero();
-    }
-
-    @HostAccess.Export
-    public Vector3 getCameraPosition() {
-        CursorManager.CursorData data = cursorManager.getCursorData(player);
-        return data != null ? data.getCameraPosition() : Vector3.zero();
-    }
-
-    @HostAccess.Export
-    public Vector3 getDirection() {
-        CursorManager.CursorData data = cursorManager.getCursorData(player);
-        return data != null ? data.getCameraDirection() : Vector3.zero();
-    }
-
-    @HostAccess.Export
-    public String getHitBlock() {
-        CursorManager.CursorData data = cursorManager.getCursorData(player);
-        return data != null ? data.getHitBlock() : "minecraft:air";
-    }
-
-    @HostAccess.Export
-    public double getDistance() {
-        CursorManager.CursorData data = cursorManager.getCursorData(player);
-        return data != null ? data.getDistance() : 0.0;
-    }
-
-    @HostAccess.Export
-    public boolean isHit() {
-        CursorManager.CursorData data = cursorManager.getCursorData(player);
-        return data != null && data.isHit();
-    }
-
-    @HostAccess.Export
-    public void setTexture(String textureId) {
-        this.texture = textureId;
-        updateAppearance();
-    }
-
-    @HostAccess.Export
-    public void setColor(Value colorValue) {
-        if (colorValue != null && colorValue.hasMembers()) {
-            float r = colorValue.hasMember("r") ? colorValue.getMember("r").asFloat() : 1.0f;
-            float g = colorValue.hasMember("g") ? colorValue.getMember("g").asFloat() : 1.0f;
-            float b = colorValue.hasMember("b") ? colorValue.getMember("b").asFloat() : 1.0f;
-            this.color = new Vector3(r, g, b);
-            updateAppearance();
+        this.cursorService = CursorService.getInstance();
+        this.cursor = cursorService.getCursor(player);
+        if (this.cursor == null) {
+            throw new IllegalStateException("Cursor not found for player: " + player.getUsername());
         }
     }
 
     @HostAccess.Export
-    public void setScale(float scale) {
-        this.scale = Math.max(0.1f, Math.min(5.0f, scale));
-        updateAppearance();
+    public Vector3 getPosition() {
+        return cursor.getWorldPosition();
+    }
+
+    @HostAccess.Export
+    public Vector3 getNormal() {
+        return cursor.getWorldNormal();
+    }
+
+    @HostAccess.Export
+    public boolean isHittingBlock() {
+        return cursor.isHittingBlock();
+    }
+
+    @HostAccess.Export
+    public void setMode(String mode) {
+        try {
+            cursor.setMode(Cursor.CursorMode.valueOf(mode.toUpperCase()));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid cursor mode. Use 'THREE_DIMENSIONAL' or 'TWO_DIMENSIONAL'.");
+        }
     }
 
     @HostAccess.Export
     public void setVisible(boolean visible) {
-        this.visible = visible;
-        updateVisibility();
+        if (cursor.isGloballyVisible() != visible) {
+            cursor.setGloballyVisible(visible);
+            cursorService.sendVisibilityUpdate(cursor);
+        }
     }
 
     @HostAccess.Export
-    public void setVisibleTo(Value playerList) {
-        if (playerList != null && playerList.hasArrayElements()) {
-            java.util.List<Player> players = new java.util.ArrayList<>();
-            long size = playerList.getArraySize();
-            for (long i = 0; i < size; i++) {
-                Value element = playerList.getArrayElement(i);
-                if (element.hasMembers() && element.hasMember("getName")) {
-                    String playerName = element.getMember("getName").execute().asString();
-                    Player targetPlayer = net.minestom.server.MinecraftServer.getConnectionManager()
-                            .getOnlinePlayers()
-                            .stream()
-                            .filter(p -> p.getUsername().equals(playerName))
-                            .findFirst()
-                            .orElse(null);
-                    if (targetPlayer != null) {
-                        players.add(targetPlayer);
-                    }
-                }
-            }
-            visibilityManager.setVisibleTo(player, players);
-        }
+    public void setTexture(String texturePath) {
+        cursor.setTexture(texturePath);
+        cursor.setRenderMode(Cursor.RenderMode.TEXTURE);
+        cursorService.sendAppearanceUpdate(cursor);
+    }
+
+    @HostAccess.Export
+    public void setColor(float r, float g, float b) {
+        cursor.setColor(new Vector3(r, g, b));
+        cursorService.sendAppearanceUpdate(cursor);
+    }
+
+    @HostAccess.Export
+    public void setScale(float scale) {
+        cursor.setScale(scale);
+        cursorService.sendAppearanceUpdate(cursor);
+    }
+
+    @HostAccess.Export
+    public void setVisibleTo(Value players) {
+        cursor.setVisibilityList(getPlayerUuids(players), true);
+        cursorService.sendVisibilityUpdate(cursor);
+    }
+
+    @HostAccess.Export
+    public void hideFrom(Value players) {
+        cursor.setVisibilityList(getPlayerUuids(players), false);
+        cursorService.sendVisibilityUpdate(cursor);
     }
 
     @HostAccess.Export
     public void setVisibleToAll() {
-        visibilityManager.setVisibleToAll(player);
+        cursor.setVisibilityList(new HashSet<>(), true);
+        cursorService.sendVisibilityUpdate(cursor);
     }
 
-    @HostAccess.Export
-    public void setVisibleToNone() {
-        visibilityManager.setVisibleToNone(player);
-    }
+    private Set<UUID> getPlayerUuids(Value players) {
+        if (players.isHostObject() && players.asHostObject() instanceof PlayerProxy) {
+            return Set.of(UUID.fromString(((PlayerProxy) players.asHostObject()).getUuid()));
+        }
 
-    @HostAccess.Export
-    public void update() {
-        cursorManager.updateCursor(player);
-        syncToClients();
-    }
-
-    private void updateAppearance() {
-        if (ServerNetworkManager.getInstance() != null) {
-            String eventData = String.format(
-                    "{\"texture\":\"%s\",\"color\":{\"r\":%f,\"g\":%f,\"b\":%f},\"scale\":%f}",
-                    texture, color.x, color.y, color.z, scale
-            );
-
-            for (Player viewer : visibilityManager.getViewers(player)) {
-                ServerNetworkManager.getInstance().sendScriptEvent(viewer, "cursor:appearance", eventData);
+        if (players.hasArrayElements()) {
+            Set<UUID> uuids = new HashSet<>();
+            for (int i = 0; i < players.getArraySize(); i++) {
+                Value playerValue = players.getArrayElement(i);
+                if (playerValue.isHostObject() && playerValue.asHostObject() instanceof PlayerProxy) {
+                    uuids.add(UUID.fromString(((PlayerProxy) playerValue.asHostObject()).getUuid()));
+                }
             }
+            return uuids;
         }
-    }
-
-    private void updateVisibility() {
-        if (ServerNetworkManager.getInstance() != null) {
-            String eventData = String.format("{\"visible\":%b}", visible);
-
-            for (Player viewer : visibilityManager.getViewers(player)) {
-                ServerNetworkManager.getInstance().sendScriptEvent(viewer, "cursor:visibility", eventData);
-            }
-        }
-    }
-
-    private void syncToClients() {
-        if (!visible || ServerNetworkManager.getInstance() == null) return;
-
-        CursorManager.CursorData data = cursorManager.getCursorData(player);
-        if (data == null) return;
-
-        String eventData = String.format(
-                "{\"playerId\":\"%s\",\"worldPos\":{\"x\":%f,\"y\":%f,\"z\":%f},\"hit\":%b,\"distance\":%f}",
-                player.getUuid().toString(),
-                data.getWorldPosition().x, data.getWorldPosition().y, data.getWorldPosition().z,
-                data.isHit(), data.getDistance()
-        );
-
-        for (Player viewer : visibilityManager.getViewers(player)) {
-            ServerNetworkManager.getInstance().sendScriptEvent(viewer, "cursor:position", eventData);
-        }
+        return new HashSet<>();
     }
 }

@@ -2,12 +2,10 @@ package com.moud.client.mixin;
 
 import com.moud.client.MoudClientMod;
 import com.moud.client.api.service.ClientAPIService;
-import com.moud.client.cursor.ClientCursorManager;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.RotationAxis;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -40,11 +38,4 @@ public abstract class GameRendererMixin {
         }
     }
 
-    @Inject(method = "renderWorld(Lnet/minecraft/client/render/RenderTickCounter;)V", at = @At("TAIL"))
-    private void moud_renderCursors(RenderTickCounter tickCounter, CallbackInfo ci) {
-        if (ClientAPIService.INSTANCE != null) {
-            MatrixStack matrices = new MatrixStack();
-            ClientCursorManager.getInstance().renderCursors(matrices, null, tickCounter.getTickDelta(true));
-        }
-    }
 }

@@ -1,26 +1,27 @@
 package com.moud.client.cursor;
 
 import com.moud.api.math.Vector3;
+import com.moud.network.MoudPackets;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.RotationAxis;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ClientCursorManager {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ClientCursorManager.class);
     private static ClientCursorManager instance;
-
-    private final Map<UUID, CursorRenderData> cursors = new ConcurrentHashMap<>();
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClientCursorManager.class);
+    private final Map<UUID, RemoteCursor> remoteCursors = new ConcurrentHashMap<>();
+    private final CursorRenderer renderer;
     private final MinecraftClient client;
 
     private ClientCursorManager() {
+        this.renderer = new CursorRenderer();
         this.client = MinecraftClient.getInstance();
     }
 
@@ -31,77 +32,69 @@ public class ClientCursorManager {
         return instance;
     }
 
-    public void updateCursorPosition(UUID playerId, Vector3 worldPos, boolean hit, double distance) {
-        CursorRenderData cursor = cursors.get(playerId);
-        if (cursor != null) {
-            cursor.worldPosition = worldPos;
-            cursor.hit = hit;
-            cursor.distance = distance;
-            cursor.lastUpdate = System.currentTimeMillis();
+    public void handlePositionUpdates(List<MoudPackets.CursorUpdateData> updates) {
+        if (client.player == null) return;
+
+        for (MoudPackets.CursorUpdateData update : updates) {
+            LOGGER.info("[CURSOR-MANAGER] Raw packet data: playerId={}, position={}, normal={}",
+                    update.playerId(), update.position(), update.normal());
+
+            RemoteCursor cursor = remoteCursors.computeIfAbsent(update.playerId(), id -> {
+                RemoteCursor newCursor = new RemoteCursor(id);
+                newCursor.setVisible(true);
+                newCursor.setAppearance("moud:textures/gui/cursor_default.png", new Vector3(1.0f, 1.0f, 1.0f), 0.8f, "TEXTURE");
+                LOGGER.info("[CURSOR-MANAGER] Created new cursor for player {}", id);
+                return newCursor;
+            });
+
+            Vector3 beforePos = cursor.getCurrentPosition();
+            cursor.setTargetPosition(update.position(), update.normal());
+            Vector3 afterPos = cursor.getCurrentPosition();
+
+            LOGGER.info("[CURSOR-MANAGER] Position update: before={}, after={}, target={}",
+                    beforePos, afterPos, update.position());
+        }
+
+        LOGGER.info("[CURSOR-MANAGER] Total cursors after update: {}", remoteCursors.size());
+    }
+
+    public void handleAppearanceUpdate(UUID playerId, String texture, Vector3 color, float scale, String renderMode) {
+        RemoteCursor cursor = remoteCursors.computeIfAbsent(playerId, id -> new RemoteCursor(id));
+        cursor.setAppearance(texture, color, scale, renderMode);
+    }
+
+    public void handleVisibilityUpdate(UUID playerId, boolean visible) {
+        RemoteCursor cursor = remoteCursors.computeIfAbsent(playerId, id -> new RemoteCursor(id));
+        cursor.setVisible(visible);
+    }
+
+    public void handleRemoveCursors(List<UUID> playerIds) {
+        playerIds.forEach(remoteCursors::remove);
+    }
+
+    public void tick(float tickDelta) {
+        for (RemoteCursor cursor : remoteCursors.values()) {
+            cursor.update(tickDelta);
         }
     }
 
-    public void updateCursorAppearance(UUID playerId, String texture, Vector3 color, float scale) {
-        CursorRenderData cursor = cursors.computeIfAbsent(playerId, k -> new CursorRenderData(playerId));
-        cursor.texture = Identifier.tryParse(texture);
-        cursor.color = color;
-        cursor.scale = scale;
-    }
+    public void render(MatrixStack matrices, VertexConsumerProvider consumers, float tickDelta) {
+        if (remoteCursors.isEmpty()) return;
 
-    public void setCursorVisible(UUID playerId, boolean visible) {
-        CursorRenderData cursor = cursors.computeIfAbsent(playerId, k -> new CursorRenderData(playerId));
-        cursor.visible = visible;
-    }
+        LOGGER.info("[CURSOR-MANAGER] Rendering {} cursors", remoteCursors.size());
 
-    public void removeCursor(UUID playerId) {
-        cursors.remove(playerId);
-    }
+        for (Map.Entry<UUID, RemoteCursor> entry : remoteCursors.entrySet()) {
+            RemoteCursor cursor = entry.getValue();
+            LOGGER.info("[CURSOR-MANAGER] Cursor {}: visible={}, texture={}",
+                    entry.getKey(), cursor.isVisible(), cursor.getTexture());
 
-    public void renderCursors(MatrixStack matrices, VertexConsumerProvider vertexConsumers, float tickDelta) {
-        if (client.world == null || client.player == null) return;
-
-        long currentTime = System.currentTimeMillis();
-
-        cursors.entrySet().removeIf(entry -> {
-            return currentTime - entry.getValue().lastUpdate > 5000;
-        });
-
-        for (CursorRenderData cursor : cursors.values()) {
-            if (cursor.visible && cursor.worldPosition != null) {
-                renderCursor(cursor, matrices, vertexConsumers, tickDelta);
+            if (cursor.isVisible()) {
+                renderer.render(cursor, matrices, consumers, tickDelta);
             }
         }
     }
 
-    private void renderCursor(CursorRenderData cursor, MatrixStack matrices, VertexConsumerProvider vertexConsumers, float tickDelta) {
-        matrices.push();
-
-        Vector3 pos = cursor.worldPosition;
-        matrices.translate(pos.x, pos.y, pos.z);
-
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-client.gameRenderer.getCamera().getYaw()));
-        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(client.gameRenderer.getCamera().getPitch()));
-
-        matrices.scale(cursor.scale, cursor.scale, cursor.scale);
-
-        float alpha = cursor.hit ? 1.0f : 0.5f;
-
-        matrices.pop();
-    }
-
-    public static class CursorRenderData {
-        final UUID playerId;
-        Vector3 worldPosition;
-        Identifier texture = Identifier.of("minecraft", "textures/gui/icons.png");
-        Vector3 color = new Vector3(1.0f, 1.0f, 1.0f);
-        float scale = 1.0f;
-        boolean visible = true;
-        boolean hit = false;
-        double distance = 0.0;
-        long lastUpdate = System.currentTimeMillis();
-
-        CursorRenderData(UUID playerId) {
-            this.playerId = playerId;
-        }
+    public void clear() {
+        remoteCursors.clear();
     }
 }

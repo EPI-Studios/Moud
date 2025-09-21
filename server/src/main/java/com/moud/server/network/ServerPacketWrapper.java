@@ -7,6 +7,7 @@ import net.minestom.server.network.packet.server.common.PluginMessagePacket;
 public class ServerPacketWrapper {
     private static final PacketEngine ENGINE = new PacketEngine();
     private static final NetworkDispatcher DISPATCHER;
+    private static final String WRAPPER_CHANNEL = "moud:wrapper";
 
     static {
         ENGINE.initialize("com.moud.network");
@@ -25,7 +26,12 @@ public class ServerPacketWrapper {
 
     public static <T> PluginMessagePacket createPacket(T packet) {
         NetworkDispatcher.PacketData packetData = DISPATCHER.send(null, packet);
-        return new PluginMessagePacket(packetData.getChannel(), packetData.getData());
+
+        MinestomByteBuffer wrapperBuffer = new MinestomByteBuffer();
+        wrapperBuffer.writeString(packetData.channel());
+        wrapperBuffer.writeByteArray(packetData.data());
+
+        return new PluginMessagePacket(WRAPPER_CHANNEL, wrapperBuffer.toByteArray());
     }
 
     public static <T> void registerHandler(Class<T> packetClass, java.util.function.BiConsumer<Object, T> handler) {
@@ -35,4 +41,7 @@ public class ServerPacketWrapper {
     public static void handleIncoming(String channel, byte[] data, Object player) {
         DISPATCHER.handle(channel, data, player);
     }
+
+
+
 }

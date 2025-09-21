@@ -33,18 +33,18 @@ public class PacketEngine {
 
     public String getPacketId(Class<?> packetClass) {
         PacketMetadata metadata = registry.getByClass(packetClass);
-        return metadata != null ? metadata.getPacketId() : null;
+        return metadata != null ? metadata.packetId() : null;
     }
 
     public Class<?> getPacketClass(String packetId) {
         PacketMetadata metadata = registry.getById(packetId);
-        return metadata != null ? metadata.getPacketClass() : null;
+        return metadata != null ? metadata.packetClass() : null;
     }
 
 
     public Set<Class<?>> getAllPacketClasses() {
         return registry.getAllMetadata().stream()
-                .map(PacketMetadata::getPacketClass)
+                .map(PacketMetadata::packetClass)
                 .collect(Collectors.toSet());
     }
 }

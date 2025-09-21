@@ -1,9 +1,9 @@
 package com.moud.network.dispatcher;
 
+import com.moud.network.buffer.ByteBuffer;
 import com.moud.network.metadata.PacketMetadata;
 import com.moud.network.registry.PacketRegistry;
 import com.moud.network.serializer.PacketSerializer;
-import com.moud.network.buffer.ByteBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,9 +33,9 @@ public class NetworkDispatcher {
         try {
             ByteBuffer buffer = bufferFactory.create();
             byte[] data = serializer.serialize(packet, metadata, buffer);
-            return new PacketData(metadata.getPacketId(), data);
+            return new PacketData(metadata.packetId(), data);
         } catch (Exception e) {
-            LOGGER.error("Failed to send packet {}", metadata.getPacketId(), e);
+            LOGGER.error("Failed to send packet {}", metadata.packetId(), e);
             throw new RuntimeException("Packet send failed", e);
         }
     }
@@ -46,8 +46,8 @@ public class NetworkDispatcher {
             throw new IllegalArgumentException("Unregistered packet type: " + packetClass);
         }
 
-        handlers.put(packetClass, (BiConsumer<Object, ?>) handler);
-        LOGGER.debug("Registered handler for packet: {}", metadata.getPacketId());
+        handlers.put(packetClass, handler);
+        LOGGER.debug("Registered handler for packet: {}", metadata.packetId());
     }
 
     public void handle(String packetId, byte[] data, Object player) {
@@ -57,7 +57,7 @@ public class NetworkDispatcher {
             return;
         }
 
-        BiConsumer<Object, ?> handler = handlers.get(metadata.getPacketClass());
+        BiConsumer<Object, ?> handler = handlers.get(metadata.packetClass());
         if (handler == null) {
             LOGGER.warn("No handler for packet: {}", packetId);
             return;
@@ -65,7 +65,7 @@ public class NetworkDispatcher {
 
         try {
             ByteBuffer buffer = bufferFactory.wrap(data);
-            Object packet = serializer.deserialize(data, metadata.getPacketClass(), metadata, buffer);
+            Object packet = serializer.deserialize(data, metadata.packetClass(), metadata, buffer);
             ((BiConsumer<Object, Object>) handler).accept(player, packet);
         } catch (Exception e) {
             LOGGER.error("Failed to handle packet {}", packetId, e);
@@ -74,24 +74,10 @@ public class NetworkDispatcher {
 
     public interface ByteBufferFactory {
         ByteBuffer create();
+
         ByteBuffer wrap(byte[] data);
     }
 
-    public static class PacketData {
-        private final String channel;
-        private final byte[] data;
-
-        public PacketData(String channel, byte[] data) {
-            this.channel = channel;
-            this.data = data;
-        }
-
-        public String getChannel() {
-            return channel;
-        }
-
-        public byte[] getData() {
-            return data;
-        }
+    public record PacketData(String channel, byte[] data) {
     }
 }
