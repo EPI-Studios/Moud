@@ -27,14 +27,12 @@ public class CursorService {
     private static final Logger LOGGER = LoggerFactory.getLogger(CursorService.class);
     private static final double MAX_RAYCAST_DISTANCE = 100.0;
     private static final long UPDATE_INTERVAL_TICKS = 1L;
-    private static final double MIN_POSITION_CHANGE = 0.001;
 
     private static CursorService instance;
     private final Map<UUID, Cursor> cursors = new ConcurrentHashMap<>();
     private final Map<UUID, CameraState> cameraStates = new ConcurrentHashMap<>();
     private final ServerNetworkManager networkManager;
     private Task updateTask;
-    private long lastUpdateTime = System.nanoTime();
 
     private CursorService(ServerNetworkManager networkManager) {
         this.networkManager = networkManager;
@@ -74,21 +72,10 @@ public class CursorService {
     private void tick() {
         if (cursors.isEmpty()) return;
 
-        long currentTime = System.nanoTime();
-        float deltaTime = (currentTime - lastUpdateTime) / 1_000_000_000.0f;
-        lastUpdateTime = currentTime;
-
         List<MoudPackets.CursorUpdateData> positionUpdates = new ArrayList<>();
         for (Cursor cursor : cursors.values()) {
             if (cursor.isGloballyVisible()) {
-                Vector3 previousPosition = cursor.getTargetPosition();
                 updateCursorState(cursor);
-                cursor.updateInterpolation(deltaTime);
-
-                Vector3 currentPosition = cursor.getTargetPosition();
-                if (hasSignificantPositionChange(previousPosition, currentPosition)) {
-                    cursor.snapToTarget();
-                }
 
                 positionUpdates.add(new MoudPackets.CursorUpdateData(
                         cursor.getOwner().getUuid(),
@@ -104,36 +91,20 @@ public class CursorService {
         }
     }
 
-    private boolean hasSignificantPositionChange(Vector3 prev, Vector3 current) {
-        if (prev == null || current == null) return false;
-        double distance = Math.sqrt(
-                Math.pow(current.x - prev.x, 2) +
-                        Math.pow(current.y - prev.y, 2) +
-                        Math.pow(current.z - prev.z, 2)
-        );
-        return distance > 5.0;
-    }
-
     private void updateCursorState(Cursor cursor) {
         Player owner = cursor.getOwner();
         if (owner == null || !owner.isOnline() || owner.getInstance() == null) return;
 
-        CameraState cameraState = cameraStates.get(owner.getUuid());
-        Pos rayOrigin;
-        Vec rayDirection;
+        // --- THIS IS THE FIX ---
+        // The raycast origin is *always* the player's eye position.
+        // When the camera is locked, the player entity itself is moved to the camera's location,
+        // so this calculation works for both locked and unlocked states.
+        Point rayOrigin = owner.getPosition().add(0, owner.getEyeHeight(), 0);
+        Vector3 camDirVec = PlayerCameraManager.getInstance().getCameraDirection(owner);
 
-        if (cameraState != null && cameraState.isLocked) {
-            rayOrigin = new Pos(cameraState.position.x, cameraState.position.y, cameraState.position.z);
-            Vector3 cursorDirection = com.moud.server.player.PlayerCursorDirectionManager.getInstance().getCursorDirection(owner, cameraState.rotation);
-            rayDirection = new Vec(cursorDirection.x, cursorDirection.y, cursorDirection.z);
-        } else {
-            rayOrigin = owner.getPosition().add(0, owner.getEyeHeight(), 0);
-            Vector3 cursorDirection = com.moud.server.player.PlayerCursorDirectionManager.getInstance().getCursorDirection(owner);
-            rayDirection = new Vec(cursorDirection.x, cursorDirection.y, cursorDirection.z);
-        }
-
+        Vec camDir = new Vec(camDirVec.x, camDirVec.y, camDirVec.z);
         Instance instance = owner.getInstance();
-        ManualRaycastResult result = performRaycast(instance, rayOrigin, rayDirection, MAX_RAYCAST_DISTANCE);
+        ManualRaycastResult result = performRaycast(instance, rayOrigin, camDir, MAX_RAYCAST_DISTANCE);
 
         cursor.setTargetPosition(result.hitPosition(), result.blockNormal());
         cursor.setHittingBlock(result.isHit());
@@ -156,6 +127,14 @@ public class CursorService {
     private ManualRaycastResult performRaycast(@NotNull Instance instance, @NotNull Point origin, @NotNull Vec direction, double maxDistance) {
         final double step = 0.1;
         Vec normalizedDirection = direction.normalize();
+        if (normalizedDirection.lengthSquared() == 0) {
+            // Avoid division by zero or invalid direction
+            return new ManualRaycastResult(
+                    new Vector3(origin.x(), origin.y(), origin.z()),
+                    new Vector3(0, 1, 0),
+                    false
+            );
+        }
         Point lastPos = origin;
 
         for (double d = 0; d < maxDistance; d += step) {
@@ -163,8 +142,6 @@ public class CursorService {
             Block block = instance.getBlock(currentPos);
 
             if (!block.isAir()) {
-                Vec normal = Vec.ZERO;
-
                 int lastBlockX = lastPos.blockX();
                 int lastBlockY = lastPos.blockY();
                 int lastBlockZ = lastPos.blockZ();
@@ -173,12 +150,66 @@ public class CursorService {
                 int currentBlockY = currentPos.blockY();
                 int currentBlockZ = currentPos.blockZ();
 
-                if (currentBlockX > lastBlockX) normal = new Vec(-1, 0, 0);
-                else if (currentBlockX < lastBlockX) normal = new Vec(1, 0, 0);
-                else if (currentBlockY > lastBlockY) normal = new Vec(0, -1, 0);
-                else if (currentBlockY < lastBlockY) normal = new Vec(0, 1, 0);
-                else if (currentBlockZ > lastBlockZ) normal = new Vec(0, 0, -1);
-                else if (currentBlockZ < lastBlockZ) normal = new Vec(0, 0, 1);
+                Vec normal = Vec.ZERO;
+                int axis = -1;
+                double plane = 0;
+
+                if (currentBlockX > lastBlockX) {
+                    normal = new Vec(-1, 0, 0);
+                    axis = 0;
+                    plane = currentBlockX;
+                } else if (currentBlockX < lastBlockX) {
+                    normal = new Vec(1, 0, 0);
+                    axis = 0;
+                    plane = currentBlockX + 1;
+                } else if (currentBlockY > lastBlockY) {
+                    normal = new Vec(0, -1, 0);
+                    axis = 1;
+                    plane = currentBlockY;
+                } else if (currentBlockY < lastBlockY) {
+                    normal = new Vec(0, 1, 0);
+                    axis = 1;
+                    plane = currentBlockY + 1;
+                } else if (currentBlockZ > lastBlockZ) {
+                    normal = new Vec(0, 0, -1);
+                    axis = 2;
+                    plane = currentBlockZ;
+                } else if (currentBlockZ < lastBlockZ) {
+                    normal = new Vec(0, 0, 1);
+                    axis = 2;
+                    plane = currentBlockZ + 1;
+                }
+
+                if (axis != -1) {
+                    double originComp = switch (axis) {
+                        case 0 -> origin.x();
+                        case 1 -> origin.y();
+                        case 2 -> origin.z();
+                        default -> throw new IllegalStateException("Invalid axis");
+                    };
+                    double dirComp = switch (axis) {
+                        case 0 -> normalizedDirection.x();
+                        case 1 -> normalizedDirection.y();
+                        case 2 -> normalizedDirection.z();
+                        default -> throw new IllegalStateException("Invalid axis");
+                    };
+                    if (Math.abs(dirComp) < 1e-6) {
+                        // Parallel to plane, skip (shouldn't happen as coord wouldn't change)
+                        continue;
+                    }
+                    double t = (plane - originComp) / dirComp;
+                    if (t < 0) {
+                        // Behind origin, invalid
+                        continue;
+                    }
+                    Point hitPos = origin.add(normalizedDirection.mul(t));
+                    return new ManualRaycastResult(
+                            new Vector3(hitPos.x(), hitPos.y(), hitPos.z()),
+                            new Vector3(normal.x(), normal.y(), normal.z()),
+                            true
+                    );
+                }
+                // Fallback if no axis change (e.g., started inside), but shouldn't reach here
                 return new ManualRaycastResult(
                         new Vector3(currentPos.x(), currentPos.y(), currentPos.z()),
                         new Vector3(normal.x(), normal.y(), normal.z()),
@@ -195,7 +226,6 @@ public class CursorService {
                 false
         );
     }
-
     private record ManualRaycastResult(Vector3 hitPosition, Vector3 blockNormal, boolean isHit) {}
 
     private static class CameraState {

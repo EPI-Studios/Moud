@@ -18,7 +18,7 @@ public class PlayerCursorDirectionManager {
     }
 
     public void onPlayerJoin(Player player) {
-        cursorRotations.put(player.getUuid(), new Vec(0.0, 0.0));
+        cursorRotations.put(player.getUuid(), new Vec(player.getPosition().pitch(), player.getPosition().yaw()));
     }
 
     public void onPlayerDisconnect(Player player) {
@@ -32,7 +32,7 @@ public class PlayerCursorDirectionManager {
     public void updateFromMouseDelta(Player player, float deltaX, float deltaY) {
         cursorRotations.compute(player.getUuid(), (uuid, oldRotation) -> {
             if (oldRotation == null) {
-                oldRotation = new Vec(0.0, 0.0);
+                oldRotation = new Vec(player.getPosition().pitch(), player.getPosition().yaw());
             }
 
             double sensitivity = 0.15;
@@ -61,8 +61,10 @@ public class PlayerCursorDirectionManager {
     public Vector3 getCursorDirection(Player player, Vector3 cameraRotation) {
         Vec mouseRotation = cursorRotations.getOrDefault(player.getUuid(), Vec.ZERO);
 
+
         double basePitch = cameraRotation.y;
         double baseYaw = cameraRotation.x;
+
 
         double finalPitch = basePitch + mouseRotation.x();
         double finalYaw = baseYaw + mouseRotation.y();

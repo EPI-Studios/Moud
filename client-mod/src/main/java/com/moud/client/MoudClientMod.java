@@ -1,5 +1,6 @@
 package com.moud.client;
 
+import com.moud.api.math.Vector3;
 import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.cursor.ClientCursorManager;
 import com.moud.client.network.ClientPacketReceiver;
@@ -103,7 +104,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         ClientPacketWrapper.registerHandler(CameraReleasePacket.class, (player, packet) -> handleCameraRelease(packet));
 
         ClientPacketWrapper.registerHandler(CursorPositionUpdatePacket.class, (player, packet) -> {
-            LOGGER.debug("Received CursorPositionUpdatePacket with {} updates", packet.updates().size());
             if (clientCursorManager != null) {
                 clientCursorManager.handlePositionUpdates(packet.updates());
             } else {
@@ -112,8 +112,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         });
 
         ClientPacketWrapper.registerHandler(CursorAppearancePacket.class, (player, packet) -> {
-            LOGGER.info("Received CursorAppearancePacket for player {}: texture={}, scale={}",
-                    packet.playerId(), packet.texture(), packet.scale());
             if (clientCursorManager != null) {
                 clientCursorManager.handleAppearanceUpdate(packet.playerId(), packet.texture(), packet.color(), packet.scale(), packet.renderMode());
             } else {
@@ -122,8 +120,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         });
 
         ClientPacketWrapper.registerHandler(CursorVisibilityPacket.class, (player, packet) -> {
-            LOGGER.info("Received CursorVisibilityPacket for player {}: visible={}",
-                    packet.playerId(), packet.visible());
             if (clientCursorManager != null) {
                 clientCursorManager.handleVisibilityUpdate(packet.playerId(), packet.visible());
             } else {
@@ -132,7 +128,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         });
 
         ClientPacketWrapper.registerHandler(RemoveCursorsPacket.class, (player, packet) -> {
-            LOGGER.info("Received RemoveCursorsPacket for {} players", packet.playerIds().size());
             if (clientCursorManager != null) {
                 clientCursorManager.handleRemoveCursors(packet.playerIds());
             } else {
@@ -188,18 +183,14 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     }
 
     private void registerRenderHandler() {
-        LOGGER.info("Registering WorldRenderEvents.LAST handler");
-
         WorldRenderEvents.LAST.register(context -> {
             if (clientCursorManager != null) {
+                clientCursorManager.render(context.matrixStack(), context.consumers(), context.tickCounter().getTickDelta(true));
                 if (context.consumers() instanceof VertexConsumerProvider.Immediate immediate) {
                     immediate.draw();
                 }
-                clientCursorManager.render(context.matrixStack(), context.consumers(), context.tickCounter().getTickDelta(true));
             }
         });
-
-        LOGGER.info("WorldRenderEvents.LAST handler registered successfully");
     }
 
     private void registerShutdownHandler() {
