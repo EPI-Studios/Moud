@@ -1,6 +1,7 @@
 package com.moud.client.player;
 
 import com.moud.api.math.Vector3;
+import com.moud.client.MoudClientMod;
 import com.moud.network.MoudPackets;
 import com.moud.client.network.ClientPacketWrapper;
 import net.minecraft.client.MinecraftClient;
@@ -16,6 +17,10 @@ public class ClientCameraManager {
     }
 
     public void tick() {
+        if (MoudClientMod.isCustomCameraActive()) {
+            return;
+        }
+
         long now = System.currentTimeMillis();
         if (now - lastSendTime > SEND_INTERVAL_MS) {
             if (client.player != null) {

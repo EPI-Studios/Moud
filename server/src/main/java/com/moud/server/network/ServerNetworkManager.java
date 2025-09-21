@@ -11,6 +11,7 @@ import net.minestom.server.entity.Player;
 import net.minestom.server.event.player.PlayerDisconnectEvent;
 import net.minestom.server.event.player.PlayerPluginMessageEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
+import com.moud.server.player.PlayerCursorDirectionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -125,6 +126,9 @@ public final class ServerNetworkManager {
     private void handleMouseMovement(Object player, MouseMovementPacket packet) {
         Player minestomPlayer = (Player) player;
         if (!isMoudClient(minestomPlayer)) return;
+
+        PlayerCursorDirectionManager.getInstance().updateFromMouseDelta(minestomPlayer, packet.deltaX(), packet.deltaY());
+
         eventDispatcher.dispatchMouseMoveEvent(minestomPlayer, packet.deltaX(), packet.deltaY());
     }
 

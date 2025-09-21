@@ -26,12 +26,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class CursorService {
     private static final Logger LOGGER = LoggerFactory.getLogger(CursorService.class);
     private static final double MAX_RAYCAST_DISTANCE = 100.0;
-    private static final long UPDATE_INTERVAL_TICKS = 2L;
+    private static final long UPDATE_INTERVAL_TICKS = 1L;
 
     private static CursorService instance;
     private final Map<UUID, Cursor> cursors = new ConcurrentHashMap<>();
     private final ServerNetworkManager networkManager;
     private Task updateTask;
+    private long lastUpdateTime = System.nanoTime();
 
     private CursorService(ServerNetworkManager networkManager) {
         this.networkManager = networkManager;
@@ -70,10 +71,16 @@ public class CursorService {
     private void tick() {
         if (cursors.isEmpty()) return;
 
+        long currentTime = System.nanoTime();
+        float deltaTime = (currentTime - lastUpdateTime) / 1_000_000_000.0f;
+        lastUpdateTime = currentTime;
+
         List<MoudPackets.CursorUpdateData> positionUpdates = new ArrayList<>();
         for (Cursor cursor : cursors.values()) {
             if (cursor.isGloballyVisible()) {
                 updateCursorState(cursor);
+                cursor.updateInterpolation(deltaTime);
+
                 positionUpdates.add(new MoudPackets.CursorUpdateData(
                         cursor.getOwner().getUuid(),
                         cursor.getWorldPosition(),
@@ -93,14 +100,18 @@ public class CursorService {
         if (owner == null || !owner.isOnline() || owner.getInstance() == null) return;
 
         Vector3 camDirVec = PlayerCameraManager.getInstance().getCameraDirection(owner);
+        if (camDirVec == null) {
+            Vec lookDir = owner.getPosition().direction();
+            camDirVec = new Vector3(lookDir.x(), lookDir.y(), lookDir.z());
+        }
+
         Vec camDir = new Vec(camDirVec.x, camDirVec.y, camDirVec.z);
         Pos eyePos = owner.getPosition().add(0, owner.getEyeHeight(), 0);
         Instance instance = owner.getInstance();
 
         ManualRaycastResult result = performRaycast(instance, eyePos, camDir, MAX_RAYCAST_DISTANCE);
 
-        cursor.setWorldPosition(result.hitPosition());
-        cursor.setWorldNormal(result.blockNormal());
+        cursor.setTargetPosition(result.hitPosition(), result.blockNormal());
         cursor.setHittingBlock(result.isHit());
     }
 
@@ -150,13 +161,25 @@ public class CursorService {
     private record ManualRaycastResult(Vector3 hitPosition, Vector3 blockNormal, boolean isHit) {}
 
     public void onPlayerJoin(Player player) {
-        cursors.put(player.getUuid(), new Cursor(player));
+        Cursor newCursor = new Cursor(player);
+        newCursor.setTexture("minecraft:textures/block/white_concrete.png");
+        newCursor.setColor(new Vector3(1.0f, 1.0f, 1.0f));
+        newCursor.setScale(0.8f);
+        newCursor.setGloballyVisible(false);
 
-        for (Player otherPlayer : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
-            if (!otherPlayer.equals(player)) {
-                syncCursorToViewer(getCursor(otherPlayer), player);
+        cursors.put(player.getUuid(), newCursor);
+
+        MinecraftServer.getSchedulerManager().buildTask(() -> {
+            newCursor.setGloballyVisible(true);
+
+            for (Player otherPlayer : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
+                if (!otherPlayer.equals(player)) {
+                    syncCursorToViewer(getCursor(otherPlayer), player);
+                }
             }
-        }
+
+            syncCursorToViewer(newCursor, player);
+        }).delay(TaskSchedule.tick(40)).schedule();
     }
 
     public void onPlayerQuit(Player player) {
