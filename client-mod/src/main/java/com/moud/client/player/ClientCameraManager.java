@@ -43,8 +43,13 @@ public class ClientCameraManager {
         GameRenderer gameRenderer = client.gameRenderer;
         Camera camera = gameRenderer.getCamera();
 
-        Matrix4f projectionMatrix = new Matrix4f(gameRenderer.getBasicProjectionMatrix(client.options.getFov().getValue()));
-        Matrix4f viewMatrix = new Matrix4f(camera.getRotation());
+        Matrix4f projectionMatrix = new Matrix4f();
+        projectionMatrix.setPerspective((float)Math.toRadians(client.options.getFov().getValue()),
+                (float)client.getWindow().getFramebufferWidth() / client.getWindow().getFramebufferHeight(),
+                0.05f, 1000.0f);
+
+        Matrix4f viewMatrix = new Matrix4f();
+        viewMatrix.rotation(camera.getRotation());
 
         Matrix4f inversePV = new Matrix4f();
         projectionMatrix.mul(viewMatrix, inversePV);
@@ -58,12 +63,11 @@ public class ClientCameraManager {
         Vector4f screenPos = new Vector4f(ndcX, ndcY, -1.0f, 1.0f);
         Vector4f worldPos = new Vector4f();
 
-        screenPos.mul(inversePV);
-        worldPos.w = 1.0f / worldPos.w;
-        worldPos.x *= worldPos.w;
-        worldPos.y *= worldPos.w;
-        worldPos.z *= worldPos.w;
+        inversePV.transform(screenPos, worldPos);
+        if (worldPos.w != 0) {
+            worldPos.mul(1.0f / worldPos.w);
+        }
 
-        return new Vector3(worldPos.x(), worldPos.y(), worldPos.z()).normalize();
+        return new Vector3(worldPos.x, worldPos.y, worldPos.z).normalize();
     }
 }

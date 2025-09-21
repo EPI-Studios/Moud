@@ -46,7 +46,7 @@ public class KeyboardMixin {
         }
     }
 
-    public static UIInputHandler getUIInputHandler() {
+    private static UIInputHandler getUIInputHandler() {
         return uiInputHandler;
     }
 }

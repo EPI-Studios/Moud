@@ -8,6 +8,7 @@ import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
+import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
@@ -27,10 +28,12 @@ public class CursorService {
     private static final Logger LOGGER = LoggerFactory.getLogger(CursorService.class);
     private static final double MAX_RAYCAST_DISTANCE = 100.0;
     private static final long UPDATE_INTERVAL_TICKS = 1L;
+    private static final double MOVEMENT_THRESHOLD = 0.001;
 
     private static CursorService instance;
     private final Map<UUID, Cursor> cursors = new ConcurrentHashMap<>();
     private final Map<UUID, CameraState> cameraStates = new ConcurrentHashMap<>();
+    private final Map<UUID, Entity> hoveredEntities = new ConcurrentHashMap<>();
     private final ServerNetworkManager networkManager;
     private Task updateTask;
 
@@ -66,6 +69,7 @@ public class CursorService {
         }
         cursors.clear();
         cameraStates.clear();
+        hoveredEntities.clear();
         LOGGER.info("Cursor service shut down.");
     }
 
@@ -75,14 +79,18 @@ public class CursorService {
         List<MoudPackets.CursorUpdateData> positionUpdates = new ArrayList<>();
         for (Cursor cursor : cursors.values()) {
             if (cursor.isGloballyVisible()) {
+                Vector3 oldPosition = cursor.getWorldPosition();
                 updateCursorState(cursor);
+                Vector3 newPosition = cursor.getWorldPosition();
 
-                positionUpdates.add(new MoudPackets.CursorUpdateData(
-                        cursor.getOwner().getUuid(),
-                        cursor.getWorldPosition(),
-                        cursor.getWorldNormal(),
-                        cursor.isHittingBlock()
-                ));
+                if (hasSignificantMovement(oldPosition, newPosition)) {
+                    positionUpdates.add(new MoudPackets.CursorUpdateData(
+                            cursor.getOwner().getUuid(),
+                            newPosition,
+                            cursor.getWorldNormal(),
+                            cursor.isHittingBlock()
+                    ));
+                }
             }
         }
 
@@ -91,23 +99,87 @@ public class CursorService {
         }
     }
 
+    private boolean hasSignificantMovement(Vector3 oldPos, Vector3 newPos) {
+        if (oldPos.equals(Vector3.zero()) && !newPos.equals(Vector3.zero())) return true;
+        double distance = Math.sqrt(
+                Math.pow(newPos.x - oldPos.x, 2) +
+                        Math.pow(newPos.y - oldPos.y, 2) +
+                        Math.pow(newPos.z - oldPos.z, 2)
+        );
+        return distance > MOVEMENT_THRESHOLD;
+    }
+
     private void updateCursorState(Cursor cursor) {
         Player owner = cursor.getOwner();
         if (owner == null || !owner.isOnline() || owner.getInstance() == null) return;
 
-        // --- THIS IS THE FIX ---
-        // The raycast origin is *always* the player's eye position.
-        // When the camera is locked, the player entity itself is moved to the camera's location,
-        // so this calculation works for both locked and unlocked states.
-        Point rayOrigin = owner.getPosition().add(0, owner.getEyeHeight(), 0);
-        Vector3 camDirVec = PlayerCameraManager.getInstance().getCameraDirection(owner);
+        Point rayOrigin;
+        Vector3 rayDirection;
 
-        Vec camDir = new Vec(camDirVec.x, camDirVec.y, camDirVec.z);
+        CameraState cameraState = cameraStates.get(owner.getUuid());
+        if (cameraState != null && cameraState.isLocked) {
+            rayOrigin = new Pos(cameraState.position.x, cameraState.position.y, cameraState.position.z);
+            rayDirection = calculateDirectionFromRotation(cameraState.rotation);
+        } else {
+            rayOrigin = owner.getPosition().add(0, owner.getEyeHeight(), 0);
+            Vector3 camDirVec = PlayerCameraManager.getInstance().getCameraDirection(owner);
+            rayDirection = camDirVec;
+        }
+
+        Vec camDir = new Vec(rayDirection.x, rayDirection.y, rayDirection.z);
         Instance instance = owner.getInstance();
-        ManualRaycastResult result = performRaycast(instance, rayOrigin, camDir, MAX_RAYCAST_DISTANCE);
+
+        RaycastResult result = performEntityAndBlockRaycast(instance, rayOrigin, camDir, MAX_RAYCAST_DISTANCE, owner);
 
         cursor.setTargetPosition(result.hitPosition(), result.blockNormal());
-        cursor.setHittingBlock(result.isHit());
+        cursor.setHittingBlock(result.isBlockHit());
+
+        Entity oldHovered = hoveredEntities.get(owner.getUuid());
+        Entity newHovered = result.hitEntity();
+
+        if (oldHovered != newHovered) {
+            if (oldHovered != null) {
+                triggerEntityHoverExit(owner, oldHovered);
+            }
+            if (newHovered != null) {
+                triggerEntityHoverEnter(owner, newHovered);
+                hoveredEntities.put(owner.getUuid(), newHovered);
+            } else {
+                hoveredEntities.remove(owner.getUuid());
+            }
+        }
+    }
+
+    private Vector3 calculateDirectionFromRotation(Vector3 rotation) {
+        double pitchRad = Math.toRadians(rotation.y);
+        double yawRad = Math.toRadians(rotation.x);
+
+        double x = -Math.sin(yawRad) * Math.cos(pitchRad);
+        double y = -Math.sin(pitchRad);
+        double z = Math.cos(yawRad) * Math.cos(pitchRad);
+
+        return new Vector3(x, y, z).normalize();
+    }
+
+    private void triggerEntityHoverEnter(Player player, Entity entity) {
+        LOGGER.debug("Player {} cursor entered entity {}", player.getUsername(), entity.getUuid());
+        dispatchEntityEvent(player, entity, "hover_enter");
+    }
+
+    private void triggerEntityHoverExit(Player player, Entity entity) {
+        LOGGER.debug("Player {} cursor exited entity {}", player.getUsername(), entity.getUuid());
+        dispatchEntityEvent(player, entity, "hover_exit");
+    }
+
+    private void dispatchEntityEvent(Player player, Entity entity, String interactionType) {
+        try {
+            com.moud.server.events.EventDispatcher eventDispatcher = com.moud.server.MoudEngine.getInstance().getEventDispatcher();
+            if (eventDispatcher != null) {
+                eventDispatcher.dispatchEntityInteraction(player, entity, interactionType);
+            }
+        } catch (Exception e) {
+            LOGGER.debug("Could not dispatch entity event: {}", e.getMessage());
+        }
     }
 
     public void updateCameraState(Player player, Vector3 position, Vector3 rotation, boolean isLocked) {
@@ -124,109 +196,124 @@ public class CursorService {
         }
     }
 
-    private ManualRaycastResult performRaycast(@NotNull Instance instance, @NotNull Point origin, @NotNull Vec direction, double maxDistance) {
-        final double step = 0.1;
+    private RaycastResult performEntityAndBlockRaycast(@NotNull Instance instance, @NotNull Point origin, @NotNull Vec direction, double maxDistance, Player excludePlayer) {
+        final double step = 0.05;
         Vec normalizedDirection = direction.normalize();
         if (normalizedDirection.lengthSquared() == 0) {
-            // Avoid division by zero or invalid direction
-            return new ManualRaycastResult(
+            return new RaycastResult(
                     new Vector3(origin.x(), origin.y(), origin.z()),
                     new Vector3(0, 1, 0),
-                    false
+                    false,
+                    null
             );
         }
-        Point lastPos = origin;
 
+        Entity closestEntity = null;
+        double closestEntityDistance = Double.MAX_VALUE;
+        Point closestEntityHit = null;
+
+        for (Entity entity : instance.getEntities()) {
+            if (entity.equals(excludePlayer)) continue;
+
+            double entityDistance = raycastToEntity(origin, normalizedDirection, entity, maxDistance);
+            if (entityDistance >= 0 && entityDistance < closestEntityDistance) {
+                closestEntityDistance = entityDistance;
+                closestEntity = entity;
+                closestEntityHit = origin.add(normalizedDirection.mul(entityDistance));
+            }
+        }
+
+        Point lastPos = origin;
         for (double d = 0; d < maxDistance; d += step) {
+            if (closestEntity != null && d >= closestEntityDistance) {
+                return new RaycastResult(
+                        new Vector3(closestEntityHit.x(), closestEntityHit.y(), closestEntityHit.z()),
+                        new Vector3(0, 1, 0),
+                        false,
+                        closestEntity
+                );
+            }
+
             Point currentPos = origin.add(normalizedDirection.mul(d));
             Block block = instance.getBlock(currentPos);
 
             if (!block.isAir()) {
-                int lastBlockX = lastPos.blockX();
-                int lastBlockY = lastPos.blockY();
-                int lastBlockZ = lastPos.blockZ();
+                Vector3 normal = calculateBlockNormal(lastPos, currentPos);
+                Point hitPos = origin.add(normalizedDirection.mul(Math.max(0, d - step)));
 
-                int currentBlockX = currentPos.blockX();
-                int currentBlockY = currentPos.blockY();
-                int currentBlockZ = currentPos.blockZ();
-
-                Vec normal = Vec.ZERO;
-                int axis = -1;
-                double plane = 0;
-
-                if (currentBlockX > lastBlockX) {
-                    normal = new Vec(-1, 0, 0);
-                    axis = 0;
-                    plane = currentBlockX;
-                } else if (currentBlockX < lastBlockX) {
-                    normal = new Vec(1, 0, 0);
-                    axis = 0;
-                    plane = currentBlockX + 1;
-                } else if (currentBlockY > lastBlockY) {
-                    normal = new Vec(0, -1, 0);
-                    axis = 1;
-                    plane = currentBlockY;
-                } else if (currentBlockY < lastBlockY) {
-                    normal = new Vec(0, 1, 0);
-                    axis = 1;
-                    plane = currentBlockY + 1;
-                } else if (currentBlockZ > lastBlockZ) {
-                    normal = new Vec(0, 0, -1);
-                    axis = 2;
-                    plane = currentBlockZ;
-                } else if (currentBlockZ < lastBlockZ) {
-                    normal = new Vec(0, 0, 1);
-                    axis = 2;
-                    plane = currentBlockZ + 1;
-                }
-
-                if (axis != -1) {
-                    double originComp = switch (axis) {
-                        case 0 -> origin.x();
-                        case 1 -> origin.y();
-                        case 2 -> origin.z();
-                        default -> throw new IllegalStateException("Invalid axis");
-                    };
-                    double dirComp = switch (axis) {
-                        case 0 -> normalizedDirection.x();
-                        case 1 -> normalizedDirection.y();
-                        case 2 -> normalizedDirection.z();
-                        default -> throw new IllegalStateException("Invalid axis");
-                    };
-                    if (Math.abs(dirComp) < 1e-6) {
-                        // Parallel to plane, skip (shouldn't happen as coord wouldn't change)
-                        continue;
-                    }
-                    double t = (plane - originComp) / dirComp;
-                    if (t < 0) {
-                        // Behind origin, invalid
-                        continue;
-                    }
-                    Point hitPos = origin.add(normalizedDirection.mul(t));
-                    return new ManualRaycastResult(
-                            new Vector3(hitPos.x(), hitPos.y(), hitPos.z()),
-                            new Vector3(normal.x(), normal.y(), normal.z()),
-                            true
-                    );
-                }
-                // Fallback if no axis change (e.g., started inside), but shouldn't reach here
-                return new ManualRaycastResult(
-                        new Vector3(currentPos.x(), currentPos.y(), currentPos.z()),
-                        new Vector3(normal.x(), normal.y(), normal.z()),
-                        true
+                return new RaycastResult(
+                        new Vector3(hitPos.x(), hitPos.y(), hitPos.z()),
+                        normal,
+                        true,
+                        null
                 );
             }
             lastPos = currentPos;
         }
 
+        if (closestEntity != null) {
+            return new RaycastResult(
+                    new Vector3(closestEntityHit.x(), closestEntityHit.y(), closestEntityHit.z()),
+                    new Vector3(0, 1, 0),
+                    false,
+                    closestEntity
+            );
+        }
+
         Point endPos = origin.add(normalizedDirection.mul(maxDistance));
-        return new ManualRaycastResult(
+        return new RaycastResult(
                 new Vector3(endPos.x(), endPos.y(), endPos.z()),
                 new Vector3(0, 1, 0),
-                false
+                false,
+                null
         );
     }
-    private record ManualRaycastResult(Vector3 hitPosition, Vector3 blockNormal, boolean isHit) {}
+
+    private double raycastToEntity(Point origin, Vec direction, Entity entity, double maxDistance) {
+        Pos entityPos = entity.getPosition();
+        double entityRadius = 0.5;
+
+        Vec toEntity = new Vec(
+                entityPos.x() - origin.x(),
+                entityPos.y() + entity.getBoundingBox().height() / 2 - origin.y(),
+                entityPos.z() - origin.z()
+        );
+
+        double projectionLength = toEntity.dot(direction);
+        if (projectionLength < 0 || projectionLength > maxDistance) {
+            return -1;
+        }
+
+        Vec projection = direction.mul(projectionLength);
+        Vec rejection = toEntity.sub(projection);
+
+        if (rejection.length() <= entityRadius) {
+            return Math.max(0, projectionLength - entityRadius);
+        }
+
+        return -1;
+    }
+
+    private Vector3 calculateBlockNormal(Point lastPos, Point currentPos) {
+        int lastBlockX = lastPos.blockX();
+        int lastBlockY = lastPos.blockY();
+        int lastBlockZ = lastPos.blockZ();
+
+        int currentBlockX = currentPos.blockX();
+        int currentBlockY = currentPos.blockY();
+        int currentBlockZ = currentPos.blockZ();
+
+        if (currentBlockX > lastBlockX) return new Vector3(-1, 0, 0);
+        if (currentBlockX < lastBlockX) return new Vector3(1, 0, 0);
+        if (currentBlockY > lastBlockY) return new Vector3(0, -1, 0);
+        if (currentBlockY < lastBlockY) return new Vector3(0, 1, 0);
+        if (currentBlockZ > lastBlockZ) return new Vector3(0, 0, -1);
+        if (currentBlockZ < lastBlockZ) return new Vector3(0, 0, 1);
+
+        return new Vector3(0, 1, 0);
+    }
+
+    private record RaycastResult(Vector3 hitPosition, Vector3 blockNormal, boolean isBlockHit, Entity hitEntity) {}
 
     private static class CameraState {
         Vector3 position = Vector3.zero();
@@ -259,6 +346,7 @@ public class CursorService {
     public void onPlayerQuit(Player player) {
         cursors.remove(player.getUuid());
         cameraStates.remove(player.getUuid());
+        hoveredEntities.remove(player.getUuid());
         networkManager.broadcast(new MoudPackets.RemoveCursorsPacket(List.of(player.getUuid())));
     }
 
@@ -299,5 +387,9 @@ public class CursorService {
             boolean canSee = cursor.isVisibleTo(viewer);
             networkManager.send(viewer, new MoudPackets.CursorVisibilityPacket(cursor.getOwner().getUuid(), canSee));
         }
+    }
+
+    public Entity getHoveredEntity(Player player) {
+        return hoveredEntities.get(player.getUuid());
     }
 }

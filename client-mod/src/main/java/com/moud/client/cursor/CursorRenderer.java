@@ -26,7 +26,6 @@ public class CursorRenderer {
         Vec3d cameraPos = camera.getPos();
 
         Vector3 interpolatedPos = cursor.getInterpolatedPosition(tickDelta);
-        System.out.println(interpolatedPos);
         if (interpolatedPos.equals(Vector3.zero())) {
             return;
         }
