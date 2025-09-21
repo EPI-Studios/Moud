@@ -1,25 +1,50 @@
 package com.moud.client.api.service;
 
-import com.moud.client.ui.component.*;
-import com.moud.client.ui.UIOverlayManager;
+import com.moud.client.ui.UIRenderer;
+import com.moud.client.ui.UIElement;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
 public final class UIService {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIService.class);
     private final MinecraftClient client;
+    private final UIRenderer renderer;
+    private final Map<String, UIElement> elements = new ConcurrentHashMap<>();
 
     private Context jsContext;
     private ExecutorService scriptExecutor;
+    private float totalTickDelta = 0.0f;
 
     public UIService() {
         this.client = MinecraftClient.getInstance();
+        this.renderer = new UIRenderer();
+        registerHudRenderer();
+    }
+
+    private void registerHudRenderer() {
+        HudRenderCallback.EVENT.register((context, tickDeltaManager) -> {
+            if (elements.isEmpty()) return;
+
+            totalTickDelta += tickDeltaManager.getTickDelta(true);
+
+            int mouseX = getMouseX();
+            int mouseY = getMouseY();
+
+            for (UIElement element : elements.values()) {
+                if (element.isVisible()) {
+                    renderer.render(context, element, mouseX, mouseY, totalTickDelta);
+                }
+            }
+        });
     }
 
     public void setContext(Context jsContext) {
@@ -43,11 +68,11 @@ public final class UIService {
     }
 
     public int getScreenWidth() {
-        return this.client.getWindow().getScaledWidth();
+        return client.getWindow().getScaledWidth();
     }
 
     public int getScreenHeight() {
-        return this.client.getWindow().getScaledHeight();
+        return client.getWindow().getScaledHeight();
     }
 
     public int getMouseX() {
@@ -58,180 +83,115 @@ public final class UIService {
         return (int) (client.mouse.getY() * getScreenHeight() / client.getWindow().getHeight());
     }
 
-    public void clearOverlays() {
-        UIOverlayManager.getInstance().clear();
+    public UIElement createElement(String type) {
+        UIElement element = new UIElement(type, this);
+        return element;
     }
 
-    public UIComponent createElement(String type) {
-        return switch (type.toLowerCase()) {
-            case "container" -> createContainer();
-            case "text" -> createText("");
-            case "button" -> createButton("Button");
-            case "input" -> createInput("");
-            case "image" -> createImage("");
-            default -> new UIComponent(type, this);
-        };
+    public UIElement createText(String content) {
+        UIElement element = createElement("text");
+        element.setText(content);
+        element.setSize(client.textRenderer.getWidth(content), client.textRenderer.fontHeight);
+        return element;
     }
 
-    public UIContainer createContainer() {
-        return new UIContainer(this);
+    public UIElement createButton(String text) {
+        UIElement element = createElement("button");
+        element.setText(text);
+        element.setSize(Math.max(80, client.textRenderer.getWidth(text) + 20), 20);
+        element.setBackgroundColor("#C0C0C0");
+        element.setBorderColor("#808080");
+        element.setBorderWidth(1);
+        return element;
     }
 
-    public UIText createText(String content) {
-        return new UIText(content, this);
+    public UIElement createInput(String placeholder) {
+        UIElement element = createElement("input");
+        element.setPlaceholder(placeholder);
+        element.setSize(200, 20);
+        element.setBackgroundColor("#FFFFFF");
+        element.setBorderColor("#CCCCCC");
+        element.setBorderWidth(1);
+        return element;
     }
 
-    public UIButton createButton(String text) {
-        return new UIButton(text, this);
+    public UIElement createContainer() {
+        UIElement element = createElement("container");
+        element.setSize(100, 100);
+        element.setBackgroundColor("#00000000");
+        return element;
     }
 
-    public UIImage createImage(String source) {
-        return new UIImage(source, this);
+    public void addElement(String id, UIElement element) {
+        elements.put(id, element);
+        element.setId(id);
     }
 
-    public UIInput createInput(String placeholder) {
-        return new UIInput(placeholder, this);
+    public void removeElement(String id) {
+        elements.remove(id);
     }
 
-    public UIScreen createScreen(String title) {
-        return new UIScreen(title, this);
+    public UIElement getElement(String id) {
+        return elements.get(id);
     }
 
-    public void showScreen(UIScreen screen) {
-        client.execute(() -> client.setScreen(screen));
+    public void clearElements() {
+        elements.clear();
     }
 
-    public UIComponent positionRelative(UIComponent component, String position) {
+    public UIElement positionRelative(UIElement element, String position) {
         int screenWidth = getScreenWidth();
         int screenHeight = getScreenHeight();
 
         switch (position.toLowerCase()) {
-            case "center" -> {
-                component.setPosition(
-                        (screenWidth - component.getWidth()) / 2,
-                        (screenHeight - component.getHeight()) / 2
-                );
-                return component;
-            }
-            case "top-left" -> {
-                component.setPosition(10, 10);
-                return component;
-            }
-            case "top-right" -> {
-                component.setPosition(screenWidth - component.getWidth() - 10, 10);
-                return component;
-            }
-            case "bottom-left" -> {
-                component.setPosition(10, screenHeight - component.getHeight() - 10);
-                return component;
-            }
-            case "bottom-right" -> {
-                component.setPosition(
-                        screenWidth - component.getWidth() - 10,
-                        screenHeight - component.getHeight() - 10
-                );
-                return component;
-            }
-            case "top-center" -> {
-                component.setPosition((screenWidth - component.getWidth()) / 2, 10);
-                return component;
-            }
-            case "bottom-center" -> {
-                component.setPosition(
-                        (screenWidth - component.getWidth()) / 2,
-                        screenHeight - component.getHeight() - 10
-                );
-                return component;
-            }
-            default -> {
-                return component;
-            }
+            case "center" -> element.setPosition(
+                    (screenWidth - element.getWidth()) / 2,
+                    (screenHeight - element.getHeight()) / 2
+            );
+            case "top-left" -> element.setPosition(10, 10);
+            case "top-right" -> element.setPosition(screenWidth - element.getWidth() - 10, 10);
+            case "bottom-left" -> element.setPosition(10, screenHeight - element.getHeight() - 10);
+            case "bottom-right" -> element.setPosition(
+                    screenWidth - element.getWidth() - 10,
+                    screenHeight - element.getHeight() - 10
+            );
+            case "top-center" -> element.setPosition((screenWidth - element.getWidth()) / 2, 10);
+            case "bottom-center" -> element.setPosition(
+                    (screenWidth - element.getWidth()) / 2,
+                    screenHeight - element.getHeight() - 10
+            );
         }
+        return element;
     }
 
-    public UIComponent setPositionPercent(UIComponent component, double xPercent, double yPercent) {
+    public UIElement setPositionPercent(UIElement element, double xPercent, double yPercent) {
         int x = (int) (getScreenWidth() * xPercent / 100.0);
         int y = (int) (getScreenHeight() * yPercent / 100.0);
-        component.setPosition(x, y);
-        return component;
+        element.setPosition(x, y);
+        return element;
     }
 
-    public UIComponent setSizePercent(UIComponent component, double widthPercent, double heightPercent) {
+    public UIElement setSizePercent(UIElement element, double widthPercent, double heightPercent) {
         int width = (int) (getScreenWidth() * widthPercent / 100.0);
         int height = (int) (getScreenHeight() * heightPercent / 100.0);
-        component.setSize(width, height);
-        return component;
+        element.setSize(width, height);
+        return element;
     }
 
-    public UIContainer createGrid(int columns, int rows) {
-        UIContainer grid = createContainer();
-        grid.setSize(getScreenWidth() - 20, getScreenHeight() - 20);
-        grid.setPosition(10, 10);
-
-        int cellWidth = (grid.getWidth() - (int)((columns - 1) * 10)) / columns;
-        int cellHeight = (grid.getHeight() - (int)((rows - 1) * 10)) / rows;
-
-        for (int row = 0; row < rows; row++) {
-            UIContainer rowContainer = createContainer();
-            rowContainer.setFlexDirection("row");
-            rowContainer.setGap(10);
-            rowContainer.setSize(grid.getWidth(), cellHeight);
-
-            for (int col = 0; col < columns; col++) {
-                UIContainer cell = createContainer();
-                cell.setSize(cellWidth, cellHeight);
-                cell.setBorder(1, "#CCCCCC");
-                rowContainer.appendChild(cell);
+    public boolean handleClick(double mouseX, double mouseY, int button) {
+        for (UIElement element : elements.values()) {
+            if (element.isVisible() && element.contains(mouseX, mouseY)) {
+                element.triggerClick(mouseX, mouseY, button);
+                return true;
             }
-
-            grid.appendChild(rowContainer);
         }
-
-        grid.setFlexDirection("column");
-        grid.setGap(10);
-        return grid;
-    }
-
-    public UIComponent animateToPosition(UIComponent component, int targetX, int targetY, int durationMs) {
-        long startTime = System.currentTimeMillis();
-        int startX = component.getX();
-        int startY = component.getY();
-
-        scheduleAnimation(() -> {
-            long elapsed = System.currentTimeMillis() - startTime;
-            double progress = Math.min(1.0, (double) elapsed / durationMs);
-
-            progress = easeInOutCubic(progress);
-
-            int currentX = (int) (startX + (targetX - startX) * progress);
-            int currentY = (int) (startY + (targetY - startY) * progress);
-
-            component.setPosition(currentX, currentY);
-
-            return progress >= 1.0;
-        });
-
-        return component;
-    }
-
-    private void scheduleAnimation(AnimationCallback callback) {
-        if (scriptExecutor != null) {
-            scriptExecutor.execute(() -> callback.update());
-        }
-    }
-
-    private double easeInOutCubic(double t) {
-        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        return false;
     }
 
     public void cleanUp() {
+        elements.clear();
         jsContext = null;
         scriptExecutor = null;
         LOGGER.info("UIService cleaned up.");
-    }
-
-    @FunctionalInterface
-    private interface AnimationCallback {
-        boolean update();
     }
 }
