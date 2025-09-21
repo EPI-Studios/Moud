@@ -181,7 +181,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             if (apiService != null) { apiService.getUpdateManager().tick(); }
             if (clientCameraManager != null) { clientCameraManager.tick(); }
             if (clientCursorManager != null) {
-                float delta = client.getRenderTickCounter().getTickDelta(false);
+                float delta = client.getRenderTickCounter().getTickDelta(true);
                 clientCursorManager.tick(delta);
             }
         });
