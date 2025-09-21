@@ -1,6 +1,5 @@
 package com.moud.client.ui;
 
-import com.moud.client.ui.component.*;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
@@ -12,103 +11,77 @@ public class UIRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIRenderer.class);
     private final MinecraftClient client = MinecraftClient.getInstance();
 
-    public void renderComponent(DrawContext context, UIComponent component) {
-        if (!component.visible) {
-            return;
-        }
+    public void render(DrawContext context, UIElement element, int mouseX, int mouseY, float tickDelta) {
+        int x = element.getX();
+        int y = element.getY();
+        int width = element.getWidth();
+        int height = element.getHeight();
 
-        if (component instanceof UIImage image) {
-            renderImage(context, image);
-        } else {
-            renderDefaultComponent(context, component);
-        }
+        renderBackground(context, element, x, y, width, height);
+        renderBorder(context, element, x, y, width, height);
+        renderText(context, element, x, y, width, height);
 
-        for (UIComponent child : component.getChildren()) {
-            renderComponent(context, child);
+        if (element.contains(mouseX, mouseY)) {
+            element.triggerHover(mouseX, mouseY);
         }
     }
 
-    private void renderDefaultComponent(DrawContext context, UIComponent component) {
-        int x = component.getX();
-        int y = component.getY();
-        int width = component.getWidth();
-        int height = component.getHeight();
+    private void renderBackground(DrawContext context, UIElement element, int x, int y, int width, int height) {
+        int bgColor = parseColor(element.getBackgroundColor(), element.getOpacity());
+        if ((bgColor >>> 24) > 0) {
+            context.fill(x, y, x + width, y + height, bgColor);
+        }
+    }
 
-        int bgColor = parseColor(component.getBackgroundColor(), component.getOpacity());
-        int borderColor = parseColor(component.getBorderColor(), component.getOpacity());
-        int borderWidth = component.getBorderWidth();
-
-        context.fill(x, y, x + width, y + height, bgColor);
-
+    private void renderBorder(DrawContext context, UIElement element, int x, int y, int width, int height) {
+        int borderWidth = element.getBorderWidth();
         if (borderWidth > 0) {
+            int borderColor = parseColor(element.getBorderColor(), element.getOpacity());
             context.drawBorder(x, y, width, height, borderColor);
         }
+    }
 
-        renderText(context, component);
+    private void renderText(DrawContext context, UIElement element, int x, int y, int width, int height) {
+        String displayText = getDisplayText(element);
+        if (displayText.isEmpty()) return;
 
-        if (component instanceof UIInput input && input.isFocused()) {
-            renderCursor(context, input);
+        int textColor = parseColor(element.getTextColor(), element.getOpacity());
+        int textWidth = client.textRenderer.getWidth(displayText);
+        int textHeight = client.textRenderer.fontHeight;
+
+        int textX = x + 4;
+        int textY = y + (height - textHeight) / 2;
+
+        if ("button".equals(element.getType())) {
+            textX = x + (width - textWidth) / 2;
+        }
+
+        context.drawText(client.textRenderer, Text.literal(displayText), textX, textY, textColor, true);
+
+        if ("input".equals(element.getType()) && !element.getValue().isEmpty()) {
+            renderInputCursor(context, element, textX, textY, textHeight);
         }
     }
 
-    private void renderText(DrawContext context, UIComponent component) {
-        String text = component.getText();
-        if (text == null || text.isEmpty()) {
-            return;
-        }
-
-        int x = component.getX();
-        int y = component.getY();
-        int width = component.getWidth();
-        int height = component.getHeight();
-        int textColor = parseColor(component.getTextColor(), component.getOpacity());
-
-        int textWidth = client.textRenderer.getWidth(text);
-        int textY = y + (height - client.textRenderer.fontHeight) / 2;
-        int textX;
-
-        switch (component.getTextAlign().toLowerCase()) {
-            case "center":
-                textX = x + (width - textWidth) / 2;
-                break;
-            case "right":
-                textX = x + width - textWidth - (int) component.getPaddingRight();
-                break;
+    private String getDisplayText(UIElement element) {
+        switch (element.getType()) {
+            case "input":
+                String value = element.getValue();
+                if (!value.isEmpty()) {
+                    return value;
+                }
+                return element.getPlaceholder();
             default:
-                textX = x + (int) component.getPaddingLeft();
-                break;
+                return element.getText();
         }
-        context.drawText(client.textRenderer, Text.literal(text), textX, textY, textColor, true);
     }
 
-    private void renderCursor(DrawContext context, UIInput input) {
+    private void renderInputCursor(DrawContext context, UIElement element, int textX, int textY, int textHeight) {
         if ((System.currentTimeMillis() / 500) % 2 == 0) {
-            String textBeforeCursor = input.getValue();
-            int cursorX = input.getX() + (int) input.getPaddingLeft() + client.textRenderer.getWidth(textBeforeCursor);
-            int cursorY = input.getY() + (input.getHeight() - client.textRenderer.fontHeight) / 2;
-            int cursorColor = parseColor(input.getTextColor(), input.getOpacity());
-
-            context.fill(cursorX, cursorY, cursorX + 1, cursorY + client.textRenderer.fontHeight, cursorColor);
-        }
-    }
-
-    private void renderImage(DrawContext context, UIImage image) {
-        try {
-            Identifier textureId = Identifier.of(image.getSource());
-            int x = image.getX();
-            int y = image.getY();
-            int width = image.getWidth();
-            int height = image.getHeight();
-
-            context.drawTexture(textureId, x, y, 0, 0, width, height, width, height);
-        } catch (Exception e) {
-            LOGGER.error("Failed to render image with source: {}", image.getSource(), e);
-
-            int x = image.getX();
-            int y = image.getY();
-            int width = image.getWidth();
-            int height = image.getHeight();
-            context.fill(x, y, x + width, y + height, 0xFFFF00FF);
+            String value = element.getValue();
+            int cursorX = textX + client.textRenderer.getWidth(value);
+            int cursorColor = parseColor(element.getTextColor(), element.getOpacity());
+            context.fill(cursorX, textY, cursorX + 1, textY + textHeight, cursorColor);
         }
     }
 
@@ -116,9 +89,11 @@ public class UIRenderer {
         if (colorStr == null || !colorStr.startsWith("#")) {
             return 0;
         }
+
         try {
             String hex = colorStr.substring(1);
             long value;
+
             if (hex.length() == 8) {
                 value = Long.parseLong(hex, 16);
             } else {
@@ -129,7 +104,6 @@ public class UIRenderer {
                     long b = value & 0xF;
                     value = (r << 20) | (r << 16) | (g << 12) | (g << 8) | (b << 4) | b;
                 }
-
                 int alpha = (int) (Math.max(0, Math.min(1, opacity)) * 255);
                 value |= (long) alpha << 24;
             }
