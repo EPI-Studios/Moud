@@ -3,8 +3,6 @@ package com.moud.client.mixin;
 import com.moud.client.api.service.ClientAPIService;
 import com.moud.network.MoudPackets;
 import com.moud.client.network.ClientPacketWrapper;
-import com.moud.client.player.ClientPlayerModelManager;
-import com.moud.client.ui.UIOverlayManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
 import org.spongepowered.asm.mixin.Final;
@@ -36,8 +34,8 @@ public abstract class MouseMixin {
             return;
         }
 
-        if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.cursor.isVisible()) {
-            if (UIOverlayManager.getInstance().handleOverlayClick(this.x, this.y, button)) {
+        if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.ui != null) {
+            if (ClientAPIService.INSTANCE.ui.handleClick(this.x, this.y, button)) {
                 ci.cancel();
                 return;
             }

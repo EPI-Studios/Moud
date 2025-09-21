@@ -21,34 +21,16 @@ public class Cursor {
     private boolean projectOntoBlock = false;
 
     private Vector3 worldPosition = Vector3.zero();
-    private Vector3 targetPosition = Vector3.zero();
     private Vector3 worldNormal = new Vector3(0, 1, 0);
-    private Vector3 targetNormal = new Vector3(0, 1, 0);
     private boolean hittingBlock = false;
-
-    private static final float INTERPOLATION_SPEED = 0.2f;
 
     public Cursor(Player owner) {
         this.owner = owner;
-        this.targetPosition = worldPosition;
-        this.targetNormal = worldNormal;
-    }
-
-    public void updateInterpolation(float deltaTime) {
-        float factor = 1.0f - (float)Math.pow(1.0f - INTERPOLATION_SPEED, deltaTime * 60.0f);
-
-        worldPosition = Vector3.lerp(worldPosition, targetPosition, factor);
-        worldNormal = Vector3.lerp(worldNormal, targetNormal, factor).normalize();
     }
 
     public void setTargetPosition(Vector3 position, Vector3 normal) {
-        this.targetPosition = position;
-        this.targetNormal = normal;
-    }
-
-    public void snapToTarget() {
-        this.worldPosition = this.targetPosition;
-        this.worldNormal = this.targetNormal;
+        this.worldPosition = position;
+        this.worldNormal = normal;
     }
 
     public Player getOwner() {
@@ -128,26 +110,16 @@ public class Cursor {
         return worldPosition;
     }
 
-    public Vector3 getTargetPosition() {
-        return targetPosition;
-    }
-
     public void setWorldPosition(Vector3 worldPosition) {
         this.worldPosition = worldPosition;
-        this.targetPosition = worldPosition;
     }
 
     public Vector3 getWorldNormal() {
         return worldNormal;
     }
 
-    public Vector3 getTargetNormal() {
-        return targetNormal;
-    }
-
     public void setWorldNormal(Vector3 worldNormal) {
         this.worldNormal = worldNormal;
-        this.targetNormal = worldNormal;
     }
 
     public boolean isHittingBlock() {
@@ -162,7 +134,7 @@ public class Cursor {
         if (!isGloballyVisible) return false;
         if (visibleTo.isEmpty()) return true;
         boolean contains = visibleTo.contains(viewer.getUuid());
-        return isWhitelist ? contains : !contains;
+        return isWhitelist == contains;
     }
 
     public enum CursorMode {
@@ -172,7 +144,6 @@ public class Cursor {
 
     public enum RenderMode {
         TEXTURE,
-        // TODO : IMPLEMENT THE REST
         MESH,
         ITEM
     }

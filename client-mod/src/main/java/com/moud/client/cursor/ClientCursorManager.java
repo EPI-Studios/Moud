@@ -35,13 +35,12 @@ public class ClientCursorManager {
     public void handlePositionUpdates(List<MoudPackets.CursorUpdateData> updates) {
         if (client.player == null) return;
 
+        LOGGER.trace("Handling {} cursor position updates.", updates.size());
+
         for (MoudPackets.CursorUpdateData update : updates) {
             RemoteCursor cursor = remoteCursors.computeIfAbsent(update.playerId(), id -> {
-                LOGGER.info("Creating new cursor for player {}", id);
-                RemoteCursor newCursor = new RemoteCursor(id);
-                newCursor.setVisible(true);
-                newCursor.setAppearance("minecraft:textures/block/white_concrete.png", new Vector3(1.0f, 1.0f, 1.0f), 0.8f, "TEXTURE");
-                return newCursor;
+                LOGGER.info("Creating new remote cursor for player {}", id);
+                return new RemoteCursor(id);
             });
 
             cursor.setTargetPosition(update.position(), update.normal());
@@ -51,12 +50,9 @@ public class ClientCursorManager {
     public void handleAppearanceUpdate(UUID playerId, String texture, Vector3 color, float scale, String renderMode) {
         RemoteCursor cursor = remoteCursors.computeIfAbsent(playerId, id -> {
             LOGGER.info("Creating cursor for appearance update: {}", id);
-            RemoteCursor newCursor = new RemoteCursor(id);
-            newCursor.setVisible(true);
-            return newCursor;
+            return new RemoteCursor(id);
         });
 
-        LOGGER.info("Updating appearance for cursor {}: texture={}, color={}, scale={}", playerId, texture, color, scale);
         cursor.setAppearance(texture, color, scale, renderMode);
     }
 
@@ -66,7 +62,6 @@ public class ClientCursorManager {
             return new RemoteCursor(id);
         });
 
-        LOGGER.info("Setting cursor {} visibility to {}", playerId, visible);
         cursor.setVisible(visible);
     }
 
@@ -88,18 +83,10 @@ public class ClientCursorManager {
     public void render(MatrixStack matrices, VertexConsumerProvider consumers, float tickDelta) {
         if (remoteCursors.isEmpty()) return;
 
-        int renderedCount = 0;
-        for (Map.Entry<UUID, RemoteCursor> entry : remoteCursors.entrySet()) {
-            RemoteCursor cursor = entry.getValue();
-
+        for (RemoteCursor cursor : remoteCursors.values()) {
             if (cursor.isVisible() && cursor.getTexture() != null) {
                 renderer.render(cursor, matrices, consumers, tickDelta);
-                renderedCount++;
             }
-        }
-
-        if (renderedCount > 0) {
-            LOGGER.debug("Rendered {} cursors", renderedCount);
         }
     }
 
