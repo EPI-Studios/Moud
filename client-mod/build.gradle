@@ -10,6 +10,10 @@ repositories {
         url = 'https://maven.blamejared.com'
     }
     maven { url = "https://api.modrinth.com/maven" }
+    maven {
+        name = "RedlanceMinecraft"
+        url = "https://repo.redlance.org/public"
+    }
 }
 
 loom {
@@ -27,6 +31,8 @@ dependencies {
 
     modImplementation("foundry.veil:veil-fabric-1.21.1:2.3.2")
     include("foundry.veil:veil-fabric-1.21.1:2.3.2")
+
+    modImplementation "com.zigythebird.playeranim:PlayerAnimationLibFabric:1.0.11+mc1.21.1"
 
     include implementation("org.graalvm.polyglot:polyglot:24.1.0")
     include implementation("org.graalvm.js:js-language:24.1.0")

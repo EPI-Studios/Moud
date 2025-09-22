@@ -1,9 +1,11 @@
 package com.moud.server.proxy;
 
 import com.moud.api.math.Vector3;
+import com.moud.network.MoudPackets;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.api.validation.APIValidator;
 import com.moud.server.logging.MoudLogger;
+import com.moud.server.network.ServerPacketWrapper;
 import com.moud.server.player.PlayerCameraManager;
 import com.moud.server.shared.api.SharedValueApiProxy;
 import net.minestom.server.coordinate.Pos;
@@ -133,6 +135,13 @@ public class PlayerProxy {
             player.setInvisible(true);
         } else {
             player.setInvisible(false);
+        }
+    }
+
+    @HostAccess.Export
+    public void playAnimation(String animationId) {
+        if (player.isOnline()) {
+            player.sendPacket(ServerPacketWrapper.createPacket(new MoudPackets.S2C_PlayPlayerAnimationPacket(animationId)));
         }
     }
 }

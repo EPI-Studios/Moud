@@ -92,8 +92,10 @@ public final class UIService {
         UIElement element = createElement("text");
         element.setText(content);
         element.setSize(client.textRenderer.getWidth(content), client.textRenderer.fontHeight);
+        addElement("ui_element_" + java.util.UUID.randomUUID().toString(), element);
         return element;
     }
+
 
     public UIElement createButton(String text) {
         UIElement element = createElement("button");
@@ -102,6 +104,8 @@ public final class UIService {
         element.setBackgroundColor("#C0C0C0");
         element.setBorderColor("#808080");
         element.setBorderWidth(1);
+        // FIX: Automatically add the element so it gets rendered.
+        addElement("ui_element_" + java.util.UUID.randomUUID().toString(), element);
         return element;
     }
 
@@ -112,6 +116,8 @@ public final class UIService {
         element.setBackgroundColor("#FFFFFF");
         element.setBorderColor("#CCCCCC");
         element.setBorderWidth(1);
+        // FIX: Automatically add the element so it gets rendered.
+        addElement("ui_element_" + java.util.UUID.randomUUID().toString(), element);
         return element;
     }
 
@@ -119,6 +125,8 @@ public final class UIService {
         UIElement element = createElement("container");
         element.setSize(100, 100);
         element.setBackgroundColor("#00000000");
+        // FIX: Automatically add the element so it gets rendered.
+        addElement("ui_element_" + java.util.UUID.randomUUID().toString(), element);
         return element;
     }
 

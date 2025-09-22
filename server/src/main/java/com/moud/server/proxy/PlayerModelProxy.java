@@ -126,12 +126,12 @@ public class PlayerModelProxy {
     }
 
     private void broadcastAnimation() {
-        MoudPackets.PlayerModelAnimationPacket packet = new MoudPackets.PlayerModelAnimationPacket(modelId, currentAnimation);
+
+        MoudPackets.S2C_PlayModelAnimationPacket packet = new MoudPackets.S2C_PlayModelAnimationPacket(modelId, currentAnimation);
         for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
             player.sendPacket(ServerPacketWrapper.createPacket(packet));
         }
     }
-
     private void broadcastRemove() {
         MoudPackets.PlayerModelRemovePacket packet = new MoudPackets.PlayerModelRemovePacket(modelId);
         for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {

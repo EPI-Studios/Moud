@@ -7,6 +7,12 @@ import { spawn, ChildProcess } from 'child_process';
 import chokidar from 'chokidar';
 import path from 'path';
 
+interface DevOptions {
+  port: string;
+  onlineMode: string;
+  watch: boolean;
+}
+
 export class DevServer {
   private serverProcess: ChildProcess | null = null;
   private isRestarting = false;
@@ -23,7 +29,7 @@ export class DevServer {
     process.on('SIGTERM', () => this.shutdown());
   }
 
-  async startServer(): Promise<void> {
+  async startServer(options: DevOptions): Promise<void> {
     if (this.isShuttingDown) return;
 
     try {
@@ -39,12 +45,16 @@ export class DevServer {
         throw new Error('Environment is not correctly configured. Cannot start server.');
       }
 
-      logger.step('Starting Moud Server...');
+      logger.step(`Starting Moud Server on port ${options.port} (Online Mode: ${options.onlineMode})...`);
 
-      this.serverProcess = spawn(javaExecutable, [
+      const serverArgs = [
         '-jar', serverJar,
-        '--project-root', projectRoot
-      ], {
+        '--project-root', projectRoot,
+        '--port', options.port,
+        '--online-mode', options.onlineMode
+      ];
+
+      this.serverProcess = spawn(javaExecutable, serverArgs, {
         stdio: 'pipe',
         detached: false
       });
@@ -54,11 +64,11 @@ export class DevServer {
       }
 
       this.serverProcess.stdout?.on('data', (data) => {
-        process.stdout.write(`[Moud Engine] ${data.toString()}`);
+        process.stdout.write(data.toString());
       });
 
       this.serverProcess.stderr?.on('data', (data) => {
-        process.stderr.write(`[Moud Engine] ${data.toString()}`);
+        process.stderr.write(chalk.red(data.toString()));
       });
 
       this.serverProcess.on('error', (error) => {
@@ -116,13 +126,11 @@ export class DevServer {
         }
       }, 5000);
 
-      // Add null check before accessing serverProcess
       if (this.serverProcess) {
         this.serverProcess.once('close', () => {
           clearTimeout(forceKillTimeout);
           cleanup();
         });
-
         this.serverProcess.kill('SIGTERM');
       } else {
         clearTimeout(forceKillTimeout);
@@ -131,15 +139,15 @@ export class DevServer {
     });
   }
 
-  async restartServer(): Promise<void> {
+  async restartServer(options: DevOptions): Promise<void> {
     if (this.isRestarting || this.isShuttingDown) return;
 
     this.isRestarting = true;
-    logger.info('Restarting Moud Server...');
+    logger.info('Restarting Moud Server due to file changes...');
 
     try {
       await this.stopServer();
-      await this.startServer();
+      await this.startServer(options);
       logger.success('Server restarted.');
     } catch (error) {
       logger.error(`Failed to restart server: ${error instanceof Error ? error.message : String(error)}`);
@@ -162,8 +170,11 @@ export class DevServer {
 }
 
 export const devCommand = new Command('dev')
-  .description('Start the development server with hot-reloading')
-  .action(async () => {
+  .description('Start the development server with optional hot-reloading')
+  .option('-p, --port <number>', 'Port to run the server on', '25565')
+  .option('-o, --online-mode <boolean>', 'Enable Mojang authentication', 'false')
+  .option('-w, --watch', 'Watch for file changes and restart the server', false)
+  .action(async (options: DevOptions) => {
     logger.info('Starting Moud in development mode...');
 
     try {
@@ -172,24 +183,28 @@ export const devCommand = new Command('dev')
       const devServer = new DevServer(environment, transpiler);
 
       await environment.initialize();
-      await devServer.startServer();
+      await devServer.startServer(options);
 
-      const watcher = chokidar.watch(['src/**/*', 'client/**/*', 'assets/**/*'], {
-        ignored: /(^|[\/\\])\../,
-        persistent: true,
-        ignoreInitial: true
-      });
+      if (options.watch) {
+        const watcher = chokidar.watch(['src/**/*', 'client/**/*', 'assets/**/*'], {
+          ignored: /(^|[\/\\])\../,
+          persistent: true,
+          ignoreInitial: true
+        });
 
-      logger.info('Watching for file changes...');
+        logger.info('Watching for file changes...');
 
-      watcher.on('change', async (filePath) => {
-        logger.info(`File changed detected: ${path.basename(filePath)}`);
-        await devServer.restartServer();
-      });
+        watcher.on('change', async (filePath) => {
+          logger.info(`File change detected: ${path.basename(filePath)}`);
+          await devServer.restartServer(options);
+        });
 
-      watcher.on('error', (error) => {
-        logger.error(`Watcher error: ${error.message}`);
-      });
+        watcher.on('error', (error) => {
+          logger.error(`Watcher error: ${error.message}`);
+        });
+      } else {
+        logger.info('Watch mode is disabled. Use --watch to enable hot-reloading.');
+      }
 
     } catch (error) {
       logger.error(`Failed to start development server: ${error instanceof Error ? error.message : String(error)}`);

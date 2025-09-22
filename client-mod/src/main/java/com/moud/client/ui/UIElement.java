@@ -31,6 +31,17 @@ public class UIElement {
     private String borderColor = "#000000";
     private int borderWidth = 0;
     private double opacity = 1.0;
+    private String textAlign = "left";
+
+    private double paddingTop = 0;
+    private double paddingRight = 0;
+    private double paddingBottom = 0;
+    private double paddingLeft = 0;
+
+    private double marginTop = 0;
+    private double marginRight = 0;
+    private double marginBottom = 0;
+    private double marginLeft = 0;
 
     private final Map<String, Value> eventHandlers = new ConcurrentHashMap<>();
 
@@ -56,6 +67,10 @@ public class UIElement {
         this.x = x;
         this.y = y;
         return this;
+    }
+
+    public UIElement setPos(int x, int y) {
+        return setPosition(x, y);
     }
 
     public UIElement setSize(int width, int height) {
@@ -108,6 +123,35 @@ public class UIElement {
         return this;
     }
 
+    public UIElement setPadding(double top, double right, double bottom, double left) {
+        this.paddingTop = top;
+        this.paddingRight = right;
+        this.paddingBottom = bottom;
+        this.paddingLeft = left;
+        return this;
+    }
+
+    public UIElement setPadding(double padding) {
+        return setPadding(padding, padding, padding, padding);
+    }
+
+    public UIElement setMargin(double top, double right, double bottom, double left) {
+        this.marginTop = top;
+        this.marginRight = right;
+        this.marginBottom = bottom;
+        this.marginLeft = left;
+        return this;
+    }
+
+    public UIElement setMargin(double margin) {
+        return setMargin(margin, margin, margin, margin);
+    }
+
+    public UIElement setTextAlign(String align) {
+        this.textAlign = align;
+        return this;
+    }
+
     public UIElement setVisible(boolean visible) {
         this.visible = visible;
         return this;
@@ -119,6 +163,53 @@ public class UIElement {
 
     public UIElement hide() {
         return setVisible(false);
+    }
+
+    public UIElement showAsOverlay() {
+        return this;
+    }
+
+    public UIElement hideOverlay() {
+        return this;
+    }
+
+    public UIElement setWidth(int width) {
+        this.width = width;
+        return this;
+    }
+
+    public UIElement setHeight(int height) {
+        this.height = height;
+        return this;
+    }
+
+    public UIElement setX(int x) {
+        this.x = x;
+        return this;
+    }
+
+    public UIElement setY(int y) {
+        this.y = y;
+        return this;
+    }
+
+    public UIElement setBorder(String color, int width) {
+        this.borderColor = color;
+        this.borderWidth = width;
+        return this;
+    }
+
+    public UIElement setBorder(int width) {
+        this.borderWidth = width;
+        return this;
+    }
+
+    public UIElement setColor(String color) {
+        return setTextColor(color);
+    }
+
+    public UIElement setBackground(String color) {
+        return setBackgroundColor(color);
     }
 
     public int getX() { return x; }
@@ -134,6 +225,17 @@ public class UIElement {
     public int getBorderWidth() { return borderWidth; }
     public double getOpacity() { return opacity; }
     public boolean isVisible() { return visible; }
+    public String getTextAlign() { return textAlign; }
+
+    public double getPaddingTop() { return paddingTop; }
+    public double getPaddingRight() { return paddingRight; }
+    public double getPaddingBottom() { return paddingBottom; }
+    public double getPaddingLeft() { return paddingLeft; }
+
+    public double getMarginTop() { return marginTop; }
+    public double getMarginRight() { return marginRight; }
+    public double getMarginBottom() { return marginBottom; }
+    public double getMarginLeft() { return marginLeft; }
 
     public boolean contains(double mouseX, double mouseY) {
         return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
@@ -154,6 +256,25 @@ public class UIElement {
         return this;
     }
 
+    public UIElement onFocus(Value callback) {
+        addEventHandler("focus", callback);
+        return this;
+    }
+
+    public UIElement onBlur(Value callback) {
+        addEventHandler("blur", callback);
+        return this;
+    }
+
+    public UIElement onChange(Value callback) {
+        return onValueChange(callback);
+    }
+
+    public UIElement on(String eventType, Value callback) {
+        addEventHandler(eventType, callback);
+        return this;
+    }
+
     private void addEventHandler(String eventType, Value callback) {
         if (callback != null && callback.canExecute()) {
             eventHandlers.put(eventType, callback);
@@ -170,6 +291,14 @@ public class UIElement {
 
     public void triggerHover(double mouseX, double mouseY) {
         executeEventHandler("hover", this, mouseX, mouseY);
+    }
+
+    public void triggerFocus() {
+        executeEventHandler("focus", this);
+    }
+
+    public void triggerBlur() {
+        executeEventHandler("blur", this);
     }
 
     private void executeEventHandler(String eventType, Object... args) {

@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [],
   "client": [
+    "AnimatedPlayerMixin",
     "CameraMixin",
     "ChatHudMixin",
     "GameRendererMixin",
@@ -12,7 +13,8 @@
     "InGameHudMixin",
     "KeyboardMixin",
     "MinecraftMixin",
-    "MouseMixin"
+    "MouseMixin",
+    "WorldRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
