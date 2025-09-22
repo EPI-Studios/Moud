@@ -17,7 +17,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import java.util.stream.Stream;
-// import javax.xml.bind.DatatypeConverter;
 
 public class ClientScriptManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientScriptManager.class);
@@ -29,6 +28,7 @@ public class ClientScriptManager {
         Path projectRoot = ProjectLoader.findProjectRoot();
         Path clientDir = projectRoot.resolve("client");
         Path assetsDir = projectRoot.resolve("assets");
+
         if (!Files.exists(clientDir) && !Files.exists(assetsDir)) {
             LOGGER.info("No client or assets directory found, skipping client resources compilation");
             return;
@@ -45,6 +45,7 @@ public class ClientScriptManager {
     private byte[] packageClientResources(Path projectRoot, Path clientDir, Path assetsDir) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(baos)) {
+            // Package client scripts
             if (Files.exists(clientDir)) {
                 try (Stream<Path> paths = Files.walk(clientDir)) {
                     paths.filter(Files::isRegularFile)
@@ -53,6 +54,7 @@ public class ClientScriptManager {
                 }
             }
 
+            // Package all assets
             if (Files.exists(assetsDir)) {
                 try (Stream<Path> paths = Files.walk(assetsDir)) {
                     paths.filter(Files::isRegularFile)
@@ -77,6 +79,7 @@ public class ClientScriptManager {
             zip.putNextEntry(new ZipEntry("scripts/" + relativePath));
             zip.write(content.getBytes());
             zip.closeEntry();
+            LOGGER.debug("Packaged script: {}", relativePath);
         } catch (IOException | ExecutionException | InterruptedException e) {
             throw new RuntimeException("Failed to process client script: " + path, e);
         }
@@ -90,7 +93,14 @@ public class ClientScriptManager {
             zip.putNextEntry(new ZipEntry(relativePath));
             zip.write(content);
             zip.closeEntry();
-            LOGGER.debug("Packaging asset: {}", relativePath);
+
+            if (relativePath.contains("animation") && relativePath.endsWith(".json")) {
+                LOGGER.info("Packaged animation file: {}", relativePath);
+
+                String fileContent = new String(content);
+            } else {
+                LOGGER.debug("Packaged asset: {}", relativePath);
+            }
         } catch (IOException e) {
             throw new RuntimeException("Failed to process asset: " + path, e);
         }

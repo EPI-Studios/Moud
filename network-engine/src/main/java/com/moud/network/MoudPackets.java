@@ -144,4 +144,12 @@ public final class MoudPackets {
     public record ClientUpdateValuePacket(@Field(order = 0) String storeName, @Field(order = 1) String key,
                                           @Field(order = 2) Object value, @Field(order = 3) long clientTimestamp) {
     }
+
+    @Packet(value = "moud:play_player_animation", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_PlayPlayerAnimationPacket(@Field(order = 0) String animationId) {
+    }
+
+    @Packet(value = "moud:play_model_animation", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_PlayModelAnimationPacket(@Field(order = 0) long modelId, @Field(order = 1) String animationId) {
+    }
 }

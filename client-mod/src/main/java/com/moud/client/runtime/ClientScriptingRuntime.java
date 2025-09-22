@@ -35,6 +35,8 @@ public class ClientScriptingRuntime {
     private final AtomicLong timerIdCounter = new AtomicLong(0);
     private final ConcurrentHashMap<Long, ScheduledFuture<?>> activeTimers = new ConcurrentHashMap<>();
 
+    private final long startTime = System.nanoTime();
+
     public ClientScriptingRuntime(ClientAPIService apiService) {
         this.apiService = apiService;
         this.scriptExecutor = Executors.newSingleThreadExecutor(r -> {
@@ -78,6 +80,7 @@ public class ClientScriptingRuntime {
                 this.graalContext = createGraalContext();
                 bindApiToContext();
                 bindTimerFunctionsToContext();
+                bindPerformanceAPI();
 
                 this.initialized.set(true);
                 LOGGER.info("Client scripting runtime GraalVM context created.");
@@ -140,6 +143,17 @@ public class ClientScriptingRuntime {
             apiService.rendering.cancelAnimationFrame(args[0].asString());
             return null;
         });
+    }
+
+    private void bindPerformanceAPI() {
+        Value bindings = this.graalContext.getBindings("js");
+        Value performanceObj = this.graalContext.eval("js", "({})");
+
+        performanceObj.putMember("now", (ProxyExecutable) args -> {
+            return (System.nanoTime() - startTime) / 1_000_000.0;
+        });
+
+        bindings.putMember("performance", performanceObj);
     }
 
     private void bindTimerFunctionsToContext() {

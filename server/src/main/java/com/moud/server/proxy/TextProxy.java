@@ -27,6 +27,7 @@ public class TextProxy {
         meta.setSeeThrough(false);
         meta.setLineWidth(200);
         meta.setPosRotInterpolationDuration(1);
+        meta.setHasNoGravity(true);
         meta.setTransformationInterpolationDuration(1);
     }
 

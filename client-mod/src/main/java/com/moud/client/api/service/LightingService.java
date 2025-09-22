@@ -21,6 +21,7 @@ public class LightingService {
 
     public LightingService() {
         this.lightingService = new ClientLightingService();
+        LOGGER.info("LightingService initialized");
     }
 
     public void setContext(Context jsContext) {
@@ -28,6 +29,8 @@ public class LightingService {
     }
 
     public void handleNetworkEvent(String eventName, String eventData) {
+        LOGGER.debug("Handling lighting event: {} with data: {}", eventName, eventData);
+
         try {
             Map<String, Object> data = MAPPER.readValue(eventData, MAP_TYPE_REFERENCE);
 
@@ -35,32 +38,54 @@ public class LightingService {
                 case "lighting:operation": {
                     String operation = (String) data.get("operation");
                     Map<String, Object> lightData = (Map<String, Object>) data.get("light");
-                    if (operation == null || lightData == null) return;
+
+                    LOGGER.info("Processing lighting operation: {} with light data: {}", operation, lightData);
+
+                    if (operation == null || lightData == null) {
+                        LOGGER.warn("Invalid lighting operation data - operation: {}, lightData: {}", operation, lightData);
+                        return;
+                    }
 
                     switch (operation) {
-                        case "create", "update" -> lightingService.handleCreateOrUpdateLight(lightData);
+                        case "create", "update" -> {
+                            LOGGER.info("Creating/updating light with data: {}", lightData);
+                            lightingService.handleCreateOrUpdateLight(lightData);
+                        }
                         case "remove" -> {
                             long id = Conversion.toLong(lightData.get("id"));
+                            LOGGER.info("Removing light with id: {}", id);
                             lightingService.handleRemoveLight(id);
                         }
+                        default -> LOGGER.warn("Unknown lighting operation: {}", operation);
                     }
                     break;
                 }
                 case "lighting:sync":
+                    LOGGER.info("Syncing lights with data: {}", data);
                     lightingService.handleLightSync(data);
                     break;
+                default:
+                    LOGGER.warn("Unknown lighting event: {}", eventName);
             }
         } catch (Exception e) {
-            LOGGER.error("Failed to handle lighting network event: {}", eventName, e);
+            LOGGER.error("Failed to handle lighting network event: {} with data: {}", eventName, eventData, e);
         }
     }
 
     public void tick() {
-        lightingService.tick();
+        try {
+            lightingService.tick();
+        } catch (Exception e) {
+            LOGGER.error("Error during lighting service tick", e);
+        }
     }
 
     public void cleanUp() {
-        lightingService.cleanup();
+        try {
+            lightingService.cleanup();
+        } catch (Exception e) {
+            LOGGER.error("Error during lighting service cleanup", e);
+        }
         jsContext = null;
         LOGGER.info("LightingService cleaned up");
     }

@@ -1,5 +1,6 @@
 package com.moud.server;
 
+import com.moud.server.animation.AnimationManager;
 import com.moud.server.api.ScriptingAPI;
 import com.moud.server.assets.AssetManager;
 import com.moud.server.client.ClientScriptManager;
@@ -25,6 +26,7 @@ public class MoudEngine {
 
     private final JavaScriptRuntime runtime;
     private final AssetManager assetManager;
+    private final AnimationManager animationManager; // Ajouté
     private final ClientScriptManager clientScriptManager;
     private final ServerNetworkManager networkManager;
     private final EventDispatcher eventDispatcher;
@@ -38,6 +40,7 @@ public class MoudEngine {
     public static MoudEngine getInstance() {
         return instance;
     }
+
     public MoudEngine(String[] launchArgs) {
         instance = this;
         LOGGER.startup("Initializing Moud Engine...");
@@ -66,6 +69,9 @@ public class MoudEngine {
 
             this.assetManager = new AssetManager(projectRoot);
             assetManager.initialize();
+
+            this.animationManager = new AnimationManager();
+            animationManager.initialize();
 
             this.clientScriptManager = new ClientScriptManager();
             clientScriptManager.initialize();
@@ -131,7 +137,9 @@ public class MoudEngine {
         return runtime;
     }
 
-
+    public AnimationManager getAnimationManager() {
+        return animationManager;
+    }
 
     public AsyncManager getAsyncManager() {
         return asyncManager;
