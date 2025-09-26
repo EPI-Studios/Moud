@@ -14,10 +14,8 @@ public class TextProxy {
     private final Entity textEntity;
     private final TextDisplayMeta meta;
 
-
     public TextProxy(Vector3 position, String content, String billboard) {
         this.textEntity = new Entity(EntityType.TEXT_DISPLAY);
-
         this.meta = (TextDisplayMeta) this.textEntity.getEntityMeta();
 
         meta.setText(Component.text(content));
@@ -51,10 +49,10 @@ public class TextProxy {
         }
     }
 
+    @HostAccess.Export
     public void setColor(int r, int g, int b) {
         meta.setText(meta.getText().color(TextColor.color(r, g, b)));
     }
-
 
     @HostAccess.Export
     public void remove() {

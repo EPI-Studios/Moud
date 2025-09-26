@@ -84,10 +84,27 @@ public class WorldProxy {
         if (options == null || !options.hasMembers()) {
             throw new APIException("INVALID_ARGUMENT", "createPlayerModel requires an options object.");
         }
-        Vector3 position = options.hasMember("position") ? options.getMember("position").as(Vector3.class) : Vector3.zero();
-        String skinUrl = options.hasMember("skinUrl") ? options.getMember("skinUrl").asString() : "";
 
-        return new PlayerModelProxy(position, skinUrl);
+        Vector3 position = Vector3.zero();
+        String skinUrl = "";
+
+        try {
+            if (options.hasMember("position")) {
+                Value posValue = options.getMember("position");
+                if (posValue.isHostObject() && posValue.asHostObject() instanceof Vector3) {
+                    position = posValue.as(Vector3.class);
+                }
+            }
+
+            if (options.hasMember("skinUrl")) {
+                skinUrl = options.getMember("skinUrl").asString();
+            }
+
+            return new PlayerModelProxy(position, skinUrl);
+
+        } catch (Exception e) {
+            throw new APIException("MODEL_CREATION_FAILED", "Failed to create player model", e);
+        }
     }
 
     @HostAccess.Export

@@ -77,13 +77,20 @@ public final class ServerNetworkManager {
     }
 
     public <T> void send(Player player, T packet) {
-        player.sendPacket(ServerPacketWrapper.createPacket(packet));
+        try {
+            player.sendPacket(ServerPacketWrapper.createPacket(packet));
+        } catch (Exception e) {
+            System.out.println("Failed to send packet: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     public <T> void broadcast(T packet) {
+        int sentCount = 0;
         for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
             if (isMoudClient(player)) {
                 send(player, packet);
+                sentCount++;
             }
         }
     }

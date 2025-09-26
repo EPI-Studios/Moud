@@ -1,5 +1,6 @@
 package com.moud.network.serializer;
 
+import com.moud.api.math.Vector3;
 import com.moud.network.buffer.ByteBuffer;
 
 import java.util.HashMap;
@@ -47,6 +48,15 @@ public class MapSerializerUtil {
         } else if (obj instanceof Float) {
             buffer.writeInt(6); // type: float
             buffer.writeFloat((Float) obj);
+        } else if (obj instanceof Vector3) {
+            buffer.writeInt(7); // type: Vector3
+            Vector3 vec = (Vector3) obj;
+            buffer.writeFloat((float) vec.x);
+            buffer.writeFloat((float) vec.y);
+            buffer.writeFloat((float) vec.z);
+        } else if (obj instanceof Map) {
+            buffer.writeInt(1); // fallback to string
+            buffer.writeString(obj.toString());
         } else {
             buffer.writeInt(1); // fallback to string
             buffer.writeString(obj.toString());
@@ -63,6 +73,7 @@ public class MapSerializerUtil {
             case 4 -> buffer.readBoolean();
             case 5 -> buffer.readLong();
             case 6 -> buffer.readFloat();
+            case 7 -> new Vector3(buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
             default -> null;
         };
     }
