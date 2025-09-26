@@ -20,8 +20,24 @@ public final class AnimationManager {
     }
 
     public void loadAnimation(String animationName, String jsonContent) {
+        LOGGER.info("Loading animation: {} with content length: {}", animationName, jsonContent.length());
 
-        LOGGER.info("Animation {} est gérée par PlayerAnimationLibrary.", animationName);
+        try {
+            Identifier animationId = Identifier.of("moud", animationName);
+
+            Animation existingAnimation = com.zigythebird.playeranim.animation.PlayerAnimResources.getAnimation(animationId);
+            if (existingAnimation != null) {
+                LOGGER.info("Animation {} already exists in PlayerAnimResources", animationId);
+                animationCache.put(animationName, existingAnimation);
+                return;
+            }
+
+            LOGGER.warn("Animation {} not found in PlayerAnimResources. The animation files need to be properly integrated with PlayerAnimationLib resource system.", animationId);
+            LOGGER.info("Available animations should be placed in assets/moud/animations/ and follow PlayerAnimationLib format");
+
+        } catch (Exception e) {
+            LOGGER.error("Failed to load animation: {}", animationName, e);
+        }
     }
 
     public Animation getAnimation(String animationName) {
@@ -29,19 +45,25 @@ public final class AnimationManager {
 
         Identifier animationId = Identifier.tryParse(animationName);
         if (animationId == null) {
-            LOGGER.warn("Format d'ID d'animation invalide : {}", animationName);
+            LOGGER.warn("Invalid animation ID format: {}", animationName);
             return null;
         }
 
         Animation data = com.zigythebird.playeranim.animation.PlayerAnimResources.getAnimation(animationId);
         if (data == null) {
-            LOGGER.trace("Animation '{}' not found in cache.", animationName);
+            LOGGER.warn("Animation '{}' not found in PlayerAnimResources", animationName);
+
+            animationId = Identifier.of("moud", animationName);
+            data = com.zigythebird.playeranim.animation.PlayerAnimResources.getAnimation(animationId);
+
+            if (data == null) {
+                LOGGER.warn("Animation '{}' not found with moud namespace either", animationId);
+            }
         }
         return data;
     }
 
     public String getAnimationName(Animation data) {
-
         return "unknown";
     }
 

@@ -48,9 +48,10 @@ public class PlayerModelProxy {
     public PlayerModelProxy(Vector3 position, String skinUrl) {
         this.modelId = ID_COUNTER.getAndIncrement();
         this.position = position;
-        this.skinUrl = skinUrl;
+        this.skinUrl = skinUrl != null ? skinUrl : "";
         this.yaw = 0.0f;
         this.pitch = 0.0f;
+
         ALL_MODELS.put(modelId, this);
         broadcastCreate();
     }
@@ -81,7 +82,7 @@ public class PlayerModelProxy {
 
     @HostAccess.Export
     public void setSkin(String skinUrl) {
-        this.skinUrl = skinUrl;
+        this.skinUrl = skinUrl != null ? skinUrl : "";
         broadcastSkin();
     }
 
@@ -106,8 +107,13 @@ public class PlayerModelProxy {
 
     private void broadcastCreate() {
         MoudPackets.PlayerModelCreatePacket packet = new MoudPackets.PlayerModelCreatePacket(modelId, position, skinUrl);
+
         for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
-            player.sendPacket(ServerPacketWrapper.createPacket(packet));
+            try {
+                player.sendPacket(ServerPacketWrapper.createPacket(packet));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -126,12 +132,12 @@ public class PlayerModelProxy {
     }
 
     private void broadcastAnimation() {
-
         MoudPackets.S2C_PlayModelAnimationPacket packet = new MoudPackets.S2C_PlayModelAnimationPacket(modelId, currentAnimation);
         for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
             player.sendPacket(ServerPacketWrapper.createPacket(packet));
         }
     }
+
     private void broadcastRemove() {
         MoudPackets.PlayerModelRemovePacket packet = new MoudPackets.PlayerModelRemovePacket(modelId);
         for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {

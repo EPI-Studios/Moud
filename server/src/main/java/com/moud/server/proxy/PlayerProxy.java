@@ -5,6 +5,7 @@ import com.moud.network.MoudPackets;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.api.validation.APIValidator;
 import com.moud.server.logging.MoudLogger;
+import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.network.ServerPacketWrapper;
 import com.moud.server.player.PlayerCameraManager;
 import com.moud.server.shared.api.SharedValueApiProxy;
@@ -12,19 +13,21 @@ import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Player;
 import org.graalvm.polyglot.HostAccess;
+import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PlayerProxy {
+import java.util.Map;
 
+public class PlayerProxy {
     private static final Logger LOGGER = LoggerFactory.getLogger(PlayerProxy.class);
     private final Player player;
-    private final ClientProxy client;
-    private final APIValidator validator;
-    private final SharedValueApiProxy sharedValues;
-    private final CameraLockProxy camera;
-    private final PlayerUIProxy ui;
-    private final CursorProxy cursor;
+    private ClientProxy client;
+    private APIValidator validator;
+    private SharedValueApiProxy sharedValues;
+    private CameraLockProxy camera;
+    private PlayerUIProxy ui;
+    private CursorProxy cursor;
 
     public PlayerProxy(Player player) {
         this.player = player;
@@ -38,7 +41,6 @@ public class PlayerProxy {
 
     @HostAccess.Export
     public CameraLockProxy getCamera() {
-
         LOGGER.debug("Script accessed getCamera() for player '{}'", player.getUsername());
         return camera;
     }
@@ -135,6 +137,32 @@ public class PlayerProxy {
             player.setInvisible(true);
         } else {
             player.setInvisible(false);
+        }
+    }
+
+    @HostAccess.Export
+    public void setPartConfig(String partName, Value options) {
+        if (!player.isOnline()) return;
+
+        validator.validateString(partName, "partName");
+        if (options == null || !options.hasMembers()) {
+            throw new APIException("INVALID_ARGUMENT", "Options object cannot be null or empty for setPartConfig.");
+        }
+
+        try {
+            Map<String, Object> properties = options.as(Map.class);
+
+            MoudPackets.S2C_SetPlayerPartConfigPacket packet = new MoudPackets.S2C_SetPlayerPartConfigPacket(
+                    player.getUuid(),
+                    partName,
+                    properties
+            );
+
+            ServerNetworkManager.getInstance().broadcast(packet);
+
+        } catch (Exception e) {
+            LOGGER.error("Failed to set part configuration for player {}", player.getUsername(), e);
+            throw new APIException("PART_CONFIG_FAILED", "Could not apply part configuration.", e);
         }
     }
 

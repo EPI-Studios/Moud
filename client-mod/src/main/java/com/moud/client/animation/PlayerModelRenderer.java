@@ -16,7 +16,6 @@ public class PlayerModelRenderer {
         matrices.push();
 
         var player = animatedModel.getFakePlayer();
-        matrices.translate(player.getX(), player.getY(), player.getZ());
 
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F - player.getYaw()));
 

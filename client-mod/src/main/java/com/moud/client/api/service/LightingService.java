@@ -21,6 +21,7 @@ public class LightingService {
 
     public LightingService() {
         this.lightingService = new ClientLightingService();
+        this.lightingService.initialize();
         LOGGER.info("LightingService initialized");
     }
 

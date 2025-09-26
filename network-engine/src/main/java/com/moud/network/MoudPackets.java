@@ -152,4 +152,11 @@ public final class MoudPackets {
     @Packet(value = "moud:play_model_animation", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_PlayModelAnimationPacket(@Field(order = 0) long modelId, @Field(order = 1) String animationId) {
     }
+
+    @Packet(value = "moud:set_player_part_config", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_SetPlayerPartConfigPacket(
+            @Field(order = 0) UUID playerId,
+            @Field(order = 1) String partName,
+            @Field(order = 2) Map<String, Object> properties
+    ) {}
 }

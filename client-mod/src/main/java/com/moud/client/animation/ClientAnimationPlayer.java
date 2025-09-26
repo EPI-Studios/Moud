@@ -19,7 +19,6 @@ public class ClientAnimationPlayer {
 
     public ClientAnimationPlayer(AbstractClientPlayerEntity player) {
         this.player = player;
-
     }
 
     private AnimationController getController() {
@@ -43,8 +42,25 @@ public class ClientAnimationPlayer {
         }
 
         Animation animation = com.zigythebird.playeranim.animation.PlayerAnimResources.getAnimation(animationId);
+
         if (animation == null) {
-            LOGGER.warn("Animation '{}' not found on client.", animationId);
+            String[] parts = animationIdStr.split(":");
+            if (parts.length == 2) {
+                Identifier alternativeId = Identifier.of("moud", parts[1]);
+                animation = com.zigythebird.playeranim.animation.PlayerAnimResources.getAnimation(alternativeId);
+            }
+        }
+
+        if (animation == null) {
+            Identifier waveId = Identifier.of("moud", "wave");
+            animation = com.zigythebird.playeranim.animation.PlayerAnimResources.getAnimation(waveId);
+            if (animation != null) {
+                LOGGER.info("Found wave animation, using as fallback");
+            }
+        }
+
+        if (animation == null) {
+            LOGGER.warn("Animation '{}' not found on client. Available animations need to be in assets/moud/animations/ folder.", animationId);
             return;
         }
 
