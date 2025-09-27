@@ -28,7 +28,7 @@ declare global {
         debug(...args: any[]): void;
     };
 
-    declare namespace Math {
+    namespace MoudMath {
         const Vector3: {
             new(x: number, y: number, z: number): Vector3;
             /** A vector with all components set to 0. */
@@ -1187,3 +1187,5 @@ interface SharedStore {
      */
     onChange(key: string, callback: (newValue: any, oldValue: any) => void): void;
 }
+}
+export {};
