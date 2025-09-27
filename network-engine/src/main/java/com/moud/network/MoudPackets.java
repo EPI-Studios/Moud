@@ -11,9 +11,6 @@ import java.util.UUID;
 
 public final class MoudPackets {
 
-
-    // S2C
-
     @Packet(value = "moud:sync_scripts", direction = Direction.SERVER_TO_CLIENT)
     public record SyncClientScriptsPacket(@Field(order = 0) String hash, @Field(order = 1) byte[] scriptData) {
     }
@@ -112,8 +109,15 @@ public final class MoudPackets {
     public record RemoveCursorsPacket(@Field(order = 0) List<UUID> playerIds) {
     }
 
+    @Packet(value = "moud:interpolation_settings", direction = Direction.SERVER_TO_CLIENT)
+    public record InterpolationSettingsPacket(@Field(order = 0) UUID playerId,
+                                              @Field(order = 1) Map<String, Object> settings) {
+    }
 
-    // C2S
+    @Packet(value = "moud:first_person_config", direction = Direction.SERVER_TO_CLIENT)
+    public record FirstPersonConfigPacket(@Field(order = 0) UUID playerId,
+                                          @Field(order = 1) Map<String, Object> config) {
+    }
 
     @Packet(value = "moud:hello", direction = Direction.CLIENT_TO_SERVER)
     public record HelloPacket(@Field(order = 0) int protocolVersion) {
