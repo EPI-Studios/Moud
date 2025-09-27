@@ -2,5 +2,25 @@ plugins {
     id 'java-library'
 }
 
+repositories {
+    mavenCentral()
+}
+
 group = 'com.moud'
 version = '0.1.0-alpha'
+
+dependencies {
+    implementation "org.graalvm.polyglot:polyglot:24.1.0"
+    implementation "org.graalvm.js:js-language:24.1.0"
+    implementation "org.graalvm.truffle:truffle-api:24.1.0"
+    implementation "org.graalvm.sdk:graal-sdk:24.1.0"
+    implementation "org.graalvm.sdk:collections:24.1.0"
+    implementation "org.graalvm.sdk:nativeimage:24.1.0"
+    implementation "org.graalvm.shadowed:icu4j:24.0.0"
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
