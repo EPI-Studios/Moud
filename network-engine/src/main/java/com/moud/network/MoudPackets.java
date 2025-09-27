@@ -163,4 +163,16 @@ public final class MoudPackets {
             @Field(order = 1) String partName,
             @Field(order = 2) Map<String, Object> properties
     ) {}
+    @Packet(value = "moud:movement_state", direction = Direction.CLIENT_TO_SERVER)
+    public record MovementStatePacket(
+            @Field(order = 0) boolean forward,
+            @Field(order = 1) boolean backward,
+            @Field(order = 2) boolean left,
+            @Field(order = 3) boolean right,
+            @Field(order = 4) boolean jumping,
+            @Field(order = 5) boolean sneaking,
+            @Field(order = 6) boolean sprinting,
+            @Field(order = 7) boolean onGround,
+            @Field(order = 8) float speed
+    ) {}
 }

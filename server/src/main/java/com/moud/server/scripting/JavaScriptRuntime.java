@@ -204,14 +204,13 @@ public class JavaScriptRuntime {
             try {
                 context.enter();
                 callback.execute(args);
-            } catch (PolyglotException e) {
-                LOGGER.scriptError("Error in callback: {}", e.getMessage());
+            } catch (Exception e) {
+                handleScriptException(e, "in callback");
             } finally {
                 context.leave();
             }
         });
     }
-
     public void bindGlobal(String name, Object value) {
         executeTask(() -> context.getBindings(LANGUAGE_ID).putMember(name, value));
     }
@@ -229,7 +228,7 @@ public class JavaScriptRuntime {
                     context.leave();
                 }
             } catch (Exception e) {
-                handleScriptException(scriptPath, e);
+                handleScriptException(e, scriptPath.toString());
                 throw new CompletionException(e);
             }
         }, scriptExecutor);
@@ -242,15 +241,18 @@ public class JavaScriptRuntime {
         return Files.readString(scriptPath);
     }
 
-    private void handleScriptException(Path scriptPath, Throwable e) {
+    private void handleScriptException(Throwable e, String contextInfo) {
         if (e instanceof PolyglotException polyglotException) {
-            String location = "unknown";
-            if (polyglotException.getSourceLocation() != null) {
-                location = "line " + polyglotException.getSourceLocation().getStartLine();
-            }
-            LOGGER.scriptError("Script execution failed in {} at {}: {}", scriptPath.getFileName(), location, polyglotException.getMessage());
+            SourceSection location = polyglotException.getSourceLocation();
+            String fileName = location != null ? location.getSource().getName() : "Unknown Script";
+            int line = location != null ? location.getStartLine() : 0;
+            int column = location != null ? location.getStartColumn() : 0;
+
+            LOGGER.scriptError("Execution failed in {} at line {}, column {}", fileName, line, column);
+            LOGGER.error("└─> {}", polyglotException.getMessage());
+            // LOGGER.debug("Guest stack trace:\n{}", polyglotException.getPolyglotStackTrace());
         } else {
-            LOGGER.scriptError("Unexpected error executing {}: {}", scriptPath.getFileName(), e.getMessage(), e);
+            LOGGER.scriptError("An unexpected Java error occurred while executing script code in context: {}", contextInfo, e);
         }
     }
 

@@ -3,6 +3,7 @@ package com.moud.client;
 import com.moud.client.animation.*;
 import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.cursor.ClientCursorManager;
+import com.moud.client.movement.ClientMovementTracker;
 import com.moud.client.network.ClientPacketReceiver;
 import com.moud.client.network.DataPayload;
 import com.moud.client.network.ClientPacketWrapper;
@@ -237,6 +238,8 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             ClientPlayerModelManager.getInstance().getModels().forEach(model -> {
                 model.tick();
             });
+
+            ClientMovementTracker.getInstance().tick();
         });
     }
 

@@ -5,6 +5,7 @@ import com.moud.network.MoudPackets;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.api.validation.APIValidator;
 import com.moud.server.logging.MoudLogger;
+import com.moud.server.movement.ServerMovementHandler;
 import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.network.ServerPacketWrapper;
 import com.moud.server.player.PlayerCameraManager;
@@ -250,6 +251,54 @@ public class PlayerProxy {
         }
     }
 
+
+    @HostAccess.Export
+    public boolean isWalking() {
+        ServerMovementHandler.PlayerMovementState state = ServerMovementHandler.getInstance().getPlayerState(player);
+        return state != null && state.isMoving() && !state.sprinting() && !state.sneaking();
+    }
+
+    @HostAccess.Export
+    public boolean isRunning() {
+        ServerMovementHandler.PlayerMovementState state = ServerMovementHandler.getInstance().getPlayerState(player);
+        return state != null && state.sprinting();
+    }
+
+    @HostAccess.Export
+    public boolean isSneaking() {
+        ServerMovementHandler.PlayerMovementState state = ServerMovementHandler.getInstance().getPlayerState(player);
+        return state != null && state.sneaking();
+    }
+
+    @HostAccess.Export
+    public boolean isJumping() {
+        ServerMovementHandler.PlayerMovementState state = ServerMovementHandler.getInstance().getPlayerState(player);
+        return state != null && state.jumping();
+    }
+
+    @HostAccess.Export
+    public boolean isOnGround() {
+        ServerMovementHandler.PlayerMovementState state = ServerMovementHandler.getInstance().getPlayerState(player);
+        return state != null && state.onGround();
+    }
+
+    @HostAccess.Export
+    public String getMovementType() {
+        ServerMovementHandler.PlayerMovementState state = ServerMovementHandler.getInstance().getPlayerState(player);
+        return state != null ? state.getMovementType() : "unknown";
+    }
+
+    @HostAccess.Export
+    public String getMovementDirection() {
+        ServerMovementHandler.PlayerMovementState state = ServerMovementHandler.getInstance().getPlayerState(player);
+        return state != null ? state.getMovementDirection() : "none";
+    }
+
+    @HostAccess.Export
+    public float getMovementSpeed() {
+        ServerMovementHandler.PlayerMovementState state = ServerMovementHandler.getInstance().getPlayerState(player);
+        return state != null ? state.speed() : 0.0f;
+    }
     private Vector3 convertVector3(Value vectorValue) {
         if (vectorValue.isHostObject() && vectorValue.asHostObject() instanceof Vector3) {
             return (Vector3) vectorValue.asHostObject();
@@ -264,6 +313,7 @@ public class PlayerProxy {
 
         return new Vector3(0, 0, 0);
     }
+
 
     public static class PlayerAnimationProxy {
         private final Player player;

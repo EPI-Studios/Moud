@@ -114,8 +114,14 @@ public class ClientScriptingRuntime {
     }
 
     private Context createGraalContext() {
+        HostAccess hostAccess = HostAccess.newBuilder()
+                .allowAccessAnnotatedBy(HostAccess.Export.class)
+                .allowImplementations(org.graalvm.polyglot.proxy.ProxyObject.class)
+                .allowImplementations(org.graalvm.polyglot.proxy.ProxyArray.class)
+                .build();
+
         return Context.newBuilder("js")
-                .allowHostAccess(HostAccess.ALL)
+                .allowHostAccess(hostAccess)
                 .allowCreateThread(true)
                 .allowExperimentalOptions(true)
                 .option("js.shared-array-buffer", "true")
