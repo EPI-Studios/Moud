@@ -67,7 +67,7 @@ export class EnvironmentManager {
 
     if (platform === 'darwin') {
       const mappedArch = arch === 'arm64' ? 'aarch64' : 'x64';
-      return { os: 'macos', arch: mappedArch, ext: 'tar.gz' };
+      return { os: 'mac', arch: mappedArch, ext: 'tar.gz' };
     }
 
     if (platform === 'win32') {
@@ -114,15 +114,42 @@ export class EnvironmentManager {
 
     try {
       const platformInfo = this.getPlatformInfo();
-      const jdkUrl = this.versionManager.getJDKDownloadUrl(platformInfo.os, platformInfo.arch);
+      const jdkUrl = `https://api.adoptium.net/v3/binary/latest/21/ga/${platformInfo.os}/${platformInfo.arch}/jdk/hotspot/normal/eclipse`;
       const tempFilePath = path.join(this.moudHome, 'temp', `jdk-${jdkVersion}.${platformInfo.ext}`);
 
       this.cleanupManager.registerTempDir(path.dirname(tempFilePath));
 
       await Downloader.downloadFile(jdkUrl, tempFilePath);
-      await Downloader.extractTarGz(tempFilePath, localJdkDir);
+
+      if (platformInfo.ext === 'zip') {
+        await Downloader.extractZip(tempFilePath, localJdkDir);
+      } else {
+        await Downloader.extractTarGz(tempFilePath, localJdkDir);
+      }
 
       await fs.promises.unlink(tempFilePath).catch(() => {});
+
+      const extractedContents = await fs.promises.readdir(localJdkDir);
+      if (extractedContents.length === 1 && (await fs.promises.stat(path.join(localJdkDir, extractedContents[0]))).isDirectory()) {
+        const nestedJdkPath = path.join(localJdkDir, extractedContents[0]);
+        const finalJavaExecutable = path.join(nestedJdkPath, 'bin', os.platform() === 'win32' ? 'java.exe' : 'java');
+
+        if (fs.existsSync(finalJavaExecutable)) {
+          const tempDir = path.join(this.moudHome, 'temp', 'jdk-move');
+          await fs.promises.mkdir(tempDir, { recursive: true });
+
+          const nestedContents = await fs.promises.readdir(nestedJdkPath);
+          for (const item of nestedContents) {
+            await fs.promises.rename(
+              path.join(nestedJdkPath, item),
+              path.join(tempDir, item)
+            );
+          }
+
+          await fs.promises.rm(localJdkDir, { recursive: true, force: true });
+          await fs.promises.rename(tempDir, localJdkDir);
+        }
+      }
 
       if (!fs.existsSync(javaExecutable)) {
         throw new Error('Java executable not found after installation');

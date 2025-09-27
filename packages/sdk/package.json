@@ -1,6 +1,6 @@
 {
   "name": "@epi-studio/moud-sdk",
-  "version": "0.1.2-alpha",
+  "version": "0.7.0",
   "description": "The official Scripting Development Kit for the Moud Engine.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -17,9 +17,13 @@
   "scripts": {
     "build": "pnpm run clean && tsc && pnpm run build:js",
     "build:js": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.js --external:@epi-studio/moud-sdk",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "docs": "typedoc src/index.ts --out docs",
+    "deploy:docs": "npm run docs && gh-pages -d docs"
   },
   "devDependencies": {
-    "esbuild": "^0.21.4"
+    "esbuild": "^0.21.4",
+    "gh-pages": "^6.3.0",
+    "typedoc": "^0.25.13"
   }
 }

@@ -5,6 +5,7 @@ import { Transpiler } from '../services/transpiler.js';
 import { CleanupManager } from '../services/cleanup-manager.js';
 import { spawn, ChildProcess } from 'child_process';
 import chokidar from 'chokidar';
+import chalk from 'chalk';
 import path from 'path';
 
 interface DevOptions {
