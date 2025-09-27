@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,12 +30,13 @@ public class TypeScriptTranspiler {
 
                 String tsContent = Files.readString(tsFile);
 
-                if (!isNodeAvailable()) {
-                    LOGGER.warn("Node.js not available, performing basic TypeScript to JavaScript conversion");
+                String npxPath = findNpxExecutable();
+                if (npxPath == null) {
+                    LOGGER.warn("npx not found in PATH, performing basic TypeScript to JavaScript conversion");
                     return performBasicTranspilation(tsContent);
                 }
 
-                return transpileWithEsbuild(tsFile);
+                return transpileWithEsbuild(tsFile, npxPath);
 
             } catch (Exception e) {
                 throw new RuntimeException("Failed to transpile TypeScript", e);
@@ -42,7 +44,31 @@ public class TypeScriptTranspiler {
         });
     }
 
-    private static String transpileWithEsbuild(Path tsFile) throws Exception {
+    private static String findNpxExecutable() {
+        String[] possibleCommands = {"npx", "npx.cmd", "npx.exe"};
+        String pathEnv = System.getenv("PATH");
+
+        if (pathEnv == null) {
+            return null;
+        }
+
+        String pathSeparator = System.getProperty("os.name").toLowerCase().startsWith("windows") ? ";" : ":";
+        String[] pathDirs = pathEnv.split(pathSeparator);
+
+        for (String dir : pathDirs) {
+            for (String cmd : possibleCommands) {
+                File executable = new File(dir, cmd);
+                if (executable.exists() && executable.canExecute()) {
+                    LOGGER.debug("Found npx at: {}", executable.getAbsolutePath());
+                    return executable.getAbsolutePath();
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static String transpileWithEsbuild(Path tsFile, String npxPath) throws Exception {
         Path projectRoot = ProjectLoader.findProjectRoot();
         Path tempDir = Files.createTempDirectory("moud-ts");
         Path jsFile = tempDir.resolve(tsFile.getFileName().toString().replace(".ts", ".js"));
@@ -51,24 +77,13 @@ public class TypeScriptTranspiler {
         ByteArrayOutputStream errorStream = new ByteArrayOutputStream();
 
         try {
-            boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
-
-            CommandLine cmdLine;
-            if (isWindows) {
-                cmdLine = new CommandLine("cmd.exe");
-                cmdLine.addArgument("/c");
-                cmdLine.addArgument("npx");
-            } else {
-                cmdLine = new CommandLine("npx");
-            }
-
+            CommandLine cmdLine = new CommandLine(npxPath);
             cmdLine.addArgument("esbuild");
             cmdLine.addArgument(tsFile.toAbsolutePath().toString(), true);
             cmdLine.addArgument("--outfile=" + jsFile.toAbsolutePath().toString(), true);
             cmdLine.addArgument("--target=es2020");
             cmdLine.addArgument("--format=cjs");
             cmdLine.addArgument("--platform=neutral");
-
 
             DefaultExecutor executor = DefaultExecutor.builder().get();
             executor.setWorkingDirectory(projectRoot.toFile());
@@ -92,15 +107,10 @@ public class TypeScriptTranspiler {
 
             return Files.readString(jsFile);
 
-        } catch (ExecuteException e) {
-            String errorOutput = errorStream.toString();
-            String standardOutput = outputStream.toString();
-            LOGGER.error("Execution failed during esbuild transpilation. Exit Code: {}", e.getExitValue());
-            LOGGER.error("--> esbuild STDERR:\n{}", errorOutput);
-            if (!standardOutput.isEmpty()) {
-                LOGGER.error("--> esbuild STDOUT:\n{}", standardOutput);
-            }
-            throw e;
+        } catch (Exception e) {
+            LOGGER.warn("esbuild execution failed, falling back to basic transpilation: {}", e.getMessage());
+            String tsContent = Files.readString(tsFile);
+            return performBasicTranspilation(tsContent);
         } finally {
             try {
                 if (Files.exists(jsFile)) Files.deleteIfExists(jsFile);
@@ -123,32 +133,5 @@ public class TypeScriptTranspiler {
                 .replaceAll("/\\*[\\s\\S]*?\\*/", "")
                 .replaceAll("//.*$", "")
                 .trim();
-    }
-
-    private static boolean isNodeAvailable() {
-        try {
-            boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
-            CommandLine cmdLine;
-            if (isWindows) {
-                cmdLine = new CommandLine("cmd.exe");
-                cmdLine.addArgument("/c");
-                cmdLine.addArgument("node");
-                cmdLine.addArgument("--version");
-            } else {
-                cmdLine = new CommandLine("node");
-                cmdLine.addArgument("--version");
-            }
-
-            DefaultExecutor executor = DefaultExecutor.builder().get();
-
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            PumpStreamHandler streamHandler = new PumpStreamHandler(outputStream, outputStream);
-            executor.setStreamHandler(streamHandler);
-
-            int exitCode = executor.execute(cmdLine);
-            return exitCode == 0;
-        } catch (Exception e) {
-            return false;
-        }
     }
 }
