@@ -1,5 +1,6 @@
 package com.moud.client.animation;
 
+import com.moud.api.math.Vector3;
 import com.zigythebird.playeranimcore.animation.layered.IAnimation;
 import com.zigythebird.playeranimcore.api.firstPerson.FirstPersonConfiguration;
 import com.zigythebird.playeranimcore.api.firstPerson.FirstPersonMode;
@@ -8,11 +9,14 @@ import net.minecraft.util.math.MathHelper;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ExternalPartConfigLayer implements IAnimation {
     private final UUID playerUuid;
+    private static final Map<UUID, FirstPersonConfiguration> playerFirstPersonConfigs = new ConcurrentHashMap<>();
 
-    private static final FirstPersonConfiguration FIRST_PERSON_CONFIG = new FirstPersonConfiguration()
+    private static final FirstPersonConfiguration DEFAULT_FIRST_PERSON_CONFIG = new FirstPersonConfiguration()
             .setShowRightArm(true)
             .setShowLeftArm(true)
             .setShowRightItem(true)
@@ -23,9 +27,43 @@ public class ExternalPartConfigLayer implements IAnimation {
         this.playerUuid = playerUuid;
     }
 
+    public static void updateFirstPersonConfig(UUID playerId, Map<String, Object> config) {
+        FirstPersonConfiguration configToUpdate = playerFirstPersonConfigs.computeIfAbsent(playerId, k -> new FirstPersonConfiguration());
+
+        if (config.containsKey("showRightArm")) {
+            configToUpdate.setShowRightArm((Boolean) config.get("showRightArm"));
+        }
+        if (config.containsKey("showLeftArm")) {
+            configToUpdate.setShowLeftArm((Boolean) config.get("showLeftArm"));
+        }
+        if (config.containsKey("showRightItem")) {
+            configToUpdate.setShowRightItem((Boolean) config.get("showRightItem"));
+        }
+        if (config.containsKey("showLeftItem")) {
+            configToUpdate.setShowLeftItem((Boolean) config.get("showLeftItem"));
+        }
+        if (config.containsKey("showArmor")) {
+            configToUpdate.setShowArmor((Boolean) config.get("showArmor"));
+        }
+    }
+    public static void clearFirstPersonConfig(UUID playerId) {
+        playerFirstPersonConfigs.remove(playerId);
+    }
+
     @Override
     public boolean isActive() {
-        return true;
+        PlayerPartConfigManager.PartConfig anyConfig = null;
+        String[] parts = {"head", "body", "right_arm", "left_arm", "right_leg", "left_leg"};
+
+        for (String part : parts) {
+            PlayerPartConfigManager.PartConfig config = PlayerPartConfigManager.getInstance().getPartConfig(playerUuid, part);
+            if (config != null) {
+                anyConfig = config;
+                break;
+            }
+        }
+
+        return anyConfig != null;
     }
 
     @NotNull
@@ -37,7 +75,7 @@ public class ExternalPartConfigLayer implements IAnimation {
     @NotNull
     @Override
     public FirstPersonConfiguration getFirstPersonConfiguration() {
-        return FIRST_PERSON_CONFIG;
+        return playerFirstPersonConfigs.getOrDefault(playerUuid, DEFAULT_FIRST_PERSON_CONFIG);
     }
 
     @Override
@@ -54,24 +92,32 @@ public class ExternalPartConfigLayer implements IAnimation {
             bone.setScaleZ(0);
             return bone;
         }
-        if (config.position != null) {
-            bone.addPos((float)config.position.x, (float)config.position.y, (float)config.position.z);
-        }
-        if (config.rotation != null) {
-            bone.addRot(
-                    MathHelper.RADIANS_PER_DEGREE * (float)config.rotation.x,
-                    MathHelper.RADIANS_PER_DEGREE * (float)config.rotation.y,
-                    MathHelper.RADIANS_PER_DEGREE * (float)config.rotation.z
-            );
-        }
-        if (config.scale != null) {
-            bone.mulScale(
-                    (float)config.scale.x,
-                    (float)config.scale.y,
-                    (float)config.scale.z
-            );
+
+        if (config.overrideAnimation) {
+            bone.setToInitialPose();
         }
 
+        Vector3 position = config.getInterpolatedPosition();
+        Vector3 rotation = config.getInterpolatedRotation();
+        Vector3 scale = config.getInterpolatedScale();
+
+        if (position != null) {
+            bone.setPosX(bone.getPosX() + (float) position.x);
+            bone.setPosY(bone.getPosY() + (float) position.y);
+            bone.setPosZ(bone.getPosZ() + (float) position.z);
+        }
+
+        if (rotation != null) {
+            bone.setRotX(bone.getRotX() + MathHelper.RADIANS_PER_DEGREE * (float) rotation.x);
+            bone.setRotY(bone.getRotY() + MathHelper.RADIANS_PER_DEGREE * (float) rotation.y);
+            bone.setRotZ(bone.getRotZ() + MathHelper.RADIANS_PER_DEGREE * (float) rotation.z);
+        }
+
+        if (scale != null) {
+            bone.setScaleX(bone.getScaleX() * (float) scale.x);
+            bone.setScaleY(bone.getScaleY() * (float) scale.y);
+            bone.setScaleZ(bone.getScaleZ() * (float) scale.z);
+        }
         return bone;
     }
 }

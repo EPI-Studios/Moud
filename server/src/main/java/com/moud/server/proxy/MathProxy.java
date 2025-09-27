@@ -13,6 +13,86 @@ public class MathProxy {
     @HostAccess.Export
     public GeometryUtilsProxy geometry = new GeometryUtilsProxy();
 
+    // --- START: Added shortcut methods to fix the error and improve the API ---
+
+    @HostAccess.Export
+    public float clamp(double value, double min, double max) {
+        return utils.clamp(value, min, max);
+    }
+
+    @HostAccess.Export
+    public float lerp(double a, double b, double t) {
+        return utils.lerp(a, b, t);
+    }
+
+    @HostAccess.Export
+    public float atan2(double y, double x) {
+        return utils.atan2(y, x);
+    }
+
+    @HostAccess.Export
+    public float sin(double radians) {
+        return utils.sin(radians);
+    }
+
+    @HostAccess.Export
+    public float cos(double radians) {
+        return utils.cos(radians);
+    }
+
+    @HostAccess.Export
+    public float tan(double radians) {
+        return utils.tan(radians);
+    }
+
+    @HostAccess.Export
+    public float asin(double value) {
+        return utils.asin(value);
+    }
+
+    @HostAccess.Export
+    public float acos(double value) {
+        return utils.acos(value);
+    }
+
+    @HostAccess.Export
+    public float atan(double value) {
+        return utils.atan(value);
+    }
+
+    @HostAccess.Export
+    public float sqrt(double value) {
+        return utils.sqrt(value);
+    }
+
+    @HostAccess.Export
+    public float abs(double value) {
+        return utils.abs(value);
+    }
+
+    @HostAccess.Export
+    public float min(double a, double b) {
+        return utils.min(a, b);
+    }
+
+    @HostAccess.Export
+    public float max(double a, double b) {
+        return utils.max(a, b);
+    }
+
+    @HostAccess.Export
+    public float toRadians(double degrees) {
+        return utils.toRadians(degrees);
+    }
+
+    @HostAccess.Export
+    public float toDegrees(double radians) {
+        return utils.toDegrees(radians);
+    }
+
+    // --- END: Added shortcut methods ---
+
+
     @HostAccess.Export
     public Vector3 vector3(double x, double y, double z) {
         return new Vector3((float)x, (float)y, (float)z);

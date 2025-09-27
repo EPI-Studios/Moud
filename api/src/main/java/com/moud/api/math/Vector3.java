@@ -165,6 +165,17 @@ public class Vector3 {
         );
     }
 
+
+
+    public static Vector3 lerp(Vector3 start, Vector3 end, float t) {
+        t = MathUtils.clamp(t, 0.0f, 1.0f);
+        return new Vector3(
+                MathUtils.lerp(start.x, end.x, t),
+                MathUtils.lerp(start.y, end.y, t),
+                MathUtils.lerp(start.z, end.z, t)
+        );
+    }
+
     @HostAccess.Export
     public Vector3 slerp(Vector3 target, float t) {
         t = MathUtils.clamp(t, 0.0f, 1.0f);

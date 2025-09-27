@@ -135,11 +135,50 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                     packet.properties()
             );
         });
-
+        ClientPacketWrapper.registerHandler(MoudPackets.InterpolationSettingsPacket.class, (player, packet) -> {
+            handleInterpolationSettings(packet);
+        });
+        ClientPacketWrapper.registerHandler(MoudPackets.FirstPersonConfigPacket.class, (player, packet) -> {
+            handleFirstPersonConfig(packet);
+        });
 
         LOGGER.info("Internal packet handlers registered.");
     }
 
+    private void handleInterpolationSettings(MoudPackets.InterpolationSettingsPacket packet) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player != null && client.player.getUuid().equals(packet.playerId())) {
+            PlayerPartConfigManager.InterpolationSettings settings = new PlayerPartConfigManager.InterpolationSettings();
+
+            Map<String, Object> data = packet.settings();
+            if (data.containsKey("enabled")) {
+                settings.enabled = (Boolean) data.get("enabled");
+            }
+            if (data.containsKey("duration")) {
+                settings.duration = ((Number) data.get("duration")).longValue();
+            }
+            if (data.containsKey("easing")) {
+                String easingStr = (String) data.get("easing");
+                try {
+                    settings.easing = PlayerPartConfigManager.EasingType.valueOf(easingStr.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    LOGGER.warn("Unknown easing type: {}", easingStr);
+                }
+            }
+            if (data.containsKey("speed")) {
+                settings.speed = ((Number) data.get("speed")).floatValue();
+            }
+
+            PlayerPartConfigManager.getInstance().setPlayerInterpolationSettings(packet.playerId(), settings);
+        }
+    }
+
+    private void handleFirstPersonConfig(MoudPackets.FirstPersonConfigPacket packet) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player != null && client.player.getUuid().equals(packet.playerId())) {
+            ExternalPartConfigLayer.updateFirstPersonConfig(packet.playerId(), packet.config());
+        }
+    }
     private void handleExtendedPlayerState(MoudPackets.ExtendedPlayerStatePacket packet) {
         if (playerStateManager != null) {
             playerStateManager.updateExtendedPlayerState(
