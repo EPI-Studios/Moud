@@ -1,0 +1,57 @@
+name: Moud Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build_and_release:
+    name: Build & Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write #
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Java Server
+        run: ./gradlew :server:shadowJar
+
+      - name: Build & Install CLI
+        run: |
+          cd moud-cli
+          npm install
+          npm run build
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "server/build/libs/moud-server.jar"
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish CLI to npm
+        run: |
+          cd moud-cli
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
