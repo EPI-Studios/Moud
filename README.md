@@ -1,9 +1,11 @@
 
 # Moud
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white) 
+![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white) 
+![Powered by Minestom](https://img.shields.io/badge/Powered%20by-Minestom-815db1?style=for-the-badge&logo=java&logoColor=white) 
+![Running on Fabric](https://img.shields.io/badge/Running%20on-Fabric-2C2C2C?style=for-the-badge&logo=java&logoColor=white) 
+[![Wiki](https://img.shields.io/badge/Wiki-Documentation-4A90E2?style=for-the-badge&logo=book&logoColor=white)](https://moud.epistudios.fr/)
 
-![TypeScript](https://img.shields.io/badge/typescript-%23007ACC.svg?style=for-the-badge&logo=typescript&logoColor=white) ![Java](https://img.shields.io/badge/java-%23ED8B00.svg?style=for-the-badge&logo=openjdk&logoColor=white) 
-
-![Powered by Minestom](https://img.shields.io/badge/Powered%20by-Minestom-815db1?logo=java) ![Running on Fabric](https://img.shields.io/badge/Running%20on-Fabric-815db1?logo=java)
 
 **TypeScript-first Minecraft scripting framework**
 
