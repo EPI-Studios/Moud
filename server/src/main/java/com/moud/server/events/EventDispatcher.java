@@ -1,5 +1,6 @@
 package com.moud.server.events;
 
+import com.moud.network.MoudPackets;
 import com.moud.server.MoudEngine;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.lighting.ServerLightingManager;
@@ -73,7 +74,45 @@ public class EventDispatcher {
             LOGGER.error("Error during event dispatch for '{}'", eventName, e);
         }
     }
+    public void dispatchMovementEvent(Player player, MoudPackets.MovementStatePacket packet) {
+        PlayerProxy playerProxy = new PlayerProxy(player);
 
+        Value movementStateHandler = handlers.get("player.movement_state");
+        if (movementStateHandler != null) {
+            try {
+                ProxyObject movementData = ProxyObject.fromMap(Map.of(
+                        "forward", packet.forward(),
+                        "backward", packet.backward(),
+                        "left", packet.left(),
+                        "right", packet.right(),
+                        "jumping", packet.jumping(),
+                        "sneaking", packet.sneaking(),
+                        "sprinting", packet.sprinting(),
+                        "onGround", packet.onGround(),
+                        "speed", packet.speed()
+                ));
+
+                engine.getRuntime().executeCallback(movementStateHandler, playerProxy, movementData);
+            } catch (Exception e) {
+                LOGGER.error("Error during movement_state event dispatch for player {}", player.getUsername(), e);
+            }
+        }
+    }
+
+    public void dispatchMovementEventType(Player player, String eventType) {
+        Value handler = handlers.get(eventType);
+        if (handler != null) {
+            try {
+                PlayerProxy playerProxy = new PlayerProxy(player);
+                engine.getRuntime().executeCallback(handler, playerProxy);
+                LOGGER.debug("Successfully dispatched {} event for player {}", eventType, player.getUsername());
+            } catch (Exception e) {
+                LOGGER.error("Error during {} event dispatch for player {}", eventType, player.getUsername(), e);
+            }
+        } else {
+            LOGGER.debug("No handler found for event: {}", eventType);
+        }
+    }
     public void dispatchScriptEvent(String eventName, String eventData, Player player) {
         Value handler = handlers.get(eventName);
         if (handler == null) {

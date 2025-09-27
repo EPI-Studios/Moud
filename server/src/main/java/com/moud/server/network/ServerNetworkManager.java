@@ -4,6 +4,7 @@ import com.moud.network.MoudPackets.*;
 import com.moud.server.client.ClientScriptManager;
 import com.moud.server.cursor.CursorService;
 import com.moud.server.events.EventDispatcher;
+import com.moud.server.movement.ServerMovementHandler;
 import com.moud.server.player.PlayerCameraManager;
 import com.moud.server.proxy.PlayerModelProxy;
 import net.minestom.server.MinecraftServer;
@@ -58,8 +59,16 @@ public final class ServerNetworkManager {
         ServerPacketWrapper.registerHandler(PlayerClickPacket.class, this::handlePlayerClick);
         ServerPacketWrapper.registerHandler(PlayerModelClickPacket.class, this::handlePlayerModelClick);
         ServerPacketWrapper.registerHandler(ClientUpdateValuePacket.class, this::handleSharedValueUpdate);
+        ServerPacketWrapper.registerHandler(MovementStatePacket.class, this::handleMovementState);
     }
 
+    private void handleMovementState(Object player, MovementStatePacket packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer)) return;
+
+        ServerMovementHandler.getInstance().handleMovementState(minestomPlayer, packet);
+        eventDispatcher.dispatchMovementEvent(minestomPlayer, packet);
+    }
     private void onPluginMessage(PlayerPluginMessageEvent event) {
         String outerChannel = event.getIdentifier();
         Player player = event.getPlayer();
