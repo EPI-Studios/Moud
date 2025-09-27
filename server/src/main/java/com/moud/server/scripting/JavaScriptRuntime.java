@@ -1,11 +1,17 @@
 package com.moud.server.scripting;
 
 import com.moud.api.math.Vector3;
+import com.moud.api.math.Quaternion;
+import com.moud.api.math.Matrix4;
+import com.moud.api.math.Transform;
+import com.moud.api.math.MathUtils;
+import com.moud.api.math.GeometryUtils;
 import com.moud.server.ConsoleAPI;
 import com.moud.server.MoudEngine;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.proxy.CameraLockProxy;
+import com.moud.server.proxy.MathProxy;
 import com.moud.server.typescript.TypeScriptTranspiler;
 import org.graalvm.polyglot.*;
 import org.graalvm.polyglot.io.IOAccess;
@@ -37,6 +43,7 @@ public class JavaScriptRuntime {
         try {
             this.context = createSecureContext();
             bindTimerFunctionsToContext();
+            bindMathUtilities();
         } catch (Exception e) {
             LOGGER.critical("Failed to initialize JavaScript runtime", e);
             throw new APIException("RUNTIME_INIT_FAILED", "Failed to initialize JavaScript runtime", e);
@@ -50,20 +57,31 @@ public class JavaScriptRuntime {
 
         hostAccessBuilder.allowAccess(CameraLockProxy.class.getConstructor(net.minestom.server.entity.Player.class));
 
-
-        // TODO : REMOVE THIS AND MAKE A MATH PROXY CLASS
         hostAccessBuilder.allowAccess(Vector3.class.getConstructor());
         hostAccessBuilder.allowAccess(Vector3.class.getConstructor(double.class, double.class, double.class));
         hostAccessBuilder.allowAccess(Vector3.class.getConstructor(float.class, float.class, float.class));
-
-
         hostAccessBuilder.allowAccess(Vector3.class.getMethod("add", Vector3.class));
         hostAccessBuilder.allowAccess(Vector3.class.getMethod("multiply", double.class));
         hostAccessBuilder.allowAccess(Vector3.class.getMethod("toString"));
-
         hostAccessBuilder.allowAccess(Vector3.class.getField("x"));
         hostAccessBuilder.allowAccess(Vector3.class.getField("y"));
         hostAccessBuilder.allowAccess(Vector3.class.getField("z"));
+
+        hostAccessBuilder.allowAccess(Quaternion.class.getConstructor());
+        hostAccessBuilder.allowAccess(Quaternion.class.getConstructor(float.class, float.class, float.class, float.class));
+        hostAccessBuilder.allowAccess(Quaternion.class.getField("x"));
+        hostAccessBuilder.allowAccess(Quaternion.class.getField("y"));
+        hostAccessBuilder.allowAccess(Quaternion.class.getField("z"));
+        hostAccessBuilder.allowAccess(Quaternion.class.getField("w"));
+
+        hostAccessBuilder.allowAccess(Matrix4.class.getConstructor());
+        hostAccessBuilder.allowAccess(Matrix4.class.getField("m"));
+
+        hostAccessBuilder.allowAccess(Transform.class.getConstructor());
+        hostAccessBuilder.allowAccess(Transform.class.getField("position"));
+        hostAccessBuilder.allowAccess(Transform.class.getField("rotation"));
+        hostAccessBuilder.allowAccess(Transform.class.getField("scale"));
+
         HostAccess hostAccess = hostAccessBuilder.build();
 
         return Context.newBuilder(LANGUAGE_ID)
@@ -77,6 +95,18 @@ public class JavaScriptRuntime {
                 .build();
     }
 
+    private void bindMathUtilities() {
+        executeTask(() -> {
+            Value bindings = context.getBindings(LANGUAGE_ID);
+            bindings.putMember("Math", new MathProxy());
+            bindings.putMember("Vector3", Vector3.class);
+            bindings.putMember("Quaternion", Quaternion.class);
+            bindings.putMember("Matrix4", Matrix4.class);
+            bindings.putMember("Transform", Transform.class);
+            bindings.putMember("MathUtils", MathUtils.class);
+            bindings.putMember("GeometryUtils", GeometryUtils.class);
+        });
+    }
 
     private Object convertPolyglotValue(Value value) {
         if (value.isHostObject()) {
@@ -194,7 +224,6 @@ public class JavaScriptRuntime {
                 LOGGER.info("Executing script: {}", scriptPath.getFileName());
                 context.enter();
                 try {
-                    context.getBindings(LANGUAGE_ID).putMember("Vector3", Vector3.class);
                     return context.eval(source);
                 } finally {
                     context.leave();
