@@ -26,22 +26,6 @@ moud dev
 
 **Performance** - GraalVM execution environment on both server and client for fast TypeScript/JavaScript
 
-## Architecture
-
-**Server (Minestom + GraalVM)**
-
--   TypeScript server logic execution
--   World state and entity management
--   Networking and synchronization
--   Asset serving
-
-**Client (Fabric Mod + GraalVM)**
-
--   Client-side script execution
--   Custom UI rendering
--   Input and camera handling
--   Veil rendering integration
-
 ## Status
 
 **Working**
@@ -83,7 +67,17 @@ Fork, branch, code, test, PR. See CONTRIBUTING.md for details.
 
 MIT License
 
+## Credits & Acknowledgments
+-   [Minestom](https://github.com/Minestom/Minestom) For providing the incredibly powerful and modern Minecraft server base
+-   [GraalVM](https://github.com/oracle/graal) For enabling high-performance JavaScript & TypeScript execution on the JVM
+-   [FabricMC](https://github.com/FabricMC/fabric) For theclient-side modding toolchain and API that makes the Moud client possible
+-   [Veil](https://github.com/foundry-mc/veil) For the advanced rendering capabilities, making custom shaders and post-processing easier to handle
+-   [PlayerAnimationLib](https://github.com/Zگیthebird/PlayerAnimationLib) [@ZigyTheBird](https://github.com/ZigyTheBird) For the powerful and flexible client-side animation system
+-   [mdoc](https://github.com/Meekiavelique/mdoc) For providing the foundation for the documentation website
+
+
 ----------
+
 
 **Created by [@Meekiavelique](https://github.com/Meekiavelique)**  
 **EPI STUDIO** - [Discord](https://discord.gg/PvKeHzTwdU)
