@@ -185,7 +185,7 @@ export class EnvironmentManager {
   }
 
   private async checkAndDownloadServer(): Promise<string> {
-    const serverVersion = this.versionManager.getCompatibleEngineVersion();
+    const serverVersion = await this.versionManager.getCompatibleEngineVersion();
     logger.step('Checking for Moud Server binary...');
 
     const serverFileName = `moud-server-${serverVersion}.jar`;
@@ -199,7 +199,7 @@ export class EnvironmentManager {
     logger.info(`Moud Server v${serverVersion} not found in cache.`);
 
     try {
-      const serverUrl = this.versionManager.getEngineDownloadUrl();
+      const serverUrl = await this.versionManager.getEngineDownloadUrl();
       await Downloader.downloadFile(serverUrl, serverPath);
 
       if (!fs.existsSync(serverPath)) {
