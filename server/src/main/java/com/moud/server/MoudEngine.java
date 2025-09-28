@@ -25,13 +25,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class MoudEngine {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(MoudEngine.class);
 
-    private final JavaScriptRuntime runtime;
+    private JavaScriptRuntime runtime;
     private final AssetManager assetManager;
     private final AnimationManager animationManager;
     private final ClientScriptManager clientScriptManager;
     private final ServerNetworkManager networkManager;
     private final EventDispatcher eventDispatcher;
-    private final ScriptingAPI scriptingAPI;
+    private ScriptingAPI scriptingAPI;
     private final AsyncManager asyncManager;
     private final PacketEngine packetEngine;
     private final CursorService cursorService;
@@ -131,6 +131,7 @@ public class MoudEngine {
     }
 
     private void bindGlobalAPIs() {
+        this.scriptingAPI = new ScriptingAPI(this);
         runtime.bindGlobal("api", scriptingAPI);
         runtime.bindGlobal("assets", new AssetProxy(assetManager));
 
@@ -142,12 +143,22 @@ public class MoudEngine {
         LOGGER.info("Reloading user scripts...");
         CompletableFuture.runAsync(() -> {
             try {
+                if (this.runtime != null) {
+                    this.runtime.shutdown();
+                }
+
+                LOGGER.info("Initializing new scripting environment...");
+                this.runtime = new JavaScriptRuntime(this);
+
+                this.bindGlobalAPIs();
+
                 Path entryPoint = ProjectLoader.findEntryPoint();
                 if (!entryPoint.toFile().exists()) {
                     LOGGER.warn("No entry point found at: {}", entryPoint);
                     return;
                 }
-                runtime.executeScript(entryPoint);
+                this.runtime.executeScript(entryPoint).join();
+
                 LOGGER.success("User scripts reloaded successfully");
             } catch (Exception e) {
                 LOGGER.error("Failed to reload user scripts", e);
