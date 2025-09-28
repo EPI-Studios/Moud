@@ -1,6 +1,6 @@
 {
   "name": "@epi-studio/moud-cli",
-  "version": "0.3.3",
+  "version": "0.3.11",
   "description": "The official CLI for Moud",
   "type": "module",
   "bin": {
