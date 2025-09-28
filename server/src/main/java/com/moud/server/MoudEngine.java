@@ -1,6 +1,7 @@
 package com.moud.server;
 
 import com.moud.server.animation.AnimationManager;
+import com.moud.server.api.HotReloadEndpoint;
 import com.moud.server.api.ScriptingAPI;
 import com.moud.server.assets.AssetManager;
 import com.moud.server.client.ClientScriptManager;
@@ -26,7 +27,7 @@ public class MoudEngine {
 
     private final JavaScriptRuntime runtime;
     private final AssetManager assetManager;
-    private final AnimationManager animationManager; // Ajouté
+    private final AnimationManager animationManager;
     private final ClientScriptManager clientScriptManager;
     private final ServerNetworkManager networkManager;
     private final EventDispatcher eventDispatcher;
@@ -34,6 +35,7 @@ public class MoudEngine {
     private final AsyncManager asyncManager;
     private final PacketEngine packetEngine;
     private final CursorService cursorService;
+    private final HotReloadEndpoint hotReloadEndpoint;
     private final AtomicBoolean initialized = new AtomicBoolean(false);
     private static MoudEngine instance;
 
@@ -44,6 +46,9 @@ public class MoudEngine {
     public MoudEngine(String[] launchArgs) {
         instance = this;
         LOGGER.startup("Initializing Moud Engine...");
+
+        boolean enableReload = hasArg(launchArgs, "--enable-reload");
+        int port = getPortFromArgs(launchArgs);
 
         try {
             Path projectRoot = ProjectLoader.resolveProjectRoot(launchArgs)
@@ -89,6 +94,9 @@ public class MoudEngine {
             this.scriptingAPI = new ScriptingAPI(this);
             bindGlobalAPIs();
 
+            this.hotReloadEndpoint = new HotReloadEndpoint(this, enableReload);
+            hotReloadEndpoint.start(port);
+
             loadUserScripts();
 
             initialized.set(true);
@@ -99,12 +107,52 @@ public class MoudEngine {
         }
     }
 
+    private boolean hasArg(String[] args, String flag) {
+        for (String arg : args) {
+            if (flag.equals(arg)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int getPortFromArgs(String[] args) {
+        for (int i = 0; i < args.length - 1; i++) {
+            if ("--port".equals(args[i])) {
+                try {
+                    return Integer.parseInt(args[i + 1]);
+                } catch (NumberFormatException e) {
+                    LOGGER.warn("Invalid port number, using default 25565");
+                    return 25565;
+                }
+            }
+        }
+        return 25565;
+    }
+
     private void bindGlobalAPIs() {
         runtime.bindGlobal("api", scriptingAPI);
         runtime.bindGlobal("assets", new AssetProxy(assetManager));
 
         ConsoleAPI consoleImpl = new ConsoleAPI();
         runtime.bindConsole(consoleImpl);
+    }
+
+    public void reloadUserScripts() {
+        LOGGER.info("Reloading user scripts...");
+        CompletableFuture.runAsync(() -> {
+            try {
+                Path entryPoint = ProjectLoader.findEntryPoint();
+                if (!entryPoint.toFile().exists()) {
+                    LOGGER.warn("No entry point found at: {}", entryPoint);
+                    return;
+                }
+                runtime.executeScript(entryPoint);
+                LOGGER.success("User scripts reloaded successfully");
+            } catch (Exception e) {
+                LOGGER.error("Failed to reload user scripts", e);
+            }
+        });
     }
 
     private void loadUserScripts() {
@@ -123,6 +171,7 @@ public class MoudEngine {
     }
 
     public void shutdown() {
+        if (hotReloadEndpoint != null) hotReloadEndpoint.stop();
         if (cursorService != null) cursorService.shutdown();
         if (asyncManager != null) asyncManager.shutdown();
         if (runtime != null) runtime.shutdown();
