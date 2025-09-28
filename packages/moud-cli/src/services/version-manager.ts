@@ -179,7 +179,7 @@ export class VersionManager {
   async getLatestEngineVersion(): Promise<string> {
     try {
       const response = await axios.get<GitHubRelease>(
-        this.config.downloads.engine.latestEndpoint,
+        'https://api.github.com/repos/EPI-Studios/Moud/releases/latest',
         {
           timeout: 10000,
           headers: { 'User-Agent': 'Moud-CLI' }
@@ -210,10 +210,10 @@ export class VersionManager {
     
     if (version === 'latest') {
       const actualVersion = await this.getLatestEngineVersion();
-      return `${baseUrl}/v${actualVersion}/${fileName}`;
+      return `${baseUrl}/${actualVersion}/${fileName}`;
     }
     
-    return `${baseUrl}/v${version}/${fileName}`;
+    return `${baseUrl}/${version}/${fileName}`;
   }
 
   getJDKDownloadUrl(os: string, arch: string): string {
@@ -222,8 +222,9 @@ export class VersionManager {
     return `${baseUrl}/${os}/${arch}/jdk/hotspot/normal/eclipse`;
   }
 
-  validateCompatibility(): boolean {
-    const cliVersion = this.getCurrentCliVersion();
-    return !!this.config.compatibility[cliVersion];
-  }
+    validateCompatibility(): boolean {
+
+      return true;
+    }
+
 }

@@ -29,15 +29,12 @@ export class EnvironmentManager {
 
   public async initialize(): Promise<void> {
     try {
-      if (!this.versionManager.validateCompatibility()) {
-        throw new Error('Current CLI version is not supported. Please update to a compatible version.');
-      }
+
 
       await this.ensureMoudHome();
       this.jdkPath = await this.checkAndInstallJava();
       this.serverJarPath = await this.checkAndDownloadServer();
     } catch (error) {
-      logger.error('Failed to initialize environment');
       throw error;
     }
   }
