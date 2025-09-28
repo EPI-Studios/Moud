@@ -6,6 +6,7 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.entity.Entity;
 import net.minecraft.world.BlockView;
 import org.joml.Quaternionf;
+import org.joml.Vector3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Final;
@@ -28,38 +29,34 @@ public abstract class CameraMixin {
 
     @Inject(method = "update", at = @At("TAIL"))
     private void moud_applyCameraOverride(BlockView area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickDelta, CallbackInfo ci) {
-        if (MoudClientMod.isCustomCameraActive()) {
-            if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.camera != null) {
-                com.moud.api.math.Vector3 overridePos = ClientAPIService.INSTANCE.camera.getLockedPosition();
-                Float overridePitch = ClientAPIService.INSTANCE.camera.getRenderPitchOverride();
-                Float overrideYaw = ClientAPIService.INSTANCE.camera.getRenderYawOverride();
-                Float overrideRoll = ClientAPIService.INSTANCE.camera.getRenderRollOverride();
+        if (!MoudClientMod.isCustomCameraActive()) {
+            return;
+        }
 
-                // LOGGER.trace("[CAMERA-MIXIN] Applying overrides: pos={}, yaw={}, pitch={}, roll={}", overridePos, overrideYaw, overridePitch, overrideRoll);
+        if (ClientAPIService.INSTANCE == null || ClientAPIService.INSTANCE.camera == null) {
+            LOGGER.warn("[CAMERA-MIXIN] Custom camera is active but API service is not available!");
+            return;
+        }
 
-                if (overridePos != null) {
-                    this.setPos(overridePos.x, overridePos.y, overridePos.z);
-                }
+        var cameraService = ClientAPIService.INSTANCE.camera;
 
-                if (overridePitch != null || overrideYaw != null || overrideRoll != null) {
-                    if (overrideYaw != null) {
-                        this.yaw = overrideYaw;
-                    }
-                    if (overridePitch != null) {
-                        this.pitch = overridePitch;
-                    }
-                    if (overrideRoll != null) {
-                        this.roll = overrideRoll;
-                    }
+        cameraService.updateCamera(tickDelta);
 
-                    this.rotation.set(0.0f, 0.0f, 0.0f, 1.0f);
-                    this.rotation.rotateY((float) Math.toRadians(-this.yaw));
-                    this.rotation.rotateX((float) Math.toRadians(this.pitch));
-                    this.rotation.rotateZ((float) Math.toRadians(this.roll));
-                }
-            } else {
-                // LOGGER.warn("[CAMERA-MIXIN] Custom camera is active but API service is not available!");
-            }
+        Vector3d overridePos = cameraService.getCurrentCameraPosition();
+        Quaternionf overrideRotation = cameraService.getCurrentCameraRotation();
+
+        if (overridePos != null) {
+            this.setPos(overridePos.x, overridePos.y, overridePos.z);
+        }
+
+        if (overrideRotation != null) {
+            this.rotation.set(overrideRotation);
+
+            org.joml.Vector3f eulerAngles = new org.joml.Vector3f();
+            overrideRotation.getEulerAnglesYXZ(eulerAngles);
+            this.yaw = (float) Math.toDegrees(-eulerAngles.y);
+            this.pitch = (float) Math.toDegrees(eulerAngles.x);
+            this.roll = (float) Math.toDegrees(eulerAngles.z);
         }
     }
 }

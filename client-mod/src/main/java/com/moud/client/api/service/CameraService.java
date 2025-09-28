@@ -8,6 +8,8 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.math.MathHelper;
 import org.graalvm.polyglot.Context;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Quaternionf;
+import org.joml.Vector3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,7 +18,7 @@ public final class CameraService {
     private final MinecraftClient client;
     private Context jsContext;
 
-    @Nullable private Vector3 lockedPosition = null;
+    @Nullable private Vector3d lockedPosition = null;
     @Nullable private Float overrideYaw = null;
     @Nullable private Float overridePitch = null;
     @Nullable private Float overrideRoll = null;
@@ -24,6 +26,15 @@ public final class CameraService {
     private float transitionSpeed = 1.0f;
     private boolean disableViewBobbing = true;
     private boolean disableHandMovement = true;
+
+    private final Quaternionf currentRotation = new Quaternionf();
+    private final Quaternionf targetRotation = new Quaternionf();
+    private final Vector3d currentPos = new Vector3d();
+    private final Vector3d targetPos = new Vector3d();
+
+    private boolean rotationDirty = false;
+    private boolean positionDirty = false;
+    private boolean initialized = false;
 
     public CameraService() {
         this.client = MinecraftClient.getInstance();
@@ -36,12 +47,14 @@ public final class CameraService {
     public void enableCustomCamera() {
         LOGGER.debug("[CAMERA-SERVICE] Enabling custom camera.");
         MoudClientMod.setCustomCameraActive(true);
+        initializeCurrentState();
     }
 
     public void disableCustomCamera() {
         LOGGER.debug("[CAMERA-SERVICE] Disabling custom camera.");
         MoudClientMod.setCustomCameraActive(false);
         clearRenderOverrides();
+        initialized = false;
     }
 
     public boolean isCustomCameraActive() {
@@ -50,92 +63,171 @@ public final class CameraService {
 
     public void setAdvancedCameraLock(Vector3 position, Vector3 rotation, boolean smoothTransitions,
                                       float transitionSpeed, boolean disableViewBobbing, boolean disableHandMovement) {
-        this.lockedPosition = position;
+        this.lockedPosition = new Vector3d(position.x, position.y, position.z);
         this.overrideYaw = (float) rotation.x;
         this.overridePitch = (float) rotation.y;
         this.overrideRoll = (float) rotation.z;
         this.smoothTransitions = smoothTransitions;
-        this.transitionSpeed = transitionSpeed;
+        this.transitionSpeed = Math.max(0.1f, transitionSpeed);
         this.disableViewBobbing = disableViewBobbing;
         this.disableHandMovement = disableHandMovement;
+
+        updateTargetRotation();
+        updateTargetPosition();
         enableCustomCamera();
     }
 
     public void setRenderYawOverride(double yaw) {
         LOGGER.debug("[CAMERA-SERVICE] Setting Yaw Override: {}", yaw);
         this.overrideYaw = (float) yaw;
+        updateTargetRotation();
     }
 
     public void setRenderPitchOverride(double pitch) {
         LOGGER.debug("[CAMERA-SERVICE] Setting Pitch Override: {}", pitch);
         this.overridePitch = (float) pitch;
+        updateTargetRotation();
     }
 
     public void setRenderRollOverride(double roll) {
         LOGGER.debug("[CAMERA-SERVICE] Setting Roll Override: {}", roll);
         this.overrideRoll = (float) roll;
+        updateTargetRotation();
     }
 
     public void setLockedPosition(Vector3 position) {
         LOGGER.debug("[CAMERA-SERVICE] Setting Locked Position: {}", position);
-        this.lockedPosition = position;
+        this.lockedPosition = new Vector3d(position.x, position.y, position.z);
+        updateTargetPosition();
+    }
+
+    private void initializeCurrentState() {
+        Entity cameraEntity = client.getCameraEntity();
+        if (cameraEntity != null) {
+            currentPos.set(cameraEntity.getX(), cameraEntity.getEyeY(), cameraEntity.getZ());
+            updateRotationFromAngles(currentRotation, cameraEntity.getYaw(), cameraEntity.getPitch(), 0.0f);
+            initialized = true;
+        }
+    }
+
+    private void updateTargetRotation() {
+        if (overrideYaw != null || overridePitch != null || overrideRoll != null) {
+            float yaw = overrideYaw != null ? overrideYaw : getCurrentYaw();
+            float pitch = overridePitch != null ? overridePitch : getCurrentPitch();
+            float roll = overrideRoll != null ? overrideRoll : 0.0f;
+
+            updateRotationFromAngles(targetRotation, yaw, pitch, roll);
+            rotationDirty = true;
+        }
+    }
+
+    private void updateTargetPosition() {
+        if (lockedPosition != null) {
+            targetPos.set(lockedPosition);
+            positionDirty = true;
+        }
+    }
+
+    private void updateRotationFromAngles(Quaternionf quat, float yaw, float pitch, float roll) {
+        quat.identity();
+        quat.rotateY((float) Math.toRadians(-yaw));
+        quat.rotateX((float) Math.toRadians(pitch));
+        quat.rotateZ((float) Math.toRadians(roll));
+    }
+
+    public void updateCamera(float tickDelta) {
+        if (!initialized) {
+            initializeCurrentState();
+            return;
+        }
+
+        if (smoothTransitions) {
+            float lerpFactor = Math.min(1.0f, transitionSpeed * tickDelta);
+
+            if (rotationDirty) {
+                currentRotation.slerp(targetRotation, lerpFactor);
+                if (currentRotation.equals(targetRotation, 0.001f)) {
+                    rotationDirty = false;
+                }
+            }
+
+            if (positionDirty) {
+                currentPos.lerp(targetPos, lerpFactor);
+                if (currentPos.equals(targetPos, 0.001)) {
+                    positionDirty = false;
+                }
+            }
+        } else {
+            if (rotationDirty) {
+                currentRotation.set(targetRotation);
+                rotationDirty = false;
+            }
+
+            if (positionDirty) {
+                currentPos.set(targetPos);
+                positionDirty = false;
+            }
+        }
+    }
+
+    public Vector3d getCurrentCameraPosition() {
+        return new Vector3d(currentPos);
+    }
+
+    public Quaternionf getCurrentCameraRotation() {
+        return new Quaternionf(currentRotation);
+    }
+
+    public Vector3d getLockedPosition() {
+        return lockedPosition != null ? new Vector3d(lockedPosition) : null;
+    }
+
+    public boolean shouldDisableViewBobbing() {
+        return disableViewBobbing;
+    }
+
+    public Float getRenderPitchOverride() {
+        return overridePitch;
+    }
+
+    public Float getRenderYawOverride() {
+        return overrideYaw;
+    }
+
+    public Float getRenderRollOverride() {
+        return overrideRoll;
+    }
+
+    public boolean getSmoothTransitions() {
+        return smoothTransitions;
+    }
+
+    public boolean getDisableViewBobbing() {
+        return disableViewBobbing;
+    }
+
+    public boolean getDisableHandMovement() {
+        return disableHandMovement;
     }
 
     public void clearRenderOverrides() {
         LOGGER.debug("[CAMERA-SERVICE] Clearing all render overrides.");
+        this.lockedPosition = null;
         this.overrideYaw = null;
         this.overridePitch = null;
         this.overrideRoll = null;
-        this.lockedPosition = null;
-        this.smoothTransitions = false;
-        this.disableViewBobbing = true;
-        this.disableHandMovement = true;
+        this.rotationDirty = false;
+        this.positionDirty = false;
     }
 
-    @Nullable
-    public Float getRenderYawOverride() {
-        return this.overrideYaw;
-    }
-
-    @Nullable
-    public Float getRenderPitchOverride() {
-        return this.overridePitch;
-    }
-
-    @Nullable
-    public Float getRenderRollOverride() {
-        return this.overrideRoll;
-    }
-
-    @Nullable
-    public Vector3 getLockedPosition() {
-        return this.lockedPosition;
-    }
-
-    public boolean shouldDisableViewBobbing() {
-        return disableViewBobbing && isCustomCameraActive();
-    }
-
-    public boolean shouldDisableHandMovement() {
-        return disableHandMovement && isCustomCameraActive();
-    }
-
-    public boolean isUsingSmoothing() {
-        return smoothTransitions;
-    }
-
-    public float getTransitionSpeed() {
-        return transitionSpeed;
-    }
-
-    public float getPitch() {
-        Entity cameraEntity = client.getCameraEntity();
-        return cameraEntity != null ? cameraEntity.getPitch() : 0.0f;
-    }
-
-    public float getYaw() {
+    private float getCurrentYaw() {
         Entity cameraEntity = client.getCameraEntity();
         return cameraEntity != null ? cameraEntity.getYaw() : 0.0f;
+    }
+
+    private float getCurrentPitch() {
+        Entity cameraEntity = client.getCameraEntity();
+        return cameraEntity != null ? cameraEntity.getPitch() : 0.0f;
     }
 
     public double getX() {
@@ -226,6 +318,7 @@ public final class CameraService {
         this.jsContext = null;
         this.clearRenderOverrides();
         MoudClientMod.setCustomCameraActive(false);
+        initialized = false;
         LOGGER.info("CameraService cleaned up.");
     }
 }

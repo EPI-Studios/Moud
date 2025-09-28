@@ -25,49 +25,25 @@ public class ClientCameraManager {
 
         long now = System.currentTimeMillis();
         if (now - lastSendTime > SEND_INTERVAL_MS) {
-            Vector3 direction;
-
-            if (MoudClientMod.isCustomCameraActive()) {
-                direction = computeMouseRayDirection();
-            } else {
-                Vec3d lookVector = client.player.getRotationVector();
-                direction = new Vector3((float)lookVector.x, (float)lookVector.y, (float)lookVector.z);
-            }
+            Vector3 direction = getCameraDirectionVector();
 
             ClientPacketWrapper.sendToServer(new MoudPackets.ClientUpdateCameraPacket(direction));
             lastSendTime = now;
         }
     }
 
-    private Vector3 computeMouseRayDirection() {
-        GameRenderer gameRenderer = client.gameRenderer;
-        Camera camera = gameRenderer.getCamera();
+    private Vector3 getCameraDirectionVector() {
+        Camera camera = client.gameRenderer.getCamera();
+        float yaw = camera.getYaw();
+        float pitch = camera.getPitch();
 
-        Matrix4f projectionMatrix = new Matrix4f();
-        projectionMatrix.setPerspective((float)Math.toRadians(client.options.getFov().getValue()),
-                (float)client.getWindow().getFramebufferWidth() / client.getWindow().getFramebufferHeight(),
-                0.05f, 1000.0f);
+        float yawRad = (float) Math.toRadians(yaw + 90.0f);
+        float pitchRad = (float) Math.toRadians(-pitch);
 
-        Matrix4f viewMatrix = new Matrix4f();
-        viewMatrix.rotation(camera.getRotation());
+        float x = (float) (Math.cos(pitchRad) * Math.cos(yawRad));
+        float y = (float) Math.sin(pitchRad);
+        float z = (float) (Math.cos(pitchRad) * Math.sin(yawRad));
 
-        Matrix4f inversePV = new Matrix4f();
-        projectionMatrix.mul(viewMatrix, inversePV);
-        inversePV.invert();
-
-        double mouseX = client.mouse.getX();
-        double mouseY = client.mouse.getY();
-        float ndcX = (float) (2.0 * mouseX / client.getWindow().getScaledWidth() - 1.0);
-        float ndcY = (float) (1.0 - 2.0 * mouseY / client.getWindow().getScaledHeight());
-
-        Vector4f screenPos = new Vector4f(ndcX, ndcY, -1.0f, 1.0f);
-        Vector4f worldPos = new Vector4f();
-
-        inversePV.transform(screenPos, worldPos);
-        if (worldPos.w != 0) {
-            worldPos.mul(1.0f / worldPos.w);
-        }
-
-        return new Vector3(worldPos.x, worldPos.y, worldPos.z).normalize();
+        return new Vector3(x, y, z).normalize();
     }
 }

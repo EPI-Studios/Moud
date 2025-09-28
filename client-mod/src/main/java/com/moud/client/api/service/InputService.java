@@ -5,6 +5,7 @@ import com.moud.client.runtime.ClientScriptingRuntime;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.InputUtil;
 import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
@@ -64,11 +65,13 @@ public final class InputService {
         return hasCallback;
     }
 
+    @HostAccess.Export
     public boolean isKeyPressed(int keyCode) {
         long window = client.getWindow().getHandle();
         return GLFW.glfwGetKey(window, keyCode) == GLFW.GLFW_PRESS;
     }
 
+    @HostAccess.Export
     public boolean isKeyPressed(String keyName) {
         try {
             InputUtil.Key key = InputUtil.fromTranslationKey(keyName);
@@ -78,27 +81,33 @@ public final class InputService {
         }
     }
 
+    @HostAccess.Export
     public boolean isMouseButtonPressed(int button) {
         long window = client.getWindow().getHandle();
         return GLFW.glfwGetMouseButton(window, button) == GLFW.GLFW_PRESS;
     }
 
+    @HostAccess.Export
     public double getMouseX() {
         return client.mouse.getX();
     }
 
+    @HostAccess.Export
     public double getMouseY() {
         return client.mouse.getY();
     }
 
+    @HostAccess.Export
     public double getMouseDeltaX() {
         return mouseDeltaX;
     }
 
+    @HostAccess.Export
     public double getMouseDeltaY() {
         return mouseDeltaY;
     }
 
+    @HostAccess.Export
     public void onKey(String keyName, Value callback) {
         if (callback == null || !callback.canExecute()) {
             throw new IllegalArgumentException("Callback must be executable");
@@ -107,6 +116,7 @@ public final class InputService {
         LOGGER.info("Successfully registered key callback for: {}", keyName);
     }
 
+    @HostAccess.Export
     public void onMouseButton(String buttonName, Value callback) {
         if (callback == null || !callback.canExecute()) {
             throw new IllegalArgumentException("Callback must be executable");
@@ -114,6 +124,7 @@ public final class InputService {
         mouseCallbacks.put(buttonName, callback);
     }
 
+    @HostAccess.Export
     public void onMouseMove(Value callback) {
         if (callback == null || !callback.canExecute()) {
             throw new IllegalArgumentException("Callback must be executable");
@@ -121,6 +132,7 @@ public final class InputService {
         this.mouseMoveCallback = callback;
     }
 
+    @HostAccess.Export
     public void onScroll(Value callback) {
         if (callback == null || !callback.canExecute()) {
             throw new IllegalArgumentException("Callback must be executable");
@@ -200,18 +212,22 @@ public final class InputService {
         });
     }
 
+    @HostAccess.Export
     public void lockMouse(boolean locked) {
         GLFW.glfwSetInputMode(client.getWindow().getHandle(), GLFW.GLFW_CURSOR, locked ? GLFW.GLFW_CURSOR_DISABLED : GLFW.GLFW_CURSOR_NORMAL);
     }
 
+    @HostAccess.Export
     public boolean isMouseLocked() {
         return GLFW.glfwGetInputMode(client.getWindow().getHandle(), GLFW.GLFW_CURSOR) == GLFW.GLFW_CURSOR_DISABLED;
     }
 
+    @HostAccess.Export
     public double getMouseSensitivity() {
         return client.options.getMouseSensitivity().getValue();
     }
 
+    @HostAccess.Export
     public void setMouseSensitivity(float sensitivity) {
         client.options.getMouseSensitivity().setValue((double) sensitivity);
     }

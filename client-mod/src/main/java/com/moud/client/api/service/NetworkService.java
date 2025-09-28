@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.moud.client.network.ClientNetworkManager;
 import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
@@ -33,11 +34,13 @@ public final class NetworkService {
         this.lightingService = lightingService;
     }
 
+    @HostAccess.Export
     public void sendToServer(String eventName, Object data) {
         String serializedData = serializeData(data);
         ClientNetworkManager.sendToServer(eventName, serializedData);
     }
 
+    @HostAccess.Export
     public void on(String eventName, Value callback) {
         validateCallback(callback);
         eventHandlers.put(eventName, callback);
