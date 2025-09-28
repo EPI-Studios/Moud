@@ -27,7 +27,10 @@ public class PlayerProxy {
     private ClientProxy client;
     private APIValidator validator;
     private SharedValueApiProxy sharedValues;
-    private CameraLockProxy camera;
+
+    @HostAccess.Export
+    public CameraLockProxy camera;
+
     private PlayerUIProxy ui;
     private CursorProxy cursor;
     private PlayerAnimationProxy animation;
@@ -43,11 +46,6 @@ public class PlayerProxy {
         this.animation = new PlayerAnimationProxy(player);
     }
 
-    @HostAccess.Export
-    public CameraLockProxy getCamera() {
-        LOGGER.debug("Script accessed getCamera() for player '{}'", player.getUsername());
-        return camera;
-    }
 
     @HostAccess.Export
     public PlayerAnimationProxy getAnimation() {
@@ -58,7 +56,6 @@ public class PlayerProxy {
     public String getName() {
         return player.getUsername();
     }
-
     @HostAccess.Export
     public String getUuid() {
         return player.getUuid().toString();

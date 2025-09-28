@@ -36,7 +36,8 @@ public class TextProxy {
 
     @HostAccess.Export
     public void setPosition(Vector3 newPosition) {
-        textEntity.teleport(new Pos(newPosition.x, newPosition.y, newPosition.z));
+        Pos currentPos = textEntity.getPosition();
+        textEntity.teleport(new Pos(newPosition.x, newPosition.y, newPosition.z, currentPos.yaw(), currentPos.pitch()));
     }
 
     @HostAccess.Export

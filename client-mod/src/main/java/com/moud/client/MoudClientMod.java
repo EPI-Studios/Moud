@@ -235,6 +235,10 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 clientCameraManager.tick();
             }
 
+            if (clientCameraManager != null) {
+                clientCameraManager.tick();
+            }
+
             ClientPlayerModelManager.getInstance().getModels().forEach(model -> {
                 model.tick();
             });
@@ -266,7 +270,21 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                     immediate.draw();
                 }
             }
+
+            if (clientCursorManager != null) {
+                if (context.consumers() instanceof VertexConsumerProvider.Immediate immediate) {
+                    immediate.draw();
+                }
+
+                clientCursorManager.render( //
+                        context.matrixStack(),
+                        context.consumers(),
+                        context.tickCounter().getTickDelta(true)
+                );
+            }
         });
+
+
 
     }
 

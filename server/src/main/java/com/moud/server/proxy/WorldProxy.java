@@ -107,6 +107,7 @@ public class WorldProxy {
         }
     }
 
+
     @HostAccess.Export
     public TextProxy createText(Value options) {
         if (options == null || !options.hasMembers()) {
@@ -118,7 +119,8 @@ public class WorldProxy {
 
         TextProxy textProxy = new TextProxy(position, content, billboard);
         Entity textEntity = textProxy.getEntity();
-        textEntity.setInstance(defaultInstance, new Pos(position.x, position.y, position.z));
+        Pos initialPosition = new Pos(position.x, position.y, position.z, 0, 0);
+        textEntity.setInstance(defaultInstance, initialPosition);
 
         return textProxy;
     }

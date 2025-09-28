@@ -22,7 +22,7 @@ public class LightingService {
     public LightingService() {
         this.lightingService = new ClientLightingService();
         this.lightingService.initialize();
-        LOGGER.info("LightingService initialized");
+        LOGGER.debug("LightingService initialized");
     }
 
     public void setContext(Context jsContext) {
@@ -40,7 +40,7 @@ public class LightingService {
                     String operation = (String) data.get("operation");
                     Map<String, Object> lightData = (Map<String, Object>) data.get("light");
 
-                    LOGGER.info("Processing lighting operation: {} with light data: {}", operation, lightData);
+                    LOGGER.debug("Processing lighting operation: {} with light data: {}", operation, lightData);
 
                     if (operation == null || lightData == null) {
                         LOGGER.warn("Invalid lighting operation data - operation: {}, lightData: {}", operation, lightData);
@@ -49,12 +49,12 @@ public class LightingService {
 
                     switch (operation) {
                         case "create", "update" -> {
-                            LOGGER.info("Creating/updating light with data: {}", lightData);
+                            LOGGER.debug("Creating/updating light with data: {}", lightData);
                             lightingService.handleCreateOrUpdateLight(lightData);
                         }
                         case "remove" -> {
                             long id = Conversion.toLong(lightData.get("id"));
-                            LOGGER.info("Removing light with id: {}", id);
+                            LOGGER.debug("Removing light with id: {}", id);
                             lightingService.handleRemoveLight(id);
                         }
                         default -> LOGGER.warn("Unknown lighting operation: {}", operation);
@@ -62,7 +62,7 @@ public class LightingService {
                     break;
                 }
                 case "lighting:sync":
-                    LOGGER.info("Syncing lights with data: {}", data);
+                    LOGGER.debug("Syncing lights with data: {}", data);
                     lightingService.handleLightSync(data);
                     break;
                 default:
@@ -88,6 +88,6 @@ public class LightingService {
             LOGGER.error("Error during lighting service cleanup", e);
         }
         jsContext = null;
-        LOGGER.info("LightingService cleaned up");
+        LOGGER.debug("LightingService cleaned up");
     }
 }

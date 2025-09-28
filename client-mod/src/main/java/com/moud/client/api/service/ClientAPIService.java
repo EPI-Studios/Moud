@@ -58,6 +58,10 @@ public final class ClientAPIService {
         this.scriptingRuntime = runtime;
         this.input = new InputService(runtime);
         LOGGER.info("InputService initialized.");
+
+        if (runtime != null && runtime.isInitialized()) {
+            runtime.updateMoudBindings();
+        }
     }
 
     public void updateScriptingContext(Context context) {
@@ -78,6 +82,10 @@ public final class ClientAPIService {
 
             if (this.input != null) {
                 this.input.setContext(context);
+
+                if (scriptingRuntime != null) {
+                    scriptingRuntime.updateMoudBindings();
+                }
             } else {
                 LOGGER.warn("Attempted to update script context before InputService was initialized.");
             }
