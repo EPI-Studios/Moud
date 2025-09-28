@@ -460,6 +460,119 @@ interface MoudAPI {
     getAsync(): AsyncManager;
 }
 
+
+/**
+ * Represents a player in the game and provides methods to interact with them.
+ */
+interface Player {
+    /** @returns The player's Minecraft username. */
+    getName(): string;
+
+    /** @returns The player's unique UUID as a string. */
+    getUuid(): string;
+
+    /**
+     * Sends a chat message directly to this player.
+     * @param message The message to send, supporting standard Minecraft color codes.
+     */
+    sendMessage(message: string): void;
+
+    /**
+     * Disconnects the player from the server.
+     * @param reason The message displayed to the player upon being kicked.
+     */
+    kick(reason: string): void;
+
+    /** @returns True if the player is still connected to the server. */
+    isOnline(): boolean;
+
+    /**
+     * Accesses the client-side API for this player, allowing you to send custom events
+     * to their client script.
+     * @returns The PlayerClient API proxy.
+     */
+    getClient(): PlayerClient;
+
+    /** @returns The current world position of the player as a Vector3. */
+    getPosition(): Vector3;
+
+    /** @returns A normalized Vector3 representing the direction the player's head is facing. Works for all clients (vanilla and modded). */
+    getDirection(): Vector3;
+
+    /** @returns A normalized Vector3 representing the direction the player's camera is looking. Requires the Moud client mod for full accuracy. */
+    getCameraDirection(): Vector3;
+
+    /** @returns A Vector3 where x is yaw and y is pitch, representing the player's head rotation. */
+    getHeadRotation(): Vector3;
+
+    /** @returns The player's yaw (horizontal rotation) in degrees. */
+    getYaw(): number;
+
+    /** @returns The player's pitch (vertical rotation) in degrees. */
+    getPitch(): number;
+
+    /**
+     * Instantly moves the player to a new position in the world.
+     */
+    teleport(x: number, y: number, z: number): void;
+
+    /**
+     * Accesses the API for synchronizing key-value data with the player's client.
+     * @returns The SharedValue API proxy for this player.
+     */
+    getShared(): SharedValueApi;
+
+    /**
+     * Accesses the API for controlling the player's camera.
+     * @returns The CameraLock API proxy.
+     */
+    getCamera(): CameraLock;
+
+    /**
+     * Accesses the API for showing or hiding elements of the vanilla Minecraft HUD.
+     * @returns The PlayerUI API proxy.
+     */
+    getUi(): PlayerUI;
+
+    /**
+     * Accesses the API for controlling the player's 3D world cursor.
+     * @returns The Cursor API proxy.
+     */
+    getCursor(): Cursor;
+
+    /**
+     * Accesses the API for controlling and overriding player model animations and parts.
+     * @returns The PlayerAnimation API proxy.
+     */
+    getAnimation(): PlayerAnimation;
+
+    // --- Added missing movement state methods ---
+
+    /** @returns True if the player is moving on the ground but not sprinting or sneaking. */
+    isWalking(): boolean;
+
+    /** @returns True if the player is sprinting. */
+    isRunning(): boolean;
+
+    /** @returns True if the player is sneaking. */
+    isSneaking(): boolean;
+
+    /** @returns True if the player is currently in the act of jumping. */
+    isJumping(): boolean;
+
+    /** @returns True if the player is on solid ground. */
+    isOnGround(): boolean;
+
+    /** @returns The player's current movement type as a string. Requires Moud client mod. */
+    getMovementType(): 'standing' | 'walking' | 'sneaking' | 'sprinting' | 'unknown';
+
+    /** @returns The player's current movement direction as a string (e.g., 'north', 'southwest', 'none'). Requires Moud client mod. */
+    getMovementDirection(): string;
+
+    /** @returns The player's current movement speed as reported by the client. Requires Moud client mod. */
+    getMovementSpeed(): number;
+}
+
 /**
  * API for managing server-level operations.
  */
@@ -622,85 +735,6 @@ interface AsyncManager {
      */
     runOnServerThread(task: () => void): void;
 }
-
-
-/**
- * Represents a player in the game and provides methods to interact with them.
- */
-interface Player {
-    /** @returns The player's Minecraft username. */
-    getName(): string;
-
-    /** @returns The player's unique UUID as a string. */
-    getUuid(): string;
-
-    /**
-     * Sends a chat message directly to this player.
-     * @param message The message to send, supporting standard Minecraft color codes.
-     */
-    sendMessage(message: string): void;
-
-    /**
-     * Disconnects the player from the server.
-     * @param reason The message displayed to the player upon being kicked.
-     */
-    kick(reason: string): void;
-
-    /** @returns True if the player is still connected to the server. */
-    isOnline(): boolean;
-
-    /**
-     * Accesses the client-side API for this player, allowing you to send custom events
-     * to their client script.
-     * @returns The PlayerClient API proxy.
-     */
-    getClient(): PlayerClient;
-
-    /** @returns The current world position of the player as a Vector3. */
-    getPosition(): Vector3;
-
-    /** @returns A normalized Vector3 representing the direction the player's body is facing. */
-    getDirection(): Vector3;
-
-    /** @returns A normalized Vector3 representing the direction the player's camera is looking. */
-    getCameraDirection(): Vector3;
-
-    /**
-     * Instantly moves the player to a new position in the world.
-     */
-    teleport(x: number, y: number, z: number): void;
-
-    /**
-     * Accesses the API for synchronizing key-value data with the player's client.
-     * @returns The SharedValue API proxy for this player.
-     */
-    getShared(): SharedValueApi;
-
-    /**
-     * Accesses the API for controlling the player's camera.
-     * @returns The CameraLock API proxy.
-     */
-    getCamera(): CameraLock;
-
-    /**
-     * Accesses the API for showing or hiding elements of the vanilla Minecraft HUD.
-     * @returns The PlayerUI API proxy.
-     */
-    getUi(): PlayerUI;
-
-    /**
-     * Accesses the API for controlling the player's 3D world cursor.
-     * @returns The Cursor API proxy.
-     */
-    getCursor(): Cursor;
-
-    /**
-     * Accesses the API for controlling and overriding player model animations and parts.
-     * @returns The PlayerAnimation API proxy.
-     */
-    getAnimation(): PlayerAnimation;
-}
-
 /**
  * Represents the client-side of a player connection, for sending client-only events.
  */
