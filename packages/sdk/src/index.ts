@@ -434,7 +434,11 @@ interface MoudAPI {
      * @param callback A function that receives the player who sent the event and the data payload.
      */
     on(eventName: string, callback: (player: Player, data: any) => void): void;
-
+    /**
+     * Registers a callback that fires *only once* when the server finishes its initial startup.
+     * This event does not fire on hot reloads, making it ideal for persistent, one-time setup.
+     */
+    on(eventName: 'server.load', callback: () => void): void;
     /**
      * Accesses the server-wide API for managing players and broadcasting messages.
      * @returns The Server API proxy.
@@ -460,6 +464,37 @@ interface MoudAPI {
     getAsync(): AsyncManager;
 }
 
+/**
+ * Options for performing a world raycast.
+ */
+interface RaycastOptions {
+    /** The starting point of the ray. */
+    origin: Vector3;
+    /** A normalized vector indicating the direction of the ray. */
+    direction: Vector3;
+    /** The maximum distance the ray should travel. Defaults to 100. */
+    maxDistance?: number;
+    /** A specific player to ignore during the raycast. Essential for first-person casting. */
+    ignorePlayer?: Player;
+}
+
+/**
+ * The result of a world raycast operation.
+ */
+interface RaycastResult {
+    /** True if the raycast hit a block or an entity. */
+    readonly didHit: boolean;
+    /** The world position where the raycast hit, or where it ended if it missed. */
+    readonly position: Vector3;
+    /** The surface normal of the block face that was hit, or null if an entity was hit or it missed. */
+    readonly normal: Vector3 | null;
+    /** The entity that was hit, or null. */
+    readonly entity: Player | null; // Note: Can be other entity types in the future
+    /** The namespaced ID of the block that was hit (e.g., 'minecraft:stone'), or null. */
+    readonly blockType: string | null;
+    /** The distance from the origin to the hit point. */
+    readonly distance: number;
+}
 
 /**
  * Represents a player in the game and provides methods to interact with them.
@@ -571,6 +606,17 @@ interface Player {
 
     /** @returns The player's current movement speed as reported by the client. Requires Moud client mod. */
     getMovementSpeed(): number;
+
+    /**
+     * Accesses the API for controlling player model animations and individual parts.
+     * @returns The PlayerAnimation API proxy.
+    */
+    getAnimation(): PlayerAnimation;
+
+     /**
+     * Makes the player invisible to others, but still physically present.
+     */
+     setVanished(vanished: boolean): void;
 }
 
 /**
@@ -675,6 +721,12 @@ interface World {
      * @param jsInstance The script object with an `onTick` method to control the entity.
      */
     spawnScriptedEntity(entityType: string, x: number, y: number, z: number, jsInstance: { onTick: () => void }): any;
+     /**
+       * Performs a raycast through the world to find the first block or entity it intersects with.
+       * @param options The configuration for the raycast.
+       * @returns A RaycastResult object with detailed information about the hit.
+     */
+     raycast(options: RaycastOptions): RaycastResult;
 }
 
 /**
