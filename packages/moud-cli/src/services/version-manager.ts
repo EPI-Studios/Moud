@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
+import os from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -105,7 +106,7 @@ export class VersionManager {
       throw new Error('CLI package not found in latest release');
     }
 
-    const tempDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'moud-cli-'));
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'moud-cli-'));
     const downloadPath = path.join(tempDir, cliAsset.name);
 
     try {
