@@ -24,7 +24,10 @@ public class Matrix4 {
     @HostAccess.Export
     public static Matrix4 identity() {
         Matrix4 result = new Matrix4();
-        result.m[0] = 1.0f; result.m[5] = 1.0f; result.m[10] = 1.0f; result.m[15] = 1.0f;
+        result.m[0] = 1.0f;
+        result.m[5] = 1.0f;
+        result.m[10] = 1.0f;
+        result.m[15] = 1.0f;
         return result;
     }
 
@@ -152,8 +155,8 @@ public class Matrix4 {
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
                 result.m[i * 4 + j] =
-                        m[i * 4 + 0] * other.m[0 * 4 + j] +
-                                m[i * 4 + 1] * other.m[1 * 4 + j] +
+                        m[i * 4] * other.m[j] +
+                                m[i * 4 + 1] * other.m[4 + j] +
                                 m[i * 4 + 2] * other.m[2 * 4 + j] +
                                 m[i * 4 + 3] * other.m[3 * 4 + j];
             }

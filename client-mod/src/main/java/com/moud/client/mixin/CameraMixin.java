@@ -47,6 +47,7 @@ public abstract class CameraMixin {
 
         if (overridePos != null) {
             this.setPos(overridePos.x, overridePos.y, overridePos.z);
+
         }
 
         if (overrideRotation != null) {
