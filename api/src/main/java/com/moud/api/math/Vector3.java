@@ -74,6 +74,15 @@ public class Vector3 {
         return new Vector3(0.0f, 0.0f, -1.0f);
     }
 
+    public static Vector3 lerp(Vector3 start, Vector3 end, float t) {
+        t = MathUtils.clamp(t, 0.0f, 1.0f);
+        return new Vector3(
+                MathUtils.lerp(start.x, end.x, t),
+                MathUtils.lerp(start.y, end.y, t),
+                MathUtils.lerp(start.z, end.z, t)
+        );
+    }
+
     @HostAccess.Export
     public Vector3 add(Vector3 other) {
         return new Vector3(this.x + other.x, this.y + other.y, this.z + other.z);
@@ -162,17 +171,6 @@ public class Vector3 {
                 MathUtils.lerp(this.x, target.x, t),
                 MathUtils.lerp(this.y, target.y, t),
                 MathUtils.lerp(this.z, target.z, t)
-        );
-    }
-
-
-
-    public static Vector3 lerp(Vector3 start, Vector3 end, float t) {
-        t = MathUtils.clamp(t, 0.0f, 1.0f);
-        return new Vector3(
-                MathUtils.lerp(start.x, end.x, t),
-                MathUtils.lerp(start.y, end.y, t),
-                MathUtils.lerp(start.z, end.z, t)
         );
     }
 

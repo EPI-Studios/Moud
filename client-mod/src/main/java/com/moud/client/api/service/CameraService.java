@@ -35,6 +35,7 @@ public final class CameraService {
     private boolean rotationDirty = false;
     private boolean positionDirty = false;
     private boolean initialized = false;
+    private boolean allowEntityRendering = true;
 
     public CameraService() {
         this.client = MinecraftClient.getInstance();
@@ -292,6 +293,14 @@ public final class CameraService {
         if (thirdPerson != isThirdPerson()) {
             client.options.setPerspective(client.options.getPerspective().next());
         }
+    }
+
+    public void setAllowEntityRendering(boolean allow) {
+        this.allowEntityRendering = allow;
+    }
+
+    public boolean shouldAllowEntityRendering() {
+        return allowEntityRendering;
     }
 
     public void lookAt(double targetX, double targetY, double targetZ) {
