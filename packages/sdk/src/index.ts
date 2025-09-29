@@ -640,6 +640,45 @@ interface Server {
      * @returns An array of Player objects.
      */
     getPlayers(): Player[];
+
+    /**
+     * Attempts to find an online player by their exact username.
+     * @param name The case-sensitive Minecraft username to search for.
+     * @returns The player proxy if the player is online, otherwise null.
+     */
+    getPlayer(name: string): Player | null;
+
+    /**
+     * Attempts to find an online player by UUID string.
+     * @param uuid The UUID of the player (with hyphens).
+     * @returns The player proxy if the player is online, otherwise null.
+     */
+    getPlayerByUuid(uuid: string): Player | null;
+
+    /**
+     * Checks whether a player with the given username is currently connected.
+     * @param name The username to search for.
+     * @returns True if the player is online, otherwise false.
+     */
+    hasPlayer(name: string): boolean;
+
+    /**
+     * Retrieves the usernames of all currently online players.
+     * @returns An array of usernames in login order.
+     */
+    getPlayerNames(): string[];
+
+    /**
+     * Executes a console command on the server.
+     * @param command The full command string to execute.
+     */
+    runCommand(command: string): void;
+
+    /**
+     * Sends an action bar message to every online player.
+     * @param message The message to display above the hotbar.
+     */
+    broadcastActionBar(message: string): void;
 }
 
 /**
