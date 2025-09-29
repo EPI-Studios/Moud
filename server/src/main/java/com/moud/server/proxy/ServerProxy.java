@@ -41,7 +41,12 @@ public class ServerProxy {
     @HostAccess.Export
     public PlayerProxy getPlayer(String username) {
         validator.validateString(username, "username");
-        Player player = MinecraftServer.getConnectionManager().getPlayer(username);
+        Player player = MinecraftServer.getConnectionManager()
+                .getOnlinePlayers()
+                .stream()
+                .filter(p -> p.getUsername().equalsIgnoreCase(username))
+                .findFirst()
+                .orElse(null);
         return wrapPlayer(player);
     }
 
@@ -50,7 +55,12 @@ public class ServerProxy {
         validator.validateString(uuid, "uuid");
         try {
             UUID parsed = UUID.fromString(uuid);
-            Player player = MinecraftServer.getConnectionManager().getPlayer(parsed);
+            Player player = MinecraftServer.getConnectionManager()
+                    .getOnlinePlayers()
+                    .stream()
+                    .filter(p -> p.getUuid().equals(parsed))
+                    .findFirst()
+                    .orElse(null);
             return wrapPlayer(player);
         } catch (IllegalArgumentException e) {
             LOGGER.warn("Attempted to lookup player with invalid UUID '{}'", uuid);
@@ -61,7 +71,10 @@ public class ServerProxy {
     @HostAccess.Export
     public boolean hasPlayer(String username) {
         validator.validateString(username, "username");
-        return MinecraftServer.getConnectionManager().getPlayer(username) != null;
+        return MinecraftServer.getConnectionManager()
+                .getOnlinePlayers()
+                .stream()
+                .anyMatch(p -> p.getUsername().equalsIgnoreCase(username));
     }
 
     @HostAccess.Export
