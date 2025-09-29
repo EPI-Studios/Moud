@@ -1,9 +1,6 @@
-// --- File: src/main/java/com/moud/client/shared/network/ClientPacketSender.java ---
-package com.moud.client.shared.network;
 
-// FIX: Import the centralized MoudPackets class.
+package com.moud.client.shared.network;
 import com.moud.network.MoudPackets;
-// FIX: Import the packet wrapper for sending data.
 import com.moud.client.network.ClientPacketWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

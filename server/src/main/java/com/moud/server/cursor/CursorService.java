@@ -323,24 +323,24 @@ public class CursorService {
 
     public void onPlayerJoin(Player player) {
         Cursor newCursor = new Cursor(player);
-        newCursor.setTexture("minecraft:textures/block/white_concrete.png");
-        newCursor.setColor(new Vector3(1.0f, 1.0f, 1.0f));
-        newCursor.setScale(0.8f);
         newCursor.setGloballyVisible(false);
-
         cursors.put(player.getUuid(), newCursor);
+        LOGGER.debug("Created hidden cursor for player {}", player.getUsername());
 
         MinecraftServer.getSchedulerManager().buildTask(() -> {
-            newCursor.setGloballyVisible(true);
-
-            for (Player otherPlayer : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
-                if (!otherPlayer.equals(player)) {
-                    syncCursorToViewer(getCursor(otherPlayer), player);
-                }
+            if (player.isOnline()) {
+                syncAllCursorsToPlayer(player);
             }
+        }).delay(TaskSchedule.tick(10)).schedule();
+    }
 
-            syncCursorToViewer(newCursor, player);
-        }).delay(TaskSchedule.tick(40)).schedule();
+    private void syncAllCursorsToPlayer(Player viewer) {
+        LOGGER.debug("Syncing all visible cursors to new player {}", viewer.getUsername());
+        for (Cursor cursorToSync : cursors.values()) {
+            if (cursorToSync.getOwner().equals(viewer)) continue;
+
+            syncCursorToViewer(cursorToSync, viewer);
+        }
     }
 
     public void onPlayerQuit(Player player) {
@@ -366,18 +366,24 @@ public class CursorService {
     }
 
     public void syncCursorToViewer(Cursor cursor, Player viewer) {
-        if (cursor == null) return;
+        if (cursor == null || viewer == null || !viewer.isOnline()) return;
 
-        networkManager.send(viewer, new MoudPackets.CursorVisibilityPacket(cursor.getOwner().getUuid(), cursor.isVisibleTo(viewer)));
+        boolean isVisible = cursor.isVisibleTo(viewer);
 
-        MoudPackets.CursorAppearancePacket appearancePacket = new MoudPackets.CursorAppearancePacket(
-                cursor.getOwner().getUuid(),
-                cursor.getTexture(),
-                cursor.getColor(),
-                cursor.getScale(),
-                cursor.getRenderMode().name()
-        );
-        networkManager.send(viewer, appearancePacket);
+        if (isVisible) {
+            networkManager.send(viewer, new MoudPackets.CursorVisibilityPacket(cursor.getOwner().getUuid(), true));
+
+            MoudPackets.CursorAppearancePacket appearancePacket = new MoudPackets.CursorAppearancePacket(
+                    cursor.getOwner().getUuid(),
+                    cursor.getTexture(),
+                    cursor.getColor(),
+                    cursor.getScale(),
+                    cursor.getRenderMode().name()
+            );
+            networkManager.send(viewer, appearancePacket);
+        } else {
+            networkManager.send(viewer, new MoudPackets.CursorVisibilityPacket(cursor.getOwner().getUuid(), false));
+        }
     }
 
     public void sendVisibilityUpdate(Cursor cursor) {

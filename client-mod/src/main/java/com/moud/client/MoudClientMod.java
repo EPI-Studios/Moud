@@ -235,13 +235,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 clientCameraManager.tick();
             }
 
-            if (clientCameraManager != null) {
-                clientCameraManager.tick();
-            }
-
-            ClientPlayerModelManager.getInstance().getModels().forEach(model -> {
-                model.tick();
-            });
+            ClientPlayerModelManager.getInstance().getModels().forEach(AnimatedPlayerModel::tick);
 
             ClientMovementTracker.getInstance().tick();
         });
@@ -251,43 +245,31 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         WorldRenderEvents.AFTER_ENTITIES.register(context -> {
             if (playerModelRenderer != null && !ClientPlayerModelManager.getInstance().getModels().isEmpty()) {
                 var camera = context.camera();
+                var world = MinecraftClient.getInstance().world;
+                float tickDelta = context.tickCounter().getTickDelta(true);
 
-                ClientPlayerModelManager.getInstance().getModels().forEach(model -> {
-                    var player = model.getFakePlayer();
-                    double x = player.getX() - camera.getPos().getX();
-                    double y = player.getY() - camera.getPos().getY();
-                    double z = player.getZ() - camera.getPos().getZ();
+                for (AnimatedPlayerModel model : ClientPlayerModelManager.getInstance().getModels()) {
+                    double x = model.getInterpolatedX(tickDelta) - camera.getPos().getX();
+                    double y = model.getInterpolatedY(tickDelta) - camera.getPos().getY();
+                    double z = model.getInterpolatedZ(tickDelta) - camera.getPos().getZ();
 
                     MatrixStack matrices = new MatrixStack();
                     matrices.translate(x, y, z);
 
-                    int light = 0xF000F0;
+                    int light = WorldRenderer.getLightmapCoordinates(world, model.getBlockPos());
 
-                    playerModelRenderer.render(model, matrices, context.consumers(), light, context.tickCounter().getTickDelta(true));
-                });
-
-                if (context.consumers() instanceof VertexConsumerProvider.Immediate immediate) {
-                    immediate.draw();
+                    playerModelRenderer.render(model, matrices, context.consumers(), light, tickDelta);
                 }
             }
-
             if (clientCursorManager != null) {
-                if (context.consumers() instanceof VertexConsumerProvider.Immediate immediate) {
-                    immediate.draw();
-                }
-
-                clientCursorManager.render( //
+                clientCursorManager.render(
                         context.matrixStack(),
                         context.consumers(),
                         context.tickCounter().getTickDelta(true)
                 );
             }
         });
-
-
-
     }
-
     private void registerShutdownHandler() {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> cleanupMoudServices());
     }

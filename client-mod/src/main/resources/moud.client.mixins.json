@@ -8,6 +8,7 @@
     "AnimatedPlayerMixin",
     "CameraMixin",
     "ChatHudMixin",
+    "EntityRenderDispatcherMixin",
     "GameRendererMixin",
     "HeldItemRendererMixin",
     "InGameHudMixin",

@@ -77,4 +77,7 @@ public class APIValidator {
         return !Double.isNaN(coordinate) && !Double.isInfinite(coordinate) &&
                 coordinate >= -30000000 && coordinate <= 30000000;
     }
+
+    public void validateNotNull(Value options, String options1) {
+    }
 }

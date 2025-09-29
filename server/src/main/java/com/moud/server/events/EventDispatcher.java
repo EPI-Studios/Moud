@@ -174,4 +174,19 @@ public class EventDispatcher {
             LOGGER.error("Error during player click event dispatch for player {}", player.getUsername(), e);
         }
     }
+
+    public void dispatchLoadEvent(String eventName) {
+        Value handler = handlers.get(eventName);
+        if (handler == null) {
+            LOGGER.debug("No handler found for initial server load event: {}", eventName);
+            return;
+        }
+
+        try {
+            engine.getRuntime().executeCallback(handler);
+            LOGGER.success("Dispatched one-time '{}' event.", eventName);
+        } catch (Exception e) {
+            LOGGER.error("Error during dispatch of '{}' event", eventName, e);
+        }
+    }
 }
