@@ -2,8 +2,8 @@ name: Moud Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 jobs:
   build_and_release:
@@ -29,8 +29,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -41,32 +39,41 @@ jobs:
       - name: Build Server
         run: ./gradlew server:shadowJar
 
-      - name: Build & Publish CLI to npm
+      - name: Install CLI dependencies
         run: |
           cd packages/moud-cli
           npm install
-          npm run build
-          npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Build & Publish SDK to npm
+      - name: Build CLI
+        run: |
+          cd packages/moud-cli
+          npm run build
+
+      - name: Install SDK dependencies
         run: |
           cd packages/sdk
           npm install
+
+      - name: Build SDK
+        run: |
+          cd packages/sdk
           npm run build
-          npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Generate version tag
+        id: version
+        run: |
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          TAG="v0.0.0-draft-${TIMESTAMP}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
       - name: Generate Changelog
         id: changelog
         run: |
-          PREVIOUS_TAG=$(git tag --sort=-creatordate | sed -n '2p')
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           if [ -z "$PREVIOUS_TAG" ]; then
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${{ github.ref_name }})
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" HEAD~10..HEAD)
           else
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${PREVIOUS_TAG}..${{ github.ref_name }})
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${PREVIOUS_TAG}..HEAD)
           fi
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
@@ -79,6 +86,7 @@ jobs:
             server/build/libs/moud-server.jar
             client-mod/build/libs/*.jar
           token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ steps.version.outputs.tag }}
           draft: true
           generateReleaseNotes: false
           body: |
