@@ -62,7 +62,12 @@ public class PlayerModelProxy {
 
         ALL_MODELS.put(modelId, this);
         broadcastCreate();
+
+
+        playAnimation("moud:idle");
     }
+
+
 
     @HostAccess.Export
     public Vector3 getPosition() {

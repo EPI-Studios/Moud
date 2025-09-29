@@ -128,6 +128,8 @@ public class CursorProxy {
         return getCursor().getColor();
     }
 
+
+
     private Set<UUID> getPlayerUuids(Value players) {
         if (players.isHostObject() && players.asHostObject() instanceof PlayerProxy) {
             return Set.of(UUID.fromString(((PlayerProxy) players.asHostObject()).getUuid()));
