@@ -3,7 +3,7 @@ name: Moud Release
 on:
   push:
     branches:
-      - main
+      - develop
 
 jobs:
   build_and_release:
