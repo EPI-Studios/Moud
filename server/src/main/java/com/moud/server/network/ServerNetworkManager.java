@@ -16,8 +16,10 @@ import com.moud.server.player.PlayerCursorDirectionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
+import java.time.Instant;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public final class ServerNetworkManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerNetworkManager.class);
@@ -25,7 +27,7 @@ public final class ServerNetworkManager {
 
     private final EventDispatcher eventDispatcher;
     private final ClientScriptManager clientScriptManager;
-    private final Map<Player, Boolean> moudClients = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, ClientSession> moudClients = new ConcurrentHashMap<>();
     private static ServerNetworkManager instance;
 
     public ServerNetworkManager(EventDispatcher eventDispatcher, ClientScriptManager clientScriptManager) {
@@ -85,23 +87,34 @@ public final class ServerNetworkManager {
         }
     }
 
-    public <T> void send(Player player, T packet) {
+    public <T> boolean send(Player player, T packet) {
+        if (!isMoudClient(player)) {
+            LOGGER.trace("Skipping packet send to non-Moud client {}", player.getUsername());
+            return false;
+        }
+
         try {
             player.sendPacket(ServerPacketWrapper.createPacket(packet));
+            return true;
         } catch (Exception e) {
-            System.out.println("Failed to send packet: " + e.getMessage());
-            e.printStackTrace();
+            LOGGER.error("Failed to send packet {} to {}", packet.getClass().getSimpleName(), player.getUsername(), e);
+            return false;
         }
     }
 
-    public <T> void broadcast(T packet) {
+    public <T> int broadcast(T packet) {
         int sentCount = 0;
         for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
-            if (isMoudClient(player)) {
-                send(player, packet);
+            if (send(player, packet)) {
                 sentCount++;
             }
         }
+
+        if (sentCount == 0) {
+            LOGGER.trace("Broadcast {} skipped - no active Moud clients", packet.getClass().getSimpleName());
+        }
+
+        return sentCount;
     }
 
     private void handleHelloPacket(Object player, HelloPacket packet) {
@@ -113,8 +126,14 @@ public final class ServerNetworkManager {
             minestomPlayer.kick("Unsupported Moud client version");
             return;
         }
-        moudClients.put(minestomPlayer, true);
-        LOGGER.info("Player {} connected with Moud client (protocol: {})", minestomPlayer.getUsername(), clientVersion);
+        ClientSession previousSession = moudClients.put(minestomPlayer.getUuid(), new ClientSession(Instant.now()));
+
+        if (previousSession != null) {
+            LOGGER.debug("Player {} re-registered Moud session (previous handshake: {})",
+                    minestomPlayer.getUsername(), previousSession.handshakeTime());
+        } else {
+            LOGGER.info("Player {} connected with Moud client (protocol: {})", minestomPlayer.getUsername(), clientVersion);
+        }
         sendClientScripts(minestomPlayer);
     }
 
@@ -171,7 +190,7 @@ public final class ServerNetworkManager {
 
     private void onPlayerDisconnect(PlayerDisconnectEvent event) {
         Player player = event.getPlayer();
-        moudClients.remove(player);
+        moudClients.remove(player.getUuid());
         PlayerCameraManager.getInstance().onPlayerDisconnect(player);
         PlayerCursorDirectionManager.getInstance().onPlayerDisconnect(player);
         CursorService.getInstance().onPlayerQuit(player);
@@ -187,7 +206,9 @@ public final class ServerNetworkManager {
             byte[] scriptData = clientScriptManager.getCompiledScripts();
             String hash = clientScriptManager.getScriptsHash();
             LOGGER.info("Sending client scripts to {}: hash={}, size={} bytes", player.getUsername(), hash, scriptData.length);
-            send(player, new SyncClientScriptsPacket(hash, scriptData));
+            if (!send(player, new SyncClientScriptsPacket(hash, scriptData))) {
+                LOGGER.error("Failed to send client scripts payload to {}", player.getUsername());
+            }
         } catch (Exception e) {
             LOGGER.error("Failed to send client scripts to {}", player.getUsername(), e);
         }
@@ -198,10 +219,15 @@ public final class ServerNetworkManager {
             LOGGER.warn("Attempted to send script event to non-Moud client: {}", player.getUsername());
             return;
         }
-        send(player, new ClientboundScriptEventPacket(eventName, eventData));
+        if (!send(player, new ClientboundScriptEventPacket(eventName, eventData))) {
+            LOGGER.warn("Script event {} dropped for {}", eventName, player.getUsername());
+        }
     }
 
     public boolean isMoudClient(Player player) {
-        return moudClients.getOrDefault(player, false);
+        return moudClients.containsKey(player.getUuid());
+    }
+
+    private record ClientSession(Instant handshakeTime) {
     }
 }
