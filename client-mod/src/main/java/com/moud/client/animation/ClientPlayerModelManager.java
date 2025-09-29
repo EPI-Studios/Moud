@@ -1,6 +1,10 @@
 package com.moud.client.animation;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.world.ClientWorld;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -8,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ClientPlayerModelManager {
     private static final ClientPlayerModelManager INSTANCE = new ClientPlayerModelManager();
     private final Map<Long, AnimatedPlayerModel> models = new ConcurrentHashMap<>();
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClientPlayerModelManager.class);
 
     private ClientPlayerModelManager() {}
 
@@ -15,10 +20,20 @@ public class ClientPlayerModelManager {
         return INSTANCE;
     }
 
-    public void createModel(long modelId) {
-        MinecraftClient.getInstance().execute(() -> {
-            models.put(modelId, new AnimatedPlayerModel(MinecraftClient.getInstance().world));
-        });
+    public AnimatedPlayerModel createModel(long modelId) {
+        MinecraftClient client = MinecraftClient.getInstance();
+
+        if (!client.isOnThread()) {
+            return client.submit(() -> createModel(modelId)).join();
+        }
+
+        ClientWorld world = client.world;
+        if (world == null) {
+            LOGGER.warn("Tried to create player model {} without an active client world", modelId);
+            return null;
+        }
+
+        return models.computeIfAbsent(modelId, id -> new AnimatedPlayerModel(world));
     }
 
     public void removeModel(long modelId) {

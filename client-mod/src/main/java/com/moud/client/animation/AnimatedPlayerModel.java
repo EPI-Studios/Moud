@@ -35,6 +35,7 @@ public class AnimatedPlayerModel {
     private double prevX, prevY, prevZ;
     private float yaw, pitch;
     private float prevYaw, prevPitch;
+    private boolean hasPosition;
 
     private final PlayerAnimBone pal$head = new PlayerAnimBone("head");
     private final PlayerAnimBone pal$body = new PlayerAnimBone("body");
@@ -75,11 +76,20 @@ public class AnimatedPlayerModel {
     }
 
     public void updatePositionAndRotation(Vector3 position, float yaw, float pitch) {
-        this.prevX = this.x;
-        this.prevY = this.y;
-        this.prevZ = this.z;
-        this.prevYaw = this.yaw;
-        this.prevPitch = this.pitch;
+        if (!hasPosition) {
+            this.prevX = position.x;
+            this.prevY = position.y;
+            this.prevZ = position.z;
+            this.prevYaw = yaw;
+            this.prevPitch = pitch;
+            this.hasPosition = true;
+        } else {
+            this.prevX = this.x;
+            this.prevY = this.y;
+            this.prevZ = this.z;
+            this.prevYaw = this.yaw;
+            this.prevPitch = this.pitch;
+        }
 
         this.x = position.x;
         this.y = position.y;

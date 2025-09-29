@@ -344,26 +344,31 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     }
 
     private void handlePlayModelAnimation(MoudPackets.S2C_PlayModelAnimationPacket packet) {
-        AnimatedPlayerModel model = ClientPlayerModelManager.getInstance().getModel(packet.modelId());
-        if (model != null) {
-            model.playAnimation(packet.animationId());
-            LOGGER.info("Playing animation '{}' on model {}.", packet.animationId(), packet.modelId());
-        } else {
-            LOGGER.warn("Received animation for unknown model ID: {}", packet.modelId());
-        }
+        MinecraftClient client = MinecraftClient.getInstance();
+        client.execute(() -> {
+            AnimatedPlayerModel model = ClientPlayerModelManager.getInstance().getModel(packet.modelId());
+            if (model != null) {
+                model.playAnimation(packet.animationId());
+                LOGGER.info("Playing animation '{}' on model {}.", packet.animationId(), packet.modelId());
+            } else {
+                LOGGER.warn("Received animation for unknown model ID: {}", packet.modelId());
+            }
+        });
     }
 
     private void handlePlayerModelCreate(PlayerModelCreatePacket packet) {
         MinecraftClient.getInstance().execute(() -> {
-            ClientPlayerModelManager.getInstance().createModel(packet.modelId());
-            AnimatedPlayerModel model = ClientPlayerModelManager.getInstance().getModel(packet.modelId());
-            if (model != null) {
-                model.updatePositionAndRotation(packet.position(), 0, 0);
-                if (packet.skinUrl() != null && !packet.skinUrl().isEmpty()) {
-                    model.updateSkin(packet.skinUrl());
-                }
-                LOGGER.info("Created player model with ID: {} at position: {}", packet.modelId(), packet.position());
+            AnimatedPlayerModel model = ClientPlayerModelManager.getInstance().createModel(packet.modelId());
+            if (model == null) {
+                LOGGER.warn("Failed to create player model {} because the client world is unavailable", packet.modelId());
+                return;
             }
+
+            model.updatePositionAndRotation(packet.position(), 0, 0);
+            if (packet.skinUrl() != null && !packet.skinUrl().isEmpty()) {
+                model.updateSkin(packet.skinUrl());
+            }
+            LOGGER.info("Created player model with ID: {} at position: {}", packet.modelId(), packet.position());
         });
     }
 
@@ -414,21 +419,25 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private void handlePlayerState(PlayerStatePacket packet) { if (playerStateManager != null) { playerStateManager.updatePlayerState(packet.hideHotbar(), packet.hideHand(), packet.hideExperience()); } }
     private void handleSharedValueSync(SyncSharedValuesPacket packet) { if (sharedValueManager != null) { sharedValueManager.handleServerSync(packet); } }
     private void handlePlayerModelUpdate(PlayerModelUpdatePacket packet) {
-        AnimatedPlayerModel model = ClientPlayerModelManager.getInstance().getModel(packet.modelId());
-        if (model != null) {
-            model.updatePositionAndRotation(packet.position(), packet.yaw(), packet.pitch());
-        } else {
-            LOGGER.warn("Received update for unknown model ID: {}", packet.modelId());
-        }
+        MinecraftClient.getInstance().execute(() -> {
+            AnimatedPlayerModel model = ClientPlayerModelManager.getInstance().getModel(packet.modelId());
+            if (model != null) {
+                model.updatePositionAndRotation(packet.position(), packet.yaw(), packet.pitch());
+            } else {
+                LOGGER.warn("Received update for unknown model ID: {}", packet.modelId());
+            }
+        });
     }
 
     private void handlePlayerModelSkin(PlayerModelSkinPacket packet) {
-        AnimatedPlayerModel model = ClientPlayerModelManager.getInstance().getModel(packet.modelId());
-        if (model != null) {
-            model.updateSkin(packet.skinUrl());
-        } else {
-            LOGGER.warn("Received skin update for unknown model ID: {}", packet.modelId());
-        }
+        MinecraftClient.getInstance().execute(() -> {
+            AnimatedPlayerModel model = ClientPlayerModelManager.getInstance().getModel(packet.modelId());
+            if (model != null) {
+                model.updateSkin(packet.skinUrl());
+            } else {
+                LOGGER.warn("Received skin update for unknown model ID: {}", packet.modelId());
+            }
+        });
     }
     private void handleAdvancedCameraLock(AdvancedCameraLockPacket packet) {
         if (apiService != null && apiService.camera != null) {
