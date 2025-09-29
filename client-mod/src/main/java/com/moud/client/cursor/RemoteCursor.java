@@ -11,6 +11,7 @@ public class RemoteCursor {
     private static final Logger LOGGER = LoggerFactory.getLogger(RemoteCursor.class);
     private final UUID playerId;
     private boolean visible = false;
+    private boolean enabled = true;
 
     private Identifier texture;
     private Vector3 color = new Vector3(1.0f, 1.0f, 1.0f);
@@ -83,12 +84,16 @@ public class RemoteCursor {
     }
 
     public boolean isVisible() {
-        return visible;
+        return visible && enabled;
     }
 
     public void setVisible(boolean visible) {
         LOGGER.info("Setting cursor {} visibility to {}", playerId, visible);
         this.visible = visible;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
     }
 
     public Identifier getTexture() {

@@ -68,20 +68,17 @@ public class ClientValueCache {
     }
 
     private void triggerChangeListeners(String key, Object newValue, Object oldValue) {
-        // THIS IS THE FIX:
-        // We schedule the JavaScript callbacks to run on the main script thread
-        // instead of executing them directly on the Netty network thread.
+        // schedule js callbacks to run  on the main script thread instead of doing it directly on the network thread
 
         for (Value listener : changeListeners) {
             ClientScriptingRuntime.scheduleScriptTask(() -> {
                 try {
                     if (listener.canExecute()) {
-                        // Pass cloned values to prevent any potential cross-thread modification issues
                         listener.execute(key, cloneValue(newValue), cloneValue(oldValue));
                     }
                 } catch (Exception e) {
                     LOGGER.error("Error in shared value 'change' listener for store '{}'", storeName, e);
-                    changeListeners.remove(listener); // Remove faulty listener
+                    changeListeners.remove(listener);
                 }
             });
         }
@@ -96,7 +93,7 @@ public class ClientValueCache {
                         }
                     } catch (Exception e) {
                         LOGGER.error("Error in shared value key '{}' listener for store '{}'", key, storeName, e);
-                        specificKeyListeners.remove(listener); // Remove faulty listener
+                        specificKeyListeners.remove(listener);
                     }
                 });
             }
@@ -108,13 +105,12 @@ public class ClientValueCache {
             return value;
         }
         try {
-            // Use Jackson for a deep clone to be safe
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             String json = mapper.writeValueAsString(value);
             return mapper.readValue(json, Object.class);
         } catch (Exception e) {
             LOGGER.warn("Could not deep clone value of type {}, returning original. This may cause issues.", value.getClass().getName());
-            return value; // Fallback to shallow copy
+            return value;
         }
     }
 

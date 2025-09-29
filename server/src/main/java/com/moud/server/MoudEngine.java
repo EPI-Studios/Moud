@@ -43,6 +43,7 @@ public class MoudEngine {
         return instance;
     }
 
+
     public MoudEngine(String[] launchArgs) {
         instance = this;
         LOGGER.startup("Initializing Moud Engine...");
@@ -100,6 +101,8 @@ public class MoudEngine {
             loadUserScripts();
 
             initialized.set(true);
+            this.eventDispatcher.dispatchLoadEvent("server.load");
+
             LOGGER.startup("Moud Engine initialized successfully");
         } catch (Exception e) {
             LOGGER.critical("Failed to initialize Moud engine: {}", e.getMessage(), e);

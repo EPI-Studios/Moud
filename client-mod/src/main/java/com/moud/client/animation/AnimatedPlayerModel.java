@@ -1,6 +1,8 @@
 package com.moud.client.animation;
 
 import com.moud.api.math.Vector3;
+import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.properties.Property;
 import com.zigythebird.playeranim.animation.PlayerAnimationController;
 import com.zigythebird.playeranim.util.RenderUtil;
 import com.zigythebird.playeranimcore.animation.Animation;
@@ -16,8 +18,11 @@ import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.UUID;
 
 public class AnimatedPlayerModel {
     private static final Logger LOGGER = LoggerFactory.getLogger(AnimatedPlayerModel.class);
@@ -25,6 +30,11 @@ public class AnimatedPlayerModel {
     private final OtherClientPlayerEntity fakePlayer;
     private final PlayerAnimationController animationController;
     private final PlayerEntityModel<OtherClientPlayerEntity> model;
+
+    private double x, y, z;
+    private double prevX, prevY, prevZ;
+    private float yaw, pitch;
+    private float prevYaw, prevPitch;
 
     private final PlayerAnimBone pal$head = new PlayerAnimBone("head");
     private final PlayerAnimBone pal$body = new PlayerAnimBone("body");
@@ -36,52 +46,89 @@ public class AnimatedPlayerModel {
     public AnimatedPlayerModel(ClientWorld world) {
         ModelPart modelPart = MinecraftClient.getInstance().getEntityModelLoader().getModelPart(EntityModelLayers.PLAYER);
         this.model = new PlayerEntityModel<>(modelPart, false);
-        this.fakePlayer = new OtherClientPlayerEntity(world, MinecraftClient.getInstance().player.getGameProfile());
+
+        GameProfile gameProfile = new GameProfile(UUID.randomUUID(), "MoudPlayerModel");
+        this.fakePlayer = new OtherClientPlayerEntity(world, gameProfile);
+
         this.animationController = new PlayerAnimationController(null, (controller, state, animSetter) -> PlayState.CONTINUE);
+    }
+
+    public void updateSkin(String skinUrl) {
+        if (skinUrl == null || skinUrl.isEmpty()) {
+            LOGGER.warn("Empty skin URL provided");
+            return;
+        }
+
+        try {
+            GameProfile gameProfile = this.fakePlayer.getGameProfile();
+            gameProfile.getProperties().clear();
+            gameProfile.getProperties().put("textures", new Property("textures", encodeSkinUrl(skinUrl)));
+            LOGGER.info("Applied skin URL: {}", skinUrl);
+        } catch (Exception e) {
+            LOGGER.error("Failed to apply skin", e);
+        }
+    }
+
+    private String encodeSkinUrl(String skinUrl) {
+        String textureData = String.format("{\"textures\":{\"SKIN\":{\"url\":\"%s\"}}}", skinUrl);
+        return java.util.Base64.getEncoder().encodeToString(textureData.getBytes());
+    }
+
+    public void updatePositionAndRotation(Vector3 position, float yaw, float pitch) {
+        this.prevX = this.x;
+        this.prevY = this.y;
+        this.prevZ = this.z;
+        this.prevYaw = this.yaw;
+        this.prevPitch = this.pitch;
+
+        this.x = position.x;
+        this.y = position.y;
+        this.z = position.z;
+        this.yaw = yaw;
+        this.pitch = pitch;
+
+
+        this.fakePlayer.setPosition(this.x, this.y, this.z);
     }
 
     public OtherClientPlayerEntity getFakePlayer() {
         return this.fakePlayer;
     }
 
-    public double getX() {
-        return this.fakePlayer.getX();
-    }
-
-    public double getY() {
-        return this.fakePlayer.getY();
-    }
-
-    public double getZ() {
-        return this.fakePlayer.getZ();
-    }
+    public double getInterpolatedX(float tickDelta) { return MathHelper.lerp(tickDelta, prevX, x); }
+    public double getInterpolatedY(float tickDelta) { return MathHelper.lerp(tickDelta, prevY, y); }
+    public double getInterpolatedZ(float tickDelta) { return MathHelper.lerp(tickDelta, prevZ, z); }
+    public float getInterpolatedYaw(float tickDelta) { return MathHelper.lerpAngleDegrees(tickDelta, prevYaw, yaw); }
+    public float getInterpolatedPitch(float tickDelta) { return MathHelper.lerp(tickDelta, prevPitch, pitch); }
 
     public BlockPos getBlockPos() {
-        return this.fakePlayer.getBlockPos();
+        return BlockPos.ofFloored(this.x, this.y, this.z);
     }
 
     public void playAnimation(String animationIdStr) {
         Identifier animationId = Identifier.tryParse(animationIdStr);
         if (animationId == null) {
-            LOGGER.error("Invalid animation ID format: {}", animationIdStr);
-            return;
+
+            animationId = Identifier.of("moud", animationIdStr);
         }
 
         Animation animation = com.zigythebird.playeranim.animation.PlayerAnimResources.getAnimation(animationId);
         if (animation != null) {
             RawAnimation rawAnimation = RawAnimation.begin().then(animation, Animation.LoopType.LOOP);
             this.animationController.triggerAnimation(rawAnimation);
+            LOGGER.debug("Playing animation '{}' on player model", animationId);
         } else {
-            LOGGER.warn("Animation '{}' not found.", animationId);
+            LOGGER.warn("Animation '{}' not found", animationId);
         }
     }
 
     public void tick() {
+        this.fakePlayer.tick();
+
         if (animationController.isActive()) {
             animationController.tick(new AnimationData(0, 0));
         }
     }
-
     public void setupAnim(float partialTick) {
         if (animationController.isActive()) {
             animationController.setupAnim(new AnimationData(0, partialTick));
@@ -134,17 +181,5 @@ public class AnimatedPlayerModel {
 
     public PlayerEntityModel<OtherClientPlayerEntity> getModel() {
         return model;
-    }
-
-    public void updatePositionAndRotation(Vector3 position, float yaw, float pitch) {
-        if (this.fakePlayer != null) {
-            this.fakePlayer.setPosition(position.x, position.y, position.z);
-            this.fakePlayer.setYaw(yaw);
-            this.fakePlayer.setPitch(pitch);
-        }
-    }
-
-    public void updateSkin(String skinUrl) {
-        LOGGER.info("Skin update requested for model with URL: " + skinUrl);
     }
 }

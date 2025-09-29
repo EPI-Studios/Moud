@@ -13,8 +13,6 @@ public class MathProxy {
     @HostAccess.Export
     public GeometryUtilsProxy geometry = new GeometryUtilsProxy();
 
-    // --- START: Added shortcut methods to fix the error and improve the API ---
-
     @HostAccess.Export
     public float clamp(double value, double min, double max) {
         return utils.clamp(value, min, max);
@@ -81,6 +79,21 @@ public class MathProxy {
     }
 
     @HostAccess.Export
+    public int floor(double value) {
+        return (int) Math.floor(value);
+    }
+
+    @HostAccess.Export
+    public int ceil(double value) {
+        return (int) Math.ceil(value);
+    }
+
+    @HostAccess.Export
+    public int round(double value) {
+        return (int) Math.round(value);
+    }
+
+    @HostAccess.Export
     public float toRadians(double degrees) {
         return utils.toRadians(degrees);
     }
@@ -89,9 +102,6 @@ public class MathProxy {
     public float toDegrees(double radians) {
         return utils.toDegrees(radians);
     }
-
-    // --- END: Added shortcut methods ---
-
 
     @HostAccess.Export
     public Vector3 vector3(double x, double y, double z) {
@@ -322,6 +332,21 @@ public class MathProxy {
         @HostAccess.Export
         public float max(double a, double b) {
             return MathUtils.max((float)a, (float)b);
+        }
+
+        @HostAccess.Export
+        public int floor(double value) {
+            return (int) Math.floor(value);
+        }
+
+        @HostAccess.Export
+        public int ceil(double value) {
+            return (int) Math.ceil(value);
+        }
+
+        @HostAccess.Export
+        public int round(double value) {
+            return (int) Math.round(value);
         }
 
         @HostAccess.Export
