@@ -1,6 +1,7 @@
 package com.moud.network;
 
 import com.moud.api.math.Vector3;
+import com.moud.api.rendering.mesh.MeshData;
 import com.moud.network.annotation.Direction;
 import com.moud.network.annotation.Field;
 import com.moud.network.annotation.Packet;
@@ -79,6 +80,29 @@ public final class MoudPackets {
 
     @Packet(value = "moud:player_model_remove", direction = Direction.SERVER_TO_CLIENT)
     public record PlayerModelRemovePacket(@Field(order = 0) long modelId) {
+    }
+
+    @Packet(value = "moud:mesh_create", direction = Direction.SERVER_TO_CLIENT)
+    public record MeshCreatePacket(
+            @Field(order = 0) long meshId,
+            @Field(order = 1) MeshData data,
+            @Field(order = 2) Vector3 position,
+            @Field(order = 3) Vector3 rotation,
+            @Field(order = 4) Vector3 scale
+    ) {
+    }
+
+    @Packet(value = "moud:mesh_transform", direction = Direction.SERVER_TO_CLIENT)
+    public record MeshTransformPacket(
+            @Field(order = 0) long meshId,
+            @Field(order = 1) Vector3 position,
+            @Field(order = 2) Vector3 rotation,
+            @Field(order = 3) Vector3 scale
+    ) {
+    }
+
+    @Packet(value = "moud:mesh_remove", direction = Direction.SERVER_TO_CLIENT)
+    public record MeshRemovePacket(@Field(order = 0) long meshId) {
     }
 
     @Packet(value = "moud:sync_shared_values", direction = Direction.SERVER_TO_CLIENT)

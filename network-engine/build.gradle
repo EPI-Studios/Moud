@@ -1,0 +1,9 @@
+plugins {
+    id 'java'
+}
+
+dependencies {
+    implementation project(':api')
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+    implementation 'org.reflections:reflections:0.10.2'
+}

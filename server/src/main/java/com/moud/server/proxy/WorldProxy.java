@@ -1,6 +1,8 @@
 package com.moud.server.proxy;
 
 import com.moud.api.math.Vector3;
+import com.moud.api.rendering.mesh.Mesh;
+import com.moud.api.rendering.mesh.MeshData;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.api.validation.APIValidator;
 import com.moud.server.entity.ScriptedEntity;
@@ -21,8 +23,10 @@ import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
 
-import java.util.Map;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 
 public class WorldProxy {
@@ -173,6 +177,91 @@ public class WorldProxy {
         }
 
         return ProxyObject.fromMap(resultMap);
+    }
+
+    @HostAccess.Export
+    public MeshProxy createMesh(Value options) {
+        validator.validateNotNull(options, "options");
+
+        if (!options.hasMember("mesh")) {
+            throw new APIException("INVALID_ARGUMENT", "createMesh requires a mesh instance");
+        }
+        Mesh mesh = extractMesh(options.getMember("mesh"));
+        Vector3 position = extractVector(options.getMember("position"), Vector3.zero());
+        Vector3 rotation = extractVector(options.getMember("rotation"), Vector3.zero());
+        Vector3 scale = extractVector(options.getMember("scale"), Vector3.one());
+
+        MeshProxy meshProxy = new MeshProxy(mesh, position, rotation, scale);
+
+        if (options.hasMember("players")) {
+            List<PlayerProxy> players = extractPlayers(options.getMember("players"));
+            if (players.isEmpty()) {
+                meshProxy.showToAll();
+            } else {
+                for (PlayerProxy playerProxy : players) {
+                    meshProxy.showTo(playerProxy);
+                }
+            }
+        } else {
+            meshProxy.showToAll();
+        }
+
+        return meshProxy;
+    }
+
+    private Mesh extractMesh(Value meshValue) {
+        if (meshValue == null) {
+            throw new APIException("INVALID_ARGUMENT", "createMesh requires a mesh instance");
+        }
+        if (meshValue.isHostObject()) {
+            Object host = meshValue.asHostObject();
+            if (host instanceof Mesh mesh) {
+                return mesh;
+            }
+            if (host instanceof MeshData meshData) {
+                return meshData.toMesh();
+            }
+        }
+        throw new APIException("INVALID_ARGUMENT", "Unsupported mesh type provided to createMesh");
+    }
+
+    private Vector3 extractVector(Value value, Vector3 fallback) {
+        if (value == null) {
+            return new Vector3(fallback);
+        }
+        if (value.isHostObject() && value.asHostObject() instanceof Vector3 vector3) {
+            return new Vector3(vector3);
+        }
+        if (value.hasMembers()) {
+            float x = value.hasMember("x") ? value.getMember("x").asFloat() : fallback.x;
+            float y = value.hasMember("y") ? value.getMember("y").asFloat() : fallback.y;
+            float z = value.hasMember("z") ? value.getMember("z").asFloat() : fallback.z;
+            return new Vector3(x, y, z);
+        }
+        return new Vector3(fallback);
+    }
+
+    private List<PlayerProxy> extractPlayers(Value playersValue) {
+        List<PlayerProxy> players = new ArrayList<>();
+        if (playersValue == null) {
+            return players;
+        }
+
+        if (playersValue.isHostObject() && playersValue.asHostObject() instanceof PlayerProxy playerProxy) {
+            players.add(playerProxy);
+            return players;
+        }
+
+        if (playersValue.hasArrayElements()) {
+            for (int i = 0; i < playersValue.getArraySize(); i++) {
+                Value element = playersValue.getArrayElement(i);
+                if (element.isHostObject() && element.asHostObject() instanceof PlayerProxy proxy) {
+                    players.add(proxy);
+                }
+            }
+        }
+
+        return players;
     }
 
 

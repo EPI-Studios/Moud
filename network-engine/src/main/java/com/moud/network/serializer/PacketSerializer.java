@@ -1,13 +1,18 @@
 package com.moud.network.serializer;
 
 import com.moud.api.math.Vector3;
+import com.moud.api.rendering.mesh.MeshData;
 import com.moud.network.MoudPackets;
 import com.moud.network.buffer.ByteBuffer;
 import com.moud.network.metadata.PacketMetadata;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.ParameterizedType;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 public class PacketSerializer {
     private final Map<Class<?>, TypeSerializer<?>> serializers = new HashMap<>();
@@ -31,6 +36,10 @@ public class PacketSerializer {
         register(UUID.class, new UUIDSerializer());
         register(Vector3.class, new Vector3Serializer());
         register(byte[].class, new ByteArraySerializer());
+        register(int[].class, new IntArraySerializer());
+        register(MeshData.class, new MeshDataSerializer());
+        register(MeshData.PartData.class, new MeshPartDataSerializer());
+        register(MeshData.VertexData.class, new MeshVertexSerializer());
     }
 
     public <T> void register(Class<T> type, TypeSerializer<T> serializer) {
@@ -95,6 +104,8 @@ public class PacketSerializer {
                 writeValue(buffer, position, Vector3.class);
                 writeValue(buffer, normal, Vector3.class);
                 writeValue(buffer, hit, boolean.class);
+            } else if (item instanceof MeshData.PartData partData) {
+                writeValue(buffer, partData, MeshData.PartData.class);
             } else if (item instanceof UUID) {
                 writeValue(buffer, item, UUID.class);
             } else {
@@ -136,6 +147,8 @@ public class PacketSerializer {
                 Vector3 normal = (Vector3) readValue(buffer, Vector3.class);
                 boolean hit = (boolean) readValue(buffer, boolean.class);
                 list.add(new MoudPackets.CursorUpdateData(playerId, position, normal, hit));
+            } else if (listElementType == MeshData.PartData.class) {
+                list.add(readValue(buffer, MeshData.PartData.class));
             } else if (listElementType == UUID.class) {
                 list.add(readValue(buffer, UUID.class));
             } else {
@@ -274,6 +287,101 @@ public class PacketSerializer {
 
         public byte[] read(ByteBuffer buffer) {
             return buffer.readByteArray();
+        }
+    }
+
+    private static class IntArraySerializer implements TypeSerializer<int[]> {
+        public void write(ByteBuffer buffer, int[] value) {
+            buffer.writeInt(value.length);
+            for (int element : value) {
+                buffer.writeInt(element);
+            }
+        }
+
+        public int[] read(ByteBuffer buffer) {
+            int length = buffer.readInt();
+            int[] values = new int[length];
+            for (int i = 0; i < length; i++) {
+                values[i] = buffer.readInt();
+            }
+            return values;
+        }
+    }
+
+    private static class MeshDataSerializer implements TypeSerializer<MeshData> {
+        private static final MeshPartDataSerializer PART_SERIALIZER = new MeshPartDataSerializer();
+
+        public void write(ByteBuffer buffer, MeshData value) {
+            List<MeshData.PartData> parts = value.parts();
+            buffer.writeInt(parts.size());
+            for (MeshData.PartData part : parts) {
+                PART_SERIALIZER.write(buffer, part);
+            }
+        }
+
+        public MeshData read(ByteBuffer buffer) {
+            int partCount = buffer.readInt();
+            List<MeshData.PartData> parts = new ArrayList<>(partCount);
+            for (int i = 0; i < partCount; i++) {
+                parts.add(PART_SERIALIZER.read(buffer));
+            }
+            return new MeshData(parts);
+        }
+    }
+
+    private static class MeshPartDataSerializer implements TypeSerializer<MeshData.PartData> {
+        private static final MeshVertexSerializer VERTEX_SERIALIZER = new MeshVertexSerializer();
+        private static final IntArraySerializer INT_ARRAY_SERIALIZER = new IntArraySerializer();
+
+        public void write(ByteBuffer buffer, MeshData.PartData value) {
+            buffer.writeString(value.id());
+            List<MeshData.VertexData> vertices = value.vertices();
+            buffer.writeInt(vertices.size());
+            for (MeshData.VertexData vertex : vertices) {
+                VERTEX_SERIALIZER.write(buffer, vertex);
+            }
+            int[] indices = value.indices();
+            if (indices != null && indices.length > 0) {
+                buffer.writeBoolean(true);
+                INT_ARRAY_SERIALIZER.write(buffer, indices);
+            } else {
+                buffer.writeBoolean(false);
+            }
+        }
+
+        public MeshData.PartData read(ByteBuffer buffer) {
+            String id = buffer.readString();
+            int vertexCount = buffer.readInt();
+            List<MeshData.VertexData> vertices = new ArrayList<>(vertexCount);
+            for (int i = 0; i < vertexCount; i++) {
+                vertices.add(VERTEX_SERIALIZER.read(buffer));
+            }
+            boolean hasIndices = buffer.readBoolean();
+            int[] indices = hasIndices ? INT_ARRAY_SERIALIZER.read(buffer) : null;
+            return new MeshData.PartData(id, vertices, indices);
+        }
+    }
+
+    private static class MeshVertexSerializer implements TypeSerializer<MeshData.VertexData> {
+        public void write(ByteBuffer buffer, MeshData.VertexData value) {
+            Vector3 position = value.position();
+            buffer.writeFloat(position.x);
+            buffer.writeFloat(position.y);
+            buffer.writeFloat(position.z);
+            Vector3 normal = value.normal();
+            buffer.writeFloat(normal.x);
+            buffer.writeFloat(normal.y);
+            buffer.writeFloat(normal.z);
+            buffer.writeFloat(value.u());
+            buffer.writeFloat(value.v());
+        }
+
+        public MeshData.VertexData read(ByteBuffer buffer) {
+            Vector3 position = new Vector3(buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
+            Vector3 normal = new Vector3(buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
+            float u = buffer.readFloat();
+            float v = buffer.readFloat();
+            return new MeshData.VertexData(position, normal, u, v);
         }
     }
 }

@@ -11,6 +11,10 @@ import com.moud.client.network.MoudPayload;
 import com.moud.client.player.ClientCameraManager;
 import com.moud.client.player.PlayerStateManager;
 import com.moud.client.rendering.AnimationManager;
+import com.moud.api.math.Vector3;
+import com.moud.client.rendering.mesh.ClientMeshInstance;
+import com.moud.client.rendering.mesh.ClientMeshManager;
+import com.moud.client.rendering.mesh.ClientMeshRenderer;
 import com.moud.client.resources.InMemoryPackResources;
 import com.moud.client.runtime.ClientScriptingRuntime;
 import com.moud.client.shared.SharedValueManager;
@@ -52,6 +56,7 @@ import java.util.zip.ZipInputStream;
 public final class MoudClientMod implements ClientModInitializer, ResourcePackProvider {
     public static final int PROTOCOL_VERSION = 1;
     private PlayerModelRenderer playerModelRenderer;
+    private ClientMeshRenderer meshRenderer;
     private static final Logger LOGGER = LoggerFactory.getLogger(MoudClientMod.class);
     private static final Identifier MOUDPACK_ID = Identifier.of("moud", "dynamic_resources");
 
@@ -81,6 +86,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
         this.clientCursorManager = ClientCursorManager.getInstance();
         this.playerModelRenderer = new PlayerModelRenderer();
+        this.meshRenderer = new ClientMeshRenderer();
 
         registerPacketHandlers();
         registerEventHandlers();
@@ -106,6 +112,9 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         ClientPacketWrapper.registerHandler(PlayerModelUpdatePacket.class, (player, packet) -> handlePlayerModelUpdate(packet));
         ClientPacketWrapper.registerHandler(PlayerModelSkinPacket.class, (player, packet) -> handlePlayerModelSkin(packet));
         ClientPacketWrapper.registerHandler(PlayerModelRemovePacket.class, (player, packet) -> handlePlayerModelRemove(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.MeshCreatePacket.class, (player, packet) -> handleMeshCreate(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.MeshTransformPacket.class, (player, packet) -> handleMeshTransform(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.MeshRemovePacket.class, (player, packet) -> handleMeshRemove(packet));
         ClientPacketWrapper.registerHandler(AdvancedCameraLockPacket.class, (player, packet) -> handleAdvancedCameraLock(packet));
         ClientPacketWrapper.registerHandler(CameraUpdatePacket.class, (player, packet) -> handleCameraUpdate(packet));
         ClientPacketWrapper.registerHandler(CameraReleasePacket.class, (player, packet) -> handleCameraRelease(packet));
@@ -216,6 +225,11 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         if (animationManager != null) { animationManager.clearAll(); }
         this.clientCameraManager = null;
         this.playerStateManager = null;
+        ClientMeshManager.getInstance().clear();
+        if (this.meshRenderer != null) {
+            this.meshRenderer.disableVeilBuffers();
+        }
+        this.meshRenderer = null;
     }
 
     private void registerEventHandlers() {
@@ -261,6 +275,28 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                     playerModelRenderer.render(model, matrices, context.consumers(), light, tickDelta);
                 }
             }
+            if (meshRenderer != null && !ClientMeshManager.getInstance().isEmpty()) {
+                var camera = context.camera();
+                var world = MinecraftClient.getInstance().world;
+                if (world != null) {
+                    meshRenderer.beginFrame();
+                    for (ClientMeshInstance mesh : ClientMeshManager.getInstance().getMeshes()) {
+                        Vector3 position = mesh.getPosition();
+                        double x = position.x - camera.getPos().getX();
+                        double y = position.y - camera.getPos().getY();
+                        double z = position.z - camera.getPos().getZ();
+
+                        MatrixStack matrices = new MatrixStack();
+                        matrices.translate(x, y, z);
+
+                        int light = WorldRenderer.getLightmapCoordinates(world, mesh.getBlockPos());
+
+                        meshRenderer.render(mesh, matrices, context.consumers(), light);
+                    }
+                }
+            } else if (meshRenderer != null) {
+                meshRenderer.disableVeilBuffers();
+            }
             if (clientCursorManager != null) {
                 clientCursorManager.render(
                         context.matrixStack(),
@@ -285,6 +321,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
         LOGGER.info("Disconnecting from server, cleaning up...");
         ClientPlayerModelManager.getInstance().clear();
+        ClientMeshManager.getInstance().clear();
         dynamicPack.set(null);
         this.currentResourcesHash = "";
         cleanupMoudServices();
@@ -438,6 +475,20 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 LOGGER.warn("Received skin update for unknown model ID: {}", packet.modelId());
             }
         });
+    }
+
+    private void handleMeshCreate(MoudPackets.MeshCreatePacket packet) {
+        MinecraftClient.getInstance().execute(() ->
+                ClientMeshManager.getInstance().upsert(packet.meshId(), packet.data(), packet.position(), packet.rotation(), packet.scale()));
+    }
+
+    private void handleMeshTransform(MoudPackets.MeshTransformPacket packet) {
+        MinecraftClient.getInstance().execute(() ->
+                ClientMeshManager.getInstance().updateTransform(packet.meshId(), packet.position(), packet.rotation(), packet.scale()));
+    }
+
+    private void handleMeshRemove(MoudPackets.MeshRemovePacket packet) {
+        MinecraftClient.getInstance().execute(() -> ClientMeshManager.getInstance().remove(packet.meshId()));
     }
     private void handleAdvancedCameraLock(AdvancedCameraLockPacket packet) {
         if (apiService != null && apiService.camera != null) {
