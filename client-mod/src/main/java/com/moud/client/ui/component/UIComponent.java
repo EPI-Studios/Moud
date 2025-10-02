@@ -7,7 +7,6 @@ import net.minecraft.client.gui.Drawable;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.Selectable;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
-import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.text.Text;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
@@ -17,12 +16,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 
-public class UIComponent extends ClickableWidget implements Drawable, Element, Selectable {
+public class UIComponent implements Drawable, Element, Selectable {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIComponent.class);
 
     protected final String type;
@@ -33,6 +31,7 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
     protected final List<UIComponent> children = new CopyOnWriteArrayList<>();
     public UIComponent parent;
 
+    protected int x, y, width, height;
     protected String backgroundColor = "#FFFFFF";
     protected String textColor = "#000000";
     protected String borderColor = "#000000";
@@ -40,13 +39,20 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
     protected double opacity = 1.0;
     protected String textAlign = "left";
     protected double paddingTop = 2, paddingRight = 4, paddingBottom = 2, paddingLeft = 4;
-    protected boolean dirty = true;
+    protected boolean visible = true;
+    protected boolean active = true;
+    protected Text message = Text.empty();
+    protected boolean focused = false;
 
     public UIComponent(String type, UIService service, int x, int y, int width, int height, Text message) {
-        super(x, y, width, height, message);
         this.type = type;
         this.service = service;
-        this.componentId = UUID.randomUUID().toString();
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.message = message;
+        this.componentId = java.util.UUID.randomUUID().toString();
     }
 
     public UIComponent(String type, UIService service) {
@@ -54,72 +60,52 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
     }
 
     @Override
-    public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
-        if (!visible) return;
+    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        if (!visible || opacity <= 0.01) return;
 
-        renderBackground(context);
-        renderBorder(context);
-        renderText(context);
-        renderChildren(context, mouseX, mouseY, delta);
-    }
-
-    protected void renderBackground(DrawContext context) {
         int bgColor = parseColor(backgroundColor, opacity);
         if ((bgColor >>> 24) > 0) {
-            context.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), bgColor);
+            context.fill(x, y, x + width, y + height, bgColor);
         }
-    }
 
-    protected void renderBorder(DrawContext context) {
         if (borderWidth > 0) {
             int borderCol = parseColor(borderColor, opacity);
-            for (int i = 0; i < borderWidth; i++) {
-                context.drawBorder(getX() - i, getY() - i, getWidth() + 2 * i, getHeight() + 2 * i, borderCol);
+            if ((borderCol >>> 24) > 0) {
+                context.drawBorder(x, y, width, height, borderCol);
             }
         }
-    }
 
-    protected void renderText(DrawContext context) {
-        if (getMessage().getString().isEmpty()) return;
-
-        int textCol = parseColor(textColor, opacity);
-        int textWidth = MinecraftClient.getInstance().textRenderer.getWidth(getMessage());
-        int textHeight = MinecraftClient.getInstance().textRenderer.fontHeight;
-
-        int textX = calculateTextX(textWidth);
-        int textY = getY() + (getHeight() - textHeight) / 2;
-
-        context.drawText(MinecraftClient.getInstance().textRenderer, getMessage(), textX, textY, textCol, true);
-    }
-
-    protected int calculateTextX(int textWidth) {
-        return switch (textAlign.toLowerCase()) {
-            case "center" -> getX() + (getWidth() - textWidth) / 2;
-            case "right" -> getX() + getWidth() - textWidth - (int) paddingRight;
-            default -> getX() + (int) paddingLeft;
-        };
-    }
-
-    protected void renderChildren(DrawContext context, int mouseX, int mouseY, float delta) {
-        for (UIComponent child : children) {
-            if (child.visible) {
-                child.renderWidget(context, mouseX, mouseY, delta);
+        if (!message.getString().isEmpty()) {
+            int textCol = parseColor(textColor, opacity);
+            if ((textCol >>> 24) > 0) {
+                int textWidth = MinecraftClient.getInstance().textRenderer.getWidth(message);
+                int textHeight = MinecraftClient.getInstance().textRenderer.fontHeight;
+                int textX = switch (textAlign.toLowerCase()) {
+                    case "center" -> x + (width - textWidth) / 2;
+                    case "right" -> x + width - textWidth - (int) paddingRight;
+                    default -> x + (int) paddingLeft;
+                };
+                int textY = y + (height - textHeight) / 2;
+                context.drawText(MinecraftClient.getInstance().textRenderer, message, textX, textY, textCol, true);
             }
+        }
+
+        for (UIComponent child : children) {
+            child.render(context, mouseX, mouseY, delta);
         }
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (!visible || !active) return false;
+        if (!visible || !active || opacity <= 0.01) return false;
 
         for (int i = children.size() - 1; i >= 0; i--) {
-            UIComponent child = children.get(i);
-            if (child.mouseClicked(mouseX, mouseY, button)) {
+            if (children.get(i).mouseClicked(mouseX, mouseY, button)) {
                 return true;
             }
         }
 
-        if (isMouseOver(mouseX, mouseY)) {
+        if (mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height) {
             triggerClick(mouseX, mouseY, button);
             return true;
         }
@@ -128,14 +114,8 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
     }
 
     @Override
-    public boolean isMouseOver(double mouseX, double mouseY) {
-        return mouseX >= getX() && mouseX < getX() + getWidth() &&
-                mouseY >= getY() && mouseY < getY() + getHeight();
-    }
-
-    @Override
     public void setFocused(boolean focused) {
-        super.setFocused(focused);
+        this.focused = focused;
         if (focused) {
             triggerFocus();
         } else {
@@ -143,25 +123,74 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
         }
     }
 
-    @HostAccess.Export
-    public int getWidth() {
-        return super.getWidth();
+    @Override
+    public boolean isFocused() {
+        return focused;
+    }
+
+    @Override
+    public SelectionType getType() {
+        return SelectionType.HOVERED;
+    }
+
+    @Override
+    public void appendNarrations(NarrationMessageBuilder builder) {
+    }
+
+    protected int parseColor(String colorStr, double elementOpacity) {
+        if (colorStr == null || !colorStr.startsWith("#")) return 0;
+
+        try {
+            long value = Long.parseLong(colorStr.substring(1), 16);
+            int alpha, red, green, blue;
+
+            if (colorStr.length() == 9) {
+                alpha = (int) ((value >> 24) & 0xFF);
+                red = (int) ((value >> 16) & 0xFF);
+                green = (int) ((value >> 8) & 0xFF);
+                blue = (int) (value & 0xFF);
+            } else if (colorStr.length() == 7) {
+                alpha = 255;
+                red = (int) ((value >> 16) & 0xFF);
+                green = (int) ((value >> 8) & 0xFF);
+                blue = (int) (value & 0xFF);
+            } else {
+                return 0;
+            }
+
+            int finalAlpha = (int) (alpha * Math.max(0.0, Math.min(1.0, elementOpacity)));
+            return (finalAlpha << 24) | (red << 16) | (green << 8) | blue;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     @HostAccess.Export
-    public int getHeight() {
-        return super.getHeight();
-    }
+    public int getX() { return x; }
 
     @HostAccess.Export
-    public int getX() {
-        return super.getX();
-    }
+    public int getY() { return y; }
 
     @HostAccess.Export
-    public int getY() {
-        return super.getY();
-    }
+    public int getWidth() { return width; }
+
+    @HostAccess.Export
+    public int getHeight() { return height; }
+
+    @HostAccess.Export
+    public void setX(int x) { this.x = x; }
+
+    @HostAccess.Export
+    public void setY(int y) { this.y = y; }
+
+    @HostAccess.Export
+    public void setWidth(int width) { this.width = width; }
+
+    @HostAccess.Export
+    public void setHeight(int height) { this.height = height; }
+
+    @HostAccess.Export
+    public String getComponentId() { return componentId; }
 
     @HostAccess.Export
     public UIComponent setComponentId(String id) {
@@ -169,44 +198,44 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
         return this;
     }
 
-    @HostAccess.Export
-    public String getComponentId() {
-        return componentId;
+    protected void setMessage(Text message) {
+        this.message = message;
+    }
+
+    protected Text getMessage() {
+        return message;
     }
 
     @HostAccess.Export
     public UIComponent setText(String text) {
-        setMessage(Text.literal(text));
+        this.message = Text.literal(text);
         return this;
     }
 
     @HostAccess.Export
     public String getText() {
-        return getMessage().getString();
+        return message.getString();
     }
 
     @HostAccess.Export
     public UIComponent setPos(double x, double y) {
-        setX((int) x);
-        setY((int) y);
+        this.x = (int) x;
+        this.y = (int) y;
         updateChildrenPositions();
-        markDirty();
         return this;
     }
 
     @HostAccess.Export
     public UIComponent setSize(double width, double height) {
-        setWidth((int) width);
-        setHeight((int) height);
+        this.width = (int) width;
+        this.height = (int) height;
         updateChildrenPositions();
-        markDirty();
         return this;
     }
 
     @HostAccess.Export
     public UIComponent setBackgroundColor(String color) {
         this.backgroundColor = color;
-        markDirty();
         return this;
     }
 
@@ -218,7 +247,6 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
     @HostAccess.Export
     public UIComponent setTextColor(String color) {
         this.textColor = color;
-        markDirty();
         return this;
     }
 
@@ -231,7 +259,6 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
     public UIComponent setBorder(int width, String color) {
         this.borderWidth = width;
         this.borderColor = color;
-        markDirty();
         return this;
     }
 
@@ -248,7 +275,6 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
     @HostAccess.Export
     public UIComponent setOpacity(double opacity) {
         this.opacity = Math.max(0.0, Math.min(1.0, opacity));
-        markDirty();
         return this;
     }
 
@@ -260,7 +286,6 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
     @HostAccess.Export
     public UIComponent setTextAlign(String align) {
         this.textAlign = align;
-        markDirty();
         return this;
     }
 
@@ -275,16 +300,18 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
         this.paddingRight = right;
         this.paddingBottom = bottom;
         this.paddingLeft = left;
-        markDirty();
         return this;
     }
 
     @HostAccess.Export
     public double getPaddingTop() { return paddingTop; }
+
     @HostAccess.Export
     public double getPaddingRight() { return paddingRight; }
+
     @HostAccess.Export
     public double getPaddingBottom() { return paddingBottom; }
+
     @HostAccess.Export
     public double getPaddingLeft() { return paddingLeft; }
 
@@ -293,7 +320,6 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
         children.add(child);
         child.parent = this;
         updateChildrenPositions();
-        markDirty();
         return this;
     }
 
@@ -301,7 +327,6 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
     public UIComponent removeChild(UIComponent child) {
         children.remove(child);
         child.parent = null;
-        markDirty();
         return this;
     }
 
@@ -313,14 +338,14 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
     @HostAccess.Export
     public UIComponent show() {
         this.visible = true;
-        markDirty();
+        this.active = true;
         return this;
     }
 
     @HostAccess.Export
     public UIComponent hide() {
         this.visible = false;
-        markDirty();
+        this.active = false;
         return this;
     }
 
@@ -333,43 +358,48 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
     public UIComponent showAsOverlay() {
         com.moud.client.ui.UIOverlayManager.getInstance().addOverlayElement(this);
         this.visible = true;
+        this.active = true;
         return this;
     }
 
     @HostAccess.Export
     public UIComponent hideOverlay() {
+        this.visible = false;
+        this.active = false;
         com.moud.client.ui.UIOverlayManager.getInstance().removeOverlayElement(this);
         return this;
     }
 
     @HostAccess.Export
     public UIComponent onClick(Value callback) {
-        addEventHandler("click", callback);
+        if (callback != null && callback.canExecute()) {
+            eventHandlers.put("click", callback);
+        }
         return this;
     }
 
     @HostAccess.Export
     public UIComponent onHover(Value callback) {
-        addEventHandler("hover", callback);
+        if (callback != null && callback.canExecute()) {
+            eventHandlers.put("hover", callback);
+        }
         return this;
     }
 
     @HostAccess.Export
     public UIComponent onFocus(Value callback) {
-        addEventHandler("focus", callback);
+        if (callback != null && callback.canExecute()) {
+            eventHandlers.put("focus", callback);
+        }
         return this;
     }
 
     @HostAccess.Export
     public UIComponent onBlur(Value callback) {
-        addEventHandler("blur", callback);
-        return this;
-    }
-
-    protected void addEventHandler(String eventType, Value callback) {
         if (callback != null && callback.canExecute()) {
-            eventHandlers.put(eventType, callback);
+            eventHandlers.put("blur", callback);
         }
+        return this;
     }
 
     public void triggerClick(double mouseX, double mouseY, int button) {
@@ -406,61 +436,5 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
     }
 
     protected void updateChildrenPositions() {
-    }
-
-    public void markDirty() {
-        this.dirty = true;
-        if (parent != null) {
-            parent.markDirty();
-        }
-    }
-
-    public boolean isDirty() {
-        return dirty;
-    }
-
-    public void clearDirty() {
-        this.dirty = false;
-    }
-
-    protected int parseColor(String colorStr, double elementOpacity) {
-        if (colorStr == null || !colorStr.startsWith("#")) {
-            return 0;
-        }
-        try {
-            long value = Long.parseLong(colorStr.substring(1), 16);
-            int alpha, red, green, blue;
-
-            if (colorStr.length() == 9) {
-                alpha = (int) ((value >> 24) & 0xFF);
-                red = (int) ((value >> 16) & 0xFF);
-                green = (int) ((value >> 8) & 0xFF);
-                blue = (int) (value & 0xFF);
-            } else if (colorStr.length() == 7) {
-                alpha = 255;
-                red = (int) ((value >> 16) & 0xFF);
-                green = (int) ((value >> 8) & 0xFF);
-                blue = (int) (value & 0xFF);
-            } else {
-                return 0;
-            }
-
-            int finalAlpha = (int) (alpha * Math.max(0.0, Math.min(1.0, elementOpacity)));
-
-            return (finalAlpha << 24) | (red << 16) | (green << 8) | blue;
-
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-
-    @Override
-    public SelectionType getType() {
-        return SelectionType.HOVERED;
-    }
-
-    @Override
-    protected void appendClickableNarrations(NarrationMessageBuilder builder) {
-
     }
 }

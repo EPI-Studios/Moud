@@ -2,6 +2,7 @@ package com.moud.client.runtime;
 
 import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.ui.UIOverlayManager;
+import net.minecraft.client.MinecraftClient;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.PolyglotException;
@@ -10,18 +11,12 @@ import org.graalvm.polyglot.proxy.ProxyExecutable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class ClientScriptingRuntime {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientScriptingRuntime.class);
@@ -36,6 +31,8 @@ public class ClientScriptingRuntime {
 
     private final AtomicLong timerIdCounter = new AtomicLong(0);
     private final ConcurrentHashMap<Long, ScheduledFuture<?>> activeTimers = new ConcurrentHashMap<>();
+
+    private final List<Value> worldLoadCallbacks = new CopyOnWriteArrayList<>();
 
     private final long startTime = System.nanoTime();
 
@@ -112,11 +109,42 @@ public class ClientScriptingRuntime {
         if (apiService.shared != null) {
             moudObj.putMember("shared", apiService.shared);
         }
+        if (apiService.events != null) {
+            moudObj.putMember("events", apiService.events);
+        }
 
         bindings.putMember("Moud", moudObj);
         bindings.putMember("console", apiService.console);
+
+
     }
 
+
+
+
+    public void triggerWorldLoad() {
+        if (!initialized.get() || shutdown.get()) return;
+
+        scriptExecutor.execute(() -> {
+            if (graalContext == null || shutdown.get()) return;
+
+            try {
+                graalContext.enter();
+                for (Value callback : worldLoadCallbacks) {
+                    try {
+                        if (callback.canExecute()) {
+                            callback.execute();
+                        }
+                    } catch (Exception e) {
+                        LOGGER.error("Error executing world load callback", e);
+                    }
+                }
+                worldLoadCallbacks.clear();
+            } finally {
+                graalContext.leave();
+            }
+        });
+    }
     public void updateMoudBindings() {
         if (graalContext == null) return;
 
@@ -317,6 +345,7 @@ public class ClientScriptingRuntime {
             }
         });
     }
+
 
     private void handleScriptException(Throwable e, String context) {
         if (e instanceof PolyglotException polyglotException) {

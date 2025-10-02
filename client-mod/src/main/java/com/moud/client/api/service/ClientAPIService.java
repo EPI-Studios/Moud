@@ -13,6 +13,7 @@ public final class ClientAPIService {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientAPIService.class);
     public static ClientAPIService INSTANCE;
 
+
     public final NetworkService network;
     public final RenderingService rendering;
     public final UIService ui;
@@ -22,6 +23,7 @@ public final class ClientAPIService {
     public final LightingService lighting;
     public final ClientSharedApiProxy shared;
     private final ClientUpdateManager updateManager;
+    public final EventService events;
 
     public InputService input;
 
@@ -42,6 +44,7 @@ public final class ClientAPIService {
         this.camera = new CameraService();
         this.lighting = new LightingService();
         this.shared = new ClientSharedApiProxy();
+        this.events = new EventService(this);
 
         this.network.setLightingService(this.lighting);
 
@@ -79,6 +82,7 @@ public final class ClientAPIService {
             this.console.setContext(context);
             this.camera.setContext(context);
             this.lighting.setContext(context);
+            this.events.setContext(context);
 
             if (this.input != null) {
                 this.input.setContext(context);
@@ -115,6 +119,7 @@ public final class ClientAPIService {
             if (lighting != null) lighting.cleanUp();
             if (input != null) input.cleanUp();
             if (updateManager != null) updateManager.cleanup();
+            if (events != null) events.cleanUp();
 
             this.scriptingRuntime = null;
             LOGGER.info("ClientAPIService cleaned up all child services.");
