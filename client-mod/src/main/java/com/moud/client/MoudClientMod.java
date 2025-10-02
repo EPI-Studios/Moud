@@ -169,6 +169,8 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         ClientPacketWrapper.registerHandler(MoudPackets.FirstPersonConfigPacket.class, (player, packet) -> {
             handleFirstPersonConfig(packet);
         });
+        ClientPacketWrapper.registerHandler(MoudPackets.CameraControlPacket.class, (player, packet) -> handleCameraControl(packet));
+
 
         LOGGER.info("Internal packet handlers registered.");
     }
@@ -250,6 +252,24 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         moudServicesInitialized = false;
     }
 
+    private void handleCameraControl(MoudPackets.CameraControlPacket packet) {
+        if (apiService == null || apiService.camera == null) return;
+
+        switch (packet.action()) {
+            case ENABLE -> apiService.camera.enableCustomCamera();
+            case DISABLE -> apiService.camera.disableCustomCamera();
+            case TRANSITION_TO -> {
+                if (packet.options() != null) {
+                    apiService.camera.transitionTo(Value.asValue(packet.options()));
+                }
+            }
+            case SNAP_TO -> {
+                if (packet.options() != null) {
+                    apiService.camera.snapTo(Value.asValue(packet.options()));
+                }
+            }
+        }
+    }
     private void registerEventHandlers() {
         ClientPlayConnectionEvents.JOIN.register(this::onJoinServer);
         ClientPlayConnectionEvents.DISCONNECT.register(this::onDisconnectServer);

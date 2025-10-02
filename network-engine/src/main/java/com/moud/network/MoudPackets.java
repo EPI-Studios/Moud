@@ -5,6 +5,7 @@ import com.moud.network.annotation.Direction;
 import com.moud.network.annotation.Field;
 import com.moud.network.annotation.Packet;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -179,4 +180,18 @@ public final class MoudPackets {
 
     @Packet(value = "moud:client_ready", direction = Direction.CLIENT_TO_SERVER)
     public record ClientReadyPacket() {}
+
+    @Packet(value = "moud:camera_control", direction = Direction.SERVER_TO_CLIENT)
+    public record CameraControlPacket(
+            @Field(order = 0) Action action,
+            @Field(order = 1) @Nullable Map<String, Object> options
+    ) {
+        public enum Action {
+            ENABLE,
+            DISABLE,
+            TRANSITION_TO,
+            SNAP_TO
+        }
+    }
+
 }
