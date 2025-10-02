@@ -46,9 +46,10 @@ public class LightingAPIProxy {
         props.put("width", width);
         props.put("height", height);
         props.put("brightness", brightness);
+        props.put("angle", 45.0);
+        props.put("distance", 10.0);
         manager.createOrUpdateLight(lightId, props);
     }
-
     @HostAccess.Export
     public void updateLight(long lightId, Map<String, Object> properties) {
         manager.createOrUpdateLight(lightId, properties);

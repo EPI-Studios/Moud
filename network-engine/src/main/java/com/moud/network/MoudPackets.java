@@ -175,4 +175,8 @@ public final class MoudPackets {
             @Field(order = 7) boolean onGround,
             @Field(order = 8) float speed
     ) {}
+
+
+    @Packet(value = "moud:client_ready", direction = Direction.CLIENT_TO_SERVER)
+    public record ClientReadyPacket() {}
 }

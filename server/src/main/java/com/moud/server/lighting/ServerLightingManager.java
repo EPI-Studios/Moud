@@ -35,18 +35,16 @@ public class ServerLightingManager {
         lightData.putAll(properties);
         lightData.put("id", lightId);
 
+        LOGGER.info("Light {} data being sent: {}", lightId, lightData);
+
         broadcastLightOperation(isNewLight ? "create" : "update", lightData);
     }
-
     public void removeLight(long lightId) {
         if (lights.remove(lightId) != null) {
             broadcastLightOperation("remove", Map.of("id", lightId));
         }
     }
 
-    /**
-     * C'est la méthode clé. Elle envoie l'état complet de toutes les lumières à UN SEUL joueur.
-     */
     public void syncLightsToPlayer(Player player) {
         if (lights.isEmpty()) {
             LOGGER.debug("No lights to sync to player {}.", player.getUsername());

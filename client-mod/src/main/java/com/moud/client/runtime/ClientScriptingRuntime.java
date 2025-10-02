@@ -1,7 +1,9 @@
 package com.moud.client.runtime;
 
 import com.moud.client.api.service.ClientAPIService;
+import com.moud.client.network.ClientPacketWrapper;
 import com.moud.client.ui.UIOverlayManager;
+import com.moud.network.MoudPackets;
 import net.minecraft.client.MinecraftClient;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
@@ -298,6 +300,8 @@ public class ClientScriptingRuntime {
                     LOGGER.info("Executing client script: {}", scriptName);
                     graalContext.eval("js", scriptContent);
                     LOGGER.info("Successfully executed script: {}", scriptName);
+                    LOGGER.info("Client scripts loaded, sending ready signal to server");
+                    ClientPacketWrapper.sendToServer(new MoudPackets.ClientReadyPacket());
                 } catch (PolyglotException e) {
                     handleScriptException(e, scriptName);
                     throw new RuntimeException(e);

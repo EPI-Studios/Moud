@@ -147,10 +147,35 @@ public class ClientLightingService {
                         .setRadius(managed.radius);
             } else if (lightData instanceof AreaLightData areaLight) {
                 areaLight.getPosition().set((float)managed.interpolatedPosition.x, (float)managed.interpolatedPosition.y, (float)managed.interpolatedPosition.z);
-                Quaternionf tempOrientation = new Quaternionf();
-                Vector3f direction = new Vector3f((float)managed.interpolatedDirection.x * -1.0F, (float)managed.interpolatedDirection.y * -1.0F, (float)managed.interpolatedDirection.z * -1.0F);
-                tempOrientation.lookAlong(direction, UP_VECTOR);
-                areaLight.getOrientation().set(tempOrientation);
+
+                double dirLength = managed.interpolatedDirection.length();
+                if (dirLength > 0.001) {
+                    Vec3d normalizedDir = managed.interpolatedDirection.normalize();
+
+                    Vector3f direction = new Vector3f(
+                            (float)normalizedDir.x * -1.0F,
+                            (float)normalizedDir.y * -1.0F,
+                            (float)normalizedDir.z * -1.0F
+                    );
+
+                    Quaternionf tempOrientation = new Quaternionf();
+
+                    float dotWithUp = direction.dot(UP_VECTOR);
+                    if (Math.abs(Math.abs(dotWithUp) - 1.0f) < 0.001f) {
+                        if (dotWithUp > 0) {
+                            tempOrientation.rotationX((float)Math.PI);
+                        }
+                    } else {
+                        Vector3f safeUp = new Vector3f(0.0F, 0.0F, 1.0F);
+                        tempOrientation.lookAlong(direction, safeUp);
+                    }
+
+                    areaLight.getOrientation().set(tempOrientation);
+                } else {
+                    Quaternionf tempOrientation = new Quaternionf();
+                    areaLight.getOrientation().set(tempOrientation);
+                }
+
                 areaLight.setColor(managed.r, managed.g, managed.b)
                         .setBrightness(managed.brightness)
                         .setSize((double)managed.width, (double)managed.height)
@@ -196,8 +221,8 @@ public class ClientLightingService {
             this.type = type;
             this.interpolatedPosition = Vec3d.ZERO;
             this.targetPosition = Vec3d.ZERO;
-            this.interpolatedDirection = new Vec3d(0.0, 0.0, 1.0);
-            this.targetDirection = new Vec3d(0.0, 0.0, 1.0);
+            this.interpolatedDirection = new Vec3d(0.0, -1.0, 0.0);
+            this.targetDirection = new Vec3d(0.0, -1.0, 0.0);
         }
 
         void update(Map<String, Object> data) {
@@ -207,7 +232,9 @@ public class ClientLightingService {
             this.brightness = Conversion.toFloat(data.getOrDefault("brightness", this.brightness));
             this.angle = Conversion.toFloat(data.getOrDefault("angle", this.angle));
             this.distance = Conversion.toFloat(data.getOrDefault("distance", this.distance));
-
+            LOGGER.info("Light {} received data: {}", this.id, data);
+            LOGGER.info("Direction values - dirX: {}, dirY: {}, dirZ: {}",
+                    data.get("dirX"), data.get("dirY"), data.get("dirZ"));
             if (data.containsKey("x")) {
                 this.targetPosition = new Vec3d(
                         Conversion.toDouble(data.get("x")),
@@ -222,11 +249,34 @@ public class ClientLightingService {
                 this.width = Conversion.toFloat(data.getOrDefault("width", this.width));
                 this.height = Conversion.toFloat(data.getOrDefault("height", this.height));
                 if (data.containsKey("dirX")) {
-                    this.targetDirection = (new Vec3d(
-                            Conversion.toDouble(data.get("dirX")),
-                            Conversion.toDouble(data.get("dirY")),
-                            Conversion.toDouble(data.get("dirZ"))
-                    )).normalize();
+                    Object dirXObj = data.get("dirX");
+                    Object dirYObj = data.get("dirY");
+                    Object dirZObj = data.get("dirZ");
+
+                    LOGGER.info("Direction object types - dirX: {} ({}), dirY: {} ({}), dirZ: {} ({})",
+                            dirXObj, dirXObj == null ? "null" : dirXObj.getClass().getName(),
+                            dirYObj, dirYObj == null ? "null" : dirYObj.getClass().getName(),
+                            dirZObj, dirZObj == null ? "null" : dirZObj.getClass().getName());
+
+                    double dirX = Conversion.toDouble(dirXObj);
+                    double dirY = Conversion.toDouble(dirYObj);
+                    double dirZ = Conversion.toDouble(dirZObj);
+
+                    LOGGER.info("After Conversion.toDouble - dirX: {}, dirY: {}, dirZ: {}", dirX, dirY, dirZ);
+
+                    Vec3d rawDirection = new Vec3d(dirX, dirY, dirZ);
+                    LOGGER.info("Vec3d created - x: {}, y: {}, z: {}, length: {}",
+                            rawDirection.x, rawDirection.y, rawDirection.z, rawDirection.length());
+
+                    double length = rawDirection.length();
+                    if (length > 0.001) {
+                        this.targetDirection = rawDirection.normalize();
+                        LOGGER.info("Normalized direction: x: {}, y: {}, z: {}",
+                                this.targetDirection.x, this.targetDirection.y, this.targetDirection.z);
+                    } else {
+                        LOGGER.warn("Zero-length direction for light {}, using default", this.id);
+                        this.targetDirection = new Vec3d(0.0, -1.0, 0.0);
+                    }
                 }
             }
 
@@ -240,7 +290,11 @@ public class ClientLightingService {
             float factor = 1.0F - (float)Math.exp((double)(-smoothing * deltaTime));
             this.interpolatedPosition = this.interpolatedPosition.lerp(this.targetPosition, (double)factor);
             if (this.targetDirection.lengthSquared() > 0.001D) {
-                this.interpolatedDirection = this.interpolatedDirection.lerp(this.targetDirection, (double)factor).normalize();
+                this.interpolatedDirection = this.interpolatedDirection.lerp(this.targetDirection, (double)factor);
+                double length = this.interpolatedDirection.length();
+                if (length > 0.001) {
+                    this.interpolatedDirection = this.interpolatedDirection.normalize();
+                }
             }
         }
 

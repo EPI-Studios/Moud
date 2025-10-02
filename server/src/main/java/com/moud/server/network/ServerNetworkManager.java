@@ -63,6 +63,8 @@ public final class ServerNetworkManager {
         ServerPacketWrapper.registerHandler(PlayerModelClickPacket.class, this::handlePlayerModelClick);
         ServerPacketWrapper.registerHandler(ClientUpdateValuePacket.class, this::handleSharedValueUpdate);
         ServerPacketWrapper.registerHandler(MovementStatePacket.class, this::handleMovementState);
+        ServerPacketWrapper.registerHandler(ClientReadyPacket.class, this::handleClientReady);
+
     }
 
     private void handleMovementState(Object player, MovementStatePacket packet) {
@@ -71,6 +73,12 @@ public final class ServerNetworkManager {
 
         ServerMovementHandler.getInstance().handleMovementState(minestomPlayer, packet);
         eventDispatcher.dispatchMovementEvent(minestomPlayer, packet);
+    }
+
+    private void handleClientReady(Object player, ClientReadyPacket packet) {
+        Player minestomPlayer = (Player) player;
+        LOGGER.info("Client {} is ready, syncing lights", minestomPlayer.getUsername());
+        ServerLightingManager.getInstance().syncLightsToPlayer(minestomPlayer);
     }
     private void onPluginMessage(PlayerPluginMessageEvent event) {
         String outerChannel = event.getIdentifier();
@@ -135,11 +143,14 @@ public final class ServerNetworkManager {
         } else {
             LOGGER.info("Player {} connected with Moud client (protocol: {})", minestomPlayer.getUsername(), clientVersion);
         }
-        sendClientScripts(minestomPlayer);
-        sendClientScripts(minestomPlayer);
-        ServerLightingManager.getInstance().syncLightsToPlayer(minestomPlayer);
-    }
 
+        sendClientScripts(minestomPlayer);
+
+        MinecraftServer.getSchedulerManager().buildTask(() -> {
+            LOGGER.info("Syncing lights to player {} after initialization delay", minestomPlayer.getUsername());
+            ServerLightingManager.getInstance().syncLightsToPlayer(minestomPlayer);
+        }).delay(java.time.Duration.ofSeconds(1)).schedule();
+    }
     private void handleScriptEvent(Object player, ServerboundScriptEventPacket packet) {
         Player minestomPlayer = (Player) player;
         if (!isMoudClient(minestomPlayer)) return;
