@@ -140,6 +140,45 @@ public final class InputService {
         this.scrollCallback = callback;
     }
 
+    @HostAccess.Export
+    public boolean isMovingForward() {
+        return client.options.forwardKey.isPressed();
+    }
+
+    @HostAccess.Export
+    public boolean isMovingBackward() {
+        return client.options.backKey.isPressed();
+    }
+
+    @HostAccess.Export
+    public boolean isStrafingLeft() {
+        return client.options.leftKey.isPressed();
+    }
+
+    @HostAccess.Export
+    public boolean isStrafingRight() {
+        return client.options.rightKey.isPressed();
+    }
+
+    @HostAccess.Export
+    public boolean isJumping() {
+        return client.options.jumpKey.isPressed();
+    }
+
+    @HostAccess.Export
+    public boolean isSprinting() {
+        return client.player != null && client.player.isSprinting();
+    }
+
+    @HostAccess.Export
+    public boolean isOnGround() {
+        return client.player != null && client.player.isOnGround();
+    }
+
+    @HostAccess.Export
+    public boolean isMoving() {
+        return isMovingForward() || isMovingBackward() || isStrafingLeft() || isStrafingRight();
+    }
     public void triggerKeyEvent(String keyName, boolean pressed) {
         Value callback = keyCallbacks.get(keyName);
         if (callback != null) {
@@ -187,11 +226,16 @@ public final class InputService {
         }
     }
 
-    public void triggerScrollEvent(double scrollDelta) {
+    public boolean triggerScrollEvent(double scrollDelta) {
         if (scrollCallback != null) {
             executeCallback(scrollCallback, scrollDelta);
+            return true;
         }
+        return false;
     }
+
+
+
 
     private void executeCallback(Value callback, Object... args) {
         if (scriptExecutor == null || scriptExecutor.isShutdown() || jsContext == null) {

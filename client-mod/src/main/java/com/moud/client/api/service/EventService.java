@@ -1,5 +1,3 @@
-
-
 package com.moud.client.api.service;
 
 import com.moud.client.runtime.ClientScriptingRuntime;
@@ -42,9 +40,17 @@ public final class EventService {
         LOGGER.debug("Registered client-side event handler for '{}'", eventName);
     }
 
+    @HostAccess.Export
     public void dispatch(String eventName, Object... args) {
         List<Value> callbacks = handlers.get(eventName);
         if (callbacks == null || callbacks.isEmpty()) {
+
+            if ("core:scriptsReceived".equals(eventName) && args.length > 0) {
+                if(net.minecraft.client.MinecraftClient.getInstance().player != null) {
+                    net.minecraft.client.MinecraftClient.getInstance().player.sendMessage(net.minecraft.text.Text.literal(args[0].toString()), false);
+                }
+                return;
+            }
             return;
         }
 

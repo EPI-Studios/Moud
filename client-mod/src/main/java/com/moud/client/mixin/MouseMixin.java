@@ -24,6 +24,15 @@ public abstract class MouseMixin {
     private double lastX = 0.0;
     private double lastY = 0.0;
 
+    @Inject(method = "onMouseScroll", at = @At("HEAD"), cancellable = true)
+    private void moud_onMouseScroll(long window, double horizontal, double vertical, CallbackInfo ci) {
+        if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.input != null) {
+            if (ClientAPIService.INSTANCE.input.triggerScrollEvent(vertical)) {
+                ci.cancel();
+            }
+        }
+    }
+
     @Inject(method = "lockCursor", at = @At("HEAD"))
     private void onCursorLock(CallbackInfo ci) {
         this.firstMouseMove = true;
@@ -31,31 +40,22 @@ public abstract class MouseMixin {
 
     @Inject(method = "onMouseButton", at = @At("HEAD"), cancellable = true)
     private void moud_onMouseButton(long window, int button, int action, int mods, CallbackInfo ci) {
-        if (action != 1) { // GLFW_PRESS
+        if (action != 1) {
             return;
         }
 
-        // If a vanilla screen is open, let it handle the input.
         if (client.currentScreen != null) {
             return;
         }
 
-        // If the cursor is unlocked (visible), it means we are in a UI interaction mode.
         if (!client.mouse.isCursorLocked()) {
-            // Check for clicks on the UIComponent overlay system.
             if (UIOverlayManager.getInstance().handleOverlayClick(this.x, this.y, button)) {
-                // If the click was handled by the overlay, consume the event.
                 ci.cancel();
                 return;
             }
-
-            // We still cancel the event to prevent Minecraft from re-locking the cursor
-            // when clicking on empty space in UI mode.
             ci.cancel();
             return;
         }
-
-        // If we reach here, the cursor is locked, and no screen is open. This is a normal gameplay click.
         ClientPacketWrapper.sendToServer(new MoudPackets.PlayerClickPacket(button));
     }
 

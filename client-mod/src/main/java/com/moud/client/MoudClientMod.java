@@ -79,6 +79,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
     private long joinTime = -1L;
     private static final long JOIN_TIMEOUT_MS = 10000;
+    private boolean moudServicesInitialized = false;
 
     @Override
     public void onInitializeClient() {
@@ -115,8 +116,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
         LOGGER.info("Moud client initialization complete.");
     }
-
-
 
     private void registerPacketHandlers() {
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_PlayPlayerAnimationPacket.class, (player, packet) -> handlePlayPlayerAnimation(packet));
@@ -217,8 +216,10 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     }
 
     private void initializeMoudServices() {
+        if (moudServicesInitialized) {
+            return;
+        }
         LOGGER.info("Initializing Moud services for new connection...");
-        if (apiService != null) { cleanupMoudServices(); }
         this.apiService = new ClientAPIService();
         this.scriptingRuntime = new ClientScriptingRuntime(this.apiService);
         this.apiService.setRuntime(this.scriptingRuntime);
@@ -229,6 +230,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         this.clientCursorManager = ClientCursorManager.getInstance();
         this.animationManager = AnimationManager.getInstance();
         LOGGER.info("ClientCursorManager initialized: {}", clientCursorManager != null);
+        moudServicesInitialized = true;
     }
 
     private void cleanupMoudServices() {
@@ -242,6 +244,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         if (animationManager != null) { animationManager.clearAll(); }
         this.clientCameraManager = null;
         this.playerStateManager = null;
+        moudServicesInitialized = false;
     }
 
     private void registerEventHandlers() {
@@ -315,7 +318,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     }
 
     private void onJoinServer(ClientPlayNetworkHandler handler, net.fabricmc.fabric.api.networking.v1.PacketSender sender, MinecraftClient client) {
-        LOGGER.info("Joining server, initializing Moud services...");
         initializeMoudServices();
 
         resourcesLoaded.set(false);
@@ -332,7 +334,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         if (apiService != null && apiService.events != null) {
             apiService.events.dispatch("core:disconnect", "Player disconnected");
         }
-
 
         joinTime = -1L;
 
@@ -493,7 +494,37 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         }
     }
 
-    private void handleCameraLock(CameraLockPacket packet) { if (apiService != null && apiService.camera != null) { if (packet.isLocked()) { apiService.camera.enableCustomCamera(); apiService.camera.setLockedPosition(packet.position()); apiService.camera.setRenderYawOverride(packet.yaw()); apiService.camera.setRenderPitchOverride(packet.pitch()); } else { apiService.camera.disableCustomCamera(); } } }
+    private void handleCameraLock(CameraLockPacket packet) {
+
+        if (apiService != null && apiService.camera != null) {
+            if (packet.isLocked()) {
+                apiService.camera.enableCustomCamera();
+            } else {
+                apiService.camera.disableCustomCamera();
+            }
+        }
+    }
+
+    private void handleAdvancedCameraLock(AdvancedCameraLockPacket packet) {
+
+        if (apiService != null && apiService.camera != null) {
+            if (packet.isLocked()) {
+                apiService.camera.enableCustomCamera();
+
+                apiService.camera.setRenderRollOverride(packet.rotation().z);
+            } else {
+                apiService.camera.disableCustomCamera();
+            }
+        }
+    }
+
+    private void handleCameraUpdate(CameraUpdatePacket packet) {
+
+        if (apiService != null && apiService.camera != null && apiService.camera.isCustomCameraActive()) {
+            apiService.camera.setRenderRollOverride(packet.rotation().z);
+        }
+    }
+
     private void handlePlayerState(PlayerStatePacket packet) { if (playerStateManager != null) { playerStateManager.updatePlayerState(packet.hideHotbar(), packet.hideHand(), packet.hideExperience()); } }
     private void handleSharedValueSync(SyncSharedValuesPacket packet) { if (sharedValueManager != null) { sharedValueManager.handleServerSync(packet); } }
     private void handlePlayerModelUpdate(PlayerModelUpdatePacket packet) {
@@ -516,32 +547,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 LOGGER.warn("Received skin update for unknown model ID: {}", packet.modelId());
             }
         });
-    }
-
-    private void handleAdvancedCameraLock(AdvancedCameraLockPacket packet) {
-        if (apiService != null && apiService.camera != null) {
-            if (packet.isLocked()) {
-                apiService.camera.setAdvancedCameraLock(
-                        packet.position(),
-                        packet.rotation(),
-                        packet.smoothTransitions(),
-                        packet.transitionSpeed(),
-                        packet.disableViewBobbing(),
-                        packet.disableHandMovement()
-                );
-            } else {
-                apiService.camera.disableCustomCamera();
-            }
-        }
-    }
-
-    private void handleCameraUpdate(CameraUpdatePacket packet) {
-        if (apiService != null && apiService.camera != null && apiService.camera.isCustomCameraActive()) {
-            apiService.camera.setLockedPosition(packet.position());
-            apiService.camera.setRenderYawOverride(packet.rotation().x);
-            apiService.camera.setRenderPitchOverride(packet.rotation().y);
-            apiService.camera.setRenderRollOverride(packet.rotation().z);
-        }
     }
 
     private void handleCameraRelease(CameraReleasePacket packet) {

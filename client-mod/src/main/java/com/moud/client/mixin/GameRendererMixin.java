@@ -6,6 +6,7 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.util.math.MatrixStack;
+import org.joml.Quaternionf;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -17,6 +18,22 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class GameRendererMixin {
     @Shadow @Final private Camera camera;
     @Shadow @Final private MinecraftClient client;
+
+    @Inject(method = "bobView(Lnet/minecraft/client/util/math/MatrixStack;F)V", at = @At("HEAD"), cancellable = true)
+    private void moudCameraTransformations(MatrixStack matrices, float tickDelta, CallbackInfo ci) {
+        if (com.moud.client.MoudClientMod.isCustomCameraActive() && ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.camera != null) {
+            var cameraService = ClientAPIService.INSTANCE.camera;
+
+            Float roll = cameraService.getRenderRollOverride();
+            if (roll != null && Math.abs(roll) > 0.001f) {
+                matrices.multiply(new Quaternionf().rotateZ((float) Math.toRadians(roll)));
+            }
+
+            if (cameraService.shouldDisableViewBobbing()) {
+                ci.cancel();
+            }
+        }
+    }
 
     @Inject(method = "renderWorld(Lnet/minecraft/client/render/RenderTickCounter;)V", at = @At("HEAD"))
     private void moud_beforeRenderWorld(RenderTickCounter tickCounter, CallbackInfo ci) {
@@ -39,7 +56,6 @@ public abstract class GameRendererMixin {
         if (ClientAPIService.INSTANCE != null) {
             if (ClientAPIService.INSTANCE.rendering != null) {
                 ClientAPIService.INSTANCE.rendering.applyPendingUniforms();
-                ClientAPIService.INSTANCE.rendering.triggerRenderEvents();
             }
             if (ClientAPIService.INSTANCE.lighting != null) {
                 ClientAPIService.INSTANCE.lighting.tick();
@@ -47,11 +63,4 @@ public abstract class GameRendererMixin {
         }
     }
 
-    @Inject(method = "bobView(Lnet/minecraft/client/util/math/MatrixStack;F)V", at = @At("HEAD"), cancellable = true)
-    private void moud_suppressViewBobbing(MatrixStack matrices, float tickDelta, CallbackInfo ci) {
-        if (com.moud.client.MoudClientMod.isCustomCameraActive() && ClientAPIService.INSTANCE != null &&
-                ClientAPIService.INSTANCE.camera != null && ClientAPIService.INSTANCE.camera.shouldDisableViewBobbing()) {
-            ci.cancel();
-        }
-    }
 }
