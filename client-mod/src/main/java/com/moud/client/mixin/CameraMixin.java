@@ -2,6 +2,7 @@ package com.moud.client.mixin;
 
 import com.moud.client.MoudClientMod;
 import com.moud.client.api.service.ClientAPIService;
+import com.moud.client.api.service.CameraService;
 import net.minecraft.client.render.Camera;
 import net.minecraft.entity.Entity;
 import net.minecraft.world.BlockView;
@@ -14,22 +15,31 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Camera.class)
 public abstract class CameraMixin {
-
     @Shadow protected abstract void setPos(double x, double y, double z);
+    @Shadow protected abstract void setRotation(float yaw, float pitch);
 
     @Inject(method = "update", at = @At("TAIL"))
-    private void moud_applyCameraPositionOverride(BlockView area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickDelta, CallbackInfo ci) {
-        if (!MoudClientMod.isCustomCameraActive()) {
-            return;
-        }
+    private void moud_applyCameraOverrides(BlockView area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickDelta, CallbackInfo ci) {
+        if (!MoudClientMod.isCustomCameraActive()) return;
 
         if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.camera != null) {
-            var cameraService = ClientAPIService.INSTANCE.camera;
-            Vector3d lockedPos = cameraService.getLockedPosition();
+            CameraService cameraService = ClientAPIService.INSTANCE.camera;
 
-            if (lockedPos != null) {
-                this.setPos(lockedPos.x, lockedPos.y, lockedPos.z);
+            cameraService.updateCamera(tickDelta);
+
+            Vector3d pos = cameraService.getPosition();
+            if (pos != null) {
+                this.setPos(pos.x, pos.y, pos.z);
+            }
+
+            Float yaw = cameraService.getYaw();
+            Float pitch = cameraService.getPitch();
+            if (yaw != null && pitch != null) {
+                this.setRotation(yaw, pitch);
             }
         }
     }
+
+    @Shadow public abstract float getYaw();
+    @Shadow public abstract float getPitch();
 }

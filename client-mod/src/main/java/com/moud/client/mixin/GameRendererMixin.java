@@ -13,18 +13,28 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(GameRenderer.class)
 public abstract class GameRendererMixin {
     @Shadow @Final private Camera camera;
     @Shadow @Final private MinecraftClient client;
+    @Inject(method = "getFov(Lnet/minecraft/client/render/Camera;FZ)D", at = @At("RETURN"), cancellable = true)
+    private void moud_overrideFov(Camera camera, float tickDelta, boolean changingFov, CallbackInfoReturnable<Double> cir) {
+        if (com.moud.client.MoudClientMod.isCustomCameraActive() && ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.camera != null) {
+            Double fov = ClientAPIService.INSTANCE.camera.getFovInternal();
+            if (fov != null) {
+                cir.setReturnValue(fov);
+            }
+        }
+    }
 
     @Inject(method = "bobView(Lnet/minecraft/client/util/math/MatrixStack;F)V", at = @At("HEAD"), cancellable = true)
     private void moudCameraTransformations(MatrixStack matrices, float tickDelta, CallbackInfo ci) {
         if (com.moud.client.MoudClientMod.isCustomCameraActive() && ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.camera != null) {
             var cameraService = ClientAPIService.INSTANCE.camera;
 
-            Float roll = cameraService.getRenderRollOverride();
+            Float roll = cameraService.getRoll();
             if (roll != null && Math.abs(roll) > 0.001f) {
                 matrices.multiply(new Quaternionf().rotateZ((float) Math.toRadians(roll)));
             }
@@ -62,5 +72,7 @@ public abstract class GameRendererMixin {
             }
         }
     }
+
+
 
 }

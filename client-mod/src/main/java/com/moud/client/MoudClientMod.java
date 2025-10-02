@@ -34,6 +34,8 @@ import net.minecraft.resource.*;
 import net.minecraft.resource.featuretoggle.FeatureSet;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import org.graalvm.polyglot.Value;
+import org.graalvm.polyglot.proxy.ProxyObject;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -505,25 +507,38 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         }
     }
 
-    private void handleAdvancedCameraLock(AdvancedCameraLockPacket packet) {
 
+
+    private void handleAdvancedCameraLock(AdvancedCameraLockPacket packet) {
         if (apiService != null && apiService.camera != null) {
             if (packet.isLocked()) {
                 apiService.camera.enableCustomCamera();
-
-                apiService.camera.setRenderRollOverride(packet.rotation().z);
+                Value options = Value.asValue(ProxyObject.fromMap(Map.of(
+                        "position", packet.position(),
+                        "yaw", packet.rotation().x,
+                        "pitch", packet.rotation().y,
+                        "roll", packet.rotation().z
+                )));
+                apiService.camera.snapTo(options);
             } else {
                 apiService.camera.disableCustomCamera();
             }
         }
     }
 
-    private void handleCameraUpdate(CameraUpdatePacket packet) {
 
+    private void handleCameraUpdate(CameraUpdatePacket packet) {
         if (apiService != null && apiService.camera != null && apiService.camera.isCustomCameraActive()) {
-            apiService.camera.setRenderRollOverride(packet.rotation().z);
+            Value options = Value.asValue(ProxyObject.fromMap(Map.of(
+                    "position", packet.position(),
+                    "yaw", packet.rotation().x,
+                    "pitch", packet.rotation().y,
+                    "roll", packet.rotation().z
+            )));
+            apiService.camera.snapTo(options);
         }
     }
+
 
     private void handlePlayerState(PlayerStatePacket packet) { if (playerStateManager != null) { playerStateManager.updatePlayerState(packet.hideHotbar(), packet.hideHand(), packet.hideExperience()); } }
     private void handleSharedValueSync(SyncSharedValuesPacket packet) { if (sharedValueManager != null) { sharedValueManager.handleServerSync(packet); } }
