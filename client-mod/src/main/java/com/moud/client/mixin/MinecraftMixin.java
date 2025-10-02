@@ -1,7 +1,6 @@
 package com.moud.client.mixin;
 
 import com.moud.client.api.service.ClientAPIService;
-import com.moud.client.camera.CameraManager;
 import net.minecraft.client.MinecraftClient;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -13,13 +12,22 @@ public class MinecraftMixin {
 
     @Inject(method = "tick", at = @At("HEAD"))
     private void onTick(CallbackInfo ci) {
-        CameraManager.tick(1.0f);
+        com.moud.client.camera.CameraManager.tick(1.0f);
     }
 
     @Inject(method = "onResolutionChanged", at = @At("TAIL"))
     private void moud_onResolutionChanged(CallbackInfo info) {
-        if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.ui != null) {
-            ClientAPIService.INSTANCE.ui.triggerResizeEvent();
+        if (ClientAPIService.INSTANCE != null) {
+            MinecraftClient client = (MinecraftClient)(Object)this;
+            int width = client.getWindow().getScaledWidth();
+            int height = client.getWindow().getScaledHeight();
+
+            if (ClientAPIService.INSTANCE.ui != null) {
+                ClientAPIService.INSTANCE.ui.triggerResizeEvent();
+            }
+            if (ClientAPIService.INSTANCE.events != null) {
+                ClientAPIService.INSTANCE.events.dispatch("render:resize", width, height);
+            }
         }
     }
 }

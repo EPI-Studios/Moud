@@ -1,7 +1,7 @@
 package com.moud.client.mixin;
 
-import com.moud.client.MoudClientMod;
 import com.moud.client.api.service.ClientAPIService;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.RenderTickCounter;
@@ -16,6 +16,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(GameRenderer.class)
 public abstract class GameRendererMixin {
     @Shadow @Final private Camera camera;
+    @Shadow @Final private MinecraftClient client;
+
+    @Inject(method = "renderWorld(Lnet/minecraft/client/render/RenderTickCounter;)V", at = @At("HEAD"))
+    private void moud_beforeRenderWorld(RenderTickCounter tickCounter, CallbackInfo ci) {
+        if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.events != null) {
+            MatrixStack matrixStack = new MatrixStack();
+            ClientAPIService.INSTANCE.events.dispatch("render:beforeWorld", matrixStack, tickCounter.getTickDelta(true));
+        }
+    }
+
+    @Inject(method = "renderWorld(Lnet/minecraft/client/render/RenderTickCounter;)V", at = @At("TAIL"))
+    private void moud_afterRenderWorld(RenderTickCounter tickCounter, CallbackInfo ci) {
+        if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.events != null) {
+            MatrixStack matrixStack = new MatrixStack();
+            ClientAPIService.INSTANCE.events.dispatch("render:afterWorld", matrixStack, tickCounter.getTickDelta(true));
+        }
+    }
 
     @Inject(method = "renderWorld(Lnet/minecraft/client/render/RenderTickCounter;)V", at = @At("HEAD"))
     private void moud_triggerRenderEvents(RenderTickCounter tickCounter, CallbackInfo ci) {
@@ -32,10 +49,9 @@ public abstract class GameRendererMixin {
 
     @Inject(method = "bobView(Lnet/minecraft/client/util/math/MatrixStack;F)V", at = @At("HEAD"), cancellable = true)
     private void moud_suppressViewBobbing(MatrixStack matrices, float tickDelta, CallbackInfo ci) {
-        if (MoudClientMod.isCustomCameraActive() && ClientAPIService.INSTANCE != null &&
+        if (com.moud.client.MoudClientMod.isCustomCameraActive() && ClientAPIService.INSTANCE != null &&
                 ClientAPIService.INSTANCE.camera != null && ClientAPIService.INSTANCE.camera.shouldDisableViewBobbing()) {
             ci.cancel();
         }
     }
-
 }

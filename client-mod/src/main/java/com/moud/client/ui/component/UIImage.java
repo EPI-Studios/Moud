@@ -1,22 +1,73 @@
+// File: src/main/java/com/moud/client/ui/component/UIImage.java
+
 package com.moud.client.ui.component;
 
 import com.moud.client.api.service.UIService;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.util.Identifier;
+import org.graalvm.polyglot.HostAccess;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class UIImage extends UIComponent {
-    private String source;
+    private static final Logger LOGGER = LoggerFactory.getLogger(UIImage.class);
+    private volatile String source;
+    private volatile Identifier textureId;
 
     public UIImage(String source, UIService service) {
         super("image", service);
-        this.source = source;
+        this.setSource(source);
         setBackgroundColor("#00000000");
     }
 
+    @Override
+    public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
+        if (!visible || opacity <= 0.01 || textureId == null) {
+            return;
+        }
+
+        context.setShaderColor(1.0f, 1.0f, 1.0f, (float)this.opacity);
+
+        context.drawTexture(
+                textureId,
+                getX(),
+                getY(),
+                0,
+                0,
+                getWidth(),
+                getHeight(),
+                getWidth(),
+                getHeight()
+        );
+
+        context.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+        if (borderWidth > 0) {
+            int borderCol = parseColor(borderColor, opacity);
+            if ((borderCol >>> 24) > 0) {
+                for (int i = 0; i < borderWidth; i++) {
+                    context.drawBorder(x + i, y + i, width - i * 2, height - i * 2, borderCol);
+                }
+            }
+        }
+    }
+
+
+    @HostAccess.Export
     public UIImage setSource(String source) {
         this.source = source;
-        markDirty();
+        try {
+            this.textureId = Identifier.tryParse(source);
+            if (this.textureId == null) {
+                LOGGER.warn("Invalid texture identifier provided for UIImage: {}", source);
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to parse texture identifier for UIImage: {}", source, e);
+            this.textureId = null;
+        }
         return this;
     }
 
+    @HostAccess.Export
     public String getSource() {
         return source;
     }

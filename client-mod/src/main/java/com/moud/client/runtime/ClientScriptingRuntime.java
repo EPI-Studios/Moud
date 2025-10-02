@@ -241,28 +241,24 @@ public class ClientScriptingRuntime {
     private void executeCallback(Value callback, long timerId, boolean isInterval) {
         if (graalContext == null || shutdown.get()) return;
 
-        scriptExecutor.execute(() -> {
+        scheduleScriptTask(() -> {
             if (graalContext == null || shutdown.get()) return;
 
             try {
                 graalContext.enter();
-                try {
-                    if (callback.canExecute()) {
-                        callback.execute();
-                    }
-                } finally {
-                    graalContext.leave();
+                if (callback.canExecute()) {
+                    callback.execute();
                 }
-
-                if (!isInterval) {
-                    activeTimers.remove(timerId);
-                }
-
             } catch (Exception e) {
                 handleScriptException(e, "timer callback");
-                if (!isInterval) {
-                    activeTimers.remove(timerId);
+            } finally {
+                if (graalContext != null) {
+                    graalContext.leave();
                 }
+            }
+
+            if (!isInterval) {
+                activeTimers.remove(timerId);
             }
         });
     }
@@ -313,18 +309,14 @@ public class ClientScriptingRuntime {
     }
 
     public void processScriptQueue() {
-        if (!initialized.get()) return;
+        if (!initialized.get() || !apiService.isContextValid()) return;
 
-        while (!scriptTaskQueue.isEmpty()) {
-            Runnable task = scriptTaskQueue.poll();
-            if (task != null) {
-                try {
-                    task.run();
-                } catch (Exception e) {
-                    LOGGER.error("Error processing queued script task", e);
-                }
+        scriptExecutor.execute(() -> {
+            if (apiService.rendering != null) {
+                double timestamp = System.nanoTime() / 1_000_000.0;
+                apiService.rendering.processAnimationFrames(timestamp);
             }
-        }
+        });
     }
 
     public void triggerNetworkEvent(String eventName, String eventData) {
@@ -411,4 +403,31 @@ public class ClientScriptingRuntime {
             Thread.currentThread().interrupt();
         }
     }
+    public void processAnimationFrameQueue() {
+        if (!initialized.get() || !apiService.isContextValid() || apiService.rendering == null) return;
+
+
+        scriptExecutor.execute(() -> {
+            double timestamp = System.nanoTime() / 1_000_000.0;
+            apiService.rendering.processAnimationFrames(timestamp);
+        });
+    }
+
+    public void processGeneralTaskQueue() {
+        if (!initialized.get()) return;
+
+        scriptExecutor.execute(() -> {
+            while (!scriptTaskQueue.isEmpty()) {
+                Runnable task = scriptTaskQueue.poll();
+                if (task != null) {
+                    try {
+                        task.run();
+                    } catch (Exception e) {
+                        LOGGER.error("Error processing queued script task", e);
+                    }
+                }
+            }
+        });
+    }
+
 }

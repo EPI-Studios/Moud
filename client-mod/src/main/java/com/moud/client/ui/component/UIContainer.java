@@ -1,20 +1,27 @@
 package com.moud.client.ui.component;
 
 import com.moud.client.api.service.UIService;
-import net.minecraft.text.Text;
-import org.graalvm.polyglot.HostAccess; // <-- Make sure this is imported
+import org.graalvm.polyglot.HostAccess;
 
 public class UIContainer extends UIComponent {
-    private String flexDirection = "row";
-    private String justifyContent = "flex-start";
-    private String alignItems = "stretch";
-    private double gap = 0;
-    private boolean autoResize = true;
-    private boolean isUpdatingLayout = false;
+    private volatile String flexDirection = "row";
+    private volatile String justifyContent = "flex-start";
+    private volatile String alignItems = "stretch";
+    private volatile double gap = 0;
+    private volatile boolean autoResize = true;
+    private volatile boolean isUpdatingLayout = false;
 
     public UIContainer(UIService service) {
-        super("container", service, 0, 0, 100, 100, Text.literal(""));
+        super("container", service);
         setBackgroundColor("#00000000");
+    }
+
+    @Override
+    @HostAccess.Export
+    public UIComponent appendChild(UIComponent child) {
+        super.appendChild(child);
+        updateLayout();
+        return this;
     }
 
     @HostAccess.Export
@@ -68,20 +75,23 @@ public class UIContainer extends UIComponent {
     @HostAccess.Export
     public UIContainer setAutoResize(boolean autoResize) {
         this.autoResize = autoResize;
+        updateLayout();
         return this;
     }
 
-    @Override
-    protected void updateChildrenPositions() {
-        super.updateChildrenPositions();
-        updateLayout();
-    }
-
     public void updateLayout() {
-        if (children.isEmpty() || isUpdatingLayout) return;
+        if (isUpdatingLayout) return;
 
         isUpdatingLayout = true;
         try {
+            if (children.isEmpty()) {
+                if(autoResize) {
+                    this.width = (int) (paddingLeft + paddingRight);
+                    this.height = (int) (paddingTop + paddingBottom);
+                }
+                return;
+            }
+
             int containerX = getX() + (int) paddingLeft;
             int containerY = getY() + (int) paddingTop;
             int containerWidth = getWidth() - (int) paddingLeft - (int) paddingRight;
@@ -96,6 +106,7 @@ public class UIContainer extends UIComponent {
             if (autoResize) {
                 resizeToContent();
             }
+
         } finally {
             isUpdatingLayout = false;
         }
@@ -104,78 +115,85 @@ public class UIContainer extends UIComponent {
     private void layoutRow(int containerX, int containerY, int containerWidth, int containerHeight) {
         int totalChildWidth = children.stream().mapToInt(UIComponent::getWidth).sum();
         int totalGaps = (children.size() > 1) ? (int)((children.size() - 1) * gap) : 0;
-        int availableSpace = containerWidth - totalChildWidth - totalGaps;
+        int usedSpace = totalChildWidth + totalGaps;
+        int availableSpace = autoResize ? 0 : containerWidth - usedSpace;
 
         int currentX = containerX;
-        double gapIncrement = gap;
+        double spaceBetween = gap;
 
         switch (justifyContent.toLowerCase()) {
-            case "center" -> currentX += availableSpace / 2;
-            case "flex-end" -> currentX += availableSpace;
-            case "space-between" -> {
+            case "center": currentX += availableSpace / 2; break;
+            case "flex-end": currentX += availableSpace; break;
+            case "space-between":
                 if (children.size() > 1) {
-                    gapIncrement += (double) availableSpace / (children.size() - 1);
+                    spaceBetween += (double) availableSpace / (children.size() - 1);
                 }
-            }
-            case "space-around" -> {
+                break;
+            case "space-around":
                 double space = (double) availableSpace / children.size();
                 currentX += (int) (space / 2);
-                gapIncrement += space;
-            }
+                spaceBetween += space;
+                break;
         }
 
         for (UIComponent child : children) {
             int childY = containerY;
 
             switch (alignItems.toLowerCase()) {
-                case "center" -> childY += (containerHeight - child.getHeight()) / 2;
-                case "flex-end" -> childY += containerHeight - child.getHeight();
-                case "stretch" -> {
-                    child.setSize(child.getWidth(), containerHeight);
-                }
+                case "center": childY += (containerHeight - child.getHeight()) / 2; break;
+                case "flex-end": childY += containerHeight - child.getHeight(); break;
+                case "stretch":
+                    if (!autoResize) {
+                        child.setHeight(containerHeight);
+                    }
+                    break;
             }
 
-            child.setPos(currentX, childY); // Changed from setPosition to setPos
-            currentX += child.getWidth() + (int) gapIncrement;
+            child.setPos(currentX, childY);
+            currentX += child.getWidth() + (int) spaceBetween;
         }
     }
 
     private void layoutColumn(int containerX, int containerY, int containerWidth, int containerHeight) {
         int totalChildHeight = children.stream().mapToInt(UIComponent::getHeight).sum();
         int totalGaps = (children.size() > 1) ? (int)((children.size() - 1) * gap) : 0;
-        int availableSpace = containerHeight - totalChildHeight - totalGaps;
+        int usedSpace = totalChildHeight + totalGaps;
+        int availableSpace = autoResize ? 0 : containerHeight - usedSpace;
+
 
         int currentY = containerY;
-        double gapIncrement = gap;
+        double spaceBetween = gap;
 
         switch (justifyContent.toLowerCase()) {
-            case "center" -> currentY += availableSpace / 2;
-            case "flex-end" -> currentY += availableSpace;
-            case "space-between" -> {
+            case "center": currentY += availableSpace / 2; break;
+            case "flex-end": currentY += availableSpace; break;
+            case "space-between":
                 if (children.size() > 1) {
-                    gapIncrement += (double) availableSpace / (children.size() - 1);
+                    spaceBetween += (double) availableSpace / (children.size() - 1);
                 }
-            }
-            case "space-around" -> {
+                break;
+            case "space-around":
                 double space = (double) availableSpace / children.size();
                 currentY += (int) (space / 2);
-                gapIncrement += space;
-            }
+                spaceBetween += space;
+                break;
         }
 
         for (UIComponent child : children) {
             int childX = containerX;
 
             switch (alignItems.toLowerCase()) {
-                case "center" -> childX += (containerWidth - child.getWidth()) / 2;
-                case "flex-end" -> childX += containerWidth - child.getWidth();
-                case "stretch" -> {
-                    child.setSize(containerWidth, child.getHeight());
-                }
+                case "center": childX += (containerWidth - child.getWidth()) / 2; break;
+                case "flex-end": childX += containerWidth - child.getWidth(); break;
+                case "stretch":
+                    if (!autoResize) {
+                        child.setWidth(containerWidth);
+                    }
+                    break;
             }
 
-            child.setPos(childX, currentY); // Changed from setPosition to setPos
-            currentY += child.getHeight() + (int) gapIncrement;
+            child.setPos(childX, currentY);
+            currentY += child.getHeight() + (int) spaceBetween;
         }
     }
 
@@ -194,12 +212,14 @@ public class UIContainer extends UIComponent {
             maxY = Math.max(maxY, child.getY() + child.getHeight());
         }
 
-        int newWidth = maxX - getX() + (int) paddingRight;
-        int newHeight = maxY - getY() + (int) paddingBottom;
+        int newWidth = (maxX - minX) + (int) paddingLeft + (int) paddingRight;
+        int newHeight = (maxY - minY) + (int) paddingTop + (int) paddingBottom;
+
 
         if (newWidth != getWidth() || newHeight != getHeight()) {
-            setWidth(newWidth);
-            setHeight(newHeight);
+            this.width = newWidth;
+            this.height = newHeight;
+            updateLayout();
         }
     }
 }

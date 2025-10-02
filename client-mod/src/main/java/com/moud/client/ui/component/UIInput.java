@@ -1,23 +1,25 @@
+// File: src/main/java/com/moud/client/ui/component/UIInput.java
 package com.moud.client.ui.component;
 
 import com.moud.client.api.service.UIService;
+import com.moud.client.ui.UIFocusManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Text;
+import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 import org.lwjgl.glfw.GLFW;
 
 public class UIInput extends UIComponent {
-    private String value = "";
+    private volatile String value = "";
     private final String placeholder;
-    private int cursorPosition = 0;
-    private int selectionStart = 0;
-    private int selectionEnd = 0;
-    private long lastBlinkTime = 0;
-    private boolean showCursor = true;
+    private volatile int cursorPosition = 0;
+    private volatile int selectionStart = 0;
+    private volatile int selectionEnd = 0;
+    private volatile long lastBlinkTime = 0;
+    private volatile boolean showCursor = true;
 
     public UIInput(String placeholder, UIService service) {
-        super("input", service, 0, 0, 200, 20, Text.literal(""));
+        super("input", service);
         this.placeholder = placeholder;
         setBackgroundColor("#FFFFFF");
         setBorder(1, "#CCCCCC");
@@ -30,7 +32,7 @@ public class UIInput extends UIComponent {
         String displayText = getDisplayText();
         if (displayText.isEmpty()) return;
 
-        int textCol = parseColor(value.isEmpty() && !isFocused() ? "#999999" : textColor, opacity);
+        int textCol = parseColor(value.isEmpty() && !focused ? "#999999" : textColor, opacity);
         int textX = getX() + (int) paddingLeft;
         int textY = getY() + (getHeight() - MinecraftClient.getInstance().textRenderer.fontHeight) / 2;
 
@@ -38,16 +40,16 @@ public class UIInput extends UIComponent {
             renderSelection(context, displayText, textX, textY);
         }
 
-        context.drawText(MinecraftClient.getInstance().textRenderer, Text.literal(displayText), textX, textY, textCol, false);
+        context.drawText(MinecraftClient.getInstance().textRenderer, net.minecraft.text.Text.literal(displayText), textX, textY, textCol, false);
 
-        if (isFocused() && shouldShowCursor()) {
+        if (focused && shouldShowCursor()) {
             renderCursor(context, displayText, textX, textY);
         }
     }
 
     private String getDisplayText() {
         if (!value.isEmpty()) return value;
-        if (isFocused()) return "";
+        if (focused) return "";
         return placeholder;
     }
 
@@ -90,12 +92,15 @@ public class UIInput extends UIComponent {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (isMouseOver(mouseX, mouseY)) {
-            setFocused(true);
+            UIFocusManager.setFocus(this);
             cursorPosition = getCharacterIndexAt(mouseX);
             clearSelection();
             return true;
         }
         return false;
+    }
+    private boolean isMouseOver(double mouseX, double mouseY) {
+        return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
     }
 
     private int getCharacterIndexAt(double mouseX) {
@@ -112,21 +117,12 @@ public class UIInput extends UIComponent {
         return value.length();
     }
 
-    @Override
-    public void setFocused(boolean focused) {
-        super.setFocused(focused);
-        if (focused) {
-            cursorPosition = value.length();
-            clearSelection();
-            showCursor = true;
-            lastBlinkTime = System.currentTimeMillis();
-        }
-    }
-
+    @HostAccess.Export
     public String getValue() {
         return value;
     }
 
+    @HostAccess.Export
     public UIInput setValue(String value) {
         String oldValue = this.value;
         this.value = value == null ? "" : value;
@@ -136,12 +132,16 @@ public class UIInput extends UIComponent {
         return this;
     }
 
+    @HostAccess.Export
     public String getPlaceholder() {
         return placeholder;
     }
 
+    @HostAccess.Export
     public UIInput onChange(Value callback) {
-        addEventHandler("change", callback);
+        if (callback != null && callback.canExecute()) {
+            eventHandlers.put("change", callback);
+        }
         return this;
     }
 
@@ -150,7 +150,7 @@ public class UIInput extends UIComponent {
     }
 
     public void handleCharTyped(char character) {
-        if (!isFocused() || !isValidCharacter(character)) return;
+        if (!focused || !isValidCharacter(character)) return;
 
         if (hasSelection()) {
             deleteSelection();
@@ -161,29 +161,68 @@ public class UIInput extends UIComponent {
         cursorPosition++;
     }
 
-    public void handleKeyPressed(int keyCode) {
-        if (!isFocused()) return;
+    // --- FIX: Override triggerFocus and triggerBlur to manage state ---
+    @Override
+    public void triggerFocus() {
+        this.focused = true;
+        super.triggerFocus();
+    }
+
+    @Override
+    public void triggerBlur() {
+        this.focused = false;
+        super.triggerBlur();
+    }
+
+    // --- FIX: Add onSubmit event ---
+    @HostAccess.Export
+    public UIInput onSubmit(Value callback) {
+        if (callback != null && callback.canExecute()) {
+            eventHandlers.put("submit", callback);
+        }
+        return this;
+    }
+
+    private void triggerSubmit() {
+        executeEventHandler("submit", this, this.value);
+    }
+
+
+    public boolean handleKeyPressed(int keyCode) {
+        if (!focused) return false;
 
         boolean ctrl = hasControlDown();
         boolean shift = hasShiftDown();
 
+        // --- FIX: Handle Esc and Enter ---
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+            UIFocusManager.clearFocus();
+            return true; // We handled it
+        }
+
+        if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+            triggerSubmit();
+            UIFocusManager.clearFocus();
+            return true; // We handled it
+        }
+
         switch (keyCode) {
-            case GLFW.GLFW_KEY_BACKSPACE -> {
+            case GLFW.GLFW_KEY_BACKSPACE:
                 if (hasSelection()) {
                     deleteSelection();
                 } else if (cursorPosition > 0) {
                     setValue(value.substring(0, cursorPosition - 1) + value.substring(cursorPosition));
                     cursorPosition--;
                 }
-            }
-            case GLFW.GLFW_KEY_DELETE -> {
+                break;
+            case GLFW.GLFW_KEY_DELETE:
                 if (hasSelection()) {
                     deleteSelection();
                 } else if (cursorPosition < value.length()) {
                     setValue(value.substring(0, cursorPosition) + value.substring(cursorPosition + 1));
                 }
-            }
-            case GLFW.GLFW_KEY_LEFT -> {
+                break;
+            case GLFW.GLFW_KEY_LEFT:
                 if (shift) {
                     if (selectionStart == selectionEnd) selectionStart = cursorPosition;
                     cursorPosition = Math.max(0, cursorPosition - 1);
@@ -192,8 +231,8 @@ public class UIInput extends UIComponent {
                     cursorPosition = Math.max(0, cursorPosition - 1);
                     clearSelection();
                 }
-            }
-            case GLFW.GLFW_KEY_RIGHT -> {
+                break;
+            case GLFW.GLFW_KEY_RIGHT:
                 if (shift) {
                     if (selectionStart == selectionEnd) selectionStart = cursorPosition;
                     cursorPosition = Math.min(value.length(), cursorPosition + 1);
@@ -202,8 +241,8 @@ public class UIInput extends UIComponent {
                     cursorPosition = Math.min(value.length(), cursorPosition + 1);
                     clearSelection();
                 }
-            }
-            case GLFW.GLFW_KEY_HOME -> {
+                break;
+            case GLFW.GLFW_KEY_HOME:
                 if (shift) {
                     if (selectionStart == selectionEnd) selectionStart = cursorPosition;
                     cursorPosition = 0;
@@ -212,8 +251,8 @@ public class UIInput extends UIComponent {
                     cursorPosition = 0;
                     clearSelection();
                 }
-            }
-            case GLFW.GLFW_KEY_END -> {
+                break;
+            case GLFW.GLFW_KEY_END:
                 if (shift) {
                     if (selectionStart == selectionEnd) selectionStart = cursorPosition;
                     cursorPosition = value.length();
@@ -222,32 +261,36 @@ public class UIInput extends UIComponent {
                     cursorPosition = value.length();
                     clearSelection();
                 }
-            }
-            case GLFW.GLFW_KEY_A -> {
+                break;
+            case GLFW.GLFW_KEY_A:
                 if (ctrl) {
                     selectAll();
                 }
-            }
-            case GLFW.GLFW_KEY_C -> {
+                break;
+            case GLFW.GLFW_KEY_C:
                 if (ctrl && hasSelection()) {
                     copySelection();
                 }
-            }
-            case GLFW.GLFW_KEY_V -> {
+                break;
+            case GLFW.GLFW_KEY_V:
                 if (ctrl) {
                     pasteFromClipboard();
                 }
-            }
-            case GLFW.GLFW_KEY_X -> {
+                break;
+            case GLFW.GLFW_KEY_X:
                 if (ctrl && hasSelection()) {
                     copySelection();
                     deleteSelection();
                 }
-            }
+                break;
+            default:
+                // If not a special key, let it fall through to be handled by onChar
+                return false;
         }
 
         showCursor = true;
         lastBlinkTime = System.currentTimeMillis();
+        return true; // We handled the key press
     }
 
     private void deleteSelection() {
@@ -281,8 +324,7 @@ public class UIInput extends UIComponent {
 
         try {
             MinecraftClient.getInstance().keyboard.setClipboard(selectedText);
-        } catch (Exception e) {
-        }
+        } catch (Exception e) {}
     }
 
     private void pasteFromClipboard() {
@@ -298,8 +340,7 @@ public class UIInput extends UIComponent {
                 setValue(newValue);
                 cursorPosition += filteredText.length();
             }
-        } catch (Exception e) {
-        }
+        } catch (Exception e) {}
     }
 
     private String filterClipboardText(String text) {

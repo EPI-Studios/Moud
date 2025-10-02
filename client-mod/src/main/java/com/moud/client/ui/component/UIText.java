@@ -6,7 +6,6 @@ public final class UIText extends UIComponent {
     public UIText(String content, UIService service) {
         super("text", service);
         setText(content);
-
         setBackgroundColor("#00000000");
     }
 }

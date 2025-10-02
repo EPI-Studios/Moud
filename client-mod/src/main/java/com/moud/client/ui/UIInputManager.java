@@ -1,3 +1,5 @@
+// File: src/main/java/com/moud/client/ui/UIInputManager.java
+
 package com.moud.client.ui;
 
 import com.moud.client.ui.component.UIComponent;
@@ -13,10 +15,13 @@ public final class UIInputManager {
         if (focused instanceof UIInput input) {
 
             if (action == GLFW.GLFW_PRESS || action == GLFW.GLFW_REPEAT) {
-                input.handleKeyPressed(key);
+                if (input.handleKeyPressed(key)) {
+                    return true;
+                }
             }
-
-            return true;
+            if (key != GLFW.GLFW_KEY_ESCAPE) {
+                return true;
+            }
         }
         return false;
     }
@@ -25,7 +30,6 @@ public final class UIInputManager {
         UIComponent focused = UIFocusManager.getFocusedComponent();
         if (focused instanceof UIInput input) {
             input.handleCharTyped(c);
-
             return true;
         }
         return false;

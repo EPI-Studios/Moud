@@ -27,7 +27,7 @@ public final class ClientAPIService {
 
     public InputService input;
 
-    private ClientScriptingRuntime scriptingRuntime;
+    ClientScriptingRuntime scriptingRuntime;
     private final AtomicBoolean contextUpdated = new AtomicBoolean(false);
 
     public ClientAPIService() {

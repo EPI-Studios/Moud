@@ -150,12 +150,12 @@ public final class RenderingService {
         if (!contextValid.get()) {
             return;
         }
-        float deltaTime = System.currentTimeMillis() / 1000.0f;
-        triggerRenderEvent("beforeWorldRender", deltaTime);
-        processAnimationFrames(deltaTime);
+        double timestamp = System.nanoTime() / 1_000_000.0;
+        triggerRenderEvent("beforeWorldRender", timestamp);
     }
 
-    private void processAnimationFrames(float deltaTime) {
+
+    public void processAnimationFrames(double timestamp) {
         if (animationFrameCallbacks.isEmpty() || !contextValid.get()) {
             return;
         }
@@ -163,45 +163,24 @@ public final class RenderingService {
         Map<String, Value> currentCallbacks = new ConcurrentHashMap<>(animationFrameCallbacks);
         animationFrameCallbacks.clear();
 
-        if (scriptingRuntime == null || !scriptingRuntime.isInitialized()) {
-            return;
+        if (jsContext == null) return;
+
+        try {
+            jsContext.enter();
+            for (Value callback : currentCallbacks.values()) {
+                if (callback.canExecute()) {
+                    callback.execute(timestamp);
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("Error executing animation frame callbacks", e);
+        } finally {
+            if (jsContext != null) {
+                jsContext.leave();
+            }
         }
-
-        scriptingRuntime.getExecutor().execute(() -> {
-            if (jsContext == null || !contextValid.get()) {
-                return;
-            }
-
-            try {
-                jsContext.enter();
-                try {
-                    for (Value callback : currentCallbacks.values()) {
-                        if (callback.canExecute()) {
-                            callback.execute(deltaTime);
-                        }
-                    }
-                } finally {
-                    jsContext.leave();
-                }
-            } catch (IllegalStateException e) {
-                if (e.getMessage() != null && (e.getMessage().contains("Context is already closed") ||
-                        e.getMessage().contains("not entered explicitly") ||
-                        e.getMessage().contains("Multi threaded access"))) {
-                    LOGGER.debug("Context access error during animation frame processing: {}", e.getMessage());
-                    contextValid.set(false);
-                } else {
-                    LOGGER.error("State error executing animation frame callbacks", e);
-                }
-            } catch (PolyglotException e) {
-                LOGGER.error("Error executing animation frame callbacks: {}", e.getMessage());
-                if (e.isGuestException()) {
-                    LOGGER.error("Guest stack trace:", e);
-                }
-            } catch (Exception e) {
-                LOGGER.error("Unexpected error executing animation frame callbacks", e);
-            }
-        });
     }
+
 
     public void triggerRenderEvent(String eventName, Object data) {
         Value handler = renderHandlers.get(eventName);

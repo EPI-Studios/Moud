@@ -8,6 +8,7 @@
     "AnimatedPlayerMixin",
     "CameraMixin",
     "ChatHudMixin",
+    "ClientPlayNetworkHandlerMixin",
     "EntityRenderDispatcherMixin",
     "GameRendererMixin",
     "HeldItemRendererMixin",

@@ -3,12 +3,7 @@ package com.moud.client.ui.component;
 import com.moud.client.api.service.UIService;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.Drawable;
-import net.minecraft.client.gui.Element;
-import net.minecraft.client.gui.Selectable;
-import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.text.Text;
-import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
@@ -18,50 +13,55 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 
-public class UIComponent implements Drawable, Element, Selectable {
+public class UIComponent {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIComponent.class);
+    private static final AtomicLong idCounter = new AtomicLong(0);
+    private final long uniqueId = idCounter.incrementAndGet();
 
     protected final String type;
     protected final UIService service;
-    protected String componentId;
+    protected volatile String componentId;
 
     protected final Map<String, Value> eventHandlers = new ConcurrentHashMap<>();
     protected final List<UIComponent> children = new CopyOnWriteArrayList<>();
     public UIComponent parent;
 
-    protected int x, y, width, height;
-    protected String backgroundColor = "#FFFFFF";
-    protected String textColor = "#000000";
-    protected String borderColor = "#000000";
-    protected int borderWidth = 0;
-    protected double opacity = 1.0;
-    protected String textAlign = "left";
-    protected double paddingTop = 2, paddingRight = 4, paddingBottom = 2, paddingLeft = 4;
-    protected boolean visible = true;
-    protected boolean active = true;
-    protected Text message = Text.empty();
-    protected boolean focused = false;
+    protected volatile int x, y, width, height;
+    protected volatile String backgroundColor = "#00000000";
+    protected volatile String textColor = "#000000";
+    protected volatile String borderColor = "#000000";
+    protected volatile int borderWidth = 0;
+    protected volatile double opacity = 1.0;
+    protected volatile String textAlign = "left";
+    protected volatile double paddingTop = 2, paddingRight = 4, paddingBottom = 2, paddingLeft = 4;
+    protected volatile boolean visible = true;
+    protected volatile Text message = Text.empty();
+    protected volatile boolean focused = false;
 
-    public UIComponent(String type, UIService service, int x, int y, int width, int height, Text message) {
+    public UIComponent(String type, UIService service) {
         this.type = type;
         this.service = service;
-        this.x = x;
-        this.y = y;
-        this.width = width;
-        this.height = height;
-        this.message = message;
+        this.x = 0;
+        this.y = 0;
+        this.width = 100;
+        this.height = 20;
+        this.message = Text.literal("");
         this.componentId = java.util.UUID.randomUUID().toString();
     }
 
-    public UIComponent(String type, UIService service) {
-        this(type, service, 0, 0, 100, 20, Text.literal(""));
+    public String getDebugIdentifier() {
+        String text = this.message.getString();
+        if (text.length() > 15) {
+            text = text.substring(0, 12) + "...";
+        }
+        return String.format("%s[id:%d, text:'%s']", this.type, this.uniqueId, text.isEmpty() ? "N/A" : text);
     }
 
-    @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        if (!visible || opacity <= 0.01) return;
+    public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
+        if (!visible) return;
+        if (opacity <= 0.01) return;
 
         int bgColor = parseColor(backgroundColor, opacity);
         if ((bgColor >>> 24) > 0) {
@@ -71,33 +71,40 @@ public class UIComponent implements Drawable, Element, Selectable {
         if (borderWidth > 0) {
             int borderCol = parseColor(borderColor, opacity);
             if ((borderCol >>> 24) > 0) {
-                context.drawBorder(x, y, width, height, borderCol);
+                for (int i = 0; i < borderWidth; i++) {
+                    context.drawBorder(x + i, y + i, width - i * 2, height - i * 2, borderCol);
+                }
             }
         }
 
-        if (!message.getString().isEmpty()) {
-            int textCol = parseColor(textColor, opacity);
-            if ((textCol >>> 24) > 0) {
-                int textWidth = MinecraftClient.getInstance().textRenderer.getWidth(message);
-                int textHeight = MinecraftClient.getInstance().textRenderer.fontHeight;
-                int textX = switch (textAlign.toLowerCase()) {
-                    case "center" -> x + (width - textWidth) / 2;
-                    case "right" -> x + width - textWidth - (int) paddingRight;
-                    default -> x + (int) paddingLeft;
-                };
-                int textY = y + (height - textHeight) / 2;
-                context.drawText(MinecraftClient.getInstance().textRenderer, message, textX, textY, textCol, true);
-            }
-        }
+        renderText(context);
 
         for (UIComponent child : children) {
-            child.render(context, mouseX, mouseY, delta);
+            child.renderWidget(context, mouseX, mouseY, delta);
         }
     }
 
-    @Override
+    protected void renderText(DrawContext context) {
+        if (message.getString().isEmpty()) return;
+
+        int textCol = parseColor(textColor, opacity);
+        if ((textCol >>> 24) <= 0) return;
+
+        int textWidth = MinecraftClient.getInstance().textRenderer.getWidth(message);
+        int textHeight = MinecraftClient.getInstance().textRenderer.fontHeight;
+
+        int textX = switch (textAlign.toLowerCase()) {
+            case "center" -> x + (width - textWidth) / 2;
+            case "right" -> x + width - textWidth - (int) paddingRight;
+            default -> x + (int) paddingLeft;
+        };
+        int textY = y + (height - textHeight) / 2;
+
+        context.drawText(MinecraftClient.getInstance().textRenderer, message, textX, textY, textCol, false);
+    }
+
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (!visible || !active || opacity <= 0.01) return false;
+        if (!visible || opacity <= 0.01) return false;
 
         for (int i = children.size() - 1; i >= 0; i--) {
             if (children.get(i).mouseClicked(mouseX, mouseY, button)) {
@@ -111,30 +118,6 @@ public class UIComponent implements Drawable, Element, Selectable {
         }
 
         return false;
-    }
-
-    @Override
-    public void setFocused(boolean focused) {
-        this.focused = focused;
-        if (focused) {
-            triggerFocus();
-        } else {
-            triggerBlur();
-        }
-    }
-
-    @Override
-    public boolean isFocused() {
-        return focused;
-    }
-
-    @Override
-    public SelectionType getType() {
-        return SelectionType.HOVERED;
-    }
-
-    @Override
-    public void appendNarrations(NarrationMessageBuilder builder) {
     }
 
     protected int parseColor(String colorStr, double elementOpacity) {
@@ -166,6 +149,19 @@ public class UIComponent implements Drawable, Element, Selectable {
     }
 
     @HostAccess.Export
+    public UIComponent showAsOverlay() {
+        com.moud.client.ui.UIOverlayManager.getInstance().addOverlayElement(this);
+        this.visible = true;
+        return this;
+    }
+
+    @HostAccess.Export
+    public UIComponent hideOverlay() {
+        this.visible = false;
+        return this;
+    }
+
+    @HostAccess.Export
     public int getX() { return x; }
 
     @HostAccess.Export
@@ -178,16 +174,28 @@ public class UIComponent implements Drawable, Element, Selectable {
     public int getHeight() { return height; }
 
     @HostAccess.Export
-    public void setX(int x) { this.x = x; }
+    public UIComponent setX(int x) {
+        this.x = x;
+        return this;
+    }
 
     @HostAccess.Export
-    public void setY(int y) { this.y = y; }
+    public UIComponent setY(int y) {
+        this.y = y;
+        return this;
+    }
 
     @HostAccess.Export
-    public void setWidth(int width) { this.width = width; }
+    public UIComponent setWidth(int width) {
+        this.width = width;
+        return this;
+    }
 
     @HostAccess.Export
-    public void setHeight(int height) { this.height = height; }
+    public UIComponent setHeight(int height) {
+        this.height = height;
+        return this;
+    }
 
     @HostAccess.Export
     public String getComponentId() { return componentId; }
@@ -196,14 +204,6 @@ public class UIComponent implements Drawable, Element, Selectable {
     public UIComponent setComponentId(String id) {
         this.componentId = id;
         return this;
-    }
-
-    protected void setMessage(Text message) {
-        this.message = message;
-    }
-
-    protected Text getMessage() {
-        return message;
     }
 
     @HostAccess.Export
@@ -221,7 +221,6 @@ public class UIComponent implements Drawable, Element, Selectable {
     public UIComponent setPos(double x, double y) {
         this.x = (int) x;
         this.y = (int) y;
-        updateChildrenPositions();
         return this;
     }
 
@@ -229,7 +228,6 @@ public class UIComponent implements Drawable, Element, Selectable {
     public UIComponent setSize(double width, double height) {
         this.width = (int) width;
         this.height = (int) height;
-        updateChildrenPositions();
         return this;
     }
 
@@ -319,7 +317,6 @@ public class UIComponent implements Drawable, Element, Selectable {
     public UIComponent appendChild(UIComponent child) {
         children.add(child);
         child.parent = this;
-        updateChildrenPositions();
         return this;
     }
 
@@ -338,36 +335,18 @@ public class UIComponent implements Drawable, Element, Selectable {
     @HostAccess.Export
     public UIComponent show() {
         this.visible = true;
-        this.active = true;
         return this;
     }
 
     @HostAccess.Export
     public UIComponent hide() {
         this.visible = false;
-        this.active = false;
         return this;
     }
 
     @HostAccess.Export
     public boolean isVisible() {
         return visible;
-    }
-
-    @HostAccess.Export
-    public UIComponent showAsOverlay() {
-        com.moud.client.ui.UIOverlayManager.getInstance().addOverlayElement(this);
-        this.visible = true;
-        this.active = true;
-        return this;
-    }
-
-    @HostAccess.Export
-    public UIComponent hideOverlay() {
-        this.visible = false;
-        this.active = false;
-        com.moud.client.ui.UIOverlayManager.getInstance().removeOverlayElement(this);
-        return this;
     }
 
     @HostAccess.Export
@@ -416,25 +395,20 @@ public class UIComponent implements Drawable, Element, Selectable {
 
     protected void executeEventHandler(String eventType, Object... args) {
         Value handler = eventHandlers.get(eventType);
-        ExecutorService executor = service.getScriptExecutor();
-        Context context = service.getJsContext();
-
-        if (handler != null && executor != null && !executor.isShutdown() && context != null) {
-            executor.execute(() -> {
+        if (handler != null && service != null && service.getScriptExecutor() != null &&
+                !service.getScriptExecutor().isShutdown() && service.getJsContext() != null) {
+            service.getScriptExecutor().execute(() -> {
                 try {
-                    context.enter();
+                    service.getJsContext().enter();
                     handler.execute(args);
                 } catch (Exception e) {
                     LOGGER.error("Error executing UI event handler for '{}' on element {}", eventType, componentId, e);
                 } finally {
                     try {
-                        context.leave();
+                        service.getJsContext().leave();
                     } catch (Exception ignored) {}
                 }
             });
         }
-    }
-
-    protected void updateChildrenPositions() {
     }
 }

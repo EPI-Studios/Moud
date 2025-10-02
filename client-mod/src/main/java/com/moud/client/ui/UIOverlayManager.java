@@ -1,3 +1,4 @@
+// File: src/main/java/com/moud/client/ui/UIOverlayManager.java
 package com.moud.client.ui;
 
 import com.moud.client.api.service.ClientAPIService;
@@ -6,6 +7,9 @@ import com.moud.client.ui.component.UIComponent;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.RenderTickCounter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -16,6 +20,9 @@ public class UIOverlayManager {
     private final MinecraftClient client = MinecraftClient.getInstance();
     private int lastScreenWidth = -1;
     private int lastScreenHeight = -1;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(UIOverlayManager.class);
+    private long frameCount = 0;
 
     private UIOverlayManager() {}
 
@@ -34,7 +41,8 @@ public class UIOverlayManager {
     }
 
     public void removeOverlayElement(UIComponent element) {
-        overlayElements.remove(element);
+        if (overlayElements.remove(element)) {
+        }
     }
 
     public void renderOverlays(DrawContext context, RenderTickCounter tickCounter) {
@@ -46,30 +54,31 @@ public class UIOverlayManager {
         int mouseX = uiService.getMouseX();
         int mouseY = uiService.getMouseY();
 
-        for (UIComponent element : overlayElements) {
-            if (element.visible) {
+        List<UIComponent> elementsToRender = getOverlayElements();
+
+        for (UIComponent element : elementsToRender) {
+            if (element.isVisible()) {
                 element.renderWidget(context, mouseX, mouseY, tickCounter.getTickDelta(true));
             }
         }
     }
 
     public boolean handleOverlayClick(double mouseX, double mouseY, int button) {
-
         int scaledMouseX = (int) (mouseX * client.getWindow().getScaledWidth() / client.getWindow().getWidth());
         int scaledMouseY = (int) (mouseY * client.getWindow().getScaledHeight() / client.getWindow().getHeight());
 
         boolean elementClicked = false;
 
-        for (int i = overlayElements.size() - 1; i >= 0; i--) {
-            UIComponent element = overlayElements.get(i);
-            if (element.visible && element.mouseClicked(scaledMouseX, scaledMouseY, button)) {
+        List<UIComponent> currentElements = getOverlayElements();
+        for (int i = currentElements.size() - 1; i >= 0; i--) {
+            UIComponent element = currentElements.get(i);
+            if (element.isVisible() && element.mouseClicked(scaledMouseX, scaledMouseY, button)) {
                 elementClicked = true;
                 break;
             }
         }
 
         if (!elementClicked) {
-
             UIFocusManager.clearFocus();
         }
 
@@ -79,7 +88,6 @@ public class UIOverlayManager {
     public boolean handleOverlayKeyPress(int keyCode, int scanCode, int modifiers) {
         UIComponent focused = UIFocusManager.getFocusedComponent();
         if (focused != null && overlayElements.contains(focused)) {
-
             return true;
         }
         return false;
@@ -88,7 +96,6 @@ public class UIOverlayManager {
     public boolean handleOverlayCharTyped(char chr, int modifiers) {
         UIComponent focused = UIFocusManager.getFocusedComponent();
         if (focused != null && overlayElements.contains(focused)) {
-
             return true;
         }
         return false;
@@ -106,27 +113,12 @@ public class UIOverlayManager {
     }
 
     private void onScreenResize(int newWidth, int newHeight) {
-
-        for (UIComponent element : overlayElements) {
+        for (UIComponent element : getOverlayElements()) {
             if (element instanceof com.moud.client.ui.component.UIContainer container) {
-
                 if (container.parent == null) {
                     container.updateLayout();
                 }
             }
-        }
-    }
-
-    private void updateElementForResize(UIComponent element, int screenWidth, int screenHeight) {
-
-        Object positionType = element.getClass().getAnnotation(PositionType.class);
-
-        if (element instanceof com.moud.client.ui.component.UIContainer container) {
-            container.updateLayout();
-        }
-
-        for (UIComponent child : element.getChildren()) {
-            updateElementForResize(child, screenWidth, screenHeight);
         }
     }
 
@@ -135,13 +127,10 @@ public class UIOverlayManager {
         overlayElements.clear();
         lastScreenWidth = -1;
         lastScreenHeight = -1;
+        LOGGER.info("[UI DEBUG] All UI elements cleared.");
     }
 
     public List<UIComponent> getOverlayElements() {
         return new CopyOnWriteArrayList<>(overlayElements);
-    }
-
-    public @interface PositionType {
-        String value() default "absolute";
     }
 }

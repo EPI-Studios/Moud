@@ -64,6 +64,12 @@ public final class UIService {
         return (int) (client.mouse.getY() * getScreenHeight() / client.getWindow().getHeight());
     }
 
+    @HostAccess.Export
+    public int getTextWidth(String text) {
+        if (text == null) return 0;
+        return client.textRenderer.getWidth(text);
+    }
+
     private <T extends UIComponent> T registerComponent(T component) {
         String id = "moud_ui_" + java.util.UUID.randomUUID().toString();
         component.setComponentId(id);
@@ -117,6 +123,14 @@ public final class UIService {
         }
     }
 
+    @HostAccess.Export
+    public UIImage createImage(String source) {
+        UIImage image = new UIImage(source, this);
+        image.setSize(64, 64);
+        return registerComponent(image);
+    }
+
+
     public void triggerResizeEvent() {
         if (resizeCallback != null && scriptExecutor != null && !scriptExecutor.isShutdown() && jsContext != null) {
             scriptExecutor.execute(() -> {
@@ -132,6 +146,7 @@ public final class UIService {
             });
         }
     }
+
 
     public void cleanUp() {
         elements.values().forEach(overlayManager::removeOverlayElement);
