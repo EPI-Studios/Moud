@@ -2,6 +2,7 @@ package com.moud.client.api.service;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
+import org.graalvm.polyglot.HostAccess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,15 +12,18 @@ public final class CursorService {
     private boolean isVisible = false;
     private boolean forceHidden = false;
     private boolean wasInGame = false;
+    private boolean manualControl = false;
 
     public CursorService() {
         this.client = MinecraftClient.getInstance();
     }
 
+    @HostAccess.Export
     public void show() {
         if (!isVisible) {
             this.isVisible = true;
             this.forceHidden = false;
+            this.manualControl = true;
             client.execute(() -> {
                 if (client.mouse != null) {
                     client.mouse.unlockCursor();
@@ -29,10 +33,12 @@ public final class CursorService {
         }
     }
 
+    @HostAccess.Export
     public void hide() {
         if (isVisible || !forceHidden) {
             this.isVisible = false;
             this.forceHidden = true;
+            this.manualControl = true;
             client.execute(() -> {
                 if (client.mouse != null) {
                     client.mouse.lockCursor();
@@ -42,6 +48,7 @@ public final class CursorService {
         }
     }
 
+    @HostAccess.Export
     public void toggle() {
         if (isVisible) {
             hide();
@@ -50,11 +57,14 @@ public final class CursorService {
         }
     }
 
+    @HostAccess.Export
     public boolean isVisible() {
         return this.isVisible;
     }
 
     public void tick() {
+        if (manualControl) return;
+
         if (client.world == null) return;
 
         boolean inGame = client.currentScreen == null;
@@ -111,6 +121,7 @@ public final class CursorService {
             hide();
         }
         this.forceHidden = false;
+        this.manualControl = false;
         LOGGER.info("CursorService cleaned up.");
     }
 }

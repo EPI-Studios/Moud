@@ -7,6 +7,7 @@ import net.minecraft.client.option.Perspective;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.MathHelper;
 import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.HostAccess;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
@@ -231,21 +232,25 @@ public final class CameraService {
         return cameraEntity != null ? cameraEntity.getPitch() : 0.0f;
     }
 
+    @HostAccess.Export
     public double getX() {
         Entity cameraEntity = client.getCameraEntity();
         return cameraEntity != null ? cameraEntity.getX() : 0.0;
     }
 
+    @HostAccess.Export
     public double getY() {
         Entity cameraEntity = client.getCameraEntity();
         return cameraEntity != null ? cameraEntity.getY() : 0.0;
     }
 
+    @HostAccess.Export
     public double getZ() {
         Entity cameraEntity = client.getCameraEntity();
         return cameraEntity != null ? cameraEntity.getZ() : 0.0;
     }
 
+    @HostAccess.Export
     public void setPosition(double x, double y, double z) {
         Entity cameraEntity = client.getCameraEntity();
         if (cameraEntity != null) {
@@ -253,6 +258,7 @@ public final class CameraService {
         }
     }
 
+    @HostAccess.Export
     public void addRotation(double pitchDelta, double yawDelta) {
         Entity cameraEntity = client.getCameraEntity();
         if (cameraEntity != null) {
@@ -263,6 +269,7 @@ public final class CameraService {
         }
     }
 
+    @HostAccess.Export
     public void setPitch(double pitch) {
         Entity cameraEntity = client.getCameraEntity();
         if (cameraEntity != null) {
@@ -270,6 +277,7 @@ public final class CameraService {
         }
     }
 
+    @HostAccess.Export
     public void setYaw(double yaw) {
         Entity cameraEntity = client.getCameraEntity();
         if (cameraEntity != null) {
@@ -277,18 +285,22 @@ public final class CameraService {
         }
     }
 
+    @HostAccess.Export
     public float getFov() {
         return (float) client.options.getFov().getValue();
     }
 
+    @HostAccess.Export
     public void setFov(double fov) {
         client.options.getFov().setValue((int) fov);
     }
 
+    @HostAccess.Export
     public boolean isThirdPerson() {
         return client.options.getPerspective() != Perspective.FIRST_PERSON;
     }
 
+    @HostAccess.Export
     public void setThirdPerson(boolean thirdPerson) {
         if (thirdPerson != isThirdPerson()) {
             client.options.setPerspective(client.options.getPerspective().next());
@@ -303,6 +315,7 @@ public final class CameraService {
         return allowEntityRendering;
     }
 
+    @HostAccess.Export
     public void lookAt(double targetX, double targetY, double targetZ) {
         Entity cameraEntity = client.getCameraEntity();
         if (cameraEntity == null) return;
