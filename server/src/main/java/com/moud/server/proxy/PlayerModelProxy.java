@@ -2,6 +2,7 @@ package com.moud.server.proxy;
 
 import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
+//import com.moud.server.bridge.AxiomBridgeService;
 import com.moud.server.network.ServerPacketWrapper;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.Player;
@@ -61,9 +62,10 @@ public class PlayerModelProxy {
         this.pitch = 0.0f;
 
         ALL_MODELS.put(modelId, this);
+
+//        AxiomBridgeService.getInstance().createGizmoForModel(this);
+
         broadcastCreate();
-
-
         playAnimation("moud:idle");
     }
 
@@ -77,6 +79,13 @@ public class PlayerModelProxy {
     @HostAccess.Export
     public void setPosition(Vector3 position) {
         this.position = position;
+        broadcastUpdate();
+    }
+
+    @HostAccess.Export
+    public void setRotation(float yaw, float pitch) {
+        this.yaw = yaw;
+        this.pitch = pitch;
         broadcastUpdate();
     }
 
@@ -174,6 +183,9 @@ public class PlayerModelProxy {
     @HostAccess.Export
     public void remove() {
         stopWalking();
+
+//        AxiomBridgeService.getInstance().removeGizmoForModel(this);
+
         ALL_MODELS.remove(modelId);
         broadcastRemove();
     }

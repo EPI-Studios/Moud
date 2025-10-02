@@ -11,11 +11,16 @@ repositories {
     maven {
         url = "https://repo.minestom.com/"
     }
+    maven {
+        url = "https://repo.smolder.cloud/public/"
+    }
 }
 
 dependencies {
     implementation project(':api')
     implementation project(':network-engine')
+
+    implementation("fr.ghostrider584:axiom-minestom:0.0.2")
 
     implementation('net.minestom:minestom-snapshots:f966351cb7') {
         exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j2-impl'

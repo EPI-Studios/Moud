@@ -4,6 +4,7 @@ import com.moud.server.animation.AnimationManager;
 import com.moud.server.api.HotReloadEndpoint;
 import com.moud.server.api.ScriptingAPI;
 import com.moud.server.assets.AssetManager;
+
 import com.moud.server.client.ClientScriptManager;
 import com.moud.server.cursor.CursorService;
 import com.moud.server.events.EventDispatcher;
@@ -36,13 +37,13 @@ public class MoudEngine {
     private final PacketEngine packetEngine;
     private final CursorService cursorService;
     private final HotReloadEndpoint hotReloadEndpoint;
+
     private final AtomicBoolean initialized = new AtomicBoolean(false);
     private static MoudEngine instance;
 
     public static MoudEngine getInstance() {
         return instance;
     }
-
 
     public MoudEngine(String[] launchArgs) {
         instance = this;
@@ -186,10 +187,15 @@ public class MoudEngine {
 
     public void shutdown() {
         if (hotReloadEndpoint != null) hotReloadEndpoint.stop();
+
         if (cursorService != null) cursorService.shutdown();
         if (asyncManager != null) asyncManager.shutdown();
         if (runtime != null) runtime.shutdown();
         LOGGER.shutdown("Moud Engine shutdown complete.");
+    }
+
+    public ScriptingAPI getScriptingAPI() {
+        return scriptingAPI;
     }
 
     public EventDispatcher getEventDispatcher() {
