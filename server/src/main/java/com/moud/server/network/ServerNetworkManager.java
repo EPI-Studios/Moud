@@ -4,6 +4,7 @@ import com.moud.network.MoudPackets.*;
 import com.moud.server.client.ClientScriptManager;
 import com.moud.server.cursor.CursorService;
 import com.moud.server.events.EventDispatcher;
+import com.moud.server.lighting.ServerLightingManager;
 import com.moud.server.movement.ServerMovementHandler;
 import com.moud.server.player.PlayerCameraManager;
 import com.moud.server.proxy.PlayerModelProxy;
@@ -135,6 +136,8 @@ public final class ServerNetworkManager {
             LOGGER.info("Player {} connected with Moud client (protocol: {})", minestomPlayer.getUsername(), clientVersion);
         }
         sendClientScripts(minestomPlayer);
+        sendClientScripts(minestomPlayer);
+        ServerLightingManager.getInstance().syncLightsToPlayer(minestomPlayer);
     }
 
     private void handleScriptEvent(Object player, ServerboundScriptEventPacket packet) {

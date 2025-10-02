@@ -43,7 +43,6 @@ public class EventDispatcher {
     private void registerMinestomListeners() {
         eventNode.addListener(PlayerSpawnEvent.class, event -> {
             if (event.isFirstSpawn()) {
-                ServerLightingManager.getInstance().syncLightsToPlayer(event.getPlayer());
                 dispatch("player.join", event);
             }
         });

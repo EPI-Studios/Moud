@@ -1,17 +1,10 @@
 package com.moud.server.scripting;
 
-import com.moud.api.math.Vector3;
-import com.moud.api.math.Quaternion;
-import com.moud.api.math.Matrix4;
-import com.moud.api.math.Transform;
-import com.moud.api.math.MathUtils;
-import com.moud.api.math.GeometryUtils;
 import com.moud.server.ConsoleAPI;
 import com.moud.server.MoudEngine;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.logging.MoudLogger;
-import com.moud.server.proxy.CameraLockProxy;
-import com.moud.server.proxy.MathProxy;
+import com.moud.api.math.Vector3;
 import com.moud.server.typescript.TypeScriptTranspiler;
 import org.graalvm.polyglot.*;
 import org.graalvm.polyglot.io.IOAccess;
@@ -42,47 +35,42 @@ public class JavaScriptRuntime {
         this.timerExecutor = Executors.newScheduledThreadPool(2, r -> new Thread(r, "JavaScriptRuntime-Timer"));
         try {
             this.context = createSecureContext();
+            prepareMoudObject();
             bindTimerFunctionsToContext();
-            bindMathUtilities();
+
         } catch (Exception e) {
             LOGGER.critical("Failed to initialize JavaScript runtime", e);
             throw new APIException("RUNTIME_INIT_FAILED", "Failed to initialize JavaScript runtime", e);
         }
     }
 
-    private Context createSecureContext() throws NoSuchMethodException, NoSuchFieldException {
-        HostAccess.Builder hostAccessBuilder = HostAccess.newBuilder()
+    private void prepareMoudObject() {
+        context.getBindings(LANGUAGE_ID).putMember("Moud", context.eval(LANGUAGE_ID, "({})"));
+    }
+
+    public void bindAPIs(Object api, Object assets, Object console) {
+        executeTask(() -> {
+            Value moudObj = context.getBindings(LANGUAGE_ID).getMember("Moud");
+            if (moudObj == null || moudObj.isNull()) {
+                LOGGER.error("Moud object is not defined in the script context! This should not happen.");
+                prepareMoudObject();
+                moudObj = context.getBindings(LANGUAGE_ID).getMember("Moud");
+            }
+            moudObj.putMember("api", api);
+            moudObj.putMember("assets", assets);
+
+            bindConsole((ConsoleAPI) console);
+        });
+    }
+
+    private Context createSecureContext() throws NoSuchMethodException {
+        HostAccess hostAccess = HostAccess.newBuilder()
                 .allowAccessAnnotatedBy(HostAccess.Export.class)
-                .allowImplementations(ProxyArray.class);
-
-        hostAccessBuilder.allowAccess(CameraLockProxy.class.getConstructor(net.minestom.server.entity.Player.class));
-
-        hostAccessBuilder.allowAccess(Vector3.class.getConstructor());
-        hostAccessBuilder.allowAccess(Vector3.class.getConstructor(double.class, double.class, double.class));
-        hostAccessBuilder.allowAccess(Vector3.class.getConstructor(float.class, float.class, float.class));
-        hostAccessBuilder.allowAccess(Vector3.class.getMethod("add", Vector3.class));
-        hostAccessBuilder.allowAccess(Vector3.class.getMethod("multiply", double.class));
-        hostAccessBuilder.allowAccess(Vector3.class.getMethod("toString"));
-        hostAccessBuilder.allowAccess(Vector3.class.getField("x"));
-        hostAccessBuilder.allowAccess(Vector3.class.getField("y"));
-        hostAccessBuilder.allowAccess(Vector3.class.getField("z"));
-
-        hostAccessBuilder.allowAccess(Quaternion.class.getConstructor());
-        hostAccessBuilder.allowAccess(Quaternion.class.getConstructor(float.class, float.class, float.class, float.class));
-        hostAccessBuilder.allowAccess(Quaternion.class.getField("x"));
-        hostAccessBuilder.allowAccess(Quaternion.class.getField("y"));
-        hostAccessBuilder.allowAccess(Quaternion.class.getField("z"));
-        hostAccessBuilder.allowAccess(Quaternion.class.getField("w"));
-
-        hostAccessBuilder.allowAccess(Matrix4.class.getConstructor());
-        hostAccessBuilder.allowAccess(Matrix4.class.getField("m"));
-
-        hostAccessBuilder.allowAccess(Transform.class.getConstructor());
-        hostAccessBuilder.allowAccess(Transform.class.getField("position"));
-        hostAccessBuilder.allowAccess(Transform.class.getField("rotation"));
-        hostAccessBuilder.allowAccess(Transform.class.getField("scale"));
-
-        HostAccess hostAccess = hostAccessBuilder.build();
+                .allowImplementations(ProxyArray.class)
+                .allowAllImplementations(true)
+                .allowAllClassImplementations(true)
+                .allowAccess(Vector3.class.getConstructor(double.class, double.class, double.class))
+                .build();
 
         return Context.newBuilder(LANGUAGE_ID)
                 .allowHostAccess(hostAccess)
@@ -95,71 +83,42 @@ public class JavaScriptRuntime {
                 .build();
     }
 
-    private void bindMathUtilities() {
-        executeTask(() -> {
-            Value bindings = context.getBindings(LANGUAGE_ID);
-            bindings.putMember("Math", new MathProxy());
-            bindings.putMember("Vector3", Vector3.class);
-            bindings.putMember("Quaternion", Quaternion.class);
-            bindings.putMember("Matrix4", Matrix4.class);
-            bindings.putMember("Transform", Transform.class);
-            bindings.putMember("MathUtils", MathUtils.class);
-            bindings.putMember("GeometryUtils", GeometryUtils.class);
-        });
-    }
-
     private Object convertPolyglotValue(Value value) {
-        if (value.isHostObject()) {
-            return value.asHostObject();
-        }
-        if (value.isString()) {
-            return value.asString();
-        }
-        if (value.isNumber()) {
-            return value.asDouble();
-        }
-        if (value.isBoolean()) {
-            return value.asBoolean();
-        }
-        if (value.isNull()) {
-            return "null";
-        }
+        if (value.isHostObject()) return value.asHostObject();
+        if (value.isString()) return value.asString();
+        if (value.isNumber()) return value.asDouble();
+        if (value.isBoolean()) return value.asBoolean();
+        if (value.isNull()) return "null";
         return value.toString();
     }
 
     public void bindConsole(ConsoleAPI consoleImpl) {
-        executeTask(() -> {
-            Value bindings = context.getBindings(LANGUAGE_ID);
-            Value consoleObj = context.eval(LANGUAGE_ID, "({})");
-
+        Value bindings = context.getBindings(LANGUAGE_ID);
+        if (!bindings.hasMember("console")) {
             ProxyExecutable logProxy = args -> {
-                Object[] javaArgs = Arrays.stream(args).map(this::convertPolyglotValue).toArray();
-                consoleImpl.log(javaArgs);
+                consoleImpl.log(Arrays.stream(args).map(this::convertPolyglotValue).toArray());
                 return null;
             };
             ProxyExecutable warnProxy = args -> {
-                Object[] javaArgs = Arrays.stream(args).map(this::convertPolyglotValue).toArray();
-                consoleImpl.warn(javaArgs);
+                consoleImpl.warn(Arrays.stream(args).map(this::convertPolyglotValue).toArray());
                 return null;
             };
             ProxyExecutable errorProxy = args -> {
-                Object[] javaArgs = Arrays.stream(args).map(this::convertPolyglotValue).toArray();
-                consoleImpl.error(javaArgs);
+                consoleImpl.error(Arrays.stream(args).map(this::convertPolyglotValue).toArray());
                 return null;
             };
             ProxyExecutable debugProxy = args -> {
-                Object[] javaArgs = Arrays.stream(args).map(this::convertPolyglotValue).toArray();
-                consoleImpl.debug(javaArgs);
+                consoleImpl.debug(Arrays.stream(args).map(this::convertPolyglotValue).toArray());
                 return null;
             };
 
+            Value consoleObj = context.eval(LANGUAGE_ID, "({})");
             consoleObj.putMember("log", logProxy);
             consoleObj.putMember("warn", warnProxy);
             consoleObj.putMember("error", errorProxy);
             consoleObj.putMember("debug", debugProxy);
-
             bindings.putMember("console", consoleObj);
-        });
+        }
     }
 
     private void bindTimerFunctionsToContext() {
@@ -211,9 +170,6 @@ public class JavaScriptRuntime {
             }
         });
     }
-    public void bindGlobal(String name, Object value) {
-        executeTask(() -> context.getBindings(LANGUAGE_ID).putMember(name, value));
-    }
 
     public CompletableFuture<Value> executeScript(Path scriptPath) {
         return CompletableFuture.supplyAsync(() -> {
@@ -250,7 +206,6 @@ public class JavaScriptRuntime {
 
             LOGGER.scriptError("Execution failed in {} at line {}, column {}", fileName, line, column);
             LOGGER.error("└─> {}", polyglotException.getMessage());
-            // LOGGER.debug("Guest stack trace:\n{}", polyglotException.getPolyglotStackTrace());
         } else {
             LOGGER.scriptError("An unexpected Java error occurred while executing script code in context: {}", contextInfo, e);
         }

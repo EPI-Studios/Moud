@@ -3,6 +3,7 @@ package com.moud.client;
 import com.moud.client.animation.*;
 import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.cursor.ClientCursorManager;
+import com.moud.client.lighting.ClientLightingService;
 import com.moud.client.movement.ClientMovementTracker;
 import com.moud.client.network.ClientPacketReceiver;
 import com.moud.client.network.DataPayload;
@@ -263,6 +264,8 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 joinTime = -1L;
                 cleanupMoudServices();
             }
+
+            ClientLightingService.getInstance().tick();
 
             if (scriptingRuntime != null && scriptingRuntime.isInitialized()) {
                 scriptingRuntime.processGeneralTaskQueue();

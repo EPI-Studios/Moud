@@ -1,13 +1,15 @@
 package com.moud.server.api;
 
 import com.moud.server.MoudEngine;
+import com.moud.server.api.exception.APIException;
+import com.moud.server.api.validation.APIValidator;
 import com.moud.server.events.EventDispatcher;
 import com.moud.server.proxy.LightingAPIProxy;
+import com.moud.server.proxy.MathProxy;
 import com.moud.server.proxy.ServerProxy;
 import com.moud.server.proxy.WorldProxy;
+import com.moud.server.proxy.ZoneAPIProxy;
 import com.moud.server.task.AsyncManager;
-import com.moud.server.api.validation.APIValidator;
-import com.moud.server.api.exception.APIException;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
@@ -16,21 +18,32 @@ import org.slf4j.LoggerFactory;
 public class ScriptingAPI {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScriptingAPI.class);
 
-
     private final EventDispatcher eventDispatcher;
-    private final ServerProxy serverProxy;
-    private final WorldProxy worldProxy;
-    private final LightingAPIProxy lightingProxy;
     private final APIValidator validator;
     private final MoudEngine engine;
+
+    @HostAccess.Export
+    public final ServerProxy server;
+    @HostAccess.Export
+    public final WorldProxy world;
+    @HostAccess.Export
+    public final LightingAPIProxy lighting;
+    @HostAccess.Export
+    public final ZoneAPIProxy zones;
+    @HostAccess.Export
+    public final MathProxy math;
 
     public ScriptingAPI(MoudEngine engine) {
         this.engine = engine;
         this.eventDispatcher = engine.getEventDispatcher();
-        this.serverProxy = new ServerProxy();
-        this.worldProxy = new WorldProxy().createInstance();
-        this.lightingProxy = new LightingAPIProxy();
         this.validator = new APIValidator();
+
+        this.server = new ServerProxy();
+        this.world = new WorldProxy().createInstance();
+        this.lighting = new LightingAPIProxy();
+        this.zones = new ZoneAPIProxy(engine.getZoneManager());
+        this.math = new MathProxy();
+
         LOGGER.info("Scripting API initialized successfully.");
     }
 
@@ -47,21 +60,6 @@ public class ScriptingAPI {
     }
 
     @HostAccess.Export
-    public ServerProxy getServer() {
-        return serverProxy;
-    }
-
-    @HostAccess.Export
-    public WorldProxy getWorld() {
-        return worldProxy;
-    }
-
-    @HostAccess.Export
-    public LightingAPIProxy getLighting() {
-        return lightingProxy;
-    }
-
-    @HostAccess.Export
     public AsyncManager getAsync() {
         return engine.getAsyncManager();
     }
@@ -70,4 +68,3 @@ public class ScriptingAPI {
         LOGGER.info("Shutting down Scripting API.");
     }
 }
-

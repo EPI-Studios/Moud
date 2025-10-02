@@ -8,7 +8,6 @@ import net.minecraft.client.MinecraftClient;
 import org.graalvm.polyglot.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.Map;
 
 public class LightingService {
@@ -16,13 +15,13 @@ public class LightingService {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final TypeReference<Map<String, Object>> MAP_TYPE_REFERENCE = new TypeReference<>() {};
 
-    private final ClientLightingService lightingService;
+    private final ClientLightingService internalLightingService;
     private Context jsContext;
 
     public LightingService() {
-        this.lightingService = new ClientLightingService();
-        this.lightingService.initialize();
-        LOGGER.debug("LightingService initialized");
+        this.internalLightingService = ClientLightingService.getInstance();
+        this.internalLightingService.initialize();
+        LOGGER.debug("LightingService (wrapper) obtained singleton instance.");
     }
 
     public void setContext(Context jsContext) {
@@ -30,64 +29,53 @@ public class LightingService {
     }
 
     public void handleNetworkEvent(String eventName, String eventData) {
-        LOGGER.debug("Handling lighting event: {} with data: {}", eventName, eventData);
 
-        try {
-            Map<String, Object> data = MAPPER.readValue(eventData, MAP_TYPE_REFERENCE);
+        MinecraftClient.getInstance().execute(() -> {
+            LOGGER.debug("Handling lighting event on client thread: {}", eventName);
+            try {
+                Map<String, Object> data = MAPPER.readValue(eventData, MAP_TYPE_REFERENCE);
 
-            switch (eventName) {
-                case "lighting:operation": {
-                    String operation = (String) data.get("operation");
-                    Map<String, Object> lightData = (Map<String, Object>) data.get("light");
+                switch (eventName) {
+                    case "lighting:operation": {
+                        String operation = (String) data.get("operation");
+                        Map<String, Object> lightData = (Map<String, Object>) data.get("light");
 
-                    LOGGER.debug("Processing lighting operation: {} with light data: {}", operation, lightData);
-
-                    if (operation == null || lightData == null) {
-                        LOGGER.warn("Invalid lighting operation data - operation: {}, lightData: {}", operation, lightData);
-                        return;
-                    }
-
-                    switch (operation) {
-                        case "create", "update" -> {
-                            LOGGER.debug("Creating/updating light with data: {}", lightData);
-                            lightingService.handleCreateOrUpdateLight(lightData);
+                        if (operation == null || lightData == null) {
+                            LOGGER.warn("Invalid lighting operation data.");
+                            return;
                         }
-                        case "remove" -> {
-                            long id = Conversion.toLong(lightData.get("id"));
-                            LOGGER.debug("Removing light with id: {}", id);
-                            lightingService.handleRemoveLight(id);
+
+                        switch (operation) {
+                            case "create", "update" -> internalLightingService.handleCreateOrUpdateLight(lightData);
+                            case "remove" -> {
+                                long id = Conversion.toLong(lightData.get("id"));
+                                internalLightingService.handleRemoveLight(id);
+                            }
+                            default -> LOGGER.warn("Unknown lighting operation: {}", operation);
                         }
-                        default -> LOGGER.warn("Unknown lighting operation: {}", operation);
+                        break;
                     }
-                    break;
+                    case "lighting:sync": {
+                        internalLightingService.handleLightSync(data);
+                        break;
+                    }
+                    default:
+                        LOGGER.warn("Unknown lighting event: {}", eventName);
                 }
-                case "lighting:sync":
-                    LOGGER.debug("Syncing lights with data: {}", data);
-                    lightingService.handleLightSync(data);
-                    break;
-                default:
-                    LOGGER.warn("Unknown lighting event: {}", eventName);
+            } catch (Exception e) {
+                LOGGER.error("Failed to handle lighting network event: {} with data: {}", eventName, eventData, e);
             }
-        } catch (Exception e) {
-            LOGGER.error("Failed to handle lighting network event: {} with data: {}", eventName, eventData, e);
-        }
+        });
     }
 
     public void tick() {
-        try {
-            lightingService.tick();
-        } catch (Exception e) {
-            LOGGER.error("Error during lighting service tick", e);
-        }
+
+        internalLightingService.tick();
     }
 
     public void cleanUp() {
-        try {
-            lightingService.cleanup();
-        } catch (Exception e) {
-            LOGGER.error("Error during lighting service cleanup", e);
-        }
+        internalLightingService.cleanup();
         jsContext = null;
-        LOGGER.debug("LightingService cleaned up");
+        LOGGER.debug("LightingService wrapper cleaned up for session.");
     }
 }

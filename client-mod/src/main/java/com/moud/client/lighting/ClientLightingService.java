@@ -6,37 +6,46 @@ import foundry.veil.api.client.render.light.data.AreaLightData;
 import foundry.veil.api.client.render.light.data.LightData;
 import foundry.veil.api.client.render.light.data.PointLightData;
 import foundry.veil.api.client.render.light.renderer.LightRenderer;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 public class ClientLightingService {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientLightingService.class);
+
+    private static final ClientLightingService INSTANCE = new ClientLightingService();
+
     private static final float LIGHT_RENDER_DISTANCE_SQUARED = 16384.0F;
     private final Map<Long, ManagedLight> managedLights = new ConcurrentHashMap<>();
-    private final MinecraftClient client = MinecraftClient.getInstance();
+    private final MinecraftClient client;
     private long lastFrameTime = 0L;
     private static final Vector3f UP_VECTOR = new Vector3f(0.0F, 1.0F, 0.0F);
     private boolean initialized = false;
 
+    private ClientLightingService() {
+        this.client = MinecraftClient.getInstance();
+    }
+
+    public static ClientLightingService getInstance() {
+        return INSTANCE;
+    }
+
     public void initialize() {
         if (!initialized) {
             initialized = true;
-            LOGGER.info("ClientLightingService initialized");
+            LOGGER.info("ClientLightingService initialized.");
         }
     }
 
     public void handleCreateOrUpdateLight(Map<String, Object> lightData) {
-        if (!initialized) {
-            initialize();
-        }
+        if (!initialized) initialize();
 
         long id = Conversion.toLong(lightData.get("id"));
         ManagedLight light = managedLights.computeIfAbsent(id, (key) -> {
@@ -45,36 +54,27 @@ public class ClientLightingService {
             return new ManagedLight(key, type);
         });
         light.update(lightData);
+        light.snap();
         LOGGER.debug("Updated light ID: {} with data: {}", id, lightData);
     }
 
     public void handleLightSync(Map<String, Object> data) {
-        this.client.execute(() -> {
-            LOGGER.info("Syncing lights from server");
-            this.clearAllLights();
-            List<Map<String, Object>> lights = (List) data.get("lights");
-            if (lights != null) {
-                LOGGER.info("Syncing {} lights", lights.size());
-                for (Map<String, Object> lightData : lights) {
-                    long id = Conversion.toLong(lightData.get("id"));
-                    ManagedLight light = managedLights.computeIfAbsent(id, (key) -> {
-                        String type = (String) lightData.get("type");
-                        return new ManagedLight(key, type);
-                    });
-                    light.update(lightData);
-                    light.snap();
-                }
+        LOGGER.info("Syncing lights from server...");
+        this.clearAllLights();
+        List<Map<String, Object>> lights = (List<Map<String, Object>>) data.get("lights");
+        if (lights != null) {
+            LOGGER.info("Syncing {} lights", lights.size());
+            for (Map<String, Object> lightData : lights) {
+                handleCreateOrUpdateLight(lightData);
             }
-        });
+        }
     }
 
     public void handleRemoveLight(long id) {
         ManagedLight managed = managedLights.remove(id);
         if (managed != null) {
-            this.client.execute(() -> {
-                this.destroyVeilLight(managed);
-                LOGGER.info("Removed light with ID: {}", id);
-            });
+            this.destroyVeilLight(managed);
+            LOGGER.info("Removed light with ID: {}", id);
         }
     }
 
@@ -85,28 +85,32 @@ public class ClientLightingService {
     }
 
     public void tick() {
-        if (this.client.player != null && initialized) {
-            long currentTime = System.nanoTime();
-            if (this.lastFrameTime == 0L) {
-                this.lastFrameTime = currentTime;
-            } else {
-                float deltaTime = (float)(currentTime - this.lastFrameTime) / 1.0E9F;
-                this.lastFrameTime = currentTime;
-                Vec3d playerPos = this.client.player.getPos();
+        if (this.client.player == null || !initialized) {
 
-                for (ManagedLight light : managedLights.values()) {
-                    boolean shouldBeVisible = playerPos.squaredDistanceTo(light.targetPosition) < LIGHT_RENDER_DISTANCE_SQUARED;
-                    if (shouldBeVisible) {
-                        if (light.veilLightData == null) {
-                            this.createVeilLight(light);
-                        }
+            lastFrameTime = 0L;
+            return;
+        }
 
-                        light.interpolate(deltaTime);
-                        this.updateVeilLight(light);
-                    } else if (light.veilLightData != null) {
-                        this.destroyVeilLight(light);
-                    }
+        long currentTime = System.nanoTime();
+        if (this.lastFrameTime == 0L) {
+            this.lastFrameTime = currentTime;
+            return;
+        }
+
+        float deltaTime = (float)(currentTime - this.lastFrameTime) / 1.0E9F;
+        this.lastFrameTime = currentTime;
+        Vec3d playerPos = this.client.player.getPos();
+
+        for (ManagedLight light : managedLights.values()) {
+            boolean shouldBeVisible = playerPos.squaredDistanceTo(light.targetPosition) < LIGHT_RENDER_DISTANCE_SQUARED;
+            if (shouldBeVisible) {
+                if (light.veilLightData == null) {
+                    this.createVeilLight(light);
                 }
+                light.interpolate(deltaTime);
+                this.updateVeilLight(light);
+            } else if (light.veilLightData != null) {
+                this.destroyVeilLight(light);
             }
         }
     }
@@ -143,7 +147,6 @@ public class ClientLightingService {
                         .setRadius(managed.radius);
             } else if (lightData instanceof AreaLightData areaLight) {
                 areaLight.getPosition().set((float)managed.interpolatedPosition.x, (float)managed.interpolatedPosition.y, (float)managed.interpolatedPosition.z);
-
                 Quaternionf tempOrientation = new Quaternionf();
                 Vector3f direction = new Vector3f((float)managed.interpolatedDirection.x * -1.0F, (float)managed.interpolatedDirection.y * -1.0F, (float)managed.interpolatedDirection.z * -1.0F);
                 tempOrientation.lookAlong(direction, UP_VECTOR);
@@ -163,9 +166,7 @@ public class ClientLightingService {
         if (managed.veilLightData != null) {
             try {
                 LightRenderer lightRenderer = VeilRenderSystem.renderer().getLightRenderer();
-                lightRenderer.getLights(managed.veilLightData.getType()).removeIf((handle) -> {
-                    return handle.getLightData() == managed.veilLightData;
-                });
+                lightRenderer.getLights(managed.veilLightData.getType()).removeIf((handle) -> handle.getLightData() == managed.veilLightData);
                 managed.veilLightData = null;
                 LOGGER.debug("Destroyed Veil light with ID: {}", managed.id);
             } catch (Exception e) {
@@ -176,35 +177,27 @@ public class ClientLightingService {
 
     public void cleanup() {
         this.client.execute(this::clearAllLights);
-        initialized = false;
-        LOGGER.info("ClientLightingService cleaned up");
+
+        LOGGER.info("ClientLightingService session cleaned up (lights cleared).");
     }
 
     private static class ManagedLight {
         final long id;
         final String type;
         LightData veilLightData;
-        float r = 1.0f;
-        float g = 1.0f;
-        float b = 1.0f;
-        float brightness = 1.0f;
-        float radius = 5.0f;
-        float width = 1.0f;
-        float height = 1.0f;
-        float angle = 45.0f;
-        float distance = 10.0f;
-        Vec3d interpolatedPosition;
-        Vec3d targetPosition;
-        Vec3d interpolatedDirection;
-        Vec3d targetDirection;
+        float r = 1.0f, g = 1.0f, b = 1.0f;
+        float brightness = 1.0f, radius = 5.0f;
+        float width = 1.0f, height = 1.0f, angle = 45.0f, distance = 10.0f;
+        Vec3d interpolatedPosition, targetPosition;
+        Vec3d interpolatedDirection, targetDirection;
 
         ManagedLight(long id, String type) {
-            this.interpolatedPosition = Vec3d.ZERO;
-            this.targetPosition = Vec3d.ZERO;
-            this.interpolatedDirection = new Vec3d(0.0D, 0.0D, 1.0D);
-            this.targetDirection = new Vec3d(0.0D, 0.0D, 1.0D);
             this.id = id;
             this.type = type;
+            this.interpolatedPosition = Vec3d.ZERO;
+            this.targetPosition = Vec3d.ZERO;
+            this.interpolatedDirection = new Vec3d(0.0, 0.0, 1.0);
+            this.targetDirection = new Vec3d(0.0, 0.0, 1.0);
         }
 
         void update(Map<String, Object> data) {

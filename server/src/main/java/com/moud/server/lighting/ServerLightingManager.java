@@ -1,3 +1,5 @@
+// File: src/main/java/com/moud/server/lighting/ServerLightingManager.java
+
 package com.moud.server.lighting;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,7 +30,6 @@ public class ServerLightingManager {
     }
 
     public void createOrUpdateLight(long lightId, Map<String, Object> properties) {
-
         boolean isNewLight = !lights.containsKey(lightId);
         Map<String, Object> lightData = lights.computeIfAbsent(lightId, k -> new ConcurrentHashMap<>());
         lightData.putAll(properties);
@@ -43,13 +44,19 @@ public class ServerLightingManager {
         }
     }
 
+    /**
+     * C'est la méthode clé. Elle envoie l'état complet de toutes les lumières à UN SEUL joueur.
+     */
     public void syncLightsToPlayer(Player player) {
-        if (lights.isEmpty()) return;
+        if (lights.isEmpty()) {
+            LOGGER.debug("No lights to sync to player {}.", player.getUsername());
+            return;
+        }
 
         List<Map<String, Object>> allLights = new ArrayList<>(lights.values());
         Map<String, Object> syncData = Map.of("lights", allLights);
         sendEventToPlayer(player, "lighting:sync", syncData);
-        LOGGER.debug("Synced {} lights to player {}", allLights.size(), player.getUsername());
+        LOGGER.info("Synced {} lights to player {}", allLights.size(), player.getUsername());
     }
 
     private void broadcastLightOperation(String operation, Map<String, Object> data) {
@@ -60,10 +67,11 @@ public class ServerLightingManager {
     private void broadcastEventToAllPlayers(String eventName, Map<String, Object> data) {
         try {
             String jsonData = MAPPER.writeValueAsString(data);
+            ServerNetworkManager networkManager = ServerNetworkManager.getInstance();
+            if (networkManager == null) return;
+
             for (Player player : net.minestom.server.MinecraftServer.getConnectionManager().getOnlinePlayers()) {
-                if (ServerNetworkManager.getInstance() != null) {
-                    ServerNetworkManager.getInstance().sendScriptEvent(player, eventName, jsonData);
-                }
+                networkManager.sendScriptEvent(player, eventName, jsonData);
             }
         } catch (Exception e) {
             LOGGER.error("Failed to broadcast lighting event", e);
@@ -73,8 +81,9 @@ public class ServerLightingManager {
     private void sendEventToPlayer(Player player, String eventName, Map<String, Object> data) {
         try {
             String jsonData = MAPPER.writeValueAsString(data);
-            if (ServerNetworkManager.getInstance() != null) {
-                ServerNetworkManager.getInstance().sendScriptEvent(player, eventName, jsonData);
+            ServerNetworkManager networkManager = ServerNetworkManager.getInstance();
+            if (networkManager != null) {
+                networkManager.sendScriptEvent(player, eventName, jsonData);
             }
         } catch (Exception e) {
             LOGGER.error("Failed to send lighting event to player {}", player.getUsername(), e);

@@ -18,6 +18,7 @@ import com.moud.server.task.AsyncManager;
 import com.moud.network.dispatcher.NetworkDispatcher;
 import com.moud.network.engine.PacketEngine;
 import com.moud.network.buffer.ByteBuffer;
+import com.moud.server.zone.ZoneManager;
 
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
@@ -38,6 +39,7 @@ public class MoudEngine {
     private final CursorService cursorService;
     private final HotReloadEndpoint hotReloadEndpoint;
 
+    private final ZoneManager zoneManager;
     private final AtomicBoolean initialized = new AtomicBoolean(false);
     private static MoudEngine instance;
 
@@ -51,6 +53,7 @@ public class MoudEngine {
 
         boolean enableReload = hasArg(launchArgs, "--enable-reload");
         int port = getPortFromArgs(launchArgs);
+
 
         try {
             Path projectRoot = ProjectLoader.resolveProjectRoot(launchArgs)
@@ -89,6 +92,8 @@ public class MoudEngine {
 
             this.networkManager = new ServerNetworkManager(eventDispatcher, clientScriptManager);
             networkManager.initialize();
+
+            this.zoneManager = new ZoneManager(this);
 
             this.cursorService = CursorService.getInstance(networkManager);
             cursorService.initialize();
@@ -136,11 +141,7 @@ public class MoudEngine {
 
     private void bindGlobalAPIs() {
         this.scriptingAPI = new ScriptingAPI(this);
-        runtime.bindGlobal("api", scriptingAPI);
-        runtime.bindGlobal("assets", new AssetProxy(assetManager));
-
-        ConsoleAPI consoleImpl = new ConsoleAPI();
-        runtime.bindConsole(consoleImpl);
+        runtime.bindAPIs(scriptingAPI, new AssetProxy(assetManager), new ConsoleAPI());
     }
 
     public void reloadUserScripts() {
@@ -213,4 +214,9 @@ public class MoudEngine {
     public AsyncManager getAsyncManager() {
         return asyncManager;
     }
+
+    public ZoneManager getZoneManager() {
+        return zoneManager;
+    }
+
 }
