@@ -108,8 +108,11 @@ public class UIOverlayManager {
     private void onScreenResize(int newWidth, int newHeight) {
 
         for (UIComponent element : overlayElements) {
-            if (element.parent == null) {
-                updateElementForResize(element, newWidth, newHeight);
+            if (element instanceof com.moud.client.ui.component.UIContainer container) {
+
+                if (container.parent == null) {
+                    container.updateLayout();
+                }
             }
         }
     }

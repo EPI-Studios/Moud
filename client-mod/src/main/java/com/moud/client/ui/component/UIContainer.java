@@ -2,6 +2,7 @@ package com.moud.client.ui.component;
 
 import com.moud.client.api.service.UIService;
 import net.minecraft.text.Text;
+import org.graalvm.polyglot.HostAccess; // <-- Make sure this is imported
 
 public class UIContainer extends UIComponent {
     private String flexDirection = "row";
@@ -16,46 +17,55 @@ public class UIContainer extends UIComponent {
         setBackgroundColor("#00000000");
     }
 
+    @HostAccess.Export
     public UIContainer setFlexDirection(String direction) {
         this.flexDirection = direction;
         updateLayout();
         return this;
     }
 
+    @HostAccess.Export
     public String getFlexDirection() {
         return flexDirection;
     }
 
+    @HostAccess.Export
     public UIContainer setJustifyContent(String justify) {
         this.justifyContent = justify;
         updateLayout();
         return this;
     }
 
+    @HostAccess.Export
     public String getJustifyContent() {
         return justifyContent;
     }
 
+    @HostAccess.Export
     public UIContainer setAlignItems(String align) {
         this.alignItems = align;
         updateLayout();
         return this;
     }
 
+    @HostAccess.Export
     public String getAlignItems() {
         return alignItems;
     }
 
+    @HostAccess.Export
     public UIContainer setGap(double gap) {
         this.gap = gap;
         updateLayout();
         return this;
     }
 
+    @HostAccess.Export
     public double getGap() {
         return gap;
     }
 
+    @HostAccess.Export
     public UIContainer setAutoResize(boolean autoResize) {
         this.autoResize = autoResize;
         return this;
@@ -125,7 +135,7 @@ public class UIContainer extends UIComponent {
                 }
             }
 
-            child.setPosition(currentX, childY);
+            child.setPos(currentX, childY); // Changed from setPosition to setPos
             currentX += child.getWidth() + (int) gapIncrement;
         }
     }
@@ -164,7 +174,7 @@ public class UIContainer extends UIComponent {
                 }
             }
 
-            child.setPosition(childX, currentY);
+            child.setPos(childX, currentY); // Changed from setPosition to setPos
             currentY += child.getHeight() + (int) gapIncrement;
         }
     }

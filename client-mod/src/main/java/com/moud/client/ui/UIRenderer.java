@@ -89,25 +89,28 @@ public class UIRenderer {
         if (colorStr == null || !colorStr.startsWith("#")) {
             return 0;
         }
-
         try {
-            String hex = colorStr.substring(1);
-            long value;
+            long value = Long.parseLong(colorStr.substring(1), 16);
+            int alpha, red, green, blue;
 
-            if (hex.length() == 8) {
-                value = Long.parseLong(hex, 16);
+            if (colorStr.length() == 9) {
+                alpha = (int) ((value >> 24) & 0xFF);
+                red = (int) ((value >> 16) & 0xFF);
+                green = (int) ((value >> 8) & 0xFF);
+                blue = (int) (value & 0xFF);
+            } else if (colorStr.length() == 7) {
+                alpha = 255;
+                red = (int) ((value >> 16) & 0xFF);
+                green = (int) ((value >> 8) & 0xFF);
+                blue = (int) (value & 0xFF);
             } else {
-                value = Long.parseLong(hex, 16);
-                if (hex.length() == 3) {
-                    long r = (value >> 8) & 0xF;
-                    long g = (value >> 4) & 0xF;
-                    long b = value & 0xF;
-                    value = (r << 20) | (r << 16) | (g << 12) | (g << 8) | (b << 4) | b;
-                }
-                int alpha = (int) (Math.max(0, Math.min(1, opacity)) * 255);
-                value |= (long) alpha << 24;
+                return 0;
             }
-            return (int) value;
+
+            int finalAlpha = (int) (alpha * Math.max(0.0, Math.min(1.0, opacity)));
+
+            return (finalAlpha << 24) | (red << 16) | (green << 8) | blue;
+
         } catch (NumberFormatException e) {
             LOGGER.warn("Invalid color format: {}", colorStr);
             return 0;

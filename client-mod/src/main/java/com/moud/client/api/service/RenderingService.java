@@ -7,6 +7,7 @@ import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
 import net.minecraft.util.Identifier;
 import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
@@ -41,14 +42,17 @@ public final class RenderingService {
         LOGGER.debug("RenderingService received new GraalVM Context, valid: {}", contextValid.get());
     }
 
+    @HostAccess.Export
     public void applyPostEffect(String effectId) {
         postProcessingManager.applyEffect(effectId);
     }
 
+    @HostAccess.Export
     public void removePostEffect(String effectId) {
         postProcessingManager.removeEffect(effectId);
     }
 
+    @HostAccess.Export
     public void on(String eventName, Value callback) {
         if (!callback.canExecute()) {
             throw new IllegalArgumentException("Callback must be an executable function.");
@@ -56,6 +60,7 @@ public final class RenderingService {
         renderHandlers.put(eventName, callback);
     }
 
+    @HostAccess.Export
     public String requestAnimationFrame(Value callback) {
         if (!callback.canExecute()) {
             throw new IllegalArgumentException("Callback must be an executable function.");
@@ -65,10 +70,12 @@ public final class RenderingService {
         return id;
     }
 
+    @HostAccess.Export
     public void cancelAnimationFrame(String id) {
         animationFrameCallbacks.remove(id);
     }
 
+    @HostAccess.Export
     public String createRenderType(Value options) {
         try {
             RenderTypeDefinition definition = new RenderTypeDefinition(options);
@@ -80,6 +87,7 @@ public final class RenderingService {
         }
     }
 
+    @HostAccess.Export
     public void setShaderUniform(String shaderId, String uniformName, Object value) {
         try {
             Identifier shaderIdentifier = Identifier.tryParse(shaderId);

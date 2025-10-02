@@ -10,6 +10,7 @@ import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.text.Text;
 import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -142,60 +143,91 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
         }
     }
 
+    @HostAccess.Export
+    public int getWidth() {
+        return super.getWidth();
+    }
+
+    @HostAccess.Export
+    public int getHeight() {
+        return super.getHeight();
+    }
+
+    @HostAccess.Export
+    public int getX() {
+        return super.getX();
+    }
+
+    @HostAccess.Export
+    public int getY() {
+        return super.getY();
+    }
+
+    @HostAccess.Export
     public UIComponent setComponentId(String id) {
         this.componentId = id;
         return this;
     }
 
+    @HostAccess.Export
     public String getComponentId() {
         return componentId;
     }
 
+    @HostAccess.Export
     public UIComponent setText(String text) {
         setMessage(Text.literal(text));
         return this;
     }
 
+    @HostAccess.Export
     public String getText() {
         return getMessage().getString();
     }
 
-    public UIComponent setPos(int x, int y) {
-        setX(x);
-        setY(y);
+    @HostAccess.Export
+    public UIComponent setPos(double x, double y) {
+        setX((int) x);
+        setY((int) y);
         updateChildrenPositions();
         markDirty();
         return this;
     }
 
-    public UIComponent setSize(int width, int height) {
-        setWidth(width);
-        setHeight(height);
+    @HostAccess.Export
+    public UIComponent setSize(double width, double height) {
+        setWidth((int) width);
+        setHeight((int) height);
         updateChildrenPositions();
         markDirty();
         return this;
     }
 
+    @HostAccess.Export
     public UIComponent setBackgroundColor(String color) {
         this.backgroundColor = color;
         markDirty();
         return this;
     }
 
+    @HostAccess.Export
     public String getBackgroundColor() {
         return backgroundColor;
     }
 
+    @HostAccess.Export
     public UIComponent setTextColor(String color) {
         this.textColor = color;
         markDirty();
         return this;
     }
 
+    @HostAccess.Export
     public String getTextColor() {
         return textColor;
     }
 
+    @HostAccess.Export
     public UIComponent setBorder(int width, String color) {
         this.borderWidth = width;
         this.borderColor = color;
@@ -203,34 +235,41 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
         return this;
     }
 
+    @HostAccess.Export
     public int getBorderWidth() {
         return borderWidth;
     }
 
+    @HostAccess.Export
     public String getBorderColor() {
         return borderColor;
     }
 
+    @HostAccess.Export
     public UIComponent setOpacity(double opacity) {
         this.opacity = Math.max(0.0, Math.min(1.0, opacity));
         markDirty();
         return this;
     }
 
+    @HostAccess.Export
     public double getOpacity() {
         return opacity;
     }
 
+    @HostAccess.Export
     public UIComponent setTextAlign(String align) {
         this.textAlign = align;
         markDirty();
         return this;
     }
 
+    @HostAccess.Export
     public String getTextAlign() {
         return textAlign;
     }
 
+    @HostAccess.Export
     public UIComponent setPadding(double top, double right, double bottom, double left) {
         this.paddingTop = top;
         this.paddingRight = right;
@@ -240,11 +279,16 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
         return this;
     }
 
+    @HostAccess.Export
     public double getPaddingTop() { return paddingTop; }
+    @HostAccess.Export
     public double getPaddingRight() { return paddingRight; }
+    @HostAccess.Export
     public double getPaddingBottom() { return paddingBottom; }
+    @HostAccess.Export
     public double getPaddingLeft() { return paddingLeft; }
 
+    @HostAccess.Export
     public UIComponent appendChild(UIComponent child) {
         children.add(child);
         child.parent = this;
@@ -253,6 +297,7 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
         return this;
     }
 
+    @HostAccess.Export
     public UIComponent removeChild(UIComponent child) {
         children.remove(child);
         child.parent = null;
@@ -260,52 +305,62 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
         return this;
     }
 
+    @HostAccess.Export
     public List<UIComponent> getChildren() {
         return new CopyOnWriteArrayList<>(children);
     }
 
+    @HostAccess.Export
     public UIComponent show() {
         this.visible = true;
         markDirty();
         return this;
     }
 
+    @HostAccess.Export
     public UIComponent hide() {
         this.visible = false;
         markDirty();
         return this;
     }
 
+    @HostAccess.Export
     public boolean isVisible() {
         return visible;
     }
 
+    @HostAccess.Export
     public UIComponent showAsOverlay() {
         com.moud.client.ui.UIOverlayManager.getInstance().addOverlayElement(this);
         this.visible = true;
         return this;
     }
 
+    @HostAccess.Export
     public UIComponent hideOverlay() {
         com.moud.client.ui.UIOverlayManager.getInstance().removeOverlayElement(this);
         return this;
     }
 
+    @HostAccess.Export
     public UIComponent onClick(Value callback) {
         addEventHandler("click", callback);
         return this;
     }
 
+    @HostAccess.Export
     public UIComponent onHover(Value callback) {
         addEventHandler("hover", callback);
         return this;
     }
 
+    @HostAccess.Export
     public UIComponent onFocus(Value callback) {
         addEventHandler("focus", callback);
         return this;
     }
 
+    @HostAccess.Export
     public UIComponent onBlur(Value callback) {
         addEventHandler("blur", callback);
         return this;
@@ -368,29 +423,32 @@ public class UIComponent extends ClickableWidget implements Drawable, Element, S
         this.dirty = false;
     }
 
-    protected int parseColor(String colorStr, double opacity) {
+    protected int parseColor(String colorStr, double elementOpacity) {
         if (colorStr == null || !colorStr.startsWith("#")) {
             return 0;
         }
-
         try {
-            String hex = colorStr.substring(1);
-            long value;
+            long value = Long.parseLong(colorStr.substring(1), 16);
+            int alpha, red, green, blue;
 
-            if (hex.length() == 8) {
-                value = Long.parseLong(hex, 16);
+            if (colorStr.length() == 9) {
+                alpha = (int) ((value >> 24) & 0xFF);
+                red = (int) ((value >> 16) & 0xFF);
+                green = (int) ((value >> 8) & 0xFF);
+                blue = (int) (value & 0xFF);
+            } else if (colorStr.length() == 7) {
+                alpha = 255;
+                red = (int) ((value >> 16) & 0xFF);
+                green = (int) ((value >> 8) & 0xFF);
+                blue = (int) (value & 0xFF);
             } else {
-                value = Long.parseLong(hex, 16);
-                if (hex.length() == 3) {
-                    long r = (value >> 8) & 0xF;
-                    long g = (value >> 4) & 0xF;
-                    long b = value & 0xF;
-                    value = (r << 20) | (r << 16) | (g << 12) | (g << 8) | (b << 4) | b;
-                }
-                int alpha = (int) (Math.max(0, Math.min(1, opacity)) * 255);
-                value |= (long) alpha << 24;
+                return 0;
             }
-            return (int) value;
+
+            int finalAlpha = (int) (alpha * Math.max(0.0, Math.min(1.0, elementOpacity)));
+
+            return (finalAlpha << 24) | (red << 16) | (green << 8) | blue;
+
         } catch (NumberFormatException e) {
             return 0;
         }

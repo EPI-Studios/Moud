@@ -1,6 +1,7 @@
 package com.moud.client.mixin;
 
 import com.moud.client.api.service.ClientAPIService;
+import com.moud.client.ui.UIOverlayManager;
 import com.moud.network.MoudPackets;
 import com.moud.client.network.ClientPacketWrapper;
 import net.minecraft.client.MinecraftClient;
@@ -30,17 +31,31 @@ public abstract class MouseMixin {
 
     @Inject(method = "onMouseButton", at = @At("HEAD"), cancellable = true)
     private void moud_onMouseButton(long window, int button, int action, int mods, CallbackInfo ci) {
-        if (client.currentScreen != null || action != 1) {
+        if (action != 1) { // GLFW_PRESS
             return;
         }
 
-        if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.ui != null) {
-            if (ClientAPIService.INSTANCE.ui.handleClick(this.x, this.y, button)) {
+        // If a vanilla screen is open, let it handle the input.
+        if (client.currentScreen != null) {
+            return;
+        }
+
+        // If the cursor is unlocked (visible), it means we are in a UI interaction mode.
+        if (!client.mouse.isCursorLocked()) {
+            // Check for clicks on the UIComponent overlay system.
+            if (UIOverlayManager.getInstance().handleOverlayClick(this.x, this.y, button)) {
+                // If the click was handled by the overlay, consume the event.
                 ci.cancel();
                 return;
             }
+
+            // We still cancel the event to prevent Minecraft from re-locking the cursor
+            // when clicking on empty space in UI mode.
+            ci.cancel();
+            return;
         }
 
+        // If we reach here, the cursor is locked, and no screen is open. This is a normal gameplay click.
         ClientPacketWrapper.sendToServer(new MoudPackets.PlayerClickPacket(button));
     }
 

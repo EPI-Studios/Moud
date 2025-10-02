@@ -14,6 +14,7 @@ import com.moud.client.rendering.AnimationManager;
 import com.moud.client.resources.InMemoryPackResources;
 import com.moud.client.runtime.ClientScriptingRuntime;
 import com.moud.client.shared.SharedValueManager;
+import com.moud.client.ui.UIOverlayManager;
 import com.moud.network.MoudPackets;
 import com.moud.network.MoudPackets.*;
 import com.zigythebird.playeranim.api.PlayerAnimationAccess;
@@ -21,6 +22,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.client.MinecraftClient;
@@ -89,6 +91,10 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         registerRenderHandler();
         registerAnimationLayer();
         registerShutdownHandler();
+
+        HudRenderCallback.EVENT.register((drawContext, tickCounter) -> {
+            UIOverlayManager.getInstance().renderOverlays(drawContext, tickCounter);
+        });
 
         LOGGER.info("Moud client initialization complete.");
     }
