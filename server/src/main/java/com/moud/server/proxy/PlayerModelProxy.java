@@ -193,6 +193,18 @@ public class PlayerModelProxy {
     }
 
     @HostAccess.Export
+    public void playAnimationWithFade(String animationName, int durationMs) {
+        int durationTicks = durationMs / 50;
+
+        MoudPackets.S2C_PlayModelAnimationWithFadePacket packet = new MoudPackets.S2C_PlayModelAnimationWithFadePacket(
+                this.modelId,
+                animationName,
+                durationTicks
+        );
+        broadcast(packet);
+    }
+
+    @HostAccess.Export
     public void playAnimation(String animationName) {
         this.currentAnimation = animationName;
         broadcastAnimation();

@@ -97,7 +97,7 @@ public class ClientScriptManager {
                 zip.putNextEntry(new ZipEntry(newPath));
                 zip.write(content);
                 zip.closeEntry();
-                LOGGER.info("Packaged animation file to new path: {}", newPath);
+                LOGGER.info("Packaged animation file to PlayerAnimLib path: {}", newPath);
             } else {
                 zip.putNextEntry(new ZipEntry(relativePath));
                 zip.write(content);

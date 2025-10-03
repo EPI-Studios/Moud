@@ -127,6 +127,17 @@ public class PlayerProxy {
     }
 
     @HostAccess.Export
+    public boolean isMoving() {
+        ServerMovementHandler.PlayerMovementState state = ServerMovementHandler.getInstance().getPlayerState(player);
+
+        if (state == null) {
+            return false;
+        }
+
+        return state.isMoving();
+    }
+
+    @HostAccess.Export
     public void setVanished(boolean vanished) {
         player.setInvisible(vanished);
     }

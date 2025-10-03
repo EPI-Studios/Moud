@@ -1,6 +1,7 @@
 package com.moud.client.animation;
 
 import com.zigythebird.playeranim.PlayerAnimLibMod;
+import com.zigythebird.playeranim.animation.PlayerAnimResources;
 import com.zigythebird.playeranim.api.PlayerAnimationAccess;
 import com.zigythebird.playeranimcore.animation.Animation;
 import com.zigythebird.playeranimcore.animation.AnimationController;
@@ -12,7 +13,6 @@ import org.slf4j.LoggerFactory;
 
 public class ClientAnimationPlayer {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientAnimationPlayer.class);
-    public static final Identifier ANIMATION_LAYER_ID = Identifier.of("moud", "player_animation_layer");
 
     private final AbstractClientPlayerEntity player;
     private AnimationController animationController;
@@ -23,7 +23,12 @@ public class ClientAnimationPlayer {
 
     private AnimationController getController() {
         if (this.animationController == null) {
-            this.animationController = (AnimationController) PlayerAnimationAccess.getPlayerAnimationLayer(player, PlayerAnimLibMod.ANIMATION_LAYER_ID);
+            try {
+                this.animationController = (AnimationController) PlayerAnimationAccess.getPlayerAnimationLayer(player, PlayerAnimLibMod.ANIMATION_LAYER_ID);
+                LOGGER.debug("ClientAnimationPlayer controller retrieved. Hash: {}", this.animationController.hashCode());
+            } catch (Exception e) {
+                LOGGER.error("Failed to retrieve PlayerAnimationController for local player.", e);
+            }
         }
         return this.animationController;
     }
@@ -31,40 +36,23 @@ public class ClientAnimationPlayer {
     public void playAnimation(String animationIdStr) {
         AnimationController controller = getController();
         if (controller == null) {
-            LOGGER.error("Could not get animation controller for player.");
+            LOGGER.error("Could not get animation controller for player '{}'.", player.getName().getString());
             return;
         }
 
         Identifier animationId = Identifier.tryParse(animationIdStr);
         if (animationId == null) {
-            LOGGER.error("Invalid animation ID format: {}", animationIdStr);
-            return;
+            animationId = Identifier.of("moud", animationIdStr);
         }
 
-        Animation animation = com.zigythebird.playeranim.animation.PlayerAnimResources.getAnimation(animationId);
+        Animation animation = PlayerAnimResources.getAnimation(animationId);
 
         if (animation == null) {
-            String[] parts = animationIdStr.split(":");
-            if (parts.length == 2) {
-                Identifier alternativeId = Identifier.of("moud", parts[1]);
-                animation = com.zigythebird.playeranim.animation.PlayerAnimResources.getAnimation(alternativeId);
-            }
-        }
-
-        if (animation == null) {
-            Identifier waveId = Identifier.of("moud", "wave");
-            animation = com.zigythebird.playeranim.animation.PlayerAnimResources.getAnimation(waveId);
-            if (animation != null) {
-                LOGGER.info("Found wave animation, using as fallback");
-            }
-        }
-
-        if (animation == null) {
-            LOGGER.warn("Animation '{}' not found on client. Available animations need to be in assets/moud/animations/ folder.", animationId);
+            LOGGER.warn("Animation '{}' not found in PlayerAnimResources.", animationId);
             return;
         }
 
         controller.triggerAnimation(RawAnimation.begin().thenPlay(animation));
-        LOGGER.info("Playing animation '{}' on player.", animationId);
+        LOGGER.info("Triggering animation '{}' on local player.", animationId);
     }
 }

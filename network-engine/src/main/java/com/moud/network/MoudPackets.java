@@ -193,5 +193,11 @@ public final class MoudPackets {
             SNAP_TO
         }
     }
+    @Packet(value = "moud:play_model_animation_fade", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_PlayModelAnimationWithFadePacket(
+            @Field(order = 0) long modelId,
+            @Field(order = 1) String animationId,
+            @Field(order = 2) int durationTicks
+    ) {}
 
 }

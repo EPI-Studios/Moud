@@ -11,7 +11,6 @@ import com.moud.client.network.ClientPacketWrapper;
 import com.moud.client.network.MoudPayload;
 import com.moud.client.player.ClientCameraManager;
 import com.moud.client.player.PlayerStateManager;
-import com.moud.client.rendering.AnimationManager;
 import com.moud.client.resources.InMemoryPackResources;
 import com.moud.client.runtime.ClientScriptingRuntime;
 import com.moud.client.shared.SharedValueManager;
@@ -28,7 +27,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.resource.*;
@@ -65,8 +63,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
     private final AtomicBoolean resourcesLoaded = new AtomicBoolean(false);
     private final AtomicBoolean waitingForResources = new AtomicBoolean(false);
-
-    private AnimationManager animationManager;
     private static boolean customCameraActive = false;
 
     private ClientScriptingRuntime scriptingRuntime;
@@ -170,6 +166,17 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             handleFirstPersonConfig(packet);
         });
         ClientPacketWrapper.registerHandler(MoudPackets.CameraControlPacket.class, (player, packet) -> handleCameraControl(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_PlayModelAnimationWithFadePacket.class, (player, packet) -> {
+            MinecraftClient.getInstance().execute(() -> {
+                AnimatedPlayerModel model = ClientPlayerModelManager.getInstance().getModel(packet.modelId());
+                if (model != null) {
+                    model.playAnimationWithFade(packet.animationId(), packet.durationTicks());
+                    LOGGER.info("Playing animation '{}' with fade on model {}.", packet.animationId(), packet.modelId());
+                } else {
+                    LOGGER.warn("Received faded animation for unknown model ID: {}", packet.modelId());
+                }
+            });
+        });
 
 
         LOGGER.info("Internal packet handlers registered.");
@@ -233,7 +240,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         this.clientCameraManager = new ClientCameraManager();
         this.playerStateManager = PlayerStateManager.getInstance();
         this.clientCursorManager = ClientCursorManager.getInstance();
-        this.animationManager = AnimationManager.getInstance();
         LOGGER.info("ClientCursorManager initialized: {}", clientCursorManager != null);
         moudServicesInitialized = true;
     }
@@ -246,7 +252,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         if (playerStateManager != null) { playerStateManager.reset(); }
 
         if (clientCursorManager != null) { clientCursorManager.clear(); }
-        if (animationManager != null) { animationManager.clearAll(); }
         this.clientCameraManager = null;
         this.playerStateManager = null;
         moudServicesInitialized = false;
@@ -412,7 +417,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                     if (name.contains("animation") && name.endsWith(".json")) {
                         String animationName = name.substring(name.lastIndexOf('/') + 1, name.lastIndexOf('.'));
                         LOGGER.info("Loading animation: {} from path: {}", animationName, name);
-                        animationManager.loadAnimation(animationName, new String(data));
                     }
                 }
             }
