@@ -90,15 +90,18 @@ public class ClientScriptManager {
             String relativePath = projectRoot.relativize(path).toString().replace('\\', '/');
             byte[] content = Files.readAllBytes(path);
 
-            zip.putNextEntry(new ZipEntry(relativePath));
-            zip.write(content);
-            zip.closeEntry();
-
             if (relativePath.contains("animation") && relativePath.endsWith(".json")) {
-                LOGGER.info("Packaged animation file: {}", relativePath);
+                String fileName = path.getFileName().toString();
+                String newPath = "assets/moud/player_animations/" + fileName;
 
-                String fileContent = new String(content);
+                zip.putNextEntry(new ZipEntry(newPath));
+                zip.write(content);
+                zip.closeEntry();
+                LOGGER.info("Packaged animation file to new path: {}", newPath);
             } else {
+                zip.putNextEntry(new ZipEntry(relativePath));
+                zip.write(content);
+                zip.closeEntry();
                 LOGGER.debug("Packaged asset: {}", relativePath);
             }
         } catch (IOException e) {

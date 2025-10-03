@@ -1,228 +1,227 @@
 package com.moud.server.scripting;
 
-import com.moud.server.ConsoleAPI;
 import com.moud.server.MoudEngine;
-import com.moud.server.api.exception.APIException;
 import com.moud.server.logging.MoudLogger;
-import com.moud.api.math.Vector3;
 import com.moud.server.typescript.TypeScriptTranspiler;
-import org.graalvm.polyglot.*;
-import org.graalvm.polyglot.io.IOAccess;
-import org.graalvm.polyglot.proxy.ProxyArray;
+import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.HostAccess;
+import org.graalvm.polyglot.PolyglotException;
+import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyExecutable;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class JavaScriptRuntime {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(JavaScriptRuntime.class);
-    private static final String LANGUAGE_ID = "js";
 
-    private final Context context;
-    private final ExecutorService scriptExecutor;
-    private final ScheduledExecutorService timerExecutor;
-    private final AtomicBoolean running = new AtomicBoolean(true);
-
-    private final AtomicLong timerIdCounter = new AtomicLong(0);
-    private final ConcurrentHashMap<Long, ScheduledFuture<?>> activeTimers = new ConcurrentHashMap<>();
+    private Context jsContext;
+    private final ExecutorService executor;
+    private final MoudEngine engine;
+    private volatile boolean isShuttingDown = false;
 
     public JavaScriptRuntime(MoudEngine engine) {
-        this.scriptExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "JavaScriptRuntime-Main"));
-        this.timerExecutor = Executors.newScheduledThreadPool(2, r -> new Thread(r, "JavaScriptRuntime-Timer"));
-        try {
-            this.context = createSecureContext();
-            prepareMoudObject();
-            bindTimerFunctionsToContext();
-
-        } catch (Exception e) {
-            LOGGER.critical("Failed to initialize JavaScript runtime", e);
-            throw new APIException("RUNTIME_INIT_FAILED", "Failed to initialize JavaScript runtime", e);
-        }
+        this.engine = engine;
+        this.executor = Executors.newSingleThreadExecutor(r -> new Thread(r, "JavaScriptRuntime-Main"));
+        initializeContext();
     }
 
-    private void prepareMoudObject() {
-        context.getBindings(LANGUAGE_ID).putMember("Moud", context.eval(LANGUAGE_ID, "({})"));
-    }
-
-    public void bindAPIs(Object api, Object assets, Object console) {
-        executeTask(() -> {
-            Value moudObj = context.getBindings(LANGUAGE_ID).getMember("Moud");
-            if (moudObj == null || moudObj.isNull()) {
-                LOGGER.error("Moud object is not defined in the script context! This should not happen.");
-                prepareMoudObject();
-                moudObj = context.getBindings(LANGUAGE_ID).getMember("Moud");
-            }
-            moudObj.putMember("api", api);
-            moudObj.putMember("assets", assets);
-
-            bindConsole((ConsoleAPI) console);
-        });
-    }
-
-    private Context createSecureContext() throws NoSuchMethodException {
+    private void initializeContext() {
         HostAccess hostAccess = HostAccess.newBuilder()
                 .allowAccessAnnotatedBy(HostAccess.Export.class)
-                .allowImplementations(ProxyArray.class)
                 .allowAllImplementations(true)
                 .allowAllClassImplementations(true)
-                .allowAccess(Vector3.class.getConstructor(double.class, double.class, double.class))
+                .allowArrayAccess(true)
+                .allowListAccess(true)
+                .allowMapAccess(true)
                 .build();
 
-        return Context.newBuilder(LANGUAGE_ID)
+        this.jsContext = Context.newBuilder("js")
                 .allowHostAccess(hostAccess)
-                .allowIO(IOAccess.NONE)
-                .allowNativeAccess(false)
-                .allowCreateThread(false)
-                .allowCreateProcess(false)
-                .allowEnvironmentAccess(EnvironmentAccess.NONE)
-                .allowPolyglotAccess(PolyglotAccess.NONE)
+                .allowIO(true)
+                .option("engine.WarnInterpreterOnly", "false")
                 .build();
+
+        bindTimerFunctions();
     }
 
-    private Object convertPolyglotValue(Value value) {
-        if (value.isHostObject()) return value.asHostObject();
-        if (value.isString()) return value.asString();
-        if (value.isNumber()) return value.asDouble();
-        if (value.isBoolean()) return value.asBoolean();
-        if (value.isNull()) return "null";
-        return value.toString();
-    }
+    private void bindTimerFunctions() {
+        jsContext.enter();
+        try {
+            jsContext.getBindings("js").putMember("setTimeout", new ProxyExecutable() {
+                @Override
+                public Object execute(Value... arguments) {
+                    if (arguments.length < 2) return -1;
+                    Value callback = arguments[0];
+                    long delay = arguments[1].asLong();
 
-    public void bindConsole(ConsoleAPI consoleImpl) {
-        Value bindings = context.getBindings(LANGUAGE_ID);
-        if (!bindings.hasMember("console")) {
-            ProxyExecutable logProxy = args -> {
-                consoleImpl.log(Arrays.stream(args).map(this::convertPolyglotValue).toArray());
-                return null;
-            };
-            ProxyExecutable warnProxy = args -> {
-                consoleImpl.warn(Arrays.stream(args).map(this::convertPolyglotValue).toArray());
-                return null;
-            };
-            ProxyExecutable errorProxy = args -> {
-                consoleImpl.error(Arrays.stream(args).map(this::convertPolyglotValue).toArray());
-                return null;
-            };
-            ProxyExecutable debugProxy = args -> {
-                consoleImpl.debug(Arrays.stream(args).map(this::convertPolyglotValue).toArray());
-                return null;
-            };
+                    CompletableFuture.delayedExecutor(delay, TimeUnit.MILLISECONDS, executor)
+                            .execute(() -> executeCallback(callback));
+                    return null;
+                }
+            });
 
-            Value consoleObj = context.eval(LANGUAGE_ID, "({})");
-            consoleObj.putMember("log", logProxy);
-            consoleObj.putMember("warn", warnProxy);
-            consoleObj.putMember("error", errorProxy);
-            consoleObj.putMember("debug", debugProxy);
-            bindings.putMember("console", consoleObj);
+            jsContext.getBindings("js").putMember("setInterval", new ProxyExecutable() {
+                @Override
+                public Object execute(Value... arguments) {
+                    if (arguments.length < 2) return -1;
+                    Value callback = arguments[0];
+                    long delay = arguments[1].asLong();
+
+                    executor.execute(() -> {
+                        while (!isShuttingDown) {
+                            try {
+                                Thread.sleep(delay);
+                                executeCallback(callback);
+                            } catch (InterruptedException e) {
+                                break;
+                            }
+                        }
+                    });
+                    return null;
+                }
+            });
+
+            jsContext.getBindings("js").putMember("clearInterval", new ProxyExecutable() {
+                @Override
+                public Object execute(Value... arguments) {
+                    return null;
+                }
+            });
+        } finally {
+            jsContext.leave();
         }
     }
 
-    private void bindTimerFunctionsToContext() {
-        Value bindings = context.getBindings(LANGUAGE_ID);
-        bindings.putMember("setTimeout", (ProxyExecutable) args -> {
-            if (args.length < 2 || !args[0].canExecute() || !args[1].isNumber()) return -1L;
-            long id = timerIdCounter.incrementAndGet();
-            ScheduledFuture<?> future = timerExecutor.schedule(() -> executeCallback(args[0]), args[1].asLong(), TimeUnit.MILLISECONDS);
-            activeTimers.put(id, future);
-            return id;
-        });
+    public void bindAPIs(Object... apis) {
+        CompletableFuture.runAsync(() -> {
+            jsContext.enter();
+            try {
+                Value bindings = jsContext.getBindings("js");
+                Value moudObj = jsContext.eval("js", "({})");
 
-        bindings.putMember("setInterval", (ProxyExecutable) args -> {
-            if (args.length < 2 || !args[0].canExecute() || !args[1].isNumber()) return -1L;
-            long delay = args[1].asLong();
-            if (delay <= 0) return -1L;
-            long id = timerIdCounter.incrementAndGet();
-            ScheduledFuture<?> future = timerExecutor.scheduleAtFixedRate(() -> executeCallback(args[0]), delay, delay, TimeUnit.MILLISECONDS);
-            activeTimers.put(id, future);
-            return id;
-        });
+                for (Object api : apis) {
+                    if (api instanceof com.moud.server.api.ScriptingAPI) {
+                        com.moud.server.api.ScriptingAPI scriptingAPI = (com.moud.server.api.ScriptingAPI) api;
 
-        ProxyExecutable clearTimeout = (args) -> {
-            if (args.length > 0 && args[0].isNumber()) {
-                ScheduledFuture<?> future = activeTimers.remove(args[0].asLong());
-                if (future != null) future.cancel(false);
+                        moudObj.putMember("on", new ProxyExecutable() {
+                            @Override
+                            public Object execute(Value... arguments) {
+                                if (arguments.length >= 2) {
+                                    scriptingAPI.on(arguments[0].asString(), arguments[1]);
+                                }
+                                return null;
+                            }
+                        });
+
+                        moudObj.putMember("server", scriptingAPI.server);
+                        moudObj.putMember("world", scriptingAPI.world);
+                        moudObj.putMember("lighting", scriptingAPI.lighting);
+                        moudObj.putMember("zones", scriptingAPI.zones);
+                        moudObj.putMember("math", scriptingAPI.math);
+                        moudObj.putMember("commands", scriptingAPI.commands);
+                        moudObj.putMember("async", scriptingAPI.getAsync());
+                    } else if (api instanceof com.moud.server.proxy.AssetProxy) {
+                        moudObj.putMember("assets", api);
+                    } else if (api instanceof com.moud.server.ConsoleAPI) {
+                        bindings.putMember("console", api);
+                    }
+                }
+
+                bindings.putMember("Moud", moudObj);
+            } finally {
+                jsContext.leave();
             }
-            return null;
-        };
-        bindings.putMember("clearTimeout", clearTimeout);
-        bindings.putMember("clearInterval", clearTimeout);
+        }, executor);
     }
 
-    public void executeTask(Runnable task) {
-        if (running.get()) {
-            scriptExecutor.execute(task);
-        }
+    public CompletableFuture<Void> executeScript(Path scriptPath) {
+        return CompletableFuture.runAsync(() -> {
+            if (isShuttingDown) return;
+
+            try {
+                String scriptContent;
+                String fileName = scriptPath.getFileName().toString();
+
+                if (fileName.endsWith(".ts")) {
+                    scriptContent = TypeScriptTranspiler.transpile(scriptPath).get();
+                } else {
+                    scriptContent = Files.readString(scriptPath);
+                }
+
+                jsContext.enter();
+                try {
+                    jsContext.eval("js", scriptContent);
+                } finally {
+                    jsContext.leave();
+                }
+            } catch (PolyglotException e) {
+                if (e.isGuestException()) {
+                    LOGGER.scriptError("Execution failed in {} at line {}, column {}",
+                            scriptPath.getFileName(), e.getSourceLocation().getStartLine(), e.getSourceLocation().getStartColumn());
+                    LOGGER.error("└─> {}: {}", e.getMessage().split(":")[0], e.getMessage().substring(e.getMessage().indexOf(":") + 1).trim());
+                } else {
+                    LOGGER.error("Host error during script execution", e);
+                }
+            } catch (Exception e) {
+                LOGGER.error("Failed to execute script: {}", scriptPath.getFileName(), e);
+            }
+        }, executor);
     }
 
     public void executeCallback(Value callback, Object... args) {
-        executeTask(() -> {
+        if (isShuttingDown || callback == null || !callback.canExecute()) return;
+
+        executor.execute(() -> {
+            if (isShuttingDown) return;
+
+            jsContext.enter();
             try {
-                context.enter();
                 callback.execute(args);
+            } catch (PolyglotException e) {
+                if (e.isGuestException() && e.getSourceLocation() != null) {
+                    LOGGER.scriptError("Error in callback execution at {} (line {}, column {}): {}",
+                            e.getSourceLocation().getSource().getName(),
+                            e.getSourceLocation().getStartLine(),
+                            e.getSourceLocation().getStartColumn(),
+                            e.getMessage());
+                } else {
+                    LOGGER.error("Error executing callback: {}", e.getMessage());
+                }
             } catch (Exception e) {
-                handleScriptException(e, "in callback");
+                LOGGER.error("Unexpected error in callback execution", e);
             } finally {
-                context.leave();
+                jsContext.leave();
             }
         });
     }
 
-    public CompletableFuture<Value> executeScript(Path scriptPath) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                String content = loadScriptContent(scriptPath);
-                Source source = Source.newBuilder(LANGUAGE_ID, content, scriptPath.getFileName().toString()).build();
-                LOGGER.info("Executing script: {}", scriptPath.getFileName());
-                context.enter();
-                try {
-                    return context.eval(source);
-                } finally {
-                    context.leave();
-                }
-            } catch (Exception e) {
-                handleScriptException(e, scriptPath.toString());
-                throw new CompletionException(e);
-            }
-        }, scriptExecutor);
-    }
-
-    private String loadScriptContent(Path scriptPath) throws Exception {
-        if (scriptPath.toString().endsWith(".ts")) {
-            return TypeScriptTranspiler.transpile(scriptPath).get();
-        }
-        return Files.readString(scriptPath);
-    }
-
-    private void handleScriptException(Throwable e, String contextInfo) {
-        if (e instanceof PolyglotException polyglotException) {
-            SourceSection location = polyglotException.getSourceLocation();
-            String fileName = location != null ? location.getSource().getName() : "Unknown Script";
-            int line = location != null ? location.getStartLine() : 0;
-            int column = location != null ? location.getStartColumn() : 0;
-
-            LOGGER.scriptError("Execution failed in {} at line {}, column {}", fileName, line, column);
-            LOGGER.error("└─> {}", polyglotException.getMessage());
-        } else {
-            LOGGER.scriptError("An unexpected Java error occurred while executing script code in context: {}", contextInfo, e);
-        }
+    public ExecutorService getExecutor() {
+        return executor;
     }
 
     public void shutdown() {
-        if (!running.compareAndSet(true, false)) return;
-        LOGGER.shutdown("Shutting down JavaScript runtime...");
-        shutdownExecutor(scriptExecutor, "Script Executor");
-        shutdownExecutor(timerExecutor, "Timer Executor");
-        context.close(true);
-    }
+        isShuttingDown = true;
 
-    private void shutdownExecutor(ExecutorService executor, String name) {
+        executor.execute(() -> {
+            if (jsContext != null) {
+                try {
+                    jsContext.close(true);
+                } catch (Exception e) {
+                    LOGGER.error("Error closing JavaScript context", e);
+                }
+            }
+        });
+
         executor.shutdown();
         try {
-            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) executor.shutdownNow();
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+            }
         } catch (InterruptedException e) {
             executor.shutdownNow();
             Thread.currentThread().interrupt();

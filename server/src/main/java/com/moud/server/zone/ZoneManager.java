@@ -1,4 +1,3 @@
-// File: src/main/java/com/moud/server/zone/ZoneManager.java
 package com.moud.server.zone;
 
 import com.moud.api.math.Vector3;
@@ -70,7 +69,6 @@ public class ZoneManager {
 
         Player player = event.getPlayer();
         MinecraftServer.getSchedulerManager().scheduleNextTick(() -> {
-            // --- FIX: Utilisation de getPosition().chunkX() ---
             long chunkHash = getChunkHash(player.getPosition().chunkX(), player.getPosition().chunkZ());
             Collection<Zone> zonesInChunk = zonesByChunk.get(chunkHash);
             if (zonesInChunk != null) {
@@ -81,24 +79,19 @@ public class ZoneManager {
 
     private void onPlayerMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
-        // --- FIX: L'ancienne position est la position actuelle du joueur AVANT le mouvement. ---
-        // La nouvelle position est donnée par l'événement.
-        Point from = player.getPosition();
-        Point to = event.getNewPosition();
+        Point newPos = event.getNewPosition();
 
-        if (from.chunkX() == to.chunkX() && from.chunkZ() == to.chunkZ()) {
-            return;
-        }
-
-        long oldChunkHash = getChunkHash(from.chunkX(), from.chunkZ());
-        long newChunkHash = getChunkHash(to.chunkX(), to.chunkZ());
+        long currentChunkHash = getChunkHash(newPos.chunkX(), newPos.chunkZ());
+        Set<Zone> zonesInCurrentChunk = zonesByChunk.get(currentChunkHash);
 
         Set<Zone> zonesToCheck = new HashSet<>();
-        if (zonesByChunk.containsKey(oldChunkHash)) {
-            zonesToCheck.addAll(zonesByChunk.get(oldChunkHash));
+        if (zonesInCurrentChunk != null) {
+            zonesToCheck.addAll(zonesInCurrentChunk);
         }
-        if (zonesByChunk.containsKey(newChunkHash)) {
-            zonesToCheck.addAll(zonesByChunk.get(newChunkHash));
+        for (Zone zone : zonesById.values()) {
+            if (zone.isPlayerInside(player)) {
+                zonesToCheck.add(zone);
+            }
         }
 
         if (zonesToCheck.isEmpty()) return;

@@ -4,11 +4,7 @@ import com.moud.server.MoudEngine;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.api.validation.APIValidator;
 import com.moud.server.events.EventDispatcher;
-import com.moud.server.proxy.LightingAPIProxy;
-import com.moud.server.proxy.MathProxy;
-import com.moud.server.proxy.ServerProxy;
-import com.moud.server.proxy.WorldProxy;
-import com.moud.server.proxy.ZoneAPIProxy;
+import com.moud.server.proxy.*;
 import com.moud.server.task.AsyncManager;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
@@ -32,6 +28,8 @@ public class ScriptingAPI {
     public final ZoneAPIProxy zones;
     @HostAccess.Export
     public final MathProxy math;
+    @HostAccess.Export
+    public final CommandProxy commands;
 
     public ScriptingAPI(MoudEngine engine) {
         this.engine = engine;
@@ -43,6 +41,7 @@ public class ScriptingAPI {
         this.lighting = new LightingAPIProxy();
         this.zones = new ZoneAPIProxy(engine.getZoneManager());
         this.math = new MathProxy();
+        this.commands = new CommandProxy();
 
         LOGGER.info("Scripting API initialized successfully.");
     }
