@@ -26,6 +26,7 @@ public class PlayerProxy {
     private final SharedValueApiProxy sharedValues;
     private final PlayerUIProxy ui;
     private final CursorProxy cursor;
+    @HostAccess.Export public final PlayerWindowProxy window;
 
     @HostAccess.Export
     public final CameraLockProxy camera;
@@ -38,6 +39,8 @@ public class PlayerProxy {
         this.camera = new CameraLockProxy(player);
         this.ui = new PlayerUIProxy(player);
         this.cursor = new CursorProxy(player);
+        this.window = new PlayerWindowProxy(player);
+
     }
 
     @HostAccess.Export

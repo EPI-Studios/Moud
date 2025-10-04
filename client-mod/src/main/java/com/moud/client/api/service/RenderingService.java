@@ -10,12 +10,16 @@ import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Value;
+import org.graalvm.polyglot.proxy.ProxyExecutable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 public final class RenderingService {
     private static final Logger LOGGER = LoggerFactory.getLogger(RenderingService.class);
@@ -24,6 +28,7 @@ public final class RenderingService {
     private final Map<String, Value> renderHandlers = new ConcurrentHashMap<>();
     private final Map<String, Value> animationFrameCallbacks = new ConcurrentHashMap<>();
     private final Map<Identifier, Map<String, Object>> pendingUniformUpdates = new ConcurrentHashMap<>();
+    private final Queue<Consumer<Double>> pendingJavaCallbacks = new ConcurrentLinkedQueue<>();
 
     private ClientScriptingRuntime scriptingRuntime;
     private volatile Context jsContext;
@@ -40,30 +45,73 @@ public final class RenderingService {
         this.jsContext = jsContext;
         this.contextValid.set(jsContext != null);
         LOGGER.debug("RenderingService received new GraalVM Context, valid: {}", contextValid.get());
-    }
 
-    @HostAccess.Export
-    public void applyPostEffect(String effectId) {
-        postProcessingManager.applyEffect(effectId);
-    }
-
-    @HostAccess.Export
-    public void removePostEffect(String effectId) {
-        postProcessingManager.removeEffect(effectId);
-    }
-
-    @HostAccess.Export
-    public void on(String eventName, Value callback) {
-        if (!callback.canExecute()) {
-            throw new IllegalArgumentException("Callback must be an executable function.");
+        if (contextValid.get() && !pendingJavaCallbacks.isEmpty()) {
+            processPendingJavaCallbacks();
         }
-        renderHandlers.put(eventName, callback);
+    }
+
+    private void processPendingJavaCallbacks() {
+        if (scriptingRuntime == null || scriptingRuntime.getExecutor() == null || scriptingRuntime.getExecutor().isShutdown()) {
+            return;
+        }
+
+        scriptingRuntime.getExecutor().execute(() -> {
+            if (!contextValid.get() || jsContext == null) {
+                return;
+            }
+
+            int processed = 0;
+            while (!pendingJavaCallbacks.isEmpty()) {
+                Consumer<Double> callback = pendingJavaCallbacks.poll();
+                if (callback != null) {
+                    registerJavaCallbackDirectly(callback);
+                    processed++;
+                }
+            }
+
+            if (processed > 0) {
+                LOGGER.info("Processed {} pending Java animation frame callbacks", processed);
+            }
+        });
+    }
+
+    private void registerJavaCallbackDirectly(Consumer<Double> javaCallback) {
+        if (!contextValid.get() || jsContext == null) {
+            LOGGER.warn("Context became invalid while processing pending callbacks");
+            return;
+        }
+
+        final String id = "raf_java_" + System.nanoTime();
+
+        try {
+            jsContext.enter();
+
+            ProxyExecutable proxy = (args) -> {
+                javaCallback.accept(args.length > 0 ? args[0].asDouble() : 0.0);
+                return null;
+            };
+
+            Value callbackValue = Value.asValue(proxy);
+
+            if (callbackValue.canExecute()) {
+                animationFrameCallbacks.put(id, callbackValue);
+                LOGGER.debug("Registered pending callback with id: {}", id);
+            } else {
+                LOGGER.error("Failed to create executable Value from Java proxy");
+            }
+
+        } catch (Exception e) {
+            LOGGER.error("Exception while creating animation frame proxy", e);
+        } finally {
+            jsContext.leave();
+        }
     }
 
     @HostAccess.Export
     public String requestAnimationFrame(Value callback) {
         if (!callback.canExecute()) {
-            throw new IllegalArgumentException("Callback must be an executable function.");
+            throw new IllegalArgumentException("Callback must be an executable function");
         }
         String id = "raf_" + System.nanoTime();
         animationFrameCallbacks.put(id, callback);
@@ -154,7 +202,6 @@ public final class RenderingService {
         triggerRenderEvent("beforeWorldRender", timestamp);
     }
 
-
     public void processAnimationFrames(double timestamp) {
         if (animationFrameCallbacks.isEmpty() || !contextValid.get()) {
             return;
@@ -175,12 +222,9 @@ public final class RenderingService {
         } catch (Exception e) {
             LOGGER.error("Error executing animation frame callbacks", e);
         } finally {
-            if (jsContext != null) {
-                jsContext.leave();
-            }
+            jsContext.leave();
         }
     }
-
 
     public void triggerRenderEvent(String eventName, Object data) {
         Value handler = renderHandlers.get(eventName);
@@ -234,8 +278,9 @@ public final class RenderingService {
         renderHandlers.clear();
         animationFrameCallbacks.clear();
         pendingUniformUpdates.clear();
+        pendingJavaCallbacks.clear();
         scriptingRuntime = null;
         jsContext = null;
-        LOGGER.info("RenderingService cleaned up.");
+        LOGGER.info("RenderingService cleaned up");
     }
 }

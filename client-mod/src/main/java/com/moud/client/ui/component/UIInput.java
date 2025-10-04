@@ -161,7 +161,6 @@ public class UIInput extends UIComponent {
         cursorPosition++;
     }
 
-    // --- FIX: Override triggerFocus and triggerBlur to manage state ---
     @Override
     public void triggerFocus() {
         this.focused = true;
@@ -174,7 +173,6 @@ public class UIInput extends UIComponent {
         super.triggerBlur();
     }
 
-    // --- FIX: Add onSubmit event ---
     @HostAccess.Export
     public UIInput onSubmit(Value callback) {
         if (callback != null && callback.canExecute()) {
@@ -194,16 +192,15 @@ public class UIInput extends UIComponent {
         boolean ctrl = hasControlDown();
         boolean shift = hasShiftDown();
 
-        // --- FIX: Handle Esc and Enter ---
         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
             UIFocusManager.clearFocus();
-            return true; // We handled it
+            return true;
         }
 
         if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
             triggerSubmit();
             UIFocusManager.clearFocus();
-            return true; // We handled it
+            return true;
         }
 
         switch (keyCode) {
@@ -284,13 +281,12 @@ public class UIInput extends UIComponent {
                 }
                 break;
             default:
-                // If not a special key, let it fall through to be handled by onChar
                 return false;
         }
 
         showCursor = true;
         lastBlinkTime = System.currentTimeMillis();
-        return true; // We handled the key press
+        return true;
     }
 
     private void deleteSelection() {

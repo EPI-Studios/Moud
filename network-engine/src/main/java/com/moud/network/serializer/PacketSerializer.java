@@ -66,6 +66,11 @@ public class PacketSerializer {
 
     @SuppressWarnings("unchecked")
     private void writeValue(ByteBuffer buffer, Object value, Class<?> type) {
+        if (type.isEnum()) {
+            buffer.writeInt(((Enum<?>) value).ordinal());
+            return;
+        }
+
         if (type == Map.class || type.isAssignableFrom(Map.class)) {
             MapSerializerUtil.writeStringObjectMap(buffer, (Map<String, Object>) value);
             return;
@@ -106,6 +111,17 @@ public class PacketSerializer {
     @SuppressWarnings("unchecked")
     private Object readValue(ByteBuffer buffer, PacketMetadata.FieldMetadata field) {
         Class<?> type = field.getType();
+
+        if (type.isEnum()) {
+            int ordinal = buffer.readInt();
+            Enum<?>[] enumConstants = (Enum<?>[]) type.getEnumConstants();
+            if (ordinal >= 0 && ordinal < enumConstants.length) {
+                return enumConstants[ordinal];
+            } else {
+                throw new IndexOutOfBoundsException("Invalid ordinal " + ordinal + " for enum " + type.getSimpleName());
+            }
+        }
+
         if (type == Map.class || type.isAssignableFrom(Map.class)) {
             return MapSerializerUtil.readStringObjectMap(buffer);
         }
@@ -146,6 +162,15 @@ public class PacketSerializer {
     }
 
     private Object readValue(ByteBuffer buffer, Class<?> type) {
+        if (type.isEnum()) {
+            int ordinal = buffer.readInt();
+            Enum<?>[] enumConstants = (Enum<?>[]) type.getEnumConstants();
+            if (ordinal >= 0 && ordinal < enumConstants.length) {
+                return enumConstants[ordinal];
+            } else {
+                throw new IndexOutOfBoundsException("Invalid ordinal " + ordinal + " for enum " + type.getSimpleName());
+            }
+        }
         TypeSerializer<?> serializer = serializers.get(type);
         if (serializer != null) {
             return serializer.read(buffer);

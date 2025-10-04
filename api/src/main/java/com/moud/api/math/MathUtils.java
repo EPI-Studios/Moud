@@ -16,7 +16,8 @@ public final class MathUtils {
     @HostAccess.Export
     public static final float RAD_TO_DEG = (float) (180.0 / Math.PI);
 
-    private MathUtils() {}
+    private MathUtils() {
+    }
 
     @HostAccess.Export
     public static float clamp(float value, float min, float max) {

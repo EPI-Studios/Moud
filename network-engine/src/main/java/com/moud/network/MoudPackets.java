@@ -200,4 +200,36 @@ public final class MoudPackets {
             @Field(order = 2) int durationTicks
     ) {}
 
+    @Packet(value = "moud:manage_window", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_ManageWindowPacket(
+            @Field(order = 0) Action action,
+            @Field(order = 1) int int1,       // width or x
+            @Field(order = 2) int int2,       // height or y
+            @Field(order = 3) String string1, // title
+            @Field(order = 4) boolean bool1   // borderless
+    ) {
+        public enum Action { SET_SIZE, SET_POSITION, SET_TITLE, SET_BORDERLESS, MAXIMIZE, MINIMIZE, RESTORE }
+    }
+
+    @Packet(value = "moud:transition_window", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_TransitionWindowPacket(
+            @Field(order = 0) int targetX,
+            @Field(order = 1) int targetY,
+            @Field(order = 2) int targetWidth,
+            @Field(order = 3) int targetHeight,
+            @Field(order = 4) int duration, // in milliseconds
+            @Field(order = 5) String easing // e.g., "ease-out-quad"
+    ) {}
+
+    @Packet(value = "moud:restore_window", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_RestoreWindowPacket(
+            @Field(order = 0) int duration,
+            @Field(order = 1) String easing
+    ) {}
+
+    @Packet(value = "moud:window_sequence", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_WindowSequencePacket(
+            @Field(order = 0) List<Map<String, Object>> steps
+    ) {}
+
 }

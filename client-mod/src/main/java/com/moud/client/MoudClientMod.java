@@ -6,8 +6,8 @@ import com.moud.client.cursor.ClientCursorManager;
 import com.moud.client.lighting.ClientLightingService;
 import com.moud.client.movement.ClientMovementTracker;
 import com.moud.client.network.ClientPacketReceiver;
-import com.moud.client.network.DataPayload;
 import com.moud.client.network.ClientPacketWrapper;
+import com.moud.client.network.DataPayload;
 import com.moud.client.network.MoudPayload;
 import com.moud.client.player.ClientCameraManager;
 import com.moud.client.player.PlayerStateManager;
@@ -15,6 +15,7 @@ import com.moud.client.resources.InMemoryPackResources;
 import com.moud.client.runtime.ClientScriptingRuntime;
 import com.moud.client.shared.SharedValueManager;
 import com.moud.client.ui.UIOverlayManager;
+import com.moud.client.util.WindowAnimator;
 import com.moud.network.MoudPackets;
 import com.moud.network.MoudPackets.*;
 import com.zigythebird.playeranim.api.PlayerAnimationAccess;
@@ -36,6 +37,7 @@ import net.minecraft.util.Identifier;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
 import org.jetbrains.annotations.Nullable;
+import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,9 +45,9 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -55,30 +57,36 @@ import java.util.zip.ZipInputStream;
 
 public final class MoudClientMod implements ClientModInitializer, ResourcePackProvider {
     public static final int PROTOCOL_VERSION = 1;
-    private PlayerModelRenderer playerModelRenderer;
-    private static MoudClientMod instance;
-
     private static final Logger LOGGER = LoggerFactory.getLogger(MoudClientMod.class);
     private static final Identifier MOUDPACK_ID = Identifier.of("moud", "dynamic_resources");
-
+    private static final long JOIN_TIMEOUT_MS = 10000;
+    private static MoudClientMod instance;
+    private static boolean customCameraActive = false;
     private final AtomicBoolean resourcesLoaded = new AtomicBoolean(false);
     private final AtomicBoolean waitingForResources = new AtomicBoolean(false);
-    private static boolean customCameraActive = false;
-
+    private final AtomicReference<InMemoryPackResources> dynamicPack = new AtomicReference<>(null);
+    private PlayerModelRenderer playerModelRenderer;
     private ClientScriptingRuntime scriptingRuntime;
     private ClientAPIService apiService;
     private SharedValueManager sharedValueManager;
     private ClientCameraManager clientCameraManager;
     private PlayerStateManager playerStateManager;
-
     private ClientCursorManager clientCursorManager;
-
-    private final AtomicReference<InMemoryPackResources> dynamicPack = new AtomicReference<>(null);
     private String currentResourcesHash = "";
-
     private long joinTime = -1L;
-    private static final long JOIN_TIMEOUT_MS = 10000;
     private boolean moudServicesInitialized = false;
+
+    public static boolean isCustomCameraActive() {
+        return customCameraActive;
+    }
+
+    public static void setCustomCameraActive(boolean active) {
+        customCameraActive = active;
+    }
+
+    public static MoudClientMod getInstance() {
+        return instance;
+    }
 
     @Override
     public void onInitializeClient() {
@@ -132,6 +140,18 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         ClientPacketWrapper.registerHandler(AdvancedCameraLockPacket.class, (player, packet) -> handleAdvancedCameraLock(packet));
         ClientPacketWrapper.registerHandler(CameraUpdatePacket.class, (player, packet) -> handleCameraUpdate(packet));
         ClientPacketWrapper.registerHandler(CameraReleasePacket.class, (player, packet) -> handleCameraRelease(packet));
+        ClientPacketWrapper.registerHandler(S2C_ManageWindowPacket.class, (player, packet) -> handleManageWindow(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_TransitionWindowPacket.class, (player, packet) -> handleTransitionWindow(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_RestoreWindowPacket.class, (player, packet) -> {
+            MinecraftClient.getInstance().execute(() -> {
+                WindowAnimator.restore(packet.duration(), packet.easing());
+            });
+        });
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_WindowSequencePacket.class, (player, packet) -> {
+            MinecraftClient.getInstance().execute(() -> {
+                WindowAnimator.startSequence(packet.steps());
+            });
+        });
         ClientPacketWrapper.registerHandler(CursorPositionUpdatePacket.class, (player, packet) -> {
             if (clientCursorManager != null) {
                 clientCursorManager.handlePositionUpdates(packet.updates());
@@ -178,7 +198,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             });
         });
 
-
         LOGGER.info("Internal packet handlers registered.");
     }
 
@@ -208,6 +227,36 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
             PlayerPartConfigManager.getInstance().setPlayerInterpolationSettings(packet.playerId(), settings);
         }
+    }
+
+    private void handleManageWindow(MoudPackets.S2C_ManageWindowPacket packet) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        client.execute(() -> {
+            long handle = client.getWindow().getHandle();
+            switch (packet.action()) {
+                case SET_SIZE -> GLFW.glfwSetWindowSize(handle, packet.int1(), packet.int2());
+                case SET_POSITION -> GLFW.glfwSetWindowPos(handle, packet.int1(), packet.int2());
+                case SET_TITLE -> GLFW.glfwSetWindowTitle(handle, packet.string1());
+                case SET_BORDERLESS ->
+                        GLFW.glfwSetWindowAttrib(handle, GLFW.GLFW_DECORATED, packet.bool1() ? GLFW.GLFW_FALSE : GLFW.GLFW_TRUE);
+                case MAXIMIZE -> GLFW.glfwMaximizeWindow(handle);
+                case MINIMIZE -> GLFW.glfwIconifyWindow(handle);
+                case RESTORE -> GLFW.glfwRestoreWindow(handle);
+            }
+        });
+    }
+
+    private void handleTransitionWindow(MoudPackets.S2C_TransitionWindowPacket packet) {
+        MinecraftClient.getInstance().execute(() -> {
+            WindowAnimator.startAnimation(
+                    packet.targetX(),
+                    packet.targetY(),
+                    packet.targetWidth(),
+                    packet.targetHeight(),
+                    packet.duration(),
+                    packet.easing()
+            );
+        });
     }
 
     private void handleFirstPersonConfig(MoudPackets.FirstPersonConfigPacket packet) {
@@ -246,12 +295,24 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
     private void cleanupMoudServices() {
         LOGGER.info("Cleaning up Moud services...");
-        if (scriptingRuntime != null) { scriptingRuntime.shutdown(); scriptingRuntime = null; }
-        if (apiService != null) { apiService.cleanup(); apiService = null; }
-        if (sharedValueManager != null) { sharedValueManager.cleanup(); }
-        if (playerStateManager != null) { playerStateManager.reset(); }
+        if (scriptingRuntime != null) {
+            scriptingRuntime.shutdown();
+            scriptingRuntime = null;
+        }
+        if (apiService != null) {
+            apiService.cleanup();
+            apiService = null;
+        }
+        if (sharedValueManager != null) {
+            sharedValueManager.cleanup();
+        }
+        if (playerStateManager != null) {
+            playerStateManager.reset();
+        }
 
-        if (clientCursorManager != null) { clientCursorManager.clear(); }
+        if (clientCursorManager != null) {
+            clientCursorManager.clear();
+        }
         this.clientCameraManager = null;
         this.playerStateManager = null;
         moudServicesInitialized = false;
@@ -275,6 +336,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             }
         }
     }
+
     private void registerEventHandlers() {
         ClientPlayConnectionEvents.JOIN.register(this::onJoinServer);
         ClientPlayConnectionEvents.DISCONNECT.register(this::onDisconnectServer);
@@ -289,6 +351,8 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 joinTime = -1L;
                 cleanupMoudServices();
             }
+
+            WindowAnimator.tick();
 
             ClientLightingService.getInstance().tick();
 
@@ -360,6 +424,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
         ClientPacketWrapper.sendToServer(new MoudPackets.HelloPacket(PROTOCOL_VERSION));
     }
+
     private void onDisconnectServer(ClientPlayNetworkHandler handler, MinecraftClient client) {
         if (apiService != null && apiService.events != null) {
             apiService.events.dispatch("core:disconnect", "Player disconnected");
@@ -508,7 +573,9 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         }
         scriptingRuntime.initialize().thenCompose(v -> {
                     apiService.updateScriptingContext(scriptingRuntime.getContext());
-                    if (!scriptsData.isEmpty()) { return scriptingRuntime.loadScripts(scriptsData); }
+                    if (!scriptsData.isEmpty()) {
+                        return scriptingRuntime.loadScripts(scriptsData);
+                    }
                     return CompletableFuture.completedFuture(null);
                 }).thenRun(() -> LOGGER.info("Client scripts loaded successfully"))
                 .exceptionally(t -> {
@@ -534,8 +601,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         }
     }
 
-
-
     private void handleAdvancedCameraLock(AdvancedCameraLockPacket packet) {
         if (apiService != null && apiService.camera != null) {
             if (packet.isLocked()) {
@@ -553,7 +618,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         }
     }
 
-
     private void handleCameraUpdate(CameraUpdatePacket packet) {
         if (apiService != null && apiService.camera != null && apiService.camera.isCustomCameraActive()) {
             Value options = Value.asValue(ProxyObject.fromMap(Map.of(
@@ -566,9 +630,18 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         }
     }
 
+    private void handlePlayerState(PlayerStatePacket packet) {
+        if (playerStateManager != null) {
+            playerStateManager.updatePlayerState(packet.hideHotbar(), packet.hideHand(), packet.hideExperience());
+        }
+    }
 
-    private void handlePlayerState(PlayerStatePacket packet) { if (playerStateManager != null) { playerStateManager.updatePlayerState(packet.hideHotbar(), packet.hideHand(), packet.hideExperience()); } }
-    private void handleSharedValueSync(SyncSharedValuesPacket packet) { if (sharedValueManager != null) { sharedValueManager.handleServerSync(packet); } }
+    private void handleSharedValueSync(SyncSharedValuesPacket packet) {
+        if (sharedValueManager != null) {
+            sharedValueManager.handleServerSync(packet);
+        }
+    }
+
     private void handlePlayerModelUpdate(PlayerModelUpdatePacket packet) {
         MinecraftClient.getInstance().execute(() -> {
             AnimatedPlayerModel model = ClientPlayerModelManager.getInstance().getModel(packet.modelId());
@@ -607,6 +680,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 public ResourcePack open(ResourcePackInfo info) {
                     return pack;
                 }
+
                 @Nullable
                 @Override
                 public ResourcePack openWithOverlays(ResourcePackInfo info, ResourcePackProfile.Metadata metadata) {
@@ -634,12 +708,5 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         } catch (Exception e) {
             LOGGER.error("Failed to register dynamic resource pack provider via reflection", e);
         }
-    }
-
-    public static boolean isCustomCameraActive() { return customCameraActive; }
-    public static void setCustomCameraActive(boolean active) { customCameraActive = active; }
-
-    public static MoudClientMod getInstance() {
-        return instance;
     }
 }
