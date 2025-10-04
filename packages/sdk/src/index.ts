@@ -617,6 +617,54 @@ interface Player {
      * Makes the player invisible to others, but still physically present.
      */
      setVanished(vanished: boolean): void;
+    /**
+     * Checks if the player is actively moving (walking, sprinting, or sneaking).
+     * @returns `true` if the player is moving, `false` otherwise.
+     */
+    isMoving(): boolean;
+
+    /**
+     * Modifies the transform (position, rotation, scale) of a specific player model part.
+     * @param partName The name of the part to modify ('head', 'body', 'right_arm', etc.).
+     * @param options The transformations and settings to apply.
+     */
+    setPartConfig(partName: PlayerPartName, options: PartConfigOptions): void;
+
+    /**
+     * Defines the global interpolation settings for this player's part animations.
+     * @param settings The interpolation settings to apply to subsequent transformations.
+     */
+    setInterpolationSettings(settings: InterpolationOptions): void;
+
+    /**
+     * Plays a specific animation on the player's model.
+     * @param animationId The ID of the animation to play (e.g., 'moud:wave').
+     */
+    playAnimation(animationId: string): void;
+
+    /**
+     * Makes the player's arms point towards a world position.
+     * @param targetPosition The world position to point at.
+     * @param options Optional interpolation settings for a smooth transition.
+     */
+    pointToPosition(targetPosition: Vector3, options?: { interpolation?: InterpolationOptions }): void;
+
+    /**
+     * Configures the visibility of the player's model parts in first-person view.
+     * @param config An object specifying which parts to show or hide.
+     */
+    setFirstPersonConfig(config: {
+        showRightArm?: boolean;
+        showLeftArm?: boolean;
+        showRightItem?: boolean;
+        showLeftItem?: boolean;
+        showArmor?: boolean;
+    }): void;
+
+    /**
+     * Resets all part modifications made by `setPartConfig` back to their default state.
+     */
+    resetAllParts(): void;
 }
 
 /**
@@ -689,6 +737,56 @@ interface PlayerModelOptions {
     position: Vector3;
     /** The URL of the skin to apply to the model. */
     skinUrl?: string;
+
+    /**
+     * Makes the model walk towards a target destination.
+     * The model will automatically rotate to face the target.
+     * @param target The world position (Vector3) to walk to.
+     * @param options Optional settings, like speed.
+     */
+    walkTo(target: Vector3, options?: { speed?: number }): void;
+
+    /**
+     * Immediately stops the model's current walking movement.
+     * The model will transition to its idle animation.
+     */
+    stopWalking(): void;
+
+    /**
+     * Checks if the model is currently executing a `walkTo` command.
+     * @returns `true` if the model is walking, `false` otherwise.
+     */
+    isWalking(): boolean;
+
+    /**
+     * Changes the skin of the model.
+     * @param skinUrl The URL of the new skin texture.
+     */
+    setSkin(skinUrl: string): void;
+
+    /**
+     * Plays an animation, smoothly fading from the current animation.
+     * @param animationName The ID of the animation to play.
+     * @param durationMs The duration of the fade transition in milliseconds.
+     */
+    playAnimationWithFade(animationName: string, durationMs: number): void;
+
+    /**
+     * Plays an animation on the model, instantly overriding the current one.
+     * @param animationName The ID of the animation to play (e.g., 'moud:idle', 'moud:walk').
+     */
+    playAnimation(animationName: string): void;
+
+    /**
+     * Removes the model from the world for all players.
+     */
+    remove(): void;
+
+    /**
+     * Registers a callback function to execute when a player clicks on this model.
+     * @param callback The function to execute. It receives the player who clicked and click details.
+     */
+    onClick(callback: (player: Player, clickData: { button: number; mouseX: number; mouseY: number }) => void): void;
 }
 
 /**
@@ -701,6 +799,36 @@ interface TextOptions {
     content?: string;
     /** How the text should face the player. 'fixed', 'vertical', 'horizontal', 'center'. */
     billboard?: 'fixed' | 'vertical' | 'horizontal' | 'center';
+    /**
+     * Creates an invisible, clickable hitbox for this text.
+     * If width and height are not provided, the hitbox is automatically sized based on the text content.
+     * @param width The width of the hitbox in blocks.
+     * @param height The height of the hitbox in blocks.
+     */
+    enableHitbox(width?: number, height?: number): void;
+
+    /**
+     * Removes the clickable hitbox from this text.
+     */
+    disableHitbox(): void;
+
+    /**
+     * Removes the text display (and its hitbox, if any) from the world.
+     */
+    remove(): void;
+
+    /**
+     * Gets the current world position of the text.
+     * @returns The position as a Vector3.
+     */
+    getPosition(): Vector3;
+
+    /**
+     * Gets the unique UUID of the interaction entity (hitbox).
+     * This is useful for identifying the text in an 'entity.interact' event.
+     * @returns The UUID string of the hitbox, or null if no hitbox is enabled.
+     */
+    getInteractionUuid(): string | null;
 }
 
 
@@ -857,6 +985,36 @@ interface CameraLockOptions {
     disableViewBobbing?: boolean;
     /** If true, hides the player's hand and held item. Defaults to true. */
     disableHandMovement?: boolean;
+    /**
+     * Activates the custom camera mode for the player.
+     */
+    enableCustomCamera(): void;
+
+    /**
+     * Deactivates the custom camera mode and returns control to the player.
+     * The player's view will snap back to their character's perspective.
+     */
+    disableCustomCamera(): void;
+
+    /**
+     * Smoothly moves the camera from its current state to a new target state over a specified duration.
+     * This method only works when the custom camera is enabled.
+     * @param options The target state and animation settings for the transition.
+     */
+    transitionTo(options: CameraTransitionOptions): void;
+
+    /**
+     * Instantly teleports the camera to a new state.
+     * This method only works when the custom camera is enabled.
+     * @param options The target state for the camera.
+     */
+    snapTo(options: CameraStateOptions): void;
+
+    /**
+     * Checks if the custom camera mode is currently active for the player.
+     * @returns `true` if the custom camera is enabled, `false` otherwise.
+     */
+    isCustomCameraActive(): boolean;
 }
 
 /**
@@ -965,6 +1123,15 @@ interface PlayerUI {
     showPlayerList(): void;
     hideScoreboard(): void;
     showScoreboard(): void;
+    isHotbarHidden(...args: any[]): boolean;
+    isHealthHidden(...args: any[]): boolean;
+    isFoodHidden(...args: any[]): boolean;
+    isExperienceHidden(...args: any[]): boolean;
+    isHandHidden(...args: any[]): boolean;
+    isCrosshairHidden(...args: any[]): boolean;
+    isChatHidden(...args: any[]): boolean;
+    isPlayerListHidden(...args: any[]): boolean;
+    isScoreboardHidden(...args: any[]): boolean;
 }
 
 /**
@@ -1008,6 +1175,14 @@ interface Cursor {
 
     /** Resets visibility so the cursor is visible to everyone (if globally visible). */
     setVisibleToAll(): void;
+
+    projectOntoBlock(...args: any[]): void;
+
+    getScale(...args: any[]): number;
+
+    getTexture(...args: any[]): string;
+
+    getColor(...args: any[]): Vector3;
 }
 
 type PlayerPartName = 'head' | 'body' | 'right_arm' | 'left_arm' | 'right_leg' | 'left_leg';
@@ -1088,6 +1263,17 @@ interface ChatEvent extends CancellableEvent {
     getPlayer(): Player;
     /** @returns The content of the chat message. */
     getMessage(): string;
+
+    /**
+     * Auto-generated from Java method 'cancel'.
+     * Please specify parameters and update return type if necessary.
+     */
+    cancel(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'isCancelled'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isCancelled(...args: any[]): boolean;
 }
 
 /**
@@ -1108,6 +1294,17 @@ interface BlockEvent extends CancellableEvent {
     isBreakEvent(): boolean;
     /** @returns True if this was a block place event. */
     isPlaceEvent(): boolean;
+
+    /**
+     * Auto-generated from Java method 'cancel'.
+     * Please specify parameters and update return type if necessary.
+     */
+    cancel(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'isCancelled'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isCancelled(...args: any[]): boolean;
 }
 
 /**
@@ -1124,6 +1321,17 @@ interface PlayerMoveEvent extends CancellableEvent {
     getDistance(): number;
     /** @returns True if the player moved from one block coordinate to another. */
     hasChangedBlock(): boolean;
+
+    /**
+     * Auto-generated from Java method 'cancel'.
+     * Please specify parameters and update return type if necessary.
+     */
+    cancel(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'isCancelled'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isCancelled(...args: any[]): boolean;
 }
 
 /**
@@ -1160,6 +1368,57 @@ interface EntityInteractionEvent {
     isHoverExit(): boolean;
     /** @returns True if the player clicked on the entity. */
     isClick(): boolean;
+
+    /**
+     * Auto-generated from Java method 'getPlayer'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getPlayer(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getEntityType'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getEntityType(...args: any[]): string;
+    /**
+     * Auto-generated from Java method 'getEntityUuid'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getEntityUuid(...args: any[]): string;
+    /**
+     * Auto-generated from Java method 'getInteractionType'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getInteractionType(...args: any[]): string;
+    /**
+     * Auto-generated from Java method 'getEntityX'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getEntityX(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getEntityY'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getEntityY(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getEntityZ'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getEntityZ(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'isHoverEnter'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isHoverEnter(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'isHoverExit'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isHoverExit(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'isClick'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isClick(...args: any[]): boolean;
 }
 
 // --- World Object Interfaces ---
@@ -1258,6 +1517,37 @@ interface SharedValueApi {
      * @returns The SharedStore proxy for manipulating data.
      */
     getStore(storeName: string): SharedStore;
+
+    /**
+     * Auto-generated from Java method 'set'.
+     * Please specify parameters and update return type if necessary.
+     */
+    set(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'get'.
+     * Please specify parameters and update return type if necessary.
+     */
+    get(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'has'.
+     * Please specify parameters and update return type if necessary.
+     */
+    has(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'remove'.
+     * Please specify parameters and update return type if necessary.
+     */
+    remove(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'on'.
+     * Please specify parameters and update return type if necessary.
+     */
+    on(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'onChange'.
+     * Please specify parameters and update return type if necessary.
+     */
+    onChange(...args: any[]): void;
 }
 
 /**
@@ -1314,3 +1604,1126 @@ interface SharedStore {
 }
 }
 export {};
+
+
+// --- Auto-generated interfaces ---
+
+/**
+ * Auto-generated for Java class `AssetProxy`.
+ */
+declare interface Asset {
+    /**
+     * Auto-generated from Java method 'loadShader'.
+     * Please specify parameters and update return type if necessary.
+     */
+    loadShader(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'loadTexture'.
+     * Please specify parameters and update return type if necessary.
+     */
+    loadTexture(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'loadData'.
+     * Please specify parameters and update return type if necessary.
+     */
+    loadData(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getId'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getId(...args: any[]): string;
+    /**
+     * Auto-generated from Java method 'getCode'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getCode(...args: any[]): string;
+    /**
+     * Auto-generated from Java method 'getData'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getData(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getContent'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getContent(...args: any[]): string;
+}
+
+/**
+ * Auto-generated for Java class `CameraService`.
+ */
+declare interface CameraService {
+    /**
+     * Auto-generated from Java method 'enableCustomCamera'.
+     * Please specify parameters and update return type if necessary.
+     */
+    enableCustomCamera(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'disableCustomCamera'.
+     * Please specify parameters and update return type if necessary.
+     */
+    disableCustomCamera(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'transitionTo'.
+     * Please specify parameters and update return type if necessary.
+     */
+    transitionTo(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'snapTo'.
+     * Please specify parameters and update return type if necessary.
+     */
+    snapTo(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'isCustomCameraActive'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isCustomCameraActive(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'getPlayerX'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getPlayerX(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getPlayerY'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getPlayerY(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getPlayerZ'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getPlayerZ(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getPlayerYaw'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getPlayerYaw(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getPlayerPitch'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getPlayerPitch(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'createVector3'.
+     * Please specify parameters and update return type if necessary.
+     */
+    createVector3(...args: any[]): Vector3;
+    /**
+     * Auto-generated from Java method 'isThirdPerson'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isThirdPerson(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'setThirdPerson'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setThirdPerson(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'getFov'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getFov(...args: any[]): number;
+}
+
+/**
+ * Auto-generated for Java class `ClientProxy`.
+ */
+declare interface Client {
+    /**
+     * Auto-generated from Java method 'send'.
+     * Please specify parameters and update return type if necessary.
+     */
+    send(...args: any[]): void;
+}
+
+/**
+ * Auto-generated for Java class `ClientSharedApiProxy`.
+ */
+declare interface ClientSharedApi {
+    /**
+     * Auto-generated from Java method 'getStore'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getStore(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'get'.
+     * Please specify parameters and update return type if necessary.
+     */
+    get(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'has'.
+     * Please specify parameters and update return type if necessary.
+     */
+    has(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'set'.
+     * Please specify parameters and update return type if necessary.
+     */
+    set(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'on'.
+     * Please specify parameters and update return type if necessary.
+     */
+    on(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'onChange'.
+     * Please specify parameters and update return type if necessary.
+     */
+    onChange(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'canModify'.
+     * Please specify parameters and update return type if necessary.
+     */
+    canModify(...args: any[]): boolean;
+}
+
+/**
+ * Auto-generated for Java class `CommandProxy`.
+ */
+declare interface Command {
+    /**
+     * Auto-generated from Java method 'register'.
+     * Please specify parameters and update return type if necessary.
+     */
+    register(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'registerWithAliases'.
+     * Please specify parameters and update return type if necessary.
+     */
+    registerWithAliases(...args: any[]): void;
+}
+
+/**
+ * Auto-generated for Java class `ConsoleAPI`.
+ */
+declare interface ConsoleAPI {
+    /**
+     * Auto-generated from Java method 'log'.
+     * Please specify parameters and update return type if necessary.
+     */
+    log(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'warn'.
+     * Please specify parameters and update return type if necessary.
+     */
+    warn(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'error'.
+     * Please specify parameters and update return type if necessary.
+     */
+    error(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'debug'.
+     * Please specify parameters and update return type if necessary.
+     */
+    debug(...args: any[]): void;
+}
+
+/**
+ * Auto-generated for Java class `CursorService`.
+ */
+declare interface CursorService {
+    /**
+     * Auto-generated from Java method 'show'.
+     * Please specify parameters and update return type if necessary.
+     */
+    show(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'hide'.
+     * Please specify parameters and update return type if necessary.
+     */
+    hide(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'toggle'.
+     * Please specify parameters and update return type if necessary.
+     */
+    toggle(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'isVisible'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isVisible(...args: any[]): boolean;
+}
+
+/**
+ * Auto-generated for Java class `EventService`.
+ */
+declare interface EventService {
+    /**
+     * Auto-generated from Java method 'on'.
+     * Please specify parameters and update return type if necessary.
+     */
+    on(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'dispatch'.
+     * Please specify parameters and update return type if necessary.
+     */
+    dispatch(...args: any[]): void;
+}
+
+/**
+ * Auto-generated for Java class `InputService`.
+ */
+declare interface InputService {
+    /**
+     * Auto-generated from Java method 'isKeyPressed'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isKeyPressed(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'isMouseButtonPressed'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isMouseButtonPressed(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'getMouseX'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getMouseX(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getMouseY'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getMouseY(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getMouseDeltaX'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getMouseDeltaX(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getMouseDeltaY'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getMouseDeltaY(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'onKey'.
+     * Please specify parameters and update return type if necessary.
+     */
+    onKey(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'onMouseButton'.
+     * Please specify parameters and update return type if necessary.
+     */
+    onMouseButton(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'onMouseMove'.
+     * Please specify parameters and update return type if necessary.
+     */
+    onMouseMove(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'onScroll'.
+     * Please specify parameters and update return type if necessary.
+     */
+    onScroll(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'isMovingForward'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isMovingForward(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'isMovingBackward'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isMovingBackward(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'isStrafingLeft'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isStrafingLeft(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'isStrafingRight'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isStrafingRight(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'isJumping'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isJumping(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'isSprinting'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isSprinting(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'isOnGround'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isOnGround(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'isMoving'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isMoving(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'lockMouse'.
+     * Please specify parameters and update return type if necessary.
+     */
+    lockMouse(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'isMouseLocked'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isMouseLocked(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'getMouseSensitivity'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getMouseSensitivity(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'setMouseSensitivity'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setMouseSensitivity(...args: any[]): void;
+}
+
+/**
+ * Auto-generated for Java class `MathProxy`.
+ */
+declare interface Math {
+    /**
+     * Auto-generated from Java method 'clamp'.
+     * Please specify parameters and update return type if necessary.
+     */
+    clamp(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'lerp'.
+     * Please specify parameters and update return type if necessary.
+     */
+    lerp(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'atan2'.
+     * Please specify parameters and update return type if necessary.
+     */
+    atan2(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'sin'.
+     * Please specify parameters and update return type if necessary.
+     */
+    sin(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'cos'.
+     * Please specify parameters and update return type if necessary.
+     */
+    cos(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'tan'.
+     * Please specify parameters and update return type if necessary.
+     */
+    tan(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'asin'.
+     * Please specify parameters and update return type if necessary.
+     */
+    asin(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'acos'.
+     * Please specify parameters and update return type if necessary.
+     */
+    acos(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'atan'.
+     * Please specify parameters and update return type if necessary.
+     */
+    atan(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'sqrt'.
+     * Please specify parameters and update return type if necessary.
+     */
+    sqrt(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'abs'.
+     * Please specify parameters and update return type if necessary.
+     */
+    abs(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'min'.
+     * Please specify parameters and update return type if necessary.
+     */
+    min(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'max'.
+     * Please specify parameters and update return type if necessary.
+     */
+    max(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'floor'.
+     * Please specify parameters and update return type if necessary.
+     */
+    floor(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'ceil'.
+     * Please specify parameters and update return type if necessary.
+     */
+    ceil(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'round'.
+     * Please specify parameters and update return type if necessary.
+     */
+    round(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'toRadians'.
+     * Please specify parameters and update return type if necessary.
+     */
+    toRadians(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'toDegrees'.
+     * Please specify parameters and update return type if necessary.
+     */
+    toDegrees(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'vector3'.
+     * Please specify parameters and update return type if necessary.
+     */
+    vector3(...args: any[]): Vector3;
+    /**
+     * Auto-generated from Java method 'quaternion'.
+     * Please specify parameters and update return type if necessary.
+     */
+    quaternion(...args: any[]): Quaternion;
+    /**
+     * Auto-generated from Java method 'quaternionFromEuler'.
+     * Please specify parameters and update return type if necessary.
+     */
+    quaternionFromEuler(...args: any[]): Quaternion;
+    /**
+     * Auto-generated from Java method 'quaternionFromAxisAngle'.
+     * Please specify parameters and update return type if necessary.
+     */
+    quaternionFromAxisAngle(...args: any[]): Quaternion;
+    /**
+     * Auto-generated from Java method 'matrix4'.
+     * Please specify parameters and update return type if necessary.
+     */
+    matrix4(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'matrix4Identity'.
+     * Please specify parameters and update return type if necessary.
+     */
+    matrix4Identity(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'matrix4Translation'.
+     * Please specify parameters and update return type if necessary.
+     */
+    matrix4Translation(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'matrix4Rotation'.
+     * Please specify parameters and update return type if necessary.
+     */
+    matrix4Rotation(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'matrix4Scaling'.
+     * Please specify parameters and update return type if necessary.
+     */
+    matrix4Scaling(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'matrix4TRS'.
+     * Please specify parameters and update return type if necessary.
+     */
+    matrix4TRS(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'matrix4Perspective'.
+     * Please specify parameters and update return type if necessary.
+     */
+    matrix4Perspective(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'matrix4Orthographic'.
+     * Please specify parameters and update return type if necessary.
+     */
+    matrix4Orthographic(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'matrix4LookAt'.
+     * Please specify parameters and update return type if necessary.
+     */
+    matrix4LookAt(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'transform'.
+     * Please specify parameters and update return type if necessary.
+     */
+    transform(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getVector3Zero'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getVector3Zero(...args: any[]): Vector3;
+    /**
+     * Auto-generated from Java method 'getVector3One'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getVector3One(...args: any[]): Vector3;
+    /**
+     * Auto-generated from Java method 'getVector3Up'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getVector3Up(...args: any[]): Vector3;
+    /**
+     * Auto-generated from Java method 'getVector3Down'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getVector3Down(...args: any[]): Vector3;
+    /**
+     * Auto-generated from Java method 'getVector3Left'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getVector3Left(...args: any[]): Vector3;
+    /**
+     * Auto-generated from Java method 'getVector3Right'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getVector3Right(...args: any[]): Vector3;
+    /**
+     * Auto-generated from Java method 'getVector3Forward'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getVector3Forward(...args: any[]): Vector3;
+    /**
+     * Auto-generated from Java method 'getVector3Backward'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getVector3Backward(...args: any[]): Vector3;
+    /**
+     * Auto-generated from Java method 'getQuaternionIdentity'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getQuaternionIdentity(...args: any[]): Quaternion;
+    /**
+     * Auto-generated from Java method 'getPI'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getPI(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getTWO_PI'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getTWO_PI(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getHALF_PI'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getHALF_PI(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getDEG_TO_RAD'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getDEG_TO_RAD(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getRAD_TO_DEG'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getRAD_TO_DEG(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getEPSILON'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getEPSILON(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'distancePointToLine'.
+     * Please specify parameters and update return type if necessary.
+     */
+    distancePointToLine(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'closestPointOnLine'.
+     * Please specify parameters and update return type if necessary.
+     */
+    closestPointOnLine(...args: any[]): Vector3;
+    /**
+     * Auto-generated from Java method 'sphereIntersection'.
+     * Please specify parameters and update return type if necessary.
+     */
+    sphereIntersection(...args: any[]): boolean;
+}
+
+/**
+ * Auto-generated for Java class `NetworkService`.
+ */
+declare interface NetworkService {
+    /**
+     * Auto-generated from Java method 'sendToServer'.
+     * Please specify parameters and update return type if necessary.
+     */
+    sendToServer(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'on'.
+     * Please specify parameters and update return type if necessary.
+     */
+    on(...args: any[]): void;
+}
+
+/**
+ * Auto-generated for Java class `PlayerWindowProxy`.
+ */
+declare interface PlayerWindow {
+    /**
+     * Auto-generated from Java method 'transitionTo'.
+     * Please specify parameters and update return type if necessary.
+     */
+    transitionTo(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'playSequence'.
+     * Please specify parameters and update return type if necessary.
+     */
+    playSequence(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'setTitle'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setTitle(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'setBorderless'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setBorderless(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'maximize'.
+     * Please specify parameters and update return type if necessary.
+     */
+    maximize(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'minimize'.
+     * Please specify parameters and update return type if necessary.
+     */
+    minimize(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'restore'.
+     * Please specify parameters and update return type if necessary.
+     */
+    restore(...args: any[]): void;
+}
+
+/**
+ * Auto-generated for Java class `RenderingService`.
+ */
+declare interface RenderingService {
+    /**
+     * Auto-generated from Java method 'requestAnimationFrame'.
+     * Please specify parameters and update return type if necessary.
+     */
+    requestAnimationFrame(...args: any[]): string;
+    /**
+     * Auto-generated from Java method 'cancelAnimationFrame'.
+     * Please specify parameters and update return type if necessary.
+     */
+    cancelAnimationFrame(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'createRenderType'.
+     * Please specify parameters and update return type if necessary.
+     */
+    createRenderType(...args: any[]): string;
+    /**
+     * Auto-generated from Java method 'setShaderUniform'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setShaderUniform(...args: any[]): void;
+}
+
+/**
+ * Auto-generated for Java class `ScriptingAPI`.
+ */
+declare interface ScriptingAPI {
+    /**
+     * Auto-generated from Java method 'on'.
+     * Please specify parameters and update return type if necessary.
+     */
+    on(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'getAsync'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getAsync(...args: any[]): any;
+}
+
+/**
+ * Auto-generated for Java class `UIComponent`.
+ */
+declare interface UIComponent {
+    /**
+     * Auto-generated from Java method 'showAsOverlay'.
+     * Please specify parameters and update return type if necessary.
+     */
+    showAsOverlay(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'hideOverlay'.
+     * Please specify parameters and update return type if necessary.
+     */
+    hideOverlay(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getX'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getX(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getY'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getY(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getWidth'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getWidth(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getHeight'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getHeight(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'setX'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setX(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'setY'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setY(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'setWidth'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setWidth(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'setHeight'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setHeight(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getComponentId'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getComponentId(...args: any[]): string;
+    /**
+     * Auto-generated from Java method 'setComponentId'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setComponentId(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'setText'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setText(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getText'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getText(...args: any[]): string;
+    /**
+     * Auto-generated from Java method 'setPos'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setPos(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'setSize'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setSize(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'setBackgroundColor'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setBackgroundColor(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getBackgroundColor'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getBackgroundColor(...args: any[]): string;
+    /**
+     * Auto-generated from Java method 'setTextColor'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setTextColor(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getTextColor'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getTextColor(...args: any[]): string;
+    /**
+     * Auto-generated from Java method 'setBorder'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setBorder(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getBorderWidth'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getBorderWidth(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getBorderColor'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getBorderColor(...args: any[]): string;
+    /**
+     * Auto-generated from Java method 'setOpacity'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setOpacity(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getOpacity'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getOpacity(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'setTextAlign'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setTextAlign(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getTextAlign'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getTextAlign(...args: any[]): string;
+    /**
+     * Auto-generated from Java method 'setPadding'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setPadding(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getPaddingTop'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getPaddingTop(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getPaddingRight'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getPaddingRight(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getPaddingBottom'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getPaddingBottom(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getPaddingLeft'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getPaddingLeft(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'appendChild'.
+     * Please specify parameters and update return type if necessary.
+     */
+    appendChild(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'removeChild'.
+     * Please specify parameters and update return type if necessary.
+     */
+    removeChild(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getChildren'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getChildren(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'show'.
+     * Please specify parameters and update return type if necessary.
+     */
+    show(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'hide'.
+     * Please specify parameters and update return type if necessary.
+     */
+    hide(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'isVisible'.
+     * Please specify parameters and update return type if necessary.
+     */
+    isVisible(...args: any[]): boolean;
+    /**
+     * Auto-generated from Java method 'onClick'.
+     * Please specify parameters and update return type if necessary.
+     */
+    onClick(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'onHover'.
+     * Please specify parameters and update return type if necessary.
+     */
+    onHover(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'onFocus'.
+     * Please specify parameters and update return type if necessary.
+     */
+    onFocus(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'onBlur'.
+     * Please specify parameters and update return type if necessary.
+     */
+    onBlur(...args: any[]): any;
+}
+
+/**
+ * Auto-generated for Java class `UIContainer`.
+ */
+declare interface UIContainer {
+    /**
+     * Auto-generated from Java method 'appendChild'.
+     * Please specify parameters and update return type if necessary.
+     */
+    appendChild(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'setFlexDirection'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setFlexDirection(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getFlexDirection'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getFlexDirection(...args: any[]): string;
+    /**
+     * Auto-generated from Java method 'setJustifyContent'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setJustifyContent(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getJustifyContent'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getJustifyContent(...args: any[]): string;
+    /**
+     * Auto-generated from Java method 'setAlignItems'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setAlignItems(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getAlignItems'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getAlignItems(...args: any[]): string;
+    /**
+     * Auto-generated from Java method 'setGap'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setGap(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getGap'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getGap(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'setAutoResize'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setAutoResize(...args: any[]): any;
+}
+
+/**
+ * Auto-generated for Java class `UIImage`.
+ */
+declare interface UIImage {
+    /**
+     * Auto-generated from Java method 'setSource'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setSource(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getSource'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getSource(...args: any[]): string;
+}
+
+/**
+ * Auto-generated for Java class `UIInput`.
+ */
+declare interface UIInput {
+    /**
+     * Auto-generated from Java method 'getValue'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getValue(...args: any[]): string;
+    /**
+     * Auto-generated from Java method 'setValue'.
+     * Please specify parameters and update return type if necessary.
+     */
+    setValue(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'getPlaceholder'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getPlaceholder(...args: any[]): string;
+    /**
+     * Auto-generated from Java method 'onChange'.
+     * Please specify parameters and update return type if necessary.
+     */
+    onChange(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'onSubmit'.
+     * Please specify parameters and update return type if necessary.
+     */
+    onSubmit(...args: any[]): any;
+}
+
+/**
+ * Auto-generated for Java class `UIService`.
+ */
+declare interface UIService {
+    /**
+     * Auto-generated from Java method 'getScreenWidth'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getScreenWidth(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getScreenHeight'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getScreenHeight(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getMouseX'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getMouseX(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getMouseY'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getMouseY(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'getTextWidth'.
+     * Please specify parameters and update return type if necessary.
+     */
+    getTextWidth(...args: any[]): number;
+    /**
+     * Auto-generated from Java method 'createText'.
+     * Please specify parameters and update return type if necessary.
+     */
+    createText(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'createButton'.
+     * Please specify parameters and update return type if necessary.
+     */
+    createButton(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'createInput'.
+     * Please specify parameters and update return type if necessary.
+     */
+    createInput(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'createContainer'.
+     * Please specify parameters and update return type if necessary.
+     */
+    createContainer(...args: any[]): any;
+    /**
+     * Auto-generated from Java method 'onResize'.
+     * Please specify parameters and update return type if necessary.
+     */
+    onResize(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'createImage'.
+     * Please specify parameters and update return type if necessary.
+     */
+    createImage(...args: any[]): any;
+}
+
+/**
+ * Auto-generated for Java class `ZoneAPIProxy`.
+ */
+declare interface ZoneAPI {
+    /**
+     * Auto-generated from Java method 'create'.
+     * Please specify parameters and update return type if necessary.
+     */
+    create(...args: any[]): void;
+    /**
+     * Auto-generated from Java method 'remove'.
+     * Please specify parameters and update return type if necessary.
+     */
+    remove(...args: any[]): void;
+}
