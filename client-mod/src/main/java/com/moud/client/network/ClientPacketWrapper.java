@@ -1,5 +1,7 @@
 package com.moud.client.network;
 
+import com.moud.client.MoudClientMod;
+import com.moud.network.MoudPackets;
 import com.moud.network.dispatcher.NetworkDispatcher;
 import com.moud.network.engine.PacketEngine;
 import com.moud.client.network.buffer.FabricByteBuffer;
@@ -26,6 +28,9 @@ public class ClientPacketWrapper {
     }
 
     public static <T> void sendToServer(T packet) {
+        if (!(packet instanceof MoudPackets.HelloPacket) && !MoudClientMod.isOnMoudServer()) {
+            return;
+        }
 
         NetworkDispatcher.PacketData packetData = DISPATCHER.send(null, packet);
 

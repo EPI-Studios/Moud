@@ -72,6 +72,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private String currentResourcesHash = "";
     private long joinTime = -1L;
     private boolean moudServicesInitialized = false;
+    private static boolean isOnMoudServer = false;
 
     public static boolean isCustomCameraActive() {
         return customCameraActive;
@@ -405,7 +406,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private void registerShutdownHandler() {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> cleanupMoudServices());
     }
-
     private void onJoinServer(ClientPlayNetworkHandler handler, net.fabricmc.fabric.api.networking.v1.PacketSender sender, MinecraftClient client) {
         initializeMoudServices();
 
@@ -413,14 +413,11 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         waitingForResources.set(true);
         joinTime = System.currentTimeMillis();
 
-        if (apiService != null && apiService.events != null) {
-            apiService.events.dispatch("core:join");
-        }
-
         ClientPacketWrapper.sendToServer(new MoudPackets.HelloPacket(PROTOCOL_VERSION));
     }
 
     private void onDisconnectServer(ClientPlayNetworkHandler handler, MinecraftClient client) {
+        isOnMoudServer = false;
         if (apiService != null && apiService.events != null) {
             apiService.events.dispatch("core:disconnect", "Player disconnected");
         }
@@ -447,6 +444,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     }
 
     private void handleSyncScripts(SyncClientScriptsPacket packet) {
+        isOnMoudServer = true;
         joinTime = -1L;
 
         if (apiService != null && apiService.events != null) {
@@ -719,4 +717,9 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             LOGGER.error("Failed to register dynamic resource pack provider via reflection", e);
         }
     }
+
+    public static boolean isOnMoudServer() {
+        return isOnMoudServer;
+    }
+
 }
