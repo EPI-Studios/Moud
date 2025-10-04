@@ -125,6 +125,7 @@ public class JavaScriptRuntime {
                         moudObj.putMember("math", scriptingAPI.math);
                         moudObj.putMember("commands", scriptingAPI.commands);
                         moudObj.putMember("async", scriptingAPI.getAsync());
+
                     } else if (api instanceof com.moud.server.proxy.AssetProxy) {
                         moudObj.putMember("assets", api);
                     } else if (api instanceof com.moud.server.ConsoleAPI) {
@@ -133,6 +134,8 @@ public class JavaScriptRuntime {
                 }
 
                 bindings.putMember("Moud", moudObj);
+                bindings.putMember("api", moudObj);
+
             } finally {
                 jsContext.leave();
             }

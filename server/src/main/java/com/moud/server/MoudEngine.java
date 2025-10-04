@@ -104,10 +104,15 @@ public class MoudEngine {
             this.hotReloadEndpoint = new HotReloadEndpoint(this, enableReload);
             hotReloadEndpoint.start(port);
 
-            loadUserScripts();
+            loadUserScripts().thenRun(() -> {
+                initialized.set(true);
+                this.eventDispatcher.dispatchLoadEvent("server.load");
+                LOGGER.startup("Moud Engine initialized successfully");
+            }).exceptionally(ex -> {
+                LOGGER.critical("Failed to load user scripts during startup. The server might not function correctly.", ex);
+                return null;
+            });
 
-            initialized.set(true);
-            this.eventDispatcher.dispatchLoadEvent("server.load");
 
             LOGGER.startup("Moud Engine initialized successfully");
         } catch (Exception e) {
@@ -171,17 +176,18 @@ public class MoudEngine {
         });
     }
 
-    private void loadUserScripts() {
-        CompletableFuture.runAsync(() -> {
+    private CompletableFuture<Void> loadUserScripts() {
+        return CompletableFuture.runAsync(() -> {
             try {
                 Path entryPoint = ProjectLoader.findEntryPoint();
                 if (!entryPoint.toFile().exists()) {
                     LOGGER.warn("No entry point found at: {}", entryPoint);
                     return;
                 }
-                runtime.executeScript(entryPoint);
+                runtime.executeScript(entryPoint).join();
             } catch (Exception e) {
                 LOGGER.error("Failed to find or load project script", e);
+                throw new RuntimeException(e);
             }
         });
     }
