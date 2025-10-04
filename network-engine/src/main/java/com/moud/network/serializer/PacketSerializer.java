@@ -41,15 +41,19 @@ public class PacketSerializer {
         for (PacketMetadata.FieldMetadata field : metadata.fields()) {
             Object value = field.getValue(packet);
 
-            if (value == null && !field.isOptional()) {
-                throw new IllegalArgumentException("Non-optional field " + field.getField().getName() + " is null");
+            if (field.isOptional()) {
+                buffer.writeBoolean(value != null);
+                if (value == null) {
+                    continue;
+                }
+            } else {
+                if (value == null) {
+                    throw new IllegalArgumentException("Non-optional field " + field.getField().getName() + " is null");
+                }
             }
 
-            if (value != null) {
-                writeValue(buffer, value, field.getType());
-            }
+            writeValue(buffer, value, field.getType());
         }
-
         return buffer.toByteArray();
     }
 
@@ -58,7 +62,17 @@ public class PacketSerializer {
 
         for (int i = 0; i < metadata.fields().size(); i++) {
             PacketMetadata.FieldMetadata field = metadata.fields().get(i);
-            args[i] = readValue(buffer, field);
+
+            if (field.isOptional()) {
+                boolean isPresent = buffer.readBoolean();
+                if (isPresent) {
+                    args[i] = readValue(buffer, field);
+                } else {
+                    args[i] = null;
+                }
+            } else {
+                args[i] = readValue(buffer, field);
+            }
         }
 
         return createInstance(packetClass, args);

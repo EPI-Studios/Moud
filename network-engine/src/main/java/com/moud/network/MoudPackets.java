@@ -184,7 +184,7 @@ public final class MoudPackets {
     @Packet(value = "moud:camera_control", direction = Direction.SERVER_TO_CLIENT)
     public record CameraControlPacket(
             @Field(order = 0) Action action,
-            @Field(order = 1) @Nullable Map<String, Object> options
+            @Field(order = 1, optional = true) @Nullable Map<String, Object> options
     ) {
         public enum Action {
             ENABLE,
