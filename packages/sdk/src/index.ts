@@ -561,25 +561,25 @@ interface Player {
      * Accesses the API for controlling the player's camera.
      * @returns The CameraLock API proxy.
      */
-    getCamera(): CameraLock;
+    readonly camera: CameraLock;
 
     /**
      * Accesses the API for showing or hiding elements of the vanilla Minecraft HUD.
      * @returns The PlayerUI API proxy.
      */
-    getUi(): PlayerUI;
+    readonly ui: PlayerUI;
 
     /**
      * Accesses the API for controlling the player's 3D world cursor.
      * @returns The Cursor API proxy.
      */
-    getCursor(): Cursor;
+    readonly cursor: Cursor;
 
     /**
      * Accesses the API for controlling and overriding player model animations and parts.
      * @returns The PlayerAnimation API proxy.
      */
-    getAnimation(): PlayerAnimation;
+    readonly animation: PlayerAnimation;
 
     // --- Added missing movement state methods ---
 
@@ -966,6 +966,35 @@ interface PlayerClient {
      */
     send(eventName: string, data: any): void;
 }
+
+/**
+ * Describes the state of the camera (position, rotation, field of view).
+ * Used for the `snapTo` and `transitionTo` methods.
+ */
+interface CameraStateOptions {
+    /** The target position of the camera in the world. */
+    position?: Vector3;
+    /** The target horizontal orientation (yaw) in degrees. */
+    yaw?: number;
+    /** The target vertical orientation (pitch) in degrees. */
+    pitch?: number;
+    /** The target tilt (roll) in degrees. */
+    roll?: number;
+    /** The target field of view (FOV). */
+    fov?: number;
+}
+
+/**
+ * Options for a smooth camera transition to a new state.
+ */
+interface CameraTransitionOptions extends CameraStateOptions {
+    /** The duration of the transition in milliseconds. Default: 1000. */
+    duration?: number;
+    /** A JavaScript function defining the animation curve (e.g., t => t * t for an ease-in). */
+    easing?: (t: number) => number;
+}
+
+
 
 /**
  * Options for locking the player's camera.
