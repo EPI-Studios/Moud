@@ -22,7 +22,7 @@ public class EventConverter {
             return switch (eventName) {
                 case "player.join" -> convertPlayerJoinEvent(minestomEvent);
                 case "player.chat" -> convertPlayerChatEvent(minestomEvent);
-                case "player.leave" -> convertPlayerLeaveEvent(minestomEvent); // This is the change
+                case "player.leave" -> convertPlayerLeaveEvent(minestomEvent);
                 case "player.move" -> convertPlayerMoveEvent(minestomEvent);
                 case "block.break" -> convertBlockBreakEvent(minestomEvent);
                 case "block.place" -> convertBlockPlaceEvent(minestomEvent);

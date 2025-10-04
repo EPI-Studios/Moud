@@ -52,8 +52,11 @@ public class EventDispatcher {
 
         eventNode.addListener(PlayerDisconnectEvent.class, event ->
                 dispatch("player.leave", event));
-    }
 
+        eventNode.addListener(net.minestom.server.event.player.PlayerEntityInteractEvent.class, event -> {
+            dispatchEntityInteraction(event.getPlayer(), event.getTarget(), "click");
+        });
+    }
     public void register(String eventName, Value handler) {
         if (handler == null || !handler.canExecute()) {
             throw new APIException("INVALID_HANDLER", "Handler must be executable for event: " + eventName);
