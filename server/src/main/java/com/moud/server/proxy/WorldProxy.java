@@ -132,6 +132,13 @@ public class WorldProxy {
         Pos initialPosition = new Pos(position.x, position.y, position.z, 0, 0);
         textEntity.setInstance(defaultInstance, initialPosition);
 
+        if (options.hasMember("hitbox") && options.getMember("hitbox").hasMembers()) {
+            Value hitboxValue = options.getMember("hitbox");
+            double width = hitboxValue.hasMember("width") ? hitboxValue.getMember("width").asDouble() : 1.0;
+            double height = hitboxValue.hasMember("height") ? hitboxValue.getMember("height").asDouble() : 1.0;
+            textProxy.enableHitbox(width, height);
+        }
+
         return textProxy;
     }
 
@@ -161,7 +168,7 @@ public class WorldProxy {
         resultMap.put("distance", result.distance());
 
         if (result.entity() != null) {
-            resultMap.put("entity", new PlayerProxy((Player) result.entity())); // Assuming only players for now
+            resultMap.put("entity", new PlayerProxy((Player) result.entity()));
         } else {
             resultMap.put("entity", null);
         }

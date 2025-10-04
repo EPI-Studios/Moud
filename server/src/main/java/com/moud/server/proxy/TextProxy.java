@@ -13,6 +13,7 @@ import org.graalvm.polyglot.Value;
 public class TextProxy {
     private final Entity textEntity;
     private final TextDisplayMeta meta;
+    private Entity interactionEntity;
 
     public TextProxy(Vector3 position, String content, String billboard) {
         this.textEntity = new Entity(EntityType.TEXT_DISPLAY);
@@ -20,7 +21,6 @@ public class TextProxy {
 
         meta.setText(Component.text(content));
         meta.setBillboardRenderConstraints(parseBillboard(billboard));
-        meta.setBackgroundColor(0xFF00FFFF);
         meta.setShadow(true);
         meta.setSeeThrough(false);
         meta.setLineWidth(200);
@@ -37,7 +37,12 @@ public class TextProxy {
     @HostAccess.Export
     public void setPosition(Vector3 newPosition) {
         Pos currentPos = textEntity.getPosition();
-        textEntity.teleport(new Pos(newPosition.x, newPosition.y, newPosition.z, currentPos.yaw(), currentPos.pitch()));
+        Pos newPos = new Pos(newPosition.x, newPosition.y, newPosition.z, currentPos.yaw(), currentPos.pitch());
+        textEntity.teleport(newPos);
+
+        if (interactionEntity != null && interactionEntity.getInstance() != null) {
+            interactionEntity.teleport(newPos);
+        }
     }
 
     @HostAccess.Export
@@ -56,7 +61,59 @@ public class TextProxy {
     }
 
     @HostAccess.Export
+    public void enableHitbox() {
+        String content = meta.getText().toString();
+        int lineCount = Math.max(1, content.split("\n").length);
+        int lineWidth = meta.getLineWidth();
+
+
+        final float PIXELS_PER_BLOCK = 64f;
+        final float WIDTH_CORRECTION = 0.9f;
+        final float HEIGHT_CORRECTION = 1.6f;
+        final float LINE_HEIGHT_BLOCKS = 0.05f;
+
+        float scaleX = 1.0f;
+        float scaleY = 1.0f;
+
+        float width  = ((lineWidth / PIXELS_PER_BLOCK) * scaleX) * WIDTH_CORRECTION;
+        float height = ((LINE_HEIGHT_BLOCKS * lineCount) * scaleY) * HEIGHT_CORRECTION;
+
+        enableHitbox(width, height);
+    }
+
+
+    @HostAccess.Export
+    public void enableHitbox(double width, double height) {
+        if (interactionEntity != null) {
+            interactionEntity.remove();
+        }
+
+        interactionEntity = new Entity(EntityType.INTERACTION);
+        var interactionMeta = (net.minestom.server.entity.metadata.other.InteractionMeta) interactionEntity.getEntityMeta();
+        interactionMeta.setWidth((float) width);
+        interactionMeta.setHeight((float) height);
+        interactionMeta.setHasNoGravity(true);
+        interactionMeta.setResponse(true);
+
+        Pos currentPos = textEntity.getPosition();
+        if (textEntity.getInstance() != null) {
+            interactionEntity.setInstance(textEntity.getInstance(), currentPos);
+        }
+    }
+
+    @HostAccess.Export
+    public void disableHitbox() {
+        if (interactionEntity != null) {
+            interactionEntity.remove();
+            interactionEntity = null;
+        }
+    }
+
+    @HostAccess.Export
     public void remove() {
+        if (interactionEntity != null) {
+            interactionEntity.remove();
+        }
         textEntity.remove();
     }
 
@@ -64,6 +121,11 @@ public class TextProxy {
     public Vector3 getPosition() {
         Pos pos = textEntity.getPosition();
         return new Vector3((float)pos.x(), (float)pos.y(), (float)pos.z());
+    }
+
+    @HostAccess.Export
+    public String getInteractionUuid() {
+        return interactionEntity != null ? interactionEntity.getUuid().toString() : null;
     }
 
     public Entity getEntity() {
