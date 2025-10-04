@@ -1,21 +1,56 @@
 /**
- * Moud Engine - Server-Side API Definitions
+ * Typings for the Moud runtime SDK.
  *
- * This file provides TypeScript definitions for the Moud server-side scripting environment.
+ * The SDK is split between **server** and **client** execution contexts. Every type below
+ * carries an availability note in its documentation so you immediately know where it can be used:
+ *
+ * - {@linkcode ServerOnly} types are exposed exclusively to server-side scripts running in the
+ *   Minestom-based runtime.
+ * - {@linkcode ClientOnly} types are exported by the Fabric client mod and are only available when
+ *   a script executes on the client.
+ * - {@linkcode Shared} types can safely be referenced from both environments.
  *
  */
 
-// --- Core & Global Types ---
+/**
+ * Marker interface used in documentation to indicate that a type is server-only.
+ * @remarks Server-only.
+ */
+export interface ServerOnly {
+    /** @internal */
+    readonly __brand: 'server';
+}
+
+/**
+ * Marker interface used in documentation to indicate that a type is client-only.
+ * @remarks Client-only.
+ */
+export interface ClientOnly {
+    /** @internal */
+    readonly __brand: 'client';
+}
+
+/** Marker interface used in documentation to indicate that a type is shared by client and server. */
+export interface Shared {
+    /** @internal */
+    readonly __brand: 'shared';
+}
+
+// --- Core & Global Types -------------------------------------------------
 
 declare global {
     /**
      * The main entry point to all server-side Moud APIs.
+     *
+     * @remarks Available in {@link ServerOnly server scripts}.
      */
-    const api: MoudAPI;
+    const api: import('./index').MoudAPI;
 
     /**
      * A secure console API for logging messages to the server console.
      * Mirrors the standard browser console API.
+     *
+     * @remarks Available in {@link ServerOnly server scripts}.
      */
     const console: {
         /** Logs informational messages. */
@@ -28,71 +63,72 @@ declare global {
         debug(...args: any[]): void;
     };
 
+    /** Exposes math helpers in both the client and server runtime. */
     namespace MoudMath {
         const Vector3: {
-            new(x: number, y: number, z: number): Vector3;
+            new(x: number, y: number, z: number): import('./index').Vector3;
             /** A vector with all components set to 0. */
-            zero(): Vector3;
+            zero(): import('./index').Vector3;
             /** A vector with all components set to 1. */
-            one(): Vector3;
+            one(): import('./index').Vector3;
             /** A vector pointing up (0, 1, 0). */
-            up(): Vector3;
+            up(): import('./index').Vector3;
             /** A vector pointing down (0, -1, 0). */
-            down(): Vector3;
+            down(): import('./index').Vector3;
             /** A vector pointing left (-1, 0, 0). */
-            left(): Vector3;
+            left(): import('./index').Vector3;
             /** A vector pointing right (1, 0, 0). */
-            right(): Vector3;
+            right(): import('./index').Vector3;
             /** A vector pointing forward (0, 0, 1). */
-            forward(): Vector3;
+            forward(): import('./index').Vector3;
             /** A vector pointing backward (0, 0, -1). */
-            backward(): Vector3;
+            backward(): import('./index').Vector3;
             /** Linearly interpolates between two vectors. */
-            lerp(start: Vector3, end: Vector3, t: number): Vector3;
+            lerp(start: import('./index').Vector3, end: import('./index').Vector3, t: number): import('./index').Vector3;
         };
 
         const Quaternion: {
-            new(x: number, y: number, z: number, w: number): Quaternion;
+            new(x: number, y: number, z: number, w: number): import('./index').Quaternion;
             /** Returns an identity quaternion (no rotation). */
-            identity(): Quaternion;
+            identity(): import('./index').Quaternion;
             /** Creates a quaternion from Euler angles in degrees. */
-            fromEuler(pitch: number, yaw: number, roll: number): Quaternion;
+            fromEuler(pitch: number, yaw: number, roll: number): import('./index').Quaternion;
             /** Creates a quaternion representing rotation around an axis by the given angle in degrees. */
-            fromAxisAngle(axis: Vector3, angle: number): Quaternion;
+            fromAxisAngle(axis: import('./index').Vector3, angle: number): import('./index').Quaternion;
             /** Creates a quaternion that rotates from one vector to another. */
-            fromToRotation(from: Vector3, to: Vector3): Quaternion;
+            fromToRotation(from: import('./index').Vector3, to: import('./index').Vector3): import('./index').Quaternion;
             /** Creates a quaternion with the specified forward and up directions. */
-            lookRotation(forward: Vector3, up: Vector3): Quaternion;
+            lookRotation(forward: import('./index').Vector3, up: import('./index').Vector3): import('./index').Quaternion;
         };
 
         const Matrix4: {
-            new(): Matrix4;
-            new(values: number[]): Matrix4;
-            new(other: Matrix4): Matrix4;
+            new(): import('./index').Matrix4;
+            new(values: number[]): import('./index').Matrix4;
+            new(other: import('./index').Matrix4): import('./index').Matrix4;
             /** Returns a 4x4 identity matrix. */
-            identity(): Matrix4;
+            identity(): import('./index').Matrix4;
             /** Creates a translation matrix from the given translation vector. */
-            translation(translation: Vector3): Matrix4;
+            translation(translation: import('./index').Vector3): import('./index').Matrix4;
             /** Creates a rotation matrix from the given quaternion. */
-            rotation(rotation: Quaternion): Matrix4;
+            rotation(rotation: import('./index').Quaternion): import('./index').Matrix4;
             /** Creates a scale matrix from the given scale vector. */
-            scaling(scale: Vector3): Matrix4;
+            scaling(scale: import('./index').Vector3): import('./index').Matrix4;
             /** Creates a transformation matrix combining translation, rotation, and scale. */
-            trs(translation: Vector3, rotation: Quaternion, scale: Vector3): Matrix4;
+            trs(translation: import('./index').Vector3, rotation: import('./index').Quaternion, scale: import('./index').Vector3): import('./index').Matrix4;
             /** Creates a perspective projection matrix. */
-            perspective(fov: number, aspect: number, near: number, far: number): Matrix4;
+            perspective(fov: number, aspect: number, near: number, far: number): import('./index').Matrix4;
             /** Creates an orthographic projection matrix. */
-            orthographic(left: number, right: number, bottom: number, top: number, near: number, far: number): Matrix4;
+            orthographic(left: number, right: number, bottom: number, top: number, near: number, far: number): import('./index').Matrix4;
             /** Creates a view matrix looking from eye position towards target with specified up vector. */
-            lookAt(eye: Vector3, target: Vector3, up: Vector3): Matrix4;
+            lookAt(eye: import('./index').Vector3, target: import('./index').Vector3, up: import('./index').Vector3): import('./index').Matrix4;
         };
 
         const Transform: {
-            new(): Transform;
-            new(position: Vector3, rotation: Quaternion, scale: Vector3): Transform;
-            new(other: Transform): Transform;
+            new(): import('./index').Transform;
+            new(position: import('./index').Vector3, rotation: import('./index').Quaternion, scale: import('./index').Vector3): import('./index').Transform;
+            new(other: import('./index').Transform): import('./index').Transform;
             /** Returns an identity transform with zero position, identity rotation, and unit scale. */
-            identity(): Transform;
+            identity(): import('./index').Transform;
         };
 
         const MathUtils: {
@@ -188,65 +224,65 @@ declare global {
 
         const GeometryUtils: {
             /** Calculates the distance from a point to a line segment. */
-            distancePointToLine(point: Vector3, lineStart: Vector3, lineEnd: Vector3): number;
+            distancePointToLine(point: import('./index').Vector3, lineStart: import('./index').Vector3, lineEnd: import('./index').Vector3): number;
             /** Finds the closest point on a line segment to a given point. */
-            closestPointOnLine(point: Vector3, lineStart: Vector3, lineEnd: Vector3): Vector3;
+            closestPointOnLine(point: import('./index').Vector3, lineStart: import('./index').Vector3, lineEnd: import('./index').Vector3): import('./index').Vector3;
             /** Calculates the signed distance from a point to a plane. */
-            distancePointToPlane(point: Vector3, planePoint: Vector3, planeNormal: Vector3): number;
+            distancePointToPlane(point: import('./index').Vector3, planePoint: import('./index').Vector3, planeNormal: import('./index').Vector3): number;
             /** Projects a point onto a plane. */
-            projectPointOnPlane(point: Vector3, planePoint: Vector3, planeNormal: Vector3): Vector3;
+            projectPointOnPlane(point: import('./index').Vector3, planePoint: import('./index').Vector3, planeNormal: import('./index').Vector3): import('./index').Vector3;
             /** Tests if a ray intersects with a plane. */
-            rayPlaneIntersection(rayOrigin: Vector3, rayDirection: Vector3, planePoint: Vector3, planeNormal: Vector3): boolean;
+            rayPlaneIntersection(rayOrigin: import('./index').Vector3, rayDirection: import('./index').Vector3, planePoint: import('./index').Vector3, planeNormal: import('./index').Vector3): boolean;
             /** Calculates the intersection point between a ray and a plane. */
-            rayPlaneIntersectionPoint(rayOrigin: Vector3, rayDirection: Vector3, planePoint: Vector3, planeNormal: Vector3): Vector3;
+            rayPlaneIntersectionPoint(rayOrigin: import('./index').Vector3, rayDirection: import('./index').Vector3, planePoint: import('./index').Vector3, planeNormal: import('./index').Vector3): import('./index').Vector3;
             /** Tests if two spheres intersect. */
-            sphereIntersection(center1: Vector3, radius1: number, center2: Vector3, radius2: number): boolean;
+            sphereIntersection(center1: import('./index').Vector3, radius1: number, center2: import('./index').Vector3, radius2: number): boolean;
             /** Tests if a point is inside a sphere. */
-            pointInSphere(point: Vector3, sphereCenter: Vector3, sphereRadius: number): boolean;
+            pointInSphere(point: import('./index').Vector3, sphereCenter: import('./index').Vector3, sphereRadius: number): boolean;
             /** Tests if a point is inside an axis-aligned bounding box. */
-            pointInBox(point: Vector3, boxMin: Vector3, boxMax: Vector3): boolean;
+            pointInBox(point: import('./index').Vector3, boxMin: import('./index').Vector3, boxMax: import('./index').Vector3): boolean;
             /** Calculates barycentric coordinates of a point relative to a triangle. */
-            barycentric(point: Vector3, a: Vector3, b: Vector3, c: Vector3): Vector3;
+            barycentric(point: import('./index').Vector3, a: import('./index').Vector3, b: import('./index').Vector3, c: import('./index').Vector3): import('./index').Vector3;
             /** Tests if a point is inside a triangle. */
-            pointInTriangle(point: Vector3, a: Vector3, b: Vector3, c: Vector3): boolean;
+            pointInTriangle(point: import('./index').Vector3, a: import('./index').Vector3, b: import('./index').Vector3, c: import('./index').Vector3): boolean;
             /** Calculates the normal vector of a triangle. */
-            triangleNormal(a: Vector3, b: Vector3, c: Vector3): Vector3;
+            triangleNormal(a: import('./index').Vector3, b: import('./index').Vector3, c: import('./index').Vector3): import('./index').Vector3;
             /** Calculates the area of a triangle. */
-            triangleArea(a: Vector3, b: Vector3, c: Vector3): number;
+            triangleArea(a: import('./index').Vector3, b: import('./index').Vector3, c: import('./index').Vector3): number;
             /** Reflects a vector off a surface with the given normal. */
-            reflect(incident: Vector3, normal: Vector3): Vector3;
+            reflect(incident: import('./index').Vector3, normal: import('./index').Vector3): import('./index').Vector3;
             /** Refracts a vector through a surface with the given normal and refractive index. */
-            refract(incident: Vector3, normal: Vector3, eta: number): Vector3;
+            refract(incident: import('./index').Vector3, normal: import('./index').Vector3, eta: number): import('./index').Vector3;
             /** Calculates the Fresnel reflection coefficient. */
-            fresnel(incident: Vector3, normal: Vector3, n1: number, n2: number): number;
+            fresnel(incident: import('./index').Vector3, normal: import('./index').Vector3, n1: number, n2: number): number;
             /** Evaluates a cubic Bézier curve at parameter t. */
-            bezierCubic(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, t: number): Vector3;
+            bezierCubic(p0: import('./index').Vector3, p1: import('./index').Vector3, p2: import('./index').Vector3, p3: import('./index').Vector3, t: number): import('./index').Vector3;
             /** Evaluates a quadratic Bézier curve at parameter t. */
-            bezierQuadratic(p0: Vector3, p1: Vector3, p2: Vector3, t: number): Vector3;
+            bezierQuadratic(p0: import('./index').Vector3, p1: import('./index').Vector3, p2: import('./index').Vector3, t: number): import('./index').Vector3;
             /** Evaluates a Catmull-Rom spline at parameter t. */
-            catmullRom(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, t: number): Vector3;
+            catmullRom(p0: import('./index').Vector3, p1: import('./index').Vector3, p2: import('./index').Vector3, p3: import('./index').Vector3, t: number): import('./index').Vector3;
             /** Calculates the signed volume of a tetrahedron. */
-            signedVolumeOfTetrahedron(a: Vector3, b: Vector3, c: Vector3, d: Vector3): number;
+            signedVolumeOfTetrahedron(a: import('./index').Vector3, b: import('./index').Vector3, c: import('./index').Vector3, d: import('./index').Vector3): number;
             /** Tests if two points are on the same side of a line. */
-            sameSide(p1: Vector3, p2: Vector3, a: Vector3, b: Vector3): boolean;
+            sameSide(p1: import('./index').Vector3, p2: import('./index').Vector3, a: import('./index').Vector3, b: import('./index').Vector3): boolean;
             /** Calculates the circumcenter of a triangle. */
-            circumcenter(a: Vector3, b: Vector3, c: Vector3): Vector3;
+            circumcenter(a: import('./index').Vector3, b: import('./index').Vector3, c: import('./index').Vector3): import('./index').Vector3;
             /** Calculates the circumradius of a triangle. */
-            circumradius(a: Vector3, b: Vector3, c: Vector3): number;
+            circumradius(a: import('./index').Vector3, b: import('./index').Vector3, c: import('./index').Vector3): number;
             /** Calculates the incenter of a triangle. */
-            incenter(a: Vector3, b: Vector3, c: Vector3): Vector3;
+            incenter(a: import('./index').Vector3, b: import('./index').Vector3, c: import('./index').Vector3): import('./index').Vector3;
             /** Calculates the inradius of a triangle. */
-            inradius(a: Vector3, b: Vector3, c: Vector3): number;
+            inradius(a: import('./index').Vector3, b: import('./index').Vector3, c: import('./index').Vector3): number;
             /** Generates uniformly distributed points on a sphere surface. */
-            generateSpherePoints(count: number): Vector3[];
+            generateSpherePoints(count: number): Array<import('./index').Vector3>;
             /** Converts spherical coordinates to Cartesian coordinates. */
-            sphericalToCartesian(radius: number, theta: number, phi: number): Vector3;
+            sphericalToCartesian(radius: number, theta: number, phi: number): import('./index').Vector3;
             /** Converts Cartesian coordinates to spherical coordinates. */
-            cartesianToSpherical(point: Vector3): Vector3;
+            cartesianToSpherical(point: import('./index').Vector3): import('./index').Vector3;
             /** Converts cylindrical coordinates to Cartesian coordinates. */
-            cylindricalToCartesian(radius: number, theta: number, height: number): Vector3;
+            cylindricalToCartesian(radius: number, theta: number, height: number): import('./index').Vector3;
             /** Converts Cartesian coordinates to cylindrical coordinates. */
-            cartesianToCylindrical(point: Vector3): Vector3;
+            cartesianToCylindrical(point: import('./index').Vector3): import('./index').Vector3;
         };
 
         const Conversion: {
@@ -259,162 +295,233 @@ declare global {
         };
     }
 
-    /**
-     * Represents a 3D vector with x, y, and z components.
-     */
-    interface Vector3 {
-        readonly x: number;
-        readonly y: number;
-        readonly z: number;
-        /** Adds two vectors component-wise. */
-        add(other: Vector3): Vector3;
-        /** Subtracts one vector from another component-wise. */
-        subtract(other: Vector3): Vector3;
-        /** Multiplies the vector by a scalar value. */
-        multiply(scalar: number): Vector3;
-        /** Multiplies two vectors component-wise. */
-        multiply(other: Vector3): Vector3;
-        /** Divides the vector by a scalar value. */
-        divide(scalar: number): Vector3;
-        /** Divides two vectors component-wise. */
-        divide(other: Vector3): Vector3;
-        /** Returns the negated vector. */
-        negate(): Vector3;
-        /** Calculates the dot product with another vector. */
-        dot(other: Vector3): number;
-        /** Calculates the cross product with another vector. */
-        cross(other: Vector3): Vector3;
-        /** Returns the magnitude (length) of the vector. */
-        length(): number;
-        /** Returns the squared magnitude of the vector (faster than length()). */
-        lengthSquared(): number;
-        /** Returns a unit vector in the same direction. */
-        normalize(): Vector3;
-        /** Calculates the distance to another vector. */
-        distance(other: Vector3): number;
-        /** Calculates the squared distance to another vector (faster than distance()). */
-        distanceSquared(other: Vector3): number;
-        /** Linearly interpolates between this vector and the target. */
-        lerp(target: Vector3, t: number): Vector3;
-        /** Spherically interpolates between this vector and the target. */
-        slerp(target: Vector3, t: number): Vector3;
-        /** Reflects this vector off a surface with the given normal. */
-        reflect(normal: Vector3): Vector3;
-        /** Projects this vector onto another vector. */
-        project(onto: Vector3): Vector3;
-        /** Returns the rejection of this vector from another vector. */
-        reject(onto: Vector3): Vector3;
-        /** Calculates the angle between this vector and another in radians. */
-        angle(other: Vector3): number;
-        /** Rotates this vector around an axis by the given angle in degrees. */
-        rotateAroundAxis(axis: Vector3, angle: number): Vector3;
-        /** Returns a vector with absolute values of all components. */
-        abs(): Vector3;
-        /** Returns a vector with the minimum components from both vectors. */
-        min(other: Vector3): Vector3;
-        /** Returns a vector with the maximum components from both vectors. */
-        max(other: Vector3): Vector3;
-        /** Clamps all components between the corresponding components of min and max vectors. */
-        clamp(min: Vector3, max: Vector3): Vector3;
-        /** Checks if two vectors are approximately equal within the given tolerance. */
-        equals(other: Vector3, tolerance: number): boolean;
-        /** Returns a string representation of the vector. */
-        toString(): string;
-    }
 
-    /**
-     * Represents a rotation in 3D space using quaternions.
-     */
-    interface Quaternion {
-        readonly x: number;
-        readonly y: number;
-        readonly z: number;
-        readonly w: number;
-        /** Multiplies this quaternion with another quaternion. */
-        multiply(other: Quaternion): Quaternion;
-        /** Adds two quaternions component-wise. */
-        add(other: Quaternion): Quaternion;
-        /** Subtracts one quaternion from another component-wise. */
-        subtract(other: Quaternion): Quaternion;
-        /** Scales the quaternion by a scalar value. */
-        scale(scalar: number): Quaternion;
-        /** Calculates the dot product with another quaternion. */
-        dot(other: Quaternion): number;
-        /** Returns the magnitude of the quaternion. */
-        length(): number;
-        /** Returns the squared magnitude of the quaternion. */
-        lengthSquared(): number;
-        /** Returns a normalized unit quaternion. */
-        normalize(): Quaternion;
-        /** Returns the conjugate of the quaternion. */
-        conjugate(): Quaternion;
-        /** Returns the inverse of the quaternion. */
-        inverse(): Quaternion;
-        /** Rotates a point using this quaternion. */
-        rotate(point: Vector3): Vector3;
-        /** Converts the quaternion to Euler angles in degrees. */
-        toEuler(): Vector3;
-        /** Gets the rotation axis of the quaternion. */
-        getAxis(): Vector3;
-        /** Gets the rotation angle in degrees. */
-        getAngle(): number;
-        /** Spherically interpolates between this quaternion and the target. */
-        slerp(target: Quaternion, t: number): Quaternion;
-        /** Linearly interpolates between this quaternion and the target. */
-        lerp(target: Quaternion, t: number): Quaternion;
-        /** Calculates the angle between this quaternion and another in degrees. */
-        angleTo(target: Quaternion): number;
-        /** Checks if two quaternions are approximately equal within the given tolerance. */
-        equals(other: Quaternion, tolerance: number): boolean;
-        /** Returns a string representation of the quaternion. */
-        toString(): string;
-    }
+    // Re-exported type aliases for ambient usage
+    type Vector3 = import('./index').Vector3;
+    type Quaternion = import('./index').Quaternion;
+    type Matrix4 = import('./index').Matrix4;
+    type Transform = import('./index').Transform;
+    type MoudAPI = import('./index').MoudAPI;
+    type RaycastOptions = import('./index').RaycastOptions;
+    type RaycastResult = import('./index').RaycastResult;
+    type Player = import('./index').Player;
+    type Server = import('./index').Server;
+    type PlayerModelOptions = import('./index').PlayerModelOptions;
+    type TextOptions = import('./index').TextOptions;
+    type World = import('./index').World;
+    type LightingAPI = import('./index').LightingAPI;
+    type AsyncManager = import('./index').AsyncManager;
+    type PlayerClient = import('./index').PlayerClient;
+    type CameraStateOptions = import('./index').CameraStateOptions;
+    type CameraTransitionOptions = import('./index').CameraTransitionOptions;
+    type CameraLockOptions = import('./index').CameraLockOptions;
+    type CameraLock = import('./index').CameraLock;
+    type UIVisibilityOptions = import('./index').UIVisibilityOptions;
+    type PlayerUI = import('./index').PlayerUI;
+    type Cursor = import('./index').Cursor;
+    type InterpolationOptions = import('./index').InterpolationOptions;
+    type PartConfigOptions = import('./index').PartConfigOptions;
+    type PlayerAnimation = import('./index').PlayerAnimation;
+    type CancellableEvent = import('./index').CancellableEvent;
+    type ChatEvent = import('./index').ChatEvent;
+    type BlockEvent = import('./index').BlockEvent;
+    type PlayerMoveEvent = import('./index').PlayerMoveEvent;
+    type PlayerLeaveEvent = import('./index').PlayerLeaveEvent;
+    type EntityInteractionEvent = import('./index').EntityInteractionEvent;
+    type PlayerModel = import('./index').PlayerModel;
+    type Text = import('./index').Text;
+    type SharedValueApi = import('./index').SharedValueApi;
+    type SharedStore = import('./index').SharedStore;
+    type Asset = import('./index').Asset;
+    type CameraService = import('./index').CameraService;
+    type Client = import('./index').Client;
+    type ClientSharedApi = import('./index').ClientSharedApi;
+    type Command = import('./index').Command;
+    type ConsoleAPI = import('./index').ConsoleAPI;
+    type CursorService = import('./index').CursorService;
+    type EventService = import('./index').EventService;
+    type InputService = import('./index').InputService;
+    type NetworkService = import('./index').NetworkService;
+    type PlayerWindow = import('./index').PlayerWindow;
+    type RenderingService = import('./index').RenderingService;
+    type ScriptingAPI = import('./index').ScriptingAPI;
+    type UIComponent = import('./index').UIComponent;
+    type UIContainer = import('./index').UIContainer;
+    type UIImage = import('./index').UIImage;
+    type UIInput = import('./index').UIInput;
+    type UIService = import('./index').UIService;
+    type ZoneAPI = import('./index').ZoneAPI;
+}
 
-    interface Matrix4 {
-        readonly m: number[];
-        multiply(other: Matrix4): Matrix4;
-        transformPoint(point: Vector3): Vector3;
-        transformDirection(direction: Vector3): Vector3;
-        transpose(): Matrix4;
-        determinant(): number;
-        inverse(): Matrix4;
-        getTranslation(): Vector3;
-        getRotation(): Quaternion;
-        getScale(): Vector3;
-        get(index: number): number;
-        set(index: number, value: number): void;
-        toArray(): number[];
-        toString(): string;
-    }
+/**
+ * Represents a 3D vector with x, y, and z components.
+ * @remarks Shared between client and server scripts.
+ */
+export interface Vector3 {
+    readonly x: number;
+    readonly y: number;
+    readonly z: number;
+    /** Adds two vectors component-wise. */
+    add(other: Vector3): Vector3;
+    /** Subtracts one vector from another component-wise. */
+    subtract(other: Vector3): Vector3;
+    /** Multiplies the vector by a scalar value. */
+    multiply(scalar: number): Vector3;
+    /** Multiplies two vectors component-wise. */
+    multiply(other: Vector3): Vector3;
+    /** Divides the vector by a scalar value. */
+    divide(scalar: number): Vector3;
+    /** Divides two vectors component-wise. */
+    divide(other: Vector3): Vector3;
+    /** Returns the negated vector. */
+    negate(): Vector3;
+    /** Calculates the dot product with another vector. */
+    dot(other: Vector3): number;
+    /** Calculates the cross product with another vector. */
+    cross(other: Vector3): Vector3;
+    /** Returns the magnitude (length) of the vector. */
+    length(): number;
+    /** Returns the squared magnitude of the vector (faster than length()). */
+    lengthSquared(): number;
+    /** Returns a unit vector in the same direction. */
+    normalize(): Vector3;
+    /** Calculates the distance to another vector. */
+    distance(other: Vector3): number;
+    /** Calculates the squared distance to another vector (faster than distance()). */
+    distanceSquared(other: Vector3): number;
+    /** Linearly interpolates between this vector and the target. */
+    lerp(target: Vector3, t: number): Vector3;
+    /** Spherically interpolates between this vector and the target. */
+    slerp(target: Vector3, t: number): Vector3;
+    /** Reflects this vector off a surface with the given normal. */
+    reflect(normal: Vector3): Vector3;
+    /** Projects this vector onto another vector. */
+    project(onto: Vector3): Vector3;
+    /** Returns the rejection of this vector from another vector. */
+    reject(onto: Vector3): Vector3;
+    /** Calculates the angle between this vector and another in radians. */
+    angle(other: Vector3): number;
+    /** Rotates this vector around an axis by the given angle in degrees. */
+    rotateAroundAxis(axis: Vector3, angle: number): Vector3;
+    /** Returns a vector with absolute values of all components. */
+    abs(): Vector3;
+    /** Returns a vector with the minimum components from both vectors. */
+    min(other: Vector3): Vector3;
+    /** Returns a vector with the maximum components from both vectors. */
+    max(other: Vector3): Vector3;
+    /** Clamps all components between the corresponding components of min and max vectors. */
+    clamp(min: Vector3, max: Vector3): Vector3;
+    /** Checks if two vectors are approximately equal within the given tolerance. */
+    equals(other: Vector3, tolerance: number): boolean;
+    /** Returns a string representation of the vector. */
+    toString(): string;
+}
 
-    interface Transform {
-        position: Vector3;
-        rotation: Quaternion;
-        scale: Vector3;
-        toMatrix(): Matrix4;
-        multiply(other: Transform): Transform;
-        transformPoint(point: Vector3): Vector3;
-        transformDirection(direction: Vector3): Vector3;
-        inverseTransformPoint(point: Vector3): Vector3;
-        inverseTransformDirection(direction: Vector3): Vector3;
-        inverse(): Transform;
-        lerp(target: Transform, t: number): Transform;
-        slerp(target: Transform, t: number): Transform;
-        getForward(): Vector3;
-        getRight(): Vector3;
-        getUp(): Vector3;
-        lookAt(target: Vector3, up: Vector3): void;
-        translate(translation: Vector3): void;
-        rotate(rotation: Quaternion): void;
-        rotateAround(point: Vector3, axis: Vector3, angle: number): void;
-        toString(): string;
-    }
+/**
+ * Represents a rotation in 3D space using quaternions.
+ * @remarks Shared between client and server scripts.
+ */
+export interface Quaternion {
+    readonly x: number;
+    readonly y: number;
+    readonly z: number;
+    readonly w: number;
+    /** Multiplies this quaternion with another quaternion. */
+    multiply(other: Quaternion): Quaternion;
+    /** Adds two quaternions component-wise. */
+    add(other: Quaternion): Quaternion;
+    /** Subtracts one quaternion from another component-wise. */
+    subtract(other: Quaternion): Quaternion;
+    /** Scales the quaternion by a scalar value. */
+    scale(scalar: number): Quaternion;
+    /** Calculates the dot product with another quaternion. */
+    dot(other: Quaternion): number;
+    /** Returns the magnitude of the quaternion. */
+    length(): number;
+    /** Returns the squared magnitude of the quaternion. */
+    lengthSquared(): number;
+    /** Returns a normalized unit quaternion. */
+    normalize(): Quaternion;
+    /** Returns the conjugate of the quaternion. */
+    conjugate(): Quaternion;
+    /** Returns the inverse of the quaternion. */
+    inverse(): Quaternion;
+    /** Rotates a point using this quaternion. */
+    rotate(point: Vector3): Vector3;
+    /** Converts the quaternion to Euler angles in degrees. */
+    toEuler(): Vector3;
+    /** Gets the rotation axis of the quaternion. */
+    getAxis(): Vector3;
+    /** Gets the rotation angle in degrees. */
+    getAngle(): number;
+    /** Spherically interpolates between this quaternion and the target. */
+    slerp(target: Quaternion, t: number): Quaternion;
+    /** Linearly interpolates between this quaternion and the target. */
+    lerp(target: Quaternion, t: number): Quaternion;
+    /** Calculates the angle between this quaternion and another in degrees. */
+    angleTo(target: Quaternion): number;
+    /** Checks if two quaternions are approximately equal within the given tolerance. */
+    equals(other: Quaternion, tolerance: number): boolean;
+    /** Returns a string representation of the quaternion. */
+    toString(): string;
+}
+
+/**
+ * Represents a 4x4 transformation matrix.
+ * @remarks Shared between client and server scripts.
+ */
+export interface Matrix4 {
+    readonly m: number[];
+    multiply(other: Matrix4): Matrix4;
+    transformPoint(point: Vector3): Vector3;
+    transformDirection(direction: Vector3): Vector3;
+    transpose(): Matrix4;
+    determinant(): number;
+    inverse(): Matrix4;
+    getTranslation(): Vector3;
+    getRotation(): Quaternion;
+    getScale(): Vector3;
+    get(index: number): number;
+    set(index: number, value: number): void;
+    toArray(): number[];
+    toString(): string;
+}
+
+/**
+ * Represents a position, rotation and scale tuple.
+ * @remarks Shared between client and server scripts.
+ */
+export interface Transform {
+    position: Vector3;
+    rotation: Quaternion;
+    scale: Vector3;
+    toMatrix(): Matrix4;
+    multiply(other: Transform): Transform;
+    transformPoint(point: Vector3): Vector3;
+    transformDirection(direction: Vector3): Vector3;
+    inverseTransformPoint(point: Vector3): Vector3;
+    inverseTransformDirection(direction: Vector3): Vector3;
+    inverse(): Transform;
+    lerp(target: Transform, t: number): Transform;
+    slerp(target: Transform, t: number): Transform;
+    getForward(): Vector3;
+    getRight(): Vector3;
+    getUp(): Vector3;
+    lookAt(target: Vector3, up: Vector3): void;
+    translate(translation: Vector3): void;
+    rotate(rotation: Quaternion): void;
+    rotateAround(point: Vector3, axis: Vector3, angle: number): void;
+    toString(): string;
+}
+
+
 // --- Main API Interfaces ---
 
 /**
  * The root interface for all server-side Moud APIs.
+ * @remarks Server-only.
  */
-interface MoudAPI {
+export interface MoudAPI {
     /**
      * Registers a callback function to be executed when a specific game event occurs.
      * @param eventName The name of the event (e.g., 'player.join', 'player.chat').
@@ -466,8 +573,9 @@ interface MoudAPI {
 
 /**
  * Options for performing a world raycast.
+ * @remarks Server-only.
  */
-interface RaycastOptions {
+export interface RaycastOptions {
     /** The starting point of the ray. */
     origin: Vector3;
     /** A normalized vector indicating the direction of the ray. */
@@ -480,8 +588,9 @@ interface RaycastOptions {
 
 /**
  * The result of a world raycast operation.
+ * @remarks Server-only.
  */
-interface RaycastResult {
+export interface RaycastResult {
     /** True if the raycast hit a block or an entity. */
     readonly didHit: boolean;
     /** The world position where the raycast hit, or where it ended if it missed. */
@@ -498,8 +607,9 @@ interface RaycastResult {
 
 /**
  * Represents a player in the game and provides methods to interact with them.
+ * @remarks Server-only.
  */
-interface Player {
+export interface Player {
     /** @returns The player's Minecraft username. */
     getName(): string;
 
@@ -670,7 +780,7 @@ interface Player {
 /**
  * API for managing server-level operations.
  */
-interface Server {
+export interface Server {
     /**
      * Sends a message to every online player.
      * @param message The message to broadcast.
@@ -731,8 +841,9 @@ interface Server {
 
 /**
  * Options for creating a player model.
+ * @remarks Server-only.
  */
-interface PlayerModelOptions {
+export interface PlayerModelOptions {
     /** The initial position of the model in the world. */
     position: Vector3;
     /** The URL of the skin to apply to the model. */
@@ -791,8 +902,9 @@ interface PlayerModelOptions {
 
 /**
  * Options for creating world text.
+ * @remarks Server-only.
  */
-interface TextOptions {
+export interface TextOptions {
     /** The initial position of the text in the world. */
     position: Vector3;
     /** The content of the text. */
@@ -834,8 +946,9 @@ interface TextOptions {
 
 /**
  * API for managing the main game world.
+ * @remarks Server-only.
  */
-interface World {
+export interface World {
     /**
      * Sets the world generator to a flat grass plain.
      * @returns The World object for chaining.
@@ -898,8 +1011,9 @@ interface World {
 
 /**
  * API for creating and managing dynamic lights in the world.
+ * @remarks Server-only.
  */
-interface LightingAPI {
+export interface LightingAPI {
     /**
      * Creates a new point light (emits light in all directions).
      * @param lightId A unique numeric ID for this light.
@@ -938,8 +1052,9 @@ interface LightingAPI {
 
 /**
  * API for running tasks on a separate thread to avoid lagging the server.
+ * @remarks Server-only.
  */
-interface AsyncManager {
+export interface AsyncManager {
     /**
      * Submits a task to be executed on a worker thread.
      * @param task A function containing the long-running computation.
@@ -956,8 +1071,9 @@ interface AsyncManager {
 }
 /**
  * Represents the client-side of a player connection, for sending client-only events.
+ * @remarks Server-only — bridges to the connected client.
  */
-interface PlayerClient {
+export interface PlayerClient {
     /**
      * Sends a custom event to this specific player's client script.
      * The client script must have a corresponding `moudAPI.network.on('eventName', ...)` handler.
@@ -970,10 +1086,11 @@ interface PlayerClient {
 /**
  * Describes the state of the camera (position, rotation, field of view).
  * Used for the `snapTo` and `transitionTo` methods.
+ * @remarks Client-only.
  */
-interface CameraStateOptions {
+export interface CameraStateOptions {
     /** The target position of the camera in the world. */
-    position?: Vector3;
+    position?: Vector3 | CameraVector;
     /** The target horizontal orientation (yaw) in degrees. */
     yaw?: number;
     /** The target vertical orientation (pitch) in degrees. */
@@ -986,8 +1103,9 @@ interface CameraStateOptions {
 
 /**
  * Options for a smooth camera transition to a new state.
+ * @remarks Client-only.
  */
-interface CameraTransitionOptions extends CameraStateOptions {
+export interface CameraTransitionOptions extends CameraStateOptions {
     /** The duration of the transition in milliseconds. Default: 1000. */
     duration?: number;
     /** A JavaScript function defining the animation curve (e.g., t => t * t for an ease-in). */
@@ -998,8 +1116,9 @@ interface CameraTransitionOptions extends CameraStateOptions {
 
 /**
  * Options for locking the player's camera.
+ * @remarks Server-only.
  */
-interface CameraLockOptions {
+export interface CameraLockOptions {
     /** The yaw (horizontal rotation) of the camera. */
     yaw?: number;
     /** The pitch (vertical rotation) of the camera. */
@@ -1049,7 +1168,7 @@ interface CameraLockOptions {
 /**
  * API for controlling a player's camera, allowing for cinematic sequences.
  */
-interface CameraLock {
+export interface CameraLock {
     /**
      * Shakes the player's camera.
      * @param intensity The strength of the shake.
@@ -1108,8 +1227,9 @@ interface CameraLock {
 
 /**
  * Options for showing or hiding multiple HUD elements at once.
+ * @remarks Server-only.
  */
-interface UIVisibilityOptions {
+export interface UIVisibilityOptions {
     hotbar?: boolean;
     hand?: boolean;
     experience?: boolean;
@@ -1123,8 +1243,9 @@ interface UIVisibilityOptions {
 
 /**
  * API for controlling the visibility of the vanilla Minecraft HUD for a player.
+ * @remarks Server-only.
  */
-interface PlayerUI {
+export interface PlayerUI {
     /** Hides all vanilla HUD elements. */
     hide(): void;
     /** Hides a specific set of HUD elements. */
@@ -1165,8 +1286,9 @@ interface PlayerUI {
 
 /**
  * API for controlling a player's 3D world cursor.
+ * @remarks Server-only.
  */
-interface Cursor {
+export interface Cursor {
     /** @returns The current 3D world position of the cursor. */
     getPosition(): Vector3;
 
@@ -1218,8 +1340,9 @@ type PlayerPartName = 'head' | 'body' | 'right_arm' | 'left_arm' | 'right_leg' |
 
 /**
  * Options for configuring the interpolation of part movements.
+ * @remarks Server-only.
  */
-interface InterpolationOptions {
+export interface InterpolationOptions {
     /** If false, the change will be instant. Defaults to true. */
     enabled?: boolean;
     /** The duration of the interpolation in milliseconds. Defaults to 150. */
@@ -1230,8 +1353,9 @@ interface InterpolationOptions {
 
 /**
  * Options for modifying a player model's part.
+ * @remarks Server-only.
  */
-interface PartConfigOptions {
+export interface PartConfigOptions {
     position?: Vector3;
     rotation?: Vector3;
     scale?: Vector3;
@@ -1244,8 +1368,9 @@ interface PartConfigOptions {
 
 /**
  * API for controlling player model animations and individual parts.
+ * @remarks Server-only.
  */
-interface PlayerAnimation {
+export interface PlayerAnimation {
     /**
      * Modifies the transform of a specific part of the player model (e.g., the head or arms).
      * @param partName The name of the part to modify.
@@ -1270,8 +1395,9 @@ interface PlayerAnimation {
 
 /**
  * Base interface for events that can be cancelled.
+ * @remarks Server-only.
  */
-interface CancellableEvent {
+export interface CancellableEvent {
     /**
      * Prevents the event from proceeding with its default vanilla behavior.
      * For example, cancelling a 'player.chat' event will prevent the message from appearing in chat.
@@ -1286,29 +1412,20 @@ interface CancellableEvent {
 
 /**
  * Fired when a player attempts to send a message in chat.
+ * @remarks Server-only.
  */
-interface ChatEvent extends CancellableEvent {
+export interface ChatEvent extends CancellableEvent {
     /** @returns The player who sent the message. */
     getPlayer(): Player;
     /** @returns The content of the chat message. */
     getMessage(): string;
-
-    /**
-     * Auto-generated from Java method 'cancel'.
-     * Please specify parameters and update return type if necessary.
-     */
-    cancel(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'isCancelled'.
-     * Please specify parameters and update return type if necessary.
-     */
-    isCancelled(...args: any[]): boolean;
 }
 
 /**
  * Fired when a player breaks or places a block.
+ * @remarks Server-only.
  */
-interface BlockEvent extends CancellableEvent {
+export interface BlockEvent extends CancellableEvent {
     /** @returns The player who interacted with the block. */
     getPlayer(): Player;
     /** @returns The world position of the block. */
@@ -1323,23 +1440,13 @@ interface BlockEvent extends CancellableEvent {
     isBreakEvent(): boolean;
     /** @returns True if this was a block place event. */
     isPlaceEvent(): boolean;
-
-    /**
-     * Auto-generated from Java method 'cancel'.
-     * Please specify parameters and update return type if necessary.
-     */
-    cancel(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'isCancelled'.
-     * Please specify parameters and update return type if necessary.
-     */
-    isCancelled(...args: any[]): boolean;
 }
 
 /**
  * Fired when a player moves in the world.
+ * @remarks Server-only.
  */
-interface PlayerMoveEvent extends CancellableEvent {
+export interface PlayerMoveEvent extends CancellableEvent {
     /** @returns The player who moved. */
     getPlayer(): Player;
     /** @returns The player's new position. */
@@ -1350,24 +1457,14 @@ interface PlayerMoveEvent extends CancellableEvent {
     getDistance(): number;
     /** @returns True if the player moved from one block coordinate to another. */
     hasChangedBlock(): boolean;
-
-    /**
-     * Auto-generated from Java method 'cancel'.
-     * Please specify parameters and update return type if necessary.
-     */
-    cancel(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'isCancelled'.
-     * Please specify parameters and update return type if necessary.
-     */
-    isCancelled(...args: any[]): boolean;
 }
 
 /**
  * Fired when a player disconnects from the server.
  * Note: The Player object associated with this event may be offline.
+ * @remarks Server-only.
  */
-interface PlayerLeaveEvent {
+export interface PlayerLeaveEvent {
     /** @returns The name of the player who left. */
     getName(): string;
     /** @returns The UUID of the player who left. */
@@ -1376,8 +1473,9 @@ interface PlayerLeaveEvent {
 
 /**
  * Fired when a player's cursor interacts with a scripted entity.
+ * @remarks Server-only.
  */
-interface EntityInteractionEvent {
+export interface EntityInteractionEvent {
     /** @returns The player whose cursor interacted with the entity. */
     getPlayer(): Player;
     /** @returns The namespaced ID of the entity type (e.g., 'minecraft:zombie'). */
@@ -1456,7 +1554,7 @@ interface EntityInteractionEvent {
  * Represents a client-side rendered, non-player entity that looks like a player.
  * Can be used for NPCs, ghosts, placeholders, etc.
  */
-interface PlayerModel {
+export interface PlayerModel {
     /** @returns The current world position of the model. */
     getPosition(): Vector3;
 
@@ -1498,7 +1596,7 @@ interface PlayerModel {
 /**
  * Represents floating text in the world.
  */
-interface Text {
+export interface Text {
     /**
      * Sets the content of the text display.
      */
@@ -1538,52 +1636,23 @@ interface Text {
 /**
  * Entry point to the Shared Values API for a specific player.
  * Allows for creating named data stores that are synchronized with the client.
+ * @remarks Server-only.
  */
-interface SharedValueApi {
+export interface SharedValueApi {
     /**
      * Gets or creates a named data store for this player. Stores are player-specific.
      * @param storeName A unique name for the store (e.g., 'inventory', 'playerStats', 'uiState').
      * @returns The SharedStore proxy for manipulating data.
      */
     getStore(storeName: string): SharedStore;
-
-    /**
-     * Auto-generated from Java method 'set'.
-     * Please specify parameters and update return type if necessary.
-     */
-    set(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'get'.
-     * Please specify parameters and update return type if necessary.
-     */
-    get(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'has'.
-     * Please specify parameters and update return type if necessary.
-     */
-    has(...args: any[]): boolean;
-    /**
-     * Auto-generated from Java method 'remove'.
-     * Please specify parameters and update return type if necessary.
-     */
-    remove(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'on'.
-     * Please specify parameters and update return type if necessary.
-     */
-    on(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'onChange'.
-     * Please specify parameters and update return type if necessary.
-     */
-    onChange(...args: any[]): void;
 }
 
 /**
  * Represents a key-value data store that is synchronized between the server and a single client.
  * This is the primary mechanism for managing client-side state from the server.
+ * @remarks Server-only for values synchronised to the owning client.
  */
-interface SharedStore {
+export interface SharedStore {
     /**
      * Sets a value in the store. The change will be automatically synchronized to the client.
      * @param key The unique identifier for the data within this store.
@@ -1631,1128 +1700,846 @@ interface SharedStore {
      */
     onChange(key: string, callback: (newValue: any, oldValue: any) => void): void;
 }
-}
 export {};
 
 
-// --- Auto-generated interfaces ---
+// --- Proxy & Service interfaces ------------------------------------------------
 
 /**
- * Auto-generated for Java class `AssetProxy`.
+ * Tools for loading server-managed assets that are bundled with the current datapack.
+ * @remarks Server-only.
  */
-declare interface Asset {
+export interface Asset {
     /**
-     * Auto-generated from Java method 'loadShader'.
-     * Please specify parameters and update return type if necessary.
+     * Loads a shader asset from disk and exposes the compiled source.
+     * @param path Relative path inside the datapack's `assets` folder.
      */
-    loadShader(...args: any[]): any;
+    loadShader(path: string): ShaderAsset;
+
     /**
-     * Auto-generated from Java method 'loadTexture'.
-     * Please specify parameters and update return type if necessary.
+     * Loads an image asset and exposes the raw binary data.
+     * @param path Relative path inside the datapack's `assets` folder.
      */
-    loadTexture(...args: any[]): any;
+    loadTexture(path: string): TextureAsset;
+
     /**
-     * Auto-generated from Java method 'loadData'.
-     * Please specify parameters and update return type if necessary.
+     * Loads a JSON or text asset.
+     * @param path Relative path inside the datapack's `assets` folder.
      */
-    loadData(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'getId'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getId(...args: any[]): string;
-    /**
-     * Auto-generated from Java method 'getCode'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getCode(...args: any[]): string;
-    /**
-     * Auto-generated from Java method 'getData'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getData(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'getContent'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getContent(...args: any[]): string;
+    loadData(path: string): DataAsset;
+}
+
+/** Describes a shader that has been loaded through {@link Asset.loadShader}. */
+export interface ShaderAsset {
+    /** @returns The identifier that uniquely represents this asset. */
+    getId(): string;
+    /** @returns The GLSL shader source code. */
+    getCode(): string;
+}
+
+/** Describes a texture that has been loaded through {@link Asset.loadTexture}. */
+export interface TextureAsset {
+    /** @returns The identifier that uniquely represents this asset. */
+    getId(): string;
+    /** @returns The raw byte data for the texture. */
+    getData(): number[];
+}
+
+/** Describes a text or JSON asset that was loaded by {@link Asset.loadData}. */
+export interface DataAsset {
+    /** @returns The identifier that uniquely represents this asset. */
+    getId(): string;
+    /** @returns The raw contents of the asset. */
+    getContent(): string;
 }
 
 /**
- * Auto-generated for Java class `CameraService`.
+ * Options used when animating the camera to a new pose.
+ * @remarks Client-only.
  */
-declare interface CameraService {
+export interface CameraTransitionOptions {
+    /** Target world-space position for the camera. */
+    position?: CameraVector;
+    /** Target yaw in degrees. */
+    yaw?: number;
+    /** Target pitch in degrees. */
+    pitch?: number;
+    /** Target roll in degrees. */
+    roll?: number;
+    /** Target field of view in degrees. */
+    fov?: number;
+    /** Duration of the animation in milliseconds. Defaults to `1000`. */
+    duration?: number;
     /**
-     * Auto-generated from Java method 'enableCustomCamera'.
-     * Please specify parameters and update return type if necessary.
+     * Optional easing function that receives a progress value between `0` and `1`
+     * and must return the eased progress.
      */
-    enableCustomCamera(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'disableCustomCamera'.
-     * Please specify parameters and update return type if necessary.
-     */
-    disableCustomCamera(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'transitionTo'.
-     * Please specify parameters and update return type if necessary.
-     */
-    transitionTo(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'snapTo'.
-     * Please specify parameters and update return type if necessary.
-     */
-    snapTo(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'isCustomCameraActive'.
-     * Please specify parameters and update return type if necessary.
-     */
-    isCustomCameraActive(...args: any[]): boolean;
-    /**
-     * Auto-generated from Java method 'getPlayerX'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getPlayerX(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getPlayerY'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getPlayerY(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getPlayerZ'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getPlayerZ(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getPlayerYaw'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getPlayerYaw(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getPlayerPitch'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getPlayerPitch(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'createVector3'.
-     * Please specify parameters and update return type if necessary.
-     */
-    createVector3(...args: any[]): Vector3;
-    /**
-     * Auto-generated from Java method 'isThirdPerson'.
-     * Please specify parameters and update return type if necessary.
-     */
-    isThirdPerson(...args: any[]): boolean;
-    /**
-     * Auto-generated from Java method 'setThirdPerson'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setThirdPerson(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'getFov'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getFov(...args: any[]): number;
+    easing?: (progress: number) => number;
+}
+
+/** Vector coordinates accepted by {@link CameraService} transition helpers. */
+export interface CameraVector {
+    x: number;
+    y: number;
+    z: number;
 }
 
 /**
- * Auto-generated for Java class `ClientProxy`.
+ * Controls the in-game camera from client scripts.
+ * @remarks Client-only.
  */
-declare interface Client {
+export interface CameraService {
+    /** Enables the custom camera controller and captures the current pose. */
+    enableCustomCamera(): void;
+    /** Disables the custom camera controller and restores the previous perspective. */
+    disableCustomCamera(): void;
     /**
-     * Auto-generated from Java method 'send'.
-     * Please specify parameters and update return type if necessary.
+     * Smoothly interpolates the camera towards the supplied pose.
+     * @param options Coordinates and orientation values to animate towards.
      */
-    send(...args: any[]): void;
+    transitionTo(options: CameraTransitionOptions): void;
+    /**
+     * Instantly applies a new camera pose. Any `duration` or `easing` values are ignored.
+     * @param options Coordinates and orientation values to apply immediately.
+     */
+    snapTo(options: CameraTransitionOptions): void;
+    /** @returns `true` when the custom camera is active. */
+    isCustomCameraActive(): boolean;
+    /** @returns The player's current X coordinate. */
+    getPlayerX(): number;
+    /** @returns The player's eye-level Y coordinate. */
+    getPlayerY(): number;
+    /** @returns The player's current Z coordinate. */
+    getPlayerZ(): number;
+    /** @returns The player's yaw in degrees. */
+    getPlayerYaw(): number;
+    /** @returns The player's pitch in degrees. */
+    getPlayerPitch(): number;
+    /**
+     * Utility helper that creates a {@link Vector3} usable with other APIs.
+     * @param x X component.
+     * @param y Y component.
+     * @param z Z component.
+     */
+    createVector3(x: number, y: number, z: number): Vector3;
+    /** @returns `true` if the game is currently rendering in a third-person perspective. */
+    isThirdPerson(): boolean;
+    /**
+     * Switches between first and third person perspectives.
+     * @param thirdPerson Set to `true` to force third person.
+     */
+    setThirdPerson(thirdPerson: boolean): void;
+    /** @returns The player's current field of view in degrees. */
+    getFov(): number;
 }
 
 /**
- * Auto-generated for Java class `ClientSharedApiProxy`.
+ * Sends custom network events to an individual client from a server script.
+ * @remarks Server-only.
  */
-declare interface ClientSharedApi {
+export interface Client {
     /**
-     * Auto-generated from Java method 'getStore'.
-     * Please specify parameters and update return type if necessary.
+     * Sends an event to the connected client mod.
+     * @param eventName Unique name of the event.
+     * @param data Payload that will be JSON-serialised before sending.
      */
-    getStore(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'get'.
-     * Please specify parameters and update return type if necessary.
-     */
-    get(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'has'.
-     * Please specify parameters and update return type if necessary.
-     */
-    has(...args: any[]): boolean;
-    /**
-     * Auto-generated from Java method 'set'.
-     * Please specify parameters and update return type if necessary.
-     */
-    set(...args: any[]): boolean;
-    /**
-     * Auto-generated from Java method 'on'.
-     * Please specify parameters and update return type if necessary.
-     */
-    on(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'onChange'.
-     * Please specify parameters and update return type if necessary.
-     */
-    onChange(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'canModify'.
-     * Please specify parameters and update return type if necessary.
-     */
-    canModify(...args: any[]): boolean;
+    send<T = unknown>(eventName: string, data?: T): void;
 }
 
 /**
- * Auto-generated for Java class `CommandProxy`.
+ * Entry point for managing client-side shared values from a client script.
+ * @remarks Client-only.
  */
-declare interface Command {
+export interface ClientSharedApi {
     /**
-     * Auto-generated from Java method 'register'.
-     * Please specify parameters and update return type if necessary.
+     * Returns a handle to a shared value store synchronised with the server.
+     * @param storeName Name of the store to access.
      */
-    register(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'registerWithAliases'.
-     * Please specify parameters and update return type if necessary.
-     */
-    registerWithAliases(...args: any[]): void;
+    getStore(storeName: string): ClientSharedStore;
 }
 
 /**
- * Auto-generated for Java class `ConsoleAPI`.
+ * Represents a client-side cache of shared values synchronised with the server.
+ * @remarks Client-only.
  */
-declare interface ConsoleAPI {
+export interface ClientSharedStore {
     /**
-     * Auto-generated from Java method 'log'.
-     * Please specify parameters and update return type if necessary.
+     * Reads the cached value for a key.
+     * @param key Name of the value to read.
      */
-    log(...args: any[]): void;
+    get<T = unknown>(key: string): T | undefined;
+    /** @returns `true` if the cache currently holds a value for the key. */
+    has(key: string): boolean;
     /**
-     * Auto-generated from Java method 'warn'.
-     * Please specify parameters and update return type if necessary.
+     * Requests that the server updates a key. The change is queued immediately on the client.
+     * @param key Name of the value to change.
+     * @param value New value to send to the server.
+     * @returns `true` if the client is allowed to modify the key.
      */
-    warn(...args: any[]): void;
+    set(key: string, value: unknown): boolean;
     /**
-     * Auto-generated from Java method 'error'.
-     * Please specify parameters and update return type if necessary.
+     * Subscribes to changes on any key in the store.
+     * @param event Must be `"change"`.
+     * @param callback Invoked with `(key, newValue, previousValue)`.
      */
-    error(...args: any[]): void;
+    on(event: 'change', callback: (key: string, newValue: unknown, previousValue: unknown) => void): void;
     /**
-     * Auto-generated from Java method 'debug'.
-     * Please specify parameters and update return type if necessary.
+     * Subscribes to changes for a specific key.
+     * @param key Name of the value to monitor.
+     * @param callback Invoked with `(newValue, previousValue)`.
      */
-    debug(...args: any[]): void;
+    onChange(key: string, callback: (newValue: unknown, previousValue: unknown) => void): void;
+    /** @returns `true` if the client has permission to change the key optimistically. */
+    canModify(key: string): boolean;
 }
 
 /**
- * Auto-generated for Java class `CursorService`.
+ * Registers commands that players can execute in chat.
+ * @remarks Server-only.
  */
-declare interface CursorService {
+export interface Command {
     /**
-     * Auto-generated from Java method 'show'.
-     * Please specify parameters and update return type if necessary.
+     * Registers a command without aliases.
+     * @param name Primary literal used to execute the command.
+     * @param callback Invoked when a player runs the command.
      */
-    show(...args: any[]): void;
+    register(name: string, callback: (player: Player) => void): void;
     /**
-     * Auto-generated from Java method 'hide'.
-     * Please specify parameters and update return type if necessary.
+     * Registers a command with additional aliases.
+     * @param name Primary literal used to execute the command.
+     * @param aliases Additional names that trigger the same command.
+     * @param callback Invoked when a player runs the command.
      */
-    hide(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'toggle'.
-     * Please specify parameters and update return type if necessary.
-     */
-    toggle(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'isVisible'.
-     * Please specify parameters and update return type if necessary.
-     */
-    isVisible(...args: any[]): boolean;
+    registerWithAliases(name: string, aliases: string[], callback: (player: Player) => void): void;
 }
 
 /**
- * Auto-generated for Java class `EventService`.
+ * Logging helper that mirrors the browser `console` API.
+ * @remarks Server-only.
  */
-declare interface EventService {
-    /**
-     * Auto-generated from Java method 'on'.
-     * Please specify parameters and update return type if necessary.
-     */
-    on(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'dispatch'.
-     * Please specify parameters and update return type if necessary.
-     */
-    dispatch(...args: any[]): void;
+export interface ConsoleAPI {
+    /** Writes an informational message to the server log. */
+    log(...args: unknown[]): void;
+    /** Writes a warning to the server log. */
+    warn(...args: unknown[]): void;
+    /** Writes an error to the server log. */
+    error(...args: unknown[]): void;
+    /** Writes a debug message to the server log. */
+    debug(...args: unknown[]): void;
 }
 
 /**
- * Auto-generated for Java class `InputService`.
+ * Manually shows or hides the system cursor while the client mod is running.
+ * @remarks Client-only.
  */
-declare interface InputService {
-    /**
-     * Auto-generated from Java method 'isKeyPressed'.
-     * Please specify parameters and update return type if necessary.
-     */
-    isKeyPressed(...args: any[]): boolean;
-    /**
-     * Auto-generated from Java method 'isMouseButtonPressed'.
-     * Please specify parameters and update return type if necessary.
-     */
-    isMouseButtonPressed(...args: any[]): boolean;
-    /**
-     * Auto-generated from Java method 'getMouseX'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getMouseX(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getMouseY'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getMouseY(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getMouseDeltaX'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getMouseDeltaX(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getMouseDeltaY'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getMouseDeltaY(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'onKey'.
-     * Please specify parameters and update return type if necessary.
-     */
-    onKey(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'onMouseButton'.
-     * Please specify parameters and update return type if necessary.
-     */
-    onMouseButton(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'onMouseMove'.
-     * Please specify parameters and update return type if necessary.
-     */
-    onMouseMove(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'onScroll'.
-     * Please specify parameters and update return type if necessary.
-     */
-    onScroll(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'isMovingForward'.
-     * Please specify parameters and update return type if necessary.
-     */
-    isMovingForward(...args: any[]): boolean;
-    /**
-     * Auto-generated from Java method 'isMovingBackward'.
-     * Please specify parameters and update return type if necessary.
-     */
-    isMovingBackward(...args: any[]): boolean;
-    /**
-     * Auto-generated from Java method 'isStrafingLeft'.
-     * Please specify parameters and update return type if necessary.
-     */
-    isStrafingLeft(...args: any[]): boolean;
-    /**
-     * Auto-generated from Java method 'isStrafingRight'.
-     * Please specify parameters and update return type if necessary.
-     */
-    isStrafingRight(...args: any[]): boolean;
-    /**
-     * Auto-generated from Java method 'isJumping'.
-     * Please specify parameters and update return type if necessary.
-     */
-    isJumping(...args: any[]): boolean;
-    /**
-     * Auto-generated from Java method 'isSprinting'.
-     * Please specify parameters and update return type if necessary.
-     */
-    isSprinting(...args: any[]): boolean;
-    /**
-     * Auto-generated from Java method 'isOnGround'.
-     * Please specify parameters and update return type if necessary.
-     */
-    isOnGround(...args: any[]): boolean;
-    /**
-     * Auto-generated from Java method 'isMoving'.
-     * Please specify parameters and update return type if necessary.
-     */
-    isMoving(...args: any[]): boolean;
-    /**
-     * Auto-generated from Java method 'lockMouse'.
-     * Please specify parameters and update return type if necessary.
-     */
-    lockMouse(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'isMouseLocked'.
-     * Please specify parameters and update return type if necessary.
-     */
-    isMouseLocked(...args: any[]): boolean;
-    /**
-     * Auto-generated from Java method 'getMouseSensitivity'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getMouseSensitivity(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'setMouseSensitivity'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setMouseSensitivity(...args: any[]): void;
+export interface CursorService {
+    /** Unlocks the cursor and shows it on screen. */
+    show(): void;
+    /** Locks and hides the cursor. */
+    hide(): void;
+    /** Toggles the cursor visibility. */
+    toggle(): void;
+    /** @returns `true` if the cursor is currently visible. */
+    isVisible(): boolean;
 }
 
 /**
- * Auto-generated for Java class `MathProxy`.
+ * Client-side event bus used by the scripting runtime.
+ * @remarks Client-only.
  */
-declare interface Math {
+export interface EventService {
     /**
-     * Auto-generated from Java method 'clamp'.
-     * Please specify parameters and update return type if necessary.
+     * Registers a handler for a client-side event.
+     * @param eventName Identifier of the event.
+     * @param callback Executed when the event fires.
      */
-    clamp(...args: any[]): number;
+    on(eventName: string, callback: (...args: unknown[]) => void): void;
     /**
-     * Auto-generated from Java method 'lerp'.
-     * Please specify parameters and update return type if necessary.
+     * Immediately dispatches an event to all registered handlers.
+     * @param eventName Identifier of the event.
+     * @param args Arguments forwarded to the handlers.
      */
-    lerp(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'atan2'.
-     * Please specify parameters and update return type if necessary.
-     */
-    atan2(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'sin'.
-     * Please specify parameters and update return type if necessary.
-     */
-    sin(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'cos'.
-     * Please specify parameters and update return type if necessary.
-     */
-    cos(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'tan'.
-     * Please specify parameters and update return type if necessary.
-     */
-    tan(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'asin'.
-     * Please specify parameters and update return type if necessary.
-     */
-    asin(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'acos'.
-     * Please specify parameters and update return type if necessary.
-     */
-    acos(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'atan'.
-     * Please specify parameters and update return type if necessary.
-     */
-    atan(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'sqrt'.
-     * Please specify parameters and update return type if necessary.
-     */
-    sqrt(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'abs'.
-     * Please specify parameters and update return type if necessary.
-     */
-    abs(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'min'.
-     * Please specify parameters and update return type if necessary.
-     */
-    min(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'max'.
-     * Please specify parameters and update return type if necessary.
-     */
-    max(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'floor'.
-     * Please specify parameters and update return type if necessary.
-     */
-    floor(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'ceil'.
-     * Please specify parameters and update return type if necessary.
-     */
-    ceil(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'round'.
-     * Please specify parameters and update return type if necessary.
-     */
-    round(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'toRadians'.
-     * Please specify parameters and update return type if necessary.
-     */
-    toRadians(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'toDegrees'.
-     * Please specify parameters and update return type if necessary.
-     */
-    toDegrees(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'vector3'.
-     * Please specify parameters and update return type if necessary.
-     */
-    vector3(...args: any[]): Vector3;
-    /**
-     * Auto-generated from Java method 'quaternion'.
-     * Please specify parameters and update return type if necessary.
-     */
-    quaternion(...args: any[]): Quaternion;
-    /**
-     * Auto-generated from Java method 'quaternionFromEuler'.
-     * Please specify parameters and update return type if necessary.
-     */
-    quaternionFromEuler(...args: any[]): Quaternion;
-    /**
-     * Auto-generated from Java method 'quaternionFromAxisAngle'.
-     * Please specify parameters and update return type if necessary.
-     */
-    quaternionFromAxisAngle(...args: any[]): Quaternion;
-    /**
-     * Auto-generated from Java method 'matrix4'.
-     * Please specify parameters and update return type if necessary.
-     */
-    matrix4(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'matrix4Identity'.
-     * Please specify parameters and update return type if necessary.
-     */
-    matrix4Identity(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'matrix4Translation'.
-     * Please specify parameters and update return type if necessary.
-     */
-    matrix4Translation(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'matrix4Rotation'.
-     * Please specify parameters and update return type if necessary.
-     */
-    matrix4Rotation(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'matrix4Scaling'.
-     * Please specify parameters and update return type if necessary.
-     */
-    matrix4Scaling(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'matrix4TRS'.
-     * Please specify parameters and update return type if necessary.
-     */
-    matrix4TRS(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'matrix4Perspective'.
-     * Please specify parameters and update return type if necessary.
-     */
-    matrix4Perspective(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'matrix4Orthographic'.
-     * Please specify parameters and update return type if necessary.
-     */
-    matrix4Orthographic(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'matrix4LookAt'.
-     * Please specify parameters and update return type if necessary.
-     */
-    matrix4LookAt(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'transform'.
-     * Please specify parameters and update return type if necessary.
-     */
-    transform(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'getVector3Zero'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getVector3Zero(...args: any[]): Vector3;
-    /**
-     * Auto-generated from Java method 'getVector3One'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getVector3One(...args: any[]): Vector3;
-    /**
-     * Auto-generated from Java method 'getVector3Up'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getVector3Up(...args: any[]): Vector3;
-    /**
-     * Auto-generated from Java method 'getVector3Down'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getVector3Down(...args: any[]): Vector3;
-    /**
-     * Auto-generated from Java method 'getVector3Left'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getVector3Left(...args: any[]): Vector3;
-    /**
-     * Auto-generated from Java method 'getVector3Right'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getVector3Right(...args: any[]): Vector3;
-    /**
-     * Auto-generated from Java method 'getVector3Forward'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getVector3Forward(...args: any[]): Vector3;
-    /**
-     * Auto-generated from Java method 'getVector3Backward'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getVector3Backward(...args: any[]): Vector3;
-    /**
-     * Auto-generated from Java method 'getQuaternionIdentity'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getQuaternionIdentity(...args: any[]): Quaternion;
-    /**
-     * Auto-generated from Java method 'getPI'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getPI(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getTWO_PI'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getTWO_PI(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getHALF_PI'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getHALF_PI(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getDEG_TO_RAD'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getDEG_TO_RAD(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getRAD_TO_DEG'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getRAD_TO_DEG(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getEPSILON'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getEPSILON(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'distancePointToLine'.
-     * Please specify parameters and update return type if necessary.
-     */
-    distancePointToLine(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'closestPointOnLine'.
-     * Please specify parameters and update return type if necessary.
-     */
-    closestPointOnLine(...args: any[]): Vector3;
-    /**
-     * Auto-generated from Java method 'sphereIntersection'.
-     * Please specify parameters and update return type if necessary.
-     */
-    sphereIntersection(...args: any[]): boolean;
+    dispatch(eventName: string, ...args: unknown[]): void;
 }
 
 /**
- * Auto-generated for Java class `NetworkService`.
+ * Provides realtime access to keyboard and mouse input.
+ * @remarks Client-only.
  */
-declare interface NetworkService {
+export interface InputService {
+    /** @returns `true` if the GLFW key code is currently pressed. */
+    isKeyPressed(keyCode: number): boolean;
+    /** @returns `true` if the translation key (e.g. `key.keyboard.w`) is pressed. */
+    isKeyPressed(keyName: string): boolean;
+    /** @returns `true` if the specified mouse button is pressed. */
+    isMouseButtonPressed(button: number): boolean;
+    /** @returns The raw mouse X position relative to the window. */
+    getMouseX(): number;
+    /** @returns The raw mouse Y position relative to the window. */
+    getMouseY(): number;
+    /** @returns The horizontal delta since the last frame. */
+    getMouseDeltaX(): number;
+    /** @returns The vertical delta since the last frame. */
+    getMouseDeltaY(): number;
     /**
-     * Auto-generated from Java method 'sendToServer'.
-     * Please specify parameters and update return type if necessary.
+     * Registers a callback fired when the given translation key changes state.
+     * @param keyName Translation key, for example `key.keyboard.w`.
+     * @param callback Receives `true` when pressed and `false` when released.
      */
-    sendToServer(...args: any[]): void;
+    onKey(keyName: string, callback: (pressed: boolean) => void): void;
     /**
-     * Auto-generated from Java method 'on'.
-     * Please specify parameters and update return type if necessary.
+     * Registers a callback fired when the given mouse button changes state.
+     * @param buttonName Human readable button name, e.g. `left`, `right`.
+     * @param callback Receives `true` when pressed and `false` when released.
      */
-    on(...args: any[]): void;
+    onMouseButton(buttonName: string, callback: (pressed: boolean) => void): void;
+    /**
+     * Registers a callback fired every time the mouse moves.
+     * @param callback Receives the X and Y delta for the current frame.
+     */
+    onMouseMove(callback: (deltaX: number, deltaY: number) => void): void;
+    /**
+     * Registers a callback fired when the scroll wheel moves.
+     * @param callback Receives the scroll delta.
+     */
+    onScroll(callback: (delta: number) => void): void;
+    /** @returns `true` if the player is moving forward. */
+    isMovingForward(): boolean;
+    /** @returns `true` if the player is moving backward. */
+    isMovingBackward(): boolean;
+    /** @returns `true` if the player is strafing left. */
+    isStrafingLeft(): boolean;
+    /** @returns `true` if the player is strafing right. */
+    isStrafingRight(): boolean;
+    /** @returns `true` if the jump key is pressed. */
+    isJumping(): boolean;
+    /** @returns `true` if the player is sprinting. */
+    isSprinting(): boolean;
+    /** @returns `true` if the player character is on the ground. */
+    isOnGround(): boolean;
+    /** @returns `true` if any movement key is currently active. */
+    isMoving(): boolean;
+    /**
+     * Locks or unlocks the mouse cursor.
+     * @param locked `true` to lock, `false` to unlock.
+     */
+    lockMouse(locked: boolean): void;
+    /** @returns `true` if the mouse cursor is locked. */
+    isMouseLocked(): boolean;
+    /** @returns The current mouse sensitivity value. */
+    getMouseSensitivity(): number;
+    /**
+     * Updates the Minecraft mouse sensitivity.
+     * @param sensitivity New sensitivity value in the same range as the in-game slider.
+     */
+    setMouseSensitivity(sensitivity: number): void;
 }
 
 /**
- * Auto-generated for Java class `PlayerWindowProxy`.
+ * Common mathematical helpers mirrored from the server implementation.
+ * @remarks Server-only.
  */
-declare interface PlayerWindow {
-    /**
-     * Auto-generated from Java method 'transitionTo'.
-     * Please specify parameters and update return type if necessary.
-     */
-    transitionTo(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'playSequence'.
-     * Please specify parameters and update return type if necessary.
-     */
-    playSequence(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'setTitle'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setTitle(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'setBorderless'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setBorderless(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'maximize'.
-     * Please specify parameters and update return type if necessary.
-     */
-    maximize(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'minimize'.
-     * Please specify parameters and update return type if necessary.
-     */
-    minimize(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'restore'.
-     * Please specify parameters and update return type if necessary.
-     */
-    restore(...args: any[]): void;
+export interface MathUtils {
+    clamp(value: number, min: number, max: number): number;
+    lerp(a: number, b: number, t: number): number;
+    atan2(y: number, x: number): number;
+    sin(radians: number): number;
+    cos(radians: number): number;
+    tan(radians: number): number;
+    asin(value: number): number;
+    acos(value: number): number;
+    atan(value: number): number;
+    sqrt(value: number): number;
+    abs(value: number): number;
+    min(a: number, b: number): number;
+    max(a: number, b: number): number;
+    floor(value: number): number;
+    ceil(value: number): number;
+    round(value: number): number;
+    toRadians(degrees: number): number;
+    toDegrees(radians: number): number;
+    /** Mathematical constant π. */
+    readonly PI: number;
+    /** Conversion factor from degrees to radians. */
+    readonly DEG_TO_RAD: number;
+    /** Conversion factor from radians to degrees. */
+    readonly RAD_TO_DEG: number;
 }
 
 /**
- * Auto-generated for Java class `RenderingService`.
+ * Geometry helper functions mirrored from the server implementation.
+ * @remarks Server-only.
  */
-declare interface RenderingService {
+export interface GeometryUtils {
     /**
-     * Auto-generated from Java method 'requestAnimationFrame'.
-     * Please specify parameters and update return type if necessary.
+     * Calculates the shortest distance between a point and a line segment.
      */
-    requestAnimationFrame(...args: any[]): string;
+    distancePointToLine(point: Vector3, lineStart: Vector3, lineEnd: Vector3): number;
     /**
-     * Auto-generated from Java method 'cancelAnimationFrame'.
-     * Please specify parameters and update return type if necessary.
+     * Finds the closest point on a line segment to a reference point.
      */
-    cancelAnimationFrame(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'createRenderType'.
-     * Please specify parameters and update return type if necessary.
-     */
-    createRenderType(...args: any[]): string;
-    /**
-     * Auto-generated from Java method 'setShaderUniform'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setShaderUniform(...args: any[]): void;
+    closestPointOnLine(point: Vector3, lineStart: Vector3, lineEnd: Vector3): Vector3;
+    /** @returns `true` if two spheres overlap. */
+    sphereIntersection(center1: Vector3, radius1: number, center2: Vector3, radius2: number): boolean;
 }
 
 /**
- * Auto-generated for Java class `ScriptingAPI`.
+ * Combined mathematical helpers exposed through `api.math`.
+ * @remarks Server-only.
  */
-declare interface ScriptingAPI {
-    /**
-     * Auto-generated from Java method 'on'.
-     * Please specify parameters and update return type if necessary.
-     */
-    on(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'getAsync'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getAsync(...args: any[]): any;
+export interface Math extends MathUtils {
+    /** Direct access to the full set of math utility functions. */
+    readonly utils: MathUtils;
+    /** Geometry-specific helpers. */
+    readonly geometry: GeometryUtils;
+
+    /** Creates a new vector. */
+    vector3(x?: number, y?: number, z?: number): Vector3;
+    /** Creates a quaternion from components or returns the identity when omitted. */
+    quaternion(x?: number, y?: number, z?: number, w?: number): Quaternion;
+    /** Creates a quaternion from Euler angles (degrees). */
+    quaternionFromEuler(pitch: number, yaw: number, roll: number): Quaternion;
+    /** Creates a quaternion from an axis and angle (degrees). */
+    quaternionFromAxisAngle(axis: Vector3, angle: number): Quaternion;
+
+    /** Creates an identity matrix. */
+    matrix4(): Matrix4;
+    /** Alias for {@link matrix4}. */
+    matrix4Identity(): Matrix4;
+    /** Creates a translation matrix. */
+    matrix4Translation(translation: Vector3): Matrix4;
+    /** Creates a rotation matrix. */
+    matrix4Rotation(rotation: Quaternion): Matrix4;
+    /** Creates a scaling matrix. */
+    matrix4Scaling(scale: Vector3): Matrix4;
+    /** Creates a TRS matrix. */
+    matrix4TRS(translation: Vector3, rotation: Quaternion, scale: Vector3): Matrix4;
+    /** Creates a perspective projection matrix. */
+    matrix4Perspective(fov: number, aspect: number, near: number, far: number): Matrix4;
+    /** Creates an orthographic projection matrix. */
+    matrix4Orthographic(left: number, right: number, bottom: number, top: number, near: number, far: number): Matrix4;
+    /** Creates a view matrix that looks from `eye` towards `target`. */
+    matrix4LookAt(eye: Vector3, target: Vector3, up: Vector3): Matrix4;
+
+    /** Creates an identity transform or one from position, rotation and scale. */
+    transform(position?: Vector3, rotation?: Quaternion, scale?: Vector3): Transform;
+
+    /** @returns A zero vector. */
+    getVector3Zero(): Vector3;
+    /** @returns A vector of ones. */
+    getVector3One(): Vector3;
+    /** @returns A unit vector pointing up. */
+    getVector3Up(): Vector3;
+    /** @returns A unit vector pointing down. */
+    getVector3Down(): Vector3;
+    /** @returns A unit vector pointing left. */
+    getVector3Left(): Vector3;
+    /** @returns A unit vector pointing right. */
+    getVector3Right(): Vector3;
+    /** @returns A unit vector pointing forwards. */
+    getVector3Forward(): Vector3;
+    /** @returns A unit vector pointing backwards. */
+    getVector3Backward(): Vector3;
+    /** @returns The identity quaternion. */
+    getQuaternionIdentity(): Quaternion;
+    /** @returns Mathematical constant π. */
+    getPI(): number;
+    /** @returns Mathematical constant τ (2π). */
+    getTWO_PI(): number;
+    /** @returns Mathematical constant π/2. */
+    getHALF_PI(): number;
+    /** @returns Degrees-to-radians conversion factor. */
+    getDEG_TO_RAD(): number;
+    /** @returns Radians-to-degrees conversion factor. */
+    getRAD_TO_DEG(): number;
+    /** @returns Machine epsilon used for float comparisons. */
+    getEPSILON(): number;
 }
 
 /**
- * Auto-generated for Java class `UIComponent`.
+ * Sends custom network packets from the client mod to the server.
+ * @remarks Client-only.
  */
-declare interface UIComponent {
+export interface NetworkService {
     /**
-     * Auto-generated from Java method 'showAsOverlay'.
-     * Please specify parameters and update return type if necessary.
+     * Sends a custom event to the server runtime.
+     * @param eventName Identifier of the event.
+     * @param data Payload that will be serialised to JSON.
      */
-    showAsOverlay(...args: any[]): any;
+    sendToServer<T = unknown>(eventName: string, data?: T): void;
     /**
-     * Auto-generated from Java method 'hideOverlay'.
-     * Please specify parameters and update return type if necessary.
+     * Registers a handler for events sent from the server.
+     * @param eventName Identifier of the event.
+     * @param callback Receives the deserialised payload.
      */
-    hideOverlay(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'getX'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getX(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getY'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getY(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getWidth'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getWidth(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getHeight'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getHeight(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'setX'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setX(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'setY'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setY(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'setWidth'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setWidth(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'setHeight'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setHeight(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'getComponentId'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getComponentId(...args: any[]): string;
-    /**
-     * Auto-generated from Java method 'setComponentId'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setComponentId(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'setText'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setText(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'getText'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getText(...args: any[]): string;
-    /**
-     * Auto-generated from Java method 'setPos'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setPos(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'setSize'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setSize(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'setBackgroundColor'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setBackgroundColor(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'getBackgroundColor'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getBackgroundColor(...args: any[]): string;
-    /**
-     * Auto-generated from Java method 'setTextColor'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setTextColor(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'getTextColor'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getTextColor(...args: any[]): string;
-    /**
-     * Auto-generated from Java method 'setBorder'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setBorder(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'getBorderWidth'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getBorderWidth(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getBorderColor'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getBorderColor(...args: any[]): string;
-    /**
-     * Auto-generated from Java method 'setOpacity'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setOpacity(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'getOpacity'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getOpacity(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'setTextAlign'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setTextAlign(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'getTextAlign'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getTextAlign(...args: any[]): string;
-    /**
-     * Auto-generated from Java method 'setPadding'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setPadding(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'getPaddingTop'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getPaddingTop(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getPaddingRight'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getPaddingRight(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getPaddingBottom'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getPaddingBottom(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getPaddingLeft'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getPaddingLeft(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'appendChild'.
-     * Please specify parameters and update return type if necessary.
-     */
-    appendChild(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'removeChild'.
-     * Please specify parameters and update return type if necessary.
-     */
-    removeChild(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'getChildren'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getChildren(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'show'.
-     * Please specify parameters and update return type if necessary.
-     */
-    show(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'hide'.
-     * Please specify parameters and update return type if necessary.
-     */
-    hide(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'isVisible'.
-     * Please specify parameters and update return type if necessary.
-     */
-    isVisible(...args: any[]): boolean;
-    /**
-     * Auto-generated from Java method 'onClick'.
-     * Please specify parameters and update return type if necessary.
-     */
-    onClick(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'onHover'.
-     * Please specify parameters and update return type if necessary.
-     */
-    onHover(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'onFocus'.
-     * Please specify parameters and update return type if necessary.
-     */
-    onFocus(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'onBlur'.
-     * Please specify parameters and update return type if necessary.
-     */
-    onBlur(...args: any[]): any;
+    on(eventName: string, callback: (payload: unknown) => void): void;
 }
 
 /**
- * Auto-generated for Java class `UIContainer`.
+ * Animates the player's OS window (borderless move/resize effects).
+ * @remarks Server-only.
  */
-declare interface UIContainer {
+export interface PlayerWindow {
     /**
-     * Auto-generated from Java method 'appendChild'.
-     * Please specify parameters and update return type if necessary.
+     * Tweens the window to a new position/size.
+     * @param options Target window properties.
      */
-    appendChild(...args: any[]): any;
+    transitionTo(options: PlayerWindowTransition): void;
     /**
-     * Auto-generated from Java method 'setFlexDirection'.
-     * Please specify parameters and update return type if necessary.
+     * Plays a sequence of transitions one after another.
+     * @param steps Ordered list of transitions to apply.
      */
-    setFlexDirection(...args: any[]): any;
+    playSequence(steps: PlayerWindowSequenceStep[]): void;
     /**
-     * Auto-generated from Java method 'getFlexDirection'.
-     * Please specify parameters and update return type if necessary.
+     * Updates the native window title.
+     * @param title Text to show in the title bar.
      */
-    getFlexDirection(...args: any[]): string;
+    setTitle(title: string): void;
     /**
-     * Auto-generated from Java method 'setJustifyContent'.
-     * Please specify parameters and update return type if necessary.
+     * Enables or disables the window border.
+     * @param borderless `true` to remove the border.
      */
-    setJustifyContent(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'getJustifyContent'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getJustifyContent(...args: any[]): string;
-    /**
-     * Auto-generated from Java method 'setAlignItems'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setAlignItems(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'getAlignItems'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getAlignItems(...args: any[]): string;
-    /**
-     * Auto-generated from Java method 'setGap'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setGap(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'getGap'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getGap(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'setAutoResize'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setAutoResize(...args: any[]): any;
+    setBorderless(borderless: boolean): void;
+    /** Maximises the window. */
+    maximize(): void;
+    /** Minimises the window. */
+    minimize(): void;
+    /** Restores the window to its normal state. */
+    restore(): void;
+}
+
+/** Options accepted by {@link PlayerWindow.transitionTo}. */
+export interface PlayerWindowTransition {
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    /** Duration in milliseconds, defaults to `500`. */
+    duration?: number;
+    /** Client-side easing function identifier, defaults to `"ease-out-quad"`. */
+    easing?: string;
+}
+
+/** Describes a single step inside {@link PlayerWindow.playSequence}. */
+export interface PlayerWindowSequenceStep extends PlayerWindowTransition {
+    /** Optional borderless toggle for this step. */
+    borderless?: boolean;
+    /** Optional title update for this step. */
+    title?: string;
 }
 
 /**
- * Auto-generated for Java class `UIImage`.
+ * Rendering helpers that integrate with Foundry Veil.
+ * @remarks Client-only.
  */
-declare interface UIImage {
+export interface RenderingService {
     /**
-     * Auto-generated from Java method 'setSource'.
-     * Please specify parameters and update return type if necessary.
+     * Schedules a callback to run during the next render tick.
+     * @param callback Receives the frame time in milliseconds.
+     * @returns An identifier that can be used with {@link cancelAnimationFrame}.
      */
-    setSource(...args: any[]): any;
+    requestAnimationFrame(callback: (deltaMs: number) => void): string;
     /**
-     * Auto-generated from Java method 'getSource'.
-     * Please specify parameters and update return type if necessary.
+     * Cancels a callback registered with {@link requestAnimationFrame}.
+     * @param id Identifier returned from {@link requestAnimationFrame}.
      */
-    getSource(...args: any[]): string;
+    cancelAnimationFrame(id: string): void;
+    /**
+     * Creates (or retrieves) a render type backed by a custom shader.
+     * @param options Definition of the render pipeline.
+     * @returns Identifier used with Minecraft's rendering APIs.
+     */
+    createRenderType(options: RenderTypeOptions): string;
+    /**
+     * Queues a uniform update for a shader created via {@link createRenderType}.
+     * @param shaderId Identifier returned by {@link createRenderType}.
+     * @param uniformName Name of the uniform inside the shader.
+     * @param value Number or boolean value to assign.
+     */
+    setShaderUniform(shaderId: string, uniformName: string, value: number | boolean): void;
 }
 
 /**
- * Auto-generated for Java class `UIInput`.
+ * Definition of a custom render pipeline used by {@link RenderingService.createRenderType}.
+ * @remarks Client-only.
  */
-declare interface UIInput {
-    /**
-     * Auto-generated from Java method 'getValue'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getValue(...args: any[]): string;
-    /**
-     * Auto-generated from Java method 'setValue'.
-     * Please specify parameters and update return type if necessary.
-     */
-    setValue(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'getPlaceholder'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getPlaceholder(...args: any[]): string;
-    /**
-     * Auto-generated from Java method 'onChange'.
-     * Please specify parameters and update return type if necessary.
-     */
-    onChange(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'onSubmit'.
-     * Please specify parameters and update return type if necessary.
-     */
-    onSubmit(...args: any[]): any;
+export interface RenderTypeOptions {
+    /** Identifier of the shader program to bind. */
+    shader: string;
+    /** Optional textures that should be bound when rendering. */
+    textures?: string[];
+    /** Transparency mode, defaults to `"opaque"`. */
+    transparency?: string;
+    /** Whether back-face culling is enabled. Defaults to `true`. */
+    cull?: boolean;
+    /** Whether light-mapping is enabled. Defaults to `false`. */
+    lightmap?: boolean;
+    /** Whether depth testing is enabled. Defaults to `true`. */
+    depthTest?: boolean;
 }
 
 /**
- * Auto-generated for Java class `UIService`.
+ * Root server-side API exposed via `globalThis.api`.
+ * @remarks Server-only.
  */
-declare interface UIService {
+export interface ScriptingAPI {
     /**
-     * Auto-generated from Java method 'getScreenWidth'.
-     * Please specify parameters and update return type if necessary.
+     * Registers a global event listener.
+     * @param eventName Event identifier.
+     * @param callback Handler invoked when the event fires.
      */
-    getScreenWidth(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getScreenHeight'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getScreenHeight(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getMouseX'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getMouseX(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getMouseY'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getMouseY(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'getTextWidth'.
-     * Please specify parameters and update return type if necessary.
-     */
-    getTextWidth(...args: any[]): number;
-    /**
-     * Auto-generated from Java method 'createText'.
-     * Please specify parameters and update return type if necessary.
-     */
-    createText(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'createButton'.
-     * Please specify parameters and update return type if necessary.
-     */
-    createButton(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'createInput'.
-     * Please specify parameters and update return type if necessary.
-     */
-    createInput(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'createContainer'.
-     * Please specify parameters and update return type if necessary.
-     */
-    createContainer(...args: any[]): any;
-    /**
-     * Auto-generated from Java method 'onResize'.
-     * Please specify parameters and update return type if necessary.
-     */
-    onResize(...args: any[]): void;
-    /**
-     * Auto-generated from Java method 'createImage'.
-     * Please specify parameters and update return type if necessary.
-     */
-    createImage(...args: any[]): any;
+    on(eventName: string, callback: (...args: unknown[]) => void): void;
+    /** @returns The asynchronous task manager used to schedule background work. */
+    getAsync(): AsyncManager;
 }
 
 /**
- * Auto-generated for Java class `ZoneAPIProxy`.
+ * Base interface for all UI components created by {@link UIService}.
+ * @remarks Client-only.
  */
-declare interface ZoneAPI {
+export interface UIComponent {
+    /** Shows the component as an overlay. */
+    showAsOverlay(): this;
+    /** Hides the component overlay. */
+    hideOverlay(): this;
+    /** @returns The X coordinate of the component. */
+    getX(): number;
+    /** @returns The Y coordinate of the component. */
+    getY(): number;
+    /** @returns The width of the component. */
+    getWidth(): number;
+    /** @returns The height of the component. */
+    getHeight(): number;
+    /** Sets the X coordinate. */
+    setX(x: number): this;
+    /** Sets the Y coordinate. */
+    setY(y: number): this;
+    /** Sets the width. */
+    setWidth(width: number): this;
+    /** Sets the height. */
+    setHeight(height: number): this;
+    /** @returns The unique identifier of the component. */
+    getComponentId(): string;
+    /** Overrides the component identifier. */
+    setComponentId(id: string): this;
+    /** Sets the display text rendered inside the component. */
+    setText(text: string): this;
+    /** @returns The text currently rendered inside the component. */
+    getText(): string;
+    /** Moves the component. */
+    setPos(x: number, y: number): this;
+    /** Resizes the component. */
+    setSize(width: number, height: number): this;
+    /** Sets the background colour (ARGB hex). */
+    setBackgroundColor(color: string): this;
+    /** @returns The background colour (ARGB hex). */
+    getBackgroundColor(): string;
+    /** Sets the text colour (ARGB hex). */
+    setTextColor(color: string): this;
+    /** @returns The text colour (ARGB hex). */
+    getTextColor(): string;
+    /** Configures the border width and colour. */
+    setBorder(width: number, color: string): this;
+    /** @returns The current border width in pixels. */
+    getBorderWidth(): number;
+    /** @returns The current border colour (ARGB hex). */
+    getBorderColor(): string;
+    /** Sets the overall opacity (0–1). */
+    setOpacity(opacity: number): this;
+    /** @returns The current opacity (0–1). */
+    getOpacity(): number;
+    /** Sets the text alignment inside the component. */
+    setTextAlign(alignment: 'left' | 'center' | 'right'): this;
+    /** @returns The current text alignment. */
+    getTextAlign(): 'left' | 'center' | 'right';
+    /** Sets the component padding (top, right, bottom, left). */
+    setPadding(top: number, right: number, bottom: number, left: number): this;
+    /** @returns The top padding in pixels. */
+    getPaddingTop(): number;
+    /** @returns The right padding in pixels. */
+    getPaddingRight(): number;
+    /** @returns The bottom padding in pixels. */
+    getPaddingBottom(): number;
+    /** @returns The left padding in pixels. */
+    getPaddingLeft(): number;
+    /** Adds a child component. */
+    appendChild<T extends UIComponent>(child: T): this;
+    /** Removes a child component. */
+    removeChild(child: UIComponent): this;
+    /** @returns A snapshot of the current children. */
+    getChildren(): UIComponent[];
+    /** Makes the component visible. */
+    show(): this;
+    /** Hides the component. */
+    hide(): this;
+    /** @returns `true` if the component is visible. */
+    isVisible(): boolean;
     /**
-     * Auto-generated from Java method 'create'.
-     * Please specify parameters and update return type if necessary.
+     * Registers a callback for click events.
+     * @param callback Receives the component, mouse X/Y and the pressed button.
      */
-    create(...args: any[]): void;
+    onClick(callback: (component: UIComponent, mouseX: number, mouseY: number, button: number) => void): this;
     /**
-     * Auto-generated from Java method 'remove'.
-     * Please specify parameters and update return type if necessary.
+     * Registers a callback for hover events.
+     * @param callback Receives the component and raw hover event data.
      */
-    remove(...args: any[]): void;
+    onHover(callback: (component: UIComponent, ...args: unknown[]) => void): this;
+    /**
+     * Registers a callback fired when the component gains focus.
+     * @param callback Receives the focused component.
+     */
+    onFocus(callback: (component: UIComponent) => void): this;
+    /**
+     * Registers a callback fired when the component loses focus.
+     * @param callback Receives the blurred component.
+     */
+    onBlur(callback: (component: UIComponent) => void): this;
+}
+
+/** Text label component returned by {@link UIService.createText}. */
+export interface UIText extends UIComponent {}
+
+/** Button component returned by {@link UIService.createButton}. */
+export interface UIButton extends UIComponent {}
+
+/**
+ * Flex-style layout container.
+ * @remarks Client-only.
+ */
+export interface UIContainer extends UIComponent {
+    /** Adds a child element and recomputes the layout. */
+    appendChild<T extends UIComponent>(child: T): this;
+    /** Sets the flex direction: `row` or `column`. */
+    setFlexDirection(direction: 'row' | 'column'): this;
+    /** @returns The current flex direction. */
+    getFlexDirection(): 'row' | 'column';
+    /** Sets the justify-content rule. */
+    setJustifyContent(value: 'flex-start' | 'center' | 'flex-end' | 'space-between' | 'space-around'): this;
+    /** @returns The current justify-content rule. */
+    getJustifyContent(): 'flex-start' | 'center' | 'flex-end' | 'space-between' | 'space-around';
+    /** Sets the align-items rule. */
+    setAlignItems(value: 'stretch' | 'flex-start' | 'center' | 'flex-end'): this;
+    /** @returns The current align-items rule. */
+    getAlignItems(): 'stretch' | 'flex-start' | 'center' | 'flex-end';
+    /** Sets the gap between children in pixels. */
+    setGap(gap: number): this;
+    /** @returns The gap between children in pixels. */
+    getGap(): number;
+    /**
+     * Enables or disables automatic resizing to fit the content.
+     * When `true` the container expands to the size of its children.
+     */
+    setAutoResize(autoResize: boolean): this;
+}
+
+/**
+ * Image component returned by {@link UIService.createImage}.
+ * @remarks Client-only.
+ */
+export interface UIImage extends UIComponent {
+    /** Updates the image source, for example `"minecraft:textures/gui/widgets.png"`. */
+    setSource(source: string): this;
+    /** @returns The currently displayed image source. */
+    getSource(): string;
+}
+
+/**
+ * Text input component returned by {@link UIService.createInput}.
+ * @remarks Client-only.
+ */
+export interface UIInput extends UIComponent {
+    /** @returns The current input value. */
+    getValue(): string;
+    /** Sets the current value. */
+    setValue(value: string): this;
+    /** @returns The placeholder shown when the input is empty. */
+    getPlaceholder(): string;
+    /**
+     * Registers a callback fired whenever the value changes.
+     * @param callback Receives the input component, new value and old value.
+     */
+    onChange(callback: (input: UIInput, newValue: string, previousValue: string) => void): this;
+    /**
+     * Registers a callback fired when the user submits the input (presses Enter).
+     * @param callback Receives the input component and the submitted value.
+     */
+    onSubmit(callback: (input: UIInput, value: string) => void): this;
+}
+
+/**
+ * Creates UI overlay components from client scripts.
+ * @remarks Client-only.
+ */
+export interface UIService {
+    /** @returns The scaled screen width. */
+    getScreenWidth(): number;
+    /** @returns The scaled screen height. */
+    getScreenHeight(): number;
+    /** @returns The scaled mouse X coordinate. */
+    getMouseX(): number;
+    /** @returns The scaled mouse Y coordinate. */
+    getMouseY(): number;
+    /**
+     * Measures the rendered width of text using the Minecraft font renderer.
+     * @param text Text to measure.
+     */
+    getTextWidth(text: string): number;
+    /**
+     * Creates a text label component.
+     * @param content Text to display.
+     */
+    createText(content: string): UIText;
+    /**
+     * Creates a button component.
+     * @param label Text to display inside the button.
+     */
+    createButton(label: string): UIButton;
+    /**
+     * Creates an input component.
+     * @param placeholder Placeholder text shown when empty.
+     */
+    createInput(placeholder: string): UIInput;
+    /** Creates a flex layout container. */
+    createContainer(): UIContainer;
+    /**
+     * Registers a callback invoked when the screen size changes.
+     * @param callback Receives the new width and height.
+     */
+    onResize(callback: (width: number, height: number) => void): void;
+    /**
+     * Creates an image component.
+     * @param source Texture identifier to display.
+     */
+    createImage(source: string): UIImage;
+}
+
+/**
+ * Options supported by {@link ZoneAPI.create}.
+ * @remarks Server-only.
+ */
+export interface ZoneOptions {
+    /** Callback fired when a player enters the zone. */
+    onEnter?: (player: Player, zoneId: string) => void;
+    /** Callback fired when a player leaves the zone. */
+    onLeave?: (player: Player, zoneId: string) => void;
+}
+
+/**
+ * Server-side manager for 3D trigger zones.
+ * @remarks Server-only.
+ */
+export interface ZoneAPI {
+    /**
+     * Creates (or replaces) a zone bounded by two corners.
+     * @param id Unique identifier for the zone.
+     * @param corner1 First corner of the axis-aligned bounding box.
+     * @param corner2 Opposite corner of the axis-aligned bounding box.
+     * @param options Optional enter/leave callbacks.
+     */
+    create(id: string, corner1: Vector3, corner2: Vector3, options?: ZoneOptions): void;
+    /**
+     * Removes a zone by its identifier.
+     * @param id Unique identifier of the zone to remove.
+     */
+    remove(id: string): void;
 }
