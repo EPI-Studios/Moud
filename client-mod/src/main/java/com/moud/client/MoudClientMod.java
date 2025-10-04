@@ -109,8 +109,9 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         registerRenderHandler();
         registerAnimationLayer();
         registerShutdownHandler();
-
         HudRenderCallback.EVENT.register((drawContext, tickCounter) -> {
+            WindowAnimator.tick();
+
             if (scriptingRuntime != null && scriptingRuntime.isInitialized()) {
                 scriptingRuntime.processAnimationFrameQueue();
             }
@@ -120,7 +121,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             }
             UIOverlayManager.getInstance().renderOverlays(drawContext, tickCounter);
         });
-
         LOGGER.info("Moud client initialization complete.");
     }
 
@@ -351,8 +351,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 joinTime = -1L;
                 cleanupMoudServices();
             }
-
-            WindowAnimator.tick();
 
             ClientLightingService.getInstance().tick();
 

@@ -89,7 +89,6 @@ public class PacketSerializer {
             throw new UnsupportedOperationException("No serializer for type: " + type);
         }
     }
-
     private void writeList(ByteBuffer buffer, List<?> list) {
         buffer.writeInt(list.size());
         for (Object item : list) {
@@ -102,6 +101,8 @@ public class PacketSerializer {
                 writeValue(buffer, hit, boolean.class);
             } else if (item instanceof UUID) {
                 writeValue(buffer, item, UUID.class);
+            } else if (item instanceof Map) {
+                writeValue(buffer, item, Map.class);
             } else {
                 throw new UnsupportedOperationException("Cannot serialize unknown type in list: " + item.getClass());
             }
@@ -154,6 +155,8 @@ public class PacketSerializer {
                 list.add(new MoudPackets.CursorUpdateData(playerId, position, normal, hit));
             } else if (listElementType == UUID.class) {
                 list.add(readValue(buffer, UUID.class));
+            } else if (listElementType == Map.class) {
+                list.add(MapSerializerUtil.readStringObjectMap(buffer));
             } else {
                 throw new UnsupportedOperationException("Cannot deserialize unknown type in list: " + listElementType);
             }
@@ -183,12 +186,16 @@ public class PacketSerializer {
         if (genericType instanceof ParameterizedType) {
             java.lang.reflect.Type[] typeArguments = ((ParameterizedType) genericType).getActualTypeArguments();
             if (typeArguments.length > 0) {
-                return (Class<?>) typeArguments[0];
+                java.lang.reflect.Type listType = typeArguments[0];
+                if (listType instanceof Class<?>) {
+                    return (Class<?>) listType;
+                } else if (listType instanceof ParameterizedType) {
+                    return (Class<?>) ((ParameterizedType) listType).getRawType();
+                }
             }
         }
-        throw new UnsupportedOperationException("Cannot deserialize raw List. Use a generic List<T>.");
+        throw new UnsupportedOperationException("Cannot deserialize raw or complex List. Use a generic List<T> with simple types or List<Map<...>>.");
     }
-
     @SuppressWarnings("unchecked")
     private <T> T createInstance(Class<T> clazz, Object[] args) {
         try {

@@ -17,10 +17,9 @@ public class WindowAnimator {
 
     private static boolean isAnimating = false;
     private static long startTime;
-    private static int duration;
+    private static long duration;
 
     private static int startX, startY, startWidth, startHeight;
-
     private static int targetX, targetY, targetWidth, targetHeight;
 
     private static int originalX, originalY, originalWidth, originalHeight;
@@ -64,7 +63,7 @@ public class WindowAnimator {
 
     public static void restore(int dur, String easing) {
         if (!originalStateSaved) {
-            LOGGER.warn("WindowAnimator.restore() a été appelé sans qu'aucune animation n'ait été lancée au préalable. Impossible de restaurer.");
+            LOGGER.warn("WindowAnimator.restore() was called without a prior animation. Cannot restore.");
             return;
         }
         animationQueue.clear();
@@ -125,7 +124,7 @@ public class WindowAnimator {
         }
 
         duration = Math.max(1, nextStep.dur);
-        startTime = System.currentTimeMillis();
+        startTime = System.nanoTime() / 1_000_000L;
         easingFunction = Easing.get(nextStep.easing);
         isAnimating = true;
     }
@@ -135,8 +134,9 @@ public class WindowAnimator {
             return;
         }
 
-        long currentTime = System.currentTimeMillis();
+        long currentTime = System.nanoTime() / 1_000_000L;
         long elapsedTime = currentTime - startTime;
+
         double progress = Math.min((double) elapsedTime / duration, 1.0);
         double easedProgress = easingFunction.apply(progress);
 
@@ -146,11 +146,17 @@ public class WindowAnimator {
         final int newHeight = (int) (startHeight + (targetHeight - startHeight) * easedProgress);
 
         MinecraftClient client = MinecraftClient.getInstance();
+
+
         client.execute(() -> {
             long handle = client.getWindow().getHandle();
             if (handle != 0) {
-                GLFW.glfwSetWindowPos(handle, newX, newY);
-                GLFW.glfwSetWindowSize(handle, newWidth, newHeight);
+                if (newX != startX || newY != startY) {
+                    GLFW.glfwSetWindowPos(handle, newX, newY);
+                }
+                if (newWidth != startWidth || newHeight != startHeight) {
+                    GLFW.glfwSetWindowSize(handle, newWidth, newHeight);
+                }
             }
         });
 
