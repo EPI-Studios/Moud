@@ -44,10 +44,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -462,6 +459,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             waitingForResources.set(false);
             return;
         }
+
         waitingForResources.set(true);
         this.currentResourcesHash = packet.hash();
         Map<String, byte[]> scriptsData = new HashMap<>();
@@ -489,17 +487,31 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             return;
         }
 
-        dynamicPack.set(new InMemoryPackResources(MOUDPACK_ID.toString(), Text.of("Moud Dynamic Server Resources"), assetsData));
+        MinecraftClient client = MinecraftClient.getInstance();
+        client.execute(() -> {
+            InMemoryPackResources newPack = new InMemoryPackResources(MOUDPACK_ID.toString(), Text.of("Moud Dynamic Server Resources"), assetsData);
+            dynamicPack.set(newPack);
 
-        MinecraftClient.getInstance().getResourcePackManager().scanPacks();
-        MinecraftClient.getInstance().reloadResources().thenRunAsync(() -> {
+            ResourcePackManager manager = client.getResourcePackManager();
+
+            manager.scanPacks();
+
+            List<String> enabledPacks = new ArrayList<>(manager.getEnabledIds());
+            if (!enabledPacks.contains(MOUDPACK_ID.toString())) {
+                enabledPacks.add(MOUDPACK_ID.toString());
+            }
+
+
+            manager.setEnabledProfiles(enabledPacks);
+
             loadScriptsOnly(scriptsData);
             resourcesLoaded.set(true);
             waitingForResources.set(false);
             if (apiService != null && apiService.events != null) {
                 apiService.events.dispatch("core:resourcesReloaded");
             }
-        }, MinecraftClient.getInstance());
+            LOGGER.info("Dynamic resources enabled and scripts loaded.");
+        });
     }
 
     public boolean shouldBlockJoin() {
