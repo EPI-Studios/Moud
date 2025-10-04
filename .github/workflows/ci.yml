@@ -11,6 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      CI: true
+      GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx2g"
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
     steps:
       - name: Checkout repository
@@ -18,7 +22,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # ---------- JAVA / GRADLE SETUP ----------
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -29,11 +32,11 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # ---------- NODE / PNPM SETUP ----------
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          check-latest: true
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -41,7 +44,14 @@ jobs:
           version: 9
           run_install: false
 
-      # ---------- BUILD PHASE ----------
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
       - name: Install all dependencies (pnpm monorepo)
         run: pnpm install --frozen-lockfile
 
@@ -57,7 +67,6 @@ jobs:
       - name: Build SDK
         run: pnpm --filter ./packages/sdk build
 
-      # ---------- RELEASE GENERATION ----------
       - name: Generate version tag
         id: version
         run: |
@@ -79,6 +88,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create Draft Release
+        if: ${{ env.ACT != 'true' }}
         uses: ncipollo/release-action@v1
         with:
           artifacts: |
