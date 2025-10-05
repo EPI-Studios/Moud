@@ -30,6 +30,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.network.packet.s2c.play.GameJoinS2CPacket;
 import net.minecraft.resource.*;
 import net.minecraft.resource.featuretoggle.FeatureSet;
 import net.minecraft.text.Text;
@@ -57,6 +58,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private static final Logger LOGGER = LoggerFactory.getLogger(MoudClientMod.class);
     private static final Identifier MOUDPACK_ID = Identifier.of("moud", "dynamic_resources");
     private static final long JOIN_TIMEOUT_MS = 10000;
+    private GameJoinS2CPacket pendingGameJoinPacket = null;
     private static MoudClientMod instance;
     private static boolean customCameraActive = false;
     private final AtomicBoolean resourcesLoaded = new AtomicBoolean(false);
@@ -508,7 +510,9 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             if (apiService != null && apiService.events != null) {
                 apiService.events.dispatch("core:resourcesReloaded");
             }
+            processPendingGameJoinPacket();
             LOGGER.info("Dynamic resources enabled and scripts loaded.");
+
         });
     }
 
@@ -721,5 +725,21 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     public static boolean isOnMoudServer() {
         return isOnMoudServer;
     }
-
+    public void processPendingGameJoinPacket() {
+        if (pendingGameJoinPacket != null) {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client.getNetworkHandler() != null) {
+                LOGGER.info("Processing delayed GameJoin packet now that resources are loaded.");
+                client.getNetworkHandler().onGameJoin(pendingGameJoinPacket);
+                pendingGameJoinPacket = null;
+            } else {
+                LOGGER.error("Could not process pending game join packet: network handler is null!");
+                client.disconnect();
+            }
+        }
+    }
+    public void setPendingGameJoinPacket(GameJoinS2CPacket packet) {
+        this.pendingGameJoinPacket = packet;
+        LOGGER.info("Moud client is delaying game join, waiting for server resources...");
+    }
 }
