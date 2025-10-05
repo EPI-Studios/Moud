@@ -11,21 +11,30 @@ import org.graalvm.polyglot.proxy.ProxyExecutable;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class JavaScriptRuntime {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(JavaScriptRuntime.class);
+    private static final long CALLBACK_TIMEOUT_MS = 5000;
 
     private Context jsContext;
     private final ExecutorService executor;
-    private final ScheduledExecutorService timerExecutor;
+    private final ScheduledExecutorService timeoutExecutor;
     private final MoudEngine engine;
     private volatile boolean isShuttingDown = false;
+    private final Map<Long, ScheduledFuture<?>> intervals = new ConcurrentHashMap<>();
+    private final AtomicLong intervalIdCounter = new AtomicLong(0);
 
     public JavaScriptRuntime(MoudEngine engine) {
         this.engine = engine;
         this.executor = Executors.newSingleThreadExecutor(r -> new Thread(r, "JavaScriptRuntime-Main"));
-        this.timerExecutor = Executors.newScheduledThreadPool(1, r -> new Thread(r, "JavaScript-Timer"));
+        this.timeoutExecutor = Executors.newScheduledThreadPool(2, r -> {
+            Thread t = new Thread(r, "JavaScriptRuntime-Timeout");
+            t.setDaemon(true);
+            return t;
+        });
         initializeContext();
     }
 
@@ -49,33 +58,55 @@ public class JavaScriptRuntime {
     }
 
     private void bindTimerFunctions() {
-        Value bindings = jsContext.getBindings("js");
+        jsContext.enter();
+        try {
+            jsContext.getBindings("js").putMember("setTimeout", new ProxyExecutable() {
+                @Override
+                public Object execute(Value... arguments) {
+                    if (arguments.length < 2) return -1;
+                    Value callback = arguments[0];
+                    long delay = arguments[1].asLong();
 
-        bindings.putMember("setTimeout", new ProxyExecutable() {
-            @Override
-            public Object execute(Value... arguments) {
-                if (arguments.length < 2) return null;
-                Value callback = arguments[0];
-                long delay = arguments[1].asLong();
-                timerExecutor.schedule(() -> executeCallback(callback), delay, TimeUnit.MILLISECONDS);
-                return null;
-            }
-        });
+                    CompletableFuture.delayedExecutor(delay, TimeUnit.MILLISECONDS, executor)
+                            .execute(() -> executeCallbackSafe(callback));
+                    return null;
+                }
+            });
 
-        bindings.putMember("setInterval", new ProxyExecutable() {
-            @Override
-            public Object execute(Value... arguments) {
-                if (arguments.length < 2) return null;
-                Value callback = arguments[0];
-                long period = arguments[1].asLong();
-                if (period <= 0) return null;
-                timerExecutor.scheduleAtFixedRate(() -> executeCallback(callback), period, period, TimeUnit.MILLISECONDS);
-                return null;
-            }
-        });
+            jsContext.getBindings("js").putMember("setInterval", new ProxyExecutable() {
+                @Override
+                public Object execute(Value... arguments) {
+                    if (arguments.length < 2) return -1;
+                    Value callback = arguments[0];
+                    long delay = arguments[1].asLong();
+                    long intervalId = intervalIdCounter.incrementAndGet();
 
-        bindings.putMember("clearInterval", (ProxyExecutable) (arguments) -> null);
-        bindings.putMember("clearTimeout", (ProxyExecutable) (arguments) -> null);
+                    ScheduledFuture<?> future = timeoutExecutor.scheduleAtFixedRate(() -> {
+                        if (!isShuttingDown) {
+                            executeCallbackSafe(callback);
+                        }
+                    }, delay, delay, TimeUnit.MILLISECONDS);
+
+                    intervals.put(intervalId, future);
+                    return intervalId;
+                }
+            });
+
+            jsContext.getBindings("js").putMember("clearInterval", new ProxyExecutable() {
+                @Override
+                public Object execute(Value... arguments) {
+                    if (arguments.length < 1) return null;
+                    long intervalId = arguments[0].asLong();
+                    ScheduledFuture<?> future = intervals.remove(intervalId);
+                    if (future != null) {
+                        future.cancel(false);
+                    }
+                    return null;
+                }
+            });
+        } finally {
+            jsContext.leave();
+        }
     }
 
     public void bindAPIs(Object... apis) {
@@ -100,10 +131,10 @@ public class JavaScriptRuntime {
                         });
 
                         moudObj.putMember("server", scriptingAPI.server);
+                        moudObj.putMember("world", scriptingAPI.world);
                         moudObj.putMember("lighting", scriptingAPI.lighting);
                         moudObj.putMember("zones", scriptingAPI.zones);
                         moudObj.putMember("math", scriptingAPI.math);
-                        moudObj.putMember("worlds", scriptingAPI.worlds);
                         moudObj.putMember("commands", scriptingAPI.commands);
                         moudObj.putMember("async", scriptingAPI.getAsync());
 
@@ -120,7 +151,7 @@ public class JavaScriptRuntime {
             } finally {
                 jsContext.leave();
             }
-        }, executor).join();
+        }, executor);
     }
 
     public CompletableFuture<Void> executeScript(Path scriptPath) {
@@ -159,10 +190,13 @@ public class JavaScriptRuntime {
 
     public void executeCallback(Value callback, Object... args) {
         if (isShuttingDown || callback == null || !callback.canExecute()) return;
+        executeCallbackSafe(callback, args);
+    }
 
-        executor.execute(() -> {
-            if (isShuttingDown) return;
+    private void executeCallbackSafe(Value callback, Object... args) {
+        if (isShuttingDown) return;
 
+        Future<?> callbackTask = executor.submit(() -> {
             jsContext.enter();
             try {
                 callback.execute(args);
@@ -182,6 +216,13 @@ public class JavaScriptRuntime {
                 jsContext.leave();
             }
         });
+
+        timeoutExecutor.schedule(() -> {
+            if (!callbackTask.isDone()) {
+                callbackTask.cancel(true);
+                LOGGER.error("Callback execution timed out after {}ms", CALLBACK_TIMEOUT_MS);
+            }
+        }, CALLBACK_TIMEOUT_MS, TimeUnit.MILLISECONDS);
     }
 
     public ExecutorService getExecutor() {
@@ -191,7 +232,8 @@ public class JavaScriptRuntime {
     public void shutdown() {
         isShuttingDown = true;
 
-        timerExecutor.shutdown();
+        intervals.values().forEach(future -> future.cancel(false));
+        intervals.clear();
 
         executor.execute(() -> {
             if (jsContext != null) {
@@ -204,16 +246,17 @@ public class JavaScriptRuntime {
         });
 
         executor.shutdown();
+        timeoutExecutor.shutdown();
         try {
-            if (!timerExecutor.awaitTermination(1, TimeUnit.SECONDS)) {
-                timerExecutor.shutdownNow();
-            }
             if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
                 executor.shutdownNow();
             }
+            if (!timeoutExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                timeoutExecutor.shutdownNow();
+            }
         } catch (InterruptedException e) {
-            timerExecutor.shutdownNow();
             executor.shutdownNow();
+            timeoutExecutor.shutdownNow();
             Thread.currentThread().interrupt();
         }
     }
