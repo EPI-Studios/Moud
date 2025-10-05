@@ -108,9 +108,24 @@ public class ExternalPartConfigLayer implements IAnimation {
         }
 
         if (rotation != null) {
-            bone.setRotX(bone.getRotX() + MathHelper.RADIANS_PER_DEGREE * (float) rotation.x);
-            bone.setRotY(bone.getRotY() + MathHelper.RADIANS_PER_DEGREE * (float) rotation.y);
-            bone.setRotZ(bone.getRotZ() + MathHelper.RADIANS_PER_DEGREE * (float) rotation.z);
+
+            String boneName = bone.getName();
+            if (boneName.equals("right_arm") || boneName.equals("left_arm") ||
+                    boneName.equals("right_leg") || boneName.equals("left_leg"))
+            {
+
+                bone.setRotZ(bone.getRotZ() + MathHelper.RADIANS_PER_DEGREE * (float) rotation.x);
+
+                bone.setRotY(bone.getRotY() + MathHelper.RADIANS_PER_DEGREE * (float) rotation.y);
+
+                bone.setRotX(bone.getRotX() + MathHelper.RADIANS_PER_DEGREE * (float) rotation.z);
+            }
+            else
+            {
+                bone.setRotX(bone.getRotX() + MathHelper.RADIANS_PER_DEGREE * (float) rotation.x);
+                bone.setRotY(bone.getRotY() + MathHelper.RADIANS_PER_DEGREE * (float) rotation.y);
+                bone.setRotZ(bone.getRotZ() + MathHelper.RADIANS_PER_DEGREE * (float) rotation.z);
+            }
         }
 
         if (scale != null) {
