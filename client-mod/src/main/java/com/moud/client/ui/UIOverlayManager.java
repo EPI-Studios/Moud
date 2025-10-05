@@ -56,6 +56,21 @@ public class UIOverlayManager {
 
         List<UIComponent> elementsToRender = getOverlayElements();
 
+        int screenWidth = client.getWindow().getScaledWidth();
+        int screenHeight = client.getWindow().getScaledHeight();
+
+        for (UIComponent element : elementsToRender) {
+            if (element.parent == null) {
+                element.computeLayout(screenWidth, screenHeight);
+            }
+        }
+
+        for (UIComponent element : elementsToRender) {
+            if (element.isVisible()) {
+                element.checkHover(mouseX, mouseY);
+            }
+        }
+
         for (UIComponent element : elementsToRender) {
             if (element.isVisible()) {
                 element.renderWidget(context, mouseX, mouseY, tickCounter.getTickDelta(true));

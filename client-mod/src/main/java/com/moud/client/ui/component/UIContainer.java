@@ -92,15 +92,13 @@ public class UIContainer extends UIComponent {
                 return;
             }
 
-            int containerX = getX() + (int) paddingLeft;
-            int containerY = getY() + (int) paddingTop;
             int containerWidth = getWidth() - (int) paddingLeft - (int) paddingRight;
             int containerHeight = getHeight() - (int) paddingTop - (int) paddingBottom;
 
             if ("row".equalsIgnoreCase(flexDirection)) {
-                layoutRow(containerX, containerY, containerWidth, containerHeight);
+                layoutRow(containerWidth, containerHeight);
             } else {
-                layoutColumn(containerX, containerY, containerWidth, containerHeight);
+                layoutColumn(containerWidth, containerHeight);
             }
 
             if (autoResize) {
@@ -112,13 +110,13 @@ public class UIContainer extends UIComponent {
         }
     }
 
-    private void layoutRow(int containerX, int containerY, int containerWidth, int containerHeight) {
+    private void layoutRow(int containerWidth, int containerHeight) {
         int totalChildWidth = children.stream().mapToInt(UIComponent::getWidth).sum();
         int totalGaps = (children.size() > 1) ? (int)((children.size() - 1) * gap) : 0;
         int usedSpace = totalChildWidth + totalGaps;
         int availableSpace = autoResize ? 0 : containerWidth - usedSpace;
 
-        int currentX = containerX;
+        int currentX = (int) paddingLeft;
         double spaceBetween = gap;
 
         switch (justifyContent.toLowerCase()) {
@@ -137,7 +135,8 @@ public class UIContainer extends UIComponent {
         }
 
         for (UIComponent child : children) {
-            int childY = containerY;
+
+            int childY = (int) paddingTop;
 
             switch (alignItems.toLowerCase()) {
                 case "center": childY += (containerHeight - child.getHeight()) / 2; break;
@@ -154,14 +153,13 @@ public class UIContainer extends UIComponent {
         }
     }
 
-    private void layoutColumn(int containerX, int containerY, int containerWidth, int containerHeight) {
+    private void layoutColumn(int containerWidth, int containerHeight) {
         int totalChildHeight = children.stream().mapToInt(UIComponent::getHeight).sum();
         int totalGaps = (children.size() > 1) ? (int)((children.size() - 1) * gap) : 0;
         int usedSpace = totalChildHeight + totalGaps;
         int availableSpace = autoResize ? 0 : containerHeight - usedSpace;
 
-
-        int currentY = containerY;
+        int currentY = (int) paddingTop;
         double spaceBetween = gap;
 
         switch (justifyContent.toLowerCase()) {
@@ -180,7 +178,8 @@ public class UIContainer extends UIComponent {
         }
 
         for (UIComponent child : children) {
-            int childX = containerX;
+
+            int childX = (int) paddingLeft;
 
             switch (alignItems.toLowerCase()) {
                 case "center": childX += (containerWidth - child.getWidth()) / 2; break;
@@ -214,7 +213,6 @@ public class UIContainer extends UIComponent {
 
         int newWidth = (maxX - minX) + (int) paddingLeft + (int) paddingRight;
         int newHeight = (maxY - minY) + (int) paddingTop + (int) paddingBottom;
-
 
         if (newWidth != getWidth() || newHeight != getHeight()) {
             this.width = newWidth;

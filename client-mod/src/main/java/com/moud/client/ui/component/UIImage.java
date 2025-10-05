@@ -1,5 +1,3 @@
-// File: src/main/java/com/moud/client/ui/component/UIImage.java
-
 package com.moud.client.ui.component;
 
 import com.moud.client.api.service.UIService;
@@ -22,35 +20,44 @@ public final class UIImage extends UIComponent {
 
     @Override
     public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
-        if (!visible || opacity <= 0.01 || textureId == null) {
+        if (!visible || opacity <= 0.01) {
             return;
         }
 
-        context.setShaderColor(1.0f, 1.0f, 1.0f, (float)this.opacity);
+        context.getMatrices().push();
+        context.getMatrices().translate(screenX, screenY, 0);
+        context.getMatrices().scale(scaleX, scaleY, 1.0f);
 
-        context.drawTexture(
-                textureId,
-                getX(),
-                getY(),
-                0,
-                0,
-                getWidth(),
-                getHeight(),
-                getWidth(),
-                getHeight()
-        );
+        if (textureId != null) {
+            context.setShaderColor(1.0f, 1.0f, 1.0f, (float)this.opacity);
 
-        context.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+            context.drawTexture(
+                    textureId,
+                    0, 0, 0, 0,
+                    getWidth(), getHeight(),
+                    getWidth(), getHeight()
+            );
+            context.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+        }
+
         if (borderWidth > 0) {
             int borderCol = parseColor(borderColor, opacity);
             if ((borderCol >>> 24) > 0) {
                 for (int i = 0; i < borderWidth; i++) {
-                    context.drawBorder(x + i, y + i, width - i * 2, height - i * 2, borderCol);
+                    context.drawBorder(i, i, width - i * 2, height - i * 2, borderCol);
                 }
             }
         }
-    }
 
+        for (UIComponent child : children) {
+            context.getMatrices().push();
+            context.getMatrices().translate(-screenX, -screenY, 0);
+            child.renderWidget(context, mouseX, mouseY, delta);
+            context.getMatrices().pop();
+        }
+
+        context.getMatrices().pop();
+    }
 
     @HostAccess.Export
     public UIImage setSource(String source) {

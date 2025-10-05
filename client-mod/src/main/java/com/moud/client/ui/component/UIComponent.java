@@ -1,6 +1,8 @@
 package com.moud.client.ui.component;
 
 import com.moud.client.api.service.UIService;
+import com.moud.client.ui.UIAnchor;
+import com.moud.client.ui.UIRelativePosition;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
@@ -29,6 +31,7 @@ public class UIComponent {
     public UIComponent parent;
 
     protected volatile int x, y, width, height;
+    protected volatile int screenX, screenY;
     protected volatile String backgroundColor = "#00000000";
     protected volatile String textColor = "#000000";
     protected volatile String borderColor = "#000000";
@@ -39,6 +42,12 @@ public class UIComponent {
     protected volatile boolean visible = true;
     protected volatile Text message = Text.empty();
     protected volatile boolean focused = false;
+
+    protected volatile UIAnchor anchor = UIAnchor.TOP_LEFT;
+    protected volatile String relativeToId = null;
+    protected volatile UIRelativePosition relativePosition = null;
+    protected volatile float scaleX = 1.0f;
+    protected volatile float scaleY = 1.0f;
 
     public UIComponent(String type, UIService service) {
         this.type = type;
@@ -59,20 +68,77 @@ public class UIComponent {
         return String.format("%s[id:%d, text:'%s']", this.type, this.uniqueId, text.isEmpty() ? "N/A" : text);
     }
 
+    public void computeLayout(int screenWidth, int screenHeight) {
+        if (parent == null) {
+
+            int effectiveWidth = getEffectiveWidth();
+            int effectiveHeight = getEffectiveHeight();
+
+            int baseX = switch (anchor) {
+                case TOP_LEFT, CENTER_LEFT, BOTTOM_LEFT -> x;
+                case TOP_CENTER, CENTER_CENTER, BOTTOM_CENTER -> (screenWidth / 2) + x - (effectiveWidth / 2);
+                case TOP_RIGHT, CENTER_RIGHT, BOTTOM_RIGHT -> screenWidth - x - effectiveWidth;
+            };
+
+            int baseY = switch (anchor) {
+                case TOP_LEFT, TOP_CENTER, TOP_RIGHT -> y;
+                case CENTER_LEFT, CENTER_CENTER, CENTER_RIGHT -> (screenHeight / 2) + y - (effectiveHeight / 2);
+                case BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT -> screenHeight - y - effectiveHeight;
+            };
+
+            if (relativeToId != null && relativePosition != null) {
+                UIComponent relativeTo = service.getElement(relativeToId);
+                if (relativeTo != null) {
+
+                    if (relativeTo.parent == null) relativeTo.computeLayout(screenWidth, screenHeight);
+
+                    switch (relativePosition) {
+                        case RIGHT_OF -> { baseX = relativeTo.screenX + relativeTo.getEffectiveWidth() + x; baseY = relativeTo.screenY + y; }
+                        case LEFT_OF -> { baseX = relativeTo.screenX - effectiveWidth + x; baseY = relativeTo.screenY + y; }
+                        case BELOW -> { baseX = relativeTo.screenX + x; baseY = relativeTo.screenY + relativeTo.getEffectiveHeight() + y; }
+                        case ABOVE -> { baseX = relativeTo.screenX + x; baseY = relativeTo.screenY - effectiveHeight + y; }
+                    }
+                }
+            }
+            this.screenX = baseX;
+            this.screenY = baseY;
+        } else {
+
+            this.screenX = parent.screenX + this.x;
+            this.screenY = parent.screenY + this.y;
+        }
+
+        for (UIComponent child : children) {
+            child.computeLayout(screenWidth, screenHeight);
+        }
+    }
+
+    public int getEffectiveWidth() {
+        return (int)(width * scaleX);
+    }
+
+    public int getEffectiveHeight() {
+        return (int)(height * scaleY);
+    }
+
     public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
         if (!visible) return;
         if (opacity <= 0.01) return;
 
+        context.getMatrices().push();
+        context.getMatrices().translate(screenX, screenY, 0);
+        context.getMatrices().scale(scaleX, scaleY, 1.0f);
+
         int bgColor = parseColor(backgroundColor, opacity);
         if ((bgColor >>> 24) > 0) {
-            context.fill(x, y, x + width, y + height, bgColor);
+            context.fill(0, 0, width, height, bgColor);
         }
 
         if (borderWidth > 0) {
             int borderCol = parseColor(borderColor, opacity);
             if ((borderCol >>> 24) > 0) {
                 for (int i = 0; i < borderWidth; i++) {
-                    context.drawBorder(x + i, y + i, width - i * 2, height - i * 2, borderCol);
+                    context.drawBorder(i, i, width - i * 2, height - i * 2, borderCol);
                 }
             }
         }
@@ -80,8 +146,14 @@ public class UIComponent {
         renderText(context);
 
         for (UIComponent child : children) {
+
+            context.getMatrices().push();
+            context.getMatrices().translate(-screenX, -screenY, 0);
             child.renderWidget(context, mouseX, mouseY, delta);
+            context.getMatrices().pop();
         }
+
+        context.getMatrices().pop();
     }
 
     protected void renderText(DrawContext context) {
@@ -94,11 +166,11 @@ public class UIComponent {
         int textHeight = MinecraftClient.getInstance().textRenderer.fontHeight;
 
         int textX = switch (textAlign.toLowerCase()) {
-            case "center" -> x + (width - textWidth) / 2;
-            case "right" -> x + width - textWidth - (int) paddingRight;
-            default -> x + (int) paddingLeft;
+            case "center" -> (width - textWidth) / 2;
+            case "right" -> width - textWidth - (int) paddingRight;
+            default -> (int) paddingLeft;
         };
-        int textY = y + (height - textHeight) / 2;
+        int textY = (height - textHeight) / 2;
 
         context.drawText(MinecraftClient.getInstance().textRenderer, message, textX, textY, textCol, false);
     }
@@ -112,7 +184,7 @@ public class UIComponent {
             }
         }
 
-        if (mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height) {
+        if (mouseX >= screenX && mouseX < screenX + getEffectiveWidth() && mouseY >= screenY && mouseY < screenY + getEffectiveHeight()) {
             triggerClick(mouseX, mouseY, button);
             return true;
         }
@@ -146,6 +218,34 @@ public class UIComponent {
         } catch (NumberFormatException e) {
             return 0;
         }
+    }
+
+    @HostAccess.Export
+    public UIComponent setAnchor(String anchorName) {
+        try {
+            this.anchor = UIAnchor.valueOf(anchorName.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            LOGGER.error("Invalid anchor: {}", anchorName);
+        }
+        return this;
+    }
+
+    @HostAccess.Export
+    public UIComponent relativeTo(String targetId, String position) {
+        this.relativeToId = targetId;
+        try {
+            this.relativePosition = UIRelativePosition.valueOf(position.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            LOGGER.error("Invalid relative position: {}", position);
+        }
+        return this;
+    }
+
+    @HostAccess.Export
+    public UIComponent setScale(double scaleX, double scaleY) {
+        this.scaleX = (float) scaleX;
+        this.scaleY = (float) scaleY;
+        return this;
     }
 
     @HostAccess.Export
@@ -377,6 +477,49 @@ public class UIComponent {
     public UIComponent onBlur(Value callback) {
         if (callback != null && callback.canExecute()) {
             eventHandlers.put("blur", callback);
+        }
+        return this;
+    }
+
+    private boolean wasHovering = false;
+
+    public void checkHover(double mouseX, double mouseY) {
+        if (!visible || opacity <= 0.01) {
+            if (wasHovering) {
+                triggerUnhover(mouseX, mouseY);
+                wasHovering = false;
+            }
+            return;
+        }
+
+        boolean isHovering = mouseX >= screenX && mouseX < screenX + getEffectiveWidth() &&
+                mouseY >= screenY && mouseY < screenY + getEffectiveHeight();
+
+        if (isHovering && !wasHovering) {
+            triggerHover(mouseX, mouseY);
+            wasHovering = true;
+        } else if (!isHovering && wasHovering) {
+            triggerUnhover(mouseX, mouseY);
+            wasHovering = false;
+        }
+
+        for (UIComponent child : children) {
+            child.checkHover(mouseX, mouseY);
+        }
+    }
+
+    public void triggerHover(double mouseX, double mouseY) {
+        executeEventHandler("hover", this, mouseX, mouseY);
+    }
+
+    public void triggerUnhover(double mouseX, double mouseY) {
+        executeEventHandler("unhover", this, mouseX, mouseY);
+    }
+
+    @HostAccess.Export
+    public UIComponent onUnhover(Value callback) {
+        if (callback != null && callback.canExecute()) {
+            eventHandlers.put("unhover", callback);
         }
         return this;
     }
