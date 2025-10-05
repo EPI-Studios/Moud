@@ -18,9 +18,18 @@ public abstract class CameraMixin {
     @Shadow protected abstract void setPos(double x, double y, double z);
     @Shadow protected abstract void setRotation(float yaw, float pitch);
 
-    @Inject(method = "update", at = @At("TAIL"))
+    @Shadow private boolean ready;
+    @Shadow private Entity focusedEntity;
+
+    @Inject(method = "update", at = @At("HEAD"), cancellable = true)
     private void moud_applyCameraOverrides(BlockView area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickDelta, CallbackInfo ci) {
-        if (!MoudClientMod.isCustomCameraActive()) return;
+        if (this.ready) {
+            this.focusedEntity = focusedEntity;
+        }
+
+        if (!MoudClientMod.isCustomCameraActive()) {
+            return;
+        }
 
         if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.camera != null) {
             CameraService cameraService = ClientAPIService.INSTANCE.camera;
@@ -38,6 +47,8 @@ public abstract class CameraMixin {
                 this.setRotation(yaw, pitch);
             }
         }
+
+        ci.cancel();
     }
 
     @Shadow public abstract float getYaw();

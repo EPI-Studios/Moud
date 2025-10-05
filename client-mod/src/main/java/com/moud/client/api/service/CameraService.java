@@ -1,6 +1,5 @@
 package com.moud.client.api.service;
 
-import com.moud.api.math.Vector3;
 import com.moud.client.MoudClientMod;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.Perspective;
@@ -9,10 +8,10 @@ import net.minecraft.util.math.MathHelper;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
-import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.moud.api.math.Vector3;
 
 public final class CameraService {
     private static final Logger LOGGER = LoggerFactory.getLogger(CameraService.class);
@@ -45,38 +44,49 @@ public final class CameraService {
     }
 
     public void updateCamera(float tickDelta) {
-        if (!isCustomCameraActive() || !isAnimating) {
+        if (!isCustomCameraActive()) {
             return;
         }
 
-        long elapsedTime = System.currentTimeMillis() - transitionStartTime;
-        double progress = Math.min((double) elapsedTime / transitionDuration, 1.0);
+        if (isAnimating) {
+            long elapsedTime = System.currentTimeMillis() - transitionStartTime;
+            double progress = Math.min((double) elapsedTime / transitionDuration, 1.0);
 
-        double easedProgress;
-        if (easingFunction != null && easingFunction.canExecute()) {
-            try {
-                easedProgress = easingFunction.execute(progress).asDouble();
-            } catch (Exception e) {
-                LOGGER.warn("Error executing JS easing function", e);
+            double easedProgress;
+            if (easingFunction != null && easingFunction.canExecute()) {
+                try {
+                    easedProgress = easingFunction.execute(progress).asDouble();
+                } catch (Exception e) {
+                    LOGGER.warn("Error executing JS easing function", e);
+                    easedProgress = 1 - Math.pow(1 - progress, 4);
+                }
+            } else {
                 easedProgress = 1 - Math.pow(1 - progress, 4);
             }
+
+            currentState.position.set(
+                    MathHelper.lerp(easedProgress, startState.position.x, targetState.position.x),
+                    MathHelper.lerp(easedProgress, startState.position.y, targetState.position.y),
+                    MathHelper.lerp(easedProgress, startState.position.z, targetState.position.z)
+            );
+            currentState.yaw = MathHelper.lerpAngleDegrees((float)easedProgress, (float)startState.yaw, (float)targetState.yaw);
+            currentState.pitch = MathHelper.lerp(easedProgress, startState.pitch, targetState.pitch);
+            currentState.roll = MathHelper.lerpAngleDegrees((float)easedProgress, (float)startState.roll, (float)targetState.roll);
+            currentState.fov = MathHelper.lerp(easedProgress, startState.fov, targetState.fov);
+
+            if (progress >= 1.0) {
+                isAnimating = false;
+                easingFunction = null;
+            }
         } else {
-            easedProgress = 1 - Math.pow(1 - progress, 4);
-        }
+            float lerpFactor = (float) (1.0 - Math.pow(0.01, tickDelta));
 
-        currentState.position.set(
-                MathHelper.lerp(easedProgress, startState.position.x, targetState.position.x),
-                MathHelper.lerp(easedProgress, startState.position.y, targetState.position.y),
-                MathHelper.lerp(easedProgress, startState.position.z, targetState.position.z)
-        );
-        currentState.yaw = MathHelper.lerp(easedProgress, startState.yaw, targetState.yaw);
-        currentState.pitch = MathHelper.lerp(easedProgress, startState.pitch, targetState.pitch);
-        currentState.roll = MathHelper.lerp(easedProgress, startState.roll, targetState.roll);
-        currentState.fov = MathHelper.lerp(easedProgress, startState.fov, targetState.fov);
+            currentState.position.lerp(targetState.position, lerpFactor);
 
-        if (progress >= 1.0) {
-            isAnimating = false;
-            easingFunction = null;
+            currentState.yaw = MathHelper.lerpAngleDegrees(lerpFactor, (float) currentState.yaw, (float) targetState.yaw);
+            currentState.pitch = MathHelper.lerp(lerpFactor, currentState.pitch, targetState.pitch);
+            currentState.roll = MathHelper.lerpAngleDegrees(lerpFactor, (float) currentState.roll, (float) targetState.roll);
+            currentState.fov = MathHelper.lerp(lerpFactor, currentState.fov, targetState.fov);
         }
     }
 
@@ -84,10 +94,9 @@ public final class CameraService {
     public void enableCustomCamera() {
         if (isCustomCameraActive()) return;
 
-        this.wasInFirstPerson = !isThirdPerson();
-        if (this.wasInFirstPerson) {
-            setThirdPerson(true);
-        }
+        this.wasInFirstPerson = client.options.getPerspective() == Perspective.FIRST_PERSON;
+
+        client.options.setPerspective(Perspective.THIRD_PERSON_BACK);
 
         Entity camEntity = client.getCameraEntity();
         if (camEntity != null) {
@@ -111,7 +120,8 @@ public final class CameraService {
         if (!isCustomCameraActive()) return;
 
         if (this.wasInFirstPerson) {
-            setThirdPerson(false);
+
+            client.options.setPerspective(Perspective.FIRST_PERSON);
         }
         this.wasInFirstPerson = false;
         MoudClientMod.setCustomCameraActive(false);
@@ -153,26 +163,21 @@ public final class CameraService {
 
         if (options.hasMember("position")) {
             Value pos = options.getMember("position");
-            currentState.position.set(pos.getMember("x").asDouble(), pos.getMember("y").asDouble(), pos.getMember("z").asDouble());
+            targetState.position.set(pos.getMember("x").asDouble(), pos.getMember("y").asDouble(), pos.getMember("z").asDouble());
         }
-        if (options.hasMember("yaw")) currentState.yaw = options.getMember("yaw").asDouble();
-        if (options.hasMember("pitch")) currentState.pitch = options.getMember("pitch").asDouble();
-        if (options.hasMember("roll")) currentState.roll = options.getMember("roll").asDouble();
-        if (options.hasMember("fov")) currentState.fov = options.getMember("fov").asDouble();
-
-        targetState.position.set(currentState.position);
-        targetState.yaw = currentState.yaw;
-        targetState.pitch = currentState.pitch;
-        targetState.roll = currentState.roll;
-        targetState.fov = currentState.fov;
+        if (options.hasMember("yaw")) targetState.yaw = options.getMember("yaw").asDouble();
+        if (options.hasMember("pitch")) targetState.pitch = options.getMember("pitch").asDouble();
+        if (options.hasMember("roll")) targetState.roll = options.getMember("roll").asDouble();
+        if (options.hasMember("fov")) targetState.fov = options.getMember("fov").asDouble();
     }
 
     public Vector3d getPosition() { return isCustomCameraActive() ? currentState.position : null; }
     public Float getYaw() { return isCustomCameraActive() ? (float)currentState.yaw : null; }
     public Float getPitch() { return isCustomCameraActive() ? (float)currentState.pitch : null; }
     public Float getRoll() { return isCustomCameraActive() ? (float)currentState.roll : null; }
-    public Double getFovInternal() { return isCustomCameraActive() ? currentState.fov : null; } // Renamed for clarity
+    public Double getFovInternal() { return isCustomCameraActive() ? currentState.fov : null; }
     public boolean shouldDisableViewBobbing() { return isCustomCameraActive(); }
+
     @HostAccess.Export
     public boolean isCustomCameraActive() {
         return MoudClientMod.isCustomCameraActive();
@@ -187,6 +192,7 @@ public final class CameraService {
     @HostAccess.Export
     public double getPlayerY() {
         Entity cameraEntity = client.getCameraEntity();
+
         return cameraEntity != null ? cameraEntity.getEyeY() : 0.0;
     }
 
@@ -229,6 +235,7 @@ public final class CameraService {
             client.options.setPerspective(Perspective.FIRST_PERSON);
         }
     }
+
     @HostAccess.Export
     public double getFov() {
         return client.options.getFov().getValue();
