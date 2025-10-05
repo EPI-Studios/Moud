@@ -4,7 +4,6 @@ import com.moud.api.math.Vector3;
 import com.moud.server.MoudEngine;
 import com.moud.server.proxy.PlayerProxy;
 import net.minestom.server.MinecraftServer;
-import net.minestom.server.coordinate.Point;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.player.PlayerDisconnectEvent;
 import net.minestom.server.event.player.PlayerMoveEvent;
@@ -13,18 +12,18 @@ import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ZoneManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ZoneManager.class);
-    private final MoudEngine engine;
+    private static final int GRID_CELL_SIZE = 16;
 
-    private final Map<Long, Set<Zone>> zonesByChunk = new ConcurrentHashMap<>();
+    private final MoudEngine engine;
     private final Map<String, Zone> zonesById = new ConcurrentHashMap<>();
+    private final Map<Long, Set<Zone>> spatialGrid = new ConcurrentHashMap<>();
+    private final Map<UUID, Set<Zone>> playerActiveZones = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> playerGridCells = new ConcurrentHashMap<>();
 
     public ZoneManager(MoudEngine engine) {
         this.engine = engine;
@@ -42,24 +41,26 @@ public class ZoneManager {
         Zone zone = new Zone(id, corner1, corner2, onEnter, onLeave);
         zonesById.put(id, zone);
 
-        int minChunkX = (int) Math.floor(zone.getMin().x / 16.0);
-        int maxChunkX = (int) Math.floor(zone.getMax().x / 16.0);
-        int minChunkZ = (int) Math.floor(zone.getMin().z / 16.0);
-        int maxChunkZ = (int) Math.floor(zone.getMax().z / 16.0);
+        int minCellX = (int) Math.floor(zone.getMin().x / GRID_CELL_SIZE);
+        int maxCellX = (int) Math.floor(zone.getMax().x / GRID_CELL_SIZE);
+        int minCellZ = (int) Math.floor(zone.getMin().z / GRID_CELL_SIZE);
+        int maxCellZ = (int) Math.floor(zone.getMax().z / GRID_CELL_SIZE);
 
-        for (int x = minChunkX; x <= maxChunkX; x++) {
-            for (int z = minChunkZ; z <= maxChunkZ; z++) {
-                long chunkHash = getChunkHash(x, z);
-                zonesByChunk.computeIfAbsent(chunkHash, k -> new HashSet<>()).add(zone);
+        for (int x = minCellX; x <= maxCellX; x++) {
+            for (int z = minCellZ; z <= maxCellZ; z++) {
+                long cellHash = getCellHash(x, z);
+                spatialGrid.computeIfAbsent(cellHash, k -> ConcurrentHashMap.newKeySet()).add(zone);
             }
         }
-        LOGGER.info("Created zone '{}' spanning from chunk ({},{}) to ({},{})", id, minChunkX, minChunkZ, maxChunkX, maxChunkZ);
+
+        LOGGER.info("Created zone '{}' in spatial grid cells ({},{}) to ({},{})", id, minCellX, minCellZ, maxCellX, maxCellZ);
     }
 
     public void removeZone(String id) {
         Zone zone = zonesById.remove(id);
         if (zone != null) {
-            zonesByChunk.values().forEach(set -> set.remove(zone));
+            spatialGrid.values().forEach(set -> set.remove(zone));
+            playerActiveZones.values().forEach(set -> set.remove(zone));
             LOGGER.info("Removed zone '{}'", id);
         }
     }
@@ -68,56 +69,89 @@ public class ZoneManager {
         if (!event.isFirstSpawn()) return;
 
         Player player = event.getPlayer();
+        playerActiveZones.put(player.getUuid(), ConcurrentHashMap.newKeySet());
+
         MinecraftServer.getSchedulerManager().scheduleNextTick(() -> {
-            long chunkHash = getChunkHash(player.getPosition().chunkX(), player.getPosition().chunkZ());
-            Collection<Zone> zonesInChunk = zonesByChunk.get(chunkHash);
-            if (zonesInChunk != null) {
-                checkPlayerAgainstZones(player, zonesInChunk);
-            }
+            updatePlayerZones(player);
         });
     }
 
     private void onPlayerMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
-        Point newPos = event.getNewPosition();
+        int newCellX = (int) Math.floor(event.getNewPosition().x() / GRID_CELL_SIZE);
+        int newCellZ = (int) Math.floor(event.getNewPosition().z() / GRID_CELL_SIZE);
+        long newCellHash = getCellHash(newCellX, newCellZ);
 
-        long currentChunkHash = getChunkHash(newPos.chunkX(), newPos.chunkZ());
-        Set<Zone> zonesInCurrentChunk = zonesByChunk.get(currentChunkHash);
+        Long currentCell = playerGridCells.get(player.getUuid());
 
-        Set<Zone> zonesToCheck = new HashSet<>();
-        if (zonesInCurrentChunk != null) {
-            zonesToCheck.addAll(zonesInCurrentChunk);
-        }
-        for (Zone zone : zonesById.values()) {
-            if (zone.isPlayerInside(player)) {
-                zonesToCheck.add(zone);
+        if (currentCell == null || currentCell != newCellHash) {
+            playerGridCells.put(player.getUuid(), newCellHash);
+            updatePlayerZones(player);
+        } else {
+            Set<Zone> activeZones = playerActiveZones.get(player.getUuid());
+            if (activeZones != null) {
+                for (Zone zone : activeZones) {
+                    if (!zone.contains(player)) {
+                        triggerLeave(zone, player);
+                    }
+                }
             }
         }
-
-        if (zonesToCheck.isEmpty()) return;
-
-        checkPlayerAgainstZones(player, zonesToCheck);
     }
 
     private void onPlayerDisconnect(PlayerDisconnectEvent event) {
         Player player = event.getPlayer();
-        for (Zone zone : zonesById.values()) {
-            if (zone.isPlayerInside(player)) {
+        Set<Zone> activeZones = playerActiveZones.remove(player.getUuid());
+        playerGridCells.remove(player.getUuid());
+
+        if (activeZones != null) {
+            for (Zone zone : activeZones) {
                 triggerLeave(zone, player);
             }
         }
     }
 
-    private void checkPlayerAgainstZones(Player player, Collection<Zone> zones) {
-        for (Zone zone : zones) {
-            boolean isInsideNow = zone.contains(player);
-            boolean wasInside = zone.isPlayerInside(player);
+    private void updatePlayerZones(Player player) {
+        int cellX = (int) Math.floor(player.getPosition().x() / GRID_CELL_SIZE);
+        int cellZ = (int) Math.floor(player.getPosition().z() / GRID_CELL_SIZE);
 
-            if (isInsideNow && !wasInside) {
-                triggerEnter(zone, player);
-            } else if (!isInsideNow && wasInside) {
-                triggerLeave(zone, player);
+        Set<Zone> nearbyZones = new HashSet<>();
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                long cellHash = getCellHash(cellX + dx, cellZ + dz);
+                Set<Zone> zonesInCell = spatialGrid.get(cellHash);
+                if (zonesInCell != null) {
+                    nearbyZones.addAll(zonesInCell);
+                }
             }
+        }
+
+        Set<Zone> activeZones = playerActiveZones.get(player.getUuid());
+        if (activeZones == null) {
+            activeZones = ConcurrentHashMap.newKeySet();
+            playerActiveZones.put(player.getUuid(), activeZones);
+        }
+
+        Set<Zone> zonesToRemove = new HashSet<>(activeZones);
+
+        for (Zone zone : nearbyZones) {
+            boolean isInside = zone.contains(player);
+            boolean wasInside = activeZones.contains(zone);
+
+            if (isInside && !wasInside) {
+                triggerEnter(zone, player);
+                activeZones.add(zone);
+            } else if (!isInside && wasInside) {
+                triggerLeave(zone, player);
+                activeZones.remove(zone);
+            }
+
+            zonesToRemove.remove(zone);
+        }
+
+        for (Zone zone : zonesToRemove) {
+            triggerLeave(zone, player);
+            activeZones.remove(zone);
         }
     }
 
@@ -137,7 +171,7 @@ public class ZoneManager {
         }
     }
 
-    private long getChunkHash(int chunkX, int chunkZ) {
-        return (long) chunkX << 32 | (long) chunkZ & 0xFFFFFFFFL;
+    private long getCellHash(int cellX, int cellZ) {
+        return (long) cellX << 32 | (long) cellZ & 0xFFFFFFFFL;
     }
 }
