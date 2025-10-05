@@ -11,22 +11,21 @@ import org.graalvm.polyglot.proxy.ProxyExecutable;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 public class JavaScriptRuntime {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(JavaScriptRuntime.class);
 
     private Context jsContext;
     private final ExecutorService executor;
+    private final ScheduledExecutorService timerExecutor;
     private final MoudEngine engine;
     private volatile boolean isShuttingDown = false;
 
     public JavaScriptRuntime(MoudEngine engine) {
         this.engine = engine;
         this.executor = Executors.newSingleThreadExecutor(r -> new Thread(r, "JavaScriptRuntime-Main"));
+        this.timerExecutor = Executors.newScheduledThreadPool(1, r -> new Thread(r, "JavaScript-Timer"));
         initializeContext();
     }
 
@@ -50,51 +49,33 @@ public class JavaScriptRuntime {
     }
 
     private void bindTimerFunctions() {
-        jsContext.enter();
-        try {
-            jsContext.getBindings("js").putMember("setTimeout", new ProxyExecutable() {
-                @Override
-                public Object execute(Value... arguments) {
-                    if (arguments.length < 2) return -1;
-                    Value callback = arguments[0];
-                    long delay = arguments[1].asLong();
+        Value bindings = jsContext.getBindings("js");
 
-                    CompletableFuture.delayedExecutor(delay, TimeUnit.MILLISECONDS, executor)
-                            .execute(() -> executeCallback(callback));
-                    return null;
-                }
-            });
+        bindings.putMember("setTimeout", new ProxyExecutable() {
+            @Override
+            public Object execute(Value... arguments) {
+                if (arguments.length < 2) return null;
+                Value callback = arguments[0];
+                long delay = arguments[1].asLong();
+                timerExecutor.schedule(() -> executeCallback(callback), delay, TimeUnit.MILLISECONDS);
+                return null;
+            }
+        });
 
-            jsContext.getBindings("js").putMember("setInterval", new ProxyExecutable() {
-                @Override
-                public Object execute(Value... arguments) {
-                    if (arguments.length < 2) return -1;
-                    Value callback = arguments[0];
-                    long delay = arguments[1].asLong();
+        bindings.putMember("setInterval", new ProxyExecutable() {
+            @Override
+            public Object execute(Value... arguments) {
+                if (arguments.length < 2) return null;
+                Value callback = arguments[0];
+                long period = arguments[1].asLong();
+                if (period <= 0) return null;
+                timerExecutor.scheduleAtFixedRate(() -> executeCallback(callback), period, period, TimeUnit.MILLISECONDS);
+                return null;
+            }
+        });
 
-                    executor.execute(() -> {
-                        while (!isShuttingDown) {
-                            try {
-                                Thread.sleep(delay);
-                                executeCallback(callback);
-                            } catch (InterruptedException e) {
-                                break;
-                            }
-                        }
-                    });
-                    return null;
-                }
-            });
-
-            jsContext.getBindings("js").putMember("clearInterval", new ProxyExecutable() {
-                @Override
-                public Object execute(Value... arguments) {
-                    return null;
-                }
-            });
-        } finally {
-            jsContext.leave();
-        }
+        bindings.putMember("clearInterval", (ProxyExecutable) (arguments) -> null);
+        bindings.putMember("clearTimeout", (ProxyExecutable) (arguments) -> null);
     }
 
     public void bindAPIs(Object... apis) {
@@ -119,10 +100,10 @@ public class JavaScriptRuntime {
                         });
 
                         moudObj.putMember("server", scriptingAPI.server);
-                        moudObj.putMember("world", scriptingAPI.world);
                         moudObj.putMember("lighting", scriptingAPI.lighting);
                         moudObj.putMember("zones", scriptingAPI.zones);
                         moudObj.putMember("math", scriptingAPI.math);
+                        moudObj.putMember("worlds", scriptingAPI.worlds);
                         moudObj.putMember("commands", scriptingAPI.commands);
                         moudObj.putMember("async", scriptingAPI.getAsync());
 
@@ -139,7 +120,7 @@ public class JavaScriptRuntime {
             } finally {
                 jsContext.leave();
             }
-        }, executor);
+        }, executor).join();
     }
 
     public CompletableFuture<Void> executeScript(Path scriptPath) {
@@ -210,6 +191,8 @@ public class JavaScriptRuntime {
     public void shutdown() {
         isShuttingDown = true;
 
+        timerExecutor.shutdown();
+
         executor.execute(() -> {
             if (jsContext != null) {
                 try {
@@ -222,10 +205,14 @@ public class JavaScriptRuntime {
 
         executor.shutdown();
         try {
+            if (!timerExecutor.awaitTermination(1, TimeUnit.SECONDS)) {
+                timerExecutor.shutdownNow();
+            }
             if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
                 executor.shutdownNow();
             }
         } catch (InterruptedException e) {
+            timerExecutor.shutdownNow();
             executor.shutdownNow();
             Thread.currentThread().interrupt();
         }

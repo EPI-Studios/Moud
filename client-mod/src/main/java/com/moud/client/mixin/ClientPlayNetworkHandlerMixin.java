@@ -12,8 +12,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class ClientPlayNetworkHandlerMixin {
 
     @Inject(method = "onGameJoin", at = @At("HEAD"), cancellable = true)
-    private void moud_blockJoinUntilResourcesLoad(GameJoinS2CPacket packet, CallbackInfo ci) {
-        if (MoudClientMod.getInstance() != null && MoudClientMod.getInstance().shouldBlockJoin()) {
+    private void moud_delayJoinUntilResourcesLoad(GameJoinS2CPacket packet, CallbackInfo ci) {
+        MoudClientMod mod = MoudClientMod.getInstance();
+        if (mod != null && mod.shouldBlockJoin()) {
+            mod.setPendingGameJoinPacket(packet);
             ci.cancel();
         }
     }

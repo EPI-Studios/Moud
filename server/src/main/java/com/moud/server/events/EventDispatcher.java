@@ -43,7 +43,11 @@ public class EventDispatcher {
     private void registerMinestomListeners() {
         eventNode.addListener(PlayerSpawnEvent.class, event -> {
             if (event.isFirstSpawn()) {
-                dispatch("player.join", event);
+                MinecraftServer.getSchedulerManager().scheduleNextTick(() -> {
+                    if (event.getPlayer().isOnline() && event.getPlayer().getInstance() != null) {
+                        dispatch("player.join", event);
+                    }
+                });
             }
         });
 
@@ -57,6 +61,7 @@ public class EventDispatcher {
             dispatchEntityInteraction(event.getPlayer(), event.getTarget(), "click");
         });
     }
+
     public void register(String eventName, Value handler) {
         if (handler == null || !handler.canExecute()) {
             throw new APIException("INVALID_HANDLER", "Handler must be executable for event: " + eventName);
@@ -65,6 +70,7 @@ public class EventDispatcher {
         LOGGER.success("Event handler registered: {}", eventName);
     }
 
+
     private void dispatch(String eventName, Object minestomEvent) {
         Value handler = handlers.get(eventName);
         if (handler == null) return;
@@ -72,10 +78,12 @@ public class EventDispatcher {
         try {
             Object scriptEvent = converter.convert(eventName, minestomEvent);
             engine.getRuntime().executeCallback(handler, scriptEvent);
+
         } catch (Exception e) {
             LOGGER.error("Error during event dispatch for '{}'", eventName, e);
         }
     }
+
     public void dispatchMovementEvent(Player player, MoudPackets.MovementStatePacket packet) {
         PlayerProxy playerProxy = new PlayerProxy(player);
 
@@ -115,10 +123,11 @@ public class EventDispatcher {
             LOGGER.debug("No handler found for event: {}", eventType);
         }
     }
+
     public void dispatchScriptEvent(String eventName, String eventData, Player player) {
         Value handler = handlers.get(eventName);
         if (handler == null) {
-             LOGGER.debug("No handler found for script event: {}", eventName);
+            LOGGER.debug("No handler found for script event: {}", eventName);
             return;
         }
 
@@ -130,6 +139,7 @@ public class EventDispatcher {
             LOGGER.error("Error during script event dispatch for '{}' from player {}", eventName, player.getUsername(), e);
         }
     }
+
     public void dispatchEntityInteraction(Player player, Entity entity, String interactionType) {
         Value handler = handlers.get("entity.interact");
         if (handler == null) {
@@ -146,10 +156,10 @@ public class EventDispatcher {
             LOGGER.error("Error during entity interaction dispatch for player {}", player.getUsername(), e);
         }
     }
+
     public void dispatchMouseMoveEvent(Player player, float deltaX, float deltaY) {
         Value handler = handlers.get("player.mousemove");
         if (handler == null) {
-            // LOGGER.debug("No handler for mouse move event");
             return;
         }
 

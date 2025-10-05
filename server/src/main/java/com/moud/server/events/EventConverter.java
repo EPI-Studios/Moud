@@ -3,6 +3,7 @@ package com.moud.server.events;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.proxy.*;
+import net.minestom.server.MinecraftServer;
 import net.minestom.server.event.player.PlayerChatEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
 
@@ -50,7 +51,15 @@ public class EventConverter {
         if (playerSpawnEvent.getPlayer() == null) {
             throw new APIException("INVALID_PLAYER", "Player cannot be null in join event");
         }
+
         PlayerProxy playerProxy = new PlayerProxy(playerSpawnEvent.getPlayer());
+
+        MinecraftServer.getSchedulerManager().scheduleNextTick(() -> {
+            if (playerSpawnEvent.getPlayer().isOnline()) {
+                LOGGER.debug("Player {} fully spawned, ready for scripting", playerSpawnEvent.getPlayer().getUsername());
+            }
+        });
+
         LOGGER.debug("Converted player.join event for: {}", playerProxy.getName());
         return playerProxy;
     }
@@ -87,6 +96,7 @@ public class EventConverter {
         LOGGER.debug("Converted player.leave event for: {}", leaveProxy.getName());
         return leaveProxy;
     }
+
     private Object convertPlayerMoveEvent(Object event) {
         if (!(event instanceof net.minestom.server.event.player.PlayerMoveEvent playerMoveEvent)) {
             throw new ClassCastException("Expected PlayerMoveEvent");

@@ -2,7 +2,6 @@ package com.moud;
 
 import com.moud.server.MoudEngine;
 import net.minestom.server.MinecraftServer;
-import net.minestom.server.extras.lan.OpenToLAN;
 import net.minestom.server.extras.MojangAuth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

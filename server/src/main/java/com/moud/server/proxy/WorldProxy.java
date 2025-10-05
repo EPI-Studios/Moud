@@ -4,6 +4,7 @@ import com.moud.api.math.Vector3;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.api.validation.APIValidator;
 import com.moud.server.entity.ScriptedEntity;
+import com.moud.server.instance.InstanceManager;
 import com.moud.server.raycast.RaycastResult;
 import com.moud.server.raycast.RaycastUtil;
 import net.minestom.server.MinecraftServer;
@@ -26,18 +27,24 @@ import java.util.HashMap;
 import java.util.function.Predicate;
 
 public class WorldProxy {
-    private static InstanceContainer defaultInstance;
+    private Instance instance;
     private final APIValidator validator;
 
     public WorldProxy() {
         this.validator = new APIValidator();
+        this.instance = null;
+    }
+
+    public WorldProxy(Instance instance) {
+        this.validator = new APIValidator();
+        this.instance = instance;
     }
 
     public WorldProxy createInstance() {
-        if (defaultInstance == null) {
-            defaultInstance = MinecraftServer.getInstanceManager().createInstanceContainer();
+        if (instance == null) {
+            instance = InstanceManager.getInstance().getDefaultInstance();
             MinecraftServer.getGlobalEventHandler().addListener(AsyncPlayerConfigurationEvent.class, event -> {
-                event.setSpawningInstance(defaultInstance);
+                event.setSpawningInstance(instance);
             });
         }
         return this;
@@ -45,7 +52,10 @@ public class WorldProxy {
 
     @HostAccess.Export
     public WorldProxy setFlatGenerator() {
-        defaultInstance.setGenerator(unit -> {
+        if (!(instance instanceof InstanceContainer)) {
+            throw new APIException("INVALID_INSTANCE_TYPE", "Cannot set generator on non-container instance");
+        }
+        ((InstanceContainer) instance).setGenerator(unit -> {
             unit.modifier().fillHeight(0, 1, Block.BEDROCK);
             unit.modifier().fillHeight(1, 64, Block.GRASS_BLOCK);
         });
@@ -54,23 +64,32 @@ public class WorldProxy {
 
     @HostAccess.Export
     public WorldProxy setVoidGenerator() {
-        defaultInstance.setGenerator(unit -> {});
+        if (!(instance instanceof InstanceContainer)) {
+            throw new APIException("INVALID_INSTANCE_TYPE", "Cannot set generator on non-container instance");
+        }
+        ((InstanceContainer) instance).setGenerator(unit -> {});
         return this;
     }
 
     @HostAccess.Export
     public WorldProxy setSpawn(double x, double y, double z) {
         validator.validateCoordinates(x, y, z);
-        defaultInstance.setTag(net.minestom.server.tag.Tag.Transient("spawn"), new Pos(x, y, z));
+        Pos spawnPos = new Pos(x, y, z);
+
+        if (instance instanceof InstanceContainer) {
+            ((InstanceContainer) instance).setTag(net.minestom.server.tag.Tag.Transient("spawn"), spawnPos);
+        }
+
         MinecraftServer.getGlobalEventHandler().addListener(AsyncPlayerConfigurationEvent.class, event -> {
-            event.getPlayer().setRespawnPoint(new Pos(x, y, z));
+            event.getPlayer().setRespawnPoint(spawnPos);
         });
+
         return this;
     }
 
     @HostAccess.Export
     public String getBlock(int x, int y, int z) {
-        return defaultInstance.getBlock(x, y, z).name();
+        return instance.getBlock(x, y, z).name();
     }
 
     @HostAccess.Export
@@ -78,7 +97,7 @@ public class WorldProxy {
         validator.validateBlockId(blockId);
         Block block = Block.fromNamespaceId(blockId);
         if (block == null) throw new APIException("INVALID_BLOCK_ID", "Unknown block ID: " + blockId);
-        defaultInstance.setBlock(x, y, z, block);
+        instance.setBlock(x, y, z, block);
     }
 
     @HostAccess.Export
@@ -86,7 +105,7 @@ public class WorldProxy {
         EntityType type = EntityType.fromNamespaceId(entityType);
         if (type == null) throw new APIException("UNKNOWN_ENTITY_TYPE", "Unknown entity type: " + entityType);
         ScriptedEntity entity = new ScriptedEntity(type, jsInstance);
-        entity.setInstance(defaultInstance, new Pos(x, y, z));
+        entity.setInstance(instance, new Pos(x, y, z));
     }
 
     @HostAccess.Export
@@ -117,7 +136,6 @@ public class WorldProxy {
         }
     }
 
-
     @HostAccess.Export
     public TextProxy createText(Value options) {
         if (options == null || !options.hasMembers()) {
@@ -130,7 +148,7 @@ public class WorldProxy {
         TextProxy textProxy = new TextProxy(position, content, billboard);
         Entity textEntity = textProxy.getEntity();
         Pos initialPosition = new Pos(position.x, position.y, position.z, 0, 0);
-        textEntity.setInstance(defaultInstance, initialPosition);
+        textEntity.setInstance(instance, initialPosition);
 
         if (options.hasMember("hitbox") && options.getMember("hitbox").hasMembers()) {
             Value hitboxValue = options.getMember("hitbox");
@@ -159,7 +177,7 @@ public class WorldProxy {
             filter = entity -> !entity.getUuid().toString().equals(playerToIgnore.getUuid());
         }
 
-        RaycastResult result = RaycastUtil.performRaycast(defaultInstance, origin, direction, maxDistance, filter);
+        RaycastResult result = RaycastUtil.performRaycast(instance, origin, direction, maxDistance, filter);
 
         Map<String, Object> resultMap = new HashMap<>();
         resultMap.put("didHit", result.didHit());
@@ -182,9 +200,7 @@ public class WorldProxy {
         return ProxyObject.fromMap(resultMap);
     }
 
-
-
     public Instance getInstance() {
-        return defaultInstance;
+        return instance;
     }
 }

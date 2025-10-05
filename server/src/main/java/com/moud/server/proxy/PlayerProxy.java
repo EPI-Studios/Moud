@@ -7,6 +7,7 @@ import com.moud.server.api.validation.APIValidator;
 import com.moud.server.movement.ServerMovementHandler;
 import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.shared.api.SharedValueApiProxy;
+import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Player;
@@ -111,7 +112,11 @@ public class PlayerProxy {
     @HostAccess.Export
     public void teleport(double x, double y, double z) {
         validator.validateCoordinates(x, y, z);
-        player.teleport(new Pos(x, y, z));
+        MinecraftServer.getSchedulerManager().scheduleNextTick(() -> {
+            if (player.isOnline() && player.getInstance() != null) {
+                player.teleport(new Pos(x, y, z));
+            }
+        });
     }
 
     @HostAccess.Export

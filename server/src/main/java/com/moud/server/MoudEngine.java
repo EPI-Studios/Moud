@@ -4,10 +4,10 @@ import com.moud.server.animation.AnimationManager;
 import com.moud.server.api.HotReloadEndpoint;
 import com.moud.server.api.ScriptingAPI;
 import com.moud.server.assets.AssetManager;
-
 import com.moud.server.client.ClientScriptManager;
 import com.moud.server.cursor.CursorService;
 import com.moud.server.events.EventDispatcher;
+import com.moud.server.instance.InstanceManager;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.network.MinestomByteBuffer;
 import com.moud.server.network.ServerNetworkManager;
@@ -33,6 +33,7 @@ public class MoudEngine {
     private final ClientScriptManager clientScriptManager;
     private final ServerNetworkManager networkManager;
     private final EventDispatcher eventDispatcher;
+    private final InstanceManager instanceManager;
     private ScriptingAPI scriptingAPI;
     private final AsyncManager asyncManager;
     private final PacketEngine packetEngine;
@@ -53,7 +54,6 @@ public class MoudEngine {
 
         boolean enableReload = hasArg(launchArgs, "--enable-reload");
         int port = getPortFromArgs(launchArgs);
-
 
         try {
             Path projectRoot = ProjectLoader.resolveProjectRoot(launchArgs)
@@ -76,6 +76,9 @@ public class MoudEngine {
                 }
             };
             NetworkDispatcher dispatcher = packetEngine.createDispatcher(bufferFactory);
+
+            this.instanceManager = InstanceManager.getInstance();
+            instanceManager.initialize();
 
             this.assetManager = new AssetManager(projectRoot);
             assetManager.initialize();
@@ -113,7 +116,6 @@ public class MoudEngine {
                 return null;
             });
 
-
             LOGGER.startup("Moud Engine initialized successfully");
         } catch (Exception e) {
             LOGGER.critical("Failed to initialize Moud engine: {}", e.getMessage(), e);
@@ -147,6 +149,7 @@ public class MoudEngine {
     private void bindGlobalAPIs() {
         this.scriptingAPI = new ScriptingAPI(this);
         runtime.bindAPIs(scriptingAPI, new AssetProxy(assetManager), new ConsoleAPI());
+        LOGGER.info("Global APIs bound successfully");
     }
 
     public void reloadUserScripts() {
@@ -195,6 +198,7 @@ public class MoudEngine {
     public void shutdown() {
         if (hotReloadEndpoint != null) hotReloadEndpoint.stop();
 
+        if (instanceManager != null) instanceManager.shutdown();
         if (cursorService != null) cursorService.shutdown();
         if (asyncManager != null) asyncManager.shutdown();
         if (runtime != null) runtime.shutdown();
@@ -225,4 +229,7 @@ public class MoudEngine {
         return zoneManager;
     }
 
+    public InstanceManager getInstanceManager() {
+        return instanceManager;
+    }
 }
