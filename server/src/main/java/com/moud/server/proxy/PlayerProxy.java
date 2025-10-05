@@ -25,9 +25,12 @@ public class PlayerProxy {
     private final ClientProxy client;
     private final APIValidator validator;
     private final SharedValueApiProxy sharedValues;
-    private final PlayerUIProxy ui;
-    private final CursorProxy cursor;
-    @HostAccess.Export public final PlayerWindowProxy window;
+    @HostAccess.Export
+    public final PlayerUIProxy ui;
+    @HostAccess.Export
+    public final CursorProxy cursor;
+    @HostAccess.Export
+    public final PlayerWindowProxy window;
 
     @HostAccess.Export
     public final CameraLockProxy camera;
@@ -41,7 +44,6 @@ public class PlayerProxy {
         this.ui = new PlayerUIProxy(player);
         this.cursor = new CursorProxy(player);
         this.window = new PlayerWindowProxy(player);
-
     }
 
     @HostAccess.Export
@@ -125,16 +127,6 @@ public class PlayerProxy {
     }
 
     @HostAccess.Export
-    public PlayerUIProxy getUi() {
-        return ui;
-    }
-
-    @HostAccess.Export
-    public CursorProxy getCursor() {
-        return cursor;
-    }
-
-    @HostAccess.Export
     public boolean isMoving() {
         ServerMovementHandler.PlayerMovementState state = ServerMovementHandler.getInstance().getPlayerState(player);
 
@@ -205,10 +197,35 @@ public class PlayerProxy {
     }
 
     @HostAccess.Export
-    public void playAnimation(String animationId) {
-        if (player.isOnline()) {
-            ServerNetworkManager.getInstance().send(player, new MoudPackets.S2C_PlayPlayerAnimationPacket(animationId));
+    public void playAnimation(String animationId, Value options) {
+        if (!player.isOnline()) {
+            return;
         }
+
+        boolean fade = false;
+        int durationMs = 300; // Default fade duration
+
+        if (options != null && options.hasMembers()) {
+            if (options.hasMember("fade")) {
+                fade = options.getMember("fade").asBoolean();
+            }
+            if (options.hasMember("fadeDuration")) {
+                durationMs = options.getMember("fadeDuration").asInt();
+            }
+        }
+
+        ServerNetworkManager networkManager = ServerNetworkManager.getInstance();
+        if (fade) {
+            int durationTicks = Math.max(1, durationMs / 50); // Convert ms to ticks (20tps)
+            networkManager.send(player, new MoudPackets.S2C_PlayPlayerAnimationWithFadePacket(animationId, durationTicks));
+        } else {
+            networkManager.send(player, new MoudPackets.S2C_PlayPlayerAnimationPacket(animationId));
+        }
+    }
+
+    @HostAccess.Export
+    public void playAnimation(String animationId) {
+        playAnimation(animationId, null);
     }
 
     @HostAccess.Export

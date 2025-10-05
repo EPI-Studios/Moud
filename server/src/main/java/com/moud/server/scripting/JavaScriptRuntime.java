@@ -189,8 +189,34 @@ public class JavaScriptRuntime {
     }
 
     public void executeCallback(Value callback, Object... args) {
-        if (isShuttingDown || callback == null || !callback.canExecute()) return;
-        executeCallbackSafe(callback, args);
+        if (isShuttingDown) return;
+
+        executor.submit(() -> {
+            if (callback == null || !callback.canExecute()) {
+                return;
+            }
+
+            try {
+                jsContext.enter();
+                callback.execute(args);
+            } catch (PolyglotException e) {
+                if (e.isGuestException() && e.getSourceLocation() != null) {
+                    LOGGER.scriptError("Error in callback execution at {} (line {}, column {}): {}",
+                            e.getSourceLocation().getSource().getName(),
+                            e.getSourceLocation().getStartLine(),
+                            e.getSourceLocation().getStartColumn(),
+                            e.getMessage());
+                } else {
+                    LOGGER.error("Error executing callback: {}", e.getMessage());
+                }
+            } catch (Exception e) {
+                LOGGER.error("Unexpected error in callback execution", e);
+            } finally {
+                if (jsContext != null && !isShuttingDown) {
+                    jsContext.leave();
+                }
+            }
+        });
     }
 
     private void executeCallbackSafe(Value callback, Object... args) {

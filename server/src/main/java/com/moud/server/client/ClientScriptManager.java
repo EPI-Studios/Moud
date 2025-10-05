@@ -1,5 +1,3 @@
-// File: server/src/main/java/com/moud/server/client/ClientScriptManager.java
-
 package com.moud.server.client;
 
 import com.moud.server.project.ProjectLoader;
@@ -11,6 +9,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.ExecutionException;
@@ -45,7 +44,7 @@ public class ClientScriptManager {
     private byte[] packageClientResources(Path projectRoot, Path clientDir, Path assetsDir) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(baos)) {
-            // Package client scripts
+
             if (Files.exists(clientDir)) {
                 try (Stream<Path> paths = Files.walk(clientDir)) {
                     paths.filter(Files::isRegularFile)
@@ -54,7 +53,6 @@ public class ClientScriptManager {
                 }
             }
 
-            // Package all assets
             if (Files.exists(assetsDir)) {
                 try (Stream<Path> paths = Files.walk(assetsDir)) {
                     paths.filter(Files::isRegularFile)
@@ -87,22 +85,30 @@ public class ClientScriptManager {
 
     private void addAssetToZip(Path projectRoot, Path path, ZipOutputStream zip) {
         try {
-            String relativePath = projectRoot.relativize(path).toString().replace('\\', '/');
+            String relativePathStr = projectRoot.relativize(path).toString().replace('\\', '/');
             byte[] content = Files.readAllBytes(path);
 
-            if (relativePath.contains("animation") && relativePath.endsWith(".json")) {
+            boolean isAnimationFile = relativePathStr.endsWith(".animation.json") ||
+                    (relativePathStr.contains("animations") && relativePathStr.endsWith(".json"));
+
+            if (isAnimationFile) {
+                Path relativePath = Paths.get(relativePathStr);
+
+                String namespace = relativePath.getName(1).toString();
                 String fileName = path.getFileName().toString();
-                String newPath = "assets/moud/player_animations/" + fileName;
+
+                String newPath = String.format("assets/%s/player_animations/%s", namespace, fileName);
 
                 zip.putNextEntry(new ZipEntry(newPath));
                 zip.write(content);
                 zip.closeEntry();
-                LOGGER.info("Packaged animation file to PlayerAnimLib path: {}", newPath);
+                LOGGER.info("Packaged animation file to PlayerAnimLib path: {} (from {})", newPath, relativePathStr);
             } else {
-                zip.putNextEntry(new ZipEntry(relativePath));
+
+                zip.putNextEntry(new ZipEntry(relativePathStr));
                 zip.write(content);
                 zip.closeEntry();
-                LOGGER.debug("Packaged asset: {}", relativePath);
+                LOGGER.debug("Packaged asset: {}", relativePathStr);
             }
         } catch (IOException e) {
             throw new RuntimeException("Failed to process asset: " + path, e);

@@ -232,4 +232,12 @@ public final class MoudPackets {
             @Field(order = 0) List<Map<String, Object>> steps
     ) {}
 
+    @Packet(value = "moud:play_player_animation_fade", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_PlayPlayerAnimationWithFadePacket(
+            @Field(order = 0) String animationId,
+            @Field(order = 1) int durationTicks
+    ) {}
+
+
+
 }

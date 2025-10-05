@@ -144,6 +144,8 @@ public final class ServerNetworkManager {
             LOGGER.info("Player {} connected with Moud client (protocol: {})", minestomPlayer.getUsername(), clientVersion);
         }
 
+        eventDispatcher.dispatchMoudReady(minestomPlayer);
+
         sendClientScripts(minestomPlayer);
 
         MinecraftServer.getSchedulerManager().buildTask(() -> {

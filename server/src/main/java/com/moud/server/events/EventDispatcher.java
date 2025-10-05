@@ -13,6 +13,7 @@ import net.minestom.server.event.Event;
 import net.minestom.server.event.EventNode;
 import net.minestom.server.event.player.PlayerChatEvent;
 import net.minestom.server.event.player.PlayerDisconnectEvent;
+import net.minestom.server.event.player.PlayerMoveEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
@@ -60,6 +61,11 @@ public class EventDispatcher {
         eventNode.addListener(net.minestom.server.event.player.PlayerEntityInteractEvent.class, event -> {
             dispatchEntityInteraction(event.getPlayer(), event.getTarget(), "click");
         });
+
+        eventNode.addListener(PlayerMoveEvent.class, event ->
+                dispatch("player.move", event));
+
+
     }
 
     public void register(String eventName, Value handler) {
@@ -121,6 +127,19 @@ public class EventDispatcher {
             }
         } else {
             LOGGER.debug("No handler found for event: {}", eventType);
+        }
+    }
+
+    public void dispatchMoudReady(Player player) {
+        Value handler = handlers.get("moud.player.ready");
+        if (handler == null) return;
+
+        try {
+            PlayerProxy scriptEvent = new PlayerProxy(player);
+            engine.getRuntime().executeCallback(handler, scriptEvent);
+            LOGGER.debug("Dispatched moud.player.ready event for {}", player.getUsername());
+        } catch (Exception e) {
+            LOGGER.error("Error during moud.player.ready event dispatch for '{}'", player.getUsername(), e);
         }
     }
 

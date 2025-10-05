@@ -112,14 +112,16 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         HudRenderCallback.EVENT.register((drawContext, tickCounter) -> {
             WindowAnimator.tick();
 
-            if (scriptingRuntime != null && scriptingRuntime.isInitialized()) {
-                scriptingRuntime.processAnimationFrameQueue();
-            }
-
             if (apiService != null && apiService.events != null) {
                 apiService.events.dispatch("render:hud", drawContext, tickCounter.getTickDelta(true));
             }
             UIOverlayManager.getInstance().renderOverlays(drawContext, tickCounter);
+        });
+
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (scriptingRuntime != null && scriptingRuntime.isInitialized()) {
+                scriptingRuntime.processAnimationFrameQueue();
+            }
         });
         LOGGER.info("Moud client initialization complete.");
     }
@@ -142,6 +144,20 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         ClientPacketWrapper.registerHandler(CameraReleasePacket.class, (player, packet) -> handleCameraRelease(packet));
         ClientPacketWrapper.registerHandler(S2C_ManageWindowPacket.class, (player, packet) -> handleManageWindow(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_TransitionWindowPacket.class, (player, packet) -> handleTransitionWindow(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_PlayPlayerAnimationPacket.class, (player, packet) -> {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client.player != null) {
+                IAnimatedPlayer animatedPlayer = (IAnimatedPlayer) client.player;
+                animatedPlayer.getAnimationPlayer().playAnimation(packet.animationId());
+            }
+        });
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_PlayPlayerAnimationWithFadePacket.class, (player, packet) -> {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client.player != null) {
+                IAnimatedPlayer animatedPlayer = (IAnimatedPlayer) client.player;
+                animatedPlayer.getAnimationPlayer().playAnimationWithFade(packet.animationId(), packet.durationTicks());
+            }
+        });
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_RestoreWindowPacket.class, (player, packet) -> {
             MinecraftClient.getInstance().execute(() -> {
                 WindowAnimator.restore(packet.duration(), packet.easing());
@@ -493,7 +509,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             dynamicPack.set(newPack);
 
             ResourcePackManager manager = client.getResourcePackManager();
-
             manager.scanPacks();
 
             List<String> enabledPacks = new ArrayList<>(manager.getEnabledIds());
@@ -501,18 +516,21 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 enabledPacks.add(MOUDPACK_ID.toString());
             }
 
-
             manager.setEnabledProfiles(enabledPacks);
 
-            loadScriptsOnly(scriptsData);
-            resourcesLoaded.set(true);
-            waitingForResources.set(false);
-            if (apiService != null && apiService.events != null) {
-                apiService.events.dispatch("core:resourcesReloaded");
-            }
-            processPendingGameJoinPacket();
-            LOGGER.info("Dynamic resources enabled and scripts loaded.");
-
+            // By calling reloadResources() again, we get the future for the reload that was just started.
+            // This allows us to wait for it to complete before loading scripts.
+            client.reloadResources().thenRunAsync(() -> {
+                LOGGER.info("Resource reload complete. Proceeding with script loading.");
+                loadScriptsOnly(scriptsData);
+                resourcesLoaded.set(true);
+                waitingForResources.set(false);
+                if (apiService != null && apiService.events != null) {
+                    apiService.events.dispatch("core:resourcesReloaded");
+                }
+                processPendingGameJoinPacket();
+                LOGGER.info("Dynamic resources enabled and scripts loaded.");
+            }, client); // Ensure the continuation runs on the client thread.
         });
     }
 
