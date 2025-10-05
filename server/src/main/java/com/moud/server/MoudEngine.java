@@ -7,7 +7,6 @@ import com.moud.server.assets.AssetManager;
 import com.moud.server.client.ClientScriptManager;
 import com.moud.server.cursor.CursorService;
 import com.moud.server.events.EventDispatcher;
-import com.moud.server.instance.InstanceManager;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.network.MinestomByteBuffer;
 import com.moud.server.network.ServerNetworkManager;
@@ -23,6 +22,7 @@ import com.moud.server.zone.ZoneManager;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class MoudEngine {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(MoudEngine.class);
@@ -33,15 +33,17 @@ public class MoudEngine {
     private final ClientScriptManager clientScriptManager;
     private final ServerNetworkManager networkManager;
     private final EventDispatcher eventDispatcher;
-    private final InstanceManager instanceManager;
     private ScriptingAPI scriptingAPI;
     private final AsyncManager asyncManager;
     private final PacketEngine packetEngine;
     private final CursorService cursorService;
     private final HotReloadEndpoint hotReloadEndpoint;
-
     private final ZoneManager zoneManager;
+
     private final AtomicBoolean initialized = new AtomicBoolean(false);
+    private final AtomicBoolean reloading = new AtomicBoolean(false);
+    private final AtomicReference<ReloadState> reloadState = new AtomicReference<>(ReloadState.IDLE);
+
     private static MoudEngine instance;
 
     public static MoudEngine getInstance() {
@@ -76,9 +78,6 @@ public class MoudEngine {
                 }
             };
             NetworkDispatcher dispatcher = packetEngine.createDispatcher(bufferFactory);
-
-            this.instanceManager = InstanceManager.getInstance();
-            instanceManager.initialize();
 
             this.assetManager = new AssetManager(projectRoot);
             assetManager.initialize();
@@ -116,7 +115,6 @@ public class MoudEngine {
                 return null;
             });
 
-            LOGGER.startup("Moud Engine initialized successfully");
         } catch (Exception e) {
             LOGGER.critical("Failed to initialize Moud engine: {}", e.getMessage(), e);
             throw new RuntimeException("Engine initialization failed", e);
@@ -149,32 +147,46 @@ public class MoudEngine {
     private void bindGlobalAPIs() {
         this.scriptingAPI = new ScriptingAPI(this);
         runtime.bindAPIs(scriptingAPI, new AssetProxy(assetManager), new ConsoleAPI());
-        LOGGER.info("Global APIs bound successfully");
     }
 
     public void reloadUserScripts() {
-        LOGGER.info("Reloading user scripts...");
+        if (!reloading.compareAndSet(false, true)) {
+            LOGGER.warn("Reload already in progress, ignoring request");
+            return;
+        }
+
+        LOGGER.info("Starting async reload of user scripts...");
+        reloadState.set(ReloadState.SHUTTING_DOWN_OLD);
+
         CompletableFuture.runAsync(() -> {
             try {
                 if (this.runtime != null) {
+                    LOGGER.info("Shutting down old runtime...");
                     this.runtime.shutdown();
+                    reloadState.set(ReloadState.INITIALIZING_NEW);
                 }
 
                 LOGGER.info("Initializing new scripting environment...");
                 this.runtime = new JavaScriptRuntime(this);
-
                 this.bindGlobalAPIs();
+                reloadState.set(ReloadState.LOADING_SCRIPTS);
 
                 Path entryPoint = ProjectLoader.findEntryPoint();
                 if (!entryPoint.toFile().exists()) {
                     LOGGER.warn("No entry point found at: {}", entryPoint);
+                    reloadState.set(ReloadState.FAILED);
                     return;
                 }
-                this.runtime.executeScript(entryPoint).join();
 
+                this.runtime.executeScript(entryPoint).join();
+                reloadState.set(ReloadState.COMPLETE);
                 LOGGER.success("User scripts reloaded successfully");
+
             } catch (Exception e) {
                 LOGGER.error("Failed to reload user scripts", e);
+                reloadState.set(ReloadState.FAILED);
+            } finally {
+                reloading.set(false);
             }
         });
     }
@@ -197,8 +209,6 @@ public class MoudEngine {
 
     public void shutdown() {
         if (hotReloadEndpoint != null) hotReloadEndpoint.stop();
-
-        if (instanceManager != null) instanceManager.shutdown();
         if (cursorService != null) cursorService.shutdown();
         if (asyncManager != null) asyncManager.shutdown();
         if (runtime != null) runtime.shutdown();
@@ -229,7 +239,20 @@ public class MoudEngine {
         return zoneManager;
     }
 
-    public InstanceManager getInstanceManager() {
-        return instanceManager;
+    public ReloadState getReloadState() {
+        return reloadState.get();
+    }
+
+    public boolean isReloading() {
+        return reloading.get();
+    }
+
+    public enum ReloadState {
+        IDLE,
+        SHUTTING_DOWN_OLD,
+        INITIALIZING_NEW,
+        LOADING_SCRIPTS,
+        COMPLETE,
+        FAILED
     }
 }
