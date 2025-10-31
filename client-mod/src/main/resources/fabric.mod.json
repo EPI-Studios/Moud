@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "moud",
-  "version": "${version}",
+  "version": "0.1.0-dev",
   "name": "Moud Client",
   "description": "Client-side scripting runtime for Moud servers",
   "authors": [

@@ -1,7 +1,7 @@
+import axios from 'axios';
+import { ChildProcess } from 'child_process';
 import { logger } from './logger.js';
 import { Transpiler } from './transpiler.js';
-import { spawn, ChildProcess } from 'child_process';
-import axios from 'axios';
 
 interface ServerInfo {
   process: ChildProcess | null;
@@ -31,11 +31,14 @@ export class HotReloadManager {
     try {
       logger.info('Hot reloading scripts...');
 
-      await this.transpiler.transpileProject();
+      const artifacts = await this.transpiler.transpileProject();
       logger.success('Scripts transpiled successfully');
 
       const response = await axios.post(this.reloadEndpoint, {
-        action: 'reload_scripts'
+        action: 'reload_scripts',
+        hash: artifacts.hash,
+        serverBundle: artifacts.server,
+        clientBundle: artifacts.client.toString('base64')
       }, {
         timeout: 5000,
         headers: { 'Content-Type': 'application/json' }

@@ -4,6 +4,7 @@ import { EnvironmentManager } from '../services/environment.js';
 import { Transpiler } from '../services/transpiler.js';
 import { HotReloadManager } from '../services/hot-reload-manager.js';
 import { CleanupManager } from '../services/cleanup-manager.js';
+import { VersionManager } from '../services/version-manager.js';
 import { spawn, ChildProcess } from 'child_process';
 import chokidar from 'chokidar';
 import chalk from 'chalk';
@@ -175,6 +176,15 @@ export const devCommand = new Command('dev')
     logger.info('Starting Moud in development mode...');
 
     try {
+      const versionManager = new VersionManager();
+      const updateInfo = await versionManager.checkForCliUpdate();
+      if (updateInfo) {
+        logger.warn(
+          `A newer CLI version (${updateInfo.latest}) is available. You are running ${updateInfo.current}. ` +
+          'Run `npm install -g @epi-studio/moud-cli@latest` to update.'
+        );
+      }
+
       const environment = new EnvironmentManager();
       const transpiler = new Transpiler();
       const devServer = new DevServer(environment, transpiler);

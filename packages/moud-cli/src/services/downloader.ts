@@ -4,6 +4,21 @@ import path from 'path';
 import ora from 'ora';
 import * as tar from 'tar';
 import AdmZip from 'adm-zip';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+let USER_AGENT = 'Moud-CLI';
+try {
+    const packageJsonPath = path.join(__dirname, '..', 'package.json');
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+    if (packageJson?.version) {
+        USER_AGENT = `Moud-CLI/${packageJson.version}`;
+    }
+} catch {
+    // ignore and fall back to default user agent
+}
 
 export class Downloader {
     public static async downloadFile(url: string, destination: string, timeout: number = 30000): Promise<void> {
@@ -22,7 +37,7 @@ export class Downloader {
                 responseType: 'stream',
                 timeout,
                 headers: {
-                    'User-Agent': 'Moud-CLI/0.1.3'
+                    'User-Agent': USER_AGENT
                 }
             });
 
