@@ -24,6 +24,12 @@ public class AssetManager {
         LOGGER.info("Asset manager initialized");
     }
 
+    public synchronized void refresh() throws IOException {
+        loadedAssets.clear();
+        discovery.scanAssets();
+        LOGGER.info("Asset cache refreshed");
+    }
+
     public LoadedAsset loadAsset(String assetId) throws IOException {
         if (loadedAssets.containsKey(assetId)) {
             return loadedAssets.get(assetId);

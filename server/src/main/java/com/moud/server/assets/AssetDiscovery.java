@@ -22,6 +22,7 @@ public class AssetDiscovery {
     }
 
     public void scanAssets() throws IOException {
+        discoveredAssets.clear();
         if (!Files.exists(assetsDirectory)) {
             LOGGER.warn("Assets directory not found: {}", assetsDirectory);
             return;

@@ -29,8 +29,8 @@ dependencies {
     include implementation(project(':api'))
     include implementation(project(':network-engine'))
 
-    modImplementation("foundry.veil:veil-fabric-1.21.1:2.3.2")
-    include("foundry.veil:veil-fabric-1.21.1:2.3.2")
+    modImplementation("foundry.veil:veil-fabric-1.21.1:2.4.0")
+    include("foundry.veil:veil-fabric-1.21.1:2.4.0")
     include "org.reflections:reflections:0.10.2"
 
     include modImplementation("com.zigythebird.playeranim:PlayerAnimationLibFabric:1.0.12+mc1.21.1")

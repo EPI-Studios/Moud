@@ -7,6 +7,7 @@ import com.moud.server.assets.AssetManager;
 import com.moud.server.client.ClientScriptManager;
 import com.moud.server.cursor.CursorService;
 import com.moud.server.events.EventDispatcher;
+import com.moud.server.instance.InstanceManager;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.network.MinestomByteBuffer;
 import com.moud.server.network.ServerNetworkManager;
@@ -20,6 +21,7 @@ import com.moud.network.buffer.ByteBuffer;
 import com.moud.server.zone.ZoneManager;
 
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -92,6 +94,8 @@ public class MoudEngine {
             this.runtime = new JavaScriptRuntime(this);
             this.asyncManager = new AsyncManager(this);
 
+            InstanceManager.getInstance().initialize();
+
             this.networkManager = new ServerNetworkManager(eventDispatcher, clientScriptManager);
             networkManager.initialize();
 
@@ -150,6 +154,10 @@ public class MoudEngine {
     }
 
     public void reloadUserScripts() {
+        reloadUserScripts(null);
+    }
+
+    public void reloadUserScripts(ReloadBundle bundle) {
         if (!reloading.compareAndSet(false, true)) {
             LOGGER.warn("Reload already in progress, ignoring request");
             return;
@@ -160,6 +168,24 @@ public class MoudEngine {
 
         CompletableFuture.runAsync(() -> {
             try {
+                if (bundle != null && bundle.clientBundle() != null) {
+                    clientScriptManager.updateClientBundle(bundle.clientBundle(), bundle.hash());
+                } else {
+                    try {
+                        clientScriptManager.initialize();
+                    } catch (Exception e) {
+                        LOGGER.warn("Failed to rebuild client bundle during reload", e);
+                    }
+                }
+
+                if (assetManager != null) {
+                    try {
+                        assetManager.refresh();
+                    } catch (Exception e) {
+                        LOGGER.warn("Failed to refresh asset catalog", e);
+                    }
+                }
+
                 if (this.runtime != null) {
                     LOGGER.info("Shutting down old runtime...");
                     this.runtime.shutdown();
@@ -171,14 +197,18 @@ public class MoudEngine {
                 this.bindGlobalAPIs();
                 reloadState.set(ReloadState.LOADING_SCRIPTS);
 
-                Path entryPoint = ProjectLoader.findEntryPoint();
-                if (!entryPoint.toFile().exists()) {
-                    LOGGER.warn("No entry point found at: {}", entryPoint);
-                    reloadState.set(ReloadState.FAILED);
-                    return;
-                }
+                if (bundle != null && bundle.serverBundle() != null) {
+                    this.runtime.executeSource(bundle.serverBundle(), "moud-server.js").join();
+                } else {
+                    Path entryPoint = ProjectLoader.findEntryPoint();
+                    if (!Files.exists(entryPoint)) {
+                        LOGGER.warn("No entry point found at: {}", entryPoint);
+                        reloadState.set(ReloadState.FAILED);
+                        return;
+                    }
 
-                this.runtime.executeScript(entryPoint).join();
+                    this.runtime.executeScript(entryPoint).join();
+                }
                 reloadState.set(ReloadState.COMPLETE);
                 LOGGER.success("User scripts reloaded successfully");
 
@@ -254,5 +284,8 @@ public class MoudEngine {
         LOADING_SCRIPTS,
         COMPLETE,
         FAILED
+    }
+
+    public record ReloadBundle(String hash, String serverBundle, byte[] clientBundle) {
     }
 }

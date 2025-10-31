@@ -6,6 +6,7 @@ import com.moud.server.typescript.TypeScriptTranspiler;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.PolyglotException;
+import org.graalvm.polyglot.Source;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyExecutable;
 
@@ -156,7 +157,9 @@ public class JavaScriptRuntime {
 
     public CompletableFuture<Void> executeScript(Path scriptPath) {
         return CompletableFuture.runAsync(() -> {
-            if (isShuttingDown) return;
+            if (isShuttingDown) {
+                return;
+            }
 
             try {
                 String scriptContent;
@@ -168,16 +171,13 @@ public class JavaScriptRuntime {
                     scriptContent = Files.readString(scriptPath);
                 }
 
-                jsContext.enter();
-                try {
-                    jsContext.eval("js", scriptContent);
-                } finally {
-                    jsContext.leave();
-                }
+                evaluateSource(scriptContent, fileName);
             } catch (PolyglotException e) {
-                if (e.isGuestException()) {
+                if (e.isGuestException() && e.getSourceLocation() != null) {
                     LOGGER.scriptError("Execution failed in {} at line {}, column {}",
-                            scriptPath.getFileName(), e.getSourceLocation().getStartLine(), e.getSourceLocation().getStartColumn());
+                            scriptPath.getFileName(),
+                            e.getSourceLocation().getStartLine(),
+                            e.getSourceLocation().getStartColumn());
                     LOGGER.error("└─> {}: {}", e.getMessage().split(":")[0], e.getMessage().substring(e.getMessage().indexOf(":") + 1).trim());
                 } else {
                     LOGGER.error("Host error during script execution", e);
@@ -186,6 +186,38 @@ public class JavaScriptRuntime {
                 LOGGER.error("Failed to execute script: {}", scriptPath.getFileName(), e);
             }
         }, executor);
+    }
+
+    public CompletableFuture<Void> executeSource(String scriptContent, String virtualFileName) {
+        return CompletableFuture.runAsync(() -> evaluateSource(scriptContent, virtualFileName), executor);
+    }
+
+    private void evaluateSource(String scriptContent, String virtualFileName) {
+        if (isShuttingDown) {
+            return;
+        }
+
+        try {
+            jsContext.enter();
+            try {
+                Source source = Source.newBuilder("js", scriptContent, virtualFileName).buildLiteral();
+                jsContext.eval(source);
+            } finally {
+                jsContext.leave();
+            }
+        } catch (PolyglotException e) {
+            if (e.isGuestException() && e.getSourceLocation() != null) {
+                LOGGER.scriptError("Execution failed in {} at line {}, column {}",
+                        e.getSourceLocation().getSource().getName(),
+                        e.getSourceLocation().getStartLine(),
+                        e.getSourceLocation().getStartColumn());
+                LOGGER.error("└─> {}", e.getMessage());
+            } else {
+                LOGGER.error("Host error during script execution", e);
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to evaluate script source {}", virtualFileName, e);
+        }
     }
 
     public void executeCallback(Value callback, Object... args) {
