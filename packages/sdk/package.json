@@ -18,6 +18,7 @@
     "build": "pnpm run clean && tsc && pnpm run build:js",
     "build:js": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.js --external:@epi-studio/moud-sdk",
     "clean": "rm -rf dist",
+    "test": "tsc --project tests/tsconfig.json",
     "docs": "typedoc src/index.ts --out docs",
     "deploy:docs": "npm run docs && gh-pages -d docs"
   },

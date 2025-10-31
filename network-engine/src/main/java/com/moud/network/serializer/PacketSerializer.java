@@ -1,5 +1,6 @@
 package com.moud.network.serializer;
 
+import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
 import com.moud.network.buffer.ByteBuffer;
@@ -31,6 +32,9 @@ public class PacketSerializer {
         register(UUID.class, new UUIDSerializer());
         register(Vector3.class, new Vector3Serializer());
         register(byte[].class, new ByteArraySerializer());
+        register(Quaternion.class, new QuaternionSerializer());
+        register(byte[].class, new ByteArraySerializer());
+        register(MoudPackets.CursorUpdateData.class, new CursorUpdateDataSerializer());
     }
 
     public <T> void register(Class<T> type, TypeSerializer<T> serializer) {
@@ -52,7 +56,7 @@ public class PacketSerializer {
                 }
             }
 
-            writeValue(buffer, value, field.getType());
+            writeValue(buffer, value, field.getType(), field.getGenericType());
         }
         return buffer.toByteArray();
     }
@@ -79,136 +83,105 @@ public class PacketSerializer {
     }
 
     @SuppressWarnings("unchecked")
-    private void writeValue(ByteBuffer buffer, Object value, Class<?> type) {
-        if (type.isEnum()) {
+    private void writeValue(ByteBuffer buffer, Object value, Class<?> rawType, java.lang.reflect.Type genericType) {
+        if (rawType.isEnum()) {
             buffer.writeInt(((Enum<?>) value).ordinal());
             return;
         }
 
-        if (type == Map.class || type.isAssignableFrom(Map.class)) {
+        if (Map.class.isAssignableFrom(rawType)) {
             MapSerializerUtil.writeStringObjectMap(buffer, (Map<String, Object>) value);
             return;
         }
 
-        if (type == List.class) {
-            writeList(buffer, (List<?>) value);
+        if (List.class.isAssignableFrom(rawType)) {
+            writeList(buffer, (List<?>) value, genericType);
             return;
         }
 
-        TypeSerializer<Object> serializer = (TypeSerializer<Object>) serializers.get(type);
+        TypeSerializer<Object> serializer = (TypeSerializer<Object>) serializers.get(rawType);
 
         if (serializer != null) {
             serializer.write(buffer, value);
         } else {
-            throw new UnsupportedOperationException("No serializer for type: " + type);
+            throw new UnsupportedOperationException("No serializer for type: " + rawType);
         }
     }
-    private void writeList(ByteBuffer buffer, List<?> list) {
+
+    private void writeList(ByteBuffer buffer, List<?> list, java.lang.reflect.Type listType) {
+        if (!(listType instanceof ParameterizedType parameterizedType)) {
+            throw new UnsupportedOperationException("Cannot serialize raw List without generic type information");
+        }
+
+        java.lang.reflect.Type elementType = parameterizedType.getActualTypeArguments()[0];
+        Class<?> elementClass = extractRawClass(elementType);
+
         buffer.writeInt(list.size());
         for (Object item : list) {
-            if (item instanceof MoudPackets.CursorUpdateData(
-                    UUID playerId, Vector3 position, Vector3 normal, boolean hit
-            )) {
-                writeValue(buffer, playerId, UUID.class);
-                writeValue(buffer, position, Vector3.class);
-                writeValue(buffer, normal, Vector3.class);
-                writeValue(buffer, hit, boolean.class);
-            } else if (item instanceof UUID) {
-                writeValue(buffer, item, UUID.class);
-            } else if (item instanceof Map) {
-                writeValue(buffer, item, Map.class);
-            } else {
-                throw new UnsupportedOperationException("Cannot serialize unknown type in list: " + item.getClass());
-            }
+            writeValue(buffer, item, elementClass, elementType);
         }
     }
 
     @SuppressWarnings("unchecked")
     private Object readValue(ByteBuffer buffer, PacketMetadata.FieldMetadata field) {
-        Class<?> type = field.getType();
+        return readValue(buffer, field.getType(), field.getGenericType());
+    }
 
-        if (type.isEnum()) {
+    @SuppressWarnings("unchecked")
+    private Object readValue(ByteBuffer buffer, Class<?> rawType, java.lang.reflect.Type genericType) {
+        if (rawType.isEnum()) {
             int ordinal = buffer.readInt();
-            Enum<?>[] enumConstants = (Enum<?>[]) type.getEnumConstants();
+            Enum<?>[] enumConstants = (Enum<?>[]) rawType.getEnumConstants();
             if (ordinal >= 0 && ordinal < enumConstants.length) {
                 return enumConstants[ordinal];
             } else {
-                throw new IndexOutOfBoundsException("Invalid ordinal " + ordinal + " for enum " + type.getSimpleName());
+                throw new IndexOutOfBoundsException("Invalid ordinal " + ordinal + " for enum " + rawType.getSimpleName());
             }
         }
 
-        if (type == Map.class || type.isAssignableFrom(Map.class)) {
+        if (Map.class.isAssignableFrom(rawType)) {
             return MapSerializerUtil.readStringObjectMap(buffer);
         }
 
-        if (type == List.class) {
-            return readList(buffer, field);
+        if (List.class.isAssignableFrom(rawType)) {
+            return readList(buffer, genericType);
         }
 
-        TypeSerializer<Object> serializer = (TypeSerializer<Object>) serializers.get(type);
-
+        TypeSerializer<Object> serializer = (TypeSerializer<Object>) serializers.get(rawType);
         if (serializer != null) {
             return serializer.read(buffer);
-        } else {
-            throw new UnsupportedOperationException("No serializer for type: " + type);
         }
+        throw new UnsupportedOperationException("No serializer for type: " + rawType);
     }
 
-    private List<?> readList(ByteBuffer buffer, PacketMetadata.FieldMetadata field) {
+    private List<?> readList(ByteBuffer buffer, java.lang.reflect.Type listType) {
+        if (!(listType instanceof ParameterizedType parameterizedType)) {
+            throw new UnsupportedOperationException("Cannot deserialize raw List without generic type information");
+        }
+
+        java.lang.reflect.Type elementType = parameterizedType.getActualTypeArguments()[0];
+        Class<?> elementClass = extractRawClass(elementType);
+
         int size = buffer.readInt();
         List<Object> list = new ArrayList<>(size);
 
-        Class<?> listElementType = getListElementType(field);
-
         for (int i = 0; i < size; i++) {
-            if (listElementType == MoudPackets.CursorUpdateData.class) {
-                UUID playerId = (UUID) readValue(buffer, UUID.class);
-                Vector3 position = (Vector3) readValue(buffer, Vector3.class);
-                Vector3 normal = (Vector3) readValue(buffer, Vector3.class);
-                boolean hit = (boolean) readValue(buffer, boolean.class);
-                list.add(new MoudPackets.CursorUpdateData(playerId, position, normal, hit));
-            } else if (listElementType == UUID.class) {
-                list.add(readValue(buffer, UUID.class));
-            } else if (listElementType == Map.class) {
-                list.add(MapSerializerUtil.readStringObjectMap(buffer));
-            } else {
-                throw new UnsupportedOperationException("Cannot deserialize unknown type in list: " + listElementType);
-            }
+            list.add(readValue(buffer, elementClass, elementType));
         }
         return list;
     }
 
-    private Object readValue(ByteBuffer buffer, Class<?> type) {
-        if (type.isEnum()) {
-            int ordinal = buffer.readInt();
-            Enum<?>[] enumConstants = (Enum<?>[]) type.getEnumConstants();
-            if (ordinal >= 0 && ordinal < enumConstants.length) {
-                return enumConstants[ordinal];
-            } else {
-                throw new IndexOutOfBoundsException("Invalid ordinal " + ordinal + " for enum " + type.getSimpleName());
+    private Class<?> extractRawClass(java.lang.reflect.Type type) {
+        if (type instanceof Class<?> clazz) {
+            return clazz;
+        }
+        if (type instanceof ParameterizedType parameterizedType) {
+            java.lang.reflect.Type raw = parameterizedType.getRawType();
+            if (raw instanceof Class<?>) {
+                return (Class<?>) raw;
             }
         }
-        TypeSerializer<?> serializer = serializers.get(type);
-        if (serializer != null) {
-            return serializer.read(buffer);
-        }
-        throw new UnsupportedOperationException("No serializer for type: " + type);
-    }
-
-    private Class<?> getListElementType(PacketMetadata.FieldMetadata field) {
-        java.lang.reflect.Type genericType = field.getField().getGenericType();
-        if (genericType instanceof ParameterizedType) {
-            java.lang.reflect.Type[] typeArguments = ((ParameterizedType) genericType).getActualTypeArguments();
-            if (typeArguments.length > 0) {
-                java.lang.reflect.Type listType = typeArguments[0];
-                if (listType instanceof Class<?>) {
-                    return (Class<?>) listType;
-                } else if (listType instanceof ParameterizedType) {
-                    return (Class<?>) ((ParameterizedType) listType).getRawType();
-                }
-            }
-        }
-        throw new UnsupportedOperationException("Cannot deserialize raw or complex List. Use a generic List<T> with simple types or List<Map<...>>.");
+        throw new UnsupportedOperationException("Unsupported type: " + type);
     }
     @SuppressWarnings("unchecked")
     private <T> T createInstance(Class<T> clazz, Object[] args) {
@@ -313,6 +286,19 @@ public class PacketSerializer {
         }
     }
 
+    private static class QuaternionSerializer implements TypeSerializer<Quaternion> {
+        public void write(ByteBuffer buffer, Quaternion value) {
+            buffer.writeFloat(value.x);
+            buffer.writeFloat(value.y);
+            buffer.writeFloat(value.z);
+            buffer.writeFloat(value.w);
+        }
+
+        public Quaternion read(ByteBuffer buffer) {
+            return new Quaternion(buffer.readFloat(), buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
+        }
+    }
+
     private static class ByteArraySerializer implements TypeSerializer<byte[]> {
         public void write(ByteBuffer buffer, byte[] value) {
             buffer.writeByteArray(value);
@@ -322,4 +308,24 @@ public class PacketSerializer {
             return buffer.readByteArray();
         }
     }
+
+    private class CursorUpdateDataSerializer implements TypeSerializer<MoudPackets.CursorUpdateData> {
+        @Override
+        public void write(ByteBuffer buffer, MoudPackets.CursorUpdateData value) {
+            writeValue(buffer, value.playerId(), UUID.class, UUID.class);
+            writeValue(buffer, value.position(), Vector3.class, Vector3.class);
+            writeValue(buffer, value.normal(), Vector3.class, Vector3.class);
+            writeValue(buffer, value.hit(), boolean.class, boolean.class);
+        }
+
+        @Override
+        public MoudPackets.CursorUpdateData read(ByteBuffer buffer) {
+            UUID playerId = (UUID) readValue(buffer, UUID.class, UUID.class);
+            Vector3 position = (Vector3) readValue(buffer, Vector3.class, Vector3.class);
+            Vector3 normal = (Vector3) readValue(buffer, Vector3.class, Vector3.class);
+            boolean hit = (boolean) readValue(buffer, boolean.class, boolean.class);
+            return new MoudPackets.CursorUpdateData(playerId, position, normal, hit);
+        }
+    }
+
 }

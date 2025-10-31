@@ -3,7 +3,11 @@ package com.moud.client;
 import com.moud.client.animation.*;
 import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.cursor.ClientCursorManager;
+
 import com.moud.client.lighting.ClientLightingService;
+import com.moud.client.model.ClientModelManager;
+import com.moud.client.model.ModelRenderer;
+import com.moud.client.model.RenderableModel;
 import com.moud.client.movement.ClientMovementTracker;
 import com.moud.client.network.ClientPacketReceiver;
 import com.moud.client.network.ClientPacketWrapper;
@@ -43,27 +47,37 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.*;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 public final class MoudClientMod implements ClientModInitializer, ResourcePackProvider {
     public static final int PROTOCOL_VERSION = 1;
     private static final Logger LOGGER = LoggerFactory.getLogger(MoudClientMod.class);
     private static final Identifier MOUDPACK_ID = Identifier.of("moud", "dynamic_resources");
     private static final long JOIN_TIMEOUT_MS = 10000;
+    private static final int MAX_BUNDLE_SIZE_BYTES = 32 * 1024 * 1024;
+
+    private ModelRenderer modelRenderer;
+
+    private static final int MAX_DECOMPRESSED_SIZE_BYTES = 64 * 1024 * 1024;
     private GameJoinS2CPacket pendingGameJoinPacket = null;
     private static MoudClientMod instance;
     private static boolean customCameraActive = false;
     private final AtomicBoolean resourcesLoaded = new AtomicBoolean(false);
     private final AtomicBoolean waitingForResources = new AtomicBoolean(false);
     private final AtomicReference<InMemoryPackResources> dynamicPack = new AtomicReference<>(null);
+    private final Queue<java.util.function.Consumer<ClientPlayNetworkHandler>> deferredPacketHandlers = new java.util.concurrent.ConcurrentLinkedQueue<>();
     private PlayerModelRenderer playerModelRenderer;
     private ClientScriptingRuntime scriptingRuntime;
     private ClientAPIService apiService;
@@ -97,10 +111,12 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         PayloadTypeRegistry.playS2C().register(MoudPayload.ID, MoudPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(DataPayload.ID, DataPayload.CODEC);
 
+
         ClientPacketReceiver.registerS2CPackets();
 
         this.clientCursorManager = ClientCursorManager.getInstance();
         this.playerModelRenderer = new PlayerModelRenderer();
+        this.modelRenderer = new ModelRenderer();
 
         registerPacketHandlers();
         registerEventHandlers();
@@ -213,6 +229,9 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 }
             });
         });
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_CreateModelPacket.class, (player, packet) -> handleCreateModel(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateModelTransformPacket.class, (player, packet) -> handleUpdateModelTransform(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_RemoveModelPacket.class, (player, packet) -> handleRemoveModel(packet));
 
         LOGGER.info("Internal packet handlers registered.");
     }
@@ -332,6 +351,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         this.clientCameraManager = null;
         this.playerStateManager = null;
         moudServicesInitialized = false;
+        deferredPacketHandlers.clear();
     }
 
     private void handleCameraControl(MoudPackets.CameraControlPacket packet) {
@@ -411,6 +431,11 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                     playerModelRenderer.render(model, matrices, context.consumers(), light, tickDelta);
                 }
             }
+            if (modelRenderer != null && !ClientModelManager.getInstance().getModels().isEmpty()) {
+                for(RenderableModel model : ClientModelManager.getInstance().getModels()) {
+                    modelRenderer.render(model, context.matrixStack(), context.tickCounter().getTickDelta(true));
+                }
+            }
             if (clientCursorManager != null) {
                 clientCursorManager.render(
                         context.matrixStack(),
@@ -424,6 +449,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private void registerShutdownHandler() {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> cleanupMoudServices());
     }
+
     private void onJoinServer(ClientPlayNetworkHandler handler, net.fabricmc.fabric.api.networking.v1.PacketSender sender, MinecraftClient client) {
         initializeMoudServices();
 
@@ -447,10 +473,12 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         }
 
         LOGGER.info("Disconnecting from server, cleaning up...");
+        ClientModelManager.getInstance().clear();
         ClientPlayerModelManager.getInstance().clear();
         dynamicPack.set(null);
         this.currentResourcesHash = "";
         cleanupMoudServices();
+
 
         setCustomCameraActive(false);
     }
@@ -469,24 +497,71 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             apiService.events.dispatch("core:scriptsReceived", packet.hash());
         }
 
-        if (currentResourcesHash.equals(packet.hash())) {
-            loadScriptsOnly(packet.scriptData());
+        byte[] scriptPayload = packet.scriptData();
+        String expectedHash = packet.hash();
+
+        if (scriptPayload == null || scriptPayload.length == 0) {
+            if (expectedHash != null && expectedHash.equals(currentResourcesHash)) {
+                LOGGER.info("Server confirmed cached client resources (hash {}).", expectedHash);
+                resourcesLoaded.set(true);
+                waitingForResources.set(false);
+                processPendingGameJoinPacket();
+            } else {
+                LOGGER.warn("Received empty client bundle with hash {}. Retaining existing resources.", expectedHash);
+            }
+            return;
+        }
+
+        if (!currentResourcesHash.isEmpty() && expectedHash != null && expectedHash.equals(currentResourcesHash)) {
+            LOGGER.warn("Server resent client bundle with already-applied hash {}. Skipping reload.", expectedHash);
             resourcesLoaded.set(true);
+            waitingForResources.set(false);
+            processPendingGameJoinPacket();
+            return;
+        }
+
+        if (scriptPayload.length > MAX_BUNDLE_SIZE_BYTES) {
+            LOGGER.error("Client bundle from server exceeds safe size ({} bytes > {} bytes).", scriptPayload.length, MAX_BUNDLE_SIZE_BYTES);
             waitingForResources.set(false);
             return;
         }
 
         waitingForResources.set(true);
-        this.currentResourcesHash = packet.hash();
+
+        String computedHash = sha256(scriptPayload);
+        if (expectedHash != null && !expectedHash.isEmpty() && !expectedHash.equals(computedHash)) {
+            LOGGER.error("Client bundle checksum mismatch. Expected {} but computed {}.", expectedHash, computedHash);
+            waitingForResources.set(false);
+            return;
+        }
+
+        this.currentResourcesHash = expectedHash != null && !expectedHash.isEmpty() ? expectedHash : computedHash;
+
         Map<String, byte[]> scriptsData = new HashMap<>();
         Map<String, byte[]> assetsData = new HashMap<>();
 
-        try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(packet.scriptData()))) {
+        try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(scriptPayload))) {
             ZipEntry entry;
+            long totalExtracted = 0;
+            byte[] buffer = new byte[8192];
+
             while ((entry = zis.getNextEntry()) != null) {
-                if (entry.isDirectory()) continue;
+                if (entry.isDirectory()) {
+                    continue;
+                }
+
+                ByteArrayOutputStream entryBuffer = new ByteArrayOutputStream();
+                int read;
+                while ((read = zis.read(buffer, 0, buffer.length)) != -1) {
+                    totalExtracted += read;
+                    if (totalExtracted > MAX_DECOMPRESSED_SIZE_BYTES) {
+                        throw new IOException("Decompressed client bundle exceeds safe limit of " + MAX_DECOMPRESSED_SIZE_BYTES + " bytes");
+                    }
+                    entryBuffer.write(buffer, 0, read);
+                }
+
+                byte[] data = entryBuffer.toByteArray();
                 String name = entry.getName();
-                byte[] data = zis.readAllBytes();
                 if (name.startsWith("scripts/")) {
                     scriptsData.put(name.substring("scripts/".length()), data);
                 } else if (name.startsWith("assets/")) {
@@ -518,8 +593,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
             manager.setEnabledProfiles(enabledPacks);
 
-            // By calling reloadResources() again, we get the future for the reload that was just started.
-            // This allows us to wait for it to complete before loading scripts.
             client.reloadResources().thenRunAsync(() -> {
                 LOGGER.info("Resource reload complete. Proceeding with script loading.");
                 loadScriptsOnly(scriptsData);
@@ -529,13 +602,13 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                     apiService.events.dispatch("core:resourcesReloaded");
                 }
                 processPendingGameJoinPacket();
-                LOGGER.info("Dynamic resources enabled and scripts loaded.");
-            }, client); // Ensure the continuation runs on the client thread.
+                LOGGER.info("Dynamic resources enabled and scripts loaded. Hash {}.", currentResourcesHash);
+            }, client);
         });
     }
 
     public boolean shouldBlockJoin() {
-        return waitingForResources.get() && !resourcesLoaded.get();
+        return false;
     }
 
     private void handlePlayPlayerAnimation(S2C_PlayPlayerAnimationPacket packet) {
@@ -583,6 +656,10 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     }
 
     private void loadScriptsOnly(byte[] zippedScriptData) {
+        if (zippedScriptData == null || zippedScriptData.length == 0) {
+            LOGGER.warn("Requested to load scripts from empty archive, skipping.");
+            return;
+        }
         Map<String, byte[]> scriptsData = new HashMap<>();
         try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(zippedScriptData))) {
             ZipEntry entry;
@@ -612,6 +689,24 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                     LOGGER.error("A failure occurred during runtime initialization or script loading", t);
                     return null;
                 });
+    }
+
+    private static final char[] HEX_ARRAY = "0123456789abcdef".toCharArray();
+
+    private static String sha256(byte[] data) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(data);
+            char[] hexChars = new char[hash.length * 2];
+            for (int i = 0; i < hash.length; i++) {
+                int v = hash[i] & 0xFF;
+                hexChars[i * 2] = HEX_ARRAY[v >>> 4];
+                hexChars[i * 2 + 1] = HEX_ARRAY[v & 0x0F];
+            }
+            return new String(hexChars);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
     }
 
     private void handleScriptEvent(ClientboundScriptEventPacket packet) {
@@ -700,6 +795,31 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         }
     }
 
+    private void handleCreateModel(MoudPackets.S2C_CreateModelPacket packet) {
+        MinecraftClient.getInstance().execute(() -> {
+            ClientModelManager.getInstance().createModel(packet.modelId(), packet.modelPath());
+            RenderableModel model = ClientModelManager.getInstance().getModel(packet.modelId());
+            if (model != null) {
+                model.updateTransform(packet.position(), packet.rotation(), packet.scale());
+            }
+        });
+    }
+
+    private void handleUpdateModelTransform(MoudPackets.S2C_UpdateModelTransformPacket packet) {
+        MinecraftClient.getInstance().execute(() -> {
+            RenderableModel model = ClientModelManager.getInstance().getModel(packet.modelId());
+            if (model != null) {
+                model.updateTransform(packet.position(), packet.rotation(), packet.scale());
+            }
+        });
+    }
+
+    private void handleRemoveModel(MoudPackets.S2C_RemoveModelPacket packet) {
+        MinecraftClient.getInstance().execute(() -> {
+            ClientModelManager.getInstance().removeModel(packet.modelId());
+        });
+    }
+
     @Override
     public void register(Consumer<ResourcePackProfile> profileAdder) {
         InMemoryPackResources pack = dynamicPack.get();
@@ -750,6 +870,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 LOGGER.info("Processing delayed GameJoin packet now that resources are loaded.");
                 client.getNetworkHandler().onGameJoin(pendingGameJoinPacket);
                 pendingGameJoinPacket = null;
+                drainDeferredPackets(client.getNetworkHandler());
             } else {
                 LOGGER.error("Could not process pending game join packet: network handler is null!");
                 client.disconnect();
@@ -759,5 +880,20 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     public void setPendingGameJoinPacket(GameJoinS2CPacket packet) {
         this.pendingGameJoinPacket = packet;
         LOGGER.info("Moud client is delaying game join, waiting for server resources...");
+    }
+
+    public void enqueuePostJoinPacket(java.util.function.Consumer<ClientPlayNetworkHandler> consumer) {
+        deferredPacketHandlers.offer(consumer);
+    }
+
+    private void drainDeferredPackets(ClientPlayNetworkHandler handler) {
+        java.util.function.Consumer<ClientPlayNetworkHandler> task;
+        while ((task = deferredPacketHandlers.poll()) != null) {
+            try {
+                task.accept(handler);
+            } catch (Exception ex) {
+                LOGGER.error("Failed to replay deferred packet", ex);
+            }
+        }
     }
 }

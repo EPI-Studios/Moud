@@ -144,6 +144,11 @@ public class PlayerProxy {
 
     @HostAccess.Export
     public void setPartConfig(String partName, Value options) {
+        setPartConfigWithVisibility(partName, options, "self");
+    }
+
+    @HostAccess.Export
+    public void setPartConfigWithVisibility(String partName, Value options, String visibility) {
         if (!player.isOnline()) return;
 
         validator.validateString(partName, "partName");
@@ -171,11 +176,79 @@ public class PlayerProxy {
 
             MoudPackets.S2C_SetPlayerPartConfigPacket packet = new MoudPackets.S2C_SetPlayerPartConfigPacket(
                     player.getUuid(), partName, properties);
-            ServerNetworkManager.getInstance().send(player, packet);
+
+            // Send based on visibility
+            ServerNetworkManager networkManager = ServerNetworkManager.getInstance();
+            switch (visibility.toLowerCase()) {
+                case "all":
+                    networkManager.broadcast(packet);
+                    break;
+                case "others":
+                    networkManager.broadcastExcept(packet, player);
+                    break;
+                case "self":
+                default:
+                    networkManager.send(player, packet);
+                    break;
+            }
         } catch (Exception e) {
             LOGGER.error("Failed to set part configuration for player {}", player.getUsername(), e);
             throw new APIException("PART_CONFIG_FAILED", "Could not apply part configuration.", e);
         }
+    }
+
+    @HostAccess.Export
+    public void setPartConfigForPlayers(String partName, Value options, Value playerList) {
+        if (!player.isOnline()) return;
+
+        validator.validateString(partName, "partName");
+        if (options == null || !options.hasMembers()) {
+            throw new APIException("INVALID_ARGUMENT", "Options object cannot be null or empty.");
+        }
+
+        try {
+            Map<String, Object> properties = buildPartConfigProperties(options);
+            MoudPackets.S2C_SetPlayerPartConfigPacket packet = new MoudPackets.S2C_SetPlayerPartConfigPacket(
+                    player.getUuid(), partName, properties);
+
+            // Extract player list
+            java.util.List<net.minestom.server.entity.Player> targetPlayers = new java.util.ArrayList<>();
+            if (playerList.hasArrayElements()) {
+                long size = playerList.getArraySize();
+                for (long i = 0; i < size; i++) {
+                    Value playerValue = playerList.getArrayElement(i);
+                    if (playerValue.isHostObject() && playerValue.asHostObject() instanceof PlayerProxy) {
+                        PlayerProxy proxy = (PlayerProxy) playerValue.asHostObject();
+                        targetPlayers.add(proxy.player);
+                    }
+                }
+            }
+
+            ServerNetworkManager.getInstance().sendToPlayers(packet, targetPlayers);
+        } catch (Exception e) {
+            LOGGER.error("Failed to set part configuration for specific players", e);
+            throw new APIException("PART_CONFIG_FAILED", "Could not apply part configuration.", e);
+        }
+    }
+
+    private Map<String, Object> buildPartConfigProperties(Value options) {
+        Map<String, Object> properties = new HashMap<>();
+        if (options.hasMember("position")) properties.put("position", convertVector3(options.getMember("position")));
+        if (options.hasMember("rotation")) properties.put("rotation", convertVector3(options.getMember("rotation")));
+        if (options.hasMember("scale")) properties.put("scale", convertVector3(options.getMember("scale")));
+        if (options.hasMember("visible")) properties.put("visible", options.getMember("visible").asBoolean());
+        if (options.hasMember("overrideAnimation")) properties.put("overrideAnimation", options.getMember("overrideAnimation").asBoolean());
+
+        if (options.hasMember("interpolation")) {
+            Value interpolationValue = options.getMember("interpolation");
+            Map<String, Object> interpolationSettings = new HashMap<>();
+            if (interpolationValue.hasMember("enabled")) interpolationSettings.put("enabled", interpolationValue.getMember("enabled").asBoolean());
+            if (interpolationValue.hasMember("duration")) interpolationSettings.put("duration", interpolationValue.getMember("duration").asLong());
+            if (interpolationValue.hasMember("easing")) interpolationSettings.put("easing", interpolationValue.getMember("easing").asString());
+            if (interpolationValue.hasMember("speed")) interpolationSettings.put("speed", interpolationValue.getMember("speed").asFloat());
+            properties.put("interpolation", interpolationSettings);
+        }
+        return properties;
     }
 
     @HostAccess.Export

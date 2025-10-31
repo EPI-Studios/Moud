@@ -1,5 +1,6 @@
 package com.moud.network;
 
+import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.network.annotation.Direction;
 import com.moud.network.annotation.Field;
@@ -13,7 +14,7 @@ import java.util.UUID;
 public final class MoudPackets {
 
     @Packet(value = "moud:sync_scripts", direction = Direction.SERVER_TO_CLIENT)
-    public record SyncClientScriptsPacket(@Field(order = 0) String hash, @Field(order = 1) byte[] scriptData) {
+    public record SyncClientScriptsPacket(@Field(order = 0) String hash, @Field(order = 1, optional = true) byte[] scriptData) {
     }
 
     @Packet(value = "moud:script_event_c", direction = Direction.SERVER_TO_CLIENT)
@@ -239,5 +240,29 @@ public final class MoudPackets {
     ) {}
 
 
+    @Packet(value = "moud:create_model", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_CreateModelPacket(
+            @Field(order = 0) long modelId,
+            @Field(order = 1) String modelPath,
+            @Field(order = 2) Vector3 position,
+            @Field(order = 3) Quaternion rotation,
+            @Field(order = 4) Vector3 scale,
+            @Field(order = 5) double collisionWidth,
+            @Field(order = 6) double collisionHeight,
+            @Field(order = 7) double collisionDepth
+    ) {}
+
+    @Packet(value = "moud:update_model_transform", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_UpdateModelTransformPacket(
+            @Field(order = 0) long modelId,
+            @Field(order = 1) Vector3 position,
+            @Field(order = 2) Quaternion rotation,
+            @Field(order = 3) Vector3 scale
+    ) {}
+
+    @Packet(value = "moud:remove_model", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_RemoveModelPacket(
+            @Field(order = 0) long modelId
+    ) {}
 
 }
