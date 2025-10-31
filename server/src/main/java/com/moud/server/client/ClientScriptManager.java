@@ -1,5 +1,6 @@
 package com.moud.server.client;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moud.server.project.ProjectLoader;
 import com.moud.server.typescript.TypeScriptTranspiler;
 import org.slf4j.Logger;
@@ -12,6 +13,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -19,6 +21,7 @@ import java.util.stream.Stream;
 
 public class ClientScriptManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientScriptManager.class);
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private byte[] compiledClientResources;
     private String clientResourcesHash;
@@ -27,6 +30,19 @@ public class ClientScriptManager {
         Path projectRoot = ProjectLoader.findProjectRoot();
         Path clientDir = projectRoot.resolve("client");
         Path assetsDir = projectRoot.resolve("assets");
+        Path cacheDir = projectRoot.resolve(".moud/cache");
+        Path cachedBundle = cacheDir.resolve("client.bundle");
+        Path manifestPath = cacheDir.resolve("manifest.json");
+
+        if (Files.exists(cachedBundle)) {
+            LOGGER.info("Using cached client bundle from {}", cachedBundle);
+            this.compiledClientResources = Files.readAllBytes(cachedBundle);
+            this.clientResourcesHash = readHashFromManifest(manifestPath)
+                    .orElseGet(() -> generateHash(compiledClientResources));
+            LOGGER.info("Loaded cached client resources. Hash: {}, Size: {} bytes",
+                    clientResourcesHash, compiledClientResources.length);
+            return;
+        }
 
         if (!Files.exists(clientDir) && !Files.exists(assetsDir)) {
             LOGGER.info("No client or assets directory found, skipping client resources compilation");
@@ -115,6 +131,21 @@ public class ClientScriptManager {
         }
     }
 
+    private Optional<String> readHashFromManifest(Path manifestPath) {
+        if (!Files.exists(manifestPath)) {
+            return Optional.empty();
+        }
+        try {
+            var tree = JSON.readTree(manifestPath.toFile());
+            if (tree.hasNonNull("hash")) {
+                return Optional.of(tree.get("hash").asText());
+            }
+        } catch (IOException e) {
+            LOGGER.warn("Failed to read bundle manifest at {}", manifestPath, e);
+        }
+        return Optional.empty();
+    }
+
     private String generateHash(byte[] data) {
         if (data == null || data.length == 0) {
             return "empty";
@@ -151,5 +182,15 @@ public class ClientScriptManager {
 
     public boolean hasClientScripts() {
         return compiledClientResources != null && compiledClientResources.length > 0;
+    }
+
+    public synchronized void updateClientBundle(byte[] bundle, String hash) {
+        if (bundle == null || bundle.length == 0) {
+            LOGGER.warn("Received empty client bundle during update, ignoring");
+            return;
+        }
+        this.compiledClientResources = bundle;
+        this.clientResourcesHash = (hash != null && !hash.isBlank()) ? hash : generateHash(bundle);
+        LOGGER.info("Client bundle updated. Hash: {}, Size: {} bytes", clientResourcesHash, compiledClientResources.length);
     }
 }
