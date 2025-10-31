@@ -10,6 +10,7 @@ import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.instance.SharedInstance;
 import net.minestom.server.instance.block.Block;
+import net.minestom.server.tag.Tag;
 
 import java.nio.file.Path;
 import java.util.Map;
@@ -25,6 +26,8 @@ public class InstanceManager {
     private final Map<UUID, Instance> instanceRegistry;
     private InstanceContainer defaultInstance;
     private InstanceContainer limboInstance;
+    public static final Tag<Pos> SPAWN_TAG = Tag.Transient("moud:spawn");
+    private static final Pos FALLBACK_SPAWN = new Pos(0.5, 66, 0.5);
 
     private InstanceManager() {
         this.minestomInstanceManager = MinecraftServer.getInstanceManager();
@@ -53,18 +56,25 @@ public class InstanceManager {
         });
 
         MinecraftServer.getGlobalEventHandler().addListener(PlayerSpawnEvent.class, event -> {
-
             if (event.getSpawnInstance() == limboInstance) {
                 final Player player = event.getPlayer();
-                LOGGER.debug("Player {} spawned in limbo, transferring to default instance.", player.getUsername());
+                LOGGER.debug("Player {} spawned in limbo, transferring to default instance", player.getUsername());
 
                 InstanceContainer realInstance = getDefaultInstance();
+                Pos spawnPosition = realInstance.getTag(SPAWN_TAG);
 
-                Pos spawnPosition = new Pos(0, 100, 0);
+                if (spawnPosition == null) {
+                    LOGGER.warn("No spawn position set for default instance, using fallback: {}", FALLBACK_SPAWN);
+                    spawnPosition = FALLBACK_SPAWN;
+                } else {
+                    LOGGER.debug("Spawning player {} at configured position: {}", player.getUsername(), spawnPosition);
+                }
 
-                player.setInstance(realInstance, spawnPosition);
-
-                player.setRespawnPoint(spawnPosition);
+                Pos finalSpawnPosition = spawnPosition;
+                player.setInstance(realInstance, spawnPosition).thenRun(() -> {
+                    player.setRespawnPoint(finalSpawnPosition);
+                    LOGGER.info("Player {} spawned at position: {}", player.getUsername(), finalSpawnPosition);
+                });
             }
         });
     }
