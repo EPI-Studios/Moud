@@ -1,8 +1,10 @@
 package com.moud.server.network;
 
+import com.moud.network.MoudPackets;
 import com.moud.network.MoudPackets.*;
 import com.moud.server.client.ClientScriptManager;
 import com.moud.server.cursor.CursorService;
+import com.moud.server.entity.ModelManager;
 import com.moud.server.events.EventDispatcher;
 import com.moud.server.lighting.ServerLightingManager;
 import com.moud.server.movement.ServerMovementHandler;
@@ -18,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -126,6 +129,42 @@ public final class ServerNetworkManager {
         return sentCount;
     }
 
+    public <T> int broadcastExcept(T packet, Player exceptPlayer) {
+        int sentCount = 0;
+        for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
+            if (player.getUuid().equals(exceptPlayer.getUuid())) {
+                continue;
+            }
+            if (send(player, packet)) {
+                sentCount++;
+            }
+        }
+        return sentCount;
+    }
+
+    public <T> int sendToPlayers(T packet, Collection<Player> players) {
+        int sentCount = 0;
+        for (Player player : players) {
+            if (send(player, packet)) {
+                sentCount++;
+            }
+        }
+        return sentCount;
+    }
+
+    public <T> int broadcastInRange(T packet, net.minestom.server.coordinate.Pos position, double range) {
+        int sentCount = 0;
+        double rangeSq = range * range;
+        for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
+            if (player.getPosition().distanceSquared(position) <= rangeSq) {
+                if (send(player, packet)) {
+                    sentCount++;
+                }
+            }
+        }
+        return sentCount;
+    }
+
     private void handleHelloPacket(Object player, HelloPacket packet) {
         Player minestomPlayer = (Player) player;
         int clientVersion = packet.protocolVersion();
@@ -147,6 +186,26 @@ public final class ServerNetworkManager {
         eventDispatcher.dispatchMoudReady(minestomPlayer);
 
         sendClientScripts(minestomPlayer);
+
+        ModelManager.getInstance().getAllModels().forEach(model -> {
+            MoudPackets.S2C_CreateModelPacket createPacket = new MoudPackets.S2C_CreateModelPacket(
+                    model.getId(),
+                    model.getModelPath(),
+                    model.getPosition(),
+                    model.getRotation(),
+                    model.getScale(),
+                    model.getCollisionWidth(),
+                    model.getCollisionHeight(),
+                    model.getCollisionDepth()
+            );
+            send(minestomPlayer, createPacket);
+        });
+        int modelCount = ModelManager.getInstance().getAllModels().size();
+        if (modelCount > 0) {
+            LOGGER.info("Synced {} existing models to {}", modelCount, minestomPlayer.getUsername());
+        }
+        // --- NEW CODE BLOCK END ---
+
 
         MinecraftServer.getSchedulerManager().buildTask(() -> {
             LOGGER.info("Syncing lights to player {} after initialization delay", minestomPlayer.getUsername());
@@ -221,9 +280,24 @@ public final class ServerNetworkManager {
         try {
             byte[] scriptData = clientScriptManager.getCompiledScripts();
             String hash = clientScriptManager.getScriptsHash();
+            ClientSession session = moudClients.get(player.getUuid());
+
+            if (session != null && hash != null && hash.equals(session.getResourcesHash())) {
+                LOGGER.info("Client {} already has resources hash {}, sending cache hint only", player.getUsername(), hash);
+                if (!send(player, new SyncClientScriptsPacket(hash, null))) {
+                    LOGGER.error("Failed to send cache hint payload to {}", player.getUsername());
+                }
+                return;
+            }
+
             LOGGER.info("Sending client scripts to {}: hash={}, size={} bytes", player.getUsername(), hash, scriptData.length);
             if (!send(player, new SyncClientScriptsPacket(hash, scriptData))) {
                 LOGGER.error("Failed to send client scripts payload to {}", player.getUsername());
+                return;
+            }
+
+            if (session != null) {
+                session.setResourcesHash(hash);
             }
         } catch (Exception e) {
             LOGGER.error("Failed to send client scripts to {}", player.getUsername(), e);
@@ -244,6 +318,24 @@ public final class ServerNetworkManager {
         return moudClients.containsKey(player.getUuid());
     }
 
-    private record ClientSession(Instant handshakeTime) {
+    private static class ClientSession {
+        private final Instant handshakeTime;
+        private String resourcesHash;
+
+        private ClientSession(Instant handshakeTime) {
+            this.handshakeTime = handshakeTime;
+        }
+
+        public Instant handshakeTime() {
+            return handshakeTime;
+        }
+
+        public String getResourcesHash() {
+            return resourcesHash;
+        }
+
+        public void setResourcesHash(String resourcesHash) {
+            this.resourcesHash = resourcesHash;
+        }
     }
 }

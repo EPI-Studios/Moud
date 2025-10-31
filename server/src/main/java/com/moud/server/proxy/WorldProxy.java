@@ -1,5 +1,6 @@
 package com.moud.server.proxy;
 
+import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.api.validation.APIValidator;
@@ -43,9 +44,6 @@ public class WorldProxy {
     public WorldProxy createInstance() {
         if (instance == null) {
             instance = InstanceManager.getInstance().getDefaultInstance();
-            MinecraftServer.getGlobalEventHandler().addListener(AsyncPlayerConfigurationEvent.class, event -> {
-                event.setSpawningInstance(instance);
-            });
         }
         return this;
     }
@@ -76,13 +74,11 @@ public class WorldProxy {
         validator.validateCoordinates(x, y, z);
         Pos spawnPos = new Pos(x, y, z);
 
-        if (instance instanceof InstanceContainer) {
-            ((InstanceContainer) instance).setTag(net.minestom.server.tag.Tag.Transient("spawn"), spawnPos);
+        if (instance instanceof InstanceContainer container) {
+            container.setTag(InstanceManager.SPAWN_TAG, spawnPos);
+        } else {
+            throw new APIException("INVALID_INSTANCE_TYPE", "Cannot set spawn on non-container instance");
         }
-
-        MinecraftServer.getGlobalEventHandler().addListener(AsyncPlayerConfigurationEvent.class, event -> {
-            event.getPlayer().setRespawnPoint(spawnPos);
-        });
 
         return this;
     }
@@ -98,6 +94,41 @@ public class WorldProxy {
         Block block = Block.fromNamespaceId(blockId);
         if (block == null) throw new APIException("INVALID_BLOCK_ID", "Unknown block ID: " + blockId);
         instance.setBlock(x, y, z, block);
+    }
+
+    @HostAccess.Export
+    public ModelProxy createModel(Value options) {
+        if (options == null || !options.hasMembers()) {
+            throw new APIException("INVALID_ARGUMENT", "createModel requires an options object.");
+        }
+
+        String modelPath = options.hasMember("model") ? options.getMember("model").asString() : null;
+        if (modelPath == null) {
+            throw new APIException("INVALID_ARGUMENT", "createModel requires a 'model' property with the asset path.");
+        }
+
+        Vector3 position = options.hasMember("position") ? options.getMember("position").as(Vector3.class) : Vector3.zero();
+        Quaternion rotation = options.hasMember("rotation") ? options.getMember("rotation").as(Quaternion.class) : Quaternion.identity();
+        Vector3 scale = options.hasMember("scale") ? options.getMember("scale").as(Vector3.class) : Vector3.one();
+
+        ModelProxy model = new ModelProxy(instance, modelPath, position, rotation, scale);
+
+        if (options.hasMember("collision")) {
+            Value collisionVal = options.getMember("collision");
+            if (collisionVal.isBoolean() && !collisionVal.asBoolean()) {
+                // No collision
+            } else if (collisionVal.hasMembers()) {
+                double w = collisionVal.hasMember("width") ? collisionVal.getMember("width").asDouble() : 1.0;
+                double h = collisionVal.hasMember("height") ? collisionVal.getMember("height").asDouble() : 1.0;
+                double d = collisionVal.hasMember("depth") ? collisionVal.getMember("depth").asDouble() : 1.0;
+                model.setCollisionBox(w, h, d);
+            } else {
+                // Default collision box
+                model.setCollisionBox(1.0, 1.0, 1.0);
+            }
+        }
+
+        return model;
     }
 
     @HostAccess.Export
