@@ -2,6 +2,10 @@ package com.moud.server.scripting;
 
 import com.moud.server.MoudEngine;
 import com.moud.server.logging.MoudLogger;
+import com.moud.server.profiler.ProfilerService;
+import com.moud.server.profiler.model.ScriptExecutionMetadata;
+import com.moud.server.profiler.model.ScriptExecutionType;
+import com.moud.server.profiler.script.ScriptProfiler;
 import com.moud.server.typescript.TypeScriptTranspiler;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
@@ -67,9 +71,14 @@ public class JavaScriptRuntime {
                     if (arguments.length < 2) return -1;
                     Value callback = arguments[0];
                     long delay = arguments[1].asLong();
+                    ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                            ScriptExecutionType.TIMEOUT,
+                            "setTimeout",
+                            "delay=" + delay
+                    );
 
                     CompletableFuture.delayedExecutor(delay, TimeUnit.MILLISECONDS, executor)
-                            .execute(() -> executeCallbackSafe(callback));
+                            .execute(() -> executeCallbackSafe(callback, metadata));
                     return null;
                 }
             });
@@ -81,10 +90,15 @@ public class JavaScriptRuntime {
                     Value callback = arguments[0];
                     long delay = arguments[1].asLong();
                     long intervalId = intervalIdCounter.incrementAndGet();
+                    ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                            ScriptExecutionType.INTERVAL,
+                            "setInterval",
+                            "id=" + intervalId
+                    );
 
                     ScheduledFuture<?> future = timeoutExecutor.scheduleAtFixedRate(() -> {
                         if (!isShuttingDown) {
-                            executeCallbackSafe(callback);
+                            executeCallbackSafe(callback, metadata);
                         }
                     }, delay, delay, TimeUnit.MILLISECONDS);
 
@@ -221,66 +235,90 @@ public class JavaScriptRuntime {
     }
 
     public void executeCallback(Value callback, Object... args) {
-        if (isShuttingDown) return;
-
-        executor.submit(() -> {
-            if (callback == null || !callback.canExecute()) {
-                return;
-            }
-
-            try {
-                jsContext.enter();
-                callback.execute(args);
-            } catch (PolyglotException e) {
-                if (e.isGuestException() && e.getSourceLocation() != null) {
-                    LOGGER.scriptError("Error in callback execution at {} (line {}, column {}): {}",
-                            e.getSourceLocation().getSource().getName(),
-                            e.getSourceLocation().getStartLine(),
-                            e.getSourceLocation().getStartColumn(),
-                            e.getMessage());
-                } else {
-                    LOGGER.error("Error executing callback: {}", e.getMessage());
-                }
-            } catch (Exception e) {
-                LOGGER.error("Unexpected error in callback execution", e);
-            } finally {
-                if (jsContext != null && !isShuttingDown) {
-                    jsContext.leave();
-                }
-            }
-        });
+        executeCallback(callback, ScriptExecutionMetadata.unnamed(ScriptExecutionType.OTHER), args);
     }
 
-    private void executeCallbackSafe(Value callback, Object... args) {
+    public void executeCallback(Value callback, ScriptExecutionMetadata metadata, Object... args) {
+        if (isShuttingDown) {
+            return;
+        }
+        executor.submit(() -> runCallback(callback, metadata, args));
+    }
+
+    private void executeCallbackSafe(Value callback) {
+        executeCallbackSafe(callback, ScriptExecutionMetadata.unnamed(ScriptExecutionType.TIMEOUT));
+    }
+
+    private void executeCallbackSafe(Value callback, ScriptExecutionMetadata metadata, Object... args) {
         if (isShuttingDown) return;
 
-        Future<?> callbackTask = executor.submit(() -> {
-            jsContext.enter();
-            try {
-                callback.execute(args);
-            } catch (PolyglotException e) {
-                if (e.isGuestException() && e.getSourceLocation() != null) {
-                    LOGGER.scriptError("Error in callback execution at {} (line {}, column {}): {}",
-                            e.getSourceLocation().getSource().getName(),
-                            e.getSourceLocation().getStartLine(),
-                            e.getSourceLocation().getStartColumn(),
-                            e.getMessage());
-                } else {
-                    LOGGER.error("Error executing callback: {}", e.getMessage());
-                }
-            } catch (Exception e) {
-                LOGGER.error("Unexpected error in callback execution", e);
-            } finally {
-                jsContext.leave();
-            }
-        });
+        Future<?> callbackTask = executor.submit(() -> runCallback(callback, metadata, args));
 
         timeoutExecutor.schedule(() -> {
             if (!callbackTask.isDone()) {
                 callbackTask.cancel(true);
-                LOGGER.error("Callback execution timed out after {}ms", CALLBACK_TIMEOUT_MS);
+                LOGGER.error("Callback execution timed out after {}ms [{}]", CALLBACK_TIMEOUT_MS, metadata.label());
             }
         }, CALLBACK_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+    }
+
+    private void runCallback(Value callback, ScriptExecutionMetadata metadata, Object... args) {
+        if (callback == null || !callback.canExecute()) {
+            return;
+        }
+
+        ScriptProfiler.ActiveSpan span = ProfilerService.getInstance()
+                .scriptProfiler()
+                .open(callback, metadata);
+        long start = System.nanoTime();
+
+        boolean success = false;
+        String errorMessage = null;
+        boolean entered = false;
+
+        try {
+            jsContext.enter();
+            entered = true;
+            callback.execute(args);
+            success = true;
+        } catch (PolyglotException e) {
+            errorMessage = e.getMessage();
+            handlePolyglotException(e);
+        } catch (CancellationException e) {
+            errorMessage = "Cancelled";
+        } catch (RuntimeException e) {
+            if (Thread.currentThread().isInterrupted()) {
+                Thread.currentThread().interrupt();
+                errorMessage = "Interrupted";
+            } else {
+                errorMessage = e.getMessage();
+                LOGGER.error("Unexpected error in callback execution", e);
+            }
+        } catch (Exception e) {
+            errorMessage = e.getMessage();
+            LOGGER.error("Unexpected error in callback execution", e);
+        } finally {
+            if (entered) {
+                try {
+                    jsContext.leave();
+                } catch (Exception ignored) {
+                }
+            }
+            ProfilerService.getInstance().scriptProfiler()
+                    .close(span, System.nanoTime() - start, success, errorMessage);
+        }
+    }
+
+    private void handlePolyglotException(PolyglotException e) {
+        if (e.isGuestException() && e.getSourceLocation() != null) {
+            LOGGER.scriptError("Error in callback execution at {} (line {}, column {}): {}",
+                    e.getSourceLocation().getSource().getName(),
+                    e.getSourceLocation().getStartLine(),
+                    e.getSourceLocation().getStartColumn(),
+                    e.getMessage());
+        } else {
+            LOGGER.error("Error executing callback: {}", e.getMessage());
+        }
     }
 
     public ExecutorService getExecutor() {

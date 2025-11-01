@@ -2,6 +2,8 @@ package com.moud.server.zone;
 
 import com.moud.api.math.Vector3;
 import com.moud.server.MoudEngine;
+import com.moud.server.profiler.model.ScriptExecutionMetadata;
+import com.moud.server.profiler.model.ScriptExecutionType;
 import com.moud.server.proxy.PlayerProxy;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.Player;
@@ -159,7 +161,12 @@ public class ZoneManager {
         zone.addPlayer(player);
         Value callback = zone.getOnEnterCallback();
         if (callback != null && callback.canExecute()) {
-            engine.getRuntime().executeCallback(callback, new PlayerProxy(player), zone.getId());
+            ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                    ScriptExecutionType.EVENT,
+                    "zone.enter",
+                    zone.getId()
+            );
+            engine.getRuntime().executeCallback(callback, metadata, new PlayerProxy(player), zone.getId());
         }
     }
 
@@ -167,7 +174,12 @@ public class ZoneManager {
         zone.removePlayer(player);
         Value callback = zone.getOnLeaveCallback();
         if (callback != null && callback.canExecute()) {
-            engine.getRuntime().executeCallback(callback, new PlayerProxy(player), zone.getId());
+            ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                    ScriptExecutionType.EVENT,
+                    "zone.leave",
+                    zone.getId()
+            );
+            engine.getRuntime().executeCallback(callback, metadata, new PlayerProxy(player), zone.getId());
         }
     }
 
