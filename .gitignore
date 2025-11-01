@@ -13,3 +13,13 @@ out/
 Thumbs.db
 
 *.log
+
+# Minecraft client runtime files
+client-mod/run/mods/
+client-mod/run/config/
+client-mod/run/logs/
+client-mod/run/crash-reports/
+client-mod/run/screenshots/
+client-mod/run/saves/
+client-mod/run/resourcepacks/
+client-mod/run/shaderpacks/
