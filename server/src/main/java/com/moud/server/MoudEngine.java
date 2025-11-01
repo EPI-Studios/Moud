@@ -4,20 +4,26 @@ import com.moud.server.animation.AnimationManager;
 import com.moud.server.api.HotReloadEndpoint;
 import com.moud.server.api.ScriptingAPI;
 import com.moud.server.assets.AssetManager;
+import com.moud.server.bridge.AxiomBridgeService;
 import com.moud.server.client.ClientScriptManager;
 import com.moud.server.cursor.CursorService;
+import com.moud.server.dev.DevUtilities;
 import com.moud.server.events.EventDispatcher;
 import com.moud.server.instance.InstanceManager;
+import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.network.MinestomByteBuffer;
 import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.project.ProjectLoader;
 import com.moud.server.proxy.AssetProxy;
+import com.moud.server.profiler.ProfilerService;
+import com.moud.server.profiler.ProfilerUI;
 import com.moud.server.scripting.JavaScriptRuntime;
 import com.moud.server.task.AsyncManager;
 import com.moud.network.dispatcher.NetworkDispatcher;
 import com.moud.network.engine.PacketEngine;
 import com.moud.network.buffer.ByteBuffer;
+import com.moud.server.shared.SharedValueManager;
 import com.moud.server.zone.ZoneManager;
 
 import java.nio.file.Path;
@@ -27,7 +33,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class MoudEngine {
-    private static final MoudLogger LOGGER = MoudLogger.getLogger(MoudEngine.class);
+    private static final MoudLogger LOGGER = MoudLogger.getLogger(
+            MoudEngine.class,
+            LogContext.builder().put("subsystem", "engine").build()
+    );
 
     private JavaScriptRuntime runtime;
     private final AssetManager assetManager;
@@ -57,13 +66,17 @@ public class MoudEngine {
         LOGGER.startup("Initializing Moud Engine...");
 
         boolean enableReload = hasArg(launchArgs, "--enable-reload");
+        boolean enableDevUtilities = hasArg(launchArgs, "--dev-utils");
+        boolean enableProfileUi = hasArg(launchArgs, "--profile-ui");
         int port = getPortFromArgs(launchArgs);
 
         try {
             Path projectRoot = ProjectLoader.resolveProjectRoot(launchArgs)
                     .orElseThrow(() -> new IllegalStateException("Could not find a valid Moud project root."));
 
-            LOGGER.info("Loading project from: {}", projectRoot);
+            LOGGER.info(LogContext.builder()
+                    .put("project_root", projectRoot.toString())
+                    .build(), "Loading project from: {}", projectRoot);
 
             this.packetEngine = new PacketEngine();
             packetEngine.initialize("com.moud.network");
@@ -104,11 +117,24 @@ public class MoudEngine {
             this.cursorService = CursorService.getInstance(networkManager);
             cursorService.initialize();
 
+            // Initialize Axiom bridge for model gizmos
+            AxiomBridgeService.initialize();
+
+            SharedValueManager.getInstance().initialize();
+
             this.scriptingAPI = new ScriptingAPI(this);
             bindGlobalAPIs();
 
             this.hotReloadEndpoint = new HotReloadEndpoint(this, enableReload);
             hotReloadEndpoint.start(port);
+
+            DevUtilities.initialize(enableDevUtilities);
+            ProfilerService.getInstance().start();
+            if (enableProfileUi) {
+                LOGGER.info(LogContext.builder().put("profile_ui", true).build(),
+                        "Profiler UI flag detected; launching window");
+                ProfilerUI.launchAsync();
+            }
 
             loadUserScripts().thenRun(() -> {
                 initialized.set(true);
@@ -137,10 +163,13 @@ public class MoudEngine {
     private int getPortFromArgs(String[] args) {
         for (int i = 0; i < args.length - 1; i++) {
             if ("--port".equals(args[i])) {
+                String rawPort = args[i + 1];
                 try {
-                    return Integer.parseInt(args[i + 1]);
+                    return Integer.parseInt(rawPort);
                 } catch (NumberFormatException e) {
-                    LOGGER.warn("Invalid port number, using default 25565");
+                    LOGGER.warn(LogContext.builder()
+                            .put("raw_port", rawPort)
+                            .build(), "Invalid port number, using default 25565");
                     return 25565;
                 }
             }
@@ -202,7 +231,9 @@ public class MoudEngine {
                 } else {
                     Path entryPoint = ProjectLoader.findEntryPoint();
                     if (!Files.exists(entryPoint)) {
-                        LOGGER.warn("No entry point found at: {}", entryPoint);
+                        LOGGER.warn(LogContext.builder()
+                                .put("entry_point", entryPoint.toString())
+                                .build(), "No entry point found at: {}", entryPoint);
                         reloadState.set(ReloadState.FAILED);
                         return;
                     }
@@ -213,7 +244,9 @@ public class MoudEngine {
                 LOGGER.success("User scripts reloaded successfully");
 
             } catch (Exception e) {
-                LOGGER.error("Failed to reload user scripts", e);
+                LOGGER.error(LogContext.builder()
+                        .put("phase", "reload")
+                        .build(), "Failed to reload user scripts", e);
                 reloadState.set(ReloadState.FAILED);
             } finally {
                 reloading.set(false);
@@ -226,12 +259,16 @@ public class MoudEngine {
             try {
                 Path entryPoint = ProjectLoader.findEntryPoint();
                 if (!entryPoint.toFile().exists()) {
-                    LOGGER.warn("No entry point found at: {}", entryPoint);
+                    LOGGER.warn(LogContext.builder()
+                            .put("entry_point", entryPoint.toString())
+                            .build(), "No entry point found at: {}", entryPoint);
                     return;
                 }
                 runtime.executeScript(entryPoint).join();
             } catch (Exception e) {
-                LOGGER.error("Failed to find or load project script", e);
+                LOGGER.error(LogContext.builder()
+                        .put("phase", "initial-load")
+                        .build(), "Failed to find or load project script", e);
                 throw new RuntimeException(e);
             }
         });
@@ -242,6 +279,8 @@ public class MoudEngine {
         if (cursorService != null) cursorService.shutdown();
         if (asyncManager != null) asyncManager.shutdown();
         if (runtime != null) runtime.shutdown();
+        SharedValueManager.getInstance().shutdown();
+        ProfilerService.getInstance().stop();
         LOGGER.shutdown("Moud Engine shutdown complete.");
     }
 

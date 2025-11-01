@@ -1,5 +1,6 @@
 package com.moud.client;
 
+import com.moud.api.math.Vector3;
 import com.moud.client.animation.*;
 import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.cursor.ClientCursorManager;
@@ -413,6 +414,11 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
     private void registerRenderHandler() {
         WorldRenderEvents.AFTER_ENTITIES.register(context -> {
+            int modelCount = ClientPlayerModelManager.getInstance().getModels().size();
+            if (modelCount > 0) {
+                LOGGER.debug("Render tick: {} player models exist", modelCount);
+            }
+
             if (playerModelRenderer != null && !ClientPlayerModelManager.getInstance().getModels().isEmpty()) {
                 var camera = context.camera();
                 var world = MinecraftClient.getInstance().world;
@@ -423,6 +429,10 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                     double y = model.getInterpolatedY(tickDelta) - camera.getPos().getY();
                     double z = model.getInterpolatedZ(tickDelta) - camera.getPos().getZ();
 
+                    LOGGER.debug("Rendering player model at world({}, {}, {}) camera-rel({}, {}, {})",
+                        model.getInterpolatedX(tickDelta), model.getInterpolatedY(tickDelta), model.getInterpolatedZ(tickDelta),
+                        x, y, z);
+
                     MatrixStack matrices = new MatrixStack();
                     matrices.translate(x, y, z);
 
@@ -432,8 +442,16 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 }
             }
             if (modelRenderer != null && !ClientModelManager.getInstance().getModels().isEmpty()) {
+                float tickDelta = context.tickCounter().getTickDelta(true);
+
                 for(RenderableModel model : ClientModelManager.getInstance().getModels()) {
-                    modelRenderer.render(model, context.matrixStack(), context.tickCounter().getTickDelta(true));
+                    Vector3 interpolatedPos = model.getInterpolatedPosition(tickDelta);
+
+                    MatrixStack matrices = new MatrixStack();
+                    // Pass WORLD coordinates, not camera-relative (view matrix handles camera offset)
+                    matrices.translate(interpolatedPos.x, interpolatedPos.y, interpolatedPos.z);
+
+                    modelRenderer.render(model, matrices, tickDelta);
                 }
             }
             if (clientCursorManager != null) {
@@ -633,13 +651,16 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     }
 
     private void handlePlayerModelCreate(PlayerModelCreatePacket packet) {
+        LOGGER.info("RECEIVED PlayerModelCreatePacket for model ID: {} at position: {}", packet.modelId(), packet.position());
         MinecraftClient.getInstance().execute(() -> {
+            LOGGER.info("Executing PlayerModelCreate on main thread for model {}", packet.modelId());
             AnimatedPlayerModel model = ClientPlayerModelManager.getInstance().createModel(packet.modelId());
             if (model == null) {
                 LOGGER.warn("Failed to create player model {} because the client world is unavailable", packet.modelId());
                 return;
             }
 
+            LOGGER.info("Model created successfully, updating position to {}", packet.position());
             model.updatePositionAndRotation(packet.position(), 0, 0);
             if (packet.skinUrl() != null && !packet.skinUrl().isEmpty()) {
                 model.updateSkin(packet.skinUrl());
