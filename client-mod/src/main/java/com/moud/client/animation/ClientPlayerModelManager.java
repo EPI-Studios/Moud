@@ -33,7 +33,12 @@ public class ClientPlayerModelManager {
             return null;
         }
 
-        return models.computeIfAbsent(modelId, id -> new AnimatedPlayerModel(world));
+        AnimatedPlayerModel model = models.computeIfAbsent(modelId, id -> {
+            LOGGER.info("Creating new AnimatedPlayerModel with ID: {}", id);
+            return new AnimatedPlayerModel(world);
+        });
+        LOGGER.info("Player model {} now exists in manager. Total models: {}", modelId, models.size());
+        return model;
     }
 
     public void removeModel(long modelId) {

@@ -149,7 +149,7 @@ public class AnimatedPlayerModel {
     }
 
     public void setupAnim(float partialTick) {
-
+        // Update fake player with interpolated values for animation system
         fakePlayer.setPos(getInterpolatedX(partialTick), getInterpolatedY(partialTick), getInterpolatedZ(partialTick));
         fakePlayer.setYaw(getInterpolatedYaw(partialTick));
         fakePlayer.setPitch(getInterpolatedPitch(partialTick));
@@ -206,6 +206,11 @@ public class AnimatedPlayerModel {
         this.z = position.z;
         this.yaw = yaw;
         this.pitch = pitch;
+
+        // Keep fake player entity synced with actual position for entity logic
+        fakePlayer.setPos(this.x, this.y, this.z);
+        fakePlayer.setYaw(yaw);
+        fakePlayer.setPitch(pitch);
     }
 
     public double getInterpolatedX(float tickDelta) {

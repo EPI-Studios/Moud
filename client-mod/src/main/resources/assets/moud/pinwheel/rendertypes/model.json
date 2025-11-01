@@ -1,5 +1,5 @@
 {
-  "format": "POSITION_TEX_COLOR_NORMAL",
+  "format": "POSITION_TEX_NORMAL",
   "mode": "TRIANGLES",
   "bufferSize": "TRANSIENT",
   "sort": false,

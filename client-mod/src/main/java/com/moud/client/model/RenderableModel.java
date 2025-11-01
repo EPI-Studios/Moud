@@ -52,9 +52,15 @@ public class RenderableModel {
     }
 
     public void updateTransform(Vector3 pos, Quaternion rot, Vector3 scale) {
-        this.prevPosition = this.position;
+        // If this is the first position update (prevPosition == Vector3.zero()), initialize both to avoid interpolation from origin
+        if (this.prevPosition.equals(Vector3.zero()) && this.position.equals(Vector3.zero())) {
+            this.prevPosition = pos;
+            this.position = pos;
+        } else {
+            this.prevPosition = this.position;
+            this.position = pos;
+        }
         this.prevRotation = this.rotation;
-        this.position = pos;
         this.rotation = rot;
         this.scale = scale;
     }
