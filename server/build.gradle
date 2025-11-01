@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'com.gradleup.shadow' version "8.3.5"
+    id 'com.moud.logging-lint'
 }
 
 group = 'com.moud'
@@ -32,6 +33,15 @@ dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.0'
     implementation 'com.fasterxml.jackson.core:jackson-annotations:2.17.0'
     implementation 'org.apache.commons:commons-exec:1.4.0'
+
+    def javafxVersion = '21.0.1'
+    def os = org.gradle.internal.os.OperatingSystem.current()
+    def javafxPlatform = os.isWindows() ? 'win' : (os.isMacOsX() ? 'mac' : 'linux')
+    implementation "org.openjfx:javafx-base:${javafxVersion}:${javafxPlatform}"
+    implementation "org.openjfx:javafx-controls:${javafxVersion}:${javafxPlatform}"
+    implementation "org.openjfx:javafx-graphics:${javafxVersion}:${javafxPlatform}"
+    implementation "org.openjfx:javafx-fxml:${javafxVersion}:${javafxPlatform}"
+
 }
 
 java {

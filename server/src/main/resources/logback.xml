@@ -1,14 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<configuration debug="true">
-    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{0} -- %msg%n</pattern>
+<configuration debug="false">
+    <property name="LOG_DIR" value="logs"/>
+
+    <appender name="COLORED" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="com.moud.server.logging.StructuredMarkerFilter">
+            <marker>STRUCTURED</marker>
+            <onMatch>DENY</onMatch>
+            <onMismatch>ACCEPT</onMismatch>
+        </filter>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %highlight(%-5level) %cyan(%logger{0}) -- %msg%n</pattern>
         </encoder>
     </appender>
 
-    <logger name="com.moud.server.network.ServerNetworkManager" level="TRACE" />
+    <appender name="STRUCTURED" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/moud-structured.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/moud-structured.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>7</maxHistory>
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+        <filter class="com.moud.server.logging.StructuredMarkerFilter">
+            <marker>STRUCTURED</marker>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
 
-    <root level="DEBUG">
-        <appender-ref ref="STDOUT" />
+    <logger name="com.moud.server.typescript" level="INFO"/>
+    <logger name="com.moud.server.shared" level="INFO"/>
+    <logger name="com.moud.server.network" level="INFO"/>
+
+    <root level="INFO">
+        <appender-ref ref="COLORED"/>
+        <appender-ref ref="STRUCTURED"/>
     </root>
 </configuration>
