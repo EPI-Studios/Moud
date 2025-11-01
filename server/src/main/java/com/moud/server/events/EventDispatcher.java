@@ -5,6 +5,8 @@ import com.moud.server.MoudEngine;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.lighting.ServerLightingManager;
 import com.moud.server.logging.MoudLogger;
+import com.moud.server.profiler.model.ScriptExecutionMetadata;
+import com.moud.server.profiler.model.ScriptExecutionType;
 import com.moud.server.proxy.PlayerProxy;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.Entity;
@@ -83,8 +85,13 @@ public class EventDispatcher {
 
         try {
             Object scriptEvent = converter.convert(eventName, minestomEvent);
-            engine.getRuntime().executeCallback(handler, scriptEvent);
-
+            String detail = minestomEvent != null ? minestomEvent.getClass().getSimpleName() : "";
+            ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                    ScriptExecutionType.EVENT,
+                    eventName,
+                    detail
+            );
+            engine.getRuntime().executeCallback(handler, metadata, scriptEvent);
         } catch (Exception e) {
             LOGGER.error("Error during event dispatch for '{}'", eventName, e);
         }
@@ -108,7 +115,12 @@ public class EventDispatcher {
                         "speed", packet.speed()
                 ));
 
-                engine.getRuntime().executeCallback(movementStateHandler, playerProxy, movementData);
+                ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                        ScriptExecutionType.EVENT,
+                        "player.movement_state",
+                        player.getUsername()
+                );
+                engine.getRuntime().executeCallback(movementStateHandler, metadata, playerProxy, movementData);
             } catch (Exception e) {
                 LOGGER.error("Error during movement_state event dispatch for player {}", player.getUsername(), e);
             }
@@ -120,7 +132,12 @@ public class EventDispatcher {
         if (handler != null) {
             try {
                 PlayerProxy playerProxy = new PlayerProxy(player);
-                engine.getRuntime().executeCallback(handler, playerProxy);
+                ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                        ScriptExecutionType.EVENT,
+                        eventType,
+                        player.getUsername()
+                );
+                engine.getRuntime().executeCallback(handler, metadata, playerProxy);
                 LOGGER.debug("Successfully dispatched {} event for player {}", eventType, player.getUsername());
             } catch (Exception e) {
                 LOGGER.error("Error during {} event dispatch for player {}", eventType, player.getUsername(), e);
@@ -136,7 +153,12 @@ public class EventDispatcher {
 
         try {
             PlayerProxy scriptEvent = new PlayerProxy(player);
-            engine.getRuntime().executeCallback(handler, scriptEvent);
+            ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                    ScriptExecutionType.EVENT,
+                    "moud.player.ready",
+                    player.getUsername()
+            );
+            engine.getRuntime().executeCallback(handler, metadata, scriptEvent);
             LOGGER.debug("Dispatched moud.player.ready event for {}", player.getUsername());
         } catch (Exception e) {
             LOGGER.error("Error during moud.player.ready event dispatch for '{}'", player.getUsername(), e);
@@ -152,7 +174,12 @@ public class EventDispatcher {
 
         try {
             PlayerProxy playerProxy = new PlayerProxy(player);
-            engine.getRuntime().executeCallback(handler, playerProxy, eventData);
+            ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                    ScriptExecutionType.EVENT,
+                    eventName,
+                    player.getUsername()
+            );
+            engine.getRuntime().executeCallback(handler, metadata, playerProxy, eventData);
             LOGGER.debug("Successfully dispatched script event '{}' for player {}", eventName, player.getUsername());
         } catch (Exception e) {
             LOGGER.error("Error during script event dispatch for '{}' from player {}", eventName, player.getUsername(), e);
@@ -168,7 +195,12 @@ public class EventDispatcher {
         try {
             com.moud.server.proxy.EntityInteractionProxy eventProxy =
                     new com.moud.server.proxy.EntityInteractionProxy(entity, player, interactionType);
-            engine.getRuntime().executeCallback(handler, eventProxy);
+            ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                    ScriptExecutionType.EVENT,
+                    "entity.interact",
+                    interactionType
+            );
+            engine.getRuntime().executeCallback(handler, metadata, eventProxy);
             LOGGER.debug("Dispatched entity interaction '{}' for player {} with entity {}",
                     interactionType, player.getUsername(), entity.getUuid());
         } catch (Exception e) {
@@ -184,7 +216,12 @@ public class EventDispatcher {
 
         try {
             ProxyObject data = ProxyObject.fromMap(Map.of("deltaX", deltaX, "deltaY", deltaY));
-            engine.getRuntime().executeCallback(handler, new PlayerProxy(player), data);
+            ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                    ScriptExecutionType.EVENT,
+                    "player.mousemove",
+                    player.getUsername()
+            );
+            engine.getRuntime().executeCallback(handler, metadata, new PlayerProxy(player), data);
         } catch (Exception e) {
             LOGGER.error("Error during mouse move event dispatch for player {}", player.getUsername(), e);
         }
@@ -199,7 +236,12 @@ public class EventDispatcher {
 
         try {
             ProxyObject data = ProxyObject.fromMap(Map.of("button", button));
-            engine.getRuntime().executeCallback(handler, new PlayerProxy(player), data);
+            ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                    ScriptExecutionType.EVENT,
+                    "player.click",
+                    player.getUsername()
+            );
+            engine.getRuntime().executeCallback(handler, metadata, new PlayerProxy(player), data);
             LOGGER.debug("Dispatched player click event for {}: button={}", player.getUsername(), button);
         } catch (Exception e) {
             LOGGER.error("Error during player click event dispatch for player {}", player.getUsername(), e);
@@ -214,7 +256,12 @@ public class EventDispatcher {
         }
 
         try {
-            engine.getRuntime().executeCallback(handler);
+            ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                    ScriptExecutionType.RUNTIME_TICK,
+                    eventName,
+                    "load"
+            );
+            engine.getRuntime().executeCallback(handler, metadata);
             LOGGER.success("Dispatched one-time '{}' event.", eventName);
         } catch (Exception e) {
             LOGGER.error("Error during dispatch of '{}' event", eventName, e);
