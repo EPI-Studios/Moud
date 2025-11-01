@@ -2,6 +2,7 @@ package com.moud.server.proxy;
 
 import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
+import com.moud.server.bridge.AxiomBridgeService;
 import com.moud.server.network.ServerNetworkManager;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.Player;
@@ -74,6 +75,12 @@ public class PlayerModelProxy {
         broadcastCreate();
 
         setMovementState(MovementState.IDLE);
+
+        // Notify Axiom bridge
+        AxiomBridgeService bridge = AxiomBridgeService.getInstance();
+        if (bridge != null) {
+            bridge.onModelCreated(this);
+        }
     }
 
     private void setMovementState(MovementState newState) {
@@ -215,6 +222,12 @@ public class PlayerModelProxy {
         stopWalking();
         ALL_MODELS.remove(modelId);
         broadcastRemove();
+
+        // Notify Axiom bridge
+        AxiomBridgeService bridge = AxiomBridgeService.getInstance();
+        if (bridge != null) {
+            bridge.onModelRemoved(this);
+        }
     }
 
     @HostAccess.Export
@@ -226,12 +239,19 @@ public class PlayerModelProxy {
 
     private void broadcastCreate() {
         MoudPackets.PlayerModelCreatePacket packet = new MoudPackets.PlayerModelCreatePacket(modelId, position, skinUrl);
+        LOGGER.info("Broadcasting PlayerModelCreatePacket for model {} at position {}", modelId, position);
         broadcast(packet);
     }
 
     private void broadcastUpdate() {
         MoudPackets.PlayerModelUpdatePacket packet = new MoudPackets.PlayerModelUpdatePacket(modelId, position, yaw, pitch);
         broadcast(packet);
+
+        // Notify Axiom bridge of position changes
+        AxiomBridgeService bridge = AxiomBridgeService.getInstance();
+        if (bridge != null) {
+            bridge.onModelMoved(this);
+        }
     }
 
     private void broadcastSkin() {
@@ -252,7 +272,10 @@ public class PlayerModelProxy {
     private void broadcast(Object packet) {
         ServerNetworkManager networkManager = ServerNetworkManager.getInstance();
         if (networkManager != null) {
+            LOGGER.debug("Broadcasting packet {} via ServerNetworkManager", packet.getClass().getSimpleName());
             networkManager.broadcast(packet);
+        } else {
+            LOGGER.error("ServerNetworkManager is null! Cannot broadcast packet {}", packet.getClass().getSimpleName());
         }
     }
 
@@ -285,5 +308,42 @@ public class PlayerModelProxy {
 
     public String getSkinUrl() {
         return skinUrl;
+    }
+
+    public float getYaw() {
+        return yaw;
+    }
+
+    public float getPitch() {
+        return pitch;
+    }
+
+    public String getCurrentAnimation() {
+        return currentAnimation;
+    }
+
+    public void setRotation(float yaw, float pitch) {
+        this.yaw = yaw;
+        this.pitch = pitch;
+    }
+
+    /**
+     * Called by AxiomBridgeService when a gizmo is manipulated.
+     * This applies the transform but avoids triggering a broadcast loop.
+     */
+    public void applyBridgeTransform(Vector3 position, float yaw, float pitch) {
+        if (isWalking()) {
+            stopWalking();
+        }
+        this.position = position;
+        this.yaw = yaw;
+        this.pitch = pitch;
+
+        // Broadcast to clients without notifying bridge again (avoids recursion)
+        MoudPackets.PlayerModelUpdatePacket packet = new MoudPackets.PlayerModelUpdatePacket(modelId, position, yaw, pitch);
+        ServerNetworkManager networkManager = ServerNetworkManager.getInstance();
+        if (networkManager != null) {
+            networkManager.broadcast(packet);
+        }
     }
 }

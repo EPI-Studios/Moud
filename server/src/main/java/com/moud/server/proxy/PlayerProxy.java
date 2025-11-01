@@ -79,6 +79,26 @@ public class PlayerProxy {
     }
 
     @HostAccess.Export
+    public CursorProxy getCursor() {
+        return cursor;
+    }
+
+    @HostAccess.Export
+    public PlayerUIProxy getUi() {
+        return ui;
+    }
+
+    @HostAccess.Export
+    public PlayerWindowProxy getWindow() {
+        return window;
+    }
+
+    @HostAccess.Export
+    public CameraLockProxy getCamera() {
+        return camera;
+    }
+
+    @HostAccess.Export
     public Vector3 getPosition() {
         Pos pos = player.getPosition();
         return new Vector3(pos.x(), pos.y(), pos.z());

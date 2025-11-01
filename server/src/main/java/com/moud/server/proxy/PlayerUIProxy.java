@@ -1,6 +1,7 @@
 package com.moud.server.proxy;
 
 import com.moud.network.MoudPackets;
+import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.network.ServerPacketWrapper;
 import net.minestom.server.entity.Player;
 import org.graalvm.polyglot.HostAccess;
@@ -225,6 +226,11 @@ public class PlayerUIProxy {
                 hideHotbar, hideHand, hideExperience, hideHealth, hideFood,
                 hideCrosshair, hideChat, hidePlayerList, hideScoreboard
         );
-        player.sendPacket(ServerPacketWrapper.createPacket(packet));
+        ServerNetworkManager manager = ServerNetworkManager.getInstance();
+        if (manager != null) {
+            manager.send(player, packet);
+        } else {
+            player.sendPacket(ServerPacketWrapper.createPacket(packet));
+        }
     }
 }
