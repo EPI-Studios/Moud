@@ -12,12 +12,20 @@ public class SharedValue {
         BATCHED
     }
 
+    public enum Writer {
+        SERVER,
+        CLIENT,
+        SYSTEM
+    }
+
     private final String key;
     private Object value;
     private final Permission permission;
     private final SyncMode syncMode;
     private long lastModified;
     private boolean dirty;
+    private Writer lastWriter;
+    private String lastWriterId;
 
     public SharedValue(String key, Object value, Permission permission, SyncMode syncMode) {
         this.key = key;
@@ -26,6 +34,9 @@ public class SharedValue {
         this.syncMode = syncMode;
         this.lastModified = System.currentTimeMillis();
         this.dirty = false;
+        this.lastWriter = Writer.SYSTEM;
+        this.lastWriterId = "system";
+        markWritten(Writer.SYSTEM, "system");
     }
 
     public String getKey() {
@@ -36,13 +47,16 @@ public class SharedValue {
         return value;
     }
 
-    public void setValue(Object value) {
+    public void setValue(Object value, Writer writer, String writerId) {
         if (!isValidValue(value)) {
             throw new IllegalArgumentException("Invalid value type for shared value: " + value.getClass());
         }
         this.value = value;
-        this.lastModified = System.currentTimeMillis();
-        this.dirty = true;
+        markWritten(writer, writerId);
+    }
+
+    public void setValue(Object value) {
+        setValue(value, Writer.SERVER, "server");
     }
 
     public Permission getPermission() {
@@ -71,6 +85,21 @@ public class SharedValue {
 
     public boolean shouldSync() {
         return permission != Permission.SERVER_ONLY;
+    }
+
+    public Writer getLastWriter() {
+        return lastWriter;
+    }
+
+    public String getLastWriterId() {
+        return lastWriterId;
+    }
+
+    public void markWritten(Writer writer, String writerId) {
+        this.lastWriter = writer != null ? writer : Writer.SYSTEM;
+        this.lastWriterId = writerId != null ? writerId : "system";
+        this.lastModified = System.currentTimeMillis();
+        this.dirty = true;
     }
 
     private boolean isValidValue(Object value) {
