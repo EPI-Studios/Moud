@@ -110,8 +110,9 @@ public class WorldProxy {
         Vector3 position = options.hasMember("position") ? options.getMember("position").as(Vector3.class) : Vector3.zero();
         Quaternion rotation = options.hasMember("rotation") ? options.getMember("rotation").as(Quaternion.class) : Quaternion.identity();
         Vector3 scale = options.hasMember("scale") ? options.getMember("scale").as(Vector3.class) : Vector3.one();
+        String texturePath = options.hasMember("texture") ? options.getMember("texture").asString() : null;
 
-        ModelProxy model = new ModelProxy(instance, modelPath, position, rotation, scale);
+        ModelProxy model = new ModelProxy(instance, modelPath, position, rotation, scale, texturePath);
 
         if (options.hasMember("collision")) {
             Value collisionVal = options.getMember("collision");

@@ -1,8 +1,7 @@
-// File: src/main/java/com/moud/server/lighting/ServerLightingManager.java
-
 package com.moud.server.lighting;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moud.server.bridge.AxiomBridgeService;
 import com.moud.server.network.ServerNetworkManager;
 import net.minestom.server.entity.Player;
 import org.slf4j.Logger;
@@ -12,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class ServerLightingManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerLightingManager.class);
@@ -19,6 +19,7 @@ public class ServerLightingManager {
     private static ServerLightingManager instance;
 
     private final Map<Long, Map<String, Object>> lights = new ConcurrentHashMap<>();
+    private final AtomicLong lightIdCounter = new AtomicLong(0L);
 
     private ServerLightingManager() {}
 
@@ -34,15 +35,53 @@ public class ServerLightingManager {
         Map<String, Object> lightData = lights.computeIfAbsent(lightId, k -> new ConcurrentHashMap<>());
         lightData.putAll(properties);
         lightData.put("id", lightId);
+        lightIdCounter.accumulateAndGet(lightId, Math::max);
 
         LOGGER.info("Light {} data being sent: {}", lightId, lightData);
 
         broadcastLightOperation(isNewLight ? "create" : "update", lightData);
+        AxiomBridgeService bridge = AxiomBridgeService.getInstance();
+        if (bridge != null) {
+            bridge.onLightUpdated(lightId, lightData);
+        }
     }
     public void removeLight(long lightId) {
         if (lights.remove(lightId) != null) {
             broadcastLightOperation("remove", Map.of("id", lightId));
+            AxiomBridgeService bridge = AxiomBridgeService.getInstance();
+            if (bridge != null) {
+                bridge.onLightRemoved(lightId);
+            }
         }
+    }
+
+    public void applyTransformFromAxiom(long lightId, Map<String, Object> updatedValues) {
+        Map<String, Object> lightData = lights.computeIfAbsent(lightId, k -> new ConcurrentHashMap<>());
+        boolean isNewLight = lightData.isEmpty();
+        lightData.putAll(updatedValues);
+        lightData.put("id", lightId);
+        lightIdCounter.accumulateAndGet(lightId, Math::max);
+        if (!lightData.containsKey("type")) {
+            lightData.put("type", "point");
+        }
+
+        broadcastLightOperation(isNewLight ? "create" : "update", lightData);
+    }
+
+    public long spawnLight(String type, Map<String, Object> properties) {
+        long id = lightIdCounter.incrementAndGet();
+        Map<String, Object> lightData = lights.computeIfAbsent(id, k -> new ConcurrentHashMap<>());
+        lightData.clear();
+        lightData.putAll(properties);
+        lightData.put("id", id);
+        lightData.put("type", type);
+
+        broadcastLightOperation("create", lightData);
+        AxiomBridgeService bridge = AxiomBridgeService.getInstance();
+        if (bridge != null) {
+            bridge.onLightUpdated(id, lightData);
+        }
+        return id;
     }
 
     public void syncLightsToPlayer(Player player) {

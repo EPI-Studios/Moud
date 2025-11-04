@@ -261,7 +261,8 @@ public final class ServerNetworkManager {
                     model.getScale(),
                     model.getCollisionWidth(),
                     model.getCollisionHeight(),
-                    model.getCollisionDepth()
+                    model.getCollisionDepth(),
+                    model.getTexture()
             );
             send(minestomPlayer, createPacket);
         });

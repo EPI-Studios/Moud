@@ -1,5 +1,6 @@
 package com.moud.client;
 
+import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.client.animation.*;
 import com.moud.client.api.service.ClientAPIService;
@@ -35,6 +36,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.network.packet.s2c.play.GameJoinS2CPacket;
 import net.minecraft.resource.*;
 import net.minecraft.resource.featuretoggle.FeatureSet;
@@ -76,6 +78,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private static MoudClientMod instance;
     private static boolean customCameraActive = false;
     private final AtomicBoolean resourcesLoaded = new AtomicBoolean(false);
+
     private final AtomicBoolean waitingForResources = new AtomicBoolean(false);
     private final AtomicReference<InMemoryPackResources> dynamicPack = new AtomicReference<>(null);
     private final Queue<java.util.function.Consumer<ClientPlayNetworkHandler>> deferredPacketHandlers = new java.util.concurrent.ConcurrentLinkedQueue<>();
@@ -232,6 +235,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         });
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_CreateModelPacket.class, (player, packet) -> handleCreateModel(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateModelTransformPacket.class, (player, packet) -> handleUpdateModelTransform(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateModelTexturePacket.class, (player, packet) -> handleUpdateModelTexture(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_RemoveModelPacket.class, (player, packet) -> handleRemoveModel(packet));
 
         LOGGER.info("Internal packet handlers registered.");
@@ -353,6 +357,8 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         this.playerStateManager = null;
         moudServicesInitialized = false;
         deferredPacketHandlers.clear();
+
+
     }
 
     private void handleCameraControl(MoudPackets.CameraControlPacket packet) {
@@ -414,15 +420,17 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
     private void registerRenderHandler() {
         WorldRenderEvents.AFTER_ENTITIES.register(context -> {
+
             int modelCount = ClientPlayerModelManager.getInstance().getModels().size();
             if (modelCount > 0) {
                 LOGGER.debug("Render tick: {} player models exist", modelCount);
             }
 
+            var camera = context.camera();
+            var world = MinecraftClient.getInstance().world;
+            float tickDelta = context.tickCounter().getTickDelta(true);
+
             if (playerModelRenderer != null && !ClientPlayerModelManager.getInstance().getModels().isEmpty()) {
-                var camera = context.camera();
-                var world = MinecraftClient.getInstance().world;
-                float tickDelta = context.tickCounter().getTickDelta(true);
 
                 for (AnimatedPlayerModel model : ClientPlayerModelManager.getInstance().getModels()) {
                     double x = model.getInterpolatedX(tickDelta) - camera.getPos().getX();
@@ -442,16 +450,23 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 }
             }
             if (modelRenderer != null && !ClientModelManager.getInstance().getModels().isEmpty()) {
-                float tickDelta = context.tickCounter().getTickDelta(true);
+                MatrixStack matrices = context.matrixStack();
+                var consumers = context.consumers();
+                if (consumers != null) {
+                    Vec3d cameraPos = camera.getPos();
+                    for (RenderableModel model : ClientModelManager.getInstance().getModels()) {
+                        Vector3 interpolatedPos = model.getInterpolatedPosition(tickDelta);
+                        matrices.push();
+                        matrices.translate(
+                                interpolatedPos.x - cameraPos.x,
+                                interpolatedPos.y - cameraPos.y,
+                                interpolatedPos.z - cameraPos.z
+                        );
 
-                for(RenderableModel model : ClientModelManager.getInstance().getModels()) {
-                    Vector3 interpolatedPos = model.getInterpolatedPosition(tickDelta);
-
-                    MatrixStack matrices = new MatrixStack();
-                    // Pass WORLD coordinates, not camera-relative (view matrix handles camera offset)
-                    matrices.translate(interpolatedPos.x, interpolatedPos.y, interpolatedPos.z);
-
-                    modelRenderer.render(model, matrices, tickDelta);
+                        int light = WorldRenderer.getLightmapCoordinates(world, model.getBlockPos());
+                        modelRenderer.render(model, matrices, consumers, light, tickDelta);
+                        matrices.pop();
+                    }
                 }
             }
             if (clientCursorManager != null) {
@@ -463,6 +478,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             }
         });
     }
+
 
     private void registerShutdownHandler() {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> cleanupMoudServices());
@@ -491,8 +507,10 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         }
 
         LOGGER.info("Disconnecting from server, cleaning up...");
-        ClientModelManager.getInstance().clear();
-        ClientPlayerModelManager.getInstance().clear();
+        MinecraftClient.getInstance().execute(() -> {
+            ClientModelManager.getInstance().clear();
+            ClientPlayerModelManager.getInstance().clear();
+        });
         dynamicPack.set(null);
         this.currentResourcesHash = "";
         cleanupMoudServices();
@@ -822,6 +840,15 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             RenderableModel model = ClientModelManager.getInstance().getModel(packet.modelId());
             if (model != null) {
                 model.updateTransform(packet.position(), packet.rotation(), packet.scale());
+                String texturePath = packet.texturePath();
+                if (texturePath != null && !texturePath.isEmpty()) {
+                    Identifier textureId = Identifier.tryParse(texturePath);
+                    if (textureId != null) {
+                        model.setTexture(textureId);
+                    } else {
+                        LOGGER.warn("Received invalid texture identifier '{}' for model {}", texturePath, packet.modelId());
+                    }
+                }
             }
         });
     }
@@ -831,6 +858,23 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             RenderableModel model = ClientModelManager.getInstance().getModel(packet.modelId());
             if (model != null) {
                 model.updateTransform(packet.position(), packet.rotation(), packet.scale());
+            }
+        });
+    }
+
+    private void handleUpdateModelTexture(MoudPackets.S2C_UpdateModelTexturePacket packet) {
+        MinecraftClient.getInstance().execute(() -> {
+            RenderableModel model = ClientModelManager.getInstance().getModel(packet.modelId());
+            if (model != null) {
+                String texturePath = packet.texturePath();
+                if (texturePath != null && !texturePath.isEmpty()) {
+                    Identifier textureId = Identifier.tryParse(texturePath);
+                    if (textureId != null) {
+                        model.setTexture(textureId);
+                    } else {
+                        LOGGER.warn("Received invalid texture identifier '{}' for model {}", texturePath, packet.modelId());
+                    }
+                }
             }
         });
     }

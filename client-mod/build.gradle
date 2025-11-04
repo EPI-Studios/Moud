@@ -21,6 +21,7 @@ loom {
 }
 
 dependencies {
+    implementation 'org.jetbrains:annotations:15.0'
     minecraft "com.mojang:minecraft:1.21.1"
     mappings "net.fabricmc:yarn:1.21.1+build.1:v2"
     modImplementation "net.fabricmc:fabric-loader:0.17.2"
@@ -47,4 +48,8 @@ dependencies {
     include implementation('com.fasterxml.jackson.core:jackson-databind:2.17.0')
     include implementation('com.fasterxml.jackson.core:jackson-annotations:2.17.0')
 
+    def axiomJar = file("${projectDir}/run/mods/Axiom-5.1.1-for-MC1.21.1.jar")
+    if (axiomJar.exists()) {
+        compileOnly files(axiomJar)
+    }
 }

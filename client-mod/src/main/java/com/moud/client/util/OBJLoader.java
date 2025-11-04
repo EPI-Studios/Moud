@@ -21,6 +21,7 @@ public class OBJLoader {
         List<Vector3f> normals = new ArrayList<>();
         List<Integer> indices = new ArrayList<>();
         Map<String, Integer> vertexCache = new HashMap<>();
+        List<Vector3f> vertexPositions = new ArrayList<>();
 
         List<Float> finalVertices = new ArrayList<>();
         int nextVertexIndex = 0;
@@ -34,16 +35,16 @@ public class OBJLoader {
                     case "vt" -> texCoords.add(new Vector2f(Float.parseFloat(parts[1]), 1.0f - Float.parseFloat(parts[2]))); // Invert V for OpenGL
                     case "vn" -> normals.add(new Vector3f(Float.parseFloat(parts[1]), Float.parseFloat(parts[2]), Float.parseFloat(parts[3])));
                     case "f" -> {
-                        for (int i = 1; i < parts.length; i++) {
-                            if (i >= 4) { // Triangulate quads
-                                indices.add(vertexCache.get(parts[1]));
-                                indices.add(vertexCache.get(parts[i - 1]));
-                            }
+                        int vertexCount = parts.length - 1;
+                        if (vertexCount < 3) {
+                            continue;
+                        }
 
-                            String vertexKey = parts[i];
-                            if (vertexCache.containsKey(vertexKey)) {
-                                indices.add(vertexCache.get(vertexKey));
-                            } else {
+                        int[] faceIndices = new int[vertexCount];
+                        for (int i = 0; i < vertexCount; i++) {
+                            String vertexKey = parts[i + 1];
+                            Integer cachedIndex = vertexCache.get(vertexKey);
+                            if (cachedIndex == null) {
                                 String[] faceParts = vertexKey.split("/");
                                 int posIdx = Integer.parseInt(faceParts[0]) - 1;
                                 int texIdx = faceParts.length > 1 && !faceParts[1].isEmpty() ? Integer.parseInt(faceParts[1]) - 1 : -1;
@@ -63,10 +64,36 @@ public class OBJLoader {
                                 finalVertices.add(norm.y);
                                 finalVertices.add(norm.z);
 
-                                indices.add(nextVertexIndex);
+                                cachedIndex = nextVertexIndex;
                                 vertexCache.put(vertexKey, nextVertexIndex);
+                                vertexPositions.add(new Vector3f(pos));
                                 nextVertexIndex++;
                             }
+                            faceIndices[i] = cachedIndex;
+                        }
+
+                        for (int i = 1; i < vertexCount - 1; i++) {
+                            int idxA = faceIndices[0];
+                            int idxB = faceIndices[i];
+                            int idxC = faceIndices[i + 1];
+                            if (idxA == idxB || idxA == idxC || idxB == idxC) {
+                                continue;
+                            }
+
+                            Vector3f posA = vertexPositions.get(idxA);
+                            Vector3f posB = vertexPositions.get(idxB);
+                            Vector3f posC = vertexPositions.get(idxC);
+
+                            Vector3f edge1 = new Vector3f(posB).sub(posA);
+                            Vector3f edge2 = new Vector3f(posC).sub(posA);
+                            Vector3f cross = edge1.cross(edge2);
+                            if (cross.lengthSquared() < 1e-10f) {
+                                continue;
+                            }
+
+                            indices.add(idxA);
+                            indices.add(idxB);
+                            indices.add(idxC);
                         }
                     }
                 }

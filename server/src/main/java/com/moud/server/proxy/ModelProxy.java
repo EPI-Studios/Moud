@@ -3,6 +3,7 @@ package com.moud.server.proxy;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
+import com.moud.server.bridge.AxiomBridgeService;
 import com.moud.server.entity.ModelManager;
 import com.moud.server.network.ServerNetworkManager;
 import net.minestom.server.collision.BoundingBox;
@@ -22,13 +23,15 @@ public class ModelProxy {
     private Quaternion rotation;
     private Vector3 scale;
     private BoundingBox collisionBox;
+    private String texturePath;
 
-    public ModelProxy(Instance instance, String modelPath, Vector3 position, Quaternion rotation, Vector3 scale) {
+    public ModelProxy(Instance instance, String modelPath, Vector3 position, Quaternion rotation, Vector3 scale, String texturePath) {
         this.id = ModelManager.getInstance().nextId();
         this.modelPath = modelPath;
         this.position = position;
         this.rotation = rotation;
         this.scale = scale;
+        this.texturePath = texturePath != null ? texturePath : "";
 
         this.entity = new Entity(EntityType.INTERACTION);
         InteractionMeta meta = (InteractionMeta) this.entity.getEntityMeta();
@@ -37,6 +40,11 @@ public class ModelProxy {
 
         ModelManager.getInstance().register(this);
         broadcastCreate();
+
+        AxiomBridgeService bridge = AxiomBridgeService.getInstance();
+        if (bridge != null) {
+            bridge.onStaticModelCreated(this);
+        }
     }
 
     private void broadcast(Object packet) {
@@ -49,16 +57,24 @@ public class ModelProxy {
     private void broadcastCreate() {
         MoudPackets.S2C_CreateModelPacket packet = new MoudPackets.S2C_CreateModelPacket(
                 id, modelPath, position, rotation, scale,
-                getCollisionWidth(), getCollisionHeight(), getCollisionDepth()
+                getCollisionWidth(), getCollisionHeight(), getCollisionDepth(),
+                texturePath
         );
         broadcast(packet);
     }
 
-    private void broadcastUpdate() {
+    private void broadcastUpdate(boolean notifyBridge) {
         MoudPackets.S2C_UpdateModelTransformPacket packet = new MoudPackets.S2C_UpdateModelTransformPacket(
                 id, position, rotation, scale
         );
         broadcast(packet);
+
+        if (notifyBridge) {
+            AxiomBridgeService bridge = AxiomBridgeService.getInstance();
+            if (bridge != null) {
+                bridge.onStaticModelMoved(this);
+            }
+        }
     }
 
     @HostAccess.Export
@@ -79,7 +95,7 @@ public class ModelProxy {
     public void setPosition(Vector3 position) {
         this.position = position;
         this.entity.teleport(new Pos(position.x, position.y, position.z));
-        broadcastUpdate();
+        broadcastUpdate(true);
     }
 
     @HostAccess.Export
@@ -90,13 +106,13 @@ public class ModelProxy {
     @HostAccess.Export
     public void setRotation(Quaternion rotation) {
         this.rotation = rotation;
-        broadcastUpdate();
+        broadcastUpdate(true);
     }
 
     @HostAccess.Export
     public void setRotationFromEuler(double pitch, double yaw, double roll) {
         this.rotation = Quaternion.fromEuler((float)pitch, (float)yaw, (float)roll);
-        broadcastUpdate();
+        broadcastUpdate(true);
     }
 
     @HostAccess.Export
@@ -107,12 +123,23 @@ public class ModelProxy {
     @HostAccess.Export
     public void setScale(Vector3 scale) {
         this.scale = scale;
-        broadcastUpdate();
+        broadcastUpdate(true);
     }
 
     @HostAccess.Export
     public Vector3 getScale() {
         return scale;
+    }
+
+    @HostAccess.Export
+    public void setTexture(String texturePath) {
+        this.texturePath = texturePath != null ? texturePath : "";
+        broadcast(new MoudPackets.S2C_UpdateModelTexturePacket(id, this.texturePath));
+    }
+
+    @HostAccess.Export
+    public String getTexture() {
+        return texturePath;
     }
 
     @HostAccess.Export
@@ -148,5 +175,25 @@ public class ModelProxy {
         ModelManager.getInstance().unregister(this);
         entity.remove();
         broadcast(new MoudPackets.S2C_RemoveModelPacket(id));
+
+        AxiomBridgeService bridge = AxiomBridgeService.getInstance();
+        if (bridge != null) {
+            bridge.onStaticModelRemoved(this);
+        }
+    }
+
+
+    public void applyBridgeTransform(Vector3 position, Quaternion rotation, Vector3 scale) {
+        if (position != null) {
+            this.position = position;
+            this.entity.teleport(new Pos(position.x, position.y, position.z));
+        }
+        if (rotation != null) {
+            this.rotation = rotation;
+        }
+        if (scale != null) {
+            this.scale = scale;
+        }
+        broadcastUpdate(false);
     }
 }

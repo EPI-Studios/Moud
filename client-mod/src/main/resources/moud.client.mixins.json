@@ -16,7 +16,7 @@
     "KeyboardMixin",
     "MinecraftMixin",
     "MouseMixin",
-    "WorldRendererMixin"
+    "MarkerEntityManipulatorMixin"
   ],
   "injectors": {
     "defaultRequire": 1

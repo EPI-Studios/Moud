@@ -249,7 +249,8 @@ public final class MoudPackets {
             @Field(order = 4) Vector3 scale,
             @Field(order = 5) double collisionWidth,
             @Field(order = 6) double collisionHeight,
-            @Field(order = 7) double collisionDepth
+            @Field(order = 7) double collisionDepth,
+            @Field(order = 8) String texturePath
     ) {}
 
     @Packet(value = "moud:update_model_transform", direction = Direction.SERVER_TO_CLIENT)
@@ -258,6 +259,12 @@ public final class MoudPackets {
             @Field(order = 1) Vector3 position,
             @Field(order = 2) Quaternion rotation,
             @Field(order = 3) Vector3 scale
+    ) {}
+
+    @Packet(value = "moud:update_model_texture", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_UpdateModelTexturePacket(
+            @Field(order = 0) long modelId,
+            @Field(order = 1) String texturePath
     ) {}
 
     @Packet(value = "moud:remove_model", direction = Direction.SERVER_TO_CLIENT)

@@ -40,6 +40,6 @@ public final class DevUtilities {
         commandManager.register(new SharedValueInspectCommand());
         commandManager.register(new NetworkProbeCommand());
         commandManager.register(new GamemodeCommand());
+        commandManager.register(new SpawnLightCommand());
     }
 }
-
