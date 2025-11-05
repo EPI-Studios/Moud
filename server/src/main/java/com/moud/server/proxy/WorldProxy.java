@@ -23,8 +23,12 @@ import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
 
-import java.util.Map;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
 import java.util.function.Predicate;
 
 public class WorldProxy {
@@ -133,6 +137,33 @@ public class WorldProxy {
     }
 
     @HostAccess.Export
+    public MediaDisplayProxy createDisplay(Value options) {
+        if (options == null || !options.hasMembers()) {
+            throw new APIException("INVALID_ARGUMENT", "createDisplay requires an options object.");
+        }
+
+        Vector3 position = options.hasMember("position") ? readVector3(options.getMember("position"), Vector3.zero()) : Vector3.zero();
+        Quaternion rotation = options.hasMember("rotation") ? readQuaternion(options.getMember("rotation"), Quaternion.identity()) : Quaternion.identity();
+        Vector3 scale = options.hasMember("scale") ? readVector3(options.getMember("scale"), Vector3.one()) : Vector3.one();
+
+        MediaDisplayProxy display = new MediaDisplayProxy(instance, position, rotation, scale);
+
+        if (options.hasMember("anchor")) {
+            applyAnchor(display, options.getMember("anchor"));
+        }
+
+        if (options.hasMember("content")) {
+            applyContent(display, options.getMember("content"));
+        }
+
+        if (options.hasMember("playback")) {
+            applyPlayback(display, options.getMember("playback"));
+        }
+
+        return display;
+    }
+
+    @HostAccess.Export
     public void spawnScriptedEntity(String entityType, double x, double y, double z, Value jsInstance) {
         EntityType type = EntityType.fromNamespaceId(entityType);
         if (type == null) throw new APIException("UNKNOWN_ENTITY_TYPE", "Unknown entity type: " + entityType);
@@ -230,6 +261,157 @@ public class WorldProxy {
         }
 
         return ProxyObject.fromMap(resultMap);
+    }
+
+    private void applyAnchor(MediaDisplayProxy display, Value anchorValue) {
+        if (anchorValue == null || !anchorValue.hasMembers()) {
+            return;
+        }
+
+        String type = anchorValue.hasMember("type") ? anchorValue.getMember("type").asString().toLowerCase(Locale.ROOT) : "free";
+        Vector3 offset = anchorValue.hasMember("offset") ? readVector3(anchorValue.getMember("offset"), Vector3.zero()) : Vector3.zero();
+
+        switch (type) {
+            case "block" -> {
+                int x = anchorValue.hasMember("x") ? anchorValue.getMember("x").asInt() : 0;
+                int y = anchorValue.hasMember("y") ? anchorValue.getMember("y").asInt() : 0;
+                int z = anchorValue.hasMember("z") ? anchorValue.getMember("z").asInt() : 0;
+                display.setAnchorToBlock(x, y, z, offset);
+            }
+            case "entity", "player" -> {
+                UUID targetUuid = null;
+                if (anchorValue.hasMember("uuid")) {
+                    targetUuid = UUID.fromString(anchorValue.getMember("uuid").asString());
+                } else if (anchorValue.hasMember("player") && anchorValue.getMember("player").isHostObject()) {
+                    Object host = anchorValue.getMember("player").asHostObject();
+                    if (host instanceof PlayerProxy proxy) {
+                        targetUuid = UUID.fromString(proxy.getUuid());
+                    }
+                } else if (anchorValue.hasMember("model") && anchorValue.getMember("model").isHostObject()) {
+                    Object host = anchorValue.getMember("model").asHostObject();
+                    if (host instanceof ModelProxy modelProxy) {
+                        targetUuid = modelProxy.getEntity().getUuid();
+                    }
+                }
+
+                if (targetUuid != null) {
+                    display.setAnchorToEntity(targetUuid, offset);
+                }
+            }
+            default -> display.clearAnchor();
+        }
+    }
+
+    private void applyContent(MediaDisplayProxy display, Value contentValue) {
+        if (contentValue == null || !contentValue.hasMembers()) {
+            return;
+        }
+
+        String type = contentValue.hasMember("type") ? contentValue.getMember("type").asString().toLowerCase(Locale.ROOT) : "image";
+        boolean loop = contentValue.hasMember("loop") && contentValue.getMember("loop").asBoolean();
+        double fps = contentValue.hasMember("fps") ? contentValue.getMember("fps").asDouble() : 30.0;
+
+        switch (type) {
+            case "image", "texture", "url" -> {
+                if (contentValue.hasMember("source")) {
+                    display.setImage(contentValue.getMember("source").asString());
+                }
+                display.setLoop(loop);
+            }
+            case "frames", "sequence" -> {
+                List<String> frames = contentValue.hasMember("frames")
+                        ? readStringList(contentValue.getMember("frames"))
+                        : List.of();
+                if (!frames.isEmpty()) {
+                    display.setFrameSequence(frames.toArray(new String[0]), fps, loop);
+                }
+            }
+            case "stream" -> {
+                if (contentValue.hasMember("id")) {
+                    display.setStream(contentValue.getMember("id").asString(), fps, loop);
+                } else if (contentValue.hasMember("source")) {
+                    display.setStream(contentValue.getMember("source").asString(), fps, loop);
+                }
+            }
+            default -> {
+                if (contentValue.hasMember("source")) {
+                    display.setImage(contentValue.getMember("source").asString());
+                    display.setLoop(loop);
+                }
+            }
+        }
+    }
+
+    private void applyPlayback(MediaDisplayProxy display, Value playbackValue) {
+        if (playbackValue == null || !playbackValue.hasMembers()) {
+            return;
+        }
+
+        if (playbackValue.hasMember("speed")) {
+            display.setPlaybackSpeed(playbackValue.getMember("speed").asDouble());
+        }
+
+        if (playbackValue.hasMember("offset")) {
+            display.seek(playbackValue.getMember("offset").asDouble());
+        }
+
+        if (playbackValue.hasMember("playing")) {
+            boolean shouldPlay = playbackValue.getMember("playing").asBoolean();
+            if (shouldPlay) {
+                display.play();
+            } else {
+                display.pause();
+            }
+        }
+    }
+
+    private Vector3 readVector3(Value value, Vector3 fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        if (value.isHostObject() && value.asHostObject() instanceof Vector3 vector) {
+            return new Vector3(vector);
+        }
+        if (value.hasMembers()) {
+            double x = value.hasMember("x") ? value.getMember("x").asDouble() : fallback.x;
+            double y = value.hasMember("y") ? value.getMember("y").asDouble() : fallback.y;
+            double z = value.hasMember("z") ? value.getMember("z").asDouble() : fallback.z;
+            return new Vector3(x, y, z);
+        }
+        return fallback;
+    }
+
+    private Quaternion readQuaternion(Value value, Quaternion fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        if (value.isHostObject() && value.asHostObject() instanceof Quaternion quaternion) {
+            return new Quaternion(quaternion);
+        }
+        if (value.hasMembers()) {
+            double pitch = value.hasMember("pitch") ? value.getMember("pitch").asDouble() : 0.0;
+            double yaw = value.hasMember("yaw") ? value.getMember("yaw").asDouble() : 0.0;
+            double roll = value.hasMember("roll") ? value.getMember("roll").asDouble() : 0.0;
+            return Quaternion.fromEuler((float) pitch, (float) yaw, (float) roll);
+        }
+        return fallback;
+    }
+
+    private List<String> readStringList(Value value) {
+        if (value == null || !value.hasArrayElements()) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        long size = value.getArraySize();
+        for (long i = 0; i < size; i++) {
+            Value element = value.getArrayElement(i);
+            if (element.isString()) {
+                result.add(element.asString());
+            } else if (element.isHostObject() && element.asHostObject() instanceof String s) {
+                result.add(s);
+            }
+        }
+        return result;
     }
 
     public Instance getInstance() {

@@ -4,6 +4,7 @@ import com.moud.network.MoudPackets;
 import com.moud.network.MoudPackets.*;
 import com.moud.server.client.ClientScriptManager;
 import com.moud.server.cursor.CursorService;
+import com.moud.server.entity.DisplayManager;
 import com.moud.server.entity.ModelManager;
 import com.moud.server.events.EventDispatcher;
 import com.moud.server.lighting.ServerLightingManager;
@@ -12,6 +13,7 @@ import com.moud.server.logging.MoudLogger;
 import com.moud.server.movement.ServerMovementHandler;
 import com.moud.server.network.diagnostics.NetworkProbe;
 import com.moud.server.player.PlayerCameraManager;
+import com.moud.server.proxy.MediaDisplayProxy;
 import com.moud.server.proxy.PlayerModelProxy;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.Player;
@@ -272,6 +274,17 @@ public final class ServerNetworkManager {
                     .put("synced_models", modelCount)
                     .build());
             LOGGER.info(modelSyncContext, "Synced {} existing models to {}", modelCount, minestomPlayer.getUsername());
+        }
+
+        Collection<MediaDisplayProxy> displays = DisplayManager.getInstance().getAllDisplays();
+        if (!displays.isEmpty()) {
+            for (MediaDisplayProxy display : displays) {
+                send(minestomPlayer, display.snapshot());
+            }
+            LogContext displaySyncContext = baseContext.merge(LogContext.builder()
+                    .put("synced_displays", displays.size())
+                    .build());
+            LOGGER.info(displaySyncContext, "Synced {} existing displays to {}", displays.size(), minestomPlayer.getUsername());
         }
 
 

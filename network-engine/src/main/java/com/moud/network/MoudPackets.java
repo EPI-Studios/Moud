@@ -272,4 +272,87 @@ public final class MoudPackets {
             @Field(order = 0) long modelId
     ) {}
 
+    public enum DisplayAnchorType {
+        FREE,
+        BLOCK,
+        ENTITY
+    }
+
+    public enum DisplayContentType {
+        IMAGE,
+        URL,
+        FRAME_SEQUENCE,
+        STREAM
+    }
+
+    @Packet(value = "moud:create_display", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_CreateDisplayPacket(
+            @Field(order = 0) long displayId,
+            @Field(order = 1) Vector3 position,
+            @Field(order = 2) Quaternion rotation,
+            @Field(order = 3) Vector3 scale,
+            @Field(order = 4) DisplayAnchorType anchorType,
+            @Field(order = 5, optional = true) @Nullable Vector3 anchorBlockPosition,
+            @Field(order = 6, optional = true) @Nullable UUID anchorEntityUuid,
+            @Field(order = 7, optional = true) @Nullable Vector3 anchorOffset,
+            @Field(order = 8) DisplayContentType contentType,
+            @Field(order = 9, optional = true) @Nullable String primarySource,
+            @Field(order = 10, optional = true) @Nullable List<String> frameSources,
+            @Field(order = 11) float frameRate,
+            @Field(order = 12) boolean loop,
+            @Field(order = 13) boolean playing,
+            @Field(order = 14) float playbackSpeed,
+            @Field(order = 15) float startOffsetSeconds
+    ) {}
+
+    @Packet(value = "moud:update_display_transform", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_UpdateDisplayTransformPacket(
+            @Field(order = 0) long displayId,
+            @Field(order = 1) Vector3 position,
+            @Field(order = 2) Quaternion rotation,
+            @Field(order = 3) Vector3 scale
+    ) {}
+
+    @Packet(value = "moud:update_display_anchor", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_UpdateDisplayAnchorPacket(
+            @Field(order = 0) long displayId,
+            @Field(order = 1) DisplayAnchorType anchorType,
+            @Field(order = 2, optional = true) @Nullable Vector3 anchorBlockPosition,
+            @Field(order = 3, optional = true) @Nullable UUID anchorEntityUuid,
+            @Field(order = 4, optional = true) @Nullable Vector3 anchorOffset
+    ) {}
+
+    @Packet(value = "moud:update_display_content", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_UpdateDisplayContentPacket(
+            @Field(order = 0) long displayId,
+            @Field(order = 1) DisplayContentType contentType,
+            @Field(order = 2, optional = true) @Nullable String primarySource,
+            @Field(order = 3, optional = true) @Nullable List<String> frameSources,
+            @Field(order = 4) float frameRate,
+            @Field(order = 5) boolean loop
+    ) {}
+
+    @Packet(value = "moud:update_display_playback", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_UpdateDisplayPlaybackPacket(
+            @Field(order = 0) long displayId,
+            @Field(order = 1) boolean playing,
+            @Field(order = 2) float playbackSpeed,
+            @Field(order = 3) float startOffsetSeconds
+    ) {}
+
+    @Packet(value = "moud:display_stream_frame", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_DisplayStreamFramePacket(
+            @Field(order = 0) long displayId,
+            @Field(order = 1) long frameIndex,
+            @Field(order = 2) byte[] imageData,
+            @Field(order = 3) int width,
+            @Field(order = 4) int height,
+            @Field(order = 5) String imageFormat,
+            @Field(order = 6) long presentationTimestampMillis
+    ) {}
+
+    @Packet(value = "moud:remove_display", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_RemoveDisplayPacket(
+            @Field(order = 0) long displayId
+    ) {}
 }

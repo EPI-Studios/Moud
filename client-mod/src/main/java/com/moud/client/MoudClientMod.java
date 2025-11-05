@@ -5,7 +5,9 @@ import com.moud.api.math.Vector3;
 import com.moud.client.animation.*;
 import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.cursor.ClientCursorManager;
-
+import com.moud.client.display.ClientDisplayManager;
+import com.moud.client.display.DisplayRenderer;
+import com.moud.client.display.DisplaySurface;
 import com.moud.client.lighting.ClientLightingService;
 import com.moud.client.model.ClientModelManager;
 import com.moud.client.model.ModelRenderer;
@@ -72,6 +74,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private static final int MAX_BUNDLE_SIZE_BYTES = 32 * 1024 * 1024;
 
     private ModelRenderer modelRenderer;
+    private DisplayRenderer displayRenderer;
 
     private static final int MAX_DECOMPRESSED_SIZE_BYTES = 64 * 1024 * 1024;
     private GameJoinS2CPacket pendingGameJoinPacket = null;
@@ -121,6 +124,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         this.clientCursorManager = ClientCursorManager.getInstance();
         this.playerModelRenderer = new PlayerModelRenderer();
         this.modelRenderer = new ModelRenderer();
+        this.displayRenderer = new DisplayRenderer();
 
         registerPacketHandlers();
         registerEventHandlers();
@@ -159,6 +163,13 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         ClientPacketWrapper.registerHandler(PlayerModelUpdatePacket.class, (player, packet) -> handlePlayerModelUpdate(packet));
         ClientPacketWrapper.registerHandler(PlayerModelSkinPacket.class, (player, packet) -> handlePlayerModelSkin(packet));
         ClientPacketWrapper.registerHandler(PlayerModelRemovePacket.class, (player, packet) -> handlePlayerModelRemove(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_CreateDisplayPacket.class, (player, packet) -> handleCreateDisplay(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateDisplayTransformPacket.class, (player, packet) -> handleUpdateDisplayTransform(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateDisplayAnchorPacket.class, (player, packet) -> handleUpdateDisplayAnchor(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateDisplayContentPacket.class, (player, packet) -> handleUpdateDisplayContent(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateDisplayPlaybackPacket.class, (player, packet) -> handleUpdateDisplayPlayback(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_DisplayStreamFramePacket.class, (player, packet) -> handleDisplayStreamFrame(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_RemoveDisplayPacket.class, (player, packet) -> handleRemoveDisplay(packet));
         ClientPacketWrapper.registerHandler(AdvancedCameraLockPacket.class, (player, packet) -> handleAdvancedCameraLock(packet));
         ClientPacketWrapper.registerHandler(CameraUpdatePacket.class, (player, packet) -> handleCameraUpdate(packet));
         ClientPacketWrapper.registerHandler(CameraReleasePacket.class, (player, packet) -> handleCameraRelease(packet));
@@ -353,6 +364,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         if (clientCursorManager != null) {
             clientCursorManager.clear();
         }
+        ClientDisplayManager.getInstance().clear();
         this.clientCameraManager = null;
         this.playerStateManager = null;
         moudServicesInitialized = false;
@@ -469,6 +481,26 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                     }
                 }
             }
+            if (displayRenderer != null && !ClientDisplayManager.getInstance().isEmpty()) {
+                MatrixStack matrices = context.matrixStack();
+                var consumers = context.consumers();
+                if (consumers != null) {
+                    Vec3d cameraPos = camera.getPos();
+                    for (DisplaySurface surface : ClientDisplayManager.getInstance().getDisplays()) {
+                        Vector3 interpolatedPos = surface.getInterpolatedPosition(tickDelta);
+                        matrices.push();
+                        matrices.translate(
+                                interpolatedPos.x - cameraPos.x,
+                                interpolatedPos.y - cameraPos.y,
+                                interpolatedPos.z - cameraPos.z
+                        );
+
+                        int light = WorldRenderer.getLightmapCoordinates(world, surface.getBlockPos());
+                        displayRenderer.render(surface, matrices, consumers, light, tickDelta);
+                        matrices.pop();
+                    }
+                }
+            }
             if (clientCursorManager != null) {
                 clientCursorManager.render(
                         context.matrixStack(),
@@ -510,6 +542,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         MinecraftClient.getInstance().execute(() -> {
             ClientModelManager.getInstance().clear();
             ClientPlayerModelManager.getInstance().clear();
+            ClientDisplayManager.getInstance().clear();
         });
         dynamicPack.set(null);
         this.currentResourcesHash = "";
@@ -883,6 +916,34 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         MinecraftClient.getInstance().execute(() -> {
             ClientModelManager.getInstance().removeModel(packet.modelId());
         });
+    }
+
+    private void handleCreateDisplay(MoudPackets.S2C_CreateDisplayPacket packet) {
+        MinecraftClient.getInstance().execute(() -> ClientDisplayManager.getInstance().handleCreate(packet));
+    }
+
+    private void handleUpdateDisplayTransform(MoudPackets.S2C_UpdateDisplayTransformPacket packet) {
+        MinecraftClient.getInstance().execute(() -> ClientDisplayManager.getInstance().handleTransform(packet));
+    }
+
+    private void handleUpdateDisplayAnchor(MoudPackets.S2C_UpdateDisplayAnchorPacket packet) {
+        MinecraftClient.getInstance().execute(() -> ClientDisplayManager.getInstance().handleAnchor(packet));
+    }
+
+    private void handleUpdateDisplayContent(MoudPackets.S2C_UpdateDisplayContentPacket packet) {
+        MinecraftClient.getInstance().execute(() -> ClientDisplayManager.getInstance().handleContent(packet));
+    }
+
+    private void handleUpdateDisplayPlayback(MoudPackets.S2C_UpdateDisplayPlaybackPacket packet) {
+        MinecraftClient.getInstance().execute(() -> ClientDisplayManager.getInstance().handlePlayback(packet));
+    }
+
+    private void handleDisplayStreamFrame(MoudPackets.S2C_DisplayStreamFramePacket packet) {
+        MinecraftClient.getInstance().execute(() -> ClientDisplayManager.getInstance().handleStreamFrame(packet));
+    }
+
+    private void handleRemoveDisplay(MoudPackets.S2C_RemoveDisplayPacket packet) {
+        MinecraftClient.getInstance().execute(() -> ClientDisplayManager.getInstance().remove(packet.displayId()));
     }
 
     @Override

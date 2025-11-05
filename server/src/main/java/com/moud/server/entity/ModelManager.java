@@ -47,6 +47,11 @@ public class ModelManager {
         return modelsByEntityUuid.get(entity.getUuid());
     }
 
+    @Nullable
+    public ModelProxy getByEntityUuid(UUID uuid) {
+        return modelsByEntityUuid.get(uuid);
+    }
+
     public Collection<ModelProxy> getAllModels() {
         return modelsById.values();
     }
