@@ -20,6 +20,7 @@ public final class NetworkService {
     private final Map<String, Value> eventHandlers = new ConcurrentHashMap<>();
     private Context jsContext;
     private LightingService lightingService;
+    private AudioService audioService;
 
     public NetworkService() {
 
@@ -32,6 +33,10 @@ public final class NetworkService {
 
     public void setLightingService(LightingService lightingService) {
         this.lightingService = lightingService;
+    }
+
+    public void setAudioService(AudioService audioService) {
+        this.audioService = audioService;
     }
 
     @HostAccess.Export
@@ -49,6 +54,10 @@ public final class NetworkService {
     public void triggerEvent(String eventName, String eventData) {
         if (eventName.startsWith("lighting:") && lightingService != null) {
             lightingService.handleNetworkEvent(eventName, eventData);
+            return;
+        }
+        if (eventName.startsWith("audio:") && audioService != null) {
+            audioService.handleNetworkEvent(eventName, eventData);
             return;
         }
 
@@ -102,6 +111,7 @@ public final class NetworkService {
         eventHandlers.clear();
         jsContext = null;
         lightingService = null;
+        audioService = null;
         LOGGER.info("NetworkService cleaned up.");
     }
 }

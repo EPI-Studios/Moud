@@ -300,6 +300,12 @@ public final class ServerNetworkManager {
     private void handleScriptEvent(Object player, ServerboundScriptEventPacket packet) {
         Player minestomPlayer = (Player) player;
         if (!isMoudClient(minestomPlayer)) return;
+
+        if (packet.eventName().startsWith("audio:microphone:")) {
+            com.moud.server.audio.ServerMicrophoneManager.getInstance()
+                    .handleEvent(minestomPlayer, packet.eventName(), packet.eventData());
+        }
+
         eventDispatcher.dispatchScriptEvent(packet.eventName(), packet.eventData(), minestomPlayer);
     }
 

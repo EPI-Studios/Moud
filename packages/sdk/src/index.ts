@@ -46,6 +46,12 @@ declare global {
      */
     const api: import('./index').MoudAPI;
 
+    const Moud: {
+        audio: import('./index').ClientAudioAPI;
+        gamepad: import('./index').GamepadAPI;
+        [key: string]: any;
+    };
+
     /**
      * A secure console API for logging messages to the server console.
      * Mirrors the standard browser console API.
@@ -569,6 +575,7 @@ export interface MoudAPI {
      * @returns The AsyncManager API proxy.
      */
     getAsync(): AsyncManager;
+
 }
 
 /**
@@ -691,6 +698,9 @@ export interface Player {
      */
     readonly animation: PlayerAnimation;
 
+    /** @returns The audio interface for this player's client. */
+    getAudio(): PlayerAudio;
+
     // --- Added missing movement state methods ---
 
     /** @returns True if the player is moving on the ground but not sprinting or sneaking. */
@@ -775,6 +785,103 @@ export interface Player {
      * Resets all part modifications made by `setPartConfig` back to their default state.
      */
     resetAllParts(): void;
+}
+
+export interface PlayerAudio {
+    play(options: SoundPlayOptions): void;
+    update(options: SoundUpdateOptions): void;
+    stop(options: SoundStopOptions): void;
+    startMicrophone(options?: MicrophoneStartOptions): void;
+    stopMicrophone(): void;
+    isMicrophoneActive(): boolean;
+    getMicrophoneSession(): MicrophoneSession | null;
+}
+
+export type SoundCategory =
+    | 'master'
+    | 'music'
+    | 'record'
+    | 'weather'
+    | 'block'
+    | 'hostile'
+    | 'neutral'
+    | 'player'
+    | 'ambient'
+    | 'voice';
+
+export interface SoundPlayOptions {
+    id: string;
+    sound: string;
+    category?: SoundCategory;
+    volume?: number;
+    pitch?: number;
+    fadeInMs?: number;
+    fadeOutMs?: number;
+    loop?: boolean;
+    positional?: boolean;
+    position?: Vector3 | [number, number, number];
+    maxDistance?: number;
+    pitchRamp?: {
+        pitch: number;
+        durationMs: number;
+        easing?: 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out';
+    };
+    crossFadeGroup?: string;
+    crossFadeMs?: number;
+}
+
+export interface SoundUpdateOptions extends Partial<Omit<SoundPlayOptions, 'id'>> {
+    id: string;
+}
+
+export interface SoundStopOptions {
+    id: string;
+    fadeOutMs?: number;
+    immediate?: boolean;
+}
+
+export interface MicrophoneStartOptions {
+    sessionId?: string;
+    sampleRate?: number;
+}
+
+export interface MicrophoneSession {
+    sessionId: string;
+    active: boolean;
+    state?: string | null;
+    timestamp: number;
+    sampleRate: number;
+    channels: number;
+    chunkBase64?: string;
+}
+
+export interface ClientMicrophoneAPI {
+    start(options?: MicrophoneStartOptions): void;
+    stop(): void;
+    isActive(): boolean;
+}
+
+export interface ClientAudioAPI {
+    play(options: SoundPlayOptions): void;
+    update(options: SoundUpdateOptions): void;
+    stop(options: SoundStopOptions): void;
+    getMicrophone(): ClientMicrophoneAPI;
+}
+
+export interface GamepadAPI {
+    isConnected(index: number): boolean;
+    getState(index: number): GamepadSnapshot | null;
+    onChange(callback: (snapshot: GamepadSnapshot) => void): string;
+    removeListener(listenerId: string): void;
+}
+
+export interface GamepadSnapshot {
+    readonly index: number;
+    readonly name: string | null;
+    readonly axes: ReadonlyArray<number>;
+    readonly buttons: ReadonlyArray<boolean>;
+    readonly connected: boolean;
+    readonly timestamp: number;
 }
 
 /**

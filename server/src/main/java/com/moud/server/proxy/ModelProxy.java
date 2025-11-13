@@ -156,6 +156,9 @@ public class ModelProxy {
             ((InteractionMeta)this.entity.getEntityMeta()).setHeight((float)height);
         }
         // DO NOT REMOVE OR RECREATE THE ENTITY WHEN YOU WANT TO CHANGE ANY PROPERTIES
+        broadcast(new MoudPackets.S2C_UpdateModelCollisionPacket(
+                id, getCollisionWidth(), getCollisionHeight(), getCollisionDepth()
+        ));
     }
 
     public double getCollisionWidth() {

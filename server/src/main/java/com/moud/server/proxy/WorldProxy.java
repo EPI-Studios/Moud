@@ -118,22 +118,41 @@ public class WorldProxy {
 
         ModelProxy model = new ModelProxy(instance, modelPath, position, rotation, scale, texturePath);
 
+        double autoWidth = clampCollisionSize(scale.x);
+        double autoHeight = clampCollisionSize(scale.y);
+        double autoDepth = clampCollisionSize(scale.z);
+        boolean collisionConfigured = false;
+
         if (options.hasMember("collision")) {
             Value collisionVal = options.getMember("collision");
-            if (collisionVal.isBoolean() && !collisionVal.asBoolean()) {
-                // No collision
+            if (collisionVal.isBoolean()) {
+                collisionConfigured = true;
+                if (collisionVal.asBoolean()) {
+                    model.setCollisionBox(autoWidth, autoHeight, autoDepth);
+                }
             } else if (collisionVal.hasMembers()) {
-                double w = collisionVal.hasMember("width") ? collisionVal.getMember("width").asDouble() : 1.0;
-                double h = collisionVal.hasMember("height") ? collisionVal.getMember("height").asDouble() : 1.0;
-                double d = collisionVal.hasMember("depth") ? collisionVal.getMember("depth").asDouble() : 1.0;
-                model.setCollisionBox(w, h, d);
-            } else {
-                // Default collision box
-                model.setCollisionBox(1.0, 1.0, 1.0);
+                double w = collisionVal.hasMember("width") ? collisionVal.getMember("width").asDouble() : autoWidth;
+                double h = collisionVal.hasMember("height") ? collisionVal.getMember("height").asDouble() : autoHeight;
+                double d = collisionVal.hasMember("depth") ? collisionVal.getMember("depth").asDouble() : autoDepth;
+                model.setCollisionBox(
+                        clampCollisionSize(w),
+                        clampCollisionSize(h),
+                        clampCollisionSize(d)
+                );
+                collisionConfigured = true;
             }
         }
 
+        if (!collisionConfigured) {
+            model.setCollisionBox(autoWidth, autoHeight, autoDepth);
+        }
+
         return model;
+    }
+
+    private static double clampCollisionSize(double value) {
+        double size = Math.abs(value);
+        return size < 0.01 ? 0.01 : size;
     }
 
     @HostAccess.Export
@@ -312,11 +331,16 @@ public class WorldProxy {
         double fps = contentValue.hasMember("fps") ? contentValue.getMember("fps").asDouble() : 30.0;
 
         switch (type) {
-            case "image", "texture", "url" -> {
+            case "image", "texture" -> {
                 if (contentValue.hasMember("source")) {
                     display.setImage(contentValue.getMember("source").asString());
                 }
                 display.setLoop(loop);
+            }
+            case "video", "stream", "url" -> {
+                if (contentValue.hasMember("source")) {
+                    display.setVideo(contentValue.getMember("source").asString(), fps, loop);
+                }
             }
             case "frames", "sequence" -> {
                 List<String> frames = contentValue.hasMember("frames")
@@ -324,13 +348,6 @@ public class WorldProxy {
                         : List.of();
                 if (!frames.isEmpty()) {
                     display.setFrameSequence(frames.toArray(new String[0]), fps, loop);
-                }
-            }
-            case "stream" -> {
-                if (contentValue.hasMember("id")) {
-                    display.setStream(contentValue.getMember("id").asString(), fps, loop);
-                } else if (contentValue.hasMember("source")) {
-                    display.setStream(contentValue.getMember("source").asString(), fps, loop);
                 }
             }
             default -> {

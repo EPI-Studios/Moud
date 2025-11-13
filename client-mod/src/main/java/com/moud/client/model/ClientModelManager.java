@@ -1,6 +1,8 @@
 package com.moud.client.model;
 
+import com.moud.client.collision.ModelCollisionManager;
 import com.moud.client.util.OBJLoader;
+import com.moud.client.collision.ModelCollisionManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.resource.Resource;
 import net.minecraft.util.Identifier;
@@ -58,6 +60,7 @@ public class ClientModelManager {
                     try (InputStream inputStream = resource.get().getInputStream()) {
                         OBJLoader.OBJMesh meshData = OBJLoader.load(inputStream);
                         model.uploadMesh(meshData);
+                        ModelCollisionManager.getInstance().sync(model);
                         LOGGER.info("Successfully loaded and uploaded model data for {}", model.getModelPath());
                     }
                 } else {
@@ -74,6 +77,7 @@ public class ClientModelManager {
         RenderableModel model = models.remove(id);
         if (model != null) {
             model.destroy();
+            ModelCollisionManager.getInstance().removeModel(id);
             LOGGER.info("Removed client-side model ID {}", id);
         }
     }
@@ -89,6 +93,7 @@ public class ClientModelManager {
     public void clear() {
         models.values().forEach(RenderableModel::destroy);
         models.clear();
+        ModelCollisionManager.getInstance().clear();
         LOGGER.info("Cleared all client-side models.");
     }
 }

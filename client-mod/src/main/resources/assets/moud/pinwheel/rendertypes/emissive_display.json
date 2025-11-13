@@ -1,0 +1,70 @@
+{
+  "format": "block",
+  "mode": "QUADS",
+  "bufferSize": "TRANSIENT",
+  "sort": true,
+  "affectsCrumbling": false,
+  "outline": false,
+  "layers": [
+    [
+      {
+        "type": "minecraft:shader",
+        "name": "rendertype_entity_translucent_cull"
+      },
+      {
+        "type": "minecraft:texture",
+        "texture": "%1$s",
+        "blur": false,
+        "mipmap": true
+      },
+      {
+        "type": "minecraft:transparency",
+        "mode": "translucent"
+      },
+      {
+        "type": "minecraft:cull"
+      },
+      {
+        "type": "minecraft:lightmap"
+      },
+      {
+        "type": "minecraft:overlay"
+      }
+    ],
+    [
+      {
+        "type": "minecraft:shader",
+        "name": "rendertype_entity_translucent_cull"
+      },
+      {
+        "type": "minecraft:texture",
+        "texture": "%1$s",
+        "blur": false,
+        "mipmap": true
+      },
+      {
+        "type": "minecraft:transparency",
+        "mode": "translucent"
+      },
+      {
+        "type": "minecraft:cull"
+      },
+      {
+        "type": "minecraft:lightmap",
+        "enabled": false
+      },
+      {
+        "type": "minecraft:overlay"
+      },
+      {
+        "type": "minecraft:write_mask",
+        "color": true,
+        "depth": false
+      },
+      {
+        "type": "minecraft:output",
+        "framebuffer": "veil:bloom"
+      }
+    ]
+  ]
+}

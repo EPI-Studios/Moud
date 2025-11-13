@@ -1,7 +1,11 @@
 package com.moud.client.mixin;
 
+import com.moud.client.MoudClientMod;
 import com.moud.client.api.service.ClientAPIService;
+import com.moud.client.audio.VoiceChatController;
 import com.moud.client.ui.UIInputManager;
+import com.moud.client.ui.screen.MoudPauseScreen;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Keyboard;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
@@ -25,6 +29,17 @@ public class KeyboardMixin {
             ci.cancel();
             return;
         }
+
+//        if (key == GLFW.GLFW_KEY_ESCAPE && action == GLFW.GLFW_PRESS) {
+//            MinecraftClient client = MinecraftClient.getInstance();
+//            if (client != null && client.player != null && client.getNetworkHandler() != null && client.currentScreen == null && MoudClientMod.isOnMoudServer()) {
+//                client.setScreen(new MoudPauseScreen());
+//                ci.cancel();
+//                return;
+//            }
+//        }
+
+        VoiceChatController.handleKeyEvent(key, action);
 
         if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.input != null) {
             if (action == GLFW.GLFW_PRESS || action == GLFW.GLFW_RELEASE) {

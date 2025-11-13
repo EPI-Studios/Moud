@@ -267,6 +267,14 @@ public final class MoudPackets {
             @Field(order = 1) String texturePath
     ) {}
 
+    @Packet(value = "moud:update_model_collision", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_UpdateModelCollisionPacket(
+            @Field(order = 0) long modelId,
+            @Field(order = 1) double collisionWidth,
+            @Field(order = 2) double collisionHeight,
+            @Field(order = 3) double collisionDepth
+    ) {}
+
     @Packet(value = "moud:remove_model", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_RemoveModelPacket(
             @Field(order = 0) long modelId
@@ -281,8 +289,7 @@ public final class MoudPackets {
     public enum DisplayContentType {
         IMAGE,
         URL,
-        FRAME_SEQUENCE,
-        STREAM
+        FRAME_SEQUENCE
     }
 
     @Packet(value = "moud:create_display", direction = Direction.SERVER_TO_CLIENT)
@@ -338,17 +345,6 @@ public final class MoudPackets {
             @Field(order = 1) boolean playing,
             @Field(order = 2) float playbackSpeed,
             @Field(order = 3) float startOffsetSeconds
-    ) {}
-
-    @Packet(value = "moud:display_stream_frame", direction = Direction.SERVER_TO_CLIENT)
-    public record S2C_DisplayStreamFramePacket(
-            @Field(order = 0) long displayId,
-            @Field(order = 1) long frameIndex,
-            @Field(order = 2) byte[] imageData,
-            @Field(order = 3) int width,
-            @Field(order = 4) int height,
-            @Field(order = 5) String imageFormat,
-            @Field(order = 6) long presentationTimestampMillis
     ) {}
 
     @Packet(value = "moud:remove_display", direction = Direction.SERVER_TO_CLIENT)

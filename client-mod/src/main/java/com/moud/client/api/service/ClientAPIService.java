@@ -21,6 +21,8 @@ public final class ClientAPIService {
     public final CursorService cursor;
     public final CameraService camera;
     public final LightingService lighting;
+    public final AudioService audio;
+    public final GamepadService gamepad;
     public final ClientSharedApiProxy shared;
     private final ClientUpdateManager updateManager;
     public final EventService events;
@@ -43,10 +45,13 @@ public final class ClientAPIService {
         this.console = new ConsoleAPI();
         this.camera = new CameraService();
         this.lighting = new LightingService();
+        this.audio = new AudioService();
+        this.gamepad = new GamepadService();
         this.shared = new ClientSharedApiProxy();
         this.events = new EventService(this);
 
         this.network.setLightingService(this.lighting);
+        this.network.setAudioService(this.audio);
 
         this.updateManager = new ClientUpdateManager(this);
 
@@ -82,6 +87,8 @@ public final class ClientAPIService {
             this.console.setContext(context);
             this.camera.setContext(context);
             this.lighting.setContext(context);
+            this.audio.setContext(context);
+            this.gamepad.setContext(context);
             this.events.setContext(context);
 
             if (this.input != null) {
@@ -117,6 +124,8 @@ public final class ClientAPIService {
             if (camera != null) camera.cleanUp();
             if (cursor != null) cursor.cleanUp();
             if (lighting != null) lighting.cleanUp();
+            if (audio != null) audio.cleanUp();
+            if (gamepad != null) gamepad.cleanUp();
             if (input != null) input.cleanUp();
             if (updateManager != null) updateManager.cleanup();
             if (events != null) events.cleanUp();

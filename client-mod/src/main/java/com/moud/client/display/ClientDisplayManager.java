@@ -51,13 +51,6 @@ public final class ClientDisplayManager {
         }
     }
 
-    public void handleStreamFrame(MoudPackets.S2C_DisplayStreamFramePacket packet) {
-        DisplaySurface surface = displays.get(packet.displayId());
-        if (surface != null) {
-            surface.pushStreamFrame(packet);
-        }
-    }
-
     public void remove(long id) {
         DisplaySurface surface = displays.remove(id);
         if (surface != null) {

@@ -34,6 +34,8 @@ public class PlayerProxy {
 
     @HostAccess.Export
     public final CameraLockProxy camera;
+    @HostAccess.Export
+    public final PlayerAudioProxy audio;
 
     public PlayerProxy(Player player) {
         this.player = player;
@@ -44,6 +46,7 @@ public class PlayerProxy {
         this.ui = new PlayerUIProxy(player);
         this.cursor = new CursorProxy(player);
         this.window = new PlayerWindowProxy(player);
+        this.audio = new PlayerAudioProxy(player);
     }
 
     @HostAccess.Export
@@ -96,6 +99,11 @@ public class PlayerProxy {
     @HostAccess.Export
     public CameraLockProxy getCamera() {
         return camera;
+    }
+
+    @HostAccess.Export
+    public PlayerAudioProxy getAudio() {
+        return audio;
     }
 
     @HostAccess.Export

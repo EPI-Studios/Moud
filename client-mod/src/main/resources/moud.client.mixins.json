@@ -16,7 +16,8 @@
     "KeyboardMixin",
     "MinecraftMixin",
     "MouseMixin",
-    "MarkerEntityManipulatorMixin"
+    "MarkerEntityManipulatorMixin",
+    "CollisionViewMixin"
   ],
   "injectors": {
     "defaultRequire": 1

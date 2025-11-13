@@ -12,18 +12,15 @@ import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public final class DisplaySurface {
     private static final Logger LOGGER = LoggerFactory.getLogger(DisplaySurface.class);
-    private static final int STREAM_BUFFER_SIZE = 5;
 
     private final long id;
     private final DisplayTextureResolver textureResolver = DisplayTextureResolver.getInstance();
@@ -45,22 +42,22 @@ public final class DisplaySurface {
     private List<Identifier> sequenceTextures = List.of();
     private boolean sequenceDirty = false;
     private Identifier staticTexture;
-    private CompletableFuture<Identifier> pendingRemoteTexture;
-    private String remoteSource;
-    private List<String> remoteSequenceSources = List.of();
 
     private boolean loop = false;
     private float frameRate = 0.0f;
-
     private boolean playing = false;
     private float playbackSpeed = 1.0f;
     private float playbackBaseSeconds = 0.0f;
     private long playbackBaseTimeMillis = Util.getMeasuringTimeMs();
 
-    private final Deque<StreamFrame> streamFrames = new ArrayDeque<>();
-    private StreamFrame currentStreamFrame;
-
     private BlockPos cachedBlockPos = BlockPos.ORIGIN;
+
+    // Video playback fields
+    private VideoDecoder videoDecoder;
+    private Thread videoDecoderThread;
+    private final ConcurrentLinkedQueue<NativeImage> frameQueue = new ConcurrentLinkedQueue<>();
+    private NativeImageBackedTexture videoTexture;
+    private Identifier videoTextureId;
 
     DisplaySurface(long id) {
         this.id = id;
@@ -115,31 +112,33 @@ public final class DisplaySurface {
     }
 
     void updateContent(MoudPackets.DisplayContentType type, String source, List<String> frames, float fps, boolean loop) {
-        releaseRemoteIfNeeded();
-        releaseRemoteSequenceSources();
+        stopVideoDecoder();
         contentType = type != null ? type : MoudPackets.DisplayContentType.IMAGE;
         primarySource = source;
         frameRate = fps;
         this.loop = loop;
 
-        if (contentType == MoudPackets.DisplayContentType.FRAME_SEQUENCE) {
-            frameSources = frames != null ? List.copyOf(frames) : List.of();
-            sequenceDirty = true;
-            staticTexture = null;
-        } else {
-            frameSources = List.of();
-            sequenceTextures = List.of();
-            if (requiresRemote(source)) {
-                remoteSource = source;
-                pendingRemoteTexture = textureResolver.acquireRemote(source);
-                pendingRemoteTexture.thenAccept(identifier -> staticTexture = identifier);
-            } else {
-                remoteSource = null;
+        switch (contentType) {
+            case IMAGE:
                 staticTexture = textureResolver.normalize(source);
-                pendingRemoteTexture = null;
-            }
+                break;
+            case URL:
+                if (source != null && (source.endsWith(".mp4") || source.endsWith(".mov"))) {
+                    startVideoDecoder(source);
+                } else {
+                    staticTexture = textureResolver.normalize(source);
+                }
+                break;
+            case FRAME_SEQUENCE:
+                frameSources = frames != null ? List.copyOf(frames) : List.of();
+                sequenceDirty = true;
+                staticTexture = null;
+                break;
+            default:
+                frameSources = List.of();
+                sequenceTextures = List.of();
+                staticTexture = null;
         }
-        clearStreamFrames();
     }
 
     void updatePlayback(boolean playing, float playbackSpeed, float baseSeconds) {
@@ -147,18 +146,108 @@ public final class DisplaySurface {
         this.playbackSpeed = playbackSpeed <= 0 ? 1.0f : playbackSpeed;
         this.playbackBaseSeconds = baseSeconds;
         this.playbackBaseTimeMillis = Util.getMeasuringTimeMs();
+
+        if (videoDecoder != null) {
+            if (this.playing) {
+                videoDecoder.play();
+                videoDecoder.seek(getPlaybackSeconds());
+            } else {
+                videoDecoder.pause();
+            }
+        }
     }
 
-    void pushStreamFrame(MoudPackets.S2C_DisplayStreamFramePacket packet) {
-        CompletableFuture.runAsync(() -> {
-            try {
-                NativeImage image = NativeImage.read(new ByteArrayInputStream(packet.imageData()));
-                MinecraftClient client = MinecraftClient.getInstance();
-                client.execute(() -> registerStreamFrame(image, packet.frameIndex(), packet.presentationTimestampMillis()));
-            } catch (IOException e) {
-                LOGGER.error("Failed to parse stream frame for display {}", id, e);
+    public void tick() {
+        if (contentType == MoudPackets.DisplayContentType.URL && !frameQueue.isEmpty()) {
+            NativeImage frame = frameQueue.poll();
+            if (frame != null) {
+                uploadFrameToGpu(frame);
+            }
+        }
+    }
+
+    private void uploadFrameToGpu(NativeImage nativeImage) {
+        MinecraftClient.getInstance().execute(() -> {
+            if (videoTexture == null) {
+                videoTexture = new NativeImageBackedTexture(nativeImage);
+                videoTextureId = MinecraftClient.getInstance().getTextureManager().registerDynamicTexture("moud_video_" + id, videoTexture);
+            } else {
+                if (videoTexture.getImage() != null) {
+                    if (videoTexture.getImage().getWidth() != nativeImage.getWidth() || videoTexture.getImage().getHeight() != nativeImage.getHeight()) {
+                        videoTexture.getImage().close();
+                        videoTexture.setImage(nativeImage);
+                    } else {
+                        videoTexture.getImage().copyFrom(nativeImage);
+                        videoTexture.upload();
+                        nativeImage.close();
+                    }
+                }
             }
         });
+    }
+
+    private void startVideoDecoder(String url) {
+        stopVideoDecoder();
+        videoDecoderThread = new Thread(videoDecoder, "Moud-VideoDecoder-" + id);
+        videoDecoderThread.setDaemon(true);
+        videoDecoderThread.start();
+    }
+
+    private void stopVideoDecoder() {
+        if (videoDecoder != null) {
+            videoDecoder.stop();
+            if (videoDecoderThread != null) {
+                videoDecoderThread.interrupt();
+            }
+        }
+        videoDecoder = null;
+        videoDecoderThread = null;
+
+        while (!frameQueue.isEmpty()) {
+            NativeImage img = frameQueue.poll();
+            if (img != null) {
+                img.close();
+            }
+        }
+
+        if (videoTextureId != null) {
+            MinecraftClient.getInstance().execute(() -> {
+                MinecraftClient.getInstance().getTextureManager().destroyTexture(videoTextureId);
+                if (videoTexture != null) {
+                    videoTexture.close();
+                }
+                videoTexture = null;
+                videoTextureId = null;
+            });
+        }
+    }
+
+    public void enqueueFrame(BufferedImage frame) {
+        if (frameQueue.size() > 5) {
+            return;
+        }
+        try {
+            NativeImage nativeImage = convertToNativeImage(frame);
+            frameQueue.offer(nativeImage);
+        } catch (Exception e) {
+            LOGGER.error("Failed to convert BufferedImage to NativeImage for display {}", id, e);
+        }
+    }
+
+    private NativeImage convertToNativeImage(BufferedImage image) throws IOException {
+        NativeImage nativeImage = new NativeImage(image.getWidth(), image.getHeight(), false);
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                int rgb = image.getRGB(x, y);
+                // Convert ARGB (Java) to ABGR (Minecraft)
+                int alpha = (rgb >> 24) & 0xFF;
+                int red = (rgb >> 16) & 0xFF;
+                int green = (rgb >> 8) & 0xFF;
+                int blue = rgb & 0xFF;
+                nativeImage.setColor(x, y, (alpha << 24) | (blue << 16) | (green << 8) | red);
+            }
+        }
+        return nativeImage;
     }
 
     public Vector3 getInterpolatedPosition(float tickDelta) {
@@ -183,31 +272,14 @@ public final class DisplaySurface {
 
     Identifier resolveTexture(float tickDelta) {
         return switch (contentType) {
-            case IMAGE, URL -> resolveStaticTexture();
+            case IMAGE -> staticTexture;
+            case URL -> videoTextureId != null ? videoTextureId : staticTexture;
             case FRAME_SEQUENCE -> resolveSequenceTexture();
-            case STREAM -> resolveStreamTexture();
         };
     }
 
     void dispose() {
-        releaseRemoteIfNeeded();
-        releaseRemoteSequenceSources();
-        clearStreamFrames();
-    }
-
-    private Identifier resolveStaticTexture() {
-        if (staticTexture != null) {
-            return staticTexture;
-        }
-        if (pendingRemoteTexture != null && pendingRemoteTexture.isDone()) {
-            try {
-                staticTexture = pendingRemoteTexture.get();
-            } catch (Exception e) {
-                LOGGER.error("Failed to obtain remote texture for display {}", id, e);
-                pendingRemoteTexture = null;
-            }
-        }
-        return staticTexture;
+        stopVideoDecoder();
     }
 
     private Identifier resolveSequenceTexture() {
@@ -230,37 +302,17 @@ public final class DisplaySurface {
         return sequenceTextures.get(frameIndex);
     }
 
-    private Identifier resolveStreamTexture() {
-        StreamFrame current = currentStreamFrame;
-        return current != null ? current.textureId : null;
-    }
-
     private List<Identifier> loadSequenceTextures() {
         if (frameSources.isEmpty()) {
             return List.of();
         }
-        releaseRemoteSequenceSources();
         List<Identifier> textures = new ArrayList<>(frameSources.size());
-        List<String> remoteSources = new ArrayList<>();
         for (String source : frameSources) {
-            Identifier identifier;
-            if (requiresRemote(source)) {
-                CompletableFuture<Identifier> future = textureResolver.acquireRemote(source);
-                try {
-                    identifier = future.get();
-                    remoteSources.add(source);
-                } catch (Exception e) {
-                    LOGGER.error("Failed to load remote frame {} for display {}", source, id, e);
-                    continue;
-                }
-            } else {
-                identifier = textureResolver.normalize(source);
-            }
+            Identifier identifier = textureResolver.normalize(source);
             if (identifier != null) {
                 textures.add(identifier);
             }
         }
-        remoteSequenceSources = remoteSources.isEmpty() ? List.of() : List.copyOf(remoteSources);
         return textures;
     }
 
@@ -273,70 +325,7 @@ public final class DisplaySurface {
         return base;
     }
 
-    private boolean requiresRemote(String source) {
-        if (source == null) {
-            return false;
-        }
-        return source.startsWith("http://") || source.startsWith("https://") || source.startsWith("data:");
-    }
-
-    private void releaseRemoteIfNeeded() {
-        if (remoteSource != null) {
-            textureResolver.releaseRemote(remoteSource);
-            remoteSource = null;
-            pendingRemoteTexture = null;
-        }
-    }
-
-    private void releaseRemoteSequenceSources() {
-        if (remoteSequenceSources.isEmpty()) {
-            return;
-        }
-        for (String source : remoteSequenceSources) {
-            textureResolver.releaseRemote(source);
-        }
-        remoteSequenceSources = List.of();
-    }
-
-    private void registerStreamFrame(NativeImage image, long frameIndex, long timestamp) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        NativeImageBackedTexture texture = new NativeImageBackedTexture(image);
-        Identifier identifier = Identifier.of("moud", "display/stream_" + id + "_" + frameIndex);
-        client.getTextureManager().registerTexture(identifier, texture);
-
-        StreamFrame frame = new StreamFrame(identifier, texture, timestamp);
-        streamFrames.addLast(frame);
-        currentStreamFrame = frame;
-
-        while (streamFrames.size() > STREAM_BUFFER_SIZE) {
-            StreamFrame oldest = streamFrames.removeFirst();
-            oldest.dispose();
-        }
-    }
-
-    private void clearStreamFrames() {
-        StreamFrame frame;
-        while ((frame = streamFrames.poll()) != null) {
-            frame.dispose();
-        }
-        currentStreamFrame = null;
-    }
-
-    private static final class StreamFrame {
-        private final Identifier textureId;
-        private final NativeImageBackedTexture texture;
-        private final long timestampMillis;
-
-        private StreamFrame(Identifier textureId, NativeImageBackedTexture texture, long timestampMillis) {
-            this.textureId = textureId;
-            this.texture = texture;
-            this.timestampMillis = timestampMillis;
-        }
-
-        private void dispose() {
-            MinecraftClient client = MinecraftClient.getInstance();
-            client.getTextureManager().destroyTexture(textureId);
-            texture.close();
-        }
+    public boolean shouldLoop() {
+        return this.loop;
     }
 }

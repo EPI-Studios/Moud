@@ -2,6 +2,7 @@ package com.moud.client.display;
 
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
+import com.moud.client.rendering.ModelRenderLayers;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
@@ -20,7 +21,8 @@ public final class DisplayRenderer {
             return;
         }
 
-        RenderLayer layer = DisplayRenderLayers.getLayer(texture);
+
+        RenderLayer layer = ModelRenderLayers.getModelLayer(texture);
         VertexConsumer vertexConsumer = consumers.getBuffer(layer);
 
         matrices.push();

@@ -108,11 +108,17 @@ public class ClientScriptingRuntime {
         if (apiService.lighting != null) {
             moudObj.putMember("lighting", apiService.lighting);
         }
+        if (apiService.audio != null) {
+            moudObj.putMember("audio", apiService.audio);
+        }
         if (apiService.shared != null) {
             moudObj.putMember("shared", apiService.shared);
         }
         if (apiService.events != null) {
             moudObj.putMember("events", apiService.events);
+        }
+        if (apiService.gamepad != null) {
+            moudObj.putMember("gamepad", apiService.gamepad);
         }
 
         bindings.putMember("Moud", moudObj);
@@ -158,6 +164,16 @@ public class ClientScriptingRuntime {
                 if (apiService.input != null && !moudObj.hasMember("input")) {
                     moudObj.putMember("input", apiService.input);
                     LOGGER.info("Input service bound to Moud object");
+                }
+
+                if (apiService.audio != null && !moudObj.hasMember("audio")) {
+                    moudObj.putMember("audio", apiService.audio);
+                    LOGGER.info("Audio service bound to Moud object");
+                }
+
+                if (apiService.gamepad != null && !moudObj.hasMember("gamepad")) {
+                    moudObj.putMember("gamepad", apiService.gamepad);
+                    LOGGER.info("Gamepad service bound to Moud object");
                 }
 
             } catch (Exception e) {
