@@ -74,7 +74,7 @@ MIT License
 -   [GraalVM](https://github.com/oracle/graal) For enabling high-performance JavaScript & TypeScript execution on the JVM
 -   [FabricMC](https://github.com/FabricMC/fabric) For theclient-side modding toolchain and API that makes the Moud client possible
 -   [Veil](https://github.com/foundry-mc/veil) For the advanced rendering capabilities, making custom shaders and post-processing easier to handle
--   [PlayerAnimationLib](https://github.com/Zگیthebird/PlayerAnimationLib) [@ZigyTheBird](https://github.com/ZigyTheBird) For the powerful and flexible client-side animation system
+-   [PlayerAnimationLib](https://github.com/ZigyTheBird/PlayerAnimationLibrary/tree/1.21.1) [@ZigyTheBird](https://github.com/ZigyTheBird) For the powerful and flexible client-side animation system
 -   [mdoc](https://github.com/Meekiavelique/mdoc) For providing the foundation for the documentation website
 
 
