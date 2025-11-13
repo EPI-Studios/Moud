@@ -6,6 +6,8 @@ import com.moud.server.entity.ModelManager;
 import com.moud.server.instance.InstanceManager;
 import com.moud.server.lighting.ServerLightingManager;
 import com.moud.server.logging.MoudLogger;
+import com.moud.network.MoudPackets;
+import com.moud.server.proxy.MediaDisplayProxy;
 import com.moud.server.proxy.ModelProxy;
 import com.moud.server.proxy.PlayerModelProxy;
 import net.kyori.adventure.nbt.BinaryTag;
@@ -81,6 +83,7 @@ public final class AxiomBridgeService {
     private final Set<UUID> axiomPlayers = ConcurrentHashMap.newKeySet();
     private final Map<Long, MarkerHandle> handlesByModel = new ConcurrentHashMap<>();
     private final Map<Long, ModelMarkerHandle> staticModelHandles = new ConcurrentHashMap<>();
+    private final Map<Long, DisplayMarkerHandle> displayHandles = new ConcurrentHashMap<>();
     private final Map<Long, LightHandle> lightHandles = new ConcurrentHashMap<>();
     private final Map<UUID, MarkerAttachment> attachmentsByMarker = new ConcurrentHashMap<>();
 
@@ -300,6 +303,27 @@ public final class AxiomBridgeService {
         scheduleNextTick(() -> syncMarkerWithModel(model));
     }
 
+    public void onDisplayCreated(MediaDisplayProxy display) {
+        if (instance == null) {
+            return;
+        }
+        scheduleNextTick(() -> createDisplayMarker(display));
+    }
+
+    public void onDisplayRemoved(MediaDisplayProxy display) {
+        if (instance == null) {
+            return;
+        }
+        scheduleNextTick(() -> removeDisplayMarker(display));
+    }
+
+    public void onDisplayMoved(MediaDisplayProxy display) {
+        if (instance == null) {
+            return;
+        }
+        scheduleNextTick(() -> syncMarkerWithDisplay(display));
+    }
+
     public void onLightUpdated(long lightId, Map<String, Object> properties) {
         if (instance == null) {
             return;
@@ -382,6 +406,47 @@ public final class AxiomBridgeService {
         broadcastMarkerUpdate(List.of(handle), List.of());
     }
 
+    private void createDisplayMarker(MediaDisplayProxy display) {
+        if (displayHandles.containsKey(display.getId())) {
+            return;
+        }
+
+        InstanceManager instanceManager = InstanceManager.getInstance();
+        Instance instance = instanceManager.getDefaultInstance();
+        if (instance == null) {
+            LOGGER.warn("Cannot create Axiom gizmo for display {}: default instance is null", display.getId());
+            return;
+        }
+
+        Entity marker = new Entity(EntityType.MARKER);
+        marker.setNoGravity(true);
+        marker.setTag(MarkerTags.NAME, "§bDisplay #" + display.getId());
+
+        Vector3 scale = display.getScale();
+        double halfX = Math.max(0.5, scale.x / 2.0);
+        double halfY = Math.max(0.5, scale.y / 2.0);
+        double halfZ = Math.max(0.25, scale.z / 2.0);
+
+        marker.setTag(MarkerTags.MIN, MarkerTags.stringVecToList(
+                MarkerTags.relative(-halfX), MarkerTags.relative(-halfY), MarkerTags.relative(-halfZ)
+        ));
+        marker.setTag(MarkerTags.MAX, MarkerTags.stringVecToList(
+                MarkerTags.relative(halfX), MarkerTags.relative(halfY), MarkerTags.relative(halfZ)
+        ));
+        marker.setTag(MarkerTags.LINE_ARGB, MarkerTags.argbToInt(255, 100, 220, 255));
+        marker.setTag(MarkerTags.LINE_THICKNESS, REGION_LINE_THICKNESS);
+        marker.setTag(MarkerTags.FACE_ARGB, MarkerTags.argbToInt(50, 100, 220, 255));
+
+        Pos position = toPos(display.getPosition());
+        marker.setInstance(instance, position);
+
+        DisplayMarkerHandle handle = new DisplayMarkerHandle(display, marker, instance);
+        displayHandles.put(display.getId(), handle);
+        attachmentsByMarker.put(marker.getUuid(), handle);
+
+        broadcastMarkerUpdate(List.of(handle), List.of());
+    }
+
     private void removeMarker(PlayerModelProxy model) {
         MarkerHandle handle = handlesByModel.remove(model.getModelId());
         if (handle == null) {
@@ -394,6 +459,16 @@ public final class AxiomBridgeService {
 
     private void removeModelMarker(ModelProxy model) {
         ModelMarkerHandle handle = staticModelHandles.remove(model.getId());
+        if (handle == null) {
+            return;
+        }
+        attachmentsByMarker.remove(handle.marker().getUuid());
+        handle.marker().remove();
+        broadcastMarkerUpdate(List.of(), List.of(handle.marker().getUuid()));
+    }
+
+    private void removeDisplayMarker(MediaDisplayProxy display) {
+        DisplayMarkerHandle handle = displayHandles.remove(display.getId());
         if (handle == null) {
             return;
         }
@@ -464,6 +539,7 @@ public final class AxiomBridgeService {
         if (handle == null) {
             return;
         }
+
         syncMarkerWithModel(handle);
     }
 
@@ -475,11 +551,14 @@ public final class AxiomBridgeService {
         if (marker.getInstance() == null || !Objects.equals(marker.getInstance(), handle.instance())) {
             marker.setInstance(handle.instance(), target);
         } else {
-            marker.teleport(target);
+            if (marker.getChunk() != null) {
+                marker.teleport(target);
+            }
         }
 
         broadcastMarkerUpdate(List.of(handle), List.of());
     }
+
 
     private void syncMarkerWithModel(ModelProxy model) {
         ModelMarkerHandle handle = staticModelHandles.get(model.getId());
@@ -492,6 +571,29 @@ public final class AxiomBridgeService {
     private void syncMarkerWithModel(ModelMarkerHandle handle) {
         Entity marker = handle.marker();
         Vector3 position = handle.model.getPosition();
+        Pos target = toPos(position);
+
+        if (marker.getInstance() == null || !Objects.equals(marker.getInstance(), handle.instance())) {
+            marker.setInstance(handle.instance(), target);
+        } else {
+            marker.teleport(target);
+        }
+
+        handle.refreshRegionBounds();
+        broadcastMarkerUpdate(List.of(handle), List.of());
+    }
+
+    private void syncMarkerWithDisplay(MediaDisplayProxy display) {
+        DisplayMarkerHandle handle = displayHandles.get(display.getId());
+        if (handle == null) {
+            return;
+        }
+        syncDisplayMarker(handle);
+    }
+
+    private void syncDisplayMarker(DisplayMarkerHandle handle) {
+        Entity marker = handle.marker();
+        Vector3 position = handle.display.getPosition();
         Pos target = toPos(position);
 
         if (marker.getInstance() == null || !Objects.equals(marker.getInstance(), handle.instance())) {
@@ -522,6 +624,7 @@ public final class AxiomBridgeService {
         List<MarkerAttachment> attachments = new ArrayList<>();
         attachments.addAll(handlesByModel.values());
         attachments.addAll(staticModelHandles.values());
+        attachments.addAll(displayHandles.values());
         attachments.addAll(lightHandles.values());
         if (attachments.isEmpty()) {
             return;
@@ -630,6 +733,8 @@ public final class AxiomBridgeService {
             alignMarker(markerHandle);
         } else if (attachment instanceof ModelMarkerHandle modelHandle) {
             alignMarker(modelHandle);
+        } else if (attachment instanceof DisplayMarkerHandle displayHandle) {
+            alignDisplayMarker(displayHandle);
         } else if (attachment instanceof LightHandle lightHandle) {
             alignMarker(lightHandle);
         }
@@ -650,6 +755,20 @@ public final class AxiomBridgeService {
     private void alignMarker(ModelMarkerHandle handle) {
         Entity marker = handle.marker();
         Vector3 position = handle.model.getPosition();
+        Pos target = toPos(position);
+
+        if (marker.getInstance() == null || !Objects.equals(marker.getInstance(), handle.instance())) {
+            marker.setInstance(handle.instance(), target);
+        } else {
+            marker.teleport(target);
+        }
+
+        handle.refreshRegionBounds();
+    }
+
+    private void alignDisplayMarker(DisplayMarkerHandle handle) {
+        Entity marker = handle.marker();
+        Vector3 position = handle.display.getPosition();
         Pos target = toPos(position);
 
         if (marker.getInstance() == null || !Objects.equals(marker.getInstance(), handle.instance())) {
@@ -696,6 +815,8 @@ public final class AxiomBridgeService {
             syncMarkerWithModel(markerHandle);
         } else if (attachment instanceof ModelMarkerHandle modelHandle) {
             syncMarkerWithModel(modelHandle);
+        } else if (attachment instanceof DisplayMarkerHandle displayHandle) {
+            syncDisplayMarker(displayHandle);
         } else if (attachment instanceof LightHandle lightHandle) {
             syncMarkerWithLight(lightHandle);
         }
@@ -880,6 +1001,123 @@ public final class AxiomBridgeService {
         @Override
         public String markerType() {
             return "model";
+        }
+    }
+
+    private final class DisplayMarkerHandle implements MarkerAttachment {
+        private final MediaDisplayProxy display;
+        private final Entity marker;
+        private final Instance instance;
+
+        private DisplayMarkerHandle(MediaDisplayProxy display, Entity marker, Instance instance) {
+            this.display = display;
+            this.marker = marker;
+            this.instance = instance;
+        }
+
+        @Override
+        public Entity marker() {
+            return marker;
+        }
+
+        @Override
+        public Instance instance() {
+            return instance;
+        }
+
+        @Override
+        public String displayName() {
+            return "§bDisplay #" + display.getId();
+        }
+
+        @Override
+        public MarkerDataMessage.MarkerRegion computeRegion() {
+            Vector3 scale = display.getScale();
+            double halfX = Math.max(0.5, scale.x / 2.0);
+            double halfY = Math.max(0.5, scale.y / 2.0);
+            double halfZ = Math.max(0.25, scale.z / 2.0);
+
+            Pos position = marker.getPosition();
+            Vec base = position.asVec();
+            Vec min = base.add(-halfX, -halfY, -halfZ);
+            Vec max = base.add(halfX, halfY, halfZ);
+            int lineColor = MarkerTags.argbToInt(255, 100, 220, 255);
+            int faceColor = MarkerTags.argbToInt(50, 100, 220, 255);
+            return new MarkerDataMessage.MarkerRegion(min, max, lineColor, REGION_LINE_THICKNESS, faceColor);
+        }
+
+        void refreshRegionBounds() {
+            Vector3 scale = display.getScale();
+            double halfX = Math.max(0.5, scale.x / 2.0);
+            double halfY = Math.max(0.5, scale.y / 2.0);
+            double halfZ = Math.max(0.25, scale.z / 2.0);
+
+            marker.setTag(MarkerTags.MIN, MarkerTags.stringVecToList(
+                    MarkerTags.relative(-halfX), MarkerTags.relative(-halfY), MarkerTags.relative(-halfZ)
+            ));
+            marker.setTag(MarkerTags.MAX, MarkerTags.stringVecToList(
+                    MarkerTags.relative(halfX), MarkerTags.relative(halfY), MarkerTags.relative(halfZ)
+            ));
+
+            if (display.getContentType() == MoudPackets.DisplayContentType.IMAGE || display.getContentType() == MoudPackets.DisplayContentType.URL) {
+                String texture = display.getPrimarySource();
+                if (texture != null && !texture.isEmpty()) {
+                    marker.setTag(Tag.String("image"), texture);
+                }
+            }
+        }
+
+        @Override
+        public void onMarkerMoved(Vector3 position, float yaw, float pitch, BinaryTag metadata) {
+            Quaternion rotation = quaternionFromYawPitch(yaw, pitch);
+            Vector3 scale = extractScale(metadata, display.getScale());
+            rotation = extractRotation(metadata, rotation);
+            display.applyBridgeTransform(position, rotation, scale);
+            refreshRegionBounds();
+        }
+
+        @Override
+        public void writeCustomMetadata(CompoundBinaryTag.Builder builder) {
+            Vector3 scale = display.getScale();
+            builder.putDouble("scaleX", scale.x);
+            builder.putDouble("scaleY", scale.y);
+            builder.putDouble("scaleZ", scale.z);
+            builder.put("scale", CompoundBinaryTag.builder()
+                    .putDouble("x", scale.x)
+                    .putDouble("y", scale.y)
+                    .putDouble("z", scale.z)
+                    .build());
+            Quaternion rotation = display.getRotation();
+            if (rotation != null) {
+                Vector3 euler = rotation.toEuler();
+                builder.putDouble("rotationPitch", euler.x);
+                builder.putDouble("rotationYaw", euler.y);
+                builder.putDouble("rotationRoll", euler.z);
+                builder.put("rotation", CompoundBinaryTag.builder()
+                        .putDouble("pitch", euler.x)
+                        .putDouble("yaw", euler.y)
+                        .putDouble("roll", euler.z)
+                        .build());
+                builder.put("rotationQuat", CompoundBinaryTag.builder()
+                        .putDouble("x", rotation.x)
+                        .putDouble("y", rotation.y)
+                        .putDouble("z", rotation.z)
+                        .putDouble("w", rotation.w)
+                        .build());
+            }
+            Vector3 position = display.getPosition();
+            builder.putDouble("positionX", position.x);
+            builder.putDouble("positionY", position.y);
+            builder.putDouble("positionZ", position.z);
+            builder.putString("contentType", display.getContentType().name());
+            if (display.getContentType() == MoudPackets.DisplayContentType.IMAGE || display.getContentType() == MoudPackets.DisplayContentType.URL) {
+                builder.putString("source", display.getPrimarySource());
+            }
+        }
+
+        @Override
+        public String markerType() {
+            return "display";
         }
     }
 
