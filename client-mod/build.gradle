@@ -51,9 +51,4 @@ dependencies {
     include implementation('org.jcodec:jcodec:0.2.5')
     include implementation('org.jcodec:jcodec-javase:0.2.5')
 
-
-    def axiomJar = file("${projectDir}/run/mods/Axiom-5.1.1-for-MC1.21.1.jar")
-    if (axiomJar.exists()) {
-        compileOnly files(axiomJar)
-    }
 }
