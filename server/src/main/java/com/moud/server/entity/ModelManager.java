@@ -16,6 +16,7 @@ public class ModelManager {
 
     private final Map<Long, ModelProxy> modelsById = new ConcurrentHashMap<>();
     private final Map<UUID, ModelProxy> modelsByEntityUuid = new ConcurrentHashMap<>();
+    private final Map<Long, SceneBinding> sceneBindings = new ConcurrentHashMap<>();
 
     private ModelManager() {}
 
@@ -35,6 +36,7 @@ public class ModelManager {
     public void unregister(ModelProxy model) {
         modelsById.remove(model.getId());
         modelsByEntityUuid.remove(model.getEntity().getUuid());
+        sceneBindings.remove(model.getId());
     }
 
     @Nullable
@@ -59,5 +61,17 @@ public class ModelManager {
         modelsById.values().forEach(ModelProxy::remove);
         modelsById.clear();
         modelsByEntityUuid.clear();
+        sceneBindings.clear();
+    }
+
+    public void tagSceneBinding(long modelId, String sceneId, String objectId) {
+        sceneBindings.put(modelId, new SceneBinding(sceneId, objectId));
+    }
+
+    public SceneBinding getSceneBinding(long modelId) {
+        return sceneBindings.get(modelId);
+    }
+
+    public record SceneBinding(String sceneId, String objectId) {
     }
 }

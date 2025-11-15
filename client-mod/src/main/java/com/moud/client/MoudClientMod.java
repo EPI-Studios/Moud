@@ -3,6 +3,8 @@ package com.moud.client;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.client.animation.*;
+import com.moud.client.editor.EditorModeManager;
+import com.moud.client.editor.ui.EditorImGuiLayer;
 import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.collision.ModelCollisionManager;
 import com.moud.client.cursor.ClientCursorManager;
@@ -25,6 +27,8 @@ import com.moud.client.rendering.ModelRenderLayers;
 import com.moud.client.resources.InMemoryPackResources;
 import com.moud.client.runtime.ClientScriptingRuntime;
 import com.moud.client.shared.SharedValueManager;
+import com.moud.client.editor.runtime.RuntimeObjectRegistry;
+import com.moud.client.editor.scene.SceneSessionManager;
 import com.moud.client.ui.UIOverlayManager;
 import com.moud.client.util.WindowAnimator;
 import com.moud.network.MoudPackets;
@@ -90,7 +94,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
     public static Vector3f lightPosition = new Vector3f(0, 66, 0);
 
-
     private static final int MAX_DECOMPRESSED_SIZE_BYTES = 64 * 1024 * 1024;
     private GameJoinS2CPacket pendingGameJoinPacket = null;
     private static MoudClientMod instance;
@@ -133,7 +136,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         PayloadTypeRegistry.playS2C().register(MoudPayload.ID, MoudPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(DataPayload.ID, DataPayload.CODEC);
 
-
         ClientPacketReceiver.registerS2CPackets();
 
         this.clientCursorManager = ClientCursorManager.getInstance();
@@ -148,6 +150,8 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         registerRenderHandler();
         registerAnimationLayer();
         registerShutdownHandler();
+        com.moud.client.editor.ui.WorldViewCapture.initialize();
+        com.moud.client.editor.selection.EditorSelectionRenderer.initialize();
         HudRenderCallback.EVENT.register((drawContext, tickCounter) -> {
             WindowAnimator.tick();
 
@@ -155,6 +159,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 apiService.events.dispatch("render:hud", drawContext, tickCounter.getTickDelta(true));
             }
             UIOverlayManager.getInstance().renderOverlays(drawContext, tickCounter);
+            EditorImGuiLayer.getInstance().render();
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -218,6 +223,14 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 clientCursorManager.handlePositionUpdates(packet.updates());
             }
         });
+        ClientPacketWrapper.registerHandler(MoudPackets.SceneStatePacket.class,
+                (player, packet) -> SceneSessionManager.getInstance().handleSceneState(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.SceneEditAckPacket.class,
+                (player, packet) -> SceneSessionManager.getInstance().handleEditAck(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.EditorAssetListPacket.class,
+                (player, packet) -> com.moud.client.editor.assets.EditorAssetCatalog.getInstance().handleAssetList(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.SceneBindingPacket.class,
+                (player, packet) -> com.moud.client.editor.selection.SceneSelectionManager.getInstance().handleBindingPacket(packet));
         ClientPacketWrapper.registerHandler(CursorAppearancePacket.class, (player, packet) -> {
             if (clientCursorManager != null) {
                 clientCursorManager.handleAppearanceUpdate(packet.playerId(), packet.texture(), packet.color(), packet.scale(), packet.renderMode());
@@ -385,7 +398,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         moudServicesInitialized = false;
         deferredPacketHandlers.clear();
 
-
     }
 
     private void handleCameraControl(MoudPackets.CameraControlPacket packet) {
@@ -421,7 +433,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 joinTime = -1L;
                 cleanupMoudServices();
             }
-
 
             if (com.moud.client.rendering.ModelRenderLayers.ENABLE_BLOOM) {
                 try {
@@ -459,12 +470,14 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
             ClientPlayerModelManager.getInstance().getModels().forEach(AnimatedPlayerModel::tick);
 
+            EditorModeManager.getInstance().tick(client);
+
             ClientMovementTracker.getInstance().tick();
         });
     }
 
     private void registerRenderHandler() {
-        WorldRenderEvents.AFTER_ENTITIES.register(renderContext -> { // Correct parameter name
+        WorldRenderEvents.AFTER_ENTITIES.register(renderContext -> {
             Camera camera = renderContext.camera();
 
             try {
@@ -562,7 +575,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         });
     }
 
-
     private void registerShutdownHandler() {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> cleanupMoudServices());
     }
@@ -599,7 +611,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         dynamicPack.set(null);
         this.currentResourcesHash = "";
         cleanupMoudServices();
-
 
         setCustomCameraActive(false);
     }
@@ -936,6 +947,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                     }
                 }
                 ModelCollisionManager.getInstance().sync(model);
+                RuntimeObjectRegistry.getInstance().syncModel(model);
             }
         });
     }
@@ -946,6 +958,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             if (model != null) {
                 model.updateTransform(packet.position(), packet.rotation(), packet.scale());
                 ModelCollisionManager.getInstance().sync(model);
+                RuntimeObjectRegistry.getInstance().syncModel(model);
             }
         });
     }
@@ -959,6 +972,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                     Identifier textureId = Identifier.tryParse(texturePath);
                     if (textureId != null) {
                         model.setTexture(textureId);
+                        RuntimeObjectRegistry.getInstance().syncModel(model);
                     } else {
                         LOGGER.warn("Received invalid texture identifier '{}' for model {}", texturePath, packet.modelId());
                     }
@@ -973,6 +987,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             if (model != null) {
                 model.updateCollisionBox(packet.collisionWidth(), packet.collisionHeight(), packet.collisionDepth());
                 ModelCollisionManager.getInstance().sync(model);
+                RuntimeObjectRegistry.getInstance().syncModel(model);
             }
         });
     }
@@ -984,7 +999,9 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     }
 
     private void handleCreateDisplay(MoudPackets.S2C_CreateDisplayPacket packet) {
-        MinecraftClient.getInstance().execute(() -> ClientDisplayManager.getInstance().handleCreate(packet));
+        MinecraftClient.getInstance().execute(() -> {
+            ClientDisplayManager.getInstance().handleCreate(packet);
+        });
     }
 
     private void handleUpdateDisplayTransform(MoudPackets.S2C_UpdateDisplayTransformPacket packet) {

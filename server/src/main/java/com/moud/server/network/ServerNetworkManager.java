@@ -1,11 +1,14 @@
 package com.moud.server.network;
 
+import com.moud.api.math.Quaternion;
+import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
 import com.moud.network.MoudPackets.*;
 import com.moud.server.client.ClientScriptManager;
 import com.moud.server.cursor.CursorService;
 import com.moud.server.entity.DisplayManager;
 import com.moud.server.entity.ModelManager;
+import com.moud.server.editor.SceneManager;
 import com.moud.server.events.EventDispatcher;
 import com.moud.server.lighting.ServerLightingManager;
 import com.moud.server.logging.LogContext;
@@ -16,6 +19,7 @@ import com.moud.server.player.PlayerCameraManager;
 import com.moud.server.proxy.MediaDisplayProxy;
 import com.moud.server.proxy.PlayerModelProxy;
 import net.minestom.server.MinecraftServer;
+import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.player.PlayerDisconnectEvent;
 import net.minestom.server.event.player.PlayerPluginMessageEvent;
@@ -72,6 +76,12 @@ public final class ServerNetworkManager {
         ServerPacketWrapper.registerHandler(ClientUpdateValuePacket.class, this::handleSharedValueUpdate);
         ServerPacketWrapper.registerHandler(MovementStatePacket.class, this::handleMovementState);
         ServerPacketWrapper.registerHandler(ClientReadyPacket.class, this::handleClientReady);
+        ServerPacketWrapper.registerHandler(RequestSceneStatePacket.class, this::handleSceneStateRequest);
+        ServerPacketWrapper.registerHandler(SceneEditPacket.class, this::handleSceneEditRequest);
+        ServerPacketWrapper.registerHandler(RequestEditorAssetsPacket.class, this::handleEditorAssetsRequest);
+        ServerPacketWrapper.registerHandler(MoudPackets.UpdateRuntimeModelPacket.class, this::handleRuntimeModelUpdate);
+        ServerPacketWrapper.registerHandler(MoudPackets.UpdateRuntimeDisplayPacket.class, this::handleRuntimeDisplayUpdate);
+        ServerPacketWrapper.registerHandler(MoudPackets.UpdatePlayerTransformPacket.class, this::handlePlayerTransformUpdate);
 
     }
 
@@ -81,6 +91,85 @@ public final class ServerNetworkManager {
 
         ServerMovementHandler.getInstance().handleMovementState(minestomPlayer, packet);
         eventDispatcher.dispatchMovementEvent(minestomPlayer, packet);
+    }
+
+    private void handleSceneStateRequest(Object player, RequestSceneStatePacket packet) {
+        Player minestomPlayer = (Player) player;
+        var snapshot = SceneManager.getInstance().createSnapshot(packet.sceneId());
+        send(minestomPlayer, new SceneStatePacket(
+                packet.sceneId(),
+                snapshot.objects(),
+                snapshot.version()
+        ));
+    }
+
+    private void handleSceneEditRequest(Object player, SceneEditPacket packet) {
+        Player minestomPlayer = (Player) player;
+        var result = SceneManager.getInstance().applyEdit(packet.sceneId(), packet.action(), packet.payload(), packet.clientVersion());
+        SceneEditAckPacket ack = new SceneEditAckPacket(
+                packet.sceneId(),
+                result.success(),
+                result.message(),
+                result.snapshot(),
+                result.version(),
+                result.objectId()
+        );
+        send(minestomPlayer, ack);
+        broadcastExcept(ack, minestomPlayer);
+    }
+
+    private void handleEditorAssetsRequest(Object player, RequestEditorAssetsPacket packet) {
+        Player minestomPlayer = (Player) player;
+        var assets = SceneManager.getInstance().getEditorAssets();
+        send(minestomPlayer, new EditorAssetListPacket(assets));
+    }
+
+    private void handleRuntimeModelUpdate(Object player, MoudPackets.UpdateRuntimeModelPacket packet) {
+        var proxy = ModelManager.getInstance().getById(packet.modelId());
+        if (proxy == null) {
+            return;
+        }
+        Vector3 position = packet.position() != null ? packet.position() : proxy.getPosition();
+        Quaternion rotation = packet.rotation() != null ? packet.rotation() : proxy.getRotation();
+        Vector3 scale = packet.scale() != null ? packet.scale() : proxy.getScale();
+        proxy.setPosition(position);
+        proxy.setRotation(rotation);
+        proxy.setScale(scale);
+    }
+
+    private void handleRuntimeDisplayUpdate(Object player, MoudPackets.UpdateRuntimeDisplayPacket packet) {
+        var proxy = DisplayManager.getInstance().getById(packet.displayId());
+        if (proxy == null) {
+            return;
+        }
+        if (packet.position() != null) {
+            proxy.setPosition(packet.position());
+        }
+        if (packet.rotation() != null) {
+            proxy.setRotation(packet.rotation());
+        }
+        if (packet.scale() != null) {
+            proxy.setScale(packet.scale());
+        }
+    }
+
+    private void handlePlayerTransformUpdate(Object player, MoudPackets.UpdatePlayerTransformPacket packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer)) return;
+        if (packet.playerId() == null || packet.position() == null) {
+            return;
+        }
+        Player target = MinecraftServer.getConnectionManager().getOnlinePlayers().stream()
+                .filter(p -> p.getUuid().equals(packet.playerId()))
+                .findFirst()
+                .orElse(null);
+        if (target == null) {
+            return;
+        }
+        Vector3 position = packet.position();
+        Pos current = target.getPosition();
+        Pos destination = new Pos(position.x, position.y, position.z, current.yaw(), current.pitch());
+        target.teleport(destination);
     }
 
     private void handleClientReady(Object player, ClientReadyPacket packet) {

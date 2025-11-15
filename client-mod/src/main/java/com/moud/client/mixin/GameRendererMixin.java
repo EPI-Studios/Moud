@@ -1,6 +1,8 @@
 package com.moud.client.mixin;
 
 import com.moud.client.api.service.ClientAPIService;
+import com.moud.client.editor.camera.EditorCameraController;
+import com.moud.client.editor.rendering.SelectionHighlightRenderer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
@@ -21,6 +23,11 @@ public abstract class GameRendererMixin {
     @Shadow @Final private MinecraftClient client;
     @Inject(method = "getFov(Lnet/minecraft/client/render/Camera;FZ)D", at = @At("RETURN"), cancellable = true)
     private void moud_overrideFov(Camera camera, float tickDelta, boolean changingFov, CallbackInfoReturnable<Double> cir) {
+        EditorCameraController controller = EditorCameraController.getInstance();
+        if (controller.isActive()) {
+            cir.setReturnValue(controller.getFov());
+            return;
+        }
         if (com.moud.client.MoudClientMod.isCustomCameraActive() && ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.camera != null) {
             Double fov = ClientAPIService.INSTANCE.camera.getFovInternal();
             if (fov != null) {
@@ -31,6 +38,11 @@ public abstract class GameRendererMixin {
 
     @Inject(method = "bobView(Lnet/minecraft/client/util/math/MatrixStack;F)V", at = @At("HEAD"), cancellable = true)
     private void moudCameraTransformations(MatrixStack matrices, float tickDelta, CallbackInfo ci) {
+        EditorCameraController controller = EditorCameraController.getInstance();
+        if (controller.isActive()) {
+            ci.cancel();
+            return;
+        }
         if (com.moud.client.MoudClientMod.isCustomCameraActive() && ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.camera != null) {
             var cameraService = ClientAPIService.INSTANCE.camera;
 
@@ -73,6 +85,13 @@ public abstract class GameRendererMixin {
         }
     }
 
-
+    @Inject(method = "renderWorld(Lnet/minecraft/client/render/RenderTickCounter;)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/WorldRenderer;render(Lnet/minecraft/client/render/RenderTickCounter;ZLnet/minecraft/client/render/Camera;Lnet/minecraft/client/render/GameRenderer;Lnet/minecraft/client/render/LightmapTextureManager;Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;)V", shift = At.Shift.AFTER))
+    private void moud_renderSelectionHighlight(RenderTickCounter tickCounter, CallbackInfo ci) {
+        EditorCameraController controller = EditorCameraController.getInstance();
+        if (controller.isActive()) {
+            MatrixStack matrices = new MatrixStack();
+            SelectionHighlightRenderer.getInstance().render(matrices, camera);
+        }
+    }
 
 }

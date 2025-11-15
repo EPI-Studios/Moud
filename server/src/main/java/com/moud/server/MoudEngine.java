@@ -8,6 +8,7 @@ import com.moud.server.bridge.AxiomBridgeService;
 import com.moud.server.client.ClientScriptManager;
 import com.moud.server.cursor.CursorService;
 import com.moud.server.dev.DevUtilities;
+import com.moud.server.editor.SceneManager;
 import com.moud.server.events.EventDispatcher;
 import com.moud.server.instance.InstanceManager;
 import com.moud.server.logging.LogContext;
@@ -78,6 +79,8 @@ public class MoudEngine {
                     .put("project_root", projectRoot.toString())
                     .build(), "Loading project from: {}", projectRoot);
 
+            SceneManager.getInstance().initialize(projectRoot);
+
             this.packetEngine = new PacketEngine();
             packetEngine.initialize("com.moud.network");
 
@@ -96,6 +99,7 @@ public class MoudEngine {
 
             this.assetManager = new AssetManager(projectRoot);
             assetManager.initialize();
+            SceneManager.getInstance().setAssetManager(assetManager);
 
             this.animationManager = new AnimationManager();
             animationManager.initialize();

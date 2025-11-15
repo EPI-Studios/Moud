@@ -351,4 +351,86 @@ public final class MoudPackets {
     public record S2C_RemoveDisplayPacket(
             @Field(order = 0) long displayId
     ) {}
+
+    @Packet(value = "moud:scene_request_state", direction = Direction.CLIENT_TO_SERVER)
+    public record RequestSceneStatePacket(
+            @Field(order = 0) String sceneId
+    ) {}
+
+    @Packet(value = "moud:scene_state", direction = Direction.SERVER_TO_CLIENT)
+    public record SceneStatePacket(
+            @Field(order = 0) String sceneId,
+            @Field(order = 1) List<SceneObjectSnapshot> objects,
+            @Field(order = 2) long version
+    ) {}
+
+    @Packet(value = "moud:scene_edit", direction = Direction.CLIENT_TO_SERVER)
+    public record SceneEditPacket(
+            @Field(order = 0) String sceneId,
+            @Field(order = 1) String action,
+            @Field(order = 2) Map<String, Object> payload,
+            @Field(order = 3) long clientVersion
+    ) {}
+
+    @Packet(value = "moud:scene_edit_ack", direction = Direction.SERVER_TO_CLIENT)
+    public record SceneEditAckPacket(
+            @Field(order = 0) String sceneId,
+            @Field(order = 1) boolean success,
+            @Field(order = 2) String message,
+            @Field(order = 3, optional = true) SceneObjectSnapshot updatedObject,
+            @Field(order = 4) long serverVersion,
+            @Field(order = 5, optional = true) String objectId
+    ) {}
+
+    public record SceneObjectSnapshot(
+            @Field(order = 0) String objectId,
+            @Field(order = 1) String objectType,
+            @Field(order = 2) Map<String, Object> properties
+    ) {}
+
+    @Packet(value = "moud:editor_assets_request", direction = Direction.CLIENT_TO_SERVER)
+    public record RequestEditorAssetsPacket() {}
+
+    @Packet(value = "moud:editor_assets", direction = Direction.SERVER_TO_CLIENT)
+    public record EditorAssetListPacket(
+            @Field(order = 0) List<EditorAssetDefinition> assets
+    ) {}
+
+    public record EditorAssetDefinition(
+            @Field(order = 0) String id,
+            @Field(order = 1) String label,
+            @Field(order = 2) String objectType,
+            @Field(order = 3) Map<String, Object> defaultProperties
+    ) {}
+
+    @Packet(value = "moud:scene_binding", direction = Direction.SERVER_TO_CLIENT)
+    public record SceneBindingPacket(
+            @Field(order = 0) String sceneId,
+            @Field(order = 1) String objectId,
+            @Field(order = 2) long modelId,
+            @Field(order = 3) boolean removed
+    ) {}
+
+    @Packet(value = "moud:runtime_model_transform", direction = Direction.CLIENT_TO_SERVER)
+    public record UpdateRuntimeModelPacket(
+            @Field(order = 0) long modelId,
+            @Field(order = 1) Vector3 position,
+            @Field(order = 2) Quaternion rotation,
+            @Field(order = 3) Vector3 scale
+    ) {}
+
+    @Packet(value = "moud:runtime_display_transform", direction = Direction.CLIENT_TO_SERVER)
+    public record UpdateRuntimeDisplayPacket(
+            @Field(order = 0) long displayId,
+            @Field(order = 1) Vector3 position,
+            @Field(order = 2) Quaternion rotation,
+            @Field(order = 3) Vector3 scale
+    ) {}
+
+    @Packet(value = "moud:update_player_transform", direction = Direction.CLIENT_TO_SERVER)
+    public record UpdatePlayerTransformPacket(
+            @Field(order = 0) UUID playerId,
+            @Field(order = 1) Vector3 position,
+            @Field(order = 2, optional = true) Quaternion rotation
+    ) {}
 }

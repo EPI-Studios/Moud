@@ -1,0 +1,165 @@
+package com.moud.server.editor.runtime;
+
+import com.moud.api.math.Quaternion;
+import com.moud.api.math.Vector3;
+import com.moud.network.MoudPackets;
+import com.moud.server.instance.InstanceManager;
+import com.moud.server.proxy.MediaDisplayProxy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.Map;
+
+public final class DisplayRuntimeAdapter implements SceneRuntimeAdapter {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DisplayRuntimeAdapter.class);
+
+    private final String sceneId;
+    private MediaDisplayProxy display;
+
+    public DisplayRuntimeAdapter(String sceneId) {
+        this.sceneId = sceneId;
+    }
+
+    @Override
+    public void create(MoudPackets.SceneObjectSnapshot snapshot) throws Exception {
+        Map<String, Object> props = snapshot.properties();
+        Vector3 position = vectorProperty(props.get("position"), new Vector3(0, 64, 0));
+        Quaternion rotation = quaternionFromEuler(props.get("rotation"), Quaternion.identity());
+        Vector3 scale = vectorProperty(props.get("scale"), new Vector3(3, 2, 0.1));
+
+        display = new MediaDisplayProxy(
+                InstanceManager.getInstance().getDefaultInstance(),
+                position,
+                rotation,
+                scale
+        );
+
+        applyContent(props);
+        applyLooping(props);
+    }
+
+    @Override
+    public void update(MoudPackets.SceneObjectSnapshot snapshot) throws Exception {
+        if (display == null) {
+            create(snapshot);
+            return;
+        }
+        Map<String, Object> props = snapshot.properties();
+        Vector3 position = vectorProperty(props.get("position"), display.getPosition());
+        Quaternion rotation = quaternionFromEuler(props.get("rotation"), display.getRotation());
+        Vector3 scale = vectorProperty(props.get("scale"), display.getScale());
+        display.setPosition(position);
+        display.setScale(scale);
+        if (rotation != null) {
+            display.setRotation(rotation);
+        }
+        applyContent(props);
+        applyLooping(props);
+    }
+
+    @Override
+    public void remove() {
+        if (display != null) {
+            try {
+                display.remove();
+            } catch (Exception e) {
+                LOGGER.warn("Failed to remove display runtime for scene {}", sceneId, e);
+            }
+            display = null;
+        }
+    }
+
+    private void applyContent(Map<String, Object> props) {
+        if (display == null) {
+            return;
+        }
+        String content = stringProperty(props, "displayContent", "");
+        if (content.isEmpty()) {
+            return;
+        }
+        String type = stringProperty(props, "displayType", "image").toLowerCase();
+        switch (type) {
+            case "video", "url" -> {
+                double frameRate = toDouble(props.get("frameRate"), 24.0);
+                boolean loop = boolProperty(props.get("loop"), true);
+                display.setVideo(content, frameRate, loop);
+                if (boolProperty(props.get("playing"), true)) {
+                    display.play();
+                }
+            }
+            case "sequence" -> {
+                Object framesRaw = props.get("frameSources");
+                if (framesRaw instanceof List<?> frames && !frames.isEmpty()) {
+                    String[] sources = frames.stream().map(String::valueOf).toArray(String[]::new);
+                    double fps = toDouble(props.get("frameRate"), 12.0);
+                    boolean loop = boolProperty(props.get("loop"), true);
+                    display.setFrameSequence(sources, fps, loop);
+                } else {
+                    display.setImage(content);
+                }
+            }
+            default -> display.setImage(content);
+        }
+    }
+
+    private void applyLooping(Map<String, Object> props) {
+        if (display == null) {
+            return;
+        }
+        if (boolProperty(props.get("playing"), true)) {
+            display.play();
+        } else {
+            display.pause();
+        }
+    }
+
+    private static String stringProperty(Map<String, Object> props, String key, String defaultValue) {
+        Object value = props.get(key);
+        return value != null ? String.valueOf(value) : defaultValue;
+    }
+
+    private static boolean boolProperty(Object raw, boolean fallback) {
+        if (raw instanceof Boolean bool) {
+            return bool;
+        }
+        if (raw instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        if (raw != null) {
+            return Boolean.parseBoolean(raw.toString());
+        }
+        return fallback;
+    }
+
+    private static Vector3 vectorProperty(Object raw, Vector3 fallback) {
+        if (raw instanceof Map<?, ?> map) {
+            double x = toDouble(map.get("x"), fallback.x);
+            double y = toDouble(map.get("y"), fallback.y);
+            double z = toDouble(map.get("z"), fallback.z);
+            return new Vector3(x, y, z);
+        }
+        return fallback;
+    }
+
+    private static Quaternion quaternionFromEuler(Object raw, Quaternion fallback) {
+        if (raw instanceof Map<?, ?> map) {
+            double pitch = toDouble(map.get("pitch"), 0);
+            double yaw = toDouble(map.get("yaw"), 0);
+            double roll = toDouble(map.get("roll"), 0);
+            return Quaternion.fromEuler((float) pitch, (float) yaw, (float) roll);
+        }
+        return fallback;
+    }
+
+    private static double toDouble(Object raw, double fallback) {
+        if (raw instanceof Number number) {
+            return number.doubleValue();
+        }
+        try {
+            return raw != null ? Double.parseDouble(raw.toString()) : fallback;
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
+}

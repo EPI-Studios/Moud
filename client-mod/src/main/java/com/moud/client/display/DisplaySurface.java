@@ -63,8 +63,36 @@ public final class DisplaySurface {
         this.id = id;
     }
 
-    long getId() {
+    public long getId() {
         return id;
+    }
+
+    public Vector3 getPosition() {
+        return new Vector3(position);
+    }
+
+    public Quaternion getRotation() {
+        return new Quaternion(rotation);
+    }
+
+    public Vector3 getScale() {
+        return new Vector3(scale);
+    }
+
+    public MoudPackets.DisplayContentType getContentType() {
+        return contentType;
+    }
+
+    public String getPrimarySource() {
+        return primarySource;
+    }
+
+    public boolean isLooping() {
+        return loop;
+    }
+
+    public float getFrameRate() {
+        return frameRate;
     }
 
     void applyCreatePacket(MoudPackets.S2C_CreateDisplayPacket packet) {
@@ -258,13 +286,6 @@ public final class DisplaySurface {
         return new Vector3(x, y, z);
     }
 
-    Quaternion getRotation() {
-        return rotation;
-    }
-
-    Vector3 getScale() {
-        return scale;
-    }
 
     public BlockPos getBlockPos() {
         return cachedBlockPos;

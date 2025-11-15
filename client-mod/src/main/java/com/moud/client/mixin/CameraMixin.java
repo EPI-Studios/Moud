@@ -3,6 +3,7 @@ package com.moud.client.mixin;
 import com.moud.client.MoudClientMod;
 import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.api.service.CameraService;
+import com.moud.client.editor.camera.EditorCameraController;
 import net.minecraft.client.render.Camera;
 import net.minecraft.entity.Entity;
 import net.minecraft.world.BlockView;
@@ -25,6 +26,13 @@ public abstract class CameraMixin {
     private void moud_applyCameraOverrides(BlockView area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickDelta, CallbackInfo ci) {
         if (this.ready) {
             this.focusedEntity = focusedEntity;
+        }
+
+        EditorCameraController controller = EditorCameraController.getInstance();
+        controller.updateRenderState();
+        if (controller.isActive() && controller.applyToCamera((Camera) (Object) this)) {
+            ci.cancel();
+            return;
         }
 
         if (!MoudClientMod.isCustomCameraActive()) {

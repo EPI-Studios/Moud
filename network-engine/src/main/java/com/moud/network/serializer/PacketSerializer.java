@@ -35,6 +35,8 @@ public class PacketSerializer {
         register(Quaternion.class, new QuaternionSerializer());
         register(byte[].class, new ByteArraySerializer());
         register(MoudPackets.CursorUpdateData.class, new CursorUpdateDataSerializer());
+        register(MoudPackets.SceneObjectSnapshot.class, new SceneObjectSnapshotSerializer());
+        register(MoudPackets.EditorAssetDefinition.class, new EditorAssetDefinitionSerializer());
     }
 
     public <T> void register(Class<T> type, TypeSerializer<T> serializer) {
@@ -328,4 +330,39 @@ public class PacketSerializer {
         }
     }
 
+    private static class SceneObjectSnapshotSerializer implements TypeSerializer<MoudPackets.SceneObjectSnapshot> {
+        @Override
+        public void write(ByteBuffer buffer, MoudPackets.SceneObjectSnapshot value) {
+            buffer.writeString(value.objectId());
+            buffer.writeString(value.objectType());
+            MapSerializerUtil.writeStringObjectMap(buffer, value.properties());
+        }
+
+        @Override
+        public MoudPackets.SceneObjectSnapshot read(ByteBuffer buffer) {
+            String objectId = buffer.readString();
+            String objectType = buffer.readString();
+            Map<String, Object> properties = MapSerializerUtil.readStringObjectMap(buffer);
+            return new MoudPackets.SceneObjectSnapshot(objectId, objectType, properties);
+        }
+    }
+
+    private static class EditorAssetDefinitionSerializer implements TypeSerializer<MoudPackets.EditorAssetDefinition> {
+        @Override
+        public void write(ByteBuffer buffer, MoudPackets.EditorAssetDefinition value) {
+            buffer.writeString(value.id());
+            buffer.writeString(value.label());
+            buffer.writeString(value.objectType());
+            MapSerializerUtil.writeStringObjectMap(buffer, value.defaultProperties());
+        }
+
+        @Override
+        public MoudPackets.EditorAssetDefinition read(ByteBuffer buffer) {
+            String id = buffer.readString();
+            String label = buffer.readString();
+            String type = buffer.readString();
+            Map<String, Object> defaults = MapSerializerUtil.readStringObjectMap(buffer);
+            return new MoudPackets.EditorAssetDefinition(id, label, type, defaults);
+        }
+    }
 }

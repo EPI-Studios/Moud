@@ -3,7 +3,9 @@ package com.moud.network.serializer;
 import com.moud.api.math.Vector3;
 import com.moud.network.buffer.ByteBuffer;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class MapSerializerUtil {
@@ -54,9 +56,19 @@ public class MapSerializerUtil {
             buffer.writeFloat((float) vec.x);
             buffer.writeFloat((float) vec.y);
             buffer.writeFloat((float) vec.z);
-        } else if (obj instanceof Map) {
-            buffer.writeInt(1); // fallback to string
-            buffer.writeString(obj.toString());
+        } else if (obj instanceof Map<?, ?> nested) {
+            buffer.writeInt(8); // type: Map
+            buffer.writeInt(nested.size());
+            for (Map.Entry<?, ?> entry : nested.entrySet()) {
+                buffer.writeString(String.valueOf(entry.getKey()));
+                writeObject(buffer, entry.getValue());
+            }
+        } else if (obj instanceof List<?> list) {
+            buffer.writeInt(9); // type: List
+            buffer.writeInt(list.size());
+            for (Object element : list) {
+                writeObject(buffer, element);
+            }
         } else {
             buffer.writeInt(1); // fallback to string
             buffer.writeString(obj.toString());
@@ -74,6 +86,23 @@ public class MapSerializerUtil {
             case 5 -> buffer.readLong();
             case 6 -> buffer.readFloat();
             case 7 -> new Vector3(buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
+            case 8 -> {
+                int size = buffer.readInt();
+                Map<String, Object> nested = new HashMap<>();
+                for (int i = 0; i < size; i++) {
+                    String key = buffer.readString();
+                    nested.put(key, readObject(buffer));
+                }
+                yield nested;
+            }
+            case 9 -> {
+                int size = buffer.readInt();
+                List<Object> list = new ArrayList<>(size);
+                for (int i = 0; i < size; i++) {
+                    list.add(readObject(buffer));
+                }
+                yield list;
+            }
             default -> null;
         };
     }
