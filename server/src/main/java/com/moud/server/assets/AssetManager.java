@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class AssetManager {
@@ -134,5 +135,9 @@ public class AssetManager {
         public RawAsset(String id, Path path) throws IOException {
             super(id, path);
         }
+    }
+
+    public Map<String, AssetDiscovery.AssetMetadata> getDiscoveredAssets() {
+        return discovery.getAllAssets();
     }
 }

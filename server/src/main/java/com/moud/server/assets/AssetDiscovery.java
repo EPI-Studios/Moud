@@ -6,46 +6,84 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 public class AssetDiscovery {
     private static final Logger LOGGER = LoggerFactory.getLogger(AssetDiscovery.class);
 
-    private final Path assetsDirectory;
+    private final Path projectRoot;
     private final Map<String, AssetMetadata> discoveredAssets;
 
     public AssetDiscovery(Path projectRoot) {
-        this.assetsDirectory = projectRoot.resolve("assets");
+        this.projectRoot = projectRoot;
         this.discoveredAssets = new HashMap<>();
     }
 
     public void scanAssets() throws IOException {
         discoveredAssets.clear();
-        if (!Files.exists(assetsDirectory)) {
-            LOGGER.warn("Assets directory not found: {}", assetsDirectory);
+        List<Path> roots = discoverRoots();
+        if (roots.isEmpty()) {
+            LOGGER.warn("No asset directories found under {}", projectRoot);
             return;
         }
 
-        try (Stream<Path> paths = Files.walk(assetsDirectory)) {
-            paths.filter(Files::isRegularFile)
-                    .forEach(this::processAsset);
+        for (Path root : roots) {
+            try (Stream<Path> paths = Files.walk(root)) {
+                paths.filter(Files::isRegularFile)
+                        .forEach(path -> processAsset(root, path));
+            }
         }
 
-        LOGGER.info("Discovered {} assets", discoveredAssets.size());
+        LOGGER.info("Discovered {} assets from {} roots", discoveredAssets.size(), roots.size());
     }
 
-    private void processAsset(Path assetPath) {
+    private List<Path> discoverRoots() throws IOException {
+        List<Path> roots = new ArrayList<>();
+        addIfExists(roots, projectRoot.resolve("assets"));
+        addIfExists(roots, projectRoot.resolve("example").resolve("assets"));
+        addIfExists(roots, projectRoot.resolve("example").resolve("ts").resolve("assets"));
+        addIfExists(roots, projectRoot.resolve("client").resolve("assets"));
+
+        Path packagesDir = projectRoot.resolve("packages");
+        if (Files.isDirectory(packagesDir)) {
+            try (Stream<Path> dirs = Files.walk(packagesDir, 3)) {
+                dirs.filter(path -> Files.isDirectory(path) && path.getFileName().toString().equals("assets"))
+                        .forEach(root -> addIfExists(roots, root));
+            }
+        }
+        return roots;
+    }
+
+    private void addIfExists(List<Path> roots, Path path) {
+        if (path != null && Files.isDirectory(path)) {
+            boolean duplicate = roots.stream().anyMatch(existing -> {
+                try {
+                    return Files.isSameFile(existing, path);
+                } catch (IOException e) {
+                    return Objects.equals(existing.toAbsolutePath(), path.toAbsolutePath());
+                }
+            });
+            if (!duplicate) {
+                roots.add(path);
+            }
+        }
+    }
+
+    private void processAsset(Path root, Path assetPath) {
         try {
-            Path relativePath = assetsDirectory.relativize(assetPath);
+            Path relativePath = root.relativize(assetPath);
             String assetId = relativePath.toString().replace('\\', '/');
             AssetType type = determineAssetType(assetPath);
 
             AssetMetadata metadata = new AssetMetadata(assetId, assetPath, type);
             discoveredAssets.put(assetId, metadata);
 
-            LOGGER.debug("Discovered asset: {} ({})", assetId, type);
+            LOGGER.debug("Discovered asset: {} ({}) from {}", assetId, type, root);
         } catch (Exception e) {
             LOGGER.error("Failed to process asset: {}", assetPath, e);
         }
