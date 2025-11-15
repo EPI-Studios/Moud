@@ -97,9 +97,8 @@ public final class AxiomBridgeService {
         synchronized (AxiomBridgeService.class) {
             if (instance == null) {
                 instance = new AxiomBridgeService();
-                instance.registerListeners();
-                LOGGER.info("Axiom bridge initialised with extended feature support");
-                ModelManager.getInstance().getAllModels().forEach(model -> instance.scheduleNextTick(() -> instance.createModelMarker(model)));
+
+                LOGGER.info("Axiom bridge disabled - using editor mode instead");
             }
         }
         return instance;
@@ -108,6 +107,18 @@ public final class AxiomBridgeService {
     public static AxiomBridgeService getInstance() {
         return instance;
     }
+
+    public void onModelCreated(Object model) {}
+    public void onModelRemoved(Object model) {}
+    public void onModelMoved(Object model) {}
+    public void onStaticModelCreated(Object model) {}
+    public void onStaticModelRemoved(Object model) {}
+    public void onStaticModelMoved(Object model) {}
+    public void onDisplayCreated(Object display) {}
+    public void onDisplayRemoved(Object display) {}
+    public void onDisplayMoved(Object display) {}
+    public void onLightUpdated(Object lightId, Object lightData) {}
+    public void onLightRemoved(Object lightId) {}
 
     private void registerListeners() {
         var eventHandler = MinecraftServer.getGlobalEventHandler();
@@ -558,7 +569,6 @@ public final class AxiomBridgeService {
 
         broadcastMarkerUpdate(List.of(handle), List.of());
     }
-
 
     private void syncMarkerWithModel(ModelProxy model) {
         ModelMarkerHandle handle = staticModelHandles.get(model.getId());
