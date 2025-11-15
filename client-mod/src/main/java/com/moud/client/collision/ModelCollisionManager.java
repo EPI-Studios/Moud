@@ -1,0 +1,121 @@
+package com.moud.client.collision;
+
+import com.moud.client.model.RenderableModel;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.shape.VoxelShape;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+public final class ModelCollisionManager {
+    private static final ModelCollisionManager INSTANCE = new ModelCollisionManager();
+
+    private final Map<Long, ModelCollisionVolume> volumes = new ConcurrentHashMap<>();
+
+    private ModelCollisionManager() {
+    }
+
+    public static ModelCollisionManager getInstance() {
+        return INSTANCE;
+    }
+
+    public void sync(RenderableModel model) {
+        if (model == null) {
+            return;
+        }
+        boolean hasMesh = model.hasMeshBounds();
+        boolean hasFallback = model.getCollisionWidth() > 0 && model.getCollisionHeight() > 0 && model.getCollisionDepth() > 0;
+        if (!hasMesh && !hasFallback) {
+            removeModel(model.getId());
+            return;
+        }
+        ModelCollisionVolume volume = volumes.computeIfAbsent(model.getId(), ModelCollisionVolume::new);
+        volume.update(model);
+        if (!volume.isActive()) {
+            volumes.remove(model.getId());
+        }
+    }
+
+    public void removeModel(long modelId) {
+        volumes.remove(modelId);
+    }
+
+    public void clear() {
+        volumes.clear();
+    }
+
+    public List<VoxelShape> collectShapes(Box query) {
+        if (query == null || volumes.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<VoxelShape> shapes = null;
+        for (ModelCollisionVolume volume : volumes.values()) {
+            if (!volume.isActive() || !volume.intersects(query)) {
+                continue;
+            }
+            if (shapes == null) {
+                shapes = new ArrayList<>();
+            }
+            VoxelShape shape = volume.getVoxelShape();
+            if (shape != null) {
+                shapes.add(shape);
+            }
+        }
+
+        return shapes != null ? shapes : Collections.emptyList();
+    }
+
+    public long pick(Vec3d origin, Vec3d direction, double maxDistance) {
+        if (origin == null || direction == null || volumes.isEmpty()) {
+            return -1L;
+        }
+        double bestDistance = maxDistance;
+        long bestId = -1L;
+        for (ModelCollisionVolume volume : volumes.values()) {
+            if (!volume.isActive()) {
+                continue;
+            }
+            Box bounds = volume.getBounds();
+            if (bounds == null) {
+                continue;
+            }
+            double distance = rayIntersectAabb(origin, direction, bounds);
+            if (distance >= 0 && distance < bestDistance) {
+                bestDistance = distance;
+                bestId = volume.getModelId();
+            }
+        }
+        return bestId;
+    }
+
+    private double rayIntersectAabb(Vec3d origin, Vec3d direction, Box box) {
+        double invX = 1.0 / (direction.x == 0 ? 1e-9 : direction.x);
+        double invY = 1.0 / (direction.y == 0 ? 1e-9 : direction.y);
+        double invZ = 1.0 / (direction.z == 0 ? 1e-9 : direction.z);
+
+        double t1 = (box.minX - origin.x) * invX;
+        double t2 = (box.maxX - origin.x) * invX;
+        double tmin = Math.min(t1, t2);
+        double tmax = Math.max(t1, t2);
+
+        double ty1 = (box.minY - origin.y) * invY;
+        double ty2 = (box.maxY - origin.y) * invY;
+        tmin = Math.max(tmin, Math.min(ty1, ty2));
+        tmax = Math.min(tmax, Math.max(ty1, ty2));
+
+        double tz1 = (box.minZ - origin.z) * invZ;
+        double tz2 = (box.maxZ - origin.z) * invZ;
+        tmin = Math.max(tmin, Math.min(tz1, tz2));
+        tmax = Math.min(tmax, Math.max(tz1, tz2));
+
+        if (tmax < 0 || tmin > tmax) {
+            return -1;
+        }
+        return tmin >= 0 ? tmin : tmax;
+    }
+}
