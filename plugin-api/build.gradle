@@ -1,0 +1,26 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'com.moud'
+version = rootProject.file('VERSION').text.trim()
+
+repositories {
+    mavenCentral()
+    maven {
+        url = "https://repo.minestom.com/"
+    }
+}
+
+dependencies {
+    api project(':api')
+    api 'net.minestom:minestom-snapshots:f966351cb7'
+    api 'org.slf4j:slf4j-api:2.0.9'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.0'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
