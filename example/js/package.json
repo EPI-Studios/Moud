@@ -1,5 +1,0 @@
-{
-  "name": "test-moud-project",
-  "version": "1.0.0",
-  "moud:main": "src/main.js"
-}
