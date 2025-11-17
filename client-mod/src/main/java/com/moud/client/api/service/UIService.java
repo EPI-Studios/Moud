@@ -3,6 +3,8 @@ package com.moud.client.api.service;
 import com.moud.client.ui.UIOverlayManager;
 import com.moud.client.ui.component.*;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.toast.SystemToast;
+import net.minecraft.text.Text;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
@@ -154,5 +156,10 @@ public final class UIService {
         jsContext = null;
         scriptExecutor = null;
         LOGGER.info("UIService cleaned up.");
+    }
+
+    public void showToast(String title, String body) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) return;
     }
 }

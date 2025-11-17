@@ -283,4 +283,16 @@ public final class RenderingService {
         jsContext = null;
         LOGGER.info("RenderingService cleaned up");
     }
+
+    public void applyPostEffect(String effectId) {
+        postProcessingManager.applyEffect(effectId);
+    }
+
+    public void removePostEffect(String effectId) {
+        postProcessingManager.removeEffect(effectId);
+    }
+
+    public void clearPostEffects() {
+        postProcessingManager.clearAllEffects();
+    }
 }

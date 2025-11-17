@@ -1,5 +1,7 @@
 package com.moud.client;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.client.animation.*;
@@ -23,20 +25,23 @@ import com.moud.client.network.DataPayload;
 import com.moud.client.network.MoudPayload;
 import com.moud.client.player.ClientCameraManager;
 import com.moud.client.player.PlayerStateManager;
-import com.moud.client.rendering.ModelRenderLayers;
 import com.moud.client.resources.InMemoryPackResources;
 import com.moud.client.runtime.ClientScriptingRuntime;
 import com.moud.client.shared.SharedValueManager;
 import com.moud.client.editor.runtime.RuntimeObjectRegistry;
+import com.moud.client.editor.scene.blueprint.BlueprintPreviewRenderer;
 import com.moud.client.editor.scene.SceneSessionManager;
+import com.moud.client.editor.scene.blueprint.ClientBlueprintNetwork;
 import com.moud.client.ui.UIOverlayManager;
 import com.moud.client.util.WindowAnimator;
 import com.moud.network.MoudPackets;
 import com.moud.network.MoudPackets.*;
 import com.zigythebird.playeranim.api.PlayerAnimationAccess;
+import foundry.veil.api.client.render.CullFrustum;
 import foundry.veil.api.client.render.VeilRenderSystem;
+import foundry.veil.api.client.render.VeilRenderer;
+import foundry.veil.api.client.render.dynamicbuffer.DynamicBufferType;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
-import foundry.veil.impl.client.render.pipeline.VeilBloomRenderer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -48,8 +53,12 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.network.packet.s2c.play.GameJoinS2CPacket;
 import net.minecraft.resource.*;
@@ -59,8 +68,6 @@ import net.minecraft.util.Identifier;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
 import org.jetbrains.annotations.Nullable;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,7 +75,6 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.*;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
@@ -92,8 +98,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private ModelRenderer modelRenderer;
     private DisplayRenderer displayRenderer;
 
-    public static Vector3f lightPosition = new Vector3f(0, 66, 0);
-
     private static final int MAX_DECOMPRESSED_SIZE_BYTES = 64 * 1024 * 1024;
     private GameJoinS2CPacket pendingGameJoinPacket = null;
     private static MoudClientMod instance;
@@ -114,6 +118,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private long joinTime = -1L;
     private boolean moudServicesInitialized = false;
     private static boolean isOnMoudServer = false;
+    private final Gson builtinEventParser = new Gson();
 
     public static boolean isCustomCameraActive() {
         return customCameraActive;
@@ -152,6 +157,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         registerShutdownHandler();
         com.moud.client.editor.ui.WorldViewCapture.initialize();
         com.moud.client.editor.selection.EditorSelectionRenderer.initialize();
+        BlueprintPreviewRenderer.initialize();
         HudRenderCallback.EVENT.register((drawContext, tickCounter) -> {
             WindowAnimator.tick();
 
@@ -231,6 +237,10 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 (player, packet) -> com.moud.client.editor.assets.EditorAssetCatalog.getInstance().handleAssetList(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.SceneBindingPacket.class,
                 (player, packet) -> com.moud.client.editor.selection.SceneSelectionManager.getInstance().handleBindingPacket(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.BlueprintSaveAckPacket.class,
+                (player, packet) -> ClientBlueprintNetwork.getInstance().handleSaveAck(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.BlueprintDataPacket.class,
+                (player, packet) -> ClientBlueprintNetwork.getInstance().handleBlueprintData(packet));
         ClientPacketWrapper.registerHandler(CursorAppearancePacket.class, (player, packet) -> {
             if (clientCursorManager != null) {
                 clientCursorManager.handleAppearanceUpdate(packet.playerId(), packet.texture(), packet.color(), packet.scale(), packet.renderMode());
@@ -275,6 +285,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateModelTransformPacket.class, (player, packet) -> handleUpdateModelTransform(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateModelTexturePacket.class, (player, packet) -> handleUpdateModelTexture(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateModelCollisionPacket.class, (player, packet) -> handleUpdateModelCollision(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_SyncModelCollisionBoxesPacket.class, (player, packet) -> handleSyncModelCollisionBoxes(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_RemoveModelPacket.class, (player, packet) -> handleRemoveModel(packet));
 
         LOGGER.info("Internal packet handlers registered.");
@@ -434,13 +445,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 cleanupMoudServices();
             }
 
-            if (com.moud.client.rendering.ModelRenderLayers.ENABLE_BLOOM) {
-                try {
-                    VeilBloomRenderer.tryEnable();
-                } catch (Throwable t) {
-                }
-            }
-
             ClientLightingService.getInstance().tick();
 
             if (moudServicesInitialized) {
@@ -473,30 +477,13 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             EditorModeManager.getInstance().tick(client);
 
             ClientMovementTracker.getInstance().tick();
+            ClientModelManager.getInstance().getModels().forEach(model -> model.tickSmoothing(1.0f));
         });
     }
 
     private void registerRenderHandler() {
         WorldRenderEvents.AFTER_ENTITIES.register(renderContext -> {
             Camera camera = renderContext.camera();
-
-            try {
-                var renderer = VeilRenderSystem.renderer();
-                if (renderer != null) {
-                    var shaderManager = renderer.getShaderManager();
-                    Vector3f sunDirection = new Vector3f(-0.5f, -1.0f, -0.5f).normalize();
-                    Vector3f sunColor = new Vector3f(1.0f, 1.0f, 0.9f);
-
-                    Quaternionf cameraRotation = new Quaternionf(camera.getRotation());
-                    Vector3f lightDirView = new Vector3f(sunDirection);
-                    cameraRotation.conjugate().transform(lightDirView);
-
-                    ShaderProgram phongShader = shaderManager.getShader(PHONG_SHADER_ID);
-                    applyBaseLightingUniforms(phongShader, lightDirView, sunColor, DEFAULT_PHONG_AMBIENT);
-                }
-            } catch (Exception e) {
-                LOGGER.error("Failed to set shader uniforms", e);
-            }
 
             int modelCount = ClientPlayerModelManager.getInstance().getModels().size();
             if (modelCount > 0) {
@@ -506,73 +493,215 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             var world = MinecraftClient.getInstance().world;
             float tickDelta = renderContext.tickCounter().getTickDelta(true);
 
-            if (playerModelRenderer != null && !ClientPlayerModelManager.getInstance().getModels().isEmpty()) {
-
-                for (AnimatedPlayerModel model : ClientPlayerModelManager.getInstance().getModels()) {
-                    double x = model.getInterpolatedX(tickDelta) - camera.getPos().getX();
-                    double y = model.getInterpolatedY(tickDelta) - camera.getPos().getY();
-                    double z = model.getInterpolatedZ(tickDelta) - camera.getPos().getZ();
-
-                    LOGGER.debug("Rendering player model at world({}, {}, {}) camera-rel({}, {}, {})",
-                            model.getInterpolatedX(tickDelta), model.getInterpolatedY(tickDelta), model.getInterpolatedZ(tickDelta),
-                            x, y, z);
-
-                    MatrixStack matrices = new MatrixStack();
-                    matrices.translate(x, y, z);
-
-                    int light = WorldRenderer.getLightmapCoordinates(world, model.getBlockPos());
-
-                    playerModelRenderer.render(model, matrices, renderContext.consumers(), light, tickDelta);
+            VeilRenderer veilRenderer = VeilRenderSystem.renderer();
+            boolean enabledBuffers = false;
+            if (veilRenderer != null) {
+                try {
+                    enabledBuffers = veilRenderer.enableBuffers(VeilRenderer.COMPOSITE,
+                            DynamicBufferType.ALBEDO,
+                            DynamicBufferType.NORMAL);
+                } catch (Throwable t) {
+                    LOGGER.debug("Failed to enable Veil dynamic buffers", t);
                 }
             }
-            if (modelRenderer != null && !ClientModelManager.getInstance().getModels().isEmpty()) {
-                MatrixStack matrices = renderContext.matrixStack();
-                var consumers = renderContext.consumers();
-                if (consumers != null) {
-                    Vec3d cameraPos = camera.getPos();
-                    for (RenderableModel model : ClientModelManager.getInstance().getModels()) {
-                        Vector3 interpolatedPos = model.getInterpolatedPosition(tickDelta);
-                        matrices.push();
-                        matrices.translate(
-                                interpolatedPos.x - cameraPos.x,
-                                interpolatedPos.y - cameraPos.y,
-                                interpolatedPos.z - cameraPos.z
-                        );
+
+            try {
+                if (playerModelRenderer != null && !ClientPlayerModelManager.getInstance().getModels().isEmpty()) {
+
+                    for (AnimatedPlayerModel model : ClientPlayerModelManager.getInstance().getModels()) {
+                        double x = model.getInterpolatedX(tickDelta) - camera.getPos().getX();
+                        double y = model.getInterpolatedY(tickDelta) - camera.getPos().getY();
+                        double z = model.getInterpolatedZ(tickDelta) - camera.getPos().getZ();
+
+                        LOGGER.debug("Rendering player model at world({}, {}, {}) camera-rel({}, {}, {})",
+                                model.getInterpolatedX(tickDelta), model.getInterpolatedY(tickDelta), model.getInterpolatedZ(tickDelta),
+                                x, y, z);
+
+                        MatrixStack matrices = new MatrixStack();
+                        matrices.translate(x, y, z);
 
                         int light = WorldRenderer.getLightmapCoordinates(world, model.getBlockPos());
-                        modelRenderer.render(model, matrices, consumers, light, tickDelta);
-                        matrices.pop();
-                    }
-                }
-            }
-            if (displayRenderer != null && !ClientDisplayManager.getInstance().isEmpty()) {
-                MatrixStack matrices = renderContext.matrixStack();
-                var consumers = renderContext.consumers();
-                if (consumers != null) {
-                    Vec3d cameraPos = camera.getPos();
-                    for (DisplaySurface surface : ClientDisplayManager.getInstance().getDisplays()) {
-                        Vector3 interpolatedPos = surface.getInterpolatedPosition(tickDelta);
-                        matrices.push();
-                        matrices.translate(
-                                interpolatedPos.x - cameraPos.x,
-                                interpolatedPos.y - cameraPos.y,
-                                interpolatedPos.z - cameraPos.z
-                        );
 
-                        int light = WorldRenderer.getLightmapCoordinates(world, surface.getBlockPos());
-                        displayRenderer.render(surface, matrices, consumers, light, tickDelta);
-                        matrices.pop();
+                        playerModelRenderer.render(model, matrices, renderContext.consumers(), light, tickDelta);
                     }
                 }
-            }
-            if (clientCursorManager != null) {
-                clientCursorManager.render(
-                        renderContext.matrixStack(),
-                        renderContext.consumers(),
-                        renderContext.tickCounter().getTickDelta(true)
-                );
+                Vec3d cameraPos = camera.getPos();
+
+                if (modelRenderer != null && !ClientModelManager.getInstance().getModels().isEmpty()) {
+                    MatrixStack matrices = renderContext.matrixStack();
+                    var consumers = renderContext.consumers();
+                    if (consumers != null) {
+                        for (RenderableModel model : ClientModelManager.getInstance().getModels()) {
+                            Vector3 interpolatedPos = model.getInterpolatedPosition(tickDelta);
+                            if (!isModelVisible(model, interpolatedPos, renderContext)) {
+                                continue;
+                            }
+                            double dx = interpolatedPos.x - cameraPos.x;
+                            double dy = interpolatedPos.y - cameraPos.y;
+                            double dz = interpolatedPos.z - cameraPos.z;
+
+                            matrices.push();
+                            matrices.translate(dx, dy, dz);
+
+                            int light = WorldRenderer.getLightmapCoordinates(world, model.getBlockPos());
+                            modelRenderer.render(model, matrices, consumers, light, tickDelta);
+                            matrices.pop();
+                        }
+                    }
+                }
+                if (displayRenderer != null && !ClientDisplayManager.getInstance().isEmpty()) {
+                    MatrixStack matrices = renderContext.matrixStack();
+                    var consumers = renderContext.consumers();
+                    if (consumers != null) {
+                        for (DisplaySurface surface : ClientDisplayManager.getInstance().getDisplays()) {
+                            Vector3 interpolatedPos = surface.getInterpolatedPosition(tickDelta);
+                            if (!isDisplayVisible(surface, interpolatedPos, renderContext)) {
+                                continue;
+                            }
+                            double dx = interpolatedPos.x - cameraPos.x;
+                            double dy = interpolatedPos.y - cameraPos.y;
+                            double dz = interpolatedPos.z - cameraPos.z;
+
+                            matrices.push();
+                            matrices.translate(dx, dy, dz);
+
+                            int light = WorldRenderer.getLightmapCoordinates(world, surface.getBlockPos());
+                            displayRenderer.render(surface, matrices, consumers, light, tickDelta);
+                            matrices.pop();
+                        }
+                    }
+                }
+                renderModelCollisionHitboxes(renderContext);
+                if (clientCursorManager != null) {
+                    clientCursorManager.render(
+                            renderContext.matrixStack(),
+                            renderContext.consumers(),
+                            renderContext.tickCounter().getTickDelta(true)
+                    );
+                }
+            } finally {
+                if (enabledBuffers && veilRenderer != null) {
+                    try {
+                        veilRenderer.disableBuffers(VeilRenderer.COMPOSITE,
+                                DynamicBufferType.ALBEDO,
+                                DynamicBufferType.NORMAL);
+                    } catch (Throwable t) {
+                        LOGGER.debug("Failed to disable Veil dynamic buffers", t);
+                    }
+                }
             }
         });
+    }
+
+    private boolean isModelVisible(RenderableModel model, Vector3 position, WorldRenderContext context) {
+        return isVisible(createModelBounds(model, position), context);
+    }
+
+    private boolean isDisplayVisible(DisplaySurface surface, Vector3 position, WorldRenderContext context) {
+        return isVisible(createDisplayBounds(surface, position), context);
+    }
+
+    private boolean isVisible(Box bounds, WorldRenderContext context) {
+        if (bounds == null) {
+            return true;
+        }
+        try {
+            var frustum = context.frustum();
+            if (frustum == null) {
+                return true;
+            }
+            if (frustum instanceof CullFrustum cullFrustum) {
+                return cullFrustum.testAab(bounds.minX, bounds.minY, bounds.minZ,
+                        bounds.maxX, bounds.maxY, bounds.maxZ);
+            }
+            return frustum.isVisible(bounds);
+        } catch (Throwable ignored) {
+            return true;
+        }
+    }
+
+    private void renderModelCollisionHitboxes(WorldRenderContext context) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) {
+            return;
+        }
+        var dispatcher = client.getEntityRenderDispatcher();
+        if (dispatcher == null || !dispatcher.shouldRenderHitboxes()) {
+            return;
+        }
+        var boxes = ModelCollisionManager.getInstance().getDebugBoxes();
+        if (boxes.isEmpty()) {
+            return;
+        }
+        VertexConsumerProvider consumers = context.consumers();
+        if (consumers == null) {
+            return;
+        }
+        VertexConsumer buffer = consumers.getBuffer(RenderLayer.getLines());
+        if (buffer == null) {
+            return;
+        }
+        MatrixStack matrices = context.matrixStack();
+        Vec3d cameraPos = context.camera().getPos();
+        matrices.push();
+        matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+        for (Box box : boxes) {
+            WorldRenderer.drawBox(matrices, buffer, box, 1.0f, 0.2f, 0.2f, 1.0f);
+        }
+        matrices.pop();
+    }
+
+    private Box createModelBounds(RenderableModel model, Vector3 position) {
+        if (model == null || position == null) {
+            return null;
+        }
+        Vector3 scale = model.getScale();
+        Vector3 meshHalf = model.getMeshHalfExtents();
+        double halfX = computeHalfExtent(meshHalf != null ? meshHalf.x : Double.NaN, scale.x, model.getCollisionWidth());
+        double halfY = computeHalfExtent(meshHalf != null ? meshHalf.y : Double.NaN, scale.y, model.getCollisionHeight());
+        double halfZ = computeHalfExtent(meshHalf != null ? meshHalf.z : Double.NaN, scale.z, model.getCollisionDepth());
+        return new Box(position.x - halfX, position.y - halfY, position.z - halfZ,
+                position.x + halfX, position.y + halfY, position.z + halfZ);
+    }
+
+    private Box createDisplayBounds(DisplaySurface surface, Vector3 position) {
+        if (surface == null || position == null) {
+            return null;
+        }
+        Vector3 scale = surface.getScale();
+        double halfX = Math.max(0.25, Math.abs(scale.x) * 0.5);
+        double halfY = Math.max(0.25, Math.abs(scale.y) * 0.5);
+        double halfZ = Math.max(0.0625, Math.abs(scale.z) * 0.5);
+        return new Box(position.x - halfX, position.y - halfY, position.z - halfZ,
+                position.x + halfX, position.y + halfY, position.z + halfZ);
+    }
+
+    private double computeHalfExtent(double meshValue, double scaleAxis, double collisionSize) {
+        double base = !Double.isNaN(meshValue) && meshValue > 0 ? meshValue :
+                (collisionSize > 0 ? collisionSize / 2.0 : 0.5);
+        double scaleAbs = Math.abs(scaleAxis);
+        if (scaleAbs < 1.0e-3) {
+            scaleAbs = 1.0;
+        }
+        return Math.max(0.25, base * scaleAbs);
+    }
+
+    private static Identifier parseTextureId(String rawPath) {
+        if (rawPath == null || rawPath.isBlank()) {
+            return null;
+        }
+        String normalized = rawPath.trim();
+        if (normalized.startsWith("moud:moud/")) {
+            normalized = "moud:" + normalized.substring("moud:moud/".length());
+        }
+        Identifier parsed = Identifier.tryParse(normalized);
+        if (parsed != null && "moud".equals(parsed.getNamespace())) {
+            String path = parsed.getPath();
+            if (path.startsWith("moud/") && path.length() > 5) {
+                return Identifier.of("moud", path.substring(5));
+            }
+        }
+        return parsed;
     }
 
     private void registerShutdownHandler() {
@@ -845,8 +974,52 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     }
 
     private void handleScriptEvent(ClientboundScriptEventPacket packet) {
+        if (handleBuiltinScriptEvent(packet.eventName(), packet.eventData())) {
+            return;
+        }
         if (scriptingRuntime != null && scriptingRuntime.isInitialized()) {
             scriptingRuntime.triggerNetworkEvent(packet.eventName(), packet.eventData());
+        }
+    }
+
+    private boolean handleBuiltinScriptEvent(String eventName, String payload) {
+        if (apiService == null) {
+            return false;
+        }
+        try {
+            switch (eventName) {
+                case "rendering:post:apply" -> {
+                    JsonObject json = builtinEventParser.fromJson(payload, JsonObject.class);
+                    if (json != null && json.has("id")) {
+                        apiService.rendering.applyPostEffect(json.get("id").getAsString());
+                    }
+                    return true;
+                }
+                case "rendering:post:remove" -> {
+                    JsonObject json = builtinEventParser.fromJson(payload, JsonObject.class);
+                    if (json != null && json.has("id")) {
+                        apiService.rendering.removePostEffect(json.get("id").getAsString());
+                    }
+                    return true;
+                }
+                case "rendering:post:clear" -> {
+                    apiService.rendering.clearPostEffects();
+                    return true;
+                }
+                case "ui:toast" -> {
+                    JsonObject json = builtinEventParser.fromJson(payload, JsonObject.class);
+                    String title = json != null && json.has("title") ? json.get("title").getAsString() : "";
+                    String body = json != null && json.has("body") ? json.get("body").getAsString() : "";
+                    apiService.ui.showToast(title, body);
+                    return true;
+                }
+                default -> {
+                    return false;
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to handle builtin client event {}: {}", eventName, e.getMessage());
+            return false;
         }
     }
 
@@ -937,14 +1110,11 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             if (model != null) {
                 model.updateTransform(packet.position(), packet.rotation(), packet.scale());
                 model.updateCollisionBox(packet.collisionWidth(), packet.collisionHeight(), packet.collisionDepth());
-                String texturePath = packet.texturePath();
-                if (texturePath != null && !texturePath.isEmpty()) {
-                    Identifier textureId = Identifier.tryParse(texturePath);
-                    if (textureId != null) {
-                        model.setTexture(textureId);
-                    } else {
-                        LOGGER.warn("Received invalid texture identifier '{}' for model {}", texturePath, packet.modelId());
-                    }
+                Identifier textureId = parseTextureId(packet.texturePath());
+                if (textureId != null) {
+                    model.setTexture(textureId);
+                } else if (packet.texturePath() != null && !packet.texturePath().isEmpty()) {
+                    LOGGER.warn("Received invalid texture identifier '{}' for model {}", packet.texturePath(), packet.modelId());
                 }
                 ModelCollisionManager.getInstance().sync(model);
                 RuntimeObjectRegistry.getInstance().syncModel(model);
@@ -967,15 +1137,12 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         MinecraftClient.getInstance().execute(() -> {
             RenderableModel model = ClientModelManager.getInstance().getModel(packet.modelId());
             if (model != null) {
-                String texturePath = packet.texturePath();
-                if (texturePath != null && !texturePath.isEmpty()) {
-                    Identifier textureId = Identifier.tryParse(texturePath);
-                    if (textureId != null) {
-                        model.setTexture(textureId);
-                        RuntimeObjectRegistry.getInstance().syncModel(model);
-                    } else {
-                        LOGGER.warn("Received invalid texture identifier '{}' for model {}", texturePath, packet.modelId());
-                    }
+                Identifier textureId = parseTextureId(packet.texturePath());
+                if (textureId != null) {
+                    model.setTexture(textureId);
+                    RuntimeObjectRegistry.getInstance().syncModel(model);
+                } else if (packet.texturePath() != null && !packet.texturePath().isEmpty()) {
+                    LOGGER.warn("Received invalid texture identifier '{}' for model {}", packet.texturePath(), packet.modelId());
                 }
             }
         });
@@ -988,6 +1155,24 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 model.updateCollisionBox(packet.collisionWidth(), packet.collisionHeight(), packet.collisionDepth());
                 ModelCollisionManager.getInstance().sync(model);
                 RuntimeObjectRegistry.getInstance().syncModel(model);
+            }
+        });
+    }
+
+    private void handleSyncModelCollisionBoxes(MoudPackets.S2C_SyncModelCollisionBoxesPacket packet) {
+        MinecraftClient.getInstance().execute(() -> {
+            RenderableModel model = ClientModelManager.getInstance().getModel(packet.modelId());
+            if (model != null) {
+                List<com.moud.api.collision.OBB> collisionBoxes = new ArrayList<>();
+                for (MoudPackets.CollisionBoxData boxData : packet.collisionBoxes()) {
+                    collisionBoxes.add(new com.moud.api.collision.OBB(
+                        boxData.center(),
+                        boxData.halfExtents(),
+                        boxData.rotation()
+                    ));
+                }
+                model.setCollisionBoxes(collisionBoxes);
+                ModelCollisionManager.getInstance().sync(model);
             }
         });
     }
@@ -1052,15 +1237,13 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     }
 
     private void registerResourcePackProvider() {
-        try {
-            Field providerField = MinecraftClient.getInstance().getResourcePackManager().getClass().getDeclaredField("providers");
-            providerField.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            Set<ResourcePackProvider> providers = (Set<ResourcePackProvider>) providerField.get(MinecraftClient.getInstance().getResourcePackManager());
-            providers.add(this);
-            LOGGER.info("Successfully registered dynamic resource pack provider.");
-        } catch (Exception e) {
-            LOGGER.error("Failed to register dynamic resource pack provider via reflection", e);
+        MinecraftClient client = MinecraftClient.getInstance();
+        ResourcePackManager manager = client.getResourcePackManager();
+        if (manager instanceof com.moud.client.mixin.accessor.ResourcePackManagerAccessor accessor) {
+            accessor.moud$getProviders().add(this);
+            LOGGER.info("Registered dynamic resource pack provider.");
+        } else {
+            LOGGER.warn("Could not register dynamic resource pack provider: missing accessor.");
         }
     }
 
@@ -1101,27 +1284,4 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         }
     }
 
-    private boolean applyBaseLightingUniforms(ShaderProgram shader, Vector3f lightDirView, Vector3f lightColor, float ambientStrength) {
-        if (shader == null || !shader.isValid()) {
-            return false;
-        }
-        setVectorUniform(shader, "LightDirView", lightDirView);
-        setVectorUniform(shader, "LightColor", lightColor);
-        setFloatUniform(shader, "AmbientStrength", ambientStrength);
-        return true;
-    }
-
-    private void setVectorUniform(ShaderProgram shader, String uniformName, Vector3f value) {
-        var uniform = shader.getUniform(uniformName);
-        if (uniform != null) {
-            uniform.setVector(value);
-        }
-    }
-
-    private void setFloatUniform(ShaderProgram shader, String uniformName, float value) {
-        var uniform = shader.getUniform(uniformName);
-        if (uniform != null) {
-            uniform.setFloat(value);
-        }
-    }
 }
