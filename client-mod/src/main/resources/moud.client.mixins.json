@@ -6,6 +6,8 @@
   "mixins": [],
   "client": [
     "AnimatedPlayerMixin",
+    "accessor.CameraAccessor",
+    "accessor.ResourcePackManagerAccessor",
     "CameraMixin",
     "ChatHudMixin",
     "ClientPlayNetworkHandlerMixin",
@@ -17,7 +19,8 @@
     "MinecraftMixin",
     "MouseMixin",
     "CollisionViewMixin",
-    "VeilLanguageDefinitionsMixin"
+    "VeilLanguageDefinitionsMixin",
+    "WorldRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

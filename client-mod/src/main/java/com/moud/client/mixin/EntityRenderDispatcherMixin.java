@@ -12,10 +12,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(EntityRenderDispatcher.class)
 public class EntityRenderDispatcherMixin {
-    @Inject(method = "shouldRender", at = @At("HEAD"), cancellable = true)
-    private void moud_allowEntityRenderingInCameraMode(Entity entity, Frustum frustum, double x, double y, double z, CallbackInfoReturnable<Boolean> cir) {
-        if (MoudClientMod.isCustomCameraActive() || EditorCameraController.getInstance().isActive()) {
-            cir.setReturnValue(true);
-        }
-    }
+//    @Inject(method = "shouldRender", at = @At("HEAD"), cancellable = true)
+//    private void moud_allowEntityRenderingInCameraMode(Entity entity, Frustum frustum, double x, double y, double z, CallbackInfoReturnable<Boolean> cir) {
+//        if (MoudClientMod.isCustomCameraActive() || EditorCameraController.getInstance().isActive()) {
+//            cir.setReturnValue(true);
+//        }
+//    }
 }
