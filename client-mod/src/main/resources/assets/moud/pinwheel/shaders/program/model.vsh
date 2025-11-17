@@ -1,26 +1,43 @@
 #version 150
 
+#include veil:light
+
 in vec3 Position;
+in vec4 Color;
 in vec2 UV0;
+in ivec2 UV1;
+in ivec2 UV2;
 in vec3 Normal;
 
 uniform mat4 ModelViewMat;
 uniform mat4 ProjMat;
-uniform mat3 NormalMat;
 uniform sampler2D Sampler2;
-uniform int LightmapCoords;
+#ifdef VEIL_NORMAL
+uniform mat3 NormalMat;
+#endif
 
 out vec2 texCoord;
-out vec3 normal;
-out vec4 lightmapColor;
+out vec4 vertexColor;
+out vec4 lightColor;
+#ifdef VEIL_NORMAL
+out vec3 vertexNormal;
+#endif
 
 void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
     texCoord = UV0;
-    normal = normalize(NormalMat * Normal);
+    vertexColor = Color;
 
-    int blockLight = LightmapCoords & 0xFFFF;
-    int skyLight = (LightmapCoords >> 16) & 0xFFFF;
+    // #veil:light_color
+    lightColor = minecraft_sample_lightmap(Sampler2, UV2);
 
-    lightmapColor = texelFetch(Sampler2, ivec2(blockLight, skyLight), 0);
+#ifdef VEIL_LIGHT_UV
+    // #veil:light_uv
+    vec2 lightUvCoords = vec2(UV2) / 256.0;
+#endif
+
+#ifdef VEIL_NORMAL
+    // #veil:normal
+    vertexNormal = NormalMat * Normal;
+#endif
 }

@@ -1,27 +1,31 @@
 #version 150
 
+#include veil:light
+
 uniform sampler2D Sampler0;
 uniform vec4 ColorModulator;
 
 in vec2 texCoord;
-in vec3 normal;
-in vec4 lightmapColor;
+in vec4 vertexColor;
+in vec4 lightColor;
+#ifdef VEIL_NORMAL
+in vec3 vertexNormal;
+#endif
 
 out vec4 fragColor;
 
 void main() {
-    vec4 textureColor = texture(Sampler0, texCoord);
-    if (textureColor.a < 0.1) {
+    // #veil:albedo
+    vec4 albedo = texture(Sampler0, texCoord) * vertexColor * ColorModulator;
+    if (albedo.a < 0.1) {
         discard;
     }
 
-    // Directional lighting
-    vec3 lightDir = normalize(vec3(0.5, 1.0, 0.2));
-    float diffuse = max(dot(normal, lightDir), 0.3);
+    vec4 litColor = vec4(albedo.rgb * lightColor.rgb, albedo.a);
 
-    // Combine directional lighting with world lightmap
-    vec3 lighting = lightmapColor.rgb * diffuse;
+#ifdef VEIL_NORMAL
+    vec3 normalDir = normalize(vertexNormal);
+#endif
 
-    fragColor = textureColor * ColorModulator;
-    fragColor.rgb *= lighting;
+    fragColor = litColor;
 }
