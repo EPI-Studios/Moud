@@ -548,6 +548,18 @@ export interface MoudAPI {
      */
     on(eventName: string, callback: (player: Player, data: any) => void): void;
     /**
+     * Registers a handler that will automatically unregister itself after firing once.
+     * @param eventName The event identifier.
+     * @param callback The handler to invoke once.
+     */
+    once(eventName: string, callback: (...args: unknown[]) => void): void;
+    /**
+     * Removes a previously registered handler for an event.
+     * @param eventName The event identifier that was passed to {@link on} or {@link once}.
+     * @param callback The original handler function.
+     */
+    off(eventName: string, callback: (...args: unknown[]) => void): void;
+    /**
      * Registers a callback that fires *only once* when the server finishes its initial startup.
      * This event does not fire on hot reloads, making it ideal for persistent, one-time setup.
      */
