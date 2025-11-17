@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - develop
+    tags:
+      - 'v*'
   pull_request:
     branches:
       - develop
@@ -51,6 +53,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Ensure versions are in sync
+        run: node scripts/sync-version.mjs --check
+
       - name: Run Gradle checks
         run: ./gradlew check
 
@@ -63,7 +68,7 @@ jobs:
     name: Build & Release
     runs-on: ubuntu-latest
     needs: test
-    if: github.event_name == 'push'
+    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
     env:
@@ -110,11 +115,29 @@ jobs:
       - name: Install all dependencies (pnpm monorepo)
         run: pnpm install --frozen-lockfile
 
+      - name: Ensure versions are in sync
+        run: node scripts/sync-version.mjs --check
+
+      - name: Validate tag matches VERSION
+        run: |
+          VERSION=$(cat VERSION)
+          TAG=${GITHUB_REF#refs/tags/}
+          if [ "v${VERSION}" != "$TAG" ]; then
+            echo "Tag $TAG does not match VERSION $VERSION"
+            exit 1
+          fi
+
+      - name: Configure npm authentication
+        run: npm config set //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN
+
       - name: Build Client Mod
         run: ./gradlew client-mod:build
 
       - name: Build Server
         run: ./gradlew server:shadowJar
+
+      - name: Generate API metadata
+        run: ./gradlew server:generateTsMetadata
 
       - name: Build CLI
         run: pnpm --filter ./packages/moud-cli build
@@ -122,12 +145,11 @@ jobs:
       - name: Build SDK
         run: pnpm --filter ./packages/sdk build
 
-      - name: Generate version tag
-        id: version
-        run: |
-          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          TAG="v0.0.0-draft-${TIMESTAMP}"
-          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+      - name: Publish CLI to npm
+        run: pnpm --filter ./packages/moud-cli publish --no-git-checks --access public
+
+      - name: Publish SDK to npm
+        run: pnpm --filter ./packages/sdk publish --no-git-checks --access public
 
       - name: Generate Changelog
         id: changelog
@@ -142,7 +164,7 @@ jobs:
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Create Draft Release
+      - name: Create Release
         if: ${{ env.ACT != 'true' }}
         uses: ncipollo/release-action@v1
         with:
@@ -150,8 +172,8 @@ jobs:
             server/build/libs/moud-server.jar
             client-mod/build/libs/*.jar
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ steps.version.outputs.tag }}
-          draft: true
+          tag: ${{ github.ref_name }}
+          draft: false
           generateReleaseNotes: false
           body: |
             ## Changes
