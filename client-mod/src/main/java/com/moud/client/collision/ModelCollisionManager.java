@@ -48,6 +48,29 @@ public final class ModelCollisionManager {
         volumes.clear();
     }
 
+    public List<Box> getDebugBoxes() {
+        if (volumes.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Box> boxes = new ArrayList<>();
+        for (ModelCollisionVolume volume : volumes.values()) {
+            if (!volume.isActive()) {
+                continue;
+            }
+            VoxelShape shape = volume.getVoxelShape();
+            if (shape != null) {
+                shape.forEachBox((minX, minY, minZ, maxX, maxY, maxZ) ->
+                        boxes.add(new Box(minX, minY, minZ, maxX, maxY, maxZ)));
+            } else {
+                Box bounds = volume.getBounds();
+                if (bounds != null) {
+                    boxes.add(bounds);
+                }
+            }
+        }
+        return boxes;
+    }
+
     public List<VoxelShape> collectShapes(Box query) {
         if (query == null || volumes.isEmpty()) {
             return Collections.emptyList();

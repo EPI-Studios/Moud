@@ -1,5 +1,6 @@
 package com.moud.client.collision;
 
+import com.moud.api.collision.OBB;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.client.model.RenderableModel;
@@ -9,6 +10,8 @@ import net.minecraft.util.shape.VoxelShapes;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public final class ModelCollisionVolume {
@@ -62,6 +65,15 @@ public final class ModelCollisionVolume {
     }
 
     private void rebuildVolume(RenderableModel model) {
+
+        if (model.hasCollisionBoxes()) {
+            List<Box> boxes = computeFromCollisionBoxes(model);
+            if (!boxes.isEmpty()) {
+                buildFromMultipleBoxes(boxes);
+                return;
+            }
+        }
+
         Box computed = computeFromMeshVertices(model);
         if (computed == null) {
             computed = computeFromFallback();
@@ -70,6 +82,82 @@ public final class ModelCollisionVolume {
         voxelShape = bounds == null ? null : VoxelShapes.cuboid(
                 bounds.minX, bounds.minY, bounds.minZ, bounds.maxX, bounds.maxY, bounds.maxZ
         );
+    }
+
+    private List<Box> computeFromCollisionBoxes(RenderableModel model) {
+        List<OBB> collisionBoxes = model.getCollisionBoxes();
+        if (collisionBoxes == null || collisionBoxes.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<Box> boxes = new ArrayList<>();
+        Vector3 modelPos = this.position;
+        Quaternion modelRot = this.rotation;
+        Vector3 modelScale = this.scale;
+
+        for (OBB obb : collisionBoxes) {
+
+            Vector3 scaledCenter = new Vector3(
+                    obb.center.x * modelScale.x,
+                    obb.center.y * modelScale.y,
+                    obb.center.z * modelScale.z
+            );
+
+            Vector3 rotatedCenter = modelRot.rotate(scaledCenter);
+
+            Vector3 worldCenter = modelPos.add(rotatedCenter);
+
+            Vector3 scaledExtents = new Vector3(
+                    Math.abs(obb.halfExtents.x * modelScale.x),
+                    Math.abs(obb.halfExtents.y * modelScale.y),
+                    Math.abs(obb.halfExtents.z * modelScale.z)
+            );
+
+            Quaternion worldRotation = modelRot.multiply(obb.rotation);
+
+            OBB worldOBB = new OBB(worldCenter, scaledExtents, worldRotation);
+
+            Vector3 min = worldOBB.getMin();
+            Vector3 max = worldOBB.getMax();
+
+            boxes.add(new Box(min.x, min.y, min.z, max.x, max.y, max.z));
+        }
+
+        return boxes;
+    }
+
+    private void buildFromMultipleBoxes(List<Box> boxes) {
+        if (boxes.isEmpty()) {
+            bounds = null;
+            voxelShape = null;
+            return;
+        }
+
+        double minX = Double.POSITIVE_INFINITY;
+        double minY = Double.POSITIVE_INFINITY;
+        double minZ = Double.POSITIVE_INFINITY;
+        double maxX = Double.NEGATIVE_INFINITY;
+        double maxY = Double.NEGATIVE_INFINITY;
+        double maxZ = Double.NEGATIVE_INFINITY;
+
+        for (Box box : boxes) {
+            minX = Math.min(minX, box.minX);
+            minY = Math.min(minY, box.minY);
+            minZ = Math.min(minZ, box.minZ);
+            maxX = Math.max(maxX, box.maxX);
+            maxY = Math.max(maxY, box.maxY);
+            maxZ = Math.max(maxZ, box.maxZ);
+        }
+
+        bounds = new Box(minX, minY, minZ, maxX, maxY, maxZ);
+
+        VoxelShape shape = VoxelShapes.empty();
+        for (Box box : boxes) {
+            shape = VoxelShapes.union(shape, VoxelShapes.cuboid(
+                    box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ
+            ));
+        }
+        voxelShape = shape;
     }
 
     private Box computeFromMeshVertices(RenderableModel model) {
