@@ -6,11 +6,15 @@ import com.moud.client.editor.camera.EditorCameraController;
 import com.moud.client.editor.runtime.RuntimeObject;
 import com.moud.client.editor.runtime.RuntimeObjectRegistry;
 import com.moud.client.editor.runtime.RuntimeObjectType;
+import com.moud.client.editor.scene.blueprint.*;
+import com.moud.client.editor.selection.SceneSelectionManager;
 import com.moud.client.editor.picking.RaycastPicker;
 import com.moud.client.editor.scene.SceneEditorDiagnostics;
 import com.moud.client.editor.scene.SceneHistoryManager;
 import com.moud.client.editor.scene.SceneObject;
 import com.moud.client.editor.scene.SceneSessionManager;
+import com.moud.client.model.ClientModelManager;
+import com.moud.client.model.RenderableModel;
 import com.moud.network.MoudPackets;
 import imgui.ImGui;
 import imgui.extension.imguizmo.ImGuizmo;
@@ -25,12 +29,22 @@ import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
 import imgui.type.ImString;
+import com.moud.client.editor.ui.WorldViewCapture;
+import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.registry.Registries;
+import net.minecraft.state.property.Property;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,8 +53,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class SceneEditorOverlay {
     private static final SceneEditorOverlay INSTANCE = new SceneEditorOverlay();
+    private static final long MAX_BLOCK_CAPTURE_BLOCKS = 10000;
 
     private final ImString inspectorLabel = new ImString("", 128);
+    private final ImString markerNameBuffer = new ImString("Marker", 64);
     private final float[] newObjectPosition = new float[]{0f, 65f, 0f};
     private final float[] newObjectScale = new float[]{1f, 1f, 1f};
     private final ImString displayContentBuffer = new ImString("", 256);
@@ -86,6 +102,9 @@ public final class SceneEditorOverlay {
     private final ImString lightPopupFilter = new ImString(64);
     private final ImString modelPathBuffer = new ImString("", 192);
     private final ImString texturePathBuffer = new ImString("", 192);
+    private final float[] markerPositionBuffer = new float[]{0f, 0f, 0f};
+    private final ImBoolean markerSnapToggle = new ImBoolean(false);
+    private final ImFloat markerSnapValue = new ImFloat(0.5f);
 
     private Map<String, List<SceneObject>> cachedHierarchy = new ConcurrentHashMap<>();
     private long lastHierarchyBuild = 0;
@@ -95,6 +114,21 @@ public final class SceneEditorOverlay {
     private boolean showInspector = true;
     private boolean showAssets = true;
     private boolean showConsole = true;
+    private boolean showBlueprints = true;
+
+    private final float[] regionCornerA = new float[3];
+    private final float[] regionCornerB = new float[3];
+    private boolean regionASet;
+    private boolean regionBSet;
+    private final ImString blueprintNameBuffer = new ImString("new_blueprint", 128);
+    private final ImString blueprintPreviewName = new ImString("", 128);
+    private final float[] previewPosition = new float[]{0f, 64f, 0f};
+    private final float[] previewRotation = new float[]{0f, 0f, 0f};
+    private final float[] previewScale = new float[]{1f, 1f, 1f};
+    private final float[] previewMatrix = identity();
+    private boolean previewGizmoActive = false;
+    private int previewGizmoOperation = Operation.TRANSLATE;
+    private int markerCounter = 1;
 
     private SceneEditorOverlay() {}
 
@@ -120,11 +154,17 @@ public final class SceneEditorOverlay {
         if (showInspector) {
             renderInspectorWindow(session, displayWidth - inspectorWidth, 0f, inspectorWidth, mainHeight);
         }
+        float assetsWidth = displayWidth * 0.35f;
+        float consoleWidth = displayWidth * 0.35f;
+        float blueprintWidth = displayWidth - assetsWidth - consoleWidth;
         if (showAssets) {
-            renderAssetsWindow(0f, mainHeight, displayWidth * 0.5f, bottomHeight);
+            renderAssetsWindow(0f, mainHeight, assetsWidth, bottomHeight);
+        }
+        if (showBlueprints) {
+            renderBlueprintWindow(session, assetsWidth, mainHeight, blueprintWidth, bottomHeight);
         }
         if (showConsole) {
-            renderConsoleWindow(displayWidth * 0.5f, mainHeight, displayWidth * 0.5f, bottomHeight);
+            renderConsoleWindow(assetsWidth + blueprintWidth, mainHeight, consoleWidth, bottomHeight);
         }
         renderTransformToolbar(hierarchyWidth + 16f, 16f);
     }
@@ -174,6 +214,11 @@ public final class SceneEditorOverlay {
         }
         if (!haveLights) ImGui.endDisabled();
         ImGui.sameLine();
+        if (ImGui.button("Add Marker")) {
+            markerNameBuffer.set(generateMarkerName());
+            ImGui.openPopup("hierarchy_add_marker_popup");
+        }
+        ImGui.sameLine();
         if (ImGui.button("Refresh")) {
             session.forceRefresh();
             EditorAssetCatalog.getInstance().forceRefresh();
@@ -183,6 +228,7 @@ public final class SceneEditorOverlay {
         renderAssetPopup("hierarchy_add_model_popup", "model", modelPopupFilter, null);
         renderAssetPopup("hierarchy_add_display_popup", "display", displayPopupFilter, null);
         renderAssetPopup("hierarchy_add_light_popup", "light", lightPopupFilter, null);
+        renderMarkerPopup("hierarchy_add_marker_popup", session, null);
     }
 
     private void renderSceneHierarchy(SceneSessionManager session) {
@@ -278,6 +324,8 @@ public final class SceneEditorOverlay {
                 renderDisplayProperties(session, selected);
             } else if ("light".equalsIgnoreCase(selected.getType())) {
                 renderLightProperties(session, selected);
+            } else if ("marker".equalsIgnoreCase(selected.getType())) {
+                renderMarkerProperties(session, selected);
             }
 
             ImGui.separator();
@@ -433,6 +481,24 @@ public final class SceneEditorOverlay {
         }
     }
 
+    private void renderMarkerProperties(SceneSessionManager session, SceneObject selected) {
+        Map<String, Object> props = new ConcurrentHashMap<>(selected.getProperties());
+        Object label = props.getOrDefault("label", selected.getId());
+        markerNameBuffer.set(String.valueOf(label));
+        if (ImGui.inputText("Marker Name", markerNameBuffer)) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("label", markerNameBuffer.get());
+            update.put("name", markerNameBuffer.get());
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+        extractVector(props.getOrDefault("position", null), markerPositionBuffer);
+        if (ImGui.dragFloat3("Marker Position", markerPositionBuffer, 0.05f)) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("position", vectorToMap(markerPositionBuffer));
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+    }
+
     private void renderConsoleWindow(float x, float y, float width, float height) {
         if (beginAnchoredWindow("Console", x, y, width, height)) {
             if (ImGui.button("Clear")) {
@@ -450,6 +516,99 @@ public final class SceneEditorOverlay {
                 ImGui.setScrollHereY(1.0f);
             }
             ImGui.endChild();
+        }
+        ImGui.end();
+    }
+
+    private void renderBlueprintWindow(SceneSessionManager session, float x, float y, float width, float height) {
+        if (!beginAnchoredWindow("Blueprints", x, y, width, height)) {
+            ImGui.end();
+            return;
+        }
+        ImGui.textDisabled("Region Selection");
+        ImGui.separator();
+        if (ImGui.button("Pick Corner A")) {
+            BlueprintCornerSelector.getInstance().beginSelection(BlueprintCornerSelector.Corner.A, pos -> applyPickedCorner(BlueprintCornerSelector.Corner.A, pos));
+        }
+        ImGui.sameLine();
+        if (ImGui.button("Pick Corner B")) {
+            BlueprintCornerSelector.getInstance().beginSelection(BlueprintCornerSelector.Corner.B, pos -> applyPickedCorner(BlueprintCornerSelector.Corner.B, pos));
+        }
+        ImGui.sameLine();
+        if (ImGui.button("Clear Region")) {
+            regionASet = false;
+            regionBSet = false;
+            BlueprintCornerSelector.getInstance().cancel();
+        }
+        if (BlueprintCornerSelector.getInstance().isPicking()) {
+            ImGui.sameLine();
+            ImGui.textColored(1f, 0.85f, 0.35f, 1f, "Picking corner " + BlueprintCornerSelector.getInstance().getPendingCorner());
+        }
+        if (regionASet) {
+            ImGui.dragFloat3("Corner A", regionCornerA, 0.1f);
+        } else {
+            ImGui.textDisabled("Corner A not set");
+        }
+        if (regionBSet) {
+            ImGui.dragFloat3("Corner B", regionCornerB, 0.1f);
+        } else {
+            ImGui.textDisabled("Corner B not set");
+        }
+        Box regionBox = buildRegionBox();
+        if (regionBox != null) {
+            double lenX = regionBox.maxX - regionBox.minX;
+            double lenY = regionBox.maxY - regionBox.minY;
+            double lenZ = regionBox.maxZ - regionBox.minZ;
+            ImGui.text("Size: %.2f x %.2f x %.2f".formatted(lenX, lenY, lenZ));
+            int objectCount = countObjectsInRegion(regionBox, false);
+            int markerCount = countObjectsInRegion(regionBox, true);
+            ImGui.text("Objects: " + objectCount + "  Markers: " + markerCount);
+            ImGui.inputText("Blueprint Name", blueprintNameBuffer);
+            if (ImGui.button("Export Blueprint")) {
+                exportBlueprint(session, regionBox, blueprintNameBuffer.get());
+            }
+        } else {
+            ImGui.textDisabled("Select two corners to enable export.");
+        }
+        ImGui.separator();
+        ImGui.textDisabled("Preview");
+        ImGui.inputTextWithHint("Blueprint File", "name without .json", blueprintPreviewName);
+        if (ImGui.button("Load Preview")) {
+            loadBlueprintPreview(blueprintPreviewName.get(), previewPosition);
+        }
+        ImGui.sameLine();
+        if (ImGui.button("Hide Preview")) {
+            BlueprintPreviewManager.getInstance().clear();
+        }
+        BlueprintPreviewManager.PreviewState preview = BlueprintPreviewManager.getInstance().getCurrent();
+        if (preview != null) {
+            if (ImGui.dragFloat3("Preview Position", previewPosition, 0.1f)) {
+                BlueprintPreviewManager.getInstance().move(previewPosition);
+                composeMatrix(previewPosition, previewRotation, previewScale, previewMatrix);
+            }
+            if (!previewGizmoActive) {
+                if (ImGui.button("Attach Preview Gizmo")) {
+                    previewGizmoActive = true;
+                    composeMatrix(previewPosition, previewRotation, previewScale, previewMatrix);
+                }
+            } else {
+                if (ImGui.button("Detach Preview Gizmo")) {
+                    previewGizmoActive = false;
+                }
+                if (ImGui.radioButton("Move", previewGizmoOperation == Operation.TRANSLATE)) {
+                    previewGizmoOperation = Operation.TRANSLATE;
+                }
+                ImGui.sameLine();
+                if (ImGui.radioButton("Rotate", previewGizmoOperation == Operation.ROTATE)) {
+                    previewGizmoOperation = Operation.ROTATE;
+                }
+            }
+            if (previewGizmoActive) {
+                renderPreviewGizmo();
+            }
+        } else {
+            ImGui.textDisabled("No preview loaded.");
+            previewGizmoActive = false;
         }
         ImGui.end();
     }
@@ -474,6 +633,10 @@ public final class SceneEditorOverlay {
             ImGui.sameLine();
             if (ImGui.checkbox("Console", new imgui.type.ImBoolean(showConsole))) {
                 showConsole = !showConsole;
+            }
+            ImGui.sameLine();
+            if (ImGui.checkbox("Blueprints", new imgui.type.ImBoolean(showBlueprints))) {
+                showBlueprints = !showBlueprints;
             }
             ImGui.separator();
             if (ImGui.radioButton("Translate", currentOperation == Operation.TRANSLATE)) {
@@ -645,6 +808,9 @@ public final class SceneEditorOverlay {
             lightAngleValue.set(toFloat(props.getOrDefault("angle", 45f)));
             extractColor(props.get("color"), lightColorValue);
             extractDirection(props.get("direction"), lightDirectionValue);
+        } else if ("marker".equals(type)) {
+            markerNameBuffer.set(String.valueOf(label));
+            extractVector(props.getOrDefault("position", null), markerPositionBuffer);
         }
     }
 
@@ -909,6 +1075,28 @@ public final class SceneEditorOverlay {
         }
     }
 
+    private void renderMarkerPopup(String popupId, SceneSessionManager session, String parentId) {
+        if (!ImGui.beginPopup(popupId)) {
+            return;
+        }
+        ImGui.inputText("Name", markerNameBuffer);
+        if (ImGui.checkbox("Snap to Grid", markerSnapToggle)) {
+
+        }
+        if (markerSnapToggle.get()) {
+            ImGui.dragFloat("Step", markerSnapValue.getData(), 0.05f, 0.05f, 10f, "%.2f");
+        }
+        if (ImGui.button("Create")) {
+            spawnMarker(session, parentId);
+            ImGui.closeCurrentPopup();
+        }
+        ImGui.sameLine();
+        if (ImGui.button("Cancel")) {
+            ImGui.closeCurrentPopup();
+        }
+        ImGui.endPopup();
+    }
+
     private void deleteSceneObject(SceneObject object) {
         if (object == null) {
             return;
@@ -927,12 +1115,375 @@ public final class SceneEditorOverlay {
         return label == null ? object.getId() : String.valueOf(label);
     }
 
+    private void applyPickedCorner(BlueprintCornerSelector.Corner corner, float[] position) {
+        if (position == null) {
+            return;
+        }
+        float[] target = corner == BlueprintCornerSelector.Corner.A ? regionCornerA : regionCornerB;
+        System.arraycopy(position, 0, target, 0, 3);
+        if (corner == BlueprintCornerSelector.Corner.A) {
+            regionASet = true;
+        } else {
+            regionBSet = true;
+        }
+    }
+
+    private Box buildRegionBox() {
+        if (!regionASet || !regionBSet) {
+            return null;
+        }
+        double minX = Math.min(regionCornerA[0], regionCornerB[0]);
+        double minY = Math.min(regionCornerA[1], regionCornerB[1]);
+        double minZ = Math.min(regionCornerA[2], regionCornerB[2]);
+        double maxX = Math.max(regionCornerA[0], regionCornerB[0]);
+        double maxY = Math.max(regionCornerA[1], regionCornerB[1]);
+        double maxZ = Math.max(regionCornerA[2], regionCornerB[2]);
+        return new Box(minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
+    private int countObjectsInRegion(Box region, boolean markersOnly) {
+        if (region == null) {
+            return 0;
+        }
+        int count = 0;
+        for (SceneObject object : SceneSessionManager.getInstance().getSceneGraph().getObjects()) {
+            String type = object.getType() == null ? "" : object.getType().toLowerCase();
+            boolean isMarker = "marker".equals(type);
+            if (markersOnly && !isMarker) continue;
+            if (!markersOnly && isMarker) continue;
+            Vec3d pos = getObjectPosition(object);
+            if (pos == null) continue;
+            if (region.contains(pos.x, pos.y, pos.z)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private void exportBlueprint(SceneSessionManager session, Box region, String requestedName) {
+        if (region == null) {
+            return;
+        }
+        String sanitized = requestedName == null ? "" : requestedName.trim();
+        if (sanitized.isEmpty()) {
+            SceneEditorDiagnostics.log("Blueprint export failed: name required");
+            return;
+        }
+        sanitized = sanitized.replaceAll("[^a-zA-Z0-9_\\-]", "_");
+        Blueprint blueprint = new Blueprint();
+        blueprint.name = sanitized;
+        blueprint.origin[0] = (float) region.minX;
+        blueprint.origin[1] = (float) region.minY;
+        blueprint.origin[2] = (float) region.minZ;
+        blueprint.size[0] = (float) (region.maxX - region.minX);
+        blueprint.size[1] = (float) (region.maxY - region.minY);
+        blueprint.size[2] = (float) (region.maxZ - region.minZ);
+        for (SceneObject object : session.getSceneGraph().getObjects()) {
+            Vec3d pos = getObjectPosition(object);
+            if (pos == null || !region.contains(pos.x, pos.y, pos.z)) {
+                continue;
+            }
+            String type = object.getType() == null ? "" : object.getType().toLowerCase();
+            if ("marker".equals(type)) {
+                BlueprintMarker marker = new BlueprintMarker();
+                marker.name = String.valueOf(object.getProperties().getOrDefault("name", object.getId()));
+                marker.position = toRelative(pos, region);
+                blueprint.markers.add(marker);
+                continue;
+            }
+            BlueprintObject blueprintObject = new BlueprintObject();
+            blueprintObject.type = type;
+            blueprintObject.label = String.valueOf(object.getProperties().getOrDefault("label", object.getId()));
+            blueprintObject.position = toRelative(pos, region);
+            float[] rotation = new float[3];
+            extractEuler(object.getProperties().getOrDefault("rotation", null), rotation);
+            blueprintObject.rotation = rotation.clone();
+            float[] scale = new float[]{1f, 1f, 1f};
+            extractVector(object.getProperties().getOrDefault("scale", null), scale);
+            blueprintObject.scale = scale.clone();
+            if ("model".equals(type)) {
+                Object modelPath = object.getProperties().get("modelPath");
+                Object texture = object.getProperties().get("texture");
+                blueprintObject.modelPath = modelPath != null ? modelPath.toString() : null;
+                blueprintObject.texture = texture != null ? texture.toString() : null;
+            }
+            Box bounds = computeObjectBounds(object, pos);
+            if (bounds != null) {
+                blueprintObject.boundsMin = toRelative(new Vec3d(bounds.minX, bounds.minY, bounds.minZ), region);
+                blueprintObject.boundsMax = toRelative(new Vec3d(bounds.maxX, bounds.maxY, bounds.maxZ), region);
+            }
+            blueprint.objects.add(blueprintObject);
+        }
+        Blueprint.BlockVolume volume = captureBlockVolume(region);
+        if (volume != null) {
+            blueprint.blocks = volume;
+        }
+        SceneEditorDiagnostics.log("Uploading blueprint '" + sanitized + "' to server...");
+        String finalSanitized = sanitized;
+        ClientBlueprintNetwork.getInstance().saveBlueprint(sanitized, blueprint, success -> {
+            if (!success) {
+                SceneEditorDiagnostics.log("Server failed to save blueprint '" + finalSanitized + "'");
+            } else {
+                SceneEditorDiagnostics.log("Blueprint '" + finalSanitized + "' saved on server");
+            }
+        });
+    }
+
+    private void loadBlueprintPreview(String fileName, float[] position) {
+        if (fileName == null || fileName.trim().isEmpty()) {
+            SceneEditorDiagnostics.log("Blueprint preview failed: name required");
+            return;
+        }
+        String normalized = fileName.trim();
+        SceneEditorDiagnostics.log("Requesting blueprint '" + normalized + "' from server...");
+        ClientBlueprintNetwork.getInstance().requestBlueprint(normalized, blueprint -> {
+            if (blueprint == null) {
+                SceneEditorDiagnostics.log("Blueprint '" + normalized + "' not found on server");
+                return;
+            }
+            previewRotation[0] = previewRotation[2] = 0f;
+            previewRotation[1] = 0f;
+            previewScale[0] = previewScale[1] = previewScale[2] = 1f;
+            BlueprintPreviewManager.getInstance().show(blueprint, position);
+            BlueprintPreviewManager.getInstance().rotate(previewRotation[1]);
+            composeMatrix(previewPosition, previewRotation, previewScale, previewMatrix);
+            SceneEditorDiagnostics.log("Loaded preview for " + blueprint.name);
+        });
+    }
+
+    private float[] toRelative(Vec3d world, Box region) {
+        return new float[]{
+                (float) (world.x - region.minX),
+                (float) (world.y - region.minY),
+                (float) (world.z - region.minZ)
+        };
+    }
+
+    private Blueprint.BlockVolume captureBlockVolume(Box region) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        ClientWorld world = client != null ? client.world : null;
+        if (world == null || region == null) {
+            return null;
+        }
+        int minX = MathHelper.floor(region.minX);
+        int minY = MathHelper.floor(region.minY);
+        int minZ = MathHelper.floor(region.minZ);
+        int sizeX = Math.max(1, MathHelper.ceil(region.maxX - region.minX));
+        int sizeY = Math.max(1, MathHelper.ceil(region.maxY - region.minY));
+        int sizeZ = Math.max(1, MathHelper.ceil(region.maxZ - region.minZ));
+        long total = (long) sizeX * sizeY * sizeZ;
+        if (total >MAX_BLOCK_CAPTURE_BLOCKS) {
+            SceneEditorDiagnostics.log("Region too large for block capture (" + total + " blocks). Skipping blocks.");
+            return null;
+        }
+        List<String> palette = new ArrayList<>();
+        Map<String, Integer> paletteIndex = new HashMap<>();
+        palette.add("minecraft:air");
+        paletteIndex.put("minecraft:air", 0);
+
+        boolean useShort = false;
+        byte[] byteVoxels = new byte[(int) total];
+        byte[] shortVoxels = null;
+        BlockPos.Mutable mutable = new BlockPos.Mutable();
+
+        int cursor = 0;
+        for (int y = 0; y < sizeY; y++) {
+            int worldY = minY + y;
+            for (int z = 0; z < sizeZ; z++) {
+                int worldZ = minZ + z;
+                for (int x = 0; x < sizeX; x++) {
+                    int worldX = minX + x;
+                    mutable.set(worldX, worldY, worldZ);
+                    BlockState state = world.getBlockState(mutable);
+                    String key = state == null || state.isAir() ? "minecraft:air" : describeBlockState(state);
+                    int paletteIdx = paletteIndex.computeIfAbsent(key, k -> {
+                        int idx = palette.size();
+                        palette.add(k);
+                        return idx;
+                    });
+                    if (!useShort && paletteIdx > 255) {
+                        useShort = true;
+                        shortVoxels = new byte[(int) total * 2];
+                        for (int i = 0; i < cursor; i++) {
+                            shortVoxels[i * 2] = byteVoxels[i];
+                            shortVoxels[i * 2 + 1] = 0;
+                        }
+                    }
+                    if (useShort) {
+                        int offset = cursor * 2;
+                        shortVoxels[offset] = (byte) (paletteIdx & 0xFF);
+                        shortVoxels[offset + 1] = (byte) ((paletteIdx >> 8) & 0xFF);
+                    } else {
+                        byteVoxels[cursor] = (byte) paletteIdx;
+                    }
+                    cursor++;
+                }
+            }
+        }
+
+        Blueprint.BlockVolume volume = new Blueprint.BlockVolume();
+        volume.sizeX = sizeX;
+        volume.sizeY = sizeY;
+        volume.sizeZ = sizeZ;
+        volume.palette = palette;
+        volume.useShortIndices = useShort;
+        volume.voxels = useShort ? shortVoxels : byteVoxels;
+        SceneEditorDiagnostics.log("Captured " + total + " blocks (" + palette.size() + " palette entries) for blueprint.");
+        return volume;
+    }
+
+    private String describeBlockState(BlockState state) {
+        var id = Registries.BLOCK.getId(state.getBlock());
+        String base = id != null ? id.toString() : "minecraft:air";
+        Map<Property<?>, Comparable<?>> entries = state.getEntries();
+        if (entries == null || entries.isEmpty()) {
+            return base;
+        }
+        StringBuilder builder = new StringBuilder(base);
+        builder.append('[');
+        List<Map.Entry<Property<?>, Comparable<?>>> ordered = new ArrayList<>(entries.entrySet());
+        ordered.sort(Comparator.comparing(entry -> entry.getKey().getName()));
+        boolean first = true;
+        for (Map.Entry<Property<?>, Comparable<?>> entry : ordered) {
+            if (!first) {
+                builder.append(',');
+            }
+            first = false;
+            builder.append(entry.getKey().getName())
+                    .append('=')
+                    .append(describePropertyValue(entry.getKey(), entry.getValue()));
+        }
+        builder.append(']');
+        return builder.toString();
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T extends Comparable<T>> String describePropertyValue(Property<T> property, Comparable<?> value) {
+        try {
+            return property.name((T) value);
+        } catch (ClassCastException e) {
+            return String.valueOf(value);
+        }
+    }
+
+    private void renderPreviewGizmo() {
+        if (!previewGizmoActive) {
+            return;
+        }
+        BlueprintPreviewManager.PreviewState preview = BlueprintPreviewManager.getInstance().getCurrent();
+        if (preview == null) {
+            previewGizmoActive = false;
+            return;
+        }
+        org.joml.Matrix4f view = new org.joml.Matrix4f();
+        org.joml.Matrix4f projection = new org.joml.Matrix4f();
+        if (!WorldViewCapture.copyMatrices(view, projection)) {
+            return;
+        }
+        composeMatrix(previewPosition, previewRotation, previewScale, previewMatrix);
+        float[] viewArr = matrixToArray(view);
+        float[] projArr = matrixToArray(projection);
+        ImGuizmo.manipulate(
+                viewArr,
+                projArr,
+                previewGizmoOperation,
+                Mode.LOCAL,
+                previewMatrix,
+                null,
+                null
+        );
+        if (ImGuizmo.isUsing()) {
+            ImGuizmo.decomposeMatrixToComponents(previewMatrix, previewPosition, previewRotation, previewScale);
+            BlueprintPreviewManager.getInstance().move(previewPosition);
+            BlueprintPreviewManager.getInstance().rotate(previewRotation[1]);
+        }
+    }
+
+    public boolean hasRegionCorners() {
+        return regionASet || regionBSet;
+    }
+
+    public boolean isRegionACaptured() {
+        return regionASet;
+    }
+
+    public boolean isRegionBCaptured() {
+        return regionBSet;
+    }
+
+    public float[] getRegionCornerA() {
+        return regionCornerA;
+    }
+
+    public float[] getRegionCornerB() {
+        return regionCornerB;
+    }
+
+    public static Box buildBoxFromCorners(float[] a, float[] b) {
+        double minX = Math.min(a[0], b[0]);
+        double minY = Math.min(a[1], b[1]);
+        double minZ = Math.min(a[2], b[2]);
+        double maxX = Math.max(a[0], b[0]);
+        double maxY = Math.max(a[1], b[1]);
+        double maxZ = Math.max(a[2], b[2]);
+        return new Box(minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
+    private Vec3d getObjectPosition(SceneObject object) {
+        Object raw = object.getProperties().get("position");
+        if (!(raw instanceof Map<?, ?> map)) {
+            return null;
+        }
+        Object x = map.get("x");
+        Object y = map.get("y");
+        Object z = map.get("z");
+        if (x instanceof Number && y instanceof Number && z instanceof Number) {
+            return new Vec3d(((Number) x).doubleValue(), ((Number) y).doubleValue(), ((Number) z).doubleValue());
+        }
+        return null;
+    }
+
+    private Box computeObjectBounds(SceneObject object, Vec3d position) {
+        String type = object.getType() == null ? "" : object.getType().toLowerCase();
+        if ("model".equals(type)) {
+            Long modelId = SceneSelectionManager.getInstance().getBindingForObject(object.getId());
+            if (modelId != null) {
+                RenderableModel model = ClientModelManager.getInstance().getModel(modelId);
+                if (model != null && model.hasMeshBounds()) {
+                    Vec3d min = new Vec3d(model.getMeshMin().x, model.getMeshMin().y, model.getMeshMin().z);
+                    Vec3d max = new Vec3d(model.getMeshMax().x, model.getMeshMax().y, model.getMeshMax().z);
+                    Vec3d half = max.subtract(min).multiply(0.5);
+                    Vec3d center = min.add(half);
+                    Vec3d worldCenter = position.add(center.x, center.y, center.z);
+                    return new Box(
+                            worldCenter.x - half.x,
+                            worldCenter.y - half.y,
+                            worldCenter.z - half.z,
+                            worldCenter.x + half.x,
+                            worldCenter.y + half.y,
+                            worldCenter.z + half.z
+                    );
+                }
+            }
+        }
+        double size = 0.5;
+        return new Box(
+                position.x - size,
+                position.y - size,
+                position.z - size,
+                position.x + size,
+                position.y + size,
+                position.z + size
+        );
+    }
+
     private static String typeIcon(String type) {
         return switch (type == null ? "" : type.toLowerCase()) {
             case "model" -> "[M]";
             case "display" -> "[D]";
             case "group" -> "[G]";
             case "light" -> "[L]";
+            case "marker" -> "[K]";
             default -> "[ ]";
         };
     }
@@ -1116,6 +1667,33 @@ public final class SceneEditorOverlay {
                 return;
             }
         }
+    }
+
+    private void spawnMarker(SceneSessionManager session, String parentId) {
+        String label = markerNameBuffer.get().isBlank() ? generateMarkerName() : markerNameBuffer.get();
+        float[] position = resolveSpawnPosition(newObjectPosition);
+        if (markerSnapToggle.get()) {
+            float step = Math.max(0.05f, markerSnapValue.get());
+            position[0] = Math.round(position[0] / step) * step;
+            position[1] = Math.round(position[1] / step) * step;
+            position[2] = Math.round(position[2] / step) * step;
+        }
+        Map<String, Object> payload = new ConcurrentHashMap<>();
+        payload.put("type", "marker");
+        Map<String, Object> props = new ConcurrentHashMap<>();
+        props.put("label", label);
+        props.put("name", label);
+        props.put("position", vectorToMap(position));
+        if (parentId != null && !parentId.isEmpty()) {
+            props.put("parent", parentId);
+        }
+        payload.put("properties", props);
+        session.submitEdit("create", payload);
+        SceneEditorDiagnostics.log("Created marker '" + label + "'");
+    }
+
+    private String generateMarkerName() {
+        return "Marker " + markerCounter++;
     }
 
     private Map<String, List<MoudPackets.EditorAssetDefinition>> groupAssets(List<MoudPackets.EditorAssetDefinition> assets) {

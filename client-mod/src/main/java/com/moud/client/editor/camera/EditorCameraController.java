@@ -2,6 +2,7 @@ package com.moud.client.editor.camera;
 
 import com.moud.client.editor.config.EditorConfig;
 import com.moud.client.editor.scene.SceneObject;
+import com.moud.client.mixin.accessor.CameraAccessor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.render.Camera;
@@ -117,8 +118,9 @@ public final class EditorCameraController {
         if (!active) {
             return false;
         }
-        camera.setPos(cameraPos.x, cameraPos.y, cameraPos.z);
-        camera.setRotation((float) yaw, (float) pitch);
+        CameraAccessor accessor = (CameraAccessor) camera;
+        accessor.moud$setCameraPosition(cameraPos.x, cameraPos.y, cameraPos.z);
+        accessor.moud$setRotation((float) yaw, (float) pitch);
         return true;
     }
 

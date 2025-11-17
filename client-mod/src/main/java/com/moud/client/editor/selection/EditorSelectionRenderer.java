@@ -1,7 +1,9 @@
 package com.moud.client.editor.selection;
 
 import com.moud.client.editor.ui.SceneEditorOverlay;
+import com.moud.client.editor.EditorModeManager;
 import com.moud.client.editor.scene.SceneObject;
+import com.moud.client.editor.scene.SceneSessionManager;
 import com.moud.client.model.ClientModelManager;
 import com.moud.client.model.RenderableModel;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
@@ -10,8 +12,11 @@ import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
+import com.moud.client.editor.scene.blueprint.BlueprintCornerSelector;
+import com.moud.client.editor.scene.blueprint.BlueprintCornerSelector.Corner;
 
 public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEntities {
     private EditorSelectionRenderer() {}
@@ -22,6 +27,8 @@ public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEnt
 
     @Override
     public void afterEntities(WorldRenderContext context) {
+        renderCornerGuides(context);
+        renderMarkers(context);
         SceneObject selected = SceneEditorOverlay.getInstance().getSelectedObject();
         if (selected == null) {
             return;
@@ -40,6 +47,45 @@ public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEnt
         context.matrixStack().translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
         WorldRenderer.drawBox(context.matrixStack(), buffer, box, 0.08f, 0.62f, 1.0f, 1.0f);
         context.matrixStack().pop();
+    }
+
+    private void renderMarkers(WorldRenderContext context) {
+        if (!EditorModeManager.getInstance().isActive()) {
+            return;
+        }
+        var graph = SceneSessionManager.getInstance().getSceneGraph();
+        if (graph.getObjects().isEmpty()) {
+            return;
+        }
+        VertexConsumerProvider consumers = context.consumers();
+        if (consumers == null) {
+            return;
+        }
+        VertexConsumer buffer = consumers.getBuffer(RenderLayer.getLines());
+        Vec3d cameraPos = context.camera().getPos();
+        var matrices = context.matrixStack();
+        matrices.push();
+        matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+        for (SceneObject object : graph.getObjects()) {
+            if (!"marker".equalsIgnoreCase(object.getType())) {
+                continue;
+            }
+            Vec3d pos = extractPosition(object);
+            if (pos == null) {
+                continue;
+            }
+            double size = 0.2;
+            Box markerBox = new Box(
+                    pos.x - size,
+                    pos.y - size,
+                    pos.z - size,
+                    pos.x + size,
+                    pos.y + size,
+                    pos.z + size
+            );
+            WorldRenderer.drawBox(matrices, buffer, markerBox, 0.98f, 0.82f, 0.2f, 1.0f);
+        }
+        matrices.pop();
     }
 
     private Box computeBounds(SceneObject object) {
@@ -90,5 +136,52 @@ public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEnt
             return new Vec3d(((Number) x).doubleValue(), ((Number) y).doubleValue(), ((Number) z).doubleValue());
         }
         return null;
+    }
+
+    private void renderCornerGuides(WorldRenderContext context) {
+        var selector = BlueprintCornerSelector.getInstance();
+        if (!selector.isPicking() && !SceneEditorOverlay.getInstance().hasRegionCorners()) {
+            return;
+        }
+        VertexConsumerProvider consumers = context.consumers();
+        if (consumers == null) {
+            return;
+        }
+        Vec3d cameraPos = context.camera().getPos();
+        var matrices = context.matrixStack();
+        matrices.push();
+        matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+        VertexConsumer buffer = consumers.getBuffer(RenderLayer.getLines());
+
+        float[] cornerA = SceneEditorOverlay.getInstance().getRegionCornerA();
+        float[] cornerB = SceneEditorOverlay.getInstance().getRegionCornerB();
+        boolean aSet = SceneEditorOverlay.getInstance().isRegionACaptured();
+        boolean bSet = SceneEditorOverlay.getInstance().isRegionBCaptured();
+
+        if (aSet) {
+            drawCorner(buffer, matrices, cornerA, 0.2f, 0.6f, 0.9f);
+        }
+        if (bSet) {
+            drawCorner(buffer, matrices, cornerB, 0.9f, 0.5f, 0.3f);
+        }
+
+        if (aSet && bSet) {
+            Box box = SceneEditorOverlay.buildBoxFromCorners(cornerA, cornerB);
+            WorldRenderer.drawBox(matrices, buffer, box, 0.4f, 0.8f, 0.4f, 0.6f);
+        }
+        matrices.pop();
+    }
+
+    private void drawCorner(VertexConsumer buffer, MatrixStack matrices, float[] corner, float r, float g, float b) {
+        double size = 0.15;
+        Box box = new Box(
+                corner[0] - size,
+                corner[1] - size,
+                corner[2] - size,
+                corner[0] + size,
+                corner[1] + size,
+                corner[2] + size
+        );
+        WorldRenderer.drawBox(matrices, buffer, box, r, g, b, 0.9f);
     }
 }

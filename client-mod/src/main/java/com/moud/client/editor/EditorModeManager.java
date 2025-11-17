@@ -10,7 +10,9 @@ import com.moud.client.editor.scene.SceneSessionManager;
 import com.moud.client.editor.selection.SceneSelectionManager;
 import com.moud.client.editor.ui.EditorImGuiLayer;
 import com.moud.client.editor.ui.SceneEditorOverlay;
+import com.moud.client.editor.scene.blueprint.BlueprintCornerSelector;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.world.GameMode;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +28,7 @@ public final class EditorModeManager {
     private boolean active;
     private boolean unlockCursorOnDisable;
     private final EditorCameraController cameraController = EditorCameraController.getInstance();
+    private GameMode previousGameMode = null;
 
     private EditorModeManager() {
     }
@@ -69,19 +72,39 @@ public final class EditorModeManager {
         } else {
             unlockCursorOnDisable = false;
         }
-    }
+        if (client.player != null) {
+            GameMode gm = client.interactionManager != null ? client.interactionManager.getCurrentGameMode() : null;
+            previousGameMode = gm;
+            if (client.interactionManager != null) {
+                client.interactionManager.setGameMode(GameMode.SPECTATOR);
+            }
+
+            client.player.setInvisible(true);
+        } else {
+            previousGameMode = null;
+        }
+   }
 
     private void onDeactivated() {
         LOGGER.info("Moud editor mode disabled");
         SceneSessionManager.getInstance().onEditorDeactivated();
         SceneHistoryManager.getInstance().flushPendingChange();
         cameraController.disable();
+        BlueprintCornerSelector.getInstance().cancel();
         RuntimeObjectRegistry.getInstance().syncPlayers(Collections.emptyList());
         MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player != null) {
+            if (client.interactionManager != null && previousGameMode != null) {
+                client.interactionManager.setGameMode(previousGameMode);
+            }
+
+            client.player.setInvisible(false);
+        }
         if (unlockCursorOnDisable && client != null && client.currentScreen == null && client.mouse != null) {
             client.mouse.lockCursor();
         }
         unlockCursorOnDisable = false;
+        previousGameMode = null;
     }
 
 
@@ -141,6 +164,10 @@ public final class EditorModeManager {
         }
 
         if (cameraController.handleMouseButton(button, action, mods, cursorX, cursorY)) {
+            return true;
+        }
+
+        if (BlueprintCornerSelector.getInstance().handleMouseButton(button, action)) {
             return true;
         }
 
