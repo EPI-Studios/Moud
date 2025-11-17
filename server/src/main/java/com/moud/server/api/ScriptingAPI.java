@@ -62,6 +62,30 @@ public class ScriptingAPI {
     }
 
     @HostAccess.Export
+    public void once(String eventName, Value callback) {
+        try {
+            validator.validateEventName(eventName);
+            validator.validateCallback(callback);
+            eventDispatcher.registerOnce(eventName, callback);
+        } catch (APIException e) {
+            LOGGER.error("Failed to register one-time handler for '{}': {}", eventName, e.getMessage());
+            throw e;
+        }
+    }
+
+    @HostAccess.Export
+    public void off(String eventName, Value callback) {
+        try {
+            validator.validateEventName(eventName);
+            validator.validateCallback(callback);
+            eventDispatcher.unregister(eventName, callback);
+        } catch (APIException e) {
+            LOGGER.error("Failed to unregister handler for '{}': {}", eventName, e.getMessage());
+            throw e;
+        }
+    }
+
+    @HostAccess.Export
     public AsyncManager getAsync() {
         return engine.getAsyncManager();
     }

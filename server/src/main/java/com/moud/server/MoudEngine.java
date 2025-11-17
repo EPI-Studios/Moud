@@ -4,7 +4,6 @@ import com.moud.server.animation.AnimationManager;
 import com.moud.server.api.HotReloadEndpoint;
 import com.moud.server.api.ScriptingAPI;
 import com.moud.server.assets.AssetManager;
-import com.moud.server.bridge.AxiomBridgeService;
 import com.moud.server.client.ClientScriptManager;
 import com.moud.server.cursor.CursorService;
 import com.moud.server.dev.DevUtilities;
@@ -16,9 +15,11 @@ import com.moud.server.logging.MoudLogger;
 import com.moud.server.network.MinestomByteBuffer;
 import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.project.ProjectLoader;
+import com.moud.server.plugin.PluginManager;
 import com.moud.server.proxy.AssetProxy;
 import com.moud.server.profiler.ProfilerService;
 import com.moud.server.profiler.ProfilerUI;
+import com.moud.server.physics.PhysicsService;
 import com.moud.server.scripting.JavaScriptRuntime;
 import com.moud.server.task.AsyncManager;
 import com.moud.network.dispatcher.NetworkDispatcher;
@@ -43,6 +44,7 @@ public class MoudEngine {
     private final AssetManager assetManager;
     private final AnimationManager animationManager;
     private final ClientScriptManager clientScriptManager;
+    private final com.moud.server.plugin.PluginManager pluginManager;
     private final ServerNetworkManager networkManager;
     private final EventDispatcher eventDispatcher;
     private ScriptingAPI scriptingAPI;
@@ -51,6 +53,7 @@ public class MoudEngine {
     private final CursorService cursorService;
     private final HotReloadEndpoint hotReloadEndpoint;
     private final ZoneManager zoneManager;
+    private final PhysicsService physicsService;
 
     private final AtomicBoolean initialized = new AtomicBoolean(false);
     private final AtomicBoolean reloading = new AtomicBoolean(false);
@@ -107,6 +110,8 @@ public class MoudEngine {
             this.clientScriptManager = new ClientScriptManager();
             clientScriptManager.initialize();
 
+            this.pluginManager = new com.moud.server.plugin.PluginManager(projectRoot);
+
             this.eventDispatcher = new EventDispatcher(this);
             this.runtime = new JavaScriptRuntime(this);
             this.asyncManager = new AsyncManager(this);
@@ -118,11 +123,11 @@ public class MoudEngine {
 
             this.zoneManager = new ZoneManager(this);
 
+            this.physicsService = PhysicsService.getInstance();
+            physicsService.initialize();
+
             this.cursorService = CursorService.getInstance(networkManager);
             cursorService.initialize();
-
-            // Initialize Axiom bridge for model gizmos
-            AxiomBridgeService.initialize();
 
             SharedValueManager.getInstance().initialize();
 
@@ -141,6 +146,7 @@ public class MoudEngine {
             }
 
             loadUserScripts().thenRun(() -> {
+                pluginManager.loadPlugins();
                 initialized.set(true);
                 this.eventDispatcher.dispatchLoadEvent("server.load");
                 LOGGER.startup("Moud Engine initialized successfully");
@@ -283,6 +289,8 @@ public class MoudEngine {
         if (cursorService != null) cursorService.shutdown();
         if (asyncManager != null) asyncManager.shutdown();
         if (runtime != null) runtime.shutdown();
+        if (physicsService != null) physicsService.shutdown();
+        if (pluginManager != null) pluginManager.shutdown();
         SharedValueManager.getInstance().shutdown();
         ProfilerService.getInstance().stop();
         LOGGER.shutdown("Moud Engine shutdown complete.");

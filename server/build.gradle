@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.moud'
-version = '0.1.0-alpha'
+version = rootProject.file('VERSION').text.trim()
 
 repositories {
     mavenCentral()
@@ -19,6 +19,7 @@ repositories {
 
 dependencies {
     implementation project(':api')
+    implementation project(':plugin-api')
     implementation project(':network-engine')
 
     implementation("fr.ghostrider584:axiom-minestom:0.0.2")
@@ -32,7 +33,13 @@ dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-core:2.17.0'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.0'
     implementation 'com.fasterxml.jackson.core:jackson-annotations:2.17.0'
+    implementation 'io.github.classgraph:classgraph:4.8.172'
     implementation 'org.apache.commons:commons-exec:1.4.0'
+    implementation("com.github.stephengold:jolt-jni-Linux64:3.5.0")
+    runtimeOnly("com.github.stephengold:jolt-jni-Linux64:3.5.0:DebugSp")
+    runtimeOnly("com.github.stephengold:jolt-jni-Linux_ARM64:3.5.0:DebugSp")
+    runtimeOnly("com.github.stephengold:jolt-jni-Windows64:3.5.0:DebugSp")
+    implementation("io.github.electrostat-lab:snaploader:1.1.1-stable")
 
     def javafxVersion = '21.0.1'
     def os = org.gradle.internal.os.OperatingSystem.current()
@@ -64,6 +71,14 @@ shadowJar {
     manifest {
         attributes["Main-Class"] = "com.moud.App"
     }
+}
+
+tasks.register('generateTsMetadata', JavaExec) {
+    group = 'moud'
+    description = 'Generates TypeScript metadata JSON for the SDK.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.moud.server.ts.TsMetadataGenerator'
+    args "${rootProject.projectDir}/packages/sdk/generated/server-api.json"
 }
 
 

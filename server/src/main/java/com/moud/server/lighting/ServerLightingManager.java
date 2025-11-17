@@ -1,7 +1,6 @@
 package com.moud.server.lighting;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.moud.server.bridge.AxiomBridgeService;
 import com.moud.server.network.ServerNetworkManager;
 import net.minestom.server.entity.Player;
 import org.slf4j.Logger;
@@ -40,32 +39,11 @@ public class ServerLightingManager {
         LOGGER.info("Light {} data being sent: {}", lightId, lightData);
 
         broadcastLightOperation(isNewLight ? "create" : "update", lightData);
-        AxiomBridgeService bridge = AxiomBridgeService.getInstance();
-        if (bridge != null) {
-            bridge.onLightUpdated(lightId, lightData);
-        }
     }
     public void removeLight(long lightId) {
         if (lights.remove(lightId) != null) {
             broadcastLightOperation("remove", Map.of("id", lightId));
-            AxiomBridgeService bridge = AxiomBridgeService.getInstance();
-            if (bridge != null) {
-                bridge.onLightRemoved(lightId);
-            }
         }
-    }
-
-    public void applyTransformFromAxiom(long lightId, Map<String, Object> updatedValues) {
-        Map<String, Object> lightData = lights.computeIfAbsent(lightId, k -> new ConcurrentHashMap<>());
-        boolean isNewLight = lightData.isEmpty();
-        lightData.putAll(updatedValues);
-        lightData.put("id", lightId);
-        lightIdCounter.accumulateAndGet(lightId, Math::max);
-        if (!lightData.containsKey("type")) {
-            lightData.put("type", "point");
-        }
-
-        broadcastLightOperation(isNewLight ? "create" : "update", lightData);
     }
 
     public long spawnLight(String type, Map<String, Object> properties) {
@@ -77,10 +55,6 @@ public class ServerLightingManager {
         lightData.put("type", type);
 
         broadcastLightOperation("create", lightData);
-        AxiomBridgeService bridge = AxiomBridgeService.getInstance();
-        if (bridge != null) {
-            bridge.onLightUpdated(id, lightData);
-        }
         return id;
     }
 

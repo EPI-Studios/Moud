@@ -145,6 +145,26 @@ public class JavaScriptRuntime {
                             }
                         });
 
+                        moudObj.putMember("once", new ProxyExecutable() {
+                            @Override
+                            public Object execute(Value... arguments) {
+                                if (arguments.length >= 2) {
+                                    scriptingAPI.once(arguments[0].asString(), arguments[1]);
+                                }
+                                return null;
+                            }
+                        });
+
+                        moudObj.putMember("off", new ProxyExecutable() {
+                            @Override
+                            public Object execute(Value... arguments) {
+                                if (arguments.length >= 2) {
+                                    scriptingAPI.off(arguments[0].asString(), arguments[1]);
+                                }
+                                return null;
+                            }
+                        });
+
                         moudObj.putMember("server", scriptingAPI.server);
                         moudObj.putMember("world", scriptingAPI.world);
                         moudObj.putMember("lighting", scriptingAPI.lighting);

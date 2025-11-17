@@ -3,7 +3,6 @@ package com.moud.server.events;
 import com.moud.network.MoudPackets;
 import com.moud.server.MoudEngine;
 import com.moud.server.api.exception.APIException;
-import com.moud.server.lighting.ServerLightingManager;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.profiler.model.ScriptExecutionMetadata;
 import com.moud.server.profiler.model.ScriptExecutionType;
@@ -20,14 +19,19 @@ import net.minestom.server.event.player.PlayerSpawnEvent;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class EventDispatcher {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(EventDispatcher.class);
 
+    private record HandlerEntry(Value callback, boolean once) {}
+
     private final EventNode<Event> eventNode;
-    private final ConcurrentHashMap<String, Value> handlers;
+    private final ConcurrentHashMap<String, CopyOnWriteArrayList<HandlerEntry>> handlers;
     private final EventConverter converter;
     private final MoudEngine engine;
 
@@ -66,78 +70,117 @@ public class EventDispatcher {
 
         eventNode.addListener(PlayerMoveEvent.class, event ->
                 dispatch("player.move", event));
-
-
     }
 
     public void register(String eventName, Value handler) {
+        addHandler(eventName, handler, false);
+    }
+
+    public void registerOnce(String eventName, Value handler) {
+        addHandler(eventName, handler, true);
+    }
+
+    public void unregister(String eventName, Value handler) {
+        if (handler == null) {
+            throw new APIException("INVALID_HANDLER", "Handler cannot be null for event: " + eventName);
+        }
+        CopyOnWriteArrayList<HandlerEntry> list = handlers.get(eventName);
+        if (list == null) {
+            return;
+        }
+        boolean removed = list.removeIf(entry -> entry.callback() == handler);
+        if (removed) {
+            LOGGER.success("Event handler removed: {}", eventName);
+        }
+        if (list.isEmpty()) {
+            handlers.remove(eventName, list);
+        }
+    }
+
+    private void addHandler(String eventName, Value handler, boolean once) {
         if (handler == null || !handler.canExecute()) {
             throw new APIException("INVALID_HANDLER", "Handler must be executable for event: " + eventName);
         }
-        handlers.put(eventName, handler);
-        LOGGER.success("Event handler registered: {}", eventName);
+        handlers.computeIfAbsent(eventName, key -> new CopyOnWriteArrayList<>())
+                .add(new HandlerEntry(handler, once));
+        LOGGER.success("Event handler registered: {}{}", eventName, once ? " (once)" : "");
     }
 
-
     private void dispatch(String eventName, Object minestomEvent) {
-        Value handler = handlers.get(eventName);
-        if (handler == null) return;
+        CopyOnWriteArrayList<HandlerEntry> handlerList = handlers.get(eventName);
+        if (handlerList == null || handlerList.isEmpty()) return;
 
-        try {
-            Object scriptEvent = converter.convert(eventName, minestomEvent);
-            String detail = minestomEvent != null ? minestomEvent.getClass().getSimpleName() : "";
-            ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
-                    ScriptExecutionType.EVENT,
-                    eventName,
-                    detail
-            );
-            engine.getRuntime().executeCallback(handler, metadata, scriptEvent);
-        } catch (Exception e) {
-            LOGGER.error("Error during event dispatch for '{}'", eventName, e);
+        List<HandlerEntry> toRemove = null;
+        for (HandlerEntry entry : handlerList) {
+            try {
+                Object scriptEvent = converter.convert(eventName, minestomEvent);
+                String detail = minestomEvent != null ? minestomEvent.getClass().getSimpleName() : "";
+                ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                        ScriptExecutionType.EVENT,
+                        eventName,
+                        detail
+                );
+                engine.getRuntime().executeCallback(entry.callback(), metadata, scriptEvent);
+            } catch (Exception e) {
+                LOGGER.error("Error during event dispatch for '{}'", eventName, e);
+            }
+
+            if (entry.once()) {
+                if (toRemove == null) {
+                    toRemove = new ArrayList<>();
+                }
+                toRemove.add(entry);
+            }
         }
+        pruneHandlers(eventName, handlerList, toRemove);
     }
 
     public void dispatchMovementEvent(Player player, MoudPackets.MovementStatePacket packet) {
+        CopyOnWriteArrayList<HandlerEntry> handlerList = handlers.get("player.movement_state");
+        if (handlerList == null || handlerList.isEmpty()) {
+            return;
+        }
+
         PlayerProxy playerProxy = new PlayerProxy(player);
+        try {
+            ProxyObject movementData = ProxyObject.fromMap(Map.of(
+                    "forward", packet.forward(),
+                    "backward", packet.backward(),
+                    "left", packet.left(),
+                    "right", packet.right(),
+                    "jumping", packet.jumping(),
+                    "sneaking", packet.sneaking(),
+                    "sprinting", packet.sprinting(),
+                    "onGround", packet.onGround(),
+                    "speed", packet.speed()
+            ));
 
-        Value movementStateHandler = handlers.get("player.movement_state");
-        if (movementStateHandler != null) {
-            try {
-                ProxyObject movementData = ProxyObject.fromMap(Map.of(
-                        "forward", packet.forward(),
-                        "backward", packet.backward(),
-                        "left", packet.left(),
-                        "right", packet.right(),
-                        "jumping", packet.jumping(),
-                        "sneaking", packet.sneaking(),
-                        "sprinting", packet.sprinting(),
-                        "onGround", packet.onGround(),
-                        "speed", packet.speed()
-                ));
-
+            for (HandlerEntry entry : handlerList) {
                 ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
                         ScriptExecutionType.EVENT,
                         "player.movement_state",
                         player.getUsername()
                 );
-                engine.getRuntime().executeCallback(movementStateHandler, metadata, playerProxy, movementData);
-            } catch (Exception e) {
-                LOGGER.error("Error during movement_state event dispatch for player {}", player.getUsername(), e);
+                engine.getRuntime().executeCallback(entry.callback(), metadata, playerProxy, movementData);
             }
+        } catch (Exception e) {
+            LOGGER.error("Error during movement_state event dispatch for player {}", player.getUsername(), e);
         }
     }
 
     public void dispatchMovementEventType(Player player, String eventType) {
-        Value handler = handlers.get(eventType);
-        if (handler != null) {
+        CopyOnWriteArrayList<HandlerEntry> handlerList = handlers.get(eventType);
+        if (handlerList != null && !handlerList.isEmpty()) {
             try {
                 PlayerProxy playerProxy = new PlayerProxy(player);
-                ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
-                        ScriptExecutionType.EVENT,
-                        eventType,
-                        player.getUsername()
-                );
-                engine.getRuntime().executeCallback(handler, metadata, playerProxy);
+                for (HandlerEntry entry : handlerList) {
+                    ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                            ScriptExecutionType.EVENT,
+                            eventType,
+                            player.getUsername()
+                    );
+                    engine.getRuntime().executeCallback(entry.callback(), metadata, playerProxy);
+                }
                 LOGGER.debug("Successfully dispatched {} event for player {}", eventType, player.getUsername());
             } catch (Exception e) {
                 LOGGER.error("Error during {} event dispatch for player {}", eventType, player.getUsername(), e);
@@ -148,17 +191,19 @@ public class EventDispatcher {
     }
 
     public void dispatchMoudReady(Player player) {
-        Value handler = handlers.get("moud.player.ready");
-        if (handler == null) return;
+        CopyOnWriteArrayList<HandlerEntry> handlerList = handlers.get("moud.player.ready");
+        if (handlerList == null || handlerList.isEmpty()) return;
 
         try {
             PlayerProxy scriptEvent = new PlayerProxy(player);
-            ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
-                    ScriptExecutionType.EVENT,
-                    "moud.player.ready",
-                    player.getUsername()
-            );
-            engine.getRuntime().executeCallback(handler, metadata, scriptEvent);
+            for (HandlerEntry entry : handlerList) {
+                ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                        ScriptExecutionType.EVENT,
+                        "moud.player.ready",
+                        player.getUsername()
+                );
+                engine.getRuntime().executeCallback(entry.callback(), metadata, scriptEvent);
+            }
             LOGGER.debug("Dispatched moud.player.ready event for {}", player.getUsername());
         } catch (Exception e) {
             LOGGER.error("Error during moud.player.ready event dispatch for '{}'", player.getUsername(), e);
@@ -166,20 +211,22 @@ public class EventDispatcher {
     }
 
     public void dispatchScriptEvent(String eventName, String eventData, Player player) {
-        Value handler = handlers.get(eventName);
-        if (handler == null) {
+        CopyOnWriteArrayList<HandlerEntry> handlerList = handlers.get(eventName);
+        if (handlerList == null || handlerList.isEmpty()) {
             LOGGER.debug("No handler found for script event: {}", eventName);
             return;
         }
 
         try {
             PlayerProxy playerProxy = new PlayerProxy(player);
-            ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
-                    ScriptExecutionType.EVENT,
-                    eventName,
-                    player.getUsername()
-            );
-            engine.getRuntime().executeCallback(handler, metadata, playerProxy, eventData);
+            for (HandlerEntry entry : handlerList) {
+                ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                        ScriptExecutionType.EVENT,
+                        eventName,
+                        player.getUsername()
+                );
+                engine.getRuntime().executeCallback(entry.callback(), metadata, playerProxy, eventData);
+            }
             LOGGER.debug("Successfully dispatched script event '{}' for player {}", eventName, player.getUsername());
         } catch (Exception e) {
             LOGGER.error("Error during script event dispatch for '{}' from player {}", eventName, player.getUsername(), e);
@@ -187,20 +234,22 @@ public class EventDispatcher {
     }
 
     public void dispatchEntityInteraction(Player player, Entity entity, String interactionType) {
-        Value handler = handlers.get("entity.interact");
-        if (handler == null) {
+        CopyOnWriteArrayList<HandlerEntry> handlerList = handlers.get("entity.interact");
+        if (handlerList == null || handlerList.isEmpty()) {
             return;
         }
 
         try {
             com.moud.server.proxy.EntityInteractionProxy eventProxy =
                     new com.moud.server.proxy.EntityInteractionProxy(entity, player, interactionType);
-            ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
-                    ScriptExecutionType.EVENT,
-                    "entity.interact",
-                    interactionType
-            );
-            engine.getRuntime().executeCallback(handler, metadata, eventProxy);
+            for (HandlerEntry entry : handlerList) {
+                ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                        ScriptExecutionType.EVENT,
+                        "entity.interact",
+                        interactionType
+                );
+                engine.getRuntime().executeCallback(entry.callback(), metadata, eventProxy);
+            }
             LOGGER.debug("Dispatched entity interaction '{}' for player {} with entity {}",
                     interactionType, player.getUsername(), entity.getUuid());
         } catch (Exception e) {
@@ -209,39 +258,43 @@ public class EventDispatcher {
     }
 
     public void dispatchMouseMoveEvent(Player player, float deltaX, float deltaY) {
-        Value handler = handlers.get("player.mousemove");
-        if (handler == null) {
+        CopyOnWriteArrayList<HandlerEntry> handlerList = handlers.get("player.mousemove");
+        if (handlerList == null || handlerList.isEmpty()) {
             return;
         }
 
         try {
             ProxyObject data = ProxyObject.fromMap(Map.of("deltaX", deltaX, "deltaY", deltaY));
-            ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
-                    ScriptExecutionType.EVENT,
-                    "player.mousemove",
-                    player.getUsername()
-            );
-            engine.getRuntime().executeCallback(handler, metadata, new PlayerProxy(player), data);
+            for (HandlerEntry entry : handlerList) {
+                ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                        ScriptExecutionType.EVENT,
+                        "player.mousemove",
+                        player.getUsername()
+                );
+                engine.getRuntime().executeCallback(entry.callback(), metadata, new PlayerProxy(player), data);
+            }
         } catch (Exception e) {
             LOGGER.error("Error during mouse move event dispatch for player {}", player.getUsername(), e);
         }
     }
 
     public void dispatchPlayerClickEvent(Player player, int button) {
-        Value handler = handlers.get("player.click");
-        if (handler == null) {
+        CopyOnWriteArrayList<HandlerEntry> handlerList = handlers.get("player.click");
+        if (handlerList == null || handlerList.isEmpty()) {
             LOGGER.debug("No handler for player click event");
             return;
         }
 
         try {
             ProxyObject data = ProxyObject.fromMap(Map.of("button", button));
-            ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
-                    ScriptExecutionType.EVENT,
-                    "player.click",
-                    player.getUsername()
-            );
-            engine.getRuntime().executeCallback(handler, metadata, new PlayerProxy(player), data);
+            for (HandlerEntry entry : handlerList) {
+                ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                        ScriptExecutionType.EVENT,
+                        "player.click",
+                        player.getUsername()
+                );
+                engine.getRuntime().executeCallback(entry.callback(), metadata, new PlayerProxy(player), data);
+            }
             LOGGER.debug("Dispatched player click event for {}: button={}", player.getUsername(), button);
         } catch (Exception e) {
             LOGGER.error("Error during player click event dispatch for player {}", player.getUsername(), e);
@@ -249,22 +302,39 @@ public class EventDispatcher {
     }
 
     public void dispatchLoadEvent(String eventName) {
-        Value handler = handlers.get(eventName);
-        if (handler == null) {
+        CopyOnWriteArrayList<HandlerEntry> handlerList = handlers.get(eventName);
+        if (handlerList == null || handlerList.isEmpty()) {
             LOGGER.debug("No handler found for initial server load event: {}", eventName);
             return;
         }
 
         try {
-            ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
-                    ScriptExecutionType.RUNTIME_TICK,
-                    eventName,
-                    "load"
-            );
-            engine.getRuntime().executeCallback(handler, metadata);
+            List<HandlerEntry> toRemove = new ArrayList<>();
+            for (HandlerEntry entry : handlerList) {
+                ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                        ScriptExecutionType.RUNTIME_TICK,
+                        eventName,
+                        "load"
+                );
+                engine.getRuntime().executeCallback(entry.callback(), metadata);
+                if (entry.once()) {
+                    toRemove.add(entry);
+                }
+            }
+            pruneHandlers(eventName, handlerList, toRemove);
             LOGGER.success("Dispatched one-time '{}' event.", eventName);
         } catch (Exception e) {
             LOGGER.error("Error during dispatch of '{}' event", eventName, e);
+        }
+    }
+
+    private void pruneHandlers(String eventName, CopyOnWriteArrayList<HandlerEntry> handlerList, List<HandlerEntry> toRemove) {
+        if (toRemove == null || toRemove.isEmpty()) {
+            return;
+        }
+        handlerList.removeAll(toRemove);
+        if (handlerList.isEmpty()) {
+            handlers.remove(eventName, handlerList);
         }
     }
 }

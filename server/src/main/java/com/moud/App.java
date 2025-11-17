@@ -33,14 +33,14 @@ public class App {
                     break;
             }
         }
+        MinecraftServer minecraftServer = MinecraftServer.init();
+
         if (onlineMode) {
             MojangAuth.init();
             LOGGER.info("Mojang authentication is ENABLED.");
         } else {
             LOGGER.warn("Mojang authentication is DISABLED. Players can join with any username.");
         }
-
-        MinecraftServer minecraftServer = MinecraftServer.init();
 
         try {
             MoudEngine moudEngine = new MoudEngine(args);

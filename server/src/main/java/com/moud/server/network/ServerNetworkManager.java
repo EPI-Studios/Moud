@@ -9,6 +9,7 @@ import com.moud.server.cursor.CursorService;
 import com.moud.server.entity.DisplayManager;
 import com.moud.server.entity.ModelManager;
 import com.moud.server.editor.SceneManager;
+import com.moud.server.editor.BlueprintStorage;
 import com.moud.server.events.EventDispatcher;
 import com.moud.server.lighting.ServerLightingManager;
 import com.moud.server.logging.LogContext;
@@ -16,6 +17,7 @@ import com.moud.server.logging.MoudLogger;
 import com.moud.server.movement.ServerMovementHandler;
 import com.moud.server.network.diagnostics.NetworkProbe;
 import com.moud.server.player.PlayerCameraManager;
+import com.moud.server.plugin.PluginEventBus;
 import com.moud.server.proxy.MediaDisplayProxy;
 import com.moud.server.proxy.PlayerModelProxy;
 import net.minestom.server.MinecraftServer;
@@ -25,6 +27,7 @@ import net.minestom.server.event.player.PlayerDisconnectEvent;
 import net.minestom.server.event.player.PlayerPluginMessageEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
 import com.moud.server.player.PlayerCursorDirectionManager;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.UUID;
@@ -41,11 +44,13 @@ public final class ServerNetworkManager {
     private final EventDispatcher eventDispatcher;
     private final ClientScriptManager clientScriptManager;
     private final ConcurrentMap<UUID, ClientSession> moudClients = new ConcurrentHashMap<>();
+    private final BlueprintStorage blueprintStorage;
     private static ServerNetworkManager instance;
 
     public ServerNetworkManager(EventDispatcher eventDispatcher, ClientScriptManager clientScriptManager) {
         this.eventDispatcher = eventDispatcher;
         this.clientScriptManager = clientScriptManager;
+        this.blueprintStorage = new BlueprintStorage(SceneManager.getInstance().getProjectRoot());
         instance = this;
     }
 
@@ -82,6 +87,8 @@ public final class ServerNetworkManager {
         ServerPacketWrapper.registerHandler(MoudPackets.UpdateRuntimeModelPacket.class, this::handleRuntimeModelUpdate);
         ServerPacketWrapper.registerHandler(MoudPackets.UpdateRuntimeDisplayPacket.class, this::handleRuntimeDisplayUpdate);
         ServerPacketWrapper.registerHandler(MoudPackets.UpdatePlayerTransformPacket.class, this::handlePlayerTransformUpdate);
+        ServerPacketWrapper.registerHandler(SaveBlueprintPacket.class, this::handleBlueprintSave);
+        ServerPacketWrapper.registerHandler(RequestBlueprintPacket.class, this::handleBlueprintRequest);
 
     }
 
@@ -170,6 +177,53 @@ public final class ServerNetworkManager {
         Pos current = target.getPosition();
         Pos destination = new Pos(position.x, position.y, position.z, current.yaw(), current.pitch());
         target.teleport(destination);
+    }
+
+    private void handleBlueprintSave(Object player, SaveBlueprintPacket packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer)) return;
+        String name = packet.name() == null ? "" : packet.name().trim();
+        boolean success = false;
+        String message;
+        if (name.isEmpty() || packet.data() == null || packet.data().length == 0) {
+            message = "Invalid blueprint payload";
+        } else {
+            try {
+                blueprintStorage.save(name, packet.data());
+                success = true;
+                message = "saved";
+            } catch (IOException e) {
+                message = e.getMessage();
+                LOGGER.error(playerContext(minestomPlayer), "Failed to save blueprint {}", e, name);
+            }
+        }
+        send(minestomPlayer, new BlueprintSaveAckPacket(name, success, message == null ? "" : message));
+    }
+
+    private void handleBlueprintRequest(Object player, RequestBlueprintPacket packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer)) return;
+        String name = packet.name() == null ? "" : packet.name().trim();
+        byte[] data = null;
+        boolean success = false;
+        String message;
+        if (name.isEmpty()) {
+            message = "Invalid name";
+        } else {
+            try {
+                if (!blueprintStorage.exists(name)) {
+                    message = "Not found";
+                } else {
+                    data = blueprintStorage.load(name);
+                    success = true;
+                    message = "";
+                }
+            } catch (IOException e) {
+                message = e.getMessage();
+                LOGGER.error(playerContext(minestomPlayer), "Failed to load blueprint {}", e, name);
+            }
+        }
+        send(minestomPlayer, new BlueprintDataPacket(name, data, success, message == null ? "" : message));
     }
 
     private void handleClientReady(Object player, ClientReadyPacket packet) {
@@ -396,6 +450,7 @@ public final class ServerNetworkManager {
         }
 
         eventDispatcher.dispatchScriptEvent(packet.eventName(), packet.eventData(), minestomPlayer);
+        PluginEventBus.getInstance().dispatchScriptEvent(packet.eventName(), minestomPlayer, packet.eventData());
     }
 
     private void handleCameraUpdate(Object player, ClientUpdateCameraPacket packet) {
@@ -444,6 +499,7 @@ public final class ServerNetworkManager {
             Player player = event.getPlayer();
             PlayerCursorDirectionManager.getInstance().onPlayerJoin(player);
             CursorService.getInstance().onPlayerJoin(player);
+            PluginEventBus.getInstance().dispatchPlayerJoin(player);
         }
     }
 
@@ -453,6 +509,7 @@ public final class ServerNetworkManager {
         PlayerCameraManager.getInstance().onPlayerDisconnect(player);
         PlayerCursorDirectionManager.getInstance().onPlayerDisconnect(player);
         CursorService.getInstance().onPlayerQuit(player);
+        PluginEventBus.getInstance().dispatchPlayerLeave(player);
         LOGGER.debug(playerContext(player), "Player {} disconnected, cleaned up client state", player.getUsername());
     }
 
