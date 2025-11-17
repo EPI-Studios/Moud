@@ -1,8 +1,8 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
-import com.moud.server.bridge.AxiomBridgeService;
 import com.moud.server.network.ServerNetworkManager;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.Player;
@@ -22,6 +22,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+@TsExpose
 public class PlayerModelProxy {
     private static final Logger LOGGER = LoggerFactory.getLogger(PlayerModelProxy.class);
     private static final AtomicLong ID_COUNTER = new AtomicLong(1);
@@ -76,11 +77,6 @@ public class PlayerModelProxy {
 
         setMovementState(MovementState.IDLE);
 
-        // Notify Axiom bridge
-        AxiomBridgeService bridge = AxiomBridgeService.getInstance();
-        if (bridge != null) {
-            bridge.onModelCreated(this);
-        }
     }
 
     private void setMovementState(MovementState newState) {
@@ -222,12 +218,6 @@ public class PlayerModelProxy {
         stopWalking();
         ALL_MODELS.remove(modelId);
         broadcastRemove();
-
-        // Notify Axiom bridge
-        AxiomBridgeService bridge = AxiomBridgeService.getInstance();
-        if (bridge != null) {
-            bridge.onModelRemoved(this);
-        }
     }
 
     @HostAccess.Export
@@ -246,12 +236,6 @@ public class PlayerModelProxy {
     private void broadcastUpdate() {
         MoudPackets.PlayerModelUpdatePacket packet = new MoudPackets.PlayerModelUpdatePacket(modelId, position, yaw, pitch);
         broadcast(packet);
-
-        // Notify Axiom bridge of position changes
-        AxiomBridgeService bridge = AxiomBridgeService.getInstance();
-        if (bridge != null) {
-            bridge.onModelMoved(this);
-        }
     }
 
     private void broadcastSkin() {
@@ -327,23 +311,4 @@ public class PlayerModelProxy {
         this.pitch = pitch;
     }
 
-    /**
-     * Called by AxiomBridgeService when a gizmo is manipulated.
-     * This applies the transform but avoids triggering a broadcast loop.
-     */
-    public void applyBridgeTransform(Vector3 position, float yaw, float pitch) {
-        if (isWalking()) {
-            stopWalking();
-        }
-        this.position = position;
-        this.yaw = yaw;
-        this.pitch = pitch;
-
-        // Broadcast to clients without notifying bridge again (avoids recursion)
-        MoudPackets.PlayerModelUpdatePacket packet = new MoudPackets.PlayerModelUpdatePacket(modelId, position, yaw, pitch);
-        ServerNetworkManager networkManager = ServerNetworkManager.getInstance();
-        if (networkManager != null) {
-            networkManager.broadcast(packet);
-        }
-    }
 }

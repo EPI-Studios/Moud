@@ -1,5 +1,6 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.server.api.exception.APIException;
@@ -8,6 +9,7 @@ import com.moud.server.entity.ScriptedEntity;
 import com.moud.server.instance.InstanceManager;
 import com.moud.server.raycast.RaycastResult;
 import com.moud.server.raycast.RaycastUtil;
+import com.moud.server.physics.PhysicsService;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.coordinate.Pos;
@@ -31,6 +33,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Predicate;
 
+@TsExpose
 public class WorldProxy {
     private Instance instance;
     private final APIValidator validator;
@@ -147,6 +150,35 @@ public class WorldProxy {
             model.setCollisionBox(autoWidth, autoHeight, autoDepth);
         }
 
+        return model;
+    }
+
+    @HostAccess.Export
+    public ModelProxy createPhysicsModel(Value options) {
+        if (options == null || !options.hasMembers()) {
+            throw new APIException("INVALID_ARGUMENT", "createPhysicsModel requires an options object.");
+        }
+        Value physicsOptions = options.hasMember("physics") ? options.getMember("physics") : null;
+        if (physicsOptions == null || !physicsOptions.hasMembers()) {
+            throw new APIException("INVALID_ARGUMENT", "createPhysicsModel requires a 'physics' object describing the body.");
+        }
+
+        ModelProxy model = createModel(options);
+
+        double mass = physicsOptions.hasMember("mass") ? physicsOptions.getMember("mass").asDouble() : 5.0;
+        Vector3 initialVelocity = physicsOptions.hasMember("linearVelocity")
+                ? readVector3(physicsOptions.getMember("linearVelocity"), null)
+                : null;
+
+        double width = model.getCollisionWidth();
+        double height = model.getCollisionHeight();
+        double depth = model.getCollisionDepth();
+        if (width <= 0) width = 1;
+        if (height <= 0) height = 1;
+        if (depth <= 0) depth = 1;
+
+        Vector3 halfExtents = new Vector3(width / 2.0, height / 2.0, depth / 2.0);
+        PhysicsService.getInstance().attachDynamicModel(model, halfExtents, (float) mass, initialVelocity);
         return model;
     }
 

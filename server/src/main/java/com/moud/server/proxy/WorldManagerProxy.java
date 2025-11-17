@@ -1,5 +1,6 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.api.math.Vector3;
 import com.moud.server.instance.InstanceManager;
 import com.moud.server.project.ProjectLoader;
@@ -17,6 +18,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
 
+@TsExpose
 public class WorldManagerProxy {
     private final InstanceManager instanceManager;
 

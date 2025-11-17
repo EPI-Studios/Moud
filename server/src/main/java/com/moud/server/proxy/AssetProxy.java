@@ -1,10 +1,12 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.server.assets.AssetManager;
 import org.graalvm.polyglot.HostAccess;
 
 import java.io.IOException;
 
+@TsExpose
 public class AssetProxy {
     private final AssetManager assetManager;
 

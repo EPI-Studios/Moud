@@ -1,10 +1,13 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
+import com.moud.api.collision.OBB;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
-import com.moud.server.bridge.AxiomBridgeService;
+import com.moud.server.collision.MinestomCollisionAdapter;
 import com.moud.server.entity.ModelManager;
+import com.moud.server.physics.PhysicsService;
 import com.moud.server.network.ServerNetworkManager;
 import net.minestom.server.collision.BoundingBox;
 import net.minestom.server.coordinate.Pos;
@@ -14,6 +17,10 @@ import net.minestom.server.entity.metadata.other.InteractionMeta;
 import net.minestom.server.instance.Instance;
 import org.graalvm.polyglot.HostAccess;
 
+import java.util.ArrayList;
+import java.util.List;
+
+@TsExpose
 public class ModelProxy {
     private final long id;
     private final Entity entity;
@@ -24,6 +31,7 @@ public class ModelProxy {
     private Vector3 scale;
     private BoundingBox collisionBox;
     private String texturePath;
+    private List<OBB> collisionBoxes = new ArrayList<>();
 
     public ModelProxy(Instance instance, String modelPath, Vector3 position, Quaternion rotation, Vector3 scale, String texturePath) {
         this.id = ModelManager.getInstance().nextId();
@@ -38,12 +46,17 @@ public class ModelProxy {
         meta.setResponse(true);
         this.entity.setInstance(instance, new Pos(position.x, position.y, position.z));
 
+        generateAccurateCollision();
+
         ModelManager.getInstance().register(this);
         broadcastCreate();
 
-        AxiomBridgeService bridge = AxiomBridgeService.getInstance();
-        if (bridge != null) {
-            bridge.onStaticModelCreated(this);
+    }
+
+    private void generateAccurateCollision() {
+        List<OBB> boxes = com.moud.server.physics.mesh.ModelCollisionLibrary.getCollisionBoxes(modelPath);
+        if (boxes != null && !boxes.isEmpty()) {
+            setCollisionBoxes(boxes);
         }
     }
 
@@ -63,18 +76,11 @@ public class ModelProxy {
         broadcast(packet);
     }
 
-    private void broadcastUpdate(boolean notifyBridge) {
+    private void broadcastUpdate() {
         MoudPackets.S2C_UpdateModelTransformPacket packet = new MoudPackets.S2C_UpdateModelTransformPacket(
                 id, position, rotation, scale
         );
         broadcast(packet);
-
-        if (notifyBridge) {
-            AxiomBridgeService bridge = AxiomBridgeService.getInstance();
-            if (bridge != null) {
-                bridge.onStaticModelMoved(this);
-            }
-        }
     }
 
     @HostAccess.Export
@@ -95,7 +101,11 @@ public class ModelProxy {
     public void setPosition(Vector3 position) {
         this.position = position;
         this.entity.teleport(new Pos(position.x, position.y, position.z));
-        broadcastUpdate(true);
+        PhysicsService physics = PhysicsService.getInstance();
+        if (physics != null) {
+            physics.handleModelManualTransform(this, position, null);
+        }
+        broadcastUpdate();
     }
 
     @HostAccess.Export
@@ -106,13 +116,21 @@ public class ModelProxy {
     @HostAccess.Export
     public void setRotation(Quaternion rotation) {
         this.rotation = rotation;
-        broadcastUpdate(true);
+        PhysicsService physics = PhysicsService.getInstance();
+        if (physics != null) {
+            physics.handleModelManualTransform(this, null, rotation);
+        }
+        broadcastUpdate();
     }
 
     @HostAccess.Export
     public void setRotationFromEuler(double pitch, double yaw, double roll) {
         this.rotation = Quaternion.fromEuler((float)pitch, (float)yaw, (float)roll);
-        broadcastUpdate(true);
+        PhysicsService physics = PhysicsService.getInstance();
+        if (physics != null) {
+            physics.handleModelManualTransform(this, null, this.rotation);
+        }
+        broadcastUpdate();
     }
 
     @HostAccess.Export
@@ -123,7 +141,7 @@ public class ModelProxy {
     @HostAccess.Export
     public void setScale(Vector3 scale) {
         this.scale = scale;
-        broadcastUpdate(true);
+        broadcastUpdate();
     }
 
     @HostAccess.Export
@@ -146,6 +164,7 @@ public class ModelProxy {
     public void setCollisionBox(double width, double height, double depth) {
         if (width <= 0 || height <= 0 || depth <= 0) {
             this.collisionBox = null;
+            this.collisionBoxes.clear();
             this.entity.setBoundingBox(0, 0, 0);
             ((InteractionMeta)this.entity.getEntityMeta()).setWidth(0);
             ((InteractionMeta)this.entity.getEntityMeta()).setHeight(0);
@@ -155,10 +174,39 @@ public class ModelProxy {
             ((InteractionMeta)this.entity.getEntityMeta()).setWidth((float)width);
             ((InteractionMeta)this.entity.getEntityMeta()).setHeight((float)height);
         }
-        // DO NOT REMOVE OR RECREATE THE ENTITY WHEN YOU WANT TO CHANGE ANY PROPERTIES
         broadcast(new MoudPackets.S2C_UpdateModelCollisionPacket(
                 id, getCollisionWidth(), getCollisionHeight(), getCollisionDepth()
         ));
+    }
+
+    public void setCollisionBoxes(List<OBB> boxes) {
+        this.collisionBoxes = new ArrayList<>(boxes);
+        List<BoundingBox> minestomBoxes = MinestomCollisionAdapter.convertToBoundingBoxes(
+            boxes, position, rotation, scale
+        );
+        if (!minestomBoxes.isEmpty()) {
+            BoundingBox mainBox = MinestomCollisionAdapter.getLargestBox(minestomBoxes);
+            this.collisionBox = mainBox;
+            this.entity.setBoundingBox(mainBox);
+            ((InteractionMeta)this.entity.getEntityMeta()).setWidth((float)mainBox.width());
+            ((InteractionMeta)this.entity.getEntityMeta()).setHeight((float)mainBox.height());
+        }
+        broadcastCollisionBoxes();
+    }
+
+    private void broadcastCollisionBoxes() {
+        if (collisionBoxes.isEmpty()) {
+            return;
+        }
+        List<MoudPackets.CollisionBoxData> boxData = new ArrayList<>();
+        for (OBB obb : collisionBoxes) {
+            boxData.add(new MoudPackets.CollisionBoxData(obb.center, obb.halfExtents, obb.rotation));
+        }
+        broadcast(new MoudPackets.S2C_SyncModelCollisionBoxesPacket(id, boxData));
+    }
+
+    public List<OBB> getCollisionBoxes() {
+        return new ArrayList<>(collisionBoxes);
     }
 
     public double getCollisionWidth() {
@@ -173,20 +221,7 @@ public class ModelProxy {
         return collisionBox != null ? collisionBox.depth() : 0;
     }
 
-    @HostAccess.Export
-    public void remove() {
-        ModelManager.getInstance().unregister(this);
-        entity.remove();
-        broadcast(new MoudPackets.S2C_RemoveModelPacket(id));
-
-        AxiomBridgeService bridge = AxiomBridgeService.getInstance();
-        if (bridge != null) {
-            bridge.onStaticModelRemoved(this);
-        }
-    }
-
-
-    public void applyBridgeTransform(Vector3 position, Quaternion rotation, Vector3 scale) {
+    public void syncPhysicsTransform(Vector3 position, Quaternion rotation) {
         if (position != null) {
             this.position = position;
             this.entity.teleport(new Pos(position.x, position.y, position.z));
@@ -194,9 +229,20 @@ public class ModelProxy {
         if (rotation != null) {
             this.rotation = rotation;
         }
-        if (scale != null) {
-            this.scale = scale;
-        }
-        broadcastUpdate(false);
+        broadcastUpdate();
     }
+
+    @HostAccess.Export
+    public void remove() {
+        PhysicsService physics = PhysicsService.getInstance();
+        if (physics != null) {
+            physics.detachModel(this);
+        }
+        ModelManager.getInstance().unregister(this);
+        entity.remove();
+        broadcast(new MoudPackets.S2C_RemoveModelPacket(id));
+
+    }
+
+
 }

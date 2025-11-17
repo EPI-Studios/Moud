@@ -1,8 +1,10 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.api.math.*;
 import org.graalvm.polyglot.HostAccess;
 
+@TsExpose
 public class MathProxy {
 
     public MathProxy() {}

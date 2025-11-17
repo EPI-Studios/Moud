@@ -1,5 +1,6 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.api.math.Vector3;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
@@ -10,6 +11,7 @@ import net.minestom.server.entity.metadata.display.TextDisplayMeta;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 
+@TsExpose
 public class TextProxy {
     private final Entity textEntity;
     private final TextDisplayMeta meta;

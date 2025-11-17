@@ -1,5 +1,6 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.network.MoudPackets;
 import com.moud.server.network.ServerNetworkManager;
 import net.minestom.server.entity.Player;
@@ -11,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Map;
 
+@TsExpose
 public class CameraLockProxy {
     private static final Logger LOGGER = LoggerFactory.getLogger(CameraLockProxy.class);
     private final Player player;

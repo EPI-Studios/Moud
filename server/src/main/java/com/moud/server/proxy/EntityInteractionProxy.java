@@ -1,9 +1,11 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import org.graalvm.polyglot.HostAccess;
 
+@TsExpose
 public class EntityInteractionProxy {
     private final Entity entity;
     private final Player player;

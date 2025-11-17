@@ -1,5 +1,6 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.network.MoudPackets;
 import com.moud.server.network.ServerNetworkManager;
 import net.minestom.server.entity.Player;
@@ -11,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@TsExpose
 public class PlayerWindowProxy {
     private final Player player;
     private final ServerNetworkManager networkManager;

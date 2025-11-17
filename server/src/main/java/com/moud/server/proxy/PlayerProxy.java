@@ -1,5 +1,6 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
 import com.moud.server.api.exception.APIException;
@@ -19,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Map;
 
+@TsExpose
 public class PlayerProxy {
     private static final Logger LOGGER = LoggerFactory.getLogger(PlayerProxy.class);
     private final Player player;

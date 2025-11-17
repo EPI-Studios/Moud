@@ -1,10 +1,12 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyArray;
 
 import java.util.List;
 
+@TsExpose
 public class JsArrayProxy implements ProxyArray {
     private final List<?> list;
 

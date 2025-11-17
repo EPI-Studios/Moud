@@ -1,5 +1,6 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.moud.server.audio.ServerAudioManager;
 import com.moud.server.audio.ServerMicrophoneManager;
@@ -12,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+@TsExpose
 public final class PlayerAudioProxy {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PlayerAudioProxy.class);

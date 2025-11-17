@@ -1,11 +1,12 @@
-// File: src/main/java/com/moud/server/proxy/ZoneAPIProxy.java
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.api.math.Vector3;
 import com.moud.server.zone.ZoneManager;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 
+@TsExpose
 public class ZoneAPIProxy {
     private final ZoneManager zoneManager;
     public ZoneAPIProxy(ZoneManager zoneManager) {

@@ -1,9 +1,9 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
-import com.moud.server.bridge.AxiomBridgeService;
 import com.moud.server.entity.DisplayManager;
 import com.moud.server.entity.ModelManager;
 import com.moud.server.network.ServerNetworkManager;
@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+@TsExpose
 public class MediaDisplayProxy {
     private static final Logger LOGGER = LoggerFactory.getLogger(MediaDisplayProxy.class);
     private static final float POSITION_EPSILON = 0.0001f;
@@ -84,7 +85,7 @@ public class MediaDisplayProxy {
         this.anchorType = MoudPackets.DisplayAnchorType.FREE;
         this.anchorEntityRef = null;
         this.anchorEntityUuid = null;
-        broadcastTransform(true);
+        broadcastTransform();
         broadcastAnchorUpdate();
     }
 
@@ -99,13 +100,13 @@ public class MediaDisplayProxy {
             return;
         }
         this.rotation = new Quaternion(newRotation);
-        broadcastTransform(true);
+        broadcastTransform();
     }
 
     @HostAccess.Export
     public void setRotationFromEuler(double pitch, double yaw, double roll) {
         this.rotation = Quaternion.fromEuler((float) pitch, (float) yaw, (float) roll);
-        broadcastTransform(true);
+        broadcastTransform();
     }
 
     @HostAccess.Export
@@ -119,7 +120,7 @@ public class MediaDisplayProxy {
             return;
         }
         this.scale = new Vector3(newScale);
-        broadcastTransform(true);
+        broadcastTransform();
     }
 
     public Instance getInstance() {
@@ -183,25 +184,6 @@ public class MediaDisplayProxy {
         this.frameRate = 0.0f;
         this.loop = false;
         broadcastContent();
-    }
-
-    public void applyBridgeTransform(Vector3 newPosition, Quaternion newRotation, Vector3 newScale) {
-        if (newPosition != null) {
-            this.position = new Vector3(newPosition);
-        }
-        if (newRotation != null) {
-            this.rotation = new Quaternion(newRotation);
-        }
-        if (newScale != null) {
-            this.scale = new Vector3(newScale);
-        }
-        if (anchorType != MoudPackets.DisplayAnchorType.FREE) {
-            anchorType = MoudPackets.DisplayAnchorType.FREE;
-            anchorEntityRef = null;
-            anchorEntityUuid = null;
-            broadcastAnchorUpdate();
-        }
-        broadcastTransform(false);
     }
 
     @HostAccess.Export
@@ -300,10 +282,6 @@ public class MediaDisplayProxy {
         }
         removed = true;
         broadcast(new MoudPackets.S2C_RemoveDisplayPacket(id));
-        AxiomBridgeService bridge = AxiomBridgeService.getInstance();
-        if (bridge != null) {
-            bridge.onDisplayRemoved(this);
-        }
         DisplayManager.getInstance().unregister(this);
     }
 
@@ -312,10 +290,6 @@ public class MediaDisplayProxy {
             return;
         }
         removed = true;
-        AxiomBridgeService bridge = AxiomBridgeService.getInstance();
-        if (bridge != null) {
-            bridge.onDisplayRemoved(this);
-        }
     }
 
     public void updateAnchorTracking() {
@@ -370,7 +344,7 @@ public class MediaDisplayProxy {
             return;
         }
         this.position = new Vector3(target);
-        broadcastTransform(true);
+        broadcastTransform();
     }
 
     private Entity resolveAnchorEntity(UUID uuid) {
@@ -394,25 +368,15 @@ public class MediaDisplayProxy {
 
     private void broadcastCreate() {
         broadcast(buildCreatePacket());
-        AxiomBridgeService bridge = AxiomBridgeService.getInstance();
-        if (bridge != null) {
-            bridge.onDisplayCreated(this);
-        }
     }
 
-    private void broadcastTransform(boolean notifyBridge) {
+    private void broadcastTransform() {
         broadcast(new MoudPackets.S2C_UpdateDisplayTransformPacket(
                 id,
                 new Vector3(position),
                 new Quaternion(rotation),
                 new Vector3(scale)
         ));
-        if (notifyBridge) {
-            AxiomBridgeService bridge = AxiomBridgeService.getInstance();
-            if (bridge != null) {
-                bridge.onDisplayMoved(this);
-            }
-        }
     }
 
     private void broadcastAnchorUpdate() {

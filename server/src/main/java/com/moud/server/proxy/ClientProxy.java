@@ -1,5 +1,6 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moud.server.network.ServerNetworkManager;
@@ -8,6 +9,7 @@ import org.graalvm.polyglot.HostAccess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@TsExpose
 public class ClientProxy {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientProxy.class);

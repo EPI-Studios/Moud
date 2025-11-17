@@ -1,5 +1,6 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.arguments.ArgumentType;
@@ -7,6 +8,7 @@ import net.minestom.server.entity.Player;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 
+@TsExpose
 public class CommandProxy {
 
     @HostAccess.Export

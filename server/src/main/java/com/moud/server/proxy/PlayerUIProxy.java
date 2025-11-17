@@ -1,5 +1,6 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.network.MoudPackets;
 import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.network.ServerPacketWrapper;
@@ -7,6 +8,7 @@ import net.minestom.server.entity.Player;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 
+@TsExpose
 public class PlayerUIProxy {
     private final Player player;
     private boolean hideHotbar = false;
