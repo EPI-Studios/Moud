@@ -28,6 +28,7 @@ public final class SceneManager {
     private final ConcurrentMap<String, SceneState> scenes = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
     private Path storageDirectory;
+    private Path projectRoot;
     private com.moud.server.assets.AssetManager assetManager;
 
     private SceneManager() {}
@@ -40,6 +41,7 @@ public final class SceneManager {
         if (storageDirectory != null) {
             return;
         }
+        this.projectRoot = projectRoot;
         storageDirectory = projectRoot.resolve(".moud").resolve("scenes");
         try {
             Files.createDirectories(storageDirectory);
@@ -49,8 +51,16 @@ public final class SceneManager {
         }
     }
 
+    public Path getProjectRoot() {
+        return projectRoot;
+    }
+
     public void setAssetManager(com.moud.server.assets.AssetManager assetManager) {
         this.assetManager = assetManager;
+    }
+
+    public com.moud.server.assets.AssetManager getAssetManager() {
+        return assetManager;
     }
 
     public SceneSnapshot createSnapshot(String sceneId) {
