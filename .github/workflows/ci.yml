@@ -57,7 +57,7 @@ jobs:
         run: node scripts/sync-version.mjs --check
 
       - name: Run Gradle checks
-        run: ./gradlew check -x checkstyleMain -x checkstyleTest
+        run: ./gradlew check -x checkstyleMain -x checkstyleTest --no-configuration-cache
 
       - name: Build TypeScript packages (SDK & CLI)
         run: |
