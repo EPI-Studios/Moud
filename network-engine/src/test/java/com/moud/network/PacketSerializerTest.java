@@ -24,12 +24,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 class PacketSerializerTest {
 
     private static PacketSerializer serializer;
+    private static PacketRegistry registry;
     private static PacketMetadata cursorMetadata;
 
     @BeforeAll
     static void setup() {
         serializer = new PacketSerializer();
-        PacketRegistry registry = new PacketRegistry();
+        registry = new PacketRegistry();
         registry.scan("com.moud.network");
         cursorMetadata = registry.getByClass(MoudPackets.CursorPositionUpdatePacket.class);
         assertNotNull(cursorMetadata, "Failed to resolve metadata for CursorPositionUpdatePacket");
@@ -65,6 +66,86 @@ class PacketSerializerTest {
         );
 
         assertEquals(packet, decoded, "Packet did not round-trip through PacketSerializer");
+    }
+
+    @Test
+    void roundTripsSceneEditPacketWithNestedPayload() {
+        PacketMetadata metadata = requireMetadata(MoudPackets.SceneEditPacket.class);
+
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("objectId", "tree-42");
+        payload.put("tags", java.util.List.of("foliage", "interactive"));
+        payload.put("transform", java.util.Map.of(
+                "position", java.util.List.of(1.0, 2.0, 3.0),
+                "scale", java.util.Map.of("x", 1.5, "y", 2.0, "z", 0.5),
+                "visible", true
+        ));
+
+        MoudPackets.SceneEditPacket packet = new MoudPackets.SceneEditPacket(
+                "scene-main",
+                "update",
+                payload,
+                1337L
+        );
+
+        TestByteBuffer writeBuffer = new TestByteBuffer();
+        byte[] bytes = serializer.serialize(packet, metadata, writeBuffer);
+
+        TestByteBuffer readBuffer = new TestByteBuffer(bytes);
+        MoudPackets.SceneEditPacket decoded = serializer.deserialize(
+                bytes,
+                MoudPackets.SceneEditPacket.class,
+                metadata,
+                readBuffer
+        );
+
+        assertEquals(packet, decoded, "SceneEditPacket did not survive nested round-trip");
+    }
+
+    @Test
+    void roundTripsSceneEditAckPacketWithOptionalSnapshot() {
+        PacketMetadata metadata = requireMetadata(MoudPackets.SceneEditAckPacket.class);
+
+        java.util.Map<String, Object> snapshotProps = new java.util.HashMap<>();
+        snapshotProps.put("position", java.util.Map.of("x", 10, "y", 64, "z", -4));
+        snapshotProps.put("components", java.util.List.of(
+                java.util.Map.of("type", "light", "intensity", 0.8),
+                java.util.Map.of("type", "mesh", "resource", "moud:oak_branch")
+        ));
+
+        MoudPackets.SceneObjectSnapshot snapshot = new MoudPackets.SceneObjectSnapshot(
+                "obj-abc",
+                "custom-light",
+                snapshotProps
+        );
+
+        MoudPackets.SceneEditAckPacket packet = new MoudPackets.SceneEditAckPacket(
+                "scene-main",
+                true,
+                "applied",
+                snapshot,
+                99L,
+                "obj-abc"
+        );
+
+        TestByteBuffer writeBuffer = new TestByteBuffer();
+        byte[] bytes = serializer.serialize(packet, metadata, writeBuffer);
+
+        TestByteBuffer readBuffer = new TestByteBuffer(bytes);
+        MoudPackets.SceneEditAckPacket decoded = serializer.deserialize(
+                bytes,
+                MoudPackets.SceneEditAckPacket.class,
+                metadata,
+                readBuffer
+        );
+
+        assertEquals(packet, decoded, "SceneEditAckPacket did not round-trip with optional data");
+    }
+
+    private static PacketMetadata requireMetadata(Class<?> packetClass) {
+        PacketMetadata metadata = registry.getByClass(packetClass);
+        assertNotNull(metadata, "Missing metadata for " + packetClass.getSimpleName());
+        return metadata;
     }
 
     private static final class TestByteBuffer implements ByteBuffer {

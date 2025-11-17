@@ -275,6 +275,18 @@ public final class MoudPackets {
             @Field(order = 3) double collisionDepth
     ) {}
 
+    @Packet(value = "moud:sync_model_collision_boxes", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_SyncModelCollisionBoxesPacket(
+            @Field(order = 0) long modelId,
+            @Field(order = 1) List<CollisionBoxData> collisionBoxes
+    ) {}
+
+    public record CollisionBoxData(
+            @Field(order = 0) Vector3 center,
+            @Field(order = 1) Vector3 halfExtents,
+            @Field(order = 2) Quaternion rotation
+    ) {}
+
     @Packet(value = "moud:remove_model", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_RemoveModelPacket(
             @Field(order = 0) long modelId
@@ -409,6 +421,32 @@ public final class MoudPackets {
             @Field(order = 1) String objectId,
             @Field(order = 2) long modelId,
             @Field(order = 3) boolean removed
+    ) {}
+
+    @Packet(value = "moud:blueprint_save", direction = Direction.CLIENT_TO_SERVER)
+    public record SaveBlueprintPacket(
+            @Field(order = 0) String name,
+            @Field(order = 1) byte[] data
+    ) {}
+
+    @Packet(value = "moud:blueprint_save_ack", direction = Direction.SERVER_TO_CLIENT)
+    public record BlueprintSaveAckPacket(
+            @Field(order = 0) String name,
+            @Field(order = 1) boolean success,
+            @Field(order = 2) String message
+    ) {}
+
+    @Packet(value = "moud:blueprint_request", direction = Direction.CLIENT_TO_SERVER)
+    public record RequestBlueprintPacket(
+            @Field(order = 0) String name
+    ) {}
+
+    @Packet(value = "moud:blueprint_data", direction = Direction.SERVER_TO_CLIENT)
+    public record BlueprintDataPacket(
+            @Field(order = 0) String name,
+            @Field(order = 1, optional = true) byte[] data,
+            @Field(order = 2) boolean success,
+            @Field(order = 3) String message
     ) {}
 
     @Packet(value = "moud:runtime_model_transform", direction = Direction.CLIENT_TO_SERVER)

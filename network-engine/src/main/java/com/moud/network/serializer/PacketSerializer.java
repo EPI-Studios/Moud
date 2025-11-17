@@ -37,6 +37,7 @@ public class PacketSerializer {
         register(MoudPackets.CursorUpdateData.class, new CursorUpdateDataSerializer());
         register(MoudPackets.SceneObjectSnapshot.class, new SceneObjectSnapshotSerializer());
         register(MoudPackets.EditorAssetDefinition.class, new EditorAssetDefinitionSerializer());
+        register(MoudPackets.CollisionBoxData.class, new CollisionBoxDataSerializer());
     }
 
     public <T> void register(Class<T> type, TypeSerializer<T> serializer) {
@@ -363,6 +364,23 @@ public class PacketSerializer {
             String type = buffer.readString();
             Map<String, Object> defaults = MapSerializerUtil.readStringObjectMap(buffer);
             return new MoudPackets.EditorAssetDefinition(id, label, type, defaults);
+        }
+    }
+
+    private class CollisionBoxDataSerializer implements TypeSerializer<MoudPackets.CollisionBoxData> {
+        @Override
+        public void write(ByteBuffer buffer, MoudPackets.CollisionBoxData value) {
+            writeValue(buffer, value.center(), Vector3.class, Vector3.class);
+            writeValue(buffer, value.halfExtents(), Vector3.class, Vector3.class);
+            writeValue(buffer, value.rotation(), Quaternion.class, Quaternion.class);
+        }
+
+        @Override
+        public MoudPackets.CollisionBoxData read(ByteBuffer buffer) {
+            Vector3 center = (Vector3) readValue(buffer, Vector3.class, Vector3.class);
+            Vector3 halfExtents = (Vector3) readValue(buffer, Vector3.class, Vector3.class);
+            Quaternion rotation = (Quaternion) readValue(buffer, Quaternion.class, Quaternion.class);
+            return new MoudPackets.CollisionBoxData(center, halfExtents, rotation);
         }
     }
 }
