@@ -38,18 +38,7 @@ public class ClientModelManager {
     }
 
     private void loadModelData(RenderableModel model) {
-        String modelPath = model.getModelPath();
-        // if the path doesn't contain a namespace, default to "moud:"
-        if (!modelPath.contains(":")) {
-            // strip "moud/" prefix if it exists since we'll add "moud:" namespace
-            if (modelPath.startsWith("moud/")) {
-                modelPath = "moud:" + modelPath.substring(5);
-            } else {
-                modelPath = "moud:" + modelPath;
-            }
-        }
-
-        Identifier modelIdentifier = Identifier.tryParse(modelPath);
+        Identifier modelIdentifier = resolveModelIdentifier(model.getModelPath());
         if (modelIdentifier == null) {
             LOGGER.error("Invalid model identifier for model {}: {}", model.getId(), model.getModelPath());
             return;
@@ -73,6 +62,37 @@ public class ClientModelManager {
                 LOGGER.error("Failed to load model resource for path: {}", modelIdentifier, e);
             }
         });
+    }
+
+    private Identifier resolveModelIdentifier(String rawPath) {
+        if (rawPath == null || rawPath.isBlank()) {
+            return null;
+        }
+        String normalized = rawPath.trim().replace('\\', '/');
+        if (normalized.startsWith("moud:moud/")) {
+            normalized = "moud:" + normalized.substring("moud:moud/".length());
+        }
+        if (!normalized.contains(":")) {
+            normalized = normalized.startsWith("moud/") ? "moud:" + normalized.substring(5) : "moud:" + normalized;
+        }
+        if (normalized.startsWith("moud:/")) {
+            normalized = "moud:" + normalized.substring("moud:/".length());
+        }
+        Identifier identifier = Identifier.tryParse(normalized);
+        if (identifier == null) {
+            return null;
+        }
+        if ("moud".equals(identifier.getNamespace())) {
+            String path = identifier.getPath();
+            while (path.startsWith("moud/")) {
+                path = path.substring(5);
+            }
+            if (path.isEmpty()) {
+                return null;
+            }
+            return Identifier.of("moud", path);
+        }
+        return identifier;
     }
 
 

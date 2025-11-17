@@ -2,7 +2,6 @@ package com.moud.client.display;
 
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
-import com.moud.client.rendering.ModelRenderLayers;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
@@ -22,7 +21,7 @@ public final class DisplayRenderer {
         }
 
 
-        RenderLayer layer = ModelRenderLayers.getModelLayer(texture);
+        RenderLayer layer = DisplayRenderLayers.getLayer(texture);
         VertexConsumer vertexConsumer = consumers.getBuffer(layer);
 
         matrices.push();
@@ -50,11 +49,16 @@ public final class DisplayRenderer {
         float halfHeight = 0.5f;
         float depth = 0.0f;
 
-        // Vertex order: TL, TR, BR, BL
-        writeVertex(consumer, matrix, entry, -halfWidth, halfHeight, depth, 0.0f, 0.0f, light);
-        writeVertex(consumer, matrix, entry, halfWidth, halfHeight, depth, 1.0f, 0.0f, light);
-        writeVertex(consumer, matrix, entry, halfWidth, -halfHeight, depth, 1.0f, 1.0f, light);
-        writeVertex(consumer, matrix, entry, -halfWidth, -halfHeight, depth, 0.0f, 1.0f, light);
+
+        float x0 = -halfWidth, y0 = -halfHeight; // Bottom-left
+        float x1 = halfWidth,  y1 = -halfHeight; // Bottom-right
+        float x2 = halfWidth,  y2 = halfHeight;  // Top-right
+        float x3 = -halfWidth, y3 = halfHeight;  // Top-left
+
+        writeVertex(consumer, matrix, entry, x0, y0, depth, 0.0f, 1.0f, light);
+        writeVertex(consumer, matrix, entry, x1, y1, depth, 1.0f, 1.0f, light);
+        writeVertex(consumer, matrix, entry, x2, y2, depth, 1.0f, 0.0f, light);
+        writeVertex(consumer, matrix, entry, x3, y3, depth, 0.0f, 0.0f, light);
     }
 
     private void writeVertex(VertexConsumer consumer, Matrix4f matrix, MatrixStack.Entry entry,
@@ -64,6 +68,6 @@ public final class DisplayRenderer {
                 .texture(u, v)
                 .overlay(OverlayTexture.DEFAULT_UV)
                 .light(light)
-                .normal(entry, 0.0f, 0.0f, -1.0f);
+                .normal(entry, 0.0f, 0.0f, 1.0f); // Normal facing forward (+Z)
     }
 }

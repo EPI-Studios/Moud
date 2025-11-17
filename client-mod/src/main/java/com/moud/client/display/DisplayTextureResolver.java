@@ -52,9 +52,20 @@ final class DisplayTextureResolver {
             }
         }
 
+        if (trimmed.startsWith("moud:moud/")) {
+            trimmed = "moud:" + trimmed.substring("moud:moud/".length());
+        }
+
         Identifier identifier = Identifier.tryParse(trimmed);
         if (identifier == null) {
             LOGGER.warn("Failed to parse texture identifier '{}'", trimmed);
+            return null;
+        }
+        if ("moud".equals(identifier.getNamespace())) {
+            String path2 = identifier.getPath();
+            if (path2.startsWith("moud/") && path2.length() > 5) {
+                return Identifier.of("moud", path2.substring(5));
+            }
         }
         return identifier;
     }
