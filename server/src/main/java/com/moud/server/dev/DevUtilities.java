@@ -42,5 +42,6 @@ public final class DevUtilities {
         commandManager.register(new GamemodeCommand());
         commandManager.register(new SpawnLightCommand());
         commandManager.register(new SpawnPhysicsCommand());
+        commandManager.register(new TimeControlCommand());
     }
 }
