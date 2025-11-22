@@ -235,6 +235,10 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 (player, packet) -> SceneSessionManager.getInstance().handleEditAck(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.EditorAssetListPacket.class,
                 (player, packet) -> com.moud.client.editor.assets.EditorAssetCatalog.getInstance().handleAssetList(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.ProjectMapPacket.class,
+                (player, packet) -> com.moud.client.editor.assets.ProjectFileIndex.getInstance().handleProjectMap(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.ProjectFileContentPacket.class,
+                (player, packet) -> com.moud.client.editor.assets.ProjectFileContentCache.getInstance().handleContent(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.SceneBindingPacket.class,
                 (player, packet) -> com.moud.client.editor.selection.SceneSelectionManager.getInstance().handleBindingPacket(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.BlueprintSaveAckPacket.class,

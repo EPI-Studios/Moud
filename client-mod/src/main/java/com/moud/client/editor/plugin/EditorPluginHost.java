@@ -13,10 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Client-side registry that keeps track of editor plugins and the UI hooks
- * they expose (ribbon commands, inspector sections, viewport tools, etc.).
- */
+
 public final class EditorPluginHost {
     private static final Logger LOGGER = LoggerFactory.getLogger("EditorPluginHost");
     private static final EditorPluginHost INSTANCE = new EditorPluginHost();
@@ -80,43 +77,7 @@ public final class EditorPluginHost {
         }
     }
 
-    /**
-    * Installs a tiny showcase plugin so the tab is not empty until real plugins register.
-    */
-    public void ensureShowcasePlugin() {
-        if (!showcaseInstalled.compareAndSet(false, true)) {
-            return;
-        }
-        EditorPluginDescriptor descriptor = new EditorPluginDescriptor(
-                "showcase",
-                "Showcase Tools",
-                "Demonstrates how plugins can extend the ribbon and inspector."
-        );
-        registerDescriptor(descriptor);
-        registerRibbonContribution("Plugins", () -> {
-            ImGui.text("Showcase Actions");
-            if (ImGui.button("Spawn Debug Marker")) {
-                LOGGER.info("Showcase plugin would request debug marker spawn.");
-            }
-            ImGui.sameLine();
-            if (ImGui.button("Bake Placeholder")) {
-                LOGGER.info("Showcase plugin placeholder bake.");
-            }
-        });
-        registerInspectorContribution(new InspectorContribution() {
-            @Override
-            public boolean supports(SceneObject selection) {
-                return selection != null;
-            }
 
-            @Override
-            public void render(SceneObject selection) {
-                ImGui.separator();
-                ImGui.textDisabled("Plugin: Showcase");
-                ImGui.text("Selected: " + selection.getId());
-            }
-        });
-    }
 
     public interface RibbonContribution {
         void render();

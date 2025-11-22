@@ -12,10 +12,6 @@ import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Holds the asset/src directory tree provided by the server so pickers and drag/drop
- * can query the full project layout locally.
- */
 public final class ProjectFileIndex {
     private static final Logger LOGGER = LoggerFactory.getLogger("ProjectFileIndex");
     private static final ProjectFileIndex INSTANCE = new ProjectFileIndex();
@@ -67,9 +63,6 @@ public final class ProjectFileIndex {
         requestSyncIfNeeded();
     }
 
-    /**
-     * Applies a snapshot provided by the server. Entries should contain normalized (/) paths.
-     */
     public synchronized void applySnapshot(List<MoudPackets.ProjectFileEntry> entries) {
         roots.clear();
         if (entries == null || entries.isEmpty()) {

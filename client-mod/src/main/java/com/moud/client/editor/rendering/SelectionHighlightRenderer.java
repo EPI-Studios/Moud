@@ -23,6 +23,9 @@ public final class SelectionHighlightRenderer {
     }
 
     public void render(MatrixStack matrices, Camera camera) {
+        if (!SceneEditorOverlay.getInstance().isSelectionBoundsVisible()) {
+            return;
+        }
         RaycastPicker picker = RaycastPicker.getInstance();
         RuntimeObject hovered = picker.getHoveredObject();
         RuntimeObject selected = picker.getSelectedObject();
