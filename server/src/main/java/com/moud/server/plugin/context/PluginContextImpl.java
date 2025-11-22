@@ -13,6 +13,7 @@ import com.moud.plugin.api.services.PlayerService;
 import com.moud.plugin.api.services.RenderingController;
 import com.moud.plugin.api.services.SchedulerService;
 import com.moud.plugin.api.services.SceneService;
+import com.moud.plugin.api.services.WorldService;
 import com.moud.server.plugin.PluginEventBus;
 import com.moud.server.plugin.impl.ClientServiceImpl;
 import com.moud.server.plugin.impl.CommandServiceImpl;
@@ -25,6 +26,7 @@ import com.moud.server.plugin.impl.PlayerServiceImpl;
 import com.moud.server.plugin.impl.RenderingControllerImpl;
 import com.moud.server.plugin.impl.SchedulerServiceImpl;
 import com.moud.server.plugin.impl.SceneServiceImpl;
+import com.moud.server.plugin.impl.WorldServiceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +49,7 @@ public final class PluginContextImpl implements PluginContext {
     private final ClientServiceImpl clientService;
     private final PhysicsControllerImpl physicsController;
     private final RenderingControllerImpl renderingController;
+    private final WorldServiceImpl worldService;
 
     public PluginContextImpl(PluginDescription description,
                              Path projectRoot,
@@ -69,6 +72,7 @@ public final class PluginContextImpl implements PluginContext {
         this.clientService = new ClientServiceImpl(logger);
         this.physicsController = new PhysicsControllerImpl();
         this.renderingController = new RenderingControllerImpl();
+        this.worldService = new WorldServiceImpl();
     }
 
     private void ensureDirectories() {
@@ -155,5 +159,10 @@ public final class PluginContextImpl implements PluginContext {
     @Override
     public RenderingController rendering() {
         return renderingController;
+    }
+
+    @Override
+    public WorldService world() {
+        return worldService;
     }
 }

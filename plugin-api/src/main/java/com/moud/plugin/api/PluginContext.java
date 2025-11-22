@@ -9,6 +9,7 @@ import com.moud.plugin.api.services.NetworkService;
 import com.moud.plugin.api.services.PhysicsController;
 import com.moud.plugin.api.services.PlayerService;
 import com.moud.plugin.api.services.RenderingController;
+import com.moud.plugin.api.services.WorldService;
 import com.moud.plugin.api.services.SchedulerService;
 import com.moud.plugin.api.services.SceneService;
 import org.slf4j.Logger;
@@ -30,4 +31,5 @@ public interface PluginContext {
     ClientService clients();
     PhysicsController physics();
     RenderingController rendering();
+    WorldService world();
 }

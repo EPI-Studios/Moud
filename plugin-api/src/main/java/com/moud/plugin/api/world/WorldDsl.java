@@ -20,6 +20,33 @@ public final class WorldDsl {
         this.context = context;
     }
 
+    public long time() {
+        return context.world().getTime();
+    }
+
+    public WorldDsl time(long time) {
+        context.world().setTime(time);
+        return this;
+    }
+
+    public int timeRate() {
+        return context.world().getTimeRate();
+    }
+
+    public WorldDsl timeRate(int rate) {
+        context.world().setTimeRate(rate);
+        return this;
+    }
+
+    public int timeSyncTicks() {
+        return context.world().getTimeSynchronizationTicks();
+    }
+
+    public WorldDsl timeSyncTicks(int ticks) {
+        context.world().setTimeSynchronizationTicks(ticks);
+        return this;
+    }
+
     public ModelBuilder spawn(String modelPath) {
         return new ModelBuilder(context, modelPath);
     }
