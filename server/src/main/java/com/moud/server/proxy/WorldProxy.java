@@ -1,6 +1,5 @@
 package com.moud.server.proxy;
 
-import com.moud.server.ts.TsExpose;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.server.api.exception.APIException;
@@ -10,6 +9,7 @@ import com.moud.server.instance.InstanceManager;
 import com.moud.server.raycast.RaycastResult;
 import com.moud.server.raycast.RaycastUtil;
 import com.moud.server.physics.PhysicsService;
+import com.moud.server.ts.TsExpose;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.coordinate.Pos;
@@ -55,6 +55,13 @@ public class WorldProxy {
         return this;
     }
 
+    private Instance requireInstance() {
+        if (instance == null) {
+            throw new APIException("INVALID_INSTANCE", "World is not initialized yet. Call createInstance() first.");
+        }
+        return instance;
+    }
+
     @HostAccess.Export
     public WorldProxy setFlatGenerator() {
         if (!(instance instanceof InstanceContainer)) {
@@ -81,7 +88,7 @@ public class WorldProxy {
         validator.validateCoordinates(x, y, z);
         Pos spawnPos = new Pos(x, y, z);
 
-        if (instance instanceof InstanceContainer container) {
+        if (requireInstance() instanceof InstanceContainer container) {
             container.setTag(InstanceManager.SPAWN_TAG, spawnPos);
         } else {
             throw new APIException("INVALID_INSTANCE_TYPE", "Cannot set spawn on non-container instance");
@@ -92,7 +99,7 @@ public class WorldProxy {
 
     @HostAccess.Export
     public String getBlock(int x, int y, int z) {
-        return instance.getBlock(x, y, z).name();
+        return requireInstance().getBlock(x, y, z).name();
     }
 
     @HostAccess.Export
@@ -100,7 +107,43 @@ public class WorldProxy {
         validator.validateBlockId(blockId);
         Block block = Block.fromNamespaceId(blockId);
         if (block == null) throw new APIException("INVALID_BLOCK_ID", "Unknown block ID: " + blockId);
-        instance.setBlock(x, y, z, block);
+        requireInstance().setBlock(x, y, z, block);
+    }
+
+    @HostAccess.Export
+    public long getTime() {
+        return requireInstance().getTime();
+    }
+
+    @HostAccess.Export
+    public void setTime(long time) {
+        requireInstance().setTime(time);
+    }
+
+    @HostAccess.Export
+    public int getTimeRate() {
+        return requireInstance().getTimeRate();
+    }
+
+    @HostAccess.Export
+    public void setTimeRate(int timeRate) {
+        if (timeRate < 0) {
+            throw new APIException("INVALID_ARGUMENT", "Time rate must be zero or positive");
+        }
+        requireInstance().setTimeRate(timeRate);
+    }
+
+    @HostAccess.Export
+    public int getTimeSynchronizationTicks() {
+        return requireInstance().getTimeSynchronizationTicks();
+    }
+
+    @HostAccess.Export
+    public void setTimeSynchronizationTicks(int ticks) {
+        if (ticks < 0) {
+            throw new APIException("INVALID_ARGUMENT", "Synchronization ticks must be zero or positive");
+        }
+        requireInstance().setTimeSynchronizationTicks(ticks);
     }
 
     @HostAccess.Export

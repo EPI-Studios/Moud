@@ -1,5 +1,6 @@
 package com.moud.server.instance;
 
+import com.moud.server.editor.SceneDefaults;
 import com.moud.server.logging.MoudLogger;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
@@ -9,13 +10,17 @@ import net.minestom.server.event.player.PlayerSpawnEvent;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.instance.SharedInstance;
-import net.minestom.server.instance.block.Block;
+import net.minestom.server.instance.Chunk;
+import net.minestom.server.instance.LightingChunk;
 import net.minestom.server.tag.Tag;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
 
 public class InstanceManager {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(InstanceManager.class);
@@ -28,6 +33,9 @@ public class InstanceManager {
     private InstanceContainer limboInstance;
     public static final Tag<Pos> SPAWN_TAG = Tag.Transient("moud:spawn");
     private static final Pos FALLBACK_SPAWN = new Pos(0.5, 66, 0.5);
+    private static final int CHUNK_SIZE = 16;
+    private static final int DEFAULT_WORLD_RADIUS_CHUNKS =
+            (int) Math.ceil((SceneDefaults.BASE_SCENE_SIZE_BLOCKS / 2.0) / (double) CHUNK_SIZE);
 
     private InstanceManager() {
         this.minestomInstanceManager = MinecraftServer.getInstanceManager();
@@ -82,13 +90,13 @@ public class InstanceManager {
     private void createDefaultInstance() {
         if (defaultInstance == null) {
             defaultInstance = minestomInstanceManager.createInstanceContainer();
-            defaultInstance.setGenerator(unit -> {
-                unit.modifier().fillHeight(0, 1, Block.BEDROCK);
-                unit.modifier().fillHeight(1, 64, Block.GRASS_BLOCK);
-            });
+            defaultInstance.setChunkSupplier(LightingChunk::new);
+            defaultInstance.setGenerator(unit -> {});
+            defaultInstance.setTag(SPAWN_TAG, new Pos(0.5, SceneDefaults.defaultSpawnY(), 0.5));
             namedInstances.put("default", defaultInstance);
             instanceRegistry.put(defaultInstance.getUniqueId(), defaultInstance);
             LOGGER.info("Default instance created with flat world generator");
+            preloadBaseTerrain(defaultInstance);
         }
     }
 
@@ -250,5 +258,36 @@ public class InstanceManager {
         saveAllInstances();
         namedInstances.clear();
         instanceRegistry.clear();
+    }
+
+    private void preloadBaseTerrain(InstanceContainer instance) {
+        int diameterChunks = DEFAULT_WORLD_RADIUS_CHUNKS * 2 + 1;
+        int chunkCount = diameterChunks * diameterChunks;
+        LOGGER.info("Preloading base terrain area (~{}x{} blocks, {} chunks)",
+                diameterChunks * CHUNK_SIZE,
+                diameterChunks * CHUNK_SIZE,
+                chunkCount);
+
+        List<CompletableFuture<Chunk>> futures = new ArrayList<>(chunkCount);
+        ChunkRange.chunksInRange(0, 0, DEFAULT_WORLD_RADIUS_CHUNKS,
+                (chunkX, chunkZ) -> futures.add(instance.loadChunk(chunkX, chunkZ)));
+
+        if (futures.isEmpty()) {
+            return;
+        }
+
+        long startTime = System.currentTimeMillis();
+        CompletableFuture<?>[] tasks = futures.toArray(CompletableFuture<?>[]::new);
+        CompletableFuture
+                .allOf(tasks)
+                .thenRunAsync(() -> {
+                    LightingChunk.relight(instance, instance.getChunks());
+                    long elapsed = System.currentTimeMillis() - startTime;
+                    LOGGER.success("Base terrain prepared ({} chunks) in {} ms", chunkCount, elapsed);
+                })
+                .exceptionally(ex -> {
+                    LOGGER.error("Failed to preload base terrain chunks", ex);
+                    return null;
+                });
     }
 }

@@ -28,6 +28,8 @@ import net.minestom.server.event.player.PlayerPluginMessageEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
 import com.moud.server.player.PlayerCursorDirectionManager;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.UUID;
@@ -84,6 +86,8 @@ public final class ServerNetworkManager {
         ServerPacketWrapper.registerHandler(RequestSceneStatePacket.class, this::handleSceneStateRequest);
         ServerPacketWrapper.registerHandler(SceneEditPacket.class, this::handleSceneEditRequest);
         ServerPacketWrapper.registerHandler(RequestEditorAssetsPacket.class, this::handleEditorAssetsRequest);
+        ServerPacketWrapper.registerHandler(RequestProjectMapPacket.class, this::handleProjectMapRequest);
+        ServerPacketWrapper.registerHandler(RequestProjectFilePacket.class, this::handleProjectFileRequest);
         ServerPacketWrapper.registerHandler(MoudPackets.UpdateRuntimeModelPacket.class, this::handleRuntimeModelUpdate);
         ServerPacketWrapper.registerHandler(MoudPackets.UpdateRuntimeDisplayPacket.class, this::handleRuntimeDisplayUpdate);
         ServerPacketWrapper.registerHandler(MoudPackets.UpdatePlayerTransformPacket.class, this::handlePlayerTransformUpdate);
@@ -129,6 +133,55 @@ public final class ServerNetworkManager {
         Player minestomPlayer = (Player) player;
         var assets = SceneManager.getInstance().getEditorAssets();
         send(minestomPlayer, new EditorAssetListPacket(assets));
+    }
+
+    private void handleProjectMapRequest(Object player, RequestProjectMapPacket packet) {
+        Player minestomPlayer = (Player) player;
+        var entries = SceneManager.getInstance().getProjectFileEntries();
+        send(minestomPlayer, new ProjectMapPacket(entries));
+    }
+
+    private void handleProjectFileRequest(Object player, RequestProjectFilePacket packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer)) {
+            return;
+        }
+        String requestedPath = packet.path() == null ? "" : packet.path().trim();
+        if (requestedPath.isEmpty()) {
+            send(minestomPlayer, new ProjectFileContentPacket(requestedPath, null, false, "Empty path", null));
+            return;
+        }
+        Path projectRoot = SceneManager.getInstance().getProjectRoot();
+        if (projectRoot == null) {
+            send(minestomPlayer, new ProjectFileContentPacket(requestedPath, null, false, "Project root unavailable", null));
+            return;
+        }
+        if (requestedPath.contains("..")) {
+            send(minestomPlayer, new ProjectFileContentPacket(requestedPath, null, false, "Invalid path", null));
+            return;
+        }
+        Path resolved = projectRoot.resolve(requestedPath).normalize();
+        if (!resolved.startsWith(projectRoot)) {
+            send(minestomPlayer, new ProjectFileContentPacket(requestedPath, null, false, "Path outside project", null));
+            return;
+        }
+        if (!Files.exists(resolved) || Files.isDirectory(resolved)) {
+            send(minestomPlayer, new ProjectFileContentPacket(requestedPath, null, false, "File not found", null));
+            return;
+        }
+        try {
+            long maxBytes = 256 * 1024;
+            long size = Files.size(resolved);
+            if (size > maxBytes) {
+                send(minestomPlayer, new ProjectFileContentPacket(requestedPath, null, false, "File too large (" + size + " bytes)", resolved.toString()));
+                return;
+            }
+            String content = Files.readString(resolved);
+            send(minestomPlayer, new ProjectFileContentPacket(requestedPath, content, true, null, resolved.toString()));
+        } catch (IOException e) {
+            LOGGER.warn("Failed to read project file {}", resolved, e);
+            send(minestomPlayer, new ProjectFileContentPacket(requestedPath, null, false, "Failed to read file", resolved.toString()));
+        }
     }
 
     private void handleRuntimeModelUpdate(Object player, MoudPackets.UpdateRuntimeModelPacket packet) {

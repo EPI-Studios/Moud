@@ -2,11 +2,8 @@ package com.moud.server.instance;
 
 import java.util.function.BiConsumer;
 
-/**
- * Simple utility for iterating chunk coordinates around a center. This mimics
- * the helper most engine tutorials use, but we ship it so gameplay code can
- * preload predictable regions.
- */
+
+//utility class for iterating chunk coordinates around a center
 public final class ChunkRange {
     private ChunkRange() {}
 

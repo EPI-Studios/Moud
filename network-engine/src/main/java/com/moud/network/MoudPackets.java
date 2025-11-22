@@ -415,6 +415,38 @@ public final class MoudPackets {
             @Field(order = 3) Map<String, Object> defaultProperties
     ) {}
 
+    @Packet(value = "moud:project_map_request", direction = Direction.CLIENT_TO_SERVER)
+    public record RequestProjectMapPacket() {}
+
+    @Packet(value = "moud:project_map", direction = Direction.SERVER_TO_CLIENT)
+    public record ProjectMapPacket(
+            @Field(order = 0) List<ProjectFileEntry> entries
+    ) {}
+
+    public record ProjectFileEntry(
+            @Field(order = 0) String path,
+            @Field(order = 1) ProjectEntryKind kind
+    ) {}
+
+    public enum ProjectEntryKind {
+        FILE,
+        DIRECTORY
+    }
+
+    @Packet(value = "moud:project_file_request", direction = Direction.CLIENT_TO_SERVER)
+    public record RequestProjectFilePacket(
+            @Field(order = 0) String path
+    ) {}
+
+    @Packet(value = "moud:project_file", direction = Direction.SERVER_TO_CLIENT)
+    public record ProjectFileContentPacket(
+            @Field(order = 0) String path,
+            @Field(order = 1, optional = true) String content,
+            @Field(order = 2) boolean success,
+            @Field(order = 3, optional = true) String message,
+            @Field(order = 4, optional = true) String absolutePath
+    ) {}
+
     @Packet(value = "moud:scene_binding", direction = Direction.SERVER_TO_CLIENT)
     public record SceneBindingPacket(
             @Field(order = 0) String sceneId,

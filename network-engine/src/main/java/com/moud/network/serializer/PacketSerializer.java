@@ -38,6 +38,7 @@ public class PacketSerializer {
         register(MoudPackets.SceneObjectSnapshot.class, new SceneObjectSnapshotSerializer());
         register(MoudPackets.EditorAssetDefinition.class, new EditorAssetDefinitionSerializer());
         register(MoudPackets.CollisionBoxData.class, new CollisionBoxDataSerializer());
+        register(MoudPackets.ProjectFileEntry.class, new ProjectFileEntrySerializer());
     }
 
     public <T> void register(Class<T> type, TypeSerializer<T> serializer) {
@@ -364,6 +365,22 @@ public class PacketSerializer {
             String type = buffer.readString();
             Map<String, Object> defaults = MapSerializerUtil.readStringObjectMap(buffer);
             return new MoudPackets.EditorAssetDefinition(id, label, type, defaults);
+        }
+    }
+
+    private static class ProjectFileEntrySerializer implements TypeSerializer<MoudPackets.ProjectFileEntry> {
+        @Override
+        public void write(ByteBuffer buffer, MoudPackets.ProjectFileEntry value) {
+            buffer.writeString(value.path());
+            buffer.writeInt(value.kind().ordinal());
+        }
+
+        @Override
+        public MoudPackets.ProjectFileEntry read(ByteBuffer buffer) {
+            String path = buffer.readString();
+            int kindOrdinal = buffer.readInt();
+            MoudPackets.ProjectEntryKind kind = MoudPackets.ProjectEntryKind.values()[Math.max(0, Math.min(kindOrdinal, MoudPackets.ProjectEntryKind.values().length - 1))];
+            return new MoudPackets.ProjectFileEntry(path, kind);
         }
     }
 
