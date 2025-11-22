@@ -15,21 +15,26 @@ import com.moud.client.editor.scene.SceneObject;
 import com.moud.client.editor.scene.SceneSessionManager;
 import com.moud.client.model.ClientModelManager;
 import com.moud.client.model.RenderableModel;
+import com.moud.client.editor.ui.panel.AssetBrowserPanel;
+import com.moud.client.editor.ui.panel.BlueprintToolsPanel;
+import com.moud.client.editor.ui.panel.DiagnosticsPanel;
+import com.moud.client.editor.ui.panel.ExplorerPanel;
+import com.moud.client.editor.ui.panel.InspectorPanel;
+import com.moud.client.editor.ui.panel.RibbonBar;
+import com.moud.client.editor.ui.panel.ScriptViewerPanel;
+import com.moud.client.editor.ui.panel.ViewportToolbar;
 import com.moud.network.MoudPackets;
 import imgui.ImGui;
 import imgui.extension.imguizmo.ImGuizmo;
 import imgui.extension.imguizmo.flag.Mode;
 import imgui.extension.imguizmo.flag.Operation;
-import imgui.flag.ImGuiCond;
-import imgui.flag.ImGuiStyleVar;
-import imgui.flag.ImGuiTableFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
-import imgui.type.ImInt;
 import imgui.type.ImString;
 import com.moud.client.editor.ui.WorldViewCapture;
+import com.moud.client.editor.ui.layout.EditorDockingLayout;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
@@ -47,6 +52,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -55,25 +61,9 @@ public final class SceneEditorOverlay {
     private static final SceneEditorOverlay INSTANCE = new SceneEditorOverlay();
     private static final long MAX_BLOCK_CAPTURE_BLOCKS = 10000;
 
-    private final ImString inspectorLabel = new ImString("", 128);
     private final ImString markerNameBuffer = new ImString("Marker", 64);
     private final float[] newObjectPosition = new float[]{0f, 65f, 0f};
     private final float[] newObjectScale = new float[]{1f, 1f, 1f};
-    private final ImString displayContentBuffer = new ImString("", 256);
-    private final ImString displayTypeBuffer = new ImString("image", 16);
-    private final ImBoolean displayLoopToggle = new ImBoolean(true);
-    private final ImBoolean displayPlayingToggle = new ImBoolean(true);
-    private final ImFloat displayFrameRateValue = new ImFloat(24f);
-    private final ImInt lightTypeIndex = new ImInt(0);
-    private final ImFloat lightBrightnessValue = new ImFloat(1f);
-    private final ImFloat lightRadiusValue = new ImFloat(6f);
-    private final ImFloat lightWidthValue = new ImFloat(4f);
-    private final ImFloat lightHeightValue = new ImFloat(4f);
-    private final ImFloat lightDistanceValue = new ImFloat(8f);
-    private final ImFloat lightAngleValue = new ImFloat(45f);
-    private final float[] lightColorValue = new float[]{1f, 1f, 1f};
-    private final float[] lightDirectionValue = new float[]{0f, -1f, 0f};
-
     private String selectedSceneObjectId;
     private String selectedRuntimeId;
     private final float[] activeMatrix = identity();
@@ -85,24 +75,28 @@ public final class SceneEditorOverlay {
     private int currentOperation = Operation.TRANSLATE;
     private int gizmoMode = Mode.LOCAL;
     private boolean useSnap = false;
-    private final ImBoolean snapCheckbox = new ImBoolean(false);
     private final float[] snapValues = new float[]{0.5f, 0.5f, 0.5f};
     private boolean gizmoManipulating;
     private String gizmoObjectId;
+    private final EditorDockingLayout dockingLayout = new EditorDockingLayout();
 
-    private static final String PAYLOAD_HIERARCHY = "MoudHierarchyObject";
-    private static final String PAYLOAD_ASSET = "MoudAssetDefinition";
-    private static final String[] DISPLAY_CONTENT_TYPES = {"image", "video", "sequence"};
-    private static final String[] LIGHT_TYPE_LABELS = {"Point", "Area"};
-    private final ImString hierarchyFilter = new ImString(64);
-    private final ImString runtimeFilter = new ImString(64);
-    private final ImString assetFilter = new ImString(64);
+    public static final String PAYLOAD_HIERARCHY = "MoudHierarchyObject";
+    public static final String PAYLOAD_ASSET = "MoudAssetDefinition";
+    public static final String PAYLOAD_PROJECT_FILE = "MoudProjectFile";
+    public static final String[] DISPLAY_CONTENT_TYPES = {"image", "video", "sequence"};
+    public static final String[] LIGHT_TYPE_LABELS = {"Point", "Area"};
+    private static final int PANEL_WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize;
+    private final ExplorerPanel explorerPanel = new ExplorerPanel(this);
+    private final InspectorPanel inspectorPanel = new InspectorPanel(this);
+    private final ScriptViewerPanel scriptViewerPanel = new ScriptViewerPanel(this);
+    private final AssetBrowserPanel assetBrowserPanel = new AssetBrowserPanel(this);
+    private final DiagnosticsPanel diagnosticsPanel = new DiagnosticsPanel(this);
+    private final ViewportToolbar viewportToolbar = new ViewportToolbar(this);
+    private final RibbonBar ribbonBar = new RibbonBar(this);
+    private final BlueprintToolsPanel blueprintToolsPanel = new BlueprintToolsPanel(this);
     private final ImString modelPopupFilter = new ImString(64);
     private final ImString displayPopupFilter = new ImString(64);
     private final ImString lightPopupFilter = new ImString(64);
-    private final ImString modelPathBuffer = new ImString("", 192);
-    private final ImString texturePathBuffer = new ImString("", 192);
-    private final float[] markerPositionBuffer = new float[]{0f, 0f, 0f};
     private final ImBoolean markerSnapToggle = new ImBoolean(false);
     private final ImFloat markerSnapValue = new ImFloat(0.5f);
 
@@ -110,11 +104,13 @@ public final class SceneEditorOverlay {
     private long lastHierarchyBuild = 0;
     private static final long HIERARCHY_CACHE_MS = 100;
 
-    private boolean showHierarchy = true;
-    private boolean showInspector = true;
-    private boolean showAssets = true;
-    private boolean showConsole = true;
-    private boolean showBlueprints = true;
+    private boolean showExplorer = true;
+    private boolean showInspectorPanel = true;
+    private boolean showAssetBrowser = true;
+    private boolean showScriptViewer = true;
+    private boolean showDiagnostics;
+    private boolean showGizmoToolbar = true;
+    private boolean showSelectionBounds = true;
 
     private final float[] regionCornerA = new float[3];
     private final float[] regionCornerB = new float[3];
@@ -141,563 +137,50 @@ public final class SceneEditorOverlay {
             return;
         }
         SceneSessionManager session = SceneSessionManager.getInstance();
+        EditorAssetCatalog.getInstance().requestAssetsIfNeeded();
         float displayWidth = ImGui.getIO().getDisplaySizeX();
         float displayHeight = ImGui.getIO().getDisplaySizeY();
-        float hierarchyWidth = displayWidth * 0.2f;
-        float inspectorWidth = displayWidth * 0.25f;
-        float bottomHeight = displayHeight * 0.25f;
-        float mainHeight = displayHeight - bottomHeight;
 
-        if (showHierarchy) {
-            renderHierarchyWindow(session, 0f, 0f, hierarchyWidth, mainHeight);
+        dockingLayout.begin(displayWidth, displayHeight);
+
+        renderRibbonWindow(session);
+        if (showExplorer) {
+            explorerPanel.render(session);
         }
-        if (showInspector) {
-            renderInspectorWindow(session, displayWidth - inspectorWidth, 0f, inspectorWidth, mainHeight);
+        if (showInspectorPanel) {
+            inspectorPanel.render(session);
         }
-        float assetsWidth = displayWidth * 0.35f;
-        float consoleWidth = displayWidth * 0.35f;
-        float blueprintWidth = displayWidth - assetsWidth - consoleWidth;
-        if (showAssets) {
-            renderAssetsWindow(0f, mainHeight, assetsWidth, bottomHeight);
+        if (showScriptViewer) {
+            scriptViewerPanel.render(session);
         }
-        if (showBlueprints) {
-            renderBlueprintWindow(session, assetsWidth, mainHeight, blueprintWidth, bottomHeight);
+        if (showAssetBrowser) {
+            assetBrowserPanel.render();
         }
-        if (showConsole) {
-            renderConsoleWindow(assetsWidth + blueprintWidth, mainHeight, consoleWidth, bottomHeight);
+        if (showDiagnostics) {
+            showDiagnostics = diagnosticsPanel.render(showDiagnostics);
         }
-        renderTransformToolbar(hierarchyWidth + 16f, 16f);
+        if (showGizmoToolbar) {
+            viewportToolbar.render(dockingLayout.getViewportRect());
+        }
+        renderAssetPopups(session);
+        blueprintToolsPanel.render(session);
     }
 
-    private void renderHierarchyWindow(SceneSessionManager session, float x, float y, float width, float height) {
-        if (beginAnchoredWindow("Hierarchy", x, y, width, height)) {
-            renderHierarchyToolbar(session);
-            ImGui.separator();
-            if (ImGui.beginTabBar("hierarchy-tabs")) {
-                if (ImGui.beginTabItem("Scene")) {
-                    renderSceneHierarchy(session);
-                    ImGui.endTabItem();
-                }
-                if (ImGui.beginTabItem("Runtime")) {
-                    renderRuntimeHierarchy();
-                    ImGui.endTabItem();
-                }
-                ImGui.endTabBar();
-            }
+    private void renderRibbonWindow(SceneSessionManager session) {
+        dockingLayout.apply(EditorDockingLayout.Region.RIBBON);
+        if (!ImGui.begin("Ribbon", PANEL_WINDOW_FLAGS | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)) {
+            ImGui.end();
+            return;
         }
+        ribbonBar.render(session);
         ImGui.end();
     }
 
-    private void renderHierarchyToolbar(SceneSessionManager session) {
-        if (ImGui.button("+ Empty")) {
-            spawnEmptyObject(session, null);
-        }
-        ImGui.sameLine();
-        boolean haveModels = hasAssetsOfType("model");
-        if (!haveModels) ImGui.beginDisabled();
-        if (ImGui.button("Add Model")) {
-            ImGui.openPopup("hierarchy_add_model_popup");
-        }
-        if (!haveModels) ImGui.endDisabled();
-        ImGui.sameLine();
-        boolean haveDisplays = hasAssetsOfType("display");
-        if (!haveDisplays) ImGui.beginDisabled();
-        if (ImGui.button("Add Display")) {
-            ImGui.openPopup("hierarchy_add_display_popup");
-        }
-        if (!haveDisplays) ImGui.endDisabled();
-        ImGui.sameLine();
-        boolean haveLights = hasAssetsOfType("light");
-        if (!haveLights) ImGui.beginDisabled();
-        if (ImGui.button("Add Light")) {
-            ImGui.openPopup("hierarchy_add_light_popup");
-        }
-        if (!haveLights) ImGui.endDisabled();
-        ImGui.sameLine();
-        if (ImGui.button("Add Marker")) {
-            markerNameBuffer.set(generateMarkerName());
-            ImGui.openPopup("hierarchy_add_marker_popup");
-        }
-        ImGui.sameLine();
-        if (ImGui.button("Refresh")) {
-            session.forceRefresh();
-            EditorAssetCatalog.getInstance().forceRefresh();
-        }
-        ImGui.sameLine();
-        ImGui.textDisabled("Drag assets into the tree to parent");
+    private void renderAssetPopups(SceneSessionManager session) {
         renderAssetPopup("hierarchy_add_model_popup", "model", modelPopupFilter, null);
         renderAssetPopup("hierarchy_add_display_popup", "display", displayPopupFilter, null);
         renderAssetPopup("hierarchy_add_light_popup", "light", lightPopupFilter, null);
         renderMarkerPopup("hierarchy_add_marker_popup", session, null);
-    }
-
-    private void renderSceneHierarchy(SceneSessionManager session) {
-        ImGui.setNextItemWidth(-1);
-        ImGui.inputTextWithHint("##hierarchy_search", "Search scene...", hierarchyFilter);
-        ImGui.beginChild("hierarchy-scroll", 0, ImGui.getContentRegionAvailY(), true);
-        Map<String, List<SceneObject>> tree = getCachedHierarchy(session);
-        List<SceneObject> roots = tree.getOrDefault("", List.of());
-        for (SceneObject root : roots) {
-            renderHierarchyNode(session, root, tree);
-        }
-        if (ImGui.beginDragDropTarget()) {
-            handleHierarchyDrop(null);
-            ImGui.endDragDropTarget();
-        }
-        ImGui.endChild();
-    }
-
-    private void renderRuntimeHierarchy() {
-        ImGui.setNextItemWidth(-1);
-        ImGui.inputTextWithHint("##runtime_search", "Search runtime objects...", runtimeFilter);
-        ImGui.beginChild("runtime-scroll", 0, ImGui.getContentRegionAvailY(), true);
-        String filter = runtimeFilter.get();
-        renderRuntimeList(RuntimeObjectType.MODEL, "Models", filter);
-        renderRuntimeList(RuntimeObjectType.DISPLAY, "Displays", filter);
-        renderRuntimeList(RuntimeObjectType.PLAYER, "Players", filter);
-        ImGui.endChild();
-    }
-
-    private void renderInspectorWindow(SceneSessionManager session, float x, float y, float width, float height) {
-        if (beginAnchoredWindow("Inspector", x, y, width, height)) {
-            SceneObject selected = getSelected(session);
-            RuntimeObject selectedRuntime = getSelectedRuntime();
-
-            if (selected == null && selectedRuntime == null) {
-                ImGui.textDisabled("Select an object to inspect its properties.");
-                ImGui.end();
-                return;
-            }
-
-            if (selectedRuntime != null) {
-                renderRuntimeObjectInspector(selectedRuntime);
-                ImGui.end();
-                return;
-            }
-            ImGui.text("Object ID: " + selected.getId());
-            ImGui.sameLine();
-            if (ImGui.button("Focus##focus_object")) {
-                EditorCameraController.getInstance().focusSelection(selected);
-            }
-            ImGui.text("Type: " + selected.getType());
-            String parent = parentIdOf(selected);
-            ImGui.text(parent.isEmpty() ? "Parent: <scene root>" : "Parent: " + parent);
-            Map<String, Object> props = new ConcurrentHashMap<>(selected.getProperties());
-
-            if (ImGui.inputText("Label", inspectorLabel)) {
-                Map<String, Object> before = history.snapshot(selected);
-                props.put("label", inspectorLabel.get());
-                session.submitPropertyUpdate(selected.getId(), props);
-                history.recordDiscreteChange(selected.getId(), before, new ConcurrentHashMap<>(props));
-            }
-
-            ImGui.textDisabled("Transform");
-            ImGui.separator();
-            float[] position = extractVector(props.get("position"), activeTranslation);
-            if (ImGui.dragFloat3("Position", position, 0.1f)) {
-                updateTransform(session, selected, position, activeRotation, activeScale, true);
-            }
-
-            if (ImGui.dragFloat3("Rotation", activeRotation, 0.5f)) {
-                updateTransform(session, selected, activeTranslation, activeRotation, activeScale, true);
-            }
-
-            float[] scale = extractVector(props.get("scale"), activeScale);
-            if (ImGui.dragFloat3("Scale", scale, 0.1f)) {
-                updateTransform(session, selected, activeTranslation, activeRotation, scale, true);
-            }
-
-            if ("model".equalsIgnoreCase(selected.getType())) {
-                ImGui.textDisabled("Model");
-                ImGui.separator();
-                if (ImGui.inputText("Model Path", modelPathBuffer)) {
-                    Map<String, Object> update = new ConcurrentHashMap<>();
-                    update.put("modelPath", modelPathBuffer.get());
-                    session.submitPropertyUpdate(selected.getId(), update);
-                }
-                if (ImGui.inputText("Texture", texturePathBuffer)) {
-                    Map<String, Object> update = new ConcurrentHashMap<>();
-                    update.put("texture", texturePathBuffer.get());
-                    session.submitPropertyUpdate(selected.getId(), update);
-                }
-            } else if ("display".equalsIgnoreCase(selected.getType())) {
-                renderDisplayProperties(session, selected);
-            } else if ("light".equalsIgnoreCase(selected.getType())) {
-                renderLightProperties(session, selected);
-            } else if ("marker".equalsIgnoreCase(selected.getType())) {
-                renderMarkerProperties(session, selected);
-            }
-
-            ImGui.separator();
-            ImGui.textDisabled("All Properties");
-            if (ImGui.beginTable("inspector_props", 2, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersOuter)) {
-                ImGui.tableSetupColumn("Key");
-                ImGui.tableSetupColumn("Value");
-                for (Map.Entry<String, Object> entry : props.entrySet()) {
-                    ImGui.tableNextRow();
-                    ImGui.tableSetColumnIndex(0);
-                    ImGui.textUnformatted(entry.getKey());
-                    ImGui.tableSetColumnIndex(1);
-                    ImGui.textWrapped(String.valueOf(entry.getValue()));
-                }
-                ImGui.endTable();
-            }
-        }
-        ImGui.end();
-    }
-
-    private void renderAssetsWindow(float x, float y, float width, float height) {
-        if (beginAnchoredWindow("Assets", x, y, width, height)) {
-            List<MoudPackets.EditorAssetDefinition> assets = EditorAssetCatalog.getInstance().getAssets();
-            ImGui.setNextItemWidth(-1);
-            ImGui.inputTextWithHint("##asset_search", "Search assets...", assetFilter);
-            ImGui.separator();
-            if (assets.isEmpty()) {
-                ImGui.textDisabled("No assets available. Trigger a server rescan.");
-            } else {
-                Map<String, List<MoudPackets.EditorAssetDefinition>> groups = groupAssets(assets);
-                for (Map.Entry<String, List<MoudPackets.EditorAssetDefinition>> group : groups.entrySet()) {
-                    if (ImGui.collapsingHeader(group.getKey(), ImGuiTreeNodeFlags.DefaultOpen)) {
-                        for (MoudPackets.EditorAssetDefinition entry : group.getValue()) {
-                            if (!assetMatchesFilter(entry)) {
-                                continue;
-                            }
-                            if (ImGui.selectable(entry.label() + "##asset_" + entry.id())) {
-                                spawnAsset(entry);
-                            }
-                            if (ImGui.beginDragDropSource()) {
-                                byte[] idBytes = entry.id().getBytes(java.nio.charset.StandardCharsets.UTF_8);
-                                ImGui.setDragDropPayload(PAYLOAD_ASSET, idBytes);
-                                ImGui.text("Place " + entry.label());
-                                ImGui.endDragDropSource();
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        ImGui.end();
-    }
-
-    private void renderDisplayProperties(SceneSessionManager session, SceneObject selected) {
-        ImGui.textDisabled("Display");
-        if (ImGui.beginCombo("Content Type", displayTypeBuffer.get())) {
-            for (String option : DISPLAY_CONTENT_TYPES) {
-                boolean selectedType = displayTypeBuffer.get().equalsIgnoreCase(option);
-                if (ImGui.selectable(option, selectedType)) {
-                    displayTypeBuffer.set(option);
-                    Map<String, Object> update = new ConcurrentHashMap<>();
-                    update.put("displayType", option);
-                    session.submitPropertyUpdate(selected.getId(), update);
-                }
-                if (selectedType) {
-                    ImGui.setItemDefaultFocus();
-                }
-            }
-            ImGui.endCombo();
-        }
-        if (ImGui.inputText("Source", displayContentBuffer)) {
-            Map<String, Object> update = new ConcurrentHashMap<>();
-            update.put("displayContent", displayContentBuffer.get());
-            session.submitPropertyUpdate(selected.getId(), update);
-        }
-        if (ImGui.checkbox("Loop Playback", displayLoopToggle)) {
-            Map<String, Object> update = new ConcurrentHashMap<>();
-            update.put("loop", displayLoopToggle.get());
-            session.submitPropertyUpdate(selected.getId(), update);
-        }
-        if (ImGui.checkbox("Auto Play", displayPlayingToggle)) {
-            Map<String, Object> update = new ConcurrentHashMap<>();
-            update.put("playing", displayPlayingToggle.get());
-            session.submitPropertyUpdate(selected.getId(), update);
-        }
-        if (ImGui.dragFloat("Frame Rate", displayFrameRateValue.getData(), 0.5f, 0f, 120f)) {
-            Map<String, Object> update = new ConcurrentHashMap<>();
-            update.put("frameRate", displayFrameRateValue.get());
-            session.submitPropertyUpdate(selected.getId(), update);
-        }
-    }
-
-    private void renderLightProperties(SceneSessionManager session, SceneObject selected) {
-        ImGui.textDisabled("Light");
-        int typeIndex = Math.max(0, Math.min(lightTypeIndex.get(), LIGHT_TYPE_LABELS.length - 1));
-        if (ImGui.beginCombo("Light Type", LIGHT_TYPE_LABELS[typeIndex])) {
-            for (int i = 0; i < LIGHT_TYPE_LABELS.length; i++) {
-                boolean active = lightTypeIndex.get() == i;
-                if (ImGui.selectable(LIGHT_TYPE_LABELS[i], active)) {
-                    lightTypeIndex.set(i);
-                    Map<String, Object> update = new ConcurrentHashMap<>();
-                    update.put("lightType", i == 1 ? "area" : "point");
-                    session.submitPropertyUpdate(selected.getId(), update);
-                }
-                if (active) {
-                    ImGui.setItemDefaultFocus();
-                }
-            }
-            ImGui.endCombo();
-        }
-        if (ImGui.colorEdit3("Color", lightColorValue)) {
-            Map<String, Object> update = new ConcurrentHashMap<>();
-            update.put("color", colorToMap(lightColorValue));
-            session.submitPropertyUpdate(selected.getId(), update);
-        }
-        if (ImGui.dragFloat("Brightness", lightBrightnessValue.getData(), 0.05f, 0f, 10f)) {
-            Map<String, Object> update = new ConcurrentHashMap<>();
-            update.put("brightness", lightBrightnessValue.get());
-            session.submitPropertyUpdate(selected.getId(), update);
-        }
-        if (lightTypeIndex.get() == 0) {
-            if (ImGui.dragFloat("Radius", lightRadiusValue.getData(), 0.1f, 0.1f, 64f)) {
-                Map<String, Object> update = new ConcurrentHashMap<>();
-                update.put("radius", lightRadiusValue.get());
-                session.submitPropertyUpdate(selected.getId(), update);
-            }
-        } else {
-            if (ImGui.dragFloat("Width", lightWidthValue.getData(), 0.1f, 0.1f, 32f)) {
-                Map<String, Object> update = new ConcurrentHashMap<>();
-                update.put("width", lightWidthValue.get());
-                session.submitPropertyUpdate(selected.getId(), update);
-            }
-            if (ImGui.dragFloat("Height", lightHeightValue.getData(), 0.1f, 0.1f, 32f)) {
-                Map<String, Object> update = new ConcurrentHashMap<>();
-                update.put("height", lightHeightValue.get());
-                session.submitPropertyUpdate(selected.getId(), update);
-            }
-            if (ImGui.dragFloat("Distance", lightDistanceValue.getData(), 0.1f, 0.1f, 64f)) {
-                Map<String, Object> update = new ConcurrentHashMap<>();
-                update.put("distance", lightDistanceValue.get());
-                session.submitPropertyUpdate(selected.getId(), update);
-            }
-            if (ImGui.dragFloat("Angle", lightAngleValue.getData(), 0.5f, 1f, 120f)) {
-                Map<String, Object> update = new ConcurrentHashMap<>();
-                update.put("angle", lightAngleValue.get());
-                session.submitPropertyUpdate(selected.getId(), update);
-            }
-            if (ImGui.dragFloat3("Direction", lightDirectionValue, 0.05f)) {
-                Map<String, Object> update = new ConcurrentHashMap<>();
-                update.put("direction", directionToMap(lightDirectionValue));
-                session.submitPropertyUpdate(selected.getId(), update);
-            }
-        }
-    }
-
-    private void renderMarkerProperties(SceneSessionManager session, SceneObject selected) {
-        Map<String, Object> props = new ConcurrentHashMap<>(selected.getProperties());
-        Object label = props.getOrDefault("label", selected.getId());
-        markerNameBuffer.set(String.valueOf(label));
-        if (ImGui.inputText("Marker Name", markerNameBuffer)) {
-            Map<String, Object> update = new ConcurrentHashMap<>();
-            update.put("label", markerNameBuffer.get());
-            update.put("name", markerNameBuffer.get());
-            session.submitPropertyUpdate(selected.getId(), update);
-        }
-        extractVector(props.getOrDefault("position", null), markerPositionBuffer);
-        if (ImGui.dragFloat3("Marker Position", markerPositionBuffer, 0.05f)) {
-            Map<String, Object> update = new ConcurrentHashMap<>();
-            update.put("position", vectorToMap(markerPositionBuffer));
-            session.submitPropertyUpdate(selected.getId(), update);
-        }
-    }
-
-    private void renderConsoleWindow(float x, float y, float width, float height) {
-        if (beginAnchoredWindow("Console", x, y, width, height)) {
-            if (ImGui.button("Clear")) {
-                SceneEditorDiagnostics.clear();
-            }
-            ImGui.sameLine();
-            ImGui.textDisabled("Latest events");
-            ImGui.separator();
-            ImGui.beginChild("console-scroll", 0, 0, true);
-            List<String> lines = SceneEditorDiagnostics.snapshot();
-            for (String line : lines) {
-                ImGui.textUnformatted(line);
-            }
-            if (ImGui.getScrollY() >= ImGui.getScrollMaxY() - 4f) {
-                ImGui.setScrollHereY(1.0f);
-            }
-            ImGui.endChild();
-        }
-        ImGui.end();
-    }
-
-    private void renderBlueprintWindow(SceneSessionManager session, float x, float y, float width, float height) {
-        if (!beginAnchoredWindow("Blueprints", x, y, width, height)) {
-            ImGui.end();
-            return;
-        }
-        ImGui.textDisabled("Region Selection");
-        ImGui.separator();
-        if (ImGui.button("Pick Corner A")) {
-            BlueprintCornerSelector.getInstance().beginSelection(BlueprintCornerSelector.Corner.A, pos -> applyPickedCorner(BlueprintCornerSelector.Corner.A, pos));
-        }
-        ImGui.sameLine();
-        if (ImGui.button("Pick Corner B")) {
-            BlueprintCornerSelector.getInstance().beginSelection(BlueprintCornerSelector.Corner.B, pos -> applyPickedCorner(BlueprintCornerSelector.Corner.B, pos));
-        }
-        ImGui.sameLine();
-        if (ImGui.button("Clear Region")) {
-            regionASet = false;
-            regionBSet = false;
-            BlueprintCornerSelector.getInstance().cancel();
-        }
-        if (BlueprintCornerSelector.getInstance().isPicking()) {
-            ImGui.sameLine();
-            ImGui.textColored(1f, 0.85f, 0.35f, 1f, "Picking corner " + BlueprintCornerSelector.getInstance().getPendingCorner());
-        }
-        if (regionASet) {
-            ImGui.dragFloat3("Corner A", regionCornerA, 0.1f);
-        } else {
-            ImGui.textDisabled("Corner A not set");
-        }
-        if (regionBSet) {
-            ImGui.dragFloat3("Corner B", regionCornerB, 0.1f);
-        } else {
-            ImGui.textDisabled("Corner B not set");
-        }
-        Box regionBox = buildRegionBox();
-        if (regionBox != null) {
-            double lenX = regionBox.maxX - regionBox.minX;
-            double lenY = regionBox.maxY - regionBox.minY;
-            double lenZ = regionBox.maxZ - regionBox.minZ;
-            ImGui.text("Size: %.2f x %.2f x %.2f".formatted(lenX, lenY, lenZ));
-            int objectCount = countObjectsInRegion(regionBox, false);
-            int markerCount = countObjectsInRegion(regionBox, true);
-            ImGui.text("Objects: " + objectCount + "  Markers: " + markerCount);
-            ImGui.inputText("Blueprint Name", blueprintNameBuffer);
-            if (ImGui.button("Export Blueprint")) {
-                exportBlueprint(session, regionBox, blueprintNameBuffer.get());
-            }
-        } else {
-            ImGui.textDisabled("Select two corners to enable export.");
-        }
-        ImGui.separator();
-        ImGui.textDisabled("Preview");
-        ImGui.inputTextWithHint("Blueprint File", "name without .json", blueprintPreviewName);
-        if (ImGui.button("Load Preview")) {
-            loadBlueprintPreview(blueprintPreviewName.get(), previewPosition);
-        }
-        ImGui.sameLine();
-        if (ImGui.button("Hide Preview")) {
-            BlueprintPreviewManager.getInstance().clear();
-        }
-        BlueprintPreviewManager.PreviewState preview = BlueprintPreviewManager.getInstance().getCurrent();
-        if (preview != null) {
-            if (ImGui.dragFloat3("Preview Position", previewPosition, 0.1f)) {
-                BlueprintPreviewManager.getInstance().move(previewPosition);
-                composeMatrix(previewPosition, previewRotation, previewScale, previewMatrix);
-            }
-            if (!previewGizmoActive) {
-                if (ImGui.button("Attach Preview Gizmo")) {
-                    previewGizmoActive = true;
-                    composeMatrix(previewPosition, previewRotation, previewScale, previewMatrix);
-                }
-            } else {
-                if (ImGui.button("Detach Preview Gizmo")) {
-                    previewGizmoActive = false;
-                }
-                if (ImGui.radioButton("Move", previewGizmoOperation == Operation.TRANSLATE)) {
-                    previewGizmoOperation = Operation.TRANSLATE;
-                }
-                ImGui.sameLine();
-                if (ImGui.radioButton("Rotate", previewGizmoOperation == Operation.ROTATE)) {
-                    previewGizmoOperation = Operation.ROTATE;
-                }
-            }
-            if (previewGizmoActive) {
-                renderPreviewGizmo();
-            }
-        } else {
-            ImGui.textDisabled("No preview loaded.");
-            previewGizmoActive = false;
-        }
-        ImGui.end();
-    }
-
-    private void renderTransformToolbar(float x, float y) {
-        ImGui.setNextWindowPos(x, y, ImGuiCond.Always);
-        ImGui.setNextWindowSize(400, 150, ImGuiCond.Always);
-        int flags = ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize;
-        if (ImGui.begin("Gizmo Controls", flags)) {
-
-            if (ImGui.checkbox("Hierarchy", new imgui.type.ImBoolean(showHierarchy))) {
-                showHierarchy = !showHierarchy;
-            }
-            ImGui.sameLine();
-            if (ImGui.checkbox("Inspector", new imgui.type.ImBoolean(showInspector))) {
-                showInspector = !showInspector;
-            }
-            ImGui.sameLine();
-            if (ImGui.checkbox("Assets", new imgui.type.ImBoolean(showAssets))) {
-                showAssets = !showAssets;
-            }
-            ImGui.sameLine();
-            if (ImGui.checkbox("Console", new imgui.type.ImBoolean(showConsole))) {
-                showConsole = !showConsole;
-            }
-            ImGui.sameLine();
-            if (ImGui.checkbox("Blueprints", new imgui.type.ImBoolean(showBlueprints))) {
-                showBlueprints = !showBlueprints;
-            }
-            ImGui.separator();
-            if (ImGui.radioButton("Translate", currentOperation == Operation.TRANSLATE)) {
-                currentOperation = Operation.TRANSLATE;
-            }
-            ImGui.sameLine();
-            if (ImGui.radioButton("Rotate", currentOperation == Operation.ROTATE)) {
-                currentOperation = Operation.ROTATE;
-            }
-            ImGui.sameLine();
-            if (ImGui.radioButton("Scale", currentOperation == Operation.SCALE)) {
-                currentOperation = Operation.SCALE;
-            }
-            if (currentOperation != Operation.SCALE) {
-                if (ImGui.radioButton("Local", gizmoMode == Mode.LOCAL)) {
-                    gizmoMode = Mode.LOCAL;
-                }
-                ImGui.sameLine();
-                if (ImGui.radioButton("World", gizmoMode == Mode.WORLD)) {
-                    gizmoMode = Mode.WORLD;
-                }
-            }
-            snapCheckbox.set(useSnap);
-            if (ImGui.checkbox("Snap", snapCheckbox)) {
-                useSnap = snapCheckbox.get();
-            }
-            if (useSnap) {
-                if (currentOperation == Operation.ROTATE) {
-                    ImFloat angle = new ImFloat(snapValues[0]);
-                    if (ImGui.inputFloat("Angle Snap", angle)) {
-                        float value = Math.max(1f, angle.get());
-                        snapValues[0] = snapValues[1] = snapValues[2] = value;
-                    }
-                } else {
-                    if (ImGui.inputFloat3("Snap XYZ", snapValues)) {
-                        snapValues[0] = Math.max(0.1f, snapValues[0]);
-                        snapValues[1] = Math.max(0.1f, snapValues[1]);
-                        snapValues[2] = Math.max(0.1f, snapValues[2]);
-                    }
-                }
-            }
-
-            ImGui.separator();
-            boolean undoDisabled = !history.canUndo();
-            if (undoDisabled) ImGui.beginDisabled();
-            if (ImGui.button("Undo  Ctrl+Z")) {
-                history.undo();
-            }
-            if (undoDisabled) ImGui.endDisabled();
-
-            ImGui.sameLine();
-            boolean redoDisabled = !history.canRedo();
-            if (redoDisabled) ImGui.beginDisabled();
-            if (ImGui.button("Redo  Ctrl+Y")) {
-                history.redo();
-            }
-            if (redoDisabled) ImGui.endDisabled();
-
-            ImGui.textDisabled("Hold F to fly the camera");
-        }
-        ImGui.end();
     }
 
     public void renderWorldGizmo(Matrix4f viewMatrix, Matrix4f projectionMatrix) {
@@ -757,13 +240,6 @@ public final class SceneEditorOverlay {
         }
     }
 
-    private boolean beginAnchoredWindow(String title, float x, float y, float width, float height) {
-        ImGui.setNextWindowPos(x, y, ImGuiCond.Always);
-        ImGui.setNextWindowSize(width, height, ImGuiCond.Always);
-        int flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize;
-        return ImGui.begin(title, flags);
-    }
-
     public void selectFromExternal(String objectId) {
         if (objectId == null) {
             return;
@@ -772,6 +248,78 @@ public final class SceneEditorOverlay {
         if (object != null) {
             selectObject(object);
         }
+    }
+
+    public boolean isSelectionBoundsVisible() {
+        return showSelectionBounds;
+    }
+
+    public boolean isExplorerVisible() {
+        return showExplorer;
+    }
+
+    public void setExplorerVisible(boolean visible) {
+        this.showExplorer = visible;
+    }
+
+    public boolean isInspectorVisible() {
+        return showInspectorPanel;
+    }
+
+    public void setInspectorVisible(boolean visible) {
+        this.showInspectorPanel = visible;
+    }
+
+    public boolean isScriptViewerVisible() {
+        return showScriptViewer;
+    }
+
+    public void setScriptViewerVisible(boolean visible) {
+        this.showScriptViewer = visible;
+    }
+
+    public boolean isAssetBrowserVisible() {
+        return showAssetBrowser;
+    }
+
+    public void setAssetBrowserVisible(boolean visible) {
+        this.showAssetBrowser = visible;
+    }
+
+    public boolean isDiagnosticsVisible() {
+        return showDiagnostics;
+    }
+
+    public void setDiagnosticsVisible(boolean visible) {
+        this.showDiagnostics = visible;
+    }
+
+    public boolean isGizmoToolbarVisible() {
+        return showGizmoToolbar;
+    }
+
+    public void setGizmoToolbarVisible(boolean visible) {
+        this.showGizmoToolbar = visible;
+    }
+
+    public void setSelectionBoundsVisible(boolean visible) {
+        this.showSelectionBounds = visible;
+    }
+
+    private boolean hasExtension(String path, String... extensions) {
+        if (path == null || extensions == null) {
+            return false;
+        }
+        String lower = path.toLowerCase(Locale.ROOT);
+        for (String extension : extensions) {
+            if (extension == null) {
+                continue;
+            }
+            if (lower.endsWith(extension.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void selectObject(SceneObject object) {
@@ -783,35 +331,9 @@ public final class SceneEditorOverlay {
         extractVector(props.getOrDefault("position", null), activeTranslation);
         extractVector(props.getOrDefault("scale", null), activeScale);
         extractEuler(props.getOrDefault("rotation", null), activeRotation);
-        Object label = props.getOrDefault("label", object.getId());
-        inspectorLabel.set(String.valueOf(label));
-        Object modelPath = props.get("modelPath");
-        modelPathBuffer.set(modelPath != null ? String.valueOf(modelPath) : "");
-        Object texturePath = props.getOrDefault("texture", "");
-        texturePathBuffer.set(String.valueOf(texturePath));
         composeMatrix(activeTranslation, activeRotation, activeScale, activeMatrix);
         EditorCameraController.getInstance().initialSelectionChanged(object, false);
-        String type = object.getType() != null ? object.getType().toLowerCase() : "";
-        if ("display".equals(type)) {
-            displayContentBuffer.set(String.valueOf(props.getOrDefault("displayContent", "")));
-            displayTypeBuffer.set(String.valueOf(props.getOrDefault("displayType", "image")));
-            displayLoopToggle.set(boolValue(props.get("loop"), true));
-            displayPlayingToggle.set(boolValue(props.get("playing"), true));
-            displayFrameRateValue.set(toFloat(props.getOrDefault("frameRate", 24f)));
-        } else if ("light".equals(type)) {
-            lightTypeIndex.set("area".equalsIgnoreCase(String.valueOf(props.getOrDefault("lightType", "point"))) ? 1 : 0);
-            lightBrightnessValue.set(toFloat(props.getOrDefault("brightness", 1f)));
-            lightRadiusValue.set(toFloat(props.getOrDefault("radius", 6f)));
-            lightWidthValue.set(toFloat(props.getOrDefault("width", 4f)));
-            lightHeightValue.set(toFloat(props.getOrDefault("height", 4f)));
-            lightDistanceValue.set(toFloat(props.getOrDefault("distance", 8f)));
-            lightAngleValue.set(toFloat(props.getOrDefault("angle", 45f)));
-            extractColor(props.get("color"), lightColorValue);
-            extractDirection(props.get("direction"), lightDirectionValue);
-        } else if ("marker".equals(type)) {
-            markerNameBuffer.set(String.valueOf(label));
-            extractVector(props.getOrDefault("position", null), markerPositionBuffer);
-        }
+        inspectorPanel.onSelectionChanged(object);
     }
 
     public void selectRuntimeObject(RuntimeObject runtimeObject) {
@@ -835,9 +357,10 @@ public final class SceneEditorOverlay {
         activeScale[1] = (float) scl.y;
         activeScale[2] = (float) scl.z;
         composeMatrix(activeTranslation, activeRotation, activeScale, activeMatrix);
+        inspectorPanel.onRuntimeSelection(runtimeObject);
     }
 
-    private void updateTransform(SceneSessionManager session, SceneObject selected, float[] translation, float[] rotation, float[] scale, boolean discreteChange) {
+    public void updateTransform(SceneSessionManager session, SceneObject selected, float[] translation, float[] rotation, float[] scale, boolean discreteChange) {
         if (selected == null) {
             return;
         }
@@ -867,7 +390,51 @@ public final class SceneEditorOverlay {
         return getSelected(SceneSessionManager.getInstance());
     }
 
-    private RuntimeObject getSelectedRuntime() {
+    public float[] getActiveTranslation() {
+        return activeTranslation;
+    }
+
+    public float[] getActiveRotation() {
+        return activeRotation;
+    }
+
+    public float[] getActiveScale() {
+        return activeScale;
+    }
+
+    public ImString getMarkerNameBuffer() {
+        return markerNameBuffer;
+    }
+
+    public int getCurrentGizmoOperation() {
+        return currentOperation;
+    }
+
+    public void setCurrentGizmoOperation(int operation) {
+        this.currentOperation = operation;
+    }
+
+    public int getGizmoMode() {
+        return gizmoMode;
+    }
+
+    public void setGizmoMode(int gizmoMode) {
+        this.gizmoMode = gizmoMode;
+    }
+
+    public boolean isSnapEnabled() {
+        return useSnap;
+    }
+
+    public void setSnapEnabled(boolean enabled) {
+        this.useSnap = enabled;
+    }
+
+    public float[] getSnapValues() {
+        return snapValues;
+    }
+
+    public RuntimeObject getSelectedRuntime() {
 
         RaycastPicker picker = RaycastPicker.getInstance();
         if (picker.hasSelection()) {
@@ -880,11 +447,56 @@ public final class SceneEditorOverlay {
         return RuntimeObjectRegistry.getInstance().getById(selectedRuntimeId);
     }
 
+    public void focusSelection(SceneObject object) {
+        if (object == null) {
+            return;
+        }
+        EditorCameraController.getInstance().focusSelection(object);
+    }
+
+    public boolean canUndo() {
+        return history.canUndo();
+    }
+
+    public boolean canRedo() {
+        return history.canRedo();
+    }
+
+    public void undo() {
+        history.undo();
+    }
+
+    public void redo() {
+        history.redo();
+    }
+
     public RuntimeObject getHoveredRuntime() {
         return RaycastPicker.getInstance().getHoveredObject();
     }
 
-    private Map<String, List<SceneObject>> getCachedHierarchy(SceneSessionManager session) {
+    public boolean beginDockedPanel(EditorDockingLayout.Region region, String title) {
+        dockingLayout.apply(region);
+        return ImGui.begin(title, PANEL_WINDOW_FLAGS);
+    }
+
+    public boolean beginDockedPanel(EditorDockingLayout.Region region, String title, ImBoolean openFlag) {
+        dockingLayout.apply(region);
+        return ImGui.begin(title, openFlag, PANEL_WINDOW_FLAGS);
+    }
+
+    public void emitProjectFileDragPayload(String path) {
+        if (path == null) {
+            return;
+        }
+        if (ImGui.beginDragDropSource()) {
+            byte[] pathBytes = path.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            ImGui.setDragDropPayload(PAYLOAD_PROJECT_FILE, pathBytes);
+            ImGui.text(path);
+            ImGui.endDragDropSource();
+        }
+    }
+
+    public Map<String, List<SceneObject>> getCachedHierarchy(SceneSessionManager session) {
         long now = System.currentTimeMillis();
         if (now - lastHierarchyBuild > HIERARCHY_CACHE_MS) {
             cachedHierarchy = buildHierarchy(session);
@@ -905,9 +517,9 @@ public final class SceneEditorOverlay {
         return children;
     }
 
-    private void renderHierarchyNode(SceneSessionManager session, SceneObject object, Map<String, List<SceneObject>> tree) {
+    public void renderHierarchyNode(SceneSessionManager session, SceneObject object, Map<String, List<SceneObject>> tree, String filterText) {
         java.util.List<SceneObject> children = tree.getOrDefault(object.getId(), java.util.List.of());
-        String filter = hierarchyFilter.get().trim().toLowerCase();
+        String filter = filterText == null ? "" : filterText.trim().toLowerCase();
         if (!filter.isEmpty() && !matchesHierarchyFilter(object, filter)) {
             boolean descendantMatches = false;
             for (SceneObject child : children) {
@@ -961,13 +573,13 @@ public final class SceneEditorOverlay {
         }
         if (open && hasChildren) {
             for (SceneObject child : children) {
-                renderHierarchyNode(session, child, tree);
+                renderHierarchyNode(session, child, tree, filter);
             }
             ImGui.treePop();
         }
     }
 
-    private void handleHierarchyDrop(String newParent) {
+    public void handleHierarchyDrop(String newParent) {
         byte[] payload = ImGui.acceptDragDropPayload(PAYLOAD_HIERARCHY);
         if (payload != null) {
             String draggedId = new String(payload, java.nio.charset.StandardCharsets.UTF_8);
@@ -1023,7 +635,7 @@ public final class SceneEditorOverlay {
         SceneEditorDiagnostics.log("Parent set: " + childId + " -> " + (parentId == null || parentId.isEmpty() ? "root" : parentId));
     }
 
-    private void spawnEmptyObject(SceneSessionManager session, String parentId) {
+    public void spawnEmptyObject(SceneSessionManager session, String parentId) {
         Map<String, Object> payload = new ConcurrentHashMap<>();
         payload.put("type", "group");
         Map<String, Object> props = new ConcurrentHashMap<>();
@@ -1039,7 +651,7 @@ public final class SceneEditorOverlay {
         SceneEditorDiagnostics.log("Created empty object" + (parentId == null || parentId.isEmpty() ? "" : " under " + parentId));
     }
 
-    private boolean hasAssetsOfType(String assetType) {
+    public boolean hasAssetsOfType(String assetType) {
         for (MoudPackets.EditorAssetDefinition asset : EditorAssetCatalog.getInstance().getAssets()) {
             if (assetType.equalsIgnoreCase(asset.objectType())) {
                 return true;
@@ -1115,6 +727,16 @@ public final class SceneEditorOverlay {
         return label == null ? object.getId() : String.valueOf(label);
     }
 
+    public void beginCornerSelection(BlueprintCornerSelector.Corner corner) {
+        BlueprintCornerSelector.getInstance().beginSelection(corner, pos -> applyPickedCorner(corner, pos));
+    }
+
+    public void clearCornerSelection() {
+        regionASet = false;
+        regionBSet = false;
+        BlueprintCornerSelector.getInstance().cancel();
+    }
+
     private void applyPickedCorner(BlueprintCornerSelector.Corner corner, float[] position) {
         if (position == null) {
             return;
@@ -1126,6 +748,14 @@ public final class SceneEditorOverlay {
         } else {
             regionBSet = true;
         }
+    }
+
+    public boolean isCornerSelectionActive() {
+        return BlueprintCornerSelector.getInstance().isPicking();
+    }
+
+    public BlueprintCornerSelector.Corner getPendingCorner() {
+        return BlueprintCornerSelector.getInstance().getPendingCorner();
     }
 
     private Box buildRegionBox() {
@@ -1141,7 +771,11 @@ public final class SceneEditorOverlay {
         return new Box(minX, minY, minZ, maxX, maxY, maxZ);
     }
 
-    private int countObjectsInRegion(Box region, boolean markersOnly) {
+    public Box getSelectedRegionBox() {
+        return buildRegionBox();
+    }
+
+    public int countObjectsInRegion(Box region, boolean markersOnly) {
         if (region == null) {
             return 0;
         }
@@ -1160,7 +794,7 @@ public final class SceneEditorOverlay {
         return count;
     }
 
-    private void exportBlueprint(SceneSessionManager session, Box region, String requestedName) {
+    public void exportBlueprint(SceneSessionManager session, Box region, String requestedName) {
         if (region == null) {
             return;
         }
@@ -1229,7 +863,7 @@ public final class SceneEditorOverlay {
         });
     }
 
-    private void loadBlueprintPreview(String fileName, float[] position) {
+    public void loadBlueprintPreview(String fileName, float[] position) {
         if (fileName == null || fileName.trim().isEmpty()) {
             SceneEditorDiagnostics.log("Blueprint preview failed: name required");
             return;
@@ -1249,6 +883,11 @@ public final class SceneEditorOverlay {
             composeMatrix(previewPosition, previewRotation, previewScale, previewMatrix);
             SceneEditorDiagnostics.log("Loaded preview for " + blueprint.name);
         });
+    }
+
+    public void hideBlueprintPreview() {
+        BlueprintPreviewManager.getInstance().clear();
+        previewGizmoActive = false;
     }
 
     private float[] toRelative(Vec3d world, Box region) {
@@ -1366,7 +1005,7 @@ public final class SceneEditorOverlay {
         }
     }
 
-    private void renderPreviewGizmo() {
+    public void renderPreviewGizmo() {
         if (!previewGizmoActive) {
             return;
         }
@@ -1417,6 +1056,46 @@ public final class SceneEditorOverlay {
 
     public float[] getRegionCornerB() {
         return regionCornerB;
+    }
+
+    public ImString getBlueprintNameBuffer() {
+        return blueprintNameBuffer;
+    }
+
+    public ImString getBlueprintPreviewNameBuffer() {
+        return blueprintPreviewName;
+    }
+
+    public float[] getPreviewPositionBuffer() {
+        return previewPosition;
+    }
+
+    public float[] getPreviewRotationBuffer() {
+        return previewRotation;
+    }
+
+    public float[] getPreviewScaleBuffer() {
+        return previewScale;
+    }
+
+    public boolean isPreviewGizmoActive() {
+        return previewGizmoActive;
+    }
+
+    public void setPreviewGizmoActive(boolean active) {
+        this.previewGizmoActive = active;
+    }
+
+    public int getPreviewGizmoOperation() {
+        return previewGizmoOperation;
+    }
+
+    public void setPreviewGizmoOperation(int operation) {
+        this.previewGizmoOperation = operation;
+    }
+
+    public void updatePreviewMatrix() {
+        composeMatrix(previewPosition, previewRotation, previewScale, previewMatrix);
     }
 
     public static Box buildBoxFromCorners(float[] a, float[] b) {
@@ -1539,28 +1218,6 @@ public final class SceneEditorOverlay {
         return fallback;
     }
 
-    private static void extractColor(Object value, float[] target) {
-        if (!(value instanceof Map<?,?> map)) {
-            target[0] = target[1] = target[2] = 1f;
-            return;
-        }
-        target[0] = map.containsKey("r") ? toFloat(map.get("r")) : 1f;
-        target[1] = map.containsKey("g") ? toFloat(map.get("g")) : 1f;
-        target[2] = map.containsKey("b") ? toFloat(map.get("b")) : 1f;
-    }
-
-    private static void extractDirection(Object value, float[] target) {
-        if (!(value instanceof Map<?,?> map)) {
-            target[0] = 0f;
-            target[1] = -1f;
-            target[2] = 0f;
-            return;
-        }
-        target[0] = map.containsKey("x") ? toFloat(map.get("x")) : target[0];
-        target[1] = map.containsKey("y") ? toFloat(map.get("y")) : target[1];
-        target[2] = map.containsKey("z") ? toFloat(map.get("z")) : target[2];
-    }
-
     private static Map<String, Object> vectorToMap(float[] vector) {
         Map<String, Object> map = new ConcurrentHashMap<>();
         map.put("x", vector[0]);
@@ -1569,23 +1226,7 @@ public final class SceneEditorOverlay {
         return map;
     }
 
-    private static Map<String, Object> colorToMap(float[] color) {
-        Map<String, Object> map = new ConcurrentHashMap<>();
-        map.put("r", color[0]);
-        map.put("g", color[1]);
-        map.put("b", color[2]);
-        return map;
-    }
-
-    private static Map<String, Object> directionToMap(float[] direction) {
-        Map<String, Object> map = new ConcurrentHashMap<>();
-        map.put("x", direction[0]);
-        map.put("y", direction[1]);
-        map.put("z", direction[2]);
-        return map;
-    }
-
-    private String parentIdOf(SceneObject object) {
+    public String parentIdOf(SceneObject object) {
         Object parent = object.getProperties().get("parent");
         if (parent == null) {
             return "";
@@ -1603,19 +1244,6 @@ public final class SceneEditorOverlay {
         } catch (Exception e) {
             return 0f;
         }
-    }
-
-    private static boolean boolValue(Object value, boolean fallback) {
-        if (value instanceof Boolean bool) {
-            return bool;
-        }
-        if (value instanceof Number number) {
-            return number.intValue() != 0;
-        }
-        if (value != null) {
-            return Boolean.parseBoolean(value.toString());
-        }
-        return fallback;
     }
 
     private float[] resolveSpawnPosition(float[] fallback) {
@@ -1639,7 +1267,7 @@ public final class SceneEditorOverlay {
         return map;
     }
 
-    private void spawnAsset(MoudPackets.EditorAssetDefinition entry) {
+    public void spawnAsset(MoudPackets.EditorAssetDefinition entry) {
         spawnAsset(entry, null);
     }
 
@@ -1692,30 +1320,8 @@ public final class SceneEditorOverlay {
         SceneEditorDiagnostics.log("Created marker '" + label + "'");
     }
 
-    private String generateMarkerName() {
+    public String generateMarkerName() {
         return "Marker " + markerCounter++;
-    }
-
-    private Map<String, List<MoudPackets.EditorAssetDefinition>> groupAssets(List<MoudPackets.EditorAssetDefinition> assets) {
-        Map<String, List<MoudPackets.EditorAssetDefinition>> groups = new java.util.TreeMap<>();
-        for (MoudPackets.EditorAssetDefinition asset : assets) {
-            String group = "General";
-            String id = asset.id();
-            int slash = id.lastIndexOf('/');
-            if (slash > 0) {
-                group = id.substring(0, slash);
-            }
-            groups.computeIfAbsent(group, k -> new java.util.ArrayList<>()).add(asset);
-        }
-        return groups;
-    }
-
-    private boolean assetMatchesFilter(MoudPackets.EditorAssetDefinition entry) {
-        String filter = assetFilter.get().trim().toLowerCase();
-        if (filter.isEmpty()) {
-            return true;
-        }
-        return entry.label().toLowerCase().contains(filter) || entry.id().toLowerCase().contains(filter);
     }
 
     private boolean matchesHierarchyFilter(SceneObject object, String filter) {
@@ -1786,62 +1392,10 @@ public final class SceneEditorOverlay {
         }
     }
 
-    private void renderRuntimeObjectInspector(RuntimeObject runtimeObject) {
-        ImGui.text("Runtime Object: " + runtimeObject.getObjectId());
-        ImGui.text("Type: " + runtimeObject.getType());
-        ImGui.textDisabled("Read-only - runtime objects are controlled by scripts");
-        ImGui.separator();
-
-        ImGui.textDisabled("Transform");
-        ImGui.separator();
-        Vec3d pos = runtimeObject.getPosition();
-        float[] position = new float[]{(float) pos.x, (float) pos.y, (float) pos.z};
-        ImGui.inputFloat3("Position", position, "%.3f", imgui.flag.ImGuiInputTextFlags.ReadOnly);
-
-        Vec3d rot = runtimeObject.getRotation();
-        float[] rotation = new float[]{(float) rot.x, (float) rot.y, (float) rot.z};
-        ImGui.inputFloat3("Rotation", rotation, "%.3f", imgui.flag.ImGuiInputTextFlags.ReadOnly);
-
-        Vec3d scl = runtimeObject.getScale();
-        float[] scale = new float[]{(float) scl.x, (float) scl.y, (float) scl.z};
-        ImGui.inputFloat3("Scale", scale, "%.3f", imgui.flag.ImGuiInputTextFlags.ReadOnly);
-
-        if (runtimeObject.getType() == RuntimeObjectType.MODEL) {
-            ImGui.separator();
-            ImGui.textDisabled("Model Properties");
-            ImGui.separator();
-            String modelPath = runtimeObject.getModelPath();
-            if (modelPath != null) {
-                ImGui.text("Model: " + modelPath);
-            }
-            String texturePath = runtimeObject.getTexturePath();
-            if (texturePath != null && !texturePath.isEmpty()) {
-                ImGui.text("Texture: " + texturePath);
-            }
-        }
-
-        if (runtimeObject.getType() == RuntimeObjectType.DISPLAY) {
-            RuntimeObject.DisplayState displayState = runtimeObject.getDisplayState();
-            if (displayState != null) {
-                ImGui.separator();
-                ImGui.textDisabled("Display Properties");
-                ImGui.separator();
-                if (displayState.getContentType() != null) {
-                    ImGui.text("Content Type: " + displayState.getContentType());
-                }
-                if (displayState.getPrimarySource() != null) {
-                    ImGui.text("Source: " + displayState.getPrimarySource());
-                }
-                ImGui.text("Loop: " + (displayState.isLoop() ? "Yes" : "No"));
-                ImGui.text("Frame Rate: " + displayState.getFrameRate());
-            }
-        } else if (runtimeObject.getType() == RuntimeObjectType.PLAYER) {
-            ImGui.separator();
-            ImGui.textDisabled("Player");
-            if (runtimeObject.getPlayerUuid() != null) {
-                ImGui.text("UUID: " + runtimeObject.getPlayerUuid());
-            }
-            ImGui.textDisabled("Use the gizmo to teleport this player.");
-        }
+    public void renderRuntimeList(String filterTerm) {
+        renderRuntimeList(RuntimeObjectType.MODEL, "Models", filterTerm);
+        renderRuntimeList(RuntimeObjectType.DISPLAY, "Displays", filterTerm);
+        renderRuntimeList(RuntimeObjectType.PLAYER, "Players", filterTerm);
     }
+
 }

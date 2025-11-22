@@ -11,8 +11,16 @@ import net.minecraft.client.MinecraftClient;
 import org.joml.Matrix4f;
 import org.lwjgl.glfw.GLFW;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+
 public final class EditorImGuiLayer {
     private static final EditorImGuiLayer INSTANCE = new EditorImGuiLayer();
+    private static final String INTER_FONT_RESOURCE = "/assets/moud/fonts/Inter.ttf";
+    private static final float DEFAULT_FONT_SIZE = 16f;
 
     private ImGuiImplGlfw glfwBackend;
     private ImGuiImplGl3 gl3Backend;
@@ -40,8 +48,10 @@ public final class EditorImGuiLayer {
         ImGuiContext previous = ImGui.getCurrentContext();
         imguiContext = ImGui.createContext();
         ImGui.setCurrentContext(imguiContext);
+        configureFonts();
         ImGui.getIO().addConfigFlags(ImGuiConfigFlags.DockingEnable);
-        ImGui.getStyle().setWindowRounding(4f);
+        ImGui.getStyle().setWindowRounding(0f);
+        ImGui.getStyle().setFrameRounding(0f);
 
         glfwBackend = new ImGuiImplGlfw();
         glfwBackend.init(windowHandle, false);
@@ -50,12 +60,28 @@ public final class EditorImGuiLayer {
         gl3Backend.init("#version 150");
         imgui.extension.imguizmo.ImGuizmo.setImGuiContext(imguiContext);
 
-        ImGuiTheme.applyBessDark();
+        ImGuiTheme.applyIdaEngineTheme();
 
         initialized = true;
         if (previous != null && !previous.isNotValidPtr()) {
             ImGui.setCurrentContext(previous);
         }
+    }
+
+    private void configureFonts() {
+        var io = ImGui.getIO();
+        io.getFonts().setFreeTypeRenderer(true);
+        try (InputStream stream = EditorImGuiLayer.class.getResourceAsStream(INTER_FONT_RESOURCE)) {
+            if (stream != null) {
+                Path temp = Files.createTempFile("moud-inter", ".ttf");
+                Files.copy(stream, temp, StandardCopyOption.REPLACE_EXISTING);
+                io.getFonts().addFontFromFileTTF(temp.toAbsolutePath().toString(), DEFAULT_FONT_SIZE);
+                temp.toFile().deleteOnExit();
+                return;
+            }
+        } catch (IOException ignored) {
+        }
+        io.getFonts().addFontDefault();
     }
 
     public void render() {

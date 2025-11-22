@@ -3,10 +3,7 @@ package com.moud.client.editor.ui.layout;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 
-/**
- * Computes anchored rectangles for the editor hub (ribbon, explorer, inspector, etc.)
- * and pushes the appropriate window positions before rendering each panel.
- */
+
 public final class EditorDockingLayout {
 
     public enum Region {
@@ -30,6 +27,7 @@ public final class EditorDockingLayout {
     private Rect scriptViewer;
     private Rect assetBrowser;
     private Rect diagnostics;
+    private Rect viewport;
 
     public void begin(float width, float height) {
         float ribbonHeight = Math.min(Math.max(RIBBON_HEIGHT, height * 0.08f), 128f);
@@ -58,6 +56,7 @@ public final class EditorDockingLayout {
         explorer = new Rect(0f, ribbonHeight, explorerWidth, contentHeight);
         inspector = new Rect(width - inspectorWidth, ribbonHeight, inspectorWidth, inspectorHeight);
         scriptViewer = new Rect(width - inspectorWidth, ribbonHeight + inspectorHeight, inspectorWidth, scriptHeight);
+        viewport = new Rect(explorerWidth, ribbonHeight, centerWidth, contentHeight);
 
         float diagnosticsWidth = Math.max(320f, width * 0.28f);
         diagnosticsWidth = Math.min(diagnosticsWidth, width * 0.5f);
@@ -82,5 +81,21 @@ public final class EditorDockingLayout {
         ImGui.setNextWindowSize(rect.width, rect.height, ImGuiCond.Always);
     }
 
-    private record Rect(float x, float y, float width, float height) {}
+    public Rect getViewportRect() {
+        return viewport;
+    }
+
+    public static final class Rect {
+        public final float x;
+        public final float y;
+        public final float width;
+        public final float height;
+
+        private Rect(float x, float y, float width, float height) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+        }
+    }
 }
