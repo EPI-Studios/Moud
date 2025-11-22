@@ -9,6 +9,7 @@ public final class SceneRuntimeFactory {
             case "model" -> new ModelRuntimeAdapter(sceneId);
             case "display" -> new DisplayRuntimeAdapter(sceneId);
             case "light" -> new LightRuntimeAdapter(sceneId);
+            case "terrain" -> new TerrainRuntimeAdapter(sceneId);
             default -> null;
         };
     }

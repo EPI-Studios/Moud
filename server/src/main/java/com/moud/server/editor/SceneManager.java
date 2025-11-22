@@ -45,6 +45,7 @@ public final class SceneManager {
         storageDirectory = projectRoot.resolve(".moud").resolve("scenes");
         try {
             Files.createDirectories(storageDirectory);
+            seedBaseSceneTemplate();
             loadScenesFromDisk();
         } catch (IOException e) {
             LOGGER.error("Failed to initialize scene storage", e);
@@ -105,6 +106,32 @@ public final class SceneManager {
         assets.addAll(builtInLightAssets());
 
         return assets;
+    }
+
+    public List<MoudPackets.ProjectFileEntry> getProjectFileEntries() {
+        if (projectRoot == null) {
+            return List.of();
+        }
+        List<MoudPackets.ProjectFileEntry> entries = new ArrayList<>();
+        scanProjectDirectory(projectRoot.resolve("assets"), entries);
+        scanProjectDirectory(projectRoot.resolve("src"), entries);
+        return entries;
+    }
+
+    private void scanProjectDirectory(Path directory, List<MoudPackets.ProjectFileEntry> entries) {
+        if (directory == null || !Files.exists(directory)) {
+            return;
+        }
+        try {
+            Files.walk(directory)
+                    .filter(Files::isRegularFile)
+                    .forEach(path -> {
+                        String relative = projectRoot.relativize(path).toString().replace('\\', '/');
+                        entries.add(new MoudPackets.ProjectFileEntry(relative, MoudPackets.ProjectEntryKind.FILE));
+                    });
+        } catch (IOException e) {
+            LOGGER.warn("Failed to scan project directory {}", directory, e);
+        }
     }
 
     private String humanize(String id) {
@@ -328,6 +355,41 @@ public final class SceneManager {
         } catch (IOException e) {
             LOGGER.error("Failed to iterate scene directory", e);
         }
+    }
+
+    private void seedBaseSceneTemplate() throws IOException {
+        Path defaultScene = storageDirectory.resolve(SceneDefaults.DEFAULT_SCENE_ID + ".json");
+        if (Files.exists(defaultScene)) {
+            return;
+        }
+
+        Map<String, Object> properties = new LinkedHashMap<>();
+        properties.put("label", "Base Terrain");
+        properties.put("description", "Automatically generated 1000x1000 flat grass scene.");
+        properties.put("size", SceneDefaults.BASE_SCENE_SIZE_BLOCKS);
+        properties.put("terrainHeight", SceneDefaults.BASE_TERRAIN_HEIGHT);
+        properties.put("surfaceBlock", SceneDefaults.DEFAULT_SURFACE_BLOCK);
+        properties.put("fillBlock", SceneDefaults.DEFAULT_FILL_BLOCK);
+        properties.put("spawn", Map.of(
+                "x", 0.5,
+                "y", SceneDefaults.defaultSpawnY(),
+                "z", 0.5
+        ));
+
+        PersistedSceneObject terrainDescriptor = new PersistedSceneObject(
+                "scene-template-terrain",
+                "terrain",
+                properties
+        );
+
+        PersistedScene template = new PersistedScene(
+                SceneDefaults.DEFAULT_SCENE_ID,
+                1L,
+                List.of(terrainDescriptor)
+        );
+
+        mapper.writeValue(defaultScene.toFile(), template);
+        LOGGER.info("Created base scene template at {}", defaultScene);
     }
 
     private void loadSceneFile(Path path) {
