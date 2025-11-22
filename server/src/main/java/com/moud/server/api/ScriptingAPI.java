@@ -23,8 +23,6 @@ public class ScriptingAPI {
     @HostAccess.Export
     public final WorldProxy world;
     @HostAccess.Export
-    public final WorldManagerProxy worlds;
-    @HostAccess.Export
     public final LightingAPIProxy lighting;
     @HostAccess.Export
     public final ZoneAPIProxy zones;
@@ -40,7 +38,6 @@ public class ScriptingAPI {
 
         this.server = new ServerProxy();
         this.world = new WorldProxy().createInstance();
-        this.worlds = new WorldManagerProxy();
         this.lighting = new LightingAPIProxy();
         this.zones = new ZoneAPIProxy(engine.getZoneManager());
         this.math = new MathProxy();

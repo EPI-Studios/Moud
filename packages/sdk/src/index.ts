@@ -46,7 +46,7 @@ declare global {
      */
     const api: import('./index').MoudAPI;
 
-    const Moud: {
+    const Moud: import('./index').MoudAPI & {
         audio: import('./index').ClientAudioAPI;
         gamepad: import('./index').GamepadAPI;
         [key: string]: any;
@@ -565,29 +565,55 @@ export interface MoudAPI {
      */
     on(eventName: 'server.load', callback: () => void): void;
     /**
-     * Accesses the server-wide API for managing players and broadcasting messages.
-     * @returns The Server API proxy.
+     * Server-wide helpers for broadcasting messages, enumerating players, and running commands.
+     * @remarks Mirrors {@link ServerProxy} on the backend.
+     */
+    readonly server: Server;
+    /**
+     * The default world proxy used for block manipulation and entity spawning.
+     */
+    readonly world: World;
+    /**
+     * API for creating and updating dynamic lights.
+     */
+    readonly lighting: LightingAPI;
+    /**
+     * Server-side trigger zone helpers used by the scene editor and scripts.
+     */
+    readonly zones: ZoneAPI;
+    /**
+     * Mathematical helper utilities that mirror the server-side `MathProxy`.
+     */
+    readonly math: Math;
+    /**
+     * Runtime command registration API.
+     */
+    readonly commands: Command;
+    /**
+     * Asset loader that reads packaged datapack resources.
+     */
+    readonly assets: Asset;
+    /**
+     * Asynchronous task runner shared with {@link AsyncManager}.
+     */
+    readonly async: AsyncManager;
+
+    /**
+     * @deprecated Use the {@link server} property instead.
      */
     getServer(): Server;
-
     /**
-     * Accesses the main world/instance API for block manipulation and entity spawning.
-     * @returns The World API proxy.
+     * @deprecated Use the {@link world} property instead.
      */
     getWorld(): World;
-
     /**
-     * Accesses the lighting API for creating and managing dynamic lights.
-     * @returns The Lighting API proxy.
+     * @deprecated Use the {@link lighting} property instead.
      */
     getLighting(): LightingAPI;
-
     /**
-     * Accesses the asynchronous task manager for running long-running, non-blocking operations.
-     * @returns The AsyncManager API proxy.
+     * @deprecated Use the {@link async} property instead.
      */
     getAsync(): AsyncManager;
-
 }
 
 /**
@@ -1085,6 +1111,30 @@ export interface World {
      * @returns The World object for chaining.
      */
     setSpawn(x: number, y: number, z: number): this;
+    /**
+     * @returns The current in-game time (0-24000) for this world.
+     */
+    getTime(): number;
+    /**
+     * Sets the current time of day. Values follow vanilla semantics (0=sunrise, 6000=noon).
+     */
+    setTime(time: number): void;
+    /**
+     * @returns The rate at which time advances. Default is 1.
+     */
+    getTimeRate(): number;
+    /**
+     * Adjusts how quickly time advances. Set to 0 to freeze time.
+     */
+    setTimeRate(rate: number): void;
+    /**
+     * @returns The number of ticks between client time-sync packets.
+     */
+    getTimeSynchronizationTicks(): number;
+    /**
+     * Changes how often clients are synchronized with the server time. Use 0 to disable sync.
+     */
+    setTimeSynchronizationTicks(ticks: number): void;
 
     /**
      * Gets the namespaced ID of a block at a specific coordinate.
