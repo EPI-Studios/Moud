@@ -104,6 +104,7 @@ public final class SceneManager {
                 });
 
         assets.addAll(builtInLightAssets());
+        assets.add(fakePlayerAsset());
 
         return assets;
     }
@@ -176,6 +177,18 @@ public final class SceneManager {
         lights.add(new MoudPackets.EditorAssetDefinition("light/area_soft", "Area Light", "light", softArea));
 
         return lights;
+    }
+
+    private MoudPackets.EditorAssetDefinition fakePlayerAsset() {
+        Map<String, Object> defaults = new HashMap<>();
+        defaults.put("skinUrl", "https://textures.minecraft.net/texture/45c338913be11c119f0e90a962f8d833b0dff78eaefdd8f2fa2a3434a1f2af0");
+        defaults.put("label", "Fake Player");
+        defaults.put("objectType", "player_model");
+        defaults.put("autoAnimation", true);
+        defaults.put("animationOverride", "");
+        defaults.put("loopAnimation", true);
+        defaults.put("animationDuration", 2000);
+        return new MoudPackets.EditorAssetDefinition("player/fake_default", "Fake Player", "player_model", defaults);
     }
 
     private static Map<String, Object> colorMap(double r, double g, double b) {
