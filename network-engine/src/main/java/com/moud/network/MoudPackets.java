@@ -17,6 +17,13 @@ public final class MoudPackets {
     public record SyncClientScriptsPacket(@Field(order = 0) String hash, @Field(order = 1, optional = true) byte[] scriptData) {
     }
 
+    @Packet(value = "moud:sync_scripts_chunk", direction = Direction.SERVER_TO_CLIENT)
+    public record SyncClientScriptsChunkPacket(@Field(order = 0) String hash,
+                                               @Field(order = 1) int totalChunks,
+                                               @Field(order = 2) int chunkIndex,
+                                               @Field(order = 3) byte[] data) {
+    }
+
     @Packet(value = "moud:script_event_c", direction = Direction.SERVER_TO_CLIENT)
     public record ClientboundScriptEventPacket(@Field(order = 0) String eventName, @Field(order = 1) String eventData) {
     }
@@ -250,7 +257,12 @@ public final class MoudPackets {
             @Field(order = 5) double collisionWidth,
             @Field(order = 6) double collisionHeight,
             @Field(order = 7) double collisionDepth,
-            @Field(order = 8) String texturePath
+            @Field(order = 8) String texturePath,
+            @Field(order = 9, optional = true) @Nullable List<CollisionBoxData> collisionBoxes,
+            @Field(order = 10, optional = true) @Nullable CollisionMode collisionMode,
+            @Field(order = 11, optional = true) @Nullable byte[] compressedMeshVertices,
+            @Field(order = 12, optional = true) @Nullable byte[] compressedMeshIndices,
+            @Field(order = 13, optional = true) @Nullable List<ConvexHullData> convexHulls
     ) {}
 
     @Packet(value = "moud:update_model_transform", direction = Direction.SERVER_TO_CLIENT)
@@ -286,6 +298,18 @@ public final class MoudPackets {
             @Field(order = 1) Vector3 halfExtents,
             @Field(order = 2) Quaternion rotation
     ) {}
+
+    public record ConvexHullData(
+            @Field(order = 0) byte[] compressedVertices,
+            @Field(order = 1) byte[] compressedIndices,
+            @Field(order = 2) CollisionBoxData bounds
+    ) {}
+
+    public enum CollisionMode {
+        BOX,
+        CONVEX_HULLS,
+        MESH
+    }
 
     @Packet(value = "moud:remove_model", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_RemoveModelPacket(
