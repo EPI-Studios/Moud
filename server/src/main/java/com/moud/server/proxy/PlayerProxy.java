@@ -8,10 +8,14 @@ import com.moud.server.api.validation.APIValidator;
 import com.moud.server.movement.ServerMovementHandler;
 import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.shared.api.SharedValueApiProxy;
+import com.moud.server.entity.ModelManager;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Player;
+import net.minestom.server.collision.BoundingBox;
+import net.minestom.server.instance.Instance;
+import net.minestom.server.instance.block.Block;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
@@ -449,6 +453,62 @@ public class PlayerProxy {
         return state != null ? state.speed() : 0.0f;
     }
 
+    /**
+     * Detects if the player is standing near a ledge (no support ahead).
+     * Considers blocks and model colliders.
+     * @param forwardDistance how far ahead to probe from the player's feet (blocks). Default 0.6 if <= 0.
+     * @param dropThreshold maximum vertical gap to still count as support. Default 0.75 if <= 0.
+     * @return true if there is support under the current feet but missing support ahead.
+     */
+    @HostAccess.Export
+    public boolean isAtEdge(double forwardDistance, double dropThreshold) {
+        if (!player.isOnline()) return false;
+        Instance instance = player.getInstance();
+        if (instance == null) return false;
+
+        double f = forwardDistance > 0 ? forwardDistance : 0.6;
+        double drop = dropThreshold > 0 ? dropThreshold : 0.75;
+
+        Pos pos = player.getPosition();
+        double footY = pos.y() - 0.1;
+
+        if (!hasSupport(instance, pos.x(), footY, pos.z(), drop)) {
+            return false;
+        }
+
+        Vec dir = pos.direction();
+        Vec horizontal = new Vec(dir.x(), 0, dir.z());
+        if (horizontal.lengthSquared() < 1e-6) {
+            horizontal = new Vec(1, 0, 0);
+        } else {
+            horizontal = horizontal.normalize();
+        }
+        Vec side = new Vec(-horizontal.z(), 0, horizontal.x());
+        double halfWidth = 0.35;
+
+        double[][] probes = new double[][]{
+                {f, 0},
+                {f, halfWidth},
+                {f, -halfWidth}
+        };
+
+        for (double[] probe : probes) {
+            double forward = probe[0];
+            double sideways = probe[1];
+            double px = pos.x() + horizontal.x() * forward + side.x() * sideways;
+            double pz = pos.z() + horizontal.z() * forward + side.z() * sideways;
+            if (!hasSupport(instance, px, footY, pz, drop)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @HostAccess.Export
+    public boolean isAtEdge() {
+        return isAtEdge(0.6, 0.75);
+    }
+
     private void callSetPartConfig(String partName, Map<String, Object> properties) {
         try {
             MoudPackets.S2C_SetPlayerPartConfigPacket packet = new MoudPackets.S2C_SetPlayerPartConfigPacket(player.getUuid(), partName, properties);
@@ -469,5 +529,36 @@ public class PlayerProxy {
             return new Vector3(x, y, z);
         }
         return Vector3.zero();
+    }
+
+    private boolean hasSupport(Instance instance, double x, double y, double z, double dropThreshold) {
+        int bx = (int) Math.floor(x);
+        int by = (int) Math.floor(y - dropThreshold);
+        int bz = (int) Math.floor(z);
+        Block block = instance.getBlock(bx, by, bz);
+        if (!block.isAir() && !block.isLiquid()) {
+            return true;
+        }
+
+        for (var model : ModelManager.getInstance().getAllModels()) {
+            var entity = model.getEntity();
+            if (entity == null || entity.getInstance() != instance) continue;
+            BoundingBox bb = entity.getBoundingBox();
+            if (bb == null) continue;
+            Pos p = entity.getPosition();
+            double minX = p.x() + bb.minX();
+            double minY = p.y() + bb.minY();
+            double minZ = p.z() + bb.minZ();
+            double maxX = p.x() + bb.maxX();
+            double maxY = p.y() + bb.maxY();
+            double maxZ = p.z() + bb.maxZ();
+            if (x >= minX && x <= maxX && z >= minZ && z <= maxZ) {
+                double gap = y - maxY;
+                if (gap >= -0.05 && gap <= dropThreshold + 0.05 && y >= minY - 0.1) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

@@ -35,6 +35,10 @@ public class PlayerModelProxy {
     private float pitch;
     private String skinUrl;
     private String currentAnimation;
+    private boolean autoAnimation = true;
+    private String manualAnimation;
+    private boolean loopAnimation = true;
+    private int animationDurationMs = 2000;
     private Value clickCallback;
 
     private enum MovementState {
@@ -85,14 +89,16 @@ public class PlayerModelProxy {
         this.movementState = newState;
         LOGGER.debug("Model {} changing state to {}", modelId, newState);
 
-        switch (newState) {
-            case IDLE:
-                playAnimation("moud:idle");
-                break;
-            case WALKING:
-                playAnimation("moud:walk");
-                break;
+        updateStateAnimation();
+    }
 
+    private void updateStateAnimation() {
+        if (manualAnimation != null || !autoAnimation) {
+            return;
+        }
+        switch (movementState) {
+            case IDLE -> playAnimation("moud:idle");
+            case WALKING -> playAnimation("moud:walk");
         }
     }
 
@@ -214,6 +220,52 @@ public class PlayerModelProxy {
     }
 
     @HostAccess.Export
+    public void setManualAnimation(String animationName) {
+        if (animationName == null || animationName.isBlank()) {
+            this.manualAnimation = null;
+            if (autoAnimation) {
+                updateStateAnimation();
+            } else {
+                stopAnimation();
+            }
+            return;
+        }
+        this.manualAnimation = animationName;
+        if (loopAnimation) {
+            playAnimation(animationName);
+        } else {
+            playAnimationWithFade(animationName, animationDurationMs);
+        }
+    }
+
+    @HostAccess.Export
+    public void clearManualAnimation() {
+        setManualAnimation(null);
+    }
+
+    @HostAccess.Export
+    public void setAutoAnimation(boolean enabled) {
+        this.autoAnimation = enabled;
+        if (autoAnimation && manualAnimation == null) {
+            updateStateAnimation();
+        } else if (!autoAnimation && manualAnimation == null) {
+            stopAnimation();
+        }
+    }
+
+    @HostAccess.Export
+    public void setLoopAnimation(boolean loop) {
+        this.loopAnimation = loop;
+    }
+
+    @HostAccess.Export
+    public void setAnimationDuration(int durationMs) {
+        if (durationMs > 0) {
+            this.animationDurationMs = durationMs;
+        }
+    }
+
+    @HostAccess.Export
     public void remove() {
         stopWalking();
         ALL_MODELS.remove(modelId);
@@ -245,6 +297,11 @@ public class PlayerModelProxy {
 
     private void broadcastAnimation() {
         MoudPackets.S2C_PlayModelAnimationPacket packet = new MoudPackets.S2C_PlayModelAnimationPacket(modelId, currentAnimation);
+        broadcast(packet);
+    }
+
+    private void stopAnimation() {
+        MoudPackets.S2C_PlayModelAnimationPacket packet = new MoudPackets.S2C_PlayModelAnimationPacket(modelId, "");
         broadcast(packet);
     }
 

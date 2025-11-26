@@ -231,8 +231,6 @@ public class PlayerUIProxy {
         ServerNetworkManager manager = ServerNetworkManager.getInstance();
         if (manager != null) {
             manager.send(player, packet);
-        } else {
-            player.sendPacket(ServerPacketWrapper.createPacket(packet));
         }
     }
 }
