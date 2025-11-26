@@ -71,7 +71,7 @@ public class MoudEngine {
 
         boolean enableReload = hasArg(launchArgs, "--enable-reload");
         boolean enableDevUtilities = hasArg(launchArgs, "--dev-utils");
-        boolean enableProfileUi = hasArg(launchArgs, "--profile-ui");
+        boolean enableProfileUi = hasArg(launchArgs, "--profile-ui") || hasArg(launchArgs, "--profiler-ui");
         int port = getPortFromArgs(launchArgs);
 
         try {
@@ -81,8 +81,6 @@ public class MoudEngine {
             LOGGER.info(LogContext.builder()
                     .put("project_root", projectRoot.toString())
                     .build(), "Loading project from: {}", projectRoot);
-
-            SceneManager.getInstance().initialize(projectRoot);
 
             this.packetEngine = new PacketEngine();
             packetEngine.initialize("com.moud.network");
@@ -103,6 +101,7 @@ public class MoudEngine {
             this.assetManager = new AssetManager(projectRoot);
             assetManager.initialize();
             SceneManager.getInstance().setAssetManager(assetManager);
+            SceneManager.getInstance().initialize(projectRoot);
 
             this.animationManager = new AnimationManager();
             animationManager.initialize();

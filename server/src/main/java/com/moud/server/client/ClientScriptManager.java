@@ -22,19 +22,20 @@ import java.util.stream.Stream;
 public class ClientScriptManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientScriptManager.class);
     private static final ObjectMapper JSON = new ObjectMapper();
+    private static final int MAX_CLIENT_BUNDLE_BYTES = 2 * 1024 * 1024; // keep under Minestom framed packet cap
 
     private byte[] compiledClientResources;
     private String clientResourcesHash;
 
     public void initialize() throws IOException {
+        boolean resourcePackConfigured = isResourcePackConfigured();
         Path projectRoot = ProjectLoader.findProjectRoot();
         Path clientDir = projectRoot.resolve("client");
-        Path assetsDir = projectRoot.resolve("assets");
         Path cacheDir = projectRoot.resolve(".moud/cache");
         Path cachedBundle = cacheDir.resolve("client.bundle");
         Path manifestPath = cacheDir.resolve("manifest.json");
 
-        if (Files.exists(cachedBundle)) {
+        if (!resourcePackConfigured && Files.exists(cachedBundle)) {
             LOGGER.info("Using cached client bundle from {}", cachedBundle);
             this.compiledClientResources = Files.readAllBytes(cachedBundle);
             this.clientResourcesHash = readHashFromManifest(manifestPath)
@@ -42,22 +43,24 @@ public class ClientScriptManager {
             LOGGER.info("Loaded cached client resources. Hash: {}, Size: {} bytes",
                     clientResourcesHash, compiledClientResources.length);
             return;
+        } else if (resourcePackConfigured && Files.exists(cachedBundle)) {
+            LOGGER.info("Resource pack configured; ignoring cached client bundle to avoid shipping assets in payload.");
         }
 
-        if (!Files.exists(clientDir) && !Files.exists(assetsDir)) {
-            LOGGER.info("No client or assets directory found, skipping client resources compilation");
+        if (!Files.exists(clientDir)) {
+            LOGGER.info("No client scripts directory found, skipping client resources compilation");
             return;
         }
 
-        LOGGER.info("Compiling client scripts and packaging assets...");
-        this.compiledClientResources = packageClientResources(projectRoot, clientDir, assetsDir);
+        LOGGER.info("Compiling client scripts (assets are served via resource pack)...");
+        this.compiledClientResources = packageClientResources(projectRoot, clientDir);
         this.clientResourcesHash = generateHash(compiledClientResources);
 
-        LOGGER.info("Client resources packaged successfully. Hash: {}, Size: {} bytes",
+        LOGGER.info("Client scripts packaged successfully. Hash: {}, Size: {} bytes",
                 clientResourcesHash, compiledClientResources.length);
     }
 
-    private byte[] packageClientResources(Path projectRoot, Path clientDir, Path assetsDir) throws IOException {
+    private byte[] packageClientResources(Path projectRoot, Path clientDir) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(baos)) {
 
@@ -68,15 +71,13 @@ public class ClientScriptManager {
                             .forEach(path -> addScriptToZip(clientDir, path, zip));
                 }
             }
-
-            if (Files.exists(assetsDir)) {
-                try (Stream<Path> paths = Files.walk(assetsDir)) {
-                    paths.filter(Files::isRegularFile)
-                            .forEach(path -> addAssetToZip(projectRoot, path, zip));
-                }
-            }
         }
-        return baos.toByteArray();
+        byte[] bundled = baos.toByteArray();
+        if (bundled.length > MAX_CLIENT_BUNDLE_BYTES) {
+            LOGGER.warn("Compiled client bundle exceeds safe size ({} bytes > {} bytes). Consider reducing script size or assets.",
+                    bundled.length, MAX_CLIENT_BUNDLE_BYTES);
+        }
+        return bundled;
     }
 
     private void addScriptToZip(Path clientDir, Path path, ZipOutputStream zip) {
@@ -96,38 +97,6 @@ public class ClientScriptManager {
             LOGGER.debug("Packaged script: {}", relativePath);
         } catch (IOException | ExecutionException | InterruptedException e) {
             throw new RuntimeException("Failed to process client script: " + path, e);
-        }
-    }
-
-    private void addAssetToZip(Path projectRoot, Path path, ZipOutputStream zip) {
-        try {
-            String relativePathStr = projectRoot.relativize(path).toString().replace('\\', '/');
-            byte[] content = Files.readAllBytes(path);
-
-            boolean isAnimationFile = relativePathStr.endsWith(".animation.json") ||
-                    (relativePathStr.contains("animations") && relativePathStr.endsWith(".json"));
-
-            if (isAnimationFile) {
-                Path relativePath = Paths.get(relativePathStr);
-
-                String namespace = relativePath.getName(1).toString();
-                String fileName = path.getFileName().toString();
-
-                String newPath = String.format("assets/%s/player_animations/%s", namespace, fileName);
-
-                zip.putNextEntry(new ZipEntry(newPath));
-                zip.write(content);
-                zip.closeEntry();
-                LOGGER.info("Packaged animation file to PlayerAnimLib path: {} (from {})", newPath, relativePathStr);
-            } else {
-
-                zip.putNextEntry(new ZipEntry(relativePathStr));
-                zip.write(content);
-                zip.closeEntry();
-                LOGGER.debug("Packaged asset: {}", relativePathStr);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to process asset: " + path, e);
         }
     }
 
@@ -192,5 +161,14 @@ public class ClientScriptManager {
         this.compiledClientResources = bundle;
         this.clientResourcesHash = (hash != null && !hash.isBlank()) ? hash : generateHash(bundle);
         LOGGER.info("Client bundle updated. Hash: {}, Size: {} bytes", clientResourcesHash, compiledClientResources.length);
+    }
+
+    private boolean isResourcePackConfigured() {
+        String packPathEnv = System.getenv("MOUD_RESOURCE_PACK_PATH");
+        if (packPathEnv == null || packPathEnv.isBlank()) {
+            return false;
+        }
+        Path packPath = Paths.get(packPathEnv);
+        return Files.isRegularFile(packPath);
     }
 }
