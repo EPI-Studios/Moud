@@ -80,8 +80,6 @@ public class ValueSynchronizer {
         ServerNetworkManager manager = ServerNetworkManager.getInstance();
         if (manager != null) {
             manager.send(player, packet);
-        } else {
-            player.sendPacket(ServerPacketWrapper.createPacket(packet));
         }
         store.markAllClean();
 
@@ -117,8 +115,6 @@ public class ValueSynchronizer {
                     ServerNetworkManager manager = ServerNetworkManager.getInstance();
                     if (manager != null) {
                         manager.send(player, packet);
-                    } else {
-                        player.sendPacket(ServerPacketWrapper.createPacket(packet));
                     }
                     store.markAllClean();
 
