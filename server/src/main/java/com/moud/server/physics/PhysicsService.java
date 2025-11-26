@@ -4,6 +4,7 @@ import com.github.stephengold.joltjni.Body;
 import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.BodyInterface;
 import com.github.stephengold.joltjni.BoxShape;
+import com.github.stephengold.joltjni.MeshShapeSettings;
 import com.github.stephengold.joltjni.ConvexHullShapeSettings;
 import com.github.stephengold.joltjni.Jolt;
 import com.github.stephengold.joltjni.JobSystem;
@@ -19,7 +20,9 @@ import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.ShapeResult;
 import com.github.stephengold.joltjni.TempAllocator;
 import com.github.stephengold.joltjni.TempAllocatorMalloc;
+import com.github.stephengold.joltjni.Triangle;
 import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.MutableCompoundShapeSettings;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
 import com.github.stephengold.joltjni.enumerate.EPhysicsUpdateError;
@@ -32,7 +35,9 @@ import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.physics.mesh.ChunkMesher;
 import com.moud.server.physics.mesh.ModelCollisionLibrary;
+import com.moud.server.physics.mesh.ModelCollisionLibrary.MeshData;
 import com.moud.server.proxy.ModelProxy;
+import com.moud.server.proxy.ModelProxyBootstrap;
 import net.minestom.server.collision.BoundingBox;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
@@ -52,6 +57,8 @@ import java.nio.ByteOrder;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -96,6 +103,7 @@ public final class PhysicsService {
         if (initialized) {
             return;
         }
+        com.moud.server.proxy.ModelProxyBootstrap.ensureAssetsReady();
         LOGGER.info("Initializing physics service");
         PhysicsNativeLoader.loadLibrary();
 
@@ -216,8 +224,10 @@ public final class PhysicsService {
     }
 
     private ConstShape createConvexHullShape(ModelProxy model) {
-        float[] baseVertices = ModelCollisionLibrary.getVertices(model.getModelPath());
-        if (baseVertices == null || baseVertices.length < 9) {
+        List<float[]> hulls = ModelCollisionLibrary.getConvexHulls(model.getModelPath());
+        boolean hasHulls = hulls != null && !hulls.isEmpty();
+        float[] baseVertices = hasHulls ? null : ModelCollisionLibrary.getVertices(model.getModelPath());
+        if (!hasHulls && (baseVertices == null || baseVertices.length < 9)) {
             return null;
         }
 
@@ -226,30 +236,96 @@ public final class PhysicsService {
         float sy = (float) Math.max(Math.abs(scale.y), 1e-3);
         float sz = (float) Math.max(Math.abs(scale.z), 1e-3);
 
-        float[] scaled = new float[baseVertices.length];
-        for (int i = 0; i < baseVertices.length; i += 3) {
-            scaled[i] = baseVertices[i] * sx;
-            scaled[i + 1] = baseVertices[i + 1] * sy;
-            scaled[i + 2] = baseVertices[i + 2] * sz;
-        }
-
         try {
-            ByteBuffer direct = ByteBuffer.allocateDirect(scaled.length * Float.BYTES).order(ByteOrder.nativeOrder());
-            FloatBuffer buffer = direct.asFloatBuffer();
-            buffer.put(scaled);
-            buffer.flip();
-
-            ConvexHullShapeSettings hullSettings = new ConvexHullShapeSettings(baseVertices.length / 3, buffer);
-            ShapeResult result = hullSettings.create();
-            if (result.hasError()) {
-                LOGGER.warn("Failed to build convex hull for model {}: {}", model.getModelPath(), result.getError());
-                return null;
+            if (hasHulls && hulls.size() > 1) {
+                MutableCompoundShapeSettings compound = new MutableCompoundShapeSettings();
+                for (float[] hull : hulls) {
+                    if (hull == null || hull.length < 9) {
+                        continue;
+                    }
+                    ConstShape shape = buildHullShape(hull, sx, sy, sz);
+                    if (shape != null) {
+                        compound.addShape(Vec3.sZero(), Quat.sIdentity(), shape);
+                    }
+                }
+                ShapeResult result = compound.create();
+                if (result.hasError()) {
+                    LOGGER.warn("Failed to build compound hull for model {}: {}", model.getModelPath(), result.getError());
+                    return null;
+                }
+                return result.get();
             }
-            return result.get();
+
+            float[] hullVerts = hasHulls ? hulls.get(0) : baseVertices;
+            return buildHullShape(hullVerts, sx, sy, sz);
         } catch (Exception e) {
             LOGGER.warn("Exception while creating convex hull for model {}", model.getModelPath(), e);
             return null;
         }
+    }
+
+    private ConstShape buildHullShape(float[] verts, float sx, float sy, float sz) {
+        if (verts == null || verts.length < 9) {
+            return null;
+        }
+        float[] scaled = new float[verts.length];
+        for (int i = 0; i < verts.length; i += 3) {
+            scaled[i] = verts[i] * sx;
+            scaled[i + 1] = verts[i + 1] * sy;
+            scaled[i + 2] = verts[i + 2] * sz;
+        }
+        ByteBuffer direct = ByteBuffer.allocateDirect(scaled.length * Float.BYTES).order(ByteOrder.nativeOrder());
+        FloatBuffer buffer = direct.asFloatBuffer();
+        buffer.put(scaled);
+        buffer.flip();
+
+        ConvexHullShapeSettings hullSettings = new ConvexHullShapeSettings(scaled.length / 3, buffer);
+        ShapeResult result = hullSettings.create();
+        if (result.hasError()) {
+            return null;
+        }
+        return result.get();
+    }
+
+    private ConstShape createMeshShape(ModelProxy model) {
+        MeshData mesh = ModelCollisionLibrary.getMesh(model.getModelPath());
+        if (mesh == null || mesh.vertices() == null || mesh.indices() == null || mesh.indices().length < 3) {
+            return null;
+        }
+
+        Vector3 scale = model.getScale() != null ? model.getScale() : Vector3.one();
+        float sx = (float) Math.max(Math.abs(scale.x), 1e-3);
+        float sy = (float) Math.max(Math.abs(scale.y), 1e-3);
+        float sz = (float) Math.max(Math.abs(scale.z), 1e-3);
+
+        float[] verts = mesh.vertices();
+        int[] indices = mesh.indices();
+
+        List<Triangle> triangles = new ArrayList<>(indices.length / 3);
+        for (int i = 0; i < indices.length; i += 3) {
+            int ia = indices[i] * 3;
+            int ib = indices[i + 1] * 3;
+            int ic = indices[i + 2] * 3;
+            if (ia < 0 || ib < 0 || ic < 0 || ia + 2 >= verts.length || ib + 2 >= verts.length || ic + 2 >= verts.length) {
+                continue;
+            }
+            Vec3 a = new Vec3(verts[ia] * sx, verts[ia + 1] * sy, verts[ia + 2] * sz);
+            Vec3 b = new Vec3(verts[ib] * sx, verts[ib + 1] * sy, verts[ib + 2] * sz);
+            Vec3 c = new Vec3(verts[ic] * sx, verts[ic + 1] * sy, verts[ic + 2] * sz);
+            triangles.add(new Triangle(a, b, c));
+        }
+
+        if (triangles.isEmpty()) {
+            return null;
+        }
+
+        MeshShapeSettings settings = new MeshShapeSettings(triangles);
+        ShapeResult result = settings.create();
+        if (result.hasError()) {
+            LOGGER.warn("Failed to build mesh shape for model {}: {}", model.getModelPath(), result.getError());
+            return null;
+        }
+        return result.get();
     }
 
     public void attachDynamicModel(ModelProxy model, Vector3 halfExtents, float mass, Vector3 initialVelocity) {
@@ -257,12 +333,23 @@ public final class PhysicsService {
 
         ensureChunksLoadedForPosition(model, startPos);
 
-        ConstShape collisionShape = createConvexHullShape(model);
+        ConstShape collisionShape = switch (model.getCollisionMode()) {
+            case STATIC_MESH -> {
+                ConstShape mesh = createMeshShape(model);
+                if (mesh == null) {
+                    LOGGER.warn("Mesh collision requested for model {} but mesh shape failed, falling back to convex hull", model.getModelPath());
+                    mesh = createConvexHullShape(model);
+                }
+                yield mesh;
+            }
+            case CAPSULE -> null; // capsule not implemented
+            case CONVEX, AUTO -> createConvexHullShape(model);
+        };
         if (collisionShape == null) {
             LOGGER.debug(LogContext.builder()
                     .put("modelId", model.getId())
                     .put("modelPath", model.getModelPath())
-                    .build(), "Failed to create convex hull for model {} - using box fallback", model.getModelPath());
+                    .build(), "Failed to create collision shape for model {} - using box fallback", model.getModelPath());
             collisionShape = new BoxShape(halfExtents.x, halfExtents.y, halfExtents.z);
         }
         BodyCreationSettings settings = new BodyCreationSettings()

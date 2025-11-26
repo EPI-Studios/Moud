@@ -4,6 +4,9 @@ import com.moud.api.collision.OBB;
 import com.moud.server.assets.AssetManager;
 import com.moud.server.collision.MeshBoxDecomposer;
 import com.moud.server.editor.SceneManager;
+import com.github.stephengold.joltjni.vhacd.ConvexHull;
+import com.github.stephengold.joltjni.vhacd.Decomposer;
+import com.github.stephengold.joltjni.vhacd.Parameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,13 +15,21 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 public final class ModelCollisionLibrary {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ModelCollisionLibrary.class);
-    private static final Map<String, float[]> VERTEX_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, MeshData> MESH_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, List<OBB>> COLLISION_BOX_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, List<float[]>> VHACD_HULL_CACHE = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, CompletableFuture<List<OBB>>> PENDING = new ConcurrentHashMap<>();
+    private static final ExecutorService WORKERS = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors() / 2));
 
     private ModelCollisionLibrary() {
     }
@@ -27,10 +38,28 @@ public final class ModelCollisionLibrary {
         if (modelPath == null || modelPath.isBlank()) {
             return null;
         }
-        return VERTEX_CACHE.computeIfAbsent(modelPath, ModelCollisionLibrary::loadVertices);
+        MeshData mesh = getMesh(modelPath);
+        return mesh != null ? mesh.vertices() : null;
     }
 
-    private static float[] loadVertices(String modelPath) {
+    public static MeshData getMesh(String modelPath) {
+        if (modelPath == null || modelPath.isBlank()) {
+            return null;
+        }
+        MeshData cached = MESH_CACHE.get(modelPath);
+        if (cached != null) {
+            return cached;
+        }
+        MeshData loaded = loadMesh(modelPath);
+        if (loaded != null) {
+            MESH_CACHE.put(modelPath, loaded);
+        } else {
+            MESH_CACHE.remove(modelPath);
+        }
+        return loaded;
+    }
+
+    private static MeshData loadMesh(String modelPath) {
         AssetManager assetManager = SceneManager.getInstance().getAssetManager();
         if (assetManager == null) {
             LOGGER.warn("Cannot resolve model '{}' because AssetManager is not initialized", modelPath);
@@ -57,12 +86,12 @@ public final class ModelCollisionLibrary {
         }
 
         try (InputStream inputStream = new ByteArrayInputStream(modelAsset.getData())) {
-            float[] positions = ObjModelLoader.loadPositions(inputStream);
-            if (positions.length < 9) {
-                LOGGER.warn("Model '{}' does not contain enough vertices for collision mesh", modelPath);
+            MeshData mesh = ObjModelLoader.loadMesh(inputStream);
+            if (mesh.vertices().length < 9 || mesh.indices().length < 3) {
+                LOGGER.warn("Model '{}' does not contain enough data for collision mesh", modelPath);
                 return null;
             }
-            return positions;
+            return mesh;
         } catch (IOException e) {
             LOGGER.warn("Failed to parse OBJ model '{}': {}", modelPath, e.getMessage());
             return null;
@@ -87,23 +116,139 @@ public final class ModelCollisionLibrary {
         if (modelPath == null || modelPath.isBlank()) {
             return null;
         }
-        return COLLISION_BOX_CACHE.computeIfAbsent(modelPath, ModelCollisionLibrary::generateCollisionBoxes);
+        return COLLISION_BOX_CACHE.compute(modelPath, (k, existing) -> {
+            if (existing != null && !existing.isEmpty() && isReasonable(existing)) {
+                return existing;
+            }
+            List<OBB> boxes = generateCollisionBoxes(modelPath);
+            if (boxes == null) {
+                COLLISION_BOX_CACHE.remove(modelPath);
+            }
+            return boxes;
+        });
+    }
+
+    public static CompletableFuture<List<OBB>> getCollisionBoxesAsync(String modelPath) {
+        if (modelPath == null || modelPath.isBlank()) {
+            return CompletableFuture.completedFuture(List.of());
+        }
+        List<OBB> cached = COLLISION_BOX_CACHE.get(modelPath);
+        if (cached != null) {
+            return CompletableFuture.completedFuture(cached);
+        }
+        return PENDING.computeIfAbsent(modelPath, key ->
+                CompletableFuture.supplyAsync(() -> {
+                    List<OBB> boxes = generateCollisionBoxes(key);
+                    if (boxes != null) {
+                        COLLISION_BOX_CACHE.put(key, boxes);
+                    }
+                    return boxes;
+                }, WORKERS).whenComplete((boxes, throwable) -> PENDING.remove(key)));
+    }
+
+    public static List<float[]> getConvexHulls(String modelPath) {
+        if (modelPath == null || modelPath.isBlank()) {
+            return List.of();
+        }
+        return VHACD_HULL_CACHE.computeIfAbsent(modelPath, key -> {
+            MeshData mesh = getMesh(key);
+            if (mesh == null || mesh.vertices().length < 9 || mesh.indices().length < 3) {
+                LOGGER.warn("Cannot generate VHACD hulls for '{}': no mesh data", modelPath);
+                return List.of();
+            }
+            try {
+                Parameters params = new Parameters()
+                        .setResolution(80_000)
+                        .setMaxConvexHulls(16)
+                        .setMaxRecursionDepth(10)
+                        .setFindBestPlane(true)
+                        .setShrinkWrap(true);
+                Decomposer decomposer = new Decomposer();
+                var hulls = decomposer.decompose(mesh.vertices(), mesh.indices(), params);
+                if (hulls == null || hulls.isEmpty()) {
+                    LOGGER.warn("VHACD produced no hulls for '{}'", modelPath);
+                    return List.of();
+                }
+                List<float[]> result = hulls.stream()
+                        .map(ModelCollisionLibrary::toPointArray)
+                        .filter(arr -> arr != null && arr.length >= 9)
+                        .collect(Collectors.toList());
+                LOGGER.info("Generated {} VHACD hulls for model '{}'", result.size(), modelPath);
+                return result;
+            } catch (Exception e) {
+                LOGGER.warn("VHACD failed for model '{}': {}", modelPath, e.getMessage());
+                return List.of();
+            }
+        });
+    }
+
+    private static float[] toPointArray(ConvexHull hull) {
+        try {
+            var buffer = hull.getPointsAsBuffer();
+            if (buffer == null) {
+                return null;
+            }
+            float[] arr = new float[buffer.remaining()];
+            buffer.get(arr);
+            return arr;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static List<OBB> generateCollisionBoxes(String modelPath) {
-        float[] vertices = getVertices(modelPath);
-        if (vertices == null || vertices.length < 9) {
-            LOGGER.warn("Cannot generate collision boxes for '{}': no vertex data", modelPath);
+        MeshData mesh = getMesh(modelPath);
+        if (mesh == null || mesh.vertices().length < 9 || mesh.indices().length < 3) {
+            LOGGER.warn("Cannot generate collision boxes for '{}': no mesh data", modelPath);
             return null;
         }
 
-        List<OBB> boxes = MeshBoxDecomposer.decompose(vertices, 3);
+        List<OBB> boxes = MeshBoxDecomposer.decompose(mesh.vertices(), mesh.indices(), modelPath);
         LOGGER.info("Generated {} collision boxes for model '{}'", boxes.size(), modelPath);
         return boxes;
     }
 
+    public static double[] computeBounds(String modelPath) {
+        MeshData mesh = getMesh(modelPath);
+        float[] vertices = mesh != null ? mesh.vertices() : null;
+        if (vertices == null || vertices.length < 3) {
+            return null;
+        }
+        double minX = Double.POSITIVE_INFINITY, minY = Double.POSITIVE_INFINITY, minZ = Double.POSITIVE_INFINITY;
+        double maxX = Double.NEGATIVE_INFINITY, maxY = Double.NEGATIVE_INFINITY, maxZ = Double.NEGATIVE_INFINITY;
+        for (int i = 0; i < vertices.length; i += 3) {
+            float x = vertices[i];
+            float y = vertices[i + 1];
+            float z = vertices[i + 2];
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            minZ = Math.min(minZ, z);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+            maxZ = Math.max(maxZ, z);
+        }
+        return new double[]{minX, minY, minZ, maxX, maxY, maxZ};
+    }
+
+    private static boolean isReasonable(List<OBB> boxes) {
+        if (boxes == null || boxes.isEmpty()) {
+            return false;
+        }
+        double maxExtent = 0;
+        for (OBB obb : boxes) {
+            if (obb == null || obb.halfExtents == null) continue;
+            maxExtent = Math.max(maxExtent, Math.max(Math.max(obb.halfExtents.x, obb.halfExtents.y), obb.halfExtents.z) * 2.0);
+            if (maxExtent > 256.0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static void clearCache() {
-        VERTEX_CACHE.clear();
+        MESH_CACHE.clear();
         COLLISION_BOX_CACHE.clear();
     }
+
+    public record MeshData(float[] vertices, int[] indices) {}
 }
