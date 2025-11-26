@@ -3,6 +3,7 @@ package com.moud.client;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.moud.api.math.Quaternion;
+
 import com.moud.api.math.Vector3;
 import com.moud.client.animation.*;
 import com.moud.client.editor.EditorModeManager;
@@ -34,6 +35,8 @@ import com.moud.client.editor.scene.SceneSessionManager;
 import com.moud.client.editor.scene.blueprint.ClientBlueprintNetwork;
 import com.moud.client.ui.UIOverlayManager;
 import com.moud.client.util.WindowAnimator;
+import com.moud.client.collision.ClientCollisionManager;
+import com.moud.client.collision.Triangle;
 import com.moud.network.MoudPackets;
 import com.moud.network.MoudPackets.*;
 import com.zigythebird.playeranim.api.PlayerAnimationAccess;
@@ -63,6 +66,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.network.packet.s2c.play.GameJoinS2CPacket;
 import net.minecraft.resource.*;
 import net.minecraft.resource.featuretoggle.FeatureSet;
+import net.minecraft.client.network.ServerInfo;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import org.graalvm.polyglot.Value;
@@ -105,6 +109,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private final AtomicBoolean resourcesLoaded = new AtomicBoolean(false);
 
     private final AtomicBoolean waitingForResources = new AtomicBoolean(false);
+    private ServerInfo.ResourcePackPolicy previousResourcePackPolicy = null;
     private final AtomicReference<InMemoryPackResources> dynamicPack = new AtomicReference<>(null);
     private final Queue<java.util.function.Consumer<ClientPlayNetworkHandler>> deferredPacketHandlers = new java.util.concurrent.ConcurrentLinkedQueue<>();
     private PlayerModelRenderer playerModelRenderer;
@@ -115,6 +120,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private PlayerStateManager playerStateManager;
     private ClientCursorManager clientCursorManager;
     private String currentResourcesHash = "";
+    private final Map<String, ScriptChunkAccumulator> scriptChunkAccumulators = new HashMap<>();
     private long joinTime = -1L;
     private boolean moudServicesInitialized = false;
     private static boolean isOnMoudServer = false;
@@ -180,6 +186,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_PlayPlayerAnimationPacket.class, (player, packet) -> handlePlayPlayerAnimation(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_PlayModelAnimationPacket.class, (player, packet) -> handlePlayModelAnimation(packet));
         ClientPacketWrapper.registerHandler(SyncClientScriptsPacket.class, (player, packet) -> handleSyncScripts(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.SyncClientScriptsChunkPacket.class, (player, packet) -> handleSyncScriptsChunk(packet));
         ClientPacketWrapper.registerHandler(ClientboundScriptEventPacket.class, (player, packet) -> handleScriptEvent(packet));
         ClientPacketWrapper.registerHandler(CameraLockPacket.class, (player, packet) -> handleCameraLock(packet));
         ClientPacketWrapper.registerHandler(PlayerStatePacket.class, (player, packet) -> handlePlayerState(packet));
@@ -652,7 +659,42 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         for (Box box : boxes) {
             WorldRenderer.drawBox(matrices, buffer, box, 1.0f, 0.2f, 0.2f, 1.0f);
         }
+        var meshBounds = ClientCollisionManager.getDebugMeshBounds();
+        for (Box meshBound : meshBounds) {
+            WorldRenderer.drawBox(matrices, buffer, meshBound, 0.1f, 0.6f, 1.0f, 1.0f);
+        }
+        var tris = ClientCollisionManager.getDebugTriangles();
+        if (!tris.isEmpty()) {
+            for (var tri : tris) {
+                drawLine(buffer, matrices, tri.v0, tri.v1, 0.1f, 0.6f, 1.0f, 1.0f);
+                drawLine(buffer, matrices, tri.v1, tri.v2, 0.1f, 0.6f, 1.0f, 1.0f);
+                drawLine(buffer, matrices, tri.v2, tri.v0, 0.1f, 0.6f, 1.0f, 1.0f);
+            }
+        } else if (!meshBounds.isEmpty()) {
+            for (Box meshBound : meshBounds) {
+                WorldRenderer.drawBox(matrices, buffer, meshBound, 0.1f, 0.8f, 0.1f, 1.0f);
+            }
+        } else {
+            for (var mesh : ClientCollisionManager.getAllMeshes()) {
+                if (mesh.getBounds() != null) {
+                    WorldRenderer.drawBox(matrices, buffer, mesh.getBounds(), 0.1f, 0.6f, 1.0f, 1.0f);
+                }
+            }
+        }
         matrices.pop();
+    }
+
+    private static void drawLine(VertexConsumer buffer, MatrixStack matrices, Vec3d a, Vec3d b,
+                                 float r, float g, float bCol, float aCol) {
+        var entry = matrices.peek();
+        buffer.vertex(entry.getPositionMatrix(), (float) a.x, (float) a.y, (float) a.z)
+                .color(r, g, bCol, aCol)
+                .normal(0.0f, 1.0f, 0.0f);
+
+        buffer.vertex(entry.getPositionMatrix(), (float) b.x, (float) b.y, (float) b.z)
+                .color(r, g, bCol, aCol)
+                .normal(0.0f, 1.0f, 0.0f);
+
     }
 
     private Box createModelBounds(RenderableModel model, Vector3 position) {
@@ -714,6 +756,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
     private void onJoinServer(ClientPlayNetworkHandler handler, net.fabricmc.fabric.api.networking.v1.PacketSender sender, MinecraftClient client) {
         initializeMoudServices();
+        enableServerResourcePackAutoAccept(handler);
 
         resourcesLoaded.set(false);
         waitingForResources.set(true);
@@ -724,6 +767,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
     private void onDisconnectServer(ClientPlayNetworkHandler handler, MinecraftClient client) {
         isOnMoudServer = false;
+        restoreServerResourcePackPolicy(handler);
         if (apiService != null && apiService.events != null) {
             apiService.events.dispatch("core:disconnect", "Player disconnected");
         }
@@ -748,15 +792,52 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         setCustomCameraActive(false);
     }
 
+    private void enableServerResourcePackAutoAccept(ClientPlayNetworkHandler handler) {
+        ServerInfo serverInfo = handler != null ? handler.getServerInfo() : null;
+        if (serverInfo == null) {
+            previousResourcePackPolicy = null;
+            return;
+        }
+        previousResourcePackPolicy = serverInfo.getResourcePackPolicy();
+        if (previousResourcePackPolicy != ServerInfo.ResourcePackPolicy.ENABLED) {
+            serverInfo.setResourcePackPolicy(ServerInfo.ResourcePackPolicy.ENABLED);
+            LOGGER.info("Auto-enabled server resource packs for seamless Moud experience.");
+        }
+    }
+
+    private void restoreServerResourcePackPolicy(ClientPlayNetworkHandler handler) {
+        if (handler == null) {
+            previousResourcePackPolicy = null;
+            return;
+        }
+        ServerInfo serverInfo = handler.getServerInfo();
+        if (serverInfo != null && previousResourcePackPolicy != null) {
+            serverInfo.setResourcePackPolicy(previousResourcePackPolicy);
+            LOGGER.info("Restored previous server resource pack policy after disconnect.");
+        }
+        previousResourcePackPolicy = null;
+    }
+
     private void registerAnimationLayer() {
         PlayerAnimationAccess.REGISTER_ANIMATION_EVENT.register((player, manager) -> {
             manager.addAnimLayer(10000, new ExternalPartConfigLayer(player.getUuid()));
         });
     }
 
+    private void handleSyncScriptsChunk(MoudPackets.SyncClientScriptsChunkPacket packet) {
+        ScriptChunkAccumulator accumulator = scriptChunkAccumulators.computeIfAbsent(packet.hash(), h -> new ScriptChunkAccumulator(packet.totalChunks()));
+        accumulator.accept(packet.chunkIndex(), packet.data());
+        if (accumulator.isComplete()) {
+            byte[] assembled = accumulator.assemble();
+            scriptChunkAccumulators.remove(packet.hash());
+            handleSyncScripts(new SyncClientScriptsPacket(packet.hash(), assembled));
+        }
+    }
+
     private void handleSyncScripts(SyncClientScriptsPacket packet) {
         isOnMoudServer = true;
         joinTime = -1L;
+        scriptChunkAccumulators.remove(packet.hash());
 
         if (apiService != null && apiService.events != null) {
             apiService.events.dispatch("core:scriptsReceived", packet.hash());
@@ -845,6 +926,20 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
         MinecraftClient client = MinecraftClient.getInstance();
         client.execute(() -> {
+            if (assetsData.isEmpty()) {
+                LOGGER.info("No assets bundled with client sync payload; assuming server resource pack covers assets.");
+                dynamicPack.set(null);
+                loadScriptsOnly(scriptsData);
+                resourcesLoaded.set(true);
+                waitingForResources.set(false);
+                if (apiService != null && apiService.events != null) {
+                    apiService.events.dispatch("core:resourcesReloaded");
+                }
+                processPendingGameJoinPacket();
+                LOGGER.info("Scripts loaded without bundled assets. Hash {}.", currentResourcesHash);
+                return;
+            }
+
             InMemoryPackResources newPack = new InMemoryPackResources(MOUDPACK_ID.toString(), Text.of("Moud Dynamic Server Resources"), assetsData);
             dynamicPack.set(newPack);
 
@@ -912,6 +1007,8 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             if (packet.skinUrl() != null && !packet.skinUrl().isEmpty()) {
                 model.updateSkin(packet.skinUrl());
             }
+            RuntimeObjectRegistry.getInstance().syncPlayerModel(packet.modelId(),
+                    new Vec3d(packet.position().x, packet.position().y, packet.position().z));
             LOGGER.info("Created player model with ID: {} at position: {}", packet.modelId(), packet.position());
         });
     }
@@ -919,6 +1016,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private void handlePlayerModelRemove(PlayerModelRemovePacket packet) {
         MinecraftClient.getInstance().execute(() -> {
             ClientPlayerModelManager.getInstance().removeModel(packet.modelId());
+            RuntimeObjectRegistry.getInstance().removePlayerModel(packet.modelId());
             LOGGER.info("Removed player model with ID: {}", packet.modelId());
         });
     }
@@ -1084,6 +1182,8 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             AnimatedPlayerModel model = ClientPlayerModelManager.getInstance().getModel(packet.modelId());
             if (model != null) {
                 model.updatePositionAndRotation(packet.position(), packet.yaw(), packet.pitch());
+                RuntimeObjectRegistry.getInstance().syncPlayerModel(packet.modelId(),
+                        new Vec3d(packet.position().x, packet.position().y, packet.position().z));
             } else {
                 LOGGER.warn("Received update for unknown model ID: {}", packet.modelId());
             }
@@ -1114,6 +1214,11 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             if (model != null) {
                 model.updateTransform(packet.position(), packet.rotation(), packet.scale());
                 model.updateCollisionBox(packet.collisionWidth(), packet.collisionHeight(), packet.collisionDepth());
+                if (packet.collisionBoxes() != null && !packet.collisionBoxes().isEmpty()) {
+                    List<com.moud.api.collision.OBB> mapped = mapCollisionBoxes(packet.collisionBoxes());
+                    LOGGER.info("Model {} created with {} collision boxes from server", packet.modelId(), mapped.size());
+                    model.setCollisionBoxes(mapped);
+                }
                 Identifier textureId = parseTextureId(packet.texturePath());
                 if (textureId != null) {
                     model.setTexture(textureId);
@@ -1123,6 +1228,23 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 ModelCollisionManager.getInstance().sync(model);
                 RuntimeObjectRegistry.getInstance().syncModel(model);
             }
+            // Register client-side collision mesh if present
+            int vLen = packet.compressedMeshVertices() != null ? packet.compressedMeshVertices().length : -1;
+            int iLen = packet.compressedMeshIndices() != null ? packet.compressedMeshIndices().length : -1;
+            MoudPackets.CollisionMode mode = packet.collisionMode();
+            if ((mode == null || mode == MoudPackets.CollisionMode.BOX) && vLen > 0 && iLen > 0) {
+                mode = MoudPackets.CollisionMode.MESH; // fail-safe: payload present but mode missing/box
+            }
+            LOGGER.info("CreateModel collision payload: mode={}, vertsBytes={}, indicesBytes={}", mode, vLen, iLen);
+            ClientCollisionManager.registerModel(
+                    packet.modelId(),
+                    mode,
+                    packet.compressedMeshVertices(),
+                    packet.compressedMeshIndices(),
+                    packet.position(),
+                    packet.rotation(),
+                    packet.scale()
+            );
         });
     }
 
@@ -1134,6 +1256,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 ModelCollisionManager.getInstance().sync(model);
                 RuntimeObjectRegistry.getInstance().syncModel(model);
             }
+            ClientCollisionManager.updateTransform(packet.modelId(), packet.position(), packet.rotation(), packet.scale());
         });
     }
 
@@ -1167,23 +1290,36 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         MinecraftClient.getInstance().execute(() -> {
             RenderableModel model = ClientModelManager.getInstance().getModel(packet.modelId());
             if (model != null) {
-                List<com.moud.api.collision.OBB> collisionBoxes = new ArrayList<>();
-                for (MoudPackets.CollisionBoxData boxData : packet.collisionBoxes()) {
-                    collisionBoxes.add(new com.moud.api.collision.OBB(
-                        boxData.center(),
-                        boxData.halfExtents(),
-                        boxData.rotation()
-                    ));
-                }
-                model.setCollisionBoxes(collisionBoxes);
+                List<com.moud.api.collision.OBB> mapped = mapCollisionBoxes(packet.collisionBoxes());
+                LOGGER.info("Model {} received {} collision boxes from server", packet.modelId(), mapped.size());
+                model.setCollisionBoxes(mapped);
                 ModelCollisionManager.getInstance().sync(model);
             }
         });
     }
 
+    private List<com.moud.api.collision.OBB> mapCollisionBoxes(List<MoudPackets.CollisionBoxData> packetBoxes) {
+        List<com.moud.api.collision.OBB> collisionBoxes = new ArrayList<>();
+        if (packetBoxes == null) {
+            return collisionBoxes;
+        }
+        for (MoudPackets.CollisionBoxData boxData : packetBoxes) {
+            if (boxData == null) {
+                continue;
+            }
+            collisionBoxes.add(new com.moud.api.collision.OBB(
+                boxData.center(),
+                boxData.halfExtents(),
+                boxData.rotation()
+            ));
+        }
+        return collisionBoxes;
+    }
+
     private void handleRemoveModel(MoudPackets.S2C_RemoveModelPacket packet) {
         MinecraftClient.getInstance().execute(() -> {
             ClientModelManager.getInstance().removeModel(packet.modelId());
+            ClientCollisionManager.unregisterModel(packet.modelId());
         });
     }
 
@@ -1288,4 +1424,44 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         }
     }
 
+    private static final class ScriptChunkAccumulator {
+        private final byte[][] chunks;
+        private int received;
+
+        ScriptChunkAccumulator(int totalChunks) {
+            this.chunks = new byte[totalChunks][];
+            this.received = 0;
+        }
+
+        void accept(int index, byte[] data) {
+            if (index < 0 || index >= chunks.length) {
+                LOGGER.warn("Received out-of-range script chunk {} of {}", index, chunks.length);
+                return;
+            }
+            if (chunks[index] == null) {
+                chunks[index] = data;
+                received++;
+            }
+        }
+
+        boolean isComplete() {
+            return received == chunks.length;
+        }
+
+        byte[] assemble() {
+            int totalSize = 0;
+            for (byte[] chunk : chunks) {
+                totalSize += chunk == null ? 0 : chunk.length;
+            }
+            byte[] result = new byte[totalSize];
+            int pos = 0;
+            for (byte[] chunk : chunks) {
+                if (chunk != null) {
+                    System.arraycopy(chunk, 0, result, pos, chunk.length);
+                    pos += chunk.length;
+                }
+            }
+            return result;
+        }
+    }
 }
