@@ -35,9 +35,6 @@ public final class ModelCollisionManager {
         }
         ModelCollisionVolume volume = volumes.computeIfAbsent(model.getId(), ModelCollisionVolume::new);
         volume.update(model);
-        if (!volume.isActive()) {
-            volumes.remove(model.getId());
-        }
     }
 
     public void removeModel(long modelId) {
@@ -57,15 +54,23 @@ public final class ModelCollisionManager {
             if (!volume.isActive()) {
                 continue;
             }
+            if (ClientCollisionManager.hasDebugData(volume.getModelId())) {
+                continue;
+            }
+            List<Box> cached = volume.getBoxes();
+            if (cached != null && !cached.isEmpty()) {
+                boxes.addAll(cached);
+                continue;
+            }
             VoxelShape shape = volume.getVoxelShape();
             if (shape != null) {
                 shape.forEachBox((minX, minY, minZ, maxX, maxY, maxZ) ->
                         boxes.add(new Box(minX, minY, minZ, maxX, maxY, maxZ)));
-            } else {
-                Box bounds = volume.getBounds();
-                if (bounds != null) {
-                    boxes.add(bounds);
-                }
+                continue;
+            }
+            Box bounds = volume.getBounds();
+            if (bounds != null) {
+                boxes.add(bounds);
             }
         }
         return boxes;
@@ -81,12 +86,20 @@ public final class ModelCollisionManager {
             if (!volume.isActive() || !volume.intersects(query)) {
                 continue;
             }
+            if (ClientCollisionManager.hasDebugData(volume.getModelId())) {
+                continue;
+            }
             if (shapes == null) {
                 shapes = new ArrayList<>();
             }
-            VoxelShape shape = volume.getVoxelShape();
-            if (shape != null) {
-                shapes.add(shape);
+            List<VoxelShape> boxShapes = volume.getBoxShapes();
+            if (!boxShapes.isEmpty()) {
+                shapes.addAll(boxShapes);
+            } else {
+                VoxelShape shape = volume.getVoxelShape();
+                if (shape != null) {
+                    shapes.add(shape);
+                }
             }
         }
 
