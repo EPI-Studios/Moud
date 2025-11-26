@@ -20,11 +20,6 @@ final class ResourcePackBuilder {
     private ResourcePackBuilder() {
     }
 
-    /**
-     * Build a resource pack zip from the project's assets directory.
-     *
-     * @return path to the created zip, or null if assets are missing or an error occurs.
-     */
     static Path buildFromProjectAssets() {
         Path projectRoot = ProjectLoader.findProjectRoot();
         Path assetsDir = projectRoot.resolve("assets");
@@ -62,7 +57,7 @@ final class ResourcePackBuilder {
                 {
                   "pack": {
                     "pack_format": %d,
-                    "description": "Moud dynamic resources"
+                    "description": "Moud resources"
                   }
                 }
                 """.formatted(PACK_FORMAT_1_21);
