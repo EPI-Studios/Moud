@@ -41,6 +41,7 @@ import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Property;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.MathHelper;
@@ -56,12 +57,18 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import com.zigythebird.playeranim.animation.PlayerAnimResources;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class SceneEditorOverlay {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SceneEditorOverlay.class);
     private static final SceneEditorOverlay INSTANCE = new SceneEditorOverlay();
     private static final long MAX_BLOCK_CAPTURE_BLOCKS = 10000;
 
     private final ImString markerNameBuffer = new ImString("Marker", 64);
+    private final ImString fakePlayerLabelBuffer = new ImString("Fake Player", 64);
+    private final ImString fakePlayerSkinBuffer = new ImString("", 256);
     private final float[] newObjectPosition = new float[]{0f, 65f, 0f};
     private final float[] newObjectScale = new float[]{1f, 1f, 1f};
     private String selectedSceneObjectId;
@@ -85,6 +92,7 @@ public final class SceneEditorOverlay {
     public static final String PAYLOAD_PROJECT_FILE = "MoudProjectFile";
     public static final String[] DISPLAY_CONTENT_TYPES = {"image", "video", "sequence"};
     public static final String[] LIGHT_TYPE_LABELS = {"Point", "Area"};
+    private static final String DEFAULT_FAKE_PLAYER_SKIN = "https://textures.minecraft.net/texture/45c338913be11c119f0e90a962f8d833b0dff78eaefdd8f2fa2a3434a1f2af0";
     private static final int PANEL_WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize;
     private final ExplorerPanel explorerPanel = new ExplorerPanel(this);
     private final InspectorPanel inspectorPanel = new InspectorPanel(this);
@@ -99,6 +107,8 @@ public final class SceneEditorOverlay {
     private final ImString lightPopupFilter = new ImString(64);
     private final ImBoolean markerSnapToggle = new ImBoolean(false);
     private final ImFloat markerSnapValue = new ImFloat(0.5f);
+    private volatile String[] cachedPlayerAnimations = new String[0];
+    private volatile long lastAnimationFetch;
 
     private Map<String, List<SceneObject>> cachedHierarchy = new ConcurrentHashMap<>();
     private long lastHierarchyBuild = 0;
@@ -126,7 +136,9 @@ public final class SceneEditorOverlay {
     private int previewGizmoOperation = Operation.TRANSLATE;
     private int markerCounter = 1;
 
-    private SceneEditorOverlay() {}
+    private SceneEditorOverlay() {
+        fakePlayerSkinBuffer.set(DEFAULT_FAKE_PLAYER_SKIN);
+    }
 
     public static SceneEditorOverlay getInstance() {
         return INSTANCE;
@@ -181,6 +193,7 @@ public final class SceneEditorOverlay {
         renderAssetPopup("hierarchy_add_display_popup", "display", displayPopupFilter, null);
         renderAssetPopup("hierarchy_add_light_popup", "light", lightPopupFilter, null);
         renderMarkerPopup("hierarchy_add_marker_popup", session, null);
+        renderFakePlayerPopup("hierarchy_add_fake_player_popup", session, null);
     }
 
     public void renderWorldGizmo(Matrix4f viewMatrix, Matrix4f projectionMatrix) {
@@ -704,6 +717,23 @@ public final class SceneEditorOverlay {
         }
         ImGui.sameLine();
         if (ImGui.button("Cancel")) {
+            ImGui.closeCurrentPopup();
+        }
+        ImGui.endPopup();
+    }
+
+    private void renderFakePlayerPopup(String popupId, SceneSessionManager session, String parentId) {
+        if (!ImGui.beginPopup(popupId)) {
+            return;
+        }
+        ImGui.inputText("Label", fakePlayerLabelBuffer);
+        ImGui.inputText("Skin URL", fakePlayerSkinBuffer);
+        if (ImGui.button("Create##fake_player_create")) {
+            spawnFakePlayer(session, parentId);
+            ImGui.closeCurrentPopup();
+        }
+        ImGui.sameLine();
+        if (ImGui.button("Cancel##fake_player_cancel")) {
             ImGui.closeCurrentPopup();
         }
         ImGui.endPopup();
@@ -1320,8 +1350,59 @@ public final class SceneEditorOverlay {
         SceneEditorDiagnostics.log("Created marker '" + label + "'");
     }
 
+    public void spawnFakePlayer(SceneSessionManager session, String parentId) {
+        Map<String, Object> payload = new ConcurrentHashMap<>();
+        payload.put("type", "player_model");
+        Map<String, Object> props = new ConcurrentHashMap<>();
+        String label = fakePlayerLabelBuffer.get().isBlank() ? "Fake Player" : fakePlayerLabelBuffer.get();
+        String skin = fakePlayerSkinBuffer.get().isBlank() ? DEFAULT_FAKE_PLAYER_SKIN : fakePlayerSkinBuffer.get();
+        props.put("label", label);
+        props.put("skinUrl", skin);
+        props.put("autoAnimation", true);
+        props.put("loopAnimation", true);
+        props.put("animationDuration", 2000);
+        props.put("animationOverride", "");
+        props.put("position", vectorToMap(resolveSpawnPosition(newObjectPosition)));
+        props.putIfAbsent("rotation", rotationMap(activeRotation));
+        props.putIfAbsent("scale", vectorToMap(newObjectScale));
+        if (parentId != null && !parentId.isEmpty()) {
+            props.put("parent", parentId);
+        }
+        payload.put("properties", props);
+        session.submitEdit("create", payload);
+        SceneEditorDiagnostics.log("Spawned fake player '" + label + "'");
+    }
+
     public String generateMarkerName() {
         return "Marker " + markerCounter++;
+    }
+
+    public String getDefaultFakePlayerSkin() {
+        return DEFAULT_FAKE_PLAYER_SKIN;
+    }
+
+    public String[] getKnownPlayerAnimations() {
+        long now = System.currentTimeMillis();
+        if (cachedPlayerAnimations.length == 0 || now - lastAnimationFetch > 5000L) {
+            cachedPlayerAnimations = fetchPlayerAnimations();
+            lastAnimationFetch = now;
+        }
+        return cachedPlayerAnimations;
+    }
+
+    private String[] fetchPlayerAnimations() {
+        try {
+            Map<Identifier, ?> map = PlayerAnimResources.getAnimations();
+            if (map != null && !map.isEmpty()) {
+                return map.keySet().stream()
+                        .map(Identifier::toString)
+                        .sorted()
+                        .toArray(String[]::new);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to fetch player animations", e);
+        }
+        return new String[0];
     }
 
     private boolean matchesHierarchyFilter(SceneObject object, String filter) {
@@ -1396,6 +1477,7 @@ public final class SceneEditorOverlay {
         renderRuntimeList(RuntimeObjectType.MODEL, "Models", filterTerm);
         renderRuntimeList(RuntimeObjectType.DISPLAY, "Displays", filterTerm);
         renderRuntimeList(RuntimeObjectType.PLAYER, "Players", filterTerm);
+        renderRuntimeList(RuntimeObjectType.PLAYER_MODEL, "Fake Players", filterTerm);
     }
 
 }
