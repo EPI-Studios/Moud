@@ -1,6 +1,5 @@
 package com.moud.server.proxy;
 
-import com.moud.server.ts.TsExpose;
 import com.moud.api.collision.OBB;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
@@ -8,20 +7,33 @@ import com.moud.network.MoudPackets;
 import com.moud.server.collision.MinestomCollisionAdapter;
 import com.moud.server.entity.ModelManager;
 import com.moud.server.physics.PhysicsService;
+import com.moud.server.physics.mesh.ModelCollisionLibrary;
+import com.moud.server.physics.mesh.ModelCollisionLibrary.MeshData;
 import com.moud.server.network.ServerNetworkManager;
+import com.moud.server.logging.MoudLogger;
+import com.moud.server.ts.TsExpose;
 import net.minestom.server.collision.BoundingBox;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.metadata.other.InteractionMeta;
 import net.minestom.server.instance.Instance;
+import net.minestom.server.timer.TaskSchedule;
 import org.graalvm.polyglot.HostAccess;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
+import java.util.zip.GZIPOutputStream;
 
 @TsExpose
 public class ModelProxy {
+    private static final MoudLogger LOGGER = MoudLogger.getLogger(ModelProxy.class);
     private final long id;
     private final Entity entity;
     private final String modelPath;
@@ -32,6 +44,10 @@ public class ModelProxy {
     private BoundingBox collisionBox;
     private String texturePath;
     private List<OBB> collisionBoxes = new ArrayList<>();
+    private CollisionMode collisionMode = CollisionMode.AUTO;
+    private byte[] cachedCompressedVertices;
+    private byte[] cachedCompressedIndices;
+
 
     public ModelProxy(Instance instance, String modelPath, Vector3 position, Quaternion rotation, Vector3 scale, String texturePath) {
         this.id = ModelManager.getInstance().nextId();
@@ -40,6 +56,12 @@ public class ModelProxy {
         this.rotation = rotation;
         this.scale = scale;
         this.texturePath = texturePath != null ? texturePath : "";
+        if (this.texturePath.isBlank()) {
+            inferTexturePath();
+        }
+        if (this.texturePath == null) {
+            this.texturePath = "";
+        }
 
         this.entity = new Entity(EntityType.INTERACTION);
         InteractionMeta meta = (InteractionMeta) this.entity.getEntityMeta();
@@ -54,10 +76,23 @@ public class ModelProxy {
     }
 
     private void generateAccurateCollision() {
-        List<OBB> boxes = com.moud.server.physics.mesh.ModelCollisionLibrary.getCollisionBoxes(modelPath);
-        if (boxes != null && !boxes.isEmpty()) {
-            setCollisionBoxes(boxes);
-        }
+        generateAccurateCollision(5);
+    }
+
+    private void generateAccurateCollision(int retries) {
+        com.moud.server.physics.mesh.ModelCollisionLibrary.getCollisionBoxesAsync(modelPath)
+                .thenAccept(boxes -> {
+                    if (boxes != null && !boxes.isEmpty()) {
+                        net.minestom.server.MinecraftServer.getSchedulerManager()
+                                .buildTask(() -> setCollisionBoxes(boxes))
+                                .schedule();
+                    } else if (retries > 0) {
+                        net.minestom.server.MinecraftServer.getSchedulerManager()
+                                .buildTask(() -> generateAccurateCollision(retries - 1))
+                                .delay(TaskSchedule.tick(20))
+                                .schedule();
+                    }
+                });
     }
 
     private void broadcast(Object packet) {
@@ -67,11 +102,171 @@ public class ModelProxy {
         }
     }
 
+    private void inferTexturePath() {
+        try {
+            Path projectRoot = com.moud.server.project.ProjectLoader.findProjectRoot();
+            if (projectRoot == null || modelPath == null || !modelPath.contains(":")) {
+                return;
+            }
+            String[] parts = modelPath.split(":", 2);
+            String namespace = parts[0];
+            String path = parts[1];
+            Path assetsRoot = projectRoot.resolve("assets").resolve(namespace);
+
+            Optional<String> mapFile = resolveMapKd(assetsRoot, path);
+            String candidateName = mapFile.orElseGet(() -> {
+                String base = Path.of(path).getFileName().toString();
+                if (base.endsWith(".obj")) {
+                    base = base.substring(0, base.length() - 4) + ".png";
+                }
+                return base;
+            });
+
+            if (candidateName == null || candidateName.isBlank()) {
+                return;
+            }
+
+            try (Stream<Path> matches = Files.walk(assetsRoot.resolve("textures"))) {
+                Optional<Path> found = matches
+                        .filter(Files::isRegularFile)
+                        .filter(p -> p.getFileName().toString().equalsIgnoreCase(candidateName))
+                        .findFirst();
+                if (found.isPresent()) {
+                    Path rel = assetsRoot.resolve("textures").relativize(found.get());
+                    String textureId = namespace + ":textures/" + rel.toString().replace('\\', '/');
+                    this.texturePath = textureId;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private Optional<String> resolveMapKd(Path assetsRoot, String modelRelativePath) {
+        try {
+            Path modelPathFs = assetsRoot.resolve(modelRelativePath);
+            Path mtl = modelPathFs.getParent().resolve(replaceExt(modelPathFs.getFileName().toString(), ".mtl"));
+            if (!Files.isRegularFile(mtl)) {
+                return Optional.empty();
+            }
+            return Files.lines(mtl)
+                    .map(String::trim)
+                    .filter(l -> l.startsWith("map_Kd"))
+                    .map(l -> l.substring("map_Kd".length()).trim())
+                    .filter(s -> !s.isBlank())
+                    .findFirst();
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    private String replaceExt(String name, String ext) {
+        int idx = name.lastIndexOf('.');
+        if (idx >= 0) {
+            return name.substring(0, idx) + ext;
+        }
+        return name + ext;
+    }
+
+    public enum CollisionMode {
+        AUTO,
+        CONVEX,
+        STATIC_MESH,
+        CAPSULE
+    }
+
+    private void prepareCollisionPayload() {
+        try {
+            MeshData mesh = ModelCollisionLibrary.getMesh(modelPath);
+            if (mesh == null) {
+                LOGGER.warn("Mesh collision payload unavailable for {} (mesh data missing)", modelPath);
+                return;
+            }
+            this.cachedCompressedVertices = compressFloatArray(mesh.vertices());
+            this.cachedCompressedIndices = compressIntArray(mesh.indices());
+            LOGGER.info("Prepared mesh collision payload for model {} (vertices={}, indices={})",
+                    modelPath,
+                    mesh.vertices() != null ? mesh.vertices().length : 0,
+                    mesh.indices() != null ? mesh.indices().length : 0);
+        } catch (Exception ignored) {
+        }
+    }
+
+    public void ensureCollisionPayload() {
+        if (cachedCompressedVertices == null || cachedCompressedIndices == null) {
+            prepareCollisionPayload();
+        }
+    }
+
+    private byte[] compressFloatArray(float[] data) throws IOException {
+        if (data == null || data.length == 0) return null;
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (GZIPOutputStream gzip = new GZIPOutputStream(baos)) {
+            byte[] bytes = new byte[data.length * 4];
+            int idx = 0;
+            for (float v : data) {
+                int bits = Float.floatToIntBits(v);
+                bytes[idx++] = (byte) (bits);
+                bytes[idx++] = (byte) (bits >>> 8);
+                bytes[idx++] = (byte) (bits >>> 16);
+                bytes[idx++] = (byte) (bits >>> 24);
+            }
+            gzip.write(bytes);
+        }
+        return baos.toByteArray();
+    }
+
+    private byte[] compressIntArray(int[] data) throws IOException {
+        if (data == null || data.length == 0) return null;
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (GZIPOutputStream gzip = new GZIPOutputStream(baos)) {
+            byte[] bytes = new byte[data.length * 4];
+            int idx = 0;
+            for (int v : data) {
+                bytes[idx++] = (byte) (v);
+                bytes[idx++] = (byte) (v >>> 8);
+                bytes[idx++] = (byte) (v >>> 16);
+                bytes[idx++] = (byte) (v >>> 24);
+            }
+            gzip.write(bytes);
+        }
+        return baos.toByteArray();
+    }
+
+    private MoudPackets.CollisionMode toWireCollisionMode() {
+        return switch (collisionMode) {
+            case STATIC_MESH -> MoudPackets.CollisionMode.MESH;
+            case CONVEX -> MoudPackets.CollisionMode.CONVEX_HULLS;
+            case CAPSULE -> MoudPackets.CollisionMode.BOX;
+            case AUTO -> {
+                if (cachedCompressedVertices != null && cachedCompressedIndices != null) {
+                    yield MoudPackets.CollisionMode.MESH;
+                }
+                yield MoudPackets.CollisionMode.BOX;
+            }
+        };
+    }
+
+    public MoudPackets.CollisionMode getWireCollisionMode() {
+        return toWireCollisionMode();
+    }
+
+    public byte[] getCompressedVertices() {
+        return cachedCompressedVertices;
+    }
+
+    public byte[] getCompressedIndices() {
+        return cachedCompressedIndices;
+    }
+
     private void broadcastCreate() {
+        if (cachedCompressedVertices == null || cachedCompressedIndices == null) {
+            prepareCollisionPayload();
+        }
         MoudPackets.S2C_CreateModelPacket packet = new MoudPackets.S2C_CreateModelPacket(
                 id, modelPath, position, rotation, scale,
                 getCollisionWidth(), getCollisionHeight(), getCollisionDepth(),
-                texturePath
+                texturePath, toCollisionData(collisionBoxes),
+                toWireCollisionMode(), cachedCompressedVertices, cachedCompressedIndices, List.of()
         );
         broadcast(packet);
     }
@@ -179,6 +374,16 @@ public class ModelProxy {
         ));
     }
 
+    @HostAccess.Export
+    public CollisionMode getCollisionMode() {
+        return collisionMode;
+    }
+
+    @HostAccess.Export
+    public void setCollisionMode(CollisionMode mode) {
+        this.collisionMode = mode != null ? mode : CollisionMode.AUTO;
+    }
+
     public void setCollisionBoxes(List<OBB> boxes) {
         this.collisionBoxes = new ArrayList<>(boxes);
         List<BoundingBox> minestomBoxes = MinestomCollisionAdapter.convertToBoundingBoxes(
@@ -198,11 +403,21 @@ public class ModelProxy {
         if (collisionBoxes.isEmpty()) {
             return;
         }
+        broadcast(new MoudPackets.S2C_SyncModelCollisionBoxesPacket(id, toCollisionData(collisionBoxes)));
+    }
+
+    private List<MoudPackets.CollisionBoxData> toCollisionData(List<OBB> boxes) {
         List<MoudPackets.CollisionBoxData> boxData = new ArrayList<>();
-        for (OBB obb : collisionBoxes) {
+        if (boxes == null) {
+            return boxData;
+        }
+        for (OBB obb : boxes) {
+            if (obb == null) {
+                continue;
+            }
             boxData.add(new MoudPackets.CollisionBoxData(obb.center, obb.halfExtents, obb.rotation));
         }
-        broadcast(new MoudPackets.S2C_SyncModelCollisionBoxesPacket(id, boxData));
+        return boxData;
     }
 
     public List<OBB> getCollisionBoxes() {
