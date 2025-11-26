@@ -1,8 +1,8 @@
 package com.moud.client.collision;
 
 import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 import java.util.List;
 
@@ -11,66 +11,40 @@ public final class MeshCollider {
     private static final double EPSILON = 1.0e-7;
     private static final double SAT_EPS = 1.0e-4;
 
-    private MeshCollider() {}
+    private MeshCollider() {
+    }
 
-    /**
-     * Méthode principale qui gère la gravité, les murs ET le Step-Up.
-     */
     public static CollisionResult collideWithStepUp(Box box, Vec3d movement, CollisionMesh mesh, float stepHeight) {
-        // 1. D'abord, on applique le mouvement Y (Gravité / Saut)
-        // Cela nous permet de toucher le sol AVANT d'essayer d'avancer.
         double targetY = movement.y;
         double allowedY = collideAxis(box, targetY, Direction.Axis.Y, mesh);
 
         Box boxAtBodyHeight = box.offset(0, allowedY, 0);
 
-        // 2. On tente le mouvement Horizontal standard (Sans Step)
         double targetX = movement.x;
         double targetZ = movement.z;
 
         double allowedX = collideAxis(boxAtBodyHeight, targetX, Direction.Axis.X, mesh);
-        // On bouge la boite en X pour tester le Z correctement
         double allowedZ = collideAxis(boxAtBodyHeight.offset(allowedX, 0, 0), targetZ, Direction.Axis.Z, mesh);
 
-        // Si on n'a pas été bloqué horizontalement, on retourne le résultat simple (Y + X + Z)
         boolean hitHoriz = Math.abs(allowedX - targetX) > EPSILON || Math.abs(allowedZ - targetZ) > EPSILON;
 
         if (!hitHoriz || stepHeight <= 0) {
             return new CollisionResult(new Vec3d(allowedX, allowedY, allowedZ), hitHoriz, false, Vec3d.ZERO, 0);
         }
 
-        // ==========================================
-        // 3. LOGIQUE DU STEP-UP (Monter sur le mesh)
-        // ==========================================
-        // Si on est bloqué, on essaie la séquence : Monter -> Avancer -> Descendre
-
-        // A. Monter (Lift)
         double allowedLift = collideAxis(boxAtBodyHeight, stepHeight, Direction.Axis.Y, mesh);
         Box liftedBox = boxAtBodyHeight.offset(0, allowedLift, 0);
+        // TODO : fix that it lift too much like for 90° straight stuff it shouldn't
 
-        // B. Avancer (Forward) avec les valeurs X/Z originales
         double stepX = collideAxis(liftedBox, targetX, Direction.Axis.X, mesh);
         double stepZ = collideAxis(liftedBox.offset(stepX, 0, 0), targetZ, Direction.Axis.Z, mesh);
         Box forwardBox = liftedBox.offset(stepX, 0, stepZ);
 
-        // C. Descendre (Drop)
-        // On essaie de redescendre de tout ce qu'on a monté + un peu de marge
         double stepDrop = collideAxis(forwardBox, -allowedLift - 0.1, Direction.Axis.Y, mesh);
 
-        // Calcul du vecteur final "Step"
-        // Note: Le Y final est: (Mouvement Y original) + (Lift + Drop)
-        // Mais pour être safe avec Minecraft, on prend souvent juste la nouvelle position relative.
-        // Simplification: On garde le allowedY original pour la base, et on ajoute le delta du step.
-        // MAIS attention : le mouvement retourné doit être le delta total depuis la position DEPART.
-
-        // Total Step Déplacement :
-        // X = stepX
-        // Y = allowedY (mouvement initial) + allowedLift + stepDrop
-        // Z = stepZ
 
         Vec3d stepMovement = new Vec3d(stepX, allowedY + allowedLift + stepDrop, stepZ);
 
-        // On compare : est-ce qu'on est allé plus loin horizontalement en montant ?
         double distBaseSq = (allowedX * allowedX) + (allowedZ * allowedZ);
         double distStepSq = (stepX * stepX) + (stepZ * stepZ);
 
@@ -81,9 +55,6 @@ public final class MeshCollider {
         return new CollisionResult(new Vec3d(allowedX, allowedY, allowedZ), hitHoriz, false, Vec3d.ZERO, 0);
     }
 
-    /**
-     * Vérifie la collision sur UN SEUL axe (comme Minecraft le fait).
-     */
     private static double collideAxis(Box box, double value, Direction.Axis axis, CollisionMesh mesh) {
         if (Math.abs(value) < EPSILON) return 0.0;
 
@@ -94,7 +65,6 @@ public final class MeshCollider {
         );
 
         Box swept = box.union(box.offset(movement));
-        // Petite marge pour attraper les triangles
         List<Triangle> candidates = mesh.queryTriangles(swept.expand(0.01));
 
         double allowedDist = value;
@@ -104,17 +74,14 @@ public final class MeshCollider {
 
             if (tri.normal.dotProduct(movement) >= 0) continue;
 
-            // SAT Test
+            // stat test
             if (!boxIntersectsTriangle(box.offset(movement), tri) &&
                     !boxIntersectsTriangle(box, tri)) {
                 if (findContactTime(box, movement, tri) >= 1.0 - EPSILON) continue;
             }
 
-            // Calcul précis du temps de collision (0.0 à 1.0)
             double t = findContactTime(box, movement, tri);
 
-            // Si t < 1.0, c'est qu'on tape quelque chose.
-            // On réduit la distance autorisée.
             if (t < 1.0) {
                 double hitDist = value * t;
                 if (Math.abs(hitDist) < Math.abs(allowedDist)) {
@@ -172,18 +139,21 @@ public final class MeshCollider {
         double max = Math.max(a, Math.max(b, c));
         return !(min > extent + SAT_EPS || max < -extent - SAT_EPS);
     }
+
     private static boolean axisTestX01(double a, double b, double fa, double fb, Vec3d v0, Vec3d v2, Vec3d e) {
         double p0 = a * v0.y - b * v0.z;
         double p2 = a * v2.y - b * v2.z;
         double rad = fa * e.y + fb * e.z;
         return !(Math.min(p0, p2) > rad + SAT_EPS || Math.max(p0, p2) < -rad - SAT_EPS);
     }
+
     private static boolean axisTestY02(double a, double b, double fa, double fb, Vec3d v0, Vec3d v2, Vec3d e) {
         double p0 = -a * v0.x + b * v0.z;
         double p2 = -a * v2.x + b * v2.z;
         double rad = fa * e.x + fb * e.z;
         return !(Math.min(p0, p2) > rad + SAT_EPS || Math.max(p0, p2) < -rad - SAT_EPS);
     }
+
     private static boolean axisTestZ12(double a, double b, double fa, double fb, Vec3d v0, Vec3d v1, Vec3d e) {
         double p1 = a * v0.x - b * v0.y;
         double p2 = a * v1.x - b * v1.y;

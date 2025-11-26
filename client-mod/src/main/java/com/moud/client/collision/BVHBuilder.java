@@ -2,7 +2,6 @@ package com.moud.client.collision;
 
 import net.minecraft.util.math.Box;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 

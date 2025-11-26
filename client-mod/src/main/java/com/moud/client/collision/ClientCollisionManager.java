@@ -3,10 +3,10 @@ package com.moud.client.collision;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
+import net.minecraft.util.math.Box;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Vec3d;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -20,7 +20,8 @@ public final class ClientCollisionManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientCollisionManager.class);
     private static final Map<Long, CollisionEntry> ENTRIES = new ConcurrentHashMap<>();
 
-    private ClientCollisionManager() {}
+    private ClientCollisionManager() {
+    }
 
     public static void registerModel(long modelId, MoudPackets.CollisionMode mode, byte[] compressedVerts, byte[] compressedIdx,
                                      Vector3 position, Quaternion rotation, Vector3 scale) {
@@ -176,9 +177,9 @@ public final class ClientCollisionManager {
                 v = new Vector3(v.x * s.x, v.y * s.y, v.z * s.z);
                 v = rotate(v, q);
                 v = new Vector3(v.x + p.x, v.y + p.y, v.z + p.z);
-                out[i] = (float) v.x;
-                out[i + 1] = (float) v.y;
-                out[i + 2] = (float) v.z;
+                out[i] = v.x;
+                out[i + 1] = v.y;
+                out[i + 2] = v.z;
             }
             return out;
         }

@@ -2,7 +2,6 @@ package com.moud.client.collision;
 
 import net.minecraft.util.math.Box;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class BVHNode {
@@ -10,6 +9,18 @@ public class BVHNode {
     public BVHNode left;
     public BVHNode right;
     public int[] triangleIndices;
+
+    public static Box merge(Box a, Box b) {
+        if (a == null) return b;
+        if (b == null) return a;
+        double minX = Math.min(a.minX, b.minX);
+        double minY = Math.min(a.minY, b.minY);
+        double minZ = Math.min(a.minZ, b.minZ);
+        double maxX = Math.max(a.maxX, b.maxX);
+        double maxY = Math.max(a.maxY, b.maxY);
+        double maxZ = Math.max(a.maxZ, b.maxZ);
+        return new Box(minX, minY, minZ, maxX, maxY, maxZ);
+    }
 
     public boolean isLeaf() {
         return triangleIndices != null;
@@ -31,17 +42,5 @@ public class BVHNode {
         if (right != null) {
             right.query(region, results);
         }
-    }
-
-    public static Box merge(Box a, Box b) {
-        if (a == null) return b;
-        if (b == null) return a;
-        double minX = Math.min(a.minX, b.minX);
-        double minY = Math.min(a.minY, b.minY);
-        double minZ = Math.min(a.minZ, b.minZ);
-        double maxX = Math.max(a.maxX, b.maxX);
-        double maxY = Math.max(a.maxY, b.maxY);
-        double maxZ = Math.max(a.maxZ, b.maxZ);
-        return new Box(minX, minY, minZ, maxX, maxY, maxZ);
     }
 }
