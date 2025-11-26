@@ -11,30 +11,31 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MinestomCollisionAdapter {
+    private static final double MAX_MAIN_BOX_DIM = 64.0;
 
     public static List<BoundingBox> convertToBoundingBoxes(List<OBB> obbs, Vector3 position, Quaternion rotation, Vector3 scale) {
         List<BoundingBox> boxes = new ArrayList<>();
 
         for (OBB obb : obbs) {
             Vector3 scaledCenter = new Vector3(
-                obb.center.x * scale.x,
-                obb.center.y * scale.y,
-                obb.center.z * scale.z
+                    obb.center.x * scale.x,
+                    obb.center.y * scale.y,
+                    obb.center.z * scale.z
             );
             Vector3 rotatedCenter = rotation.rotate(scaledCenter);
             Vector3 worldCenter = position.add(rotatedCenter);
 
             Vector3 scaledExtents = new Vector3(
-                Math.abs(obb.halfExtents.x * scale.x),
-                Math.abs(obb.halfExtents.y * scale.y),
-                Math.abs(obb.halfExtents.z * scale.z)
+                    Math.abs(obb.halfExtents.x * scale.x),
+                    Math.abs(obb.halfExtents.y * scale.y),
+                    Math.abs(obb.halfExtents.z * scale.z)
             );
 
             boxes.add(new BoundingBox(
-                scaledExtents.x * 2,
-                scaledExtents.y * 2,
-                scaledExtents.z * 2,
-                new Vec(worldCenter.x - scaledExtents.x, worldCenter.y - scaledExtents.y, worldCenter.z - scaledExtents.z)
+                    scaledExtents.x * 2,
+                    scaledExtents.y * 2,
+                    scaledExtents.z * 2,
+                    new Vec(worldCenter.x - scaledExtents.x, worldCenter.y - scaledExtents.y, worldCenter.z - scaledExtents.z)
             ));
         }
 
@@ -69,11 +70,26 @@ public class MinestomCollisionAdapter {
             maxZ = Math.max(maxZ, boxMaxZ);
         }
 
+        double width = maxX - minX;
+        double height = maxY - minY;
+        double depth = maxZ - minZ;
+
+        width = Math.max(0.25, Math.min(width, MAX_MAIN_BOX_DIM));
+        height = Math.max(0.25, Math.min(height, MAX_MAIN_BOX_DIM));
+        depth = Math.max(0.25, Math.min(depth, MAX_MAIN_BOX_DIM));
+
+        double centerX = (minX + maxX) * 0.5;
+        double centerY = (minY + maxY) * 0.5;
+        double centerZ = (minZ + maxZ) * 0.5;
+        double newMinX = centerX - width * 0.5;
+        double newMinY = centerY - height * 0.5;
+        double newMinZ = centerZ - depth * 0.5;
+
         return new BoundingBox(
-            maxX - minX,
-            maxY - minY,
-            maxZ - minZ,
-            new Vec(minX, minY, minZ)
+                width,
+                height,
+                depth,
+                new Vec(newMinX, newMinY, newMinZ)
         );
     }
 }
