@@ -100,6 +100,11 @@ public class AnimatedPlayerModel {
     }
 
     public void playAnimationWithFade(String animationIdStr, int durationTicks) {
+        if (animationIdStr == null || animationIdStr.isBlank()) {
+            this.overrideAnimation = null;
+            this.animationController.stop();
+            return;
+        }
         Identifier animationId = Identifier.tryParse(animationIdStr);
         if (animationId == null) {
             animationId = Identifier.of("moud", animationIdStr);
@@ -123,6 +128,11 @@ public class AnimatedPlayerModel {
     }
 
     public void playAnimation(String animationIdStr) {
+        if (animationIdStr == null || animationIdStr.isBlank()) {
+            this.overrideAnimation = null;
+            this.animationController.stop();
+            return;
+        }
         Identifier animationId = Identifier.tryParse(animationIdStr);
         if (animationId == null) {
             animationId = Identifier.of("moud", animationIdStr);

@@ -111,7 +111,7 @@ public class ModelRenderer {
                 float y = vertices[base + 1];
                 float z = vertices[base + 2];
                 float u = vertices[base + 3];
-                float v = 1.0f - vertices[base + 4];
+                float v = vertices[base + 4];
                 float nx = vertices[base + 5];
                 float ny = vertices[base + 6];
                 float nz = vertices[base + 7];

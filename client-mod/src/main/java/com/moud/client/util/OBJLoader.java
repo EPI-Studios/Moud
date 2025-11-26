@@ -32,7 +32,7 @@ public class OBJLoader {
                 String[] parts = line.split("\\s+");
                 switch (parts[0]) {
                     case "v" -> positions.add(new Vector3f(Float.parseFloat(parts[1]), Float.parseFloat(parts[2]), Float.parseFloat(parts[3])));
-                    case "vt" -> texCoords.add(new Vector2f(Float.parseFloat(parts[1]), 1.0f - Float.parseFloat(parts[2]))); // Invert V for OpenGL
+                    case "vt" -> texCoords.add(new Vector2f(Float.parseFloat(parts[1]), 1.0f - Float.parseFloat(parts[2]))); // flip V once to match Minecraft's top-left UV origin
                     case "vn" -> normals.add(new Vector3f(Float.parseFloat(parts[1]), Float.parseFloat(parts[2]), Float.parseFloat(parts[3])));
                     case "f" -> {
                         int vertexCount = parts.length - 1;

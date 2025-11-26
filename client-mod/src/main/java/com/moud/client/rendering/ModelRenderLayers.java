@@ -43,14 +43,14 @@ public final class ModelRenderLayers {
     }
 
     public static RenderLayer getModelLayer(Identifier texture) {
-        try {
-            RenderLayer veilLayer = VeilRenderType.get(MODEL_RENDERTYPE_ID, texture);
-            if (veilLayer != null) {
-                return veilLayer;
-            }
-        } catch (Throwable t) {
-            LOGGER.warn("Failed to load Veil model render type, falling back to triangle render layer.", t);
-        }
+        //try {
+        //  RenderLayer veilLayer = VeilRenderType.get(MODEL_RENDERTYPE_ID, texture);
+        //  if (veilLayer != null) {
+        //      return veilLayer;
+        //  }
+        //} catch (Throwable t) {
+        //  LOGGER.warn("Failed to load Veil model render type, falling back to triangle render layer.", t);
+        //}
         return TRIANGLE_LAYER.apply(texture);
     }
 }
