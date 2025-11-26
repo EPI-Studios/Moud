@@ -36,7 +36,6 @@ public class ServerPacketWrapper {
         wrapperBuffer.writeString(packetData.channel());
         wrapperBuffer.writeByteArray(packetData.data());
         byte[] payload = wrapperBuffer.toByteArray();
-
         return new PacketEnvelope(
                 new PluginMessagePacket(WRAPPER_CHANNEL, payload),
                 packetData.channel(),

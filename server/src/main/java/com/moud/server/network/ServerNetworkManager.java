@@ -20,6 +20,8 @@ import com.moud.server.player.PlayerCameraManager;
 import com.moud.server.plugin.PluginEventBus;
 import com.moud.server.proxy.MediaDisplayProxy;
 import com.moud.server.proxy.PlayerModelProxy;
+import com.moud.api.collision.OBB;
+import com.moud.server.network.ResourcePackServer.ResourcePackInfo;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
@@ -27,14 +29,23 @@ import net.minestom.server.event.player.PlayerDisconnectEvent;
 import net.minestom.server.event.player.PlayerPluginMessageEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
 import com.moud.server.player.PlayerCursorDirectionManager;
+import net.minestom.server.network.packet.server.common.PluginMessagePacket;
+
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import net.kyori.adventure.resource.ResourcePackRequest;
+import net.kyori.adventure.resource.ResourcePackStatus;
+import net.kyori.adventure.text.Component;
 
 public final class ServerNetworkManager {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(
@@ -47,12 +58,14 @@ public final class ServerNetworkManager {
     private final ClientScriptManager clientScriptManager;
     private final ConcurrentMap<UUID, ClientSession> moudClients = new ConcurrentHashMap<>();
     private final BlueprintStorage blueprintStorage;
+    private final ResourcePackInfo resourcePackInfo;
     private static ServerNetworkManager instance;
 
     public ServerNetworkManager(EventDispatcher eventDispatcher, ClientScriptManager clientScriptManager) {
         this.eventDispatcher = eventDispatcher;
         this.clientScriptManager = clientScriptManager;
         this.blueprintStorage = new BlueprintStorage(SceneManager.getInstance().getProjectRoot());
+        this.resourcePackInfo = initResourcePackServer();
         instance = this;
     }
 
@@ -321,6 +334,7 @@ public final class ServerNetworkManager {
             return false;
         }
 
+
         boolean success = false;
         try {
             player.sendPacket(envelope.packet());
@@ -335,8 +349,8 @@ public final class ServerNetworkManager {
         } finally {
             NetworkProbe.getInstance().recordOutbound(
                     player,
-                    envelope.packetType(),
-                    envelope.innerChannel(),
+                    packet.getClass().getSimpleName(),
+                    packet.getClass().getSimpleName(),
                     envelope.payloadBytes(),
                     envelope.totalBytes(),
                     System.nanoTime() - start,
@@ -424,6 +438,7 @@ public final class ServerNetworkManager {
         }
 
         eventDispatcher.dispatchMoudReady(minestomPlayer);
+        pushResourcePack(minestomPlayer);
 
         sendClientScripts(minestomPlayer);
 
@@ -451,6 +466,7 @@ public final class ServerNetworkManager {
         }
 
         ModelManager.getInstance().getAllModels().forEach(model -> {
+            model.ensureCollisionPayload();
             MoudPackets.S2C_CreateModelPacket createPacket = new MoudPackets.S2C_CreateModelPacket(
                     model.getId(),
                     model.getModelPath(),
@@ -460,7 +476,12 @@ public final class ServerNetworkManager {
                     model.getCollisionWidth(),
                     model.getCollisionHeight(),
                     model.getCollisionDepth(),
-                    model.getTexture()
+                    model.getTexture(),
+                    toCollisionData(model.getCollisionBoxes()),
+                    model.getWireCollisionMode(),
+                    model.getCompressedVertices(),
+                    model.getCompressedIndices(),
+                    List.of()
             );
             send(minestomPlayer, createPacket);
         });
@@ -493,6 +514,57 @@ public final class ServerNetworkManager {
             ServerLightingManager.getInstance().syncLightsToPlayer(minestomPlayer);
         }).delay(java.time.Duration.ofSeconds(1)).schedule();
     }
+
+    private void pushResourcePack(Player player) {
+        if (resourcePackInfo == null) {
+            return;
+        }
+        try {
+            net.kyori.adventure.resource.ResourcePackInfo packInfo = net.kyori.adventure.resource.ResourcePackInfo.resourcePackInfo(
+                    resourcePackInfo.id(),
+                    URI.create(resourcePackInfo.url()),
+                    resourcePackInfo.sha1()
+            );
+            ResourcePackRequest request = ResourcePackRequest.resourcePackRequest()
+                    .packs(packInfo)
+                    .required(true)
+                    .prompt(Component.text("Moud needs to apply its resource pack for custom assets."))
+                    .callback((uuid, status, audience) -> onResourcePackStatus(player, uuid, status))
+                    .replace(true)
+                    .build();
+            player.sendResourcePacks(request);
+            LogContext context = playerContext(player).merge(LogContext.builder()
+                    .put("resource_pack_id", resourcePackInfo.id())
+                    .put("hash", resourcePackInfo.sha1())
+                    .put("url", resourcePackInfo.url())
+                    .build());
+            LOGGER.info(context, "Requested resource pack for {}", player.getUsername());
+        } catch (Exception e) {
+            LOGGER.warn(playerContext(player), "Failed to push resource pack to {}", player.getUsername(), e);
+        }
+    }
+
+    private void onResourcePackStatus(Player player, UUID packId, ResourcePackStatus status) {
+        LogContext context = playerContext(player).merge(LogContext.builder()
+                .put("resource_pack_id", packId)
+                .put("status", status.name())
+                .build());
+        switch (status) {
+            case SUCCESSFULLY_LOADED -> {
+                ClientSession session = moudClients.get(player.getUuid());
+                if (session != null && resourcePackInfo != null && packId.equals(resourcePackInfo.id())) {
+                    session.setResourcePackHash(resourcePackInfo.sha1());
+                }
+                LOGGER.info(context, "Resource pack applied for {}", player.getUsername());
+            }
+            case ACCEPTED, DOWNLOADED -> LOGGER.info(context, "Resource pack progress update for {}", player.getUsername());
+            case DECLINED, FAILED_DOWNLOAD, FAILED_RELOAD, INVALID_URL, DISCARDED -> {
+                LOGGER.warn(context, "Resource pack {} failed with status {}", packId, status);
+                player.kick(Component.text("This server requires the Moud resource pack (status: " + status.name() + ")."));
+            }
+            default -> LOGGER.debug(context, "Resource pack status {} for {}", status, player.getUsername());
+        }
+    }
     private void handleScriptEvent(Object player, ServerboundScriptEventPacket packet) {
         Player minestomPlayer = (Player) player;
         if (!isMoudClient(minestomPlayer)) return;
@@ -510,6 +582,20 @@ public final class ServerNetworkManager {
         Player minestomPlayer = (Player) player;
         if (!isMoudClient(minestomPlayer)) return;
         PlayerCameraManager.getInstance().updateCameraDirection(minestomPlayer, packet.direction());
+    }
+
+    private List<MoudPackets.CollisionBoxData> toCollisionData(List<com.moud.api.collision.OBB> boxes) {
+        List<MoudPackets.CollisionBoxData> boxData = new ArrayList<>();
+        if (boxes == null) {
+            return boxData;
+        }
+        for (com.moud.api.collision.OBB obb : boxes) {
+            if (obb == null) {
+                continue;
+            }
+            boxData.add(new MoudPackets.CollisionBoxData(obb.center, obb.halfExtents, obb.rotation));
+        }
+        return boxData;
     }
 
     private void handlePlayerModelClick(Object player, PlayerModelClickPacket packet) {
@@ -593,10 +679,29 @@ public final class ServerNetworkManager {
                     .put("hash", hash)
                     .put("payload_bytes", scriptData.length)
                     .build());
-            LOGGER.info(payloadContext, "Sending client scripts to {}: hash={}, size={} bytes", player.getUsername(), hash, scriptData.length);
-            if (!send(player, new SyncClientScriptsPacket(hash, scriptData))) {
-                LOGGER.error(String.valueOf(payloadContext), "Failed to send client scripts payload to {}", player.getUsername());
-                return;
+            int maxPayloadBytes = 2 * 1024 * 1024;
+            if (scriptData != null && scriptData.length > maxPayloadBytes) {
+                int chunkSize = 512 * 1024;
+                int totalChunks = (int) Math.ceil((double) scriptData.length / chunkSize);
+                LOGGER.info(payloadContext.merge(LogContext.builder()
+                        .put("chunk_size", chunkSize)
+                        .put("total_chunks", totalChunks)
+                        .build()), "Chunking client scripts for {} to stay under packet limits", player.getUsername());
+                for (int i = 0; i < totalChunks; i++) {
+                    int start = i * chunkSize;
+                    int end = Math.min(scriptData.length, start + chunkSize);
+                    byte[] chunk = java.util.Arrays.copyOfRange(scriptData, start, end);
+                    if (!send(player, new SyncClientScriptsChunkPacket(hash, totalChunks, i, chunk))) {
+                        LOGGER.error(String.valueOf(payloadContext), "Failed to send client scripts chunk {} to {}", i, player.getUsername());
+                        return;
+                    }
+                }
+            } else {
+                LOGGER.info(payloadContext, "Sending client scripts to {}: hash={}, size={} bytes", player.getUsername(), hash, scriptData.length);
+                if (!send(player, new SyncClientScriptsPacket(hash, scriptData))) {
+                    LOGGER.error(String.valueOf(payloadContext), "Failed to send client scripts payload to {}", player.getUsername());
+                    return;
+                }
             }
 
             if (session != null) {
@@ -634,6 +739,7 @@ public final class ServerNetworkManager {
     private static class ClientSession {
         private final Instant handshakeTime;
         private String resourcesHash;
+        private String resourcePackHash;
 
         private ClientSession(Instant handshakeTime) {
             this.handshakeTime = handshakeTime;
@@ -650,5 +756,52 @@ public final class ServerNetworkManager {
         public void setResourcesHash(String resourcesHash) {
             this.resourcesHash = resourcesHash;
         }
+
+        public String getResourcePackHash() {
+            return resourcePackHash;
+        }
+
+        public void setResourcePackHash(String resourcePackHash) {
+            this.resourcePackHash = resourcePackHash;
+        }
+    }
+
+    private ResourcePackInfo initResourcePackServer() {
+        String packPathEnv = System.getenv("MOUD_RESOURCE_PACK_PATH");
+        Path packPath;
+        if (packPathEnv == null || packPathEnv.isBlank()) {
+            packPath = ResourcePackBuilder.buildFromProjectAssets();
+        } else {
+            packPath = java.nio.file.Path.of(packPathEnv);
+        }
+        if (packPath == null) {
+            LOGGER.warn("Resource pack unavailable; clients will miss custom assets.");
+            return null;
+        }
+        String bindHost = System.getenv("MOUD_RESOURCE_PACK_BIND_HOST");
+        if (bindHost == null || bindHost.isBlank()) {
+            bindHost = "0.0.0.0";
+        }
+        String publicHost = System.getenv("MOUD_RESOURCE_PACK_HOST");
+        if (publicHost == null || publicHost.isBlank()) {
+            try {
+                publicHost = java.net.InetAddress.getLocalHost().getHostAddress();
+            } catch (Exception e) {
+                publicHost = "127.0.0.1";
+            }
+        }
+        int port = 0;
+        try {
+            String rawPort = System.getenv("MOUD_RESOURCE_PACK_PORT");
+            if (rawPort != null && !rawPort.isBlank()) {
+                port = Integer.parseInt(rawPort.trim());
+            }
+        } catch (NumberFormatException ignored) {
+        }
+        if (port <= 0) {
+            port = 8777;
+        }
+        String urlPath = "/moud-resourcepack.zip";
+        return ResourcePackServer.start(packPath, bindHost, publicHost, port, urlPath);
     }
 }
