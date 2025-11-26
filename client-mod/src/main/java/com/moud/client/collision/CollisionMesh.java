@@ -1,0 +1,71 @@
+package com.moud.client.collision;
+
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class CollisionMesh {
+    private final float[] vertices;
+    private final int[] indices;
+    private final List<Triangle> triangles;
+    private final BVHNode bvh;
+    private final Box bounds;
+
+    public CollisionMesh(float[] vertices, int[] indices) {
+        this.vertices = vertices;
+        this.indices = indices;
+        this.triangles = buildTriangles(vertices, indices);
+        this.bvh = BVHBuilder.build(triangles);
+        this.bounds = bvh != null ? bvh.bounds : null;
+    }
+
+    private List<Triangle> buildTriangles(float[] verts, int[] idx) {
+        List<Triangle> tris = new ArrayList<>(idx.length / 3);
+        for (int i = 0; i + 2 < idx.length; i += 3) {
+            int a = idx[i] * 3;
+            int b = idx[i + 1] * 3;
+            int c = idx[i + 2] * 3;
+            if (a < 0 || b < 0 || c < 0 || a + 2 >= verts.length || b + 2 >= verts.length || c + 2 >= verts.length) {
+                continue;
+            }
+            Vec3d v0 = new Vec3d(verts[a], verts[a + 1], verts[a + 2]);
+            Vec3d v1 = new Vec3d(verts[b], verts[b + 1], verts[b + 2]);
+            Vec3d v2 = new Vec3d(verts[c], verts[c + 1], verts[c + 2]);
+            tris.add(new Triangle(v0, v1, v2));
+        }
+        return tris;
+    }
+
+    public Box getBounds() {
+        return bounds;
+    }
+
+    public List<Triangle> queryTriangles(Box region) {
+        List<Triangle> result = new ArrayList<>();
+        if (bvh == null || region == null) {
+            return result;
+        }
+        List<Integer> ids = new ArrayList<>();
+        bvh.query(region, ids);
+        for (int id : ids) {
+            if (id >= 0 && id < triangles.size()) {
+                result.add(triangles.get(id));
+            }
+        }
+        return result;
+    }
+
+    public float[] getVertices() {
+        return vertices;
+    }
+
+    public int[] getIndices() {
+        return indices;
+    }
+
+    public List<Triangle> getTriangles() {
+        return triangles;
+    }
+}

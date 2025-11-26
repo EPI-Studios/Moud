@@ -30,8 +30,6 @@ import java.util.function.Predicate;
 public final class InspectorPanel {
     private final SceneEditorOverlay overlay;
     private final SceneHistoryManager history = SceneHistoryManager.getInstance();
-
-    private String currentObjectId;
     private final ImString inspectorLabel = new ImString("", 128);
     private final ImString markerLabelBuffer = new ImString("Marker", 64);
     private final ImString displayContentBuffer = new ImString("", 256);
@@ -54,9 +52,135 @@ public final class InspectorPanel {
     private final ImString textureFilePickerFilter = new ImString(128);
     private final ImString displayFilePickerFilter = new ImString(128);
     private final float[] markerPositionBuffer = new float[]{0f, 0f, 0f};
+    private final ImString playerAnimationOverride = new ImString("", 128);
+    private final ImBoolean playerAutoAnimation = new ImBoolean(true);
+    private final ImBoolean playerLoopAnimation = new ImBoolean(true);
+    private final ImInt playerAnimationDurationMs = new ImInt(2000);
+    private final ImString playerSkinBuffer = new ImString("", 256);
+    private String currentObjectId;
 
     public InspectorPanel(SceneEditorOverlay overlay) {
         this.overlay = overlay;
+    }
+
+    private static boolean hasExtension(String path, String... extensions) {
+        if (path == null || extensions == null) {
+            return false;
+        }
+        String lower = path.toLowerCase(Locale.ROOT);
+        for (String extension : extensions) {
+            if (extension == null) {
+                continue;
+            }
+            if (lower.endsWith(extension.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String toResourcePath(String projectPath) {
+        if (projectPath == null || projectPath.isBlank()) {
+            return projectPath;
+        }
+        String normalized = projectPath.replace('\\', '/');
+        if (!normalized.startsWith("assets/")) {
+            return normalized;
+        }
+        String withoutAssets = normalized.substring("assets/".length());
+        int slash = withoutAssets.indexOf('/');
+        if (slash < 0) {
+            return normalized;
+        }
+        String namespace = withoutAssets.substring(0, slash);
+        String relative = withoutAssets.substring(slash + 1);
+        return namespace + ":" + relative;
+    }
+
+    private static void extractColor(Object value, float[] target) {
+        if (!(value instanceof Map<?, ?> map)) {
+            Arrays.fill(target, 1f);
+            return;
+        }
+        target[0] = map.containsKey("r") ? toFloat(map.get("r")) : 1f;
+        target[1] = map.containsKey("g") ? toFloat(map.get("g")) : 1f;
+        target[2] = map.containsKey("b") ? toFloat(map.get("b")) : 1f;
+    }
+
+    private static void extractDirection(Object value, float[] target) {
+        if (!(value instanceof Map<?, ?> map)) {
+            target[0] = 0f;
+            target[1] = -1f;
+            target[2] = 0f;
+            return;
+        }
+        target[0] = map.containsKey("x") ? toFloat(map.get("x")) : target[0];
+        target[1] = map.containsKey("y") ? toFloat(map.get("y")) : target[1];
+        target[2] = map.containsKey("z") ? toFloat(map.get("z")) : target[2];
+    }
+
+    private static float[] extractVector(Object value, float[] fallback) {
+        if (value instanceof Map<?, ?> map) {
+            Object x = map.get("x");
+            Object y = map.get("y");
+            Object z = map.get("z");
+            if (x != null) fallback[0] = toFloat(x);
+            if (y != null) fallback[1] = toFloat(y);
+            if (z != null) fallback[2] = toFloat(z);
+        } else if (value instanceof List<?> list && list.size() >= 3) {
+            fallback[0] = toFloat(list.get(0));
+            fallback[1] = toFloat(list.get(1));
+            fallback[2] = toFloat(list.get(2));
+        }
+        return fallback;
+    }
+
+    private static Map<String, Object> vectorToMap(float[] vector) {
+        Map<String, Object> map = new ConcurrentHashMap<>();
+        map.put("x", vector[0]);
+        map.put("y", vector[1]);
+        map.put("z", vector[2]);
+        return map;
+    }
+
+    private static Map<String, Object> colorToMap(float[] color) {
+        Map<String, Object> map = new ConcurrentHashMap<>();
+        map.put("r", color[0]);
+        map.put("g", color[1]);
+        map.put("b", color[2]);
+        return map;
+    }
+
+    private static Map<String, Object> directionToMap(float[] direction) {
+        Map<String, Object> map = new ConcurrentHashMap<>();
+        map.put("x", direction[0]);
+        map.put("y", direction[1]);
+        map.put("z", direction[2]);
+        return map;
+    }
+
+    private static float toFloat(Object value) {
+        if (value instanceof Number number) {
+            return number.floatValue();
+        }
+        try {
+            return Float.parseFloat(String.valueOf(value));
+        } catch (Exception e) {
+            return 0f;
+        }
+    }
+
+    private static boolean boolValue(Object value, boolean fallback) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        if (value != null) {
+            return Boolean.parseBoolean(value.toString());
+        }
+        return fallback;
     }
 
     public void render(SceneSessionManager session) {
@@ -113,6 +237,20 @@ public final class InspectorPanel {
         extractColor(props.get("color"), lightColorValue);
         extractDirection(props.get("direction"), lightDirectionValue);
         extractVector(props.getOrDefault("position", null), markerPositionBuffer);
+        playerSkinBuffer.set(String.valueOf(props.getOrDefault("skinUrl", overlay.getDefaultFakePlayerSkin())));
+        playerAutoAnimation.set(boolValue(props.get("autoAnimation"), true));
+        playerLoopAnimation.set(boolValue(props.get("loopAnimation"), true));
+        Object durationValue = props.getOrDefault("animationDuration", 2000);
+        if (durationValue instanceof Number durationNumber) {
+            playerAnimationDurationMs.set(Math.max(100, durationNumber.intValue()));
+        } else {
+            try {
+                playerAnimationDurationMs.set(Math.max(100, Integer.parseInt(String.valueOf(durationValue))));
+            } catch (Exception ignored) {
+                playerAnimationDurationMs.set(2000);
+            }
+        }
+        playerAnimationOverride.set(String.valueOf(props.getOrDefault("animationOverride", "")));
     }
 
     public void onRuntimeSelection(RuntimeObject runtimeObject) {
@@ -156,6 +294,7 @@ public final class InspectorPanel {
             case "display" -> renderDisplayProperties(session, selected);
             case "light" -> renderLightProperties(session, selected);
             case "marker" -> renderMarkerProperties(session, selected, props);
+            case "player_model" -> renderPlayerModelProperties(session, selected);
             default -> {
             }
         }
@@ -366,6 +505,71 @@ public final class InspectorPanel {
         }
     }
 
+    private void renderPlayerModelProperties(SceneSessionManager session, SceneObject selected) {
+        ImGui.textDisabled("Fake Player");
+        if (ImGui.inputText("Skin URL", playerSkinBuffer)) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("skinUrl", playerSkinBuffer.get());
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+        if (ImGui.checkbox("Auto Animation", playerAutoAnimation)) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("autoAnimation", playerAutoAnimation.get());
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+        if (ImGui.checkbox("Loop Override Animation", playerLoopAnimation)) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("loopAnimation", playerLoopAnimation.get());
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+        if (!playerLoopAnimation.get()) {
+            int minMs = 250;
+            int maxMs = 20000;
+            if (ImGui.dragInt("One-shot Duration (ms)", playerAnimationDurationMs.getData(), 50, minMs, maxMs)) {
+                playerAnimationDurationMs.set(Math.max(minMs, Math.min(maxMs, playerAnimationDurationMs.get())));
+                Map<String, Object> update = new ConcurrentHashMap<>();
+                update.put("animationDuration", playerAnimationDurationMs.get());
+                session.submitPropertyUpdate(selected.getId(), update);
+            }
+        }
+        String current = playerAnimationOverride.get().isBlank() ? "None" : playerAnimationOverride.get();
+        if (ImGui.beginCombo("Animation Override", current)) {
+            if (ImGui.selectable("None", playerAnimationOverride.get().isBlank())) {
+                playerAnimationOverride.set("");
+                Map<String, Object> update = new ConcurrentHashMap<>();
+                update.put("animationOverride", "");
+                session.submitPropertyUpdate(selected.getId(), update);
+            }
+            String[] animations = overlay.getKnownPlayerAnimations();
+            if (animations.length == 0) {
+                ImGui.textDisabled("No animations detected in loaded packs.");
+            } else {
+                for (String option : animations) {
+                    boolean selectedOption = option.equals(playerAnimationOverride.get());
+                    if (ImGui.selectable(option, selectedOption)) {
+                        playerAnimationOverride.set(option);
+                        Map<String, Object> update = new ConcurrentHashMap<>();
+                        update.put("animationOverride", option);
+                        session.submitPropertyUpdate(selected.getId(), update);
+                    }
+                    if (selectedOption) ImGui.setItemDefaultFocus();
+                }
+            }
+            ImGui.endCombo();
+        }
+        if (ImGui.inputText("Custom Animation", playerAnimationOverride)) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("animationOverride", playerAnimationOverride.get());
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+        if (ImGui.button("Clear Override")) {
+            playerAnimationOverride.set("");
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("animationOverride", "");
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+    }
+
     private void renderRuntimeInspector(RuntimeObject runtimeObject) {
         if (runtimeObject == null) {
             ImGui.textDisabled("No runtime object selected.");
@@ -469,126 +673,6 @@ public final class InspectorPanel {
         return selected;
     }
 
-    private static boolean hasExtension(String path, String... extensions) {
-        if (path == null || extensions == null) {
-            return false;
-        }
-        String lower = path.toLowerCase(Locale.ROOT);
-        for (String extension : extensions) {
-            if (extension == null) {
-                continue;
-            }
-            if (lower.endsWith(extension.toLowerCase(Locale.ROOT))) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static String toResourcePath(String projectPath) {
-        if (projectPath == null || projectPath.isBlank()) {
-            return projectPath;
-        }
-        String normalized = projectPath.replace('\\', '/');
-        if (!normalized.startsWith("assets/")) {
-            return normalized;
-        }
-        String withoutAssets = normalized.substring("assets/".length());
-        int slash = withoutAssets.indexOf('/');
-        if (slash < 0) {
-            return normalized;
-        }
-        String namespace = withoutAssets.substring(0, slash);
-        String relative = withoutAssets.substring(slash + 1);
-        return namespace + ":" + relative;
-    }
-
-    private static void extractColor(Object value, float[] target) {
-        if (!(value instanceof Map<?, ?> map)) {
-            Arrays.fill(target, 1f);
-            return;
-        }
-        target[0] = map.containsKey("r") ? toFloat(map.get("r")) : 1f;
-        target[1] = map.containsKey("g") ? toFloat(map.get("g")) : 1f;
-        target[2] = map.containsKey("b") ? toFloat(map.get("b")) : 1f;
-    }
-
-    private static void extractDirection(Object value, float[] target) {
-        if (!(value instanceof Map<?, ?> map)) {
-            target[0] = 0f;
-            target[1] = -1f;
-            target[2] = 0f;
-            return;
-        }
-        target[0] = map.containsKey("x") ? toFloat(map.get("x")) : target[0];
-        target[1] = map.containsKey("y") ? toFloat(map.get("y")) : target[1];
-        target[2] = map.containsKey("z") ? toFloat(map.get("z")) : target[2];
-    }
-
-    private static float[] extractVector(Object value, float[] fallback) {
-        if (value instanceof Map<?, ?> map) {
-            Object x = map.get("x");
-            Object y = map.get("y");
-            Object z = map.get("z");
-            if (x != null) fallback[0] = toFloat(x);
-            if (y != null) fallback[1] = toFloat(y);
-            if (z != null) fallback[2] = toFloat(z);
-        } else if (value instanceof List<?> list && list.size() >= 3) {
-            fallback[0] = toFloat(list.get(0));
-            fallback[1] = toFloat(list.get(1));
-            fallback[2] = toFloat(list.get(2));
-        }
-        return fallback;
-    }
-
-    private static Map<String, Object> vectorToMap(float[] vector) {
-        Map<String, Object> map = new ConcurrentHashMap<>();
-        map.put("x", vector[0]);
-        map.put("y", vector[1]);
-        map.put("z", vector[2]);
-        return map;
-    }
-
-    private static Map<String, Object> colorToMap(float[] color) {
-        Map<String, Object> map = new ConcurrentHashMap<>();
-        map.put("r", color[0]);
-        map.put("g", color[1]);
-        map.put("b", color[2]);
-        return map;
-    }
-
-    private static Map<String, Object> directionToMap(float[] direction) {
-        Map<String, Object> map = new ConcurrentHashMap<>();
-        map.put("x", direction[0]);
-        map.put("y", direction[1]);
-        map.put("z", direction[2]);
-        return map;
-    }
-
-    private static float toFloat(Object value) {
-        if (value instanceof Number number) {
-            return number.floatValue();
-        }
-        try {
-            return Float.parseFloat(String.valueOf(value));
-        } catch (Exception e) {
-            return 0f;
-        }
-    }
-
-    private static boolean boolValue(Object value, boolean fallback) {
-        if (value instanceof Boolean bool) {
-            return bool;
-        }
-        if (value instanceof Number number) {
-            return number.intValue() != 0;
-        }
-        if (value != null) {
-            return Boolean.parseBoolean(value.toString());
-        }
-        return fallback;
-    }
-
     private void resetBuffers() {
         inspectorLabel.set("");
         markerLabelBuffer.set("Marker");
@@ -611,5 +695,10 @@ public final class InspectorPanel {
         lightDirectionValue[0] = 0f;
         lightDirectionValue[1] = -1f;
         lightDirectionValue[2] = 0f;
+        playerSkinBuffer.set(overlay.getDefaultFakePlayerSkin());
+        playerAnimationOverride.set("");
+        playerAutoAnimation.set(true);
+        playerLoopAnimation.set(true);
+        playerAnimationDurationMs.set(2000);
     }
 }

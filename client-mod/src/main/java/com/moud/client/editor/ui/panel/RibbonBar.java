@@ -1,6 +1,8 @@
 package com.moud.client.editor.ui.panel;
 
+import com.moud.client.editor.assets.EditorAssetCatalog;
 import com.moud.client.editor.plugin.EditorPluginHost;
+import com.moud.client.editor.scene.SceneObject;
 import com.moud.client.editor.scene.SceneSessionManager;
 import com.moud.client.editor.ui.SceneEditorOverlay;
 import imgui.ImGui;
@@ -67,41 +69,27 @@ public final class RibbonBar {
     }
 
     private void renderModel(SceneSessionManager session) {
-        if (ImGui.button("New Empty")) {
-            overlay.spawnEmptyObject(session, null);
+        if (ImGui.button("Add...")) {
+            ImGui.openPopup("model_add_palette");
         }
-        ImGui.sameLine();
-        boolean haveModels = overlay.hasAssetsOfType("model");
-        if (!haveModels) ImGui.beginDisabled();
-        if (ImGui.button("Add Model")) {
-            ImGui.openPopup("hierarchy_add_model_popup");
-        }
-        if (!haveModels) ImGui.endDisabled();
-        ImGui.sameLine();
-        boolean haveDisplays = overlay.hasAssetsOfType("display");
-        if (!haveDisplays) ImGui.beginDisabled();
-        if (ImGui.button("Add Display")) {
-            ImGui.openPopup("hierarchy_add_display_popup");
-        }
-        if (!haveDisplays) ImGui.endDisabled();
-        ImGui.sameLine();
-        boolean haveLights = overlay.hasAssetsOfType("light");
-        if (!haveLights) ImGui.beginDisabled();
-        if (ImGui.button("Add Light")) {
-            ImGui.openPopup("hierarchy_add_light_popup");
-        }
-        if (!haveLights) ImGui.endDisabled();
-        ImGui.sameLine();
-        if (ImGui.button("Add Marker")) {
-            overlay.getMarkerNameBuffer().set(overlay.generateMarkerName());
-            ImGui.openPopup("hierarchy_add_marker_popup");
-        }
+        renderAddPalette(session);
         ImGui.sameLine();
         if (ImGui.button("Blueprint Tools")) {
             ImGui.openPopup("blueprint_tools_popup");
         }
         ImGui.separator();
         ImGui.textDisabled("Drag assets from the browser or explorer into the scene.");
+        ImGui.textDisabled("Utilities");
+        if (ImGui.button("Duplicate Selection")) {
+            // TODO: implement multi-selection duplication
+        }
+        ImGui.sameLine();
+        if (ImGui.button("Focus Selection")) {
+            SceneObject selection = overlay.getSelectedObject();
+            if (selection != null) {
+                overlay.focusSelection(selection);
+            }
+        }
     }
 
     private void renderView() {
@@ -152,6 +140,57 @@ public final class RibbonBar {
         }
         if (!rendered && descriptors.isEmpty()) {
             ImGui.textDisabled("No editor plugins registered yet.");
+        }
+    }
+
+    private void renderAddPalette(SceneSessionManager session) {
+        if (!ImGui.beginPopup("model_add_palette")) {
+            return;
+        }
+        if (ImGui.menuItem("Empty Group")) {
+            overlay.spawnEmptyObject(session, null);
+        }
+        if (ImGui.beginMenu("Models")) {
+            renderAssetMenu("model");
+            ImGui.endMenu();
+        }
+        if (ImGui.beginMenu("Displays")) {
+            renderAssetMenu("display");
+            ImGui.endMenu();
+        }
+        if (ImGui.beginMenu("Lights")) {
+            renderAssetMenu("light");
+            ImGui.endMenu();
+        }
+        if (ImGui.menuItem("Marker")) {
+            overlay.getMarkerNameBuffer().set(overlay.generateMarkerName());
+            ImGui.openPopup("hierarchy_add_marker_popup");
+        }
+        if (ImGui.menuItem("Fake Player")) {
+            ImGui.openPopup("hierarchy_add_fake_player_popup");
+        }
+        ImGui.endPopup();
+    }
+
+    private void renderAssetMenu(String type) {
+        List<com.moud.network.MoudPackets.EditorAssetDefinition> assets = EditorAssetCatalog.getInstance().getAssets();
+        int shown = 0;
+        for (com.moud.network.MoudPackets.EditorAssetDefinition asset : assets) {
+            if (!type.equalsIgnoreCase(asset.objectType())) {
+                continue;
+            }
+            if (ImGui.menuItem(asset.label())) {
+                overlay.spawnAsset(asset);
+            }
+            shown++;
+            if (shown >= 30) {
+                ImGui.separator();
+                ImGui.textDisabled("Use Asset Browser for more...");
+                break;
+            }
+        }
+        if (shown == 0) {
+            ImGui.textDisabled("No assets available.");
         }
     }
 }

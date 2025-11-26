@@ -1,5 +1,6 @@
 package com.moud.client.editor.ui.panel;
 
+import com.moud.client.editor.assets.AssetThumbnailCache;
 import com.moud.client.editor.assets.EditorAssetCatalog;
 import com.moud.client.editor.ui.SceneEditorOverlay;
 import com.moud.client.editor.ui.layout.EditorDockingLayout;
@@ -12,6 +13,7 @@ import imgui.type.ImString;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 
 public final class AssetBrowserPanel {
@@ -46,8 +48,9 @@ public final class AssetBrowserPanel {
                 ImGui.tableNextColumn();
                 ImGui.pushID(entry.id());
                 ImGui.beginGroup();
+                renderThumbnail(entry, Math.min(128f, ImGui.getColumnWidth() - 12f));
                 float buttonWidth = Math.min(160f, ImGui.getColumnWidth());
-                if (ImGui.button(entry.label(), buttonWidth, 70f)) {
+                if (ImGui.button(entry.label(), buttonWidth, 32f)) {
                     overlay.spawnAsset(entry);
                 }
                 if (ImGui.beginDragDropSource()) {
@@ -78,6 +81,39 @@ public final class AssetBrowserPanel {
             return true;
         }
         return entry.label().toLowerCase(Locale.ROOT).contains(filter) || entry.id().toLowerCase(Locale.ROOT).contains(filter);
+    }
+
+    private void renderThumbnail(MoudPackets.EditorAssetDefinition entry, float size) {
+        String preview = previewPathFor(entry);
+        if (preview == null || preview.endsWith(".mp4") || preview.endsWith(".webm")) {
+            return;
+        }
+        int textureId = AssetThumbnailCache.getInstance().getTextureId(preview);
+        if (textureId == 0) {
+            return;
+        }
+        ImGui.image(textureId, size, size, 0, 1, 1, 0);
+    }
+
+    private String previewPathFor(MoudPackets.EditorAssetDefinition entry) {
+        Map<String, Object> defaults = entry.defaultProperties();
+        if (defaults == null) {
+            return null;
+        }
+        Object raw = null;
+        if ("display".equalsIgnoreCase(entry.objectType())) {
+            raw = defaults.get("displayContent");
+        } else if ("model".equalsIgnoreCase(entry.objectType())) {
+            raw = defaults.get("texture");
+        }
+        if (raw == null) {
+            return null;
+        }
+        String path = String.valueOf(raw);
+        if (path.contains(":")) {
+            return path;
+        }
+        return "moud:" + path;
     }
 
     private float[] typeColor(String type) {

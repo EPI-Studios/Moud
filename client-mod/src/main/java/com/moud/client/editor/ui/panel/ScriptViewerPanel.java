@@ -9,8 +9,13 @@ import imgui.ImGui;
 
 import java.util.Locale;
 import java.util.Map;
+import java.awt.Desktop;
+import java.io.File;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class ScriptViewerPanel {
+    private static final Logger LOGGER = LoggerFactory.getLogger("ScriptViewer");
     private final SceneEditorOverlay overlay;
     private String activeScriptPath;
     private String lastObjectId;
@@ -98,11 +103,25 @@ public final class ScriptViewerPanel {
             if (ImGui.button("Copy##script_copy_abs_path")) {
                 ImGui.setClipboardText(entry.absolutePath());
             }
+            ImGui.sameLine();
+            if (Desktop.isDesktopSupported()) {
+                if (ImGui.button("Open in Editor##script_open_external")) {
+                    openInDesktop(entry.absolutePath());
+                }
+            }
         }
         ImGui.beginChild("script-source-view", 0, Math.max(160f, ImGui.getContentRegionAvailY()), true);
         ImGui.pushTextWrapPos();
         ImGui.textUnformatted(entry.content() == null ? "" : entry.content());
         ImGui.popTextWrapPos();
         ImGui.endChild();
+    }
+
+    private void openInDesktop(String path) {
+        try {
+            Desktop.getDesktop().open(new File(path));
+        } catch (Exception e) {
+            LOGGER.warn("Failed to open file {}", path, e);
+        }
     }
 }
