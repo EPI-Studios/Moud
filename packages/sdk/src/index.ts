@@ -702,6 +702,14 @@ export interface Player {
     getPitch(): number;
 
     /**
+     * Checks whether the player is standing near a ledge (no support ahead).
+     * Considers both blocks and model colliders on the server.
+     * @param forwardDistance How far ahead to probe from the player's feet, in blocks. Defaults to 0.6.
+     * @param dropThreshold Maximum vertical gap to still count as support. Defaults to 0.75 blocks.
+     */
+    isAtEdge(forwardDistance?: number, dropThreshold?: number): boolean;
+
+    /**
      * Instantly moves the player to a new position in the world.
      */
     teleport(x: number, y: number, z: number): void;
