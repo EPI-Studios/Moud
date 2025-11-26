@@ -1,5 +1,7 @@
 package com.moud.client.editor.runtime;
 
+import com.moud.api.collision.OBB;
+import com.moud.api.collision.OBB;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.client.display.DisplaySurface;
@@ -8,6 +10,7 @@ import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 
+import java.util.List;
 import java.util.UUID;
 
 public final class RuntimeObject {
@@ -24,6 +27,7 @@ public final class RuntimeObject {
 
     private DisplayState displayState;
     private UUID playerUuid;
+    private boolean isPlayerModel;
 
     public RuntimeObject(RuntimeObjectType type, long runtimeId) {
         this(type, runtimeId, type.name().toLowerCase() + ":" + runtimeId);
@@ -81,6 +85,10 @@ public final class RuntimeObject {
 
     public UUID getPlayerUuid() {
         return playerUuid;
+    }
+
+    public boolean isPlayerModel() {
+        return isPlayerModel;
     }
 
     public void updateFromModel(RenderableModel model) {
@@ -141,6 +149,47 @@ public final class RuntimeObject {
         this.rotation = new Vec3d(player.getPitch(), player.getYaw(), 0);
         Box box = player.getBoundingBox();
         this.bounds = new Box(box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ);
+    }
+
+    public void updateBoundsFromCollision(List<OBB> boxes) {
+        if (boxes == null || boxes.isEmpty()) {
+            return;
+        }
+        double minX = Double.POSITIVE_INFINITY;
+        double minY = Double.POSITIVE_INFINITY;
+        double minZ = Double.POSITIVE_INFINITY;
+        double maxX = Double.NEGATIVE_INFINITY;
+        double maxY = Double.NEGATIVE_INFINITY;
+        double maxZ = Double.NEGATIVE_INFINITY;
+        for (OBB obb : boxes) {
+            if (obb == null) continue;
+            Vec3d c = new Vec3d(obb.center.x, obb.center.y, obb.center.z);
+            Vec3d e = new Vec3d(obb.halfExtents.x, obb.halfExtents.y, obb.halfExtents.z);
+            minX = Math.min(minX, c.x - e.x);
+            minY = Math.min(minY, c.y - e.y);
+            minZ = Math.min(minZ, c.z - e.z);
+            maxX = Math.max(maxX, c.x + e.x);
+            maxY = Math.max(maxY, c.y + e.y);
+            maxZ = Math.max(maxZ, c.z + e.z);
+        }
+        if (minX <= maxX && minY <= maxY && minZ <= maxZ) {
+            this.bounds = new Box(minX, minY, minZ, maxX, maxY, maxZ);
+        }
+    }
+
+    public void updateFromPlayerModel(Vec3d pos) {
+        this.label = "Fake Player";
+        this.isPlayerModel = true;
+        this.position = pos;
+        this.scale = new Vec3d(1, 1, 1);
+        this.rotation = Vec3d.ZERO;
+        // approximative vanilla player bounds
+        double halfWidth = 0.3;
+        double height = 1.8;
+        this.bounds = new Box(
+                pos.x - halfWidth, pos.y, pos.z - halfWidth,
+                pos.x + halfWidth, pos.y + height, pos.z + halfWidth
+        );
     }
 
     private Vec3d quaternionToEuler(Quaternion q) {

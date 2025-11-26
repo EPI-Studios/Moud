@@ -23,6 +23,7 @@ public final class RuntimeObjectRegistry {
     private final Map<Long, String> modelIndex = new ConcurrentHashMap<>();
     private final Map<Long, String> displayIndex = new ConcurrentHashMap<>();
     private final Map<UUID, String> playerIndex = new ConcurrentHashMap<>();
+    private final Map<Long, String> playerModelIndex = new ConcurrentHashMap<>();
 
     private RuntimeObjectRegistry() {}
 
@@ -64,17 +65,38 @@ public final class RuntimeObjectRegistry {
         return objectId != null ? objects.get(objectId) : null;
     }
 
+    public RuntimeObject getByPlayerModel(long modelId) {
+        String objectId = playerModelIndex.get(modelId);
+        return objectId != null ? objects.get(objectId) : null;
+    }
+
     public void syncModel(RenderableModel model) {
         if (model == null) {
             return;
         }
         RuntimeObject object = getOrCreate(RuntimeObjectType.MODEL, model.getId());
         object.updateFromModel(model);
+        if (model.hasCollisionBoxes()) {
+            object.updateBoundsFromCollision(model.getCollisionBoxes());
+        }
         modelIndex.put(model.getId(), object.getObjectId());
     }
 
     public void removeModel(long modelId) {
         String objectId = modelIndex.remove(modelId);
+        if (objectId != null) {
+            objects.remove(objectId);
+        }
+    }
+
+    public void syncPlayerModel(long modelId, Vec3d position) {
+        RuntimeObject object = getOrCreate(RuntimeObjectType.PLAYER_MODEL, modelId);
+        object.updateFromPlayerModel(position);
+        playerModelIndex.put(modelId, object.getObjectId());
+    }
+
+    public void removePlayerModel(long modelId) {
+        String objectId = playerModelIndex.remove(modelId);
         if (objectId != null) {
             objects.remove(objectId);
         }
