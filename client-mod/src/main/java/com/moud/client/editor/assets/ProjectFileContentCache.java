@@ -7,9 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Caches project file contents streamed from the server so the script viewer can display source files.
- */
+
 public final class ProjectFileContentCache {
     private static final ProjectFileContentCache INSTANCE = new ProjectFileContentCache();
 

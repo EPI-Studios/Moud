@@ -14,9 +14,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Caches GL texture ids for asset thumbnails (display textures, etc.).
- */
 public final class AssetThumbnailCache {
     private static final Logger LOGGER = LoggerFactory.getLogger("AssetThumbnailCache");
     private static final AssetThumbnailCache INSTANCE = new AssetThumbnailCache();
