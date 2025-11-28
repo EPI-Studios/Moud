@@ -65,7 +65,10 @@ public final class TypeScriptTranspiler {
     }
 
     private static String findNpxExecutable() {
-        String[] possibleCommands = {"npx", "npx.cmd", "npx.exe"};
+        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+        String[] possibleCommands = isWindows
+                ? new String[]{"npx.cmd", "npx.exe", "npx"}
+                : new String[]{"npx", "npx.cmd", "npx.exe"};
         String pathEnv = System.getenv("PATH");
 
         if (pathEnv == null || pathEnv.isEmpty()) {
@@ -78,6 +81,9 @@ public final class TypeScriptTranspiler {
         for (String dir : pathDirs) {
             for (String cmd : possibleCommands) {
                 File executable = new File(dir, cmd);
+                if (isWindows && "npx".equalsIgnoreCase(cmd)) {
+                    continue;
+                }
                 if (executable.exists() && executable.canExecute()) {
                     LOGGER.debug("Found npx at {}", executable.getAbsolutePath());
                     return executable.getAbsolutePath();
