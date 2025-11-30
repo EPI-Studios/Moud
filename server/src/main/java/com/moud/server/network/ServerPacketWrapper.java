@@ -41,7 +41,8 @@ public class ServerPacketWrapper {
                 packetData.channel(),
                 packet.getClass().getSimpleName(),
                 packetData.data().length,
-                payload.length
+                payload.length,
+                packetData.data()
         );
     }
 
@@ -56,6 +57,14 @@ public class ServerPacketWrapper {
     public static void handleIncoming(String channel, byte[] data, Object player) {
         long start = System.nanoTime();
         boolean success = false;
+
+        NetworkProbe.getInstance().recordPacketDetail(
+                "IN",
+                channel,
+                data != null ? data.length : 0,
+                formatHexDump(data)
+        );
+
         try {
             DISPATCHER.handle(channel, data, player);
             success = true;
@@ -65,11 +74,33 @@ public class ServerPacketWrapper {
         }
     }
 
+    private static String formatHexDump(byte[] data) {
+        if (data == null) return "null";
+        if (data.length == 0) return "empty";
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Binary Payload (").append(data.length).append(" bytes)\n");
+        sb.append("------------------------------------------------\n");
+
+        int len = Math.min(data.length, 256);
+        for (int i = 0; i < len; i++) {
+            if (i > 0 && i % 16 == 0) sb.append("\n");
+            sb.append(String.format("%02X ", data[i]));
+        }
+
+        if (data.length > 256) {
+            sb.append("\n... (rest)");
+        }
+        return sb.toString();
+    }
+
     public record PacketEnvelope(PluginMessagePacket packet,
                                  String innerChannel,
                                  String packetType,
                                  int payloadBytes,
-                                 int totalBytes) {
+                                 int totalBytes,
+                                 byte[] payload) {
+
     }
 
 }

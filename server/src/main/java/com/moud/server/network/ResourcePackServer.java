@@ -30,13 +30,13 @@ final class ResourcePackServer {
             return null;
         }
         try {
-            byte[] packBytes = Files.readAllBytes(packPath);
-            String sha1 = sha1(packBytes);
+            String sha1 = sha1(packPath);
+            long size = Files.size(packPath);
             UUID packId = UUID.nameUUIDFromBytes(("moud-resource-pack:" + sha1).getBytes(StandardCharsets.UTF_8));
 
             if (server == null) {
                 server = HttpServer.create(new InetSocketAddress(bindHost, port), 0);
-                server.createContext(urlPath, new PackHandler(packBytes));
+                server.createContext(urlPath, new PackHandler(packPath, size));
                 server.setExecutor(java.util.concurrent.Executors.newSingleThreadExecutor());
                 server.start();
                 LOGGER.info(LogContext.builder()
@@ -44,7 +44,7 @@ final class ResourcePackServer {
                         .put("public_host", publicHost)
                         .put("port", server.getAddress().getPort())
                         .put("path", urlPath)
-                        .put("size_bytes", packBytes.length)
+                        .put("size_bytes", size)
                         .put("sha1", sha1)
                         .put("id", packId)
                         .build(), "Started resource pack HTTP server");
@@ -58,22 +58,31 @@ final class ResourcePackServer {
         }
     }
 
-    private static String sha1(byte[] data) {
+    private static String sha1(Path file) throws IOException {
+        MessageDigest digest;
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-1");
-            return HexFormat.of().formatHex(digest.digest(data));
+            digest = MessageDigest.getInstance("SHA-1");
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-1 not available", e);
         }
+        try (var in = Files.newInputStream(file)) {
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = in.read(buffer)) != -1) {
+                digest.update(buffer, 0, read);
+            }
+        }
+        return HexFormat.of().formatHex(digest.digest());
     }
 
-    private record PackHandler(byte[] packBytes) implements HttpHandler {
+    private record PackHandler(Path packPath, long size) implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             exchange.getResponseHeaders().add("Content-Type", "application/zip");
-            exchange.sendResponseHeaders(200, packBytes.length);
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(packBytes);
+            exchange.sendResponseHeaders(200, size);
+            try (OutputStream os = exchange.getResponseBody();
+                 var in = Files.newInputStream(packPath)) {
+                in.transferTo(os);
             }
         }
     }

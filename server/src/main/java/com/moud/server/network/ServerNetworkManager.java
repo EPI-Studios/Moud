@@ -6,12 +6,15 @@ import com.moud.network.MoudPackets;
 import com.moud.network.MoudPackets.*;
 import com.moud.server.client.ClientScriptManager;
 import com.moud.server.cursor.CursorService;
+import com.moud.server.editor.AnimationManager;
 import com.moud.server.entity.DisplayManager;
 import com.moud.server.entity.ModelManager;
 import com.moud.server.editor.SceneManager;
 import com.moud.server.editor.BlueprintStorage;
+import com.moud.server.fakeplayer.FakePlayerManager;
 import com.moud.server.events.EventDispatcher;
 import com.moud.server.lighting.ServerLightingManager;
+import com.moud.server.camera.CameraRegistry;
 import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.movement.ServerMovementHandler;
@@ -43,6 +46,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Arrays;
 import net.kyori.adventure.resource.ResourcePackRequest;
 import net.kyori.adventure.resource.ResourcePackStatus;
 import net.kyori.adventure.text.Component;
@@ -101,11 +105,21 @@ public final class ServerNetworkManager {
         ServerPacketWrapper.registerHandler(RequestEditorAssetsPacket.class, this::handleEditorAssetsRequest);
         ServerPacketWrapper.registerHandler(RequestProjectMapPacket.class, this::handleProjectMapRequest);
         ServerPacketWrapper.registerHandler(RequestProjectFilePacket.class, this::handleProjectFileRequest);
+        ServerPacketWrapper.registerHandler(MoudPackets.AnimationSavePacket.class, this::handleAnimationSave);
+        ServerPacketWrapper.registerHandler(MoudPackets.AnimationLoadPacket.class, this::handleAnimationLoad);
+        ServerPacketWrapper.registerHandler(MoudPackets.AnimationListPacket.class, this::handleAnimationList);
+        ServerPacketWrapper.registerHandler(MoudPackets.AnimationPlayPacket.class, this::handleAnimationPlay);
+        ServerPacketWrapper.registerHandler(MoudPackets.AnimationStopPacket.class, this::handleAnimationStop);
+        ServerPacketWrapper.registerHandler(MoudPackets.AnimationSeekPacket.class, this::handleAnimationSeek);
         ServerPacketWrapper.registerHandler(MoudPackets.UpdateRuntimeModelPacket.class, this::handleRuntimeModelUpdate);
         ServerPacketWrapper.registerHandler(MoudPackets.UpdateRuntimeDisplayPacket.class, this::handleRuntimeDisplayUpdate);
         ServerPacketWrapper.registerHandler(MoudPackets.UpdatePlayerTransformPacket.class, this::handlePlayerTransformUpdate);
         ServerPacketWrapper.registerHandler(SaveBlueprintPacket.class, this::handleBlueprintSave);
         ServerPacketWrapper.registerHandler(RequestBlueprintPacket.class, this::handleBlueprintRequest);
+        ServerPacketWrapper.registerHandler(MoudPackets.C2S_SpawnFakePlayer.class, this::handleFakePlayerSpawn);
+        ServerPacketWrapper.registerHandler(MoudPackets.C2S_RemoveFakePlayer.class, this::handleFakePlayerRemove);
+        ServerPacketWrapper.registerHandler(MoudPackets.C2S_SetFakePlayerPose.class, this::handleFakePlayerPose);
+        ServerPacketWrapper.registerHandler(MoudPackets.C2S_SetFakePlayerPath.class, this::handleFakePlayerPath);
 
     }
 
@@ -152,6 +166,42 @@ public final class ServerNetworkManager {
         Player minestomPlayer = (Player) player;
         var entries = SceneManager.getInstance().getProjectFileEntries();
         send(minestomPlayer, new ProjectMapPacket(entries));
+    }
+
+    private void handleAnimationSave(Object player, MoudPackets.AnimationSavePacket packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer)) return;
+        AnimationManager.getInstance().handleSave(packet);
+    }
+
+    private void handleAnimationLoad(Object player, MoudPackets.AnimationLoadPacket packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer)) return;
+        AnimationManager.getInstance().handleLoad(packet, this, minestomPlayer);
+    }
+
+    private void handleAnimationList(Object player, MoudPackets.AnimationListPacket packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer)) return;
+        AnimationManager.getInstance().handleList(this, minestomPlayer);
+    }
+
+    private void handleAnimationPlay(Object player, MoudPackets.AnimationPlayPacket packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer)) return;
+        AnimationManager.getInstance().handlePlay(packet);
+    }
+
+    private void handleAnimationStop(Object player, MoudPackets.AnimationStopPacket packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer)) return;
+        AnimationManager.getInstance().handleStop(packet);
+    }
+
+    private void handleAnimationSeek(Object player, MoudPackets.AnimationSeekPacket packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer)) return;
+        AnimationManager.getInstance().handleSeek(packet);
     }
 
     private void handleProjectFileRequest(Object player, RequestProjectFilePacket packet) {
@@ -292,11 +342,36 @@ public final class ServerNetworkManager {
         send(minestomPlayer, new BlueprintDataPacket(name, data, success, message == null ? "" : message));
     }
 
+    private void handleFakePlayerSpawn(Object player, MoudPackets.C2S_SpawnFakePlayer packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer)) return;
+        FakePlayerManager.getInstance().spawn(packet.descriptor());
+    }
+
+    private void handleFakePlayerRemove(Object player, MoudPackets.C2S_RemoveFakePlayer packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer)) return;
+        FakePlayerManager.getInstance().remove(packet.id());
+    }
+
+    private void handleFakePlayerPose(Object player, MoudPackets.C2S_SetFakePlayerPose packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer)) return;
+        FakePlayerManager.getInstance().updatePose(packet.id(), packet.sneaking(), packet.sprinting(), packet.swinging(), packet.usingItem());
+    }
+
+    private void handleFakePlayerPath(Object player, MoudPackets.C2S_SetFakePlayerPath packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer)) return;
+        FakePlayerManager.getInstance().updatePath(packet.id(), packet.path(), packet.pathSpeed(), packet.pathLoop(), packet.pathPingPong());
+    }
+
     private void handleClientReady(Object player, ClientReadyPacket packet) {
         Player minestomPlayer = (Player) player;
         LogContext context = playerContext(minestomPlayer);
-        LOGGER.info(context, "Client {} is ready, syncing lights", minestomPlayer.getUsername());
+        LOGGER.info(context, "Client {} is ready, syncing lights and fake players", minestomPlayer.getUsername());
         ServerLightingManager.getInstance().syncLightsToPlayer(minestomPlayer);
+        FakePlayerManager.getInstance().syncToPlayer(minestomPlayer);
     }
     private void onPluginMessage(PlayerPluginMessageEvent event) {
         String outerChannel = event.getIdentifier();
@@ -334,6 +409,13 @@ public final class ServerNetworkManager {
             return false;
         }
 
+
+        NetworkProbe.getInstance().recordPacketDetail(
+                "OUT",
+                packet.getClass().getSimpleName(),
+                envelope.totalBytes(),
+                packet
+        );
 
         boolean success = false;
         try {
@@ -465,6 +547,8 @@ public final class ServerNetworkManager {
             LOGGER.info(playerModelContext, "Synced {} existing player models to {}", playerModels.size(), minestomPlayer.getUsername());
         }
 
+        FakePlayerManager.getInstance().syncToPlayer(minestomPlayer);
+
         ModelManager.getInstance().getAllModels().forEach(model -> {
             model.ensureCollisionPayload();
             MoudPackets.S2C_CreateModelPacket createPacket = new MoudPackets.S2C_CreateModelPacket(
@@ -491,6 +575,10 @@ public final class ServerNetworkManager {
                     .put("synced_models", modelCount)
                     .build());
             LOGGER.info(modelSyncContext, "Synced {} existing models to {}", modelCount, minestomPlayer.getUsername());
+        }
+
+        if (!CameraRegistry.getInstance().all().isEmpty()) {
+            LOGGER.info(baseContext, "Client {} ready: {} cameras present (editor-only)", minestomPlayer.getUsername(), CameraRegistry.getInstance().all().size());
         }
 
         Collection<MediaDisplayProxy> displays = DisplayManager.getInstance().getAllDisplays();
@@ -645,6 +733,7 @@ public final class ServerNetworkManager {
     private void onPlayerDisconnect(PlayerDisconnectEvent event) {
         Player player = event.getPlayer();
         moudClients.remove(player.getUuid());
+        lastPayloadCache.remove(player.getUuid());
         PlayerCameraManager.getInstance().onPlayerDisconnect(player);
         PlayerCursorDirectionManager.getInstance().onPlayerDisconnect(player);
         CursorService.getInstance().onPlayerQuit(player);

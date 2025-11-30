@@ -171,12 +171,15 @@ public class JavaScriptRuntime {
                         moudObj.putMember("zones", scriptingAPI.zones);
                         moudObj.putMember("math", scriptingAPI.math);
                         moudObj.putMember("commands", scriptingAPI.commands);
+                        moudObj.putMember("scene", scriptingAPI.scene);
                         moudObj.putMember("async", scriptingAPI.getAsync());
 
                     } else if (api instanceof com.moud.server.proxy.AssetProxy) {
                         moudObj.putMember("assets", api);
                     } else if (api instanceof com.moud.server.ConsoleAPI) {
                         bindings.putMember("console", api);
+                    } else if (api instanceof com.moud.server.api.CameraAPI) {
+                        moudObj.putMember("camera", api);
                     }
                 }
 

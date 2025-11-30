@@ -201,6 +201,19 @@ public final class PhysicsService {
         }
     }
 
+    public int applyExplosion(Vector3 center, double radius, double strength, double verticalBoost) {
+        if (center == null || radius <= 0 || strength == 0 || physicsObjects.isEmpty()) {
+            return 0;
+        }
+        int affected = 0;
+        for (PhysicsObject obj : physicsObjects.values()) {
+            if (obj.applyExplosion(center, radius, strength, verticalBoost)) {
+                affected++;
+            }
+        }
+        return affected;
+    }
+
     public void handlePlayerInteraction(Player player) {
         if (player == null || physicsObjects.isEmpty()) {
             return;
@@ -328,22 +341,15 @@ public final class PhysicsService {
         return result.get();
     }
 
-    public void attachDynamicModel(ModelProxy model, Vector3 halfExtents, float mass, Vector3 initialVelocity) {
+    public void attachDynamicModel(ModelProxy model, Vector3 halfExtents, float mass, Vector3 initialVelocity, boolean allowPlayerPush) {
         Vector3 startPos = model.getPosition();
 
         ensureChunksLoadedForPosition(model, startPos);
 
         ConstShape collisionShape = switch (model.getCollisionMode()) {
-            case STATIC_MESH -> {
-                ConstShape mesh = createMeshShape(model);
-                if (mesh == null) {
-                    LOGGER.warn("Mesh collision requested for model {} but mesh shape failed, falling back to convex hull", model.getModelPath());
-                    mesh = createConvexHullShape(model);
-                }
-                yield mesh;
-            }
-            case CAPSULE -> null; // capsule not implemented
-            case CONVEX, AUTO -> createConvexHullShape(model);
+            case STATIC_MESH -> createConvexHullShape(model);
+            case CAPSULE -> null; // capsule not implemented :')
+            case AUTO, CONVEX -> createConvexHullShape(model);
         };
         if (collisionShape == null) {
             LOGGER.debug(LogContext.builder()
@@ -372,7 +378,7 @@ public final class PhysicsService {
             body.setLinearVelocity(new Vec3(initialVelocity.x, initialVelocity.y, initialVelocity.z));
         }
 
-        physicsObjects.put(model.getId(), new PhysicsObject(this, model, body));
+        physicsObjects.put(model.getId(), new PhysicsObject(this, model, body, allowPlayerPush));
     }
 
     private void ensureChunksLoadedForPosition(ModelProxy model, Vector3 position) {
@@ -488,11 +494,16 @@ public final class PhysicsService {
         private final PhysicsService service;
         private final ModelProxy model;
         private final Body body;
+        private final boolean allowPlayerPush;
+        private int lastChunkX;
+        private int lastChunkZ;
+        private boolean chunkInitialized;
 
-        private PhysicsObject(PhysicsService service, ModelProxy model, Body body) {
+        private PhysicsObject(PhysicsService service, ModelProxy model, Body body, boolean allowPlayerPush) {
             this.service = service;
             this.model = model;
             this.body = body;
+            this.allowPlayerPush = allowPlayerPush;
         }
 
         private void syncVisual() {
@@ -502,6 +513,7 @@ public final class PhysicsService {
             RVec3 pos = body.getPosition();
             Quat rot = body.getRotation();
             model.syncPhysicsTransform(toVector3(pos), toQuaternion(rot));
+            maybeEnsureChunks(pos);
         }
 
         private void applyManualTransform(Vector3 position, Quaternion rotation) {
@@ -512,6 +524,9 @@ public final class PhysicsService {
         }
 
         private void pushIfIntersecting(BoundingBox playerBox, Vec playerVelocity) {
+            if (!allowPlayerPush) {
+                return;
+            }
             BoundingBox modelBox = getWorldBoundingBox();
             if (modelBox == null) {
                 return;
@@ -526,6 +541,38 @@ public final class PhysicsService {
             );
             body.addImpulse(impulse);
             body.resetSleepTimer();
+        }
+
+        private boolean applyExplosion(Vector3 center, double radius, double strength, double verticalBoost) {
+            if (center == null || radius <= 0 || strength == 0) {
+                return false;
+            }
+            BodyInterface bi = service.getBodyInterface();
+            RVec3 bodyPos = body.getPosition();
+            double dx = ((Number) bodyPos.getX()).doubleValue() - center.x;
+            double dy = ((Number) bodyPos.getY()).doubleValue() - center.y;
+            double dz = ((Number) bodyPos.getZ()).doubleValue() - center.z;
+            dy += verticalBoost;
+            double distSq = dx * dx + dy * dy + dz * dz;
+            double radiusSq = radius * radius;
+            if (distSq > radiusSq) {
+                return false;
+            }
+            double dist = Math.sqrt(Math.max(distSq, 1.0e-8));
+            double falloff = 1.0 - (dist / radius);
+            if (falloff <= 0) {
+                return false;
+            }
+            double scale = (strength * falloff) / dist;
+            Vec3 impulse = new Vec3(
+                    (float) (dx * scale),
+                    (float) (dy * scale),
+                    (float) (dz * scale)
+            );
+            bi.activateBody(body.getId());
+            body.addImpulse(impulse);
+            body.resetSleepTimer();
+            return true;
         }
 
         private BoundingBox getWorldBoundingBox() {
@@ -559,6 +606,24 @@ public final class PhysicsService {
                 return Quaternion.identity();
             }
             return new Quaternion(quat.getX(), quat.getY(), quat.getZ(), quat.getW());
+        }
+
+        private void maybeEnsureChunks(RVec3 pos) {
+            if (pos == null) {
+                return;
+            }
+            int chunkX = (int) Math.floor(((Number) pos.getX()).doubleValue() / 16.0);
+            int chunkZ = (int) Math.floor(((Number) pos.getZ()).doubleValue() / 16.0);
+            if (!chunkInitialized || chunkX != lastChunkX || chunkZ != lastChunkZ) {
+                service.ensureChunksLoadedForPosition(model, new Vector3(
+                        ((Number) pos.getX()).doubleValue(),
+                        ((Number) pos.getY()).doubleValue(),
+                        ((Number) pos.getZ()).doubleValue()
+                ));
+                lastChunkX = chunkX;
+                lastChunkZ = chunkZ;
+                chunkInitialized = true;
+            }
         }
     }
 

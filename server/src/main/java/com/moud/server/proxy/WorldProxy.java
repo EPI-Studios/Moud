@@ -221,7 +221,8 @@ public class WorldProxy {
         if (depth <= 0) depth = 1;
 
         Vector3 halfExtents = new Vector3(width / 2.0, height / 2.0, depth / 2.0);
-        PhysicsService.getInstance().attachDynamicModel(model, halfExtents, (float) mass, initialVelocity);
+        boolean playerPush = physicsOptions.hasMember("playerPush") && physicsOptions.getMember("playerPush").asBoolean();
+        PhysicsService.getInstance().attachDynamicModel(model, halfExtents, (float) mass, initialVelocity, playerPush);
         return model;
     }
 

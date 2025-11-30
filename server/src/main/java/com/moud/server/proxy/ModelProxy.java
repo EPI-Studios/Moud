@@ -47,14 +47,28 @@ public class ModelProxy {
     private CollisionMode collisionMode = CollisionMode.AUTO;
     private byte[] cachedCompressedVertices;
     private byte[] cachedCompressedIndices;
+    private boolean manualCollisionOverride;
+    private Vector3 lastBroadcastPosition;
+    private Quaternion lastBroadcastRotation;
+    private Vector3 lastBroadcastScale;
+    private long lastBroadcastNanos;
+    private static final double MIN_POS_DELTA_SQ = 1.0e-4; // 1 cm movement
+    private static final double MIN_SCALE_DELTA = 1.0e-4;
+    private static final float MIN_ROTATION_DELTA_DEG = 0.1f;
+    private static final long MIN_BROADCAST_INTERVAL_NANOS = 20_000_000L; // 20 ms (~50/s)
 
 
     public ModelProxy(Instance instance, String modelPath, Vector3 position, Quaternion rotation, Vector3 scale, String texturePath) {
+        this(instance, modelPath, position, rotation, scale, texturePath, false);
+    }
+
+    public ModelProxy(Instance instance, String modelPath, Vector3 position, Quaternion rotation, Vector3 scale, String texturePath, boolean manualCollisionOverride) {
         this.id = ModelManager.getInstance().nextId();
         this.modelPath = modelPath;
         this.position = position;
         this.rotation = rotation;
         this.scale = scale;
+        this.manualCollisionOverride = manualCollisionOverride;
         this.texturePath = texturePath != null ? texturePath : "";
         if (this.texturePath.isBlank()) {
             inferTexturePath();
@@ -100,6 +114,38 @@ public class ModelProxy {
         if (networkManager != null) {
             networkManager.broadcast(packet);
         }
+    }
+
+    private boolean shouldBroadcastUpdate() {
+        boolean hasBaseline = lastBroadcastPosition != null && lastBroadcastRotation != null && lastBroadcastScale != null;
+        if (!hasBaseline) {
+            return true;
+        }
+
+        double posDeltaSq = position != null ? position.distanceSquared(lastBroadcastPosition) : Double.MAX_VALUE;
+        double scaleDelta = scale != null && lastBroadcastScale != null
+                ? Math.max(Math.abs(scale.x - lastBroadcastScale.x),
+                Math.max(Math.abs(scale.y - lastBroadcastScale.y), Math.abs(scale.z - lastBroadcastScale.z)))
+                : Double.MAX_VALUE;
+        float rotDelta = rotation != null && lastBroadcastRotation != null ? rotation.angleTo(lastBroadcastRotation) : Float.MAX_VALUE;
+
+        boolean changed = posDeltaSq > MIN_POS_DELTA_SQ
+                || scaleDelta > MIN_SCALE_DELTA
+                || rotDelta > MIN_ROTATION_DELTA_DEG;
+
+        if (!changed) {
+            return false;
+        }
+
+        long now = System.nanoTime();
+        return now - lastBroadcastNanos >= MIN_BROADCAST_INTERVAL_NANOS;
+    }
+
+    private void snapshotBroadcastState() {
+        this.lastBroadcastPosition = position != null ? new Vector3(position) : null;
+        this.lastBroadcastRotation = rotation != null ? new Quaternion(rotation) : null;
+        this.lastBroadcastScale = scale != null ? new Vector3(scale) : null;
+        this.lastBroadcastNanos = System.nanoTime();
     }
 
     private void inferTexturePath() {
@@ -265,17 +311,26 @@ public class ModelProxy {
         MoudPackets.S2C_CreateModelPacket packet = new MoudPackets.S2C_CreateModelPacket(
                 id, modelPath, position, rotation, scale,
                 getCollisionWidth(), getCollisionHeight(), getCollisionDepth(),
-                texturePath, toCollisionData(collisionBoxes),
-                toWireCollisionMode(), cachedCompressedVertices, cachedCompressedIndices, List.of()
+                texturePath,
+                toCollisionData(collisionBoxes),
+                toWireCollisionMode(),
+                cachedCompressedVertices,
+                cachedCompressedIndices,
+                List.of()
         );
         broadcast(packet);
+        snapshotBroadcastState();
     }
 
     private void broadcastUpdate() {
+        if (!shouldBroadcastUpdate()) {
+            return;
+        }
         MoudPackets.S2C_UpdateModelTransformPacket packet = new MoudPackets.S2C_UpdateModelTransformPacket(
                 id, position, rotation, scale
         );
         broadcast(packet);
+        snapshotBroadcastState();
     }
 
     @HostAccess.Export
@@ -359,11 +414,11 @@ public class ModelProxy {
     public void setCollisionBox(double width, double height, double depth) {
         if (width <= 0 || height <= 0 || depth <= 0) {
             this.collisionBox = null;
-            this.collisionBoxes.clear();
             this.entity.setBoundingBox(0, 0, 0);
             ((InteractionMeta)this.entity.getEntityMeta()).setWidth(0);
             ((InteractionMeta)this.entity.getEntityMeta()).setHeight(0);
         } else {
+            this.manualCollisionOverride = true;
             this.collisionBox = new BoundingBox(width, height, depth);
             this.entity.setBoundingBox(this.collisionBox);
             ((InteractionMeta)this.entity.getEntityMeta()).setWidth((float)width);
@@ -389,7 +444,7 @@ public class ModelProxy {
         List<BoundingBox> minestomBoxes = MinestomCollisionAdapter.convertToBoundingBoxes(
             boxes, position, rotation, scale
         );
-        if (!minestomBoxes.isEmpty()) {
+        if (!manualCollisionOverride && !minestomBoxes.isEmpty()) {
             BoundingBox mainBox = MinestomCollisionAdapter.getLargestBox(minestomBoxes);
             this.collisionBox = mainBox;
             this.entity.setBoundingBox(mainBox);

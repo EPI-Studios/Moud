@@ -27,7 +27,7 @@ public final class PhysicsControllerImpl implements PhysicsController {
             return;
         }
         Vector3 extents = definition.halfExtents();
-        physicsService.attachDynamicModel(proxy, extents, definition.mass(), definition.initialVelocity());
+        physicsService.attachDynamicModel(proxy, extents, definition.mass(), definition.initialVelocity(), definition.allowPlayerPush());
     }
 
     @Override

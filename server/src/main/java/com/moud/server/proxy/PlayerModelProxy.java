@@ -28,6 +28,7 @@ public class PlayerModelProxy {
     private static final AtomicLong ID_COUNTER = new AtomicLong(1);
     private static final ConcurrentHashMap<Long, PlayerModelProxy> ALL_MODELS = new ConcurrentHashMap<>();
     private static final ScheduledExecutorService ANIMATION_SCHEDULER = Executors.newScheduledThreadPool(1);
+    private static final int WALK_UPDATE_PERIOD_MS = 16; // ~60hz for smoother waypoint motion
 
     private final long modelId;
     private Vector3 position;
@@ -47,7 +48,7 @@ public class PlayerModelProxy {
     }
     private MovementState movementState = MovementState.IDLE;
     private Vector3 walkTarget = null;
-    private float walkSpeed = 2.0f;
+    private float walkSpeed = 2.0f; // meters per second
     private ScheduledFuture<?> walkTask;
 
     static {
@@ -132,13 +133,9 @@ public class PlayerModelProxy {
             }
         }
 
-        float deltaX = target.x - position.x;
-        float deltaZ = target.z - position.z;
-        this.yaw = (float) Math.toDegrees(Math.atan2(-deltaX, deltaZ));
-
         setMovementState(MovementState.WALKING);
 
-        walkTask = ANIMATION_SCHEDULER.scheduleAtFixedRate(this::updateWalking, 0, 50, TimeUnit.MILLISECONDS);
+        walkTask = ANIMATION_SCHEDULER.scheduleAtFixedRate(this::updateWalking, 0, WALK_UPDATE_PERIOD_MS, TimeUnit.MILLISECONDS);
     }
 
     @HostAccess.Export
@@ -165,7 +162,7 @@ public class PlayerModelProxy {
             return;
         }
 
-        float moveDistancePerTick = walkSpeed / 20.0f;
+        float moveDistancePerTick = walkSpeed * (WALK_UPDATE_PERIOD_MS / 1000.0f);
         Vector3 direction = walkTarget.subtract(position);
         float distanceToTarget = direction.length();
 
@@ -176,8 +173,13 @@ public class PlayerModelProxy {
             return;
         }
 
-        Vector3 velocity = direction.normalize().multiply(moveDistancePerTick);
+        Vector3 dirNorm = direction.normalize();
+        Vector3 velocity = dirNorm.multiply(moveDistancePerTick);
         this.position = this.position.add(velocity);
+
+        if (dirNorm.lengthSquared() > 0.0001f) {
+            this.yaw = (float) Math.toDegrees(Math.atan2(-dirNorm.x, dirNorm.z));
+        }
 
         broadcastUpdate();
     }
@@ -186,10 +188,16 @@ public class PlayerModelProxy {
     public void setRotation(Value rotationValue) {
         if (rotationValue != null && rotationValue.hasMembers()) {
             if (rotationValue.hasMember("yaw")) {
-                this.yaw = rotationValue.getMember("yaw").asFloat();
+                Value v = rotationValue.getMember("yaw");
+                if (v != null) {
+                    this.yaw = v.fitsInFloat() ? v.asFloat() : (float) v.asDouble();
+                }
             }
             if (rotationValue.hasMember("pitch")) {
-                this.pitch = rotationValue.getMember("pitch").asFloat();
+                Value v = rotationValue.getMember("pitch");
+                if (v != null) {
+                    this.pitch = v.fitsInFloat() ? v.asFloat() : (float) v.asDouble();
+                }
             }
             broadcastUpdate();
         }

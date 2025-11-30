@@ -96,7 +96,6 @@ public class InstanceManager {
             namedInstances.put("default", defaultInstance);
             instanceRegistry.put(defaultInstance.getUniqueId(), defaultInstance);
             LOGGER.info("Default instance created with flat world generator");
-            preloadBaseTerrain(defaultInstance);
         }
     }
 
@@ -258,36 +257,5 @@ public class InstanceManager {
         saveAllInstances();
         namedInstances.clear();
         instanceRegistry.clear();
-    }
-
-    private void preloadBaseTerrain(InstanceContainer instance) {
-        int diameterChunks = DEFAULT_WORLD_RADIUS_CHUNKS * 2 + 1;
-        int chunkCount = diameterChunks * diameterChunks;
-        LOGGER.info("Preloading base terrain area (~{}x{} blocks, {} chunks)",
-                diameterChunks * CHUNK_SIZE,
-                diameterChunks * CHUNK_SIZE,
-                chunkCount);
-
-        List<CompletableFuture<Chunk>> futures = new ArrayList<>(chunkCount);
-        ChunkRange.chunksInRange(0, 0, DEFAULT_WORLD_RADIUS_CHUNKS,
-                (chunkX, chunkZ) -> futures.add(instance.loadChunk(chunkX, chunkZ)));
-
-        if (futures.isEmpty()) {
-            return;
-        }
-
-        long startTime = System.currentTimeMillis();
-        CompletableFuture<?>[] tasks = futures.toArray(CompletableFuture<?>[]::new);
-        CompletableFuture
-                .allOf(tasks)
-                .thenRunAsync(() -> {
-                    LightingChunk.relight(instance, instance.getChunks());
-                    long elapsed = System.currentTimeMillis() - startTime;
-                    LOGGER.success("Base terrain prepared ({} chunks) in {} ms", chunkCount, elapsed);
-                })
-                .exceptionally(ex -> {
-                    LOGGER.error("Failed to preload base terrain chunks", ex);
-                    return null;
-                });
     }
 }

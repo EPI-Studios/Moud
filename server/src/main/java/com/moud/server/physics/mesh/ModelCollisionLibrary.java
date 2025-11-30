@@ -30,6 +30,9 @@ public final class ModelCollisionLibrary {
     private static final Map<String, List<float[]>> VHACD_HULL_CACHE = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, CompletableFuture<List<OBB>>> PENDING = new ConcurrentHashMap<>();
     private static final ExecutorService WORKERS = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors() / 2));
+    private static final int MAX_MESH_CACHE = 64;
+    private static final int MAX_COLLISION_CACHE = 128;
+    private static final int MAX_HULL_CACHE = 64;
 
     private ModelCollisionLibrary() {
     }
@@ -53,6 +56,7 @@ public final class ModelCollisionLibrary {
         MeshData loaded = loadMesh(modelPath);
         if (loaded != null) {
             MESH_CACHE.put(modelPath, loaded);
+            trimCache(MESH_CACHE, MAX_MESH_CACHE);
         } else {
             MESH_CACHE.remove(modelPath);
         }
@@ -116,16 +120,18 @@ public final class ModelCollisionLibrary {
         if (modelPath == null || modelPath.isBlank()) {
             return null;
         }
-        return COLLISION_BOX_CACHE.compute(modelPath, (k, existing) -> {
+        List<OBB> boxes = COLLISION_BOX_CACHE.compute(modelPath, (k, existing) -> {
             if (existing != null && !existing.isEmpty() && isReasonable(existing)) {
                 return existing;
             }
-            List<OBB> boxes = generateCollisionBoxes(modelPath);
-            if (boxes == null) {
+            List<OBB> generated = generateCollisionBoxes(modelPath);
+            if (generated == null) {
                 COLLISION_BOX_CACHE.remove(modelPath);
             }
-            return boxes;
+            return generated;
         });
+        trimCache(COLLISION_BOX_CACHE, MAX_COLLISION_CACHE);
+        return boxes;
     }
 
     public static CompletableFuture<List<OBB>> getCollisionBoxesAsync(String modelPath) {
@@ -141,6 +147,7 @@ public final class ModelCollisionLibrary {
                     List<OBB> boxes = generateCollisionBoxes(key);
                     if (boxes != null) {
                         COLLISION_BOX_CACHE.put(key, boxes);
+                        trimCache(COLLISION_BOX_CACHE, MAX_COLLISION_CACHE);
                     }
                     return boxes;
                 }, WORKERS).whenComplete((boxes, throwable) -> PENDING.remove(key)));
@@ -150,7 +157,7 @@ public final class ModelCollisionLibrary {
         if (modelPath == null || modelPath.isBlank()) {
             return List.of();
         }
-        return VHACD_HULL_CACHE.computeIfAbsent(modelPath, key -> {
+        List<float[]> hulls = VHACD_HULL_CACHE.computeIfAbsent(modelPath, key -> {
             MeshData mesh = getMesh(key);
             if (mesh == null || mesh.vertices().length < 9 || mesh.indices().length < 3) {
                 LOGGER.warn("Cannot generate VHACD hulls for '{}': no mesh data", modelPath);
@@ -164,12 +171,12 @@ public final class ModelCollisionLibrary {
                         .setFindBestPlane(true)
                         .setShrinkWrap(true);
                 Decomposer decomposer = new Decomposer();
-                var hulls = decomposer.decompose(mesh.vertices(), mesh.indices(), params);
-                if (hulls == null || hulls.isEmpty()) {
+                var decomposed = decomposer.decompose(mesh.vertices(), mesh.indices(), params);
+                if (decomposed == null || decomposed.isEmpty()) {
                     LOGGER.warn("VHACD produced no hulls for '{}'", modelPath);
                     return List.of();
                 }
-                List<float[]> result = hulls.stream()
+                List<float[]> result = decomposed.stream()
                         .map(ModelCollisionLibrary::toPointArray)
                         .filter(arr -> arr != null && arr.length >= 9)
                         .collect(Collectors.toList());
@@ -180,6 +187,8 @@ public final class ModelCollisionLibrary {
                 return List.of();
             }
         });
+        trimCache(VHACD_HULL_CACHE, MAX_HULL_CACHE);
+        return hulls;
     }
 
     private static float[] toPointArray(ConvexHull hull) {
@@ -248,6 +257,18 @@ public final class ModelCollisionLibrary {
     public static void clearCache() {
         MESH_CACHE.clear();
         COLLISION_BOX_CACHE.clear();
+        VHACD_HULL_CACHE.clear();
+    }
+
+    private static <K, V> void trimCache(Map<K, V> cache, int maxSize) {
+        int oversize = cache.size() - maxSize;
+        if (oversize <= 0) {
+            return;
+        }
+        var iterator = cache.keySet().iterator();
+        while (oversize-- > 0 && iterator.hasNext()) {
+            cache.remove(iterator.next());
+        }
     }
 
     public record MeshData(float[] vertices, int[] indices) {}
