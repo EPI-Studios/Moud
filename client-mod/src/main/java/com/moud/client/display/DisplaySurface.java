@@ -29,6 +29,7 @@ public final class DisplaySurface {
     private Vector3 position = Vector3.zero();
     private Quaternion rotation = Quaternion.identity();
     private Vector3 scale = Vector3.one();
+    private float opacity = 1.0f;
     private boolean initialized = false;
 
     private MoudPackets.DisplayAnchorType anchorType = MoudPackets.DisplayAnchorType.FREE;
@@ -95,6 +96,14 @@ public final class DisplaySurface {
         return frameRate;
     }
 
+    public float getOpacity() {
+        return opacity;
+    }
+
+    public void setOpacity(float opacity) {
+        this.opacity = opacity;
+    }
+
     void applyCreatePacket(MoudPackets.S2C_CreateDisplayPacket packet) {
         updateTransform(packet.position(), packet.rotation(), packet.scale());
         updateAnchor(packet.anchorType(), packet.anchorBlockPosition(), packet.anchorEntityUuid(), packet.anchorOffset());
@@ -102,7 +111,7 @@ public final class DisplaySurface {
         updatePlayback(packet.playing(), packet.playbackSpeed(), packet.startOffsetSeconds());
     }
 
-    void updateTransform(Vector3 pos, Quaternion rot, Vector3 scl) {
+    public void updateTransform(Vector3 pos, Quaternion rot, Vector3 scl) {
         if (pos != null) {
             if (!initialized) {
                 position = new Vector3(pos);

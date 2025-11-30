@@ -78,6 +78,10 @@ public final class ClientDisplayManager {
         return displays.values();
     }
 
+    public DisplaySurface getById(long id) {
+        return displays.get(id);
+    }
+
     public boolean isEmpty() {
         return displays.isEmpty();
     }

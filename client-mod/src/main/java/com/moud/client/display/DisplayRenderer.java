@@ -39,12 +39,12 @@ public final class DisplayRenderer {
         MatrixStack.Entry entry = matrices.peek();
         Matrix4f positionMatrix = entry.getPositionMatrix();
 
-        addQuad(vertexConsumer, positionMatrix, entry, light);
+        addQuad(surface, vertexConsumer, positionMatrix, entry, light);
 
         matrices.pop();
     }
 
-    private void addQuad(VertexConsumer consumer, Matrix4f matrix, MatrixStack.Entry entry, int light) {
+    private void addQuad(DisplaySurface surface, VertexConsumer consumer, Matrix4f matrix, MatrixStack.Entry entry, int light) {
         float halfWidth = 0.5f;
         float halfHeight = 0.5f;
         float depth = 0.0f;
@@ -55,16 +55,16 @@ public final class DisplayRenderer {
         float x2 = halfWidth,  y2 = halfHeight;  // Top-right
         float x3 = -halfWidth, y3 = halfHeight;  // Top-left
 
-        writeVertex(consumer, matrix, entry, x0, y0, depth, 0.0f, 1.0f, light);
-        writeVertex(consumer, matrix, entry, x1, y1, depth, 1.0f, 1.0f, light);
-        writeVertex(consumer, matrix, entry, x2, y2, depth, 1.0f, 0.0f, light);
-        writeVertex(consumer, matrix, entry, x3, y3, depth, 0.0f, 0.0f, light);
+        writeVertex(surface, consumer, matrix, entry, x0, y0, depth, 0.0f, 1.0f, light);
+        writeVertex(surface, consumer, matrix, entry, x1, y1, depth, 1.0f, 1.0f, light);
+        writeVertex(surface, consumer, matrix, entry, x2, y2, depth, 1.0f, 0.0f, light);
+        writeVertex(surface, consumer, matrix, entry, x3, y3, depth, 0.0f, 0.0f, light);
     }
 
-    private void writeVertex(VertexConsumer consumer, Matrix4f matrix, MatrixStack.Entry entry,
+    private void writeVertex(DisplaySurface surface, VertexConsumer consumer, Matrix4f matrix, MatrixStack.Entry entry,
                              float x, float y, float z, float u, float v, int light) {
         consumer.vertex(matrix, x, y, z)
-                .color(1.0f, 1.0f, 1.0f, 1.0f)
+                .color(1.0f, 1.0f, 1.0f, surface.getOpacity())
                 .texture(u, v)
                 .overlay(OverlayTexture.DEFAULT_UV)
                 .light(light)

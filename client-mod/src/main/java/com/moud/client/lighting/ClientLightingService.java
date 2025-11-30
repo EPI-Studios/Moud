@@ -1,6 +1,7 @@
 package com.moud.client.lighting;
 
 import com.moud.api.math.Conversion;
+import com.moud.client.editor.runtime.RuntimeObjectRegistry;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.light.data.AreaLightData;
 import foundry.veil.api.client.render.light.data.LightData;
@@ -55,6 +56,7 @@ public class ClientLightingService {
         });
         light.update(lightData);
         light.snap();
+        RuntimeObjectRegistry.getInstance().syncLight(id, lightData);
         LOGGER.debug("Updated light ID: {} with data: {}", id, lightData);
     }
 
@@ -74,6 +76,7 @@ public class ClientLightingService {
         ManagedLight managed = managedLights.remove(id);
         if (managed != null) {
             this.destroyVeilLight(managed);
+            RuntimeObjectRegistry.getInstance().removeLight(id);
             LOGGER.info("Removed light with ID: {}", id);
         }
     }
@@ -206,15 +209,19 @@ public class ClientLightingService {
         LOGGER.info("ClientLightingService session cleaned up (lights cleared).");
     }
 
-    private static class ManagedLight {
-        final long id;
-        final String type;
-        LightData veilLightData;
-        float r = 1.0f, g = 1.0f, b = 1.0f;
-        float brightness = 1.0f, radius = 5.0f;
-        float width = 1.0f, height = 1.0f, angle = 45.0f, distance = 10.0f;
-        Vec3d interpolatedPosition, targetPosition;
-        Vec3d interpolatedDirection, targetDirection;
+    public ManagedLight getManagedLight(long id) {
+        return managedLights.get(id);
+    }
+
+    public static class ManagedLight {
+        public final long id;
+        public final String type;
+        public LightData veilLightData;
+        public float r = 1.0f, g = 1.0f, b = 1.0f;
+        public float brightness = 1.0f, radius = 5.0f;
+        public float width = 1.0f, height = 1.0f, angle = 45.0f, distance = 10.0f;
+        public Vec3d interpolatedPosition, targetPosition;
+        public Vec3d interpolatedDirection, targetDirection;
 
         ManagedLight(long id, String type) {
             this.id = id;
@@ -229,7 +236,8 @@ public class ClientLightingService {
             this.r = Conversion.toFloat(data.getOrDefault("r", this.r));
             this.g = Conversion.toFloat(data.getOrDefault("g", this.g));
             this.b = Conversion.toFloat(data.getOrDefault("b", this.b));
-            this.brightness = Conversion.toFloat(data.getOrDefault("brightness", this.brightness));
+            this.brightness = Conversion.toFloat(data.getOrDefault("brightness",
+                    data.getOrDefault("intensity", this.brightness)));
             this.angle = Conversion.toFloat(data.getOrDefault("angle", this.angle));
             this.distance = Conversion.toFloat(data.getOrDefault("distance", this.distance));
             LOGGER.info("Light {} received data: {}", this.id, data);
@@ -243,11 +251,15 @@ public class ClientLightingService {
                 );
             }
 
+            float range = Conversion.toFloat(data.getOrDefault("range", Float.NaN));
             if ("point".equals(this.type)) {
-                this.radius = Conversion.toFloat(data.getOrDefault("radius", this.radius));
+                float radiusFallback = Float.isNaN(range) ? this.radius : range;
+                this.radius = Conversion.toFloat(data.getOrDefault("radius", radiusFallback));
             } else if ("area".equals(this.type)) {
+                float distanceFallback = Float.isNaN(range) ? this.distance : range;
                 this.width = Conversion.toFloat(data.getOrDefault("width", this.width));
                 this.height = Conversion.toFloat(data.getOrDefault("height", this.height));
+                this.distance = Conversion.toFloat(data.getOrDefault("distance", distanceFallback));
                 if (data.containsKey("dirX")) {
                     Object dirXObj = data.get("dirX");
                     Object dirYObj = data.get("dirY");
