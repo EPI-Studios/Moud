@@ -51,4 +51,7 @@ dependencies {
     include implementation('org.jcodec:jcodec:0.2.5')
     include implementation('org.jcodec:jcodec-javase:0.2.5')
 
+    // gson
+    include implementation ('com.google.code.gson:gson:2.10.1')
+
 }
