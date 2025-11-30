@@ -27,7 +27,6 @@ import java.util.UUID;
 
 public class AnimatedPlayerModel {
     private static final Logger LOGGER = LoggerFactory.getLogger(AnimatedPlayerModel.class);
-    private static final double MOVEMENT_THRESHOLD_SQUARED = 0.001 * 0.001;
 
     private final OtherClientPlayerEntity fakePlayer;
     private final PlayerAnimationController animationController;
@@ -41,12 +40,14 @@ public class AnimatedPlayerModel {
     private MovementState currentState = MovementState.IDLE;
     private String overrideAnimation = null;
     private long overrideAnimationEndTime = 0;
+    private final long modelId;
     public AnimatedPlayerModel(ClientWorld world) {
         MinecraftClient client = MinecraftClient.getInstance();
         this.model = new PlayerEntityModel<>(client.getEntityModelLoader().getModelPart(EntityModelLayers.PLAYER), false);
 
         GameProfile gameProfile = new GameProfile(UUID.randomUUID(), "MoudModel_" + this.hashCode());
         this.fakePlayer = new OtherClientPlayerEntity(world, gameProfile);
+        this.modelId = gameProfile.getId().getLeastSignificantBits() ^ gameProfile.getId().getMostSignificantBits();
 
         this.animationController = new PlayerAnimationController(this.fakePlayer, (controller, state, animSetter) -> PlayState.CONTINUE);
 
@@ -55,27 +56,20 @@ public class AnimatedPlayerModel {
         manager.addAnimLayer(1000, this.animationController);
 
         LOGGER.debug("AnimatedPlayerModel created. Controller hash: {}", this.animationController.hashCode());
-        playBaseAnimation(MovementState.IDLE);
+    }
+
+    public long getModelId() {
+        return modelId;
     }
 
     public void tick() {
 
         this.fakePlayer.tick();
 
-        double dx = x - prevX;
-        double dz = z - prevZ;
-        boolean isMoving = (dx * dx + dz * dz) > MOVEMENT_THRESHOLD_SQUARED;
-
-        if (isMoving && currentState == MovementState.IDLE) {
-            setState(MovementState.WALKING);
-        } else if (!isMoving && currentState == MovementState.WALKING) {
-            setState(MovementState.IDLE);
-        }
-
         if (overrideAnimation != null && System.currentTimeMillis() > overrideAnimationEndTime) {
             LOGGER.debug("Override animation '{}' ended. Returning to base state: {}", overrideAnimation, currentState);
             overrideAnimation = null;
-            playBaseAnimation(currentState);
+            this.animationController.stop();
         }
     }
 
@@ -115,13 +109,15 @@ public class AnimatedPlayerModel {
 
             this.overrideAnimation = animationIdStr;
             long duration = Math.max(50, (long) (animation.length() * 50));
-            this.overrideAnimationEndTime = System.currentTimeMillis() + duration;
+            this.overrideAnimationEndTime = durationTicks <= 0 ? Long.MAX_VALUE : System.currentTimeMillis() + duration;
 
-            RawAnimation newAnimation = RawAnimation.begin().thenPlay(animation);
-            AbstractFadeModifier fade = AbstractFadeModifier.standardFadeIn(durationTicks, EasingType.EASE_IN_OUT_SINE);
+            RawAnimation newAnimation = durationTicks <= 0
+                    ? RawAnimation.begin().then(animation, Animation.LoopType.LOOP)
+                    : RawAnimation.begin().thenPlay(animation);
+            AbstractFadeModifier fade = AbstractFadeModifier.standardFadeIn(Math.max(0, durationTicks), EasingType.EASE_IN_OUT_SINE);
             this.animationController.replaceAnimationWithFade(fade, newAnimation);
 
-            LOGGER.debug("Triggering one-shot animation '{}' WITH FADE. Duration: {} ticks", animationId, durationTicks);
+            LOGGER.debug("Triggering animation '{}' WITH FADE. DurationTicks: {} loop={}", animationId, durationTicks, durationTicks <= 0);
         } else {
             LOGGER.warn("Animation '{}' not found in PlayerAnimResources.", animationId);
         }
@@ -144,7 +140,7 @@ public class AnimatedPlayerModel {
 
             if (isBaseMovementAnim) {
                 this.overrideAnimation = null;
-                setState("walk".equals(animationId.getPath()) ? MovementState.WALKING : MovementState.IDLE);
+                playBaseAnimation("walk".equals(animationId.getPath()) ? MovementState.WALKING : MovementState.IDLE);
                 LOGGER.debug("Triggering base animation '{}'.", animationId);
             } else {
                 this.overrideAnimation = animationIdStr;
@@ -159,7 +155,6 @@ public class AnimatedPlayerModel {
     }
 
     public void setupAnim(float partialTick) {
-        // Update fake player with interpolated values for animation system
         fakePlayer.setPos(getInterpolatedX(partialTick), getInterpolatedY(partialTick), getInterpolatedZ(partialTick));
         fakePlayer.setYaw(getInterpolatedYaw(partialTick));
         fakePlayer.setPitch(getInterpolatedPitch(partialTick));
@@ -217,7 +212,6 @@ public class AnimatedPlayerModel {
         this.yaw = yaw;
         this.pitch = pitch;
 
-        // Keep fake player entity synced with actual position for entity logic
         fakePlayer.setPos(this.x, this.y, this.z);
         fakePlayer.setYaw(yaw);
         fakePlayer.setPitch(pitch);

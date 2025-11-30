@@ -45,6 +45,10 @@ public final class ModelCollisionVolume {
     private volatile Quaternion shapeRotation = Quaternion.identity();
     private volatile Vector3 shapeScale = Vector3.one();
     private volatile int collisionBoxesHash;
+    private volatile long lastCollisionInstallNanos;
+    private volatile int lastCollisionInstallCount;
+    private volatile long lastReuseLogNanos;
+    private volatile int lastReuseCount;
     private boolean loggedCollisionBoxes;
     private boolean loggedGridFallback;
     private boolean loggedAabbFallback;
@@ -91,7 +95,7 @@ public final class ModelCollisionVolume {
         if (collisionCopy.size() > 1) {
 
             if (canReuseCollisionBoxes(collisionHash, rotSnapshot, scaleSnapshot)) {
-                LOGGER.info("Model {} reusing {} collision boxes (translate-only)", modelId, collisionCopy.size());
+                logCollisionReuse(collisionCopy.size());
                 Vector3 delta = posSnapshot.subtract(shapePosition);
                 if (Math.abs(delta.x) > 1.0e-6 || Math.abs(delta.y) > 1.0e-6 || Math.abs(delta.z) > 1.0e-6) {
                     if (bounds != null) {
@@ -115,7 +119,7 @@ public final class ModelCollisionVolume {
             List<Box> boxes = computeFromCollisionBoxes(collisionCopy, posSnapshot, rotSnapshot, scaleSnapshot);
             Box boundsBox = enclosingBox(boxes);
             if (boundsBox != null && !isTooLarge(boundsBox)) {
-                LOGGER.info("Model {} installed {} collision boxes from server (no union)", modelId, boxes.size());
+                logCollisionInstall(boxes.size());
                 this.bounds = boundsBox;
                 this.boxCache = boxes;
                 this.voxelShape = null;
@@ -138,7 +142,7 @@ public final class ModelCollisionVolume {
     }
 
     public boolean isActive() {
-        return bounds != null && voxelShape != null;
+        return bounds != null && hasShapes();
     }
 
     public boolean intersects(Box other) {
@@ -176,7 +180,7 @@ public final class ModelCollisionVolume {
         if (collisionBoxesSnapshot != null && collisionBoxesSnapshot.size() > 1) {
             BuildResult collisionResult = rebuildFromCollisionBoxes(collisionBoxesSnapshot, pos, rot, scl);
             if (collisionResult != null) {
-                LOGGER.info("Model {} rebuild from {} collision boxes", modelId, collisionBoxesSnapshot.size());
+                logCollisionInstall(collisionBoxesSnapshot.size());
                 return collisionResult;
             }
             if (!loggedCollisionBoxes) {
@@ -727,12 +731,12 @@ public final class ModelCollisionVolume {
     }
 
     private boolean canReuseCollisionBoxes(int newHash, Quaternion rot, Vector3 scl) {
-        return voxelShape != null
-                && bounds != null
+        return bounds != null
                 && newHash != 0
                 && newHash == collisionBoxesHash
                 && rotationEquals(shapeRotation, rot)
-                && scaleEquals(shapeScale, scl);
+                && scaleEquals(shapeScale, scl)
+                && hasShapes();
     }
 
     private boolean rotationEquals(Quaternion a, Quaternion b) {
@@ -881,6 +885,31 @@ public final class ModelCollisionVolume {
         double dy = box.maxY - box.minY;
         double dz = box.maxZ - box.minZ;
         return dx > MAX_DIMENSION || dy > MAX_DIMENSION || dz > MAX_DIMENSION;
+    }
+
+    private boolean hasShapes() {
+        return voxelShape != null || (boxCache != null && !boxCache.isEmpty());
+    }
+
+    private void logCollisionInstall(int count) {
+        long now = System.nanoTime();
+        if (count != lastCollisionInstallCount || now - lastCollisionInstallNanos >= 1_000_000_000L) {
+            LOGGER.info("Model {} installed {} collision boxes from server (no union)", modelId, count);
+            lastCollisionInstallCount = count;
+            lastCollisionInstallNanos = now;
+        }
+    }
+
+    private void logCollisionReuse(int count) {
+        if (!LOGGER.isDebugEnabled()) {
+            return;
+        }
+        long now = System.nanoTime();
+        if (count != lastReuseCount || now - lastReuseLogNanos >= 5_000_000_000L) {
+            LOGGER.debug("Model {} reusing {} collision boxes (translate-only)", modelId, count);
+            lastReuseCount = count;
+            lastReuseLogNanos = now;
+        }
     }
 
     private record BuildResult(VoxelShape shape, Box bounds, List<Box> boxes) {

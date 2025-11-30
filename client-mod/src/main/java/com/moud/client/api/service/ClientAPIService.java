@@ -3,6 +3,7 @@ package com.moud.client.api.service;
 import com.moud.client.runtime.ClientScriptingRuntime;
 import com.moud.client.update.ClientUpdateManager;
 import com.moud.client.shared.api.ClientSharedApiProxy;
+import com.moud.client.api.service.fakeplayer.FakePlayerService;
 import org.graalvm.polyglot.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +24,7 @@ public final class ClientAPIService {
     public final LightingService lighting;
     public final AudioService audio;
     public final GamepadService gamepad;
+    public final FakePlayerService fakePlayers;
     public final ClientSharedApiProxy shared;
     private final ClientUpdateManager updateManager;
     public final EventService events;
@@ -47,11 +49,13 @@ public final class ClientAPIService {
         this.lighting = new LightingService();
         this.audio = new AudioService();
         this.gamepad = new GamepadService();
+        this.fakePlayers = new FakePlayerService();
         this.shared = new ClientSharedApiProxy();
         this.events = new EventService(this);
 
         this.network.setLightingService(this.lighting);
         this.network.setAudioService(this.audio);
+        this.fakePlayers.setSender(packet -> com.moud.client.network.ClientNetworkManager.send(packet));
 
         this.updateManager = new ClientUpdateManager(this);
 
@@ -89,6 +93,7 @@ public final class ClientAPIService {
             this.lighting.setContext(context);
             this.audio.setContext(context);
             this.gamepad.setContext(context);
+            this.fakePlayers.setContext(context);
             this.events.setContext(context);
 
             if (this.input != null) {

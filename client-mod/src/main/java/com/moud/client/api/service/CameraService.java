@@ -13,6 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.moud.api.math.Vector3;
 
+import java.util.Map;
+
 public final class CameraService {
     private static final Logger LOGGER = LoggerFactory.getLogger(CameraService.class);
     private final MinecraftClient client;
@@ -34,6 +36,7 @@ public final class CameraService {
 
     private boolean wasInFirstPerson = false;
     private boolean isAnimating = false;
+    private String activeCameraId = null;
 
     public CameraService() {
         this.client = MinecraftClient.getInstance();
@@ -78,24 +81,28 @@ public final class CameraService {
                 isAnimating = false;
                 easingFunction = null;
             }
-        } else {
-            float lerpFactor = (float) (1.0 - Math.pow(0.01, tickDelta));
-
-            currentState.position.lerp(targetState.position, lerpFactor);
-
-            currentState.yaw = MathHelper.lerpAngleDegrees(lerpFactor, (float) currentState.yaw, (float) targetState.yaw);
-            currentState.pitch = MathHelper.lerp(lerpFactor, currentState.pitch, targetState.pitch);
-            currentState.roll = MathHelper.lerpAngleDegrees(lerpFactor, (float) currentState.roll, (float) targetState.roll);
-            currentState.fov = MathHelper.lerp(lerpFactor, currentState.fov, targetState.fov);
         }
+    }
+
+    public String getActiveCameraId() {
+        return this.activeCameraId;
     }
 
     @HostAccess.Export
     public void enableCustomCamera() {
-        if (isCustomCameraActive()) return;
+        this.enableCustomCamera(null);
+    }
 
+    public void enableCustomCamera(String cameraId) {
+        if (isCustomCameraActive()) {
+            if (cameraId != null && !cameraId.equals(this.activeCameraId)) {
+                this.activeCameraId = cameraId;
+            }
+            return;
+        }
+
+        this.activeCameraId = cameraId;
         this.wasInFirstPerson = client.options.getPerspective() == Perspective.FIRST_PERSON;
-
         client.options.setPerspective(Perspective.THIRD_PERSON_BACK);
 
         Entity camEntity = client.getCameraEntity();
@@ -120,12 +127,12 @@ public final class CameraService {
         if (!isCustomCameraActive()) return;
 
         if (this.wasInFirstPerson) {
-
             client.options.setPerspective(Perspective.FIRST_PERSON);
         }
         this.wasInFirstPerson = false;
         MoudClientMod.setCustomCameraActive(false);
         isAnimating = false;
+        this.activeCameraId = null;
     }
 
     @HostAccess.Export
@@ -142,12 +149,15 @@ public final class CameraService {
 
         if (options.hasMember("position")) {
             Value pos = options.getMember("position");
-            targetState.position.set(pos.getMember("x").asDouble(), pos.getMember("y").asDouble(), pos.getMember("z").asDouble());
+            double x = extractDouble(pos, "x", targetState.position.x);
+            double y = extractDouble(pos, "y", targetState.position.y);
+            double z = extractDouble(pos, "z", targetState.position.z);
+            targetState.position.set(x, y, z);
         }
-        if (options.hasMember("yaw")) targetState.yaw = options.getMember("yaw").asDouble();
-        if (options.hasMember("pitch")) targetState.pitch = options.getMember("pitch").asDouble();
-        if (options.hasMember("roll")) targetState.roll = options.getMember("roll").asDouble();
-        if (options.hasMember("fov")) targetState.fov = options.getMember("fov").asDouble();
+        if (options.hasMember("yaw")) targetState.yaw = extractDouble(options, "yaw", targetState.yaw);
+        if (options.hasMember("pitch")) targetState.pitch = extractDouble(options, "pitch", targetState.pitch);
+        if (options.hasMember("roll")) targetState.roll = extractDouble(options, "roll", targetState.roll);
+        if (options.hasMember("fov")) targetState.fov = extractDouble(options, "fov", targetState.fov);
 
         this.transitionDuration = options.hasMember("duration") ? options.getMember("duration").asLong() : 1000L;
         this.easingFunction = options.getMember("easing");
@@ -157,18 +167,170 @@ public final class CameraService {
 
     @HostAccess.Export
     public void snapTo(Value options) {
-        if (!isCustomCameraActive() || !options.hasMembers()) return;
+        if (!options.hasMembers()) return;
+        if (!isCustomCameraActive()) {
+            enableCustomCamera();
+        }
 
         isAnimating = false;
 
         if (options.hasMember("position")) {
             Value pos = options.getMember("position");
-            targetState.position.set(pos.getMember("x").asDouble(), pos.getMember("y").asDouble(), pos.getMember("z").asDouble());
+            double x = extractDouble(pos, "x", currentState.position.x);
+            double y = extractDouble(pos, "y", currentState.position.y);
+            double z = extractDouble(pos, "z", currentState.position.z);
+            targetState.position.set(x, y, z);
+            currentState.position.set(x, y, z);
+            //LOGGER.info("Camera snapTo position -> {} {} {}", x, y, z);
         }
-        if (options.hasMember("yaw")) targetState.yaw = options.getMember("yaw").asDouble();
-        if (options.hasMember("pitch")) targetState.pitch = options.getMember("pitch").asDouble();
-        if (options.hasMember("roll")) targetState.roll = options.getMember("roll").asDouble();
-        if (options.hasMember("fov")) targetState.fov = options.getMember("fov").asDouble();
+        if (options.hasMember("yaw")) {
+            double yaw = extractDouble(options, "yaw", targetState.yaw);
+            targetState.yaw = yaw;
+            currentState.yaw = yaw;
+            //LOGGER.info("Camera snapTo yaw -> {}", yaw);
+        }
+        if (options.hasMember("pitch")) {
+            double pitch = extractDouble(options, "pitch", targetState.pitch);
+            targetState.pitch = pitch;
+            currentState.pitch = pitch;
+            //LOGGER.info("Camera snapTo pitch -> {}", pitch);
+        }
+        if (options.hasMember("roll")) {
+            double roll = extractDouble(options, "roll", targetState.roll);
+            targetState.roll = roll;
+            currentState.roll = roll;
+            //LOGGER.info("Camera snapTo roll -> {}", roll);
+        }
+        if (options.hasMember("fov")) {
+            double fov = extractDouble(options, "fov", targetState.fov);
+            targetState.fov = fov;
+            currentState.fov = fov;
+            //LOGGER.info("Camera snapTo fov -> {}", fov);
+        }
+    }
+
+    public void snapToFromMap(Map<String, Object> options) {
+        if (options == null || options.isEmpty()) return;
+        if (!isCustomCameraActive()) {
+            enableCustomCamera();
+        }
+
+        isAnimating = false;
+
+        if (options.containsKey("position")) {
+            Object posObj = options.get("position");
+            if (posObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> posMap = (Map<String, Object>) posObj;
+                double x = toDouble(posMap.get("x"), currentState.position.x);
+                double y = toDouble(posMap.get("y"), currentState.position.y);
+                double z = toDouble(posMap.get("z"), currentState.position.z);
+                targetState.position.set(x, y, z);
+                currentState.position.set(x, y, z);
+                //LOGGER.info("Camera snapToFromMap position -> {} {} {}", x, y, z);
+            }
+        }
+        if (options.containsKey("yaw")) {
+            double yaw = toDouble(options.get("yaw"), targetState.yaw);
+            targetState.yaw = yaw;
+            currentState.yaw = yaw;
+            //LOGGER.info("Camera snapToFromMap yaw -> {}", yaw);
+        }
+        if (options.containsKey("pitch")) {
+            double pitch = toDouble(options.get("pitch"), targetState.pitch);
+            targetState.pitch = pitch;
+            currentState.pitch = pitch;
+            //LOGGER.info("Camera snapToFromMap pitch -> {}", pitch);
+        }
+        if (options.containsKey("roll")) {
+            double roll = toDouble(options.get("roll"), targetState.roll);
+            targetState.roll = roll;
+            currentState.roll = roll;
+            //LOGGER.info("Camera snapToFromMap roll -> {}", roll);
+        }
+        if (options.containsKey("fov")) {
+            double fov = toDouble(options.get("fov"), targetState.fov);
+            targetState.fov = fov;
+            currentState.fov = fov;
+            //LOGGER.info("Camera snapToFromMap fov -> {}", fov);
+        }
+    }
+
+    public void transitionToFromMap(Map<String, Object> options) {
+        if (options == null || options.isEmpty()) return;
+        if (!isCustomCameraActive()) {
+            enableCustomCamera();
+        }
+
+        isAnimating = false;
+
+        startState.position.set(currentState.position);
+        startState.yaw = currentState.yaw;
+        startState.pitch = currentState.pitch;
+        startState.roll = currentState.roll;
+        startState.fov = currentState.fov;
+
+        if (options.containsKey("position")) {
+            Object posObj = options.get("position");
+            if (posObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> posMap = (Map<String, Object>) posObj;
+                double x = toDouble(posMap.get("x"), targetState.position.x);
+                double y = toDouble(posMap.get("y"), targetState.position.y);
+                double z = toDouble(posMap.get("z"), targetState.position.z);
+                targetState.position.set(x, y, z);
+            }
+        }
+        if (options.containsKey("yaw")) targetState.yaw = toDouble(options.get("yaw"), targetState.yaw);
+        if (options.containsKey("pitch")) targetState.pitch = toDouble(options.get("pitch"), targetState.pitch);
+        if (options.containsKey("roll")) targetState.roll = toDouble(options.get("roll"), targetState.roll);
+        if (options.containsKey("fov")) targetState.fov = toDouble(options.get("fov"), targetState.fov);
+
+        this.transitionDuration = options.containsKey("duration") ? ((Number) options.get("duration")).longValue() : 1000L;
+        this.easingFunction = null;
+        this.transitionStartTime = System.currentTimeMillis();
+        this.isAnimating = true;
+    }
+
+    private double toDouble(Object value, double fallback) {
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        return fallback;
+    }
+
+    private double extractDouble(Value container, String key, double fallback) {
+        try {
+            if (container == null) return fallback;
+
+            if (container.hasMember(key)) {
+                Value member = container.getMember(key);
+                if (member != null && member.isNumber()) {
+                    return member.asDouble();
+                }
+                if (member != null && member.isHostObject()) {
+                    Object hostObj = member.asHostObject();
+                    if (hostObj instanceof Number) {
+                        return ((Number) hostObj).doubleValue();
+                    }
+                }
+            }
+
+            if (container.isHostObject()) {
+                Object hostObj = container.asHostObject();
+                if (hostObj instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> map = (Map<String, Object>) hostObj;
+                    Object value = map.get(key);
+                    if (value instanceof Number) {
+                        return ((Number) value).doubleValue();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to extract double for key '{}': {}", key, e.getMessage());
+        }
+        return fallback;
     }
 
     public Vector3d getPosition() { return isCustomCameraActive() ? currentState.position : null; }
@@ -192,7 +354,6 @@ public final class CameraService {
     @HostAccess.Export
     public double getPlayerY() {
         Entity cameraEntity = client.getCameraEntity();
-
         return cameraEntity != null ? cameraEntity.getEyeY() : 0.0;
     }
 

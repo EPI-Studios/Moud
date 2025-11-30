@@ -33,10 +33,12 @@ import com.moud.client.editor.runtime.RuntimeObjectRegistry;
 import com.moud.client.editor.scene.blueprint.BlueprintPreviewRenderer;
 import com.moud.client.editor.scene.SceneSessionManager;
 import com.moud.client.editor.scene.blueprint.ClientBlueprintNetwork;
+import com.moud.client.editor.ui.SceneEditorOverlay;
 import com.moud.client.ui.UIOverlayManager;
 import com.moud.client.util.WindowAnimator;
 import com.moud.client.collision.ClientCollisionManager;
 import com.moud.client.collision.Triangle;
+import com.moud.client.fakeplayer.ClientFakePlayerManager;
 import com.moud.network.MoudPackets;
 import com.moud.network.MoudPackets.*;
 import com.zigythebird.playeranim.api.PlayerAnimationAccess;
@@ -98,6 +100,8 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private static final float DEFAULT_PHONG_AMBIENT = 0.15f;
     private static final long JOIN_TIMEOUT_MS = 10000;
     private static final int MAX_BUNDLE_SIZE_BYTES = 32 * 1024 * 1024;
+    private static final boolean DISABLE_VEIL_BUFFERS = Boolean.getBoolean("moud.disableVeilBuffers");
+    private static final boolean DISABLE_VEIL_BLOOM = Boolean.getBoolean("moud.disableVeilBloom");
 
     private ModelRenderer modelRenderer;
     private DisplayRenderer displayRenderer;
@@ -106,6 +110,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private GameJoinS2CPacket pendingGameJoinPacket = null;
     private static MoudClientMod instance;
     private static boolean customCameraActive = false;
+    public static Logger getLogger() { return LOGGER; }
     private final AtomicBoolean resourcesLoaded = new AtomicBoolean(false);
 
     private final AtomicBoolean waitingForResources = new AtomicBoolean(false);
@@ -119,6 +124,9 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private ClientCameraManager clientCameraManager;
     private PlayerStateManager playerStateManager;
     private ClientCursorManager clientCursorManager;
+    private ClientFakePlayerManager fakePlayerManager;
+    private com.moud.client.particle.ParticleSystem particleSystem;
+    private com.moud.client.particle.ParticleRenderer particleRenderer;
     private String currentResourcesHash = "";
     private final Map<String, ScriptChunkAccumulator> scriptChunkAccumulators = new HashMap<>();
     private long joinTime = -1L;
@@ -150,9 +158,12 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         ClientPacketReceiver.registerS2CPackets();
 
         this.clientCursorManager = ClientCursorManager.getInstance();
+        this.fakePlayerManager = new ClientFakePlayerManager();
         this.playerModelRenderer = new PlayerModelRenderer();
         this.modelRenderer = new ModelRenderer();
         this.displayRenderer = new DisplayRenderer();
+        this.particleSystem = new com.moud.client.particle.ParticleSystem(8192);
+        this.particleRenderer = new com.moud.client.particle.ParticleRenderer(this.particleSystem);
 
         registerPacketHandlers();
         registerEventHandlers();
@@ -191,6 +202,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         ClientPacketWrapper.registerHandler(CameraLockPacket.class, (player, packet) -> handleCameraLock(packet));
         ClientPacketWrapper.registerHandler(PlayerStatePacket.class, (player, packet) -> handlePlayerState(packet));
         ClientPacketWrapper.registerHandler(ExtendedPlayerStatePacket.class, (player, packet) -> handleExtendedPlayerState(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.ParticleBatchPacket.class, (player, packet) -> handleParticleBatch(packet));
         ClientPacketWrapper.registerHandler(SyncSharedValuesPacket.class, (player, packet) -> handleSharedValueSync(packet));
         ClientPacketWrapper.registerHandler(PlayerModelCreatePacket.class, (player, packet) -> handlePlayerModelCreate(packet));
         ClientPacketWrapper.registerHandler(PlayerModelUpdatePacket.class, (player, packet) -> handlePlayerModelUpdate(packet));
@@ -205,6 +217,9 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         ClientPacketWrapper.registerHandler(AdvancedCameraLockPacket.class, (player, packet) -> handleAdvancedCameraLock(packet));
         ClientPacketWrapper.registerHandler(CameraUpdatePacket.class, (player, packet) -> handleCameraUpdate(packet));
         ClientPacketWrapper.registerHandler(CameraReleasePacket.class, (player, packet) -> handleCameraRelease(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_CreateFakePlayer.class, (player, packet) -> fakePlayerManager.handleCreate(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateFakePlayer.class, (player, packet) -> fakePlayerManager.handleUpdate(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_RemoveFakePlayer.class, (player, packet) -> fakePlayerManager.handleRemove(packet));
         ClientPacketWrapper.registerHandler(S2C_ManageWindowPacket.class, (player, packet) -> handleManageWindow(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_TransitionWindowPacket.class, (player, packet) -> handleTransitionWindow(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_PlayPlayerAnimationPacket.class, (player, packet) -> {
@@ -240,6 +255,16 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 (player, packet) -> SceneSessionManager.getInstance().handleSceneState(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.SceneEditAckPacket.class,
                 (player, packet) -> SceneSessionManager.getInstance().handleEditAck(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.AnimationEventPacket.class,
+                (player, packet) -> {
+                    com.moud.client.editor.scene.SceneEditorDiagnostics.log(
+                            "Animation event " + packet.eventName() + " on " + packet.objectId() + " payload=" + packet.payload());
+                    com.moud.client.editor.ui.SceneEditorOverlay.getInstance().getTimelinePanel()
+                            .pushEventIndicator(packet.eventName());
+                });
+        ClientPacketWrapper.registerHandler(MoudPackets.AnimationPropertyUpdatePacket.class,
+                (player, packet) -> com.moud.client.editor.scene.SceneSessionManager.getInstance()
+                        .mergeAnimationProperty(packet.sceneId(), packet.objectId(), packet.propertyKey(), packet.propertyType(), packet.value(), packet.payload()));
         ClientPacketWrapper.registerHandler(MoudPackets.EditorAssetListPacket.class,
                 (player, packet) -> com.moud.client.editor.assets.EditorAssetCatalog.getInstance().handleAssetList(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.ProjectMapPacket.class,
@@ -252,6 +277,10 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 (player, packet) -> ClientBlueprintNetwork.getInstance().handleSaveAck(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.BlueprintDataPacket.class,
                 (player, packet) -> ClientBlueprintNetwork.getInstance().handleBlueprintData(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.AnimationLoadResponsePacket.class,
+                (player, packet) -> SceneEditorOverlay.getInstance().handleAnimationLoadResponse(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.AnimationListResponsePacket.class,
+                (player, packet) -> SceneEditorOverlay.getInstance().handleAnimationListResponse(packet));
         ClientPacketWrapper.registerHandler(CursorAppearancePacket.class, (player, packet) -> {
             if (clientCursorManager != null) {
                 clientCursorManager.handleAppearanceUpdate(packet.playerId(), packet.texture(), packet.color(), packet.scale(), packet.renderMode());
@@ -426,18 +455,26 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         if (apiService == null || apiService.camera == null) return;
 
         switch (packet.action()) {
-            case ENABLE -> apiService.camera.enableCustomCamera();
+            case ENABLE -> apiService.camera.enableCustomCamera(packet.cameraId());
             case DISABLE -> apiService.camera.disableCustomCamera();
             case TRANSITION_TO -> {
                 if (packet.options() != null) {
-                    apiService.camera.transitionTo(Value.asValue(packet.options()));
+                    LOGGER.info("Camera TRANSITION_TO options: {}", packet.options());
+                    apiService.camera.transitionToFromMap(packet.options());
                 }
             }
             case SNAP_TO -> {
                 if (packet.options() != null) {
-                    apiService.camera.snapTo(Value.asValue(packet.options()));
+                    LOGGER.info("Camera SNAP_TO options: {}", packet.options());
+                    apiService.camera.snapToFromMap(packet.options());
                 }
             }
+        }
+    }
+
+    private void handleParticleBatch(MoudPackets.ParticleBatchPacket packet) {
+        if (particleSystem != null) {
+            particleSystem.spawnBatch(packet.particles());
         }
     }
 
@@ -482,6 +519,10 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             if (clientCameraManager != null) {
                 clientCameraManager.tick();
             }
+            if (particleSystem != null && client.world != null) {
+                float dt = client.getRenderTickCounter().getTickDelta(true);
+                particleSystem.tick(dt, client.world);
+            }
 
             ClientPlayerModelManager.getInstance().getModels().forEach(AnimatedPlayerModel::tick);
 
@@ -506,11 +547,14 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
             VeilRenderer veilRenderer = VeilRenderSystem.renderer();
             boolean enabledBuffers = false;
-            if (veilRenderer != null) {
+            if (veilRenderer != null && !DISABLE_VEIL_BUFFERS) {
                 try {
                     enabledBuffers = veilRenderer.enableBuffers(VeilRenderer.COMPOSITE,
                             DynamicBufferType.ALBEDO,
                             DynamicBufferType.NORMAL);
+                    if (DISABLE_VEIL_BLOOM) {
+
+                    }
                 } catch (Throwable t) {
                     LOGGER.debug("Failed to enable Veil dynamic buffers", t);
                 }
@@ -582,6 +626,10 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                         }
                     }
                 }
+                if (particleRenderer != null) {
+                    MatrixStack matrices = renderContext.matrixStack();
+                    particleRenderer.render(matrices, tickDelta);
+                }
                 renderModelCollisionHitboxes(renderContext);
                 if (clientCursorManager != null) {
                     clientCursorManager.render(
@@ -590,6 +638,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                             renderContext.tickCounter().getTickDelta(true)
                     );
                 }
+                SceneEditorOverlay.getInstance().renderCameraGizmos(renderContext);
             } finally {
                 if (enabledBuffers && veilRenderer != null) {
                     try {
@@ -641,7 +690,9 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             return;
         }
         var boxes = ModelCollisionManager.getInstance().getDebugBoxes();
-        if (boxes.isEmpty()) {
+        var meshBounds = ClientCollisionManager.getDebugMeshBounds();
+        var tris = ClientCollisionManager.getDebugTriangles();
+        if (boxes.isEmpty() && meshBounds.isEmpty() && tris.isEmpty()) {
             return;
         }
         VertexConsumerProvider consumers = context.consumers();
@@ -659,11 +710,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         for (Box box : boxes) {
             WorldRenderer.drawBox(matrices, buffer, box, 1.0f, 0.2f, 0.2f, 1.0f);
         }
-        var meshBounds = ClientCollisionManager.getDebugMeshBounds();
-        for (Box meshBound : meshBounds) {
-            WorldRenderer.drawBox(matrices, buffer, meshBound, 0.1f, 0.6f, 1.0f, 1.0f);
-        }
-        var tris = ClientCollisionManager.getDebugTriangles();
         if (!tris.isEmpty()) {
             for (var tri : tris) {
                 drawLine(buffer, matrices, tri.v0, tri.v1, 0.1f, 0.6f, 1.0f, 1.0f);
@@ -689,11 +735,11 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         var entry = matrices.peek();
         buffer.vertex(entry.getPositionMatrix(), (float) a.x, (float) a.y, (float) a.z)
                 .color(r, g, bCol, aCol)
-                .normal(0.0f, 1.0f, 0.0f);
+                .normal(entry, 0.0f, 1.0f, 0.0f);
 
         buffer.vertex(entry.getPositionMatrix(), (float) b.x, (float) b.y, (float) b.z)
                 .color(r, g, bCol, aCol)
-                .normal(0.0f, 1.0f, 0.0f);
+                .normal(entry, 0.0f, 1.0f, 0.0f);
 
     }
 
@@ -1008,7 +1054,8 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 model.updateSkin(packet.skinUrl());
             }
             RuntimeObjectRegistry.getInstance().syncPlayerModel(packet.modelId(),
-                    new Vec3d(packet.position().x, packet.position().y, packet.position().z));
+                    new Vec3d(packet.position().x, packet.position().y, packet.position().z),
+                    new Vec3d(0, 0, 0));
             LOGGER.info("Created player model with ID: {} at position: {}", packet.modelId(), packet.position());
         });
     }
@@ -1183,7 +1230,8 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             if (model != null) {
                 model.updatePositionAndRotation(packet.position(), packet.yaw(), packet.pitch());
                 RuntimeObjectRegistry.getInstance().syncPlayerModel(packet.modelId(),
-                        new Vec3d(packet.position().x, packet.position().y, packet.position().z));
+                        new Vec3d(packet.position().x, packet.position().y, packet.position().z),
+                        new Vec3d(packet.pitch(), packet.yaw(), 0));
             } else {
                 LOGGER.warn("Received update for unknown model ID: {}", packet.modelId());
             }

@@ -48,6 +48,10 @@ public class ScriptableCameraImpl extends CameraAPI {
             pitchField.setAccessible(true);
             pitchField.set(camera, pitch);
 
+            java.lang.reflect.Field rollField = Camera.class.getDeclaredField("roll");
+            rollField.setAccessible(true);
+            rollField.set(camera, roll);
+
         } catch (Exception e) {
 
         }

@@ -56,7 +56,7 @@ public class ClientScriptingRuntime {
         return CompletableFuture.runAsync(() -> {
             try {
                 LOGGER.info("Initializing client scripting runtime...");
-
+                // Todo: Make this stuff more secure
                 HostAccess hostAccess = HostAccess.newBuilder()
                         .allowAccessAnnotatedBy(HostAccess.Export.class)
                         .allowAllImplementations(true)
