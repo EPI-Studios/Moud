@@ -57,6 +57,15 @@ public final class InspectorPanel {
     private final ImBoolean playerLoopAnimation = new ImBoolean(true);
     private final ImInt playerAnimationDurationMs = new ImInt(2000);
     private final ImString playerSkinBuffer = new ImString("", 256);
+    private final ImBoolean playerSneaking = new ImBoolean(false);
+    private final ImBoolean playerSprinting = new ImBoolean(false);
+    private final ImBoolean playerSwinging = new ImBoolean(false);
+    private final ImBoolean playerUsingItem = new ImBoolean(false);
+    private final float[] cameraPositionBuffer = new float[]{0f, 0f, 0f};
+    private final float[] cameraRotationBuffer = new float[]{0f, 0f, 0f};
+    private final ImFloat cameraFov = new ImFloat(70f);
+    private final ImFloat cameraNear = new ImFloat(0.1f);
+    private final ImFloat cameraFar = new ImFloat(128f);
     private String currentObjectId;
 
     public InspectorPanel(SceneEditorOverlay overlay) {
@@ -97,6 +106,16 @@ public final class InspectorPanel {
         return namespace + ":" + relative;
     }
 
+    private static void extractBool(Object value, ImBoolean target) {
+        if (value instanceof Boolean b) {
+            target.set(b);
+        } else if (value instanceof Number n) {
+            target.set(n.intValue() != 0);
+        } else {
+            target.set(false);
+        }
+    }
+
     private static void extractColor(Object value, float[] target) {
         if (!(value instanceof Map<?, ?> map)) {
             Arrays.fill(target, 1f);
@@ -135,11 +154,46 @@ public final class InspectorPanel {
         return fallback;
     }
 
+    private static float[] extractEuler(Object value, float[] fallback) {
+        if (value instanceof Map<?, ?> map) {
+            boolean hasEuler = map.containsKey("pitch") || map.containsKey("yaw") || map.containsKey("roll");
+            boolean hasAxis = map.containsKey("x") || map.containsKey("y") || map.containsKey("z");
+            if (hasEuler) {
+                Object pitch = map.get("pitch");
+                Object yaw = map.get("yaw");
+                Object roll = map.get("roll");
+                if (pitch != null) fallback[0] = toFloat(pitch);
+                if (yaw != null) fallback[1] = toFloat(yaw);
+                if (roll != null) fallback[2] = toFloat(roll);
+            } else if (hasAxis) {
+                Object pitch = map.get("x");
+                Object yaw = map.get("y");
+                Object roll = map.get("z");
+                if (pitch != null) fallback[0] = toFloat(pitch);
+                if (yaw != null) fallback[1] = toFloat(yaw);
+                if (roll != null) fallback[2] = toFloat(roll);
+            }
+        } else if (value instanceof List<?> list && list.size() >= 3) {
+            fallback[0] = toFloat(list.get(0));
+            fallback[1] = toFloat(list.get(1));
+            fallback[2] = toFloat(list.get(2));
+        }
+        return fallback;
+    }
+
     private static Map<String, Object> vectorToMap(float[] vector) {
         Map<String, Object> map = new ConcurrentHashMap<>();
         map.put("x", vector[0]);
         map.put("y", vector[1]);
         map.put("z", vector[2]);
+        return map;
+    }
+
+    private static Map<String, Object> eulerToMap(float[] euler) {
+        Map<String, Object> map = new ConcurrentHashMap<>();
+        map.put("pitch", euler[0]);
+        map.put("yaw", euler[1]);
+        map.put("roll", euler[2]);
         return map;
     }
 
@@ -295,6 +349,7 @@ public final class InspectorPanel {
             case "light" -> renderLightProperties(session, selected);
             case "marker" -> renderMarkerProperties(session, selected, props);
             case "player_model" -> renderPlayerModelProperties(session, selected);
+            case "camera" -> renderCameraProperties(session, selected);
             default -> {
             }
         }
@@ -506,7 +561,29 @@ public final class InspectorPanel {
     }
 
     private void renderPlayerModelProperties(SceneSessionManager session, SceneObject selected) {
+        Map<String, Object> props = selected.getProperties();
         ImGui.textDisabled("Fake Player");
+
+        // hydrate buffers from props
+        inspectorLabel.set(String.valueOf(props.getOrDefault("label", inspectorLabel.get())));
+        playerSkinBuffer.set(String.valueOf(props.getOrDefault("skinUrl", overlay.getDefaultFakePlayerSkin())));
+        playerAutoAnimation.set(boolValue(props.get("autoAnimation"), true));
+        playerLoopAnimation.set(boolValue(props.get("loopAnimation"), true));
+        Object duration = props.get("animationDuration");
+        if (duration instanceof Number n) {
+            playerAnimationDurationMs.set(n.intValue());
+        }
+        playerAnimationOverride.set(String.valueOf(props.getOrDefault("animationOverride", playerAnimationOverride.get())));
+        extractBool(props.getOrDefault("sneaking", false), playerSneaking);
+        extractBool(props.getOrDefault("sprinting", false), playerSprinting);
+        extractBool(props.getOrDefault("swinging", false), playerSwinging);
+        extractBool(props.getOrDefault("usingItem", false), playerUsingItem);
+
+        if (ImGui.inputText("Label", inspectorLabel)) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("label", inspectorLabel.get());
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
         if (ImGui.inputText("Skin URL", playerSkinBuffer)) {
             Map<String, Object> update = new ConcurrentHashMap<>();
             update.put("skinUrl", playerSkinBuffer.get());
@@ -566,6 +643,74 @@ public final class InspectorPanel {
             playerAnimationOverride.set("");
             Map<String, Object> update = new ConcurrentHashMap<>();
             update.put("animationOverride", "");
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+
+        // Basic pose toggles
+        extractBool(props.getOrDefault("sneaking", false), playerSneaking);
+        extractBool(props.getOrDefault("sprinting", false), playerSprinting);
+        extractBool(props.getOrDefault("swinging", false), playerSwinging);
+        extractBool(props.getOrDefault("usingItem", false), playerUsingItem);
+        if (ImGui.checkbox("Sneaking", playerSneaking)) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("sneaking", playerSneaking.get());
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+        if (ImGui.checkbox("Sprinting", playerSprinting)) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("sprinting", playerSprinting.get());
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+        if (ImGui.checkbox("Swinging", playerSwinging)) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("swinging", playerSwinging.get());
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+        if (ImGui.checkbox("Using Item", playerUsingItem)) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("usingItem", playerUsingItem.get());
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+    }
+
+    private void renderCameraProperties(SceneSessionManager session, SceneObject selected) {
+        Map<String, Object> props = selected.getProperties();
+        ImGui.textDisabled("Camera");
+        inspectorLabel.set(String.valueOf(props.getOrDefault("label", inspectorLabel.get())));
+        extractVector(props.get("position"), cameraPositionBuffer);
+        extractEuler(props.get("rotation"), cameraRotationBuffer);
+        cameraFov.set(toFloat(props.getOrDefault("fov", cameraFov.get())));
+        cameraNear.set(toFloat(props.getOrDefault("near", cameraNear.get())));
+        cameraFar.set(toFloat(props.getOrDefault("far", cameraFar.get())));
+
+        if (ImGui.inputText("Label", inspectorLabel)) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("label", inspectorLabel.get());
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+        if (ImGui.dragFloat3("Position", cameraPositionBuffer, 0.05f)) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("position", vectorToMap(cameraPositionBuffer));
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+        if (ImGui.dragFloat3("Rotation (pitch/yaw/roll)", cameraRotationBuffer, 0.5f)) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("rotation", eulerToMap(cameraRotationBuffer));
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+        if (ImGui.dragFloat("FOV", cameraFov.getData(), 1f, 10f, 170f, "%.1f")) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("fov", cameraFov.get());
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+        if (ImGui.dragFloat("Near", cameraNear.getData(), 0.01f, 0.01f, 10f, "%.2f")) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("near", cameraNear.get());
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+        if (ImGui.dragFloat("Far", cameraFar.getData(), 1f, 1f, 2048f, "%.1f")) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("far", cameraFar.get());
             session.submitPropertyUpdate(selected.getId(), update);
         }
     }
@@ -700,5 +845,14 @@ public final class InspectorPanel {
         playerAutoAnimation.set(true);
         playerLoopAnimation.set(true);
         playerAnimationDurationMs.set(2000);
+        playerSneaking.set(false);
+        playerSprinting.set(false);
+        playerSwinging.set(false);
+        playerUsingItem.set(false);
+        cameraPositionBuffer[0] = cameraPositionBuffer[1] = cameraPositionBuffer[2] = 0f;
+        cameraRotationBuffer[0] = cameraRotationBuffer[1] = cameraRotationBuffer[2] = 0f;
+        cameraFov.set(70f);
+        cameraNear.set(0.1f);
+        cameraFar.set(128f);
     }
 }

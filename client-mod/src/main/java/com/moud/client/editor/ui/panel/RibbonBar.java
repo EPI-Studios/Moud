@@ -60,10 +60,6 @@ public final class RibbonBar {
         }
         if (redoDisabled) ImGui.endDisabled();
         ImGui.sameLine();
-        boolean diagnosticsVisible = overlay.isDiagnosticsVisible();
-        if (ImGui.button(diagnosticsVisible ? "Hide Diagnostics" : "Show Diagnostics")) {
-            overlay.setDiagnosticsVisible(!diagnosticsVisible);
-        }
         ImGui.separator();
         ImGui.text("Usage: " + session.getSceneGraph().getObjects().size() + " objects");
     }
@@ -164,10 +160,14 @@ public final class RibbonBar {
         }
         if (ImGui.menuItem("Marker")) {
             overlay.getMarkerNameBuffer().set(overlay.generateMarkerName());
-            ImGui.openPopup("hierarchy_add_marker_popup");
+            overlay.spawnMarker(session, null);
         }
         if (ImGui.menuItem("Fake Player")) {
-            ImGui.openPopup("hierarchy_add_fake_player_popup");
+            overlay.spawnFakePlayer(session, null);
+        }
+        if (ImGui.menuItem("Camera")) {
+            overlay.resetCameraBuffers();
+            overlay.spawnCamera(session, null);
         }
         ImGui.endPopup();
     }

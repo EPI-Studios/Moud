@@ -12,6 +12,7 @@ public final class EditorDockingLayout {
         INSPECTOR,
         SCRIPT_VIEWER,
         ASSET_BROWSER,
+        ANIMATION_TIMELINE,
         DIAGNOSTICS
     }
 
@@ -26,12 +27,20 @@ public final class EditorDockingLayout {
     private Rect inspector;
     private Rect scriptViewer;
     private Rect assetBrowser;
+    private Rect animationTimeline;
     private Rect diagnostics;
     private Rect viewport;
+    private float lastWidth;
+    private float lastHeight;
+    private boolean layoutDirty;
 
     public void begin(float width, float height) {
+        layoutDirty = width != lastWidth || height != lastHeight;
+        lastWidth = width;
+        lastHeight = height;
+
         float ribbonHeight = Math.min(Math.max(RIBBON_HEIGHT, height * 0.08f), 128f);
-        float bottomHeight = Math.max(MIN_BOTTOM_HEIGHT, height * 0.24f);
+        float bottomHeight = Math.max(MIN_BOTTOM_HEIGHT, height * 0.26f);
         float contentHeight = Math.max(180f, height - ribbonHeight - bottomHeight);
 
         float inspectorWidth = Math.max(MIN_INSPECTOR_WIDTH, width * 0.28f);
@@ -61,8 +70,11 @@ public final class EditorDockingLayout {
         float diagnosticsWidth = Math.max(320f, width * 0.28f);
         diagnosticsWidth = Math.min(diagnosticsWidth, width * 0.5f);
         float assetWidth = Math.max(320f, width - diagnosticsWidth);
-        assetBrowser = new Rect(0f, height - bottomHeight, assetWidth, bottomHeight);
-        diagnostics = new Rect(width - diagnosticsWidth, height - bottomHeight, diagnosticsWidth, bottomHeight);
+
+        float bottomY = height - bottomHeight;
+        assetBrowser = new Rect(0f, bottomY, assetWidth, bottomHeight);
+        animationTimeline = assetBrowser; // timeline shares dock area as tab with asset browser
+        diagnostics = new Rect(width - diagnosticsWidth, bottomY, diagnosticsWidth, bottomHeight);
     }
 
     public void apply(Region region) {
@@ -72,13 +84,15 @@ public final class EditorDockingLayout {
             case INSPECTOR -> inspector;
             case SCRIPT_VIEWER -> scriptViewer;
             case ASSET_BROWSER -> assetBrowser;
+            case ANIMATION_TIMELINE -> animationTimeline;
             case DIAGNOSTICS -> diagnostics;
         };
         if (rect == null) {
             return;
         }
-        ImGui.setNextWindowPos(rect.x, rect.y, ImGuiCond.Always);
-        ImGui.setNextWindowSize(rect.width, rect.height, ImGuiCond.Always);
+        int cond = layoutDirty ? ImGuiCond.Always : ImGuiCond.FirstUseEver;
+        ImGui.setNextWindowPos(rect.x, rect.y, cond);
+        ImGui.setNextWindowSize(rect.width, rect.height, cond);
     }
 
     public Rect getViewportRect() {

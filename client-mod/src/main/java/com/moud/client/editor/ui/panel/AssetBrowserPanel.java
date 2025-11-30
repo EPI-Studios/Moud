@@ -2,6 +2,7 @@ package com.moud.client.editor.ui.panel;
 
 import com.moud.client.editor.assets.AssetThumbnailCache;
 import com.moud.client.editor.assets.EditorAssetCatalog;
+import com.moud.client.editor.assets.ProjectFileIndex;
 import com.moud.client.editor.ui.SceneEditorOverlay;
 import com.moud.client.editor.ui.layout.EditorDockingLayout;
 import com.moud.network.MoudPackets;
@@ -19,6 +20,7 @@ import java.util.Map;
 public final class AssetBrowserPanel {
     private final SceneEditorOverlay overlay;
     private final ImString assetFilter = new ImString(64);
+    private final ImString animationFilter = new ImString(64);
 
     public AssetBrowserPanel(SceneEditorOverlay overlay) {
         this.overlay = overlay;
@@ -29,13 +31,35 @@ public final class AssetBrowserPanel {
             ImGui.end();
             return;
         }
+        renderTabs();
+        ImGui.end();
+    }
+
+    private void renderTabs() {
+        if (ImGui.beginTabBar("asset_tabs")) {
+            if (ImGui.beginTabItem("Assets")) {
+                renderAssetsTab();
+                ImGui.endTabItem();
+            }
+            if (ImGui.beginTabItem("Animations")) {
+                renderAnimationsTab();
+                ImGui.endTabItem();
+            }
+            if (ImGui.beginTabItem("Animation Timeline")) {
+                renderTimelineTab();
+                ImGui.endTabItem();
+            }
+            ImGui.endTabBar();
+        }
+    }
+
+    private void renderAssetsTab() {
         List<MoudPackets.EditorAssetDefinition> assets = EditorAssetCatalog.getInstance().getAssets();
         ImGui.setNextItemWidth(-1);
         ImGui.inputTextWithHint("##asset_search", "Search models, displays, lights...", assetFilter);
         ImGui.separator();
         if (assets.isEmpty()) {
             ImGui.textDisabled("No assets available. Trigger a server rescan.");
-            ImGui.end();
             return;
         }
         float availWidth = Math.max(1f, ImGui.getContentRegionAvailX());
@@ -65,7 +89,42 @@ public final class AssetBrowserPanel {
             }
             ImGui.endTable();
         }
-        ImGui.end();
+    }
+
+    private void renderAnimationsTab() {
+        ProjectFileIndex.getInstance().requestSyncIfNeeded();
+        List<ProjectFileIndex.Node> animations = ProjectFileIndex.getInstance().listFilesWithExtensions(".an");
+        ImGui.setNextItemWidth(-1);
+        ImGui.inputTextWithHint("##animation_search", "Search animations (.an)", animationFilter);
+        ImGui.separator();
+        if (animations.isEmpty()) {
+            ImGui.textDisabled("No .an files found. Add animations under animations/ in the project.");
+            return;
+        }
+        String filter = animationFilter.get().trim().toLowerCase(Locale.ROOT);
+        if (ImGui.beginTable("an_list", 2, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerV)) {
+            ImGui.tableSetupColumn("Name");
+            ImGui.tableSetupColumn("Path");
+            for (ProjectFileIndex.Node node : animations) {
+                if (!filter.isEmpty() && !node.name().toLowerCase(Locale.ROOT).contains(filter) && !node.path().toLowerCase(Locale.ROOT).contains(filter)) {
+                    continue;
+                }
+                ImGui.tableNextRow();
+                ImGui.tableSetColumnIndex(0);
+                if (ImGui.selectable(node.name())) {
+                    overlay.openAnimation(node.path());
+                }
+                if (ImGui.beginDragDropSource()) {
+                    byte[] bytes = node.path().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                    ImGui.setDragDropPayload("MoudAnimationFile", bytes);
+                    ImGui.text("Attach " + node.name());
+                    ImGui.endDragDropSource();
+                }
+                ImGui.tableSetColumnIndex(1);
+                ImGui.textDisabled(node.path());
+            }
+            ImGui.endTable();
+        }
     }
 
     private void renderTypeBadge(String type) {
@@ -126,5 +185,9 @@ public final class AssetBrowserPanel {
             case "light" -> new float[]{1f, 0.82f, 0.55f};
             default -> new float[]{0.75f, 0.75f, 0.75f};
         };
+    }
+
+    private void renderTimelineTab() {
+        overlay.getTimelinePanel().renderInCurrentWindow();
     }
 }
