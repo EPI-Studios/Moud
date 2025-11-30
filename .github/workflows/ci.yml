@@ -139,6 +139,16 @@ jobs:
       - name: Generate API metadata
         run: ./gradlew server:generateTsMetadata
 
+      - name: Build Plugin API Javadoc
+        run: ./gradlew :plugin-api:javadoc
+
+      - name: Build Plugin API Javadoc Jar
+        run: ./gradlew :plugin-api:javadocJar
+
+      - name: Package Plugin API Javadoc
+        run: |
+          tar -czf plugin-api-javadoc.tar.gz -C plugin-api/build/docs javadoc
+
       - name: Build CLI
         run: pnpm --filter ./packages/moud-cli build
 
@@ -171,6 +181,8 @@ jobs:
           artifacts: |
             server/build/libs/moud-server.jar
             client-mod/build/libs/*.jar
+            plugin-api-javadoc.tar.gz
+            plugin-api/build/libs/*-javadoc.jar
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ github.ref_name }}
           draft: false
