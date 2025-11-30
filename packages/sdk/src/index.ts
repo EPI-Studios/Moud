@@ -593,10 +593,21 @@ export interface MoudAPI {
      * Asset loader that reads packaged datapack resources.
      */
     readonly assets: Asset;
+    readonly camera: CameraAPI;
+    /**
+     * Camera helpers for binding players to scene-defined cameras.
+     */
+    readonly camera: CameraAPI;
+    /**
+     * Scene helpers for the active scene.
+     */
+    readonly scene: SceneAPI;
     /**
      * Asynchronous task runner shared with {@link AsyncManager}.
      */
     readonly async: AsyncManager;
+    /** Particle engine entry point. */
+    readonly particles: ParticleAPI;
 
     /**
      * @deprecated Use the {@link server} property instead.
@@ -1906,6 +1917,53 @@ export interface Asset {
     loadData(path: string): DataAsset;
 }
 
+/**
+ * Camera helpers.
+ * @remarks Server-only.
+ */
+export interface CameraAPI {
+    getById(id: string): SceneCamera | undefined;
+    getByLabel(label: string): SceneCamera | undefined;
+    setPlayerCamera(player: Player, cameraIdOrLabel: string): boolean;
+    clearPlayerCamera(player: Player): void;
+}
+
+/**
+ * Scene camera data (from editor).
+ * @remarks Server-only.
+ */
+export interface SceneCamera {
+    id: string;
+    label: string;
+    position: Vector3;
+    rotation: Vector3; // pitch, yaw, roll
+    fov: number;
+    nearPlane: number;
+    farPlane: number;
+}
+
+// Animation API surface (client/server scripts)
+export interface AnimationController {
+    play(): void;
+    pause(): void;
+    stop(): void;
+    seek(time: number): void;
+    setSpeed(speed: number): void;
+    setLoop(loop: boolean): void;
+    getTime(): number;
+    getDuration(): number;
+    isPlaying(): boolean;
+    onEvent(eventName: string, callback: () => void): void;
+    onComplete(callback: () => void): void;
+}
+
+export interface AnimationEvent {
+    animationId: string;
+    objectId: string;
+    eventName: string;
+    payload: Record<string, string>;
+}
+
 /** Describes a shader that has been loaded through {@link Asset.loadShader}. */
 export interface ShaderAsset {
     /** @returns The identifier that uniquely represents this asset. */
@@ -2088,6 +2146,11 @@ export interface Command {
      * @param callback Invoked when a player runs the command.
      */
     registerWithAliases(name: string, aliases: string[], callback: (player: Player) => void): void;
+}
+
+export interface SceneAPI {
+    /** Gets the active scene information. */
+    get(): Promise<{ id: string } & Record<string, unknown>>;
 }
 
 /**
@@ -2455,6 +2518,73 @@ export interface RenderTypeOptions {
     depthTest?: boolean;
 }
 
+export interface FakePlayerWaypoint {
+    position: Vector3;
+}
+
+export interface FakePlayerDescriptor {
+    id?: number;
+    label?: string;
+    skinUrl?: string;
+    position: Vector3;
+    rotation?: Quaternion;
+    width?: number;
+    height?: number;
+    physicsEnabled?: boolean;
+    sneaking?: boolean;
+    sprinting?: boolean;
+    swinging?: boolean;
+    usingItem?: boolean;
+    path?: FakePlayerWaypoint[];
+    pathSpeed?: number;
+    pathLoop?: boolean;
+    pathPingPong?: boolean;
+}
+
+export interface FakePlayerPose {
+    sneaking?: boolean;
+    sprinting?: boolean;
+    swinging?: boolean;
+    usingItem?: boolean;
+}
+
+export interface FakePlayerPhysics {
+    enabled: boolean;
+    width?: number;
+    height?: number;
+}
+
+/** Physics options when attaching a dynamic body to a model. */
+export interface DynamicPhysicsOptions {
+    /** Half extents of the collision shape. */
+    halfExtents: Vector3;
+    /** Mass in kilograms; defaults to 1. */
+    mass?: number;
+    /** Initial linear velocity applied at spawn. */
+    initialVelocity?: Vector3;
+    /**
+     * Allow player collisions to impart forces on this body.
+     * @defaultValue false
+     */
+    playerPush?: boolean;
+}
+
+export interface FakePlayerPath {
+    waypoints: FakePlayerWaypoint[];
+    speed?: number;
+    loop?: boolean;
+    pingPong?: boolean;
+}
+
+export interface FakePlayerService {
+    spawn(descriptor: FakePlayerDescriptor): void;
+    remove(id: number): void;
+    setPose(id: number, pose: FakePlayerPose): void;
+    setPhysics(id: number, physics: FakePlayerPhysics): void;
+    setPath(id: number, path: FakePlayerPath): void;
+    setSkin(id: number, skinUrl: string): void;
+}
+
 /**
  * Root server-side API exposed via `globalThis.api`.
  * @remarks Server-only.
@@ -2719,4 +2849,206 @@ export interface ZoneAPI {
      * @param id Unique identifier of the zone to remove.
      */
     remove(id: string): void;
+}
+
+
+export enum RenderType {
+    Translucent = 'translucent',
+    Additive = 'additive',
+    Cutout = 'cutout'
+}
+
+export enum Billboarding {
+    CameraFacing = 'camera_facing',
+    VelocityAligned = 'velocity_aligned',
+    AxisLocked = 'axis_locked'
+}
+
+export enum CollisionMode {
+    None = 'none',
+    Kill = 'kill',
+    Bounce = 'bounce',
+    Slide = 'slide',
+    Stick = 'stick',
+    Damp = 'damp'
+}
+
+export enum SortHint {
+    None = 'none',
+    Depth = 'depth'
+}
+
+export enum Ease {
+    Linear = 'linear',
+    EaseIn = 'ease-in',
+    EaseOut = 'ease-out',
+    EaseInOut = 'ease-in-out'
+}
+
+export type Vector3Like = Pick<Vector3, 'x' | 'y' | 'z'>;
+
+export interface ScalarKeyframe {
+    /** Normalized time within the lifetime, clamped between 0 and 1. */
+    t: number;
+    value: number;
+    ease?: Ease;
+}
+
+export interface ColorKeyframe {
+    /** Normalized time within the lifetime, clamped between 0 and 1. */
+    t: number;
+    r: number;
+    g: number;
+    b: number;
+    a?: number;
+    ease?: Ease;
+}
+
+export interface UVRegion {
+    u0: number;
+    v0: number;
+    u1: number;
+    v1: number;
+}
+
+export interface FrameAnimation {
+    frames: number;
+    fps: number;
+    loop?: boolean;
+    pingPong?: boolean;
+    startFrame?: number;
+}
+
+export interface LightSettings {
+    block: number;
+    sky: number;
+    emissive?: boolean;
+}
+
+export interface ParticleDescriptor {
+    texture: string;
+    renderType?: RenderType;
+    billboarding?: Billboarding;
+    collision?: CollisionMode;
+    position: Vector3Like;
+    velocity?: Vector3Like;
+    acceleration?: Vector3Like;
+    drag?: number;
+    gravityMultiplier?: number;
+    lifetime: number;
+    sizeOverLife?: ScalarKeyframe[];
+    rotationOverLife?: ScalarKeyframe[];
+    colorOverLife?: ColorKeyframe[];
+    alphaOverLife?: ScalarKeyframe[];
+    uvRegion?: UVRegion;
+    frameAnimation?: FrameAnimation;
+    behaviors?: string[];
+    behaviorPayload?: Record<string, unknown>;
+    light?: LightSettings;
+    sortHint?: SortHint;
+}
+
+export interface ColorSample {
+    r: number;
+    g: number;
+    b: number;
+    a: number;
+}
+
+export function evaluateScalarRamp(stops: ScalarKeyframe[] | undefined, t: number): number {
+    if (!stops || stops.length === 0) return 0;
+    if (stops.length === 1) return stops[0].value;
+    const clamped = clamp01(t);
+    let prev = stops[0];
+    for (let i = 1; i < stops.length; i++) {
+        const next = stops[i];
+        if (clamped <= next.t || i === stops.length - 1) {
+            const segmentT = clamp01((clamped - prev.t) / Math.max(1e-6, next.t - prev.t));
+            return lerp(prev.value, next.value, applyEase(segmentT, prev.ease ?? Ease.Linear));
+        }
+        prev = next;
+    }
+    return stops[stops.length - 1].value;
+}
+
+export function evaluateColorRamp(stops: ColorKeyframe[] | undefined, t: number): ColorSample {
+    if (!stops || stops.length === 0) return { r: 1, g: 1, b: 1, a: 1 };
+    if (stops.length === 1) {
+        const c = stops[0];
+        return { r: c.r, g: c.g, b: c.b, a: c.a ?? 1 };
+    }
+    const clamped = clamp01(t);
+    let prev = stops[0];
+    for (let i = 1; i < stops.length; i++) {
+        const next = stops[i];
+        if (clamped <= next.t || i === stops.length - 1) {
+            const segmentT = clamp01((clamped - prev.t) / Math.max(1e-6, next.t - prev.t));
+            const eased = applyEase(segmentT, prev.ease ?? Ease.Linear);
+            return {
+                r: lerp(prev.r, next.r, eased),
+                g: lerp(prev.g, next.g, eased),
+                b: lerp(prev.b, next.b, eased),
+                a: lerp(prev.a ?? 1, next.a ?? 1, eased)
+            };
+        }
+        prev = next;
+    }
+    const c = stops[stops.length - 1];
+    return { r: c.r, g: c.g, b: c.b, a: c.a ?? 1 };
+}
+
+export function sampleUniform(min: number, max: number, random: () => number = Math.random): number {
+    return min + (max - min) * random();
+}
+
+export function sampleGaussian(mean: number, stdDev: number, random: () => number = Math.random): number {
+    let u = 0;
+    let v = 0;
+    while (u === 0) u = random();
+    while (v === 0) v = random();
+    const mag = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    return mean + stdDev * mag;
+}
+
+export function jitterVector(base: Vector3Like, magnitude: number, random: () => number = Math.random): Vector3Like {
+    const theta = sampleUniform(0, 2 * Math.PI, random);
+    const phi = Math.acos(sampleUniform(-1, 1, random));
+    const r = magnitude * Math.cbrt(sampleUniform(0, 1, random));
+    const sinPhi = Math.sin(phi);
+    return {
+        x: base.x + r * sinPhi * Math.cos(theta),
+        y: base.y + r * Math.cos(phi),
+        z: base.z + r * sinPhi * Math.sin(theta)
+    };
+}
+
+function clamp01(value: number): number {
+    return Math.max(0, Math.min(1, value));
+}
+
+function lerp(a: number, b: number, t: number): number {
+    return a + (b - a) * t;
+}
+
+function applyEase(t: number, ease: Ease): number {
+    switch (ease) {
+    case Ease.EaseIn:
+        return t * t;
+    case Ease.EaseOut:
+        return 1 - (1 - t) * (1 - t);
+    case Ease.EaseInOut:
+        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    case Ease.Linear:
+    default:
+        return t;
+    }
+}
+
+/** Server-side particle API. */
+export interface ParticleAPI {
+    /**
+     * Enqueue one or more particles to spawn.
+     * @param descriptor Single descriptor or array.
+     */
+    spawn(descriptor: ParticleDescriptor | ParticleDescriptor[]): void;
 }
