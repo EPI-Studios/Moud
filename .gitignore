@@ -15,6 +15,7 @@ Thumbs.db
 *.log
 
 # Minecraft client runtime files
+client-mod/run/
 client-mod/run/mods/
 client-mod/run/config/
 client-mod/run/logs/
