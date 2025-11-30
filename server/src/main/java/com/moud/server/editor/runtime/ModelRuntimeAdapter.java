@@ -29,7 +29,7 @@ public final class ModelRuntimeAdapter implements SceneRuntimeAdapter {
         Map<String, Object> props = snapshot.properties();
         String modelPath = stringProperty(props, "modelPath", "moud:models/capsule.obj");
         Vector3 position = vectorProperty(props.get("position"), new Vector3(0, 64, 0));
-        Quaternion rotation = quaternionFromEuler(props.get("rotation"), Quaternion.identity());
+        Quaternion rotation = quaternionProperty(props, Quaternion.identity());
         Vector3 scale = vectorProperty(props.get("scale"), Vector3.one());
         String texture = stringProperty(props, "texture", "");
 
@@ -53,7 +53,7 @@ public final class ModelRuntimeAdapter implements SceneRuntimeAdapter {
         }
         Map<String, Object> props = snapshot.properties();
         Vector3 position = vectorProperty(props.get("position"), model.getPosition());
-        Quaternion rotation = quaternionFromEuler(props.get("rotation"), model.getRotation());
+        Quaternion rotation = quaternionProperty(props, model.getRotation());
         Vector3 scale = vectorProperty(props.get("scale"), model.getScale());
         String texture = stringProperty(props, "texture", model.getTexture());
 
@@ -95,11 +95,24 @@ public final class ModelRuntimeAdapter implements SceneRuntimeAdapter {
         return fallback;
     }
 
+    private static Quaternion quaternionProperty(Map<String, Object> props, Quaternion fallback) {
+        Object rawQuat = props.get("rotationQuat");
+        if (rawQuat instanceof Map<?, ?> map) {
+            double x = toDouble(map.get("x"), 0);
+            double y = toDouble(map.get("y"), 0);
+            double z = toDouble(map.get("z"), 0);
+            double w = toDouble(map.get("w"), 1);
+            return new Quaternion((float) x, (float) y, (float) z, (float) w);
+        }
+        return quaternionFromEuler(props.get("rotation"), fallback);
+    }
+
     private static Quaternion quaternionFromEuler(Object raw, Quaternion fallback) {
         if (raw instanceof Map<?,?> map) {
-            double pitch = toDouble(map.get("pitch"), 0);
-            double yaw = toDouble(map.get("yaw"), 0);
-            double roll = toDouble(map.get("roll"), 0);
+            boolean hasEuler = map.containsKey("pitch") || map.containsKey("yaw") || map.containsKey("roll");
+            double pitch = hasEuler ? toDouble(map.get("pitch"), 0) : toDouble(map.get("x"), 0);
+            double yaw = hasEuler ? toDouble(map.get("yaw"), 0) : toDouble(map.get("y"), 0);
+            double roll = hasEuler ? toDouble(map.get("roll"), 0) : toDouble(map.get("z"), 0);
             return Quaternion.fromEuler((float) pitch, (float) yaw, (float) roll);
         }
         return fallback;

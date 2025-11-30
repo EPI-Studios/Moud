@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.moud.server.editor.runtime.SceneRuntimeAdapter;
 import com.moud.server.editor.runtime.SceneRuntimeFactory;
+import com.moud.server.editor.runtime.PlayerModelRuntimeAdapter;
 import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
 
@@ -72,6 +73,94 @@ public final class SceneManager {
         return new SceneSnapshot(state.version.get(), Collections.unmodifiableList(objects));
     }
 
+    public SceneObject getSceneObject(String sceneId, String objectId) {
+        SceneState state = scenes.get(sceneId);
+        if (state == null || objectId == null) {
+            return null;
+        }
+        return state.objects.get(objectId);
+    }
+
+    public void applyAnimationProperty(String sceneId, String objectId, String propertyKey, com.moud.api.animation.PropertyTrack.PropertyType propertyType, float value) {
+        SceneState state = scenes.get(sceneId);
+        if (state == null || objectId == null || propertyKey == null) {
+            return;
+        }
+        SceneObject obj = state.objects.get(objectId);
+        if (obj == null) {
+            return;
+        }
+        applyNestedProperty(obj.properties, propertyKey, value);
+        long version = state.version.incrementAndGet();
+        if (obj.adapter != null) {
+            try {
+                obj.adapter.update(toSnapshot(obj));
+            } catch (Exception e) {
+                LOGGER.warn("Failed to apply animation update to {}", objectId, e);
+            }
+        }
+        com.moud.server.network.ServerNetworkManager net = com.moud.server.network.ServerNetworkManager.getInstance();
+        if (net != null) {
+            net.broadcast(new MoudPackets.AnimationPropertyUpdatePacket(sceneId, objectId, propertyKey, propertyType, value, buildPayload(obj.properties, propertyKey)));
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void applyNestedProperty(Map<String, Object> props, String key, float value) {
+        if (key.contains(".")) {
+            String[] parts = key.split("\\.");
+            if (parts.length >= 2) {
+                String root = parts[0];
+                Map<String, Object> nested = null;
+                Object existingRoot = props.get(root);
+                if (existingRoot instanceof Map<?, ?> m) {
+                    nested = (Map<String, Object>) m;
+                } else {
+                    nested = new java.util.HashMap<>();
+                    props.put(root, nested);
+                }
+                if (parts.length == 2) {
+                    nested.put(parts[1], value);
+                } else {
+                    Map<String, Object> current = nested;
+                    for (int i = 1; i < parts.length - 1; i++) {
+                        Object child = current.get(parts[i]);
+                        if (child instanceof Map<?, ?> mm) {
+                            current = (Map<String, Object>) mm;
+                        } else {
+                            Map<String, Object> newChild = new java.util.HashMap<>();
+                            current.put(parts[i], newChild);
+                            current = newChild;
+                        }
+                    }
+                    current.put(parts[parts.length - 1], value);
+                }
+                return;
+            }
+        }
+        props.put(key, value);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> buildPayload(Map<String, Object> props, String key) {
+        if (props == null || key == null) {
+            return null;
+        }
+        if (key.contains(".")) {
+            String root = key.substring(0, key.indexOf('.'));
+            Object rootVal = props.get(root);
+            if (rootVal instanceof Map<?, ?> map) {
+                return new java.util.HashMap<>((Map<String, Object>) map);
+            }
+        } else {
+            Object val = props.get(key);
+            if (val instanceof Map<?, ?> map) {
+                return new java.util.HashMap<>((Map<String, Object>) map);
+            }
+        }
+        return null;
+    }
+
     public List<MoudPackets.EditorAssetDefinition> getEditorAssets() {
         if (assetManager == null) {
             return List.of();
@@ -116,6 +205,7 @@ public final class SceneManager {
         List<MoudPackets.ProjectFileEntry> entries = new ArrayList<>();
         scanProjectDirectory(projectRoot.resolve("assets"), entries);
         scanProjectDirectory(projectRoot.resolve("src"), entries);
+        scanProjectDirectory(projectRoot.resolve("animations"), entries);
         return entries;
     }
 
@@ -184,10 +274,16 @@ public final class SceneManager {
         defaults.put("skinUrl", "https://textures.minecraft.net/texture/45c338913be11c119f0e90a962f8d833b0dff78eaefdd8f2fa2a3434a1f2af0");
         defaults.put("label", "Fake Player");
         defaults.put("objectType", "player_model");
-        defaults.put("autoAnimation", true);
-        defaults.put("animationOverride", "");
-        defaults.put("loopAnimation", true);
-        defaults.put("animationDuration", 2000);
+        defaults.put("width", 0.6);
+        defaults.put("height", 1.8);
+        defaults.put("physicsEnabled", false);
+        defaults.put("sneaking", false);
+        defaults.put("sprinting", false);
+        defaults.put("swinging", false);
+        defaults.put("usingItem", false);
+        defaults.put("pathSpeed", 0.0);
+        defaults.put("pathLoop", false);
+        defaults.put("pathPingPong", false);
         return new MoudPackets.EditorAssetDefinition("player/fake_default", "Fake Player", "player_model", defaults);
     }
 
@@ -333,7 +429,7 @@ public final class SceneManager {
         }
     }
 
-    private static final class SceneObject {
+    static final class SceneObject {
         private final String id;
         private final String type;
         private final ConcurrentMap<String, Object> properties;
@@ -378,7 +474,7 @@ public final class SceneManager {
 
         Map<String, Object> properties = new LinkedHashMap<>();
         properties.put("label", "Base Terrain");
-        properties.put("description", "Automatically generated 1000x1000 flat grass scene.");
+        properties.put("description", "1000x1000 flat grass scene.");
         properties.put("size", SceneDefaults.BASE_SCENE_SIZE_BLOCKS);
         properties.put("terrainHeight", SceneDefaults.BASE_TERRAIN_HEIGHT);
         properties.put("surfaceBlock", SceneDefaults.DEFAULT_SURFACE_BLOCK);

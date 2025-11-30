@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 public final class TerrainRuntimeAdapter implements SceneRuntimeAdapter {
     private static final Logger LOGGER = LoggerFactory.getLogger(TerrainRuntimeAdapter.class);
@@ -26,10 +27,7 @@ public final class TerrainRuntimeAdapter implements SceneRuntimeAdapter {
     private final InstanceContainer instance;
     private final BatchOption batchOption;
 
-    private int lastSize;
-    private int lastSurfaceY;
-    private Block lastSurfaceBlock;
-    private Block lastFillBlock;
+    private final AtomicReference<TerrainSettings> currentSettings = new AtomicReference<>();
 
     public TerrainRuntimeAdapter(String sceneId) {
         this.sceneId = sceneId;
@@ -39,6 +37,20 @@ public final class TerrainRuntimeAdapter implements SceneRuntimeAdapter {
                 .setSendUpdate(true)
                 .setFullChunk(false)
                 .setUnsafeApply(false);
+
+        net.minestom.server.MinecraftServer.getGlobalEventHandler().addListener(
+                net.minestom.server.event.instance.InstanceChunkLoadEvent.class,
+                event -> {
+                    if (event.getInstance() != instance) {
+                        return;
+                    }
+                    TerrainSettings settings = currentSettings.get();
+                    if (settings == null || !settings.intersects(event.getChunk())) {
+                        return;
+                    }
+                    applyChunkBatch(event.getChunk(), settings);
+                }
+        );
     }
 
     @Override
@@ -53,9 +65,9 @@ public final class TerrainRuntimeAdapter implements SceneRuntimeAdapter {
 
     @Override
     public synchronized void remove() {
-        if (lastSize > 0) {
-            clearArea(lastSize, lastSurfaceY);
-            lastSize = 0;
+        TerrainSettings settings = currentSettings.getAndSet(null);
+        if (settings != null) {
+            clearLoadedChunks(settings);
         }
     }
 
@@ -68,59 +80,48 @@ public final class TerrainRuntimeAdapter implements SceneRuntimeAdapter {
         Block surfaceBlock = blockProperty(props.get("surfaceBlock"), SceneDefaults.DEFAULT_SURFACE_BLOCK);
         Block fillBlock = blockProperty(props.get("fillBlock"), SceneDefaults.DEFAULT_FILL_BLOCK);
 
-        boolean unchanged = size == lastSize
-                && surfaceY == lastSurfaceY
-                && surfaceBlock == lastSurfaceBlock
-                && fillBlock == lastFillBlock;
-        if (unchanged) {
+        TerrainSettings newSettings = new TerrainSettings(size, surfaceY, surfaceBlock, fillBlock);
+        TerrainSettings previous = currentSettings.getAndSet(newSettings);
+        if (newSettings.equals(previous)) {
             return;
         }
 
-        if (lastSize > 0 && (size != lastSize || surfaceY != lastSurfaceY)) {
-            clearArea(lastSize, lastSurfaceY);
+        long start = System.currentTimeMillis();
+        refreshLoadedChunks(previous, newSettings);
+        long duration = System.currentTimeMillis() - start;
+
+        LOGGER.info("Scene '{}' terrain settings applied ({}x{} @ y={}) in {} ms (loaded chunks only)",
+                sceneId, size, size, surfaceY, duration);
+    }
+
+    private void refreshLoadedChunks(TerrainSettings previous, TerrainSettings settings) {
+        if (instance.getChunks().isEmpty()) {
+            return;
         }
+        instance.getChunks().forEach(chunk -> {
+            boolean inNewArea = settings.intersects(chunk);
+            boolean inOldArea = previous != null && previous.intersects(chunk);
 
-        long start = System.currentTimeMillis();
-        paintArea(size, surfaceY, surfaceBlock, fillBlock);
-        long duration = System.currentTimeMillis() - start;
-
-        lastSize = size;
-        lastSurfaceY = surfaceY;
-        lastSurfaceBlock = surfaceBlock;
-        lastFillBlock = fillBlock;
-
-        LOGGER.info("Scene '{}' terrain prepared ({}x{} @ y={}) in {} ms",
-                sceneId, size, size, surfaceY, duration);
-    }
-
-    private void clearArea(int size, int surfaceY) {
-        long start = System.currentTimeMillis();
-        paintArea(size, surfaceY, Block.AIR, Block.AIR);
-        long duration = System.currentTimeMillis() - start;
-        LOGGER.info("Scene '{}' terrain cleared ({}x{} @ y={}) in {} ms",
-                sceneId, size, size, surfaceY, duration);
-    }
-
-    private void paintArea(int size, int surfaceY, Block surfaceBlock, Block fillBlock) {
-        int minX = computeMinCoord(size);
-        int maxX = computeMaxCoord(size, minX);
-        int minZ = minX;
-        int maxZ = maxX;
-
-        int minChunkX = Math.floorDiv(minX, Chunk.CHUNK_SIZE_X);
-        int maxChunkX = Math.floorDiv(maxX, Chunk.CHUNK_SIZE_X);
-        int minChunkZ = Math.floorDiv(minZ, Chunk.CHUNK_SIZE_Z);
-        int maxChunkZ = Math.floorDiv(maxZ, Chunk.CHUNK_SIZE_Z);
-
-        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
-            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-                Chunk chunk = instance.loadChunk(chunkX, chunkZ).join();
-                if (chunk == null) {
-                    continue;
-                }
-                applyChunkBatch(chunk, minX, maxX, minZ, maxZ, surfaceY, surfaceBlock, fillBlock);
+            if (inNewArea) {
+                applyChunkBatch(chunk, settings);
+            } else if (inOldArea) {
+                clearChunkArea(chunk, previous);
             }
-        }
+        });
+    }
+
+    private void clearLoadedChunks(TerrainSettings settings) {
+        instance.getChunks().forEach(chunk -> clearChunkArea(chunk, settings));
+    }
+
+    private void applyChunkBatch(Chunk chunk, TerrainSettings settings) {
+        applyChunkBatch(chunk, settings.minCoord(), settings.maxCoord(), settings.minCoord(), settings.maxCoord(),
+                settings.surfaceY(), settings.surfaceBlock(), settings.fillBlock());
+    }
+
+    private void clearChunkArea(Chunk chunk, TerrainSettings settings) {
+        applyChunkBatch(chunk, settings.minCoord(), settings.maxCoord(), settings.minCoord(), settings.maxCoord(),
+                settings.surfaceY(), Block.AIR, Block.AIR);
     }
 
     private void applyChunkBatch(Chunk chunk,
@@ -201,5 +202,25 @@ public final class TerrainRuntimeAdapter implements SceneRuntimeAdapter {
             block = Block.fromNamespaceId(fallbackId);
         }
         return block != null ? block : Block.AIR;
+    }
+
+    private record TerrainSettings(int size, int surfaceY, Block surfaceBlock, Block fillBlock) {
+        int minCoord() {
+            return computeMinCoord(size);
+        }
+
+        int maxCoord() {
+            return computeMaxCoord(size, minCoord());
+        }
+
+        boolean intersects(Chunk chunk) {
+            int chunkWorldX = chunk.getChunkX() << 4;
+            int chunkWorldZ = chunk.getChunkZ() << 4;
+            int startX = Math.max(minCoord(), chunkWorldX);
+            int endX = Math.min(maxCoord(), chunkWorldX + Chunk.CHUNK_SIZE_X - 1);
+            int startZ = Math.max(minCoord(), chunkWorldZ);
+            int endZ = Math.min(maxCoord(), chunkWorldZ + Chunk.CHUNK_SIZE_Z - 1);
+            return startX <= endX && startZ <= endZ;
+        }
     }
 }

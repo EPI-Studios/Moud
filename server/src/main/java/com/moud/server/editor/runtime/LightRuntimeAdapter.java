@@ -61,11 +61,14 @@ public final class LightRuntimeAdapter implements SceneRuntimeAdapter {
         data.put("r", toDouble(color.get("r"), 1.0));
         data.put("g", toDouble(color.get("g"), 1.0));
         data.put("b", toDouble(color.get("b"), 1.0));
-        data.put("brightness", toDouble(props.get("brightness"), 1.0));
+        double brightness = toDouble(props.get("intensity"), toDouble(props.get("brightness"), 1.0));
+        data.put("brightness", brightness);
+        double range = toDouble(props.get("range"), -1.0);
         if ("area".equals(lightType)) {
             data.put("width", toDouble(props.get("width"), 4.0));
             data.put("height", toDouble(props.get("height"), 4.0));
-            data.put("distance", toDouble(props.get("distance"), 8.0));
+            double distance = toDouble(props.get("distance"), range > 0 ? range : 8.0);
+            data.put("distance", distance);
             data.put("angle", toDouble(props.get("angle"), 45.0));
             Map<String, Object> dir = mapProperty(props.get("direction"));
             Vector3 direction = vectorProperty(dir, new Vector3(0, -1, 0));
@@ -73,7 +76,8 @@ public final class LightRuntimeAdapter implements SceneRuntimeAdapter {
             data.put("dirY", direction.y);
             data.put("dirZ", direction.z);
         } else {
-            data.put("radius", toDouble(props.get("radius"), 6.0));
+            double radius = toDouble(props.get("radius"), range > 0 ? range : 6.0);
+            data.put("radius", radius);
         }
         return data;
     }
