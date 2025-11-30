@@ -1,0 +1,96 @@
+.root {
+    -fx-base: #1e1e1e;
+    -fx-background: #1e1e1e;
+    -fx-control-inner-background: #1e1e1e;
+    -fx-font-family: "Segoe UI", "Roboto", monospace;
+    -text-color: #cccccc;
+    -fx-text-fill: #cccccc;
+}
+
+.timeline-container {
+    -fx-background-color: #1e1e1e;
+    -fx-border-color: #3e3e42;
+    -fx-border-width: 0 0 1 0;
+}
+
+.timeline-track {
+    -fx-border-color: #2d2d2d;
+    -fx-border-width: 0 0 1 0;
+    -fx-background-color: #1e1e1e;
+}
+
+.track-header {
+    -fx-background-color: #252526;
+    -fx-border-color: #3e3e42;
+    -fx-border-width: 0 1 0 0;
+    -fx-padding: 5 10 5 10;
+    -fx-alignment: center-left;
+    -fx-min-width: 120px;
+}
+
+.track-label {
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #858585;
+}
+
+.track-value {
+    -fx-font-size: 12px;
+    -fx-font-family: "Consolas", monospace;
+}
+
+.inspector-pane {
+    -fx-background-color: #252526;
+    -fx-border-color: #3e3e42;
+    -fx-border-width: 0 0 0 1;
+}
+
+.panel-header {
+    -fx-background-color: #2d2d2d;
+    -fx-padding: 5 10 5 10;
+    -fx-border-color: #3e3e42;
+    -fx-border-width: 0 0 1 0;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #858585;
+}
+
+.button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #cccccc;
+    -fx-background-radius: 2;
+    -fx-padding: 4 12 4 12;
+    -fx-cursor: hand;
+}
+.button:hover { -fx-background-color: #3e3e3e; }
+.button:pressed { -fx-background-color: #007acc; -fx-text-fill: white; }
+
+.toggle-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #cccccc;
+    -fx-border-color: #3e3e42;
+    -fx-border-radius: 2;
+}
+.toggle-button:selected {
+    -fx-background-color: #264f78;
+    -fx-text-fill: white;
+}
+
+.split-pane > .split-pane-divider {
+    -fx-background-color: #3e3e42;
+    -fx-padding: 0 1 0 0;
+}
+
+.table-view, .tree-view, .list-view {
+    -fx-background-color: #1e1e1e;
+}
+.table-view .column-header {
+    -fx-background-color: #252526;
+    -fx-border-color: #2d2d2d;
+}
+.table-row-cell {
+    -fx-background-color: #1e1e1e;
+    -fx-text-fill: #cccccc;
+}
+.table-row-cell:odd { -fx-background-color: #252526; }
+.table-row-cell:selected { -fx-background-color: #264f78; }

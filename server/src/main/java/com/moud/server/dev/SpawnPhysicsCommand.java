@@ -29,9 +29,10 @@ public final class SpawnPhysicsCommand extends Command {
         offsetYArg.setDefaultValue(() -> 1.0);
         var offsetZArg = ArgumentType.Double("offsetZ");
         offsetZArg.setDefaultValue(() -> 0.0);
+        var scaleArg = sizeArgument("scale", 1.0);
 
         setDefaultExecutor((sender, context) ->
-                spawn(sender, "moud:models/capsule.obj", 1.0, 1.0, 1.0, 5.0, 0.0, 1.0, 0.0));
+                spawn(sender, "moud:models/capsule.obj", 1.0, 1.0, 1.0, 5.0, 0.0, 1.0, 0.0, 1.0));
 
         addSyntax((sender, ctx) -> spawn(
                         sender,
@@ -42,8 +43,9 @@ public final class SpawnPhysicsCommand extends Command {
                         ctx.get(massArg),
                         ctx.get(offsetXArg),
                         ctx.get(offsetYArg),
-                        ctx.get(offsetZArg)),
-                modelArg, widthArg, heightArg, depthArg, massArg, offsetXArg, offsetYArg, offsetZArg);
+                        ctx.get(offsetZArg),
+                        ctx.get(scaleArg)),
+                modelArg, widthArg, heightArg, depthArg, massArg, offsetXArg, offsetYArg, offsetZArg, scaleArg);
     }
 
     private ArgumentDouble sizeArgument(String name, double def) {
@@ -60,7 +62,8 @@ public final class SpawnPhysicsCommand extends Command {
                        double mass,
                        double offsetX,
                        double offsetY,
-                       double offsetZ) {
+                       double offsetZ,
+                       double scale) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
             return;
@@ -85,8 +88,9 @@ public final class SpawnPhysicsCommand extends Command {
                 modelPath,
                 position,
                 Quaternion.identity(),
-                Vector3.one(),
-                null
+                new Vector3(scale, scale, scale),
+                null,
+                true
         );
         model.setCollisionBox(width, height, depth);
 
@@ -95,7 +99,8 @@ public final class SpawnPhysicsCommand extends Command {
                 model,
                 new Vector3(width / 2.0, height / 2.0, depth / 2.0),
                 (float) mass,
-                null
+                null,
+                true
         );
 
         sender.sendMessage(Component.text(
