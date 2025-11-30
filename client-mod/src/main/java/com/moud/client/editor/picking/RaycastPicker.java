@@ -1,5 +1,6 @@
 package com.moud.client.editor.picking;
 
+import com.moud.client.editor.runtime.Capsule;
 import com.moud.client.editor.runtime.RuntimeObject;
 import com.moud.client.editor.runtime.RuntimeObjectRegistry;
 import com.moud.client.editor.ui.EditorImGuiLayer;
@@ -20,6 +21,8 @@ public final class RaycastPicker {
 
     private RuntimeObject hoveredObject;
     private RuntimeObject selectedObject;
+    private String hoveredLimb;
+    private String selectedLimb;
 
     private RaycastPicker() {}
 
@@ -31,11 +34,13 @@ public final class RaycastPicker {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.getCameraEntity() == null) {
             hoveredObject = null;
+            hoveredLimb = null;
             return;
         }
 
         if (EditorImGuiLayer.getInstance().isMouseOverUI()) {
             hoveredObject = null;
+            hoveredLimb = null;
             return;
         }
 
@@ -59,25 +64,35 @@ public final class RaycastPicker {
         }
         if (rayDirection == null) {
             hoveredObject = null;
+            hoveredLimb = null;
             return;
         }
         Vec3d rayEnd = rayStart.add(rayDirection.multiply(MAX_REACH));
 
+        hoveredLimb = null;
         hoveredObject = raycastObjects(rayStart, rayEnd);
     }
 
     public void selectHovered() {
         if (hoveredObject != null) {
             selectedObject = hoveredObject;
+            selectedLimb = hoveredLimb;
         }
     }
 
     public void setSelectedObject(@Nullable RuntimeObject runtimeObject) {
         this.selectedObject = runtimeObject;
+        this.selectedLimb = null;
+    }
+
+    public void setSelection(@Nullable RuntimeObject runtimeObject, @Nullable String limbId) {
+        this.selectedObject = runtimeObject;
+        this.selectedLimb = limbId;
     }
 
     public void clearSelection() {
         selectedObject = null;
+        selectedLimb = null;
     }
 
     @Nullable
@@ -88,6 +103,16 @@ public final class RaycastPicker {
     @Nullable
     public RuntimeObject getSelectedObject() {
         return selectedObject;
+    }
+
+    @Nullable
+    public String getHoveredLimb() {
+        return hoveredLimb;
+    }
+
+    @Nullable
+    public String getSelectedLimb() {
+        return selectedLimb;
     }
 
     public boolean hasSelection() {
@@ -110,12 +135,65 @@ public final class RaycastPicker {
                 if (distance < closestDistance) {
                     closestDistance = distance;
                     closest = obj;
+                    hoveredLimb = null;
+                }
+            }
+
+            // Limb-level picking for fake players
+            if (obj.isPlayerModel() && obj.getLimbCapsules() != null) {
+                for (var entry : obj.getLimbCapsules().entrySet()) {
+                    HitResult limbHit = raycastCapsule(rayStart, rayEnd, entry.getValue());
+                    if (limbHit != null && limbHit.distanceSq < closestDistance) {
+                        closestDistance = limbHit.distanceSq;
+                        closest = obj;
+                        hoveredLimb = entry.getKey();
+                    }
                 }
             }
         }
 
         return closest;
     }
+
+    private HitResult raycastCapsule(Vec3d rayStart, Vec3d rayEnd, Capsule capsule) {
+        Vec3d dir = rayEnd.subtract(rayStart);
+        double lenSq = dir.lengthSquared();
+        if (lenSq < 1e-6) return null;
+        Vec3d rd = dir.normalize();
+
+        Vec3d a = capsule.a();
+        Vec3d b = capsule.b();
+        Vec3d ab = b.subtract(a);
+        double abLenSq = ab.lengthSquared();
+
+        // Project ray onto capsule axis
+        Vec3d ao = rayStart.subtract(a);
+        double abDotRd = ab.dotProduct(rd);
+        double abDotAo = ab.dotProduct(ao);
+        double denom = abLenSq - abDotRd * abDotRd;
+
+        double tRay;
+        if (Math.abs(denom) < 1e-6) {
+            tRay = -ao.dotProduct(rd);
+        } else {
+            tRay = (abLenSq * -ao.dotProduct(rd) + abDotAo * abDotRd) / denom;
+        }
+        if (tRay < 0) return null;
+
+        Vec3d p = rayStart.add(rd.multiply(tRay));
+
+        // Clamp closest point on segment
+        double tSeg = abLenSq < 1e-6 ? 0 : Math.max(0, Math.min(1, ab.dotProduct(p.subtract(a)) / abLenSq));
+        Vec3d c = a.add(ab.multiply(tSeg));
+
+        double distSq = p.squaredDistanceTo(c);
+        if (distSq <= capsule.radius() * capsule.radius()) {
+            return new HitResult(p, distSq);
+        }
+        return null;
+    }
+
+    private record HitResult(Vec3d point, double distanceSq) {}
 
     @Nullable
     private Ray computeMouseRay(Camera camera) {

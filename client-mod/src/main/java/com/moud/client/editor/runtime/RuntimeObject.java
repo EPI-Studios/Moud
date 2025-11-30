@@ -28,6 +28,8 @@ public final class RuntimeObject {
     private DisplayState displayState;
     private UUID playerUuid;
     private boolean isPlayerModel;
+    private java.util.Map<String, Capsule> limbCapsules;
+    private java.util.Map<String, Capsule> baseLimbCapsules;
 
     public RuntimeObject(RuntimeObjectType type, long runtimeId) {
         this(type, runtimeId, type.name().toLowerCase() + ":" + runtimeId);
@@ -89,6 +91,47 @@ public final class RuntimeObject {
 
     public boolean isPlayerModel() {
         return isPlayerModel;
+    }
+
+    public void updateFromMap(java.util.Map<String, Object> props) {
+        if (props == null) return;
+
+        this.label = (String) props.getOrDefault("label", objectId);
+
+        // position
+        Object posObj = props.get("position");
+        if (posObj instanceof java.util.Map) {
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> posMap = (java.util.Map<String, Object>) posObj;
+            double x = ((Number) posMap.getOrDefault("x", 0.0)).doubleValue();
+            double y = ((Number) posMap.getOrDefault("y", 0.0)).doubleValue();
+            double z = ((Number) posMap.getOrDefault("z", 0.0)).doubleValue();
+            this.position = new Vec3d(x, y, z);
+        }
+
+        // rotation
+        Object rotObj = props.get("rotation");
+        if (rotObj instanceof java.util.Map) {
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> rotMap = (java.util.Map<String, Object>) rotObj;
+            double pitch = ((Number) rotMap.getOrDefault("pitch", 0.0)).doubleValue();
+            double yaw = ((Number) rotMap.getOrDefault("yaw", 0.0)).doubleValue();
+            double roll = ((Number) rotMap.getOrDefault("roll", 0.0)).doubleValue();
+            this.rotation = new Vec3d(pitch, yaw, roll);
+        }
+
+        // scale
+        Object scaleObj = props.get("scale");
+        if (scaleObj instanceof java.util.Map) {
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> scaleMap = (java.util.Map<String, Object>) scaleObj;
+            double x = ((Number) scaleMap.getOrDefault("x", 1.0)).doubleValue();
+            double y = ((Number) scaleMap.getOrDefault("y", 1.0)).doubleValue();
+            double z = ((Number) scaleMap.getOrDefault("z", 1.0)).doubleValue();
+            this.scale = new Vec3d(x, y, z);
+        }
+
+        this.bounds = new Box(position.subtract(0.25, 0.25, 0.25), position.add(0.25, 0.25, 0.25));
     }
 
     public void updateFromModel(RenderableModel model) {
@@ -177,19 +220,129 @@ public final class RuntimeObject {
         }
     }
 
-    public void updateFromPlayerModel(Vec3d pos) {
+    public void updateFromPlayerModel(Vec3d pos, Vec3d rotDeg) {
         this.label = "Fake Player";
         this.isPlayerModel = true;
         this.position = pos;
         this.scale = new Vec3d(1, 1, 1);
-        this.rotation = Vec3d.ZERO;
-        // approximative vanilla player bounds
+        this.rotation = rotDeg != null ? rotDeg : Vec3d.ZERO;
         double halfWidth = 0.3;
         double height = 1.8;
         this.bounds = new Box(
                 pos.x - halfWidth, pos.y, pos.z - halfWidth,
                 pos.x + halfWidth, pos.y + height, pos.z + halfWidth
         );
+        // TODO: NEED MASSIVE REWORK LMAO
+        java.util.Map<String, Capsule> caps = new java.util.HashMap<>();
+        Vec3d headCenter = new Vec3d(0, height * 0.85, 0);
+        caps.put("fakeplayer:head", Capsule.sphere(headCenter, 0.12));
+
+        Vec3d shoulder = new Vec3d(0, height * 0.65, 0);
+        Vec3d hip = new Vec3d(0, height * 0.35, 0);
+        caps.put("fakeplayer:torso", Capsule.line(shoulder, hip, 0.16));
+
+        Vec3d leftArmTop = shoulder.add(-0.22, 0.05, 0);
+        Vec3d leftArmBot = leftArmTop.add(0, -0.35, 0);
+        caps.put("fakeplayer:left_arm", Capsule.line(leftArmTop, leftArmBot, 0.1));
+
+        Vec3d rightArmTop = shoulder.add(0.22, 0.05, 0);
+        Vec3d rightArmBot = rightArmTop.add(0, -0.35, 0);
+        caps.put("fakeplayer:right_arm", Capsule.line(rightArmTop, rightArmBot, 0.1));
+
+        Vec3d leftLegTop = hip.add(-0.1, -0.05, 0);
+        Vec3d leftLegBot = leftLegTop.add(0, -0.8, 0);
+        caps.put("fakeplayer:left_leg", Capsule.line(leftLegTop, leftLegBot, 0.1));
+
+        Vec3d rightLegTop = hip.add(0.1, -0.05, 0);
+        Vec3d rightLegBot = rightLegTop.add(0, -0.8, 0);
+        caps.put("fakeplayer:right_leg", Capsule.line(rightLegTop, rightLegBot, 0.1));
+
+        this.baseLimbCapsules = caps;
+        rebuildLimbCapsules();
+    }
+
+    public java.util.Map<String, Capsule> getLimbCapsules() {
+        return limbCapsules;
+    }
+
+    public void setPosition(Vec3d newPos) {
+        Vec3d delta = newPos.subtract(this.position);
+        this.position = newPos;
+        if (this.bounds != null) {
+            this.bounds = this.bounds.offset(delta.x, delta.y, delta.z);
+        }
+        rebuildLimbCapsules();
+    }
+
+    public void setRotation(Vec3d newRot) {
+        this.rotation = newRot;
+        rebuildLimbCapsules();
+    }
+
+    public void setScale(Vec3d newScale) {
+        this.scale = newScale;
+        if (this.isPlayerModel) {
+            double halfWidth = 0.3 * newScale.x;
+            double height = 1.8 * newScale.y;
+            this.bounds = new Box(
+                    position.x - halfWidth, position.y, position.z - halfWidth,
+                    position.x + halfWidth, position.y + height, position.z + halfWidth
+            );
+        }
+        rebuildLimbCapsules();
+    }
+
+    private void rebuildLimbCapsules() {
+        if (baseLimbCapsules == null || baseLimbCapsules.isEmpty()) {
+            return;
+        }
+        Quaternion q = quaternionFromEuler(rotation);
+        double sx = Math.max(1e-4, scale.x);
+        double sy = Math.max(1e-4, scale.y);
+        double sz = Math.max(1e-4, scale.z);
+        java.util.Map<String, Capsule> world = new java.util.HashMap<>();
+        for (var entry : baseLimbCapsules.entrySet()) {
+            Capsule c = entry.getValue();
+            Vec3d la = new Vec3d(c.a().x * sx, c.a().y * sy, c.a().z * sz);
+            Vec3d lb = new Vec3d(c.b().x * sx, c.b().y * sy, c.b().z * sz);
+            Vec3d wa = position.add(rotateVec(la, q));
+            Vec3d wb = position.add(rotateVec(lb, q));
+            double radius = c.radius() * Math.max(sx, Math.max(sy, sz));
+            world.put(entry.getKey(), Capsule.line(wa, wb, radius));
+        }
+        this.limbCapsules = world;
+    }
+
+    private Vec3d rotateVec(Vec3d v, Quaternion q) {
+        double x = v.x, y = v.y, z = v.z;
+        double qx = q.x, qy = q.y, qz = q.z, qw = q.w;
+        double ix =  qw * x + qy * z - qz * y;
+        double iy =  qw * y + qz * x - qx * z;
+        double iz =  qw * z + qx * y - qy * x;
+        double iw = -qx * x - qy * y - qz * z;
+
+        double rx = ix * qw + iw * -qx + iy * -qz - iz * -qy;
+        double ry = iy * qw + iw * -qy + iz * -qx - ix * -qz;
+        double rz = iz * qw + iw * -qz + ix * -qy - iy * -qx;
+        return new Vec3d(rx, ry, rz);
+    }
+
+    private Quaternion quaternionFromEuler(Vec3d eulerDeg) {
+        double pitch = Math.toRadians(eulerDeg.x);
+        double yaw = Math.toRadians(eulerDeg.y);
+        double roll = Math.toRadians(eulerDeg.z);
+        double cy = Math.cos(yaw * 0.5);
+        double sy = Math.sin(yaw * 0.5);
+        double cp = Math.cos(pitch * 0.5);
+        double sp = Math.sin(pitch * 0.5);
+        double cr = Math.cos(roll * 0.5);
+        double sr = Math.sin(roll * 0.5);
+
+        double w = cr * cp * cy + sr * sp * sy;
+        double x = sr * cp * cy - cr * sp * sy;
+        double y = cr * sp * cy + sr * cp * sy;
+        double z = cr * cp * sy - sr * sp * cy;
+        return new Quaternion((float) x, (float) y, (float) z, (float) w);
     }
 
     private Vec3d quaternionToEuler(Quaternion q) {

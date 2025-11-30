@@ -4,5 +4,7 @@ public enum RuntimeObjectType {
     MODEL,
     DISPLAY,
     PLAYER,
-    PLAYER_MODEL
+    PLAYER_MODEL,
+    CAMERA,
+    LIGHT
 }

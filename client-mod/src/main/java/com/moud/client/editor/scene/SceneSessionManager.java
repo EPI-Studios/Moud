@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class SceneSessionManager {
@@ -121,7 +122,7 @@ public final class SceneSessionManager {
         submitEdit("update", payload);
     }
 
-    public void submitTransformUpdate(String objectId, float[] translation, float[] rotation, float[] scale) {
+    public void submitTransformUpdate(String objectId, float[] translation, float[] rotation, float[] scale, float[] quaternion) {
         if (objectId == null) {
             return;
         }
@@ -132,12 +133,70 @@ public final class SceneSessionManager {
         ConcurrentHashMap<String, Object> merged = new ConcurrentHashMap<>(object.getProperties());
         merged.put("position", vectorToMap(translation));
         merged.put("rotation", rotationToMap(rotation));
+        if (quaternion != null) {
+            merged.put("rotationQuat", quaternionToMap(quaternion));
+        }
         merged.put("scale", vectorToMap(scale));
         ConcurrentHashMap<String, Object> payload = new ConcurrentHashMap<>();
         payload.put("id", objectId);
         payload.put("properties", merged);
         sceneGraph.mergeProperties(objectId, merged);
         submitEdit("update", payload);
+    }
+
+    public void mergeAnimationProperty(String sceneId, String objectId, String propertyKey, com.moud.api.animation.PropertyTrack.PropertyType propertyType, float value, Map<String, Object> payload) {
+        if (!Objects.equals(sceneId, activeSceneId)) {
+            return;
+        }
+        SceneObject object = sceneGraph.get(objectId);
+        if (object != null) {
+            ConcurrentHashMap<String, Object> merged = new ConcurrentHashMap<>(object.getProperties());
+            if (payload != null && !payload.isEmpty()) {
+                String root = propertyKey.contains(".") ? propertyKey.substring(0, propertyKey.indexOf('.')) : propertyKey;
+                merged.put(root, payload);
+            } else {
+                applyNestedProperty(merged, propertyKey, value);
+            }
+            object.overwriteProperties(merged);
+        }
+        com.moud.client.editor.runtime.RuntimeObjectRegistry.getInstance()
+                .applyAnimationProperty(objectId, propertyKey, propertyType, value);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void applyNestedProperty(Map<String, Object> props, String key, float value) {
+        if (key.contains(".")) {
+            String[] parts = key.split("\\.");
+            if (parts.length >= 2) {
+                String root = parts[0];
+                Map<String, Object> nested = null;
+                Object existingRoot = props.get(root);
+                if (existingRoot instanceof Map<?, ?> m) {
+                    nested = (Map<String, Object>) m;
+                } else {
+                    nested = new java.util.HashMap<>();
+                    props.put(root, nested);
+                }
+                if (parts.length == 2) {
+                    nested.put(parts[1], value);
+                } else {
+                    Map<String, Object> current = nested;
+                    for (int i = 1; i < parts.length - 1; i++) {
+                        Object child = current.get(parts[i]);
+                        if (child instanceof Map<?, ?> mm) {
+                            current = (Map<String, Object>) mm;
+                        } else {
+                            Map<String, Object> newChild = new java.util.HashMap<>();
+                            current.put(parts[i], newChild);
+                            current = newChild;
+                        }
+                    }
+                    current.put(parts[parts.length - 1], value);
+                }
+                return;
+            }
+        }
+        props.put(key, value);
     }
 
     public void tick(MinecraftClient client) {
@@ -166,6 +225,15 @@ public final class SceneSessionManager {
         map.put("pitch", values[0]);
         map.put("yaw", values[1]);
         map.put("roll", values[2]);
+        return map;
+    }
+
+    private Map<String, Object> quaternionToMap(float[] values) {
+        Map<String, Object> map = new ConcurrentHashMap<>();
+        map.put("x", values[0]);
+        map.put("y", values[1]);
+        map.put("z", values[2]);
+        map.put("w", values[3]);
         return map;
     }
 }

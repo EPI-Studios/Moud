@@ -45,6 +45,23 @@ public final class ProjectFileIndex {
         return files;
     }
 
+    public synchronized List<Node> listFilesWithExtensions(String... extensions) {
+        if (extensions == null || extensions.length == 0) {
+            return listFiles();
+        }
+        List<Node> filtered = new ArrayList<>();
+        for (Node node : listFiles()) {
+            String nameLower = node.name().toLowerCase();
+            for (String ext : extensions) {
+                if (nameLower.endsWith(ext.toLowerCase())) {
+                    filtered.add(node);
+                    break;
+                }
+            }
+        }
+        return filtered;
+    }
+
     public void handleProjectMap(MoudPackets.ProjectMapPacket packet) {
         if (packet == null) {
             return;
