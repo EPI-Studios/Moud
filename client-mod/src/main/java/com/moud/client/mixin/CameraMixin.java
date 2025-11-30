@@ -46,6 +46,7 @@ public abstract class CameraMixin {
 
             Vector3d pos = cameraService.getPosition();
             if (pos != null) {
+                //MoudClientMod.getLogger().info("Custom camera applying pos={}, yaw={}, pitch={}", pos, cameraService.getYaw(), cameraService.getPitch());
                 this.setPos(pos.x, pos.y, pos.z);
             }
 
