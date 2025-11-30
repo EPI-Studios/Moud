@@ -192,7 +192,8 @@ public final class MoudPackets {
     @Packet(value = "moud:camera_control", direction = Direction.SERVER_TO_CLIENT)
     public record CameraControlPacket(
             @Field(order = 0) Action action,
-            @Field(order = 1, optional = true) @Nullable Map<String, Object> options
+            @Field(order = 1, optional = true) @Nullable Map<String, Object> options,
+            @Field(order = 2, optional = true) @Nullable String cameraId
     ) {
         public enum Action {
             ENABLE,
@@ -439,6 +440,78 @@ public final class MoudPackets {
             @Field(order = 3) Map<String, Object> defaultProperties
     ) {}
 
+    // Animation packets
+    @Packet(value = "moud:animation_save", direction = Direction.CLIENT_TO_SERVER)
+    public record AnimationSavePacket(
+            @Field(order = 0) String animationId,
+            @Field(order = 1) String projectPath,
+            @Field(order = 2) com.moud.api.animation.AnimationClip clip
+    ) {}
+
+    @Packet(value = "moud:animation_load", direction = Direction.CLIENT_TO_SERVER)
+    public record AnimationLoadPacket(
+            @Field(order = 0) String projectPath
+    ) {}
+
+    @Packet(value = "moud:animation_load_response", direction = Direction.SERVER_TO_CLIENT)
+    public record AnimationLoadResponsePacket(
+            @Field(order = 0) String projectPath,
+            @Field(order = 1, optional = true) com.moud.api.animation.AnimationClip clip,
+            @Field(order = 2) boolean success,
+            @Field(order = 3, optional = true) String error
+    ) {}
+
+    @Packet(value = "moud:animation_list", direction = Direction.CLIENT_TO_SERVER)
+    public record AnimationListPacket() {}
+
+    @Packet(value = "moud:animation_list_response", direction = Direction.SERVER_TO_CLIENT)
+    public record AnimationListResponsePacket(
+            @Field(order = 0) List<AnimationFileInfo> animations
+    ) {}
+
+    public record AnimationFileInfo(
+            @Field(order = 0) String path,
+            @Field(order = 1) String name,
+            @Field(order = 2) float duration,
+            @Field(order = 3) int trackCount
+    ) {}
+
+    @Packet(value = "moud:animation_play", direction = Direction.CLIENT_TO_SERVER)
+    public record AnimationPlayPacket(
+            @Field(order = 0) String animationId,
+            @Field(order = 1) boolean loop,
+            @Field(order = 2) float speed
+    ) {}
+
+    @Packet(value = "moud:animation_stop", direction = Direction.CLIENT_TO_SERVER)
+    public record AnimationStopPacket(
+            @Field(order = 0) String animationId
+    ) {}
+
+    @Packet(value = "moud:animation_seek", direction = Direction.CLIENT_TO_SERVER)
+    public record AnimationSeekPacket(
+            @Field(order = 0) String animationId,
+            @Field(order = 1) float time
+    ) {}
+
+    @Packet(value = "moud:animation_event", direction = Direction.SERVER_TO_CLIENT)
+    public record AnimationEventPacket(
+            @Field(order = 0) String animationId,
+            @Field(order = 1) String objectId,
+            @Field(order = 2) String eventName,
+            @Field(order = 3) Map<String, String> payload
+    ) {}
+
+    @Packet(value = "moud:animation_prop_update", direction = Direction.SERVER_TO_CLIENT)
+    public record AnimationPropertyUpdatePacket(
+            @Field(order = 0) String sceneId,
+            @Field(order = 1) String objectId,
+            @Field(order = 2) String propertyKey,
+            @Field(order = 3) com.moud.api.animation.PropertyTrack.PropertyType propertyType,
+            @Field(order = 4) float value,
+            @Field(order = 5, optional = true) Map<String, Object> payload
+    ) {}
+
     @Packet(value = "moud:project_map_request", direction = Direction.CLIENT_TO_SERVER)
     public record RequestProjectMapPacket() {}
 
@@ -521,10 +594,86 @@ public final class MoudPackets {
             @Field(order = 3) Vector3 scale
     ) {}
 
+    public record FakePlayerWaypoint(
+            @Field(order = 0) Vector3 position
+    ) {}
+
+    public record FakePlayerDescriptor(
+            @Field(order = 0) long id,
+            @Field(order = 1) String label,
+            @Field(order = 2) String skinUrl,
+            @Field(order = 3) Vector3 position,
+            @Field(order = 4) Quaternion rotation,
+            @Field(order = 5) double width,
+            @Field(order = 6) double height,
+            @Field(order = 7) boolean physicsEnabled,
+            @Field(order = 8) boolean sneaking,
+            @Field(order = 9) boolean sprinting,
+            @Field(order = 10) boolean swinging,
+            @Field(order = 11) boolean usingItem,
+            @Field(order = 12) List<FakePlayerWaypoint> path,
+            @Field(order = 13) double pathSpeed,
+            @Field(order = 14) boolean pathLoop,
+            @Field(order = 15) boolean pathPingPong
+    ) {}
+
+    @Packet(value = "moud:fake_player_create", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_CreateFakePlayer(
+            @Field(order = 0) FakePlayerDescriptor descriptor
+    ) {}
+
+    @Packet(value = "moud:fake_player_update", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_UpdateFakePlayer(
+            @Field(order = 0) long id,
+            @Field(order = 1) Vector3 position,
+            @Field(order = 2) Quaternion rotation,
+            @Field(order = 3) boolean sneaking,
+            @Field(order = 4) boolean sprinting,
+            @Field(order = 5) boolean swinging,
+            @Field(order = 6) boolean usingItem
+    ) {}
+
+    @Packet(value = "moud:fake_player_remove", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_RemoveFakePlayer(
+            @Field(order = 0) long id
+    ) {}
+
+    @Packet(value = "moud:fake_player_spawn", direction = Direction.CLIENT_TO_SERVER)
+    public record C2S_SpawnFakePlayer(
+            @Field(order = 0) FakePlayerDescriptor descriptor
+    ) {}
+
+    @Packet(value = "moud:fake_player_remove_c2s", direction = Direction.CLIENT_TO_SERVER)
+    public record C2S_RemoveFakePlayer(
+            @Field(order = 0) long id
+    ) {}
+
+    @Packet(value = "moud:fake_player_pose", direction = Direction.CLIENT_TO_SERVER)
+    public record C2S_SetFakePlayerPose(
+            @Field(order = 0) long id,
+            @Field(order = 1) boolean sneaking,
+            @Field(order = 2) boolean sprinting,
+            @Field(order = 3) boolean swinging,
+            @Field(order = 4) boolean usingItem
+    ) {}
+
+    @Packet(value = "moud:fake_player_path", direction = Direction.CLIENT_TO_SERVER)
+    public record C2S_SetFakePlayerPath(
+            @Field(order = 0) long id,
+            @Field(order = 1) List<FakePlayerWaypoint> path,
+            @Field(order = 2) double pathSpeed,
+            @Field(order = 3) boolean pathLoop,
+            @Field(order = 4) boolean pathPingPong
+    ) {}
+
     @Packet(value = "moud:update_player_transform", direction = Direction.CLIENT_TO_SERVER)
     public record UpdatePlayerTransformPacket(
             @Field(order = 0) UUID playerId,
             @Field(order = 1) Vector3 position,
             @Field(order = 2, optional = true) Quaternion rotation
     ) {}
+
+    @Packet(value = "moud:particle_batch", direction = Direction.SERVER_TO_CLIENT)
+    public record ParticleBatchPacket(@Field(order = 0) List<com.moud.api.particle.ParticleDescriptor> particles) {
+    }
 }

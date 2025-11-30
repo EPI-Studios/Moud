@@ -39,6 +39,16 @@ public class PacketSerializer {
         register(MoudPackets.EditorAssetDefinition.class, new EditorAssetDefinitionSerializer());
         register(MoudPackets.CollisionBoxData.class, new CollisionBoxDataSerializer());
         register(MoudPackets.ProjectFileEntry.class, new ProjectFileEntrySerializer());
+        register(MoudPackets.FakePlayerDescriptor.class, new FakePlayerDescriptorSerializer());
+        register(MoudPackets.FakePlayerWaypoint.class, new FakePlayerWaypointSerializer());
+        register(com.moud.api.animation.AnimationClip.class, new AnimationClipSerializer());
+        register(MoudPackets.AnimationFileInfo.class, new AnimationFileInfoSerializer());
+        register(com.moud.api.particle.ScalarKeyframe.class, new ScalarKeyframeSerializer());
+        register(com.moud.api.particle.ColorKeyframe.class, new ColorKeyframeSerializer());
+        register(com.moud.api.particle.UVRegion.class, new UVRegionSerializer());
+        register(com.moud.api.particle.FrameAnimation.class, new FrameAnimationSerializer());
+        register(com.moud.api.particle.LightSettings.class, new LightSettingsSerializer());
+        register(com.moud.api.particle.ParticleDescriptor.class, new ParticleDescriptorSerializer());
     }
 
     public <T> void register(Class<T> type, TypeSerializer<T> serializer) {
