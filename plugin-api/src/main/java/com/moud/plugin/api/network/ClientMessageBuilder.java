@@ -8,6 +8,7 @@ import com.moud.plugin.api.services.ClientService;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+
 public final class ClientMessageBuilder {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 

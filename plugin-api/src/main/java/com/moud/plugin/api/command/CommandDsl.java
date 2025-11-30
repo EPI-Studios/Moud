@@ -13,6 +13,10 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
 
+/**
+ * Builder for registering a server command exposed to players.
+ * Map it to a root name, optional aliases/description, then attach an executor and call {@link #register()}.
+ */
 public final class CommandDsl {
 
     private final PluginContext context;
@@ -26,21 +30,33 @@ public final class CommandDsl {
         this.name = name;
     }
 
+    /**
+     * Optional aliases that will trigger the same command handler.
+     */
     public CommandDsl aliases(Collection<String> aliases) {
         this.aliases = aliases != null ? aliases : List.of();
         return this;
     }
 
+    /**
+     * Handler invoked when the command runs. Receives a {@link CommandContext} with sender and args.
+     */
     public CommandDsl executor(Consumer<CommandContext> executor) {
         this.executor = executor;
         return this;
     }
 
+    /**
+     * Description shown in help output.
+     */
     public CommandDsl description(String description) {
         this.description = description;
         return this;
     }
 
+    /**
+     * Registers the command, wrapping the sender into {@link Player} when possible.
+     */
     public RegisteredCommand register() {
         Objects.requireNonNull(executor, "Command executor must be provided");
         CommandService service = context.commands();

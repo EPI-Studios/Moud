@@ -7,6 +7,7 @@ import com.moud.plugin.api.services.NetworkService;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+
 public final class BroadcastBuilder {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private final NetworkService network;
@@ -22,6 +23,7 @@ public final class BroadcastBuilder {
         payload.put(key, value);
         return this;
     }
+
 
     public void send() {
         try {

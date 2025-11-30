@@ -13,6 +13,9 @@ import com.moud.plugin.api.services.lighting.PointLightDefinition;
 import com.moud.plugin.api.services.model.ModelDefinition;
 import com.moud.plugin.api.services.model.ModelHandle;
 
+/**
+ * Helps for manipulating time, spawning models, and placing lights.
+ */
 public final class WorldDsl {
     private final PluginContext context;
 
@@ -47,10 +50,16 @@ public final class WorldDsl {
         return this;
     }
 
+    /**
+     * Begin building a model instance from a server-side asset path.
+     */
     public ModelBuilder spawn(String modelPath) {
         return new ModelBuilder(context, modelPath);
     }
 
+    /**
+     * Begin constructing a point light.
+     */
     public LightBuilder light() {
         return new LightBuilder(context);
     }
@@ -59,12 +68,16 @@ public final class WorldDsl {
         private final PluginContext context;
         private final ModelDefinition.Builder builder;
         private PhysicsController.PhysicsBodyDefinition physics;
+        private boolean playerPushEnabled;
 
         private ModelBuilder(PluginContext context, String modelPath) {
             this.context = context;
             this.builder = ModelDefinition.builder().modelPath(modelPath);
         }
 
+        /**
+         * Set the world position where the model should appear.
+         */
         public ModelBuilder at(double x, double y, double z) {
             builder.position(new Vector3(x, y, z));
             return this;
@@ -85,6 +98,9 @@ public final class WorldDsl {
             return this;
         }
 
+        /**
+         * Apply rotation in degrees (pitch, yaw, roll).
+         */
         public ModelBuilder rotation(double pitch, double yaw, double roll) {
             builder.rotation(Quaternion.fromEuler((float) pitch, (float) yaw, (float) roll));
             return this;
@@ -96,10 +112,29 @@ public final class WorldDsl {
         }
 
         public ModelBuilder physics(Vector3 halfExtents, float mass, Vector3 initialVelocity) {
-            this.physics = new PhysicsController.PhysicsBodyDefinition(halfExtents, mass, initialVelocity);
+            this.physics = new PhysicsController.PhysicsBodyDefinition(halfExtents, mass, initialVelocity, playerPushEnabled);
             return this;
         }
 
+        /**
+         * Allow player collisions to impart impulses on this model's physics body.
+         */
+        public ModelBuilder playerPush(boolean enabled) {
+            this.playerPushEnabled = enabled;
+            if (this.physics != null) {
+                this.physics = new PhysicsController.PhysicsBodyDefinition(
+                        physics.halfExtents(),
+                        physics.mass(),
+                        physics.initialVelocity(),
+                        this.playerPushEnabled
+                );
+            }
+            return this;
+        }
+
+        /**
+         * Spawn the model, optionally attaching a dynamic physics body.
+         */
         public GameObject build() {
             ModelHandle handle = context.models().spawn(builder.build());
             if (physics != null && context.physics() != null && context.physics().supported()) {
@@ -122,6 +157,9 @@ public final class WorldDsl {
             this.context = context;
         }
 
+        /**
+         * Configure as a point light (default).
+         */
         public LightBuilder point() {
             return this;
         }
@@ -153,6 +191,9 @@ public final class WorldDsl {
             return this;
         }
 
+        /**
+         * Create the light in the world and return a handle for later control.
+         */
         public Light create() {
             PointLightDefinition definition = new PointLightDefinition(
                     "point",

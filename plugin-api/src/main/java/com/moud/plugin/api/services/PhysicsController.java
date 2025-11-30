@@ -9,7 +9,7 @@ public interface PhysicsController {
 
     void detach(long modelId);
 
-    record PhysicsBodyDefinition(Vector3 halfExtents, float mass, Vector3 initialVelocity) {
+    record PhysicsBodyDefinition(Vector3 halfExtents, float mass, Vector3 initialVelocity, boolean allowPlayerPush) {
         public PhysicsBodyDefinition {
             Vector3 safeExtents = halfExtents != null ? halfExtents : new Vector3(0.5, 0.5, 0.5);
             Vector3 safeVelocity = initialVelocity != null ? initialVelocity : Vector3.zero();
