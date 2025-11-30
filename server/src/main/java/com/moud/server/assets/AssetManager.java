@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class AssetManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(AssetManager.class);
+    private static final int MAX_CACHE_ENTRIES = 256;
 
     private final AssetDiscovery discovery;
     private final ConcurrentHashMap<String, LoadedAsset> loadedAssets;
@@ -43,9 +44,21 @@ public class AssetManager {
 
         LoadedAsset loadedAsset = createLoadedAsset(metadata);
         loadedAssets.put(assetId, loadedAsset);
+        trimCache();
 
         LOGGER.debug("Loaded asset: {}", assetId);
         return loadedAsset;
+    }
+
+    private void trimCache() {
+        int oversize = loadedAssets.size() - MAX_CACHE_ENTRIES;
+        if (oversize <= 0) {
+            return;
+        }
+        var iterator = loadedAssets.keySet().iterator();
+        while (oversize-- > 0 && iterator.hasNext()) {
+            loadedAssets.remove(iterator.next());
+        }
     }
 
     private LoadedAsset createLoadedAsset(AssetDiscovery.AssetMetadata metadata) throws IOException {

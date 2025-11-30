@@ -1,6 +1,6 @@
 package com.moud.server;
 
-import com.moud.server.animation.AnimationManager;
+import com.moud.server.editor.AnimationManager;
 import com.moud.server.api.HotReloadEndpoint;
 import com.moud.server.api.ScriptingAPI;
 import com.moud.server.assets.AssetManager;
@@ -20,8 +20,10 @@ import com.moud.server.proxy.AssetProxy;
 import com.moud.server.profiler.ProfilerService;
 import com.moud.server.profiler.ProfilerUI;
 import com.moud.server.physics.PhysicsService;
+import com.moud.server.particle.ParticleBatcher;
 import com.moud.server.scripting.JavaScriptRuntime;
 import com.moud.server.task.AsyncManager;
+import com.moud.server.editor.AnimationTickHandler;
 import com.moud.network.dispatcher.NetworkDispatcher;
 import com.moud.network.engine.PacketEngine;
 import com.moud.network.buffer.ByteBuffer;
@@ -43,6 +45,7 @@ public class MoudEngine {
     private JavaScriptRuntime runtime;
     private final AssetManager assetManager;
     private final AnimationManager animationManager;
+    private final AnimationTickHandler animationTickHandler = new AnimationTickHandler();
     private final ClientScriptManager clientScriptManager;
     private final com.moud.server.plugin.PluginManager pluginManager;
     private final ServerNetworkManager networkManager;
@@ -54,6 +57,8 @@ public class MoudEngine {
     private final HotReloadEndpoint hotReloadEndpoint;
     private final ZoneManager zoneManager;
     private final PhysicsService physicsService;
+    private final com.moud.server.fakeplayer.FakePlayerManager fakePlayerManager;
+    private final ParticleBatcher particleBatcher;
 
     private final AtomicBoolean initialized = new AtomicBoolean(false);
     private final AtomicBoolean reloading = new AtomicBoolean(false);
@@ -103,8 +108,8 @@ public class MoudEngine {
             SceneManager.getInstance().setAssetManager(assetManager);
             SceneManager.getInstance().initialize(projectRoot);
 
-            this.animationManager = new AnimationManager();
-            animationManager.initialize();
+            this.animationManager = AnimationManager.getInstance();
+            animationManager.initialize(projectRoot);
 
             this.clientScriptManager = new ClientScriptManager();
             clientScriptManager.initialize();
@@ -119,11 +124,15 @@ public class MoudEngine {
 
             this.networkManager = new ServerNetworkManager(eventDispatcher, clientScriptManager);
             networkManager.initialize();
+            this.particleBatcher = new ParticleBatcher(networkManager);
 
             this.zoneManager = new ZoneManager(this);
 
             this.physicsService = PhysicsService.getInstance();
             physicsService.initialize();
+
+            this.fakePlayerManager = com.moud.server.fakeplayer.FakePlayerManager.getInstance();
+            fakePlayerManager.initialize(networkManager, physicsService);
 
             this.cursorService = CursorService.getInstance(networkManager);
             cursorService.initialize();
@@ -149,6 +158,12 @@ public class MoudEngine {
                 initialized.set(true);
                 this.eventDispatcher.dispatchLoadEvent("server.load");
                 LOGGER.startup("Moud Engine initialized successfully");
+                net.minestom.server.MinecraftServer.getSchedulerManager().buildTask(() -> {
+                    animationTickHandler.tick(net.minestom.server.MinecraftServer.TICK_MS / 1000f);
+                }).repeat(net.minestom.server.timer.TaskSchedule.millis(net.minestom.server.MinecraftServer.TICK_MS)).schedule();
+                net.minestom.server.MinecraftServer.getSchedulerManager().buildTask(() -> {
+                    particleBatcher.flush();
+                }).repeat(net.minestom.server.timer.TaskSchedule.millis(net.minestom.server.MinecraftServer.TICK_MS)).schedule();
             }).exceptionally(ex -> {
                 LOGGER.critical("Failed to load user scripts during startup. The server might not function correctly.", ex);
                 return null;
@@ -188,7 +203,7 @@ public class MoudEngine {
 
     private void bindGlobalAPIs() {
         this.scriptingAPI = new ScriptingAPI(this);
-        runtime.bindAPIs(scriptingAPI, new AssetProxy(assetManager), new ConsoleAPI());
+        runtime.bindAPIs(scriptingAPI, new AssetProxy(assetManager), new ConsoleAPI(), new com.moud.server.api.CameraAPI());
     }
 
     public void reloadUserScripts() {
@@ -325,6 +340,10 @@ public class MoudEngine {
 
     public boolean isReloading() {
         return reloading.get();
+    }
+
+    public ParticleBatcher getParticleBatcher() {
+        return particleBatcher;
     }
 
     public enum ReloadState {

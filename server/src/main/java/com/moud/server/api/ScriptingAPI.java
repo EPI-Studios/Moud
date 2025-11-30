@@ -6,6 +6,9 @@ import com.moud.server.api.validation.APIValidator;
 import com.moud.server.events.EventDispatcher;
 import com.moud.server.proxy.*;
 import com.moud.server.task.AsyncManager;
+import com.moud.server.proxy.ParticleAPIProxy;
+import com.moud.plugin.animation.AnimationController;
+import com.moud.server.editor.AnimationManager;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
@@ -30,6 +33,10 @@ public class ScriptingAPI {
     public final MathProxy math;
     @HostAccess.Export
     public final CommandProxy commands;
+    @HostAccess.Export
+    public final SceneProxy scene;
+    @HostAccess.Export
+    public final ParticleAPIProxy particles;
 
     public ScriptingAPI(MoudEngine engine) {
         this.engine = engine;
@@ -42,6 +49,8 @@ public class ScriptingAPI {
         this.zones = new ZoneAPIProxy(engine.getZoneManager());
         this.math = new MathProxy();
         this.commands = new CommandProxy();
+        this.scene = new SceneProxy();
+        this.particles = new ParticleAPIProxy(engine.getParticleBatcher());
 
         LOGGER.info("Scripting API initialized successfully.");
     }
@@ -85,6 +94,14 @@ public class ScriptingAPI {
     @HostAccess.Export
     public AsyncManager getAsync() {
         return engine.getAsyncManager();
+    }
+
+    @HostAccess.Export
+    public AnimationController getAnimation(String animationId) {
+        if (animationId == null) {
+            return null;
+        }
+        return AnimationManager.getInstance().controllerFor(animationId);
     }
 
     public void shutdown() {
