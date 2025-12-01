@@ -2861,7 +2861,8 @@ export enum RenderType {
 export enum Billboarding {
     CameraFacing = 'camera_facing',
     VelocityAligned = 'velocity_aligned',
-    AxisLocked = 'axis_locked'
+    AxisLocked = 'axis_locked',
+    None = 'none'
 }
 
 export enum CollisionMode {
@@ -2946,6 +2947,10 @@ export interface ParticleDescriptor {
     behaviorPayload?: Record<string, unknown>;
     light?: LightSettings;
     sortHint?: SortHint;
+    /** When true, particles also collide with player bodies using the configured collision mode. */
+    collideWithPlayers?: boolean;
+    /** Number of crossed impostor slices to render per particle (>=1). Use 2-3 for “faux volume” like flowers. */
+    impostorSlices?: number;
 }
 
 export interface ColorSample {
