@@ -21,7 +21,7 @@ public class PluginLoader {
 
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PluginLoader.class);
-    public static final String API_VERSION = "1.0";               // mise à jour à chaque breaking change
+    public static final String API_VERSION = "1.0";               // update when breaking changes are made
     private static Path PLUGINS_DIR;
 
     private final PluginManager manager;
@@ -32,29 +32,26 @@ public class PluginLoader {
     }
 
     /**
-     * Charge tous les plug-ins, gère dépendances et cycle de vie.
+     * Load all plugins, handle dependencies and lifecycle.
      */
     public void loadAll() {
 
         try {
-            // 1) Découverte brutale des JAR
             List<PluginContainer> discovered = new ArrayList<>();
             if (Files.isDirectory(PLUGINS_DIR)) {
                 try (DirectoryStream<Path> ds = Files.newDirectoryStream(PLUGINS_DIR, "*.jar")) {
                     for (Path jarPath : ds) {
                         PluginContainer pc = inspectJar(jarPath);
                         if (pc != null) {
-                            LOGGER.info("Plug-in détecté : " + pc.getDescription().name + " " + pc.getDescription().version);
+                            LOGGER.info("Plug-in detected : " + pc.getDescription().name + " " + pc.getDescription().version);
                             discovered.add(pc);
                         }
                     }
                 }
             }
 
-            // 2) Tri topologique par dépendances
             List<PluginContainer> sorted = DependencyResolver.sort(discovered);
 
-            // 3) Cycle de vie
             for (PluginContainer pc : sorted) {
                 Plugin plugin =
                         (Plugin) pc.getClassLoader().loadClass(pc.getDescription().mainClass)
@@ -70,7 +67,7 @@ public class PluginLoader {
 
                 try {
                     runtime.enable();
-                    LOGGER.info("✔ Plug-in activé : {} {}", pc.getDescription().name, pc.getDescription().version);
+                    LOGGER.info("✔ Plug-in activated : {} {}", pc.getDescription().name, pc.getDescription().version);
                 } catch (Exception e) {
                     LOGGER.error("Failed to enable plugin {} from {}", description.id, jarPath, e);
                     runtime.disable();
@@ -79,20 +76,20 @@ public class PluginLoader {
                 manager.register(pc.getInstance());
             }
         } catch (Exception e) {
-            LOGGER.error("Erreur lors du chargement des plugins", e);
+            LOGGER.error("Error while loading plugins", e);
         }
 
 
     }
 
     /**
-     * Inspecte un JAR, renvoie null si pas de plugin.yml ou api-version incompatible.
+     * Inspect Jar file, returns null if no plugin.yml or incompatible api-version.
      */
     private PluginContainer inspectJar(Path jarPath) throws IOException {
         try (JarFile jar = new JarFile(jarPath.toFile())) {
             var entry = jar.getJarEntry("plugin.yml");
             if (entry == null) {
-                LOGGER.warn("Le fichier plugin.yml est manquant dans le plugin " + jarPath.getFileName());
+                LOGGER.warn("The plugin.yml File is missing in plugin : " + jarPath.getFileName());
                 return null;
             }
 

@@ -4,7 +4,9 @@ import java.util.*;
 
 public class DependencyResolver {
 
-    /** Retourne les descriptions triées, ou lève une IllegalStateException si cycle. */
+    /**
+     * Return the sorted plugin containers, or throw an IllegalStateException if there is a cycle.
+     * */
     public static List<PluginContainer> sort(Collection<PluginContainer> containers) {
         Map<String, PluginContainer> byName = new HashMap<>();
         for (var pc : containers) byName.put(pc.getDescription().name.toLowerCase(), pc);
@@ -28,13 +30,13 @@ public class DependencyResolver {
         String key = pc.getDescription().name.toLowerCase();
         if (permMark.contains(key)) return;
         if (!tempMark.add(key))
-            throw new IllegalStateException("Cycle dans les dépendances concernant " + key);
+            throw new IllegalStateException("Loop detected in dependencies involving " + key);
 
         for (String dep : pc.getDescription().depends) {
             String name = PluginDescription.depName(dep).toLowerCase();
             PluginContainer child = byName.get(name);
             if (child == null)
-                throw new IllegalStateException("Dépendance manquante : " + dep);
+                throw new IllegalStateException("Dependency missing: " + dep);
             visit(child, byName, sorted, tempMark, permMark);
         }
         tempMark.remove(key);

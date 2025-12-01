@@ -4,8 +4,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 
 /**
- * Charge d'abord les classes situées dans le JAR du plug-in,
- * puis se rabat sur le parent (core + JDK).
+ * Load first from the plugin JAR, then fall back to parent (core + JDK).
  */
 public class PluginClassLoader extends URLClassLoader {
     public PluginClassLoader(URL jar, ClassLoader parent) {
@@ -14,17 +13,17 @@ public class PluginClassLoader extends URLClassLoader {
 
     @Override
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-        // 1) JDK/JNI natif : toujours parent-first (sinon bug)
+        // 1) JDK/JNI natif : always parent-first (otherwise bug)
         if (name.startsWith("java.") || name.startsWith("jdk.")) {
             return super.loadClass(name, resolve);
         }
-        // 2) Essaie d'abord dans le JAR du plug-in
+        // 2) Try first in the plugin JAR
         try {
             Class<?> c = findClass(name);
             if (resolve) resolveClass(c);
             return c;
         } catch (ClassNotFoundException ignored) {
-            // 3) Sinon parent
+            // 3) else parent
             return super.loadClass(name, resolve);
         }
     }

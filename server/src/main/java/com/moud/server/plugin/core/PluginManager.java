@@ -12,7 +12,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** Enregistre les plug-ins actifs et gère leur cycle de vie. */
+/**
+ * Save the active plugins and manage their lifecycle.
+ * */
 public final class PluginManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PluginManager.class);

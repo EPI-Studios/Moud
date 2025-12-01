@@ -32,7 +32,7 @@ final class PluginRuntime {
         plugin.onLoad(context);
         LOGGER.info("Loaded plugin {} ({}) from {}", plugin.description().name(), plugin.description().id(), source.getFileName());
         plugin.onEnable(context);
-        LOGGER.info("✔ Plug-in activé : {} {}", plugin.description().name(), plugin.description().version());
+        LOGGER.info("✔ Plug-in activated : {} {}", plugin.description().name(), plugin.description().version());
 
     }
 
