@@ -1,6 +1,7 @@
 package com.moud.client.editor.ui;
 
 import imgui.ImGui;
+
 import java.util.List;
 
 final class FakePlayerPathEditor {

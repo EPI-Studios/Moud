@@ -158,6 +158,9 @@ public final class RibbonBar {
             renderAssetMenu("light");
             ImGui.endMenu();
         }
+        if (ImGui.menuItem("Particle Emitter")) {
+            overlay.spawnParticleEmitter(session, null);
+        }
         if (ImGui.menuItem("Marker")) {
             overlay.getMarkerNameBuffer().set(overlay.generateMarkerName());
             overlay.spawnMarker(session, null);
