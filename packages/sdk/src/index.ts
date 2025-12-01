@@ -2955,6 +2955,34 @@ export interface ColorSample {
     a: number;
 }
 
+export interface ParticleEmitterConfig {
+    /** Unique emitter id so updates can target the same source. */
+    id: string;
+    /** Base particle template used for each spawn. */
+    descriptor: ParticleDescriptor;
+    /** Particles emitted per second. */
+    rate?: number;
+    /** Whether the emitter is active. */
+    enabled?: boolean;
+    /** Hard cap for total particles on the client; 0 or undefined for unlimited. */
+    maxParticles?: number;
+    /** Randomized offset applied per axis to the base position. */
+    positionJitter?: Vector3Like;
+    /** Randomized offset applied per axis to the base velocity. */
+    velocityJitter?: Vector3Like;
+    /** Randomized lifetime delta added per spawn (seconds). */
+    lifetimeJitter?: number;
+    /** Optional RNG seed to keep emission deterministic. */
+    seed?: number;
+    /** Optional list of textures to choose from per particle spawn. */
+    textures?: string[];
+}
+
+export interface ParticleEmitterUpdate extends Partial<ParticleEmitterConfig> {
+    id: string;
+    descriptor?: ParticleDescriptor;
+}
+
 export function evaluateScalarRamp(stops: ScalarKeyframe[] | undefined, t: number): number {
     if (!stops || stops.length === 0) return 0;
     if (stops.length === 1) return stops[0].value;
@@ -3051,4 +3079,10 @@ export interface ParticleAPI {
      * @param descriptor Single descriptor or array.
      */
     spawn(descriptor: ParticleDescriptor | ParticleDescriptor[]): void;
+    /** Create a client-driven emitter; the client handles spawning using this configuration. */
+    createEmitter(config: ParticleEmitterConfig): void;
+    /** Update an existing emitter with new configuration; replaces provided fields. */
+    updateEmitter(config: ParticleEmitterUpdate): void;
+    /** Remove a client emitter by id. */
+    removeEmitter(id: string): void;
 }
