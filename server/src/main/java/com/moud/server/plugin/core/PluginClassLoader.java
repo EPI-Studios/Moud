@@ -11,6 +11,17 @@ public class PluginClassLoader extends URLClassLoader {
         super(new URL[] { jar }, parent);
     }
 
+    /**
+     * Loads the class with the specified <a href="#binary-name">binary name</a>.
+     * @param name
+     *          The <a href="#binary-name">binary name</a> of the class
+     *
+     * @param resolve
+     *          If {@code true} then resolve the class
+     *
+     * @return the resulting Class object
+     * @throws ClassNotFoundException if the class could not be found
+     */
     @Override
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
         // 1) JDK/JNI natif : always parent-first (otherwise bug)

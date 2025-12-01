@@ -32,7 +32,7 @@ public final class PluginDescription {
         description = (String) map.getOrDefault("description", "No description provided");
     }
 
-    /** Extrait simplement le nom d’un élément depends ("logger >=1.1" -> "logger"). */
+     /** Extracts simply the name from a depends entry ("logger >=1.1" -> "logger").*/
     public static String depName(String raw) {
         var m = DEP_PATTERN.matcher(raw);
         return m.matches() ? m.group(1) : raw.trim();

@@ -21,6 +21,14 @@ public class DependencyResolver {
         return sorted;
     }
 
+    /**
+     * Helper method for topological sort using depth-first search.
+     * @param pc       The current plugin container being visited
+     * @param byName   Map of plugin names to their containers
+     * @param sorted   The list to store the sorted plugin containers
+     * @param tempMark Sets to track temporary and permanent marks for cycle detection
+     * @param permMark Sets to track temporary and permanent marks for cycle detection
+     */
     private static void visit(PluginContainer pc,
                               Map<String, PluginContainer> byName,
                               List<PluginContainer> sorted,

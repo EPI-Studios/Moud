@@ -14,7 +14,8 @@ import java.util.List;
 
 /**
  * Save the active plugins and manage their lifecycle.
- * */
+ */
+@SuppressWarnings("unused")
 public final class PluginManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PluginManager.class);
@@ -22,8 +23,17 @@ public final class PluginManager {
     private final Path projectRoot;
     private final List<Plugin> plugins = new ArrayList<>();
 
-    public void register(Plugin plugin) { plugins.add(plugin); }
+    public void register(Plugin plugin) {
+        plugins.add(plugin);
+    }
 
+
+    /**
+     * Constructeur.
+     * create the plugin directory if it does not exist.
+     *
+     * @param projectRoot the root path of the project (where server launches)
+     */
     public PluginManager(Path projectRoot) {
         this.projectRoot = projectRoot;
         this.pluginDirectory = projectRoot.resolve(".moud").resolve("plugins");
@@ -35,29 +45,50 @@ public final class PluginManager {
 
     }
 
-    public Plugin getPlugin(String pluginID){
+    /**
+     * Get a plugin by its ID.
+     *
+     * @param pluginID the plugin ID
+     * @return the plugin, or null if not found
+     */
+    public Plugin getPlugin(String pluginID) {
         for (Plugin plugin : plugins) {
-            if(plugin.description().id().equalsIgnoreCase(pluginID)){
+            if (plugin.description().id().equalsIgnoreCase(pluginID)) {
                 return plugin;
             }
         }
         return null;
     }
 
-    /** Appelé à la fin de l'application ou lors d'un reload. */
+    /**
+     * Apply onDisable to all plugins in reverse order of loading.
+     */
     public void shutdown() {
         Collections.reverse(plugins);          // d'abord les dépendants
         for (Plugin p : plugins) {
-            try { p.onDisable(); }
-            catch (Exception e) { e.printStackTrace(); }
+            try {
+                p.onDisable();
+            } catch (Exception e) {
+                LOGGER.error("Failed to shutdown plugin " + p, e);
+            }
         }
         plugins.clear();
     }
 
+    /**
+     * Get the plugin directory path.
+     *
+     * @return the plugin directory path
+     */
     public Path getPluginDir() {
         return pluginDirectory;
     }
 
+    /**
+     * Get the project root path.
+     *
+     * @return the project root path
+     */
     public Path getProjectRoot() {
         return projectRoot;
     }
