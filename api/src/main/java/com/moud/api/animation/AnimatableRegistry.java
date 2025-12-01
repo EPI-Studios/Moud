@@ -66,6 +66,17 @@ public final class AnimatableRegistry {
                 new AnimatableProperty("far", "Far", "Camera", 1f, 2048f, 128f, PropertyTrack.PropertyType.FLOAT)
         ));
 
+        register("particle_emitter", List.of(
+                new AnimatableProperty("enabled", "Enabled", "Emitter", 0f, 1f, 1f, PropertyTrack.PropertyType.FLOAT),
+                new AnimatableProperty("rate", "Rate (pps)", "Emitter", 0f, 100_000f, 10f, PropertyTrack.PropertyType.FLOAT),
+                new AnimatableProperty("maxParticles", "Max Particles", "Emitter", 0f, 100_000f, 1024f, PropertyTrack.PropertyType.FLOAT),
+                new AnimatableProperty("lifetime", "Lifetime", "Emitter", 0.01f, 120f, 1f, PropertyTrack.PropertyType.FLOAT),
+                new AnimatableProperty("gravityMultiplier", "Gravity Multiplier", "Emitter", -10f, 10f, 1f, PropertyTrack.PropertyType.FLOAT),
+                new AnimatableProperty("drag", "Drag", "Emitter", 0f, 10f, 0f, PropertyTrack.PropertyType.FLOAT),
+                new AnimatableProperty("impostorSlices", "Impostor Slices", "Emitter", 1f, 8f, 1f, PropertyTrack.PropertyType.FLOAT),
+                new AnimatableProperty("collideWithPlayers", "Collide With Players", "Emitter", 0f, 1f, 0f, PropertyTrack.PropertyType.FLOAT)
+        ));
+
         List<AnimatableProperty> limbs = new ArrayList<>(transform);
         register("fakeplayer:head", limbs);
         register("fakeplayer:left_arm", limbs);
