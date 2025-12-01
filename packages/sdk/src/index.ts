@@ -595,10 +595,6 @@ export interface MoudAPI {
     readonly assets: Asset;
     readonly camera: CameraAPI;
     /**
-     * Camera helpers for binding players to scene-defined cameras.
-     */
-    readonly camera: CameraAPI;
-    /**
      * Scene helpers for the active scene.
      */
     readonly scene: SceneAPI;
