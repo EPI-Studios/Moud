@@ -1,9 +1,8 @@
-package com.moud.server.plugin.newplugin;
+package com.moud.server.plugin;
 
 import com.moud.plugin.api.Plugin;
-import com.moud.server.plugin.newplugin.PluginRuntime;
 import com.moud.server.plugin.context.PluginContextImpl;
-import com.moud.server.plugin.newplugin.core.*;
+import com.moud.server.plugin.core.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

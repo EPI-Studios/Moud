@@ -1,4 +1,4 @@
-package com.moud.server.plugin.newplugin.core;
+package com.moud.server.plugin.core;
 
 
 import com.moud.plugin.api.Plugin;

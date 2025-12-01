@@ -35,7 +35,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public final class PluginContextImpl implements PluginContext {
-    private final com.moud.server.plugin.newplugin.core.PluginDescription description;
+    private final com.moud.server.plugin.core.PluginDescription description;
     private final Logger logger;
     private final Path dataDirectory;
     private final SchedulerServiceImpl schedulerService;
@@ -51,7 +51,7 @@ public final class PluginContextImpl implements PluginContext {
     private final RenderingControllerImpl renderingController;
     private final WorldServiceImpl worldService;
 
-    public PluginContextImpl(com.moud.server.plugin.newplugin.core.PluginDescription description,
+    public PluginContextImpl(com.moud.server.plugin.core.PluginDescription description,
                              Path projectRoot,
                              Object owner) {
         this.description = description;

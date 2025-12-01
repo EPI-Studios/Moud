@@ -1,6 +1,6 @@
-package com.moud.server.plugin.newplugin.core;
+package com.moud.server.plugin.core;
 
-import com.moud.server.plugin.newplugin.PluginLoader;
+import com.moud.server.plugin.PluginLoader;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.InputStream;
