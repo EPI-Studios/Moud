@@ -23,6 +23,13 @@ public final class ExamplePlugin extends Plugin {
     private boolean bloomEnabled;
 
     @Override
+    protected void onLoad() throws Exception {
+        super.onLoad();
+
+        context().logger().info("Loading Example Plugin...");
+    }
+
+    @Override
     public void onEnable() {
         capsule = world().spawn("moud:models/capsule.obj")
                 .at(0, 70, 0)
@@ -72,6 +79,8 @@ public final class ExamplePlugin extends Plugin {
                 .register();
 
         applyBloom();
+
+        context().logger().info("Example Plugin enabled");
     }
 
     private void teleportCapsule(CommandContext ctx) {
@@ -126,5 +135,7 @@ public final class ExamplePlugin extends Plugin {
             capsuleLight.remove();
         }
         context().rendering().clearPostEffects();
+
+        context().logger().info("Example Plugin disabled");
     }
 }

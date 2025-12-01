@@ -1,4 +1,4 @@
-package com.moud.server.plugin;
+package com.moud.server.plugin.newplugin;
 
 import com.moud.plugin.api.MoudPlugin;
 import com.moud.plugin.api.PluginDescription;
@@ -30,7 +30,10 @@ final class PluginRuntime {
 
     void enable() throws Exception {
         plugin.onLoad(context);
+        LOGGER.info("Loaded plugin {} ({}) from {}", plugin.description().name(), plugin.description().id(), source.getFileName());
         plugin.onEnable(context);
+        LOGGER.info("✔ Plug-in activé : {} {}", plugin.description().name(), plugin.description().version());
+
     }
 
     void disable() {

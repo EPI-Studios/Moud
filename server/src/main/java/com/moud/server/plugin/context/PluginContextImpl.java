@@ -35,7 +35,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public final class PluginContextImpl implements PluginContext {
-    private final PluginDescription description;
+    private final com.moud.server.plugin.newplugin.core.PluginDescription description;
     private final Logger logger;
     private final Path dataDirectory;
     private final SchedulerServiceImpl schedulerService;
@@ -51,17 +51,17 @@ public final class PluginContextImpl implements PluginContext {
     private final RenderingControllerImpl renderingController;
     private final WorldServiceImpl worldService;
 
-    public PluginContextImpl(PluginDescription description,
+    public PluginContextImpl(com.moud.server.plugin.newplugin.core.PluginDescription description,
                              Path projectRoot,
                              Object owner) {
         this.description = description;
-        this.logger = LoggerFactory.getLogger("MoudPlugin-" + description.id());
+        this.logger = LoggerFactory.getLogger("MoudPlugin-" + description.id);
         this.dataDirectory = projectRoot.resolve(".moud")
                 .resolve("plugins-data")
-                .resolve(description.id());
+                .resolve(description.id);
         ensureDirectories();
 
-        this.schedulerService = new SchedulerServiceImpl(description.id(), logger);
+        this.schedulerService = new SchedulerServiceImpl(description.id, logger);
         this.modelService = new ModelServiceImpl(logger);
         this.lightingService = new LightingServiceImpl(logger);
         this.eventService = new EventServiceImpl(PluginEventBus.getInstance(), owner);
@@ -93,7 +93,12 @@ public final class PluginContextImpl implements PluginContext {
 
     @Override
     public PluginDescription description() {
-        return description;
+        return new PluginDescription(
+                description.id,
+                description.name,
+                description.version,
+                description.description
+        );
     }
 
     @Override

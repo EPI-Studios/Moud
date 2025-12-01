@@ -14,8 +14,9 @@ import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.network.MinestomByteBuffer;
 import com.moud.server.network.ServerNetworkManager;
+import com.moud.server.plugin.newplugin.PluginLoader;
 import com.moud.server.project.ProjectLoader;
-import com.moud.server.plugin.PluginManager;
+import com.moud.server.plugin.newplugin.core.PluginManager;
 import com.moud.server.proxy.AssetProxy;
 import com.moud.server.profiler.ProfilerService;
 import com.moud.server.profiler.ProfilerUI;
@@ -48,7 +49,8 @@ public class MoudEngine {
     private final AnimationManager animationManager;
     private final AnimationTickHandler animationTickHandler = new AnimationTickHandler();
     private final ClientScriptManager clientScriptManager;
-    private final com.moud.server.plugin.PluginManager pluginManager;
+    private final PluginManager pluginManager;
+    private final PluginLoader pluginLoader;
     private final ServerNetworkManager networkManager;
     private final EventDispatcher eventDispatcher;
     private ScriptingAPI scriptingAPI;
@@ -116,7 +118,8 @@ public class MoudEngine {
             this.clientScriptManager = new ClientScriptManager();
             clientScriptManager.initialize();
 
-            this.pluginManager = new com.moud.server.plugin.PluginManager(projectRoot);
+            this.pluginManager = new PluginManager(projectRoot);
+            this.pluginLoader = new PluginLoader(pluginManager);
 
             this.eventDispatcher = new EventDispatcher(this);
             this.runtime = new JavaScriptRuntime(this);
@@ -158,7 +161,7 @@ public class MoudEngine {
             }
 
             loadUserScripts().thenRun(() -> {
-                pluginManager.loadPlugins();
+                pluginLoader.loadAll();
                 initialized.set(true);
                 this.eventDispatcher.dispatchLoadEvent("server.load");
                 LOGGER.startup("Moud Engine initialized successfully");
