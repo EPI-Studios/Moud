@@ -11,6 +11,7 @@ import com.moud.plugin.api.services.NetworkService;
 import com.moud.plugin.api.services.PhysicsController;
 import com.moud.plugin.api.services.PlayerService;
 import com.moud.plugin.api.services.RenderingController;
+import com.moud.plugin.api.services.ParticleService;
 import com.moud.plugin.api.services.SchedulerService;
 import com.moud.plugin.api.services.SceneService;
 import com.moud.plugin.api.services.WorldService;
@@ -24,9 +25,11 @@ import com.moud.server.plugin.impl.NetworkServiceImpl;
 import com.moud.server.plugin.impl.PhysicsControllerImpl;
 import com.moud.server.plugin.impl.PlayerServiceImpl;
 import com.moud.server.plugin.impl.RenderingControllerImpl;
+import com.moud.server.plugin.impl.ParticleServiceImpl;
 import com.moud.server.plugin.impl.SchedulerServiceImpl;
 import com.moud.server.plugin.impl.SceneServiceImpl;
 import com.moud.server.plugin.impl.WorldServiceImpl;
+import com.moud.server.plugin.impl.ParticleServiceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +53,7 @@ public final class PluginContextImpl implements PluginContext {
     private final PhysicsControllerImpl physicsController;
     private final RenderingControllerImpl renderingController;
     private final WorldServiceImpl worldService;
-
+    private final ParticleServiceImpl particleService;
     public PluginContextImpl(PluginDescription description,
                              Path projectRoot,
                              Object owner) {
@@ -73,6 +76,7 @@ public final class PluginContextImpl implements PluginContext {
         this.physicsController = new PhysicsControllerImpl();
         this.renderingController = new RenderingControllerImpl();
         this.worldService = new WorldServiceImpl();
+        this.particleService = new ParticleServiceImpl(logger);
     }
 
     private void ensureDirectories() {
@@ -164,5 +168,10 @@ public final class PluginContextImpl implements PluginContext {
     @Override
     public WorldService world() {
         return worldService;
+    }
+
+    @Override
+    public ParticleService particles() {
+        return particleService;
     }
 }

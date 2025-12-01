@@ -12,6 +12,7 @@ public final class SceneRuntimeFactory {
             case "terrain" -> new TerrainRuntimeAdapter(sceneId);
             case "player_model" -> new PlayerModelRuntimeAdapter(sceneId);
             case "camera" -> new CameraRuntimeAdapter();
+            case "particle_emitter" -> new ParticleEmitterRuntimeAdapter();
             default -> null;
         };
     }

@@ -229,17 +229,21 @@ public final class AnimationManager {
                     : "";
             for (com.moud.api.animation.EventKeyframe event : clip.eventTrack()) {
                 if (event.time() >= previousTime && event.time() <= time) {
-                    LOGGER.info("Animation event '{}' at {}s payload={}", event.eventName(), event.time(), event.payload());
+                    LOGGER.info("Animation event '{}' at {}s payload={}", event.name(), event.time(), event.payload());
                     ServerNetworkManager net = ServerNetworkManager.getInstance();
                     if (net != null) {
+                        java.util.Map<String, String> payload = new java.util.HashMap<>();
+                        if (event.payload() != null) {
+                            payload.put("payload", event.payload());
+                        }
                         net.broadcast(new MoudPackets.AnimationEventPacket(
                                 clip.id(),
                                 targetId,
-                                event.eventName(),
-                                event.payload()
+                                event.name(),
+                                payload
                         ));
                     }
-                    fireEvent(clip.id(), event.eventName());
+                    fireEvent(clip.id(), event.name());
                 }
             }
         }
