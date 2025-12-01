@@ -49,6 +49,7 @@ public class PacketSerializer {
         register(com.moud.api.particle.FrameAnimation.class, new FrameAnimationSerializer());
         register(com.moud.api.particle.LightSettings.class, new LightSettingsSerializer());
         register(com.moud.api.particle.ParticleDescriptor.class, new ParticleDescriptorSerializer());
+        register(com.moud.api.particle.ParticleEmitterConfig.class, new ParticleEmitterConfigSerializer());
     }
 
     public <T> void register(Class<T> type, TypeSerializer<T> serializer) {

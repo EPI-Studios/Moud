@@ -676,4 +676,12 @@ public final class MoudPackets {
     @Packet(value = "moud:particle_batch", direction = Direction.SERVER_TO_CLIENT)
     public record ParticleBatchPacket(@Field(order = 0) List<com.moud.api.particle.ParticleDescriptor> particles) {
     }
+
+    @Packet(value = "moud:particle_emitter_upsert", direction = Direction.SERVER_TO_CLIENT)
+    public record ParticleEmitterUpsertPacket(@Field(order = 0) List<com.moud.api.particle.ParticleEmitterConfig> emitters) {
+    }
+
+    @Packet(value = "moud:particle_emitter_remove", direction = Direction.SERVER_TO_CLIENT)
+    public record ParticleEmitterRemovePacket(@Field(order = 0) List<String> ids) {
+    }
 }
