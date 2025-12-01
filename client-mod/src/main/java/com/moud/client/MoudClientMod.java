@@ -164,7 +164,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         this.playerModelRenderer = new PlayerModelRenderer();
         this.modelRenderer = new ModelRenderer();
         this.displayRenderer = new DisplayRenderer();
-        this.particleSystem = new com.moud.client.particle.ParticleSystem(8192);
+        this.particleSystem = new com.moud.client.particle.ParticleSystem(16384);
         this.particleEmitterSystem = new com.moud.client.particle.ParticleEmitterSystem();
         this.particleRenderer = new com.moud.client.particle.ParticleRenderer(this.particleSystem);
 
@@ -505,6 +505,14 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         ClientPlayConnectionEvents.DISCONNECT.register(this::onDisconnectServer);
     }
 
+    public com.moud.client.particle.ParticleEmitterSystem getParticleEmitterSystem() {
+        return particleEmitterSystem;
+    }
+
+    public com.moud.client.particle.ParticleSystem getParticleSystem() {
+        return particleSystem;
+    }
+
     private void registerTickHandler() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (joinTime != -1L && waitingForResources.get() && (System.currentTimeMillis() - joinTime > JOIN_TIMEOUT_MS)) {
@@ -564,7 +572,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             float frameSeconds = computeParticleFrameDeltaSeconds();
 
             if (frameSeconds > 0f && particleEmitterSystem != null && particleSystem != null && world != null) {
-                particleEmitterSystem.tick(frameSeconds, particleSystem, world);
+                particleEmitterSystem.tick(frameSeconds, particleSystem, world, camera.getPos());
                 particleSystem.tick(frameSeconds, world);
             } else if (frameSeconds > 0f && particleSystem != null && world != null) {
                 particleSystem.tick(frameSeconds, world);
@@ -653,7 +661,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 }
                 if (particleRenderer != null && renderContext.consumers() != null) {
                     MatrixStack matrices = renderContext.matrixStack();
-                    particleRenderer.render(matrices, renderContext.consumers(), camera, tickDelta);
+                    particleRenderer.render(matrices, renderContext.consumers(), camera, tickDelta, renderContext.frustum());
                 }
                 renderModelCollisionHitboxes(renderContext);
                 if (clientCursorManager != null) {

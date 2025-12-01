@@ -1,7 +1,6 @@
 package com.moud.client.editor.runtime;
 
 import com.moud.api.collision.OBB;
-import com.moud.api.collision.OBB;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.client.display.DisplaySurface;
