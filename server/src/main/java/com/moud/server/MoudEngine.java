@@ -21,6 +21,7 @@ import com.moud.server.profiler.ProfilerService;
 import com.moud.server.profiler.ProfilerUI;
 import com.moud.server.physics.PhysicsService;
 import com.moud.server.particle.ParticleBatcher;
+import com.moud.server.particle.ParticleEmitterManager;
 import com.moud.server.scripting.JavaScriptRuntime;
 import com.moud.server.task.AsyncManager;
 import com.moud.server.editor.AnimationTickHandler;
@@ -59,6 +60,7 @@ public class MoudEngine {
     private final PhysicsService physicsService;
     private final com.moud.server.fakeplayer.FakePlayerManager fakePlayerManager;
     private final ParticleBatcher particleBatcher;
+    private final ParticleEmitterManager particleEmitterManager;
 
     private final AtomicBoolean initialized = new AtomicBoolean(false);
     private final AtomicBoolean reloading = new AtomicBoolean(false);
@@ -125,6 +127,8 @@ public class MoudEngine {
             this.networkManager = new ServerNetworkManager(eventDispatcher, clientScriptManager);
             networkManager.initialize();
             this.particleBatcher = new ParticleBatcher(networkManager);
+            this.particleEmitterManager = ParticleEmitterManager.getInstance();
+            particleEmitterManager.initialize(networkManager);
 
             this.zoneManager = new ZoneManager(this);
 
@@ -344,6 +348,10 @@ public class MoudEngine {
 
     public ParticleBatcher getParticleBatcher() {
         return particleBatcher;
+    }
+
+    public ParticleEmitterManager getParticleEmitterManager() {
+        return particleEmitterManager;
     }
 
     public enum ReloadState {

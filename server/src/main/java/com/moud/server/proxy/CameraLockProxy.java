@@ -47,7 +47,7 @@ public class CameraLockProxy {
         if (isLocked) return;
         isLocked = true;
         ServerNetworkManager.getInstance().send(player, new MoudPackets.CameraControlPacket(
-                MoudPackets.CameraControlPacket.Action.ENABLE, null
+                MoudPackets.CameraControlPacket.Action.ENABLE, null, null
         ));
     }
 
@@ -56,7 +56,7 @@ public class CameraLockProxy {
         if (!isLocked) return;
         isLocked = false;
         ServerNetworkManager.getInstance().send(player, new MoudPackets.CameraControlPacket(
-                MoudPackets.CameraControlPacket.Action.DISABLE, null
+                MoudPackets.CameraControlPacket.Action.DISABLE, null, null
         ));
     }
 
@@ -67,7 +67,7 @@ public class CameraLockProxy {
             return;
         }
         ServerNetworkManager.getInstance().send(player, new MoudPackets.CameraControlPacket(
-                MoudPackets.CameraControlPacket.Action.TRANSITION_TO, valueToMap(options)
+                MoudPackets.CameraControlPacket.Action.TRANSITION_TO, valueToMap(options), null
         ));
     }
 
@@ -78,7 +78,7 @@ public class CameraLockProxy {
             return;
         }
         ServerNetworkManager.getInstance().send(player, new MoudPackets.CameraControlPacket(
-                MoudPackets.CameraControlPacket.Action.SNAP_TO, valueToMap(options)
+                MoudPackets.CameraControlPacket.Action.SNAP_TO, valueToMap(options), null
         ));
     }
 

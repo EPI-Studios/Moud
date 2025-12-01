@@ -9,6 +9,7 @@ import com.moud.server.task.AsyncManager;
 import com.moud.server.proxy.ParticleAPIProxy;
 import com.moud.plugin.animation.AnimationController;
 import com.moud.server.editor.AnimationManager;
+import com.moud.server.particle.ParticleEmitterManager;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
@@ -50,7 +51,7 @@ public class ScriptingAPI {
         this.math = new MathProxy();
         this.commands = new CommandProxy();
         this.scene = new SceneProxy();
-        this.particles = new ParticleAPIProxy(engine.getParticleBatcher());
+        this.particles = new ParticleAPIProxy(engine.getParticleBatcher(), engine.getParticleEmitterManager());
 
         LOGGER.info("Scripting API initialized successfully.");
     }

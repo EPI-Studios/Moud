@@ -23,6 +23,7 @@ import com.moud.server.player.PlayerCameraManager;
 import com.moud.server.plugin.PluginEventBus;
 import com.moud.server.proxy.MediaDisplayProxy;
 import com.moud.server.proxy.PlayerModelProxy;
+import com.moud.server.particle.ParticleEmitterManager;
 import com.moud.api.collision.OBB;
 import com.moud.server.network.ResourcePackServer.ResourcePackInfo;
 import net.minestom.server.MinecraftServer;
@@ -369,9 +370,10 @@ public final class ServerNetworkManager {
     private void handleClientReady(Object player, ClientReadyPacket packet) {
         Player minestomPlayer = (Player) player;
         LogContext context = playerContext(minestomPlayer);
-        LOGGER.info(context, "Client {} is ready, syncing lights and fake players", minestomPlayer.getUsername());
+        LOGGER.info(context, "Client {} is ready, syncing lights, fake players, and particle emitters", minestomPlayer.getUsername());
         ServerLightingManager.getInstance().syncLightsToPlayer(minestomPlayer);
         FakePlayerManager.getInstance().syncToPlayer(minestomPlayer);
+        ParticleEmitterManager.getInstance().syncToPlayer(minestomPlayer);
     }
     private void onPluginMessage(PlayerPluginMessageEvent event) {
         String outerChannel = event.getIdentifier();
@@ -733,7 +735,6 @@ public final class ServerNetworkManager {
     private void onPlayerDisconnect(PlayerDisconnectEvent event) {
         Player player = event.getPlayer();
         moudClients.remove(player.getUuid());
-        lastPayloadCache.remove(player.getUuid());
         PlayerCameraManager.getInstance().onPlayerDisconnect(player);
         PlayerCursorDirectionManager.getInstance().onPlayerDisconnect(player);
         CursorService.getInstance().onPlayerQuit(player);
