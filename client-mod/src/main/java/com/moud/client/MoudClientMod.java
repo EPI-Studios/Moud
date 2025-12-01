@@ -126,7 +126,9 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     private ClientCursorManager clientCursorManager;
     private ClientFakePlayerManager fakePlayerManager;
     private com.moud.client.particle.ParticleSystem particleSystem;
+    private com.moud.client.particle.ParticleEmitterSystem particleEmitterSystem;
     private com.moud.client.particle.ParticleRenderer particleRenderer;
+    private long particleFrameTimeNs = 0L;
     private String currentResourcesHash = "";
     private final Map<String, ScriptChunkAccumulator> scriptChunkAccumulators = new HashMap<>();
     private long joinTime = -1L;
@@ -163,6 +165,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         this.modelRenderer = new ModelRenderer();
         this.displayRenderer = new DisplayRenderer();
         this.particleSystem = new com.moud.client.particle.ParticleSystem(8192);
+        this.particleEmitterSystem = new com.moud.client.particle.ParticleEmitterSystem();
         this.particleRenderer = new com.moud.client.particle.ParticleRenderer(this.particleSystem);
 
         registerPacketHandlers();
@@ -203,6 +206,8 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         ClientPacketWrapper.registerHandler(PlayerStatePacket.class, (player, packet) -> handlePlayerState(packet));
         ClientPacketWrapper.registerHandler(ExtendedPlayerStatePacket.class, (player, packet) -> handleExtendedPlayerState(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.ParticleBatchPacket.class, (player, packet) -> handleParticleBatch(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.ParticleEmitterUpsertPacket.class, (player, packet) -> handleParticleEmitterUpsert(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.ParticleEmitterRemovePacket.class, (player, packet) -> handleParticleEmitterRemove(packet));
         ClientPacketWrapper.registerHandler(SyncSharedValuesPacket.class, (player, packet) -> handleSharedValueSync(packet));
         ClientPacketWrapper.registerHandler(PlayerModelCreatePacket.class, (player, packet) -> handlePlayerModelCreate(packet));
         ClientPacketWrapper.registerHandler(PlayerModelUpdatePacket.class, (player, packet) -> handlePlayerModelUpdate(packet));
@@ -444,6 +449,10 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             clientCursorManager.clear();
         }
         ClientDisplayManager.getInstance().clear();
+        if (particleEmitterSystem != null) {
+            particleEmitterSystem.clear();
+        }
+        particleFrameTimeNs = 0L;
         this.clientCameraManager = null;
         this.playerStateManager = null;
         moudServicesInitialized = false;
@@ -474,7 +483,20 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
     private void handleParticleBatch(MoudPackets.ParticleBatchPacket packet) {
         if (particleSystem != null) {
+            com.moud.client.MoudClientMod.getLogger().info("Received particle batch with {} descriptors", packet.particles().size());
             particleSystem.spawnBatch(packet.particles());
+        }
+    }
+
+    private void handleParticleEmitterUpsert(MoudPackets.ParticleEmitterUpsertPacket packet) {
+        if (particleEmitterSystem != null) {
+            particleEmitterSystem.upsert(packet.emitters());
+        }
+    }
+
+    private void handleParticleEmitterRemove(MoudPackets.ParticleEmitterRemovePacket packet) {
+        if (particleEmitterSystem != null) {
+            particleEmitterSystem.remove(packet.ids());
         }
     }
 
@@ -519,19 +541,14 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             if (clientCameraManager != null) {
                 clientCameraManager.tick();
             }
-            if (particleSystem != null && client.world != null) {
-                float dt = client.getRenderTickCounter().getTickDelta(true);
-                particleSystem.tick(dt, client.world);
-            }
-
             ClientPlayerModelManager.getInstance().getModels().forEach(AnimatedPlayerModel::tick);
 
             EditorModeManager.getInstance().tick(client);
 
-            ClientMovementTracker.getInstance().tick();
-            ClientModelManager.getInstance().getModels().forEach(model -> model.tickSmoothing(1.0f));
-        });
-    }
+        ClientMovementTracker.getInstance().tick();
+        ClientModelManager.getInstance().getModels().forEach(model -> model.tickSmoothing(1.0f));
+    });
+}
 
     private void registerRenderHandler() {
         WorldRenderEvents.AFTER_ENTITIES.register(renderContext -> {
@@ -544,6 +561,14 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
             var world = MinecraftClient.getInstance().world;
             float tickDelta = renderContext.tickCounter().getTickDelta(true);
+            float frameSeconds = computeParticleFrameDeltaSeconds();
+
+            if (frameSeconds > 0f && particleEmitterSystem != null && particleSystem != null && world != null) {
+                particleEmitterSystem.tick(frameSeconds, particleSystem, world);
+                particleSystem.tick(frameSeconds, world);
+            } else if (frameSeconds > 0f && particleSystem != null && world != null) {
+                particleSystem.tick(frameSeconds, world);
+            }
 
             VeilRenderer veilRenderer = VeilRenderSystem.renderer();
             boolean enabledBuffers = false;
@@ -626,9 +651,9 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                         }
                     }
                 }
-                if (particleRenderer != null) {
+                if (particleRenderer != null && renderContext.consumers() != null) {
                     MatrixStack matrices = renderContext.matrixStack();
-                    particleRenderer.render(matrices, tickDelta);
+                    particleRenderer.render(matrices, renderContext.consumers(), camera, tickDelta);
                 }
                 renderModelCollisionHitboxes(renderContext);
                 if (clientCursorManager != null) {
@@ -651,6 +676,17 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
                 }
             }
         });
+    }
+
+    private float computeParticleFrameDeltaSeconds() {
+        long now = System.nanoTime();
+        if (particleFrameTimeNs == 0L) {
+            particleFrameTimeNs = now;
+            return 0f;
+        }
+        float dt = (now - particleFrameTimeNs) / 1_000_000_000f;
+        particleFrameTimeNs = now;
+        return dt;
     }
 
     private boolean isModelVisible(RenderableModel model, Vector3 position, WorldRenderContext context) {

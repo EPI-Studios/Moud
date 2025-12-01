@@ -173,54 +173,54 @@ public final class RuntimeObjectRegistry {
                 obj.setScale(new Vec3d(scl.x, scl.y, Math.max(0.0001, value)));
                 transformChanged = true;
             }
-            case "opacity":
+            case "opacity" -> {
                 if (obj.getType() == RuntimeObjectType.DISPLAY) {
                     com.moud.client.display.DisplaySurface surface = com.moud.client.display.ClientDisplayManager.getInstance().getById(obj.getRuntimeId());
                     if (surface != null) {
                         surface.setOpacity(value);
                     }
                 }
-                break;
-            case "intensity":
+            }
+            case "intensity" -> {
                 if (obj.getType() == RuntimeObjectType.LIGHT) {
                     com.moud.client.lighting.ClientLightingService.ManagedLight light = com.moud.client.lighting.ClientLightingService.getInstance().getManagedLight(obj.getRuntimeId());
                     if (light != null) {
                         light.brightness = value;
                     }
                 }
-                break;
-            case "range":
+            }
+            case "range" -> {
                 if (obj.getType() == RuntimeObjectType.LIGHT) {
                     com.moud.client.lighting.ClientLightingService.ManagedLight light = com.moud.client.lighting.ClientLightingService.getInstance().getManagedLight(obj.getRuntimeId());
                     if (light != null) {
                         light.radius = value;
                     }
                 }
-                break;
-            case "color.r":
+            }
+            case "color.r" -> {
                 if (obj.getType() == RuntimeObjectType.LIGHT) {
                     com.moud.client.lighting.ClientLightingService.ManagedLight light = com.moud.client.lighting.ClientLightingService.getInstance().getManagedLight(obj.getRuntimeId());
                     if (light != null) {
                         light.r = value;
                     }
                 }
-                break;
-            case "color.g":
+            }
+            case "color.g" -> {
                 if (obj.getType() == RuntimeObjectType.LIGHT) {
                     com.moud.client.lighting.ClientLightingService.ManagedLight light = com.moud.client.lighting.ClientLightingService.getInstance().getManagedLight(obj.getRuntimeId());
                     if (light != null) {
                         light.g = value;
                     }
                 }
-                break;
-            case "color.b":
+            }
+            case "color.b" -> {
                 if (obj.getType() == RuntimeObjectType.LIGHT) {
                     com.moud.client.lighting.ClientLightingService.ManagedLight light = com.moud.client.lighting.ClientLightingService.getInstance().getManagedLight(obj.getRuntimeId());
                     if (light != null) {
                         light.b = value;
                     }
                 }
-                break;
+            }
             default -> {
             }
         }
