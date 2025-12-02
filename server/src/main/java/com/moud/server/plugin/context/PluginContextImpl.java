@@ -54,9 +54,9 @@ public final class PluginContextImpl implements PluginContext {
     private final RenderingControllerImpl renderingController;
     private final WorldServiceImpl worldService;
 
-    public PluginContextImpl(com.moud.server.plugin.core.PluginDescription description,
     private final ParticleServiceImpl particleService;
-    public PluginContextImpl(PluginDescription description,
+
+    public PluginContextImpl(com.moud.server.plugin.core.PluginDescription description,
                              Path projectRoot,
                              Object owner) {
         this.description = description;
