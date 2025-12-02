@@ -49,6 +49,9 @@ dependencies {
     implementation "org.openjfx:javafx-graphics:${javafxVersion}:${javafxPlatform}"
     implementation "org.openjfx:javafx-fxml:${javafxVersion}:${javafxPlatform}"
 
+    implementation 'org.yaml:snakeyaml:2.3'
+
+
 }
 
 java {

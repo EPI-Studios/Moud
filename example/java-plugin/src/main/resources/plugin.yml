@@ -1,0 +1,6 @@
+id: "example-plugin"
+name: "Exemple_Plugin"
+main-class: "com.moud.example.ExamplePlugin"
+version: "1.0.0"
+api-version: "1.0"
+description: "Un plugin d'exemple pour démontrer les fonctionnalités de base."
