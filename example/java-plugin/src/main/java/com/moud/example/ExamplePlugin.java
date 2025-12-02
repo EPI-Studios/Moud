@@ -2,7 +2,6 @@ package com.moud.example;
 
 import com.moud.api.math.Vector3;
 import com.moud.plugin.api.Plugin;
-import com.moud.plugin.api.PluginDefinition;
 import com.moud.plugin.api.command.CommandContext;
 import com.moud.plugin.api.entity.GameObject;
 import com.moud.plugin.api.entity.Light;
@@ -11,16 +10,17 @@ import com.moud.plugin.api.events.PlayerJoinEvent;
 
 import java.util.List;
 
-@PluginDefinition(
-        id = "example-plugin",
-        name = "Example Plugin",
-        version = "1.1.0",
-        description = "Demonstrates the ergonomic Java plugin API"
-)
 public final class ExamplePlugin extends Plugin {
     private GameObject capsule;
     private Light capsuleLight;
     private boolean bloomEnabled;
+
+    @Override
+    protected void onLoad() throws Exception {
+        super.onLoad();
+
+        context().logger().info("Loading Example Plugin...");
+    }
 
     @Override
     public void onEnable() {
@@ -72,6 +72,8 @@ public final class ExamplePlugin extends Plugin {
                 .register();
 
         applyBloom();
+
+        context().logger().info("Example Plugin enabled");
     }
 
     private void teleportCapsule(CommandContext ctx) {
@@ -126,5 +128,7 @@ public final class ExamplePlugin extends Plugin {
             capsuleLight.remove();
         }
         context().rendering().clearPostEffects();
+
+        context().logger().info("Example Plugin disabled");
     }
 }

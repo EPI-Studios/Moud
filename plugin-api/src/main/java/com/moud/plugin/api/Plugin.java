@@ -15,28 +15,18 @@ import java.util.function.Consumer;
 
 
 public abstract class Plugin implements MoudPlugin {
-    private final PluginDescription description;
+
     private PluginContext context;
     private WorldDsl world;
     private SchedulerDsl scheduler;
     private EventsDsl events;
 
     protected Plugin() {
-        PluginDefinition definition = getClass().getAnnotation(PluginDefinition.class);
-        if (definition == null) {
-            throw new IllegalStateException("Plugins extending the high-level base must be annotated with @PluginDefinition");
-        }
-        this.description = new PluginDescription(
-                definition.id(),
-                definition.name(),
-                definition.version(),
-                definition.description()
-        );
     }
 
     @Override
     public final PluginDescription description() {
-        return description;
+        return context.description();
     }
 
     @Override

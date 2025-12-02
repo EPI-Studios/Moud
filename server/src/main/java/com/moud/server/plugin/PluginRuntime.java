@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
 
+@SuppressWarnings("unused")
 final class PluginRuntime {
     private static final Logger LOGGER = LoggerFactory.getLogger(PluginRuntime.class);
 
@@ -24,15 +25,29 @@ final class PluginRuntime {
         this.source = source;
     }
 
+    /**
+     * Get the plugin description.
+     * @return the plugin description
+     */
     PluginDescription description() {
         return context.description();
     }
 
+    /**
+     * Enable the plugin.
+     * @throws Exception if an error occurs during enabling
+     */
     void enable() throws Exception {
         plugin.onLoad(context);
+        LOGGER.info("Loaded plugin {} ({}) from {}", plugin.description().name(), plugin.description().id(), source.getFileName());
         plugin.onEnable(context);
+        LOGGER.info("✔ Plug-in activated : {} {}", plugin.description().name(), plugin.description().version());
+
     }
 
+    /**
+     * Disable and shutdown the plugin
+     */
     void disable() {
         try {
             plugin.onDisable();
@@ -48,6 +63,10 @@ final class PluginRuntime {
         }
     }
 
+    /**
+     * Get the source path of the plugin.
+     * @return the source path
+     */
     Path source() {
         return source;
     }
