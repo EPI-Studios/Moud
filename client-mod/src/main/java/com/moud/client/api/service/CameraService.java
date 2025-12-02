@@ -5,6 +5,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.Perspective;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.MathHelper;
+import com.moud.client.editor.config.EditorConfig;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
@@ -33,6 +34,9 @@ public final class CameraService {
     private long transitionStartTime = 0;
     private long transitionDuration = 0;
     private Value easingFunction = null;
+    private boolean animationFollow = false;
+    private long lastAnimationUpdateMs = 0;
+    private double followSmoothing = 0.85;
 
     private boolean wasInFirstPerson = false;
     private boolean isAnimating = false;
@@ -81,6 +85,22 @@ public final class CameraService {
                 isAnimating = false;
                 easingFunction = null;
             }
+        }
+
+        if (animationFollow) {
+            double smoothing = MathHelper.clamp(followSmoothing, 0.01, 0.999);
+            double deltaTicks = MathHelper.clamp(tickDelta * 20.0, 0.0, 5.0);
+            double alpha = 1.0 - Math.pow(1.0 - smoothing, deltaTicks);
+
+            currentState.position.set(
+                    MathHelper.lerp(alpha, currentState.position.x, targetState.position.x),
+                    MathHelper.lerp(alpha, currentState.position.y, targetState.position.y),
+                    MathHelper.lerp(alpha, currentState.position.z, targetState.position.z)
+            );
+            currentState.yaw = MathHelper.lerpAngleDegrees((float) alpha, (float) currentState.yaw, (float) targetState.yaw);
+            currentState.pitch = MathHelper.lerp(alpha, currentState.pitch, targetState.pitch);
+            currentState.roll = MathHelper.lerpAngleDegrees((float) alpha, (float) currentState.roll, (float) targetState.roll);
+            currentState.fov = MathHelper.lerp(alpha, currentState.fov, targetState.fov);
         }
     }
 
@@ -163,6 +183,48 @@ public final class CameraService {
         this.easingFunction = options.getMember("easing");
         this.transitionStartTime = System.currentTimeMillis();
         this.isAnimating = true;
+    }
+
+
+    public void animateFromAnimation(Map<String, Object> options) {
+        if (options == null || options.isEmpty()) {
+            return;
+        }
+        boolean instant = Boolean.TRUE.equals(options.get("instant"));
+        if (instant) {
+            snapToFromMap(options);
+            return;
+        }
+        if (!isCustomCameraActive()) {
+            enableCustomCamera();
+        }
+
+        try {
+            EditorConfig.Camera cfg = EditorConfig.getInstance().camera();
+            followSmoothing = cfg != null ? cfg.orbitSmoothing : followSmoothing;
+        } catch (Exception ignored) {
+        }
+
+        if (options.containsKey("position")) {
+            Object posObj = options.get("position");
+            if (posObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> posMap = (Map<String, Object>) posObj;
+                targetState.position.set(
+                        toDouble(posMap.get("x"), targetState.position.x),
+                        toDouble(posMap.get("y"), targetState.position.y),
+                        toDouble(posMap.get("z"), targetState.position.z)
+                );
+            }
+        }
+        if (options.containsKey("yaw")) targetState.yaw = toDouble(options.get("yaw"), targetState.yaw);
+        if (options.containsKey("pitch")) targetState.pitch = toDouble(options.get("pitch"), targetState.pitch);
+        if (options.containsKey("roll")) targetState.roll = toDouble(options.get("roll"), targetState.roll);
+        if (options.containsKey("fov")) targetState.fov = toDouble(options.get("fov"), targetState.fov);
+
+        lastAnimationUpdateMs = System.currentTimeMillis();
+        animationFollow = true;
+        isAnimating = false;
     }
 
     @HostAccess.Export

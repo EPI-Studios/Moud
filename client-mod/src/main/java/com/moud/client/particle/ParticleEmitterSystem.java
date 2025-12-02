@@ -1,9 +1,11 @@
 package com.moud.client.particle;
 
 import com.moud.api.particle.ParticleDescriptor;
+import com.moud.api.particle.RenderType;
 import com.moud.api.particle.ParticleEmitterConfig;
 import com.moud.api.particle.Vector3f;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.util.math.Vec3d;
 
 import java.util.List;
 import java.util.Map;
@@ -42,12 +44,12 @@ public final class ParticleEmitterSystem {
         emitters.clear();
     }
 
-    public void tick(float dt, ParticleSystem system, ClientWorld world) {
+    public void tick(float dt, ParticleSystem system, ClientWorld world, Vec3d cameraPos) {
         if (system == null) {
             return;
         }
         for (ClientEmitter emitter : emitters.values()) {
-            emitter.emit(dt, system, world);
+            emitter.emit(dt, system, world, cameraPos);
         }
     }
 
@@ -55,6 +57,12 @@ public final class ParticleEmitterSystem {
         private ParticleEmitterConfig config;
         private Random rng;
         private float accumulator = 0f;
+        private static final float NEAR_FULL_RATE = 32f;
+        private static final float FAR_CULL = 192f;
+        private static final float BASE_BUDGET_WINDOW_SECONDS = 0.25f;
+        private static final float LAG_WINDOW_MULTIPLIER = 2f;
+        private static final int MIN_PER_EMITTER_FRAME_BUDGET = 8;
+        private static final int MAX_PER_EMITTER_FRAME_BUDGET = 4096;
 
         ClientEmitter(ParticleEmitterConfig config) {
             update(config);
@@ -66,15 +74,24 @@ public final class ParticleEmitterSystem {
             this.accumulator = 0f;
         }
 
-        void emit(float dt, ParticleSystem system, ClientWorld world) {
+        void emit(float dt, ParticleSystem system, ClientWorld world, Vec3d cameraPos) {
             if (config == null || !config.enabled()) {
                 return;
             }
-            if (config.maxParticles() > 0 && system.getActiveCount() >= config.maxParticles()) {
-                return;
+
+            float distanceFactor = 1f;
+            if (cameraPos != null && config.descriptor().renderType() != RenderType.ADDITIVE) {
+                Vec3d emitterPos = new Vec3d(config.descriptor().position().x(), config.descriptor().position().y(), config.descriptor().position().z());
+                double distSq = cameraPos.squaredDistanceTo(emitterPos);
+                double farSq = FAR_CULL * FAR_CULL;
+                if (distSq > farSq) {
+                    return;
+                }
+                double nearSq = NEAR_FULL_RATE * NEAR_FULL_RATE;
+                distanceFactor = distSq <= nearSq ? 1f : (float) Math.max(0.0, (Math.sqrt(farSq) - Math.sqrt(distSq)) / (FAR_CULL - NEAR_FULL_RATE));
             }
 
-            accumulator += config.ratePerSecond() * dt;
+            accumulator += config.ratePerSecond() * dt * distanceFactor;
             int emitCount = (int) Math.floor(accumulator);
             accumulator -= emitCount;
 
@@ -82,10 +99,17 @@ public final class ParticleEmitterSystem {
                 return;
             }
 
-            int remainingBudget = config.maxParticles() > 0
-                    ? Math.max(0, config.maxParticles() - system.getActiveCount())
-                    : Integer.MAX_VALUE;
-            int toSpawn = Math.min(emitCount, remainingBudget);
+            float frameWindow = Math.max(BASE_BUDGET_WINDOW_SECONDS, dt * LAG_WINDOW_MULTIPLIER);
+            int perEmitterFrameBudget = Math.min(
+                    MAX_PER_EMITTER_FRAME_BUDGET,
+                    Math.max(MIN_PER_EMITTER_FRAME_BUDGET, (int) Math.ceil(config.ratePerSecond() * frameWindow))
+            );
+
+            int remainingBudget = Math.max(0, system.getCapacity() - system.getActiveCount());
+            if (remainingBudget <= 0) {
+                return;
+            }
+            int toSpawn = Math.min(Math.min(emitCount, remainingBudget), perEmitterFrameBudget);
 
             for (int i = 0; i < toSpawn; i++) {
                 ParticleDescriptor descriptor = applyJitter(config, rng);
@@ -116,6 +140,7 @@ public final class ParticleEmitterSystem {
                     base.renderType(),
                     base.billboarding(),
                     base.collisionMode(),
+                    base.collideWithPlayers(),
                     new Vector3f(px, py, pz),
                     new Vector3f(vx, vy, vz),
                     base.acceleration(),
@@ -131,7 +156,8 @@ public final class ParticleEmitterSystem {
                     base.behaviors(),
                     base.behaviorPayload(),
                     base.light(),
-                    base.sortHint()
+                    base.sortHint(),
+                    base.impostorSlices()
             );
         }
 

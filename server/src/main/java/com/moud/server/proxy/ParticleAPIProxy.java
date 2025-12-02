@@ -202,6 +202,7 @@ public class ParticleAPIProxy {
         RenderType renderType = enumOrDefault(raw.get("renderType"), RenderType.TRANSLUCENT, RenderType.class);
         Billboarding billboard = enumOrDefault(raw.get("billboarding"), Billboarding.CAMERA_FACING, Billboarding.class);
         CollisionMode collision = enumOrDefault(raw.get("collision"), CollisionMode.NONE, CollisionMode.class);
+        boolean collideWithPlayers = bool(raw.get("collideWithPlayers"), false);
         SortHint sortHint = enumOrDefault(raw.get("sortHint"), SortHint.NONE, SortHint.class);
 
         float drag = number(raw.get("drag"), 0f);
@@ -215,6 +216,8 @@ public class ParticleAPIProxy {
         UVRegion uv = uvRegion(raw.get("uvRegion"));
         FrameAnimation frameAnimation = frameAnimation(raw.get("frameAnimation"));
 
+        int impostorSlices = (int) number(raw.get("impostorSlices"), 1f);
+
         List<String> behaviors = stringList(raw.get("behaviors"));
         Map<String, Object> behaviorPayload = rawPayload(raw.get("behaviorPayload"));
         LightSettings light = light(raw.get("light"));
@@ -224,6 +227,7 @@ public class ParticleAPIProxy {
                 renderType,
                 billboard,
                 collision,
+                collideWithPlayers,
                 position,
                 velocity,
                 acceleration,
@@ -239,7 +243,8 @@ public class ParticleAPIProxy {
                 behaviors,
                 behaviorPayload,
                 light,
-                sortHint
+                sortHint,
+                impostorSlices
         );
     }
 

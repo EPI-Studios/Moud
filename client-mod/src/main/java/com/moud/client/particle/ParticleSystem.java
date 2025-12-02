@@ -9,8 +9,10 @@ public final class ParticleSystem {
     private final ParticlePool pool;
     private final int[] activeIndices;
     private int activeCount = 0;
+    private final int capacity;
 
     public ParticleSystem(int capacity) {
+        this.capacity = capacity;
         this.pool = new ParticlePool(capacity);
         this.activeIndices = new int[capacity];
     }
@@ -57,6 +59,14 @@ public final class ParticleSystem {
 
     public int getActiveCount() {
         return activeCount;
+    }
+
+    public int getCapacity() {
+        return capacity;
+    }
+
+    int[] getActiveIndices() {
+        return activeIndices;
     }
 
     private void removeAt(int idx) {

@@ -17,4 +17,8 @@ public record AnimationClip(
     public AnimationClip withName(String newName) {
         return new AnimationClip(this.id, newName, this.duration, this.frameRate, this.objectTracks, this.eventTrack, this.metadata);
     }
+
+    public AnimationClip withEventTrack(java.util.List<EventKeyframe> events) {
+        return new AnimationClip(this.id, this.name, this.duration, this.frameRate, this.objectTracks, events, this.metadata);
+    }
 }

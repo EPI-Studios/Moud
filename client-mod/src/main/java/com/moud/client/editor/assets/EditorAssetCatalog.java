@@ -1,6 +1,5 @@
 package com.moud.client.editor.assets;
 
-import com.moud.client.editor.EditorModeManager;
 import com.moud.client.network.ClientPacketWrapper;
 import com.moud.network.MoudPackets;
 

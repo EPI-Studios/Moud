@@ -1,6 +1,9 @@
 package com.moud.client.editor.ui.panel;
 
 import com.moud.client.editor.assets.ProjectFileIndex;
+import com.moud.api.particle.RenderType;
+import com.moud.api.particle.Billboarding;
+import com.moud.api.particle.CollisionMode;
 import com.moud.client.editor.plugin.EditorPluginHost;
 import com.moud.client.editor.runtime.RuntimeObject;
 import com.moud.client.editor.runtime.RuntimeObjectType;
@@ -12,6 +15,7 @@ import com.moud.client.editor.ui.layout.EditorDockingLayout;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiTableFlags;
+import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
@@ -189,6 +193,70 @@ public final class InspectorPanel {
         return map;
     }
 
+    private static void renderRamp(Map<String, Object> props, SceneSessionManager session, SceneObject selected, String key, String label) {
+        ImGui.separator();
+        ImGui.textDisabled(label);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> ramp = props.get(key) instanceof List<?> l ? new java.util.ArrayList<>((List<Map<String, Object>>) l) : new java.util.ArrayList<>();
+        int remove = -1;
+        for (int i = 0; i < ramp.size(); i++) {
+            Map<String, Object> kf = ramp.get(i);
+            float t = toFloat(kf.getOrDefault("t", 0f));
+            float v = toFloat(kf.getOrDefault("value", 0f));
+            ImGui.pushID(label + i);
+            float[] tBuf = new float[]{t};
+            float[] vBuf = new float[]{v};
+            ImGui.dragFloat("t##" + i, tBuf, 0.01f, 0f, 1f, "%.2f");
+            ImGui.sameLine();
+            ImGui.dragFloat("val##" + i, vBuf, 0.05f, -1000f, 1000f, "%.2f");
+            ramp.set(i, Map.of("t", tBuf[0], "value", vBuf[0]));
+            ImGui.sameLine();
+            if (ImGui.button("X##" + i)) remove = i;
+            ImGui.popID();
+        }
+        if (remove >= 0) {
+            ramp.remove(remove);
+        }
+        if (ImGui.button("Add key##" + key)) {
+            ramp.add(Map.of("t", 0f, "value", 0f));
+        }
+        props.put(key, ramp);
+        session.submitPropertyUpdate(selected.getId(), props);
+    }
+
+    private static void renderColorRamp(Map<String, Object> props, SceneSessionManager session, SceneObject selected, String key, String label) {
+        ImGui.separator();
+        ImGui.textDisabled(label);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> ramp = props.get(key) instanceof List<?> l ? new java.util.ArrayList<>((List<Map<String, Object>>) l) : new java.util.ArrayList<>();
+        int remove = -1;
+        for (int i = 0; i < ramp.size(); i++) {
+            Map<String, Object> kf = ramp.get(i);
+            float t = toFloat(kf.getOrDefault("t", 0f));
+            float r = toFloat(kf.getOrDefault("r", 1f));
+            float g = toFloat(kf.getOrDefault("g", 1f));
+            float b = toFloat(kf.getOrDefault("b", 1f));
+            float a = toFloat(kf.getOrDefault("a", 1f));
+            ImGui.pushID(label + i);
+            float[] tBuf = new float[]{t};
+            ImGui.dragFloat("t##" + i, tBuf, 0.01f, 0f, 1f, "%.2f");
+            float[] color = new float[]{r, g, b, a};
+            ImGui.colorEdit4("rgba##" + i, color);
+            ramp.set(i, Map.of("t", tBuf[0], "r", color[0], "g", color[1], "b", color[2], "a", color[3]));
+            ImGui.sameLine();
+            if (ImGui.button("X##" + i)) remove = i;
+            ImGui.popID();
+        }
+        if (remove >= 0) {
+            ramp.remove(remove);
+        }
+        if (ImGui.button("Add color key##" + key)) {
+            ramp.add(Map.of("t", 0f, "r", 1f, "g", 1f, "b", 1f, "a", 1f));
+        }
+        props.put(key, ramp);
+        session.submitPropertyUpdate(selected.getId(), props);
+    }
+
     private static Map<String, Object> eulerToMap(float[] euler) {
         Map<String, Object> map = new ConcurrentHashMap<>();
         map.put("pitch", euler[0]);
@@ -203,6 +271,29 @@ public final class InspectorPanel {
         map.put("g", color[1]);
         map.put("b", color[2]);
         return map;
+    }
+
+    private static boolean bool(Object value, boolean def) {
+        if (value instanceof Boolean b) return b;
+        if (value instanceof Number n) return n.intValue() != 0;
+        if (value != null) return Boolean.parseBoolean(String.valueOf(value));
+        return def;
+    }
+
+    private static <E extends Enum<E>> E enumOrDefault(Object raw, E def, Class<E> type) {
+        if (raw == null) return def;
+        try {
+            if (raw instanceof String s) {
+                return Enum.valueOf(type, s.toUpperCase(Locale.ROOT));
+            }
+            if (raw instanceof Number n) {
+                E[] values = type.getEnumConstants();
+                int idx = n.intValue();
+                if (idx >= 0 && idx < values.length) return values[idx];
+            }
+        } catch (Exception ignored) {
+        }
+        return def;
     }
 
     private static Map<String, Object> directionToMap(float[] direction) {
@@ -350,6 +441,7 @@ public final class InspectorPanel {
             case "marker" -> renderMarkerProperties(session, selected, props);
             case "player_model" -> renderPlayerModelProperties(session, selected);
             case "camera" -> renderCameraProperties(session, selected);
+            case "particle_emitter" -> renderParticleEmitterProperties(session, selected, props);
             default -> {
             }
         }
@@ -477,6 +569,248 @@ public final class InspectorPanel {
             update.put("frameRate", displayFrameRateValue.get());
             session.submitPropertyUpdate(selected.getId(), update);
         }
+    }
+
+    private void renderParticleEmitterProperties(SceneSessionManager session, SceneObject selected, Map<String, Object> props) {
+        ImGui.textDisabled("Particle Emitter");
+        ImGui.separator();
+
+        String texture = String.valueOf(props.getOrDefault("texture", "minecraft:particle/generic_0"));
+        ImString texBuf = new ImString(texture, 256);
+        if (ImGui.inputText("Texture", texBuf)) {
+            props.put("texture", texBuf.get());
+            session.submitPropertyUpdate(selected.getId(), props);
+        }
+
+        if (ImGui.collapsingHeader("Texture Pool", ImGuiTreeNodeFlags.DefaultOpen)) {
+            @SuppressWarnings("unchecked")
+            List<String> pool = props.get("textures") instanceof List<?> l ? new java.util.ArrayList<>( (List<String>) l) : new java.util.ArrayList<>();
+            ImGui.textDisabled("List of textures to pick per spawn");
+            int removeIdx = -1;
+            for (int i = 0; i < pool.size(); i++) {
+                ImGui.pushID(i);
+                ImString tex = new ImString(pool.get(i), 256);
+                if (ImGui.inputText("##tex", tex)) {
+                    pool.set(i, tex.get());
+                }
+                ImGui.sameLine();
+                if (ImGui.button("Remove")) {
+                    removeIdx = i;
+                }
+                ImGui.popID();
+            }
+            if (removeIdx >= 0) {
+                pool.remove(removeIdx);
+            }
+            if (ImGui.button("Add Texture")) {
+                pool.add("minecraft:particle/generic_0");
+            }
+            props.put("textures", pool);
+            session.submitPropertyUpdate(selected.getId(), props);
+        }
+
+        float[] rateBuf = new float[]{toFloat(props.getOrDefault("rate", props.getOrDefault("spawnRate", 10f)))};
+        if (ImGui.dragFloat("Rate (pps)", rateBuf, 1f, 0f, 100000f, "%.0f")) {
+            props.put("rate", Math.max(0f, rateBuf[0]));
+            session.submitPropertyUpdate(selected.getId(), props);
+        }
+
+        int maxParticles = (int) toFloat(props.getOrDefault("maxParticles", 1024));
+        ImInt maxBuf = new ImInt(maxParticles);
+        if (ImGui.inputInt("Max Particles", maxBuf)) {
+            props.put("maxParticles", Math.max(0, maxBuf.get()));
+            session.submitPropertyUpdate(selected.getId(), props);
+        }
+
+        boolean enabled = bool(props.getOrDefault("enabled", Boolean.TRUE), true);
+        ImBoolean enabledBuf = new ImBoolean(enabled);
+        if (ImGui.checkbox("Enabled", enabledBuf)) {
+            props.put("enabled", enabledBuf.get());
+            session.submitPropertyUpdate(selected.getId(), props);
+        }
+
+        boolean collidePlayers = bool(props.getOrDefault("collideWithPlayers", Boolean.FALSE), false);
+        ImBoolean collideBuf = new ImBoolean(collidePlayers);
+        if (ImGui.checkbox("Collide with Players", collideBuf)) {
+            props.put("collideWithPlayers", collideBuf.get());
+            session.submitPropertyUpdate(selected.getId(), props);
+        }
+
+        int impostorSlices = (int) toFloat(props.getOrDefault("impostorSlices", 1));
+        ImInt sliceBuf = new ImInt(impostorSlices);
+        if (ImGui.inputInt("Impostor Slices", sliceBuf)) {
+            props.put("impostorSlices", Math.max(1, sliceBuf.get()));
+            session.submitPropertyUpdate(selected.getId(), props);
+        }
+
+        RenderType currentRender = enumOrDefault(props.get("renderType"), RenderType.TRANSLUCENT, RenderType.class);
+        if (ImGui.beginCombo("Render Type", currentRender.name())) {
+            for (RenderType rt : RenderType.values()) {
+                boolean sel = rt == currentRender;
+                if (ImGui.selectable(rt.name(), sel)) {
+                    props.put("renderType", rt.name().toLowerCase(Locale.ROOT));
+                    session.submitPropertyUpdate(selected.getId(), props);
+                }
+            }
+            ImGui.endCombo();
+        }
+
+        Billboarding currentBillboard = enumOrDefault(props.get("billboarding"), Billboarding.CAMERA_FACING, Billboarding.class);
+        if (ImGui.beginCombo("Billboarding", currentBillboard.name())) {
+            for (Billboarding bb : Billboarding.values()) {
+                boolean sel = bb == currentBillboard;
+                if (ImGui.selectable(bb.name(), sel)) {
+                    props.put("billboarding", bb.name().toLowerCase(Locale.ROOT));
+                    session.submitPropertyUpdate(selected.getId(), props);
+                }
+            }
+            ImGui.endCombo();
+        }
+
+        CollisionMode currentCollision = enumOrDefault(props.get("collision"), CollisionMode.NONE, CollisionMode.class);
+        if (ImGui.beginCombo("Collision", currentCollision.name())) {
+            for (CollisionMode cm : CollisionMode.values()) {
+                boolean sel = cm == currentCollision;
+                if (ImGui.selectable(cm.name(), sel)) {
+                    props.put("collision", cm.name().toLowerCase(Locale.ROOT));
+                    session.submitPropertyUpdate(selected.getId(), props);
+                }
+            }
+            ImGui.endCombo();
+        }
+
+        float[] lifetimeBuf = new float[]{toFloat(props.getOrDefault("lifetime", 1f))};
+        if (ImGui.dragFloat("Lifetime", lifetimeBuf, 0.05f, 0.01f, 120f, "%.2f")) {
+            props.put("lifetime", Math.max(0.01f, lifetimeBuf[0]));
+            session.submitPropertyUpdate(selected.getId(), props);
+        }
+
+        float[] gravityBuf = new float[]{toFloat(props.getOrDefault("gravityMultiplier", 1f))};
+        if (ImGui.dragFloat("Gravity Mult", gravityBuf, 0.05f, -10f, 10f, "%.2f")) {
+            props.put("gravityMultiplier", gravityBuf[0]);
+            session.submitPropertyUpdate(selected.getId(), props);
+        }
+
+        float[] dragBuf = new float[]{toFloat(props.getOrDefault("drag", 0f))};
+        if (ImGui.dragFloat("Drag", dragBuf, 0.05f, 0f, 10f, "%.2f")) {
+            props.put("drag", Math.max(0f, dragBuf[0]));
+            session.submitPropertyUpdate(selected.getId(), props);
+        }
+
+        ImGui.separator();
+        ImGui.textDisabled("Light");
+        Map<String, Object> light = props.get("light") instanceof Map<?, ?> lm ? new ConcurrentHashMap<>((Map<String, Object>) lm) : new ConcurrentHashMap<>();
+        ImInt blockBuf = new ImInt((int) toFloat(light.getOrDefault("block", 0f)));
+        ImInt skyBuf = new ImInt((int) toFloat(light.getOrDefault("sky", 0f)));
+        ImBoolean emissive = new ImBoolean(bool(light.getOrDefault("emissive", false), false));
+        if (ImGui.inputInt("Block Light", blockBuf) | ImGui.inputInt("Sky Light", skyBuf) | ImGui.checkbox("Emissive", emissive)) {
+            light.put("block", Math.max(0, Math.min(15, blockBuf.get())));
+            light.put("sky", Math.max(0, Math.min(15, skyBuf.get())));
+            light.put("emissive", emissive.get());
+            props.put("light", light);
+            session.submitPropertyUpdate(selected.getId(), props);
+        }
+
+        ImGui.separator();
+        ImGui.textDisabled("UV Region");
+        Map<String, Object> uv = props.get("uvRegion") instanceof Map<?, ?> um ? new ConcurrentHashMap<>((Map<String, Object>) um) : new ConcurrentHashMap<>();
+        float[] uvVals = new float[]{
+                toFloat(uv.getOrDefault("u0", 0f)),
+                toFloat(uv.getOrDefault("v0", 0f)),
+                toFloat(uv.getOrDefault("u1", 1f)),
+                toFloat(uv.getOrDefault("v1", 1f))
+        };
+        if (ImGui.dragFloat4("u0/v0/u1/v1", uvVals, 0.005f, 0f, 1f, "%.3f")) {
+            uv.put("u0", uvVals[0]);
+            uv.put("v0", uvVals[1]);
+            uv.put("u1", uvVals[2]);
+            uv.put("v1", uvVals[3]);
+            props.put("uvRegion", uv);
+            session.submitPropertyUpdate(selected.getId(), props);
+        }
+
+        ImGui.separator();
+        ImGui.textDisabled("Frame Animation");
+        Map<String, Object> frame = props.get("frameAnimation") instanceof Map<?, ?> fm ? new ConcurrentHashMap<>((Map<String, Object>) fm) : new ConcurrentHashMap<>();
+        float[] frameVals = new float[]{
+                toFloat(frame.getOrDefault("frames", 1f)),
+                toFloat(frame.getOrDefault("fps", 0f)),
+                toFloat(frame.getOrDefault("startFrame", 0f))
+        };
+        ImBoolean loopFrames = new ImBoolean(bool(frame.getOrDefault("loop", false), false));
+        ImBoolean pingPong = new ImBoolean(bool(frame.getOrDefault("pingPong", false), false));
+        if (ImGui.dragFloat3("Frames/FPS/Start", frameVals, 1f, 0f, 512f, "%.0f") | ImGui.checkbox("Loop##frame_loop", loopFrames) | ImGui.checkbox("PingPong##frame_ping", pingPong)) {
+            frame.put("frames", Math.max(1, (int) frameVals[0]));
+            frame.put("fps", Math.max(0f, frameVals[1]));
+            frame.put("startFrame", Math.max(0, (int) frameVals[2]));
+            frame.put("loop", loopFrames.get());
+            frame.put("pingPong", pingPong.get());
+            props.put("frameAnimation", frame);
+            session.submitPropertyUpdate(selected.getId(), props);
+        }
+
+        ImGui.separator();
+        ImGui.textDisabled("Behaviors");
+        List<String> behaviors = props.get("behaviors") instanceof List<?> bl ? new java.util.ArrayList<>((List<String>) bl) : new java.util.ArrayList<>();
+        int removeBeh = -1;
+        for (int i = 0; i < behaviors.size(); i++) {
+            ImGui.pushID("beh" + i);
+            ImString bbuf = new ImString(behaviors.get(i), 128);
+            if (ImGui.inputText("Behavior##" + i, bbuf)) {
+                behaviors.set(i, bbuf.get());
+            }
+            ImGui.sameLine();
+            if (ImGui.button("X##behdel" + i)) removeBeh = i;
+            ImGui.popID();
+        }
+        if (removeBeh >= 0) behaviors.remove(removeBeh);
+        if (ImGui.button("Add Behavior")) behaviors.add("example");
+        props.put("behaviors", behaviors);
+        session.submitPropertyUpdate(selected.getId(), props);
+
+        ImGui.textDisabled("Behavior Payload (JSON)");
+        String payloadStr = props.get("behaviorPayload") instanceof Map<?, ?> ? new com.google.gson.Gson().toJson(props.get("behaviorPayload")) : String.valueOf(props.getOrDefault("behaviorPayload", "{}"));
+        ImString payloadBuf = new ImString(payloadStr, 512);
+        if (ImGui.inputTextMultiline("##behaviorPayload", payloadBuf, 400, 80)) {
+            try {
+                Map<?, ?> json = new com.google.gson.Gson().fromJson(payloadBuf.get(), Map.class);
+                if (json != null) {
+                    props.put("behaviorPayload", json);
+                    session.submitPropertyUpdate(selected.getId(), props);
+                }
+            } catch (Exception e) {
+                ImGui.textColored(0xFFAA0000, "Invalid JSON");
+            }
+        }
+
+        float[] posJitter = extractVector(props.getOrDefault("positionJitter", Map.of("x", 0f, "y", 0f, "z", 0f)), new float[]{0f, 0f, 0f});
+        if (ImGui.dragFloat3("Position Jitter", posJitter, 0.01f)) {
+            props.put("positionJitter", vectorToMap(posJitter));
+            session.submitPropertyUpdate(selected.getId(), props);
+        }
+
+        float[] velJitter = extractVector(props.getOrDefault("velocityJitter", Map.of("x", 0f, "y", 0f, "z", 0f)), new float[]{0f, 0f, 0f});
+        if (ImGui.dragFloat3("Velocity Jitter", velJitter, 0.01f)) {
+            props.put("velocityJitter", vectorToMap(velJitter));
+            session.submitPropertyUpdate(selected.getId(), props);
+        }
+
+        float[] lifetimeJitter = new float[]{toFloat(props.getOrDefault("lifetimeJitter", 0f))};
+        if (ImGui.dragFloat("Lifetime Jitter", lifetimeJitter, 0.01f, 0f, 10f, "%.2f")) {
+            props.put("lifetimeJitter", Math.max(0f, lifetimeJitter[0]));
+            session.submitPropertyUpdate(selected.getId(), props);
+        }
+
+        float[] acceleration = extractVector(props.getOrDefault("acceleration", Map.of("x", 0f, "y", 0f, "z", 0f)), new float[]{0f, 0f, 0f});
+        if (ImGui.dragFloat3("Acceleration", acceleration, 0.01f)) {
+            props.put("acceleration", vectorToMap(acceleration));
+            session.submitPropertyUpdate(selected.getId(), props);
+        }
+
+        renderRamp(props, session, selected, "sizeOverLife", "Size Over Life");
+        renderRamp(props, session, selected, "rotationOverLife", "Rotation Over Life");
+        renderRamp(props, session, selected, "alphaOverLife", "Alpha Over Life");
+        renderColorRamp(props, session, selected, "colorOverLife", "Color Over Life");
     }
 
     private void renderLightProperties(SceneSessionManager session, SceneObject selected) {

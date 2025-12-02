@@ -1,9 +1,9 @@
 package com.moud.client.editor.ui.panel;
 
 import com.moud.client.editor.assets.ProjectFileIndex;
+import com.moud.client.editor.scene.SceneEditorDiagnostics;
 import com.moud.client.editor.scene.SceneObject;
 import com.moud.client.editor.scene.SceneSessionManager;
-import com.moud.client.editor.scene.SceneEditorDiagnostics;
 import com.moud.client.editor.ui.SceneEditorOverlay;
 import com.moud.client.editor.ui.layout.EditorDockingLayout;
 import imgui.ImGui;

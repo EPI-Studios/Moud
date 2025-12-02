@@ -4,7 +4,6 @@ import com.moud.client.network.ClientPacketWrapper;
 import com.moud.network.MoudPackets;
 
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 

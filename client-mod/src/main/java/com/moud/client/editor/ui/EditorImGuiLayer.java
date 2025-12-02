@@ -3,6 +3,9 @@ package com.moud.client.editor.ui;
 import com.moud.client.editor.EditorModeManager;
 import com.moud.client.editor.scene.SceneSessionManager;
 import imgui.ImGui;
+import imgui.ImGuiIO;
+import imgui.callback.ImStrConsumer;
+import imgui.callback.ImStrSupplier;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
@@ -55,6 +58,20 @@ public final class EditorImGuiLayer {
 
         glfwBackend = new ImGuiImplGlfw();
         glfwBackend.init(windowHandle, false);
+        ImGuiIO io = ImGui.getIO();
+        io.setSetClipboardTextFn(new ImStrConsumer() {
+            @Override
+            public void accept(String data) {
+                GLFW.glfwSetClipboardString(windowHandle, data);
+            }
+        });
+        io.setGetClipboardTextFn(new ImStrSupplier() {
+            @Override
+            public String get() {
+                String s = GLFW.glfwGetClipboardString(windowHandle);
+                return s != null ? s : "";
+            }
+        });
 
         gl3Backend = new ImGuiImplGl3();
         gl3Backend.init("#version 150");
@@ -121,13 +138,18 @@ public final class EditorImGuiLayer {
         if (!EditorModeManager.getInstance().isActive() || !initialized) {
             return false;
         }
+        if (inKeyCallback) {
+            return false;
+        }
         MinecraftClient client = MinecraftClient.getInstance();
         if (client != null && client.currentScreen != null) {
             return false;
         }
         ImGuiContext previous = ImGui.getCurrentContext();
         ImGui.setCurrentContext(imguiContext);
+        inKeyCallback = true;
         glfwBackend.keyCallback(windowHandle, key, scancode, action, modifiers);
+        inKeyCallback = false;
         boolean captured = ImGui.getIO().getWantCaptureKeyboard();
         ImGui.setCurrentContext(previous);
         return captured;
@@ -137,17 +159,24 @@ public final class EditorImGuiLayer {
         if (!EditorModeManager.getInstance().isActive() || !initialized) {
             return false;
         }
+        if (inKeyCallback) {
+            return false;
+        }
         MinecraftClient client = MinecraftClient.getInstance();
         if (client != null && client.currentScreen != null) {
             return false;
         }
         ImGuiContext previous = ImGui.getCurrentContext();
         ImGui.setCurrentContext(imguiContext);
+        inKeyCallback = true;
         glfwBackend.charCallback(windowHandle, codePoint);
+        inKeyCallback = false;
         boolean captured = ImGui.getIO().getWantCaptureKeyboard();
         ImGui.setCurrentContext(previous);
         return captured;
     }
+
+    private boolean inKeyCallback = false;
 
     public boolean handleMouseButton(int button, int action, int mods) {
         if (!EditorModeManager.getInstance().isActive()) {
