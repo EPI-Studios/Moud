@@ -31,14 +31,18 @@ public class ChunkMesher {
     }
 
     public static @Nullable BodyCreationSettings createChunk(Chunk chunk) {
+        return createChunk(chunk, false);
+    }
+
+    public static @Nullable BodyCreationSettings createChunk(Chunk chunk, boolean fullBlocksOnly) {
         int minY = MinecraftServer.getDimensionTypeRegistry().get(chunk.getInstance().getDimensionType()).minY();
         int maxY = MinecraftServer.getDimensionTypeRegistry().get(chunk.getInstance().getDimensionType()).maxY();
 
-        return generateChunkCollisionObject(chunk, minY, maxY);
+        return generateChunkCollisionObject(chunk, minY, maxY, fullBlocksOnly);
     }
 
-    private static @Nullable BodyCreationSettings generateChunkCollisionObject(Chunk chunk, int minY, int maxY) {
-        List<Face> faces = getChunkFaces(chunk, minY, maxY);
+    private static @Nullable BodyCreationSettings generateChunkCollisionObject(Chunk chunk, int minY, int maxY, boolean fullBlocksOnly) {
+        List<Face> faces = getChunkFaces(chunk, minY, maxY, fullBlocksOnly);
 
         if (faces.isEmpty()) {
             LOGGER.debug(LogContext.builder()
@@ -71,7 +75,7 @@ public class ChunkMesher {
         return bodySettings;
     }
 
-    private static List<Face> getChunkFaces(Chunk chunk, int minY, int maxY) {
+    private static List<Face> getChunkFaces(Chunk chunk, int minY, int maxY, boolean fullBlocksOnly) {
         int bottomY = maxY;
         int topY = minY;
 
@@ -90,13 +94,13 @@ public class ChunkMesher {
             }
         }
 
-        int estimatedCapacity = Math.max(200, (topY - bottomY) * 8);
+        int estimatedCapacity = Math.max(200, (topY - bottomY) * 4);
         List<Face> finalFaces = new ArrayList<>(estimatedCapacity);
 
         for (int y = bottomY; y < topY; y++) {
             for (int x = 0; x < Chunk.CHUNK_SIZE_X; x++) {
                 for (int z = 0; z < Chunk.CHUNK_SIZE_Z; z++) {
-                    List<Face> faces = getFaces(chunk, x, y, z);
+                    List<Face> faces = getFaces(chunk, x, y, z, fullBlocksOnly);
                     if (faces == null) continue;
                     finalFaces.addAll(faces);
                 }
@@ -106,7 +110,7 @@ public class ChunkMesher {
         return finalFaces;
     }
 
-    private static @Nullable List<Face> getFaces(Chunk chunk, int x, int y, int z){
+    private static @Nullable List<Face> getFaces(Chunk chunk, int x, int y, int z, boolean fullBlocksOnly){
         Block block = chunk.getBlock(x, y, z, Block.Getter.Condition.TYPE);
 
         if (block.isAir() || block.isLiquid()) return null;
@@ -116,6 +120,7 @@ public class ChunkMesher {
         Point relEnd = shape.relativeEnd();
 
         boolean blockIsFull = isFullShape(relStart, relEnd);
+        if (fullBlocksOnly && !blockIsFull) return null;
 
         List<Face> faces = new ArrayList<>(6);
 

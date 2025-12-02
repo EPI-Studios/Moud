@@ -420,25 +420,29 @@ public final class PhysicsService {
         var handler = MinecraftServer.getGlobalEventHandler();
         handler.addListener(InstanceChunkLoadEvent.class, event -> {
             Chunk chunk = event.getChunk();
-            if (chunk != null) {
+            if (chunk != null && shouldHandleChunk(chunk)) {
                 refreshChunk(chunk);
             }
         });
         handler.addListener(InstanceChunkUnloadEvent.class, event -> {
             Chunk chunk = event.getChunk();
-            if (chunk != null) {
+            if (chunk != null && shouldHandleChunk(chunk)) {
                 removeChunk(chunk);
             }
         });
         handler.addListener(PlayerBlockPlaceEvent.class, event -> {
             Chunk chunk = event.getInstance().getChunkAt(event.getBlockPosition());
-            if (chunk != null) refreshChunk(chunk);
+            if (chunk != null && shouldHandleChunk(chunk)) refreshChunk(chunk);
         });
         handler.addListener(PlayerBlockBreakEvent.class, event -> {
             Chunk chunk = event.getInstance().getChunkAt(event.getBlockPosition());
-            if (chunk != null) refreshChunk(chunk);
+            if (chunk != null && shouldHandleChunk(chunk)) refreshChunk(chunk);
         });
         handler.addListener(PlayerMoveEvent.class, event -> handlePlayerInteraction(event.getPlayer()));
+    }
+
+    private boolean shouldHandleChunk(Chunk chunk) {
+        return chunk != null && shouldHandleInstance(chunk.getInstance());
     }
 
     private void primeInitialChunks() {
@@ -457,7 +461,7 @@ public final class PhysicsService {
     }
 
     private void removeChunk(Chunk chunk) {
-        if (chunk == null) return;
+        if (chunk == null || !shouldHandleInstance(chunk.getInstance())) return;
         long index = CoordIndex.chunkIndex(chunk.getChunkX(), chunk.getChunkZ());
         Integer bodyId = chunkBodies.remove(index);
         if (bodyId != null) {
@@ -468,7 +472,7 @@ public final class PhysicsService {
     }
 
     public void refreshChunk(Chunk chunk) {
-        if (chunk == null) return;
+        if (chunk == null || !shouldHandleInstance(chunk.getInstance())) return;
         BodyInterface bi = getBodyInterface();
         long index = CoordIndex.chunkIndex(chunk.getChunkX(), chunk.getChunkZ());
         Integer previousBody = chunkBodies.get(index);
@@ -476,7 +480,20 @@ public final class PhysicsService {
             bi.removeBody(previousBody);
             bi.destroyBody(previousBody);
         }
-        BodyCreationSettings settings = ChunkMesher.createChunk(chunk);
+        boolean fullBlocksOnly = !isDefaultInstance(chunk.getInstance());
+        BodyCreationSettings settings;
+        try {
+            settings = ChunkMesher.createChunk(chunk, fullBlocksOnly);
+        } catch (Exception ex) {
+            LOGGER.warn(LogContext.builder()
+                            .put("chunkX", chunk.getChunkX())
+                            .put("chunkZ", chunk.getChunkZ())
+                            .put("fullBlocksOnly", fullBlocksOnly)
+                            .build(),
+                    "Failed to mesh chunk for physics; skipping this chunk", ex);
+            chunkBodies.remove(index);
+            return;
+        }
         if (settings == null) {
             chunkBodies.remove(index);
             return;
@@ -484,6 +501,20 @@ public final class PhysicsService {
         Body body = bi.createBody(settings);
         bi.addBody(body, EActivation.DontActivate);
         chunkBodies.put(index, body.getId());
+    }
+
+    private boolean shouldHandleInstance(Instance instance) {
+        if (instance == null) return false;
+        Instance defaultInstance = InstanceManager.getInstance().getDefaultInstance();
+        if (defaultInstance != null && instance == defaultInstance) {
+            return true;
+        }
+        return Boolean.getBoolean("moud.physics.processImportedChunks");
+    }
+
+    private boolean isDefaultInstance(Instance instance) {
+        Instance defaultInstance = InstanceManager.getInstance().getDefaultInstance();
+        return defaultInstance != null && instance == defaultInstance;
     }
 
     public void shutdown() {
