@@ -131,6 +131,7 @@ public final class SceneEditorOverlay {
     private final InspectorPanel inspectorPanel = new InspectorPanel(this);
     private final ScriptViewerPanel scriptViewerPanel = new ScriptViewerPanel(this);
     private final AnimationTimelinePanel animationTimelinePanel = new AnimationTimelinePanel(this);
+    private final com.moud.client.editor.ui.panel.EventTrackEditor eventTrackEditor = new com.moud.client.editor.ui.panel.EventTrackEditor();
     private final AssetBrowserPanel assetBrowserPanel = new AssetBrowserPanel(this);
     private final DiagnosticsPanel diagnosticsPanel = new DiagnosticsPanel(this);
     private final ViewportToolbar viewportToolbar = new ViewportToolbar(this);
@@ -448,19 +449,29 @@ public final class SceneEditorOverlay {
         }
 
         for (RuntimeObject runtime : RuntimeObjectRegistry.getInstance().getObjects()) {
-            if (runtime.getType() != RuntimeObjectType.PLAYER_MODEL) continue;
-            Vec3d pos = runtime.getPosition();
-            Vec3d rot = runtime.getRotation();
-            double yawRad = Math.toRadians(rot.y);
-            double pitchRad = Math.toRadians(rot.x);
-            double cosPitch = Math.cos(pitchRad);
-            Vec3d dir = new Vec3d(-Math.sin(yawRad) * cosPitch, -Math.sin(pitchRad), Math.cos(yawRad) * cosPitch);
-            Vec3d tip = pos.add(dir.multiply(3.0));
-            drawLine(matrices, lineBuffer, pos, tip, 0f, 1f, 0f, 1f);
-            Vec3d right = new Vec3d(0.2, 0, 0);
-            Vec3d up = new Vec3d(0, 0.2, 0);
-            drawLine(matrices, lineBuffer, tip.subtract(right), tip.add(right), 0f, 1f, 0f, 1f);
-            drawLine(matrices, lineBuffer, tip.subtract(up), tip.add(up), 0f, 1f, 0f, 1f);
+            if (runtime.getType() == RuntimeObjectType.PLAYER_MODEL) {
+                Vec3d pos = runtime.getPosition();
+                Vec3d rot = runtime.getRotation();
+                double yawRad = Math.toRadians(rot.y);
+                double pitchRad = Math.toRadians(rot.x);
+                double cosPitch = Math.cos(pitchRad);
+                Vec3d dir = new Vec3d(-Math.sin(yawRad) * cosPitch, -Math.sin(pitchRad), Math.cos(yawRad) * cosPitch);
+                Vec3d tip = pos.add(dir.multiply(3.0));
+                drawLine(matrices, lineBuffer, pos, tip, 0f, 1f, 0f, 1f);
+                Vec3d right = new Vec3d(0.2, 0, 0);
+                Vec3d up = new Vec3d(0, 0.2, 0);
+                drawLine(matrices, lineBuffer, tip.subtract(right), tip.add(right), 0f, 1f, 0f, 1f);
+                drawLine(matrices, lineBuffer, tip.subtract(up), tip.add(up), 0f, 1f, 0f, 1f);
+            } else if (runtime.getType() == RuntimeObjectType.PARTICLE_EMITTER) {
+                Vec3d pos = runtime.getPosition();
+                double r = 0.35;
+                Vec3d x = new Vec3d(r, 0, 0);
+                Vec3d y = new Vec3d(0, r, 0);
+                Vec3d z = new Vec3d(0, 0, r);
+                drawLine(matrices, lineBuffer, pos.subtract(x), pos.add(x), 1f, 0.6f, 0.2f, 1f);
+                drawLine(matrices, lineBuffer, pos.subtract(y), pos.add(y), 1f, 0.6f, 0.2f, 1f);
+                drawLine(matrices, lineBuffer, pos.subtract(z), pos.add(z), 1f, 0.6f, 0.2f, 1f);
+            }
         }
 
         matrices.pop();
@@ -587,6 +598,47 @@ public final class SceneEditorOverlay {
 
     public AnimationTimelinePanel getTimelinePanel() {
         return animationTimelinePanel;
+    }
+
+    public void triggerEvent(String name, String payload) {
+        if (name == null || name.isEmpty()) return;
+        if ("particle_burst".equalsIgnoreCase(name)) {
+            triggerParticleEvent(payload);
+        }
+        // TODO: other events type
+    }
+
+    private void triggerParticleEvent(String payload) {
+        if (payload == null || payload.isEmpty()) {
+            return;
+        }
+        try {
+            com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(payload).getAsJsonObject();
+            String type = json.has("type") ? json.get("type").getAsString() : "burst";
+            if ("burst".equalsIgnoreCase(type)) {
+                var descriptor = com.moud.client.util.ParticleDescriptorMapper.fromMap("event-burst", jsonToMap(json));
+                if (descriptor != null) {
+                    com.moud.client.MoudClientMod.getInstance().getParticleSystem().spawn(descriptor);
+                }
+            }
+        } catch (Exception e) {
+            com.moud.client.MoudClientMod.getLogger().warn("Failed to trigger particle event payload {}", payload, e);
+        }
+    }
+
+    private Map<String, Object> jsonToMap(com.google.gson.JsonObject json) {
+        java.util.HashMap<String, Object> map = new java.util.HashMap<>();
+        for (var entry : json.entrySet()) {
+            if (entry.getValue().isJsonPrimitive()) {
+                var prim = entry.getValue().getAsJsonPrimitive();
+                if (prim.isNumber()) map.put(entry.getKey(), prim.getAsNumber());
+                else if (prim.isBoolean()) map.put(entry.getKey(), prim.getAsBoolean());
+                else map.put(entry.getKey(), prim.getAsString());
+            } else if (entry.getValue().isJsonObject()) {
+                map.put(entry.getKey(), jsonToMap(entry.getValue().getAsJsonObject()));
+            }
+        }
+        return map;
     }
 
     public void setGizmoToolbarVisible(boolean visible) {
@@ -1636,6 +1688,7 @@ public final class SceneEditorOverlay {
             case "light" -> "[L]";
             case "marker" -> "[K]";
             case "camera" -> "[C]";
+            case "particle_emitter" -> "[P]";
             default -> "[ ]";
         };
     }
@@ -1889,6 +1942,28 @@ public final class SceneEditorOverlay {
         }
     }
 
+    public void spawnParticleEmitter(SceneSessionManager session, String parentId) {
+        String label = "Emitter-" + System.currentTimeMillis();
+        Map<String, Object> payload = new ConcurrentHashMap<>();
+        payload.put("type", "particle_emitter");
+        Map<String, Object> props = new ConcurrentHashMap<>();
+        props.put("label", label);
+        props.put("name", label);
+        props.put("position", vectorToMap(resolveSpawnPosition(newObjectPosition)));
+        props.putIfAbsent("rotation", rotationMap(activeRotation));
+        props.putIfAbsent("rotationQuat", quaternionMap(activeRotationQuat));
+        props.putIfAbsent("scale", vectorToMap(newObjectScale));
+        props.putIfAbsent("texture", "minecraft:particle/generic_0");
+        props.putIfAbsent("rate", 10f);
+        props.putIfAbsent("maxParticles", 512);
+        if (parentId != null && !parentId.isEmpty()) {
+            props.put("parent", parentId);
+        }
+        payload.put("properties", props);
+        SceneSessionManager.getInstance().submitEdit("create", payload);
+        SceneEditorDiagnostics.log("Spawn particle emitter " + label);
+    }
+
     public void spawnMarker(SceneSessionManager session, String parentId) {
         String label = markerNameBuffer.get().isBlank() ? generateMarkerName() : markerNameBuffer.get();
         String objectId = "marker-" + System.currentTimeMillis();
@@ -2094,6 +2169,7 @@ public final class SceneEditorOverlay {
         renderRuntimeList(RuntimeObjectType.DISPLAY, "Displays", filterTerm);
         renderRuntimeList(RuntimeObjectType.PLAYER, "Players", filterTerm);
         renderRuntimeList(RuntimeObjectType.PLAYER_MODEL, "Fake Players", filterTerm);
+        renderRuntimeList(RuntimeObjectType.PARTICLE_EMITTER, "Particle Emitters", filterTerm);
     }
 
 }

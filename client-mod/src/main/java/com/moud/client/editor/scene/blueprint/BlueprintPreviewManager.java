@@ -1,8 +1,5 @@
 package com.moud.client.editor.scene.blueprint;
 
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Vec3d;
-
 import java.util.ArrayList;
 import java.util.List;
 

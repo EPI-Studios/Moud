@@ -62,6 +62,7 @@ public final class SceneSessionManager {
         sceneGraph.applySnapshot(packet);
         SceneEditorDiagnostics.log("Scene synced: " + sceneGraph.getObjects().size() + " objects, version " + packet.version());
         LOGGER.info("Scene state received: {} objects (version {})", sceneGraph.getObjects().size(), packet.version());
+        syncEmittersFromGraph();
     }
 
     public void handleEditAck(MoudPackets.SceneEditAckPacket ack) {
@@ -77,6 +78,12 @@ public final class SceneSessionManager {
         SceneEditorDiagnostics.log("Edit applied (" + ack.message() + ")");
         if (ack.updatedObject() == null && ack.objectId() != null) {
             SceneHistoryManager.getInstance().dropEntriesForObject(ack.objectId());
+            com.moud.client.editor.runtime.RuntimeObjectRegistry.getInstance().removeEmitter(ack.objectId());
+        } else if (ack.updatedObject() != null) {
+            SceneObject obj = SceneObject.fromSnapshot(ack.updatedObject());
+            if ("particle_emitter".equalsIgnoreCase(obj.getType())) {
+                com.moud.client.editor.runtime.RuntimeObjectRegistry.getInstance().syncEmitter(obj);
+            }
         }
     }
 
@@ -205,6 +212,14 @@ public final class SceneSessionManager {
         }
         if (!awaitingSnapshot && sceneGraph.getObjects().isEmpty()) {
             requestSceneState();
+        }
+    }
+
+    private void syncEmittersFromGraph() {
+        for (SceneObject obj : sceneGraph.getObjects()) {
+            if ("particle_emitter".equalsIgnoreCase(obj.getType())) {
+                com.moud.client.editor.runtime.RuntimeObjectRegistry.getInstance().syncEmitter(obj);
+            }
         }
     }
 

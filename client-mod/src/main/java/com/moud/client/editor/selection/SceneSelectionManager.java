@@ -1,11 +1,10 @@
 package com.moud.client.editor.selection;
 
+import com.moud.client.collision.ModelCollisionManager;
 import com.moud.client.editor.EditorModeManager;
 import com.moud.client.editor.ui.SceneEditorOverlay;
-import com.moud.client.collision.ModelCollisionManager;
 import com.moud.network.MoudPackets;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.Map;

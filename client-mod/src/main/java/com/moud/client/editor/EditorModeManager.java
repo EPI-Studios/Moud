@@ -7,16 +7,16 @@ import com.moud.client.editor.picking.RaycastPicker;
 import com.moud.client.editor.runtime.RuntimeObjectRegistry;
 import com.moud.client.editor.scene.SceneHistoryManager;
 import com.moud.client.editor.scene.SceneSessionManager;
+import com.moud.client.editor.scene.blueprint.BlueprintCornerSelector;
 import com.moud.client.editor.selection.SceneSelectionManager;
 import com.moud.client.editor.ui.EditorImGuiLayer;
 import com.moud.client.editor.ui.SceneEditorOverlay;
-import com.moud.client.editor.scene.blueprint.BlueprintCornerSelector;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.world.GameMode;
 import org.jetbrains.annotations.Nullable;
+import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.Collections;
 

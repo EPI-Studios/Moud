@@ -10,6 +10,7 @@ public record ParticleDescriptor(
         RenderType renderType,
         Billboarding billboarding,
         CollisionMode collisionMode,
+        boolean collideWithPlayers,
         Vector3f position,
         Vector3f velocity,
         Vector3f acceleration,
@@ -25,7 +26,8 @@ public record ParticleDescriptor(
         List<String> behaviors,
         Map<String, Object> behaviorPayload,
         LightSettings light,
-        SortHint sortHint
+        SortHint sortHint,
+        int impostorSlices
 ) {
     public ParticleDescriptor {
         Objects.requireNonNull(texture, "texture");
@@ -34,6 +36,7 @@ public record ParticleDescriptor(
         renderType = renderType == null ? RenderType.TRANSLUCENT : renderType;
         billboarding = billboarding == null ? Billboarding.CAMERA_FACING : billboarding;
         collisionMode = collisionMode == null ? CollisionMode.NONE : collisionMode;
+        collideWithPlayers = collideWithPlayers;
 
         velocity = velocity == null ? new Vector3f(0f, 0f, 0f) : velocity;
         acceleration = acceleration == null ? new Vector3f(0f, 0f, 0f) : acceleration;
@@ -47,6 +50,7 @@ public record ParticleDescriptor(
         behaviorPayload = behaviorPayload == null ? Map.of() : Map.copyOf(behaviorPayload);
         light = light == null ? new LightSettings(0, 0, false) : light;
         sortHint = sortHint == null ? SortHint.NONE : sortHint;
+        impostorSlices = Math.max(1, impostorSlices);
 
         drag = Float.isNaN(drag) ? 0f : drag;
         gravityMultiplier = Float.isNaN(gravityMultiplier) ? 1f : gravityMultiplier;

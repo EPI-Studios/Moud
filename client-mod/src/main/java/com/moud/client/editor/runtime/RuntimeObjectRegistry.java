@@ -4,6 +4,7 @@ import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.client.display.DisplaySurface;
 import com.moud.client.model.RenderableModel;
+import com.moud.client.editor.scene.SceneObject;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
@@ -27,6 +28,7 @@ public final class RuntimeObjectRegistry {
     private final Map<UUID, String> playerIndex = new ConcurrentHashMap<>();
     private final Map<Long, String> playerModelIndex = new ConcurrentHashMap<>();
     private final Map<Long, String> lightIndex = new ConcurrentHashMap<>();
+    private final Map<String, String> emitterIndex = new ConcurrentHashMap<>();
 
     private RuntimeObjectRegistry() {}
 
@@ -44,6 +46,32 @@ public final class RuntimeObjectRegistry {
         String objectId = lightIndex.remove(lightId);
         if (objectId != null) {
             objects.remove(objectId);
+        }
+    }
+
+    public void syncEmitter(com.moud.client.editor.scene.SceneObject sceneObject) {
+        if (sceneObject == null) {
+            return;
+        }
+        String objectId = sceneObject.getId();
+        RuntimeObject runtime = objects.computeIfAbsent(objectId, id -> new RuntimeObject(RuntimeObjectType.PARTICLE_EMITTER, id.hashCode()));
+        Map<String, Object> props = new java.util.HashMap<>(sceneObject.getProperties());
+        Vec3d pos = parseVec3(props.get("position"), runtime.getPosition());
+        if (pos != null) runtime.setPosition(pos);
+        Vec3d rot = parseRotation(props.get("rotation"), runtime.getRotation());
+        if (rot != null) runtime.setRotation(rot);
+        runtime.setScale(new Vec3d(1, 1, 1));
+        emitterIndex.put(objectId, objectId);
+        upsertEmitterFromProps(objectId, props);
+    }
+
+    public void removeEmitter(String objectId) {
+        if (objectId == null) return;
+        emitterIndex.remove(objectId);
+        objects.remove(objectId);
+        var emitterSystem = com.moud.client.MoudClientMod.getInstance().getParticleEmitterSystem();
+        if (emitterSystem != null) {
+            emitterSystem.remove(java.util.List.of(objectId));
         }
     }
 
@@ -91,38 +119,63 @@ public final class RuntimeObjectRegistry {
     }
 
     public void applyAnimationProperty(String objectId, String propertyKey, com.moud.api.animation.PropertyTrack.PropertyType propertyType, float value) {
-        if (objectId.startsWith("camera-")) {
-            com.moud.client.api.service.CameraService cameraService = com.moud.client.api.service.ClientAPIService.INSTANCE.camera;
-            if (cameraService.isCustomCameraActive() && objectId.equals(cameraService.getActiveCameraId())) {
-                com.moud.client.editor.scene.SceneObject sceneObject = com.moud.client.editor.scene.SceneSessionManager.getInstance().getSceneGraph().get(objectId);
-                if (sceneObject != null) {
-                    Map<String, Object> options = new java.util.HashMap<>();
-                    Map<String, Object> props = sceneObject.getProperties();
+        // Always update the scene graph for cameras as well, so the editor wireframe matches animation,
+        // and additionally drive the active custom camera if it is bound.
+        RuntimeObject obj = objects.get(objectId);
+        SceneObject sceneObject = com.moud.client.editor.scene.SceneSessionManager.getInstance().getSceneGraph().get(objectId);
 
-                    Object posObj = props.get("position");
+        if (sceneObject != null && propertyKey != null) {
+            Map<String, Object> merged = new java.util.HashMap<>(sceneObject.getProperties());
+            applyNestedProperty(merged, propertyKey, value);
+            sceneObject.overwriteProperties(merged);
+
+            if ("particle_emitter".equalsIgnoreCase(sceneObject.getType())) {
+                upsertEmitterFromProps(objectId, merged);
+            }
+
+            if (objectId.startsWith("camera-")) {
+                com.moud.client.api.service.CameraService cameraService = com.moud.client.api.service.ClientAPIService.INSTANCE.camera;
+                boolean firstBind = !cameraService.isCustomCameraActive() || !objectId.equals(cameraService.getActiveCameraId());
+                if (firstBind) {
+                    cameraService.enableCustomCamera(objectId);
+                }
+                if (cameraService.isCustomCameraActive() && objectId.equals(cameraService.getActiveCameraId())) {
+                    Map<String, Object> options = new java.util.HashMap<>();
+                    Object posObj = merged.get("position");
                     if (posObj != null) options.put("position", posObj);
 
-                    Object rotObj = props.get("rotation");
+                    Object rotObj = merged.get("rotation");
                     if (rotObj instanceof Map) {
                         @SuppressWarnings("unchecked")
                         Map<String, Object> rotMap = (Map<String, Object>) rotObj;
-                        options.put("pitch", rotMap.get("pitch"));
-                        options.put("yaw", rotMap.get("yaw"));
-                        options.put("roll", rotMap.get("roll"));
+                        Object pitch = rotMap.getOrDefault("pitch", rotMap.get("x"));
+                        Object yaw = rotMap.getOrDefault("yaw", rotMap.get("y"));
+                        Object roll = rotMap.getOrDefault("roll", rotMap.get("z"));
+                        if (pitch != null) options.put("pitch", pitch);
+                        if (yaw != null) options.put("yaw", yaw);
+                        if (roll != null) options.put("roll", roll);
                     }
 
-                    Object fovObj = props.get("fov");
+                    Object fovObj = merged.get("fov");
                     if (fovObj != null) options.put("fov", fovObj);
-                    
+
                     if (!options.isEmpty()) {
-                        cameraService.snapToFromMap(options);
+                        if (firstBind) {
+                            // On first bind, snap to avoid being stuck, then subsequent updates blend.
+                            cameraService.snapToFromMap(options);
+                        } else {
+                            cameraService.animateFromAnimation(options);
+                        }
                     }
                 }
             }
-            return; // Done for cameras.
         }
 
-        RuntimeObject obj = objects.get(objectId);
+        if (objectId.startsWith("camera-")) {
+            // Cameras don't have runtime backings beyond the scene graph/custom camera, so stop here.
+            return;
+        }
+
         if (obj == null || propertyKey == null) {
             return;
         }
@@ -470,5 +523,104 @@ public final class RuntimeObjectRegistry {
             return -1;
         }
         return tmin >= 0 ? tmin : tmax;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void applyNestedProperty(Map<String, Object> props, String key, float value) {
+        if (key.contains(".")) {
+            String[] parts = key.split("\\.");
+            if (parts.length >= 2) {
+                String root = parts[0];
+                Map<String, Object> nested;
+                Object existingRoot = props.get(root);
+                if (existingRoot instanceof Map<?, ?> m) {
+                    nested = (Map<String, Object>) m;
+                } else {
+                    nested = new java.util.HashMap<>();
+                    props.put(root, nested);
+                }
+                if (parts.length == 2) {
+                    nested.put(parts[1], value);
+                } else {
+                    Map<String, Object> current = nested;
+                    for (int i = 1; i < parts.length - 1; i++) {
+                        Object child = current.get(parts[i]);
+                        if (child instanceof Map<?, ?> mm) {
+                            current = (Map<String, Object>) mm;
+                        } else {
+                            Map<String, Object> newChild = new java.util.HashMap<>();
+                            current.put(parts[i], newChild);
+                            current = newChild;
+                        }
+                    }
+                    current.put(parts[parts.length - 1], value);
+                }
+                return;
+            }
+        }
+        props.put(key, value);
+    }
+
+    private Vec3d parseVec3(Object obj, Vec3d fallback) {
+        if (obj instanceof Map<?, ?> map) {
+            double x = asDouble(map.get("x"), fallback != null ? fallback.x : 0);
+            double y = asDouble(map.get("y"), fallback != null ? fallback.y : 0);
+            double z = asDouble(map.get("z"), fallback != null ? fallback.z : 0);
+            return new Vec3d(x, y, z);
+        }
+        return fallback;
+    }
+
+    private Vec3d parseRotation(Object obj, Vec3d fallback) {
+        if (obj instanceof Map<?, ?> map) {
+            Object ox = map.containsKey("pitch") ? map.get("pitch") : map.get("x");
+            Object oy = map.containsKey("yaw") ? map.get("yaw") : map.get("y");
+            Object oz = map.containsKey("roll") ? map.get("roll") : map.get("z");
+            double x = asDouble(ox, fallback != null ? fallback.x : 0);
+            double y = asDouble(oy, fallback != null ? fallback.y : 0);
+            double z = asDouble(oz, fallback != null ? fallback.z : 0);
+            return new Vec3d(x, y, z);
+        }
+        return fallback;
+    }
+
+    private double asDouble(Object o, double def) {
+        if (o instanceof Number n) return n.doubleValue();
+        try {
+            return o != null ? Double.parseDouble(String.valueOf(o)) : def;
+        } catch (Exception ignored) {
+            return def;
+        }
+    }
+
+    private void upsertEmitterFromProps(String emitterId, Map<String, Object> props) {
+        com.moud.client.particle.ParticleEmitterSystem system = com.moud.client.MoudClientMod.getInstance().getParticleEmitterSystem();
+        if (system == null) return;
+
+        com.moud.api.particle.ParticleDescriptor descriptor = com.moud.client.util.ParticleDescriptorMapper.fromMap(emitterId, props);
+        if (descriptor == null) return;
+
+        float rate = (float) asDouble(props.getOrDefault("rate", props.getOrDefault("spawnRate", 10f)), 10f);
+        boolean enabled = props.getOrDefault("enabled", Boolean.TRUE) instanceof Boolean b ? b : true;
+        int maxParticles = (int) asDouble(props.getOrDefault("maxParticles", 1024), 1024);
+        com.moud.api.particle.Vector3f posJitter = com.moud.client.util.ParticleDescriptorMapper.vec3f(props.get("positionJitter"), new com.moud.api.particle.Vector3f(0f, 0f, 0f));
+        com.moud.api.particle.Vector3f velJitter = com.moud.client.util.ParticleDescriptorMapper.vec3f(props.get("velocityJitter"), new com.moud.api.particle.Vector3f(0f, 0f, 0f));
+        float lifetimeJitter = (float) asDouble(props.getOrDefault("lifetimeJitter", 0f), 0f);
+        long seed = props.get("seed") instanceof Number n ? n.longValue() : System.currentTimeMillis();
+        java.util.List<String> textures = com.moud.client.util.ParticleDescriptorMapper.stringList(props.get("textures"));
+
+        com.moud.api.particle.ParticleEmitterConfig config = new com.moud.api.particle.ParticleEmitterConfig(
+                emitterId,
+                descriptor,
+                rate,
+                enabled,
+                maxParticles,
+                posJitter,
+                velJitter,
+                lifetimeJitter,
+                seed,
+                textures
+        );
+        system.upsert(java.util.List.of(config));
     }
 }

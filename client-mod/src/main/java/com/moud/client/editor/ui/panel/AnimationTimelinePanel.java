@@ -72,11 +72,12 @@ public final class AnimationTimelinePanel {
     private int colorPickerTrackIndex = -1;
     private int draggingTrackIndex = -1;
     private float dragTrackStartY;
+    private final List<com.moud.api.animation.EventKeyframe> eventTrack = new ArrayList<>();
 
     public AnimationTimelinePanel(SceneEditorOverlay overlay) {
         this.overlay = overlay;
         AnimatableRegistry.registerDefaults();
-        this.currentClip = buildTestClip();
+        this.currentClip = null;
         rebuildTrackViews();
     }
 
@@ -175,6 +176,7 @@ public final class AnimationTimelinePanel {
             if (playing && currentClip != null) {
                 overlay.seekAnimation(resolveAnimationId(), currentTime);
                 overlay.playAnimation(resolveAnimationId(), loop, speed);
+                dispatchEventTrack(currentTime);
             } else {
                 overlay.stopAnimation(resolveAnimationId());
             }
@@ -415,6 +417,7 @@ public final class AnimationTimelinePanel {
         if (ImGui.sliderFloat("##time_slider", timeBuf, 0f, duration, "%.3fs")) {
             currentTime = Math.max(0f, Math.min(duration, timeBuf[0]));
             overlay.seekAnimation(resolveAnimationId(), currentTime);
+            dispatchEventTrack(currentTime);
         }
         ImGui.text(String.format("Time: %.3fs / %.3fs", currentTime, duration));
     }
@@ -722,6 +725,7 @@ public final class AnimationTimelinePanel {
                     break;
                 }
             }
+            keyframes.sort((a, b) -> Float.compare(a.time(), b.time()));
         }
         selectedKeyframes.clear();
         selectedKeyframes.addAll(updated);
@@ -993,11 +997,14 @@ public final class AnimationTimelinePanel {
     private void handleUndoRedoHotkeys() {
         boolean ctrl = ImGui.getIO().getKeyCtrl();
         boolean wantKeyboard = ImGui.getIO().getWantCaptureKeyboard();
-        if (!wantKeyboard && ImGui.isKeyPressed(ImGuiKey.Space, false) && currentClip != null) {
+        // Space bar play/pause only when not dragging/typing in timeline
+        boolean allowSpace = !wantKeyboard && !draggingPlayhead && !draggingKeyframes && !boxSelecting;
+        if (allowSpace && ImGui.isKeyPressed(ImGuiKey.Space, false) && currentClip != null) {
             playing = !playing;
             if (playing) {
                 overlay.seekAnimation(resolveAnimationId(), currentTime);
                 overlay.playAnimation(resolveAnimationId(), loop, speed);
+                dispatchEventTrack(currentTime);
             } else {
                 overlay.stopAnimation(resolveAnimationId());
             }
@@ -1070,6 +1077,17 @@ public final class AnimationTimelinePanel {
         }
         currentTime = newTime;
         overlay.seekAnimation(resolveAnimationId(), currentTime);
+        dispatchEventTrack(currentTime);
+    }
+
+    private void dispatchEventTrack(float time) {
+        if (currentClip == null || currentClip.eventTrack() == null) return;
+        float frameWindow = 1f / Math.max(1f, currentClip.frameRate());
+        for (com.moud.api.animation.EventKeyframe ev : currentClip.eventTrack()) {
+            if (Math.abs(ev.time() - time) < 1e-3 || (ev.time() <= time && ev.time() > time - frameWindow)) {
+                overlay.triggerEvent(ev.name(), ev.payload());
+            }
+        }
     }
 
     private String formatTime(double seconds) {
@@ -1108,31 +1126,6 @@ public final class AnimationTimelinePanel {
         }
     }
 
-    private AnimationClip buildTestClip() {
-        List<ObjectTrack> objects = new ArrayList<>();
-        objects.add(buildTestObject("obj-1", "Camera Rig"));
-        objects.add(buildTestObject("obj-2", "Light A"));
-        return new AnimationClip("test-clip", "Test Clip", 8f, 60f, objects, new ArrayList<>(), Map.of());
-    }
-
-    private ObjectTrack buildTestObject(String id, String name) {
-        Map<String, PropertyTrack> props = new LinkedHashMap<>();
-        props.put("position.x", new PropertyTrack(
-                "position.x",
-                PropertyTrack.PropertyType.FLOAT,
-                -10f,
-                10f,
-                testKeys(new float[]{0f, 2f, 4f}, new float[]{0f, 4f, -2f})
-        ));
-        props.put("rotation.y", new PropertyTrack(
-                "rotation.y",
-                PropertyTrack.PropertyType.ANGLE,
-                -180f,
-                180f,
-                testKeys(new float[]{1f, 3f, 6f}, new float[]{0f, 90f, 45f})
-        ));
-        return new ObjectTrack(id, name, props);
-    }
 
     private List<com.moud.api.animation.Keyframe> testKeys(float[] times, float[] values) {
         List<com.moud.api.animation.Keyframe> list = new ArrayList<>();
@@ -1170,6 +1163,17 @@ public final class AnimationTimelinePanel {
 
     public AnimationClip getCurrentClip() {
         return currentClip;
+    }
+
+    public void setEventTrack(List<com.moud.api.animation.EventKeyframe> events) {
+        if (currentClip == null) return;
+        List<com.moud.api.animation.EventKeyframe> copy = events != null ? new ArrayList<>(events) : new ArrayList<>();
+        try {
+            java.lang.reflect.Field f = currentClip.getClass().getDeclaredField("eventTrack");
+            f.setAccessible(true);
+            f.set(currentClip, copy);
+        } catch (Exception ignored) {
+        }
     }
 
     public void setAvailableAnimations(List<MoudPackets.AnimationFileInfo> infos) {
@@ -1282,7 +1286,19 @@ public final class AnimationTimelinePanel {
             }
         } else {
             if (ImGui.treeNode("Properties")) {
-                renderPropertyMenuItems(targetTrack, props, p -> true);
+                boolean isEmitter = "particle_emitter".equalsIgnoreCase(selectedType);
+                if (isEmitter) {
+                    if (ImGui.treeNode("Emitter")) {
+                        renderPropertyMenuItems(targetTrack, props, p -> !p.path().startsWith("position.") && !p.path().startsWith("rotation.") && !p.path().startsWith("scale."));
+                        ImGui.treePop();
+                    }
+                    if (ImGui.treeNode("Transform")) {
+                        renderPropertyMenuItems(targetTrack, props, p -> p.path().startsWith("position.") || p.path().startsWith("rotation.") || p.path().startsWith("scale."));
+                        ImGui.treePop();
+                    }
+                } else {
+                    renderPropertyMenuItems(targetTrack, props, p -> true);
+                }
                 ImGui.treePop();
             }
         }
@@ -1484,7 +1500,8 @@ public final class AnimationTimelinePanel {
         List<ObjectTrack> objects = currentClip.objectTracks();
         if (!(objects instanceof ArrayList<ObjectTrack>)) {
             objects = new ArrayList<>(objects != null ? objects : List.of());
-            currentClip = new AnimationClip(currentClip.id(), currentClip.name(), currentClip.duration(), currentClip.frameRate(), objects, currentClip.eventTrack(), currentClip.metadata());
+            List<com.moud.api.animation.EventKeyframe> events = currentClip.eventTrack() != null ? new ArrayList<>(currentClip.eventTrack()) : new ArrayList<>();
+            currentClip = new AnimationClip(currentClip.id(), currentClip.name(), currentClip.duration(), currentClip.frameRate(), objects, events, currentClip.metadata());
         }
         return currentClip;
     }

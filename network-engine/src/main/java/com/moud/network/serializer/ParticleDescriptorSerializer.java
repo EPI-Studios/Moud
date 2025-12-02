@@ -27,6 +27,8 @@ public final class ParticleDescriptorSerializer implements PacketSerializer.Type
         buffer.writeInt(value.renderType().ordinal());
         buffer.writeInt(value.billboarding().ordinal());
         buffer.writeInt(value.collisionMode().ordinal());
+        buffer.writeBoolean(value.collideWithPlayers());
+        buffer.writeInt(value.impostorSlices());
         writeVec(buffer, value.position());
         writeVec(buffer, value.velocity());
         writeVec(buffer, value.acceleration());
@@ -64,6 +66,8 @@ public final class ParticleDescriptorSerializer implements PacketSerializer.Type
         int render = buffer.readInt();
         int billboard = buffer.readInt();
         int collision = buffer.readInt();
+        boolean collidePlayers = buffer.readBoolean();
+        int impostorSlices = buffer.readInt();
         Vector3f pos = readVec(buffer);
         Vector3f vel = readVec(buffer);
         Vector3f accel = readVec(buffer);
@@ -99,6 +103,7 @@ public final class ParticleDescriptorSerializer implements PacketSerializer.Type
                 com.moud.api.particle.RenderType.values()[render],
                 com.moud.api.particle.Billboarding.values()[billboard],
                 com.moud.api.particle.CollisionMode.values()[collision],
+                collidePlayers,
                 pos,
                 vel,
                 accel,
@@ -114,7 +119,8 @@ public final class ParticleDescriptorSerializer implements PacketSerializer.Type
                 behaviors,
                 payload,
                 light,
-                com.moud.api.particle.SortHint.values()[sortOrdinal]
+                com.moud.api.particle.SortHint.values()[sortOrdinal],
+                impostorSlices
         );
     }
 

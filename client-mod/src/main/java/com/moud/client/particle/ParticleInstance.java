@@ -14,8 +14,10 @@ import com.moud.api.particle.SortHint;
 import com.moud.api.particle.UVRegion;
 import com.moud.api.particle.Vector3f;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.shape.VoxelShape;
 
 import java.util.List;
@@ -33,6 +35,8 @@ final class ParticleInstance {
     RenderType renderType;
     Billboarding billboarding;
     CollisionMode collisionMode;
+    boolean collideWithPlayers;
+    int impostorSlices;
     SortHint sortHint;
     float x;
     float y;
@@ -59,6 +63,7 @@ final class ParticleInstance {
     List<String> behaviors;
     Map<String, Object> behaviorPayload;
     LightSettings light;
+    Identifier resolvedTexture;
 
     // computed per tick
     float size;
@@ -76,6 +81,8 @@ final class ParticleInstance {
         this.renderType = descriptor.renderType();
         this.billboarding = descriptor.billboarding();
         this.collisionMode = descriptor.collisionMode();
+        this.collideWithPlayers = descriptor.collideWithPlayers();
+        this.impostorSlices = descriptor.impostorSlices();
         this.sortHint = descriptor.sortHint();
 
         Vector3f pos = descriptor.position();
@@ -110,6 +117,7 @@ final class ParticleInstance {
         this.behaviors = descriptor.behaviors();
         this.behaviorPayload = descriptor.behaviorPayload();
         this.light = descriptor.light();
+        this.resolvedTexture = null;
 
         this.size = 1f;
         this.rotation = 0f;
@@ -168,6 +176,12 @@ final class ParticleInstance {
         y += dy;
         z += dz;
 
+        if (collideWithPlayers && world != null) {
+            if (!handlePlayerCollisions(world, Math.max(0.05f, size * 0.5f), dt)) {
+                return false;
+            }
+        }
+
         if (slideCeilingHit && collisionMode == CollisionMode.SLIDE) {
             // If we hit a ceiling, push outward to let particles ooze from under blocks before rising.
             double angle = Math.random() * Math.PI * 2.0;
@@ -184,6 +198,92 @@ final class ParticleInstance {
         float alphaRamp = ParticleMath.evaluateScalarRamp(alphaOverLife, t);
         alpha = alphaRamp > 0f ? alphaRamp : colorSample.a();
         currentFrame = resolveFrame(t);
+        return true;
+    }
+
+    private boolean handlePlayerCollisions(ClientWorld world, float radius, float dt) {
+        Box particleBox = new Box(x - radius, y - radius, z - radius, x + radius, y + radius, z + radius);
+        for (var player : world.getPlayers()) {
+            if (player == null || player.isSpectator()) {
+                continue;
+            }
+            Box bb = player.getBoundingBox();
+            if (!bb.intersects(particleBox)) {
+                continue;
+            }
+
+            Vec3d particleCenter = new Vec3d(x, y, z);
+            Vec3d playerCenter = bb.getCenter();
+
+            double overlapX = Math.min(particleBox.maxX, bb.maxX) - Math.max(particleBox.minX, bb.minX);
+            double overlapY = Math.min(particleBox.maxY, bb.maxY) - Math.max(particleBox.minY, bb.minY);
+            double overlapZ = Math.min(particleBox.maxZ, bb.maxZ) - Math.max(particleBox.minZ, bb.minZ);
+
+            // pick the smallest penetration axis
+            double pushX = overlapX;
+            double pushY = overlapY;
+            double pushZ = overlapZ;
+            Direction.Axis axis = Direction.Axis.X;
+            double push = pushX;
+            if (pushY < push) {
+                axis = Direction.Axis.Y;
+                push = pushY;
+            }
+            if (pushZ < push) {
+                axis = Direction.Axis.Z;
+                push = pushZ;
+            }
+
+            double sign;
+            if (axis == Direction.Axis.X) {
+                sign = particleCenter.x >= playerCenter.x ? 1.0 : -1.0;
+                x += (push + 1e-3) * sign;
+                vx = switch (collisionMode) {
+                case BOUNCE -> (float) (-vx * BOUNCE_DAMPING);
+                case SLIDE -> 0f;
+                case STICK -> 0f;
+                case DAMP -> vx * 0.5f;
+                case KILL -> {
+                    alive = false;
+                    yield vx;
+                }
+                case NONE -> vx;
+                };
+            } else if (axis == Direction.Axis.Y) {
+                sign = particleCenter.y >= playerCenter.y ? 1.0 : -1.0;
+                y += (push + 1e-3) * sign;
+                vy = switch (collisionMode) {
+                case BOUNCE -> (float) (-vy * BOUNCE_DAMPING);
+                case SLIDE -> 0f;
+                case STICK -> 0f;
+                case DAMP -> vy * 0.5f;
+                case KILL -> {
+                    alive = false;
+                    yield vy;
+                }
+                case NONE -> vy;
+                };
+            } else {
+                sign = particleCenter.z >= playerCenter.z ? 1.0 : -1.0;
+                z += (push + 1e-3) * sign;
+                vz = switch (collisionMode) {
+                case BOUNCE -> (float) (-vz * BOUNCE_DAMPING);
+                case SLIDE -> 0f;
+                case STICK -> 0f;
+                case DAMP -> vz * 0.5f;
+                case KILL -> {
+                    alive = false;
+                    yield vz;
+                }
+                case NONE -> vz;
+                };
+            }
+
+            if (collisionMode == CollisionMode.STICK) {
+                ax = ay = az = 0f;
+            }
+            return alive;
+        }
         return true;
     }
 

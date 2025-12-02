@@ -6,5 +6,6 @@ public enum RuntimeObjectType {
     PLAYER,
     PLAYER_MODEL,
     CAMERA,
-    LIGHT
+    LIGHT,
+    PARTICLE_EMITTER
 }

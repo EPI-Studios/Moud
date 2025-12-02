@@ -1,9 +1,10 @@
 package com.moud.client.editor.selection;
 
-import com.moud.client.editor.ui.SceneEditorOverlay;
 import com.moud.client.editor.EditorModeManager;
 import com.moud.client.editor.scene.SceneObject;
 import com.moud.client.editor.scene.SceneSessionManager;
+import com.moud.client.editor.scene.blueprint.BlueprintCornerSelector;
+import com.moud.client.editor.ui.SceneEditorOverlay;
 import com.moud.client.model.ClientModelManager;
 import com.moud.client.model.RenderableModel;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
@@ -15,8 +16,6 @@ import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
-import com.moud.client.editor.scene.blueprint.BlueprintCornerSelector;
-import com.moud.client.editor.scene.blueprint.BlueprintCornerSelector.Corner;
 
 public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEntities {
     private EditorSelectionRenderer() {}

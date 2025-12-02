@@ -6,13 +6,13 @@ import com.moud.client.editor.scene.SceneSessionManager;
 import com.moud.client.editor.ui.SceneEditorOverlay;
 import com.moud.client.editor.ui.layout.EditorDockingLayout;
 import imgui.ImGui;
-
-import java.util.Locale;
-import java.util.Map;
-import java.awt.Desktop;
-import java.io.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.awt.*;
+import java.io.File;
+import java.util.Locale;
+import java.util.Map;
 
 public final class ScriptViewerPanel {
     private static final Logger LOGGER = LoggerFactory.getLogger("ScriptViewer");

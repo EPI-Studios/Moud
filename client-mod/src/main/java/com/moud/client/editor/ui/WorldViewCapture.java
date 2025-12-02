@@ -2,11 +2,10 @@ package com.moud.client.editor.ui;
 
 import com.moud.client.editor.EditorModeManager;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
-import net.minecraft.util.math.Vec3d;
 
 public final class WorldViewCapture {
     private static final Matrix4f VIEW = new Matrix4f();
