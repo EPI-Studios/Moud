@@ -12,6 +12,7 @@ import com.moud.plugin.api.services.lighting.LightHandle;
 import com.moud.plugin.api.services.lighting.PointLightDefinition;
 import com.moud.plugin.api.services.model.ModelDefinition;
 import com.moud.plugin.api.services.model.ModelHandle;
+import net.minestom.server.coordinate.Pos;
 
 /**
  * Helps for manipulating time, spawning models, and placing lights.
@@ -63,6 +64,26 @@ public final class WorldDsl {
     public LightBuilder light() {
         return new LightBuilder(context);
     }
+
+    /**
+     * Convert a Moud Vector3 to a Minestom Pos.
+     * @param vector The vector to convert.
+     * @return The resulting Pos.
+     */
+    public Pos toPos(Vector3 vector) {
+        return new Pos(vector.x, vector.y, vector.z);
+    }
+
+    /**
+     * Convert a Minestom Pos to a Moud Vector3.
+     * @param pos The Pos to convert.
+     * @return The resulting Vector3.
+     */
+    public Vector3 toVector3(Pos pos) {
+        return new Vector3(pos.x(), pos.y(), pos.z());
+    }
+
+
 
     public static final class ModelBuilder {
         private final PluginContext context;
