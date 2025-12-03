@@ -25,3 +25,6 @@ client-mod/run/saves/
 client-mod/run/resourcepacks/
 client-mod/run/shaderpacks/
 /example/ts/.moud/plugins/java-plugin-1.0.0.jar
+/example/java-plugin/src/main/java/com/moud/example/worldgenerator/
+/example/ts/embedded-spigot/
+/example/ts/.moud/plugins/
