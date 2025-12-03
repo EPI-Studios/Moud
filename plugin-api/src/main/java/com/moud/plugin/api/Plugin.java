@@ -76,6 +76,13 @@ public abstract class Plugin implements MoudPlugin {
     }
 
     /**
+     * Event DSL for registering event listeners.
+     */
+    protected final EventsDsl events() {
+        return events;
+    }
+
+    /**
      * Scheduler used to enqueue delayed or repeating tasks.
      */
     protected final SchedulerDsl schedule() {
