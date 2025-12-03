@@ -4,6 +4,8 @@ import com.moud.api.math.Vector3;
 import com.moud.plugin.api.services.lighting.LightHandle;
 import com.moud.plugin.api.services.lighting.PointLightDefinition;
 
+import java.awt.*;
+
 public final class LightHandleAdapter implements Light {
     private final LightHandle handle;
     private PointLightDefinition definition;
@@ -40,6 +42,21 @@ public final class LightHandleAdapter implements Light {
                 definition.position(),
                 definition.direction(),
                 r, g, b,
+                definition.brightness(),
+                definition.radius()
+        );
+        return this;
+    }
+
+    @Override
+    public Light color(Color color) {
+        definition = new PointLightDefinition(
+                definition.type(),
+                definition.position(),
+                definition.direction(),
+                color.getRed()/255.0f,
+                color.getGreen()/255.0f,
+                color.getBlue()/255.0f,
                 definition.brightness(),
                 definition.radius()
         );
