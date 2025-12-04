@@ -107,6 +107,11 @@ public class MoudEngine {
             };
             NetworkDispatcher dispatcher = packetEngine.createDispatcher(bufferFactory);
 
+            this.pluginManager = new PluginManager(projectRoot);
+            this.pluginLoader = new PluginLoader(pluginManager);
+
+            this.pluginLoader.loadAssets();
+
             this.assetManager = new AssetManager(projectRoot);
             assetManager.initialize();
             SceneManager.getInstance().setAssetManager(assetManager);
@@ -117,9 +122,6 @@ public class MoudEngine {
 
             this.clientScriptManager = new ClientScriptManager();
             clientScriptManager.initialize();
-
-            this.pluginManager = new PluginManager(projectRoot);
-            this.pluginLoader = new PluginLoader(pluginManager);
 
             this.eventDispatcher = new EventDispatcher(this);
             this.runtime = new JavaScriptRuntime(this);
@@ -161,7 +163,7 @@ public class MoudEngine {
             }
 
             loadUserScripts().thenRun(() -> {
-                pluginLoader.loadAll();
+                this.pluginLoader.loadPlugins();
                 initialized.set(true);
                 this.eventDispatcher.dispatchLoadEvent("server.load");
                 LOGGER.startup("Moud Engine initialized successfully");
