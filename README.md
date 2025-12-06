@@ -1,6 +1,7 @@
+<img width="1944" height="794" alt="image" src="https://github.com/user-attachments/assets/9523846b-b63c-4352-b227-7ae19a3d27d2" />
 
-# Moud
-![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white) 
+
+ᅟ              ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white) 
 ![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white) 
 ![Powered by Minestom](https://img.shields.io/badge/Powered%20by-Minestom-815db1?style=for-the-badge&logo=java&logoColor=white) 
 ![Running on Fabric](https://img.shields.io/badge/Running%20on-Fabric-2C2C2C?style=for-the-badge&logo=java&logoColor=white) 
