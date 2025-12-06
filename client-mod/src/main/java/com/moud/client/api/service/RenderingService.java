@@ -23,6 +23,7 @@ import java.util.function.Consumer;
 
 public final class RenderingService {
     private static final Logger LOGGER = LoggerFactory.getLogger(RenderingService.class);
+    private static final java.util.List<String> DEFAULT_EFFECTS = java.util.List.of("veil:fog", "veil:height_fog");
     private final PostProcessingManager postProcessingManager = new PostProcessingManager();
     private final CustomRenderTypeManager renderTypeManager = new CustomRenderTypeManager();
     private final Map<String, Value> renderHandlers = new ConcurrentHashMap<>();
@@ -33,6 +34,7 @@ public final class RenderingService {
     private ClientScriptingRuntime scriptingRuntime;
     private volatile Context jsContext;
     private final AtomicBoolean contextValid = new AtomicBoolean(false);
+    private final AtomicBoolean defaultFogApplied = new AtomicBoolean(false);
 
     public RenderingService() {
     }
@@ -294,5 +296,22 @@ public final class RenderingService {
 
     public void clearPostEffects() {
         postProcessingManager.clearAllEffects();
+    }
+
+    public void setPostEffectUniforms(String effectId, Map<String, Object> uniforms) {
+        postProcessingManager.updateUniforms(effectId, uniforms);
+    }
+
+    public void applyDefaultFogIfNeeded() {
+        if (defaultFogApplied.compareAndSet(false, true)) {
+            DEFAULT_EFFECTS.forEach(id -> {
+                if ("veil:height_fog".equalsIgnoreCase(id)) {
+                    postProcessingManager.updateUniforms(id, com.moud.client.rendering.PostEffectUniformRegistry.defaultHeightFog());
+                } else {
+                    postProcessingManager.updateUniforms(id, com.moud.client.rendering.PostEffectUniformRegistry.defaultFog());
+                }
+                postProcessingManager.applyEffect(id);
+            });
+        }
     }
 }
