@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
-public final class RenderingService {
+public final class  RenderingService {
     private static final Logger LOGGER = LoggerFactory.getLogger(RenderingService.class);
     private static final java.util.List<String> DEFAULT_EFFECTS = java.util.List.of("veil:fog", "veil:height_fog");
     private final PostProcessingManager postProcessingManager = new PostProcessingManager();
