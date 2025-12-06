@@ -5,7 +5,12 @@ import com.moud.plugin.api.PluginContext;
 import com.moud.plugin.api.network.ClientMessageBuilder;
 import com.moud.plugin.api.player.PlayerContext;
 import com.moud.plugin.api.ui.PlayerOverlay;
+import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
+import net.minestom.server.entity.GameMode;
+import net.minestom.server.instance.Instance;
+
+import java.util.UUID;
 
 final class PlayerImpl implements Player {
     private final PluginContext context;
@@ -50,6 +55,43 @@ final class PlayerImpl implements Player {
     @Override
     public ClientMessageBuilder send(String eventName) {
         return ClientMessageBuilder.toPlayer(context.clients(), playerContext, eventName);
+    }
+
+    @Override
+    public UUID uuid() {
+        return playerContext.player().getUuid();
+    }
+
+    @Override
+    public PlayerContext context() {
+        return playerContext;
+    }
+
+    @Override
+    public GameMode gameMode() {
+        return playerContext.player().getGameMode();
+    }
+
+    @Override
+    public Player setGameMode(GameMode gameMode) {
+        playerContext.player().setGameMode(gameMode);
+        return this;
+    }
+
+
+    @Override
+    public Instance instance() {
+        return playerContext.player().getInstance();
+    }
+
+    @Override
+    public Player teleportInstance(Vector3 position, UUID instanceId) {
+        Instance instance = MinecraftServer.getInstanceManager().getInstance(instanceId);
+        if (instance != null) {
+            playerContext.player().setInstance(instance);
+           teleport(position);
+        }
+        return this;
     }
 
     @Override
