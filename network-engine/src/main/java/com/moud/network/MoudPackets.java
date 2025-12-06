@@ -68,6 +68,25 @@ public final class MoudPackets {
                                             @Field(order = 8) boolean hideScoreboard) {
     }
 
+    public record UIElementDefinition(
+            @Field(order = 0) String id,
+            @Field(order = 1) String type,
+            @Field(order = 2, optional = true) @Nullable String parentId,
+            @Field(order = 3, optional = true) @Nullable Map<String, Object> props
+    ) {}
+
+    @Packet(value = "moud:ui_upsert", direction = Direction.SERVER_TO_CLIENT)
+    public record UIOverlayUpsertPacket(@Field(order = 0) List<UIElementDefinition> elements) {
+    }
+
+    @Packet(value = "moud:ui_remove", direction = Direction.SERVER_TO_CLIENT)
+    public record UIOverlayRemovePacket(@Field(order = 0) List<String> elementIds) {
+    }
+
+    @Packet(value = "moud:ui_clear", direction = Direction.SERVER_TO_CLIENT)
+    public record UIOverlayClearPacket() {
+    }
+
     @Packet(value = "moud:player_model_create", direction = Direction.SERVER_TO_CLIENT)
     public record PlayerModelCreatePacket(@Field(order = 0) long modelId, @Field(order = 1) Vector3 position,
                                           @Field(order = 2) String skinUrl) {
@@ -151,6 +170,11 @@ public final class MoudPackets {
     @Packet(value = "moud:player_model_click", direction = Direction.CLIENT_TO_SERVER)
     public record PlayerModelClickPacket(@Field(order = 0) long modelId, @Field(order = 1) double mouseX,
                                          @Field(order = 2) double mouseY, @Field(order = 3) int button) {
+    }
+
+    @Packet(value = "moud:ui_interaction", direction = Direction.CLIENT_TO_SERVER)
+    public record UIInteractionPacket(@Field(order = 0) String elementId, @Field(order = 1) String action,
+                                      @Field(order = 2, optional = true) @Nullable Map<String, Object> payload) {
     }
 
     @Packet(value = "moud:update_shared_value", direction = Direction.CLIENT_TO_SERVER)
