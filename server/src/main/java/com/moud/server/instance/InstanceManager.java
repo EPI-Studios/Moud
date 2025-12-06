@@ -55,6 +55,8 @@ public class InstanceManager {
         createDefaultInstance();
         createLimboInstance();
         registerSpawnListener();
+        int preloadRadius = Integer.parseInt(System.getProperty("moud.chunk.preloadRadius", "3"));
+        new ChunkPreloader(preloadRadius).register();
     }
 
     private void registerSpawnListener() {
