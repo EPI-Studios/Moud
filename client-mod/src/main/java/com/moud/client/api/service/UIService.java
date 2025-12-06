@@ -2,6 +2,8 @@ package com.moud.client.api.service;
 
 import com.moud.client.ui.UIOverlayManager;
 import com.moud.client.ui.component.*;
+import com.moud.client.network.ClientNetworkManager;
+import com.moud.network.MoudPackets;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.toast.SystemToast;
 import net.minecraft.text.Text;
@@ -14,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.UUID;
 
 public final class UIService {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIService.class);
@@ -72,12 +75,21 @@ public final class UIService {
         return client.textRenderer.getWidth(text);
     }
 
-    private <T extends UIComponent> T registerComponent(T component) {
-        String id = "moud_ui_" + java.util.UUID.randomUUID().toString();
-        component.setComponentId(id);
+    public <T extends UIComponent> T registerComponent(T component, boolean addToOverlay) {
+        String id = component.getComponentId();
+        if (id == null || id.isBlank()) {
+            id = "moud_ui_" + UUID.randomUUID();
+            component.setComponentId(id);
+        }
         elements.put(id, component);
-        overlayManager.addOverlayElement(component);
+        if (addToOverlay) {
+            overlayManager.addOverlayElement(component);
+        }
         return component;
+    }
+
+    private <T extends UIComponent> T registerComponent(T component) {
+        return registerComponent(component, true);
     }
 
     @HostAccess.Export
@@ -109,6 +121,9 @@ public final class UIService {
     public void removeElement(String id) {
         UIComponent component = elements.remove(id);
         if (component != null) {
+            if (component.parent != null) {
+                component.parent.removeChild(component);
+            }
             overlayManager.removeOverlayElement(component);
         }
     }
@@ -130,6 +145,21 @@ public final class UIService {
         UIImage image = new UIImage(source, this);
         image.setSize(64, 64);
         return registerComponent(image);
+    }
+
+    public void notifyServerInteraction(UIComponent component, String action, Map<String, Object> payload) {
+        if (component == null || !component.isServerControlled()) {
+            return;
+        }
+        try {
+            ClientNetworkManager.send(new MoudPackets.UIInteractionPacket(
+                    component.getComponentId(),
+                    action,
+                    payload
+            ));
+        } catch (Exception e) {
+            LOGGER.debug("Failed to send UI interaction for component {}", component.getComponentId(), e);
+        }
     }
 
 
