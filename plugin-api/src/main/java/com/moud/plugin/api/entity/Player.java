@@ -4,6 +4,7 @@ import com.moud.api.math.Vector3;
 import com.moud.plugin.api.PluginContext;
 import com.moud.plugin.api.network.ClientMessageBuilder;
 import com.moud.plugin.api.player.PlayerContext;
+import com.moud.plugin.api.ui.PlayerOverlay;
 
 /**
  * Player helpers.
@@ -33,6 +34,10 @@ public interface Player {
      * Build a client event payload to send to this player.
      */
     ClientMessageBuilder send(String eventName);
+    /**
+     * Server-driven overlay UI controls for this player.
+     */
+    PlayerOverlay uiOverlay();
 
     static Player wrap(PluginContext context, PlayerContext playerContext) {
         return new PlayerImpl(context, playerContext);
