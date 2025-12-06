@@ -1,8 +1,8 @@
-// File: src/main/java/com/moud/client/ui/UIOverlayManager.java
 package com.moud.client.ui;
 
 import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.api.service.UIService;
+import com.moud.client.ui.animation.UIAnimationManager;
 import com.moud.client.ui.component.UIComponent;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -48,6 +48,9 @@ public class UIOverlayManager {
     public void renderOverlays(DrawContext context, RenderTickCounter tickCounter) {
         if (ClientAPIService.INSTANCE == null || ClientAPIService.INSTANCE.ui == null) return;
 
+
+        UIAnimationManager.getInstance().update();
+
         checkForResize();
 
         UIService uiService = ClientAPIService.INSTANCE.ui;
@@ -71,11 +74,14 @@ public class UIOverlayManager {
             }
         }
 
+        context.getMatrices().push();
+        context.getMatrices().translate(0.0f, 0.0f, 500.0f);
         for (UIComponent element : elementsToRender) {
             if (element.isVisible()) {
                 element.renderWidget(context, mouseX, mouseY, tickCounter.getTickDelta(true));
             }
         }
+        context.getMatrices().pop();
     }
 
     public boolean handleOverlayClick(double mouseX, double mouseY, int button) {
