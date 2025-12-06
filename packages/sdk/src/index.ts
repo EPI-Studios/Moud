@@ -2633,10 +2633,25 @@ export interface UIComponent {
     setPos(x: number, y: number): this;
     /** Resizes the component. */
     setSize(width: number, height: number): this;
+    /**
+     * Anchors the component to a screen edge or corner. When centered anchors are used,
+     * the component's position is relative to the screen center.
+     */
+    setAnchor(anchor: 'top_left' | 'top_center' | 'top_right' | 'center_left' | 'center_center' | 'center_right' | 'bottom_left' | 'bottom_center' | 'bottom_right'): this;
+    /**
+     * Positions this component next to another component.
+     * @param targetComponentId Identifier of the component to align against.
+     * @param position Where to place this component relative to the target.
+     */
+    relativeTo(targetComponentId: string, position: 'right_of' | 'left_of' | 'below' | 'above'): this;
     /** Sets the background colour (ARGB hex). */
     setBackgroundColor(color: string): this;
     /** @returns The background colour (ARGB hex). */
     getBackgroundColor(): string;
+    /** Sets the background texture (e.g., "minecraft:textures/gui/widgets.png"). */
+    setBackgroundTexture(texture: string): this;
+    /** @returns The background texture identifier. */
+    getBackgroundTexture(): string;
     /** Sets the text colour (ARGB hex). */
     setTextColor(color: string): this;
     /** @returns The text colour (ARGB hex). */
@@ -2677,6 +2692,10 @@ export interface UIComponent {
     hide(): this;
     /** @returns `true` if the component is visible. */
     isVisible(): boolean;
+    /** Sets the component to fullscreen mode (fills entire screen automatically). */
+    setFullscreen(fullscreen: boolean): this;
+    /** @returns `true` if the component is in fullscreen mode. */
+    isFullscreen(): boolean;
     /**
      * Registers a callback for click events.
      * @param callback Receives the component, mouse X/Y and the pressed button.
@@ -2688,6 +2707,11 @@ export interface UIComponent {
      */
     onHover(callback: (component: UIComponent, ...args: unknown[]) => void): this;
     /**
+     * Registers a callback for unhover events (when mouse leaves the component).
+     * @param callback Receives the component and raw unhover event data.
+     */
+    onUnhover(callback: (component: UIComponent, ...args: unknown[]) => void): this;
+    /**
      * Registers a callback fired when the component gains focus.
      * @param callback Receives the focused component.
      */
@@ -2697,6 +2721,29 @@ export interface UIComponent {
      * @param callback Receives the blurred component.
      */
     onBlur(callback: (component: UIComponent) => void): this;
+    /**
+     * Animates the component's properties smoothly over time.
+     * @param options Animation configuration containing target values and settings.
+     * @example
+     * button.animate({
+     *   x: 100.5,
+     *   y: 200.25,
+     *   opacity: 0.5,
+     *   duration: 500,
+     *   easing: 'ease-out',
+     *   onComplete: () => console.log('Animation done!')
+     * });
+     */
+    animate(options: {
+        x?: number;
+        y?: number;
+        width?: number;
+        height?: number;
+        opacity?: number;
+        duration?: number;
+        easing?: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'ease-in-cubic' | 'ease-out-cubic' | 'ease-in-out-cubic';
+        onComplete?: () => void;
+    }): this;
 }
 
 /** Text label component returned by {@link UIService.createText}. */
