@@ -243,6 +243,9 @@ public class MoudEngine {
                 if (assetManager != null) {
                     try {
                         assetManager.refresh();
+                        if (networkManager != null) {
+                            networkManager.reloadResourcePack();
+                        }
                     } catch (Exception e) {
                         LOGGER.warn("Failed to refresh asset catalog", e);
                     }

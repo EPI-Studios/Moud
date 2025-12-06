@@ -29,6 +29,10 @@ final class ResourcePackServer {
             LOGGER.warn("Resource pack path missing or not a file: {}", packPath);
             return null;
         }
+        if (server != null) {
+            server.stop(0);
+            server = null;
+        }
         try {
             String sha1 = sha1(packPath);
             long size = Files.size(packPath);

@@ -83,22 +83,8 @@ public class ZoneManager {
         int newCellX = (int) Math.floor(event.getNewPosition().x() / GRID_CELL_SIZE);
         int newCellZ = (int) Math.floor(event.getNewPosition().z() / GRID_CELL_SIZE);
         long newCellHash = getCellHash(newCellX, newCellZ);
-
-        Long currentCell = playerGridCells.get(player.getUuid());
-
-        if (currentCell == null || currentCell != newCellHash) {
-            playerGridCells.put(player.getUuid(), newCellHash);
-            updatePlayerZones(player);
-        } else {
-            Set<Zone> activeZones = playerActiveZones.get(player.getUuid());
-            if (activeZones != null) {
-                for (Zone zone : activeZones) {
-                    if (!zone.contains(player)) {
-                        triggerLeave(zone, player);
-                    }
-                }
-            }
-        }
+        playerGridCells.put(player.getUuid(), newCellHash);
+        updatePlayerZones(player);
     }
 
     private void onPlayerDisconnect(PlayerDisconnectEvent event) {
@@ -138,7 +124,7 @@ public class ZoneManager {
 
         for (Zone zone : nearbyZones) {
             boolean isInside = zone.contains(player);
-            boolean wasInside = activeZones.contains(zone);
+            boolean wasInside = zone.isPlayerInside(player);
 
             if (isInside && !wasInside) {
                 triggerEnter(zone, player);
@@ -158,6 +144,9 @@ public class ZoneManager {
     }
 
     private void triggerEnter(Zone zone, Player player) {
+        if (zone.isPlayerInside(player)) {
+            return;
+        }
         zone.addPlayer(player);
         Value callback = zone.getOnEnterCallback();
         if (callback != null && callback.canExecute()) {
@@ -171,6 +160,9 @@ public class ZoneManager {
     }
 
     private void triggerLeave(Zone zone, Player player) {
+        if (!zone.isPlayerInside(player)) {
+            return;
+        }
         zone.removePlayer(player);
         Value callback = zone.getOnLeaveCallback();
         if (callback != null && callback.canExecute()) {
