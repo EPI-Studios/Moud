@@ -234,11 +234,12 @@ public final class EditorCameraController {
     }
 
     private void focusInternal(Vec3d target, boolean immediate) {
-
         if (immediate) {
-            cameraPos = target.add(0, 2, 5);
-            yaw = targetYaw;
-            pitch = targetPitch;
+            Vec3d forward = forwardVector(yaw, pitch);
+            Vec3d desiredPos = target.subtract(forward.multiply(6.0)).add(0, 2.0, 0);
+            cameraPos = desiredPos;
+            targetYaw = yaw;
+            targetPitch = pitch;
         }
     }
 

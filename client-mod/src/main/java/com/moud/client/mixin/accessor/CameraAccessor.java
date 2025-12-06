@@ -11,4 +11,7 @@ public interface CameraAccessor {
 
     @Invoker("setRotation")
     void moud$setRotation(float yaw, float pitch);
+
+    @org.spongepowered.asm.mixin.gen.Accessor("thirdPerson")
+    void moud$setThirdPerson(boolean thirdPerson);
 }

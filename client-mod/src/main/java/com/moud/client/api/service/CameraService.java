@@ -125,6 +125,10 @@ public final class CameraService {
         this.wasInFirstPerson = client.options.getPerspective() == Perspective.FIRST_PERSON;
         client.options.setPerspective(Perspective.THIRD_PERSON_BACK);
 
+        if (client.player != null) {
+            client.player.setInvisible(false);
+        }
+
         Entity camEntity = client.getCameraEntity();
         if (camEntity != null) {
             currentState.position.set(camEntity.getX(), camEntity.getEyeY(), camEntity.getZ());
