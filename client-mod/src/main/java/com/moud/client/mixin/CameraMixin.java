@@ -4,6 +4,7 @@ import com.moud.client.MoudClientMod;
 import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.api.service.CameraService;
 import com.moud.client.editor.camera.EditorCameraController;
+import com.moud.client.mixin.accessor.CameraAccessor;
 import net.minecraft.client.render.Camera;
 import net.minecraft.entity.Entity;
 import net.minecraft.world.BlockView;
@@ -55,6 +56,8 @@ public abstract class CameraMixin {
             if (yaw != null && pitch != null) {
                 this.setRotation(yaw, pitch);
             }
+
+            ((CameraAccessor) (Object) this).moud$setThirdPerson(true);
         }
 
         ci.cancel();
