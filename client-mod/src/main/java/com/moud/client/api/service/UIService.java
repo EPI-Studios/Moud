@@ -27,6 +27,8 @@ public final class UIService {
     private Context jsContext;
     private ExecutorService scriptExecutor;
     private Value resizeCallback = null;
+    private volatile int pendingResizeWidth = -1;
+    private volatile int pendingResizeHeight = -1;
 
     public UIService() {
         this.client = MinecraftClient.getInstance();
@@ -35,10 +37,12 @@ public final class UIService {
 
     public void setContext(Context jsContext) {
         this.jsContext = jsContext;
+        flushPendingResize();
     }
 
     public void setExecutor(ExecutorService executor) {
         this.scriptExecutor = executor;
+        flushPendingResize();
     }
 
     public Context getJsContext() {
@@ -164,19 +168,56 @@ public final class UIService {
 
 
     public void triggerResizeEvent() {
+        int w = getScreenWidth();
+        int h = getScreenHeight();
         if (resizeCallback != null && scriptExecutor != null && !scriptExecutor.isShutdown() && jsContext != null) {
             scriptExecutor.execute(() -> {
                 jsContext.enter();
                 try {
                     LOGGER.debug("Firing UI resize event to script.");
-                    resizeCallback.execute(getScreenWidth(), getScreenHeight());
+                    resizeCallback.execute(w, h);
                 } catch (Exception e) {
                     LOGGER.error("Error executing UI resize callback", e);
                 } finally {
                     jsContext.leave();
                 }
             });
+        } else {
+            pendingResizeWidth = w;
+            pendingResizeHeight = h;
         }
+    }
+
+    private void flushPendingResize() {
+        if (resizeCallback == null || jsContext == null || scriptExecutor == null || scriptExecutor.isShutdown()) {
+            return;
+        }
+        if (pendingResizeWidth < 0 || pendingResizeHeight < 0) {
+            return;
+        }
+        int w = pendingResizeWidth;
+        int h = pendingResizeHeight;
+        pendingResizeWidth = pendingResizeHeight = -1;
+        triggerResizeEventWithArgs(w, h);
+    }
+
+    private void triggerResizeEventWithArgs(int width, int height) {
+        if (resizeCallback == null || jsContext == null || scriptExecutor == null || scriptExecutor.isShutdown()) {
+            pendingResizeWidth = width;
+            pendingResizeHeight = height;
+            return;
+        }
+        scriptExecutor.execute(() -> {
+            jsContext.enter();
+            try {
+                LOGGER.debug("Firing deferred UI resize event to script.");
+                resizeCallback.execute(width, height);
+            } catch (Exception e) {
+                LOGGER.error("Error executing deferred UI resize callback", e);
+            } finally {
+                jsContext.leave();
+            }
+        });
     }
 
 
