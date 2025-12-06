@@ -18,39 +18,39 @@ import com.moud.server.camera.CameraRegistry;
 import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.movement.ServerMovementHandler;
+import com.moud.server.ui.UIOverlayService;
 import com.moud.server.network.diagnostics.NetworkProbe;
 import com.moud.server.player.PlayerCameraManager;
 import com.moud.server.plugin.PluginEventBus;
 import com.moud.server.proxy.MediaDisplayProxy;
 import com.moud.server.proxy.PlayerModelProxy;
 import com.moud.server.particle.ParticleEmitterManager;
-import com.moud.api.collision.OBB;
 import com.moud.server.network.ResourcePackServer.ResourcePackInfo;
+import net.kyori.adventure.text.Component;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.player.PlayerDisconnectEvent;
 import net.minestom.server.event.player.PlayerPluginMessageEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
+import net.minestom.server.event.player.PlayerResourcePackStatusEvent;
 import com.moud.server.player.PlayerCursorDirectionManager;
-import net.minestom.server.network.packet.server.common.PluginMessagePacket;
 
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.Arrays;
-import net.kyori.adventure.resource.ResourcePackRequest;
+
 import net.kyori.adventure.resource.ResourcePackStatus;
-import net.kyori.adventure.text.Component;
+import net.minestom.server.network.packet.server.common.ResourcePackPushPacket;
 
 public final class ServerNetworkManager {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(
@@ -62,8 +62,10 @@ public final class ServerNetworkManager {
     private final EventDispatcher eventDispatcher;
     private final ClientScriptManager clientScriptManager;
     private final ConcurrentMap<UUID, ClientSession> moudClients = new ConcurrentHashMap<>();
+    private final Set<UUID> resourcePackRequested = ConcurrentHashMap.newKeySet();
+    private final ConcurrentMap<UUID, Integer> resourcePackAttempts = new ConcurrentHashMap<>();
     private final BlueprintStorage blueprintStorage;
-    private final ResourcePackInfo resourcePackInfo;
+    private ResourcePackInfo resourcePackInfo;
     private static ServerNetworkManager instance;
 
     public ServerNetworkManager(EventDispatcher eventDispatcher, ClientScriptManager clientScriptManager) {
@@ -88,7 +90,8 @@ public final class ServerNetworkManager {
         MinecraftServer.getGlobalEventHandler()
                 .addListener(PlayerPluginMessageEvent.class, this::onPluginMessage)
                 .addListener(PlayerDisconnectEvent.class, this::onPlayerDisconnect)
-                .addListener(PlayerSpawnEvent.class, this::onPlayerJoin);
+                .addListener(PlayerSpawnEvent.class, this::onPlayerJoin)
+                .addListener(PlayerResourcePackStatusEvent.class, this::onResourcePackStatus);
     }
 
     private void registerPacketHandlers() {
@@ -98,6 +101,7 @@ public final class ServerNetworkManager {
         ServerPacketWrapper.registerHandler(MouseMovementPacket.class, this::handleMouseMovement);
         ServerPacketWrapper.registerHandler(PlayerClickPacket.class, this::handlePlayerClick);
         ServerPacketWrapper.registerHandler(PlayerModelClickPacket.class, this::handlePlayerModelClick);
+        ServerPacketWrapper.registerHandler(MoudPackets.UIInteractionPacket.class, this::handleUiInteraction);
         ServerPacketWrapper.registerHandler(ClientUpdateValuePacket.class, this::handleSharedValueUpdate);
         ServerPacketWrapper.registerHandler(MovementStatePacket.class, this::handleMovementState);
         ServerPacketWrapper.registerHandler(ClientReadyPacket.class, this::handleClientReady);
@@ -374,6 +378,8 @@ public final class ServerNetworkManager {
         ServerLightingManager.getInstance().syncLightsToPlayer(minestomPlayer);
         FakePlayerManager.getInstance().syncToPlayer(minestomPlayer);
         ParticleEmitterManager.getInstance().syncToPlayer(minestomPlayer);
+        com.moud.server.rendering.PostEffectStateManager.getInstance().syncToPlayer(minestomPlayer);
+        UIOverlayService.getInstance().resend(minestomPlayer);
     }
     private void onPluginMessage(PlayerPluginMessageEvent event) {
         String outerChannel = event.getIdentifier();
@@ -607,50 +613,74 @@ public final class ServerNetworkManager {
 
     private void pushResourcePack(Player player) {
         if (resourcePackInfo == null) {
+            LOGGER.debug("Resource pack info unavailable; skipping pack push for {}", player.getUsername());
             return;
         }
-        try {
-            net.kyori.adventure.resource.ResourcePackInfo packInfo = net.kyori.adventure.resource.ResourcePackInfo.resourcePackInfo(
-                    resourcePackInfo.id(),
-                    URI.create(resourcePackInfo.url()),
-                    resourcePackInfo.sha1()
-            );
-            ResourcePackRequest request = ResourcePackRequest.resourcePackRequest()
-                    .packs(packInfo)
-                    .required(true)
-                    .prompt(Component.text("Moud needs to apply its resource pack for custom assets."))
-                    .callback((uuid, status, audience) -> onResourcePackStatus(player, uuid, status))
-                    .replace(true)
-                    .build();
-            player.sendResourcePacks(request);
-            LogContext context = playerContext(player).merge(LogContext.builder()
-                    .put("resource_pack_id", resourcePackInfo.id())
-                    .put("hash", resourcePackInfo.sha1())
-                    .put("url", resourcePackInfo.url())
-                    .build());
-            LOGGER.info(context, "Requested resource pack for {}", player.getUsername());
-        } catch (Exception e) {
-            LOGGER.warn(playerContext(player), "Failed to push resource pack to {}", player.getUsername(), e);
+        if (!resourcePackRequested.add(player.getUuid())) {
+            LOGGER.debug("Resource pack already requested for {}", player.getUsername());
+            return;
         }
+        int attempt = resourcePackAttempts.merge(player.getUuid(), 1, Integer::sum);
+        MinecraftServer.getSchedulerManager().scheduleNextTick(() -> {
+            try {
+                LogContext base = playerContext(player).merge(LogContext.builder()
+                        .put("resource_pack_id", resourcePackInfo.id())
+                        .put("hash", resourcePackInfo.sha1())
+                        .put("url", resourcePackInfo.url())
+                        .put("transport", "resource_pack_push_packet")
+                        .put("attempt", attempt)
+                        .build());
+                LOGGER.info(base, "Pushing resource pack to player (forced)");
+
+                player.sendPacket(new ResourcePackPushPacket(
+                        resourcePackInfo.id(),
+                        resourcePackInfo.url(),
+                        resourcePackInfo.sha1(),
+                        true,
+                        Component.text("Moud needs to apply its resource pack for custom assets.")
+                ));
+                LOGGER.info(base, "Resource pack push packet sent to {}", player.getUsername());
+            } catch (Exception e) {
+                LOGGER.warn(playerContext(player), "Failed to push resource pack to {}", player.getUsername(), e);
+            }
+        });
+        MinecraftServer.getSchedulerManager().buildTask(() -> {
+            if (resourcePackRequested.contains(player.getUuid())) {
+                if (attempt < 3) {
+                    LOGGER.warn(playerContext(player), "Resource pack still unacknowledged after attempt {}. Retrying...", attempt);
+                    pushResourcePack(player);
+                } else {
+                    LogContext failure = playerContext(player).merge(LogContext.builder()
+                            .put("attempts", attempt)
+                            .build());
+                    LOGGER.error(String.valueOf(failure), "Resource pack not acknowledged after {} attempts. Giving up.", attempt);
+                }
+            }
+        }).delay(Duration.ofSeconds(5)).schedule();
     }
 
-    private void onResourcePackStatus(Player player, UUID packId, ResourcePackStatus status) {
+    private void onResourcePackStatus(PlayerResourcePackStatusEvent event) {
+        Player player = event.getPlayer();
+        ResourcePackStatus status = event.getStatus();
         LogContext context = playerContext(player).merge(LogContext.builder()
-                .put("resource_pack_id", packId)
                 .put("status", status.name())
                 .build());
         switch (status) {
             case SUCCESSFULLY_LOADED -> {
                 ClientSession session = moudClients.get(player.getUuid());
-                if (session != null && resourcePackInfo != null && packId.equals(resourcePackInfo.id())) {
+                if (session != null && resourcePackInfo != null) {
                     session.setResourcePackHash(resourcePackInfo.sha1());
                 }
                 LOGGER.info(context, "Resource pack applied for {}", player.getUsername());
+                resourcePackRequested.remove(player.getUuid());
+                resourcePackAttempts.remove(player.getUuid());
             }
             case ACCEPTED, DOWNLOADED -> LOGGER.info(context, "Resource pack progress update for {}", player.getUsername());
             case DECLINED, FAILED_DOWNLOAD, FAILED_RELOAD, INVALID_URL, DISCARDED -> {
-                LOGGER.warn(context, "Resource pack {} failed with status {}", packId, status);
+                LOGGER.warn(context, "Resource pack failed with status {}", status);
                 player.kick(Component.text("This server requires the Moud resource pack (status: " + status.name() + ")."));
+                resourcePackRequested.remove(player.getUuid());
+                resourcePackAttempts.remove(player.getUuid());
             }
             default -> LOGGER.debug(context, "Resource pack status {} for {}", status, player.getUsername());
         }
@@ -697,6 +727,12 @@ public final class ServerNetworkManager {
         }
     }
 
+    private void handleUiInteraction(Object player, MoudPackets.UIInteractionPacket packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer)) return;
+        UIOverlayService.getInstance().handleInteraction(minestomPlayer, packet);
+    }
+
     private void handleMouseMovement(Object player, MouseMovementPacket packet) {
         Player minestomPlayer = (Player) player;
         if (!isMoudClient(minestomPlayer)) return;
@@ -724,6 +760,7 @@ public final class ServerNetworkManager {
     }
 
     private void onPlayerJoin(PlayerSpawnEvent event) {
+        LOGGER.info(playerContext(event.getPlayer()), "onPlayerJoin called for {}", event.getPlayer().getUsername());
         if (event.isFirstSpawn()) {
             Player player = event.getPlayer();
             PlayerCursorDirectionManager.getInstance().onPlayerJoin(player);
@@ -735,9 +772,12 @@ public final class ServerNetworkManager {
     private void onPlayerDisconnect(PlayerDisconnectEvent event) {
         Player player = event.getPlayer();
         moudClients.remove(player.getUuid());
+        resourcePackRequested.remove(player.getUuid());
+        resourcePackAttempts.remove(player.getUuid());
         PlayerCameraManager.getInstance().onPlayerDisconnect(player);
         PlayerCursorDirectionManager.getInstance().onPlayerDisconnect(player);
         CursorService.getInstance().onPlayerQuit(player);
+        UIOverlayService.getInstance().clear(player);
         PluginEventBus.getInstance().dispatchPlayerLeave(player);
         LOGGER.debug(playerContext(player), "Player {} disconnected, cleaned up client state", player.getUsername());
     }
@@ -893,5 +933,23 @@ public final class ServerNetworkManager {
         }
         String urlPath = "/moud-resourcepack.zip";
         return ResourcePackServer.start(packPath, bindHost, publicHost, port, urlPath);
+    }
+
+    public synchronized void reloadResourcePack() {
+        ResourcePackInfo newInfo = initResourcePackServer();
+        if (newInfo == null) {
+            LOGGER.warn("Resource pack reload failed; keeping previous pack.");
+            return;
+        }
+        this.resourcePackInfo = newInfo;
+        resourcePackRequested.clear();
+        resourcePackAttempts.clear();
+
+        // Force push to connected Moud clients.
+        MinecraftServer.getConnectionManager().getOnlinePlayers().forEach(player -> {
+            if (moudClients.containsKey(player.getUuid())) {
+                pushResourcePack(player);
+            }
+        });
     }
 }
