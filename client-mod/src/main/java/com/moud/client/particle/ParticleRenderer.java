@@ -301,6 +301,7 @@ public final class ParticleRenderer {
                          float forwardX, float forwardY, float forwardZ) {
     }
 
+
     private float lerp(float a, float b, float t) {
         return a + (b - a) * t;
     }
