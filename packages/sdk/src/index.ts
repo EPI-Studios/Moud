@@ -1296,6 +1296,33 @@ export interface CameraTransitionOptions extends CameraStateOptions {
     easing?: (t: number) => number;
 }
 
+/** Options fora dolly zoom effect. */
+export interface CameraDollyOptions {
+    /** Target field of view (degrees) at the end of the zoom. */
+    targetFov?: number;
+    /** Duration of the effect in milliseconds. */
+    duration?: number;
+    /** Distance to keep between camera and target along the view direction. Default: 6. */
+    distance?: number;
+    /** If true, the camera will keep tracking the target each frame. Default: true. */
+    maintainTarget?: boolean;
+    /** If true, the camera will reposition along the view direction before zooming. Default: true. */
+    alignCamera?: boolean;
+    /** Explicit world-space target position to look at. If omitted, player view is used. */
+    target?: CameraVector;
+    /**
+     * Direction to derive the target from. Defaults to the player's current yaw/pitch.
+     * When provided, the target is computed at `distance` along this direction.
+     */
+    direction?: {
+        yaw?: number;
+        pitch?: number;
+        distance?: number;
+        /** If true (default), update direction from the player's current look each frame. */
+        fromPlayerLook?: boolean;
+    };
+}
+
 
 
 /**
@@ -1392,6 +1419,12 @@ export interface CameraLock {
      * @param durationMs The time in milliseconds for the transition.
      */
     smoothTransitionTo(targetPosition: Vector3, targetRotation: { yaw?: number; pitch?: number; roll?: number }, durationMs: number): void;
+
+    /**
+     * Performs a dolly zoom (Vertigo effect) toward a target.
+     * If no target is provided, the player's current look direction is used.
+     */
+    dollyZoom(options?: CameraDollyOptions): void;
 
     /** Resets the player's cursor direction, which can affect camera direction in some modes. */
     resetCursorRotation(): void;
@@ -2034,6 +2067,10 @@ export interface CameraService {
      * @param options Coordinates and orientation values to apply immediately.
      */
     snapTo(options: CameraTransitionOptions): void;
+    /**
+     * Performs a dolly zoom (Vertigo effect) toward a target. If none is supplied, the player's current look is used.
+     */
+    dollyZoom(options: CameraDollyOptions): void;
     /** @returns `true` when the custom camera is active. */
     isCustomCameraActive(): boolean;
     /** @returns The player's current X coordinate. */

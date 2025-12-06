@@ -223,7 +223,15 @@ public final class MoudPackets {
             ENABLE,
             DISABLE,
             TRANSITION_TO,
-            SNAP_TO
+            SNAP_TO,
+            FOLLOW_TO,
+            FOLLOW_PATH,
+            STOP_PATH,
+            CREATE_CINEMATIC,
+            STOP_CINEMATIC,
+            LOOK_AT,
+            CLEAR_LOOK_AT,
+            DOLLY_ZOOM
         }
     }
     @Packet(value = "moud:play_model_animation_fade", direction = Direction.SERVER_TO_CLIENT)

@@ -97,8 +97,13 @@ public class JavaScriptRuntime {
                     );
 
                     ScheduledFuture<?> future = timeoutExecutor.scheduleAtFixedRate(() -> {
-                        if (!isShuttingDown) {
-                            executeCallbackSafe(callback, metadata);
+                        if (!isShuttingDown && jsContext != null) {
+                            try {
+                                executeCallbackSafe(callback, metadata);
+                            } catch (IllegalStateException e) {
+                                // cotext was closed during execute
+                                intervals.remove(intervalId);
+                            }
                         }
                     }, delay, delay, TimeUnit.MILLISECONDS);
 
@@ -352,13 +357,21 @@ public class JavaScriptRuntime {
     public void shutdown() {
         isShuttingDown = true;
 
-        intervals.values().forEach(future -> future.cancel(false));
+        LOGGER.debug("Cancelling {} active intervals before context shutdown", intervals.size());
+        intervals.values().forEach(future -> future.cancel(true)); // Use true for immediate interrupt
         intervals.clear();
+
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
 
         executor.execute(() -> {
             if (jsContext != null) {
                 try {
                     jsContext.close(true);
+                    LOGGER.debug("JavaScript context closed successfully");
                 } catch (Exception e) {
                     LOGGER.error("Error closing JavaScript context", e);
                 }

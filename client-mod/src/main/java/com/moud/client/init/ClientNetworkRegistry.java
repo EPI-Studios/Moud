@@ -32,10 +32,12 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.Identifier;
 import org.graalvm.polyglot.Value;
+import org.graalvm.polyglot.proxy.ProxyArray;
 import org.graalvm.polyglot.proxy.ProxyObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -264,7 +266,157 @@ public class ClientNetworkRegistry {
                     apiService.camera.snapToFromMap(packet.options());
                 }
             }
+            case FOLLOW_TO -> {
+                if (packet.options() != null) {
+                    apiService.camera.followToFromMap(packet.options());
+                }
+            }
+            case FOLLOW_PATH -> {
+                Map<String, Object> options = packet.options();
+                if (options != null && options.containsKey("points")) {
+                    List<Object> points = normalizeArrayPayload(options.get("points"));
+                    Value pointsValue = toValue(points);
+                    long duration = toLong(options.get("duration"), 0L);
+                    boolean loop = toBoolean(options.get("loop"), false);
+                    if (pointsValue != null && pointsValue.hasArrayElements()) {
+                        apiService.camera.followPath(pointsValue, duration, loop);
+                    } else if (points != null && !points.isEmpty()) {
+                        LOGGER.warn("CameraControl FOLLOW_PATH payload not an array. rawClass={}, normalizedSize={}, valueHasArray={}, memberKeys={}",
+                                options.get("points") != null ? options.get("points").getClass().getSimpleName() : "null",
+                                points.size(),
+                                pointsValue != null && pointsValue.hasArrayElements(),
+                                pointsValue != null && pointsValue.hasMembers() ? pointsValue.getMemberKeys() : null);
+                        apiService.camera.followPathFromList(points, duration, loop);
+                    }
+                }
+            }
+            case STOP_PATH -> apiService.camera.stopPath();
+            case CREATE_CINEMATIC -> {
+                Map<String, Object> options = packet.options();
+                if (options != null && options.containsKey("keyframes")) {
+                    List<Object> keyframes = normalizeArrayPayload(options.get("keyframes"));
+                    if (keyframes == null && options.get("keyframes") != null) {
+                        keyframes = new ArrayList<>();
+                        keyframes.add(options.get("keyframes"));
+                    }
+                    Value kfValue = toValue(keyframes);
+                    boolean hasArray = kfValue != null && kfValue.hasArrayElements();
+                    if (!hasArray) {
+                        LOGGER.warn("CameraControl CREATE_CINEMATIC payload not an array. rawClass={}, normalizedSize={}, kfValueClass={}, memberKeys={}",
+                                options.get("keyframes") != null ? options.get("keyframes").getClass().getSimpleName() : "null",
+                                keyframes != null ? keyframes.size() : null,
+                                kfValue != null ? kfValue.getClass().getSimpleName() : "null",
+                                kfValue != null && kfValue.hasMembers() ? kfValue.getMemberKeys() : null);
+                        if (keyframes != null && !keyframes.isEmpty()) {
+                            apiService.camera.createCinematicFromList(keyframes);
+                        }
+                    }
+                    if (kfValue != null && hasArray) {
+                        apiService.camera.createCinematic(kfValue);
+                    }
+                }
+            }
+            case STOP_CINEMATIC -> apiService.camera.stopCinematic();
+            case LOOK_AT -> {
+                Map<String, Object> options = packet.options();
+                if (options != null && !options.isEmpty()) {
+                    Value target = toValue(options);
+                    if (target != null) {
+                        apiService.camera.lookAt(target);
+                    }
+                }
+            }
+            case CLEAR_LOOK_AT -> apiService.camera.clearLookAt();
+            case DOLLY_ZOOM -> {
+                Map<String, Object> options = packet.options();
+                if (options != null) {
+                    apiService.camera.dollyZoomFromMap(options);
+                } else {
+                    double fallbackFov = apiService.camera.getFovInternal() != null ? apiService.camera.getFovInternal() : 70.0;
+                    apiService.camera.dollyZoom(fallbackFov, 1000L);
+                }
+            }
         }
+    }
+
+    private Value toValue(Object payload) {
+        if (payload == null) {
+            return null;
+        }
+        Object proxyReady = toProxyCompatible(payload);
+        return proxyReady != null ? Value.asValue(proxyReady) : null;
+    }
+
+    private Object toProxyCompatible(Object payload) {
+        if (payload instanceof Map<?, ?> map) {
+            Map<String, Object> converted = new HashMap<>();
+            map.forEach((k, v) -> {
+                if (k != null) {
+                    converted.put(k.toString(), toProxyCompatible(v));
+                }
+            });
+            return ProxyObject.fromMap(converted);
+        }
+        if (payload instanceof List<?> list) {
+            List<Object> converted = new ArrayList<>();
+            for (Object element : list) {
+                converted.add(toProxyCompatible(element));
+            }
+            return ProxyArray.fromList(converted);
+        }
+        return payload;
+    }
+
+    private List<Object> normalizeArrayPayload(Object payload) {
+        if (payload instanceof List<?>) {
+            return new ArrayList<>((List<?>) payload);
+        }
+        if (payload instanceof Map<?, ?> map) {
+            // Attempt to preserve ordering if numeric keys are present (e.g., {"0": {...}, "1": {...}})
+            List<Map.Entry<String, Object>> entries = new ArrayList<>();
+            map.forEach((k, v) -> {
+                if (k != null) {
+                    entries.add(Map.entry(k.toString(), v));
+                }
+            });
+            entries.sort((a, b) -> {
+                try {
+                    return Integer.compare(Integer.parseInt(a.getKey()), Integer.parseInt(b.getKey()));
+                } catch (NumberFormatException ignored) {
+                    return a.getKey().compareTo(b.getKey());
+                }
+            });
+            List<Object> ordered = new ArrayList<>();
+            for (Map.Entry<String, Object> entry : entries) {
+                ordered.add(entry.getValue());
+            }
+            return ordered;
+        }
+        if (payload != null) {
+            LOGGER.warn("normalizeArrayPayload expected List/Map but got {} ({})", payload.getClass().getSimpleName(), payload);
+        }
+        return null;
+    }
+
+    private long toLong(Object value, long fallback) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return fallback;
+    }
+
+    private double toDouble(Object value, double fallback) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        return fallback;
+    }
+
+    private boolean toBoolean(Object value, boolean fallback) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        return fallback;
     }
 
     private void handleParticleBatch(MoudPackets.ParticleBatchPacket packet, ClientServiceManager services) {
