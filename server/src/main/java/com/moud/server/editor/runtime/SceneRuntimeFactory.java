@@ -13,6 +13,7 @@ public final class SceneRuntimeFactory {
             case "player_model" -> new PlayerModelRuntimeAdapter(sceneId);
             case "camera" -> new CameraRuntimeAdapter();
             case "particle_emitter" -> new ParticleEmitterRuntimeAdapter();
+            case "post_effect" -> new PostEffectRuntimeAdapter(sceneId);
             default -> null;
         };
     }
