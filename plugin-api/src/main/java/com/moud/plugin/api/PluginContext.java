@@ -6,6 +6,7 @@ import com.moud.plugin.api.services.EventService;
 import com.moud.plugin.api.services.LightingService;
 import com.moud.plugin.api.services.ModelService;
 import com.moud.plugin.api.services.NetworkService;
+import com.moud.plugin.api.services.CameraService;
 import com.moud.plugin.api.services.PhysicsController;
 import com.moud.plugin.api.services.PlayerService;
 import com.moud.plugin.api.services.RenderingController;
@@ -73,6 +74,10 @@ public interface PluginContext {
      * Physics body controller and queries.
      */
     PhysicsController physics();
+    /**
+     * Camera control helpers for players.
+     */
+    CameraService cameras();
     /**
      * Rendering toggle hooks.
      */

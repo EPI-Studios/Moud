@@ -8,6 +8,7 @@ import com.moud.plugin.api.services.EventService;
 import com.moud.plugin.api.services.LightingService;
 import com.moud.plugin.api.services.ModelService;
 import com.moud.plugin.api.services.NetworkService;
+import com.moud.plugin.api.services.CameraService;
 import com.moud.plugin.api.services.PhysicsController;
 import com.moud.plugin.api.services.PlayerService;
 import com.moud.plugin.api.services.RenderingController;
@@ -22,6 +23,7 @@ import com.moud.server.plugin.impl.EventServiceImpl;
 import com.moud.server.plugin.impl.LightingServiceImpl;
 import com.moud.server.plugin.impl.ModelServiceImpl;
 import com.moud.server.plugin.impl.NetworkServiceImpl;
+import com.moud.server.plugin.impl.CameraServiceImpl;
 import com.moud.server.plugin.impl.PhysicsControllerImpl;
 import com.moud.server.plugin.impl.PlayerServiceImpl;
 import com.moud.server.plugin.impl.RenderingControllerImpl;
@@ -51,6 +53,7 @@ public final class PluginContextImpl implements PluginContext {
     private final PlayerServiceImpl playerService;
     private final ClientServiceImpl clientService;
     private final PhysicsControllerImpl physicsController;
+    private final CameraServiceImpl cameraService;
     private final RenderingControllerImpl renderingController;
     private final WorldServiceImpl worldService;
 
@@ -76,6 +79,7 @@ public final class PluginContextImpl implements PluginContext {
         this.playerService = new PlayerServiceImpl();
         this.clientService = new ClientServiceImpl(logger);
         this.physicsController = new PhysicsControllerImpl();
+        this.cameraService = new CameraServiceImpl();
         this.renderingController = new RenderingControllerImpl();
         this.worldService = new WorldServiceImpl();
         this.particleService = new ParticleServiceImpl(logger);
@@ -165,6 +169,11 @@ public final class PluginContextImpl implements PluginContext {
     @Override
     public PhysicsController physics() {
         return physicsController;
+    }
+
+    @Override
+    public CameraService cameras() {
+        return cameraService;
     }
 
     @Override
