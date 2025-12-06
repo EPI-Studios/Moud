@@ -70,6 +70,13 @@ public final class InspectorPanel {
     private final ImFloat cameraFov = new ImFloat(70f);
     private final ImFloat cameraNear = new ImFloat(0.1f);
     private final ImFloat cameraFar = new ImFloat(128f);
+    private final ImFloat fogStart = new ImFloat(-10f);
+    private final ImFloat fogEnd = new ImFloat(120f);
+    private final float[] fogColor = new float[]{0.2f, 0.4f, 0.6f, 1.0f};
+    private final ImInt fogShape = new ImInt(0);
+    private final ImFloat heightFogY = new ImFloat(64f);
+    private final ImFloat heightFogThickness = new ImFloat(0.25f);
+    private final float[] heightFogColor = new float[]{0.3f, 0.3f, 0.35f, 1.0f};
     private String currentObjectId;
 
     public InspectorPanel(SceneEditorOverlay overlay) {
@@ -442,6 +449,7 @@ public final class InspectorPanel {
             case "player_model" -> renderPlayerModelProperties(session, selected);
             case "camera" -> renderCameraProperties(session, selected);
             case "particle_emitter" -> renderParticleEmitterProperties(session, selected, props);
+            case "post_effect" -> renderPostEffectProperties(session, selected, props);
             default -> {
             }
         }
@@ -509,7 +517,100 @@ public final class InspectorPanel {
         }, true);
     }
 
-    private void renderDisplayProperties(SceneSessionManager session, SceneObject selected) {
+
+    private void renderPostEffectProperties(SceneSessionManager session, SceneObject selected, Map<String, Object> props) {
+        ImGui.textDisabled("Post Effect");
+        ImGui.separator();
+
+        String currentId = String.valueOf(props.getOrDefault("effectId", "veil:fog"));
+        boolean isHeightFog = currentId.equalsIgnoreCase("veil:height_fog");
+        boolean typeChanged = false;
+
+        if (ImGui.beginCombo("Effect", currentId)) {
+            if (ImGui.selectable("veil:fog", currentId.equalsIgnoreCase("veil:fog"))) {
+                currentId = "veil:fog";
+                typeChanged = true;
+            }
+            if (ImGui.selectable("veil:height_fog", currentId.equalsIgnoreCase("veil:height_fog"))) {
+                currentId = "veil:height_fog";
+                typeChanged = true;
+            }
+            ImGui.endCombo();
+        }
+
+        if (typeChanged) {
+            props.put("effectId", currentId);
+            Map<String, Object> defaults = currentId.equals("veil:height_fog")
+                    ? com.moud.client.rendering.PostEffectUniformRegistry.defaultHeightFog()
+                    : com.moud.client.rendering.PostEffectUniformRegistry.defaultFog();
+
+            updateUniformBuffers(defaults, currentId.equals("veil:height_fog"));
+
+            props.put("uniforms", defaults);
+            session.submitPropertyUpdate(selected.getId(), props);
+            return;
+        }
+
+        Map<String, Object> uniforms = props.get("uniforms") instanceof Map<?, ?> m
+                ? new ConcurrentHashMap<>((Map<String, Object>) m)
+                : new ConcurrentHashMap<>();
+
+        updateUniformBuffers(uniforms, isHeightFog);
+
+        boolean valuesChanged = false;
+
+        if (!isHeightFog) {
+            if (ImGui.dragFloat("Fog Start", fogStart.getData(), 1f)) {
+                uniforms.put("FogStart", fogStart.get());
+                valuesChanged = true;
+            }
+            if (ImGui.dragFloat("Fog End", fogEnd.getData(), 1f)) {
+                uniforms.put("FogEnd", fogEnd.get());
+                valuesChanged = true;
+            }
+            if (ImGui.sliderInt("Fog Shape (0=linear,1=exp)", fogShape.getData(), 0, 1)) {
+                uniforms.put("FogShape", fogShape.get());
+                valuesChanged = true;
+            }
+            if (ImGui.colorEdit4("Fog Color", fogColor)) {
+                uniforms.put("FogColor", Map.of("r", fogColor[0], "g", fogColor[1], "b", fogColor[2], "a", fogColor[3]));
+                valuesChanged = true;
+            }
+        } else {
+            if (ImGui.dragFloat("Fog Height (FOG_Y)", heightFogY.getData(), 1f)) {
+                uniforms.put("FOG_Y", heightFogY.get());
+                valuesChanged = true;
+            }
+            if (ImGui.dragFloat("Thickness", heightFogThickness.getData(), 0.01f, 0.01f, 4f)) {
+                uniforms.put("THICKNESS", heightFogThickness.get());
+                valuesChanged = true;
+            }
+            if (ImGui.colorEdit4("Fog Color", heightFogColor)) {
+                uniforms.put("FogColor", Map.of("r", heightFogColor[0], "g", heightFogColor[1], "b", heightFogColor[2], "a", heightFogColor[3]));
+                valuesChanged = true;
+            }
+        }
+
+        if (valuesChanged) {
+            props.put("uniforms", uniforms);
+            session.submitPropertyUpdate(selected.getId(), props);
+        }
+    }
+
+    private void updateUniformBuffers(Map<String, Object> uniforms, boolean isHeightFog) {
+        if (!isHeightFog) {
+            if (uniforms.containsKey("FogStart")) fogStart.set(toFloat(uniforms.get("FogStart")));
+            if (uniforms.containsKey("FogEnd")) fogEnd.set(toFloat(uniforms.get("FogEnd")));
+            if (uniforms.containsKey("FogColor")) extractColor(uniforms.get("FogColor"), fogColor);
+            if (uniforms.containsKey("FogShape")) fogShape.set((int) toFloat(uniforms.get("FogShape")));
+        } else {
+            if (uniforms.containsKey("FOG_Y")) heightFogY.set(toFloat(uniforms.get("FOG_Y")));
+            if (uniforms.containsKey("THICKNESS")) heightFogThickness.set(toFloat(uniforms.get("THICKNESS")));
+            if (uniforms.containsKey("FogColor")) extractColor(uniforms.get("FogColor"), heightFogColor);
+        }
+    }
+
+private void renderDisplayProperties(SceneSessionManager session, SceneObject selected) {
         ImGui.textDisabled("Display");
         ImGui.separator();
         if (ImGui.beginCombo("Content Type", displayTypeBuffer.get())) {

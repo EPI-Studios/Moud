@@ -17,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import com.moud.server.rendering.FogUniformRegistry;
 
 public final class SceneManager {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(
@@ -491,10 +492,19 @@ public final class SceneManager {
                 properties
         );
 
+        Map<String, Object> fogProps = new LinkedHashMap<>();
+        fogProps.put("effectId", "veil:fog");
+        fogProps.put("uniforms", FogUniformRegistry.defaultFog());
+        PersistedSceneObject fogDescriptor = new PersistedSceneObject(
+                "scene-template-fog",
+                "post_effect",
+                fogProps
+        );
+
         PersistedScene template = new PersistedScene(
                 SceneDefaults.DEFAULT_SCENE_ID,
                 1L,
-                List.of(terrainDescriptor)
+                List.of(terrainDescriptor, fogDescriptor)
         );
 
         mapper.writeValue(defaultScene.toFile(), template);
