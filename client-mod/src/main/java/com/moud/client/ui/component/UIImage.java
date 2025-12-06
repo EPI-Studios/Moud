@@ -34,8 +34,8 @@ public final class UIImage extends UIComponent {
             context.drawTexture(
                     textureId,
                     0, 0, 0, 0,
-                    getWidth(), getHeight(),
-                    getWidth(), getHeight()
+                    (int) getWidth(), (int) getHeight(),
+                    (int) getWidth(), (int) getHeight()
             );
             context.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
         }
@@ -44,7 +44,7 @@ public final class UIImage extends UIComponent {
             int borderCol = parseColor(borderColor, opacity);
             if ((borderCol >>> 24) > 0) {
                 for (int i = 0; i < borderWidth; i++) {
-                    context.drawBorder(i, i, width - i * 2, height - i * 2, borderCol);
+                    context.drawBorder(i, i, (int) width - i * 2, (int) height - i * 2, borderCol);
                 }
             }
         }

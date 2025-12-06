@@ -3,14 +3,19 @@ package com.moud.client.ui.component;
 import com.moud.client.api.service.UIService;
 import com.moud.client.ui.UIAnchor;
 import com.moud.client.ui.UIRelativePosition;
+import com.moud.client.ui.animation.UIAnimation;
+import com.moud.client.ui.animation.UIAnimationManager;
+import com.moud.client.ui.animation.EasingFunction;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,8 +35,8 @@ public class UIComponent {
     protected final List<UIComponent> children = new CopyOnWriteArrayList<>();
     public UIComponent parent;
 
-    protected volatile int x, y, width, height;
-    protected volatile int screenX, screenY;
+    protected volatile float x, y, width, height;
+    protected volatile float screenX, screenY;
     protected volatile String backgroundColor = "#00000000";
     protected volatile String textColor = "#000000";
     protected volatile String borderColor = "#000000";
@@ -43,11 +48,16 @@ public class UIComponent {
     protected volatile Text message = Text.empty();
     protected volatile boolean focused = false;
 
+    protected volatile String backgroundTexture = null;
+    protected volatile Identifier backgroundTextureId = null;
+
     protected volatile UIAnchor anchor = UIAnchor.TOP_LEFT;
     protected volatile String relativeToId = null;
     protected volatile UIRelativePosition relativePosition = null;
     protected volatile float scaleX = 1.0f;
     protected volatile float scaleY = 1.0f;
+    protected volatile boolean serverControlled = false;
+    protected volatile boolean fullscreen = false;
 
     public UIComponent(String type, UIService service) {
         this.type = type;
@@ -71,18 +81,26 @@ public class UIComponent {
     public void computeLayout(int screenWidth, int screenHeight) {
         if (parent == null) {
 
-            int effectiveWidth = getEffectiveWidth();
-            int effectiveHeight = getEffectiveHeight();
+            if (fullscreen) {
+                this.x = 0;
+                this.y = 0;
+                this.width = screenWidth;
+                this.height = screenHeight;
+                this.anchor = UIAnchor.TOP_LEFT;
+            }
 
-            int baseX = switch (anchor) {
+            float effectiveWidth = getEffectiveWidth();
+            float effectiveHeight = getEffectiveHeight();
+
+            float baseX = switch (anchor) {
                 case TOP_LEFT, CENTER_LEFT, BOTTOM_LEFT -> x;
-                case TOP_CENTER, CENTER_CENTER, BOTTOM_CENTER -> (screenWidth / 2) + x - (effectiveWidth / 2);
+                case TOP_CENTER, CENTER_CENTER, BOTTOM_CENTER -> (screenWidth / 2f) + x - (effectiveWidth / 2f);
                 case TOP_RIGHT, CENTER_RIGHT, BOTTOM_RIGHT -> screenWidth - x - effectiveWidth;
             };
 
-            int baseY = switch (anchor) {
+            float baseY = switch (anchor) {
                 case TOP_LEFT, TOP_CENTER, TOP_RIGHT -> y;
-                case CENTER_LEFT, CENTER_CENTER, CENTER_RIGHT -> (screenHeight / 2) + y - (effectiveHeight / 2);
+                case CENTER_LEFT, CENTER_CENTER, CENTER_RIGHT -> (screenHeight / 2f) + y - (effectiveHeight / 2f);
                 case BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT -> screenHeight - y - effectiveHeight;
             };
 
@@ -113,12 +131,12 @@ public class UIComponent {
         }
     }
 
-    public int getEffectiveWidth() {
-        return (int)(width * scaleX);
+    public float getEffectiveWidth() {
+        return width * scaleX;
     }
 
-    public int getEffectiveHeight() {
-        return (int)(height * scaleY);
+    public float getEffectiveHeight() {
+        return height * scaleY;
     }
 
     public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
@@ -129,16 +147,28 @@ public class UIComponent {
         context.getMatrices().translate(screenX, screenY, 0);
         context.getMatrices().scale(scaleX, scaleY, 1.0f);
 
-        int bgColor = parseColor(backgroundColor, opacity);
-        if ((bgColor >>> 24) > 0) {
-            context.fill(0, 0, width, height, bgColor);
+        if (backgroundTextureId != null) {
+            context.setShaderColor(1.0f, 1.0f, 1.0f, (float) opacity);
+            context.drawTexture(
+                backgroundTextureId,
+                0, 0,                          // screen position
+                0, 0,                          // UV start
+                Math.round(width), Math.round(height),  // screen size
+                256, 256                       // actual texture dimensions
+            );
+            context.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+        } else {
+            int bgColor = parseColor(backgroundColor, opacity);
+            if ((bgColor >>> 24) > 0) {
+                context.fill(0, 0, Math.round(width), Math.round(height), bgColor);
+            }
         }
 
         if (borderWidth > 0) {
             int borderCol = parseColor(borderColor, opacity);
             if ((borderCol >>> 24) > 0) {
                 for (int i = 0; i < borderWidth; i++) {
-                    context.drawBorder(i, i, width - i * 2, height - i * 2, borderCol);
+                    context.drawBorder(i, i, Math.round(width) - i * 2, Math.round(height) - i * 2, borderCol);
                 }
             }
         }
@@ -166,11 +196,11 @@ public class UIComponent {
         int textHeight = MinecraftClient.getInstance().textRenderer.fontHeight;
 
         int textX = switch (textAlign.toLowerCase()) {
-            case "center" -> (width - textWidth) / 2;
-            case "right" -> width - textWidth - (int) paddingRight;
-            default -> (int) paddingLeft;
+            case "center" -> (int) Math.round((width - textWidth) / 2f);
+            case "right" -> (int) Math.round(width - textWidth - paddingRight);
+            default -> (int) Math.round(paddingLeft);
         };
-        int textY = (height - textHeight) / 2;
+        int textY = (int) Math.round((height - textHeight) / 2f);
 
         context.drawText(MinecraftClient.getInstance().textRenderer, message, textX, textY, textCol, false);
     }
@@ -262,38 +292,38 @@ public class UIComponent {
     }
 
     @HostAccess.Export
-    public int getX() { return x; }
+    public float getX() { return x; }
 
     @HostAccess.Export
-    public int getY() { return y; }
+    public float getY() { return y; }
 
     @HostAccess.Export
-    public int getWidth() { return width; }
+    public float getWidth() { return width; }
 
     @HostAccess.Export
-    public int getHeight() { return height; }
+    public float getHeight() { return height; }
 
     @HostAccess.Export
-    public UIComponent setX(int x) {
-        this.x = x;
+    public UIComponent setX(double x) {
+        this.x = (float) x;
         return this;
     }
 
     @HostAccess.Export
-    public UIComponent setY(int y) {
-        this.y = y;
+    public UIComponent setY(double y) {
+        this.y = (float) y;
         return this;
     }
 
     @HostAccess.Export
-    public UIComponent setWidth(int width) {
-        this.width = width;
+    public UIComponent setWidth(double width) {
+        this.width = (float) width;
         return this;
     }
 
     @HostAccess.Export
-    public UIComponent setHeight(int height) {
-        this.height = height;
+    public UIComponent setHeight(double height) {
+        this.height = (float) height;
         return this;
     }
 
@@ -303,6 +333,26 @@ public class UIComponent {
     @HostAccess.Export
     public UIComponent setComponentId(String id) {
         this.componentId = id;
+        return this;
+    }
+
+    public boolean isServerControlled() {
+        return serverControlled;
+    }
+
+    public UIComponent setServerControlled(boolean serverControlled) {
+        this.serverControlled = serverControlled;
+        return this;
+    }
+
+    @HostAccess.Export
+    public boolean isFullscreen() {
+        return fullscreen;
+    }
+
+    @HostAccess.Export
+    public UIComponent setFullscreen(boolean fullscreen) {
+        this.fullscreen = fullscreen;
         return this;
     }
 
@@ -319,15 +369,15 @@ public class UIComponent {
 
     @HostAccess.Export
     public UIComponent setPos(double x, double y) {
-        this.x = (int) x;
-        this.y = (int) y;
+        this.x = (float) x;
+        this.y = (float) y;
         return this;
     }
 
     @HostAccess.Export
     public UIComponent setSize(double width, double height) {
-        this.width = (int) width;
-        this.height = (int) height;
+        this.width = (float) width;
+        this.height = (float) height;
         return this;
     }
 
@@ -340,6 +390,26 @@ public class UIComponent {
     @HostAccess.Export
     public String getBackgroundColor() {
         return backgroundColor;
+    }
+
+    @HostAccess.Export
+    public UIComponent setBackgroundTexture(String texture) {
+        this.backgroundTexture = texture;
+        try {
+            this.backgroundTextureId = texture != null ? net.minecraft.util.Identifier.tryParse(texture) : null;
+            if (texture != null && this.backgroundTextureId == null) {
+                LOGGER.warn("Invalid texture identifier: {}", texture);
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to parse texture identifier: {}", texture, e);
+            this.backgroundTextureId = null;
+        }
+        return this;
+    }
+
+    @HostAccess.Export
+    public String getBackgroundTexture() {
+        return backgroundTexture;
     }
 
     @HostAccess.Export
@@ -509,10 +579,22 @@ public class UIComponent {
     }
 
     public void triggerHover(double mouseX, double mouseY) {
+        if (serverControlled) {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("mouseX", mouseX);
+            payload.put("mouseY", mouseY);
+            notifyServerInteraction("hover", payload);
+        }
         executeEventHandler("hover", this, mouseX, mouseY);
     }
 
     public void triggerUnhover(double mouseX, double mouseY) {
+        if (serverControlled) {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("mouseX", mouseX);
+            payload.put("mouseY", mouseY);
+            notifyServerInteraction("unhover", payload);
+        }
         executeEventHandler("unhover", this, mouseX, mouseY);
     }
 
@@ -525,14 +607,27 @@ public class UIComponent {
     }
 
     public void triggerClick(double mouseX, double mouseY, int button) {
+        if (serverControlled) {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("mouseX", mouseX);
+            payload.put("mouseY", mouseY);
+            payload.put("button", button);
+            notifyServerInteraction("click", payload);
+        }
         executeEventHandler("click", this, mouseX, mouseY, button);
     }
 
     public void triggerFocus() {
+        if (serverControlled) {
+            notifyServerInteraction("focus", new HashMap<>());
+        }
         executeEventHandler("focus", this);
     }
 
     public void triggerBlur() {
+        if (serverControlled) {
+            notifyServerInteraction("blur", new HashMap<>());
+        }
         executeEventHandler("blur", this);
     }
 
@@ -553,5 +648,64 @@ public class UIComponent {
                 }
             });
         }
+    }
+
+    protected void notifyServerInteraction(String eventType, Map<String, Object> payload) {
+        if (service != null && serverControlled) {
+            service.notifyServerInteraction(this, eventType, payload);
+        }
+    }
+
+    /**
+     * Animate this component's properties smoothly over time
+     * @param options Map containing target properties and animation config
+     * Example: { x: 100, y: 200, opacity: 0.5, duration: 500, easing: 'ease-out' }
+     */
+    @HostAccess.Export
+    public UIComponent animate(Map<String, Object> options) {
+        UIAnimation.AnimationConfig config = new UIAnimation.AnimationConfig();
+
+        // Parse target values
+        if (options.containsKey("x")) {
+            config.targetX = ((Number) options.get("x")).floatValue();
+        }
+        if (options.containsKey("y")) {
+            config.targetY = ((Number) options.get("y")).floatValue();
+        }
+        if (options.containsKey("width")) {
+            config.targetWidth = ((Number) options.get("width")).floatValue();
+        }
+        if (options.containsKey("height")) {
+            config.targetHeight = ((Number) options.get("height")).floatValue();
+        }
+        if (options.containsKey("opacity")) {
+            config.targetOpacity = ((Number) options.get("opacity")).floatValue();
+        }
+
+        // Parse duration
+        if (options.containsKey("duration")) {
+            config.duration = ((Number) options.get("duration")).longValue();
+        }
+
+        // Parse easing
+        if (options.containsKey("easing")) {
+            String easingStr = options.get("easing").toString().toUpperCase().replace('-', '_');
+            try {
+                config.easing = EasingFunction.valueOf(easingStr);
+            } catch (IllegalArgumentException e) {
+                LOGGER.warn("Unknown easing function: {}", easingStr);
+            }
+        }
+
+        // Parse onComplete callback
+        if (options.containsKey("onComplete") && options.get("onComplete") instanceof Value) {
+            config.onComplete = (Value) options.get("onComplete");
+        }
+
+        // Create and register animation
+        UIAnimation animation = new UIAnimation(this, config);
+        UIAnimationManager.getInstance().addAnimation(animation);
+
+        return this;
     }
 }
