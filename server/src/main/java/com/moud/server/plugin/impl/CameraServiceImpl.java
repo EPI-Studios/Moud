@@ -4,8 +4,11 @@ import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
 import com.moud.plugin.api.player.PlayerContext;
 import com.moud.plugin.api.services.CameraService;
+import com.moud.plugin.api.services.SchedulerService;
 import com.moud.server.network.ServerNetworkManager;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,12 +71,29 @@ public final class CameraServiceImpl implements CameraService {
 
     @Override
     public void createCinematic(PlayerContext player, List<CameraKeyframe> keyframes) {
+        createCinematic(player, keyframes, null, null, null);
+    }
+
+    @Override
+    public void createCinematic(PlayerContext player, List<CameraKeyframe> keyframes, Runnable onComplete, SchedulerService scheduler) {
+        long totalDuration = keyframes.stream()
+                .mapToLong(kf -> kf.durationMs() != null ? kf.durationMs() : 0L)
+                .sum();
+        Duration duration = Duration.of(totalDuration, ChronoUnit.MILLIS);
+        createCinematic(player, keyframes, onComplete, scheduler, duration);
+    }
+
+    @Override
+    public void createCinematic(PlayerContext player, List<CameraKeyframe> keyframes, Runnable onComplete, SchedulerService scheduler, Duration duration) {
         if (player == null || keyframes == null || keyframes.isEmpty()) return;
         ServerNetworkManager.getInstance().send(player.player(), new MoudPackets.CameraControlPacket(
                 MoudPackets.CameraControlPacket.Action.CREATE_CINEMATIC,
                 Map.of("keyframes", keyframes.stream().map(this::mapFromKeyframe).toList()),
                 null
         ));
+        if (onComplete == null || scheduler == null || duration == null) return;
+        // Schedule the onComplete callback after the total duration
+        scheduler.runLater(onComplete, duration);
     }
 
     @Override
