@@ -3,6 +3,7 @@ package com.moud.plugin.api.services;
 import com.moud.api.math.Vector3;
 import com.moud.plugin.api.player.PlayerContext;
 
+import java.time.Duration;
 import java.util.List;
 
 public interface CameraService {
@@ -12,6 +13,8 @@ public interface CameraService {
     void transitionTo(PlayerContext player, CameraTransition transition);
     void followPath(PlayerContext player, List<CameraKeyframe> points, long durationMs, boolean loop);
     void createCinematic(PlayerContext player, List<CameraKeyframe> keyframes);
+    void createCinematic(PlayerContext player, List<CameraKeyframe> keyframes, Runnable onComplete, SchedulerService scheduler);
+    void createCinematic(PlayerContext player, List<CameraKeyframe> keyframes, Runnable onComplete, SchedulerService scheduler, Duration duration);
     void dollyZoom(PlayerContext player, CameraDollyOptions options);
 
     record CameraState(Vector3 position, Double yaw, Double pitch, Double roll, Double fov) {}
