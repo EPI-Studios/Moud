@@ -1,19 +1,13 @@
 package com.moud.plugin.api.world;
 
-import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.plugin.api.PluginContext;
-import com.moud.plugin.api.entity.GameObject;
 import com.moud.plugin.api.entity.Light;
 import com.moud.plugin.api.entity.LightHandleAdapter;
-import com.moud.plugin.api.entity.ModelBackedGameObject;
 import com.moud.plugin.api.models.ModelBuilder;
 import com.moud.plugin.api.models.ModelData;
-import com.moud.plugin.api.services.PhysicsController;
 import com.moud.plugin.api.services.lighting.LightHandle;
 import com.moud.plugin.api.services.lighting.PointLightDefinition;
-import com.moud.plugin.api.services.model.ModelDefinition;
-import com.moud.plugin.api.services.model.ModelHandle;
 import net.minestom.server.coordinate.Pos;
 
 /**
@@ -54,10 +48,11 @@ public final class WorldDsl {
     }
 
     /**
-     * Begin building a model instance from a server-side asset path.
+     * Begin building a model instance from a model identifier.
      */
-    public ModelBuilder spawn(String modelPath) {
-        return new ModelBuilder(context, modelPath);
+    public ModelBuilder spawn(String modelId) {
+        ModelData modelData = context.models().getModelData(modelId);
+        return new ModelBuilder(context, modelData);
     }
 
     /**

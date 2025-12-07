@@ -4,6 +4,7 @@ import com.moud.plugin.api.command.CommandDsl;
 import com.moud.plugin.api.entity.Player;
 import com.moud.plugin.api.event.ClientEventListener;
 import com.moud.plugin.api.event.EventsDsl;
+import com.moud.plugin.api.models.ModelData;
 import com.moud.plugin.api.network.BroadcastBuilder;
 import com.moud.plugin.api.player.PlayerContext;
 import com.moud.plugin.api.scheduler.SchedulerDsl;
@@ -87,6 +88,13 @@ public abstract class Plugin implements MoudPlugin {
      */
     protected final SchedulerDsl schedule() {
         return scheduler;
+    }
+
+    /**
+     * Register custom model data to be used with entities.
+     */
+    protected ModelData registerModelData(ModelData modelData) {
+        return context.models().register(modelData);
     }
 
     /**
