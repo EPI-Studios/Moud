@@ -15,6 +15,7 @@ public final class ModelBuilder {
     private PhysicsController.PhysicsBodyDefinition physics;
     private boolean playerPushEnabled;
 
+    @Deprecated
     public ModelBuilder(PluginContext context, String modelPath) {
         this.context = context;
         this.builder = ModelDefinition.builder().modelPath(modelPath);
