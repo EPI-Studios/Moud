@@ -23,8 +23,7 @@ public final class ModelBuilder {
     public ModelBuilder(PluginContext context, ModelData modelData) {
         this.context = context;
         this.builder = ModelDefinition.builder()
-                .modelPath(modelData.modelPath())
-                .texture(modelData.texturePath());
+                .modelData(modelData);
     }
 
     /**
