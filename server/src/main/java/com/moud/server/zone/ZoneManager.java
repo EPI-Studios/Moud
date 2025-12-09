@@ -67,6 +67,16 @@ public class ZoneManager {
         }
     }
 
+    public void setZoneCallbacks(String id, Value onEnter, Value onLeave) {
+        Zone zone = zonesById.get(id);
+        if (zone != null) {
+            zone.setCallbacks(onEnter, onLeave);
+            LOGGER.info("Updated callbacks for zone '{}'", id);
+        } else {
+            LOGGER.warn("Attempted to set callbacks for missing zone '{}'", id);
+        }
+    }
+
     private void onPlayerSpawn(PlayerSpawnEvent event) {
         if (!event.isFirstSpawn()) return;
 

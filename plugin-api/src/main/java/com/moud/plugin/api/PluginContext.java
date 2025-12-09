@@ -14,6 +14,7 @@ import com.moud.plugin.api.services.WorldService;
 import com.moud.plugin.api.services.ParticleService;
 import com.moud.plugin.api.services.SchedulerService;
 import com.moud.plugin.api.services.SceneService;
+import com.moud.plugin.api.services.ZoneService;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;
@@ -78,6 +79,10 @@ public interface PluginContext {
      * Camera control helpers for players.
      */
     CameraService cameras();
+    /**
+     * Zone creation/removal helpers.
+     */
+    ZoneService zones();
     /**
      * Rendering toggle hooks.
      */

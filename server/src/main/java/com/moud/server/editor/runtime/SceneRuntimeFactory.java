@@ -14,6 +14,7 @@ public final class SceneRuntimeFactory {
             case "camera" -> new CameraRuntimeAdapter();
             case "particle_emitter" -> new ParticleEmitterRuntimeAdapter();
             case "post_effect" -> new PostEffectRuntimeAdapter(sceneId);
+            case "zone" -> new ZoneRuntimeAdapter();
             default -> null;
         };
     }

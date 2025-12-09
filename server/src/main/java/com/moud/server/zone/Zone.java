@@ -12,8 +12,8 @@ public class Zone {
     private final String id;
     private final Vector3 min;
     private final Vector3 max;
-    private final Value onEnter;
-    private final Value onLeave;
+    private Value onEnter;
+    private Value onLeave;
 
     private final Set<UUID> playersInZone = new HashSet<>();
 
@@ -51,4 +51,9 @@ public class Zone {
     public Vector3 getMax() { return max; }
     public Value getOnEnterCallback() { return onEnter; }
     public Value getOnLeaveCallback() { return onLeave; }
+
+    public void setCallbacks(Value onEnter, Value onLeave) {
+        this.onEnter = onEnter;
+        this.onLeave = onLeave;
+    }
 }
