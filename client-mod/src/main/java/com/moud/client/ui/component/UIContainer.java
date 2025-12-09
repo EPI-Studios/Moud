@@ -10,6 +10,7 @@ public class UIContainer extends UIComponent {
     private volatile double gap = 0;
     private volatile boolean autoResize = true;
     private volatile boolean isUpdatingLayout = false;
+    private volatile boolean manualLayout = false;
 
     public UIContainer(UIService service) {
         super("container", service);
@@ -79,8 +80,14 @@ public class UIContainer extends UIComponent {
         return this;
     }
 
+    @HostAccess.Export
+    public UIContainer setManualLayout(boolean enabled) {
+        this.manualLayout = enabled;
+        return this;
+    }
+
     public void updateLayout() {
-        if (isUpdatingLayout) return;
+        if (isUpdatingLayout || manualLayout) return;
 
         isUpdatingLayout = true;
         try {
