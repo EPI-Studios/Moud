@@ -102,7 +102,7 @@ public class ModelRenderer {
 
         if (vertices != null && indices != null) {
             final int stride = RenderableModel.FLOATS_PER_VERTEX;
-            final int overlayUV = net.minecraft.client.render.OverlayTexture.DEFAULT_UV;
+            final int overlayUV = OverlayTexture.DEFAULT_UV;
 
             for (int i = 0; i < indices.length; i++) {
                 int base = indices[i] * stride;

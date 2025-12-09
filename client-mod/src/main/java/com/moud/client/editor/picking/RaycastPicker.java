@@ -139,7 +139,7 @@ public final class RaycastPicker {
                 }
             }
 
-            // Limb-level picking for fake players
+            // Limb-level picking for player models
             if (obj.isPlayerModel() && obj.getLimbCapsules() != null) {
                 for (var entry : obj.getLimbCapsules().entrySet()) {
                     HitResult limbHit = raycastCapsule(rayStart, rayEnd, entry.getValue());

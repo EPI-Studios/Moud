@@ -44,6 +44,7 @@ public class ClientRenderController {
     private final PlayerModelRenderer playerModelRenderer = new PlayerModelRenderer();
     private ParticleRenderer particleRenderer;
     private long particleFrameTimeNs = 0L;
+    private boolean veilBuffersEnabled = false;
 
     public void register(ClientServiceManager services) {
         this.particleRenderer = new ParticleRenderer(services.getParticleSystem());
@@ -68,7 +69,7 @@ public class ClientRenderController {
 
         VeilRenderer veilRenderer = VeilRenderSystem.renderer();
         boolean enabledBuffers = false;
-        if (veilRenderer != null && !DISABLE_VEIL_BUFFERS) {
+        if (veilRenderer != null && !DISABLE_VEIL_BUFFERS && !veilBuffersEnabled) {
             try {
                 enabledBuffers = veilRenderer.enableBuffers(VeilRenderer.COMPOSITE,
                         DynamicBufferType.ALBEDO,
@@ -76,9 +77,12 @@ public class ClientRenderController {
                 if (DISABLE_VEIL_BLOOM) {
                     // intentionally left blank to preserve existing behavior while skipping bloom toggle
                 }
+                veilBuffersEnabled = enabledBuffers;
             } catch (Throwable t) {
                 LOGGER.debug("Failed to enable Veil dynamic buffers", t);
             }
+        } else if (veilBuffersEnabled) {
+            enabledBuffers = true;
         }
 
         try {

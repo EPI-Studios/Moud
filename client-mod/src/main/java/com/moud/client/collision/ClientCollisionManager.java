@@ -44,6 +44,10 @@ public final class ClientCollisionManager {
         ENTRIES.remove(modelId);
     }
 
+    public static void clear() {
+        ENTRIES.clear();
+    }
+
     public static boolean hasMesh(long modelId) {
         return ENTRIES.containsKey(modelId);
     }

@@ -1,9 +1,9 @@
 package com.moud.client.model;
 
+import com.moud.client.collision.ClientCollisionManager;
 import com.moud.client.collision.ModelCollisionManager;
 import com.moud.client.editor.runtime.RuntimeObjectRegistry;
 import com.moud.client.util.OBJLoader;
-import com.moud.client.collision.ModelCollisionManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.resource.Resource;
 import net.minecraft.util.Identifier;
@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -100,10 +101,11 @@ public class ClientModelManager {
         RenderableModel model = models.remove(id);
         if (model != null) {
             model.destroy();
-            ModelCollisionManager.getInstance().removeModel(id);
-            RuntimeObjectRegistry.getInstance().removeModel(id);
             LOGGER.info("Removed client-side model ID {}", id);
         }
+        ModelCollisionManager.getInstance().removeModel(id);
+        ClientCollisionManager.unregisterModel(id);
+        RuntimeObjectRegistry.getInstance().removeModel(id);
     }
 
     public RenderableModel getModel(long id) {
@@ -115,8 +117,11 @@ public class ClientModelManager {
     }
 
     public void clear() {
-        models.values().forEach(RenderableModel::destroy);
+        for (Long id : new ArrayList<>(models.keySet())) {
+            removeModel(id);
+        }
         models.clear();
+        ClientCollisionManager.clear();
         ModelCollisionManager.getInstance().clear();
         LOGGER.info("Cleared all client-side models.");
     }
