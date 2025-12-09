@@ -3,12 +3,11 @@ package com.moud.server.editor.runtime;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
-import com.moud.server.fakeplayer.FakePlayerManager;
+import com.moud.server.proxy.PlayerModelProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 
 public final class PlayerModelRuntimeAdapter implements SceneRuntimeAdapter {
@@ -17,7 +16,7 @@ public final class PlayerModelRuntimeAdapter implements SceneRuntimeAdapter {
 
     private final String sceneId;
     private String objectId;
-    private Long fakeId;
+    private PlayerModelProxy model;
     private int lastSignature;
     private String lastAnim = "";
     private boolean lastLoop = true;
@@ -31,99 +30,42 @@ public final class PlayerModelRuntimeAdapter implements SceneRuntimeAdapter {
     @Override
     public void create(MoudPackets.SceneObjectSnapshot snapshot) throws Exception {
         lastSignature = computeSignature(snapshot);
-        createInternal(snapshot, null);
+        this.objectId = snapshot.objectId();
+        applySnapshot(snapshot.properties(), true);
     }
 
     @Override
     public void update(MoudPackets.SceneObjectSnapshot snapshot) throws Exception {
         int signature = computeSignature(snapshot);
-        if (signature == lastSignature && fakeId != null) {
+        if (signature == lastSignature && model != null) {
             return;
         }
         lastSignature = signature;
 
-        Map<String, Object> props = snapshot.properties();
-        Vector3 position = vectorProperty(props.get("position"), new Vector3(0, 64, 0));
-        String skinUrl = stringProperty(props, "skinUrl", DEFAULT_SKIN);
-        Quaternion rotation = rotationProperty(props, Quaternion.identity());
-        double width = doubleProperty(props, "width", 0.6);
-        double height = doubleProperty(props, "height", 1.8);
-        boolean physics = boolProperty(props, "physicsEnabled", false);
-        boolean sneaking = boolProperty(props, "sneaking", false);
-        boolean sprinting = boolProperty(props, "sprinting", false);
-        boolean swinging = boolProperty(props, "swinging", false);
-        boolean usingItem = boolProperty(props, "usingItem", false);
-        List<MoudPackets.FakePlayerWaypoint> path = pathProperty(props.get("path"));
-        double pathSpeed = doubleProperty(props, "pathSpeed", 0.0);
-        boolean pathLoop = boolProperty(props, "pathLoop", false);
-        boolean pathPingPong = boolProperty(props, "pathPingPong", false);
-
-        MoudPackets.FakePlayerDescriptor descriptor = new MoudPackets.FakePlayerDescriptor(
-                fakeId != null ? fakeId : 0L,
-                stringProperty(props, "label", "Fake Player"),
-                skinUrl,
-                position,
-                rotation,
-                width,
-                height,
-                physics,
-                sneaking,
-                sprinting,
-                swinging,
-                usingItem,
-                path,
-                pathSpeed,
-                pathLoop,
-                pathPingPong
-        );
-
-        if (fakeId == null) {
-            fakeId = FakePlayerManager.getInstance().spawn(descriptor).getId();
-            LOGGER.info("Created fake player '{}' for scene {}", objectId, sceneId);
-        } else {
-            FakePlayerManager.getInstance().update(descriptor);
-        }
-        applyAnimationOverride(props);
+        this.objectId = snapshot.objectId();
+        applySnapshot(snapshot.properties(), false);
     }
 
-    private void createInternal(MoudPackets.SceneObjectSnapshot snapshot, Long reuseId) throws Exception {
-        this.objectId = snapshot.objectId();
-        Map<String, Object> props = snapshot.properties();
+    private void applySnapshot(Map<String, Object> props, boolean creating) {
         Vector3 position = vectorProperty(props.get("position"), new Vector3(0, 64, 0));
         String skinUrl = stringProperty(props, "skinUrl", DEFAULT_SKIN);
         Quaternion rotation = rotationProperty(props, Quaternion.identity());
-        double width = doubleProperty(props, "width", 0.6);
-        double height = doubleProperty(props, "height", 1.8);
-        boolean physics = boolProperty(props, "physicsEnabled", false);
-        boolean sneaking = boolProperty(props, "sneaking", false);
-        boolean sprinting = boolProperty(props, "sprinting", false);
-        boolean swinging = boolProperty(props, "swinging", false);
-        boolean usingItem = boolProperty(props, "usingItem", false);
-        List<MoudPackets.FakePlayerWaypoint> path = pathProperty(props.get("path"));
-        double pathSpeed = doubleProperty(props, "pathSpeed", 0.0);
-        boolean pathLoop = boolProperty(props, "pathLoop", false);
-        boolean pathPingPong = boolProperty(props, "pathPingPong", false);
+        Vector3 euler = rotation.toEuler();
+        float yaw = (float) euler.y;
+        float pitch = (float) euler.x;
+        String instanceName = stringProperty(props, "instanceName", null);
 
-        MoudPackets.FakePlayerDescriptor descriptor = new MoudPackets.FakePlayerDescriptor(
-                reuseId != null ? reuseId : 0L,
-                stringProperty(props, "label", "Fake Player"),
-                skinUrl,
-                position,
-                rotation,
-                width,
-                height,
-                physics,
-                sneaking,
-                sprinting,
-                swinging,
-                usingItem,
-                path,
-                pathSpeed,
-                pathLoop,
-                pathPingPong
-        );
-        fakeId = FakePlayerManager.getInstance().spawn(descriptor).getId();
-        LOGGER.info("Created fake player '{}' for scene {}", objectId, sceneId);
+        if (creating || model == null) {
+            model = new PlayerModelProxy(position, skinUrl);
+            LOGGER.info("Created player model '{}' for scene {}", objectId, sceneId);
+        } else {
+            model.setPosition(position);
+            model.setSkin(skinUrl);
+        }
+        if (instanceName != null && !instanceName.isBlank()) {
+            model.setInstance(instanceName);
+        }
+        model.setRotation(yaw, pitch);
         applyAnimationOverride(props);
     }
 
@@ -133,7 +75,7 @@ public final class PlayerModelRuntimeAdapter implements SceneRuntimeAdapter {
     }
 
     private void applyAnimationOverride(Map<String, Object> props) {
-        if (fakeId == null) {
+        if (model == null) {
             return;
         }
         boolean autoAnimation = boolProperty(props, "autoAnimation", true);
@@ -141,17 +83,22 @@ public final class PlayerModelRuntimeAdapter implements SceneRuntimeAdapter {
         String anim = stringProperty(props, "animationOverride", "");
         int durationMs = intProperty(props, "animationDuration", 2000);
 
-        if (!autoAnimation && anim.isBlank()) {
-            FakePlayerManager.getInstance().playAnimation(fakeId, "", 0);
-            return;
-        }
+        model.setAutoAnimation(autoAnimation);
+        model.setLoopAnimation(loopAnimation);
+        model.setAnimationDuration(durationMs);
 
-        String targetAnim = anim.isBlank() ? "moud:idle" : anim;
-        int duration = loopAnimation ? 0 : durationMs;
-        if (targetAnim.equals(lastAnim) && loopAnimation == lastLoop && autoAnimation == lastAuto && durationMs == lastDuration) {
-            return;
+        String targetAnim = anim == null ? "" : anim;
+        if (autoAnimation && targetAnim.isBlank()) {
+            if (!lastAuto || !lastAnim.isBlank()) {
+                model.clearManualAnimation();
+            }
+        } else {
+            String selectedAnim = targetAnim.isBlank() ? "moud:player_animations/idle" : targetAnim;
+            if (!selectedAnim.equals(lastAnim) || loopAnimation != lastLoop || autoAnimation != lastAuto || durationMs != lastDuration) {
+                model.setManualAnimation(selectedAnim);
+            }
+            targetAnim = selectedAnim;
         }
-        FakePlayerManager.getInstance().playAnimation(fakeId, targetAnim, duration);
         lastAnim = targetAnim;
         lastLoop = loopAnimation;
         lastAuto = autoAnimation;
@@ -160,58 +107,46 @@ public final class PlayerModelRuntimeAdapter implements SceneRuntimeAdapter {
 
     @Override
     public void remove() {
-        if (fakeId != null) {
-            FakePlayerManager.getInstance().remove(fakeId);
-            fakeId = null;
+        if (model != null) {
+            model.remove();
+            model = null;
         }
     }
 
     public void applyPropertyChange(String key, Object value) throws Exception {
-        if (fakeId == null) {
+        if (model == null) {
             return;
         }
         switch (key) {
             case "position" -> {
                 Vector3 pos = vectorProperty(value, null);
-                if (pos != null) FakePlayerManager.getInstance().teleport(fakeId, pos);
+                if (pos != null) {
+                    model.setPosition(pos);
+                }
             }
             case "rotation", "rotationQuat" -> {
                 Quaternion rot = rotationProperty(Map.of(key, value), null);
-                if (rot != null) FakePlayerManager.getInstance().setRotation(fakeId, rot);
+                if (rot != null) {
+                    Vector3 euler = rot.toEuler();
+                    model.setRotation((float) euler.y, (float) euler.x);
+                }
             }
-            case "sneaking", "sprinting", "swinging", "usingItem" -> {
-                FakePlayerManager.getInstance().setStateFlag(fakeId, key, boolProperty(Map.of(key, value), key, false));
+            case "skinUrl" -> model.setSkin(stringProperty(Map.of("skinUrl", value), "skinUrl", DEFAULT_SKIN));
+            case "instanceName" -> {
+                String instance = stringProperty(Map.of("instanceName", value), "instanceName", null);
+                if (instance != null) {
+                    model.setInstance(instance);
+                }
             }
             case "animationOverride", "autoAnimation", "loopAnimation", "animationDuration" -> {
-                Map<String, Object> map = new java.util.HashMap<>();
+                Map<String, Object> map = new HashMap<>();
                 map.put("autoAnimation", lastAuto);
                 map.put("loopAnimation", lastLoop);
                 map.put("animationOverride", lastAnim);
                 map.put("animationDuration", lastDuration);
                 map.put(key, value);
 
-                boolean autoAnimation = boolProperty(map, "autoAnimation", lastAuto);
-                boolean loopAnimation = boolProperty(map, "loopAnimation", lastLoop);
-                String anim = stringProperty(map, "animationOverride", lastAnim);
-                int durationMs = intProperty(map, "animationDuration", lastDuration);
-
-                if (!autoAnimation && anim.isBlank()) {
-                    FakePlayerManager.getInstance().playAnimation(fakeId, "", 0);
-                    lastAnim = anim;
-                    lastLoop = loopAnimation;
-                    lastAuto = autoAnimation;
-                    lastDuration = durationMs;
-                    return;
-                }
-                String targetAnim = anim.isBlank() ? "moud:idle" : anim;
-                if (!targetAnim.equals(lastAnim) || loopAnimation != lastLoop || autoAnimation != lastAuto || durationMs != lastDuration) {
-                    int duration = loopAnimation ? 0 : durationMs;
-                    FakePlayerManager.getInstance().playAnimation(fakeId, targetAnim, duration);
-                    lastAnim = targetAnim;
-                    lastLoop = loopAnimation;
-                    lastAuto = autoAnimation;
-                    lastDuration = durationMs;
-                }
+                applyAnimationOverride(map);
             }
             default -> {
                 // ignore unhandled properties for lightweight updates
@@ -294,20 +229,5 @@ public final class PlayerModelRuntimeAdapter implements SceneRuntimeAdapter {
             return Quaternion.fromEuler((float) pitch, (float) yaw, (float) roll);
         }
         return fallback;
-    }
-
-    private static List<MoudPackets.FakePlayerWaypoint> pathProperty(Object raw) {
-        List<MoudPackets.FakePlayerWaypoint> out = new ArrayList<>();
-        if (raw instanceof List<?> list) {
-            for (Object o : list) {
-                if (o instanceof Map<?, ?> map) {
-                    Vector3 v = vectorProperty(map, null);
-                    if (v != null) {
-                        out.add(new MoudPackets.FakePlayerWaypoint(v));
-                    }
-                }
-            }
-        }
-        return out;
     }
 }

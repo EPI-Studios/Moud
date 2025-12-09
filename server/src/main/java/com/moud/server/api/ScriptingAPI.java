@@ -1,5 +1,6 @@
 package com.moud.server.api;
 
+import com.moud.api.math.Vector3;
 import com.moud.server.MoudEngine;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.api.validation.APIValidator;
