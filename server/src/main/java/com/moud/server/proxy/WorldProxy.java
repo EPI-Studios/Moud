@@ -276,18 +276,20 @@ public class WorldProxy {
         String skinUrl = "";
 
         try {
-            if (options.hasMember("position")) {
-                Value posValue = options.getMember("position");
-                if (posValue.isHostObject() && posValue.asHostObject() instanceof Vector3) {
-                    position = posValue.as(Vector3.class);
-                }
-            }
+            position = readVector(options, "position", Vector3.zero());
 
             if (options.hasMember("skinUrl")) {
                 skinUrl = options.getMember("skinUrl").asString();
             }
 
-            return new PlayerModelProxy(position, skinUrl);
+            PlayerModelProxy proxy = new PlayerModelProxy(position, skinUrl);
+            if (options.hasMember("rotation")) {
+                Value rot = options.getMember("rotation");
+                float yaw = rot.hasMember("y") ? rot.getMember("y").asFloat() : 0f;
+                float pitch = rot.hasMember("x") ? rot.getMember("x").asFloat() : 0f;
+                proxy.setRotation(yaw, pitch);
+            }
+            return proxy;
 
         } catch (Exception e) {
             throw new APIException("MODEL_CREATION_FAILED", "Failed to create player model", e);
@@ -299,7 +301,7 @@ public class WorldProxy {
         if (options == null || !options.hasMembers()) {
             throw new APIException("INVALID_ARGUMENT", "createText requires an options object.");
         }
-        Vector3 position = options.hasMember("position") ? options.getMember("position").as(Vector3.class) : Vector3.zero();
+        Vector3 position = readVector(options, "position", Vector3.zero());
         String content = options.hasMember("content") ? options.getMember("content").asString() : "";
         String billboard = options.hasMember("billboard") ? options.getMember("billboard").asString() : "fixed";
 
@@ -316,6 +318,25 @@ public class WorldProxy {
         }
 
         return textProxy;
+    }
+
+    private Vector3 readVector(Value options, String key, Vector3 fallback) {
+        try {
+            if (options.hasMember(key)) {
+                Value v = options.getMember(key);
+                if (v.isHostObject() && v.asHostObject() instanceof Vector3 vec) {
+                    return vec;
+                }
+                if (v.hasMembers()) {
+                    double x = v.hasMember("x") ? v.getMember("x").asDouble() : fallback.x;
+                    double y = v.hasMember("y") ? v.getMember("y").asDouble() : fallback.y;
+                    double z = v.hasMember("z") ? v.getMember("z").asDouble() : fallback.z;
+                    return new Vector3(x, y, z);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return fallback;
     }
 
     @HostAccess.Export

@@ -32,6 +32,7 @@ public class PlayerModelProxy {
 
     private final long modelId;
     private Vector3 position;
+    private String instanceName;
     private float yaw;
     private float pitch;
     private String skinUrl;
@@ -60,7 +61,7 @@ public class PlayerModelProxy {
 
                 for (PlayerModelProxy model : ALL_MODELS.values()) {
                     networkManager.send(player, new MoudPackets.PlayerModelCreatePacket(model.modelId, model.position, model.skinUrl));
-                    networkManager.send(player, new MoudPackets.PlayerModelUpdatePacket(model.modelId, model.position, model.yaw, model.pitch));
+                    networkManager.send(player, new MoudPackets.PlayerModelUpdatePacket(model.modelId, model.position, model.yaw, model.pitch, model.instanceName));
 
                     if (model.currentAnimation != null && !model.currentAnimation.isEmpty()) {
                         networkManager.send(player, new MoudPackets.S2C_PlayModelAnimationPacket(model.modelId, model.currentAnimation));
@@ -72,7 +73,7 @@ public class PlayerModelProxy {
 
     public PlayerModelProxy(Vector3 position, String skinUrl) {
         this.modelId = ID_COUNTER.getAndIncrement();
-        this.position = position;
+        this.position = position != null ? position : Vector3.zero();
         this.skinUrl = skinUrl != null ? skinUrl : "";
         this.yaw = 0.0f;
         this.pitch = 0.0f;
@@ -98,14 +99,25 @@ public class PlayerModelProxy {
             return;
         }
         switch (movementState) {
-            case IDLE -> playAnimation("moud:idle");
-            case WALKING -> playAnimation("moud:walk");
+            case IDLE -> playAnimation("moud:player_animations/idle");
+            case WALKING -> playAnimation("moud:player_animations/walk");
         }
     }
 
     @HostAccess.Export
     public Vector3 getPosition() {
         return position;
+    }
+
+    @HostAccess.Export
+    public void setInstance(String instance) {
+        this.instanceName = instance;
+        broadcastUpdate();
+    }
+
+    @HostAccess.Export
+    public String getInstanceName() {
+        return instanceName;
     }
 
     @HostAccess.Export
@@ -294,7 +306,7 @@ public class PlayerModelProxy {
     }
 
     private void broadcastUpdate() {
-        MoudPackets.PlayerModelUpdatePacket packet = new MoudPackets.PlayerModelUpdatePacket(modelId, position, yaw, pitch);
+        MoudPackets.PlayerModelUpdatePacket packet = new MoudPackets.PlayerModelUpdatePacket(modelId, position, yaw, pitch, instanceName);
         broadcast(packet);
     }
 

@@ -8,14 +8,18 @@ import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.metadata.display.TextDisplayMeta;
+import net.minestom.server.instance.Instance;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
+
+import java.util.UUID;
 
 @TsExpose
 public class TextProxy {
     private final Entity textEntity;
     private final TextDisplayMeta meta;
     private Entity interactionEntity;
+    private String instanceName;
 
     public TextProxy(Vector3 position, String content, String billboard) {
         this.textEntity = new Entity(EntityType.TEXT_DISPLAY);
@@ -44,6 +48,38 @@ public class TextProxy {
 
         if (interactionEntity != null && interactionEntity.getInstance() != null) {
             interactionEntity.teleport(newPos);
+        }
+    }
+
+    @HostAccess.Export
+    public void setInstance(String instance) {
+        this.instanceName = instance;
+        if (instance == null || instance.isBlank()) {
+            return;
+        }
+        Instance inst = resolveInstance(instance);
+        if (inst != null) {
+            Pos currentPos = textEntity.getPosition();
+            textEntity.setInstance(inst, currentPos);
+            if (interactionEntity != null) {
+                interactionEntity.setInstance(inst, currentPos);
+            }
+        }
+    }
+
+    @HostAccess.Export
+    public String getInstanceName() {
+        return instanceName;
+    }
+
+    private Instance resolveInstance(String id) {
+        var manager = com.moud.server.instance.InstanceManager.getInstance();
+        Instance byName = manager.getInstanceByName(id);
+        if (byName != null) return byName;
+        try {
+            return manager.getInstance(UUID.fromString(id));
+        } catch (Exception ignored) {
+            return null;
         }
     }
 
