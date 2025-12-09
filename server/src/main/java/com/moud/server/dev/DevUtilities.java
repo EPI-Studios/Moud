@@ -42,7 +42,6 @@ public final class DevUtilities {
         commandManager.register(new GamemodeCommand());
         commandManager.register(new SpawnLightCommand());
         commandManager.register(new SpawnPhysicsCommand());
-        commandManager.register(new SpawnFakePlayerCommand());
         commandManager.register(new PhysicsExplosionCommand());
         commandManager.register(new TimeControlCommand());
         commandManager.register(new PlayAnimationCommand());

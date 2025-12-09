@@ -60,7 +60,6 @@ public class MoudEngine {
     private final HotReloadEndpoint hotReloadEndpoint;
     private final ZoneManager zoneManager;
     private final PhysicsService physicsService;
-    private final com.moud.server.fakeplayer.FakePlayerManager fakePlayerManager;
     private final ParticleBatcher particleBatcher;
     private final ParticleEmitterManager particleEmitterManager;
 
@@ -114,6 +113,8 @@ public class MoudEngine {
 
             this.assetManager = new AssetManager(projectRoot);
             assetManager.initialize();
+            this.zoneManager = new ZoneManager(this);
+
             SceneManager.getInstance().setAssetManager(assetManager);
             SceneManager.getInstance().initialize(projectRoot);
 
@@ -135,13 +136,8 @@ public class MoudEngine {
             this.particleEmitterManager = ParticleEmitterManager.getInstance();
             particleEmitterManager.initialize(networkManager);
 
-            this.zoneManager = new ZoneManager(this);
-
             this.physicsService = PhysicsService.getInstance();
             physicsService.initialize();
-
-            this.fakePlayerManager = com.moud.server.fakeplayer.FakePlayerManager.getInstance();
-            fakePlayerManager.initialize(networkManager, physicsService);
 
             this.cursorService = CursorService.getInstance(networkManager);
             cursorService.initialize();

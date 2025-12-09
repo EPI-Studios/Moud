@@ -11,7 +11,6 @@ import com.moud.server.entity.DisplayManager;
 import com.moud.server.entity.ModelManager;
 import com.moud.server.editor.SceneManager;
 import com.moud.server.editor.BlueprintStorage;
-import com.moud.server.fakeplayer.FakePlayerManager;
 import com.moud.server.events.EventDispatcher;
 import com.moud.server.lighting.ServerLightingManager;
 import com.moud.server.camera.CameraRegistry;
@@ -65,15 +64,16 @@ public final class ServerNetworkManager {
     private final Set<UUID> resourcePackRequested = ConcurrentHashMap.newKeySet();
     private final ConcurrentMap<UUID, Integer> resourcePackAttempts = new ConcurrentHashMap<>();
     private final BlueprintStorage blueprintStorage;
-    private ResourcePackInfo resourcePackInfo;
+    private volatile ResourcePackInfo resourcePackInfo;
     private static ServerNetworkManager instance;
 
     public ServerNetworkManager(EventDispatcher eventDispatcher, ClientScriptManager clientScriptManager) {
         this.eventDispatcher = eventDispatcher;
         this.clientScriptManager = clientScriptManager;
         this.blueprintStorage = new BlueprintStorage(SceneManager.getInstance().getProjectRoot());
-        this.resourcePackInfo = initResourcePackServer();
+        this.resourcePackInfo = null;
         instance = this;
+        initResourcePackServerAsync();
     }
 
     public static ServerNetworkManager getInstance() {
@@ -121,10 +121,6 @@ public final class ServerNetworkManager {
         ServerPacketWrapper.registerHandler(MoudPackets.UpdatePlayerTransformPacket.class, this::handlePlayerTransformUpdate);
         ServerPacketWrapper.registerHandler(SaveBlueprintPacket.class, this::handleBlueprintSave);
         ServerPacketWrapper.registerHandler(RequestBlueprintPacket.class, this::handleBlueprintRequest);
-        ServerPacketWrapper.registerHandler(MoudPackets.C2S_SpawnFakePlayer.class, this::handleFakePlayerSpawn);
-        ServerPacketWrapper.registerHandler(MoudPackets.C2S_RemoveFakePlayer.class, this::handleFakePlayerRemove);
-        ServerPacketWrapper.registerHandler(MoudPackets.C2S_SetFakePlayerPose.class, this::handleFakePlayerPose);
-        ServerPacketWrapper.registerHandler(MoudPackets.C2S_SetFakePlayerPath.class, this::handleFakePlayerPath);
 
     }
 
@@ -347,36 +343,11 @@ public final class ServerNetworkManager {
         send(minestomPlayer, new BlueprintDataPacket(name, data, success, message == null ? "" : message));
     }
 
-    private void handleFakePlayerSpawn(Object player, MoudPackets.C2S_SpawnFakePlayer packet) {
-        Player minestomPlayer = (Player) player;
-        if (!isMoudClient(minestomPlayer)) return;
-        FakePlayerManager.getInstance().spawn(packet.descriptor());
-    }
-
-    private void handleFakePlayerRemove(Object player, MoudPackets.C2S_RemoveFakePlayer packet) {
-        Player minestomPlayer = (Player) player;
-        if (!isMoudClient(minestomPlayer)) return;
-        FakePlayerManager.getInstance().remove(packet.id());
-    }
-
-    private void handleFakePlayerPose(Object player, MoudPackets.C2S_SetFakePlayerPose packet) {
-        Player minestomPlayer = (Player) player;
-        if (!isMoudClient(minestomPlayer)) return;
-        FakePlayerManager.getInstance().updatePose(packet.id(), packet.sneaking(), packet.sprinting(), packet.swinging(), packet.usingItem());
-    }
-
-    private void handleFakePlayerPath(Object player, MoudPackets.C2S_SetFakePlayerPath packet) {
-        Player minestomPlayer = (Player) player;
-        if (!isMoudClient(minestomPlayer)) return;
-        FakePlayerManager.getInstance().updatePath(packet.id(), packet.path(), packet.pathSpeed(), packet.pathLoop(), packet.pathPingPong());
-    }
-
     private void handleClientReady(Object player, ClientReadyPacket packet) {
         Player minestomPlayer = (Player) player;
         LogContext context = playerContext(minestomPlayer);
-        LOGGER.info(context, "Client {} is ready, syncing lights, fake players, and particle emitters", minestomPlayer.getUsername());
+        LOGGER.info(context, "Client {} is ready, syncing lights and particle emitters", minestomPlayer.getUsername());
         ServerLightingManager.getInstance().syncLightsToPlayer(minestomPlayer);
-        FakePlayerManager.getInstance().syncToPlayer(minestomPlayer);
         ParticleEmitterManager.getInstance().syncToPlayer(minestomPlayer);
         com.moud.server.rendering.PostEffectStateManager.getInstance().syncToPlayer(minestomPlayer);
         UIOverlayService.getInstance().resend(minestomPlayer);
@@ -536,7 +507,7 @@ public final class ServerNetworkManager {
         if (!playerModels.isEmpty()) {
             playerModels.forEach(model -> {
                 send(minestomPlayer, new PlayerModelCreatePacket(model.getModelId(), model.getPosition(), model.getSkinUrl()));
-                send(minestomPlayer, new PlayerModelUpdatePacket(model.getModelId(), model.getPosition(), model.getYaw(), model.getPitch()));
+                send(minestomPlayer, new PlayerModelUpdatePacket(model.getModelId(), model.getPosition(), model.getYaw(), model.getPitch(), model.getInstanceName()));
 
                 String skinUrl = model.getSkinUrl();
                 if (skinUrl != null && !skinUrl.isEmpty()) {
@@ -554,8 +525,6 @@ public final class ServerNetworkManager {
                     .build());
             LOGGER.info(playerModelContext, "Synced {} existing player models to {}", playerModels.size(), minestomPlayer.getUsername());
         }
-
-        FakePlayerManager.getInstance().syncToPlayer(minestomPlayer);
 
         ModelManager.getInstance().getAllModels().forEach(model -> {
             model.ensureCollisionPayload();
@@ -896,7 +865,24 @@ public final class ServerNetworkManager {
         }
     }
 
-    private ResourcePackInfo initResourcePackServer() {
+    private void initResourcePackServerAsync() {
+        Thread.ofVirtual().name("resource-pack-builder").start(() -> {
+            try {
+                LOGGER.info("Starting resource pack building...");
+                ResourcePackInfo info = buildResourcePackInfo();
+                this.resourcePackInfo = info;
+                if (info != null) {
+                    LOGGER.info("Resource pack server initialized successfully");
+                } else {
+                    LOGGER.warn("Resource pack unavailable; clients will miss custom assets.");
+                }
+            } catch (Exception e) {
+                LOGGER.error("Failed to initialize resource pack server", e);
+            }
+        });
+    }
+
+    private ResourcePackInfo buildResourcePackInfo() {
         String packPathEnv = System.getenv("MOUD_RESOURCE_PACK_PATH");
         Path packPath;
         if (packPathEnv == null || packPathEnv.isBlank()) {
@@ -905,7 +891,6 @@ public final class ServerNetworkManager {
             packPath = java.nio.file.Path.of(packPathEnv);
         }
         if (packPath == null) {
-            LOGGER.warn("Resource pack unavailable; clients will miss custom assets.");
             return null;
         }
         String bindHost = System.getenv("MOUD_RESOURCE_PACK_BIND_HOST");
@@ -936,19 +921,26 @@ public final class ServerNetworkManager {
     }
 
     public synchronized void reloadResourcePack() {
-        ResourcePackInfo newInfo = initResourcePackServer();
-        if (newInfo == null) {
-            LOGGER.warn("Resource pack reload failed; keeping previous pack.");
-            return;
-        }
-        this.resourcePackInfo = newInfo;
-        resourcePackRequested.clear();
-        resourcePackAttempts.clear();
+        LOGGER.info("Starting resource pack reload...");
+        Thread.ofVirtual().name("resource-pack-reloader").start(() -> {
+            try {
+                ResourcePackInfo newInfo = buildResourcePackInfo();
+                if (newInfo == null) {
+                    LOGGER.warn("Resource pack reload failed; keeping previous pack.");
+                    return;
+                }
+                this.resourcePackInfo = newInfo;
+                resourcePackRequested.clear();
+                resourcePackAttempts.clear();
 
-        // Force push to connected Moud clients.
-        MinecraftServer.getConnectionManager().getOnlinePlayers().forEach(player -> {
-            if (moudClients.containsKey(player.getUuid())) {
-                pushResourcePack(player);
+                LOGGER.info("Resource pack reloaded successfully, pushing to clients...");
+                MinecraftServer.getConnectionManager().getOnlinePlayers().forEach(player -> {
+                    if (moudClients.containsKey(player.getUuid())) {
+                        pushResourcePack(player);
+                    }
+                });
+            } catch (Exception e) {
+                LOGGER.error("Failed to reload resource pack", e);
             }
         });
     }
