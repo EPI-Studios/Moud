@@ -136,7 +136,7 @@ export class Transpiler {
                         entryPoints: [file],
                         bundle: true,
                         platform: 'browser',
-                        format: 'esm',
+                        format: 'iife',
                         target: 'es2022',
                         write: false,
                         minify: isProduction,
