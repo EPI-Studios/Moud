@@ -2261,6 +2261,12 @@ export interface InputService {
      */
     onKey(keyName: string, callback: (pressed: boolean) => void): void;
     /**
+     * Registers a callback fired every tick while the given key is held.
+     * @param keyName Translation key, for example `key.keyboard.w`.
+     * @param callback Receives the duration in milliseconds the key has been held.
+     */
+    onKeyHold(keyName: string, callback: (heldMs: number) => void): void;
+    /**
      * Registers a callback fired when the given mouse button changes state.
      * @param buttonName Human readable button name, e.g. `left`, `right`.
      * @param callback Receives `true` when pressed and `false` when released.
@@ -2551,42 +2557,6 @@ export interface RenderTypeOptions {
     depthTest?: boolean;
 }
 
-export interface FakePlayerWaypoint {
-    position: Vector3;
-}
-
-export interface FakePlayerDescriptor {
-    id?: number;
-    label?: string;
-    skinUrl?: string;
-    position: Vector3;
-    rotation?: Quaternion;
-    width?: number;
-    height?: number;
-    physicsEnabled?: boolean;
-    sneaking?: boolean;
-    sprinting?: boolean;
-    swinging?: boolean;
-    usingItem?: boolean;
-    path?: FakePlayerWaypoint[];
-    pathSpeed?: number;
-    pathLoop?: boolean;
-    pathPingPong?: boolean;
-}
-
-export interface FakePlayerPose {
-    sneaking?: boolean;
-    sprinting?: boolean;
-    swinging?: boolean;
-    usingItem?: boolean;
-}
-
-export interface FakePlayerPhysics {
-    enabled: boolean;
-    width?: number;
-    height?: number;
-}
-
 /** Physics options when attaching a dynamic body to a model. */
 export interface DynamicPhysicsOptions {
     /** Half extents of the collision shape. */
@@ -2600,22 +2570,6 @@ export interface DynamicPhysicsOptions {
      * @defaultValue false
      */
     playerPush?: boolean;
-}
-
-export interface FakePlayerPath {
-    waypoints: FakePlayerWaypoint[];
-    speed?: number;
-    loop?: boolean;
-    pingPong?: boolean;
-}
-
-export interface FakePlayerService {
-    spawn(descriptor: FakePlayerDescriptor): void;
-    remove(id: number): void;
-    setPose(id: number, pose: FakePlayerPose): void;
-    setPhysics(id: number, physics: FakePlayerPhysics): void;
-    setPath(id: number, path: FakePlayerPath): void;
-    setSkin(id: number, skinUrl: string): void;
 }
 
 /**
@@ -2828,6 +2782,12 @@ export interface UIImage extends UIComponent {
     setSource(source: string): this;
     /** @returns The currently displayed image source. */
     getSource(): string;
+    /**
+     * Uses a sub-texture from an XML atlas (Starling/Animate format).
+     * @param atlasPath Path/identifier to the `.xml` atlas description.
+     * @param subTextureName Name attribute of the `<SubTexture>` to render.
+     */
+    setAtlasRegion(atlasPath: string, subTextureName: string): this;
 }
 
 /**
@@ -2929,6 +2889,12 @@ export interface ZoneAPI {
      * @param id Unique identifier of the zone to remove.
      */
     remove(id: string): void;
+    /**
+     * Sets callbacks for an existing zone (including scene-defined zones).
+     * @param id Zone identifier.
+     * @param options Callbacks to attach.
+     */
+    setCallbacks(id: string, options: ZoneOptions): void;
 }
 
 
