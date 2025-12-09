@@ -3,12 +3,13 @@ package com.moud.client;
 import com.moud.client.animation.ClientPlayerModelManager;
 import com.moud.client.animation.PlayerPartConfigManager;
 import com.moud.client.api.service.ClientAPIService;
-import com.moud.client.collision.ModelCollisionManager;
 import com.moud.client.display.ClientDisplayManager;
+import com.moud.client.editor.assets.AssetThumbnailCache;
 import com.moud.client.editor.selection.EditorSelectionRenderer;
+import com.moud.client.editor.selection.SceneSelectionManager;
+import com.moud.client.editor.scene.blueprint.BlueprintPreviewRenderer;
 import com.moud.client.editor.ui.EditorImGuiLayer;
 import com.moud.client.editor.ui.WorldViewCapture;
-import com.moud.client.editor.scene.blueprint.BlueprintPreviewRenderer;
 import com.moud.client.init.ClientNetworkRegistry;
 import com.moud.client.init.ClientRenderController;
 import com.moud.client.init.ClientServiceManager;
@@ -144,9 +145,10 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         LOGGER.info("Disconnecting from server, cleaning up...");
         MinecraftClient.getInstance().execute(() -> {
             ClientModelManager.getInstance().clear();
-            ModelCollisionManager.getInstance().clear();
             ClientPlayerModelManager.getInstance().clear();
             ClientDisplayManager.getInstance().clear();
+            SceneSelectionManager.getInstance().clear();
+            AssetThumbnailCache.getInstance().clear();
         });
 
         renderController.resetFrameTime();
@@ -174,21 +176,6 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         }
     }
 
-    public boolean shouldBlockJoin() {
-        return scriptLoader.shouldBlockJoin();
-    }
-
-    public void processPendingGameJoinPacket() {
-        scriptLoader.processPendingGameJoinPacket();
-    }
-
-    public void setPendingGameJoinPacket(GameJoinS2CPacket packet) {
-        scriptLoader.setPendingGameJoinPacket(packet);
-    }
-
-    public void enqueuePostJoinPacket(Consumer<ClientPlayNetworkHandler> consumer) {
-        scriptLoader.enqueuePostJoinPacket(consumer);
-    }
 
     public ClientServiceManager getServiceManager() {
         return serviceManager;
