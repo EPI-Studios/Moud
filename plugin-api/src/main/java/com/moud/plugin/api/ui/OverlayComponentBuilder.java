@@ -1,5 +1,6 @@
 package com.moud.plugin.api.ui;
 
+import java.awt.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -71,6 +72,12 @@ public final class OverlayComponentBuilder {
         return this;
     }
 
+    public OverlayComponentBuilder background(Color color){
+        String hex = String.format("#%02x%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
+        props.put("background", hex);
+        return this;
+    }
+
     public OverlayComponentBuilder text(String text) {
         props.put("text", text);
         return this;
@@ -78,6 +85,12 @@ public final class OverlayComponentBuilder {
 
     public OverlayComponentBuilder textColor(String color) {
         props.put("textColor", color);
+        return this;
+    }
+
+    public OverlayComponentBuilder textColor(Color color){
+        String hex = String.format("#%02x%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
+        props.put("textColor", hex);
         return this;
     }
 
@@ -101,6 +114,29 @@ public final class OverlayComponentBuilder {
     public OverlayComponentBuilder border(int width, String color) {
         props.put("borderWidth", width);
         props.put("borderColor", color);
+        return this;
+    }
+
+    public  OverlayComponentBuilder border(int width, Color color){
+        String hex = String.format("#%02x%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
+        props.put("borderWidth", width);
+        props.put("borderColor", hex);
+        return this;
+    }
+
+    public OverlayComponentBuilder borderWith(int width) {
+        props.put("borderWidth", width);
+        return this;
+    }
+
+    public OverlayComponentBuilder borderColor(String color) {
+        props.put("borderColor", color);
+        return this;
+    }
+
+    public OverlayComponentBuilder borderColor(Color color) {
+        String hex = String.format("#%02x%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
+        props.put("borderColor", hex);
         return this;
     }
 
