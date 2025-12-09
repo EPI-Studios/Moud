@@ -25,6 +25,10 @@ public final class TypeScriptTranspiler {
     }
 
     public static CompletableFuture<String> transpile(Path tsFile) {
+        return transpile(tsFile, false);
+    }
+
+    public static CompletableFuture<String> transpile(Path tsFile, boolean isClientScript) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 if (!Files.exists(tsFile)) {
@@ -33,7 +37,7 @@ public final class TypeScriptTranspiler {
 
                 String npxPath = findNpxExecutable();
                 if (npxPath != null) {
-                    return transpileWithEsbuild(tsFile, npxPath);
+                    return transpileWithEsbuild(tsFile, npxPath, isClientScript);
                 }
 
                 Path cachedBundle = resolveCachedBundle();
@@ -94,7 +98,7 @@ public final class TypeScriptTranspiler {
         return null;
     }
 
-    private static String transpileWithEsbuild(Path tsFile, String npxPath) throws Exception {
+    private static String transpileWithEsbuild(Path tsFile, String npxPath, boolean isClientScript) throws Exception {
         Path projectRoot = ProjectLoader.findProjectRoot();
         Path tempDir = Files.createTempDirectory("moud-ts");
         Path jsFile = tempDir.resolve(tsFile.getFileName().toString().replaceFirst("\\.tsx?$", ".js"));
@@ -109,8 +113,9 @@ public final class TypeScriptTranspiler {
             cmdLine.addArgument("--outfile=" + jsFile.toAbsolutePath(), true);
             cmdLine.addArgument("--bundle");
             cmdLine.addArgument("--target=es2020");
-            cmdLine.addArgument("--format=esm");
-            cmdLine.addArgument("--platform=node");
+            // Use IIFE format for client scripts (GraalVM compatible), ESM for server
+            cmdLine.addArgument("--format=" + (isClientScript ? "iife" : "esm"));
+            cmdLine.addArgument("--platform=" + (isClientScript ? "browser" : "node"));
 
             DefaultExecutor executor = DefaultExecutor.builder().get();
             executor.setWorkingDirectory(projectRoot.toFile());
