@@ -30,4 +30,15 @@ public class ZoneAPIProxy {
     public void remove(String id) {
         zoneManager.removeZone(id);
     }
+
+    @HostAccess.Export
+    public void setCallbacks(String id, Value options) {
+        Value onEnter = null;
+        Value onLeave = null;
+        if (options != null && options.hasMembers()) {
+            if (options.hasMember("onEnter")) onEnter = options.getMember("onEnter");
+            if (options.hasMember("onLeave")) onLeave = options.getMember("onLeave");
+        }
+        zoneManager.setZoneCallbacks(id, onEnter, onLeave);
+    }
 }

@@ -17,6 +17,8 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 
+import java.util.Map;
+
 public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEntities {
     private EditorSelectionRenderer() {}
 
@@ -66,23 +68,28 @@ public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEnt
         matrices.push();
         matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
         for (SceneObject object : graph.getObjects()) {
-            if (!"marker".equalsIgnoreCase(object.getType())) {
-                continue;
+            String type = object.getType();
+            if ("marker".equalsIgnoreCase(type)) {
+                Vec3d pos = extractPosition(object);
+                if (pos == null) {
+                    continue;
+                }
+                double size = 0.2;
+                Box markerBox = new Box(
+                        pos.x - size,
+                        pos.y - size,
+                        pos.z - size,
+                        pos.x + size,
+                        pos.y + size,
+                        pos.z + size
+                );
+                WorldRenderer.drawBox(matrices, buffer, markerBox, 0.98f, 0.82f, 0.2f, 1.0f);
+            } else if ("zone".equalsIgnoreCase(type)) {
+                Box zoneBox = extractZoneBox(object);
+                if (zoneBox != null) {
+                    WorldRenderer.drawBox(matrices, buffer, zoneBox, 0.3f, 0.9f, 0.4f, 0.6f);
+                }
             }
-            Vec3d pos = extractPosition(object);
-            if (pos == null) {
-                continue;
-            }
-            double size = 0.2;
-            Box markerBox = new Box(
-                    pos.x - size,
-                    pos.y - size,
-                    pos.z - size,
-                    pos.x + size,
-                    pos.y + size,
-                    pos.z + size
-            );
-            WorldRenderer.drawBox(matrices, buffer, markerBox, 0.98f, 0.82f, 0.2f, 1.0f);
         }
         matrices.pop();
     }
@@ -93,6 +100,9 @@ public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEnt
         Vec3d position = extractPosition(object);
         if (position == null) {
             return null;
+        }
+        if ("zone".equalsIgnoreCase(object.getType())) {
+            return extractZoneBox(object);
         }
         if (modelId != null) {
             RenderableModel model = ClientModelManager.getInstance().getModel(modelId);
@@ -121,6 +131,29 @@ public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEnt
                 position.y + size,
                 position.z + size
         );
+    }
+
+    @SuppressWarnings("unchecked")
+    private Box extractZoneBox(SceneObject object) {
+        Map<String, Object> props = object.getProperties();
+        Object c1Raw = props.get("corner1");
+        Object c2Raw = props.get("corner2");
+        if (!(c1Raw instanceof Map<?, ?>) || !(c2Raw instanceof Map<?, ?>)) {
+            return null;
+        }
+        double x1 = SceneEditorOverlay.toDouble(((Map<String, Object>) c1Raw).get("x"), 0);
+        double y1 = SceneEditorOverlay.toDouble(((Map<String, Object>) c1Raw).get("y"), 0);
+        double z1 = SceneEditorOverlay.toDouble(((Map<String, Object>) c1Raw).get("z"), 0);
+        double x2 = SceneEditorOverlay.toDouble(((Map<String, Object>) c2Raw).get("x"), 0);
+        double y2 = SceneEditorOverlay.toDouble(((Map<String, Object>) c2Raw).get("y"), 0);
+        double z2 = SceneEditorOverlay.toDouble(((Map<String, Object>) c2Raw).get("z"), 0);
+        double minX = Math.min(x1, x2);
+        double minY = Math.min(y1, y2);
+        double minZ = Math.min(z1, z2);
+        double maxX = Math.max(x1, x2);
+        double maxY = Math.max(y1, y2);
+        double maxZ = Math.max(z1, z2);
+        return new Box(minX, minY, minZ, maxX, maxY, maxZ);
     }
 
     private Vec3d extractPosition(SceneObject object) {
