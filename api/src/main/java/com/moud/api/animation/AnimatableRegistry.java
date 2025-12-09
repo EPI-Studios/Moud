@@ -78,11 +78,11 @@ public final class AnimatableRegistry {
         ));
 
         List<AnimatableProperty> limbs = new ArrayList<>(transform);
-        register("fakeplayer:head", limbs);
-        register("fakeplayer:left_arm", limbs);
-        register("fakeplayer:right_arm", limbs);
-        register("fakeplayer:left_leg", limbs);
-        register("fakeplayer:right_leg", limbs);
-        register("fakeplayer:torso", limbs);
+        register("player_model:head", limbs);
+        register("player_model:left_arm", limbs);
+        register("player_model:right_arm", limbs);
+        register("player_model:left_leg", limbs);
+        register("player_model:right_leg", limbs);
+        register("player_model:torso", limbs);
     }
 }
