@@ -15,22 +15,22 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(WorldRenderer.class)
 public class WorldRendererMixin {
 
-//    @Inject(
-//            method = "drawBlockOutline(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumer;Lnet/minecraft/entity/Entity;DDDLnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/BlockState;)V",
-//            at = @At("HEAD"),
-//            cancellable = true
-//    )
-//    private void moud$ignoreNullEntityOutlines(MatrixStack matrices,
-//                                               VertexConsumer vertexConsumer,
-//                                               @Nullable Entity entity,
-//                                               double cameraX,
-//                                               double cameraY,
-//                                               double cameraZ,
-//                                               BlockPos blockPos,
-//                                               BlockState blockState,
-//                                               CallbackInfo ci) {
-//        if (entity == null) {
-//            ci.cancel();
-//        }
-//    }
+    @Inject(
+            method = "drawBlockOutline(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumer;Lnet/minecraft/entity/Entity;DDDLnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/BlockState;)V",
+            at = @At("HEAD"),
+            cancellable = true
+    )
+    private void moud$ignoreNullEntityOutlines(MatrixStack matrices,
+                                               VertexConsumer vertexConsumer,
+                                               @Nullable Entity entity,
+                                               double cameraX,
+                                               double cameraY,
+                                               double cameraZ,
+                                               BlockPos blockPos,
+                                               BlockState blockState,
+                                               CallbackInfo ci) {
+        if (entity == null) {
+            ci.cancel();
+        }
+    }
 }

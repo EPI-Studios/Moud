@@ -11,6 +11,7 @@
   ],
   "client": [
     "AnimatedPlayerMixin",
+    "BuiltChunkStorageMixin",
     "CameraMixin",
     "ChatHudMixin",
     "ClientPlayNetworkHandlerMixin",
