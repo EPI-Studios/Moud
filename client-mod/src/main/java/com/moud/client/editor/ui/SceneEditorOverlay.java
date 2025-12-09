@@ -36,6 +36,8 @@ import imgui.ImGui;
 import imgui.extension.imguizmo.ImGuizmo;
 import imgui.extension.imguizmo.flag.Mode;
 import imgui.extension.imguizmo.flag.Operation;
+import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
@@ -82,18 +84,8 @@ public final class SceneEditorOverlay {
     private static final long MAX_BLOCK_CAPTURE_BLOCKS = 10000;
 
     private final ImString markerNameBuffer = new ImString("Marker", 64);
-    private final ImString fakePlayerLabelBuffer = new ImString("Fake Player", 64);
-    private final ImString fakePlayerSkinBuffer = new ImString("", 256);
-    private final ImBoolean fakePlayerPhysics = new ImBoolean(false);
-    private final ImBoolean fakePlayerSneak = new ImBoolean(false);
-    private final ImBoolean fakePlayerSprint = new ImBoolean(false);
-    private final ImBoolean fakePlayerSwing = new ImBoolean(false);
-    private final ImBoolean fakePlayerUse = new ImBoolean(false);
-    private final ImBoolean fakePlayerPathLoop = new ImBoolean(false);
-    private final ImBoolean fakePlayerPathPingPong = new ImBoolean(false);
-    private final float[] fakePlayerDimensions = new float[]{0.6f, 1.8f};
-    private final float[] fakePlayerPathSpeed = new float[]{0f};
-    private final List<float[]> fakePlayerPathPoints = new ArrayList<>();
+    private final ImString playerModelLabelBuffer = new ImString("Player Model", 64);
+    private final ImString playerModelSkinBuffer = new ImString("", 256);
     private final ImString cameraLabelBuffer = new ImString("Camera", 64);
     private String selectedLimbType;
     private final float[] cameraPositionBuffer = new float[]{0f, 65f, 0f};
@@ -125,8 +117,8 @@ public final class SceneEditorOverlay {
     public static final String PAYLOAD_PROJECT_FILE = "MoudProjectFile";
     public static final String[] DISPLAY_CONTENT_TYPES = {"image", "video", "sequence"};
     public static final String[] LIGHT_TYPE_LABELS = {"Point", "Area"};
-    private static final String DEFAULT_FAKE_PLAYER_SKIN = "https://textures.minecraft.net/texture/45c338913be11c119f0e90a962f8d833b0dff78eaefdd8f2fa2a3434a1f2af0";
-    private static final int PANEL_WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize;
+    private static final String DEFAULT_PLAYER_MODEL_SKIN = "https://textures.minecraft.net/texture/45c338913be11c119f0e90a962f8d833b0dff78eaefdd8f2fa2a3434a1f2af0";
+    private static final int PANEL_WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove;
     private final ExplorerPanel explorerPanel = new ExplorerPanel(this);
     private final InspectorPanel inspectorPanel = new InspectorPanel(this);
     private final ScriptViewerPanel scriptViewerPanel = new ScriptViewerPanel(this);
@@ -142,6 +134,8 @@ public final class SceneEditorOverlay {
     private final ImString lightPopupFilter = new ImString(64);
     private final ImBoolean markerSnapToggle = new ImBoolean(false);
     private final ImFloat markerSnapValue = new ImFloat(0.5f);
+    private final ImBoolean zoneSnapToggle = new ImBoolean(false);
+    private final ImFloat zoneSnapValue = new ImFloat(1.0f);
     private volatile String[] cachedPlayerAnimations = new String[0];
     private volatile long lastAnimationFetch;
 
@@ -172,7 +166,7 @@ public final class SceneEditorOverlay {
     private int markerCounter = 1;
 
     private SceneEditorOverlay() {
-        fakePlayerSkinBuffer.set(DEFAULT_FAKE_PLAYER_SKIN);
+        playerModelSkinBuffer.set(DEFAULT_PLAYER_MODEL_SKIN);
     }
 
     public static SceneEditorOverlay getInstance() {
@@ -287,6 +281,9 @@ public final class SceneEditorOverlay {
 
     private void renderRibbonWindow(SceneSessionManager session) {
         dockingLayout.apply(EditorDockingLayout.Region.RIBBON);
+        ImGui.setNextWindowSize(ImGui.getIO().getDisplaySizeX(), 96);
+        ImGui.setNextWindowPos(0, 0);
+
         if (!ImGui.begin("Ribbon", PANEL_WINDOW_FLAGS | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)) {
             ImGui.end();
             return;
@@ -300,7 +297,7 @@ public final class SceneEditorOverlay {
         renderAssetPopup("hierarchy_add_display_popup", "display", displayPopupFilter, null);
         renderAssetPopup("hierarchy_add_light_popup", "light", lightPopupFilter, null);
         renderMarkerPopup("hierarchy_add_marker_popup", session, null);
-        renderFakePlayerPopup("hierarchy_add_fake_player_popup", session, null);
+        renderPlayerModelPopup("hierarchy_add_player_model_popup", session, null);
         renderCameraPopup("hierarchy_add_camera_popup", session, null);
     }
 
@@ -672,15 +669,28 @@ public final class SceneEditorOverlay {
         selectedLimbType = null;
         RaycastPicker.getInstance().clearSelection();
         Map<String, Object> props = object.getProperties();
-        extractVector(props.getOrDefault("position", null), activeTranslation);
-        extractVector(props.getOrDefault("scale", null), activeScale);
-        float[] maybeQuat = extractQuaternion(props.get("rotationQuat"), null);
-        if (maybeQuat != null) {
-            System.arraycopy(maybeQuat, 0, activeRotationQuat, 0, 4);
-            quaternionToEulerDegrees(activeRotationQuat, activeRotation);
-        } else {
-            extractEuler(props.getOrDefault("rotation", null), activeRotation);
+        if ("zone".equalsIgnoreCase(object.getType())) {
+            Vec3d center = zoneCenter(props);
+            Vec3d size = zoneSize(props);
+            activeTranslation[0] = (float) center.x;
+            activeTranslation[1] = (float) center.y;
+            activeTranslation[2] = (float) center.z;
+            activeScale[0] = (float) size.x;
+            activeScale[1] = (float) size.y;
+            activeScale[2] = (float) size.z;
+            activeRotation[0] = activeRotation[1] = activeRotation[2] = 0f;
             eulerDegreesToQuaternion(activeRotation, activeRotationQuat);
+        } else {
+            extractVector(props.getOrDefault("position", null), activeTranslation);
+            extractVector(props.getOrDefault("scale", null), activeScale);
+            float[] maybeQuat = extractQuaternion(props.get("rotationQuat"), null);
+            if (maybeQuat != null) {
+                System.arraycopy(maybeQuat, 0, activeRotationQuat, 0, 4);
+                quaternionToEulerDegrees(activeRotationQuat, activeRotation);
+            } else {
+                extractEuler(props.getOrDefault("rotation", null), activeRotation);
+                eulerDegreesToQuaternion(activeRotation, activeRotationQuat);
+            }
         }
         composeMatrix(activeTranslation, activeScale, activeRotationQuat, activeMatrix);
         EditorCameraController.getInstance().initialSelectionChanged(object, false);
@@ -729,6 +739,27 @@ public final class SceneEditorOverlay {
         if (selected == null) {
             return;
         }
+        if ("zone".equalsIgnoreCase(selected.getType())) {
+            Map<String, Object> before = history.snapshot(selected);
+            Map<String, Object> props = new ConcurrentHashMap<>(selected.getProperties());
+            Vec3d center = new Vec3d(translation[0], translation[1], translation[2]);
+            Vec3d newHalf = new Vec3d(scale[0] * 0.5, scale[1] * 0.5, scale[2] * 0.5);
+            Vec3d newMin = center.subtract(newHalf);
+            Vec3d newMax = center.add(newHalf);
+            props.put("corner1", vectorToMap(new float[]{(float) newMin.x, (float) newMin.y, (float) newMin.z}));
+            props.put("corner2", vectorToMap(new float[]{(float) newMax.x, (float) newMax.y, (float) newMax.z}));
+            session.submitPropertyUpdate(selected.getId(), props);
+            history.recordDiscreteChange(selected.getId(), before, new ConcurrentHashMap<>(props));
+            // update active transform
+            activeTranslation[0] = translation[0];
+            activeTranslation[1] = translation[1];
+            activeTranslation[2] = translation[2];
+            activeScale[0] = scale[0];
+            activeScale[1] = scale[1];
+            activeScale[2] = scale[2];
+            composeMatrix(activeTranslation, activeScale, activeRotationQuat, activeMatrix);
+            return;
+        }
         float[] quat = quaternion != null ? quaternion.clone() : null;
         if (quat == null) {
             // derive from current active rotation or provided Euler
@@ -769,7 +800,7 @@ public final class SceneEditorOverlay {
     }
 
     private boolean applyLimbTransform(RuntimeObject runtime, String limbKey, float[] translation, float[] rotation, float[] scale) {
-        java.util.UUID uuid = resolveFakePlayerUuid(runtime);
+        java.util.UUID uuid = resolvePlayerModelUuid(runtime);
         String bone = boneNameFromLimb(limbKey);
         if (uuid == null || bone == null) {
             return false;
@@ -783,7 +814,7 @@ public final class SceneEditorOverlay {
     }
 
     private boolean populateLimbTransform(RuntimeObject runtime, String limbKey) {
-        java.util.UUID uuid = resolveFakePlayerUuid(runtime);
+        java.util.UUID uuid = resolvePlayerModelUuid(runtime);
         String bone = boneNameFromLimb(limbKey);
         if (uuid == null || bone == null) {
             return false;
@@ -806,7 +837,7 @@ public final class SceneEditorOverlay {
         return true;
     }
 
-    private java.util.UUID resolveFakePlayerUuid(RuntimeObject runtime) {
+    private java.util.UUID resolvePlayerModelUuid(RuntimeObject runtime) {
         if (runtime == null || runtime.getObjectId() == null) {
             return null;
         }
@@ -822,16 +853,16 @@ public final class SceneEditorOverlay {
             return null;
         }
         var model = ClientPlayerModelManager.getInstance().getModel(modelId);
-        if (model == null || model.getFakePlayer() == null) {
+        if (model == null || model.getEntity() == null) {
             return null;
         }
-        return model.getFakePlayer().getUuid();
+        return model.getEntity().getUuid();
     }
 
     private String boneNameFromLimb(String limbKey) {
         if (limbKey == null) return null;
-        if (limbKey.startsWith("fakeplayer:")) {
-            limbKey = limbKey.substring("fakeplayer:".length());
+        if (limbKey.startsWith("player_model:")) {
+            limbKey = limbKey.substring("player_model:".length());
         }
         return switch (limbKey) {
             case "left_arm" -> "left_arm";
@@ -865,6 +896,21 @@ public final class SceneEditorOverlay {
 
     public float[] getActiveScale() {
         return activeScale;
+    }
+
+    public void setActiveScale(float[] scale) {
+        if (scale == null || scale.length < 3) return;
+        activeScale[0] = scale[0];
+        activeScale[1] = scale[1];
+        activeScale[2] = scale[2];
+    }
+
+    public ImBoolean getZoneSnapToggle() {
+        return zoneSnapToggle;
+    }
+
+    public ImFloat getZoneSnapValue() {
+        return zoneSnapValue;
     }
 
     public ImString getMarkerNameBuffer() {
@@ -1178,35 +1224,18 @@ public final class SceneEditorOverlay {
         ImGui.endPopup();
     }
 
-    private void renderFakePlayerPopup(String popupId, SceneSessionManager session, String parentId) {
+    private void renderPlayerModelPopup(String popupId, SceneSessionManager session, String parentId) {
         if (!ImGui.beginPopup(popupId)) {
             return;
         }
-        ImGui.inputText("Label", fakePlayerLabelBuffer);
-        ImGui.inputText("Skin URL", fakePlayerSkinBuffer);
-        ImGui.dragFloat2("Size (w,h)", fakePlayerDimensions, 0.05f, 0.1f, 5.0f, "%.2f");
-        ImGui.dragFloat("Path Speed", fakePlayerPathSpeed, 0.05f, 0.0f, 20.0f, "%.2f");
-        ImGui.checkbox("Loop Path", fakePlayerPathLoop);
-        ImGui.sameLine();
-        ImGui.checkbox("Ping Pong", fakePlayerPathPingPong);
-        FakePlayerPathEditor.render(fakePlayerPathPoints, () -> {
-            float[] pos = resolveSpawnPosition(newObjectPosition);
-            fakePlayerPathPoints.add(new float[]{pos[0], pos[1], pos[2]});
-        });
-        ImGui.checkbox("Physics", fakePlayerPhysics);
-        ImGui.sameLine();
-        ImGui.checkbox("Sneak", fakePlayerSneak);
-        ImGui.sameLine();
-        ImGui.checkbox("Sprint", fakePlayerSprint);
-        ImGui.checkbox("Swing", fakePlayerSwing);
-        ImGui.sameLine();
-        ImGui.checkbox("Use Item", fakePlayerUse);
-        if (ImGui.button("Create##fake_player_create")) {
-            spawnFakePlayer(session, parentId);
+        ImGui.inputText("Label", playerModelLabelBuffer);
+        ImGui.inputText("Skin URL", playerModelSkinBuffer);
+        if (ImGui.button("Create##player_model_create")) {
+            spawnPlayerModel(session, parentId);
             ImGui.closeCurrentPopup();
         }
         ImGui.sameLine();
-        if (ImGui.button("Cancel##fake_player_cancel")) {
+        if (ImGui.button("Cancel##player_model_cancel")) {
             ImGui.closeCurrentPopup();
         }
         ImGui.endPopup();
@@ -1730,6 +1759,39 @@ public final class SceneEditorOverlay {
         return fallback;
     }
 
+    private static Vec3d extractVec3(Object value, Vec3d fallback) {
+        if (value instanceof Map<?, ?> map) {
+            double x = toDouble(map.get("x"), fallback.x);
+            double y = toDouble(map.get("y"), fallback.y);
+            double z = toDouble(map.get("z"), fallback.z);
+            return new Vec3d(x, y, z);
+        }
+        return fallback;
+    }
+
+    private Vec3d zoneCenter(Map<String, Object> props) {
+        Vec3d v1 = extractVec3(props.get("corner1"), new Vec3d(0, 0, 0));
+        Vec3d v2 = extractVec3(props.get("corner2"), new Vec3d(0, 0, 0));
+        return new Vec3d(
+                (v1.x + v2.x) * 0.5,
+                (v1.y + v2.y) * 0.5,
+                (v1.z + v2.z) * 0.5
+        );
+    }
+
+    private Vec3d zoneSize(Map<String, Object> props) {
+        Vec3d v1 = extractVec3(props.get("corner1"), new Vec3d(0, 0, 0));
+        Vec3d v2 = extractVec3(props.get("corner2"), new Vec3d(0, 0, 0));
+        return new Vec3d(Math.abs(v1.x - v2.x), Math.abs(v1.y - v2.y), Math.abs(v1.z - v2.z));
+    }
+
+    private void shiftZoneCorners(Map<String, Object> props, float dx, float dy, float dz) {
+        Vec3d c1 = extractVec3(props.get("corner1"), new Vec3d(0, 0, 0)).add(dx, dy, dz);
+        Vec3d c2 = extractVec3(props.get("corner2"), new Vec3d(0, 0, 0)).add(dx, dy, dz);
+        props.put("corner1", vectorToMap(new float[]{(float) c1.x, (float) c1.y, (float) c1.z}));
+        props.put("corner2", vectorToMap(new float[]{(float) c2.x, (float) c2.y, (float) c2.z}));
+    }
+
     private static float[] extractQuaternion(Object value, float[] fallback) {
         if (value instanceof Map<?, ?> map) {
             Object x = map.get("x");
@@ -1799,7 +1861,7 @@ public final class SceneEditorOverlay {
         }
     }
 
-    private static double toDouble(Object value, double fallback) {
+    public static double toDouble(Object value, double fallback) {
         if (value instanceof Number number) {
             return number.doubleValue();
         }
@@ -1993,42 +2055,52 @@ public final class SceneEditorOverlay {
         SceneEditorDiagnostics.log("Created marker '" + label + "'");
     }
 
-    public void spawnFakePlayer(SceneSessionManager session, String parentId) {
-        Map<String, Object> payload = new ConcurrentHashMap<>();
-        payload.put("type", "player_model");
-        payload.put("id", "fakeplayer-" + System.currentTimeMillis());
-        Map<String, Object> props = new ConcurrentHashMap<>();
-        String label = fakePlayerLabelBuffer.get().isBlank() ? "Fake Player" : fakePlayerLabelBuffer.get();
-        String skin = fakePlayerSkinBuffer.get().isBlank() ? DEFAULT_FAKE_PLAYER_SKIN : fakePlayerSkinBuffer.get();
-        props.put("label", label);
-        props.put("skinUrl", skin);
-        props.put("position", vectorToMap(resolveSpawnPosition(newObjectPosition)));
-        props.putIfAbsent("rotation", rotationMap(activeRotation));
-        props.putIfAbsent("scale", vectorToMap(newObjectScale));
-        props.put("physicsEnabled", fakePlayerPhysics.get());
-        props.put("sneaking", fakePlayerSneak.get());
-        props.put("sprinting", fakePlayerSprint.get());
-        props.put("swinging", fakePlayerSwing.get());
-        props.put("usingItem", fakePlayerUse.get());
-        props.put("width", (double) fakePlayerDimensions[0]);
-        props.put("height", (double) fakePlayerDimensions[1]);
-        props.put("pathSpeed", (double) fakePlayerPathSpeed[0]);
-        props.put("pathLoop", fakePlayerPathLoop.get());
-        props.put("pathPingPong", fakePlayerPathPingPong.get());
-        if (!fakePlayerPathPoints.isEmpty()) {
-            List<Map<String, Object>> pathList = new ArrayList<>();
-            for (float[] p : fakePlayerPathPoints) {
-                pathList.add(vectorToMap(p));
-            }
-            props.put("path", pathList);
+    public void spawnZone(SceneSessionManager session, String parentId) {
+        String objectId = "zone-" + System.currentTimeMillis();
+        float[] position = resolveSpawnPosition(newObjectPosition);
+        if (zoneSnapToggle.get()) {
+            float step = Math.max(0.05f, zoneSnapValue.get());
+            position[0] = Math.round(position[0] / step) * step;
+            position[1] = Math.round(position[1] / step) * step;
+            position[2] = Math.round(position[2] / step) * step;
         }
+        Map<String, Object> payload = new ConcurrentHashMap<>();
+        payload.put("type", "zone");
+        payload.put("id", objectId);
+        Map<String, Object> props = new ConcurrentHashMap<>();
+        props.put("label", "Zone");
+        props.put("corner1", vectorToMap(position));
+        props.put("corner2", vectorToMap(new float[]{position[0] + 5, position[1] + 5, position[2] + 5}));
         if (parentId != null && !parentId.isEmpty()) {
             props.put("parent", parentId);
         }
         payload.put("properties", props);
         session.submitEdit("create", payload);
         session.forceRefresh();
-        SceneEditorDiagnostics.log("Spawned fake player '" + label + "'");
+        SceneEditorDiagnostics.log("Created zone at " + java.util.Arrays.toString(position));
+    }
+
+
+
+    public void spawnPlayerModel(SceneSessionManager session, String parentId) {
+        Map<String, Object> payload = new ConcurrentHashMap<>();
+        payload.put("type", "player_model");
+        payload.put("id", "player-model-" + System.currentTimeMillis());
+        Map<String, Object> props = new ConcurrentHashMap<>();
+        String label = playerModelLabelBuffer.get().isBlank() ? "Player Model" : playerModelLabelBuffer.get();
+        String skin = playerModelSkinBuffer.get().isBlank() ? DEFAULT_PLAYER_MODEL_SKIN : playerModelSkinBuffer.get();
+        props.put("label", label);
+        props.put("skinUrl", skin);
+        props.put("position", vectorToMap(resolveSpawnPosition(newObjectPosition)));
+        props.putIfAbsent("rotation", rotationMap(activeRotation));
+        props.putIfAbsent("scale", vectorToMap(newObjectScale));
+        if (parentId != null && !parentId.isEmpty()) {
+            props.put("parent", parentId);
+        }
+        payload.put("properties", props);
+        session.submitEdit("create", payload);
+        session.forceRefresh();
+        SceneEditorDiagnostics.log("Spawned player model '" + label + "'");
     }
 
     public void spawnCamera(SceneSessionManager session, String parentId) {
@@ -2057,8 +2129,8 @@ public final class SceneEditorOverlay {
         return "Marker " + markerCounter++;
     }
 
-    public String getDefaultFakePlayerSkin() {
-        return DEFAULT_FAKE_PLAYER_SKIN;
+    public String getDefaultPlayerModelSkin() {
+        return DEFAULT_PLAYER_MODEL_SKIN;
     }
 
     public void resetCameraBuffers() {
@@ -2168,7 +2240,7 @@ public final class SceneEditorOverlay {
         renderRuntimeList(RuntimeObjectType.MODEL, "Models", filterTerm);
         renderRuntimeList(RuntimeObjectType.DISPLAY, "Displays", filterTerm);
         renderRuntimeList(RuntimeObjectType.PLAYER, "Players", filterTerm);
-        renderRuntimeList(RuntimeObjectType.PLAYER_MODEL, "Fake Players", filterTerm);
+        renderRuntimeList(RuntimeObjectType.PLAYER_MODEL, "Player Models", filterTerm);
         renderRuntimeList(RuntimeObjectType.PARTICLE_EMITTER, "Particle Emitters", filterTerm);
     }
 

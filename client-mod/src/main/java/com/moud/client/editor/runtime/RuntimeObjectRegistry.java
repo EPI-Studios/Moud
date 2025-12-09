@@ -180,7 +180,7 @@ public final class RuntimeObjectRegistry {
             return;
         }
 
-        if (obj.getType() == RuntimeObjectType.PLAYER_MODEL && propertyKey.startsWith("fakeplayer:")) {
+        if (obj.getType() == RuntimeObjectType.PLAYER_MODEL && propertyKey.startsWith("player_model:")) {
             applyLimbProperty(obj, propertyKey, value);
             return;
         }
@@ -323,7 +323,7 @@ public final class RuntimeObjectRegistry {
     }
 
     private void applyLimbProperty(RuntimeObject obj, String propertyKey, float value) {
-        String rest = propertyKey.substring("fakeplayer:".length());
+        String rest = propertyKey.substring("player_model:".length());
         String[] parts = rest.split("\\.", 3);
         if (parts.length < 2) {
             return;
@@ -354,10 +354,10 @@ public final class RuntimeObjectRegistry {
         if (modelId < 0) return;
 
         var model = com.moud.client.animation.ClientPlayerModelManager.getInstance().getModel(modelId);
-        if (model == null || model.getFakePlayer() == null) return;
+        if (model == null || model.getEntity() == null) return;
 
         java.util.Map<String, Object> updates = new java.util.HashMap<>();
-        var part = com.moud.client.animation.PlayerPartConfigManager.getInstance().getPartConfig(model.getFakePlayer().getUuid(), bone);
+        var part = com.moud.client.animation.PlayerPartConfigManager.getInstance().getPartConfig(model.getEntity().getUuid(), bone);
         com.moud.api.math.Vector3 pos = part != null ? part.getInterpolatedPosition() : null;
         com.moud.api.math.Vector3 rot = part != null ? part.getInterpolatedRotation() : null;
         com.moud.api.math.Vector3 scale = part != null ? part.getInterpolatedScale() : null;
@@ -396,7 +396,7 @@ public final class RuntimeObjectRegistry {
 
         if (!updates.isEmpty()) {
             com.moud.client.animation.PlayerPartConfigManager.getInstance()
-                    .updatePartConfig(model.getFakePlayer().getUuid(), bone, updates);
+                    .updatePartConfig(model.getEntity().getUuid(), bone, updates);
         }
     }
 

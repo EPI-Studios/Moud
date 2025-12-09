@@ -10,7 +10,6 @@ import imgui.type.ImBoolean;
 
 import java.util.List;
 
-
 public final class RibbonBar {
     private final SceneEditorOverlay overlay;
 
@@ -165,8 +164,11 @@ public final class RibbonBar {
             overlay.getMarkerNameBuffer().set(overlay.generateMarkerName());
             overlay.spawnMarker(session, null);
         }
-        if (ImGui.menuItem("Fake Player")) {
-            overlay.spawnFakePlayer(session, null);
+        if (ImGui.menuItem("Zone")) {
+            overlay.spawnZone(session, null);
+        }
+        if (ImGui.menuItem("Player Model")) {
+            overlay.spawnPlayerModel(session, null);
         }
         if (ImGui.menuItem("Camera")) {
             overlay.resetCameraBuffers();

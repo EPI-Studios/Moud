@@ -61,10 +61,6 @@ public final class InspectorPanel {
     private final ImBoolean playerLoopAnimation = new ImBoolean(true);
     private final ImInt playerAnimationDurationMs = new ImInt(2000);
     private final ImString playerSkinBuffer = new ImString("", 256);
-    private final ImBoolean playerSneaking = new ImBoolean(false);
-    private final ImBoolean playerSprinting = new ImBoolean(false);
-    private final ImBoolean playerSwinging = new ImBoolean(false);
-    private final ImBoolean playerUsingItem = new ImBoolean(false);
     private final float[] cameraPositionBuffer = new float[]{0f, 0f, 0f};
     private final float[] cameraRotationBuffer = new float[]{0f, 0f, 0f};
     private final ImFloat cameraFov = new ImFloat(70f);
@@ -389,7 +385,7 @@ public final class InspectorPanel {
         extractColor(props.get("color"), lightColorValue);
         extractDirection(props.get("direction"), lightDirectionValue);
         extractVector(props.getOrDefault("position", null), markerPositionBuffer);
-        playerSkinBuffer.set(String.valueOf(props.getOrDefault("skinUrl", overlay.getDefaultFakePlayerSkin())));
+        playerSkinBuffer.set(String.valueOf(props.getOrDefault("skinUrl", overlay.getDefaultPlayerModelSkin())));
         playerAutoAnimation.set(boolValue(props.get("autoAnimation"), true));
         playerLoopAnimation.set(boolValue(props.get("loopAnimation"), true));
         Object durationValue = props.getOrDefault("animationDuration", 2000);
@@ -450,6 +446,7 @@ public final class InspectorPanel {
             case "camera" -> renderCameraProperties(session, selected);
             case "particle_emitter" -> renderParticleEmitterProperties(session, selected, props);
             case "post_effect" -> renderPostEffectProperties(session, selected, props);
+            case "zone" -> renderZoneProperties(session, selected, props);
             default -> {
             }
         }
@@ -597,6 +594,51 @@ public final class InspectorPanel {
         }
     }
 
+    private void renderZoneProperties(SceneSessionManager session, SceneObject selected, Map<String, Object> props) {
+        ImGui.textDisabled("Zone");
+        ImGui.separator();
+        float[] c1 = extractVector(props.get("corner1"), new float[]{0, 0, 0});
+        float[] c2 = extractVector(props.get("corner2"), new float[]{1, 1, 1});
+        boolean changed = false;
+        if (ImGui.dragFloat3("Corner 1", c1, 0.1f)) {
+            changed = true;
+        }
+        if (ImGui.dragFloat3("Corner 2", c2, 0.1f)) {
+            changed = true;
+        }
+        if (changed) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("corner1", vectorToMap(c1));
+            update.put("corner2", vectorToMap(c2));
+            session.submitPropertyUpdate(selected.getId(), update);
+            // update active gizmo scale to match new size
+            overlay.setActiveScale(new float[]{Math.abs(c1[0] - c2[0]), Math.abs(c1[1] - c2[1]), Math.abs(c1[2] - c2[2])});
+        }
+        Vec3d center = new Vec3d((c1[0] + c2[0]) * 0.5, (c1[1] + c2[1]) * 0.5, (c1[2] + c2[2]) * 0.5);
+        Vec3d size = new Vec3d(Math.abs(c1[0] - c2[0]), Math.abs(c1[1] - c2[1]), Math.abs(c1[2] - c2[2]));
+        ImGui.text(String.format(Locale.ROOT, "Center: (%.2f, %.2f, %.2f)", center.x, center.y, center.z));
+        ImGui.text(String.format(Locale.ROOT, "Size: (%.2f, %.2f, %.2f)", size.x, size.y, size.z));
+        float[] sizeArr = new float[]{(float) size.x, (float) size.y, (float) size.z};
+        if (ImGui.dragFloat3("Size", sizeArr, 0.1f, 0.01f, 512f)) {
+            float[] newC1 = new float[]{(float) (center.x - sizeArr[0] * 0.5f), (float) (center.y - sizeArr[1] * 0.5f), (float) (center.z - sizeArr[2] * 0.5f)};
+            float[] newC2 = new float[]{(float) (center.x + sizeArr[0] * 0.5f), (float) (center.y + sizeArr[1] * 0.5f), (float) (center.z + sizeArr[2] * 0.5f)};
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("corner1", vectorToMap(newC1));
+            update.put("corner2", vectorToMap(newC2));
+            session.submitPropertyUpdate(selected.getId(), update);
+            overlay.setActiveScale(sizeArr);
+        }
+        ImBoolean snapToggle = overlay.getZoneSnapToggle();
+        ImFloat snapValue = overlay.getZoneSnapValue();
+        if (ImGui.checkbox("Snap zone placement", snapToggle)) {
+            // no-op, persisted in overlay fields
+        }
+        ImGui.sameLine();
+        if (ImGui.dragFloat("Snap step", snapValue.getData(), 0.1f, 0.05f, 50f, "%.2f")) {
+            snapValue.set(Math.max(0.05f, snapValue.get()));
+        }
+    }
+
     private void updateUniformBuffers(Map<String, Object> uniforms, boolean isHeightFog) {
         if (!isHeightFog) {
             if (uniforms.containsKey("FogStart")) fogStart.set(toFloat(uniforms.get("FogStart")));
@@ -609,8 +651,8 @@ public final class InspectorPanel {
             if (uniforms.containsKey("FogColor")) extractColor(uniforms.get("FogColor"), heightFogColor);
         }
     }
-
-private void renderDisplayProperties(SceneSessionManager session, SceneObject selected) {
+    
+    private void renderDisplayProperties(SceneSessionManager session, SceneObject selected) {
         ImGui.textDisabled("Display");
         ImGui.separator();
         if (ImGui.beginCombo("Content Type", displayTypeBuffer.get())) {
@@ -997,11 +1039,11 @@ private void renderDisplayProperties(SceneSessionManager session, SceneObject se
 
     private void renderPlayerModelProperties(SceneSessionManager session, SceneObject selected) {
         Map<String, Object> props = selected.getProperties();
-        ImGui.textDisabled("Fake Player");
+        ImGui.textDisabled("Player Model");
 
         // hydrate buffers from props
         inspectorLabel.set(String.valueOf(props.getOrDefault("label", inspectorLabel.get())));
-        playerSkinBuffer.set(String.valueOf(props.getOrDefault("skinUrl", overlay.getDefaultFakePlayerSkin())));
+        playerSkinBuffer.set(String.valueOf(props.getOrDefault("skinUrl", overlay.getDefaultPlayerModelSkin())));
         playerAutoAnimation.set(boolValue(props.get("autoAnimation"), true));
         playerLoopAnimation.set(boolValue(props.get("loopAnimation"), true));
         Object duration = props.get("animationDuration");
@@ -1009,10 +1051,6 @@ private void renderDisplayProperties(SceneSessionManager session, SceneObject se
             playerAnimationDurationMs.set(n.intValue());
         }
         playerAnimationOverride.set(String.valueOf(props.getOrDefault("animationOverride", playerAnimationOverride.get())));
-        extractBool(props.getOrDefault("sneaking", false), playerSneaking);
-        extractBool(props.getOrDefault("sprinting", false), playerSprinting);
-        extractBool(props.getOrDefault("swinging", false), playerSwinging);
-        extractBool(props.getOrDefault("usingItem", false), playerUsingItem);
 
         if (ImGui.inputText("Label", inspectorLabel)) {
             Map<String, Object> update = new ConcurrentHashMap<>();
@@ -1078,32 +1116,6 @@ private void renderDisplayProperties(SceneSessionManager session, SceneObject se
             playerAnimationOverride.set("");
             Map<String, Object> update = new ConcurrentHashMap<>();
             update.put("animationOverride", "");
-            session.submitPropertyUpdate(selected.getId(), update);
-        }
-
-        // Basic pose toggles
-        extractBool(props.getOrDefault("sneaking", false), playerSneaking);
-        extractBool(props.getOrDefault("sprinting", false), playerSprinting);
-        extractBool(props.getOrDefault("swinging", false), playerSwinging);
-        extractBool(props.getOrDefault("usingItem", false), playerUsingItem);
-        if (ImGui.checkbox("Sneaking", playerSneaking)) {
-            Map<String, Object> update = new ConcurrentHashMap<>();
-            update.put("sneaking", playerSneaking.get());
-            session.submitPropertyUpdate(selected.getId(), update);
-        }
-        if (ImGui.checkbox("Sprinting", playerSprinting)) {
-            Map<String, Object> update = new ConcurrentHashMap<>();
-            update.put("sprinting", playerSprinting.get());
-            session.submitPropertyUpdate(selected.getId(), update);
-        }
-        if (ImGui.checkbox("Swinging", playerSwinging)) {
-            Map<String, Object> update = new ConcurrentHashMap<>();
-            update.put("swinging", playerSwinging.get());
-            session.submitPropertyUpdate(selected.getId(), update);
-        }
-        if (ImGui.checkbox("Using Item", playerUsingItem)) {
-            Map<String, Object> update = new ConcurrentHashMap<>();
-            update.put("usingItem", playerUsingItem.get());
             session.submitPropertyUpdate(selected.getId(), update);
         }
     }
@@ -1275,15 +1287,11 @@ private void renderDisplayProperties(SceneSessionManager session, SceneObject se
         lightDirectionValue[0] = 0f;
         lightDirectionValue[1] = -1f;
         lightDirectionValue[2] = 0f;
-        playerSkinBuffer.set(overlay.getDefaultFakePlayerSkin());
+        playerSkinBuffer.set(overlay.getDefaultPlayerModelSkin());
         playerAnimationOverride.set("");
         playerAutoAnimation.set(true);
         playerLoopAnimation.set(true);
         playerAnimationDurationMs.set(2000);
-        playerSneaking.set(false);
-        playerSprinting.set(false);
-        playerSwinging.set(false);
-        playerUsingItem.set(false);
         cameraPositionBuffer[0] = cameraPositionBuffer[1] = cameraPositionBuffer[2] = 0f;
         cameraRotationBuffer[0] = cameraRotationBuffer[1] = cameraRotationBuffer[2] = 0f;
         cameraFov.set(70f);

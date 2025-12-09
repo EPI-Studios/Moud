@@ -1248,59 +1248,58 @@ public final class AnimationTimelinePanel {
         ObjectTrack targetTrack = ensureObjectTrack(selected);
         List<com.moud.api.animation.AnimatableProperty> props = AnimatableRegistry.getAllProperties(selected.getType());
         ImGui.textDisabled("Object: " + selected.getId());
-        // hierachy for fake players limbq
         String selectedType = selected.getType() == null ? "" : selected.getType().toLowerCase(Locale.ROOT);
-        boolean isFakePlayer = selectedType.contains("fakeplayer") || selectedType.contains("fake_player") || selectedType.contains("fake player");
-        if (isFakePlayer) {
-            if (ImGui.treeNode("Fake Player")) {
+        boolean isPlayerModel = selectedType.contains("player_model") || selectedType.contains("player model");
+        if (isPlayerModel) {
+            if (ImGui.treeNode("Player Model")) {
                 String preferredLimb = overlay.getSelectedLimbType();
                 boolean showRootProps = preferredLimb == null || preferredLimb.isEmpty() || preferredLimb.contains("torso");
                 if (showRootProps) {
                     renderPropertyMenuItems(targetTrack, props, p -> true);
                 }
                 if (ImGui.treeNodeEx("Head", preferredLimb != null && preferredLimb.contains("head") ? ImGuiTreeNodeFlags.DefaultOpen : 0)) {
-                    renderLimbMenu(targetTrack, "fakeplayer:head");
+                    renderLimbMenu(targetTrack, "player_model:head");
                     ImGui.treePop();
                 }
                 if (ImGui.treeNodeEx("Torso", preferredLimb != null && preferredLimb.contains("torso") ? ImGuiTreeNodeFlags.DefaultOpen : 0)) {
-                    renderLimbMenu(targetTrack, "fakeplayer:torso");
+                    renderLimbMenu(targetTrack, "player_model:torso");
                     ImGui.treePop();
                 }
                 if (ImGui.treeNodeEx("Left Arm", preferredLimb != null && preferredLimb.contains("left_arm") ? ImGuiTreeNodeFlags.DefaultOpen : 0)) {
-                    renderLimbMenu(targetTrack, "fakeplayer:left_arm");
+                    renderLimbMenu(targetTrack, "player_model:left_arm");
                     ImGui.treePop();
                 }
                 if (ImGui.treeNodeEx("Right Arm", preferredLimb != null && preferredLimb.contains("right_arm") ? ImGuiTreeNodeFlags.DefaultOpen : 0)) {
-                    renderLimbMenu(targetTrack, "fakeplayer:right_arm");
+                    renderLimbMenu(targetTrack, "player_model:right_arm");
                     ImGui.treePop();
                 }
                 if (ImGui.treeNodeEx("Left Leg", preferredLimb != null && preferredLimb.contains("left_leg") ? ImGuiTreeNodeFlags.DefaultOpen : 0)) {
-                    renderLimbMenu(targetTrack, "fakeplayer:left_leg");
+                    renderLimbMenu(targetTrack, "player_model:left_leg");
                     ImGui.treePop();
                 }
                 if (ImGui.treeNodeEx("Right Leg", preferredLimb != null && preferredLimb.contains("right_leg") ? ImGuiTreeNodeFlags.DefaultOpen : 0)) {
-                    renderLimbMenu(targetTrack, "fakeplayer:right_leg");
+                    renderLimbMenu(targetTrack, "player_model:right_leg");
                     ImGui.treePop();
                 }
                 ImGui.treePop();
             }
-        } else {
-            if (ImGui.treeNode("Properties")) {
-                boolean isEmitter = "particle_emitter".equalsIgnoreCase(selectedType);
-                if (isEmitter) {
-                    if (ImGui.treeNode("Emitter")) {
-                        renderPropertyMenuItems(targetTrack, props, p -> !p.path().startsWith("position.") && !p.path().startsWith("rotation.") && !p.path().startsWith("scale."));
-                        ImGui.treePop();
-                    }
-                    if (ImGui.treeNode("Transform")) {
-                        renderPropertyMenuItems(targetTrack, props, p -> p.path().startsWith("position.") || p.path().startsWith("rotation.") || p.path().startsWith("scale."));
-                        ImGui.treePop();
-                    }
-                } else {
-                    renderPropertyMenuItems(targetTrack, props, p -> true);
+        }
+
+        if (ImGui.treeNode("Properties")) {
+            boolean isEmitter = "particle_emitter".equalsIgnoreCase(selectedType);
+            if (isEmitter) {
+                if (ImGui.treeNode("Emitter")) {
+                    renderPropertyMenuItems(targetTrack, props, p -> !p.path().startsWith("position.") && !p.path().startsWith("rotation.") && !p.path().startsWith("scale."));
+                    ImGui.treePop();
                 }
-                ImGui.treePop();
+                if (ImGui.treeNode("Transform")) {
+                    renderPropertyMenuItems(targetTrack, props, p -> p.path().startsWith("position.") || p.path().startsWith("rotation.") || p.path().startsWith("scale."));
+                    ImGui.treePop();
+                }
+            } else {
+                renderPropertyMenuItems(targetTrack, props, p -> true);
             }
+            ImGui.treePop();
         }
     }
 

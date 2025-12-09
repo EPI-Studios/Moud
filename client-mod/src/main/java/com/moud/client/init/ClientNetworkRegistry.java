@@ -81,21 +81,6 @@ public class ClientNetworkRegistry {
         ClientPacketWrapper.registerHandler(MoudPackets.AdvancedCameraLockPacket.class, (player, packet) -> handleAdvancedCameraLock(packet, services));
         ClientPacketWrapper.registerHandler(MoudPackets.CameraUpdatePacket.class, (player, packet) -> handleCameraUpdate(packet, services));
         ClientPacketWrapper.registerHandler(MoudPackets.CameraReleasePacket.class, (player, packet) -> handleCameraRelease(packet, services));
-        ClientPacketWrapper.registerHandler(MoudPackets.S2C_CreateFakePlayer.class, (player, packet) -> {
-            if (services.getFakePlayerManager() != null) {
-                services.getFakePlayerManager().handleCreate(packet);
-            }
-        });
-        ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateFakePlayer.class, (player, packet) -> {
-            if (services.getFakePlayerManager() != null) {
-                services.getFakePlayerManager().handleUpdate(packet);
-            }
-        });
-        ClientPacketWrapper.registerHandler(MoudPackets.S2C_RemoveFakePlayer.class, (player, packet) -> {
-            if (services.getFakePlayerManager() != null) {
-                services.getFakePlayerManager().handleRemove(packet);
-            }
-        });
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_ManageWindowPacket.class, (player, packet) -> handleManageWindow(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_TransitionWindowPacket.class, (player, packet) -> handleTransitionWindow(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_PlayPlayerAnimationPacket.class, (player, packet) -> {
@@ -679,7 +664,6 @@ public class ClientNetworkRegistry {
     private void handleRemoveModel(MoudPackets.S2C_RemoveModelPacket packet) {
         MinecraftClient.getInstance().execute(() -> {
             ClientModelManager.getInstance().removeModel(packet.modelId());
-            ClientCollisionManager.unregisterModel(packet.modelId());
         });
     }
 
@@ -711,9 +695,30 @@ public class ClientNetworkRegistry {
         if (rawPath == null || rawPath.isBlank()) {
             return null;
         }
-        String normalized = rawPath.trim();
+        String normalized = rawPath.trim().replace('\\', '/');
+        if (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        if (normalized.startsWith("assets/")) {
+            normalized = normalized.substring("assets/".length());
+        }
         if (normalized.startsWith("moud:moud/")) {
             normalized = "moud:" + normalized.substring("moud:moud/".length());
+        }
+        if (!normalized.contains(":")) {
+            String effective = normalized;
+            if (normalized.contains("/")) {
+                int firstSlash = normalized.indexOf('/');
+                String maybeNamespace = normalized.substring(0, firstSlash);
+                String remainder = normalized.substring(firstSlash + 1);
+                if (!maybeNamespace.isBlank() && !remainder.isBlank()) {
+                    effective = maybeNamespace + ":" + remainder;
+                }
+            }
+            if (!effective.contains(":")) {
+                effective = effective.startsWith("moud/") ? "moud:" + effective.substring(5) : "moud:" + effective;
+            }
+            normalized = effective;
         }
         Identifier parsed = Identifier.tryParse(normalized);
         if (parsed != null && "moud".equals(parsed.getNamespace())) {

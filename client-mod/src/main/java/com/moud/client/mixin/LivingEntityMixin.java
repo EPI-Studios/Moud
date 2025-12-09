@@ -18,7 +18,7 @@ public abstract class LivingEntityMixin {
     public LimbAnimator limbAnimator;
 
     @Inject(method = "updateLimbs(F)V", at = @At("HEAD"), cancellable = true)
-    private void moud$freezeLegsForFakePlayer(float posDelta, CallbackInfo ci) {
+    private void moud$freezeLegsForPlayerModel(float posDelta, CallbackInfo ci) {
         if ((Object) this instanceof OtherClientPlayerEntity player) {
             GameProfile profile = player.getGameProfile();
 
