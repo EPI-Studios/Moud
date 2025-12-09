@@ -113,6 +113,18 @@ public class PlayerProxy {
     }
 
     @HostAccess.Export
+    public String getWorld() {
+        Instance inst = player.getInstance();
+        return inst != null ? inst.getUniqueId().toString() : null;
+    }
+
+    @HostAccess.Export
+    public String getWorldName() {
+        Instance inst = player.getInstance();
+        return inst != null ? inst.getUniqueId().toString() : null;
+    }
+
+    @HostAccess.Export
     public Vector3 getPosition() {
         Pos pos = player.getPosition();
         return new Vector3(pos.x(), pos.y(), pos.z());
