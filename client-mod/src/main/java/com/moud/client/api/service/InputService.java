@@ -17,7 +17,9 @@ import java.util.concurrent.ExecutorService;
 
 public final class InputService {
     private final MinecraftClient client;
+    private final ClientScriptingRuntime runtime;
     private final Map<String, Value> keyCallbacks = new ConcurrentHashMap<>();
+    private final Map<String, Value> keyHoldCallbacks = new ConcurrentHashMap<>();
     private final Map<String, Value> mouseCallbacks = new ConcurrentHashMap<>();
     private Value mouseMoveCallback;
     private Value scrollCallback;
@@ -31,10 +33,12 @@ public final class InputService {
 
     private final Map<String, Boolean> keyStates = new ConcurrentHashMap<>();
     private final Map<String, Long> lastKeyTriggerTime = new ConcurrentHashMap<>();
-    private static final long DEBOUNCE_TIME_MS = 100;
+    private final Map<String, Long> keyPressStartTime = new ConcurrentHashMap<>();
+    private static final long DEBOUNCE_TIME_MS = 5;
 
     public InputService(ClientScriptingRuntime runtime) {
         this.client = MinecraftClient.getInstance();
+        this.runtime = runtime;
         this.scriptExecutor = runtime.getExecutor();
     }
 
@@ -56,6 +60,11 @@ public final class InputService {
         }
 
         keyStates.put(keyName, isPressed);
+        if (isPressed) {
+            keyPressStartTime.put(keyName, System.currentTimeMillis());
+        } else {
+            keyPressStartTime.remove(keyName);
+        }
 
         boolean hasCallback = keyCallbacks.containsKey(keyName);
         if (hasCallback) {
@@ -114,6 +123,15 @@ public final class InputService {
         }
         keyCallbacks.put(keyName, callback);
         LOGGER.info("Successfully registered key callback for: {}", keyName);
+    }
+
+    @HostAccess.Export
+    public void onKeyHold(String keyName, Value callback) {
+        if (callback == null || !callback.canExecute()) {
+            throw new IllegalArgumentException("Callback must be executable");
+        }
+        keyHoldCallbacks.put(keyName, callback);
+        LOGGER.info("Successfully registered key hold callback for: {}", keyName);
     }
 
     @HostAccess.Export
@@ -191,7 +209,7 @@ public final class InputService {
 
             lastKeyTriggerTime.put(keyName, currentTime);
 
-            scriptExecutor.execute(() -> {
+            Runnable task = () -> {
                 if (jsContext == null) {
                     LOGGER.warn("jsContext is null, cannot execute key event for {}", keyName);
                     return;
@@ -206,7 +224,8 @@ public final class InputService {
                 } finally {
                     jsContext.leave();
                 }
-            });
+            };
+            runtime.executePriority(task);
         }
     }
 
@@ -242,7 +261,7 @@ public final class InputService {
             return;
         }
 
-        scriptExecutor.execute(() -> {
+        Runnable task = () -> {
             jsContext.enter();
             try {
                 if (callback.canExecute()) {
@@ -253,7 +272,8 @@ public final class InputService {
             } finally {
                 jsContext.leave();
             }
-        });
+        };
+        runtime.executePriority(task);
     }
 
     @HostAccess.Export
@@ -277,16 +297,30 @@ public final class InputService {
     }
 
     public void update() {
+        if (keyHoldCallbacks.isEmpty() || keyStates.isEmpty()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        for (var entry : keyHoldCallbacks.entrySet()) {
+            String key = entry.getKey();
+            if (keyStates.getOrDefault(key, false)) {
+                long start = keyPressStartTime.getOrDefault(key, now);
+                long heldMs = Math.max(0, now - start);
+                executeCallback(entry.getValue(), heldMs);
+            }
+        }
     }
 
     public void cleanUp() {
         keyCallbacks.clear();
+        keyHoldCallbacks.clear();
         mouseCallbacks.clear();
         mouseMoveCallback = null;
         scrollCallback = null;
         jsContext = null;
         keyStates.clear();
         lastKeyTriggerTime.clear();
+        keyPressStartTime.clear();
         LOGGER.info("InputService cleaned up.");
     }
 }

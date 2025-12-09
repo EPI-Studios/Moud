@@ -33,6 +33,11 @@ public final class CameraService {
     private final CameraState targetState = new CameraState();
     private final CameraState startState = new CameraState();
 
+    private final Vector3d currentVelocity = new Vector3d(0, 0, 0);
+    private double smoothTime = 0.1;
+    private double maxSpeed = Double.POSITIVE_INFINITY;
+    private boolean useSmoothDamp = false;
+
     private long transitionStartTime = 0;
     private long transitionDuration = 0;
     private Value easingFunction = null;
@@ -123,7 +128,17 @@ public final class CameraService {
             updateLookAt();
         }
 
-        if (isAnimating) {
+        if (useSmoothDamp) {
+            double dt = Math.min(tickDelta * 0.05, 0.1);
+
+            smoothDampVector(currentState.position, targetState.position, currentVelocity, smoothTime, maxSpeed, dt);
+
+            double t = 1.0 - Math.pow(0.01, dt);
+            currentState.yaw = MathHelper.lerpAngleDegrees((float) t, (float) currentState.yaw, (float) targetState.yaw);
+            currentState.pitch = MathHelper.lerp(t, currentState.pitch, targetState.pitch);
+            currentState.roll = MathHelper.lerpAngleDegrees((float) t, (float) currentState.roll, (float) targetState.roll);
+            currentState.fov = MathHelper.lerp(t, currentState.fov, targetState.fov);
+        } else if (isAnimating) {
             long elapsedTime = System.currentTimeMillis() - transitionStartTime;
             double progress = Math.min((double) elapsedTime / transitionDuration, 1.0);
 
@@ -153,9 +168,7 @@ public final class CameraService {
                 isAnimating = false;
                 easingFunction = null;
             }
-        }
-
-        if (animationFollow) {
+        } else if (animationFollow) {
             double smoothing = MathHelper.clamp(followSmoothing, 0.01, 0.999);
             double deltaTicks = MathHelper.clamp(tickDelta * 20.0, 0.0, 5.0);
             double alpha = 1.0 - Math.pow(1.0 - smoothing, deltaTicks);
@@ -224,6 +237,8 @@ public final class CameraService {
         this.wasInFirstPerson = false;
         MoudClientMod.setCustomCameraActive(false);
         isAnimating = false;
+        useSmoothDamp = false;
+        currentVelocity.set(0, 0, 0);
         this.activeCameraId = null;
     }
 
@@ -232,6 +247,7 @@ public final class CameraService {
         if (!isCustomCameraActive() || !options.hasMembers()) return;
 
         isAnimating = false;
+        useSmoothDamp = false;
 
         startState.position.set(currentState.position);
         startState.yaw = currentState.yaw;
@@ -299,6 +315,7 @@ public final class CameraService {
             enableCustomCamera();
         }
 
+        useSmoothDamp = false;
         try {
             EditorConfig.Camera cfg = EditorConfig.getInstance().camera();
             followSmoothing = cfg != null ? cfg.orbitSmoothing : followSmoothing;
@@ -335,7 +352,9 @@ public final class CameraService {
         }
 
         isAnimating = false;
+        useSmoothDamp = false;
         animationFollow = false; // disable follow mode for instant snap
+        currentVelocity.set(0, 0, 0);
 
         if (options.hasMember("position")) {
             Value pos = options.getMember("position");
@@ -380,6 +399,7 @@ public final class CameraService {
         }
 
         isAnimating = false;
+        useSmoothDamp = false;
         animationFollow = true; // smooth camera
 
         if (options.hasMember("smoothing")) {
@@ -399,6 +419,41 @@ public final class CameraService {
         if (options.hasMember("fov")) targetState.fov = extractDouble(options, "fov", targetState.fov);
     }
 
+    @HostAccess.Export
+    public void smoothFollow(Value options) {
+        if (!options.hasMembers()) {
+            return;
+        }
+        if (!isCustomCameraActive()) {
+            enableCustomCamera();
+        }
+
+        isAnimating = false;
+        animationFollow = false;
+        useSmoothDamp = true;
+        currentVelocity.set(0, 0, 0);
+
+        if (options.hasMember("smoothTime")) {
+            smoothTime = Math.max(0.0001, extractDouble(options, "smoothTime", 0.1));
+        }
+        if (options.hasMember("maxSpeed")) {
+            maxSpeed = extractDouble(options, "maxSpeed", Double.POSITIVE_INFINITY);
+        }
+
+        if (options.hasMember("position")) {
+            Value pos = options.getMember("position");
+            targetState.position.set(
+                    extractDouble(pos, "x", targetState.position.x),
+                    extractDouble(pos, "y", targetState.position.y),
+                    extractDouble(pos, "z", targetState.position.z)
+            );
+        }
+        if (options.hasMember("yaw")) targetState.yaw = extractDouble(options, "yaw", targetState.yaw);
+        if (options.hasMember("pitch")) targetState.pitch = extractDouble(options, "pitch", targetState.pitch);
+        if (options.hasMember("roll")) targetState.roll = extractDouble(options, "roll", targetState.roll);
+        if (options.hasMember("fov")) targetState.fov = extractDouble(options, "fov", targetState.fov);
+    }
+
     public void snapToFromMap(Map<String, Object> options) {
         if (options == null || options.isEmpty()) return;
         if (!isCustomCameraActive()) {
@@ -406,7 +461,9 @@ public final class CameraService {
         }
 
         isAnimating = false;
+        useSmoothDamp = false;
         animationFollow = false;
+        currentVelocity.set(0, 0, 0);
 
         if (options.containsKey("position")) {
             Object posObj = options.get("position");
@@ -454,6 +511,7 @@ public final class CameraService {
         }
 
         isAnimating = false;
+        useSmoothDamp = false;
         animationFollow = true; // Enable smooth follow mode
 
         // Optional smoothing parameter (0.01 to 0.999, default 0.85)
@@ -485,6 +543,7 @@ public final class CameraService {
         }
 
         isAnimating = false;
+        useSmoothDamp = false;
 
         startState.position.set(currentState.position);
         startState.yaw = currentState.yaw;
@@ -512,6 +571,58 @@ public final class CameraService {
         this.easingFunction = null;
         this.transitionStartTime = System.currentTimeMillis();
         this.isAnimating = true;
+    }
+
+    private void smoothDampVector(Vector3d current, Vector3d target, Vector3d velocity,
+                                  double desiredSmoothTime, double desiredMaxSpeed, double deltaTime) {
+        double clampedSmoothTime = Math.max(0.0001, desiredSmoothTime);
+        double omega = 2.0 / clampedSmoothTime;
+        double x = omega * deltaTime;
+        double exp = 1.0 / (1.0 + x + 0.48 * x * x + 0.235 * x * x * x);
+
+        double changeX = current.x - target.x;
+        double changeY = current.y - target.y;
+        double changeZ = current.z - target.z;
+
+        double maxChange = desiredMaxSpeed * clampedSmoothTime;
+        double changeSq = changeX * changeX + changeY * changeY + changeZ * changeZ;
+        if (changeSq > maxChange * maxChange) {
+            double scale = maxChange / Math.sqrt(changeSq);
+            changeX *= scale;
+            changeY *= scale;
+            changeZ *= scale;
+        }
+
+        double destX = current.x - changeX;
+        double destY = current.y - changeY;
+        double destZ = current.z - changeZ;
+
+        double tempX = (velocity.x + omega * changeX) * deltaTime;
+        double tempY = (velocity.y + omega * changeY) * deltaTime;
+        double tempZ = (velocity.z + omega * changeZ) * deltaTime;
+
+        velocity.x = (velocity.x - omega * tempX) * exp;
+        velocity.y = (velocity.y - omega * tempY) * exp;
+        velocity.z = (velocity.z - omega * tempZ) * exp;
+
+        double outputX = destX + (changeX + tempX) * exp;
+        double outputY = destY + (changeY + tempY) * exp;
+        double outputZ = destZ + (changeZ + tempZ) * exp;
+
+        if ((target.x - current.x > 0.0) == (outputX > target.x)) {
+            outputX = target.x;
+            velocity.x = (outputX - target.x) / deltaTime;
+        }
+        if ((target.y - current.y > 0.0) == (outputY > target.y)) {
+            outputY = target.y;
+            velocity.y = (outputY - target.y) / deltaTime;
+        }
+        if ((target.z - current.z > 0.0) == (outputZ > target.z)) {
+            outputZ = target.z;
+            velocity.z = (outputZ - target.z) / deltaTime;
+        }
+
+        current.set(outputX, outputY, outputZ);
     }
 
     private double toDouble(Object value, double fallback) {
@@ -832,6 +943,7 @@ public final class CameraService {
         pathLoop = loop;
         pathStartTime = System.currentTimeMillis();
         isAnimating = false;
+        useSmoothDamp = false;
         animationFollow = false;
     }
 
@@ -872,6 +984,7 @@ public final class CameraService {
         pathLoop = loop;
         pathStartTime = System.currentTimeMillis();
         isAnimating = false;
+        useSmoothDamp = false;
         animationFollow = false;
     }
 
@@ -921,6 +1034,7 @@ public final class CameraService {
         currentKeyframeIndex = 0;
         keyframeStartTime = System.currentTimeMillis();
         isAnimating = false;
+        useSmoothDamp = false;
         animationFollow = false;
     }
 
@@ -972,6 +1086,7 @@ public final class CameraService {
         currentKeyframeIndex = 0;
         keyframeStartTime = System.currentTimeMillis();
         isAnimating = false;
+        useSmoothDamp = false;
         animationFollow = false;
     }
 
@@ -1136,6 +1251,7 @@ public final class CameraService {
             enableCustomCamera();
         }
 
+        useSmoothDamp = false;
         Entity cameraEntity = client.getCameraEntity();
 
         dollyTrackDirection = config.maintainTarget;

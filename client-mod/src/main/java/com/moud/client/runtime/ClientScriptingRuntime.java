@@ -25,7 +25,7 @@ public class ClientScriptingRuntime {
     private static final Queue<Runnable> scriptTaskQueue = new ConcurrentLinkedQueue<>();
 
     private Context graalContext;
-    private final ExecutorService scriptExecutor;
+    private final ThreadPoolExecutor scriptExecutor;
     private final ScheduledExecutorService timerExecutor;
     private final ClientAPIService apiService;
     private final AtomicBoolean initialized = new AtomicBoolean(false);
@@ -40,7 +40,20 @@ public class ClientScriptingRuntime {
 
     public ClientScriptingRuntime(ClientAPIService apiService) {
         this.apiService = apiService;
-        this.scriptExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "ClientScript-Executor"));
+        this.scriptExecutor = new ThreadPoolExecutor(
+                1,
+                1,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new LinkedBlockingDeque<>(),
+                r -> {
+                    Thread t = new Thread(r, "ClientScript-Executor");
+                    t.setDaemon(true);
+                    t.setPriority(Thread.NORM_PRIORITY + 1);
+                    return t;
+                },
+                new ThreadPoolExecutor.DiscardOldestPolicy()
+        );
         this.timerExecutor = Executors.newScheduledThreadPool(2, r -> new Thread(r, "ClientScript-Timer"));
     }
 
@@ -382,6 +395,20 @@ public class ClientScriptingRuntime {
 
     public ExecutorService getExecutor() {
         return scriptExecutor;
+    }
+
+    public void executePriority(Runnable runnable) {
+        if (scriptExecutor.isShutdown()) {
+            return;
+        }
+        BlockingQueue<Runnable> queue = scriptExecutor.getQueue();
+        if (queue instanceof LinkedBlockingDeque<Runnable> deque) {
+            if (!deque.offerFirst(runnable)) {
+                LOGGER.warn("Failed to enqueue priority task; queue size={}", deque.size());
+            }
+        } else {
+            scriptExecutor.execute(runnable);
+        }
     }
 
     public void shutdown() {
