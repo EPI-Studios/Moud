@@ -36,13 +36,13 @@ public final class ManagedSound {
     }
 
     public SoundInstance createInstance() {
-        SoundEvent event = Registries.SOUND_EVENT.get(options.soundEventIdOrThrow());
+        SoundEvent event = ClientAudioService.getInstance()
+                .getSoundEvent(options.soundEventIdOrThrow());
 
         if (event == null) {
             LOGGER.warn("Managed sound '{}' references missing event {}", id, options.soundEventIdOrThrow());
             return null;
         }
-
         activeInstance = new ManagedSoundInstance(event, options.category(), options);
         activeInstance.setManagedSound(this);
 

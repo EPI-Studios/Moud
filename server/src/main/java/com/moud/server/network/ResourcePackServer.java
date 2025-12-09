@@ -37,24 +37,25 @@ final class ResourcePackServer {
             String sha1 = sha1(packPath);
             long size = Files.size(packPath);
             UUID packId = UUID.nameUUIDFromBytes(("moud-resource-pack:" + sha1).getBytes(StandardCharsets.UTF_8));
+            String resolvedUrlPath = "/moud-resourcepack-" + sha1 + ".zip";
 
             if (server == null) {
                 server = HttpServer.create(new InetSocketAddress(bindHost, port), 0);
-                server.createContext(urlPath, new PackHandler(packPath, size));
+                server.createContext(resolvedUrlPath, new PackHandler(packPath, size));
                 server.setExecutor(java.util.concurrent.Executors.newSingleThreadExecutor());
                 server.start();
                 LOGGER.info(LogContext.builder()
                         .put("bind_host", bindHost)
                         .put("public_host", publicHost)
                         .put("port", server.getAddress().getPort())
-                        .put("path", urlPath)
+                        .put("path", resolvedUrlPath)
                         .put("size_bytes", size)
                         .put("sha1", sha1)
                         .put("id", packId)
                         .build(), "Started resource pack HTTP server");
             }
 
-            String url = "http://" + publicHost + ":" + server.getAddress().getPort() + urlPath;
+            String url = "http://" + publicHost + ":" + server.getAddress().getPort() + resolvedUrlPath;
             return new ResourcePackInfo(packId, url, sha1);
         } catch (IOException e) {
             LOGGER.warn("Failed to start resource pack server for {}", packPath, e);
@@ -83,6 +84,8 @@ final class ResourcePackServer {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             exchange.getResponseHeaders().add("Content-Type", "application/zip");
+            exchange.getResponseHeaders().add("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+            exchange.getResponseHeaders().add("Pragma", "no-cache");
             exchange.sendResponseHeaders(200, size);
             try (OutputStream os = exchange.getResponseBody();
                  var in = Files.newInputStream(packPath)) {

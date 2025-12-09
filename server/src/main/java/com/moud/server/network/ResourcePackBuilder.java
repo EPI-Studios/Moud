@@ -67,6 +67,8 @@ final class ResourcePackBuilder {
                     LOGGER.info(LogContext.builder().put("path", root.toString()).build(), "Including assets from {}", root);
                     addAssetRoot(zip, root, added);
                 }
+
+                generateMissingSoundsJson(assetRoots, zip, added);
             }
 
             long size = Files.size(packPath);
@@ -114,6 +116,77 @@ final class ResourcePackBuilder {
             zip.closeEntry();
         } catch (IOException e) {
             LOGGER.warn("Failed to add asset {} to resource pack", file, e);
+        }
+    }
+
+    private static void generateMissingSoundsJson(java.util.List<Path> roots, ZipOutputStream zip, java.util.Set<String> added) throws IOException {
+        java.util.Map<String, java.util.Map<String, String>> namespaceSounds = new java.util.HashMap<>();
+
+        for (Path root : roots) {
+            try (java.util.stream.Stream<Path> stream = Files.walk(root)) {
+                stream.filter(Files::isRegularFile)
+                        .filter(p -> {
+                            String name = p.getFileName().toString().toLowerCase();
+                            return name.endsWith(".ogg");
+                        })
+                        .forEach(file -> {
+                            Path rel = root.relativize(file);
+                            String relPath = rel.toString().replace('\\', '/');
+                            int firstSlash = relPath.indexOf('/');
+                            if (firstSlash <= 0) return;
+                            String namespace = relPath.substring(0, firstSlash);
+                            String remainder = relPath.substring(firstSlash + 1);
+                            if (!remainder.startsWith("sounds/")) return;
+
+                            String idPath = remainder.substring("sounds/".length());
+                            int ext = idPath.lastIndexOf('.');
+                            if (ext > 0) {
+                                idPath = idPath.substring(0, ext);
+                            }
+                            if (idPath.isEmpty()) return;
+
+                            namespaceSounds
+                                    .computeIfAbsent(namespace, ns -> new java.util.HashMap<>())
+                                    .putIfAbsent(idPath, idPath);
+                        });
+            } catch (IOException e) {
+                LOGGER.warn("Failed to scan assets for sounds under {}", root, e);
+            }
+        }
+
+        for (var entry : namespaceSounds.entrySet()) {
+            String namespace = entry.getKey();
+            String soundsJsonPath = "assets/" + namespace + "/sounds.json";
+            if (added.contains(soundsJsonPath)) {
+                continue; // respect user sounds.json
+            }
+            var sounds = entry.getValue();
+            if (sounds.isEmpty()) continue;
+
+            added.add(soundsJsonPath);
+            zip.putNextEntry(new ZipEntry(soundsJsonPath));
+
+            StringBuilder json = new StringBuilder();
+            json.append("{\n");
+            int i = 0;
+            for (var sound : sounds.entrySet()) {
+                String id = sound.getKey();
+                String namespaced = namespace + ":" + id;
+
+                json.append("  \"").append(id).append("\": { \"sounds\": [ { \"name\": \"")
+                        .append(namespaced).append("\", \"stream\": true } ] }");
+
+                if (++i < sounds.size()) {
+                    json.append(",\n");
+                } else {
+                    json.append("\n");
+                }
+            }
+            json.append("}");
+
+            zip.write(json.toString().getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+            LOGGER.info("Generated sounds.json for namespace '{}' with {} entries", namespace, sounds.size());
         }
     }
 }
