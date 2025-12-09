@@ -94,7 +94,8 @@ public final class MoudPackets {
 
     @Packet(value = "moud:player_model_update", direction = Direction.SERVER_TO_CLIENT)
     public record PlayerModelUpdatePacket(@Field(order = 0) long modelId, @Field(order = 1) Vector3 position,
-                                          @Field(order = 2) float yaw, @Field(order = 3) float pitch) {
+                                          @Field(order = 2) float yaw, @Field(order = 3) float pitch,
+                                          @Field(order = 4, optional = true) String instance) {
     }
 
     @Packet(value = "moud:player_model_skin", direction = Direction.SERVER_TO_CLIENT)
@@ -624,78 +625,6 @@ public final class MoudPackets {
             @Field(order = 1) Vector3 position,
             @Field(order = 2) Quaternion rotation,
             @Field(order = 3) Vector3 scale
-    ) {}
-
-    public record FakePlayerWaypoint(
-            @Field(order = 0) Vector3 position
-    ) {}
-
-    public record FakePlayerDescriptor(
-            @Field(order = 0) long id,
-            @Field(order = 1) String label,
-            @Field(order = 2) String skinUrl,
-            @Field(order = 3) Vector3 position,
-            @Field(order = 4) Quaternion rotation,
-            @Field(order = 5) double width,
-            @Field(order = 6) double height,
-            @Field(order = 7) boolean physicsEnabled,
-            @Field(order = 8) boolean sneaking,
-            @Field(order = 9) boolean sprinting,
-            @Field(order = 10) boolean swinging,
-            @Field(order = 11) boolean usingItem,
-            @Field(order = 12) List<FakePlayerWaypoint> path,
-            @Field(order = 13) double pathSpeed,
-            @Field(order = 14) boolean pathLoop,
-            @Field(order = 15) boolean pathPingPong
-    ) {}
-
-    @Packet(value = "moud:fake_player_create", direction = Direction.SERVER_TO_CLIENT)
-    public record S2C_CreateFakePlayer(
-            @Field(order = 0) FakePlayerDescriptor descriptor
-    ) {}
-
-    @Packet(value = "moud:fake_player_update", direction = Direction.SERVER_TO_CLIENT)
-    public record S2C_UpdateFakePlayer(
-            @Field(order = 0) long id,
-            @Field(order = 1) Vector3 position,
-            @Field(order = 2) Quaternion rotation,
-            @Field(order = 3) boolean sneaking,
-            @Field(order = 4) boolean sprinting,
-            @Field(order = 5) boolean swinging,
-            @Field(order = 6) boolean usingItem
-    ) {}
-
-    @Packet(value = "moud:fake_player_remove", direction = Direction.SERVER_TO_CLIENT)
-    public record S2C_RemoveFakePlayer(
-            @Field(order = 0) long id
-    ) {}
-
-    @Packet(value = "moud:fake_player_spawn", direction = Direction.CLIENT_TO_SERVER)
-    public record C2S_SpawnFakePlayer(
-            @Field(order = 0) FakePlayerDescriptor descriptor
-    ) {}
-
-    @Packet(value = "moud:fake_player_remove_c2s", direction = Direction.CLIENT_TO_SERVER)
-    public record C2S_RemoveFakePlayer(
-            @Field(order = 0) long id
-    ) {}
-
-    @Packet(value = "moud:fake_player_pose", direction = Direction.CLIENT_TO_SERVER)
-    public record C2S_SetFakePlayerPose(
-            @Field(order = 0) long id,
-            @Field(order = 1) boolean sneaking,
-            @Field(order = 2) boolean sprinting,
-            @Field(order = 3) boolean swinging,
-            @Field(order = 4) boolean usingItem
-    ) {}
-
-    @Packet(value = "moud:fake_player_path", direction = Direction.CLIENT_TO_SERVER)
-    public record C2S_SetFakePlayerPath(
-            @Field(order = 0) long id,
-            @Field(order = 1) List<FakePlayerWaypoint> path,
-            @Field(order = 2) double pathSpeed,
-            @Field(order = 3) boolean pathLoop,
-            @Field(order = 4) boolean pathPingPong
     ) {}
 
     @Packet(value = "moud:update_player_transform", direction = Direction.CLIENT_TO_SERVER)

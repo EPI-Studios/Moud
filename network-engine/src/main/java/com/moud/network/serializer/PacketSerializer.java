@@ -39,8 +39,6 @@ public class PacketSerializer {
         register(MoudPackets.EditorAssetDefinition.class, new EditorAssetDefinitionSerializer());
         register(MoudPackets.CollisionBoxData.class, new CollisionBoxDataSerializer());
         register(MoudPackets.ProjectFileEntry.class, new ProjectFileEntrySerializer());
-        register(MoudPackets.FakePlayerDescriptor.class, new FakePlayerDescriptorSerializer());
-        register(MoudPackets.FakePlayerWaypoint.class, new FakePlayerWaypointSerializer());
         register(com.moud.api.animation.AnimationClip.class, new AnimationClipSerializer());
         register(MoudPackets.AnimationFileInfo.class, new AnimationFileInfoSerializer());
         register(com.moud.api.particle.ScalarKeyframe.class, new ScalarKeyframeSerializer());
