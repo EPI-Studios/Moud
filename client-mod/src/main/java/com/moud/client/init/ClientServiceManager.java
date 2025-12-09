@@ -5,7 +5,6 @@ import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.cursor.ClientCursorManager;
 import com.moud.client.display.ClientDisplayManager;
 import com.moud.client.display.DisplaySurface;
-import com.moud.client.fakeplayer.ClientFakePlayerManager;
 import com.moud.client.lighting.ClientLightingService;
 import com.moud.client.model.ClientModelManager;
 import com.moud.client.movement.ClientMovementTracker;
@@ -28,7 +27,6 @@ public class ClientServiceManager {
 
     private final com.moud.client.particle.ParticleSystem particleSystem = new com.moud.client.particle.ParticleSystem(16384);
     private final com.moud.client.particle.ParticleEmitterSystem particleEmitterSystem = new com.moud.client.particle.ParticleEmitterSystem();
-    private ClientFakePlayerManager fakePlayerManager;
     private ClientCursorManager cursorManager;
     private ClientAPIService apiService;
     private ClientScriptingRuntime scriptingRuntime;
@@ -43,7 +41,6 @@ public class ClientServiceManager {
             return;
         }
         this.cursorManager = ClientCursorManager.getInstance();
-        this.fakePlayerManager = new ClientFakePlayerManager();
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
         baseSystemsInitialized = true;
     }
@@ -132,10 +129,6 @@ public class ClientServiceManager {
         com.moud.client.editor.EditorModeManager.getInstance().tick(client);
         ClientMovementTracker.getInstance().tick();
         ClientModelManager.getInstance().getModels().forEach(model -> model.tickSmoothing(1.0f));
-    }
-
-    public ClientFakePlayerManager getFakePlayerManager() {
-        return fakePlayerManager;
     }
 
     public ParticleSystem getParticleSystem() {

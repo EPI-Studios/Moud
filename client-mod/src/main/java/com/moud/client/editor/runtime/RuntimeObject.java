@@ -220,7 +220,7 @@ public final class RuntimeObject {
     }
 
     public void updateFromPlayerModel(Vec3d pos, Vec3d rotDeg) {
-        this.label = "Fake Player";
+        this.label = "Player Model";
         this.isPlayerModel = true;
         this.position = pos;
         this.scale = new Vec3d(1, 1, 1);
@@ -234,27 +234,27 @@ public final class RuntimeObject {
         // TODO: NEED MASSIVE REWORK LMAO
         java.util.Map<String, Capsule> caps = new java.util.HashMap<>();
         Vec3d headCenter = new Vec3d(0, height * 0.85, 0);
-        caps.put("fakeplayer:head", Capsule.sphere(headCenter, 0.12));
+        caps.put("player_model:head", Capsule.sphere(headCenter, 0.12));
 
         Vec3d shoulder = new Vec3d(0, height * 0.65, 0);
         Vec3d hip = new Vec3d(0, height * 0.35, 0);
-        caps.put("fakeplayer:torso", Capsule.line(shoulder, hip, 0.16));
+        caps.put("player_model:torso", Capsule.line(shoulder, hip, 0.16));
 
         Vec3d leftArmTop = shoulder.add(-0.22, 0.05, 0);
         Vec3d leftArmBot = leftArmTop.add(0, -0.35, 0);
-        caps.put("fakeplayer:left_arm", Capsule.line(leftArmTop, leftArmBot, 0.1));
+        caps.put("player_model:left_arm", Capsule.line(leftArmTop, leftArmBot, 0.1));
 
         Vec3d rightArmTop = shoulder.add(0.22, 0.05, 0);
         Vec3d rightArmBot = rightArmTop.add(0, -0.35, 0);
-        caps.put("fakeplayer:right_arm", Capsule.line(rightArmTop, rightArmBot, 0.1));
+        caps.put("player_model:right_arm", Capsule.line(rightArmTop, rightArmBot, 0.1));
 
         Vec3d leftLegTop = hip.add(-0.1, -0.05, 0);
         Vec3d leftLegBot = leftLegTop.add(0, -0.8, 0);
-        caps.put("fakeplayer:left_leg", Capsule.line(leftLegTop, leftLegBot, 0.1));
+        caps.put("player_model:left_leg", Capsule.line(leftLegTop, leftLegBot, 0.1));
 
         Vec3d rightLegTop = hip.add(0.1, -0.05, 0);
         Vec3d rightLegBot = rightLegTop.add(0, -0.8, 0);
-        caps.put("fakeplayer:right_leg", Capsule.line(rightLegTop, rightLegBot, 0.1));
+        caps.put("player_model:right_leg", Capsule.line(rightLegTop, rightLegBot, 0.1));
 
         this.baseLimbCapsules = caps;
         rebuildLimbCapsules();

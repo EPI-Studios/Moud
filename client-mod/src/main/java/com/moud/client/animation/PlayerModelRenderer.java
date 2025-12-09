@@ -17,7 +17,7 @@ public class PlayerModelRenderer {
     public void render(AnimatedPlayerModel animatedModel, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, float partialTick) {
         EntityRenderDispatcher dispatcher = MinecraftClient.getInstance().getEntityRenderDispatcher();
 
-        var player = animatedModel.getFakePlayer();
+        var player = animatedModel.getEntity();
 
         // Setup animation state
         animatedModel.setupAnim(partialTick);
