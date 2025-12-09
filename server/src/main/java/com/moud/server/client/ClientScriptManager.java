@@ -86,7 +86,7 @@ public class ClientScriptManager {
             String content;
             if (path.toString().endsWith(".ts")) {
                 LOGGER.debug("Transpiling client script: {}", relativePath);
-                content = TypeScriptTranspiler.transpile(path).get();
+                content = TypeScriptTranspiler.transpile(path, true).get(); // true = isClientScript
                 relativePath = relativePath.replace(".ts", ".js");
             } else {
                 content = Files.readString(path);

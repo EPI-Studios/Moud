@@ -33,21 +33,39 @@ public class AssetManager {
     }
 
     public LoadedAsset loadAsset(String assetId) throws IOException {
+        String normalizedId = normalizeAssetId(assetId);
+
         if (loadedAssets.containsKey(assetId)) {
             return loadedAssets.get(assetId);
         }
 
-        AssetDiscovery.AssetMetadata metadata = discovery.getAsset(assetId);
+        if (loadedAssets.containsKey(normalizedId)) {
+            return loadedAssets.get(normalizedId);
+        }
+
+        AssetDiscovery.AssetMetadata metadata = discovery.getAsset(normalizedId);
         if (metadata == null) {
             throw new IllegalArgumentException("Asset not found: " + assetId);
         }
 
         LoadedAsset loadedAsset = createLoadedAsset(metadata);
-        loadedAssets.put(assetId, loadedAsset);
+        loadedAssets.put(normalizedId, loadedAsset);
         trimCache();
 
-        LOGGER.debug("Loaded asset: {}", assetId);
+        LOGGER.debug("Loaded asset: {} (requested as {})", normalizedId, assetId);
         return loadedAsset;
+    }
+
+    private String normalizeAssetId(String assetId) {
+        String normalized = assetId.replace("\\", "/");
+        if (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        normalized = normalized.replace(":", "/");
+        while (normalized.contains("//")) {
+            normalized = normalized.replace("//", "/");
+        }
+        return normalized;
     }
 
     private void trimCache() {

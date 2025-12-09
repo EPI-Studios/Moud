@@ -44,6 +44,16 @@ public class AssetProxy {
         }
     }
 
+    @HostAccess.Export
+    public String loadText(String path) {
+        try {
+            AssetManager.LoadedAsset asset = assetManager.loadAsset(path);
+            return asset.getContent();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load text: " + path, e);
+        }
+    }
+
     public static class ShaderAssetProxy {
         private final AssetManager.ShaderAsset asset;
         public ShaderAssetProxy(AssetManager.ShaderAsset asset) { this.asset = asset; }

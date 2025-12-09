@@ -6,14 +6,13 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.sound.SoundManager;
 import net.minecraft.client.sound.SoundInstance;
 import net.minecraft.sound.SoundCategory;
-import net.minecraft.registry.Registries;
+import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
@@ -32,6 +31,8 @@ public final class ClientAudioService {
 
     private final Map<String, ManagedSound> activeSounds = new ConcurrentHashMap<>();
     private final Map<String, Set<String>> crossFadeGroups = new ConcurrentHashMap<>();
+
+    private final Map<Identifier, SoundEvent> dynamicSoundEvents = new ConcurrentHashMap<>();
 
     private ClientAudioService() {
     }
@@ -96,9 +97,16 @@ public final class ClientAudioService {
             LOGGER.warn("audio:play '{}' did not specify a sound id", soundId);
             return;
         }
-        if (!Registries.SOUND_EVENT.containsId(soundEventId)) {
-            LOGGER.warn("audio:play '{}' references unknown sound '{}'", soundId, soundEventId);
-            return;
+
+        if (soundEventId.getNamespace().equals(Identifier.DEFAULT_NAMESPACE)) {
+            soundEventId = Identifier.of("moud", soundEventId.getPath());
+
+            options = new ManagedSoundOptions(
+                    soundEventId, options.categoryRaw(), options.baseVolume(), options.basePitch(),
+                    options.loopRaw(), options.fadeInMs(), options.fadeOutMs(),
+                    options.positionalRaw(), options.positionRaw(), options.maxDistance(),
+                    options.pitchRamp(), options.crossFadeGroup(), options.crossFadeDurationMs()
+            );
         }
 
         if (options.crossFadeGroup() != null) {
@@ -175,6 +183,10 @@ public final class ClientAudioService {
                 }
             }
         }
+    }
+
+    public SoundEvent getSoundEvent(Identifier id) {
+        return dynamicSoundEvents.computeIfAbsent(id, SoundEvent::of);
     }
 
     private void removeFromGroup(String soundId, @Nullable String groupId) {
