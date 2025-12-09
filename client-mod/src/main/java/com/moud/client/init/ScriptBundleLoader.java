@@ -45,40 +45,29 @@ import java.util.zip.ZipInputStream;
 public class ScriptBundleLoader {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScriptBundleLoader.class);
     private static final Identifier MOUDPACK_ID = Identifier.of("moud", "dynamic_resources");
-    private static final long JOIN_TIMEOUT_MS = 10000;
     private static final int MAX_BUNDLE_SIZE_BYTES = 32 * 1024 * 1024;
     private static final int MAX_DECOMPRESSED_SIZE_BYTES = 64 * 1024 * 1024;
     private static final char[] HEX_ARRAY = "0123456789abcdef".toCharArray();
 
     private final AtomicBoolean resourcesLoaded = new AtomicBoolean(false);
-    private final AtomicBoolean waitingForResources = new AtomicBoolean(false);
     private final AtomicBoolean serverPackEnabledOnce = new AtomicBoolean(false);
     private final AtomicReference<InMemoryPackResources> dynamicPack = new AtomicReference<>(null);
     private final Map<String, ScriptChunkAccumulator> scriptChunkAccumulators = new HashMap<>();
-    private final Queue<Consumer<ClientPlayNetworkHandler>> deferredPacketHandlers = new ConcurrentLinkedQueue<>();
 
     private String currentResourcesHash = "";
-    private long joinTime = -1L;
-    private GameJoinS2CPacket pendingGameJoinPacket = null;
     private ServerInfo.ResourcePackPolicy previousResourcePackPolicy = null;
 
     public void onJoin(ClientPlayNetworkHandler handler) {
         enableServerResourcePackAutoAccept(handler);
         resourcesLoaded.set(false);
-        waitingForResources.set(true);
-        joinTime = System.currentTimeMillis();
         serverPackEnabledOnce.set(false);
     }
 
     public void onDisconnect(ClientPlayNetworkHandler handler) {
         restoreServerResourcePackPolicy(handler);
-        joinTime = -1L;
         currentResourcesHash = "";
         dynamicPack.set(null);
         scriptChunkAccumulators.clear();
-        pendingGameJoinPacket = null;
-        deferredPacketHandlers.clear();
-        waitingForResources.set(false);
         resourcesLoaded.set(false);
     }
 
@@ -86,9 +75,7 @@ public class ScriptBundleLoader {
         scriptChunkAccumulators.clear();
         currentResourcesHash = "";
         dynamicPack.set(null);
-        pendingGameJoinPacket = null;
         resourcesLoaded.set(false);
-        waitingForResources.set(false);
     }
 
     public void clear() {
@@ -96,14 +83,6 @@ public class ScriptBundleLoader {
     }
 
     public void tick(MoudClientMod mod, ClientServiceManager services) {
-        if (joinTime != -1L && waitingForResources.get() && System.currentTimeMillis() - joinTime > JOIN_TIMEOUT_MS) {
-            LOGGER.warn("Timed out waiting for Moud server handshake. Assuming non-Moud server and proceeding with join.");
-            waitingForResources.set(false);
-            resourcesLoaded.set(true);
-            joinTime = -1L;
-            services.cleanupRuntimeServices();
-            mod.markAsMoudServer(false);
-        }
     }
 
     public void handleChunk(MoudPackets.SyncClientScriptsChunkPacket packet, MoudClientMod mod, ClientServiceManager services) {
@@ -118,7 +97,6 @@ public class ScriptBundleLoader {
 
     public void handleCompleteBundle(MoudPackets.SyncClientScriptsPacket packet, MoudClientMod mod, ClientServiceManager services) {
         mod.markAsMoudServer(true);
-        joinTime = -1L;
         scriptChunkAccumulators.remove(packet.hash());
 
         ClientAPIService apiService = services.getApiService();
@@ -133,8 +111,6 @@ public class ScriptBundleLoader {
             if (expectedHash != null && expectedHash.equals(currentResourcesHash)) {
                 LOGGER.info("Server confirmed cached client resources (hash {}).", expectedHash);
                 resourcesLoaded.set(true);
-                waitingForResources.set(false);
-                processPendingGameJoinPacket();
             } else {
                 LOGGER.warn("Received empty client bundle with hash {}. Retaining existing resources.", expectedHash);
             }
@@ -144,23 +120,17 @@ public class ScriptBundleLoader {
         if (!currentResourcesHash.isEmpty() && expectedHash != null && expectedHash.equals(currentResourcesHash)) {
             LOGGER.warn("Server resent client bundle with already-applied hash {}. Skipping reload.", expectedHash);
             resourcesLoaded.set(true);
-            waitingForResources.set(false);
-            processPendingGameJoinPacket();
             return;
         }
 
         if (scriptPayload.length > MAX_BUNDLE_SIZE_BYTES) {
             LOGGER.error("Client bundle from server exceeds safe size ({} bytes > {} bytes).", scriptPayload.length, MAX_BUNDLE_SIZE_BYTES);
-            waitingForResources.set(false);
             return;
         }
-
-        waitingForResources.set(true);
 
         String computedHash = sha256(scriptPayload);
         if (expectedHash != null && !expectedHash.isEmpty() && !expectedHash.equals(computedHash)) {
             LOGGER.error("Client bundle checksum mismatch. Expected {} but computed {}.", expectedHash, computedHash);
-            waitingForResources.set(false);
             return;
         }
 
@@ -170,133 +140,112 @@ public class ScriptBundleLoader {
 
         currentResourcesHash = expectedHash != null && !expectedHash.isEmpty() ? expectedHash : computedHash;
 
-        Map<String, byte[]> scriptsData = new HashMap<>();
-        Map<String, byte[]> assetsData = new HashMap<>();
+        CompletableFuture.supplyAsync(() -> {
+            Map<String, byte[]> scriptsData = new HashMap<>();
+            Map<String, byte[]> assetsData = new HashMap<>();
 
-        try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(scriptPayload))) {
-            ZipEntry entry;
-            long totalExtracted = 0;
-            byte[] buffer = new byte[8192];
+            try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(scriptPayload))) {
+                ZipEntry entry;
+                long totalExtracted = 0;
+                byte[] buffer = new byte[8192];
 
-            while ((entry = zis.getNextEntry()) != null) {
-                if (entry.isDirectory()) {
-                    continue;
-                }
-
-                ByteArrayOutputStream entryBuffer = new ByteArrayOutputStream();
-                int read;
-                while ((read = zis.read(buffer, 0, buffer.length)) != -1) {
-                    totalExtracted += read;
-                    if (totalExtracted > MAX_DECOMPRESSED_SIZE_BYTES) {
-                        throw new IOException("Decompressed client bundle exceeds safe limit of " + MAX_DECOMPRESSED_SIZE_BYTES + " bytes");
+                while ((entry = zis.getNextEntry()) != null) {
+                    if (entry.isDirectory()) {
+                        continue;
                     }
-                    entryBuffer.write(buffer, 0, read);
-                }
 
-                byte[] data = entryBuffer.toByteArray();
-                String name = entry.getName();
-                if (name.startsWith("scripts/")) {
-                    scriptsData.put(name.substring("scripts/".length()), data);
-                } else if (name.startsWith("assets/")) {
-                    assetsData.put(name, data);
-                    if (name.contains("animation") && name.endsWith(".json")) {
-                        String animationName = name.substring(name.lastIndexOf('/') + 1, name.lastIndexOf('.'));
-                        LOGGER.info("Loading animation: {} from path: {}", animationName, name);
-                    }
-                }
-            }
-        } catch (IOException e) {
-            LOGGER.error("Error unpacking script & asset archive", e);
-            waitingForResources.set(false);
-            return;
-        }
-
-        MinecraftClient client = MinecraftClient.getInstance();
-        client.execute(() -> {
-            if (assetsData.isEmpty()) {
-                LOGGER.info("No assets bundled with client sync payload; assuming server resource pack covers assets.");
-                logActiveResourcePacks(client);
-                if (ensureServerPacksEnabled(client)) {
-                    client.reloadResources().thenRunAsync(() -> {
-                        logActiveResourcePacks(client);
-                        dynamicPack.set(null);
-                        loadScriptsOnly(scriptsData, services);
-                        resourcesLoaded.set(true);
-                        waitingForResources.set(false);
-                        if (services.getApiService() != null && services.getApiService().events != null) {
-                            services.getApiService().events.dispatch("core:resourcesReloaded");
+                    ByteArrayOutputStream entryBuffer = new ByteArrayOutputStream();
+                    int read;
+                    while ((read = zis.read(buffer, 0, buffer.length)) != -1) {
+                        totalExtracted += read;
+                        if (totalExtracted > MAX_DECOMPRESSED_SIZE_BYTES) {
+                            throw new IOException("Decompressed client bundle exceeds safe limit of " + MAX_DECOMPRESSED_SIZE_BYTES + " bytes");
                         }
-                        processPendingGameJoinPacket();
-                        LOGGER.info("Scripts loaded without bundled assets after enabling server pack. Hash {}.", currentResourcesHash);
-                    }, client);
-                } else {
-                    dynamicPack.set(null);
-                    loadScriptsOnly(scriptsData, services);
-                    resourcesLoaded.set(true);
-                    waitingForResources.set(false);
-                    if (services.getApiService() != null && services.getApiService().events != null) {
-                        services.getApiService().events.dispatch("core:resourcesReloaded");
+                        entryBuffer.write(buffer, 0, read);
                     }
-                    processPendingGameJoinPacket();
-                    LOGGER.info("Scripts loaded without bundled assets. Hash {}.", currentResourcesHash);
+
+                    byte[] data = entryBuffer.toByteArray();
+                    String name = entry.getName();
+                    if (name.startsWith("scripts/")) {
+                        scriptsData.put(name.substring("scripts/".length()), data);
+                    } else if (name.startsWith("assets/")) {
+                        assetsData.put(name, data);
+                        if (name.contains("animation") && name.endsWith(".json")) {
+                            String animationName = name.substring(name.lastIndexOf('/') + 1, name.lastIndexOf('.'));
+                            LOGGER.info("Loading animation: {} from path: {}", animationName, name);
+                        }
+                    }
                 }
-                return;
+            } catch (IOException e) {
+                LOGGER.error("Error unpacking script & asset archive", e);
+                throw new RuntimeException(e);
             }
 
-            InMemoryPackResources newPack = new InMemoryPackResources(MOUDPACK_ID.toString(), Text.of("Moud Dynamic Server Resources"), assetsData);
-            dynamicPack.set(newPack);
+            return new Object[] { scriptsData, assetsData };
+        }).thenAcceptAsync(result -> {
+            @SuppressWarnings("unchecked")
+            Map<String, byte[]> scriptsData = (Map<String, byte[]>) result[0];
+            @SuppressWarnings("unchecked")
+            Map<String, byte[]> assetsData = (Map<String, byte[]>) result[1];
 
-            ResourcePackManager manager = client.getResourcePackManager();
-            manager.scanPacks();
-
-            List<String> enabledPacks = new ArrayList<>(manager.getEnabledIds());
-            if (!enabledPacks.contains(MOUDPACK_ID.toString())) {
-                enabledPacks.add(MOUDPACK_ID.toString());
-            }
-
-            manager.setEnabledProfiles(enabledPacks);
-
-            client.reloadResources().thenRunAsync(() -> {
-                LOGGER.info("Resource reload complete. Proceeding with script loading.");
-                logActiveResourcePacks(client);
-                loadScriptsOnly(scriptsData, services);
-                resourcesLoaded.set(true);
-                waitingForResources.set(false);
-                if (services.getApiService() != null && services.getApiService().events != null) {
-                    services.getApiService().events.dispatch("core:resourcesReloaded");
-                }
-                processPendingGameJoinPacket();
-                LOGGER.info("Dynamic resources enabled and scripts loaded. Hash {}.", currentResourcesHash);
-            }, client);
+            processExtractedBundle(scriptsData, assetsData, services);
+        }, MinecraftClient.getInstance()).exceptionally(ex -> {
+            LOGGER.error("Failed to extract bundle", ex);
+            return null;
         });
     }
 
-    public boolean shouldBlockJoin() {
-        return false;
-    }
-
-    public void processPendingGameJoinPacket() {
-        if (pendingGameJoinPacket != null) {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client.getNetworkHandler() != null) {
-                LOGGER.info("Processing delayed GameJoin packet now that resources are loaded.");
-                client.getNetworkHandler().onGameJoin(pendingGameJoinPacket);
-                pendingGameJoinPacket = null;
-                drainDeferredPackets(client.getNetworkHandler());
+    private void processExtractedBundle(Map<String, byte[]> scriptsData, Map<String, byte[]> assetsData, ClientServiceManager services) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (assetsData.isEmpty()) {
+            LOGGER.info("No assets bundled with client sync payload; assuming server resource pack covers assets.");
+            logActiveResourcePacks(client);
+            if (ensureServerPacksEnabled(client)) {
+                client.reloadResources().thenRunAsync(() -> {
+                    logActiveResourcePacks(client);
+                    dynamicPack.set(null);
+                    loadScriptsOnly(scriptsData, services);
+                    resourcesLoaded.set(true);
+                    if (services.getApiService() != null && services.getApiService().events != null) {
+                        services.getApiService().events.dispatch("core:resourcesReloaded");
+                    }
+                    LOGGER.info("Scripts loaded without bundled assets after enabling server pack. Hash {}.", currentResourcesHash);
+                }, client);
             } else {
-                LOGGER.error("Could not process pending game join packet: network handler is null!");
-                client.disconnect();
+                dynamicPack.set(null);
+                loadScriptsOnly(scriptsData, services);
+                resourcesLoaded.set(true);
+                if (services.getApiService() != null && services.getApiService().events != null) {
+                    services.getApiService().events.dispatch("core:resourcesReloaded");
+                }
+                LOGGER.info("Scripts loaded without bundled assets. Hash {}.", currentResourcesHash);
             }
+            return;
         }
-    }
 
-    public void setPendingGameJoinPacket(GameJoinS2CPacket packet) {
-        this.pendingGameJoinPacket = packet;
-        LOGGER.info("Moud client is delaying game join, waiting for server resources...");
-    }
+        InMemoryPackResources newPack = new InMemoryPackResources(MOUDPACK_ID.toString(), Text.of("Moud Dynamic Server Resources"), assetsData);
+        dynamicPack.set(newPack);
 
-    public void enqueuePostJoinPacket(Consumer<ClientPlayNetworkHandler> consumer) {
-        deferredPacketHandlers.offer(consumer);
+        ResourcePackManager manager = client.getResourcePackManager();
+        manager.scanPacks();
+
+        List<String> enabledPacks = new ArrayList<>(manager.getEnabledIds());
+        if (!enabledPacks.contains(MOUDPACK_ID.toString())) {
+            enabledPacks.add(MOUDPACK_ID.toString());
+        }
+
+        manager.setEnabledProfiles(enabledPacks);
+
+        client.reloadResources().thenRunAsync(() -> {
+            LOGGER.info("Resource reload complete. Proceeding with script loading.");
+            logActiveResourcePacks(client);
+            loadScriptsOnly(scriptsData, services);
+            resourcesLoaded.set(true);
+            if (services.getApiService() != null && services.getApiService().events != null) {
+                services.getApiService().events.dispatch("core:resourcesReloaded");
+            }
+            LOGGER.info("Dynamic resources enabled and scripts loaded. Hash {}.", currentResourcesHash);
+        }, client);
     }
 
     public void registerResourcePack(Consumer<ResourcePackProfile> profileAdder) {
@@ -429,17 +378,6 @@ public class ScriptBundleLoader {
             LOGGER.info("Restored previous server resource pack policy after disconnect.");
         }
         previousResourcePackPolicy = null;
-    }
-
-    private void drainDeferredPackets(ClientPlayNetworkHandler handler) {
-        Consumer<ClientPlayNetworkHandler> task;
-        while ((task = deferredPacketHandlers.poll()) != null) {
-            try {
-                task.accept(handler);
-            } catch (Exception ex) {
-                LOGGER.error("Failed to replay deferred packet", ex);
-            }
-        }
     }
 
     private static String sha256(byte[] data) {
