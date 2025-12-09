@@ -47,6 +47,7 @@ public class UIComponent {
     protected volatile boolean visible = true;
     protected volatile Text message = Text.empty();
     protected volatile boolean focused = false;
+    protected volatile float zIndex = 0f;
 
     protected volatile String backgroundTexture = null;
     protected volatile Identifier backgroundTextureId = null;
@@ -80,48 +81,63 @@ public class UIComponent {
 
     public void computeLayout(int screenWidth, int screenHeight) {
         if (parent == null) {
-
             if (fullscreen) {
                 this.x = 0;
                 this.y = 0;
                 this.width = screenWidth;
                 this.height = screenHeight;
                 this.anchor = UIAnchor.TOP_LEFT;
-            }
 
-            float effectiveWidth = getEffectiveWidth();
-            float effectiveHeight = getEffectiveHeight();
+                this.screenX = 0;
+                this.screenY = 0;
+            } else {
+                float effectiveWidth = getEffectiveWidth();
+                float effectiveHeight = getEffectiveHeight();
 
-            float baseX = switch (anchor) {
-                case TOP_LEFT, CENTER_LEFT, BOTTOM_LEFT -> x;
-                case TOP_CENTER, CENTER_CENTER, BOTTOM_CENTER -> (screenWidth / 2f) + x - (effectiveWidth / 2f);
-                case TOP_RIGHT, CENTER_RIGHT, BOTTOM_RIGHT -> screenWidth - x - effectiveWidth;
-            };
+                float baseX = switch (anchor) {
+                    case TOP_LEFT, CENTER_LEFT, BOTTOM_LEFT -> x;
+                    case TOP_CENTER, CENTER_CENTER, BOTTOM_CENTER -> (screenWidth / 2f) + x - (effectiveWidth / 2f);
+                    case TOP_RIGHT, CENTER_RIGHT, BOTTOM_RIGHT -> screenWidth - x - effectiveWidth;
+                };
 
-            float baseY = switch (anchor) {
-                case TOP_LEFT, TOP_CENTER, TOP_RIGHT -> y;
-                case CENTER_LEFT, CENTER_CENTER, CENTER_RIGHT -> (screenHeight / 2f) + y - (effectiveHeight / 2f);
-                case BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT -> screenHeight - y - effectiveHeight;
-            };
+                float baseY = switch (anchor) {
+                    case TOP_LEFT, TOP_CENTER, TOP_RIGHT -> y;
+                    case CENTER_LEFT, CENTER_CENTER, CENTER_RIGHT -> (screenHeight / 2f) + y - (effectiveHeight / 2f);
+                    case BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT -> screenHeight - y - effectiveHeight;
+                };
 
-            if (relativeToId != null && relativePosition != null) {
-                UIComponent relativeTo = service.getElement(relativeToId);
-                if (relativeTo != null) {
+                if (relativeToId != null && relativePosition != null) {
+                    UIComponent relativeTo = service.getElement(relativeToId);
+                    if (relativeTo != null) {
+                        if (relativeTo.parent == null) {
+                            relativeTo.computeLayout(screenWidth, screenHeight);
+                        }
 
-                    if (relativeTo.parent == null) relativeTo.computeLayout(screenWidth, screenHeight);
-
-                    switch (relativePosition) {
-                        case RIGHT_OF -> { baseX = relativeTo.screenX + relativeTo.getEffectiveWidth() + x; baseY = relativeTo.screenY + y; }
-                        case LEFT_OF -> { baseX = relativeTo.screenX - effectiveWidth + x; baseY = relativeTo.screenY + y; }
-                        case BELOW -> { baseX = relativeTo.screenX + x; baseY = relativeTo.screenY + relativeTo.getEffectiveHeight() + y; }
-                        case ABOVE -> { baseX = relativeTo.screenX + x; baseY = relativeTo.screenY - effectiveHeight + y; }
+                        switch (relativePosition) {
+                            case RIGHT_OF -> {
+                                baseX = relativeTo.screenX + relativeTo.getEffectiveWidth() + x;
+                                baseY = relativeTo.screenY + y;
+                            }
+                            case LEFT_OF -> {
+                                baseX = relativeTo.screenX - effectiveWidth + x;
+                                baseY = relativeTo.screenY + y;
+                            }
+                            case BELOW -> {
+                                baseX = relativeTo.screenX + x;
+                                baseY = relativeTo.screenY + relativeTo.getEffectiveHeight() + y;
+                            }
+                            case ABOVE -> {
+                                baseX = relativeTo.screenX + x;
+                                baseY = relativeTo.screenY - effectiveHeight + y;
+                            }
+                        }
                     }
                 }
-            }
-            this.screenX = baseX;
-            this.screenY = baseY;
-        } else {
 
+                this.screenX = baseX;
+                this.screenY = baseY;
+            }
+        } else {
             this.screenX = parent.screenX + this.x;
             this.screenY = parent.screenY + this.y;
         }
@@ -152,9 +168,9 @@ public class UIComponent {
             context.drawTexture(
                 backgroundTextureId,
                 0, 0,                          // screen position
-                0, 0,                          // UV start
+                0, 0,                          // UV start (top-left of texture)
                 Math.round(width), Math.round(height),  // screen size
-                256, 256                       // actual texture dimensions
+                Math.round(width), Math.round(height)   // texture size (assume full texture)
             );
             context.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
         } else {
@@ -321,6 +337,14 @@ public class UIComponent {
         return this;
     }
 
+
+    @HostAccess.Export
+    public void remove() {
+        if (service != null) {
+            service.removeElement(this.componentId);
+        }
+    }
+
     @HostAccess.Export
     public UIComponent setHeight(double height) {
         this.height = (float) height;
@@ -350,10 +374,21 @@ public class UIComponent {
         return fullscreen;
     }
 
+
     @HostAccess.Export
     public UIComponent setFullscreen(boolean fullscreen) {
         this.fullscreen = fullscreen;
         return this;
+    }
+
+    @HostAccess.Export
+    public UIComponent fullscreen() {
+        return setFullscreen(true);
+    }
+
+    @HostAccess.Export
+    public UIComponent fullscreen(boolean enabled) {
+        return setFullscreen(enabled);
     }
 
     @HostAccess.Export
@@ -449,6 +484,17 @@ public class UIComponent {
     @HostAccess.Export
     public double getOpacity() {
         return opacity;
+    }
+
+    @HostAccess.Export
+    public float getZIndex() {
+        return zIndex;
+    }
+
+    @HostAccess.Export
+    public UIComponent setZIndex(float z) {
+        this.zIndex = z;
+        return this;
     }
 
     @HostAccess.Export

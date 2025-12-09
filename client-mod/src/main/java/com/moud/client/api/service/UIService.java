@@ -1,7 +1,9 @@
 package com.moud.client.api.service;
 
 import com.moud.client.ui.UIOverlayManager;
+import com.moud.client.ui.atlas.UITextureAtlasManager;
 import com.moud.client.ui.component.*;
+import com.moud.client.ui.animation.UIAnimationManager;
 import com.moud.client.network.ClientNetworkManager;
 import com.moud.network.MoudPackets;
 import net.minecraft.client.MinecraftClient;
@@ -141,6 +143,8 @@ public final class UIService {
         if (callback != null && callback.canExecute()) {
             this.resizeCallback = callback;
             LOGGER.info("UI resize callback registered.");
+
+            triggerResizeEvent();
         }
     }
 
@@ -224,6 +228,7 @@ public final class UIService {
     public void cleanUp() {
         elements.values().forEach(overlayManager::removeOverlayElement);
         elements.clear();
+        UITextureAtlasManager.getInstance().clear();
         jsContext = null;
         scriptExecutor = null;
         LOGGER.info("UIService cleaned up.");
