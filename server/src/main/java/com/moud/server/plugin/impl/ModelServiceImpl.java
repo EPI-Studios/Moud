@@ -2,6 +2,7 @@ package com.moud.server.plugin.impl;
 
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
+import com.moud.plugin.api.models.ModelData;
 import com.moud.plugin.api.services.ModelService;
 import com.moud.plugin.api.services.model.ModelDefinition;
 import com.moud.plugin.api.services.model.ModelHandle;
@@ -19,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class ModelServiceImpl implements ModelService {
     private final Logger logger;
     private final Map<Long, ModelHandleImpl> models = new ConcurrentHashMap<>();
+    private final Map<String, ModelData> modelDataMap = new ConcurrentHashMap<>();
 
     public ModelServiceImpl(Logger logger) {
         this.logger = logger;
@@ -26,13 +28,17 @@ public final class ModelServiceImpl implements ModelService {
 
     @Override
     public ModelHandle spawn(ModelDefinition definition) {
+        String modelId = definition.modelData().modelId();
+        modelDataMap.putIfAbsent(modelId, definition.modelData());
+        String modelPath = definition.modelData().modelPath();
+        String texturePath = definition.modelData().texturePath();
         ModelProxy proxy = new ModelProxy(
                 definition.instance() != null ? definition.instance() : InstanceManager.getInstance().getDefaultInstance(),
-                definition.modelPath(),
+                modelPath,
                 definition.position(),
                 definition.rotation(),
                 definition.scale(),
-                definition.texture()
+                texturePath
         );
         ModelHandleImpl handle = new ModelHandleImpl(proxy, this);
         models.put(handle.id(), handle);
@@ -48,6 +54,36 @@ public final class ModelServiceImpl implements ModelService {
     @Override
     public Collection<ModelHandle> all() {
         return List.copyOf(models.values());
+    }
+
+    /**
+     * Get all registered model data.
+     * @return Map of model ID to ModelData
+     */
+    @Override
+    public Map<String, ModelData> AllModelData() {
+        return Map.copyOf(modelDataMap);
+    }
+
+    /**
+     * Get model data by model ID.
+     * @param modelId The model ID
+     * @return The ModelData, or null if not found
+     */
+    @Override
+    public ModelData getModelData(String modelId) {
+        return modelDataMap.get(modelId);
+    }
+
+    /**
+     * Register model data.
+     * @param data The ModelData to register
+     * @return The registered ModelData
+     */
+    @Override
+    public ModelData register(ModelData data) {
+        modelDataMap.putIfAbsent(data.modelId(), data);
+        return data;
     }
 
     void remove(long id) {
