@@ -28,12 +28,16 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.network.packet.s2c.play.GameJoinS2CPacket;
+import net.minecraft.resource.ResourceManager;
 import net.minecraft.resource.ResourcePackManager;
 import net.minecraft.resource.ResourcePackProfile;
 import net.minecraft.resource.ResourcePackProvider;
+import net.minecraft.resource.ResourceType;
+import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,9 +89,24 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         registerHudRenderer();
         registerAnimationLayer();
         registerResourcePackProvider();
+        registerResourceReloadListener();
         initializeEditorHelpers();
 
         LOGGER.info("Moud client initialization complete.");
+    }
+
+    private void registerResourceReloadListener() {
+        ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
+            @Override
+            public Identifier getFabricId() {
+                return Identifier.of("moud", "model_reloader");
+            }
+
+            @Override
+            public void reload(ResourceManager manager) {
+                ClientModelManager.getInstance().reloadModels();
+            }
+        });
     }
 
     private void registerLifecycleEvents() {
@@ -104,7 +123,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         HudRenderCallback.EVENT.register((drawContext, tickCounter) -> {
             WindowAnimator.tick();
 
-            ClientAPIService apiService = serviceManager.getApiService();
+            com.moud.client.api.service.ClientAPIService apiService = serviceManager.getApiService();
             if (apiService != null && apiService.events != null) {
                 apiService.events.dispatch("render:hud", tickCounter.getTickDelta(true));
             }
@@ -133,7 +152,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         markAsMoudServer(false);
         scriptLoader.onDisconnect(handler);
 
-        ClientAPIService apiService = serviceManager.getApiService();
+        com.moud.client.api.service.ClientAPIService apiService = serviceManager.getApiService();
         if (apiService != null && apiService.events != null) {
             apiService.events.dispatch("core:disconnect", "Player disconnected");
         }
