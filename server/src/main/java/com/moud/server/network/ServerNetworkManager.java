@@ -545,6 +545,10 @@ public final class ServerNetworkManager {
                     List.of()
             );
             send(minestomPlayer, createPacket);
+            String texture = model.getTexture();
+            if (texture != null && !texture.isBlank()) {
+                send(minestomPlayer, new MoudPackets.S2C_UpdateModelTexturePacket(model.getId(), texture));
+            }
         });
         int modelCount = ModelManager.getInstance().getAllModels().size();
         if (modelCount > 0) {

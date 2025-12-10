@@ -364,6 +364,25 @@ public class ModelProxy {
     }
 
     @HostAccess.Export
+    public void setTransform(Vector3 position, Quaternion rotation, Vector3 scale) {
+        if (position != null) {
+            this.position = position;
+            this.entity.teleport(new Pos(position.x, position.y, position.z));
+        }
+        if (rotation != null) {
+            this.rotation = rotation;
+        }
+        if (scale != null) {
+            this.scale = scale;
+        }
+        PhysicsService physics = PhysicsService.getInstance();
+        if (physics != null) {
+            physics.handleModelManualTransform(this, position, rotation);
+        }
+        broadcastUpdate();
+    }
+
+    @HostAccess.Export
     public void setRotation(Quaternion rotation) {
         this.rotation = rotation;
         PhysicsService physics = PhysicsService.getInstance();
@@ -401,7 +420,9 @@ public class ModelProxy {
 
     @HostAccess.Export
     public void setTexture(String texturePath) {
+        String previous = this.texturePath;
         this.texturePath = texturePath != null ? texturePath : "";
+        LOGGER.info("Model {} texture change: '{}' -> '{}'", id, previous, this.texturePath);
         broadcast(new MoudPackets.S2C_UpdateModelTexturePacket(id, this.texturePath));
     }
 

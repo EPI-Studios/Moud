@@ -1,13 +1,16 @@
 package com.moud.server.editor;
 
-import com.moud.network.MoudPackets;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.moud.api.math.Quaternion;
+import com.moud.api.math.Vector3;
+import com.moud.network.MoudPackets;
 import com.moud.server.editor.runtime.SceneRuntimeAdapter;
 import com.moud.server.editor.runtime.SceneRuntimeFactory;
 import com.moud.server.editor.runtime.PlayerModelRuntimeAdapter;
 import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
+import com.moud.server.network.ServerNetworkManager;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -82,6 +85,81 @@ public final class SceneManager {
         return state.objects.get(objectId);
     }
 
+    public void applyAnimationFrame(String sceneId, String objectId, AnimationManager.TransformUpdate update) {
+        if (update == null) {
+            return;
+        }
+        SceneState state = scenes.get(sceneId);
+        if (state == null || objectId == null) {
+            return;
+        }
+        SceneObject obj = state.objects.get(objectId);
+        if (obj == null) {
+            return;
+        }
+
+        boolean changed = false;
+        Vector3 position = update.positionIfChanged();
+        Vector3 rotation = update.rotationEulerIfChanged();
+        Quaternion rotationQuat = update.rotationQuatIfChanged();
+        Vector3 scale = update.scaleIfChanged();
+        Map<String, Object> props = obj.properties;
+
+        if (position != null) {
+            props.put("position", vectorToMap(position));
+            changed = true;
+        }
+        if (rotation != null) {
+            props.put("rotation", rotationToMap(rotation));
+            changed = true;
+        }
+        if (rotationQuat != null) {
+            props.put("rotationQuat", quaternionToMap(rotationQuat));
+            changed = true;
+        }
+        if (scale != null) {
+            props.put("scale", vectorToMap(scale));
+            changed = true;
+        }
+
+        Map<String, Float> scalars = update.scalarProperties();
+        if (scalars != null && !scalars.isEmpty()) {
+            scalars.forEach((key, value) -> {
+                if (key != null) {
+                    applyNestedProperty(props, key, value);
+                }
+            });
+            changed = true;
+        }
+
+        if (!changed) {
+            return;
+        }
+
+        WorldTransform worldTransform = computeWorldTransform(sceneId, objectId, props, new java.util.HashSet<>());
+        long version = state.version.incrementAndGet();
+
+        try {
+            initializeAdapter(sceneId, obj, toRuntimeSnapshot(sceneId, obj, worldTransform));
+        } catch (Exception e) {
+            LOGGER.warn("Failed to apply animation frame for {} in scene {}", objectId, sceneId, e);
+        }
+
+        ServerNetworkManager net = ServerNetworkManager.getInstance();
+        if (net != null) {
+            Map<String, Float> payload = (scalars == null || scalars.isEmpty()) ? null : new java.util.HashMap<>(scalars);
+            net.broadcast(new MoudPackets.AnimationTransformUpdatePacket(
+                    sceneId,
+                    objectId,
+                    position,
+                    rotation,
+                    rotationQuat,
+                    scale,
+                    payload
+            ));
+        }
+    }
+
     public void applyAnimationProperty(String sceneId, String objectId, String propertyKey, com.moud.api.animation.PropertyTrack.PropertyType propertyType, float value) {
         SceneState state = scenes.get(sceneId);
         if (state == null || objectId == null || propertyKey == null) {
@@ -141,6 +219,126 @@ public final class SceneManager {
         }
         props.put(key, value);
     }
+
+    private Map<String, Object> vectorToMap(Vector3 vec) {
+        return Map.of(
+                "x", vec.x,
+                "y", vec.y,
+                "z", vec.z
+        );
+    }
+
+    private Map<String, Object> rotationToMap(Vector3 vec) {
+        return Map.of(
+                "pitch", vec.x,
+                "yaw", vec.y,
+                "roll", vec.z
+        );
+    }
+
+    private Map<String, Object> quaternionToMap(Quaternion quat) {
+        return Map.of(
+                "x", quat.x,
+                "y", quat.y,
+                "z", quat.z,
+                "w", quat.w
+        );
+    }
+
+    private Vector3 vectorProperty(Object raw, Vector3 fallback) {
+        if (raw instanceof Map<?, ?> map) {
+            double x = toDouble(map.get("x"), fallback != null ? fallback.x : 0.0);
+            double y = toDouble(map.get("y"), fallback != null ? fallback.y : 0.0);
+            double z = toDouble(map.get("z"), fallback != null ? fallback.z : 0.0);
+            return new Vector3(x, y, z);
+        }
+        return fallback;
+    }
+
+    private Vector3 rotationProperty(Object raw, Vector3 fallback) {
+        if (raw instanceof Map<?, ?> map) {
+            boolean hasEuler = map.containsKey("pitch") || map.containsKey("yaw") || map.containsKey("roll");
+            double x = toDouble(hasEuler ? map.get("pitch") : map.get("x"), fallback != null ? fallback.x : 0.0);
+            double y = toDouble(hasEuler ? map.get("yaw") : map.get("y"), fallback != null ? fallback.y : 0.0);
+            double z = toDouble(hasEuler ? map.get("roll") : map.get("z"), fallback != null ? fallback.z : 0.0);
+            return new Vector3(x, y, z);
+        }
+        return fallback;
+    }
+
+    private Quaternion quaternionProperty(Object raw, Quaternion fallback) {
+        if (raw instanceof Map<?, ?> map) {
+            double x = toDouble(map.get("x"), 0.0);
+            double y = toDouble(map.get("y"), 0.0);
+            double z = toDouble(map.get("z"), 0.0);
+            double w = toDouble(map.get("w"), 1.0);
+            return new Quaternion((float) x, (float) y, (float) z, (float) w);
+        }
+        return fallback;
+    }
+
+    private double toDouble(Object raw, double fallback) {
+        if (raw instanceof Number number) {
+            return number.doubleValue();
+        }
+        try {
+            return raw != null ? Double.parseDouble(raw.toString()) : fallback;
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
+
+    private String getParentId(Map<String, Object> props) {
+        Object parent = props != null ? props.getOrDefault("parentId", props.get("parent")) : null;
+        if (parent == null) {
+            return null;
+        }
+        String id = String.valueOf(parent).trim();
+        return id.isEmpty() ? null : id;
+    }
+
+    private WorldTransform computeWorldTransform(String sceneId, String objectId, Map<String, Object> props, java.util.Set<String> visited) {
+        if (props == null) {
+            return null;
+        }
+        if (visited.contains(objectId)) {
+            return null;
+        }
+        visited.add(objectId);
+
+        Vector3 localPos = vectorProperty(props.get("position"), Vector3.zero());
+        Vector3 localEuler = rotationProperty(props.get("rotation"), Vector3.zero());
+        Quaternion localQuat = quaternionProperty(props.get("rotationQuat"), Quaternion.fromEuler(localEuler.x, localEuler.y, localEuler.z));
+        Vector3 localScale = vectorProperty(props.get("scale"), Vector3.one());
+
+        String parentId = getParentId(props);
+        if (parentId == null) {
+            return new WorldTransform(localPos, localEuler, localQuat, localScale);
+        }
+
+        SceneState state = scenes.get(sceneId);
+        SceneObject parentObj = state != null ? state.objects.get(parentId) : null;
+        if (parentObj == null) {
+            return new WorldTransform(localPos, localEuler, localQuat, localScale);
+        }
+
+        WorldTransform parentWorld = computeWorldTransform(sceneId, parentId, parentObj.properties, visited);
+        if (parentWorld == null) {
+            return new WorldTransform(localPos, localEuler, localQuat, localScale);
+        }
+
+        Vector3 scaledLocal = localPos.multiply(parentWorld.scale());
+        Vector3 rotatedLocal = parentWorld.quaternion().rotate(scaledLocal);
+        Vector3 worldPos = parentWorld.position().add(rotatedLocal);
+
+        Quaternion worldQuat = parentWorld.quaternion().multiply(localQuat).normalize();
+        Vector3 worldEuler = worldQuat.toEuler();
+        Vector3 worldScale = parentWorld.scale().multiply(localScale);
+
+        return new WorldTransform(worldPos, worldEuler, worldQuat, worldScale);
+    }
+
+    private record WorldTransform(Vector3 position, Vector3 euler, Quaternion quaternion, Vector3 scale) {}
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> buildPayload(Map<String, Object> props, String key) {
@@ -405,19 +603,35 @@ public final class SceneManager {
     }
 
     private void initializeAdapter(String sceneId, SceneObject object) throws Exception {
+        WorldTransform transform = computeWorldTransform(sceneId, object.id, object.properties, new java.util.HashSet<>());
+        initializeAdapter(sceneId, object, toRuntimeSnapshot(sceneId, object, transform));
+    }
+
+    private void initializeAdapter(String sceneId, SceneObject object, MoudPackets.SceneObjectSnapshot snapshotOverride) throws Exception {
         if (object.adapter == null) {
             SceneRuntimeAdapter adapter = SceneRuntimeFactory.create(sceneId, object.type);
             object.adapter = adapter;
             if (adapter != null) {
-                adapter.create(toSnapshot(object));
+                adapter.create(snapshotOverride != null ? snapshotOverride : toSnapshot(object));
             }
         } else if (object.adapter != null) {
-            object.adapter.update(toSnapshot(object));
+            object.adapter.update(snapshotOverride != null ? snapshotOverride : toSnapshot(object));
         }
     }
 
     private static MoudPackets.SceneObjectSnapshot toSnapshot(SceneObject object) {
         return new MoudPackets.SceneObjectSnapshot(object.id, object.type, new ConcurrentHashMap<>(object.properties));
+    }
+
+    private MoudPackets.SceneObjectSnapshot toRuntimeSnapshot(String sceneId, SceneObject object, WorldTransform transform) {
+        ConcurrentHashMap<String, Object> copy = new ConcurrentHashMap<>(object.properties);
+        if (transform != null) {
+            copy.put("position", vectorToMap(transform.position()));
+            copy.put("rotation", rotationToMap(transform.euler()));
+            copy.put("rotationQuat", quaternionToMap(transform.quaternion()));
+            copy.put("scale", vectorToMap(transform.scale()));
+        }
+        return new MoudPackets.SceneObjectSnapshot(object.id, object.type, copy);
     }
 
     private static final class SceneState {
@@ -440,6 +654,10 @@ public final class SceneManager {
             this.id = id;
             this.type = type;
             this.properties = new ConcurrentHashMap<>(properties);
+        }
+
+        ConcurrentMap<String, Object> getProperties() {
+            return properties;
         }
     }
 

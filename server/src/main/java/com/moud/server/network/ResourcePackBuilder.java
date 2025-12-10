@@ -57,16 +57,19 @@ final class ResourcePackBuilder {
 
         try {
             Files.createDirectories(cacheDir);
+            java.util.concurrent.atomic.AtomicInteger addedCount;
             try (OutputStream os = new BufferedOutputStream(Files.newOutputStream(packPath));
                  ZipOutputStream zip = new ZipOutputStream(os)) {
 
                 writePackMeta(zip);
                 java.util.Set<String> added = new java.util.HashSet<>();
+                addedCount = new java.util.concurrent.atomic.AtomicInteger();
 
                 for (Path root : assetRoots) {
                     LOGGER.info(LogContext.builder().put("path", root.toString()).build(), "Including assets from {}", root);
-                    addAssetRoot(zip, root, added);
+                    addAssetRoot(zip, root, added, addedCount);
                 }
+
 
                 generateMissingSoundsJson(assetRoots, zip, added);
             }
@@ -75,6 +78,7 @@ final class ResourcePackBuilder {
             LOGGER.info(LogContext.builder()
                     .put("path", packPath.toAbsolutePath())
                     .put("size_bytes", size)
+                    .put("entries", addedCount.get())
                     .build(), "Built resource pack from project assets");
             return packPath;
         } catch (Exception e) {
@@ -98,13 +102,13 @@ final class ResourcePackBuilder {
         zip.closeEntry();
     }
 
-    private static void addAssetRoot(ZipOutputStream zip, Path root, java.util.Set<String> added) throws IOException {
+    private static void addAssetRoot(ZipOutputStream zip, Path root, java.util.Set<String> added, java.util.concurrent.atomic.AtomicInteger addedCount) throws IOException {
         Files.walk(root)
                 .filter(Files::isRegularFile)
-                .forEach(path -> addAsset(path, root, zip, added));
+                .forEach(path -> addAsset(path, root, zip, added, addedCount));
     }
 
-    private static void addAsset(Path file, Path assetsDir, ZipOutputStream zip, java.util.Set<String> added) {
+    private static void addAsset(Path file, Path assetsDir, ZipOutputStream zip, java.util.Set<String> added, java.util.concurrent.atomic.AtomicInteger addedCount) {
         try {
             String relative = assetsDir.relativize(file).toString().replace('\\', '/');
             String entryName = "assets/" + relative;
@@ -114,10 +118,13 @@ final class ResourcePackBuilder {
             zip.putNextEntry(new ZipEntry(entryName));
             Files.copy(file, zip);
             zip.closeEntry();
+            addedCount.incrementAndGet();
         } catch (IOException e) {
             LOGGER.warn("Failed to add asset {} to resource pack", file, e);
         }
     }
+
+
 
     private static void generateMissingSoundsJson(java.util.List<Path> roots, ZipOutputStream zip, java.util.Set<String> added) throws IOException {
         java.util.Map<String, java.util.Map<String, String>> namespaceSounds = new java.util.HashMap<>();

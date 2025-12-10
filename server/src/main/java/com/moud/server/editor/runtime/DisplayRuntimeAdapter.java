@@ -49,11 +49,7 @@ public final class DisplayRuntimeAdapter implements SceneRuntimeAdapter {
         Vector3 position = vectorProperty(props.get("position"), display.getPosition());
         Quaternion rotation = quaternionProperty(props, display.getRotation());
         Vector3 scale = vectorProperty(props.get("scale"), display.getScale());
-        display.setPosition(position);
-        display.setScale(scale);
-        if (rotation != null) {
-            display.setRotation(rotation);
-        }
+        display.setTransform(position, rotation, scale);
         applyContent(props);
         applyLooping(props);
     }
