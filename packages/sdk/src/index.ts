@@ -1993,6 +1993,27 @@ export interface AnimationEvent {
     payload: Record<string, string>;
 }
 
+/** Supported property track types in animation clips. */
+export type AnimationPropertyType = 'float' | 'angle' | 'color' | 'quaternion';
+
+/** Describes a single keyframe on an animation property track. */
+export interface AnimationKeyframe {
+    time: number;
+    value: number;
+    inTangent?: number;
+    outTangent?: number;
+    interpolation?: 'step' | 'linear' | 'smooth' | 'ease_in' | 'ease_out' | 'bezier';
+}
+
+/** Describes a property track inside an animation clip. */
+export interface AnimationPropertyTrack {
+    propertyPath: string;
+    propertyType: AnimationPropertyType;
+    minValue: number;
+    maxValue: number;
+    keyframes: AnimationKeyframe[];
+}
+
 /** Describes a shader that has been loaded through {@link Asset.loadShader}. */
 export interface ShaderAsset {
     /** @returns The identifier that uniquely represents this asset. */
@@ -2183,7 +2204,26 @@ export interface Command {
 
 export interface SceneAPI {
     /** Gets the active scene information. */
-    get(): Promise<{ id: string } & Record<string, unknown>>;
+    get(): Promise<SceneState>;
+}
+
+/** Snapshot of a scene object authored in the editor. */
+export interface SceneObjectSnapshot {
+    id: string;
+    type: string;
+    properties: Record<string, unknown>;
+    /** Optional parent binding for hierarchical transforms. */
+    parentId?: string;
+    /** Alias for parentId accepted by some tooling. */
+    parent?: string;
+}
+
+/** Scene state returned from {@link SceneAPI.get}. */
+export interface SceneState {
+    id: string;
+    version?: number;
+    objects?: SceneObjectSnapshot[];
+    [key: string]: unknown;
 }
 
 /**

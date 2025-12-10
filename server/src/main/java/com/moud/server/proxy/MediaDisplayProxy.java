@@ -115,6 +115,28 @@ public class MediaDisplayProxy {
     }
 
     @HostAccess.Export
+    public void setTransform(Vector3 newPosition, Quaternion newRotation, Vector3 newScale) {
+        boolean positionChanged = false;
+        if (newPosition != null) {
+            this.position = new Vector3(newPosition);
+            this.anchorType = MoudPackets.DisplayAnchorType.FREE;
+            this.anchorEntityRef = null;
+            this.anchorEntityUuid = null;
+            positionChanged = true;
+        }
+        if (newRotation != null) {
+            this.rotation = new Quaternion(newRotation);
+        }
+        if (newScale != null) {
+            this.scale = new Vector3(newScale);
+        }
+        broadcastTransform();
+        if (positionChanged) {
+            broadcastAnchorUpdate();
+        }
+    }
+
+    @HostAccess.Export
     public void setScale(Vector3 newScale) {
         if (newScale == null) {
             return;

@@ -161,6 +161,10 @@ public class AnimatedPlayerModel {
         return model;
     }
 
+    public PlayerAnimationController getAnimationController() {
+        return animationController;
+    }
+
     public void updateSkin(String skinUrl) {
         if (skinUrl == null || skinUrl.isEmpty()) {
             LOGGER.warn("Empty skin URL provided for player model");

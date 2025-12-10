@@ -545,6 +545,17 @@ public final class MoudPackets {
             @Field(order = 5, optional = true) Map<String, Object> payload
     ) {}
 
+    @Packet(value = "moud:animation_transform", direction = Direction.SERVER_TO_CLIENT)
+    public record AnimationTransformUpdatePacket(
+            @Field(order = 0) String sceneId,
+            @Field(order = 1) String objectId,
+            @Field(order = 2, optional = true) Vector3 position,
+            @Field(order = 3, optional = true) Vector3 rotationEuler,
+            @Field(order = 4, optional = true) Quaternion rotationQuat,
+            @Field(order = 5, optional = true) Vector3 scale,
+            @Field(order = 6, optional = true) Map<String, Float> properties
+    ) {}
+
     @Packet(value = "moud:project_map_request", direction = Direction.CLIENT_TO_SERVER)
     public record RequestProjectMapPacket() {}
 

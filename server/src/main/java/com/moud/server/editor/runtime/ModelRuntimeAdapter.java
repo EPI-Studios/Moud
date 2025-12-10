@@ -10,6 +10,7 @@ import com.moud.server.proxy.ModelProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
 import java.util.Map;
 
 public final class ModelRuntimeAdapter implements SceneRuntimeAdapter {
@@ -57,13 +58,10 @@ public final class ModelRuntimeAdapter implements SceneRuntimeAdapter {
         Vector3 scale = vectorProperty(props.get("scale"), model.getScale());
         String texture = stringProperty(props, "texture", model.getTexture());
 
-        model.setPosition(position);
-        model.setScale(scale);
-        if (texture != null && !texture.isEmpty()) {
+        model.setTransform(position, rotation, scale);
+        if (!Objects.equals(texture, model.getTexture())) {
+            LOGGER.info("Scene '{}' updating model {} texture from '{}' to '{}'", sceneId, model.getId(), model.getTexture(), texture);
             model.setTexture(texture);
-        }
-        if (rotation != null) {
-            model.setRotation(rotation);
         }
     }
 

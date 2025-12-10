@@ -12,6 +12,7 @@ public record PropertyTrack(
     public enum PropertyType {
         FLOAT,
         ANGLE,
-        COLOR
+        COLOR,
+        QUATERNION
     }
 }
