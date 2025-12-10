@@ -32,10 +32,19 @@ public class ClientModelManager {
         models.computeIfAbsent(id, key -> {
             LOGGER.info("Creating client-side model ID {} with path {}", id, modelPath);
             RenderableModel model = new RenderableModel(id, modelPath);
+            model.setSmoothingDurationTicks(3.0f);
             loadModelData(model);
             RuntimeObjectRegistry.getInstance().syncModel(model);
             return model;
         });
+    }
+
+    public void reloadModels() {
+        if (models.isEmpty()) return;
+        LOGGER.info("Reloading {} client-side models...", models.size());
+        for (RenderableModel model : models.values()) {
+            loadModelData(model);
+        }
     }
 
     private void loadModelData(RenderableModel model) {
