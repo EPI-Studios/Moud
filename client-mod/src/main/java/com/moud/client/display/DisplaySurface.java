@@ -27,10 +27,19 @@ public final class DisplaySurface {
 
     private Vector3 previousPosition = Vector3.zero();
     private Vector3 position = Vector3.zero();
+    private Vector3 renderPosition = Vector3.zero();
+    private Vector3 smoothingStartPosition = Vector3.zero();
     private Quaternion rotation = Quaternion.identity();
+    private Quaternion renderRotation = Quaternion.identity();
+    private Quaternion smoothingStartRotation = Quaternion.identity();
     private Vector3 scale = Vector3.one();
+    private Vector3 renderScale = Vector3.one();
+    private Vector3 smoothingStartScale = Vector3.one();
     private float opacity = 1.0f;
     private boolean initialized = false;
+    private boolean smoothingEnabled = true;
+    private float smoothingDurationTicks = 3.0f;
+    private float smoothingProgress = 1.0f;
 
     private MoudPackets.DisplayAnchorType anchorType = MoudPackets.DisplayAnchorType.FREE;
     private BlockPos anchorBlockPos;
@@ -73,11 +82,11 @@ public final class DisplaySurface {
     }
 
     public Quaternion getRotation() {
-        return new Quaternion(rotation);
+        return new Quaternion(renderRotation);
     }
 
     public Vector3 getScale() {
-        return new Vector3(scale);
+        return new Vector3(renderScale);
     }
 
     public MoudPackets.DisplayContentType getContentType() {
@@ -116,17 +125,39 @@ public final class DisplaySurface {
             if (!initialized) {
                 position = new Vector3(pos);
                 previousPosition = new Vector3(pos);
+                renderPosition = new Vector3(pos);
+                smoothingStartPosition = new Vector3(pos);
             } else {
                 previousPosition = new Vector3(position);
                 position = new Vector3(pos);
+                smoothingStartPosition = new Vector3(renderPosition);
+                smoothingProgress = 0.0f;
             }
             cachedBlockPos = BlockPos.ofFloored(position.x, position.y, position.z);
         }
         if (rot != null) {
-            rotation = new Quaternion(rot);
+            Quaternion newRot = new Quaternion(rot);
+            if (!initialized) {
+                rotation = newRot;
+                renderRotation = new Quaternion(newRot);
+                smoothingStartRotation = new Quaternion(newRot);
+            } else {
+                smoothingStartRotation = new Quaternion(renderRotation);
+                rotation = newRot;
+                smoothingProgress = 0.0f;
+            }
         }
         if (scl != null) {
-            scale = new Vector3(Math.max(scl.x, 0.001f), Math.max(scl.y, 0.001f), Math.max(scl.z, 0.001f));
+            Vector3 safeScale = new Vector3(Math.max(scl.x, 0.001f), Math.max(scl.y, 0.001f), Math.max(scl.z, 0.001f));
+            if (!initialized) {
+                scale = safeScale;
+                renderScale = new Vector3(safeScale);
+                smoothingStartScale = new Vector3(safeScale);
+            } else {
+                smoothingStartScale = new Vector3(renderScale);
+                scale = safeScale;
+                smoothingProgress = 0.0f;
+            }
         }
         if (!initialized && pos != null) {
             initialized = true;
@@ -195,11 +226,37 @@ public final class DisplaySurface {
     }
 
     public void tick() {
+        tickSmoothing(1.0f);
         if (contentType == MoudPackets.DisplayContentType.URL && !frameQueue.isEmpty()) {
             NativeImage frame = frameQueue.poll();
             if (frame != null) {
                 uploadFrameToGpu(frame);
             }
+        }
+    }
+
+    public void tickSmoothing(float deltaTicks) {
+        if (!smoothingEnabled || !initialized) {
+            return;
+        }
+        if (deltaTicks <= 0.0f) {
+            deltaTicks = 1.0f;
+        }
+
+        this.previousPosition = new Vector3(renderPosition);
+
+        float duration = Math.max(1.0f, smoothingDurationTicks);
+        smoothingProgress = Math.min(1.0f, smoothingProgress + (deltaTicks / duration));
+        float t = Math.max(0.0f, Math.min(1.0f, smoothingProgress));
+
+        renderPosition = Vector3.lerp(smoothingStartPosition, position, t);
+        renderRotation = smoothingStartRotation.slerp(rotation, t);
+        renderScale = Vector3.lerp(smoothingStartScale, scale, t);
+
+        if (smoothingProgress >= 1.0f) {
+            smoothingStartPosition = new Vector3(renderPosition);
+            smoothingStartRotation = new Quaternion(renderRotation);
+            smoothingStartScale = new Vector3(renderScale);
         }
     }
 
@@ -289,10 +346,20 @@ public final class DisplaySurface {
 
     public Vector3 getInterpolatedPosition(float tickDelta) {
         float t = Math.max(0.0f, Math.min(1.0f, tickDelta));
-        float x = previousPosition.x + (position.x - previousPosition.x) * t;
-        float y = previousPosition.y + (position.y - previousPosition.y) * t;
-        float z = previousPosition.z + (position.z - previousPosition.z) * t;
+        float x = previousPosition.x + (renderPosition.x - previousPosition.x) * t;
+        float y = previousPosition.y + (renderPosition.y - previousPosition.y) * t;
+        float z = previousPosition.z + (renderPosition.z - previousPosition.z) * t;
         return new Vector3(x, y, z);
+    }
+
+    public Quaternion getInterpolatedRotation(float tickDelta) {
+        float t = Math.max(0.0f, Math.min(1.0f, tickDelta));
+        return smoothingStartRotation.slerp(renderRotation, t);
+    }
+
+    public Vector3 getInterpolatedScale(float tickDelta) {
+        float t = Math.max(0.0f, Math.min(1.0f, tickDelta));
+        return Vector3.lerp(smoothingStartScale, renderScale, t);
     }
 
 

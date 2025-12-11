@@ -26,11 +26,11 @@ public final class DisplayRenderer {
 
         matrices.push();
 
-        Quaternion rotation = surface.getRotation();
+        Quaternion rotation = surface.getInterpolatedRotation(tickDelta);
         Quaternionf rotationQuat = new Quaternionf(rotation.x, rotation.y, rotation.z, rotation.w);
         matrices.multiply(rotationQuat);
 
-        Vector3 scale = surface.getScale();
+        Vector3 scale = surface.getInterpolatedScale(tickDelta);
         float sx = Math.max(scale.x, EPSILON);
         float sy = Math.max(scale.y, EPSILON);
         float sz = Math.max(scale.z, EPSILON);
