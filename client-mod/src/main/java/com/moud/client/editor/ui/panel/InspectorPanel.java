@@ -1,9 +1,11 @@
 package com.moud.client.editor.ui.panel;
 
-import com.moud.client.editor.assets.ProjectFileIndex;
 import com.moud.api.particle.RenderType;
 import com.moud.api.particle.Billboarding;
 import com.moud.api.particle.CollisionMode;
+import com.moud.client.animation.ClientPlayerModelManager;
+import com.moud.client.animation.PlayerPartConfigManager;
+import com.moud.client.editor.assets.ProjectFileIndex;
 import com.moud.client.editor.plugin.EditorPluginHost;
 import com.moud.client.editor.runtime.RuntimeObject;
 import com.moud.client.editor.runtime.RuntimeObjectType;
@@ -13,6 +15,7 @@ import com.moud.client.editor.scene.SceneSessionManager;
 import com.moud.client.editor.ui.SceneEditorOverlay;
 import com.moud.client.editor.ui.layout.EditorDockingLayout;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiTableFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -196,6 +199,34 @@ public final class InspectorPanel {
         return map;
     }
 
+    private long parseModelId(String objId) {
+        if (objId == null) return -1;
+        int colon = objId.indexOf(':');
+        if (colon >= 0 && colon < objId.length() - 1) {
+            try {
+                return Long.parseLong(objId.substring(colon + 1));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return -1;
+    }
+
+    private String boneNameFromLimb(String limbKey) {
+        if (limbKey == null) return null;
+        if (limbKey.startsWith("player_model:")) {
+            limbKey = limbKey.substring("player_model:".length());
+        }
+        return switch (limbKey) {
+            case "left_arm" -> "left_arm";
+            case "right_arm" -> "right_arm";
+            case "left_leg" -> "left_leg";
+            case "right_leg" -> "right_leg";
+            case "head" -> "head";
+            case "torso", "body" -> "body";
+            default -> null;
+        };
+    }
+
     private static void renderRamp(Map<String, Object> props, SceneSessionManager session, SceneObject selected, String key, String label) {
         ImGui.separator();
         ImGui.textDisabled(label);
@@ -338,6 +369,13 @@ public final class InspectorPanel {
         }
         SceneObject selected = overlay.getSelectedObject();
         RuntimeObject runtimeObject = overlay.getSelectedRuntime();
+        String selectedLimb = overlay.getSelectedLimbType();
+
+        if (runtimeObject != null && selectedLimb != null && runtimeObject.getType() == RuntimeObjectType.PLAYER_MODEL) {
+            renderLimbInspector(runtimeObject, selectedLimb);
+            ImGui.end();
+            return;
+        }
         if (selected == null && runtimeObject == null) {
             ImGui.textDisabled("Select an object to inspect its properties.");
             ImGui.end();
@@ -356,6 +394,68 @@ public final class InspectorPanel {
 
         renderSceneObjectInspector(session, selected);
         ImGui.end();
+    }
+
+    private void renderLimbInspector(RuntimeObject runtime, String limb) {
+        ImGui.textColored(ImGui.getColorU32(ImGuiCol.PlotHistogram), "LIMB MODE");
+        ImGui.text("Bone: " + limb);
+        ImGui.separator();
+
+        long modelId = parseModelId(runtime.getObjectId());
+        var animModel = ClientPlayerModelManager.getInstance().getModel(modelId);
+        if (animModel == null || animModel.getEntity() == null) {
+            ImGui.textColored(0xFF0000FF, "Model data not found");
+            return;
+        }
+
+        var uuid = animModel.getEntity().getUuid();
+        String boneName = boneNameFromLimb(limb);
+        PlayerPartConfigManager.PartConfig config = boneName != null
+                ? PlayerPartConfigManager.getInstance().getPartConfig(uuid, boneName)
+                : null;
+
+        float[] pos = {0, 0, 0};
+        float[] rot = {0, 0, 0};
+        float[] scale = {1, 1, 1};
+
+        if (config != null) {
+            if (config.position != null) {
+                pos[0] = (float) config.position.x;
+                pos[1] = (float) config.position.y;
+                pos[2] = (float) config.position.z;
+            }
+            if (config.rotation != null) {
+                rot[0] = (float) config.rotation.x;
+                rot[1] = (float) config.rotation.y;
+                rot[2] = (float) config.rotation.z;
+            }
+            if (config.scale != null) {
+                scale[0] = (float) config.scale.x;
+                scale[1] = (float) config.scale.y;
+                scale[2] = (float) config.scale.z;
+            }
+        }
+
+        boolean changed = false;
+        ImGui.textDisabled("Offset Position (Pixels)");
+        if (ImGui.dragFloat3("##limb_pos", pos, 0.1f)) changed = true;
+        ImGui.textDisabled("Offset Rotation (Degrees)");
+        if (ImGui.dragFloat3("##limb_rot", rot, 0.5f)) changed = true;
+        ImGui.textDisabled("Scale");
+        if (ImGui.dragFloat3("##limb_scale", scale, 0.01f)) changed = true;
+        if (ImGui.button("Reset Limb")) {
+            pos[0] = pos[1] = pos[2] = 0f;
+            rot[0] = rot[1] = rot[2] = 0f;
+            scale[0] = scale[1] = scale[2] = 1f;
+            changed = true;
+        }
+
+        if (changed && boneName != null) {
+            float[] t = {pos[0], pos[1], pos[2]};
+            float[] r = {rot[0], rot[1], rot[2]};
+            float[] s = {scale[0], scale[1], scale[2]};
+            overlay.applyLimbTransform(runtime, limb, t, r, s);
+        }
     }
 
     public void onSelectionChanged(SceneObject object) {

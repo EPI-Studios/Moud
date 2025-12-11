@@ -1,12 +1,19 @@
 package com.moud.client.editor.selection;
 
 import com.moud.client.editor.EditorModeManager;
+import com.moud.client.editor.runtime.RuntimeObject;
+import com.moud.client.editor.runtime.RuntimeObjectRegistry;
+import com.moud.client.editor.runtime.RuntimeObjectType;
 import com.moud.client.editor.scene.SceneObject;
 import com.moud.client.editor.scene.SceneSessionManager;
 import com.moud.client.editor.scene.blueprint.BlueprintCornerSelector;
 import com.moud.client.editor.ui.SceneEditorOverlay;
+import com.moud.client.editor.picking.RaycastPicker;
+import com.moud.client.util.LimbRaycaster;
 import com.moud.client.model.ClientModelManager;
 import com.moud.client.model.RenderableModel;
+import com.moud.client.animation.AnimatedPlayerModel;
+import com.moud.client.animation.ClientPlayerModelManager;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.render.RenderLayer;
@@ -16,6 +23,8 @@ import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Matrix3f;
+import org.joml.Vector3f;
 
 import java.util.Map;
 
@@ -30,24 +39,24 @@ public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEnt
     public void afterEntities(WorldRenderContext context) {
         renderCornerGuides(context);
         renderMarkers(context);
+        RaycastPicker picker = RaycastPicker.getInstance();
+        boolean limbSelected = picker.getSelectedLimb() != null;
         SceneObject selected = SceneEditorOverlay.getInstance().getSelectedObject();
-        if (selected == null) {
-            return;
-        }
-        Box box = computeBounds(selected);
-        if (box == null) {
-            return;
-        }
-        Vec3d cameraPos = context.camera().getPos();
         VertexConsumerProvider consumers = context.consumers();
-        if (consumers == null) {
-            return;
+        if (selected != null && consumers != null && !limbSelected) {
+            Box box = computeBounds(selected);
+            if (box != null) {
+                Vec3d cameraPos = context.camera().getPos();
+                VertexConsumer buffer = consumers.getBuffer(RenderLayer.getLines());
+                context.matrixStack().push();
+                context.matrixStack().translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+                WorldRenderer.drawBox(context.matrixStack(), buffer, box, 0.08f, 0.62f, 1.0f, 1.0f);
+                context.matrixStack().pop();
+            }
         }
-        VertexConsumer buffer = consumers.getBuffer(RenderLayer.getLines());
-        context.matrixStack().push();
-        context.matrixStack().translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
-        WorldRenderer.drawBox(context.matrixStack(), buffer, box, 0.08f, 0.62f, 1.0f, 1.0f);
-        context.matrixStack().pop();
+        if (consumers != null) {
+            VertexConsumer buffer = consumers.getBuffer(RenderLayer.getLines());
+        }
     }
 
     private void renderMarkers(WorldRenderContext context) {
@@ -169,6 +178,7 @@ public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEnt
         }
         return null;
     }
+
 
     private void renderCornerGuides(WorldRenderContext context) {
         var selector = BlueprintCornerSelector.getInstance();

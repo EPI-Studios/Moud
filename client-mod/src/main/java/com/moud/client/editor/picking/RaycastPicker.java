@@ -3,6 +3,10 @@ package com.moud.client.editor.picking;
 import com.moud.client.editor.runtime.Capsule;
 import com.moud.client.editor.runtime.RuntimeObject;
 import com.moud.client.editor.runtime.RuntimeObjectRegistry;
+import com.moud.client.animation.AnimatedPlayerModel;
+import com.moud.client.animation.ClientPlayerModelManager;
+import com.moud.client.util.LimbRaycaster;
+import com.moud.client.editor.runtime.RuntimeObjectType;
 import com.moud.client.editor.ui.EditorImGuiLayer;
 import com.moud.client.editor.ui.WorldViewCapture;
 import net.minecraft.client.MinecraftClient;
@@ -23,6 +27,10 @@ public final class RaycastPicker {
     private RuntimeObject selectedObject;
     private String hoveredLimb;
     private String selectedLimb;
+    private double hoveredDistanceSq = Double.MAX_VALUE;
+    private String debugLastObj;
+    private String debugLastLimb;
+    private String debugLastSource;
 
     private RaycastPicker() {}
 
@@ -33,14 +41,12 @@ public final class RaycastPicker {
     public void updateHover() {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.getCameraEntity() == null) {
-            hoveredObject = null;
-            hoveredLimb = null;
+            resetHover();
             return;
         }
 
         if (EditorImGuiLayer.getInstance().isMouseOverUI()) {
-            hoveredObject = null;
-            hoveredLimb = null;
+            resetHover();
             return;
         }
 
@@ -57,20 +63,25 @@ public final class RaycastPicker {
             camera.getRotation().transform(forward);
             Vec3d fallback = new Vec3d(forward.x, forward.y, forward.z);
             if (fallback.lengthSquared() < 1.0E-6) {
-                hoveredObject = null;
+                resetHover();
                 return;
             }
             rayDirection = fallback.normalize();
         }
         if (rayDirection == null) {
-            hoveredObject = null;
-            hoveredLimb = null;
+            resetHover();
             return;
         }
         Vec3d rayEnd = rayStart.add(rayDirection.multiply(MAX_REACH));
 
+        resetHover();
+        raycastObjects(rayStart, rayEnd, rayDirection);
+    }
+
+    private void resetHover() {
+        hoveredObject = null;
         hoveredLimb = null;
-        hoveredObject = raycastObjects(rayStart, rayEnd);
+        hoveredDistanceSq = Double.MAX_VALUE;
     }
 
     public void selectHovered() {
@@ -120,39 +131,51 @@ public final class RaycastPicker {
     }
 
     @Nullable
-    private RuntimeObject raycastObjects(Vec3d rayStart, Vec3d rayEnd) {
+    private void raycastObjects(Vec3d rayStart, Vec3d rayEnd, Vec3d rayDir) {
         RuntimeObject closest = null;
         double closestDistance = Double.MAX_VALUE;
+        String closestLimb = null;
 
-        RuntimeObjectRegistry registry = RuntimeObjectRegistry.getInstance();
-        for (RuntimeObject obj : registry.getObjects()) {
-            Box bounds = obj.getBounds();
-            if (bounds == null) continue;
+        for (RuntimeObject obj : RuntimeObjectRegistry.getInstance().getObjects()) {
+            double hitDistance = Double.MAX_VALUE;
+            String detectedLimb = null;
+            boolean hitFound = false;
 
-            Vec3d hit = raycastBox(rayStart, rayEnd, bounds);
-            if (hit != null) {
-                double distance = rayStart.squaredDistanceTo(hit);
-                if (distance < closestDistance) {
-                    closestDistance = distance;
-                    closest = obj;
-                    hoveredLimb = null;
+            if (obj.getType() == RuntimeObjectType.PLAYER_MODEL) {
+                long modelId = parseModelId(obj.getObjectId());
+                AnimatedPlayerModel animModel = ClientPlayerModelManager.getInstance().getModel(modelId);
+                if (animModel != null) {
+                    float tickDelta = MinecraftClient.getInstance().getRenderTickCounter().getTickDelta(true);
+                    LimbRaycaster.LimbHit hit = LimbRaycaster.raycast(animModel, rayStart, rayDir, tickDelta);
+                    if (hit != null) {
+                        hitDistance = hit.distance() * hit.distance();
+                        detectedLimb = hit.boneName();
+                        hitFound = true;
+                    }
                 }
-            }
-
-            // Limb-level picking for player models
-            if (obj.isPlayerModel() && obj.getLimbCapsules() != null) {
-                for (var entry : obj.getLimbCapsules().entrySet()) {
-                    HitResult limbHit = raycastCapsule(rayStart, rayEnd, entry.getValue());
-                    if (limbHit != null && limbHit.distanceSq < closestDistance) {
-                        closestDistance = limbHit.distanceSq;
-                        closest = obj;
-                        hoveredLimb = entry.getKey();
+            } else {
+                Box bounds = obj.getBounds();
+                if (bounds != null) {
+                    Vec3d hit = raycastBox(rayStart, rayEnd, bounds);
+                    if (hit != null) {
+                        hitDistance = rayStart.squaredDistanceTo(hit);
+                        detectedLimb = null;
+                        hitFound = true;
                     }
                 }
             }
+
+            if (hitFound && hitDistance < closestDistance) {
+                closestDistance = hitDistance;
+                closest = obj;
+                closestLimb = detectedLimb;
+            }
         }
 
-        return closest;
+        hoveredDistanceSq = closestDistance;
+        hoveredObject = closest;
+        hoveredLimb = closestLimb;
+
     }
 
     private HitResult raycastCapsule(Vec3d rayStart, Vec3d rayEnd, Capsule capsule) {
@@ -166,7 +189,6 @@ public final class RaycastPicker {
         Vec3d ab = b.subtract(a);
         double abLenSq = ab.lengthSquared();
 
-        // Project ray onto capsule axis
         Vec3d ao = rayStart.subtract(a);
         double abDotRd = ab.dotProduct(rd);
         double abDotAo = ab.dotProduct(ao);
@@ -182,7 +204,6 @@ public final class RaycastPicker {
 
         Vec3d p = rayStart.add(rd.multiply(tRay));
 
-        // Clamp closest point on segment
         double tSeg = abLenSq < 1e-6 ? 0 : Math.max(0, Math.min(1, ab.dotProduct(p.subtract(a)) / abLenSq));
         Vec3d c = a.add(ab.multiply(tSeg));
 
@@ -194,6 +215,18 @@ public final class RaycastPicker {
     }
 
     private record HitResult(Vec3d point, double distanceSq) {}
+
+    private long parseModelId(String objId) {
+        if (objId == null) return -1;
+        int colon = objId.indexOf(':');
+        if (colon >= 0 && colon < objId.length() - 1) {
+            try {
+                return Long.parseLong(objId.substring(colon + 1));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return -1;
+    }
 
     @Nullable
     private Ray computeMouseRay(Camera camera) {
