@@ -44,6 +44,7 @@ import java.util.Map;
 
 public class ClientNetworkRegistry {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientNetworkRegistry.class);
+    private static final Identifier DEFAULT_MODEL_TEXTURE = Identifier.of("minecraft", "textures/block/white_concrete.png");
     private final Gson builtinEventParser = new Gson();
 
     public void registerPackets(MoudClientMod mod, ClientServiceManager services, ScriptBundleLoader loader) {
@@ -111,6 +112,7 @@ public class ClientNetworkRegistry {
             SceneEditorOverlay.getInstance().getTimelinePanel().pushEventIndicator(packet.eventName());
         });
         ClientPacketWrapper.registerHandler(MoudPackets.AnimationPropertyUpdatePacket.class, (player, packet) -> SceneSessionManager.getInstance().mergeAnimationProperty(packet.sceneId(), packet.objectId(), packet.propertyKey(), packet.propertyType(), packet.value(), packet.payload()));
+        ClientPacketWrapper.registerHandler(MoudPackets.AnimationTransformUpdatePacket.class, (player, packet) -> SceneSessionManager.getInstance().mergeAnimationTransform(packet.sceneId(), packet.objectId(), packet.position(), packet.rotationEuler(), packet.rotationQuat(), packet.scale(), packet.properties()));
         ClientPacketWrapper.registerHandler(MoudPackets.EditorAssetListPacket.class, (player, packet) -> com.moud.client.editor.assets.EditorAssetCatalog.getInstance().handleAssetList(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.ProjectMapPacket.class, (player, packet) -> com.moud.client.editor.assets.ProjectFileIndex.getInstance().handleProjectMap(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.ProjectFileContentPacket.class, (player, packet) -> com.moud.client.editor.assets.ProjectFileContentCache.getInstance().handleContent(packet));
@@ -573,12 +575,7 @@ public class ClientNetworkRegistry {
                     LOGGER.info("Model {} created with {} collision boxes from server", packet.modelId(), mapped.size());
                     model.setCollisionBoxes(mapped);
                 }
-                Identifier textureId = parseTextureId(packet.texturePath());
-                if (textureId != null) {
-                    model.setTexture(textureId);
-                } else if (packet.texturePath() != null && !packet.texturePath().isEmpty()) {
-                    LOGGER.warn("Received invalid texture identifier '{}' for model {}", packet.texturePath(), packet.modelId());
-                }
+                applyModelTexture(model, packet.texturePath(), packet.modelId());
                 ModelCollisionManager.getInstance().sync(model);
                 RuntimeObjectRegistry.getInstance().syncModel(model);
             }
@@ -609,12 +606,8 @@ public class ClientNetworkRegistry {
         MinecraftClient.getInstance().execute(() -> {
             RenderableModel model = ClientModelManager.getInstance().getModel(packet.modelId());
             if (model != null) {
-                Identifier textureId = parseTextureId(packet.texturePath());
-                if (textureId != null) {
-                    model.setTexture(textureId);
+                if (applyModelTexture(model, packet.texturePath(), packet.modelId())) {
                     RuntimeObjectRegistry.getInstance().syncModel(model);
-                } else if (packet.texturePath() != null && !packet.texturePath().isEmpty()) {
-                    LOGGER.warn("Received invalid texture identifier '{}' for model {}", packet.texturePath(), packet.modelId());
                 }
             }
         });
@@ -728,6 +721,25 @@ public class ClientNetworkRegistry {
             }
         }
         return parsed;
+    }
+
+    private boolean applyModelTexture(RenderableModel model, String texturePath, long modelId) {
+        if (model == null) {
+            return false;
+        }
+        if (texturePath == null || texturePath.isBlank()) {
+            LOGGER.info("Applying default texture to model {} (blank/cleared input)", modelId);
+            model.setTexture(DEFAULT_MODEL_TEXTURE);
+            return true;
+        }
+        Identifier textureId = parseTextureId(texturePath);
+        if (textureId != null) {
+            LOGGER.info("Applying texture '{}' to model {}", textureId, modelId);
+            model.setTexture(textureId);
+            return true;
+        }
+        LOGGER.warn("Received invalid texture identifier '{}' for model {}", texturePath, modelId);
+        return false;
     }
 
     private void handleScriptEvent(MoudPackets.ClientboundScriptEventPacket packet, ClientServiceManager services) {
