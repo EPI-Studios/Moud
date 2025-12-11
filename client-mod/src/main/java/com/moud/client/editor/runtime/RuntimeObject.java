@@ -231,7 +231,6 @@ public final class RuntimeObject {
                 pos.x - halfWidth, pos.y, pos.z - halfWidth,
                 pos.x + halfWidth, pos.y + height, pos.z + halfWidth
         );
-        // TODO: NEED MASSIVE REWORK LMAO
         java.util.Map<String, Capsule> caps = new java.util.HashMap<>();
         Vec3d headCenter = new Vec3d(0, height * 0.85, 0);
         caps.put("player_model:head", Capsule.sphere(headCenter, 0.12));

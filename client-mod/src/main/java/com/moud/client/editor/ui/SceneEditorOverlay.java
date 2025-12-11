@@ -1,5 +1,7 @@
 package com.moud.client.editor.ui;
 
+import com.moud.api.math.Vector3;
+import com.moud.client.animation.AnimatedPlayerModel;
 import com.moud.client.animation.ClientPlayerModelManager;
 import com.moud.client.animation.PlayerPartConfigManager;
 import com.moud.client.editor.EditorModeManager;
@@ -18,6 +20,7 @@ import com.moud.client.editor.scene.SceneObject;
 import com.moud.client.editor.scene.SceneSessionManager;
 import com.moud.client.model.ClientModelManager;
 import com.moud.client.model.RenderableModel;
+import com.moud.client.util.LimbRaycaster;
 import com.moud.client.editor.ui.panel.AssetBrowserPanel;
 import com.moud.client.editor.ui.panel.AnimationTimelinePanel;
 import com.moud.client.editor.ui.panel.BlueprintToolsPanel;
@@ -64,6 +67,8 @@ import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+import com.zigythebird.playeranim.animation.PlayerAnimationController;
+import com.zigythebird.playeranimcore.bones.PlayerAnimBone;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -329,34 +334,177 @@ public final class SceneEditorOverlay {
         float[] viewArr = matrixToArray(viewMatrix);
         float[] projArr = matrixToArray(projectionMatrix);
 
+        boolean limbMode = selectedRuntime != null && selectedLimbType != null && selectedRuntime.getType() == RuntimeObjectType.PLAYER_MODEL;
+
+        if (limbMode) {
+            handleLimbGizmo(selectedRuntime, currentObjectId, viewArr, projArr);
+        } else {
+            SceneObject runtimeSceneObj = selected != null ? selected
+                    : (selectedRuntime != null ? session.getSceneGraph().get(selectedRuntime.getObjectId()) : null);
+            ImGuizmo.manipulate(
+                    viewArr,
+                    projArr,
+                    currentOperation,
+                    gizmoMode,
+                    activeMatrix,
+                    null,
+                    useSnap ? snapValues : null
+            );
+            boolean using = ImGuizmo.isUsing();
+            if (using) {
+                if (!gizmoManipulating) {
+                    gizmoManipulating = true;
+                    gizmoObjectId = currentObjectId;
+                    if (runtimeSceneObj != null) {
+                        history.beginContinuousChange(runtimeSceneObj);
+                    }
+                }
+                ImGuizmo.decomposeMatrixToComponents(activeMatrix, activeTranslation, activeRotation, activeScale);
+                updateRotationFromMatrix(activeMatrix, activeRotationQuat, activeRotation);
+                if (runtimeSceneObj != null) {
+                    updateTransform(session, runtimeSceneObj, activeTranslation, activeRotation, activeScale, false, false, activeRotationQuat);
+                } else if (selectedRuntime != null) {
+                    updateRuntimeTransform(selectedRuntime, activeTranslation, activeRotation, activeScale);
+                }
+            } else if (gizmoManipulating) {
+                finalizeGizmoChange();
+            }
+        }
+    }
+
+    private void handleLimbGizmo(RuntimeObject runtime, String currentObjectId, float[] viewArr, float[] projArr) {
+        long modelId = parseModelId(runtime.getObjectId());
+        AnimatedPlayerModel animModel = modelId >= 0 ? ClientPlayerModelManager.getInstance().getModel(modelId) : null;
+        if (animModel == null) {
+            return;
+        }
+
+        SceneObject sceneObj = SceneSessionManager.getInstance().getSceneGraph().get(runtime.getObjectId());
+        float tickDelta = MinecraftClient.getInstance().getRenderTickCounter().getTickDelta(true);
+
+        double lx = animModel.getInterpolatedX(tickDelta);
+        double ly = animModel.getInterpolatedY(tickDelta);
+        double lz = animModel.getInterpolatedZ(tickDelta);
+        float bodyYaw = animModel.getInterpolatedYaw(tickDelta);
+
+        PlayerAnimationController controller = animModel.getAnimationController();
+        PlayerAnimBone bodyBone = controller.get3DTransform(new PlayerAnimBone("body"));
+
+        String boneName = boneNameFromLimb(selectedLimbType);
+        Matrix4f parentMat = LimbRaycaster.getBoneParentMatrix(controller, boneName != null ? boneName : selectedLimbType, lx, ly, lz, bodyYaw, bodyBone);
+
+        java.util.UUID uuid = resolvePlayerModelUuid(runtime);
+        PlayerPartConfigManager.PartConfig config = uuid != null && boneName != null
+                ? PlayerPartConfigManager.getInstance().getPartConfig(uuid, boneName)
+                : null;
+
+        Vector3 cfgPos = (config != null && config.position != null) ? config.position : Vector3.zero();
+        Vector3 cfgRot = (config != null && config.rotation != null) ? config.rotation : Vector3.zero();
+        Vector3 cfgScale = (config != null && config.scale != null) ? config.scale : new Vector3(1, 1, 1);
+
+        boolean isLimb = boneName != null && (boneName.equals("right_arm") || boneName.equals("left_arm") ||
+                         boneName.equals("right_leg") || boneName.equals("left_leg"));
+
+        Matrix4f localMat = new Matrix4f()
+                .translate((float) cfgPos.x / 16f, (float) cfgPos.y / 16f, (float) cfgPos.z / 16f);
+        if (isLimb) {
+            // Limbs: cfg.x -> Z, cfg.y -> Y, cfg.z -> X
+            localMat.rotateZ((float) Math.toRadians(cfgRot.x));
+            localMat.rotateY((float) Math.toRadians(cfgRot.y));
+            localMat.rotateX((float) Math.toRadians(cfgRot.z));
+        } else {
+            localMat.rotateXYZ((float) Math.toRadians(cfgRot.x), (float) Math.toRadians(cfgRot.y), (float) Math.toRadians(cfgRot.z));
+        }
+        localMat.scale((float) cfgScale.x, (float) cfgScale.y, (float) cfgScale.z);
+
+        Matrix4f worldMat = new Matrix4f(parentMat).mul(localMat);
+        worldMat.get(activeMatrix);
+
         ImGuizmo.manipulate(
                 viewArr,
                 projArr,
                 currentOperation,
-                gizmoMode,
+                Mode.LOCAL,
                 activeMatrix,
                 null,
                 useSnap ? snapValues : null
         );
+
         boolean using = ImGuizmo.isUsing();
         if (using) {
             if (!gizmoManipulating) {
                 gizmoManipulating = true;
                 gizmoObjectId = currentObjectId;
-                if (selected != null) {
-                    history.beginContinuousChange(selected);
+                if (sceneObj != null) {
+                    history.beginContinuousChange(sceneObj);
                 }
             }
-            ImGuizmo.decomposeMatrixToComponents(activeMatrix, activeTranslation, activeRotation, activeScale);
-            updateRotationFromMatrix(activeMatrix, activeRotationQuat, activeRotation);
-            if (selected != null) {
-                updateTransform(session, selected, activeTranslation, activeRotation, activeScale, false, false, activeRotationQuat);
-            } else if (selectedRuntime != null) {
-                if (selectedLimbType != null && selectedRuntime.getType() == RuntimeObjectType.PLAYER_MODEL) {
-                    applyLimbTransform(selectedRuntime, selectedLimbType, activeTranslation, activeRotation, activeScale);
-                } else {
-                    updateRuntimeTransform(selectedRuntime, activeTranslation, activeRotation, activeScale);
+            Matrix4f newWorld = new Matrix4f().set(activeMatrix);
+            Matrix4f newLocal = new Matrix4f(parentMat).invert().mul(newWorld);
+
+            Vector3f localPos = new Vector3f();
+            Quaternionf localRot = new Quaternionf();
+            Vector3f localScale = new Vector3f();
+            newLocal.getTranslation(localPos);
+            newLocal.getUnnormalizedRotation(localRot);
+            newLocal.getScale(localScale);
+
+            boolean isTranslate = (currentOperation & Operation.TRANSLATE) != 0;
+            boolean isRotate = (currentOperation & Operation.ROTATE) != 0;
+            boolean isScale = (currentOperation & Operation.SCALE) != 0;
+
+            if (isTranslate) {
+                activeTranslation[0] = localPos.x * 16f;
+                activeTranslation[1] = localPos.y * 16f;
+                activeTranslation[2] = localPos.z * 16f;
+            }
+
+            if (isRotate) {
+                Vector3f euler = new Vector3f();
+                localRot.getEulerAnglesZYX(euler);
+
+                float[] newRot = new float[]{
+                        (float) Math.toDegrees(euler.z),
+                        (float) Math.toDegrees(euler.y),
+                        (float) Math.toDegrees(euler.x)
+                };
+
+                float threshold = 0.1f;
+                float dx = Math.abs(newRot[0] - activeRotation[0]);
+                float dy = Math.abs(newRot[1] - activeRotation[1]);
+                float dz = Math.abs(newRot[2] - activeRotation[2]);
+                int maxAxis = 0;
+                float maxDelta = dx;
+                if (dy > maxDelta) {
+                    maxDelta = dy;
+                    maxAxis = 1;
                 }
+                if (dz > maxDelta) {
+                    maxDelta = dz;
+                    maxAxis = 2;
+                }
+                if (maxDelta > threshold) {
+                    switch (maxAxis) {
+                        case 0 -> activeRotation[0] = newRot[0];
+                        case 1 -> activeRotation[1] = newRot[1];
+                        case 2 -> activeRotation[2] = newRot[2];
+                        default -> {
+                        }
+                    }
+                }
+            }
+
+            if (isScale) {
+                activeScale[0] = localScale.x;
+                activeScale[1] = localScale.y;
+                activeScale[2] = localScale.z;
+            }
+
+            eulerDegreesToQuaternion(activeRotation, activeRotationQuat);
+
+            applyLimbTransform(runtime, selectedLimbType, activeTranslation, activeRotation, activeScale);
+            if (sceneObj != null) {
+                animationTimelinePanel.recordLimbTransform(sceneObj, selectedLimbType, activeTranslation, activeRotation, activeScale);
             }
         } else if (gizmoManipulating) {
             finalizeGizmoChange();
@@ -799,7 +947,7 @@ public final class SceneEditorOverlay {
         }
     }
 
-    private boolean applyLimbTransform(RuntimeObject runtime, String limbKey, float[] translation, float[] rotation, float[] scale) {
+    public boolean applyLimbTransform(RuntimeObject runtime, String limbKey, float[] translation, float[] rotation, float[] scale) {
         java.util.UUID uuid = resolvePlayerModelUuid(runtime);
         String bone = boneNameFromLimb(limbKey);
         if (uuid == null || bone == null) {
@@ -809,6 +957,7 @@ public final class SceneEditorOverlay {
         updates.put("position", new com.moud.api.math.Vector3(translation[0], translation[1], translation[2]));
         updates.put("rotation", new com.moud.api.math.Vector3(rotation[0], rotation[1], rotation[2]));
         updates.put("scale", new com.moud.api.math.Vector3(scale[0], scale[1], scale[2]));
+        updates.put("overrideAnimation", true);
         PlayerPartConfigManager.getInstance().updatePartConfig(uuid, bone, updates);
         return true;
     }
@@ -841,14 +990,7 @@ public final class SceneEditorOverlay {
         if (runtime == null || runtime.getObjectId() == null) {
             return null;
         }
-        long modelId = -1;
-        int idx = runtime.getObjectId().indexOf(':');
-        if (idx >= 0) {
-            try {
-                modelId = Long.parseLong(runtime.getObjectId().substring(idx + 1));
-            } catch (NumberFormatException ignored) {
-            }
-        }
+        long modelId = parseModelId(runtime.getObjectId());
         if (modelId < 0) {
             return null;
         }
@@ -870,9 +1012,24 @@ public final class SceneEditorOverlay {
             case "left_leg" -> "left_leg";
             case "right_leg" -> "right_leg";
             case "head" -> "head";
-            case "torso" -> "body";
+            case "body", "torso" -> "body";
             default -> null;
         };
+    }
+
+    private long parseModelId(String objId) {
+        if (objId == null) {
+            return -1;
+        }
+        int idx = objId.indexOf(':');
+        if (idx >= 0 && idx + 1 < objId.length()) {
+            objId = objId.substring(idx + 1);
+        }
+        try {
+            return Long.parseLong(objId);
+        } catch (NumberFormatException e) {
+            return -1;
+        }
     }
 
     private SceneObject getSelected(SceneSessionManager session) {
@@ -2218,6 +2375,9 @@ public final class SceneEditorOverlay {
                     scaleVec
             );
             com.moud.client.network.ClientPacketWrapper.sendToServer(packet);
+            runtimeObject.setPosition(new Vec3d(position.x, position.y, position.z));
+            runtimeObject.setRotation(new Vec3d(rotation[0], rotation[1], rotation[2]));
+            runtimeObject.setScale(new Vec3d(scale[0], scale[1], scale[2]));
         } else if (runtimeObject.getType() == RuntimeObjectType.DISPLAY) {
             MoudPackets.UpdateRuntimeDisplayPacket packet = new MoudPackets.UpdateRuntimeDisplayPacket(
                     runtimeObject.getRuntimeId(),
@@ -2226,6 +2386,9 @@ public final class SceneEditorOverlay {
                     scaleVec
             );
             com.moud.client.network.ClientPacketWrapper.sendToServer(packet);
+            runtimeObject.setPosition(new Vec3d(position.x, position.y, position.z));
+            runtimeObject.setRotation(new Vec3d(rotation[0], rotation[1], rotation[2]));
+            runtimeObject.setScale(new Vec3d(scale[0], scale[1], scale[2]));
         } else if (runtimeObject.getType() == RuntimeObjectType.PLAYER && runtimeObject.getPlayerUuid() != null) {
             MoudPackets.UpdatePlayerTransformPacket packet = new MoudPackets.UpdatePlayerTransformPacket(
                     runtimeObject.getPlayerUuid(),
@@ -2233,6 +2396,8 @@ public final class SceneEditorOverlay {
                     null
             );
             com.moud.client.network.ClientPacketWrapper.sendToServer(packet);
+            runtimeObject.setPosition(new Vec3d(position.x, position.y, position.z));
+            runtimeObject.setRotation(new Vec3d(rotation[0], rotation[1], rotation[2]));
         }
     }
 
