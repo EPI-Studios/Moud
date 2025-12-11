@@ -1,5 +1,7 @@
 package com.moud.client.editor.scene;
 
+import com.moud.api.math.Quaternion;
+import com.moud.api.math.Vector3;
 import com.moud.client.network.ClientPacketWrapper;
 import com.moud.network.MoudPackets;
 import net.minecraft.client.MinecraftClient;
@@ -170,6 +172,40 @@ public final class SceneSessionManager {
                 .applyAnimationProperty(objectId, propertyKey, propertyType, value);
     }
 
+    public void mergeAnimationTransform(String sceneId,
+                                        String objectId,
+                                        Vector3 position,
+                                        Vector3 rotation,
+                                        Quaternion rotationQuat,
+                                        Vector3 scale,
+                                        Map<String, Float> properties) {
+        if (!Objects.equals(sceneId, activeSceneId)) {
+            return;
+        }
+        SceneObject object = sceneGraph.get(objectId);
+        if (object != null) {
+            ConcurrentHashMap<String, Object> merged = new ConcurrentHashMap<>(object.getProperties());
+            if (position != null) {
+                merged.put("position", vectorToMap(position));
+            }
+            if (rotation != null) {
+                merged.put("rotation", rotationToMap(rotation));
+            }
+            if (rotationQuat != null) {
+                merged.put("rotationQuat", quaternionToMap(rotationQuat));
+            }
+            if (scale != null) {
+                merged.put("scale", vectorToMap(scale));
+            }
+            if (properties != null && !properties.isEmpty()) {
+                properties.forEach((key, value) -> applyNestedProperty(merged, key, value));
+            }
+            object.overwriteProperties(merged);
+        }
+        com.moud.client.editor.runtime.RuntimeObjectRegistry.getInstance()
+                .applyAnimationTransform(objectId, position, rotation, rotationQuat, scale, properties);
+    }
+
     @SuppressWarnings("unchecked")
     private void applyNestedProperty(Map<String, Object> props, String key, float value) {
         if (key.contains(".")) {
@@ -223,8 +259,37 @@ public final class SceneSessionManager {
         }
     }
 
+    public String getActiveSceneId() {
+        return activeSceneId;
+    }
+
     public EditorSceneGraph getSceneGraph() {
         return sceneGraph;
+    }
+
+    private Map<String, Object> vectorToMap(Vector3 vec) {
+        Map<String, Object> map = new ConcurrentHashMap<>();
+        map.put("x", vec.x);
+        map.put("y", vec.y);
+        map.put("z", vec.z);
+        return map;
+    }
+
+    private Map<String, Object> rotationToMap(Vector3 vec) {
+        Map<String, Object> map = new ConcurrentHashMap<>();
+        map.put("pitch", vec.x);
+        map.put("yaw", vec.y);
+        map.put("roll", vec.z);
+        return map;
+    }
+
+    private Map<String, Object> quaternionToMap(Quaternion quat) {
+        Map<String, Object> map = new ConcurrentHashMap<>();
+        map.put("x", quat.x);
+        map.put("y", quat.y);
+        map.put("z", quat.z);
+        map.put("w", quat.w);
+        return map;
     }
 
     private Map<String, Object> vectorToMap(float[] values) {

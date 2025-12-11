@@ -2,6 +2,8 @@ package com.moud.server.editor;
 
 import com.moud.api.animation.AnimationClip;
 import com.moud.api.animation.AnimationGson;
+import com.moud.api.math.Quaternion;
+import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
 import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
@@ -211,17 +213,29 @@ public final class AnimationManager {
         if (clip == null || clip.objectTracks() == null) {
             return;
         }
+        Map<String, TransformUpdate> pendingUpdates = new java.util.HashMap<>();
+
         for (com.moud.api.animation.ObjectTrack objTrack : clip.objectTracks()) {
             SceneManager.SceneObject sceneObject = SceneManager.getInstance().getSceneObject(SceneDefaults.DEFAULT_SCENE_ID, objTrack.targetObjectId());
             if (sceneObject == null || objTrack.propertyTracks() == null) {
                 continue;
             }
+
+            TransformUpdate update = pendingUpdates.computeIfAbsent(
+                    objTrack.targetObjectId(),
+                    id -> new TransformUpdate(sceneObject)
+            );
+
             for (Map.Entry<String, com.moud.api.animation.PropertyTrack> entry : objTrack.propertyTracks().entrySet()) {
                 com.moud.api.animation.PropertyTrack track = entry.getValue();
                 float value = sample(track, time);
-                SceneManager.getInstance().applyAnimationProperty(SceneDefaults.DEFAULT_SCENE_ID, objTrack.targetObjectId(), entry.getKey(), track.propertyType(), value);
+                update.applyProperty(entry.getKey(), value);
             }
         }
+
+        pendingUpdates.forEach((objectId, update) ->
+                SceneManager.getInstance().applyAnimationFrame(SceneDefaults.DEFAULT_SCENE_ID, objectId, update)
+        );
 
         if (clip.eventTrack() != null) {
             String targetId = (clip.objectTracks() != null && !clip.objectTracks().isEmpty())
@@ -347,6 +361,211 @@ public final class AnimationManager {
             return null;
         }
         return resolved;
+    }
+
+    static final class TransformUpdate {
+        private Vector3 position;
+        private Vector3 rotationEuler;
+        private Quaternion rotationQuat;
+        private Vector3 scale;
+        private final Map<String, Float> scalarProperties = new java.util.HashMap<>();
+        private boolean positionChanged;
+        private boolean rotationChanged;
+        private boolean scaleChanged;
+
+        TransformUpdate(SceneManager.SceneObject sceneObject) {
+            Map<String, Object> props = sceneObject != null ? sceneObject.getProperties() : null;
+            if (props != null) {
+                this.position = vectorProperty(props.get("position"), null);
+                this.rotationEuler = rotationProperty(props.get("rotation"), null);
+                this.rotationQuat = quaternionProperty(props.get("rotationQuat"), null);
+                this.scale = vectorProperty(props.get("scale"), null);
+            }
+        }
+
+        void applyProperty(String key, float value) {
+            if (key == null) {
+                return;
+            }
+            switch (key) {
+                case "position.x" -> {
+                    ensurePosition();
+                    position.x = value;
+                    positionChanged = true;
+                }
+                case "position.y" -> {
+                    ensurePosition();
+                    position.y = value;
+                    positionChanged = true;
+                }
+                case "position.z" -> {
+                    ensurePosition();
+                    position.z = value;
+                    positionChanged = true;
+                }
+                case "rotation.x", "rotation.pitch" -> {
+                    ensureRotation();
+                    rotationEuler.x = value;
+                    rotationChanged = true;
+                    rotationQuat = null;
+                }
+                case "rotation.y", "rotation.yaw" -> {
+                    ensureRotation();
+                    rotationEuler.y = value;
+                    rotationChanged = true;
+                    rotationQuat = null;
+                }
+                case "rotation.z", "rotation.roll" -> {
+                    ensureRotation();
+                    rotationEuler.z = value;
+                    rotationChanged = true;
+                    rotationQuat = null;
+                }
+                case "rotationQuat.x" -> {
+                    ensureRotationQuat();
+                    rotationQuat.x = value;
+                    rotationChanged = true;
+                }
+                case "rotationQuat.y" -> {
+                    ensureRotationQuat();
+                    rotationQuat.y = value;
+                    rotationChanged = true;
+                }
+                case "rotationQuat.z" -> {
+                    ensureRotationQuat();
+                    rotationQuat.z = value;
+                    rotationChanged = true;
+                }
+                case "rotationQuat.w" -> {
+                    ensureRotationQuat();
+                    rotationQuat.w = value;
+                    rotationChanged = true;
+                }
+                case "scale.x" -> {
+                    ensureScale();
+                    scale.x = (float) Math.max(0.0001, value);
+                    scaleChanged = true;
+                }
+                case "scale.y" -> {
+                    ensureScale();
+                    scale.y = (float) Math.max(0.0001, value);
+                    scaleChanged = true;
+                }
+                case "scale.z" -> {
+                    ensureScale();
+                    scale.z = (float) Math.max(0.0001, value);
+                    scaleChanged = true;
+                }
+                default -> scalarProperties.put(key, value);
+            }
+        }
+
+        Vector3 positionIfChanged() {
+            return positionChanged ? position : null;
+        }
+
+        Vector3 rotationEulerIfChanged() {
+            if (!rotationChanged) {
+                return null;
+            }
+            if (rotationEuler == null && rotationQuat != null) {
+                rotationEuler = rotationQuat.toEuler();
+            }
+            return rotationEuler;
+        }
+
+        Quaternion rotationQuatIfChanged() {
+            if (!rotationChanged) {
+                return null;
+            }
+            if (rotationQuat != null) {
+                return rotationQuat;
+            }
+            if (rotationEuler == null) {
+                return null;
+            }
+            rotationQuat = Quaternion.fromEuler(
+                    (float) rotationEuler.x,
+                    (float) rotationEuler.y,
+                    (float) rotationEuler.z
+            );
+            return rotationQuat;
+        }
+
+        Vector3 scaleIfChanged() {
+            return scaleChanged ? scale : null;
+        }
+
+        Map<String, Float> scalarProperties() {
+            return scalarProperties;
+        }
+
+        private void ensurePosition() {
+            if (position == null) {
+                position = new Vector3(0, 0, 0);
+            }
+        }
+
+        private void ensureRotation() {
+            if (rotationEuler == null) {
+                rotationEuler = new Vector3(0, 0, 0);
+            }
+        }
+
+        private void ensureRotationQuat() {
+            if (rotationQuat == null) {
+                rotationQuat = Quaternion.identity();
+            }
+        }
+
+        private void ensureScale() {
+            if (scale == null) {
+                scale = Vector3.one();
+            }
+        }
+    }
+
+    private static Vector3 vectorProperty(Object raw, Vector3 fallback) {
+        if (raw instanceof Map<?, ?> map) {
+            double x = toDouble(map.get("x"), fallback != null ? fallback.x : 0.0);
+            double y = toDouble(map.get("y"), fallback != null ? fallback.y : 0.0);
+            double z = toDouble(map.get("z"), fallback != null ? fallback.z : 0.0);
+            return new Vector3(x, y, z);
+        }
+        return fallback;
+    }
+
+    private static Vector3 rotationProperty(Object raw, Vector3 fallback) {
+        if (raw instanceof Map<?, ?> map) {
+            boolean hasEuler = map.containsKey("pitch") || map.containsKey("yaw") || map.containsKey("roll");
+            double x = toDouble(hasEuler ? map.get("pitch") : map.get("x"), fallback != null ? fallback.x : 0.0);
+            double y = toDouble(hasEuler ? map.get("yaw") : map.get("y"), fallback != null ? fallback.y : 0.0);
+            double z = toDouble(hasEuler ? map.get("roll") : map.get("z"), fallback != null ? fallback.z : 0.0);
+            return new Vector3(x, y, z);
+        }
+        return fallback;
+    }
+
+    private static Quaternion quaternionProperty(Object raw, Quaternion fallback) {
+        if (raw instanceof Map<?, ?> map) {
+            double x = toDouble(map.get("x"), 0.0);
+            double y = toDouble(map.get("y"), 0.0);
+            double z = toDouble(map.get("z"), 0.0);
+            double w = toDouble(map.get("w"), 1.0);
+            return new Quaternion((float) x, (float) y, (float) z, (float) w);
+        }
+        return fallback;
+    }
+
+    private static double toDouble(Object raw, double fallback) {
+        if (raw instanceof Number number) {
+            return number.doubleValue();
+        }
+        try {
+            return raw != null ? Double.parseDouble(raw.toString()) : fallback;
+        } catch (Exception e) {
+            return fallback;
+        }
     }
 
     private record PlaybackState(AnimationClip clip, float time, boolean loop, float speed, float lastTime) {}
