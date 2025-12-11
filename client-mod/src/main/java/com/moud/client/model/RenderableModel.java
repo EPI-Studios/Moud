@@ -38,7 +38,7 @@ public class RenderableModel {
     private static final float SNAP_DISTANCE_SQ = 64.0f;
     private float smoothingDurationTicks = DEFAULT_SMOOTHING_TICKS;
     private float smoothingProgress = 1.0f;
-    private boolean smoothingEnabled = false;
+    private boolean smoothingEnabled = true;
     private boolean firstUpdate = true;
     private Identifier texture = Identifier.of("minecraft", "textures/block/white_concrete.png");
     private double collisionWidth;
@@ -198,7 +198,17 @@ public class RenderableModel {
     public MeshBuffer getMeshBuffer() { return meshBuffer; }
     public boolean hasMeshBuffer() { return meshBuffer != null && meshBuffer.isUploaded(); }
     public Identifier getTexture() { return texture; }
-    public void setTexture(Identifier texture) { this.texture = normalizeTexture(texture); }
+    public void setTexture(Identifier texture) {
+        Identifier normalized = normalizeTexture(texture);
+        if (normalized == null) {
+            return;
+        }
+        if (!normalized.equals(this.texture)) {
+            this.texture = normalized;
+            org.slf4j.LoggerFactory.getLogger(RenderableModel.class)
+                    .info("RenderableModel {} texture set to {}", id, normalized);
+        }
+    }
     public boolean hasCollisionBox() {
         return collisionWidth > 0 && collisionHeight > 0 && collisionDepth > 0;
     }
@@ -218,6 +228,11 @@ public class RenderableModel {
     }
     public boolean hasCollisionBoxes() {
         return !collisionBoxes.isEmpty();
+    }
+
+    @Override
+    public String toString() {
+        return "RenderableModel{id=" + id + ", modelPath='" + modelPath + "', texture=" + texture + "}";
     }
     public boolean hasMeshBounds() {
         return meshMin != null && meshMax != null;

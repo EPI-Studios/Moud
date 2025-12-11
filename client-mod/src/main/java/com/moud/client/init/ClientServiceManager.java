@@ -129,6 +129,7 @@ public class ClientServiceManager {
         com.moud.client.editor.EditorModeManager.getInstance().tick(client);
         ClientMovementTracker.getInstance().tick();
         ClientModelManager.getInstance().getModels().forEach(model -> model.tickSmoothing(1.0f));
+        ClientDisplayManager.getInstance().tickSmoothing(1.0f);
     }
 
     public ParticleSystem getParticleSystem() {

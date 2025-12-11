@@ -74,6 +74,10 @@ public final class ClientDisplayManager {
         DisplayTextureResolver.getInstance().clear();
     }
 
+    public void tickSmoothing(float deltaTicks) {
+        displays.values().forEach(surface -> surface.tickSmoothing(deltaTicks));
+    }
+
     public Collection<DisplaySurface> getDisplays() {
         return displays.values();
     }
