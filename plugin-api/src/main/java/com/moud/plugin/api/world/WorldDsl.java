@@ -70,6 +70,20 @@ public final class WorldDsl {
     }
 
     /**
+     * Create a media display surface.
+     */
+    public DisplayHandle display(DisplayOptions options) {
+        return context.world().createDisplay(options);
+    }
+
+    /**
+     * Create floating text.
+     */
+    public TextHandle text(TextOptions options) {
+        return context.world().createText(options);
+    }
+
+    /**
      * Convert a Moud Vector3 to a Minestom Pos.
      * @param vector The vector to convert.
      * @return The resulting Pos.
@@ -86,9 +100,6 @@ public final class WorldDsl {
     public Vector3 toVector3(Pos pos) {
         return new Vector3(pos.x(), pos.y(), pos.z());
     }
-
-
-
 
 
     public static final class LightBuilder {

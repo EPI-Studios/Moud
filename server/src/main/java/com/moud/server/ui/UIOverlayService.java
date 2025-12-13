@@ -72,10 +72,14 @@ public final class UIOverlayService {
 
     public void handleInteraction(Player player, MoudPackets.UIInteractionPacket packet) {
         Session session = sessions.get(player.getUuid());
-        if (session == null || session.interactionCallback == null) {
+        Value callback = session != null ? session.interactionCallback : null;
+        BiConsumer<Player, MoudPackets.UIInteractionPacket> javaHandler = javaInteractionCallbacks.get(player.getUuid());
+
+        boolean hasJsHandler = callback != null && callback.canExecute();
+        if (!hasJsHandler && javaHandler == null) {
             return;
         }
-        Value callback = session.interactionCallback;
+
         ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
                 ScriptExecutionType.EVENT,
                 "ui.interaction",
@@ -89,18 +93,19 @@ public final class UIOverlayService {
             payload.put("data", packet.payload());
         }
 
-        try {
-            MoudEngine.getInstance().getRuntime().executeCallback(
-                    callback,
-                    metadata,
-                    new PlayerProxy(player),
-                    ProxyObject.fromMap(payload)
-            );
-        } catch (Exception e) {
-            LOGGER.error("Failed to dispatch UI interaction for player {}", player.getUsername(), e);
+        if (hasJsHandler) {
+            try {
+                MoudEngine.getInstance().getRuntime().executeCallback(
+                        callback,
+                        metadata,
+                        new PlayerProxy(player),
+                        ProxyObject.fromMap(payload)
+                );
+            } catch (Exception e) {
+                LOGGER.error("Failed to dispatch UI interaction for player {}", player.getUsername(), e);
+            }
         }
 
-        BiConsumer<Player, MoudPackets.UIInteractionPacket> javaHandler = javaInteractionCallbacks.get(player.getUuid());
         if (javaHandler != null) {
             try {
                 javaHandler.accept(player, packet);
