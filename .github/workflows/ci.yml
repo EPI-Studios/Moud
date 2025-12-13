@@ -133,6 +133,9 @@ jobs:
       - name: Build Client Mod
         run: ./gradlew client-mod:build
 
+      - name: Build Plugin API
+        run: ./gradlew :plugin-api:jar
+
       - name: Build Server
         run: ./gradlew server:shadowJar
 
@@ -181,8 +184,8 @@ jobs:
           artifacts: |
             server/build/libs/moud-server.jar
             client-mod/build/libs/*.jar
+            plugin-api/build/libs/plugin-api-*.jar
             plugin-api-javadoc.tar.gz
-            plugin-api/build/libs/*-javadoc.jar
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ github.ref_name }}
           draft: false
