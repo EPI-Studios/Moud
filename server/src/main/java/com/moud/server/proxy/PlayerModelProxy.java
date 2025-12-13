@@ -332,12 +332,10 @@ public class PlayerModelProxy {
 
     private void broadcast(Object packet) {
         ServerNetworkManager networkManager = ServerNetworkManager.getInstance();
-        if (networkManager != null) {
-            LOGGER.debug("Broadcasting packet {} via ServerNetworkManager", packet.getClass().getSimpleName());
-            networkManager.broadcast(packet);
-        } else {
-            LOGGER.error("ServerNetworkManager is null! Cannot broadcast packet {}", packet.getClass().getSimpleName());
+        if (networkManager == null) {
+            return;
         }
+        networkManager.broadcast(packet);
     }
 
     public static PlayerModelProxy getById(long modelId) {
