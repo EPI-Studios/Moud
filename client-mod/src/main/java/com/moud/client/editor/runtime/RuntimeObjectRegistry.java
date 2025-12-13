@@ -157,13 +157,7 @@ public final class RuntimeObjectRegistry {
             return;
         }
 
-        RuntimeObject obj = objects.get(objectId);
-        if (obj == null) {
-            if (properties != null && !properties.isEmpty()) {
-                properties.forEach((key, value) -> applyAnimationProperty(objectId, key, null, value));
-            }
-            return;
-        }
+        RuntimeObject obj = resolveRuntimeObject(objectId);
 
         WorldTransform world = composeWorldTransform(objectId, position, rotation, rotationQuat, scale, new java.util.HashSet<>());
 
@@ -187,14 +181,15 @@ public final class RuntimeObjectRegistry {
         }
 
         if (properties != null && !properties.isEmpty()) {
-            properties.forEach((key, value) -> applyAnimationProperty(objectId, key, null, value));
+            String runtimeId = obj != null ? obj.getObjectId() : objectId;
+            properties.forEach((key, value) -> applyAnimationProperty(runtimeId, key, null, value));
         }
     }
 
 
 
     public void applyAnimationProperty(String objectId, String propertyKey, com.moud.api.animation.PropertyTrack.PropertyType propertyType, float value) {
-        RuntimeObject obj = objects.get(objectId);
+        RuntimeObject obj = resolveRuntimeObject(objectId);
         SceneObject sceneObject = com.moud.client.editor.scene.SceneSessionManager.getInstance().getSceneGraph().get(objectId);
 
         if (sceneObject != null && propertyKey != null) {
@@ -793,6 +788,49 @@ public final class RuntimeObjectRegistry {
             return -1;
         }
         return tmin >= 0 ? tmin : tmax;
+    }
+
+    private RuntimeObject resolveRuntimeObject(String objectId) {
+        if (objectId == null) {
+            return null;
+        }
+        RuntimeObject direct = objects.get(objectId);
+        if (direct != null) {
+            return direct;
+        }
+
+        SceneObject sceneObj = com.moud.client.editor.scene.SceneSessionManager.getInstance().getSceneGraph().get(objectId);
+        if (sceneObj == null || !"player_model".equalsIgnoreCase(sceneObj.getType())) {
+            return null;
+        }
+
+        Vec3d scenePos = readVec3(sceneObj.getProperties().get("position"), null);
+        RuntimeObject best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (RuntimeObject candidate : objects.values()) {
+            if (candidate == null || candidate.getType() != RuntimeObjectType.PLAYER_MODEL || candidate.getPosition() == null) {
+                continue;
+            }
+            if (scenePos == null) {
+                return candidate;
+            }
+            double dist = candidate.getPosition().squaredDistanceTo(scenePos);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = candidate;
+            }
+        }
+        return best;
+    }
+
+    private Vec3d readVec3(Object raw, Vec3d fallback) {
+        if (raw instanceof Map<?, ?> map) {
+            double x = toDouble(map.get("x"), fallback != null ? fallback.x : 0);
+            double y = toDouble(map.get("y"), fallback != null ? fallback.y : 0);
+            double z = toDouble(map.get("z"), fallback != null ? fallback.z : 0);
+            return new Vec3d(x, y, z);
+        }
+        return fallback;
     }
 
     @SuppressWarnings("unchecked")

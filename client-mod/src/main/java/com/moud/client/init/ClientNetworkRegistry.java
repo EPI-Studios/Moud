@@ -526,6 +526,7 @@ public class ClientNetworkRegistry {
             RuntimeObjectRegistry.getInstance().syncPlayerModel(packet.modelId(),
                     new net.minecraft.util.math.Vec3d(packet.position().x, packet.position().y, packet.position().z),
                     new net.minecraft.util.math.Vec3d(0, 0, 0));
+            SceneSessionManager.getInstance().restoreLimbPropertiesForModel(packet.modelId(), model);
             LOGGER.info("Created player model with ID: {} at position: {}", packet.modelId(), packet.position());
         });
     }

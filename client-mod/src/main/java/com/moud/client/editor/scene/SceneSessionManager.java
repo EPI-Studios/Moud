@@ -2,6 +2,7 @@ package com.moud.client.editor.scene;
 
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
+import com.moud.client.animation.AnimatedPlayerModel;
 import com.moud.client.network.ClientPacketWrapper;
 import com.moud.network.MoudPackets;
 import net.minecraft.client.MinecraftClient;
@@ -65,6 +66,187 @@ public final class SceneSessionManager {
         SceneEditorDiagnostics.log("Scene synced: " + sceneGraph.getObjects().size() + " objects, version " + packet.version());
         LOGGER.info("Scene state received: {} objects (version {})", sceneGraph.getObjects().size(), packet.version());
         syncEmittersFromGraph();
+        syncLimbPropertiesFromGraph();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void syncLimbPropertiesFromGraph() {
+        var playerModelManager = com.moud.client.animation.ClientPlayerModelManager.getInstance();
+        var partConfigManager = com.moud.client.animation.PlayerPartConfigManager.getInstance();
+
+        for (SceneObject obj : sceneGraph.getObjects()) {
+            if (!"player_model".equalsIgnoreCase(obj.getType())) {
+                continue;
+            }
+
+            AnimatedPlayerModel animModel = resolvePlayerModel(obj, playerModelManager);
+            if (animModel == null || animModel.getEntity() == null) {
+                continue;
+            }
+            applyLimbProperties(obj, animModel, partConfigManager);
+        }
+    }
+
+    public void restoreLimbPropertiesForModel(long modelId, AnimatedPlayerModel model) {
+        if (model == null || model.getEntity() == null) {
+            return;
+        }
+        SceneObject target = sceneGraph.get("player_model:" + modelId);
+        if (target == null) {
+            for (SceneObject obj : sceneGraph.getObjects()) {
+                if (!"player_model".equalsIgnoreCase(obj.getType())) {
+                    continue;
+                }
+                long parsed = parseModelId(obj.getId());
+                if (parsed == modelId) {
+                    target = obj;
+                    break;
+                }
+            }
+        }
+        if (target == null) {
+            target = findNearestPlayerModel(model.getEntity().getX(), model.getEntity().getY(), model.getEntity().getZ());
+        }
+        if (target != null) {
+            applyLimbProperties(target, model, com.moud.client.animation.PlayerPartConfigManager.getInstance());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void applyLimbProperties(SceneObject obj, AnimatedPlayerModel animModel, com.moud.client.animation.PlayerPartConfigManager partConfigManager) {
+        if (animModel == null || animModel.getEntity() == null) {
+            return;
+        }
+        java.util.UUID uuid = animModel.getEntity().getUuid();
+
+        Object limbPropsRaw = obj.getProperties().get("limbProperties");
+        if (!(limbPropsRaw instanceof Map<?, ?>)) {
+            return;
+        }
+
+        Map<String, Object> limbProperties = (Map<String, Object>) limbPropsRaw;
+        for (Map.Entry<String, Object> entry : limbProperties.entrySet()) {
+            String boneName = entry.getKey();
+            if (!(entry.getValue() instanceof Map<?, ?>)) continue;
+            Map<String, Object> limbData = (Map<String, Object>) entry.getValue();
+
+            java.util.Map<String, Object> updates = new java.util.HashMap<>();
+
+            Object posRaw = limbData.get("position");
+            if (posRaw instanceof Map<?, ?> posMap) {
+                double x = toDouble(posMap.get("x"), 0);
+                double y = toDouble(posMap.get("y"), 0);
+                double z = toDouble(posMap.get("z"), 0);
+                updates.put("position", new Vector3(x, y, z));
+            }
+
+            Object rotRaw = limbData.get("rotation");
+            if (rotRaw instanceof Map<?, ?> rotMap) {
+                double x = toDouble(rotMap.get("x"), 0);
+                double y = toDouble(rotMap.get("y"), 0);
+                double z = toDouble(rotMap.get("z"), 0);
+                updates.put("rotation", new Vector3(x, y, z));
+            }
+
+            Object scaleRaw = limbData.get("scale");
+            if (scaleRaw instanceof Map<?, ?> scaleMap) {
+                double x = toDouble(scaleMap.get("x"), 1);
+                double y = toDouble(scaleMap.get("y"), 1);
+                double z = toDouble(scaleMap.get("z"), 1);
+                updates.put("scale", new Vector3(x, y, z));
+            }
+
+            Object overrideRaw = limbData.get("overrideAnimation");
+            if (overrideRaw instanceof Boolean) {
+                updates.put("overrideAnimation", overrideRaw);
+            }
+
+            if (!updates.isEmpty()) {
+                partConfigManager.updatePartConfig(uuid, boneName, updates);
+                LOGGER.debug("Restored limb config for {} bone {} on model {}", uuid, boneName, animModel.getModelId());
+            }
+        }
+    }
+
+    private AnimatedPlayerModel resolvePlayerModel(SceneObject obj, com.moud.client.animation.ClientPlayerModelManager manager) {
+        long modelId = parseModelId(obj.getId());
+        if (modelId >= 0) {
+            AnimatedPlayerModel direct = manager.getModel(modelId);
+            if (direct != null) {
+                return direct;
+            }
+        }
+
+        Vector3 pos = vectorFromMap(obj.getProperties().get("position"), Vector3.zero());
+        AnimatedPlayerModel best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (AnimatedPlayerModel candidate : manager.getModels()) {
+            if (candidate == null || candidate.getEntity() == null) {
+                continue;
+            }
+            double dx = candidate.getEntity().getX() - pos.x;
+            double dy = candidate.getEntity().getY() - pos.y;
+            double dz = candidate.getEntity().getZ() - pos.z;
+            double dist = dx * dx + dy * dy + dz * dz;
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = candidate;
+            }
+        }
+        return best;
+    }
+
+    private SceneObject findNearestPlayerModel(double x, double y, double z) {
+        SceneObject best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (SceneObject obj : sceneGraph.getObjects()) {
+            if (!"player_model".equalsIgnoreCase(obj.getType())) {
+                continue;
+            }
+            Vector3 pos = vectorFromMap(obj.getProperties().get("position"), Vector3.zero());
+            double dx = pos.x - x;
+            double dy = pos.y - y;
+            double dz = pos.z - z;
+            double dist = dx * dx + dy * dy + dz * dz;
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = obj;
+            }
+        }
+        return best;
+    }
+
+    private long parseModelId(String objId) {
+        if (objId == null) {
+            return -1;
+        }
+        int colonIdx = objId.indexOf(':');
+        if (colonIdx < 0 || colonIdx + 1 >= objId.length()) {
+            return -1;
+        }
+        try {
+            return Long.parseLong(objId.substring(colonIdx + 1));
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    private Vector3 vectorFromMap(Object raw, Vector3 fallback) {
+        if (raw instanceof Map<?, ?> map) {
+            double x = toDouble(map.get("x"), fallback != null ? fallback.x : 0);
+            double y = toDouble(map.get("y"), fallback != null ? fallback.y : 0);
+            double z = toDouble(map.get("z"), fallback != null ? fallback.z : 0);
+            return new Vector3(x, y, z);
+        }
+        return fallback;
+    }
+
+    private double toDouble(Object val, double fallback) {
+        if (val instanceof Number n) return n.doubleValue();
+        if (val != null) {
+            try { return Double.parseDouble(val.toString()); } catch (Exception ignored) {}
+        }
+        return fallback;
     }
 
     public void handleEditAck(MoudPackets.SceneEditAckPacket ack) {
