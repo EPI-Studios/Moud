@@ -61,6 +61,7 @@ public final class DisplaySurface {
     private long playbackBaseTimeMillis = Util.getMeasuringTimeMs();
 
     private BlockPos cachedBlockPos = BlockPos.ORIGIN;
+    private MoudPackets.DisplayBillboardMode billboardMode = MoudPackets.DisplayBillboardMode.NONE;
 
     // Video playback fields
     private VideoDecoder videoDecoder;
@@ -113,14 +114,18 @@ public final class DisplaySurface {
         this.opacity = opacity;
     }
 
+    public MoudPackets.DisplayBillboardMode getBillboardMode() {
+        return billboardMode;
+    }
+
     void applyCreatePacket(MoudPackets.S2C_CreateDisplayPacket packet) {
-        updateTransform(packet.position(), packet.rotation(), packet.scale());
+        updateTransform(packet.position(), packet.rotation(), packet.scale(), packet.billboardMode());
         updateAnchor(packet.anchorType(), packet.anchorBlockPosition(), packet.anchorEntityUuid(), packet.anchorOffset());
         updateContent(packet.contentType(), packet.primarySource(), packet.frameSources(), packet.frameRate(), packet.loop());
         updatePlayback(packet.playing(), packet.playbackSpeed(), packet.startOffsetSeconds());
     }
 
-    public void updateTransform(Vector3 pos, Quaternion rot, Vector3 scl) {
+    public void updateTransform(Vector3 pos, Quaternion rot, Vector3 scl, MoudPackets.DisplayBillboardMode mode) {
         if (pos != null) {
             if (!initialized) {
                 position = new Vector3(pos);
@@ -158,6 +163,9 @@ public final class DisplaySurface {
                 scale = safeScale;
                 smoothingProgress = 0.0f;
             }
+        }
+        if (mode != null) {
+            billboardMode = mode;
         }
         if (!initialized && pos != null) {
             initialized = true;

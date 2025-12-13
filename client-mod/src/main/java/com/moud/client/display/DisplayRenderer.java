@@ -2,6 +2,9 @@ package com.moud.client.display;
 
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
+import com.moud.network.MoudPackets;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
@@ -28,6 +31,20 @@ public final class DisplayRenderer {
 
         Quaternion rotation = surface.getInterpolatedRotation(tickDelta);
         Quaternionf rotationQuat = new Quaternionf(rotation.x, rotation.y, rotation.z, rotation.w);
+
+        MoudPackets.DisplayBillboardMode billboardMode = surface.getBillboardMode();
+        if (billboardMode != null && billboardMode != MoudPackets.DisplayBillboardMode.NONE) {
+            Camera camera = MinecraftClient.getInstance().gameRenderer.getCamera();
+            Quaternionf facing = new Quaternionf();
+            float yawRad = (float) Math.toRadians(180.0f - camera.getYaw());
+            float pitchRad = (float) Math.toRadians(-camera.getPitch());
+            switch (billboardMode) {
+                case CAMERA_FACING -> facing.rotationYXZ(yawRad, pitchRad, 0.0f);
+                case VERTICAL -> facing.rotationY(yawRad);
+                default -> {}
+            }
+            rotationQuat = facing.mul(rotationQuat);
+        }
         matrices.multiply(rotationQuat);
 
         Vector3 scale = surface.getInterpolatedScale(tickDelta);

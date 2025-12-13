@@ -20,6 +20,7 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @TsExpose
@@ -33,6 +34,7 @@ public class MediaDisplayProxy {
     private Vector3 position;
     private Quaternion rotation;
     private Vector3 scale;
+    private MoudPackets.DisplayBillboardMode billboardMode = MoudPackets.DisplayBillboardMode.NONE;
 
     private MoudPackets.DisplayAnchorType anchorType = MoudPackets.DisplayAnchorType.FREE;
     private int anchorBlockX;
@@ -61,6 +63,9 @@ public class MediaDisplayProxy {
         this.position = position != null ? new Vector3(position) : Vector3.zero();
         this.rotation = rotation != null ? new Quaternion(rotation) : Quaternion.identity();
         this.scale = scale != null ? new Vector3(scale) : Vector3.one();
+        if (this.scale.x == 0) this.scale.x = 0.001f;
+        if (this.scale.y == 0) this.scale.y = 0.001f;
+        if (this.scale.z == 0) this.scale.z = 0.001f;
 
         DisplayManager.getInstance().register(this);
         broadcastCreate();
@@ -110,6 +115,27 @@ public class MediaDisplayProxy {
     }
 
     @HostAccess.Export
+    public void setBillboard(String mode) {
+        if (mode == null) {
+            return;
+        }
+        try {
+            this.billboardMode = switch (mode.toLowerCase(Locale.ROOT)) {
+                case "camera", "camera_facing", "face_camera" -> MoudPackets.DisplayBillboardMode.CAMERA_FACING;
+                case "vertical", "y" -> MoudPackets.DisplayBillboardMode.VERTICAL;
+                default -> MoudPackets.DisplayBillboardMode.NONE;
+            };
+            broadcastTransform();
+        } catch (Exception e) {
+            LOGGER.warn("Invalid billboard mode '{}'", mode, e);
+        }
+    }
+
+    public MoudPackets.DisplayBillboardMode getBillboardMode() {
+        return billboardMode;
+    }
+
+    @HostAccess.Export
     public Vector3 getScale() {
         return new Vector3(scale);
     }
@@ -128,7 +154,7 @@ public class MediaDisplayProxy {
             this.rotation = new Quaternion(newRotation);
         }
         if (newScale != null) {
-            this.scale = new Vector3(newScale);
+            this.scale = ensureScaleSafe(newScale);
         }
         broadcastTransform();
         if (positionChanged) {
@@ -141,7 +167,7 @@ public class MediaDisplayProxy {
         if (newScale == null) {
             return;
         }
-        this.scale = new Vector3(newScale);
+        this.scale = ensureScaleSafe(newScale);
         broadcastTransform();
     }
 
@@ -397,7 +423,8 @@ public class MediaDisplayProxy {
                 id,
                 new Vector3(position),
                 new Quaternion(rotation),
-                new Vector3(scale)
+                new Vector3(scale),
+                billboardMode
         ));
     }
 
@@ -441,6 +468,7 @@ public class MediaDisplayProxy {
                 new Vector3(position),
                 new Quaternion(rotation),
                 new Vector3(scale),
+                billboardMode,
                 anchorType,
                 anchorType == MoudPackets.DisplayAnchorType.BLOCK ? new Vector3(anchorBlockX, anchorBlockY, anchorBlockZ) : null,
                 anchorType == MoudPackets.DisplayAnchorType.ENTITY ? anchorEntityUuid : null,
@@ -461,6 +489,14 @@ public class MediaDisplayProxy {
         if (networkManager != null) {
             networkManager.broadcast(packet);
         }
+    }
+
+    private Vector3 ensureScaleSafe(Vector3 newScale) {
+        Vector3 safe = new Vector3(newScale);
+        if (safe.x == 0f) safe.x = 0.001f;
+        if (safe.y == 0f) safe.y = 0.001f;
+        if (safe.z == 0f) safe.z = 0.001f;
+        return safe;
     }
 
     private float getPlaybackOffsetSeconds() {
