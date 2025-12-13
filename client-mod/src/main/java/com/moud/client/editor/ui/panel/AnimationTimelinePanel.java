@@ -98,6 +98,7 @@ public final class AnimationTimelinePanel {
 
         tickPlayback(ImGui.getIO().getDeltaTime());
         handleUndoRedoHotkeys();
+        handleAnimationHotkeys();
 
         renderToolbar();
         renderTimelineArea();
@@ -224,14 +225,48 @@ public final class AnimationTimelinePanel {
         }
 
         ImGui.sameLine();
-        int recColor = recording ? ImGui.getColorU32(ImGuiCol.ButtonActive) : ImGui.getColorU32(ImGuiCol.Button);
-        ImGui.pushStyleColor(ImGuiCol.Button, recColor);
-        if (ImGui.button("\ue061 Rec")) {
-            recording = !recording;
+        // Recording button with pulsing red indicator when active
+        if (recording) {
+            // Bright red when recording
+            ImGui.pushStyleColor(ImGuiCol.Button, 0xFF0000CC);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0xFF0000EE);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0xFF0000FF);
+        } else {
+            ImGui.pushStyleColor(ImGuiCol.Button, ImGui.getColorU32(ImGuiCol.Button));
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, ImGui.getColorU32(ImGuiCol.ButtonHovered));
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, ImGui.getColorU32(ImGuiCol.ButtonActive));
         }
-        ImGui.popStyleColor();
+        if (ImGui.button(recording ? "\ue061 REC" : "\ue061 Rec")) {
+            recording = !recording;
+            if (recording) {
+                lastRecordedTransforms.clear(); // Clear cache when starting recording
+                pushEventIndicator("Recording started - move objects to record");
+            } else {
+                pushEventIndicator("Recording stopped");
+            }
+        }
+        ImGui.popStyleColor(3);
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(recording ? "Click to stop recording (keyframes auto-added on transform changes)" : "Click to start recording mode");
+        }
+
+        // Manual keyframe insertion button
+        ImGui.sameLine();
+        if (ImGui.button("\ue145 Key")) {
+            insertKeyframeAtCurrentTime();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Insert keyframe at current time for selected object (K)");
+        }
+
         ImGui.sameLine();
         ImGui.text(String.format("Time %s / %s", formatTime(currentTime), currentClip != null ? formatTime(currentClip.duration()) : "00:00:00"));
+
+        // Show recording indicator
+        if (recording) {
+            ImGui.sameLine();
+            ImGui.textColored(0xFF0000FF, "\u25cf REC");
+        }
 
         if (!recentEvents.isEmpty()) {
             ImGui.sameLine();
@@ -1090,6 +1125,113 @@ public final class AnimationTimelinePanel {
         if (!wantKeyboard && ImGui.isKeyPressed(ImGuiKey.V, false)) {
             pasteKeyframes(currentTime);
         }
+    }
+
+    private void handleAnimationHotkeys() {
+        boolean wantKeyboard = ImGui.getIO().getWantCaptureKeyboard();
+        if (wantKeyboard) {
+            return;
+        }
+
+        // insert keyframe at current time (k key)
+        if (ImGui.isKeyPressed(ImGuiKey.K, false)) {
+            insertKeyframeAtCurrentTime();
+        }
+
+        if (ImGui.isKeyPressed(ImGuiKey.R, false)) {
+            recording = !recording;
+            if (recording) {
+                lastRecordedTransforms.clear();
+                pushEventIndicator("Recording started");
+            } else {
+                pushEventIndicator("Recording stopped");
+            }
+        }
+
+        // go to start (home key)
+        if (ImGui.isKeyPressed(ImGuiKey.Home, false) && currentClip != null) {
+            currentTime = 0f;
+            overlay.seekAnimation(resolveAnimationId(), currentTime);
+            applyAnimationAtTime(currentTime);
+        }
+
+        // end key (goto end)
+        if (ImGui.isKeyPressed(ImGuiKey.End, false) && currentClip != null) {
+            currentTime = currentClip.duration();
+            overlay.seekAnimation(resolveAnimationId(), currentTime);
+            applyAnimationAtTime(currentTime);
+        }
+
+        // left and right arrow
+        if (currentClip != null && !playing) {
+            float frameStep = 1.0f / snapFps;
+            if (ImGui.isKeyPressed(ImGuiKey.LeftArrow, true)) {
+                currentTime = Math.max(0f, currentTime - frameStep);
+                overlay.seekAnimation(resolveAnimationId(), currentTime);
+                applyAnimationAtTime(currentTime);
+            }
+            if (ImGui.isKeyPressed(ImGuiKey.RightArrow, true)) {
+                currentTime = Math.min(currentClip.duration(), currentTime + frameStep);
+                overlay.seekAnimation(resolveAnimationId(), currentTime);
+                applyAnimationAtTime(currentTime);
+            }
+        }
+    }
+
+    private void insertKeyframeAtCurrentTime() {
+        if (currentClip == null) {
+            pushEventIndicator("No animation loaded");
+            return;
+        }
+
+        var selectedObject = overlay.getSelectedObject();
+        String selectedLimb = overlay.getSelectedLimbType();
+
+        if (selectedObject == null) {
+            pushEventIndicator("Select an object first");
+            return;
+        }
+
+        ObjectTrack objTrack = ensureObjectTrack(selectedObject);
+        float t = currentTime;
+        float[] translation = overlay.getActiveTranslation();
+        float[] rotation = overlay.getActiveRotation();
+        float[] scale = overlay.getActiveScale();
+
+        int keysAdded = 0;
+
+        if (selectedLimb != null) {
+            String limbPath = selectedLimb.startsWith("player_model:") ? selectedLimb : "player_model:" + selectedLimb;
+            String prefix = limbPath + ".";
+
+            addOrUpdateKey(objTrack, prefix + "position.x", translation[0], t);
+            addOrUpdateKey(objTrack, prefix + "position.y", translation[1], t);
+            addOrUpdateKey(objTrack, prefix + "position.z", translation[2], t);
+            addOrUpdateKey(objTrack, prefix + "rotation.x", rotation[0], t);
+            addOrUpdateKey(objTrack, prefix + "rotation.y", rotation[1], t);
+            addOrUpdateKey(objTrack, prefix + "rotation.z", rotation[2], t);
+            addOrUpdateKey(objTrack, prefix + "scale.x", scale[0], t);
+            addOrUpdateKey(objTrack, prefix + "scale.y", scale[1], t);
+            addOrUpdateKey(objTrack, prefix + "scale.z", scale[2], t);
+            keysAdded = 9;
+
+            pushEventIndicator("Added keyframes for " + selectedLimb + " at " + formatTime(t));
+        } else {
+            addOrUpdateKey(objTrack, "position.x", translation[0], t);
+            addOrUpdateKey(objTrack, "position.y", translation[1], t);
+            addOrUpdateKey(objTrack, "position.z", translation[2], t);
+            addOrUpdateKey(objTrack, "rotation.x", rotation[0], t);
+            addOrUpdateKey(objTrack, "rotation.y", rotation[1], t);
+            addOrUpdateKey(objTrack, "rotation.z", rotation[2], t);
+            addOrUpdateKey(objTrack, "scale.x", scale[0], t);
+            addOrUpdateKey(objTrack, "scale.y", scale[1], t);
+            addOrUpdateKey(objTrack, "scale.z", scale[2], t);
+            keysAdded = 9;
+
+            pushEventIndicator("Added " + keysAdded + " keyframes at " + formatTime(t));
+        }
+
+        rebuildTrackViews();
     }
 
     private float clamp01(float v) {

@@ -7,51 +7,44 @@ import com.moud.client.animation.PlayerPartConfigManager;
 import com.moud.client.editor.EditorModeManager;
 import com.moud.client.editor.assets.EditorAssetCatalog;
 import com.moud.client.editor.camera.EditorCameraController;
+import com.moud.client.editor.picking.RaycastPicker;
 import com.moud.client.editor.runtime.Capsule;
 import com.moud.client.editor.runtime.RuntimeObject;
 import com.moud.client.editor.runtime.RuntimeObjectRegistry;
 import com.moud.client.editor.runtime.RuntimeObjectType;
-import com.moud.client.editor.scene.blueprint.*;
-import com.moud.client.editor.selection.SceneSelectionManager;
-import com.moud.client.editor.picking.RaycastPicker;
 import com.moud.client.editor.scene.SceneEditorDiagnostics;
 import com.moud.client.editor.scene.SceneHistoryManager;
 import com.moud.client.editor.scene.SceneObject;
 import com.moud.client.editor.scene.SceneSessionManager;
+import com.moud.client.editor.scene.blueprint.*;
+import com.moud.client.editor.selection.SceneSelectionManager;
+import com.moud.client.editor.ui.layout.EditorDockingLayout;
+import com.moud.client.editor.ui.panel.*;
 import com.moud.client.model.ClientModelManager;
 import com.moud.client.model.RenderableModel;
-import com.moud.client.util.LimbRaycaster;
-import com.moud.client.editor.ui.panel.AssetBrowserPanel;
-import com.moud.client.editor.ui.panel.AnimationTimelinePanel;
-import com.moud.client.editor.ui.panel.BlueprintToolsPanel;
-import com.moud.client.editor.ui.panel.DiagnosticsPanel;
-import com.moud.client.editor.ui.panel.ExplorerPanel;
-import com.moud.client.editor.ui.panel.InspectorPanel;
-import com.moud.client.editor.ui.panel.RibbonBar;
-import com.moud.client.editor.ui.panel.ScriptViewerPanel;
-import com.moud.client.editor.ui.panel.ViewportToolbar;
-import com.moud.network.MoudPackets.AnimationLoadResponsePacket;
-import com.moud.network.MoudPackets.AnimationListResponsePacket;
 import com.moud.client.network.ClientPacketWrapper;
+import com.moud.client.util.LimbRaycaster;
 import com.moud.network.MoudPackets;
-import com.moud.network.MoudPackets;
+import com.moud.network.MoudPackets.AnimationListResponsePacket;
+import com.moud.network.MoudPackets.AnimationLoadResponsePacket;
+import com.zigythebird.playeranim.animation.PlayerAnimResources;
+import com.zigythebird.playeranim.animation.PlayerAnimationController;
+import com.zigythebird.playeranimcore.bones.PlayerAnimBone;
 import imgui.ImGui;
 import imgui.extension.imguizmo.ImGuizmo;
 import imgui.extension.imguizmo.flag.Mode;
 import imgui.extension.imguizmo.flag.Operation;
-import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImString;
-import com.moud.client.editor.ui.WorldViewCapture;
-import com.moud.client.editor.ui.layout.EditorDockingLayout;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.registry.Registries;
@@ -61,38 +54,31 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
-import com.zigythebird.playeranim.animation.PlayerAnimationController;
-import com.zigythebird.playeranimcore.bones.PlayerAnimBone;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-import com.zigythebird.playeranim.animation.PlayerAnimResources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
 public final class SceneEditorOverlay {
+    public static final String PAYLOAD_HIERARCHY = "MoudHierarchyObject";
+    public static final String PAYLOAD_ASSET = "MoudAssetDefinition";
+    public static final String PAYLOAD_PROJECT_FILE = "MoudProjectFile";
+    public static final String[] DISPLAY_CONTENT_TYPES = {"image", "video", "sequence"};
+    public static final String[] LIGHT_TYPE_LABELS = {"Point", "Area"};
     private static final Logger LOGGER = LoggerFactory.getLogger(SceneEditorOverlay.class);
     private static final SceneEditorOverlay INSTANCE = new SceneEditorOverlay();
     private static final long MAX_BLOCK_CAPTURE_BLOCKS = 10000;
-
+    private static final String DEFAULT_PLAYER_MODEL_SKIN = " ";
+    private static final int PANEL_WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove;
+    private static final long HIERARCHY_CACHE_MS = 100;
     private final ImString markerNameBuffer = new ImString("Marker", 64);
     private final ImString playerModelLabelBuffer = new ImString("Player Model", 64);
     private final ImString playerModelSkinBuffer = new ImString("", 256);
     private final ImString cameraLabelBuffer = new ImString("Camera", 64);
-    private String selectedLimbType;
     private final float[] cameraPositionBuffer = new float[]{0f, 65f, 0f};
     private final float[] cameraRotationBuffer = new float[]{0f, 0f, 0f};
     private final ImFloat cameraFov = new ImFloat(70f);
@@ -100,30 +86,14 @@ public final class SceneEditorOverlay {
     private final ImFloat cameraFar = new ImFloat(128f);
     private final float[] newObjectPosition = new float[]{0f, 65f, 0f};
     private final float[] newObjectScale = new float[]{1f, 1f, 1f};
-    private String selectedSceneObjectId;
-    private String selectedRuntimeId;
     private final float[] activeMatrix = identity();
     private final float[] activeTranslation = new float[3];
     private final float[] activeRotation = new float[3];
     private final float[] activeScale = new float[]{1f, 1f, 1f};
     private final float[] activeRotationQuat = new float[]{0f, 0f, 0f, 1f};
     private final SceneHistoryManager history = SceneHistoryManager.getInstance();
-
-    private int currentOperation = Operation.TRANSLATE;
-    private int gizmoMode = Mode.LOCAL;
-    private boolean useSnap = false;
     private final float[] snapValues = new float[]{0.5f, 0.5f, 0.5f};
-    private boolean gizmoManipulating;
-    private String gizmoObjectId;
     private final EditorDockingLayout dockingLayout = new EditorDockingLayout();
-
-    public static final String PAYLOAD_HIERARCHY = "MoudHierarchyObject";
-    public static final String PAYLOAD_ASSET = "MoudAssetDefinition";
-    public static final String PAYLOAD_PROJECT_FILE = "MoudProjectFile";
-    public static final String[] DISPLAY_CONTENT_TYPES = {"image", "video", "sequence"};
-    public static final String[] LIGHT_TYPE_LABELS = {"Point", "Area"};
-    private static final String DEFAULT_PLAYER_MODEL_SKIN = "https://textures.minecraft.net/texture/45c338913be11c119f0e90a962f8d833b0dff78eaefdd8f2fa2a3434a1f2af0";
-    private static final int PANEL_WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove;
     private final ExplorerPanel explorerPanel = new ExplorerPanel(this);
     private final InspectorPanel inspectorPanel = new InspectorPanel(this);
     private final ScriptViewerPanel scriptViewerPanel = new ScriptViewerPanel(this);
@@ -141,13 +111,26 @@ public final class SceneEditorOverlay {
     private final ImFloat markerSnapValue = new ImFloat(0.5f);
     private final ImBoolean zoneSnapToggle = new ImBoolean(false);
     private final ImFloat zoneSnapValue = new ImFloat(1.0f);
+    private final float[] regionCornerA = new float[3];
+    private final float[] regionCornerB = new float[3];
+    private final ImString blueprintNameBuffer = new ImString("new_blueprint", 128);
+    private final ImString blueprintPreviewName = new ImString("", 128);
+    private final float[] previewPosition = new float[]{0f, 64f, 0f};
+    private final float[] previewRotation = new float[]{0f, 0f, 0f};
+    private final float[] previewScale = new float[]{1f, 1f, 1f};
+    private final float[] previewMatrix = identity();
+    private String selectedLimbType;
+    private String selectedSceneObjectId;
+    private String selectedRuntimeId;
+    private int currentOperation = Operation.TRANSLATE;
+    private int gizmoMode = Mode.LOCAL;
+    private boolean useSnap = false;
+    private boolean gizmoManipulating;
+    private String gizmoObjectId;
     private volatile String[] cachedPlayerAnimations = new String[0];
     private volatile long lastAnimationFetch;
-
     private Map<String, List<SceneObject>> cachedHierarchy = new ConcurrentHashMap<>();
     private long lastHierarchyBuild = 0;
-    private static final long HIERARCHY_CACHE_MS = 100;
-
     private boolean showExplorer = true;
     private boolean showInspectorPanel = true;
     private boolean showAssetBrowser = true;
@@ -155,20 +138,14 @@ public final class SceneEditorOverlay {
     private boolean showDiagnostics = true;
     private boolean showGizmoToolbar = true;
     private boolean showSelectionBounds = true;
-
-    private final float[] regionCornerA = new float[3];
-    private final float[] regionCornerB = new float[3];
     private boolean regionASet;
     private boolean regionBSet;
-    private final ImString blueprintNameBuffer = new ImString("new_blueprint", 128);
-    private final ImString blueprintPreviewName = new ImString("", 128);
-    private final float[] previewPosition = new float[]{0f, 64f, 0f};
-    private final float[] previewRotation = new float[]{0f, 0f, 0f};
-    private final float[] previewScale = new float[]{1f, 1f, 1f};
-    private final float[] previewMatrix = identity();
     private boolean previewGizmoActive = false;
     private int previewGizmoOperation = Operation.TRANSLATE;
     private int markerCounter = 1;
+    private String lastSeekId = null;
+    private float lastSeekTime = Float.NaN;
+    private long lastSeekSentMs = 0L;
 
     private SceneEditorOverlay() {
         playerModelSkinBuffer.set(DEFAULT_PLAYER_MODEL_SKIN);
@@ -176,6 +153,215 @@ public final class SceneEditorOverlay {
 
     public static SceneEditorOverlay getInstance() {
         return INSTANCE;
+    }
+
+    public static Box buildBoxFromCorners(float[] a, float[] b) {
+        double minX = Math.min(a[0], b[0]);
+        double minY = Math.min(a[1], b[1]);
+        double minZ = Math.min(a[2], b[2]);
+        double maxX = Math.max(a[0], b[0]);
+        double maxY = Math.max(a[1], b[1]);
+        double maxZ = Math.max(a[2], b[2]);
+        return new Box(minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
+    private static String typeIcon(String type) {
+        return switch (type == null ? "" : type.toLowerCase()) {
+            case "model" -> "[M]";
+            case "display" -> "[D]";
+            case "group" -> "[G]";
+            case "light" -> "[L]";
+            case "marker" -> "[K]";
+            case "camera" -> "[C]";
+            case "particle_emitter" -> "[P]";
+            default -> "[ ]";
+        };
+    }
+
+    private static float[] identity() {
+        return new float[]{
+                1f, 0f, 0f, 0f,
+                0f, 1f, 0f, 0f,
+                0f, 0f, 1f, 0f,
+                0f, 0f, 0f, 1f
+        };
+    }
+
+    private static float[] matrixToArray(Matrix4f matrix) {
+        float[] arr = new float[16];
+        matrix.get(arr);
+        return arr;
+    }
+
+    private static void composeMatrix(float[] translation, float[] scale, float[] quaternion, float[] outMatrix) {
+        Quaternionf q = new Quaternionf(quaternion[0], quaternion[1], quaternion[2], quaternion[3]);
+        Matrix4f matrix = new Matrix4f()
+                .translation(translation[0], translation[1], translation[2])
+                .rotate(q)
+                .scale(scale[0], scale[1], scale[2]);
+        matrix.get(outMatrix);
+    }
+
+    private static float[] extractVector(Object value, float[] fallback) {
+        if (value instanceof Map<?, ?> map) {
+            Object x = map.get("x");
+            Object y = map.get("y");
+            Object z = map.get("z");
+            if (x != null) fallback[0] = toFloat(x);
+            if (y != null) fallback[1] = toFloat(y);
+            if (z != null) fallback[2] = toFloat(z);
+        }
+        return fallback;
+    }
+
+    private static Vec3d extractVec3(Object value, Vec3d fallback) {
+        if (value instanceof Map<?, ?> map) {
+            double x = toDouble(map.get("x"), fallback.x);
+            double y = toDouble(map.get("y"), fallback.y);
+            double z = toDouble(map.get("z"), fallback.z);
+            return new Vec3d(x, y, z);
+        }
+        return fallback;
+    }
+
+    private static float[] extractQuaternion(Object value, float[] fallback) {
+        if (value instanceof Map<?, ?> map) {
+            Object x = map.get("x");
+            Object y = map.get("y");
+            Object z = map.get("z");
+            Object w = map.get("w");
+            if (x != null && y != null && z != null && w != null) {
+                float[] out = fallback != null ? fallback : new float[4];
+                out[0] = toFloat(x);
+                out[1] = toFloat(y);
+                out[2] = toFloat(z);
+                out[3] = toFloat(w);
+                return out;
+            }
+        }
+        return null;
+    }
+
+    private static float[] extractEuler(Object value, float[] fallback) {
+        if (value instanceof Map<?, ?> map) {
+            boolean hasEulerKeys = map.containsKey("pitch") || map.containsKey("yaw") || map.containsKey("roll");
+            boolean hasAxisKeys = map.containsKey("x") || map.containsKey("y") || map.containsKey("z");
+            if (hasEulerKeys) {
+                Object pitch = map.get("pitch");
+                Object yawObj = map.get("yaw");
+                Object roll = map.get("roll");
+                if (pitch != null) fallback[0] = toFloat(pitch);
+                if (yawObj != null) fallback[1] = toFloat(yawObj);
+                if (roll != null) fallback[2] = toFloat(roll);
+            } else if (hasAxisKeys) {
+                Object pitch = map.get("x");
+                Object yawObj = map.get("y");
+                Object roll = map.get("z");
+                if (pitch != null) fallback[0] = toFloat(pitch);
+                if (yawObj != null) fallback[1] = toFloat(yawObj);
+                if (roll != null) fallback[2] = toFloat(roll);
+            }
+        }
+        return fallback;
+    }
+
+    private static Map<String, Object> vectorToMap(float[] vector) {
+        Map<String, Object> map = new ConcurrentHashMap<>();
+        map.put("x", vector[0]);
+        map.put("y", vector[1]);
+        map.put("z", vector[2]);
+        return map;
+    }
+
+    private static float toFloat(Object value) {
+        if (value instanceof Number number) {
+            return number.floatValue();
+        }
+        try {
+            return Float.parseFloat(String.valueOf(value));
+        } catch (Exception e) {
+            return 0f;
+        }
+    }
+
+    public static double toDouble(Object value, double fallback) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        try {
+            return value != null ? Double.parseDouble(String.valueOf(value)) : fallback;
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
+
+    private static Vec3d readVec3(Object raw, Vec3d fallback) {
+        if (raw instanceof Map<?, ?> map) {
+            boolean hasEuler = map.containsKey("pitch") || map.containsKey("yaw") || map.containsKey("roll");
+            if (hasEuler) {
+                double pitch = toDouble(map.get("pitch"), fallback.x);
+                double yaw = toDouble(map.get("yaw"), fallback.y);
+                double roll = toDouble(map.get("roll"), fallback.z);
+                return new Vec3d(pitch, yaw, roll);
+            }
+            double x = toDouble(map.get("x"), fallback.x);
+            double y = toDouble(map.get("y"), fallback.y);
+            double z = toDouble(map.get("z"), fallback.z);
+            return new Vec3d(x, y, z);
+        }
+        return fallback;
+    }
+
+    private static void eulerDegreesToQuaternion(float[] eulerDeg, float[] outQuat) {
+        Quaternionf q = new Quaternionf()
+                .rotateXYZ(
+                        (float) Math.toRadians(eulerDeg[0]),
+                        (float) Math.toRadians(eulerDeg[1]),
+                        (float) Math.toRadians(eulerDeg[2])
+                );
+        outQuat[0] = q.x;
+        outQuat[1] = q.y;
+        outQuat[2] = q.z;
+        outQuat[3] = q.w;
+    }
+
+    private static void quaternionToEulerDegrees(float[] quat, float[] outEuler) {
+        Quaternionf q = new Quaternionf(quat[0], quat[1], quat[2], quat[3]);
+        Vector3f angles = q.getEulerAnglesXYZ(new Vector3f());
+        float rx = angles.x;
+        float ry = angles.y;
+        float rz = angles.z;
+        outEuler[0] = (float) Math.toDegrees(rx);
+        outEuler[1] = (float) Math.toDegrees(ry);
+        outEuler[2] = (float) Math.toDegrees(rz);
+    }
+
+    private static void updateRotationFromMatrix(float[] matrixArr, float[] outQuat, float[] outEuler) {
+        float prevX = outQuat[0];
+        float prevY = outQuat[1];
+        float prevZ = outQuat[2];
+        float prevW = outQuat[3];
+        Quaternionf q = new Matrix4f().set(matrixArr).getNormalizedRotation(new Quaternionf());
+        if (!Float.isFinite(q.x) || !Float.isFinite(q.y) || !Float.isFinite(q.z) || !Float.isFinite(q.w)
+                || q.lengthSquared() < 1.0e-10f) {
+            q.set(prevX, prevY, prevZ, prevW);
+            if (q.lengthSquared() < 1.0e-10f) {
+                q.identity();
+            }
+        } else {
+            q.normalize();
+        }
+        outQuat[0] = q.x;
+        outQuat[1] = q.y;
+        outQuat[2] = q.z;
+        outQuat[3] = q.w;
+        quaternionToEulerDegrees(outQuat, outEuler);
+    }
+
+    private static void drawLine(MatrixStack matrices, VertexConsumer buffer, Vec3d a, Vec3d b, float r, float g, float bl, float alpha) {
+        Matrix4f mat = matrices.peek().getPositionMatrix();
+        buffer.vertex(mat, (float) a.x, (float) a.y, (float) a.z).color(r, g, bl, alpha).normal(0, 1, 0);
+        buffer.vertex(mat, (float) b.x, (float) b.y, (float) b.z).color(r, g, bl, alpha).normal(0, 1, 0);
     }
 
     public void render() {
@@ -186,9 +372,7 @@ public final class SceneEditorOverlay {
         EditorAssetCatalog.getInstance().requestAssetsIfNeeded();
         float displayWidth = ImGui.getIO().getDisplaySizeX();
         float displayHeight = ImGui.getIO().getDisplaySizeY();
-
         dockingLayout.begin(displayWidth, displayHeight);
-
         renderRibbonWindow(session);
         if (showExplorer) {
             explorerPanel.render(session);
@@ -265,17 +449,13 @@ public final class SceneEditorOverlay {
         ClientPacketWrapper.sendToServer(new MoudPackets.AnimationStopPacket(animationId));
     }
 
-    private String lastSeekId = null;
-    private float lastSeekTime = Float.NaN;
-    private long lastSeekSentMs = 0L;
-
     public void seekAnimation(String animationId, float time) {
         if (animationId == null) return;
         if (animationId.equals(lastSeekId) && Math.abs(time - lastSeekTime) < 1e-4f) {
             return;
         }
         long now = System.currentTimeMillis();
-        if (now - lastSeekSentMs < 30) { // throttle to ~33 FPS to avoid spam
+        if (now - lastSeekSentMs < 30) {
             return;
         }
         lastSeekSentMs = now;
@@ -288,7 +468,6 @@ public final class SceneEditorOverlay {
         dockingLayout.apply(EditorDockingLayout.Region.RIBBON);
         ImGui.setNextWindowSize(ImGui.getIO().getDisplaySizeX(), 96);
         ImGui.setNextWindowPos(0, 0);
-
         if (!ImGui.begin("Ribbon", PANEL_WINDOW_FLAGS | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)) {
             ImGui.end();
             return;
@@ -313,29 +492,23 @@ public final class SceneEditorOverlay {
         SceneSessionManager session = SceneSessionManager.getInstance();
         SceneObject selected = getSelected(session);
         RuntimeObject selectedRuntime = getSelectedRuntime();
-
         if (selected == null && selectedRuntime == null) {
             finalizeGizmoChange();
             return;
         }
-
         String currentObjectId = selected != null ? selected.getId() : (selectedRuntime != null ? selectedRuntime.getObjectId() : null);
         if (gizmoManipulating && !Objects.equals(currentObjectId, gizmoObjectId)) {
             finalizeGizmoChange();
         }
         float width = ImGui.getIO().getDisplaySizeX();
         float height = ImGui.getIO().getDisplaySizeY();
-
         ImGuizmo.beginFrame();
         ImGuizmo.setOrthographic(false);
         ImGuizmo.setDrawList(ImGui.getBackgroundDrawList());
         ImGuizmo.setRect(0, 0, width, height);
-
         float[] viewArr = matrixToArray(viewMatrix);
         float[] projArr = matrixToArray(projectionMatrix);
-
         boolean limbMode = selectedRuntime != null && selectedLimbType != null && selectedRuntime.getType() == RuntimeObjectType.PLAYER_MODEL;
-
         if (limbMode) {
             handleLimbGizmo(selectedRuntime, currentObjectId, viewArr, projArr);
         } else {
@@ -378,48 +551,44 @@ public final class SceneEditorOverlay {
         if (animModel == null) {
             return;
         }
-
-        SceneObject sceneObj = SceneSessionManager.getInstance().getSceneGraph().get(runtime.getObjectId());
+        SceneObject sceneObj = resolvePlayerSceneObject(runtime);
         float tickDelta = MinecraftClient.getInstance().getRenderTickCounter().getTickDelta(true);
-
         double lx = animModel.getInterpolatedX(tickDelta);
         double ly = animModel.getInterpolatedY(tickDelta);
         double lz = animModel.getInterpolatedZ(tickDelta);
         float bodyYaw = animModel.getInterpolatedYaw(tickDelta);
-
         PlayerAnimationController controller = animModel.getAnimationController();
         PlayerAnimBone bodyBone = controller.get3DTransform(new PlayerAnimBone("body"));
-
         String boneName = boneNameFromLimb(selectedLimbType);
         Matrix4f parentMat = LimbRaycaster.getBoneParentMatrix(controller, boneName != null ? boneName : selectedLimbType, lx, ly, lz, bodyYaw, bodyBone);
-
         java.util.UUID uuid = resolvePlayerModelUuid(runtime);
         PlayerPartConfigManager.PartConfig config = uuid != null && boneName != null
                 ? PlayerPartConfigManager.getInstance().getPartConfig(uuid, boneName)
                 : null;
-
         Vector3 cfgPos = (config != null && config.position != null) ? config.position : Vector3.zero();
         Vector3 cfgRot = (config != null && config.rotation != null) ? config.rotation : Vector3.zero();
         Vector3 cfgScale = (config != null && config.scale != null) ? config.scale : new Vector3(1, 1, 1);
-
-        boolean isLimb = boneName != null && (boneName.equals("right_arm") || boneName.equals("left_arm") ||
-                         boneName.equals("right_leg") || boneName.equals("left_leg"));
-
+        activeRotation[0] = cfgRot.x;
+        activeRotation[1] = cfgRot.y;
+        activeRotation[2] = cfgRot.z;
+        activeTranslation[0] = cfgPos.x;
+        activeTranslation[1] = cfgPos.y;
+        activeTranslation[2] = cfgPos.z;
+        activeScale[0] = cfgScale.x;
+        activeScale[1] = cfgScale.y;
+        activeScale[2] = cfgScale.z;
         Matrix4f localMat = new Matrix4f()
-                .translate((float) cfgPos.x / 16f, (float) cfgPos.y / 16f, (float) cfgPos.z / 16f);
-        if (isLimb) {
-            // Limbs: cfg.x -> Z, cfg.y -> Y, cfg.z -> X
-            localMat.rotateZ((float) Math.toRadians(cfgRot.x));
-            localMat.rotateY((float) Math.toRadians(cfgRot.y));
-            localMat.rotateX((float) Math.toRadians(cfgRot.z));
-        } else {
-            localMat.rotateXYZ((float) Math.toRadians(cfgRot.x), (float) Math.toRadians(cfgRot.y), (float) Math.toRadians(cfgRot.z));
-        }
-        localMat.scale((float) cfgScale.x, (float) cfgScale.y, (float) cfgScale.z);
-
+                .translate(cfgPos.x / 16f, cfgPos.y / 16f, cfgPos.z / 16f)
+                .rotateXYZ(
+                        (float) Math.toRadians(cfgRot.x),
+                        (float) Math.toRadians(cfgRot.y),
+                        (float) Math.toRadians(cfgRot.z)
+                )
+                .scale(cfgScale.x, cfgScale.y, cfgScale.z);
         Matrix4f worldMat = new Matrix4f(parentMat).mul(localMat);
+        float[] preMatrix = new float[16];
+        worldMat.get(preMatrix);
         worldMat.get(activeMatrix);
-
         ImGuizmo.manipulate(
                 viewArr,
                 projArr,
@@ -429,7 +598,6 @@ public final class SceneEditorOverlay {
                 null,
                 useSnap ? snapValues : null
         );
-
         boolean using = ImGuizmo.isUsing();
         if (using) {
             if (!gizmoManipulating) {
@@ -439,76 +607,70 @@ public final class SceneEditorOverlay {
                     history.beginContinuousChange(sceneObj);
                 }
             }
+            Matrix4f preWorld = new Matrix4f().set(preMatrix);
             Matrix4f newWorld = new Matrix4f().set(activeMatrix);
-            Matrix4f newLocal = new Matrix4f(parentMat).invert().mul(newWorld);
-
-            Vector3f localPos = new Vector3f();
-            Quaternionf localRot = new Quaternionf();
-            Vector3f localScale = new Vector3f();
-            newLocal.getTranslation(localPos);
-            newLocal.getUnnormalizedRotation(localRot);
-            newLocal.getScale(localScale);
-
+            Matrix4f parentInv = new Matrix4f(parentMat).invert();
+            Matrix4f preLocal = parentInv.mul(preWorld, new Matrix4f());
+            Matrix4f newLocal = parentInv.mul(newWorld, new Matrix4f());
+            Vector3f prePos = preLocal.getTranslation(new Vector3f());
+            Vector3f newPos = newLocal.getTranslation(new Vector3f());
+            Vector3f preScale = preLocal.getScale(new Vector3f());
+            Vector3f newScale = newLocal.getScale(new Vector3f());
             boolean isTranslate = (currentOperation & Operation.TRANSLATE) != 0;
             boolean isRotate = (currentOperation & Operation.ROTATE) != 0;
-            boolean isScale = (currentOperation & Operation.SCALE) != 0;
-
+            boolean isScaleOp = (currentOperation & Operation.SCALE) != 0;
             if (isTranslate) {
-                activeTranslation[0] = localPos.x * 16f;
-                activeTranslation[1] = localPos.y * 16f;
-                activeTranslation[2] = localPos.z * 16f;
+                activeTranslation[0] = newPos.x * 16f;
+                activeTranslation[1] = newPos.y * 16f;
+                activeTranslation[2] = newPos.z * 16f;
             }
-
             if (isRotate) {
-                Vector3f euler = new Vector3f();
-                localRot.getEulerAnglesZYX(euler);
-
-                float[] newRot = new float[]{
-                        (float) Math.toDegrees(euler.z),
-                        (float) Math.toDegrees(euler.y),
-                        (float) Math.toDegrees(euler.x)
-                };
-
-                float threshold = 0.1f;
-                float dx = Math.abs(newRot[0] - activeRotation[0]);
-                float dy = Math.abs(newRot[1] - activeRotation[1]);
-                float dz = Math.abs(newRot[2] - activeRotation[2]);
-                int maxAxis = 0;
-                float maxDelta = dx;
-                if (dy > maxDelta) {
-                    maxDelta = dy;
-                    maxAxis = 1;
-                }
-                if (dz > maxDelta) {
-                    maxDelta = dz;
-                    maxAxis = 2;
-                }
-                if (maxDelta > threshold) {
-                    switch (maxAxis) {
-                        case 0 -> activeRotation[0] = newRot[0];
-                        case 1 -> activeRotation[1] = newRot[1];
-                        case 2 -> activeRotation[2] = newRot[2];
-                        default -> {
-                        }
+                Quaternionf preRot = preLocal.getNormalizedRotation(new Quaternionf());
+                Quaternionf newRot = newLocal.getNormalizedRotation(new Quaternionf());
+                Quaternionf deltaRot = new Quaternionf(preRot).conjugate().premul(newRot);
+                org.joml.AxisAngle4f axisAngle = new org.joml.AxisAngle4f();
+                deltaRot.get(axisAngle);
+                float angleDeg = (float) Math.toDegrees(axisAngle.angle);
+                if (Math.abs(angleDeg) > 0.01f) {
+                    float ax = Math.abs(axisAngle.x);
+                    float ay = Math.abs(axisAngle.y);
+                    float az = Math.abs(axisAngle.z);
+                    float signedAngle = angleDeg * Math.signum(
+                            ax > ay && ax > az ? axisAngle.x :
+                                    ay > az ? axisAngle.y : axisAngle.z
+                    );
+                    if (ax > ay && ax > az) {
+                        activeRotation[0] += signedAngle;
+                    } else if (ay > az) {
+                        activeRotation[1] += signedAngle;
+                    } else {
+                        activeRotation[2] += signedAngle;
                     }
+                    activeRotation[0] = normalizeAngle(activeRotation[0]);
+                    activeRotation[1] = normalizeAngle(activeRotation[1]);
+                    activeRotation[2] = normalizeAngle(activeRotation[2]);
                 }
             }
-
-            if (isScale) {
-                activeScale[0] = localScale.x;
-                activeScale[1] = localScale.y;
-                activeScale[2] = localScale.z;
+            if (isScaleOp) {
+                activeScale[0] = newScale.x;
+                activeScale[1] = newScale.y;
+                activeScale[2] = newScale.z;
             }
-
             eulerDegreesToQuaternion(activeRotation, activeRotationQuat);
-
             applyLimbTransform(runtime, selectedLimbType, activeTranslation, activeRotation, activeScale);
-            if (sceneObj != null) {
-                animationTimelinePanel.recordLimbTransform(sceneObj, selectedLimbType, activeTranslation, activeRotation, activeScale);
+            SceneObject recordObj = sceneObj != null ? sceneObj : resolvePlayerSceneObject(runtime);
+            if (recordObj != null) {
+                animationTimelinePanel.recordLimbTransform(recordObj, selectedLimbType, activeTranslation, activeRotation, activeScale);
             }
         } else if (gizmoManipulating) {
             finalizeGizmoChange();
         }
+    }
+
+    private float normalizeAngle(float angle) {
+        while (angle > 180f) angle -= 360f;
+        while (angle < -180f) angle += 360f;
+        return angle;
     }
 
     public void renderCameraGizmos(WorldRenderContext renderContext) {
@@ -526,10 +688,8 @@ public final class SceneEditorOverlay {
         MatrixStack matrices = renderContext.matrixStack();
         Vec3d camPos = renderContext.camera().getPos();
         VertexConsumer lineBuffer = consumers.getBuffer(RenderLayer.getLines());
-
         matrices.push();
         matrices.translate(-camPos.x, -camPos.y, -camPos.z);
-
         for (SceneObject object : objects) {
             if (!"camera".equalsIgnoreCase(object.getType())) continue;
             Map<String, Object> props = object.getProperties();
@@ -538,7 +698,6 @@ public final class SceneEditorOverlay {
             double fov = toDouble(props.getOrDefault("fov", 70.0), 70.0);
             double near = Math.max(0.01, toDouble(props.getOrDefault("near", 0.1), 0.1));
             double far = Math.max(near + 0.1, toDouble(props.getOrDefault("far", 128.0), 128.0));
-
             Quaternionf q = new Quaternionf()
                     .rotateY((float) Math.toRadians(rot.y))
                     .rotateX((float) Math.toRadians(rot.x))
@@ -549,21 +708,17 @@ public final class SceneEditorOverlay {
             Vec3d forward = new Vec3d(fwdVec.x, fwdVec.y, fwdVec.z).normalize();
             Vec3d right = new Vec3d(rightVec.x, rightVec.y, rightVec.z).normalize();
             Vec3d up = new Vec3d(upVec.x, upVec.y, upVec.z).normalize();
-
             double aspect = 16.0 / 9.0;
             double nearH = Math.tan(Math.toRadians(fov * 0.5)) * near;
             double nearW = nearH * aspect;
             double farH = Math.tan(Math.toRadians(fov * 0.5)) * far;
             double farW = farH * aspect;
-
             Vec3d nearCenter = pos.add(forward.multiply(near));
             Vec3d farCenter = pos.add(forward.multiply(far));
-
             Vec3d nr = right.multiply(nearW);
             Vec3d nu = up.multiply(nearH);
             Vec3d fr = right.multiply(farW);
             Vec3d fu = up.multiply(farH);
-
             Vec3d[] nearCorners = new Vec3d[]{
                     nearCenter.add(nr).add(nu),
                     nearCenter.add(nr).subtract(nu),
@@ -576,7 +731,6 @@ public final class SceneEditorOverlay {
                     farCenter.subtract(fr).add(fu),
                     farCenter.subtract(fr).subtract(fu)
             };
-
             for (int i = 0; i < 4; i++) {
                 drawLine(matrices, lineBuffer, nearCorners[i], farCorners[i], 0f, 1f, 1f, 1f);
             }
@@ -592,7 +746,6 @@ public final class SceneEditorOverlay {
                 drawLine(matrices, lineBuffer, pos, c, 1f, 0.8f, 0f, 1f);
             }
         }
-
         for (RuntimeObject runtime : RuntimeObjectRegistry.getInstance().getObjects()) {
             if (runtime.getType() == RuntimeObjectType.PLAYER_MODEL) {
                 Vec3d pos = runtime.getPosition();
@@ -618,9 +771,7 @@ public final class SceneEditorOverlay {
                 drawLine(matrices, lineBuffer, pos.subtract(z), pos.add(z), 1f, 0.6f, 0.2f, 1f);
             }
         }
-
         matrices.pop();
-
         renderLimbHighlight(renderContext, lineBuffer);
     }
 
@@ -637,26 +788,19 @@ public final class SceneEditorOverlay {
         if (caps == null) return;
         Capsule capsule = caps.get(limb);
         if (capsule == null) return;
-
         MatrixStack matrices = ctx.matrixStack();
         matrices.push();
         Vec3d camPos = ctx.camera().getPos();
         matrices.translate(-camPos.x, -camPos.y, -camPos.z);
-
         Vec3d a = capsule.a();
         Vec3d b = capsule.b();
         Vec3d mid = a.add(b).multiply(0.5);
         double r = capsule.radius();
-
-        // Draw capsule axis
         drawLine(matrices, lineBuffer, a, b, 1f, 0.7f, 0.2f, 1f);
-        // Small cross at midpoint
         Vec3d right = new Vec3d(r, 0, 0);
         Vec3d up = new Vec3d(0, r, 0);
         drawLine(matrices, lineBuffer, mid.subtract(right), mid.add(right), 1f, 0.7f, 0.2f, 1f);
         drawLine(matrices, lineBuffer, mid.subtract(up), mid.add(up), 1f, 0.7f, 0.2f, 1f);
-
-        // Approximate capsule bounds as box so users see the clickable volume
         Vec3d min = new Vec3d(
                 Math.min(a.x, b.x) - r,
                 Math.min(a.y, b.y) - r,
@@ -667,7 +811,6 @@ public final class SceneEditorOverlay {
                 Math.max(a.y, b.y) + r,
                 Math.max(a.z, b.z) + r
         );
-        // 12 edges of the box
         drawLine(matrices, lineBuffer, new Vec3d(min.x, min.y, min.z), new Vec3d(max.x, min.y, min.z), 1f, 0.4f, 0.1f, 0.8f);
         drawLine(matrices, lineBuffer, new Vec3d(min.x, min.y, min.z), new Vec3d(min.x, max.y, min.z), 1f, 0.4f, 0.1f, 0.8f);
         drawLine(matrices, lineBuffer, new Vec3d(min.x, min.y, min.z), new Vec3d(min.x, min.y, max.z), 1f, 0.4f, 0.1f, 0.8f);
@@ -680,9 +823,9 @@ public final class SceneEditorOverlay {
         drawLine(matrices, lineBuffer, new Vec3d(min.x, max.y, min.z), new Vec3d(min.x, max.y, max.z), 1f, 0.4f, 0.1f, 0.8f);
         drawLine(matrices, lineBuffer, new Vec3d(min.x, min.y, max.z), new Vec3d(max.x, min.y, max.z), 1f, 0.4f, 0.1f, 0.8f);
         drawLine(matrices, lineBuffer, new Vec3d(min.x, min.y, max.z), new Vec3d(min.x, max.y, max.z), 1f, 0.4f, 0.1f, 0.8f);
-
         matrices.pop();
     }
+
     public void selectFromExternal(String objectId) {
         if (objectId == null) {
             return;
@@ -695,6 +838,10 @@ public final class SceneEditorOverlay {
 
     public boolean isSelectionBoundsVisible() {
         return showSelectionBounds;
+    }
+
+    public void setSelectionBoundsVisible(boolean visible) {
+        this.showSelectionBounds = visible;
     }
 
     public boolean isExplorerVisible() {
@@ -741,6 +888,10 @@ public final class SceneEditorOverlay {
         return showGizmoToolbar;
     }
 
+    public void setGizmoToolbarVisible(boolean visible) {
+        this.showGizmoToolbar = visible;
+    }
+
     public AnimationTimelinePanel getTimelinePanel() {
         return animationTimelinePanel;
     }
@@ -750,7 +901,6 @@ public final class SceneEditorOverlay {
         if ("particle_burst".equalsIgnoreCase(name)) {
             triggerParticleEvent(payload);
         }
-        // TODO: other events type
     }
 
     private void triggerParticleEvent(String payload) {
@@ -784,14 +934,6 @@ public final class SceneEditorOverlay {
             }
         }
         return map;
-    }
-
-    public void setGizmoToolbarVisible(boolean visible) {
-        this.showGizmoToolbar = visible;
-    }
-
-    public void setSelectionBoundsVisible(boolean visible) {
-        this.showSelectionBounds = visible;
     }
 
     private boolean hasExtension(String path, String... extensions) {
@@ -898,7 +1040,6 @@ public final class SceneEditorOverlay {
             props.put("corner2", vectorToMap(new float[]{(float) newMax.x, (float) newMax.y, (float) newMax.z}));
             session.submitPropertyUpdate(selected.getId(), props);
             history.recordDiscreteChange(selected.getId(), before, new ConcurrentHashMap<>(props));
-            // update active transform
             activeTranslation[0] = translation[0];
             activeTranslation[1] = translation[1];
             activeTranslation[2] = translation[2];
@@ -910,7 +1051,6 @@ public final class SceneEditorOverlay {
         }
         float[] quat = quaternion != null ? quaternion.clone() : null;
         if (quat == null) {
-            // derive from current active rotation or provided Euler
             float[] sourceEuler = rotation != null ? rotation : activeRotation;
             quat = new float[4];
             eulerDegreesToQuaternion(sourceEuler, quat);
@@ -959,7 +1099,78 @@ public final class SceneEditorOverlay {
         updates.put("scale", new com.moud.api.math.Vector3(scale[0], scale[1], scale[2]));
         updates.put("overrideAnimation", true);
         PlayerPartConfigManager.getInstance().updatePartConfig(uuid, bone, updates);
+        syncLimbToSceneObject(runtime, bone, translation, rotation, scale);
         return true;
+    }
+
+    private void syncLimbToSceneObject(RuntimeObject runtime, String boneName, float[] translation, float[] rotation, float[] scale) {
+        if (runtime == null || boneName == null) {
+            return;
+        }
+        SceneObject sceneObj = resolvePlayerSceneObject(runtime);
+        if (sceneObj == null) {
+            return;
+        }
+        Map<String, Object> limbData = new java.util.HashMap<>();
+        Map<String, Object> posMap = new java.util.HashMap<>();
+        posMap.put("x", (double) translation[0]);
+        posMap.put("y", (double) translation[1]);
+        posMap.put("z", (double) translation[2]);
+        limbData.put("position", posMap);
+        Map<String, Object> rotMap = new java.util.HashMap<>();
+        rotMap.put("x", (double) rotation[0]);
+        rotMap.put("y", (double) rotation[1]);
+        rotMap.put("z", (double) rotation[2]);
+        limbData.put("rotation", rotMap);
+        Map<String, Object> scaleMap = new java.util.HashMap<>();
+        scaleMap.put("x", (double) scale[0]);
+        scaleMap.put("y", (double) scale[1]);
+        scaleMap.put("z", (double) scale[2]);
+        limbData.put("scale", scaleMap);
+        limbData.put("overrideAnimation", true);
+        Map<String, Object> props = new ConcurrentHashMap<>(sceneObj.getProperties());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> limbProperties = props.get("limbProperties") instanceof Map<?, ?>
+                ? new ConcurrentHashMap<>((Map<String, Object>) props.get("limbProperties"))
+                : new ConcurrentHashMap<>();
+        limbProperties.put(boneName, limbData);
+        props.put("limbProperties", limbProperties);
+        SceneSessionManager.getInstance().submitPropertyUpdate(sceneObj.getId(), props);
+    }
+
+    private SceneObject resolvePlayerSceneObject(RuntimeObject runtime) {
+        if (runtime == null) {
+            return null;
+        }
+        SceneSessionManager session = SceneSessionManager.getInstance();
+        SceneObject direct = session.getSceneGraph().get(runtime.getObjectId());
+        if (direct != null) {
+            return direct;
+        }
+        if (selectedSceneObjectId != null) {
+            SceneObject selectedObj = session.getSceneGraph().get(selectedSceneObjectId);
+            if (selectedObj != null && "player_model".equalsIgnoreCase(selectedObj.getType())) {
+                return selectedObj;
+            }
+        }
+        if (runtime.getPosition() == null) {
+            return null;
+        }
+        Vec3d runtimePos = runtime.getPosition();
+        SceneObject best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (SceneObject obj : session.getSceneGraph().getObjects()) {
+            if (!"player_model".equalsIgnoreCase(obj.getType())) {
+                continue;
+            }
+            Vec3d pos = readVec3(obj.getProperties().get("position"), Vec3d.ZERO);
+            double dist = runtimePos.squaredDistanceTo(pos);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = obj;
+            }
+        }
+        return best;
     }
 
     private boolean populateLimbTransform(RuntimeObject runtime, String limbKey) {
@@ -972,17 +1183,16 @@ public final class SceneEditorOverlay {
         com.moud.api.math.Vector3 pos = config != null ? config.getInterpolatedPosition() : null;
         com.moud.api.math.Vector3 rot = config != null ? config.getInterpolatedRotation() : null;
         com.moud.api.math.Vector3 scl = config != null ? config.getInterpolatedScale() : null;
-
-        activeTranslation[0] = pos != null ? (float) pos.x : 0f;
-        activeTranslation[1] = pos != null ? (float) pos.y : 0f;
-        activeTranslation[2] = pos != null ? (float) pos.z : 0f;
-        activeRotation[0] = rot != null ? (float) rot.x : 0f;
-        activeRotation[1] = rot != null ? (float) rot.y : 0f;
-        activeRotation[2] = rot != null ? (float) rot.z : 0f;
+        activeTranslation[0] = pos != null ? pos.x : 0f;
+        activeTranslation[1] = pos != null ? pos.y : 0f;
+        activeTranslation[2] = pos != null ? pos.z : 0f;
+        activeRotation[0] = rot != null ? rot.x : 0f;
+        activeRotation[1] = rot != null ? rot.y : 0f;
+        activeRotation[2] = rot != null ? rot.z : 0f;
         eulerDegreesToQuaternion(activeRotation, activeRotationQuat);
-        activeScale[0] = scl != null ? (float) scl.x : 1f;
-        activeScale[1] = scl != null ? (float) scl.y : 1f;
-        activeScale[2] = scl != null ? (float) scl.z : 1f;
+        activeScale[0] = scl != null ? scl.x : 1f;
+        activeScale[1] = scl != null ? scl.y : 1f;
+        activeScale[2] = scl != null ? scl.z : 1f;
         return true;
     }
 
@@ -1103,12 +1313,10 @@ public final class SceneEditorOverlay {
     }
 
     public RuntimeObject getSelectedRuntime() {
-
         RaycastPicker picker = RaycastPicker.getInstance();
         if (picker.hasSelection()) {
             return picker.getSelectedObject();
         }
-
         if (selectedRuntimeId == null) {
             return null;
         }
@@ -1365,7 +1573,6 @@ public final class SceneEditorOverlay {
         }
         ImGui.inputText("Name", markerNameBuffer);
         if (ImGui.checkbox("Snap to Grid", markerSnapToggle)) {
-
         }
         if (markerSnapToggle.get()) {
             ImGui.dragFloat("Step", markerSnapValue.getData(), 0.05f, 0.05f, 10f, "%.2f");
@@ -1621,7 +1828,7 @@ public final class SceneEditorOverlay {
         int sizeY = Math.max(1, MathHelper.ceil(region.maxY - region.minY));
         int sizeZ = Math.max(1, MathHelper.ceil(region.maxZ - region.minZ));
         long total = (long) sizeX * sizeY * sizeZ;
-        if (total >MAX_BLOCK_CAPTURE_BLOCKS) {
+        if (total > MAX_BLOCK_CAPTURE_BLOCKS) {
             SceneEditorDiagnostics.log("Region too large for block capture (" + total + " blocks). Skipping blocks.");
             return null;
         }
@@ -1629,12 +1836,10 @@ public final class SceneEditorOverlay {
         Map<String, Integer> paletteIndex = new HashMap<>();
         palette.add("minecraft:air");
         paletteIndex.put("minecraft:air", 0);
-
         boolean useShort = false;
         byte[] byteVoxels = new byte[(int) total];
         byte[] shortVoxels = null;
         BlockPos.Mutable mutable = new BlockPos.Mutable();
-
         int cursor = 0;
         for (int y = 0; y < sizeY; y++) {
             int worldY = minY + y;
@@ -1669,7 +1874,6 @@ public final class SceneEditorOverlay {
                 }
             }
         }
-
         Blueprint.BlockVolume volume = new Blueprint.BlockVolume();
         volume.sizeX = sizeX;
         volume.sizeY = sizeY;
@@ -1808,16 +2012,6 @@ public final class SceneEditorOverlay {
         composeMatrix(previewPosition, previewRotation, previewScale, previewMatrix);
     }
 
-    public static Box buildBoxFromCorners(float[] a, float[] b) {
-        double minX = Math.min(a[0], b[0]);
-        double minY = Math.min(a[1], b[1]);
-        double minZ = Math.min(a[2], b[2]);
-        double maxX = Math.max(a[0], b[0]);
-        double maxY = Math.max(a[1], b[1]);
-        double maxZ = Math.max(a[2], b[2]);
-        return new Box(minX, minY, minZ, maxX, maxY, maxZ);
-    }
-
     private Vec3d getObjectPosition(SceneObject object) {
         Object raw = object.getProperties().get("position");
         if (!(raw instanceof Map<?, ?> map)) {
@@ -1866,66 +2060,6 @@ public final class SceneEditorOverlay {
         );
     }
 
-    private static String typeIcon(String type) {
-        return switch (type == null ? "" : type.toLowerCase()) {
-            case "model" -> "[M]";
-            case "display" -> "[D]";
-            case "group" -> "[G]";
-            case "light" -> "[L]";
-            case "marker" -> "[K]";
-            case "camera" -> "[C]";
-            case "particle_emitter" -> "[P]";
-            default -> "[ ]";
-        };
-    }
-
-    private static float[] identity() {
-        return new float[]{
-                1f, 0f, 0f, 0f,
-                0f, 1f, 0f, 0f,
-                0f, 0f, 1f, 0f,
-                0f, 0f, 0f, 1f
-        };
-    }
-
-    private static float[] matrixToArray(Matrix4f matrix) {
-        float[] arr = new float[16];
-        matrix.get(arr);
-        return arr;
-    }
-
-    private static void composeMatrix(float[] translation, float[] scale, float[] quaternion, float[] outMatrix) {
-        Quaternionf q = new Quaternionf(quaternion[0], quaternion[1], quaternion[2], quaternion[3]);
-        Matrix4f matrix = new Matrix4f()
-                .translation(translation[0], translation[1], translation[2])
-                .rotate(q)
-                .scale(scale[0], scale[1], scale[2]);
-        matrix.get(outMatrix);
-    }
-
-
-    private static float[] extractVector(Object value, float[] fallback) {
-        if (value instanceof Map<?,?> map) {
-            Object x = map.get("x");
-            Object y = map.get("y");
-            Object z = map.get("z");
-            if (x != null) fallback[0] = toFloat(x);
-            if (y != null) fallback[1] = toFloat(y);
-            if (z != null) fallback[2] = toFloat(z);
-        }
-        return fallback;
-    }
-
-    private static Vec3d extractVec3(Object value, Vec3d fallback) {
-        if (value instanceof Map<?, ?> map) {
-            double x = toDouble(map.get("x"), fallback.x);
-            double y = toDouble(map.get("y"), fallback.y);
-            double z = toDouble(map.get("z"), fallback.z);
-            return new Vec3d(x, y, z);
-        }
-        return fallback;
-    }
-
     private Vec3d zoneCenter(Map<String, Object> props) {
         Vec3d v1 = extractVec3(props.get("corner1"), new Vec3d(0, 0, 0));
         Vec3d v2 = extractVec3(props.get("corner2"), new Vec3d(0, 0, 0));
@@ -1949,55 +2083,6 @@ public final class SceneEditorOverlay {
         props.put("corner2", vectorToMap(new float[]{(float) c2.x, (float) c2.y, (float) c2.z}));
     }
 
-    private static float[] extractQuaternion(Object value, float[] fallback) {
-        if (value instanceof Map<?, ?> map) {
-            Object x = map.get("x");
-            Object y = map.get("y");
-            Object z = map.get("z");
-            Object w = map.get("w");
-            if (x != null && y != null && z != null && w != null) {
-                float[] out = fallback != null ? fallback : new float[4];
-                out[0] = toFloat(x);
-                out[1] = toFloat(y);
-                out[2] = toFloat(z);
-                out[3] = toFloat(w);
-                return out;
-            }
-        }
-        return null;
-    }
-
-    private static float[] extractEuler(Object value, float[] fallback) {
-        if (value instanceof Map<?,?> map) {
-            boolean hasEulerKeys = map.containsKey("pitch") || map.containsKey("yaw") || map.containsKey("roll");
-            boolean hasAxisKeys = map.containsKey("x") || map.containsKey("y") || map.containsKey("z");
-            if (hasEulerKeys) {
-                Object pitch = map.get("pitch");
-                Object yawObj = map.get("yaw");
-                Object roll = map.get("roll");
-                if (pitch != null) fallback[0] = toFloat(pitch);
-                if (yawObj != null) fallback[1] = toFloat(yawObj);
-                if (roll != null) fallback[2] = toFloat(roll);
-            } else if (hasAxisKeys) {
-                Object pitch = map.get("x");
-                Object yawObj = map.get("y");
-                Object roll = map.get("z");
-                if (pitch != null) fallback[0] = toFloat(pitch);
-                if (yawObj != null) fallback[1] = toFloat(yawObj);
-                if (roll != null) fallback[2] = toFloat(roll);
-            }
-        }
-        return fallback;
-    }
-
-    private static Map<String, Object> vectorToMap(float[] vector) {
-        Map<String, Object> map = new ConcurrentHashMap<>();
-        map.put("x", vector[0]);
-        map.put("y", vector[1]);
-        map.put("z", vector[2]);
-        return map;
-    }
-
     public String parentIdOf(SceneObject object) {
         Object parent = object.getProperties().get("parent");
         if (parent == null) {
@@ -2005,100 +2090,6 @@ public final class SceneEditorOverlay {
         }
         String id = String.valueOf(parent);
         return id.isBlank() ? "" : id;
-    }
-
-    private static float toFloat(Object value) {
-        if (value instanceof Number number) {
-            return number.floatValue();
-        }
-        try {
-            return Float.parseFloat(String.valueOf(value));
-        } catch (Exception e) {
-            return 0f;
-        }
-    }
-
-    public static double toDouble(Object value, double fallback) {
-        if (value instanceof Number number) {
-            return number.doubleValue();
-        }
-        try {
-            return value != null ? Double.parseDouble(String.valueOf(value)) : fallback;
-        } catch (Exception e) {
-            return fallback;
-        }
-    }
-
-    private static Vec3d readVec3(Object raw, Vec3d fallback) {
-        if (raw instanceof Map<?, ?> map) {
-            boolean hasEuler = map.containsKey("pitch") || map.containsKey("yaw") || map.containsKey("roll");
-            if (hasEuler) {
-                double pitch = toDouble(map.get("pitch"), fallback.x);
-                double yaw = toDouble(map.get("yaw"), fallback.y);
-                double roll = toDouble(map.get("roll"), fallback.z);
-                return new Vec3d(pitch, yaw, roll);
-            }
-            double x = toDouble(map.get("x"), fallback.x);
-            double y = toDouble(map.get("y"), fallback.y);
-            double z = toDouble(map.get("z"), fallback.z);
-            return new Vec3d(x, y, z);
-        }
-        return fallback;
-    }
-
-    private static void eulerDegreesToQuaternion(float[] eulerDeg, float[] outQuat) {
-        Quaternionf q = new Quaternionf()
-                .rotateXYZ(
-                        (float) Math.toRadians(eulerDeg[0]),
-                        (float) Math.toRadians(eulerDeg[1]),
-                        (float) Math.toRadians(eulerDeg[2])
-                );
-        outQuat[0] = q.x;
-        outQuat[1] = q.y;
-        outQuat[2] = q.z;
-        outQuat[3] = q.w;
-    }
-
-    private static void quaternionToEulerDegrees(float[] quat, float[] outEuler) {
-        Quaternionf q = new Quaternionf(quat[0], quat[1], quat[2], quat[3]);
-        Vector3f angles = q.getEulerAnglesXYZ(new Vector3f());
-        float rx = angles.x;
-        float ry = angles.y;
-        float rz = angles.z;
-        outEuler[0] = (float) Math.toDegrees(rx);
-        outEuler[1] = (float) Math.toDegrees(ry);
-        outEuler[2] = (float) Math.toDegrees(rz);
-    }
-
-    private static void updateRotationFromMatrix(float[] matrixArr, float[] outQuat, float[] outEuler) {
-        float prevX = outQuat[0];
-        float prevY = outQuat[1];
-        float prevZ = outQuat[2];
-        float prevW = outQuat[3];
-
-        Quaternionf q = new Matrix4f().set(matrixArr).getNormalizedRotation(new Quaternionf());
-        if (!Float.isFinite(q.x) || !Float.isFinite(q.y) || !Float.isFinite(q.z) || !Float.isFinite(q.w)
-                || q.lengthSquared() < 1.0e-10f) {
-            // Very small scales can obliterate the rotation axes; fall back to the last known rotation.
-            q.set(prevX, prevY, prevZ, prevW);
-            if (q.lengthSquared() < 1.0e-10f) {
-                q.identity();
-            }
-        } else {
-            q.normalize();
-        }
-
-        outQuat[0] = q.x;
-        outQuat[1] = q.y;
-        outQuat[2] = q.z;
-        outQuat[3] = q.w;
-        quaternionToEulerDegrees(outQuat, outEuler);
-    }
-
-    private static void drawLine(MatrixStack matrices, VertexConsumer buffer, Vec3d a, Vec3d b, float r, float g, float bl, float alpha) {
-        Matrix4f mat = matrices.peek().getPositionMatrix();
-        buffer.vertex(mat, (float) a.x, (float) a.y, (float) a.z).color(r, g, bl, alpha).normal(0, 1, 0);
-        buffer.vertex(mat, (float) b.x, (float) b.y, (float) b.z).color(r, g, bl, alpha).normal(0, 1, 0);
     }
 
     private float[] resolveSpawnPosition(float[] fallback) {
@@ -2237,8 +2228,6 @@ public final class SceneEditorOverlay {
         SceneEditorDiagnostics.log("Created zone at " + java.util.Arrays.toString(position));
     }
 
-
-
     public void spawnPlayerModel(SceneSessionManager session, String parentId) {
         Map<String, Object> payload = new ConcurrentHashMap<>();
         payload.put("type", "player_model");
@@ -2356,17 +2345,14 @@ public final class SceneEditorOverlay {
         if (runtimeObject == null) {
             return;
         }
-
         com.moud.api.math.Vector3 position = new com.moud.api.math.Vector3(translation[0], translation[1], translation[2]);
         com.moud.api.math.Vector3 scaleVec = new com.moud.api.math.Vector3(scale[0], scale[1], scale[2]);
-
         com.moud.api.math.Quaternion quat = new com.moud.api.math.Quaternion(
                 activeRotationQuat[0],
                 activeRotationQuat[1],
                 activeRotationQuat[2],
                 activeRotationQuat[3]
         );
-
         if (runtimeObject.getType() == RuntimeObjectType.MODEL) {
             MoudPackets.UpdateRuntimeModelPacket packet = new MoudPackets.UpdateRuntimeModelPacket(
                     runtimeObject.getRuntimeId(),
@@ -2408,5 +2394,4 @@ public final class SceneEditorOverlay {
         renderRuntimeList(RuntimeObjectType.PLAYER_MODEL, "Player Models", filterTerm);
         renderRuntimeList(RuntimeObjectType.PARTICLE_EMITTER, "Particle Emitters", filterTerm);
     }
-
 }
