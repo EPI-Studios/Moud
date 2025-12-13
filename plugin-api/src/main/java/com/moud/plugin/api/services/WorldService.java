@@ -1,5 +1,10 @@
 package com.moud.plugin.api.services;
 
+import com.moud.plugin.api.world.DisplayHandle;
+import com.moud.plugin.api.world.DisplayOptions;
+import com.moud.plugin.api.world.TextHandle;
+import com.moud.plugin.api.world.TextOptions;
+
 /**
  * Exposes server world controls to plugins.
  */
@@ -37,4 +42,18 @@ public interface WorldService {
      * Sets how frequently clients are synced to the server time (0 disables syncing).
      */
     void setTimeSynchronizationTicks(int ticks);
+
+    /**
+     * Creates a media display surface in the world (images, videos, sequences).
+     * @param options configuration for the display.
+     * @return a handle to control the display.
+     */
+    DisplayHandle createDisplay(DisplayOptions options);
+
+    /**
+     * Creates floating text in the world.
+     * @param options configuration for the text display.
+     * @return a handle to control the text display.
+     */
+    TextHandle createText(TextOptions options);
 }
