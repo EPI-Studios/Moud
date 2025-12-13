@@ -247,6 +247,10 @@ public class WorldProxy {
             applyAnchor(display, options.getMember("anchor"));
         }
 
+        if (options.hasMember("billboard")) {
+            display.setBillboard(options.getMember("billboard").asString());
+        }
+
         if (options.hasMember("content")) {
             applyContent(display, options.getMember("content"));
         }
@@ -309,6 +313,25 @@ public class WorldProxy {
         Entity textEntity = textProxy.getEntity();
         Pos initialPosition = new Pos(position.x, position.y, position.z, 0, 0);
         textEntity.setInstance(instance, initialPosition);
+
+        if (options.hasMember("shadow")) {
+            textProxy.setShadow(options.getMember("shadow").asBoolean());
+        }
+        if (options.hasMember("seeThrough")) {
+            textProxy.setSeeThrough(options.getMember("seeThrough").asBoolean());
+        }
+        if (options.hasMember("backgroundColor")) {
+            textProxy.setBackgroundColor(options.getMember("backgroundColor").asInt());
+        }
+        if (options.hasMember("textOpacity")) {
+            textProxy.setTextOpacity(options.getMember("textOpacity").asInt());
+        }
+        if (options.hasMember("lineWidth")) {
+            textProxy.setLineWidth(options.getMember("lineWidth").asInt());
+        }
+        if (options.hasMember("alignment")) {
+            textProxy.setAlignment(options.getMember("alignment").asString());
+        }
 
         if (options.hasMember("hitbox") && options.getMember("hitbox").hasMembers()) {
             Value hitboxValue = options.getMember("hitbox");

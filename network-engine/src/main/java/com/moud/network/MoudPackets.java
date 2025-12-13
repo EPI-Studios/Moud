@@ -362,24 +362,31 @@ public final class MoudPackets {
         FRAME_SEQUENCE
     }
 
+    public enum DisplayBillboardMode {
+        NONE,
+        CAMERA_FACING,
+        VERTICAL
+    }
+
     @Packet(value = "moud:create_display", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_CreateDisplayPacket(
             @Field(order = 0) long displayId,
             @Field(order = 1) Vector3 position,
             @Field(order = 2) Quaternion rotation,
             @Field(order = 3) Vector3 scale,
-            @Field(order = 4) DisplayAnchorType anchorType,
-            @Field(order = 5, optional = true) @Nullable Vector3 anchorBlockPosition,
-            @Field(order = 6, optional = true) @Nullable UUID anchorEntityUuid,
-            @Field(order = 7, optional = true) @Nullable Vector3 anchorOffset,
-            @Field(order = 8) DisplayContentType contentType,
-            @Field(order = 9, optional = true) @Nullable String primarySource,
-            @Field(order = 10, optional = true) @Nullable List<String> frameSources,
-            @Field(order = 11) float frameRate,
-            @Field(order = 12) boolean loop,
-            @Field(order = 13) boolean playing,
-            @Field(order = 14) float playbackSpeed,
-            @Field(order = 15) float startOffsetSeconds
+            @Field(order = 4) DisplayBillboardMode billboardMode,
+            @Field(order = 5) DisplayAnchorType anchorType,
+            @Field(order = 6, optional = true) @Nullable Vector3 anchorBlockPosition,
+            @Field(order = 7, optional = true) @Nullable UUID anchorEntityUuid,
+            @Field(order = 8, optional = true) @Nullable Vector3 anchorOffset,
+            @Field(order = 9) DisplayContentType contentType,
+            @Field(order = 10, optional = true) @Nullable String primarySource,
+            @Field(order = 11, optional = true) @Nullable List<String> frameSources,
+            @Field(order = 12) float frameRate,
+            @Field(order = 13) boolean loop,
+            @Field(order = 14) boolean playing,
+            @Field(order = 15) float playbackSpeed,
+            @Field(order = 16) float startOffsetSeconds
     ) {}
 
     @Packet(value = "moud:update_display_transform", direction = Direction.SERVER_TO_CLIENT)
@@ -387,7 +394,8 @@ public final class MoudPackets {
             @Field(order = 0) long displayId,
             @Field(order = 1) Vector3 position,
             @Field(order = 2) Quaternion rotation,
-            @Field(order = 3) Vector3 scale
+            @Field(order = 3) Vector3 scale,
+            @Field(order = 4) DisplayBillboardMode billboardMode
     ) {}
 
     @Packet(value = "moud:update_display_anchor", direction = Direction.SERVER_TO_CLIENT)

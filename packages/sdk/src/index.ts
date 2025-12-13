@@ -1071,6 +1071,18 @@ export interface TextOptions {
     content?: string;
     /** How the text should face the player. 'fixed', 'vertical', 'horizontal', 'center'. */
     billboard?: 'fixed' | 'vertical' | 'horizontal' | 'center';
+    /** Optional maximum line width in pixels before wrapping. */
+    lineWidth?: number;
+    /** Whether the text should render a shadow. */
+    shadow?: boolean;
+    /** Whether the text should render through blocks. */
+    seeThrough?: boolean;
+    /** ARGB background color for the text display (use 0 for none). */
+    backgroundColor?: number;
+    /** Text opacity from 0-255. */
+    textOpacity?: number;
+    /** Horizontal alignment. */
+    alignment?: 'left' | 'center' | 'right';
     /**
      * Creates an invisible, clickable hitbox for this text.
      * If width and height are not provided, the hitbox is automatically sized based on the text content.
@@ -1101,6 +1113,71 @@ export interface TextOptions {
      * @returns The UUID string of the hitbox, or null if no hitbox is enabled.
      */
     getInteractionUuid(): string | null;
+}
+
+/** Billboard behaviour for world displays. */
+export type DisplayBillboardMode = 'none' | 'camera' | 'vertical';
+
+/** Content configuration for a media display. */
+export interface DisplayContentOptions {
+    type?: 'image' | 'texture' | 'video' | 'url' | 'stream' | 'frames' | 'sequence';
+    source?: string;
+    frames?: string[];
+    fps?: number;
+    loop?: boolean;
+}
+
+/** Anchor configuration for a media display. */
+export interface DisplayAnchorOptions {
+    type?: 'free' | 'block' | 'entity' | 'player';
+    x?: number;
+    y?: number;
+    z?: number;
+    uuid?: string;
+    offset?: Vector3;
+}
+
+/** Playback settings for media displays. */
+export interface DisplayPlaybackOptions {
+    speed?: number;
+    offset?: number;
+    playing?: boolean;
+    loop?: boolean;
+    fps?: number;
+}
+
+/** Options for creating a world display surface. */
+export interface DisplayOptions {
+    position?: Vector3;
+    rotation?: Quaternion;
+    scale?: Vector3;
+    billboard?: DisplayBillboardMode;
+    anchor?: DisplayAnchorOptions;
+    content?: DisplayContentOptions;
+    playback?: DisplayPlaybackOptions;
+}
+
+/** Controls a world display surface that renders images/video. */
+export interface Display {
+    setPosition(position: Vector3): void;
+    setRotation(rotation: Quaternion): void;
+    setRotationFromEuler(pitch: number, yaw: number, roll: number): void;
+    setTransform(position?: Vector3, rotation?: Quaternion, scale?: Vector3): void;
+    setScale(scale: Vector3): void;
+    setBillboard(mode: DisplayBillboardMode): void;
+    setAnchorToBlock(x: number, y: number, z: number, offset?: Vector3): void;
+    setAnchorToEntity(uuid: string, offset?: Vector3): void;
+    clearAnchor(): void;
+    setImage(source: string): void;
+    setVideo(url: string, fps?: number, loop?: boolean): void;
+    setFrameSequence(frames: string[], fps?: number, loop?: boolean): void;
+    setFrameRate(fps: number): void;
+    setLoop(loop: boolean): void;
+    play(): void;
+    pause(): void;
+    setPlaybackSpeed(speed: number): void;
+    seek(seconds: number): void;
+    remove(): void;
 }
 
 
@@ -1170,6 +1247,13 @@ export interface World {
      * @returns A PlayerModel object to control the model.
      */
     createPlayerModel(options: PlayerModelOptions): PlayerModel;
+
+    /**
+     * Creates a media display surface that can show images, videos, or frame sequences.
+     * @param options The configuration for the display.
+     * @returns A Display controller.
+     */
+    createDisplay(options: DisplayOptions): Display;
 
     /**
      * Creates floating text in the world.
@@ -1837,6 +1921,33 @@ export interface Text {
      */
     setColor(r: number, g: number, b: number): void;
 
+    /** Enables or disables the built-in text shadow. */
+    setShadow(enabled: boolean): void;
+
+    /** Makes the text render through blocks when enabled. */
+    setSeeThrough(enabled: boolean): void;
+
+    /** Sets the ARGB background color; use 0 to disable. */
+    setBackgroundColor(argb: number): void;
+
+    /** Sets text opacity from 0-255. */
+    setTextOpacity(opacity: number): void;
+
+    /** Sets the wrapping line width in pixels. */
+    setLineWidth(width: number): void;
+
+    /** Sets the horizontal alignment for wrapped text. */
+    setAlignment(alignment: 'left' | 'center' | 'right'): void;
+
+    /** Changes the billboard behaviour. */
+    setBillboard(mode: TextOptions['billboard']): void;
+
+    /** Creates a clickable hitbox for this text. */
+    enableHitbox(width?: number, height?: number): void;
+
+    /** Removes the clickable hitbox. */
+    disableHitbox(): void;
+
     /**
      * Removes the text from the world.
      */
@@ -1846,6 +1957,11 @@ export interface Text {
      * @returns The current world position of the text.
      */
     getPosition(): Vector3;
+
+    /**
+     * Gets the UUID of the interaction entity (hitbox) if present.
+     */
+    getInteractionUuid(): string | null;
 }
 
 // --- Shared Value Synchronization API ---

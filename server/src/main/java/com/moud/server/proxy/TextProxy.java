@@ -99,6 +99,62 @@ public class TextProxy {
     }
 
     @HostAccess.Export
+    public void setShadow(boolean enabled) {
+        meta.setShadow(enabled);
+    }
+
+    @HostAccess.Export
+    public void setSeeThrough(boolean enabled) {
+        meta.setSeeThrough(enabled);
+    }
+
+    @HostAccess.Export
+    public void setBackgroundColor(int argb) {
+        meta.setBackgroundColor(argb);
+        meta.setUseDefaultBackground(false);
+    }
+
+    @HostAccess.Export
+    public void setTextOpacity(int opacity) {
+        int clamped = Math.max(0, Math.min(255, opacity));
+        meta.setTextOpacity((byte) clamped);
+    }
+
+    @HostAccess.Export
+    public void setLineWidth(int lineWidth) {
+        meta.setLineWidth(Math.max(1, lineWidth));
+    }
+
+    @HostAccess.Export
+    public void setAlignment(String alignment) {
+        if (alignment == null) {
+            return;
+        }
+        try {
+            Class<?> alignEnum = Class.forName(TextDisplayMeta.class.getName() + "$TextAlignment");
+            Object parsed = switch (alignment.toLowerCase()) {
+                case "left" -> Enum.valueOf((Class<Enum>) alignEnum.asSubclass(Enum.class), "LEFT");
+                case "right" -> Enum.valueOf((Class<Enum>) alignEnum.asSubclass(Enum.class), "RIGHT");
+                case "center", "centre" -> Enum.valueOf((Class<Enum>) alignEnum.asSubclass(Enum.class), "CENTER");
+                default -> null;
+            };
+            if (parsed != null) {
+                try {
+                    var method = meta.getClass().getMethod("setTextAlignment", alignEnum);
+                    method.invoke(meta, parsed);
+                } catch (Exception ignored) {
+                }
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    @HostAccess.Export
+    public void setBillboard(String billboard) {
+        meta.setBillboardRenderConstraints(parseBillboard(billboard));
+    }
+
+    @HostAccess.Export
     public void enableHitbox() {
         String content = meta.getText().toString();
         int lineCount = Math.max(1, content.split("\n").length);
