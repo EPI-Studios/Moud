@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class JavaScriptRuntime {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(JavaScriptRuntime.class);
-    private static final long CALLBACK_TIMEOUT_MS = 5000;
+    private static final long CALLBACK_TIMEOUT_MS = Long.getLong("moud.script.timeout", 30000);
 
     private Context jsContext;
     private final ExecutorService executor;
@@ -172,13 +172,15 @@ public class JavaScriptRuntime {
 
                         moudObj.putMember("server", scriptingAPI.server);
                         moudObj.putMember("world", scriptingAPI.world);
-                    moudObj.putMember("lighting", scriptingAPI.lighting);
+                        moudObj.putMember("lighting", scriptingAPI.lighting);
                     moudObj.putMember("zones", scriptingAPI.zones);
                     moudObj.putMember("math", scriptingAPI.math);
                     moudObj.putMember("commands", scriptingAPI.commands);
                     moudObj.putMember("scene", scriptingAPI.scene);
                     moudObj.putMember("async", scriptingAPI.getAsync());
                     moudObj.putMember("particles", scriptingAPI.particles);
+                    moudObj.putMember("primitives", scriptingAPI.primitives);
+                    moudObj.putMember("ik", scriptingAPI.ik);
 
                 } else if (api instanceof com.moud.server.proxy.AssetProxy) {
                     moudObj.putMember("assets", api);

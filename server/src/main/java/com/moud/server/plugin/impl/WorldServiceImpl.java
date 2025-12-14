@@ -71,6 +71,7 @@ public final class WorldServiceImpl implements WorldService {
         MediaDisplayProxy proxy = new MediaDisplayProxy(target(), position, rotation, scale);
 
         applyBillboard(proxy, options.billboard());
+        proxy.setRenderThroughBlocks(options.renderThroughBlocks());
         applyAnchor(proxy, options.anchor());
         applyContent(proxy, options.content());
         applyPlayback(proxy, options.playback());

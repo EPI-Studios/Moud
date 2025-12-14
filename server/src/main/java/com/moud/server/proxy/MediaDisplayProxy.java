@@ -35,6 +35,7 @@ public class MediaDisplayProxy {
     private Quaternion rotation;
     private Vector3 scale;
     private MoudPackets.DisplayBillboardMode billboardMode = MoudPackets.DisplayBillboardMode.NONE;
+    private boolean renderThroughBlocks = false;
 
     private MoudPackets.DisplayAnchorType anchorType = MoudPackets.DisplayAnchorType.FREE;
     private int anchorBlockX;
@@ -133,6 +134,16 @@ public class MediaDisplayProxy {
 
     public MoudPackets.DisplayBillboardMode getBillboardMode() {
         return billboardMode;
+    }
+
+    @HostAccess.Export
+    public void setRenderThroughBlocks(boolean enabled) {
+        this.renderThroughBlocks = enabled;
+        broadcastTransform();
+    }
+
+    public boolean isRenderThroughBlocks() {
+        return renderThroughBlocks;
     }
 
     @HostAccess.Export
@@ -424,7 +435,8 @@ public class MediaDisplayProxy {
                 new Vector3(position),
                 new Quaternion(rotation),
                 new Vector3(scale),
-                billboardMode
+                billboardMode,
+                renderThroughBlocks
         ));
     }
 
@@ -469,6 +481,7 @@ public class MediaDisplayProxy {
                 new Quaternion(rotation),
                 new Vector3(scale),
                 billboardMode,
+                renderThroughBlocks,
                 anchorType,
                 anchorType == MoudPackets.DisplayAnchorType.BLOCK ? new Vector3(anchorBlockX, anchorBlockY, anchorBlockZ) : null,
                 anchorType == MoudPackets.DisplayAnchorType.ENTITY ? anchorEntityUuid : null,

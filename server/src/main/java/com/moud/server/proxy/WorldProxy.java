@@ -157,9 +157,9 @@ public class WorldProxy {
             throw new APIException("INVALID_ARGUMENT", "createModel requires a 'model' property with the asset path.");
         }
 
-        Vector3 position = options.hasMember("position") ? options.getMember("position").as(Vector3.class) : Vector3.zero();
-        Quaternion rotation = options.hasMember("rotation") ? options.getMember("rotation").as(Quaternion.class) : Quaternion.identity();
-        Vector3 scale = options.hasMember("scale") ? options.getMember("scale").as(Vector3.class) : Vector3.one();
+        Vector3 position = options.hasMember("position") ? readVector3(options.getMember("position"), Vector3.zero()) : Vector3.zero();
+        Quaternion rotation = options.hasMember("rotation") ? readQuaternion(options.getMember("rotation"), Quaternion.identity()) : Quaternion.identity();
+        Vector3 scale = options.hasMember("scale") ? readVector3(options.getMember("scale"), Vector3.one()) : Vector3.one();
         String texturePath = options.hasMember("texture") ? options.getMember("texture").asString() : null;
 
         ModelProxy model = new ModelProxy(instance, modelPath, position, rotation, scale, texturePath);
@@ -243,6 +243,10 @@ public class WorldProxy {
 
         MediaDisplayProxy display = new MediaDisplayProxy(instance, position, rotation, scale);
 
+        if (options.hasMember("renderThroughBlocks")) {
+            display.setRenderThroughBlocks(options.getMember("renderThroughBlocks").asBoolean());
+        }
+
         if (options.hasMember("anchor")) {
             applyAnchor(display, options.getMember("anchor"));
         }
@@ -321,13 +325,13 @@ public class WorldProxy {
             textProxy.setSeeThrough(options.getMember("seeThrough").asBoolean());
         }
         if (options.hasMember("backgroundColor")) {
-            textProxy.setBackgroundColor(options.getMember("backgroundColor").asInt());
+            textProxy.setBackgroundColor((int) (readLong(options.getMember("backgroundColor"), 0L) & 0xFFFFFFFFL));
         }
         if (options.hasMember("textOpacity")) {
-            textProxy.setTextOpacity(options.getMember("textOpacity").asInt());
+            textProxy.setTextOpacity((int) readLong(options.getMember("textOpacity"), 255L));
         }
         if (options.hasMember("lineWidth")) {
-            textProxy.setLineWidth(options.getMember("lineWidth").asInt());
+            textProxy.setLineWidth((int) readLong(options.getMember("lineWidth"), 200L));
         }
         if (options.hasMember("alignment")) {
             textProxy.setAlignment(options.getMember("alignment").asString());
@@ -335,8 +339,8 @@ public class WorldProxy {
 
         if (options.hasMember("hitbox") && options.getMember("hitbox").hasMembers()) {
             Value hitboxValue = options.getMember("hitbox");
-            double width = hitboxValue.hasMember("width") ? hitboxValue.getMember("width").asDouble() : 1.0;
-            double height = hitboxValue.hasMember("height") ? hitboxValue.getMember("height").asDouble() : 1.0;
+            double width = hitboxValue.hasMember("width") ? readLong(hitboxValue.getMember("width"), 1L) : 1.0;
+            double height = hitboxValue.hasMember("height") ? readLong(hitboxValue.getMember("height"), 1L) : 1.0;
             textProxy.enableHitbox(width, height);
         }
 
@@ -362,12 +366,34 @@ public class WorldProxy {
         return fallback;
     }
 
+    private long readLong(Value value, long fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        try {
+            if (value.fitsInLong()) {
+                return value.asLong();
+            }
+            if (value.fitsInInt()) {
+                return value.asInt();
+            }
+            if (value.fitsInFloat()) {
+                return (long) value.asFloat();
+            }
+            if (value.fitsInDouble()) {
+                return (long) value.asDouble();
+            }
+        } catch (Exception ignored) {
+        }
+        return fallback;
+    }
+
     @HostAccess.Export
     public ProxyObject raycast(Value options) {
         validator.validateNotNull(options, "options");
 
-        Vector3 originVec = options.getMember("origin").as(Vector3.class);
-        Vector3 directionVec = options.getMember("direction").as(Vector3.class);
+        Vector3 originVec = options.hasMember("origin") ? readVector3(options.getMember("origin"), Vector3.zero()) : Vector3.zero();
+        Vector3 directionVec = options.hasMember("direction") ? readVector3(options.getMember("direction"), Vector3.forward()) : Vector3.forward();
         double maxDistance = options.hasMember("maxDistance") ? options.getMember("maxDistance").asDouble() : 100.0;
 
         Point origin = new Pos(originVec.x, originVec.y, originVec.z);

@@ -8,6 +8,7 @@ import com.moud.server.events.EventDispatcher;
 import com.moud.server.proxy.*;
 import com.moud.server.task.AsyncManager;
 import com.moud.server.proxy.ParticleAPIProxy;
+import com.moud.server.primitives.PrimitiveServiceImpl;
 import com.moud.plugin.animation.AnimationController;
 import com.moud.server.editor.AnimationManager;
 import com.moud.server.particle.ParticleEmitterManager;
@@ -39,6 +40,10 @@ public class ScriptingAPI {
     public final SceneProxy scene;
     @HostAccess.Export
     public final ParticleAPIProxy particles;
+    @HostAccess.Export
+    public final PrimitiveAPIProxy primitives;
+    @HostAccess.Export
+    public final IKAPIProxy ik;
 
     public ScriptingAPI(MoudEngine engine) {
         this.engine = engine;
@@ -53,6 +58,8 @@ public class ScriptingAPI {
         this.commands = new CommandProxy();
         this.scene = new SceneProxy();
         this.particles = new ParticleAPIProxy(engine.getParticleBatcher(), engine.getParticleEmitterManager());
+        this.primitives = new PrimitiveAPIProxy(PrimitiveServiceImpl.getInstance());
+        this.ik = new IKAPIProxy(com.moud.server.ik.IKServiceImpl.getInstance());
 
         LOGGER.info("Scripting API initialized successfully.");
     }

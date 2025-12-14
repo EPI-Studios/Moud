@@ -30,6 +30,7 @@ import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.readonly.ConstShape;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
+import com.moud.server.entity.ModelManager;
 import com.moud.server.instance.InstanceManager;
 import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
@@ -54,11 +55,10 @@ import net.minestom.server.instance.Instance;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -69,6 +69,7 @@ public final class PhysicsService {
             PhysicsService.class,
             LogContext.builder().put("subsystem", "physics").build()
     );
+
 
     public static final int LAYER_DYNAMIC = 0;
     public static final int LAYER_STATIC = 1;
@@ -95,6 +96,7 @@ public final class PhysicsService {
     private volatile boolean initialized;
     private final ConcurrentHashMap<Long, PhysicsObject> physicsObjects = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Integer> chunkBodies = new ConcurrentHashMap<>();
+    private volatile float lastDeltaSeconds = 0f;
 
     private PhysicsService() {
     }
@@ -166,10 +168,12 @@ public final class PhysicsService {
     }
 
     private void stepSimulation(float deltaSeconds) {
+        lastDeltaSeconds = deltaSeconds;
         if (physicsSystem == null) {
             return;
         }
         try {
+            applyConstraints(deltaSeconds);
             int steps = 1;
             int code = physicsSystem.update(deltaSeconds, steps, tempAllocator, jobSystem);
             if (code != EPhysicsUpdateError.None) {
@@ -179,6 +183,10 @@ public final class PhysicsService {
         } catch (Throwable t) {
             LOGGER.error("Physics tick failed", t);
         }
+    }
+
+    private void applyConstraints(float deltaSeconds) {
+        physicsObjects.values().forEach(obj -> obj.applyConstraints(deltaSeconds));
     }
 
     public BodyInterface getBodyInterface() {
@@ -356,7 +364,12 @@ public final class PhysicsService {
                     .put("modelId", model.getId())
                     .put("modelPath", model.getModelPath())
                     .build(), "Failed to create collision shape for model {} - using box fallback", model.getModelPath());
-            collisionShape = new BoxShape(halfExtents.x, halfExtents.y, halfExtents.z);
+
+            // Ensure minimum half-extents to avoid Jolt assertion failure
+            float hx = Math.max((float) halfExtents.x, 0.051f);
+            float hy = Math.max((float) halfExtents.y, 0.051f);
+            float hz = Math.max((float) halfExtents.z, 0.051f);
+            collisionShape = new BoxShape(hx, hy, hz);
         }
         BodyCreationSettings settings = new BodyCreationSettings()
                 .setMotionType(EMotionType.Dynamic)
@@ -521,6 +534,45 @@ public final class PhysicsService {
         executor.shutdownNow();
     }
 
+    public void attachFollow(ModelProxy model, java.util.UUID targetUuid, Vector3 offset, boolean kinematic) {
+        PhysicsObject obj = physicsObjects.get(model.getId());
+        if (obj != null) {
+            obj.setFollowConstraint(targetUuid, offset, kinematic);
+        }
+    }
+
+    public void attachSpring(ModelProxy model, Vector3 anchor, double stiffness, double damping, Double restLength) {
+        PhysicsObject obj = physicsObjects.get(model.getId());
+        if (obj != null) {
+            obj.setSpringConstraint(anchor, stiffness, damping, restLength);
+        }
+    }
+
+    public void clearConstraints(ModelProxy model) {
+        PhysicsObject obj = physicsObjects.get(model.getId());
+        if (obj != null) {
+            obj.clearConstraints();
+        }
+    }
+
+    public PhysicsState getState(ModelProxy model) {
+        PhysicsObject obj = physicsObjects.get(model.getId());
+        if (obj == null) {
+            return null;
+        }
+        return obj.snapshotState();
+    }
+
+    public record PhysicsState(
+            Vector3 linearVelocity,
+            Vector3 angularVelocity,
+            boolean active,
+            boolean onGround,
+            Vector3 lastImpulse,
+            boolean hasFollowConstraint,
+            boolean hasSpringConstraint
+    ) {}
+
     private static final class PhysicsObject {
         private final PhysicsService service;
         private final ModelProxy model;
@@ -529,12 +581,115 @@ public final class PhysicsService {
         private int lastChunkX;
         private int lastChunkZ;
         private boolean chunkInitialized;
+        private java.util.UUID followEntityUuid;
+        private Vector3 followOffset = Vector3.zero();
+        private boolean followKinematic = false;
+        private Vector3 springAnchor;
+        private double springStiffness;
+        private double springDamping;
+        private Double springRestLength;
+        private Vec3 lastImpulse = new Vec3(0, 0, 0);
+        private Vec3 lastLinearVelocity = new Vec3(0, 0, 0);
+        private Vec3 lastAngularVelocity = new Vec3(0, 0, 0);
+        private Vector3 lastPosition = null;
+        private boolean lastOnGround = false;
 
         private PhysicsObject(PhysicsService service, ModelProxy model, Body body, boolean allowPlayerPush) {
             this.service = service;
             this.model = model;
             this.body = body;
             this.allowPlayerPush = allowPlayerPush;
+        }
+
+        private void setFollowConstraint(java.util.UUID target, Vector3 offset, boolean kinematic) {
+            this.followEntityUuid = target;
+            this.followOffset = offset != null ? offset : Vector3.zero();
+            this.followKinematic = kinematic;
+        }
+
+        private void setSpringConstraint(Vector3 anchor, double stiffness, double damping, Double restLength) {
+            this.springAnchor = anchor;
+            this.springStiffness = Math.max(0.0, stiffness);
+            this.springDamping = Math.max(0.0, damping);
+            this.springRestLength = restLength;
+        }
+
+        private void clearConstraints() {
+            this.followEntityUuid = null;
+            this.springAnchor = null;
+            this.springRestLength = null;
+            this.springStiffness = 0.0;
+            this.springDamping = 0.0;
+        }
+
+        private PhysicsState snapshotState() {
+            Vector3 lin = toVector3(lastLinearVelocity);
+            Vector3 ang = toVector3(lastAngularVelocity);
+            Vector3 impulse = toVector3(lastImpulse);
+            return new PhysicsState(
+                    lin,
+                    ang,
+                    body.isActive(),
+                    lastOnGround,
+                    impulse,
+                    followEntityUuid != null,
+                    springAnchor != null
+            );
+        }
+
+        private void applyConstraints(float deltaSeconds) {
+            BodyInterface bi = service.getBodyInterface();
+            if (followEntityUuid != null) {
+                Entity target = resolveFollowTarget(followEntityUuid);
+                if (target != null) {
+                    net.minestom.server.coordinate.Point p = target.getPosition();
+                    RVec3 targetPos = new RVec3(
+                            p.x() + followOffset.x,
+                            p.y() + followOffset.y,
+                            p.z() + followOffset.z
+                    );
+                    bi.setPositionAndRotation(body.getId(), targetPos, body.getRotation(), followKinematic ? EActivation.DontActivate : EActivation.Activate);
+                    body.setLinearVelocity(new Vec3(0, 0, 0));
+                }
+            }
+
+            if (springAnchor != null && springStiffness > 0) {
+                RVec3 pos = body.getPosition();
+                Vec3 vel = body.getLinearVelocity();
+                Vec3 toAnchor = new Vec3(
+                        (float) (springAnchor.x - ((Number) pos.getX()).doubleValue()),
+                        (float) (springAnchor.y - ((Number) pos.getY()).doubleValue()),
+                        (float) (springAnchor.z - ((Number) pos.getZ()).doubleValue())
+                );
+                float dist = toAnchor.length();
+                if (dist > 1e-4f) {
+                    Vec3 dir = toAnchor.normalized();
+                    double rest = springRestLength != null ? springRestLength : 0.0;
+                    double displacement = dist - rest;
+                    double forceMag = displacement * springStiffness;
+                    double damp = vel.dot(dir) * springDamping;
+                    double total = (forceMag - damp) * deltaSeconds;
+                    Vec3 impulse = new Vec3(
+                            (float) (dir.getX() * total),
+                            (float) (dir.getY() * total),
+                            (float) (dir.getZ() * total)
+                    );
+                    body.addImpulse(impulse);
+                    lastImpulse = impulse;
+                }
+            }
+        }
+
+        private Entity resolveFollowTarget(UUID uuid) {
+            Player p = MinecraftServer.getConnectionManager().getOnlinePlayerByUuid(uuid);
+            if (p != null) {
+                return p;
+            }
+            ModelProxy modelProxy = ModelManager.getInstance().getByEntityUuid(uuid);
+            if (modelProxy != null) {
+                return modelProxy.getEntity();
+            }
+            return null;
         }
 
         private void syncVisual() {
@@ -545,12 +700,30 @@ public final class PhysicsService {
             Quat rot = body.getRotation();
             model.syncPhysicsTransform(toVector3(pos), toQuaternion(rot));
             maybeEnsureChunks(pos);
+            this.lastAngularVelocity = body.getAngularVelocity();
+            this.lastLinearVelocity = body.getLinearVelocity();
+            Vector3 currentPos = toVector3(pos);
+            if (lastPosition != null) {
+                boolean verticalStill = Math.abs(lastLinearVelocity.getY()) < 0.05;
+                boolean notAscending = currentPos.y <= lastPosition.y + 0.05;
+                this.lastOnGround = verticalStill && notAscending;
+            }
+            this.lastPosition = currentPos;
         }
 
         private void applyManualTransform(Vector3 position, Quaternion rotation) {
             BodyInterface bi = service.getBodyInterface();
             RVec3 targetPos = position != null ? new RVec3(position.x, position.y, position.z) : body.getPosition();
-            Quat targetRot = rotation != null ? new Quat(rotation.x, rotation.y, rotation.z, rotation.w) : body.getRotation();
+
+            Quat targetRot;
+            if (rotation != null) {
+                // Jolt requires normalized quaternions
+                Quaternion norm = rotation.normalize();
+                targetRot = new Quat(norm.x, norm.y, norm.z, norm.w);
+            } else {
+                targetRot = body.getRotation();
+            }
+
             bi.setPositionAndRotation(body.getId(), targetPos, targetRot, EActivation.Activate);
         }
 
@@ -572,6 +745,7 @@ public final class PhysicsService {
             );
             body.addImpulse(impulse);
             body.resetSleepTimer();
+            lastImpulse = impulse;
         }
 
         private boolean applyExplosion(Vector3 center, double radius, double strength, double verticalBoost) {
@@ -603,6 +777,7 @@ public final class PhysicsService {
             bi.activateBody(body.getId());
             body.addImpulse(impulse);
             body.resetSleepTimer();
+            lastImpulse = impulse;
             return true;
         }
 
@@ -630,6 +805,13 @@ public final class PhysicsService {
             double y = ((Number) vec.getY()).doubleValue();
             double z = ((Number) vec.getZ()).doubleValue();
             return new Vector3(x, y, z);
+        }
+
+        private static Vector3 toVector3(Vec3 vec) {
+            if (vec == null) {
+                return Vector3.zero();
+            }
+            return new Vector3(vec.getX(), vec.getY(), vec.getZ());
         }
 
         private static Quaternion toQuaternion(Quat quat) {
@@ -670,4 +852,7 @@ public final class PhysicsService {
         }
         return physicsSystem.getBodyInterface();
     }
+
+
+
 }

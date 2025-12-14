@@ -110,6 +110,7 @@ public class TextProxy {
 
     @HostAccess.Export
     public void setBackgroundColor(int argb) {
+        // Allow unsigned ARGB values passed as large doubles/longs.
         meta.setBackgroundColor(argb);
         meta.setUseDefaultBackground(false);
     }

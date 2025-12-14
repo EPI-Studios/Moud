@@ -41,6 +41,15 @@ public class ChunkMesher {
         return generateChunkCollisionObject(chunk, minY, maxY, fullBlocksOnly);
     }
 
+    /**
+     * Collects all exposed block faces for a chunk for debugging or ad-hoc raycasts.
+     */
+    public static List<Face> collectFaces(Chunk chunk, boolean fullBlocksOnly) {
+        int minY = MinecraftServer.getDimensionTypeRegistry().get(chunk.getInstance().getDimensionType()).minY();
+        int maxY = MinecraftServer.getDimensionTypeRegistry().get(chunk.getInstance().getDimensionType()).maxY();
+        return getChunkFaces(chunk, minY, maxY, fullBlocksOnly);
+    }
+
     private static @Nullable BodyCreationSettings generateChunkCollisionObject(Chunk chunk, int minY, int maxY, boolean fullBlocksOnly) {
         List<Face> faces = getChunkFaces(chunk, minY, maxY, fullBlocksOnly);
 
