@@ -375,18 +375,19 @@ public final class MoudPackets {
             @Field(order = 2) Quaternion rotation,
             @Field(order = 3) Vector3 scale,
             @Field(order = 4) DisplayBillboardMode billboardMode,
-            @Field(order = 5) DisplayAnchorType anchorType,
-            @Field(order = 6, optional = true) @Nullable Vector3 anchorBlockPosition,
-            @Field(order = 7, optional = true) @Nullable UUID anchorEntityUuid,
-            @Field(order = 8, optional = true) @Nullable Vector3 anchorOffset,
-            @Field(order = 9) DisplayContentType contentType,
-            @Field(order = 10, optional = true) @Nullable String primarySource,
-            @Field(order = 11, optional = true) @Nullable List<String> frameSources,
-            @Field(order = 12) float frameRate,
-            @Field(order = 13) boolean loop,
-            @Field(order = 14) boolean playing,
-            @Field(order = 15) float playbackSpeed,
-            @Field(order = 16) float startOffsetSeconds
+            @Field(order = 5) boolean renderThroughBlocks,
+            @Field(order = 6) DisplayAnchorType anchorType,
+            @Field(order = 7, optional = true) @Nullable Vector3 anchorBlockPosition,
+            @Field(order = 8, optional = true) @Nullable UUID anchorEntityUuid,
+            @Field(order = 9, optional = true) @Nullable Vector3 anchorOffset,
+            @Field(order = 10) DisplayContentType contentType,
+            @Field(order = 11, optional = true) @Nullable String primarySource,
+            @Field(order = 12, optional = true) @Nullable List<String> frameSources,
+            @Field(order = 13) float frameRate,
+            @Field(order = 14) boolean loop,
+            @Field(order = 15) boolean playing,
+            @Field(order = 16) float playbackSpeed,
+            @Field(order = 17) float startOffsetSeconds
     ) {}
 
     @Packet(value = "moud:update_display_transform", direction = Direction.SERVER_TO_CLIENT)
@@ -395,7 +396,8 @@ public final class MoudPackets {
             @Field(order = 1) Vector3 position,
             @Field(order = 2) Quaternion rotation,
             @Field(order = 3) Vector3 scale,
-            @Field(order = 4) DisplayBillboardMode billboardMode
+            @Field(order = 4) DisplayBillboardMode billboardMode,
+            @Field(order = 5) boolean renderThroughBlocks
     ) {}
 
     @Packet(value = "moud:update_display_anchor", direction = Direction.SERVER_TO_CLIENT)
@@ -664,4 +666,259 @@ public final class MoudPackets {
     @Packet(value = "moud:particle_emitter_remove", direction = Direction.SERVER_TO_CLIENT)
     public record ParticleEmitterRemovePacket(@Field(order = 0) List<String> ids) {
     }
+
+    // ===================
+    // IK Chain Packets
+    // ===================
+
+    /**
+     * Data for a single joint in an IK chain.
+     */
+    public record IKJointData(
+            @Field(order = 0) Vector3 position,
+            @Field(order = 1) Quaternion rotation
+    ) {}
+
+    /**
+     * Creates a new IK chain on the client.
+     */
+    @Packet(value = "moud:ik_create_chain", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_IKCreateChainPacket(
+            @Field(order = 0) String chainId,
+            @Field(order = 1) int jointCount,
+            @Field(order = 2) List<Float> boneLengths,
+            @Field(order = 3) Vector3 rootPosition,
+            @Field(order = 4) String solverType,
+            @Field(order = 5, optional = true) @Nullable Long attachedModelId,
+            @Field(order = 6, optional = true) @Nullable UUID attachedEntityUuid,
+            @Field(order = 7, optional = true) @Nullable Vector3 attachOffset
+    ) {}
+
+    /**
+     * Updates the state of an IK chain (positions and rotations of all joints).
+     */
+    @Packet(value = "moud:ik_update_chain", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_IKUpdateChainPacket(
+            @Field(order = 0) String chainId,
+            @Field(order = 1) List<IKJointData> joints,
+            @Field(order = 2) Vector3 targetPosition,
+            @Field(order = 3) boolean targetReached,
+            @Field(order = 4) long timestamp
+    ) {}
+
+    /**
+     * Updates just the target position for an IK chain.
+     * Client can interpolate/predict between target updates.
+     */
+    @Packet(value = "moud:ik_update_target", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_IKUpdateTargetPacket(
+            @Field(order = 0) String chainId,
+            @Field(order = 1) Vector3 targetPosition,
+            @Field(order = 2) long timestamp
+    ) {}
+
+    /**
+     * Updates the root position of an IK chain.
+     */
+    @Packet(value = "moud:ik_update_root", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_IKUpdateRootPacket(
+            @Field(order = 0) String chainId,
+            @Field(order = 1) Vector3 rootPosition,
+            @Field(order = 2) long timestamp
+    ) {}
+
+    /**
+     * Attaches an IK chain to a model or entity.
+     */
+    @Packet(value = "moud:ik_attach", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_IKAttachPacket(
+            @Field(order = 0) String chainId,
+            @Field(order = 1, optional = true) @Nullable Long modelId,
+            @Field(order = 2, optional = true) @Nullable UUID entityUuid,
+            @Field(order = 3) Vector3 offset
+    ) {}
+
+    /**
+     * Detaches an IK chain from its attached model/entity.
+     */
+    @Packet(value = "moud:ik_detach", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_IKDetachPacket(
+            @Field(order = 0) String chainId
+    ) {}
+
+    /**
+     * Removes an IK chain.
+     */
+    @Packet(value = "moud:ik_remove_chain", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_IKRemoveChainPacket(
+            @Field(order = 0) String chainId
+    ) {}
+
+    /**
+     * Batch update for multiple IK chains (efficient for creatures with many limbs).
+     */
+    @Packet(value = "moud:ik_batch_update", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_IKBatchUpdatePacket(
+            @Field(order = 0) List<IKChainBatchEntry> chains,
+            @Field(order = 1) long timestamp
+    ) {}
+
+    /**
+     * Entry for batch IK updates.
+     */
+    public record IKChainBatchEntry(
+            @Field(order = 0) String chainId,
+            @Field(order = 1) List<IKJointData> joints,
+            @Field(order = 2) Vector3 targetPosition,
+            @Field(order = 3) boolean targetReached
+    ) {}
+
+    /**
+     * Client requests IK solving (for hybrid mode where client can suggest targets).
+     */
+    @Packet(value = "moud:ik_request_solve", direction = Direction.CLIENT_TO_SERVER)
+    public record C2S_IKRequestSolvePacket(
+            @Field(order = 0) String chainId,
+            @Field(order = 1) Vector3 targetPosition
+    ) {}
+
+    // =========================
+    // Primitive Mesh Rendering
+    // =========================
+
+    /**
+     * Types of primitive shapes that can be rendered.
+     */
+    public enum PrimitiveType {
+        CUBE,
+        SPHERE,
+        CYLINDER,
+        CAPSULE,
+        LINE,
+        LINE_STRIP,
+        PLANE,
+        CONE
+    }
+
+    /**
+     * Material/appearance settings for a primitive.
+     */
+    public record PrimitiveMaterial(
+            @Field(order = 0) float r,
+            @Field(order = 1) float g,
+            @Field(order = 2) float b,
+            @Field(order = 3) float a,
+            @Field(order = 4, optional = true) @Nullable String texture,
+            @Field(order = 5) boolean unlit,
+            @Field(order = 6) boolean doubleSided,
+            @Field(order = 7) boolean renderThroughBlocks
+    ) {
+        public static PrimitiveMaterial solid(float r, float g, float b) {
+            return new PrimitiveMaterial(r, g, b, 1.0f, null, false, false, false);
+        }
+
+        public static PrimitiveMaterial solidAlpha(float r, float g, float b, float a) {
+            return new PrimitiveMaterial(r, g, b, a, null, false, false, false);
+        }
+    }
+
+    /**
+     * Creates a new primitive mesh.
+     */
+    @Packet(value = "moud:primitive_create", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_PrimitiveCreatePacket(
+            @Field(order = 0) long primitiveId,
+            @Field(order = 1) PrimitiveType type,
+            @Field(order = 2) Vector3 position,
+            @Field(order = 3) Quaternion rotation,
+            @Field(order = 4) Vector3 scale,
+            @Field(order = 5) PrimitiveMaterial material,
+            @Field(order = 6, optional = true) @Nullable List<Vector3> vertices,
+            @Field(order = 7, optional = true) @Nullable String groupId
+    ) {}
+
+    /**
+     * Updates the transform of a primitive.
+     */
+    @Packet(value = "moud:primitive_transform", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_PrimitiveTransformPacket(
+            @Field(order = 0) long primitiveId,
+            @Field(order = 1) Vector3 position,
+            @Field(order = 2) Quaternion rotation,
+            @Field(order = 3) Vector3 scale
+    ) {}
+
+    /**
+     * Updates the material of a primitive.
+     */
+    @Packet(value = "moud:primitive_material", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_PrimitiveMaterialPacket(
+            @Field(order = 0) long primitiveId,
+            @Field(order = 1) PrimitiveMaterial material
+    ) {}
+
+    /**
+     * Updates vertices for LINE or LINE_STRIP primitives.
+     */
+    @Packet(value = "moud:primitive_vertices", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_PrimitiveVerticesPacket(
+            @Field(order = 0) long primitiveId,
+            @Field(order = 1) List<Vector3> vertices
+    ) {}
+
+    /**
+     * Removes a primitive.
+     */
+    @Packet(value = "moud:primitive_remove", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_PrimitiveRemovePacket(
+            @Field(order = 0) long primitiveId
+    ) {}
+
+    /**
+     * Removes all primitives in a group.
+     */
+    @Packet(value = "moud:primitive_remove_group", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_PrimitiveRemoveGroupPacket(
+            @Field(order = 0) String groupId
+    ) {}
+
+    /**
+     * Batch create multiple primitives efficiently.
+     */
+    @Packet(value = "moud:primitive_batch_create", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_PrimitiveBatchCreatePacket(
+            @Field(order = 0) List<PrimitiveBatchEntry> primitives
+    ) {}
+
+    /**
+     * Entry for batch primitive creation.
+     */
+    public record PrimitiveBatchEntry(
+            @Field(order = 0) long primitiveId,
+            @Field(order = 1) PrimitiveType type,
+            @Field(order = 2) Vector3 position,
+            @Field(order = 3) Quaternion rotation,
+            @Field(order = 4) Vector3 scale,
+            @Field(order = 5) PrimitiveMaterial material,
+            @Field(order = 6, optional = true) @Nullable List<Vector3> vertices,
+            @Field(order = 7, optional = true) @Nullable String groupId
+    ) {}
+
+    /**
+     * Batch update transforms for multiple primitives.
+     */
+    @Packet(value = "moud:primitive_batch_transform", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_PrimitiveBatchTransformPacket(
+            @Field(order = 0) List<PrimitiveTransformEntry> transforms
+    ) {}
+
+    /**
+     * Entry for batch transform updates.
+     */
+    public record PrimitiveTransformEntry(
+            @Field(order = 0) long primitiveId,
+            @Field(order = 1) Vector3 position,
+            @Field(order = 2) Quaternion rotation,
+            @Field(order = 3) Vector3 scale
+    ) {}
 }
