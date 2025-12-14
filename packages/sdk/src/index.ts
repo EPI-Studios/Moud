@@ -357,6 +357,18 @@ declare global {
     type UIInput = import('./index').UIInput;
     type UIService = import('./index').UIService;
     type ZoneAPI = import('./index').ZoneAPI;
+    type IKAPI = import('./index').IKAPI;
+    type IKChain = import('./index').IKChain;
+    type IKChainDefinition = import('./index').IKChainDefinition;
+    type IKChainState = import('./index').IKChainState;
+    type IKConstraints = import('./index').IKConstraints;
+    type IKJointDefinition = import('./index').IKJointDefinition;
+    type IKSolverType = import('./index').IKSolverType;
+    type PrimitiveAPI = import('./index').PrimitiveAPI;
+    type Primitive = import('./index').Primitive;
+    type PrimitiveMaterial = import('./index').PrimitiveMaterial;
+    type PrimitiveOptions = import('./index').PrimitiveOptions;
+    type PrimitiveType = import('./index').PrimitiveType;
 }
 
 /**
@@ -604,6 +616,16 @@ export interface MoudAPI {
     readonly async: AsyncManager;
     /** Particle engine entry point. */
     readonly particles: ParticleAPI;
+    /**
+     * Inverse Kinematics API for procedural animation.
+     * Use this for creating IK chains that can animate limbs, spider legs, tentacles, etc.
+     */
+    readonly ik: IKAPI;
+    /**
+     * Primitive mesh rendering API.
+     * Use this for creating simple geometric shapes like cubes, spheres, lines, etc.
+     */
+    readonly primitives: PrimitiveAPI;
 
     /**
      * @deprecated Use the {@link server} property instead.
@@ -868,16 +890,39 @@ export interface SoundPlayOptions {
     category?: SoundCategory;
     volume?: number;
     pitch?: number;
+    startDelayMs?: number;
     fadeInMs?: number;
+    fadeInEasing?: 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out';
     fadeOutMs?: number;
+    fadeOutEasing?: 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out';
     loop?: boolean;
     positional?: boolean;
     position?: Vector3 | [number, number, number];
+    minDistance?: number;
     maxDistance?: number;
+    distanceModel?: 'linear' | 'inverse' | 'exponential';
+    rolloff?: number;
     pitchRamp?: {
         pitch: number;
         durationMs: number;
         easing?: 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out';
+    };
+    volumeLfo?: {
+        frequencyHz: number;
+        depth: number;
+        waveform?: 'sine' | 'triangle' | 'square' | 'saw';
+    };
+    pitchLfo?: {
+        frequencyHz: number;
+        depthSemitones: number;
+        waveform?: 'sine' | 'triangle' | 'square' | 'saw';
+    };
+    mixGroup?: string;
+    duck?: {
+        group: string;
+        amount: number;
+        attackMs?: number;
+        releaseMs?: number;
     };
     crossFadeGroup?: string;
     crossFadeMs?: number;
@@ -1152,6 +1197,7 @@ export interface DisplayOptions {
     rotation?: Quaternion;
     scale?: Vector3;
     billboard?: DisplayBillboardMode;
+    renderThroughBlocks?: boolean;
     anchor?: DisplayAnchorOptions;
     content?: DisplayContentOptions;
     playback?: DisplayPlaybackOptions;
@@ -1165,6 +1211,7 @@ export interface Display {
     setTransform(position?: Vector3, rotation?: Quaternion, scale?: Vector3): void;
     setScale(scale: Vector3): void;
     setBillboard(mode: DisplayBillboardMode): void;
+    setRenderThroughBlocks(enabled: boolean): void;
     setAnchorToBlock(x: number, y: number, z: number, offset?: Vector3): void;
     setAnchorToEntity(uuid: string, offset?: Vector3): void;
     clearAnchor(): void;
@@ -3292,4 +3339,761 @@ export interface ParticleAPI {
     updateEmitter(config: ParticleEmitterUpdate): void;
     /** Remove a client emitter by id. */
     removeEmitter(id: string): void;
+}
+
+
+/**
+ * Available IK solver algorithms.
+ * @remarks Shared between client and server.
+ */
+export type IKSolverType =
+    | 'FABRIK'
+    | 'TWO_BONE'
+    | 'CCD';
+
+/**
+ * Angular constraints for an IK joint.
+ * @remarks Shared between client and server.
+ */
+export interface IKConstraints {
+    /** Minimum pitch angle (radians) - rotation around X axis. */
+    minPitch?: number;
+    /** Maximum pitch angle (radians). */
+    maxPitch?: number;
+    /** Minimum yaw angle (radians) - rotation around Y axis. */
+    minYaw?: number;
+    /** Maximum yaw angle (radians). */
+    maxYaw?: number;
+    /** Minimum roll angle (radians) - rotation around Z axis. */
+    minRoll?: number;
+    /** Maximum roll angle (radians). */
+    maxRoll?: number;
+    /** Preferred bend direction for this joint (e.g., knee bends backwards). */
+    poleVector?: Vector3;
+    /** Stiffness of joint (0-1). Higher = resists movement more. */
+    stiffness?: number;
+}
+
+/**
+ * Definition for a single joint in an IK chain.
+ * @remarks Shared between client and server.
+ */
+export interface IKJointDefinition {
+    /** Optional name for this joint (e.g., 'shoulder', 'elbow', 'wrist'). */
+    name?: string;
+    /** Length of the bone from this joint to the next. */
+    length: number;
+    /** Angular constraints for this joint. */
+    constraints?: IKConstraints;
+    /** Local offset from parent joint (for complex rigs). */
+    localOffset?: Vector3;
+}
+
+/**
+ * Definition for creating an IK chain.
+ * @remarks Server-only. Use this to configure chain structure and solver.
+ */
+export interface IKChainDefinition {
+    /** Unique identifier for this chain. */
+    id?: string;
+    /** Joint definitions - each joint has a length and optional constraints. */
+    joints: IKJointDefinition[];
+    /** Which IK algorithm to use. Default: 'FABRIK'. */
+    solverType?: IKSolverType;
+    /** Maximum iterations for iterative solvers. Default: 10. */
+    iterations?: number;
+    /** Distance tolerance for target reaching. Default: 0.001. */
+    tolerance?: number;
+    /** Whether to auto-orient joints to face the next joint. Default: true. */
+    autoOrient?: boolean;
+}
+
+/**
+ * Current state of an IK chain after solving.
+ * @remarks Shared between client and server.
+ */
+export interface IKChainState {
+    /** The chain ID this state belongs to. */
+    chainId: string;
+    /** Root position of the chain (first joint). */
+    rootPosition: Vector3;
+    /** Current target position. */
+    targetPosition: Vector3;
+    /** World-space positions of all joints, including end effector. */
+    jointPositions: Vector3[];
+    /** World-space rotations of all joints. */
+    jointRotations: Quaternion[];
+    /** Whether the end effector reached the target within tolerance. */
+    targetReached: boolean;
+    /** Distance from end effector to target. */
+    distanceToTarget: number;
+    /** Number of solver iterations used. */
+    iterationsUsed: number;
+    /** Server timestamp when this state was computed. */
+    timestamp: number;
+}
+
+/**
+ * Handle to an IK chain for manipulation.
+ * @remarks Server-only.
+ */
+export interface IKChain {
+    /** Gets the unique ID of this chain. */
+    getId(): string;
+
+    /** Gets the chain definition. */
+    getDefinition(): IKChainDefinition;
+
+    /** Gets the current state after the last solve. */
+    getState(): IKChainState;
+
+    /**
+     * Sets the root position of the chain.
+     * @param position World-space position for the chain root.
+     */
+    setRootPosition(position: Vector3): void;
+
+    /** Gets the current root position. */
+    getRootPosition(): Vector3;
+
+    /**
+     * Sets the target position for the end effector.
+     * The chain will solve towards this target.
+     * @param target World-space target position.
+     */
+    setTarget(target: Vector3): void;
+
+    /** Gets the current target position. */
+    getTarget(): Vector3;
+
+    /**
+     * Immediately solves the IK chain.
+     * @returns The updated chain state.
+     */
+    solve(): IKChainState;
+
+    /**
+     * Solves the chain and broadcasts the result to clients.
+     * @returns The updated chain state.
+     */
+    solveAndBroadcast(): IKChainState;
+
+    /**
+     * Updates the pole vector for a specific joint.
+     * Pole vectors determine the preferred bend direction (e.g., knee forward/backward).
+     * @param jointIndex Index of the joint.
+     * @param poleVector New pole vector direction.
+     */
+    setPoleVector(jointIndex: number, poleVector: Vector3): void;
+
+    /**
+     * Updates constraints for a specific joint.
+     * @param jointIndex Index of the joint.
+     * @param constraints New constraints.
+     */
+    setJointConstraints(jointIndex: number, constraints: IKConstraints): void;
+
+    /**
+     * Enables or disables automatic solving each tick.
+     * When enabled, the chain solves every server tick if the target changed.
+     * @param enabled Whether to auto-solve.
+     */
+    setAutoSolve(enabled: boolean): void;
+
+    /** Returns whether auto-solve is enabled. */
+    isAutoSolveEnabled(): boolean;
+
+    /**
+     * Sets the interpolation factor for smooth target following.
+     * 1.0 = instant snap to target, lower = smoother but slower response.
+     * @param factor Interpolation factor (0.0 - 1.0).
+     */
+    setInterpolationFactor(factor: number): void;
+
+    /**
+     * Attaches this chain to a model.
+     * The chain root will follow the model's position.
+     * @param modelId The model ID to attach to.
+     * @param offset Local offset from the model's position.
+     */
+    attachToModel(modelId: number, offset?: Vector3): void;
+
+    /**
+     * Attaches this chain to an entity (player or other).
+     * @param entityUuid UUID of the entity.
+     * @param offset Local offset from entity position.
+     */
+    attachToEntity(entityUuid: string, offset?: Vector3): void;
+
+    /** Detaches the chain from any attached model or entity. */
+    detach(): void;
+
+    /** Gets the model ID this chain is attached to, or -1 if not attached. */
+    getAttachedModelId(): number;
+
+    /** Gets the entity UUID this chain is attached to, or null. */
+    getAttachedEntityUuid(): string | null;
+
+    /** Checks if the chain is currently attached to something. */
+    isAttached(): boolean;
+
+    /** Removes this IK chain from the system. */
+    remove(): void;
+}
+
+/**
+ * Server-side IK API for creating and managing inverse kinematics chains.
+ * @remarks Server-only.
+ */
+export interface IKAPI {
+    /**
+     * Creates a new IK chain with the given definition.
+     * @param definition The chain definition specifying bones, constraints, and solver.
+     * @param rootPosition Initial world-space position for the chain root.
+     * @returns Handle to the created chain.
+     */
+    createChain(definition: IKChainDefinition, rootPosition: Vector3): IKChain;
+
+    /**
+     * Creates a two-bone IK chain (arm/leg).
+     * This is the most common case - a limb with upper and lower segments.
+     * @param id Unique identifier for this chain.
+     * @param upperLength Length of the upper bone (e.g., upper arm, thigh).
+     * @param lowerLength Length of the lower bone (e.g., forearm, shin).
+     * @param rootPosition Initial root position.
+     * @param poleVector Direction for elbow/knee to bend towards.
+     * @returns Handle to the created chain.
+     */
+    createTwoBoneChain(id: string, upperLength: number, lowerLength: number,
+                       rootPosition: Vector3, poleVector: Vector3): IKChain;
+
+    /**
+     * Creates a spider/insect leg chain with 3 segments.
+     * @param id Unique identifier.
+     * @param coxaLength Length of first segment (hip joint).
+     * @param femurLength Length of second segment (thigh).
+     * @param tibiaLength Length of third segment (shin).
+     * @param rootPosition Initial root position.
+     * @returns Handle to the created chain.
+     */
+    createSpiderLegChain(id: string, coxaLength: number, femurLength: number,
+                         tibiaLength: number, rootPosition: Vector3): IKChain;
+
+    /**
+     * Creates a spider/insect leg chain with 3 segments and a specific outward direction.
+     * The outward direction determines which way the leg bends (upward and toward this direction).
+     * This is the recommended method for spider legs as it ensures proper bending behavior.
+     *
+     * @param id Unique identifier.
+     * @param coxaLength Length of first segment (hip joint).
+     * @param femurLength Length of second segment (thigh).
+     * @param tibiaLength Length of third segment (shin).
+     * @param rootPosition Initial root position.
+     * @param outwardDirection Direction pointing away from spider body center (XZ plane).
+     *                         Typically calculated as { x: cos(legAngle), y: 0, z: sin(legAngle) }
+     * @returns Handle to the created chain.
+     *
+     * @example
+     * // Create 8 spider legs with proper bending
+     * for (let i = 0; i < 8; i++) {
+     *     const angle = (i / 8) * Math.PI * 2;
+     *     const outward = { x: Math.cos(angle), y: 0, z: Math.sin(angle) };
+     *     const leg = api.ik.createSpiderLegChainWithPole(`leg_${i}`, 0.3, 0.5, 0.6, rootPos, outward);
+     * }
+     */
+    createSpiderLegChainWithPole(id: string, coxaLength: number, femurLength: number,
+                                  tibiaLength: number, rootPosition: Vector3,
+                                  outwardDirection: Vector3): IKChain;
+
+    /**
+     * Creates a multi-segment chain with uniform bone lengths.
+     * Useful for tails, tentacles, or other appendages.
+     * @param id Unique identifier.
+     * @param segmentCount Number of segments.
+     * @param segmentLength Length of each segment.
+     * @param rootPosition Initial root position.
+     * @returns Handle to the created chain.
+     */
+    createUniformChain(id: string, segmentCount: number, segmentLength: number,
+                       rootPosition: Vector3): IKChain;
+
+    /**
+     * Gets an existing chain by ID.
+     * @param chainId The chain identifier.
+     * @returns The chain handle, or null if not found.
+     */
+    getChain(chainId: string): IKChain | null;
+
+    /**
+     * Gets all active chains.
+     */
+    getAllChains(): IKChain[];
+
+    /**
+     * Raycasts downward against server chunk meshes to find the first solid surface.
+     * @param options.position Start position for the ray (commonly above the foot).
+     * @param options.maxDistance Maximum distance to search (defaults to 256).
+     * @returns Hit data or null if nothing is hit.
+     */
+    raycastGround(options: { position: Vector3; maxDistance?: number }): { position: Vector3; normal: Vector3; distance: number } | null;
+
+    /**
+     * Gets all chains attached to a specific model.
+     */
+    getChainsForModel(modelId: number): IKChain[];
+
+    /**
+     * Gets all chains attached to a specific entity.
+     */
+    getChainsForEntity(entityUuid: string): IKChain[];
+
+    /**
+     * Removes a chain by ID.
+     * @param chainId The chain to remove.
+     * @returns true if the chain was found and removed.
+     */
+    removeChain(chainId: string): boolean;
+
+    /**
+     * Removes all chains attached to a model.
+     */
+    removeAllChainsForModel(modelId: number): void;
+
+    /**
+     * Removes all chains attached to an entity.
+     */
+    removeAllChainsForEntity(entityUuid: string): void;
+
+    /**
+     * Performs a one-off IK solve without creating a persistent chain.
+     * Useful for quick calculations or preview.
+     * @param definition Chain definition.
+     * @param rootPosition Root position.
+     * @param targetPosition Target position.
+     * @returns The solved chain state.
+     */
+    solveOnce(definition: IKChainDefinition, rootPosition: Vector3, targetPosition: Vector3): IKChainState;
+}
+
+// Helper functions for creating common IK constraint configurations
+
+/**
+ * Creates symmetric angular constraints (same limit in both directions).
+ * @param pitchLimit Maximum pitch angle in radians.
+ * @param yawLimit Maximum yaw angle in radians.
+ */
+export function ikConstraintsSymmetric(pitchLimit: number, yawLimit: number): IKConstraints {
+    return {
+        minPitch: -pitchLimit,
+        maxPitch: pitchLimit,
+        minYaw: -yawLimit,
+        maxYaw: yawLimit
+    };
+}
+
+/**
+ * Creates hinge joint constraints (like an elbow or knee).
+ * @param minAngle Minimum bend angle in radians.
+ * @param maxAngle Maximum bend angle in radians.
+ * @param axis The hinge axis.
+ */
+export function ikConstraintsHinge(minAngle: number, maxAngle: number, axis: Vector3): IKConstraints {
+    const constraints: IKConstraints = { poleVector: axis };
+
+    const absX = Math.abs(axis.x);
+    const absY = Math.abs(axis.y);
+    const absZ = Math.abs(axis.z);
+
+    if (absX > absY && absX > absZ) {
+        constraints.minPitch = minAngle;
+        constraints.maxPitch = maxAngle;
+        constraints.minYaw = 0;
+        constraints.maxYaw = 0;
+        constraints.minRoll = 0;
+        constraints.maxRoll = 0;
+    } else if (absY > absZ) {
+        constraints.minYaw = minAngle;
+        constraints.maxYaw = maxAngle;
+        constraints.minPitch = 0;
+        constraints.maxPitch = 0;
+        constraints.minRoll = 0;
+        constraints.maxRoll = 0;
+    } else {
+        constraints.minRoll = minAngle;
+        constraints.maxRoll = maxAngle;
+        constraints.minPitch = 0;
+        constraints.maxPitch = 0;
+        constraints.minYaw = 0;
+        constraints.maxYaw = 0;
+    }
+
+    return constraints;
+}
+
+/**
+ * Creates ball joint constraints (allows rotation in a cone).
+ * @param coneAngle Maximum angle from center in radians.
+ */
+export function ikConstraintsBallJoint(coneAngle: number): IKConstraints {
+    return {
+        minPitch: -coneAngle,
+        maxPitch: coneAngle,
+        minYaw: -coneAngle,
+        maxYaw: coneAngle,
+        minRoll: -Math.PI,
+        maxRoll: Math.PI
+    };
+}
+
+// =========================
+// Primitive Mesh Rendering
+// =========================
+
+/**
+ * Types of primitive shapes that can be rendered.
+ * @remarks Shared between client and server.
+ */
+export type PrimitiveType =
+    /** A unit cube centered at origin. */
+    | 'cube'
+    /** A unit sphere centered at origin. */
+    | 'sphere'
+    /** A cylinder along the Y axis. */
+    | 'cylinder'
+    /** A capsule (cylinder with hemispherical caps) along the Y axis. */
+    | 'capsule'
+    /** A single line segment between two points. */
+    | 'line'
+    /** Connected line segments through multiple points. */
+    | 'lineStrip'
+    /** A flat plane in the XZ plane. */
+    | 'plane'
+    /** A cone pointing along the Y axis. */
+    | 'cone';
+
+/**
+ * Material/appearance settings for a primitive.
+ * @remarks Shared between client and server.
+ */
+export interface PrimitiveMaterial {
+    /** Red component (0-1). */
+    r?: number;
+    /** Green component (0-1). */
+    g?: number;
+    /** Blue component (0-1). */
+    b?: number;
+    /** Alpha/opacity component (0-1). */
+    a?: number;
+    /** Optional texture path. */
+    texture?: string;
+    /** If true, no shading is applied (flat color). */
+    unlit?: boolean;
+    /** If true, both sides of faces are rendered. */
+    doubleSided?: boolean;
+    /** If true, renders through blocks/geometry. */
+    renderThroughBlocks?: boolean;
+}
+
+/**
+ * Handle to a primitive mesh for manipulation.
+ * @remarks Server-only.
+ */
+export interface Primitive {
+    /** Gets the unique ID of this primitive. */
+    getId(): number;
+
+    /** Gets the type of this primitive. */
+    getType(): PrimitiveType;
+
+    /** Gets the group ID this primitive belongs to, or null. */
+    getGroupId(): string | null;
+
+    /** Gets the current position. */
+    getPosition(): Vector3;
+
+    /** Gets the current rotation. */
+    getRotation(): Quaternion;
+
+    /** Gets the current scale. */
+    getScale(): Vector3;
+
+    /** Sets the position. */
+    setPosition(position: Vector3): void;
+
+    /** Sets the rotation. */
+    setRotation(rotation: Quaternion): void;
+
+    /** Sets the scale. */
+    setScale(scale: Vector3): void;
+
+    /** Sets position, rotation, and scale in one call. */
+    setTransform(position: Vector3, rotation: Quaternion, scale: Vector3): void;
+
+    /**
+     * Orients the primitive to point from one position to another.
+     * Useful for bone/limb rendering - the primitive will be positioned
+     * at the midpoint and scaled/rotated to connect the two points.
+     *
+     * @param from Start position
+     * @param to End position
+     * @param thickness Scale factor for width/depth
+     */
+    setFromTo(from: Vector3, to: Vector3, thickness: number): void;
+
+    /**
+     * Sets the color (RGB, 0-1 range).
+     */
+    setColor(r: number, g: number, b: number): void;
+
+    /**
+     * Sets the color with alpha (RGBA, 0-1 range).
+     */
+    setColorAlpha(r: number, g: number, b: number, a: number): void;
+
+    /** Sets whether the primitive is unlit (no shading). */
+    setUnlit(unlit: boolean): void;
+
+    /** Sets whether the primitive renders through blocks. */
+    setRenderThroughBlocks(enabled: boolean): void;
+
+    /** Sets whether both sides of faces are rendered. */
+    setDoubleSided(doubleSided: boolean): void;
+
+    /** Sets a texture path for the primitive. */
+    setTexture(texturePath: string): void;
+
+    /** For LINE and LINE_STRIP types, updates the vertices. */
+    setVertices(vertices: Vector3[]): void;
+
+    /** Removes this primitive. */
+    remove(): void;
+
+    /** Checks if this primitive has been removed. */
+    isRemoved(): boolean;
+}
+
+/**
+ * Options for creating a primitive.
+ * @remarks Server-only.
+ */
+export interface PrimitiveOptions {
+    /** Position in world space. */
+    position?: Vector3;
+    /** Rotation as quaternion. */
+    rotation?: Quaternion;
+    /** Scale in each dimension. */
+    scale?: Vector3;
+    /** Material/color settings. */
+    material?: PrimitiveMaterial;
+    /** Optional group ID for batch operations. */
+    groupId?: string;
+}
+
+/**
+ * Server-side Primitive Rendering API for creating geometric shapes.
+ * @remarks Server-only.
+ *
+ * Primitives are simple geometric shapes (cubes, spheres, cylinders, lines, etc.)
+ * that can be rendered in the world. They're useful for:
+ * - Visualizing IK chains and bones
+ * - Procedural geometry
+ * - Dynamic structures
+ * - Visual effects
+ *
+ * @example
+ * // Create a red cube
+ * const cube = api.primitives.createCube(
+ *     { x: 0, y: 70, z: 0 },
+ *     { x: 1, y: 1, z: 1 },
+ *     { r: 1, g: 0, b: 0 }
+ * );
+ *
+ * @example
+ * // Create a bone between two points
+ * const bone = api.primitives.createBone(
+ *     { x: 0, y: 70, z: 0 },
+ *     { x: 2, y: 72, z: 1 },
+ *     0.1,
+ *     { r: 0, g: 1, b: 0 }
+ * );
+ */
+export interface PrimitiveAPI {
+    // ========================
+    // Basic Shape Creation
+    // ========================
+
+    /**
+     * Creates a cube primitive.
+     * @param position Center position
+     * @param scale Size in each dimension
+     * @param material Material/color settings
+     */
+    createCube(position: Vector3, scale: Vector3, material?: PrimitiveMaterial): Primitive;
+
+    /**
+     * Creates a sphere primitive.
+     * @param position Center position
+     * @param radius Sphere radius
+     * @param material Material/color settings
+     */
+    createSphere(position: Vector3, radius: number, material?: PrimitiveMaterial): Primitive;
+
+    /**
+     * Creates a cylinder primitive.
+     * @param position Center position
+     * @param radius Cylinder radius
+     * @param height Cylinder height
+     * @param material Material/color settings
+     */
+    createCylinder(position: Vector3, radius: number, height: number, material?: PrimitiveMaterial): Primitive;
+
+    /**
+     * Creates a capsule primitive (cylinder with hemispherical caps).
+     * @param position Center position
+     * @param radius Capsule radius
+     * @param height Total height including caps
+     * @param material Material/color settings
+     */
+    createCapsule(position: Vector3, radius: number, height: number, material?: PrimitiveMaterial): Primitive;
+
+    /**
+     * Creates a cone primitive.
+     * @param position Base center position
+     * @param radius Base radius
+     * @param height Cone height
+     * @param material Material/color settings
+     */
+    createCone(position: Vector3, radius: number, height: number, material?: PrimitiveMaterial): Primitive;
+
+    /**
+     * Creates a plane primitive.
+     * @param position Center position
+     * @param width Width (X axis)
+     * @param depth Depth (Z axis)
+     * @param material Material/color settings
+     */
+    createPlane(position: Vector3, width: number, depth: number, material?: PrimitiveMaterial): Primitive;
+
+    // ========================
+    // Line Primitives
+    // ========================
+
+    /**
+     * Creates a single line segment.
+     * @param start Start position
+     * @param end End position
+     * @param material Material/color settings
+     */
+    createLine(start: Vector3, end: Vector3, material?: PrimitiveMaterial): Primitive;
+
+    /**
+     * Creates a line strip through multiple points.
+     * @param points List of positions to connect
+     * @param material Material/color settings
+     */
+    createLineStrip(points: Vector3[], material?: PrimitiveMaterial): Primitive;
+
+    // ========================
+    // Bone/Limb Helpers
+    // ========================
+
+    /**
+     * Creates a bone-like shape between two points.
+     * Useful for visualizing IK chains - creates a cube stretched and rotated
+     * to connect two joint positions.
+     *
+     * @param from Start position (joint)
+     * @param to End position (next joint)
+     * @param thickness Width/depth of the bone
+     * @param material Material/color settings
+     */
+    createBone(from: Vector3, to: Vector3, thickness: number, material?: PrimitiveMaterial): Primitive;
+
+    /**
+     * Creates a joint sphere at a position.
+     * @param position Joint position
+     * @param radius Joint radius
+     * @param material Material/color settings
+     */
+    createJoint(position: Vector3, radius: number, material?: PrimitiveMaterial): Primitive;
+
+    // ========================
+    // Advanced Creation
+    // ========================
+
+    /**
+     * Creates a primitive with full control over all parameters.
+     * @param type Primitive type
+     * @param options Creation options
+     */
+    create(type: PrimitiveType, options?: PrimitiveOptions): Primitive;
+
+    // ========================
+    // Queries
+    // ========================
+
+    /** Gets a primitive by ID. */
+    getPrimitive(primitiveId: number): Primitive | null;
+
+    /** Gets all primitives. */
+    getAllPrimitives(): Primitive[];
+
+    /** Gets all primitives in a group. */
+    getPrimitivesInGroup(groupId: string): Primitive[];
+
+    // ========================
+    // Removal
+    // ========================
+
+    /** Removes a primitive by ID. */
+    removePrimitive(primitiveId: number): boolean;
+
+    /** Removes all primitives in a group. */
+    removeGroup(groupId: string): void;
+
+    /** Removes all primitives. */
+    removeAll(): void;
+
+    // ========================
+    // Batch Operations
+    // ========================
+
+    /**
+     * Begins a batch operation. Changes are collected and sent together
+     * for better network efficiency. Call endBatch() to apply.
+     */
+    beginBatch(): void;
+
+    /**
+     * Ends a batch operation and sends all collected changes.
+     */
+    endBatch(): void;
+
+    /**
+     * Returns whether we're currently in a batch operation.
+     */
+    isBatching(): boolean;
+}
+
+// Helper functions for creating materials
+
+/**
+ * Creates a solid color material.
+ */
+export function primitiveMaterial(r: number, g: number, b: number, a?: number): PrimitiveMaterial {
+    return { r, g, b, a: a ?? 1 };
+}
+
+/**
+ * Creates an unlit (no shading) material.
+ */
+export function primitiveUnlit(r: number, g: number, b: number, a?: number): PrimitiveMaterial {
+    return { r, g, b, a: a ?? 1, unlit: true };
+}
+
+/**
+ * Creates a material that renders through blocks.
+ */
+export function primitiveXRay(r: number, g: number, b: number, a?: number): PrimitiveMaterial {
+    return { r, g, b, a: a ?? 1, renderThroughBlocks: true };
 }
