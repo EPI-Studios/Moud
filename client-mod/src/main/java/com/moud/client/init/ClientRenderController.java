@@ -10,10 +10,15 @@ import com.moud.client.collision.Triangle;
 import com.moud.client.display.ClientDisplayManager;
 import com.moud.client.display.DisplayRenderer;
 import com.moud.client.display.DisplaySurface;
+import com.moud.client.editor.ui.SceneEditorOverlay;
+import com.moud.client.ik.ClientIKManager;
 import com.moud.client.model.ClientModelManager;
 import com.moud.client.model.ModelRenderer;
 import com.moud.client.model.RenderableModel;
 import com.moud.client.particle.ParticleRenderer;
+import com.moud.client.primitives.ClientPrimitive;
+import com.moud.client.primitives.ClientPrimitiveManager;
+import com.moud.client.primitives.PrimitiveRenderer;
 import foundry.veil.api.client.render.CullFrustum;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.VeilRenderer;
@@ -28,9 +33,11 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.joml.Quaternionf;
 
 public class ClientRenderController {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientRenderController.class);
@@ -42,6 +49,7 @@ public class ClientRenderController {
     private final ModelRenderer modelRenderer = new ModelRenderer();
     private final DisplayRenderer displayRenderer = new DisplayRenderer();
     private final PlayerModelRenderer playerModelRenderer = new PlayerModelRenderer();
+    private final PrimitiveRenderer primitiveRenderer = new PrimitiveRenderer();
     private ParticleRenderer particleRenderer;
     private long particleFrameTimeNs = 0L;
     private boolean veilBuffersEnabled = false;
@@ -147,6 +155,7 @@ public class ClientRenderController {
                     }
                 }
             }
+            renderPrimitives(renderContext, services);
             if (particleRenderer != null && renderContext.consumers() != null) {
                 MatrixStack matrices = renderContext.matrixStack();
                 particleRenderer.render(matrices, renderContext.consumers(), camera, tickDelta, renderContext.frustum());
@@ -159,7 +168,13 @@ public class ClientRenderController {
                         renderContext.tickCounter().getTickDelta(true)
                 );
             }
-            com.moud.client.editor.ui.SceneEditorOverlay.getInstance().renderCameraGizmos(renderContext);
+
+            ClientIKManager.getInstance().render(
+                    renderContext.matrixStack(),
+                    renderContext.consumers(),
+                    camera.getPos()
+            );
+            SceneEditorOverlay.getInstance().renderCameraGizmos(renderContext);
         } finally {
             if (enabledBuffers && veilRenderer != null) {
                 try {
@@ -319,5 +334,56 @@ public class ClientRenderController {
 
     public void resetFrameTime() {
         particleFrameTimeNs = 0L;
+    }
+
+    private void renderPrimitives(WorldRenderContext renderContext, ClientServiceManager services) {
+        if (ClientPrimitiveManager.getInstance().isEmpty()) {
+            return;
+        }
+        var consumers = renderContext.consumers();
+        var world = MinecraftClient.getInstance().world;
+        if (consumers == null || world == null) {
+            return;
+        }
+
+        float tickDelta = renderContext.tickCounter().getTickDelta(true);
+        Vec3d cameraPos = renderContext.camera().getPos();
+        MatrixStack matrices = renderContext.matrixStack();
+
+        for (ClientPrimitive primitive : ClientPrimitiveManager.getInstance().getPrimitives()) {
+            if (primitive == null) {
+                continue;
+            }
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[Primitives] Rendering id={} type={} unlit={} xray={}", primitive.getId(),
+                        primitive.getType(), primitive.isUnlit(), primitive.isRenderThroughBlocks());
+            }
+            if (primitive.isLineType()) {
+                matrices.push();
+                matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+                int light = primitive.isUnlit() || primitive.isRenderThroughBlocks()
+                        ? 0xF000F0
+                        : WorldRenderer.getLightmapCoordinates(world, BlockPos.ofFloored(cameraPos));
+                primitiveRenderer.renderLines(primitive, matrices, consumers, primitive.isRenderThroughBlocks(), light);
+                matrices.pop();
+                continue;
+            }
+            Vector3 interpolatedPos = primitive.getInterpolatedPosition(tickDelta);
+            var interpolatedRot = primitive.getInterpolatedRotation(tickDelta);
+            Quaternionf rotation = new Quaternionf(interpolatedRot.x, interpolatedRot.y, interpolatedRot.z, interpolatedRot.w);
+            Vector3 scale = primitive.getInterpolatedScale(tickDelta);
+
+            matrices.push();
+            matrices.translate(interpolatedPos.x - cameraPos.x, interpolatedPos.y - cameraPos.y, interpolatedPos.z - cameraPos.z);
+            matrices.multiply(rotation);
+            matrices.scale(scale.x, scale.y, scale.z);
+
+            int light = primitive.isUnlit() || primitive.isRenderThroughBlocks()
+                    ? 0xF000F0
+                    : WorldRenderer.getLightmapCoordinates(world, BlockPos.ofFloored(interpolatedPos.x, interpolatedPos.y, interpolatedPos.z));
+
+            primitiveRenderer.renderSolid(primitive, matrices, consumers, light);
+            matrices.pop();
+        }
     }
 }

@@ -28,7 +28,7 @@ public final class ClientDisplayManager {
     public void handleTransform(MoudPackets.S2C_UpdateDisplayTransformPacket packet) {
         DisplaySurface surface = displays.get(packet.displayId());
         if (surface != null) {
-            surface.updateTransform(packet.position(), packet.rotation(), packet.scale(), packet.billboardMode());
+            surface.updateTransform(packet.position(), packet.rotation(), packet.scale(), packet.billboardMode(), packet.renderThroughBlocks());
             RuntimeObjectRegistry.getInstance().syncDisplay(surface);
         }
     }
