@@ -5,6 +5,7 @@ import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.cursor.ClientCursorManager;
 import com.moud.client.display.ClientDisplayManager;
 import com.moud.client.display.DisplaySurface;
+import com.moud.client.ik.ClientIKManager;
 import com.moud.client.lighting.ClientLightingService;
 import com.moud.client.model.ClientModelManager;
 import com.moud.client.movement.ClientMovementTracker;
@@ -12,6 +13,7 @@ import com.moud.client.particle.ParticleEmitterSystem;
 import com.moud.client.particle.ParticleSystem;
 import com.moud.client.player.ClientCameraManager;
 import com.moud.client.player.PlayerStateManager;
+import com.moud.client.primitives.ClientPrimitiveManager;
 import com.moud.client.runtime.ClientScriptingRuntime;
 import com.moud.client.shared.SharedValueManager;
 import com.moud.client.ui.ServerUIOverlayManager;
@@ -85,10 +87,16 @@ public class ClientServiceManager {
         UIAnimationManager.getInstance().clear();
         ClientDisplayManager.getInstance().clear();
         particleEmitterSystem.clear();
+        ClientPrimitiveManager.getInstance().clear();
+        ClientDisplayManager.getInstance().clear();
+        particleEmitterSystem.clear();
+        ClientPrimitiveManager.getInstance().clear();
+        ClientIKManager.getInstance().clear();
         clientCameraManager = null;
         playerStateManager = null;
         runtimeInitialized = false;
     }
+
 
     public void shutdown() {
         cleanupRuntimeServices();
@@ -130,6 +138,7 @@ public class ClientServiceManager {
         ClientMovementTracker.getInstance().tick();
         ClientModelManager.getInstance().getModels().forEach(model -> model.tickSmoothing(1.0f));
         ClientDisplayManager.getInstance().tickSmoothing(1.0f);
+        ClientPrimitiveManager.getInstance().tickSmoothing(1.0f);
     }
 
     public ParticleSystem getParticleSystem() {

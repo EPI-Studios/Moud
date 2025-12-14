@@ -16,6 +16,7 @@ import com.moud.client.editor.runtime.RuntimeObjectRegistry;
 import com.moud.client.editor.scene.SceneSessionManager;
 import com.moud.client.editor.scene.blueprint.ClientBlueprintNetwork;
 import com.moud.client.editor.ui.SceneEditorOverlay;
+import com.moud.client.ik.ClientIKManager;
 import com.moud.client.model.ClientModelManager;
 import com.moud.client.model.RenderableModel;
 import com.moud.client.network.ClientPacketReceiver;
@@ -27,6 +28,7 @@ import com.moud.client.runtime.ClientScriptingRuntime;
 import com.moud.client.shared.SharedValueManager;
 import com.moud.client.ui.ServerUIOverlayManager;
 import com.moud.client.util.WindowAnimator;
+import com.moud.client.primitives.ClientPrimitiveManager;
 import com.moud.network.MoudPackets;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.client.MinecraftClient;
@@ -79,6 +81,14 @@ public class ClientNetworkRegistry {
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateDisplayContentPacket.class, (player, packet) -> handleUpdateDisplayContent(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateDisplayPlaybackPacket.class, (player, packet) -> handleUpdateDisplayPlayback(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_RemoveDisplayPacket.class, (player, packet) -> handleRemoveDisplay(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_PrimitiveCreatePacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientPrimitiveManager.getInstance().handleCreate(packet)));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_PrimitiveBatchCreatePacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientPrimitiveManager.getInstance().handleBatchCreate(packet)));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_PrimitiveTransformPacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientPrimitiveManager.getInstance().handleTransform(packet)));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_PrimitiveBatchTransformPacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientPrimitiveManager.getInstance().handleBatchTransform(packet)));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_PrimitiveMaterialPacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientPrimitiveManager.getInstance().handleMaterial(packet)));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_PrimitiveVerticesPacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientPrimitiveManager.getInstance().handleVertices(packet)));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_PrimitiveRemovePacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientPrimitiveManager.getInstance().handleRemove(packet)));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_PrimitiveRemoveGroupPacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientPrimitiveManager.getInstance().handleRemoveGroup(packet)));
         ClientPacketWrapper.registerHandler(MoudPackets.AdvancedCameraLockPacket.class, (player, packet) -> handleAdvancedCameraLock(packet, services));
         ClientPacketWrapper.registerHandler(MoudPackets.CameraUpdatePacket.class, (player, packet) -> handleCameraUpdate(packet, services));
         ClientPacketWrapper.registerHandler(MoudPackets.CameraReleasePacket.class, (player, packet) -> handleCameraRelease(packet, services));
@@ -157,6 +167,16 @@ public class ClientNetworkRegistry {
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateModelCollisionPacket.class, (player, packet) -> handleUpdateModelCollision(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_SyncModelCollisionBoxesPacket.class, (player, packet) -> handleSyncModelCollisionBoxes(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_RemoveModelPacket.class, (player, packet) -> handleRemoveModel(packet));
+
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_IKCreateChainPacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientIKManager.getInstance().handleCreate(packet)));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_IKUpdateChainPacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientIKManager.getInstance().handleUpdate(packet)));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_IKBatchUpdatePacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientIKManager.getInstance().handleBatchUpdate(packet)));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_IKUpdateTargetPacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientIKManager.getInstance().handleUpdateTarget(packet)));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_IKUpdateRootPacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientIKManager.getInstance().handleUpdateRoot(packet)));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_IKAttachPacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientIKManager.getInstance().handleAttach(packet)));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_IKDetachPacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientIKManager.getInstance().handleDetach(packet)));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_IKRemoveChainPacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientIKManager.getInstance().handleRemove(packet)));
+
 
         LOGGER.info("Internal packet handlers registered.");
     }

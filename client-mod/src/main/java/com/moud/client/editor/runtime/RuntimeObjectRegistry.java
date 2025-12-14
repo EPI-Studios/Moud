@@ -557,7 +557,7 @@ public final class RuntimeObjectRegistry {
                 Vector3 posVec = pos != null ? new Vector3(pos.x, pos.y, pos.z) : null;
                 Quaternion rotQuat = rot != null ? Quaternion.fromEuler((float) rot.x, (float) rot.y, (float) rot.z) : null;
                 Vector3 scaleVec = scl != null ? new Vector3(scl.x, scl.y, scl.z) : null;
-                surface.updateTransform(posVec, rotQuat, scaleVec, surface.getBillboardMode());
+                surface.updateTransform(posVec, rotQuat, scaleVec, surface.getBillboardMode(), surface.isRenderThroughBlocks());
             }
         } else if (obj.getType() == RuntimeObjectType.LIGHT) {
             com.moud.client.lighting.ClientLightingService.ManagedLight light = com.moud.client.lighting.ClientLightingService.getInstance().getManagedLight(obj.getRuntimeId());
