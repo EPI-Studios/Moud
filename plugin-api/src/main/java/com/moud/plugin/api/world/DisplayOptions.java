@@ -8,6 +8,7 @@ public final class DisplayOptions {
     private Quaternion rotation = Quaternion.identity();
     private Vector3 scale = Vector3.one();
     private DisplayBillboardMode billboard = DisplayBillboardMode.NONE;
+    private boolean renderThroughBlocks = false;
     private DisplayAnchor anchor;
     private DisplayContent content;
     private DisplayPlayback playback;
@@ -45,6 +46,15 @@ public final class DisplayOptions {
 
     public DisplayOptions billboard(DisplayBillboardMode billboard) {
         this.billboard = billboard;
+        return this;
+    }
+
+    public boolean renderThroughBlocks() {
+        return renderThroughBlocks;
+    }
+
+    public DisplayOptions renderThroughBlocks(boolean renderThroughBlocks) {
+        this.renderThroughBlocks = renderThroughBlocks;
         return this;
     }
 
