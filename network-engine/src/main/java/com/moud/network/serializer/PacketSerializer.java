@@ -49,6 +49,10 @@ public class PacketSerializer {
         register(com.moud.api.particle.ParticleDescriptor.class, new ParticleDescriptorSerializer());
         register(com.moud.api.particle.ParticleEmitterConfig.class, new ParticleEmitterConfigSerializer());
         register(MoudPackets.UIElementDefinition.class, new UIElementDefinitionSerializer());
+        register(MoudPackets.PrimitiveMaterial.class, new PrimitiveMaterialSerializer());
+        register(MoudPackets.PrimitiveBatchEntry.class, new PrimitiveBatchEntrySerializer());
+        register(MoudPackets.PrimitiveTransformEntry.class, new PrimitiveTransformEntrySerializer());
+        register(MoudPackets.IKJointData.class, new IKJointDataSerializer());
     }
 
     public <T> void register(Class<T> type, TypeSerializer<T> serializer) {
@@ -408,6 +412,110 @@ public class PacketSerializer {
             Vector3 halfExtents = (Vector3) readValue(buffer, Vector3.class, Vector3.class);
             Quaternion rotation = (Quaternion) readValue(buffer, Quaternion.class, Quaternion.class);
             return new MoudPackets.CollisionBoxData(center, halfExtents, rotation);
+        }
+    }
+
+    private class PrimitiveMaterialSerializer implements TypeSerializer<MoudPackets.PrimitiveMaterial> {
+        @Override
+        public void write(ByteBuffer buffer, MoudPackets.PrimitiveMaterial value) {
+            buffer.writeFloat(value.r());
+            buffer.writeFloat(value.g());
+            buffer.writeFloat(value.b());
+            buffer.writeFloat(value.a());
+            boolean hasTexture = value.texture() != null;
+            buffer.writeBoolean(hasTexture);
+            if (hasTexture) {
+                buffer.writeString(value.texture());
+            }
+            buffer.writeBoolean(value.unlit());
+            buffer.writeBoolean(value.doubleSided());
+            buffer.writeBoolean(value.renderThroughBlocks());
+        }
+
+        @Override
+        public MoudPackets.PrimitiveMaterial read(ByteBuffer buffer) {
+            float r = buffer.readFloat();
+            float g = buffer.readFloat();
+            float b = buffer.readFloat();
+            float a = buffer.readFloat();
+            boolean hasTex = buffer.readBoolean();
+            String texture = hasTex ? buffer.readString() : null;
+            boolean unlit = buffer.readBoolean();
+            boolean doubleSided = buffer.readBoolean();
+            boolean renderThrough = buffer.readBoolean();
+            return new MoudPackets.PrimitiveMaterial(r, g, b, a, texture, unlit, doubleSided, renderThrough);
+        }
+    }
+
+    private class PrimitiveBatchEntrySerializer implements TypeSerializer<MoudPackets.PrimitiveBatchEntry> {
+        @Override
+        public void write(ByteBuffer buffer, MoudPackets.PrimitiveBatchEntry value) {
+            writeValue(buffer, value.primitiveId(), long.class, long.class);
+            writeValue(buffer, value.type(), MoudPackets.PrimitiveType.class, MoudPackets.PrimitiveType.class);
+            writeValue(buffer, value.position(), Vector3.class, Vector3.class);
+            writeValue(buffer, value.rotation(), Quaternion.class, Quaternion.class);
+            writeValue(buffer, value.scale(), Vector3.class, Vector3.class);
+            writeValue(buffer, value.material(), MoudPackets.PrimitiveMaterial.class, MoudPackets.PrimitiveMaterial.class);
+            boolean hasVerts = value.vertices() != null;
+            buffer.writeBoolean(hasVerts);
+            if (hasVerts) {
+                writeValue(buffer, value.vertices(), List.class, value.getClass().getRecordComponents()[6].getGenericType());
+            }
+            boolean hasGroup = value.groupId() != null;
+            buffer.writeBoolean(hasGroup);
+            if (hasGroup) {
+                buffer.writeString(value.groupId());
+            }
+        }
+
+        @Override
+        public MoudPackets.PrimitiveBatchEntry read(ByteBuffer buffer) {
+            long id = (long) readValue(buffer, long.class, long.class);
+            MoudPackets.PrimitiveType type = (MoudPackets.PrimitiveType) readValue(buffer, MoudPackets.PrimitiveType.class, MoudPackets.PrimitiveType.class);
+            Vector3 pos = (Vector3) readValue(buffer, Vector3.class, Vector3.class);
+            Quaternion rot = (Quaternion) readValue(buffer, Quaternion.class, Quaternion.class);
+            Vector3 scale = (Vector3) readValue(buffer, Vector3.class, Vector3.class);
+            MoudPackets.PrimitiveMaterial mat = (MoudPackets.PrimitiveMaterial) readValue(buffer, MoudPackets.PrimitiveMaterial.class, MoudPackets.PrimitiveMaterial.class);
+            boolean hasVerts = buffer.readBoolean();
+            @SuppressWarnings("unchecked")
+            List<Vector3> verts = hasVerts ? (List<Vector3>) readValue(buffer, List.class, MoudPackets.PrimitiveBatchEntry.class.getRecordComponents()[6].getGenericType()) : null;
+            boolean hasGroup = buffer.readBoolean();
+            String groupId = hasGroup ? buffer.readString() : null;
+            return new MoudPackets.PrimitiveBatchEntry(id, type, pos, rot, scale, mat, verts, groupId);
+        }
+    }
+
+    private class PrimitiveTransformEntrySerializer implements TypeSerializer<MoudPackets.PrimitiveTransformEntry> {
+        @Override
+        public void write(ByteBuffer buffer, MoudPackets.PrimitiveTransformEntry value) {
+            writeValue(buffer, value.primitiveId(), long.class, long.class);
+            writeValue(buffer, value.position(), Vector3.class, Vector3.class);
+            writeValue(buffer, value.rotation(), Quaternion.class, Quaternion.class);
+            writeValue(buffer, value.scale(), Vector3.class, Vector3.class);
+        }
+
+        @Override
+        public MoudPackets.PrimitiveTransformEntry read(ByteBuffer buffer) {
+            long id = (long) readValue(buffer, long.class, long.class);
+            Vector3 pos = (Vector3) readValue(buffer, Vector3.class, Vector3.class);
+            Quaternion rot = (Quaternion) readValue(buffer, Quaternion.class, Quaternion.class);
+            Vector3 scale = (Vector3) readValue(buffer, Vector3.class, Vector3.class);
+            return new MoudPackets.PrimitiveTransformEntry(id, pos, rot, scale);
+        }
+    }
+
+    private class IKJointDataSerializer implements TypeSerializer<MoudPackets.IKJointData> {
+        @Override
+        public void write(ByteBuffer buffer, MoudPackets.IKJointData value) {
+            writeValue(buffer, value.position(), Vector3.class, Vector3.class);
+            writeValue(buffer, value.rotation(), Quaternion.class, Quaternion.class);
+        }
+
+        @Override
+        public MoudPackets.IKJointData read(ByteBuffer buffer) {
+            Vector3 pos = (Vector3) readValue(buffer, Vector3.class, Vector3.class);
+            Quaternion rot = (Quaternion) readValue(buffer, Quaternion.class, Quaternion.class);
+            return new MoudPackets.IKJointData(pos, rot);
         }
     }
 }
