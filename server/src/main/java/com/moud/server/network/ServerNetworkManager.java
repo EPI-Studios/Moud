@@ -83,6 +83,28 @@ public final class ServerNetworkManager {
     public void initialize() {
         registerMinestomListeners();
         registerPacketHandlers();
+        com.moud.server.primitives.PrimitiveServiceImpl.getInstance().setPacketSender(new com.moud.server.primitives.PrimitiveServiceImpl.PrimitivePacketSender() {
+            @Override
+            public void broadcastToAll(Object packet) {
+                broadcast(packet);
+            }
+
+            @Override
+            public void sendToPlayer(Player player, Object packet) {
+                send(player, packet);
+            }
+        });
+        com.moud.server.ik.IKServiceImpl.getInstance().setPacketSender(new com.moud.server.ik.IKServiceImpl.IKPacketSender() {
+            @Override
+            public void broadcastToAll(Object packet) {
+                broadcast(packet);
+            }
+
+            @Override
+            public void sendToPlayer(Player player, Object packet) {
+                send(player, packet);
+            }
+        });
         LOGGER.info("Server network manager initialized");
     }
 
@@ -351,6 +373,7 @@ public final class ServerNetworkManager {
         ParticleEmitterManager.getInstance().syncToPlayer(minestomPlayer);
         com.moud.server.rendering.PostEffectStateManager.getInstance().syncToPlayer(minestomPlayer);
         UIOverlayService.getInstance().resend(minestomPlayer);
+        com.moud.server.primitives.PrimitiveServiceImpl.getInstance().syncToPlayer(minestomPlayer);
     }
     private void onPluginMessage(PlayerPluginMessageEvent event) {
         String outerChannel = event.getIdentifier();

@@ -26,8 +26,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Stream;
 import java.util.zip.GZIPOutputStream;
 
@@ -37,6 +40,8 @@ public class ModelProxy {
     private final long id;
     private final Entity entity;
     private final String modelPath;
+
+
 
     private Vector3 position;
     private Quaternion rotation;
@@ -52,6 +57,10 @@ public class ModelProxy {
     private Quaternion lastBroadcastRotation;
     private Vector3 lastBroadcastScale;
     private long lastBroadcastNanos;
+
+    // Increased to ensure collision box half-extents > 0.05
+    private static final double MIN_COLLISION_SIZE = 0.11;
+
     private static final double MIN_POS_DELTA_SQ = 1.0e-4; // 1 cm movement
     private static final double MIN_SCALE_DELTA = 1.0e-4;
     private static final float MIN_ROTATION_DELTA_DEG = 0.1f;
@@ -349,11 +358,15 @@ public class ModelProxy {
 
     @HostAccess.Export
     public void setPosition(Vector3 position) {
-        this.position = position;
-        this.entity.teleport(new Pos(position.x, position.y, position.z));
+        if (position == null) {
+            return;
+        }
+        Vector3 pos = new Vector3(position);
+        this.position = pos;
+        this.entity.teleport(new Pos(pos.x, pos.y, pos.z));
         PhysicsService physics = PhysicsService.getInstance();
         if (physics != null) {
-            physics.handleModelManualTransform(this, position, null);
+            physics.handleModelManualTransform(this, pos, null);
         }
         broadcastUpdate();
     }
@@ -463,7 +476,7 @@ public class ModelProxy {
     public void setCollisionBoxes(List<OBB> boxes) {
         this.collisionBoxes = new ArrayList<>(boxes);
         List<BoundingBox> minestomBoxes = MinestomCollisionAdapter.convertToBoundingBoxes(
-            boxes, position, rotation, scale
+                boxes, position, rotation, scale
         );
         if (!manualCollisionOverride && !minestomBoxes.isEmpty()) {
             BoundingBox mainBox = MinestomCollisionAdapter.getLargestBox(minestomBoxes);
@@ -500,16 +513,21 @@ public class ModelProxy {
         return new ArrayList<>(collisionBoxes);
     }
 
+    private static double clampCollisionSize(double value) {
+        double size = Math.abs(value);
+        return size < MIN_COLLISION_SIZE ? MIN_COLLISION_SIZE : size;
+    }
+
     public double getCollisionWidth() {
-        return collisionBox != null ? collisionBox.width() : 0;
+        return collisionBox != null ? Math.max(collisionBox.width(), MIN_COLLISION_SIZE) : 0;
     }
 
     public double getCollisionHeight() {
-        return collisionBox != null ? collisionBox.height() : 0;
+        return collisionBox != null ? Math.max(collisionBox.height(), MIN_COLLISION_SIZE) : 0;
     }
 
     public double getCollisionDepth() {
-        return collisionBox != null ? collisionBox.depth() : 0;
+        return collisionBox != null ? Math.max(collisionBox.depth(), MIN_COLLISION_SIZE) : 0;
     }
 
     public void syncPhysicsTransform(Vector3 position, Quaternion rotation) {
@@ -524,6 +542,54 @@ public class ModelProxy {
     }
 
     @HostAccess.Export
+    public void attachToEntity(String uuid, Vector3 offset, boolean kinematic) {
+        PhysicsService physics = PhysicsService.getInstance();
+        if (physics == null || uuid == null || uuid.isBlank()) {
+            return;
+        }
+        try {
+            physics.attachFollow(this, java.util.UUID.fromString(uuid), offset, kinematic);
+        } catch (Exception e) {
+            LOGGER.warn("Failed to attach model {} to {}", id, uuid, e);
+        }
+    }
+
+    @HostAccess.Export
+    public void attachSpring(Vector3 anchor, double stiffness, double damping, double restLength) {
+        PhysicsService physics = PhysicsService.getInstance();
+        if (physics == null || anchor == null) {
+            return;
+        }
+        physics.attachSpring(this, anchor, stiffness, damping, restLength);
+    }
+
+    @HostAccess.Export
+    public void clearPhysicsConstraints() {
+        PhysicsService physics = PhysicsService.getInstance();
+        if (physics == null) return;
+        physics.clearConstraints(this);
+    }
+
+    @HostAccess.Export
+    public org.graalvm.polyglot.proxy.ProxyObject getPhysicsState() {
+        PhysicsService physics = PhysicsService.getInstance();
+        if (physics == null) return org.graalvm.polyglot.proxy.ProxyObject.fromMap(java.util.Map.of());
+        var state = physics.getState(this);
+        if (state == null) {
+            return org.graalvm.polyglot.proxy.ProxyObject.fromMap(java.util.Map.of());
+        }
+        java.util.Map<String, Object> map = new java.util.HashMap<>();
+        map.put("linearVelocity", state.linearVelocity());
+        map.put("angularVelocity", state.angularVelocity());
+        map.put("active", state.active());
+        map.put("onGround", state.onGround());
+        map.put("lastImpulse", state.lastImpulse());
+        map.put("hasFollowConstraint", state.hasFollowConstraint());
+        map.put("hasSpringConstraint", state.hasSpringConstraint());
+        return org.graalvm.polyglot.proxy.ProxyObject.fromMap(map);
+    }
+
+    @HostAccess.Export
     public void remove() {
         PhysicsService physics = PhysicsService.getInstance();
         if (physics != null) {
@@ -534,6 +600,7 @@ public class ModelProxy {
         broadcast(new MoudPackets.S2C_RemoveModelPacket(id));
 
     }
+
 
 
 }

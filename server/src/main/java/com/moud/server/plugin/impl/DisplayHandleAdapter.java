@@ -69,6 +69,11 @@ public final class DisplayHandleAdapter implements DisplayHandle {
     }
 
     @Override
+    public void setRenderThroughBlocks(boolean enabled) {
+        proxy.setRenderThroughBlocks(enabled);
+    }
+
+    @Override
     public void setAnchorToBlock(int x, int y, int z, Vector3 offset) {
         proxy.setAnchorToBlock(x, y, z, offset);
     }
