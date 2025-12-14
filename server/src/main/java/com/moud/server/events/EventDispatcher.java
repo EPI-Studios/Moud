@@ -233,6 +233,11 @@ public class EventDispatcher {
         }
     }
 
+    public boolean hasHandlers(String eventName) {
+        CopyOnWriteArrayList<HandlerEntry> handlerList = handlers.get(eventName);
+        return handlerList != null && !handlerList.isEmpty();
+    }
+
     public void dispatchEntityInteraction(Player player, Entity entity, String interactionType) {
         CopyOnWriteArrayList<HandlerEntry> handlerList = handlers.get("entity.interact");
         if (handlerList == null || handlerList.isEmpty()) {

@@ -1,5 +1,6 @@
 package com.moud.server;
 
+import com.moud.server.audio.ServerVoiceChatManager;
 import com.moud.server.editor.AnimationManager;
 import com.moud.server.api.HotReloadEndpoint;
 import com.moud.server.api.ScriptingAPI;
@@ -31,6 +32,8 @@ import com.moud.network.engine.PacketEngine;
 import com.moud.network.buffer.ByteBuffer;
 import com.moud.server.shared.SharedValueManager;
 import com.moud.server.zone.ZoneManager;
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.timer.TaskSchedule;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
@@ -132,6 +135,7 @@ public class MoudEngine {
 
             this.networkManager = new ServerNetworkManager(eventDispatcher, clientScriptManager);
             networkManager.initialize();
+            ServerVoiceChatManager.getInstance().initialize();
             this.particleBatcher = new ParticleBatcher(networkManager);
             this.particleEmitterManager = ParticleEmitterManager.getInstance();
             particleEmitterManager.initialize(networkManager);
@@ -163,12 +167,12 @@ public class MoudEngine {
                 initialized.set(true);
                 this.eventDispatcher.dispatchLoadEvent("server.load");
                 LOGGER.startup("Moud Engine initialized successfully");
-                net.minestom.server.MinecraftServer.getSchedulerManager().buildTask(() -> {
-                    animationTickHandler.tick(net.minestom.server.MinecraftServer.TICK_MS / 1000f);
-                }).repeat(net.minestom.server.timer.TaskSchedule.millis(net.minestom.server.MinecraftServer.TICK_MS)).schedule();
-                net.minestom.server.MinecraftServer.getSchedulerManager().buildTask(() -> {
+                MinecraftServer.getSchedulerManager().buildTask(() -> {
+                    animationTickHandler.tick(MinecraftServer.TICK_MS / 1000f);
+                }).repeat(TaskSchedule.millis(net.minestom.server.MinecraftServer.TICK_MS)).schedule();
+                MinecraftServer.getSchedulerManager().buildTask(() -> {
                     particleBatcher.flush();
-                }).repeat(net.minestom.server.timer.TaskSchedule.millis(net.minestom.server.MinecraftServer.TICK_MS)).schedule();
+                }).repeat(TaskSchedule.millis(net.minestom.server.MinecraftServer.TICK_MS)).schedule();
             }).exceptionally(ex -> {
                 LOGGER.critical("Failed to load user scripts during startup. The server might not function correctly.", ex);
                 return null;
@@ -311,6 +315,7 @@ public class MoudEngine {
         if (cursorService != null) cursorService.shutdown();
         if (asyncManager != null) asyncManager.shutdown();
         if (runtime != null) runtime.shutdown();
+        com.moud.server.audio.ServerVoiceChatManager.getInstance().shutdown();
         if (physicsService != null) physicsService.shutdown();
         if (pluginManager != null) pluginManager.shutdown();
         SharedValueManager.getInstance().shutdown();
