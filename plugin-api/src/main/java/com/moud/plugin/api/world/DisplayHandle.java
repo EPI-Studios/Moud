@@ -15,6 +15,7 @@ public interface DisplayHandle extends AutoCloseable {
     void setTransform(Vector3 position, Quaternion rotation, Vector3 scale);
     void setScale(Vector3 scale);
     void setBillboard(DisplayBillboardMode mode);
+    void setRenderThroughBlocks(boolean enabled);
     void setAnchorToBlock(int x, int y, int z, Vector3 offset);
     void setAnchorToEntity(String uuid, Vector3 offset);
     void clearAnchor();
