@@ -16,7 +16,7 @@ public final class ClientMicrophoneManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientMicrophoneManager.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final int DEFAULT_CHUNK_SIZE = 960;
+    private static final int DEFAULT_FRAME_SIZE_MS = 20;
     private static final AudioFormat DEFAULT_FORMAT = new AudioFormat(48000f, 16, 1, true, false);
 
     private final AtomicBoolean capturing = new AtomicBoolean(false);
@@ -25,6 +25,19 @@ public final class ClientMicrophoneManager {
     private TargetDataLine dataLine;
     private Thread captureThread;
     private String sessionId;
+    private volatile int frameSizeMs = DEFAULT_FRAME_SIZE_MS;
+    private volatile boolean legacyScriptEvents = false;
+
+    @FunctionalInterface
+    public interface FrameConsumer {
+        void onFrame(String sessionId, long timestampMs, AudioFormat format, byte[] data);
+    }
+
+    private volatile FrameConsumer frameConsumer;
+
+    public void setFrameConsumer(FrameConsumer consumer) {
+        this.frameConsumer = consumer;
+    }
 
     public synchronized void start(Map<String, Object> options) {
         if (capturing.get()) {
@@ -37,6 +50,16 @@ public final class ClientMicrophoneManager {
             if (options != null && options.get("sampleRate") instanceof Number number) {
                 format = new AudioFormat(number.floatValue(), 16, 1, true, false);
             }
+
+            int requestedFrameSizeMs = DEFAULT_FRAME_SIZE_MS;
+            if (options != null && options.get("frameSizeMs") instanceof Number number) {
+                requestedFrameSizeMs = number.intValue();
+            }
+            this.frameSizeMs = Math.max(5, Math.min(requestedFrameSizeMs, 60));
+
+            this.legacyScriptEvents = options != null
+                    && options.get("legacyScriptEvents") instanceof Boolean enabled
+                    && enabled;
 
             DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
             if (!AudioSystem.isLineSupported(info)) {
@@ -93,7 +116,10 @@ public final class ClientMicrophoneManager {
     }
 
     private void captureLoop(AudioFormat format) {
-        byte[] buffer = new byte[DEFAULT_CHUNK_SIZE];
+        int bytesPerSample = Math.max(1, format.getSampleSizeInBits() / 8);
+        int samplesPerFrame = Math.max(1, Math.round(format.getSampleRate() * (frameSizeMs / 1000.0f)));
+        int frameBytes = Math.max(1, samplesPerFrame * format.getChannels() * bytesPerSample);
+        byte[] buffer = new byte[frameBytes];
 
         while (capturing.get() && !Thread.currentThread().isInterrupted()) {
             int read = dataLine.read(buffer, 0, buffer.length);
@@ -101,17 +127,20 @@ public final class ClientMicrophoneManager {
                 continue;
             }
 
-            byte[] chunk = buffer;
-            if (read != buffer.length) {
-                chunk = new byte[read];
-                System.arraycopy(buffer, 0, chunk, 0, read);
-            }
+            byte[] chunk = new byte[read];
+            System.arraycopy(buffer, 0, chunk, 0, read);
 
             sendChunk(chunk, format);
         }
     }
 
     private void sendChunk(byte[] data, AudioFormat format) {
+        FrameConsumer consumer = frameConsumer;
+        if (!legacyScriptEvents && consumer != null) {
+            consumer.onFrame(sessionId, System.currentTimeMillis(), format, data);
+            return;
+        }
+
         try {
             Map<String, Object> payload = new HashMap<>();
             payload.put("sessionId", sessionId);

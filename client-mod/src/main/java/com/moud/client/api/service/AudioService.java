@@ -4,15 +4,19 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moud.client.audio.ClientAudioService;
 import com.moud.client.audio.ClientMicrophoneManager;
-import com.moud.client.audio.VoiceChatController;
+import com.moud.client.audio.ClientVoiceChatManager;
+import com.moud.client.runtime.ClientScriptingRuntime;
 import com.moud.client.settings.VoiceSettingsManager;
+import com.moud.network.MoudPackets;
 import net.minecraft.client.MinecraftClient;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
+import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.UUID;
 
 public final class AudioService {
 
@@ -22,16 +26,24 @@ public final class AudioService {
     private Context context;
     private final ClientMicrophoneManager microphoneManager = new ClientMicrophoneManager();
     private final MicrophoneAPI microphoneAPI = new MicrophoneAPI();
+    private final ClientVoiceChatManager voiceChatManager = new ClientVoiceChatManager();
+    private final VoiceAPI voiceAPI = new VoiceAPI();
 
     public AudioService() {
         String preferred = VoiceSettingsManager.get().inputDeviceName;
         if (preferred != null && !preferred.isEmpty()) {
             microphoneManager.setPreferredInputDevice(preferred);
         }
+        microphoneManager.setFrameConsumer(voiceChatManager::onMicrophoneFrame);
+    }
+
+    public void setRuntime(ClientScriptingRuntime runtime) {
+        voiceChatManager.setRuntime(runtime);
     }
 
     public void setContext(Context context) {
         this.context = context;
+        voiceChatManager.setContext(context);
     }
 
     public void handleNetworkEvent(String eventName, String payload) {
@@ -40,6 +52,10 @@ public final class AudioService {
             return;
         }
         ClientAudioService.getInstance().handleNetworkEvent(eventName, payload);
+    }
+
+    public void handleVoiceStreamChunk(MoudPackets.VoiceStreamChunkPacket packet) {
+        voiceChatManager.handleVoiceStreamChunk(packet);
     }
 
     @HostAccess.Export
@@ -62,13 +78,34 @@ public final class AudioService {
         return microphoneAPI;
     }
 
+    @HostAccess.Export
+    public VoiceAPI getVoice() {
+        return voiceAPI;
+    }
+
     public void tick() {
         ClientAudioService.getInstance().tick();
+        voiceChatManager.tick();
     }
 
     public void cleanUp() {
         context = null;
         microphoneManager.stop();
+        voiceChatManager.setContext(null);
+        voiceChatManager.setRuntime(null);
+        voiceChatManager.setEnabled(false);
+    }
+
+    private Map<String, Object> convertToMap(Object value) {
+        if (value == null) {
+            return Map.of();
+        }
+        try {
+            return MAPPER.convertValue(value, Map.class);
+        } catch (IllegalArgumentException e) {
+            LOGGER.warn("Failed to convert audio payload, using defaults", e);
+            return Map.of();
+        }
     }
 
     private void sendToService(String eventName, Object payload) {
@@ -88,9 +125,11 @@ public final class AudioService {
                     : MAPPER.readValue(payload, Map.class);
 
             if ("audio:microphone:start".equals(eventName)) {
+                voiceChatManager.setMicrophoneConfig(data);
                 microphoneManager.start(data);
             } else if ("audio:microphone:stop".equals(eventName)) {
                 microphoneManager.stop();
+                voiceChatManager.onMicrophoneStopped();
             }
         } catch (Exception e) {
             LOGGER.error("Failed to handle microphone event {}", eventName, e);
@@ -101,13 +140,15 @@ public final class AudioService {
 
         @HostAccess.Export
         public void start(Object options) {
-            Map<String, Object> data = convert(options);
+            Map<String, Object> data = convertToMap(options);
+            voiceChatManager.setMicrophoneConfig(data);
             microphoneManager.start(data);
         }
 
         @HostAccess.Export
         public void stop() {
             microphoneManager.stop();
+            voiceChatManager.onMicrophoneStopped();
         }
 
         @HostAccess.Export
@@ -129,16 +170,52 @@ public final class AudioService {
         public void setPreferredInputDevice(String deviceName) {
             microphoneManager.setPreferredInputDevice(deviceName);
         }
+    }
 
-        private Map<String, Object> convert(Object value) {
-            if (value == null) {
-                return Map.of();
+    public final class VoiceAPI {
+
+        @HostAccess.Export
+        public void registerProcessor(String id, Value factory) {
+            voiceChatManager.registerProcessor(id, factory);
+        }
+
+        @HostAccess.Export
+        public void setEnabled(boolean enabled) {
+            voiceChatManager.setEnabled(enabled);
+        }
+
+        @HostAccess.Export
+        public boolean isEnabled() {
+            return voiceChatManager.isEnabled();
+        }
+
+        @HostAccess.Export
+        public void setOutputProcessing(String speakerUuid, Object processing) {
+            UUID speakerId = parseUuid(speakerUuid);
+            if (speakerId == null) {
+                return;
+            }
+            Map<String, Object> data = convertToMap(processing);
+            voiceChatManager.setLocalOutputProcessing(speakerId, data);
+        }
+
+        @HostAccess.Export
+        public void clearOutputProcessing(String speakerUuid) {
+            UUID speakerId = parseUuid(speakerUuid);
+            if (speakerId == null) {
+                return;
+            }
+            voiceChatManager.clearLocalOutputProcessing(speakerId);
+        }
+
+        private UUID parseUuid(String raw) {
+            if (raw == null || raw.isBlank()) {
+                return null;
             }
             try {
-                return MAPPER.convertValue(value, Map.class);
+                return UUID.fromString(raw);
             } catch (IllegalArgumentException e) {
-                LOGGER.warn("Failed to convert microphone options, using defaults", e);
-                return Map.of();
+                return null;
             }
         }
     }
