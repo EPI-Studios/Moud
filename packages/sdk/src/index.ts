@@ -870,6 +870,13 @@ export interface PlayerAudio {
     stopMicrophone(): void;
     isMicrophoneActive(): boolean;
     getMicrophoneSession(): MicrophoneSession | null;
+    getVoiceState(): VoiceState | null;
+    getVoiceRouting(): VoiceRouting;
+    setVoiceRouting(options: VoiceRoutingOptions): void;
+    startVoiceRecording(options?: VoiceRecordingStartOptions): string | null;
+    stopVoiceRecording(): void;
+    deleteVoiceRecording(recordingId: string): void;
+    replayVoiceRecording(recordingId: string, options?: VoiceReplayOptions): void;
 }
 
 export type SoundCategory =
@@ -941,6 +948,15 @@ export interface SoundStopOptions {
 export interface MicrophoneStartOptions {
     sessionId?: string;
     sampleRate?: number;
+    frameSizeMs?: number;
+    legacyScriptEvents?: boolean;
+    inputProcessing?: VoiceProcessingSpec;
+    inputProcessors?: Array<string | VoiceProcessorRef>;
+    vad?: {
+        thresholdDb?: number;
+        hangoverMs?: number;
+        dropSilence?: boolean;
+    };
 }
 
 export interface MicrophoneSession {
@@ -964,6 +980,97 @@ export interface ClientAudioAPI {
     update(options: SoundUpdateOptions): void;
     stop(options: SoundStopOptions): void;
     getMicrophone(): ClientMicrophoneAPI;
+    getVoice(): ClientVoiceAPI;
+}
+
+export interface VoiceCodecParams {
+    codec: string;
+    sampleRate: number;
+    channels: number;
+    frameSizeMs: number;
+}
+
+export type VoiceRoutingMode = 'proximity' | 'channel' | 'radio' | 'direct';
+
+export type VoiceSpeechMode = 'normal' | 'whisper' | 'shout';
+
+export interface VoiceProcessorRef {
+    id: string;
+    options?: Record<string, any>;
+}
+
+export interface VoiceProcessingSpec {
+    gain?: number;
+    replace?: boolean;
+    chain?: Array<string | VoiceProcessorRef>;
+    id?: string;
+    options?: Record<string, any>;
+}
+
+export interface VoiceRouting {
+    mode: VoiceRoutingMode;
+    range: number;
+    speechMode?: VoiceSpeechMode;
+    channel?: string | null;
+    targets?: string[];
+    priority?: number;
+    positional?: boolean;
+    outputProcessing?: VoiceProcessingSpec | null;
+}
+
+export interface VoiceRoutingOptions extends Partial<VoiceRouting> {}
+
+export interface VoiceState {
+    active: boolean;
+    speaking: boolean;
+    level: number;
+    lastSpokeAt: number;
+    lastPacketAt: number;
+    sessionId?: string | null;
+    codecParams?: VoiceCodecParams | null;
+    routing: VoiceRouting;
+    recordingId?: string | null;
+}
+
+export interface VoiceRecordingStartOptions {
+    id?: string;
+    maxDurationMs?: number;
+}
+
+export interface VoiceReplayOptions {
+    targets?: string[];
+    range?: number;
+    position?: Vector3 | [number, number, number];
+    outputProcessing?: VoiceProcessingSpec;
+    replayId?: string;
+}
+
+export type VoiceDirection = 'input' | 'output';
+
+export interface VoiceProcessContext {
+    direction: VoiceDirection;
+    nowMs: number;
+    level: number;
+    speaking: boolean;
+    sessionId?: string;
+    speakerId?: string;
+    sampleRate?: number;
+    channels?: number;
+    frameSizeMs?: number;
+    sequence?: number;
+    position?: Vector3;
+}
+
+export type VoiceProcessor = (samples: number[], ctx: VoiceProcessContext) => void;
+
+export type VoiceProcessorFactory = (options?: any) => VoiceProcessor | { process: VoiceProcessor };
+
+export interface ClientVoiceAPI {
+    registerProcessor(id: string, factory: VoiceProcessorFactory): void;
+    setEnabled(enabled: boolean): void;
+    isEnabled(): boolean;
+    setOutputProcessing(speakerUuid: string, processing: VoiceProcessingSpec): void;
+    clearOutputProcessing(speakerUuid: string): void;
 }
 
 export interface GamepadAPI {
