@@ -64,6 +64,9 @@ public final class ClientAPIService {
             return;
         }
         this.scriptingRuntime = runtime;
+        if (this.audio != null) {
+            this.audio.setRuntime(runtime);
+        }
         this.input = new InputService(runtime);
         LOGGER.info("InputService initialized.");
 

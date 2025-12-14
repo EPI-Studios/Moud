@@ -61,6 +61,7 @@ public class ClientNetworkRegistry {
         ClientPacketWrapper.registerHandler(MoudPackets.SyncClientScriptsPacket.class, (player, packet) -> loader.handleCompleteBundle(packet, mod, services));
         ClientPacketWrapper.registerHandler(MoudPackets.SyncClientScriptsChunkPacket.class, (player, packet) -> loader.handleChunk(packet, mod, services));
         ClientPacketWrapper.registerHandler(MoudPackets.ClientboundScriptEventPacket.class, (player, packet) -> handleScriptEvent(packet, services));
+        ClientPacketWrapper.registerHandler(MoudPackets.VoiceStreamChunkPacket.class, (player, packet) -> handleVoiceStreamChunk(packet, services));
         ClientPacketWrapper.registerHandler(MoudPackets.CameraLockPacket.class, (player, packet) -> handleCameraLock(packet, services));
         ClientPacketWrapper.registerHandler(MoudPackets.PlayerStatePacket.class, (player, packet) -> handlePlayerState(packet, services));
         ClientPacketWrapper.registerHandler(MoudPackets.ExtendedPlayerStatePacket.class, (player, packet) -> handleExtendedPlayerState(packet, services));
@@ -771,6 +772,14 @@ public class ClientNetworkRegistry {
         if (runtime != null && runtime.isInitialized()) {
             runtime.triggerNetworkEvent(packet.eventName(), packet.eventData());
         }
+    }
+
+    private void handleVoiceStreamChunk(MoudPackets.VoiceStreamChunkPacket packet, ClientServiceManager services) {
+        ClientAPIService api = services.getApiService();
+        if (api == null || api.audio == null) {
+            return;
+        }
+        api.audio.handleVoiceStreamChunk(packet);
     }
 
     private boolean handleBuiltinScriptEvent(String eventName, String payload, ClientAPIService apiService) {

@@ -1,10 +1,12 @@
 package com.moud.client.audio;
 
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.sound.MovingSoundInstance;
+import net.minecraft.client.sound.SoundManager;
 import net.minecraft.client.sound.SoundInstance;
-import net.minecraft.registry.Registries;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,13 +20,17 @@ public final class ManagedSound {
 
     private ManagedSoundInstance activeInstance;
 
+    private long scheduledStartNanos;
     private long startedAtNanos;
     private long stopAtNanos = Long.MIN_VALUE;
     private long fadeOutDurationMs;
+    private volatile float mixVolumeMultiplier = 1.0f;
 
     ManagedSound(String id, ManagedSoundOptions options) {
         this.id = id;
         this.options = options;
+        long delayMs = Math.max(0L, options.startDelayMs());
+        this.scheduledStartNanos = System.nanoTime() + delayMs * 1_000_000L;
     }
 
     public String getId() {
@@ -35,7 +41,15 @@ public final class ManagedSound {
         return options;
     }
 
-    public SoundInstance createInstance() {
+    public boolean isStarted() {
+        return activeInstance != null;
+    }
+
+    public void setMixVolumeMultiplier(float multiplier) {
+        this.mixVolumeMultiplier = Math.max(0.0f, multiplier);
+    }
+
+    public SoundInstance createInstance(long startTimeNanos) {
         SoundEvent event = ClientAudioService.getInstance()
                 .getSoundEvent(options.soundEventIdOrThrow());
 
@@ -47,11 +61,11 @@ public final class ManagedSound {
         activeInstance.setManagedSound(this);
 
         activeInstance.setPosition(options.positionOrDefault());
-        activeInstance.setEnvelopeVolume(computeVolume(0));
-        activeInstance.setPitchPublic(options.basePitch());
-        activeInstance.setLoopAndRelative(options.loop(), options.positional());
+        activeInstance.setEnvelopeVolume(computeVolume(0, startTimeNanos));
+        activeInstance.setPitchPublic(computePitch(0));
+        activeInstance.applyLoopAndAttenuation(options);
 
-        startedAtNanos = System.nanoTime();
+        startedAtNanos = startTimeNanos;
         fadeOutDurationMs = options.fadeOutMs();
         return activeInstance;
     }
@@ -61,11 +75,16 @@ public final class ManagedSound {
         ManagedSoundOptions previous = this.options;
         this.options = this.options.merge(update);
 
+        if (activeInstance == null) {
+            if (update.startDelayMs() != Long.MIN_VALUE) {
+                long delayMs = Math.max(0L, options.startDelayMs());
+                scheduledStartNanos = System.nanoTime() + delayMs * 1_000_000L;
+            }
+        }
+
         if (activeInstance != null) {
             activeInstance.setPosition(options.positionOrDefault());
-            activeInstance.setLoopAndRelative(options.loop(), options.positional());
-            // activeInstance.setEnvelopeVolume(computeVolume(0));
-            // activeInstance.setPitchPublic(options.basePitch());
+            activeInstance.applyLoopAndAttenuation(options);
         }
 
         return previous;
@@ -85,7 +104,26 @@ public final class ManagedSound {
 
     public boolean tick(long nowNanos) {
         if (activeInstance == null) {
-            return false;
+            if (stopAtNanos != Long.MIN_VALUE) {
+                return false;
+            }
+            if (nowNanos < scheduledStartNanos) {
+                return true;
+            }
+
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client == null) {
+                return false;
+            }
+
+            SoundInstance instance = createInstance(nowNanos);
+            if (instance == null) {
+                return false;
+            }
+
+            SoundManager manager = client.getSoundManager();
+            client.execute(() -> manager.play(instance));
+            return true;
         }
 
         long elapsedMs = (nowNanos - startedAtNanos) / 1_000_000L;
@@ -97,40 +135,127 @@ public final class ManagedSound {
             }
         }
 
-        float envelope = computeVolume(elapsedMs);
+        float envelope = computeVolume(elapsedMs, nowNanos);
         activeInstance.setEnvelopeVolume(envelope);
+
+        activeInstance.setPitchPublic(computePitch(elapsedMs));
+        activeInstance.setPosition(options.positionOrDefault());
+        activeInstance.applyLoopAndAttenuation(options);
+
+        return true;
+    }
+
+    private float computeVolume(long elapsedMs, long nowNanos) {
+        float volume = options.baseVolume();
+        volume *= mixVolumeMultiplier;
+
+        long fadeIn = options.fadeInMs();
+        if (fadeIn > 0) {
+            float fadeInFactor = Math.min(1.0f, elapsedMs / (float) fadeIn);
+            fadeInFactor = applyEasing(options.fadeInEasing(), fadeInFactor);
+            volume *= fadeInFactor;
+        }
+
+        if (stopAtNanos != Long.MIN_VALUE && fadeOutDurationMs > 0) {
+            long stopElapsedMs = (nowNanos - stopAtNanos) / 1_000_000L;
+            float eased = Math.min(1.0f, stopElapsedMs / (float) fadeOutDurationMs);
+            eased = applyEasing(options.fadeOutEasing(), eased);
+            float fadeOutFactor = 1.0f - eased;
+            volume *= fadeOutFactor;
+        }
+
+        ManagedSoundOptions.VolumeLfo lfo = options.volumeLfo();
+        if (lfo != null && lfo.frequencyHz() > 0.0f && lfo.depth() > 0.0f) {
+            float wave = wave01(lfo.waveform(), elapsedMs / 1000.0f, lfo.frequencyHz());
+            float depth = clamp(lfo.depth(), 0.0f, 1.0f);
+            float tremolo = (1.0f - depth) + depth * wave;
+            volume *= tremolo;
+        }
+
+        volume *= computeDistanceAttenuation();
+        return volume;
+    }
+
+    private float computePitch(long elapsedMs) {
+        float pitch = options.basePitch();
 
         ManagedSoundOptions.PitchRamp ramp = options.pitchRamp();
         if (ramp != null && ramp.durationMs() > 0) {
             float t = Math.min(1.0f, elapsedMs / (float) ramp.durationMs());
             float eased = applyEasing(ramp.easing(), t);
-            float interpolated = options.basePitch() + (ramp.targetPitch() - options.basePitch()) * eased;
-            activeInstance.setPitchPublic(interpolated);
+            pitch = pitch + (ramp.targetPitch() - pitch) * eased;
         }
 
-        if (options.positional() && activeInstance != null) {
-            activeInstance.setPosition(options.positionOrDefault());
+        ManagedSoundOptions.PitchLfo lfo = options.pitchLfo();
+        if (lfo != null && lfo.frequencyHz() > 0.0f && lfo.depthSemitones() > 0.0f) {
+            float wave = wave11(lfo.waveform(), elapsedMs / 1000.0f, lfo.frequencyHz());
+            double semitones = wave * lfo.depthSemitones();
+            pitch *= (float) Math.pow(2.0, semitones / 12.0);
         }
 
-        return true;
+        return clamp(pitch, 0.01f, 4.0f);
     }
 
-    private float computeVolume(long elapsedMs) {
-        float volume = options.baseVolume();
-
-        long fadeIn = options.fadeInMs();
-        if (fadeIn > 0) {
-            float fadeInFactor = Math.min(1.0f, elapsedMs / (float) fadeIn);
-            volume *= fadeInFactor;
+    private float computeDistanceAttenuation() {
+        if (!options.useCustomDistanceAttenuation()) {
+            return 1.0f;
         }
 
-        if (stopAtNanos != Long.MIN_VALUE && fadeOutDurationMs > 0) {
-            long stopElapsedMs = (System.nanoTime() - stopAtNanos) / 1_000_000L;
-            float fadeOutFactor = 1.0f - Math.min(1.0f, stopElapsedMs / (float) fadeOutDurationMs);
-            volume *= fadeOutFactor;
+        Float maxDistanceObj = options.maxDistance();
+        if (maxDistanceObj == null) {
+            return 1.0f;
         }
 
-        return volume;
+        float maxDistance = maxDistanceObj;
+        if (maxDistance <= 0.0f) {
+            return 0.0f;
+        }
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.gameRenderer == null) {
+            return 1.0f;
+        }
+
+        Vec3d listener = client.gameRenderer.getCamera().getPos();
+        Vector3f soundPos = options.positionOrDefault();
+
+        float dx = soundPos.x - (float) listener.x;
+        float dy = soundPos.y - (float) listener.y;
+        float dz = soundPos.z - (float) listener.z;
+        float distance = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        if (distance >= maxDistance) {
+            return 0.0f;
+        }
+
+        String model = options.distanceModel();
+        float rolloff = options.rolloff() != null ? options.rolloff() : 1.0f;
+        rolloff = Math.max(0.0f, rolloff);
+
+        float minDistance = options.minDistance() != null ? options.minDistance() : 0.0f;
+        minDistance = clamp(minDistance, 0.0f, maxDistance);
+
+        float attenuation = switch (model == null ? "linear" : model.toLowerCase()) {
+            case "inverse" -> {
+                float ref = Math.max(0.001f, minDistance > 0.0f ? minDistance : 1.0f);
+                float d = Math.max(ref, distance);
+                yield ref / (ref + rolloff * (d - ref));
+            }
+            case "exponential" -> {
+                float ref = Math.max(0.001f, minDistance > 0.0f ? minDistance : 1.0f);
+                float d = Math.max(ref, distance);
+                yield (float) Math.pow(d / ref, -rolloff);
+            }
+            default -> {
+                if (distance <= minDistance) {
+                    yield 1.0f;
+                }
+                float denom = Math.max(0.001f, maxDistance - minDistance);
+                yield 1.0f - ((distance - minDistance) / denom);
+            }
+        };
+
+        return clamp(attenuation, 0.0f, 1.0f);
     }
 
     private static float applyEasing(String easing, float value) {
@@ -144,6 +269,24 @@ public final class ManagedSound {
         };
     }
 
+    private static float wave01(String waveform, float timeSeconds, float frequencyHz) {
+        float w = wave11(waveform, timeSeconds, frequencyHz);
+        return (w + 1.0f) * 0.5f;
+    }
+
+    private static float wave11(String waveform, float timeSeconds, float frequencyHz) {
+        float phase = (timeSeconds * frequencyHz) % 1.0f;
+        return switch (waveform == null ? "sine" : waveform.toLowerCase()) {
+            case "triangle" -> 1.0f - 4.0f * Math.abs(phase - 0.5f);
+            case "square" -> phase < 0.5f ? 1.0f : -1.0f;
+            case "saw" -> 2.0f * phase - 1.0f;
+            default -> (float) Math.sin(phase * Math.PI * 2.0);
+        };
+    }
+
+    private static float clamp(float value, float min, float max) {
+        return Math.max(min, Math.min(max, value));
+    }
 
     private static final class ManagedSoundInstance extends MovingSoundInstance {
 
@@ -166,8 +309,27 @@ public final class ManagedSound {
             this.repeat = opts.loop();
             this.repeatDelay = 0;
             this.relative = !opts.positional();
-            this.attenuationType = opts.positional() ? AttenuationType.LINEAR : AttenuationType.NONE;
+            if (!opts.positional()) {
+                this.attenuationType = AttenuationType.NONE;
+            } else {
+                this.attenuationType = opts.useCustomDistanceAttenuation()
+                        ? AttenuationType.NONE
+                        : AttenuationType.LINEAR;
+            }
         }
+
+        public void applyLoopAndAttenuation(ManagedSoundOptions opts) {
+            this.repeat = opts.loop();
+            this.relative = !opts.positional();
+            if (!opts.positional()) {
+                this.attenuationType = AttenuationType.NONE;
+            } else {
+                this.attenuationType = opts.useCustomDistanceAttenuation()
+                        ? AttenuationType.NONE
+                        : AttenuationType.LINEAR;
+            }
+        }
+
         public void setPosition(Vector3f p) {
             this.x = p.x;
             this.y = p.y;
@@ -178,11 +340,6 @@ public final class ManagedSound {
         }
         public void setPitchPublic(float p) {
             this.pitch = p;
-        }
-        public void setLoopAndRelative(boolean loop, boolean positional) {
-            this.repeat = loop;
-            this.relative = !positional;
-            this.attenuationType = positional ? AttenuationType.LINEAR : AttenuationType.NONE;
         }
 
         public void markDone() {

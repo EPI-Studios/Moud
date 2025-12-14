@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
@@ -31,6 +32,8 @@ public final class ClientAudioService {
 
     private final Map<String, ManagedSound> activeSounds = new ConcurrentHashMap<>();
     private final Map<String, Set<String>> crossFadeGroups = new ConcurrentHashMap<>();
+    private final Map<String, DuckState> duckingTargets = new ConcurrentHashMap<>();
+    private volatile long lastTickNanos = Long.MIN_VALUE;
 
     private final Map<Identifier, SoundEvent> dynamicSoundEvents = new ConcurrentHashMap<>();
 
@@ -64,8 +67,11 @@ public final class ClientAudioService {
         }
 
         long now = System.nanoTime();
+        updateDucking(now);
+
         for (Map.Entry<String, ManagedSound> entry : activeSounds.entrySet()) {
             ManagedSound sound = entry.getValue();
+            sound.setMixVolumeMultiplier(getMixVolumeMultiplier(sound));
             boolean stillPlaying = sound.tick(now);
 
             if (!stillPlaying) {
@@ -102,10 +108,29 @@ public final class ClientAudioService {
             soundEventId = Identifier.of("moud", soundEventId.getPath());
 
             options = new ManagedSoundOptions(
-                    soundEventId, options.categoryRaw(), options.baseVolume(), options.basePitch(),
-                    options.loopRaw(), options.fadeInMs(), options.fadeOutMs(),
-                    options.positionalRaw(), options.positionRaw(), options.maxDistance(),
-                    options.pitchRamp(), options.crossFadeGroup(), options.crossFadeDurationMs()
+                    soundEventId,
+                    options.categoryRaw(),
+                    options.baseVolume(),
+                    options.basePitch(),
+                    options.loopRaw(),
+                    options.startDelayMs(),
+                    options.fadeInMs(),
+                    options.fadeInEasing(),
+                    options.fadeOutMs(),
+                    options.fadeOutEasing(),
+                    options.positionalRaw(),
+                    options.positionRaw(),
+                    options.minDistance(),
+                    options.maxDistance(),
+                    options.distanceModel(),
+                    options.rolloff(),
+                    options.pitchRamp(),
+                    options.volumeLfo(),
+                    options.pitchLfo(),
+                    options.mixGroup(),
+                    options.ducking(),
+                    options.crossFadeGroup(),
+                    options.crossFadeDurationMs()
             );
         }
 
@@ -120,7 +145,9 @@ public final class ClientAudioService {
         }
 
         registerSoundToGroup(soundId, options.crossFadeGroup());
-        queuePlay(managed);
+        if (options.startDelayMs() <= 0L) {
+            queuePlay(managed);
+        }
     }
 
     private void handleUpdate(Map<String, Object> payload) {
@@ -233,11 +260,100 @@ public final class ClientAudioService {
         MinecraftClient client = MinecraftClient.getInstance();
         SoundManager manager = client.getSoundManager();
         client.execute(() -> {
-            SoundInstance instance = sound.createInstance();
+            SoundInstance instance = sound.createInstance(System.nanoTime());
             if (instance != null) {
                 manager.play(instance);
             }
         });
+    }
+
+    private void updateDucking(long nowNanos) {
+        long dtMs;
+        if (lastTickNanos == Long.MIN_VALUE) {
+            dtMs = 0L;
+        } else {
+            dtMs = (nowNanos - lastTickNanos) / 1_000_000L;
+            dtMs = Math.max(0L, Math.min(dtMs, 250L));
+        }
+        lastTickNanos = nowNanos;
+
+        Map<String, DuckingRequest> desired = new HashMap<>();
+        for (ManagedSound sound : activeSounds.values()) {
+            if (!sound.isStarted()) {
+                continue;
+            }
+
+            ManagedSoundOptions.Ducking duck = sound.getOptions().ducking();
+            if (duck == null) {
+                continue;
+            }
+
+            desired.merge(
+                    duck.group(),
+                    new DuckingRequest(duck.amount(), duck.attackMs(), duck.releaseMs()),
+                    DuckingRequest::merge
+            );
+        }
+
+        Set<String> allGroups = new HashSet<>(duckingTargets.keySet());
+        allGroups.addAll(desired.keySet());
+
+        for (String group : allGroups) {
+            DuckingRequest request = desired.get(group);
+            float desiredAmount = request != null ? request.amount() : 0.0f;
+
+            DuckState state = duckingTargets.computeIfAbsent(group, key -> new DuckState());
+            if (request != null) {
+                state.attackMs = request.attackMs();
+                state.releaseMs = request.releaseMs();
+            }
+
+            long durationMs = desiredAmount > state.amount ? state.attackMs : state.releaseMs;
+            state.amount = approach(state.amount, desiredAmount, dtMs, durationMs);
+
+            if (desiredAmount <= 0.0001f && state.amount <= 0.0001f) {
+                duckingTargets.remove(group);
+            }
+        }
+    }
+
+    private float getMixVolumeMultiplier(ManagedSound sound) {
+        String group = sound.getOptions().mixGroup();
+        if (group == null || group.isEmpty()) {
+            return 1.0f;
+        }
+        DuckState state = duckingTargets.get(group);
+        if (state == null) {
+            return 1.0f;
+        }
+        return clamp(1.0f - state.amount, 0.0f, 1.0f);
+    }
+
+    private static float approach(float current, float target, long dtMs, long durationMs) {
+        if (durationMs <= 0L || dtMs <= 0L) {
+            return target;
+        }
+        float t = Math.min(1.0f, dtMs / (float) durationMs);
+        return current + (target - current) * t;
+    }
+
+    private static float clamp(float value, float min, float max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private static final class DuckState {
+        private float amount;
+        private long attackMs = 50L;
+        private long releaseMs = 250L;
+    }
+
+    private record DuckingRequest(float amount, long attackMs, long releaseMs) {
+        private static DuckingRequest merge(DuckingRequest a, DuckingRequest b) {
+            float amount = Math.max(a.amount, b.amount);
+            long attack = Math.min(a.attackMs, b.attackMs);
+            long release = Math.max(a.releaseMs, b.releaseMs);
+            return new DuckingRequest(amount, attack, release);
+        }
     }
 
     private static @Nullable String string(Map<String, Object> payload, String key) {
