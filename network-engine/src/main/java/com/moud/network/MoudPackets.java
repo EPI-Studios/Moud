@@ -12,9 +12,49 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class MoudPackets {
+    public enum CollisionMode {
+        BOX,
+        CONVEX_HULLS,
+        MESH
+    }
+
+    public enum DisplayAnchorType {
+        FREE,
+        BLOCK,
+        ENTITY
+    }
+
+    public enum DisplayContentType {
+        IMAGE,
+        URL,
+        FRAME_SEQUENCE
+    }
+
+    public enum DisplayBillboardMode {
+        NONE,
+        CAMERA_FACING,
+        VERTICAL
+    }
+
+    public enum ProjectEntryKind {
+        FILE,
+        DIRECTORY
+    }
+
+    public enum PrimitiveType {
+        CUBE,
+        SPHERE,
+        CYLINDER,
+        CAPSULE,
+        LINE,
+        LINE_STRIP,
+        PLANE,
+        CONE
+    }
 
     @Packet(value = "moud:sync_scripts", direction = Direction.SERVER_TO_CLIENT)
-    public record SyncClientScriptsPacket(@Field(order = 0) String hash, @Field(order = 1, optional = true) byte[] scriptData) {
+    public record SyncClientScriptsPacket(@Field(order = 0) String hash,
+                                          @Field(order = 1, optional = true) byte[] scriptData) {
     }
 
     @Packet(value = "moud:sync_scripts_chunk", direction = Direction.SERVER_TO_CLIENT)
@@ -73,7 +113,8 @@ public final class MoudPackets {
             @Field(order = 1) String type,
             @Field(order = 2, optional = true) @Nullable String parentId,
             @Field(order = 3, optional = true) @Nullable Map<String, Object> props
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:ui_upsert", direction = Direction.SERVER_TO_CLIENT)
     public record UIOverlayUpsertPacket(@Field(order = 0) List<UIElementDefinition> elements) {
@@ -196,7 +237,9 @@ public final class MoudPackets {
             @Field(order = 0) UUID playerId,
             @Field(order = 1) String partName,
             @Field(order = 2) Map<String, Object> properties
-    ) {}
+    ) {
+    }
+
     @Packet(value = "moud:movement_state", direction = Direction.CLIENT_TO_SERVER)
     public record MovementStatePacket(
             @Field(order = 0) boolean forward,
@@ -208,11 +251,12 @@ public final class MoudPackets {
             @Field(order = 6) boolean sprinting,
             @Field(order = 7) boolean onGround,
             @Field(order = 8) float speed
-    ) {}
-
+    ) {
+    }
 
     @Packet(value = "moud:client_ready", direction = Direction.CLIENT_TO_SERVER)
-    public record ClientReadyPacket() {}
+    public record ClientReadyPacket() {
+    }
 
     @Packet(value = "moud:camera_control", direction = Direction.SERVER_TO_CLIENT)
     public record CameraControlPacket(
@@ -235,22 +279,24 @@ public final class MoudPackets {
             DOLLY_ZOOM
         }
     }
+
     @Packet(value = "moud:play_model_animation_fade", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_PlayModelAnimationWithFadePacket(
             @Field(order = 0) long modelId,
             @Field(order = 1) String animationId,
             @Field(order = 2) int durationTicks
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:manage_window", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_ManageWindowPacket(
             @Field(order = 0) Action action,
-            @Field(order = 1) int int1,       // width or x
-            @Field(order = 2) int int2,       // height or y
-            @Field(order = 3) String string1, // title
-            @Field(order = 4) boolean bool1   // borderless
+            @Field(order = 1) int int1,
+            @Field(order = 2) int int2,
+            @Field(order = 3) String string1,
+            @Field(order = 4) boolean bool1
     ) {
-        public enum Action { SET_SIZE, SET_POSITION, SET_TITLE, SET_BORDERLESS, MAXIMIZE, MINIMIZE, RESTORE }
+        public enum Action {SET_SIZE, SET_POSITION, SET_TITLE, SET_BORDERLESS, MAXIMIZE, MINIMIZE, RESTORE}
     }
 
     @Packet(value = "moud:transition_window", direction = Direction.SERVER_TO_CLIENT)
@@ -259,27 +305,30 @@ public final class MoudPackets {
             @Field(order = 1) int targetY,
             @Field(order = 2) int targetWidth,
             @Field(order = 3) int targetHeight,
-            @Field(order = 4) int duration, // in milliseconds
-            @Field(order = 5) String easing // e.g., "ease-out-quad"
-    ) {}
+            @Field(order = 4) int duration,
+            @Field(order = 5) String easing
+    ) {
+    }
 
     @Packet(value = "moud:restore_window", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_RestoreWindowPacket(
             @Field(order = 0) int duration,
             @Field(order = 1) String easing
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:window_sequence", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_WindowSequencePacket(
             @Field(order = 0) List<Map<String, Object>> steps
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:play_player_animation_fade", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_PlayPlayerAnimationWithFadePacket(
             @Field(order = 0) String animationId,
             @Field(order = 1) int durationTicks
-    ) {}
-
+    ) {
+    }
 
     @Packet(value = "moud:create_model", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_CreateModelPacket(
@@ -297,7 +346,8 @@ public final class MoudPackets {
             @Field(order = 11, optional = true) @Nullable byte[] compressedMeshVertices,
             @Field(order = 12, optional = true) @Nullable byte[] compressedMeshIndices,
             @Field(order = 13, optional = true) @Nullable List<ConvexHullData> convexHulls
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:update_model_transform", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_UpdateModelTransformPacket(
@@ -305,13 +355,15 @@ public final class MoudPackets {
             @Field(order = 1) Vector3 position,
             @Field(order = 2) Quaternion rotation,
             @Field(order = 3) Vector3 scale
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:update_model_texture", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_UpdateModelTexturePacket(
             @Field(order = 0) long modelId,
             @Field(order = 1) String texturePath
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:update_model_collision", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_UpdateModelCollisionPacket(
@@ -319,53 +371,34 @@ public final class MoudPackets {
             @Field(order = 1) double collisionWidth,
             @Field(order = 2) double collisionHeight,
             @Field(order = 3) double collisionDepth
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:sync_model_collision_boxes", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_SyncModelCollisionBoxesPacket(
             @Field(order = 0) long modelId,
             @Field(order = 1) List<CollisionBoxData> collisionBoxes
-    ) {}
+    ) {
+    }
 
     public record CollisionBoxData(
             @Field(order = 0) Vector3 center,
             @Field(order = 1) Vector3 halfExtents,
             @Field(order = 2) Quaternion rotation
-    ) {}
+    ) {
+    }
 
     public record ConvexHullData(
             @Field(order = 0) byte[] compressedVertices,
             @Field(order = 1) byte[] compressedIndices,
             @Field(order = 2) CollisionBoxData bounds
-    ) {}
-
-    public enum CollisionMode {
-        BOX,
-        CONVEX_HULLS,
-        MESH
+    ) {
     }
 
     @Packet(value = "moud:remove_model", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_RemoveModelPacket(
             @Field(order = 0) long modelId
-    ) {}
-
-    public enum DisplayAnchorType {
-        FREE,
-        BLOCK,
-        ENTITY
-    }
-
-    public enum DisplayContentType {
-        IMAGE,
-        URL,
-        FRAME_SEQUENCE
-    }
-
-    public enum DisplayBillboardMode {
-        NONE,
-        CAMERA_FACING,
-        VERTICAL
+    ) {
     }
 
     @Packet(value = "moud:create_display", direction = Direction.SERVER_TO_CLIENT)
@@ -388,7 +421,8 @@ public final class MoudPackets {
             @Field(order = 15) boolean playing,
             @Field(order = 16) float playbackSpeed,
             @Field(order = 17) float startOffsetSeconds
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:update_display_transform", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_UpdateDisplayTransformPacket(
@@ -398,7 +432,8 @@ public final class MoudPackets {
             @Field(order = 3) Vector3 scale,
             @Field(order = 4) DisplayBillboardMode billboardMode,
             @Field(order = 5) boolean renderThroughBlocks
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:update_display_anchor", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_UpdateDisplayAnchorPacket(
@@ -407,7 +442,8 @@ public final class MoudPackets {
             @Field(order = 2, optional = true) @Nullable Vector3 anchorBlockPosition,
             @Field(order = 3, optional = true) @Nullable UUID anchorEntityUuid,
             @Field(order = 4, optional = true) @Nullable Vector3 anchorOffset
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:update_display_content", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_UpdateDisplayContentPacket(
@@ -417,7 +453,8 @@ public final class MoudPackets {
             @Field(order = 3, optional = true) @Nullable List<String> frameSources,
             @Field(order = 4) float frameRate,
             @Field(order = 5) boolean loop
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:update_display_playback", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_UpdateDisplayPlaybackPacket(
@@ -425,24 +462,28 @@ public final class MoudPackets {
             @Field(order = 1) boolean playing,
             @Field(order = 2) float playbackSpeed,
             @Field(order = 3) float startOffsetSeconds
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:remove_display", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_RemoveDisplayPacket(
             @Field(order = 0) long displayId
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:scene_request_state", direction = Direction.CLIENT_TO_SERVER)
     public record RequestSceneStatePacket(
             @Field(order = 0) String sceneId
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:scene_state", direction = Direction.SERVER_TO_CLIENT)
     public record SceneStatePacket(
             @Field(order = 0) String sceneId,
             @Field(order = 1) List<SceneObjectSnapshot> objects,
             @Field(order = 2) long version
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:scene_edit", direction = Direction.CLIENT_TO_SERVER)
     public record SceneEditPacket(
@@ -450,7 +491,8 @@ public final class MoudPackets {
             @Field(order = 1) String action,
             @Field(order = 2) Map<String, Object> payload,
             @Field(order = 3) long clientVersion
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:scene_edit_ack", direction = Direction.SERVER_TO_CLIENT)
     public record SceneEditAckPacket(
@@ -460,41 +502,47 @@ public final class MoudPackets {
             @Field(order = 3, optional = true) SceneObjectSnapshot updatedObject,
             @Field(order = 4) long serverVersion,
             @Field(order = 5, optional = true) String objectId
-    ) {}
+    ) {
+    }
 
     public record SceneObjectSnapshot(
             @Field(order = 0) String objectId,
             @Field(order = 1) String objectType,
             @Field(order = 2) Map<String, Object> properties
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:editor_assets_request", direction = Direction.CLIENT_TO_SERVER)
-    public record RequestEditorAssetsPacket() {}
+    public record RequestEditorAssetsPacket() {
+    }
 
     @Packet(value = "moud:editor_assets", direction = Direction.SERVER_TO_CLIENT)
     public record EditorAssetListPacket(
             @Field(order = 0) List<EditorAssetDefinition> assets
-    ) {}
+    ) {
+    }
 
     public record EditorAssetDefinition(
             @Field(order = 0) String id,
             @Field(order = 1) String label,
             @Field(order = 2) String objectType,
             @Field(order = 3) Map<String, Object> defaultProperties
-    ) {}
+    ) {
+    }
 
-    // Animation packets
     @Packet(value = "moud:animation_save", direction = Direction.CLIENT_TO_SERVER)
     public record AnimationSavePacket(
             @Field(order = 0) String animationId,
             @Field(order = 1) String projectPath,
             @Field(order = 2) com.moud.api.animation.AnimationClip clip
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:animation_load", direction = Direction.CLIENT_TO_SERVER)
     public record AnimationLoadPacket(
             @Field(order = 0) String projectPath
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:animation_load_response", direction = Direction.SERVER_TO_CLIENT)
     public record AnimationLoadResponsePacket(
@@ -502,40 +550,47 @@ public final class MoudPackets {
             @Field(order = 1, optional = true) com.moud.api.animation.AnimationClip clip,
             @Field(order = 2) boolean success,
             @Field(order = 3, optional = true) String error
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:animation_list", direction = Direction.CLIENT_TO_SERVER)
-    public record AnimationListPacket() {}
+    public record AnimationListPacket() {
+    }
 
     @Packet(value = "moud:animation_list_response", direction = Direction.SERVER_TO_CLIENT)
     public record AnimationListResponsePacket(
             @Field(order = 0) List<AnimationFileInfo> animations
-    ) {}
+    ) {
+    }
 
     public record AnimationFileInfo(
             @Field(order = 0) String path,
             @Field(order = 1) String name,
             @Field(order = 2) float duration,
             @Field(order = 3) int trackCount
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:animation_play", direction = Direction.CLIENT_TO_SERVER)
     public record AnimationPlayPacket(
             @Field(order = 0) String animationId,
             @Field(order = 1) boolean loop,
             @Field(order = 2) float speed
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:animation_stop", direction = Direction.CLIENT_TO_SERVER)
     public record AnimationStopPacket(
             @Field(order = 0) String animationId
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:animation_seek", direction = Direction.CLIENT_TO_SERVER)
     public record AnimationSeekPacket(
             @Field(order = 0) String animationId,
             @Field(order = 1) float time
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:animation_event", direction = Direction.SERVER_TO_CLIENT)
     public record AnimationEventPacket(
@@ -543,7 +598,8 @@ public final class MoudPackets {
             @Field(order = 1) String objectId,
             @Field(order = 2) String eventName,
             @Field(order = 3) Map<String, String> payload
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:animation_prop_update", direction = Direction.SERVER_TO_CLIENT)
     public record AnimationPropertyUpdatePacket(
@@ -553,7 +609,8 @@ public final class MoudPackets {
             @Field(order = 3) com.moud.api.animation.PropertyTrack.PropertyType propertyType,
             @Field(order = 4) float value,
             @Field(order = 5, optional = true) Map<String, Object> payload
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:animation_transform", direction = Direction.SERVER_TO_CLIENT)
     public record AnimationTransformUpdatePacket(
@@ -564,30 +621,30 @@ public final class MoudPackets {
             @Field(order = 4, optional = true) Quaternion rotationQuat,
             @Field(order = 5, optional = true) Vector3 scale,
             @Field(order = 6, optional = true) Map<String, Float> properties
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:project_map_request", direction = Direction.CLIENT_TO_SERVER)
-    public record RequestProjectMapPacket() {}
+    public record RequestProjectMapPacket() {
+    }
 
     @Packet(value = "moud:project_map", direction = Direction.SERVER_TO_CLIENT)
     public record ProjectMapPacket(
             @Field(order = 0) List<ProjectFileEntry> entries
-    ) {}
+    ) {
+    }
 
     public record ProjectFileEntry(
             @Field(order = 0) String path,
             @Field(order = 1) ProjectEntryKind kind
-    ) {}
-
-    public enum ProjectEntryKind {
-        FILE,
-        DIRECTORY
+    ) {
     }
 
     @Packet(value = "moud:project_file_request", direction = Direction.CLIENT_TO_SERVER)
     public record RequestProjectFilePacket(
             @Field(order = 0) String path
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:project_file", direction = Direction.SERVER_TO_CLIENT)
     public record ProjectFileContentPacket(
@@ -596,7 +653,8 @@ public final class MoudPackets {
             @Field(order = 2) boolean success,
             @Field(order = 3, optional = true) String message,
             @Field(order = 4, optional = true) String absolutePath
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:scene_binding", direction = Direction.SERVER_TO_CLIENT)
     public record SceneBindingPacket(
@@ -604,25 +662,29 @@ public final class MoudPackets {
             @Field(order = 1) String objectId,
             @Field(order = 2) long modelId,
             @Field(order = 3) boolean removed
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:blueprint_save", direction = Direction.CLIENT_TO_SERVER)
     public record SaveBlueprintPacket(
             @Field(order = 0) String name,
             @Field(order = 1) byte[] data
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:blueprint_save_ack", direction = Direction.SERVER_TO_CLIENT)
     public record BlueprintSaveAckPacket(
             @Field(order = 0) String name,
             @Field(order = 1) boolean success,
             @Field(order = 2) String message
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:blueprint_request", direction = Direction.CLIENT_TO_SERVER)
     public record RequestBlueprintPacket(
             @Field(order = 0) String name
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:blueprint_data", direction = Direction.SERVER_TO_CLIENT)
     public record BlueprintDataPacket(
@@ -630,7 +692,8 @@ public final class MoudPackets {
             @Field(order = 1, optional = true) byte[] data,
             @Field(order = 2) boolean success,
             @Field(order = 3) String message
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:runtime_model_transform", direction = Direction.CLIENT_TO_SERVER)
     public record UpdateRuntimeModelPacket(
@@ -638,7 +701,8 @@ public final class MoudPackets {
             @Field(order = 1) Vector3 position,
             @Field(order = 2) Quaternion rotation,
             @Field(order = 3) Vector3 scale
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:runtime_display_transform", direction = Direction.CLIENT_TO_SERVER)
     public record UpdateRuntimeDisplayPacket(
@@ -646,42 +710,36 @@ public final class MoudPackets {
             @Field(order = 1) Vector3 position,
             @Field(order = 2) Quaternion rotation,
             @Field(order = 3) Vector3 scale
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:update_player_transform", direction = Direction.CLIENT_TO_SERVER)
     public record UpdatePlayerTransformPacket(
             @Field(order = 0) UUID playerId,
             @Field(order = 1) Vector3 position,
             @Field(order = 2, optional = true) Quaternion rotation
-    ) {}
+    ) {
+    }
 
     @Packet(value = "moud:particle_batch", direction = Direction.SERVER_TO_CLIENT)
     public record ParticleBatchPacket(@Field(order = 0) List<com.moud.api.particle.ParticleDescriptor> particles) {
     }
 
     @Packet(value = "moud:particle_emitter_upsert", direction = Direction.SERVER_TO_CLIENT)
-    public record ParticleEmitterUpsertPacket(@Field(order = 0) List<com.moud.api.particle.ParticleEmitterConfig> emitters) {
+    public record ParticleEmitterUpsertPacket(
+            @Field(order = 0) List<com.moud.api.particle.ParticleEmitterConfig> emitters) {
     }
 
     @Packet(value = "moud:particle_emitter_remove", direction = Direction.SERVER_TO_CLIENT)
     public record ParticleEmitterRemovePacket(@Field(order = 0) List<String> ids) {
     }
 
-    // ===================
-    // IK Chain Packets
-    // ===================
-
-    /**
-     * Data for a single joint in an IK chain.
-     */
     public record IKJointData(
             @Field(order = 0) Vector3 position,
             @Field(order = 1) Quaternion rotation
-    ) {}
+    ) {
+    }
 
-    /**
-     * Creates a new IK chain on the client.
-     */
     @Packet(value = "moud:ik_create_chain", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_IKCreateChainPacket(
             @Field(order = 0) String chainId,
@@ -692,11 +750,9 @@ public final class MoudPackets {
             @Field(order = 5, optional = true) @Nullable Long attachedModelId,
             @Field(order = 6, optional = true) @Nullable UUID attachedEntityUuid,
             @Field(order = 7, optional = true) @Nullable Vector3 attachOffset
-    ) {}
+    ) {
+    }
 
-    /**
-     * Updates the state of an IK chain (positions and rotations of all joints).
-     */
     @Packet(value = "moud:ik_update_chain", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_IKUpdateChainPacket(
             @Field(order = 0) String chainId,
@@ -704,105 +760,68 @@ public final class MoudPackets {
             @Field(order = 2) Vector3 targetPosition,
             @Field(order = 3) boolean targetReached,
             @Field(order = 4) long timestamp
-    ) {}
+    ) {
+    }
 
-    /**
-     * Updates just the target position for an IK chain.
-     * Client can interpolate/predict between target updates.
-     */
     @Packet(value = "moud:ik_update_target", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_IKUpdateTargetPacket(
             @Field(order = 0) String chainId,
             @Field(order = 1) Vector3 targetPosition,
             @Field(order = 2) long timestamp
-    ) {}
+    ) {
+    }
 
-    /**
-     * Updates the root position of an IK chain.
-     */
     @Packet(value = "moud:ik_update_root", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_IKUpdateRootPacket(
             @Field(order = 0) String chainId,
             @Field(order = 1) Vector3 rootPosition,
             @Field(order = 2) long timestamp
-    ) {}
+    ) {
+    }
 
-    /**
-     * Attaches an IK chain to a model or entity.
-     */
     @Packet(value = "moud:ik_attach", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_IKAttachPacket(
             @Field(order = 0) String chainId,
             @Field(order = 1, optional = true) @Nullable Long modelId,
             @Field(order = 2, optional = true) @Nullable UUID entityUuid,
             @Field(order = 3) Vector3 offset
-    ) {}
+    ) {
+    }
 
-    /**
-     * Detaches an IK chain from its attached model/entity.
-     */
     @Packet(value = "moud:ik_detach", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_IKDetachPacket(
             @Field(order = 0) String chainId
-    ) {}
+    ) {
+    }
 
-    /**
-     * Removes an IK chain.
-     */
     @Packet(value = "moud:ik_remove_chain", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_IKRemoveChainPacket(
             @Field(order = 0) String chainId
-    ) {}
+    ) {
+    }
 
-    /**
-     * Batch update for multiple IK chains (efficient for creatures with many limbs).
-     */
     @Packet(value = "moud:ik_batch_update", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_IKBatchUpdatePacket(
             @Field(order = 0) List<IKChainBatchEntry> chains,
             @Field(order = 1) long timestamp
-    ) {}
+    ) {
+    }
 
-    /**
-     * Entry for batch IK updates.
-     */
     public record IKChainBatchEntry(
             @Field(order = 0) String chainId,
             @Field(order = 1) List<IKJointData> joints,
             @Field(order = 2) Vector3 targetPosition,
             @Field(order = 3) boolean targetReached
-    ) {}
+    ) {
+    }
 
-    /**
-     * Client requests IK solving (for hybrid mode where client can suggest targets).
-     */
     @Packet(value = "moud:ik_request_solve", direction = Direction.CLIENT_TO_SERVER)
     public record C2S_IKRequestSolvePacket(
             @Field(order = 0) String chainId,
             @Field(order = 1) Vector3 targetPosition
-    ) {}
-
-    // =========================
-    // Primitive Mesh Rendering
-    // =========================
-
-    /**
-     * Types of primitive shapes that can be rendered.
-     */
-    public enum PrimitiveType {
-        CUBE,
-        SPHERE,
-        CYLINDER,
-        CAPSULE,
-        LINE,
-        LINE_STRIP,
-        PLANE,
-        CONE
+    ) {
     }
 
-    /**
-     * Material/appearance settings for a primitive.
-     */
     public record PrimitiveMaterial(
             @Field(order = 0) float r,
             @Field(order = 1) float g,
@@ -822,9 +841,6 @@ public final class MoudPackets {
         }
     }
 
-    /**
-     * Creates a new primitive mesh.
-     */
     @Packet(value = "moud:primitive_create", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_PrimitiveCreatePacket(
             @Field(order = 0) long primitiveId,
@@ -835,64 +851,50 @@ public final class MoudPackets {
             @Field(order = 5) PrimitiveMaterial material,
             @Field(order = 6, optional = true) @Nullable List<Vector3> vertices,
             @Field(order = 7, optional = true) @Nullable String groupId
-    ) {}
+    ) {
+    }
 
-    /**
-     * Updates the transform of a primitive.
-     */
     @Packet(value = "moud:primitive_transform", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_PrimitiveTransformPacket(
             @Field(order = 0) long primitiveId,
             @Field(order = 1) Vector3 position,
             @Field(order = 2) Quaternion rotation,
             @Field(order = 3) Vector3 scale
-    ) {}
+    ) {
+    }
 
-    /**
-     * Updates the material of a primitive.
-     */
     @Packet(value = "moud:primitive_material", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_PrimitiveMaterialPacket(
             @Field(order = 0) long primitiveId,
             @Field(order = 1) PrimitiveMaterial material
-    ) {}
+    ) {
+    }
 
-    /**
-     * Updates vertices for LINE or LINE_STRIP primitives.
-     */
     @Packet(value = "moud:primitive_vertices", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_PrimitiveVerticesPacket(
             @Field(order = 0) long primitiveId,
             @Field(order = 1) List<Vector3> vertices
-    ) {}
+    ) {
+    }
 
-    /**
-     * Removes a primitive.
-     */
     @Packet(value = "moud:primitive_remove", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_PrimitiveRemovePacket(
             @Field(order = 0) long primitiveId
-    ) {}
+    ) {
+    }
 
-    /**
-     * Removes all primitives in a group.
-     */
     @Packet(value = "moud:primitive_remove_group", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_PrimitiveRemoveGroupPacket(
             @Field(order = 0) String groupId
-    ) {}
+    ) {
+    }
 
-    /**
-     * Batch create multiple primitives efficiently.
-     */
     @Packet(value = "moud:primitive_batch_create", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_PrimitiveBatchCreatePacket(
             @Field(order = 0) List<PrimitiveBatchEntry> primitives
-    ) {}
+    ) {
+    }
 
-    /**
-     * Entry for batch primitive creation.
-     */
     public record PrimitiveBatchEntry(
             @Field(order = 0) long primitiveId,
             @Field(order = 1) PrimitiveType type,
@@ -902,23 +904,54 @@ public final class MoudPackets {
             @Field(order = 5) PrimitiveMaterial material,
             @Field(order = 6, optional = true) @Nullable List<Vector3> vertices,
             @Field(order = 7, optional = true) @Nullable String groupId
-    ) {}
+    ) {
+    }
 
-    /**
-     * Batch update transforms for multiple primitives.
-     */
     @Packet(value = "moud:primitive_batch_transform", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_PrimitiveBatchTransformPacket(
             @Field(order = 0) List<PrimitiveTransformEntry> transforms
-    ) {}
+    ) {
+    }
 
-    /**
-     * Entry for batch transform updates.
-     */
     public record PrimitiveTransformEntry(
             @Field(order = 0) long primitiveId,
             @Field(order = 1) Vector3 position,
             @Field(order = 2) Quaternion rotation,
             @Field(order = 3) Vector3 scale
-    ) {}
+    ) {
+    }
+
+    @Packet(value = "moud:voice_mic_chunk", direction = Direction.CLIENT_TO_SERVER)
+    public record VoiceMicrophoneChunkPacket(
+            @Field(order = 0) String sessionId,
+            @Field(order = 1) int sequence,
+            @Field(order = 2) long timestampMs,
+            @Field(order = 3) String codec,
+            @Field(order = 4) int sampleRate,
+            @Field(order = 5) int channels,
+            @Field(order = 6) int frameSizeMs,
+            @Field(order = 7) float level,
+            @Field(order = 8) boolean speaking,
+            @Field(order = 9) byte[] data
+    ) {
+    }
+
+    @Packet(value = "moud:voice_stream_chunk", direction = Direction.SERVER_TO_CLIENT)
+    public record VoiceStreamChunkPacket(
+            @Field(order = 0) UUID speakerId,
+            @Field(order = 1) String sessionId,
+            @Field(order = 2) int sequence,
+            @Field(order = 3) long timestampMs,
+            @Field(order = 4) String codec,
+            @Field(order = 5) int sampleRate,
+            @Field(order = 6) int channels,
+            @Field(order = 7) int frameSizeMs,
+            @Field(order = 8) float level,
+            @Field(order = 9) boolean speaking,
+            @Field(order = 10) byte[] data,
+            @Field(order = 11, optional = true) @Nullable Map<String, Object> outputProcessing,
+            @Field(order = 12, optional = true) @Nullable Vector3 position,
+            @Field(order = 13, optional = true) @Nullable String replayId
+    ) {
+    }
 }
