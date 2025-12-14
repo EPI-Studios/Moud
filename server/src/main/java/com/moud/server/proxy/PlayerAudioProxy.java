@@ -4,6 +4,7 @@ import com.moud.server.ts.TsExpose;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.moud.server.audio.ServerAudioManager;
 import com.moud.server.audio.ServerMicrophoneManager;
+import com.moud.server.audio.ServerVoiceChatManager;
 import com.moud.server.network.ServerNetworkManager;
 import net.minestom.server.entity.Player;
 import org.graalvm.polyglot.HostAccess;
@@ -11,6 +12,8 @@ import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @TsExpose
@@ -21,11 +24,13 @@ public final class PlayerAudioProxy {
     private final Player player;
     private final ServerAudioManager audioManager;
     private final ServerMicrophoneManager microphoneManager;
+    private final ServerVoiceChatManager voiceChatManager;
 
     public PlayerAudioProxy(Player player) {
         this.player = player;
         this.audioManager = ServerAudioManager.getInstance();
         this.microphoneManager = ServerMicrophoneManager.getInstance();
+        this.voiceChatManager = ServerVoiceChatManager.getInstance();
     }
 
     @HostAccess.Export
@@ -68,6 +73,46 @@ public final class PlayerAudioProxy {
         return session != null ? session.toMap() : null;
     }
 
+    @HostAccess.Export
+    public Map<String, Object> getVoiceState() {
+        return voiceChatManager.snapshotState(player);
+    }
+
+    @HostAccess.Export
+    public Map<String, Object> getVoiceRouting() {
+        return voiceChatManager.getRouting(player.getUuid());
+    }
+
+    @HostAccess.Export
+    public void setVoiceRouting(Value options) {
+        Map<String, Object> payload = toMap(options);
+        voiceChatManager.setRouting(player.getUuid(), payload);
+    }
+
+    @HostAccess.Export
+    public String startVoiceRecording(Value options) {
+        Map<String, Object> payload = toMap(options);
+        String recordingId = payload.get("id") instanceof String raw && !raw.isBlank() ? raw : null;
+        long maxDurationMs = payload.get("maxDurationMs") instanceof Number number ? number.longValue() : 60_000L;
+        return voiceChatManager.startRecording(player.getUuid(), recordingId, maxDurationMs);
+    }
+
+    @HostAccess.Export
+    public void stopVoiceRecording() {
+        voiceChatManager.stopRecording(player.getUuid());
+    }
+
+    @HostAccess.Export
+    public void deleteVoiceRecording(String recordingId) {
+        voiceChatManager.deleteRecording(recordingId);
+    }
+
+    @HostAccess.Export
+    public void replayVoiceRecording(String recordingId, Value options) {
+        Map<String, Object> payload = toMap(options);
+        voiceChatManager.replayRecording(recordingId, payload);
+    }
+
     private Map<String, Object> toMap(Value options) {
         if (options == null || options.isNull()) {
             return Map.of();
@@ -100,9 +145,9 @@ public final class PlayerAudioProxy {
         }
         if (value.hasArrayElements()) {
             int size = (int) value.getArraySize();
-            Object[] array = new Object[size];
+            List<Object> array = new ArrayList<>(size);
             for (int i = 0; i < size; i++) {
-                array[i] = convertValue(value.getArrayElement(i));
+                array.add(convertValue(value.getArrayElement(i)));
             }
             return array;
         }

@@ -4,6 +4,7 @@ import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
 import com.moud.network.MoudPackets.*;
+import com.moud.server.audio.ServerVoiceChatManager;
 import com.moud.server.client.ClientScriptManager;
 import com.moud.server.cursor.CursorService;
 import com.moud.server.editor.AnimationManager;
@@ -143,6 +144,7 @@ public final class ServerNetworkManager {
         ServerPacketWrapper.registerHandler(MoudPackets.UpdatePlayerTransformPacket.class, this::handlePlayerTransformUpdate);
         ServerPacketWrapper.registerHandler(SaveBlueprintPacket.class, this::handleBlueprintSave);
         ServerPacketWrapper.registerHandler(RequestBlueprintPacket.class, this::handleBlueprintRequest);
+        ServerPacketWrapper.registerHandler(VoiceMicrophoneChunkPacket.class, this::handleVoiceMicrophoneChunk);
 
     }
 
@@ -692,6 +694,12 @@ public final class ServerNetworkManager {
 
         eventDispatcher.dispatchScriptEvent(packet.eventName(), packet.eventData(), minestomPlayer);
         PluginEventBus.getInstance().dispatchScriptEvent(packet.eventName(), minestomPlayer, packet.eventData());
+    }
+
+    private void handleVoiceMicrophoneChunk(Object player, VoiceMicrophoneChunkPacket packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer)) return;
+        ServerVoiceChatManager.getInstance().handleVoiceChunk(minestomPlayer, packet);
     }
 
     private void handleCameraUpdate(Object player, ClientUpdateCameraPacket packet) {
