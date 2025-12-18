@@ -162,6 +162,11 @@ public final class AudioService {
         }
 
         @HostAccess.Export
+        public float getCurrentLevel() {
+            return microphoneManager.getCurrentLevel();
+        }
+
+        @HostAccess.Export
         public String getPreferredInputDevice() {
             return microphoneManager.getPreferredInputDevice();
         }

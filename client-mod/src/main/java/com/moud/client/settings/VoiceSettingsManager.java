@@ -60,9 +60,13 @@ public final class VoiceSettingsManager {
         public String inputDeviceName = "";
         public ActivationMode activationMode = ActivationMode.PUSH_TO_TALK;
         public int pushToTalkKey = GLFW.GLFW_KEY_V;
+        public boolean microphoneMuted = false;
+        public boolean deafened = false;
         public boolean autoMuteWhenIdle = true;
         public boolean automaticVoiceDetection = false;
         public int activityThreshold = 35;
+        public int inputGain = 100;
+        public int outputVolume = 100;
 
         public VoiceSettings copy() {
 
@@ -70,10 +74,22 @@ public final class VoiceSettingsManager {
             copy.inputDeviceName = this.inputDeviceName;
             copy.activationMode = this.activationMode;
             copy.pushToTalkKey = this.pushToTalkKey;
+            copy.microphoneMuted = this.microphoneMuted;
+            copy.deafened = this.deafened;
             copy.autoMuteWhenIdle = this.autoMuteWhenIdle;
             copy.automaticVoiceDetection = this.automaticVoiceDetection;
             copy.activityThreshold = this.activityThreshold;
+            copy.inputGain = this.inputGain;
+            copy.outputVolume = this.outputVolume;
             return copy;
+        }
+
+        public float getInputGainMultiplier() {
+            return inputGain / 100.0f;
+        }
+
+        public float getOutputVolumeMultiplier() {
+            return outputVolume / 100.0f;
         }
     }
 }

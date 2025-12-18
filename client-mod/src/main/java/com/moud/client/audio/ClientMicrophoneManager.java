@@ -34,9 +34,14 @@ public final class ClientMicrophoneManager {
     }
 
     private volatile FrameConsumer frameConsumer;
+    private volatile float currentLevel = 0.0f;
 
     public void setFrameConsumer(FrameConsumer consumer) {
         this.frameConsumer = consumer;
+    }
+
+    public float getCurrentLevel() {
+        return currentLevel;
     }
 
     public synchronized void start(Map<String, Object> options) {
@@ -109,6 +114,7 @@ public final class ClientMicrophoneManager {
         LOGGER.info("Microphone capture stopped (session={})", sessionId);
         sendState("stopped");
         sessionId = null;
+        currentLevel = 0.0f;
     }
 
     public boolean isCapturing() {
@@ -130,8 +136,28 @@ public final class ClientMicrophoneManager {
             byte[] chunk = new byte[read];
             System.arraycopy(buffer, 0, chunk, 0, read);
 
+            currentLevel = computeLevel(chunk);
             sendChunk(chunk, format);
         }
+        currentLevel = 0.0f;
+    }
+
+    private float computeLevel(byte[] pcmData) {
+        if (pcmData.length < 2) {
+            return 0.0f;
+        }
+
+        float peak = 0.0f;
+        for (int i = 0; i + 1 < pcmData.length; i += 2) {
+            int lo = pcmData[i] & 0xFF;
+            int hi = (pcmData[i + 1] & 0xFF) << 8;
+            short sample = (short) (hi | lo);
+            float abs = Math.abs(sample / 32768.0f);
+            if (abs > peak) {
+                peak = abs;
+            }
+        }
+        return Math.min(1.0f, peak);
     }
 
     private void sendChunk(byte[] data, AudioFormat format) {

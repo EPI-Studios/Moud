@@ -20,6 +20,9 @@ public final class VoiceChatController {
 
     public static boolean handleKeyEvent(int key, int action) {
         VoiceSettingsManager.VoiceSettings settings = VoiceSettingsManager.get();
+        if (settings.microphoneMuted) {
+            return false;
+        }
         if (settings.activationMode != VoiceSettingsManager.ActivationMode.PUSH_TO_TALK) {
             return false;
         }
@@ -37,6 +40,9 @@ public final class VoiceChatController {
     }
 
     public static void enableLocalCapture() {
+        if (VoiceSettingsManager.get().microphoneMuted) {
+            return;
+        }
         AudioService audio = audioService();
         if (audio == null || audio.getMicrophone().isActive()) {
             return;
