@@ -36,7 +36,15 @@ public final class ClientDisplayManager {
     public void handleAnchor(MoudPackets.S2C_UpdateDisplayAnchorPacket packet) {
         DisplaySurface surface = displays.get(packet.displayId());
         if (surface != null) {
-            surface.updateAnchor(packet.anchorType(), packet.anchorBlockPosition(), packet.anchorEntityUuid(), packet.anchorOffset());
+            surface.updateAnchor(packet.anchorType(),
+                    packet.anchorBlockPosition(),
+                    packet.anchorEntityUuid(),
+                    packet.anchorOffset(),
+                    packet.anchorModelId(),
+                    packet.anchorOffsetLocal(),
+                    packet.inheritRotation(),
+                    packet.inheritScale(),
+                    packet.includePitch());
             RuntimeObjectRegistry.getInstance().syncDisplay(surface);
         }
     }

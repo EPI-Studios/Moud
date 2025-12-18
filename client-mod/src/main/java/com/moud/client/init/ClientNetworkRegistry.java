@@ -163,6 +163,7 @@ public class ClientNetworkRegistry {
             });
         });
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_CreateModelPacket.class, (player, packet) -> handleCreateModel(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateModelAnchorPacket.class, (player, packet) -> handleUpdateModelAnchor(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateModelTransformPacket.class, (player, packet) -> handleUpdateModelTransform(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateModelTexturePacket.class, (player, packet) -> handleUpdateModelTexture(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateModelCollisionPacket.class, (player, packet) -> handleUpdateModelCollision(packet));
@@ -619,8 +620,33 @@ public class ClientNetworkRegistry {
                 model.updateTransform(packet.position(), packet.rotation(), packet.scale());
                 ModelCollisionManager.getInstance().sync(model);
                 RuntimeObjectRegistry.getInstance().syncModel(model);
+                ClientCollisionManager.updateTransform(packet.modelId(), model.getPosition(), model.getRotation(), model.getScale());
+                return;
             }
             ClientCollisionManager.updateTransform(packet.modelId(), packet.position(), packet.rotation(), packet.scale());
+        });
+    }
+
+    private void handleUpdateModelAnchor(MoudPackets.S2C_UpdateModelAnchorPacket packet) {
+        MinecraftClient.getInstance().execute(() -> {
+            RenderableModel model = ClientModelManager.getInstance().getModel(packet.modelId());
+            if (model != null) {
+                model.updateAnchor(packet.anchorType(),
+                        packet.anchorEntityUuid(),
+                        packet.anchorModelId(),
+                        packet.anchorBlockPosition(),
+                        packet.localPosition(),
+                        packet.localRotation(),
+                        packet.localScale(),
+                        packet.localSpace(),
+                        packet.inheritRotation(),
+                        packet.inheritScale(),
+                        packet.includePitch());
+                ModelCollisionManager.getInstance().sync(model);
+                RuntimeObjectRegistry.getInstance().syncModel(model);
+            } else {
+                LOGGER.warn("Received anchor update for unknown model ID: {}", packet.modelId());
+            }
         });
     }
 

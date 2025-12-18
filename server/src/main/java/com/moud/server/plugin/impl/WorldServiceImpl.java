@@ -12,8 +12,10 @@ import com.moud.plugin.api.world.DisplayOptions;
 import com.moud.plugin.api.world.DisplayPlayback;
 import com.moud.plugin.api.world.TextHandle;
 import com.moud.plugin.api.world.TextOptions;
+import com.moud.server.entity.ModelManager;
 import com.moud.server.instance.InstanceManager;
 import com.moud.server.proxy.MediaDisplayProxy;
+import com.moud.server.proxy.ModelProxy;
 import com.moud.server.proxy.TextProxy;
 import net.minestom.server.instance.Instance;
 
@@ -123,11 +125,28 @@ public final class WorldServiceImpl implements WorldService {
             return;
         }
         Vector3 offset = anchor.offset() != null ? anchor.offset() : Vector3.zero();
+        boolean local = anchor.local();
+        boolean inheritRotation = anchor.inheritRotation();
+        boolean inheritScale = anchor.inheritScale();
+        boolean includePitch = anchor.includePitch();
         switch (anchor.type()) {
             case BLOCK -> proxy.setAnchorToBlock(anchor.x(), anchor.y(), anchor.z(), offset);
             case ENTITY, PLAYER -> {
                 if (anchor.uuid() != null && !anchor.uuid().isBlank()) {
-                    proxy.setAnchorToEntity(java.util.UUID.fromString(anchor.uuid()), offset);
+                    proxy.setAnchorToEntity(java.util.UUID.fromString(anchor.uuid()), offset, local, inheritRotation, inheritScale, includePitch);
+                }
+            }
+            case MODEL -> {
+                Long modelId = anchor.modelId();
+                if (modelId == null) {
+                    proxy.clearAnchor();
+                    return;
+                }
+                ModelProxy model = ModelManager.getInstance().getById(modelId);
+                if (model != null) {
+                    proxy.setAnchorToModel(model, offset, local, inheritRotation, inheritScale, includePitch);
+                } else {
+                    proxy.clearAnchor();
                 }
             }
             default -> proxy.clearAnchor();

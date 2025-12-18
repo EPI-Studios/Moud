@@ -145,6 +145,29 @@ public final class ModelServiceImpl implements ModelService {
         }
 
         @Override
+        public void setAnchorToEntity(String uuid, Vector3 localPosition, Quaternion localRotation, Vector3 localScale,
+                                      boolean inheritRotation, boolean inheritScale, boolean includePitch, boolean localSpace) {
+            proxy.setAnchorToEntity(uuid, localPosition, localRotation, localScale,
+                    inheritRotation, inheritScale, includePitch, localSpace);
+        }
+
+        @Override
+        public void setAnchorToModel(long modelId, Vector3 localPosition, Quaternion localRotation, Vector3 localScale,
+                                     boolean inheritRotation, boolean inheritScale, boolean localSpace) {
+            ModelProxy parent = ModelManager.getInstance().getById(modelId);
+            if (parent == null) {
+                proxy.clearAnchor();
+                return;
+            }
+            proxy.setAnchorToModel(parent, localPosition, localRotation, localScale, inheritRotation, inheritScale, localSpace);
+        }
+
+        @Override
+        public void clearAnchor() {
+            proxy.clearAnchor();
+        }
+
+        @Override
         public void remove() {
             proxy.remove();
             owner.remove(id());

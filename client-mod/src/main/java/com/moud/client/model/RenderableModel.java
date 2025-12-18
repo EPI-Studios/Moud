@@ -3,14 +3,20 @@ package com.moud.client.model;
 import com.moud.api.collision.OBB;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
+import com.moud.client.util.ClientEntityResolver;
 import com.moud.client.rendering.MeshBuffer;
 import com.moud.client.util.OBJLoader;
+import com.moud.network.MoudPackets;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.Entity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 public class RenderableModel {
     public static final int FLOATS_PER_VERTEX = 8;
@@ -48,6 +54,15 @@ public class RenderableModel {
     private Vector3 meshMin;
     private Vector3 meshMax;
 
+    private MoudPackets.DisplayAnchorType anchorType = MoudPackets.DisplayAnchorType.FREE;
+    private UUID anchorEntityUuid;
+    private Long anchorModelId;
+    private BlockPos anchorBlockPos;
+    private boolean anchorLocalSpace = true;
+    private boolean anchorInheritRotation = true;
+    private boolean anchorInheritScale = true;
+    private boolean anchorIncludePitch = false;
+
     public RenderableModel(long id, String modelPath) {
         this.id = id;
         this.modelPath = modelPath;
@@ -66,6 +81,14 @@ public class RenderableModel {
 
     public void updateTransform(Vector3 pos, Quaternion rot, Vector3 scale) {
         if (pos == null || rot == null || scale == null) {
+            return;
+        }
+
+        if (anchorType != null && anchorType != MoudPackets.DisplayAnchorType.FREE) {
+            this.position = new Vector3(pos);
+            this.rotation = new Quaternion(rot);
+            this.scale = new Vector3(scale);
+            this.firstUpdate = false;
             return;
         }
 
@@ -107,9 +130,63 @@ public class RenderableModel {
         }
     }
 
+    public void updateAnchor(MoudPackets.DisplayAnchorType type,
+                             UUID entityUuid,
+                             Long modelId,
+                             Vector3 blockPosition,
+                             Vector3 localPosition,
+                             Quaternion localRotation,
+                             Vector3 localScale,
+                             boolean localSpace,
+                             boolean inheritRotation,
+                             boolean inheritScale,
+                             boolean includePitch) {
+        MoudPackets.DisplayAnchorType newType = type != null ? type : MoudPackets.DisplayAnchorType.FREE;
+
+        if (anchorType != null && anchorType != MoudPackets.DisplayAnchorType.FREE
+                && newType == MoudPackets.DisplayAnchorType.FREE) {
+            WorldTransform world = computeWorldTransform(getCurrentTickDelta(), 0);
+            anchorType = newType;
+            anchorEntityUuid = null;
+            anchorModelId = null;
+            anchorBlockPos = null;
+            anchorLocalSpace = true;
+            anchorInheritRotation = true;
+            anchorInheritScale = true;
+            anchorIncludePitch = false;
+
+            position = world.position();
+            rotation = world.rotation();
+            scale = world.scale();
+            snapToTarget();
+            return;
+        }
+
+        anchorType = newType;
+        anchorEntityUuid = newType == MoudPackets.DisplayAnchorType.ENTITY ? entityUuid : null;
+        anchorModelId = newType == MoudPackets.DisplayAnchorType.MODEL ? modelId : null;
+        anchorBlockPos = newType == MoudPackets.DisplayAnchorType.BLOCK && blockPosition != null
+                ? BlockPos.ofFloored(blockPosition.x, blockPosition.y, blockPosition.z)
+                : null;
+        anchorLocalSpace = localSpace;
+        anchorInheritRotation = inheritRotation;
+        anchorInheritScale = inheritScale;
+        anchorIncludePitch = includePitch;
+
+        if (newType != MoudPackets.DisplayAnchorType.FREE) {
+            position = localPosition != null ? new Vector3(localPosition) : Vector3.zero();
+            rotation = localRotation != null ? new Quaternion(localRotation) : Quaternion.identity();
+            scale = localScale != null ? new Vector3(localScale) : Vector3.one();
+            firstUpdate = false;
+        }
+    }
+
     public long getId() { return id; }
     public String getModelPath() { return modelPath; }
     public Vector3 getInterpolatedPosition(float tickDelta) {
+        if (anchorType != null && anchorType != MoudPackets.DisplayAnchorType.FREE) {
+            return computeWorldTransform(tickDelta, 0).position();
+        }
         float t = Math.max(0.0f, Math.min(1.0f, tickDelta));
         return new Vector3(
                 previousRenderPosition.x + (renderPosition.x - previousRenderPosition.x) * t,
@@ -119,10 +196,16 @@ public class RenderableModel {
     }
 
     public Quaternion getInterpolatedRotation(float tickDelta) {
+        if (anchorType != null && anchorType != MoudPackets.DisplayAnchorType.FREE) {
+            return computeWorldTransform(tickDelta, 0).rotation();
+        }
         float t = Math.max(0.0f, Math.min(1.0f, tickDelta));
         return previousRenderRotation.slerp(renderRotation, t);
     }
     public Vector3 getInterpolatedScale(float tickDelta) {
+        if (anchorType != null && anchorType != MoudPackets.DisplayAnchorType.FREE) {
+            return computeWorldTransform(tickDelta, 0).scale();
+        }
         float t = Math.max(0.0f, Math.min(1.0f, tickDelta));
         return new Vector3(
                 previousRenderScale.x + (renderScale.x - previousRenderScale.x) * t,
@@ -132,6 +215,9 @@ public class RenderableModel {
     }
 
     public void tickSmoothing(float deltaTicks) {
+        if (anchorType != null && anchorType != MoudPackets.DisplayAnchorType.FREE) {
+            return;
+        }
         if (firstUpdate || !smoothingEnabled) {
             return;
         }
@@ -174,9 +260,26 @@ public class RenderableModel {
         this.smoothingProgress = 1.0f;
     }
 
-    public Quaternion getRotation() { return rotation; }
-    public Vector3 getScale() { return scale; }
-    public Vector3 getPosition() { return position; }
+    public Quaternion getRotation() {
+        if (anchorType != null && anchorType != MoudPackets.DisplayAnchorType.FREE) {
+            return getInterpolatedRotation(getCurrentTickDelta());
+        }
+        return rotation;
+    }
+
+    public Vector3 getScale() {
+        if (anchorType != null && anchorType != MoudPackets.DisplayAnchorType.FREE) {
+            return getInterpolatedScale(getCurrentTickDelta());
+        }
+        return scale;
+    }
+
+    public Vector3 getPosition() {
+        if (anchorType != null && anchorType != MoudPackets.DisplayAnchorType.FREE) {
+            return getInterpolatedPosition(getCurrentTickDelta());
+        }
+        return position;
+    }
     public void setSmoothingDurationTicks(float ticks) {
         this.smoothingDurationTicks = Math.max(1.0f, ticks);
     }
@@ -265,7 +368,126 @@ public class RenderableModel {
     }
 
     public BlockPos getBlockPos() {
-        return BlockPos.ofFloored(position.x, position.y, position.z);
+        Vector3 current = getPosition();
+        return BlockPos.ofFloored(current.x, current.y, current.z);
+    }
+
+    private float getCurrentTickDelta() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) {
+            return 1.0f;
+        }
+        return client.getRenderTickCounter().getTickDelta(true);
+    }
+
+    private WorldTransform computeWorldTransform(float tickDelta, int depth) {
+        if (depth > 8) {
+            return fallbackWorldTransform();
+        }
+
+        if (anchorType == null || anchorType == MoudPackets.DisplayAnchorType.FREE) {
+            return new WorldTransform(
+                    unanchoredInterpolatedPosition(tickDelta),
+                    unanchoredInterpolatedRotation(tickDelta),
+                    unanchoredInterpolatedScale(tickDelta)
+            );
+        }
+
+        WorldTransform parent = resolveParentTransform(tickDelta, depth);
+        if (parent == null) {
+            return fallbackWorldTransform();
+        }
+
+        Vector3 localPos = position != null ? new Vector3(position) : Vector3.zero();
+        Quaternion localRot = rotation != null ? new Quaternion(rotation) : Quaternion.identity();
+        Vector3 localScale = scale != null ? new Vector3(scale) : Vector3.one();
+
+        Vector3 translated = localPos;
+        if (anchorLocalSpace) {
+            translated = localPos.multiply(parent.scale());
+            translated = parent.rotation().rotate(translated);
+        }
+
+        Vector3 worldPos = parent.position().add(translated);
+        Quaternion worldRot = anchorInheritRotation
+                ? parent.rotation().multiply(localRot).normalize()
+                : localRot;
+        Vector3 worldScale = anchorInheritScale
+                ? parent.scale().multiply(localScale)
+                : localScale;
+
+        return new WorldTransform(worldPos, worldRot, worldScale);
+    }
+
+    private WorldTransform resolveParentTransform(float tickDelta, int depth) {
+        return switch (anchorType) {
+            case BLOCK -> {
+                if (anchorBlockPos == null) {
+                    yield null;
+                }
+                Vector3 pos = new Vector3(
+                        anchorBlockPos.getX() + 0.5f,
+                        anchorBlockPos.getY() + 0.5f,
+                        anchorBlockPos.getZ() + 0.5f
+                );
+                yield new WorldTransform(pos, Quaternion.identity(), Vector3.one());
+            }
+            case ENTITY -> {
+                Entity entity = ClientEntityResolver.resolve(anchorEntityUuid);
+                if (entity == null) {
+                    yield null;
+                }
+                Vec3d pos = entity.getLerpedPos(tickDelta);
+                float yaw = entity.getYaw(tickDelta);
+                float pitch = anchorIncludePitch ? entity.getPitch(tickDelta) : 0.0f;
+                yield new WorldTransform(new Vector3(pos.x, pos.y, pos.z), Quaternion.fromEuler(pitch, yaw, 0.0f), Vector3.one());
+            }
+            case MODEL -> {
+                if (anchorModelId == null || anchorModelId == id) {
+                    yield null;
+                }
+                RenderableModel parent = ClientModelManager.getInstance().getModel(anchorModelId);
+                if (parent == null) {
+                    yield null;
+                }
+                yield parent.computeWorldTransform(tickDelta, depth + 1);
+            }
+            case FREE -> null;
+        };
+    }
+
+    private WorldTransform fallbackWorldTransform() {
+        return new WorldTransform(
+                renderPosition != null ? new Vector3(renderPosition) : Vector3.zero(),
+                renderRotation != null ? new Quaternion(renderRotation) : Quaternion.identity(),
+                renderScale != null ? new Vector3(renderScale) : Vector3.one()
+        );
+    }
+
+    private Vector3 unanchoredInterpolatedPosition(float tickDelta) {
+        float t = Math.max(0.0f, Math.min(1.0f, tickDelta));
+        return new Vector3(
+                previousRenderPosition.x + (renderPosition.x - previousRenderPosition.x) * t,
+                previousRenderPosition.y + (renderPosition.y - previousRenderPosition.y) * t,
+                previousRenderPosition.z + (renderPosition.z - previousRenderPosition.z) * t
+        );
+    }
+
+    private Quaternion unanchoredInterpolatedRotation(float tickDelta) {
+        float t = Math.max(0.0f, Math.min(1.0f, tickDelta));
+        return previousRenderRotation.slerp(renderRotation, t);
+    }
+
+    private Vector3 unanchoredInterpolatedScale(float tickDelta) {
+        float t = Math.max(0.0f, Math.min(1.0f, tickDelta));
+        return new Vector3(
+                previousRenderScale.x + (renderScale.x - previousRenderScale.x) * t,
+                previousRenderScale.y + (renderScale.y - previousRenderScale.y) * t,
+                previousRenderScale.z + (renderScale.z - previousRenderScale.z) * t
+        );
+    }
+
+    private record WorldTransform(Vector3 position, Quaternion rotation, Vector3 scale) {
     }
 
     public void destroy() {

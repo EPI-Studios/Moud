@@ -4,6 +4,7 @@ import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.api.validation.APIValidator;
+import com.moud.server.entity.ModelManager;
 import com.moud.server.entity.ScriptedEntity;
 import com.moud.server.instance.InstanceManager;
 import com.moud.server.raycast.RaycastResult;
@@ -193,6 +194,10 @@ public class WorldProxy {
             model.setCollisionBox(autoWidth, autoHeight, autoDepth);
         }
 
+        if (options.hasMember("anchor")) {
+            applyModelAnchor(model, options.getMember("anchor"));
+        }
+
         return model;
     }
 
@@ -293,8 +298,8 @@ public class WorldProxy {
             PlayerModelProxy proxy = new PlayerModelProxy(position, skinUrl);
             if (options.hasMember("rotation")) {
                 Value rot = options.getMember("rotation");
-                float yaw = rot.hasMember("y") ? rot.getMember("y").asFloat() : 0f;
-                float pitch = rot.hasMember("x") ? rot.getMember("x").asFloat() : 0f;
+                float yaw = rot.hasMember("yaw") ? rot.getMember("yaw").asFloat() : (rot.hasMember("y") ? rot.getMember("y").asFloat() : 0f);
+                float pitch = rot.hasMember("pitch") ? rot.getMember("pitch").asFloat() : (rot.hasMember("x") ? rot.getMember("x").asFloat() : 0f);
                 proxy.setRotation(yaw, pitch);
             }
             return proxy;
@@ -435,6 +440,10 @@ public class WorldProxy {
 
         String type = anchorValue.hasMember("type") ? anchorValue.getMember("type").asString().toLowerCase(Locale.ROOT) : "free";
         Vector3 offset = anchorValue.hasMember("offset") ? readVector3(anchorValue.getMember("offset"), Vector3.zero()) : Vector3.zero();
+        boolean local = anchorValue.hasMember("local") && anchorValue.getMember("local").asBoolean();
+        boolean inheritRotation = anchorValue.hasMember("inheritRotation") && anchorValue.getMember("inheritRotation").asBoolean();
+        boolean inheritScale = anchorValue.hasMember("inheritScale") && anchorValue.getMember("inheritScale").asBoolean();
+        boolean includePitch = anchorValue.hasMember("includePitch") && anchorValue.getMember("includePitch").asBoolean();
 
         switch (type) {
             case "block" -> {
@@ -442,6 +451,26 @@ public class WorldProxy {
                 int y = anchorValue.hasMember("y") ? anchorValue.getMember("y").asInt() : 0;
                 int z = anchorValue.hasMember("z") ? anchorValue.getMember("z").asInt() : 0;
                 display.setAnchorToBlock(x, y, z, offset);
+            }
+            case "model" -> {
+                Object host = anchorValue.hasMember("model") && anchorValue.getMember("model").isHostObject()
+                        ? anchorValue.getMember("model").asHostObject()
+                        : null;
+                if (host instanceof ModelProxy modelProxy) {
+                    display.setAnchorToModel(modelProxy, offset, local, inheritRotation, inheritScale, includePitch);
+                    return;
+                }
+                if (anchorValue.hasMember("modelId")) {
+                    long modelId = readLong(anchorValue.getMember("modelId"), -1L);
+                    if (modelId >= 0) {
+                        ModelProxy modelProxy = ModelManager.getInstance().getById(modelId);
+                        if (modelProxy != null) {
+                            display.setAnchorToModel(modelProxy, offset, local, inheritRotation, inheritScale, includePitch);
+                            return;
+                        }
+                    }
+                }
+                display.clearAnchor();
             }
             case "entity", "player" -> {
                 UUID targetUuid = null;
@@ -455,15 +484,86 @@ public class WorldProxy {
                 } else if (anchorValue.hasMember("model") && anchorValue.getMember("model").isHostObject()) {
                     Object host = anchorValue.getMember("model").asHostObject();
                     if (host instanceof ModelProxy modelProxy) {
-                        targetUuid = modelProxy.getEntity().getUuid();
+                        display.setAnchorToModel(modelProxy, offset, local, inheritRotation, inheritScale, includePitch);
+                        return;
                     }
                 }
 
                 if (targetUuid != null) {
-                    display.setAnchorToEntity(targetUuid, offset);
+                    display.setAnchorToEntity(targetUuid, offset, local, inheritRotation, inheritScale, includePitch);
                 }
             }
             default -> display.clearAnchor();
+        }
+    }
+
+    private void applyModelAnchor(ModelProxy model, Value anchorValue) {
+        if (model == null || anchorValue == null || !anchorValue.hasMembers()) {
+            return;
+        }
+
+        String type = anchorValue.hasMember("type") ? anchorValue.getMember("type").asString().toLowerCase(Locale.ROOT) : "free";
+
+        Vector3 localPosition = anchorValue.hasMember("localPosition")
+                ? readVector3(anchorValue.getMember("localPosition"), Vector3.zero())
+                : Vector3.zero();
+        Quaternion localRotation = anchorValue.hasMember("localRotation")
+                ? readQuaternion(anchorValue.getMember("localRotation"), Quaternion.identity())
+                : Quaternion.identity();
+        Vector3 localScale = anchorValue.hasMember("localScale")
+                ? readVector3(anchorValue.getMember("localScale"), Vector3.one())
+                : Vector3.one();
+
+        boolean localSpace = !anchorValue.hasMember("localSpace") || anchorValue.getMember("localSpace").asBoolean();
+        boolean inheritRotation = !anchorValue.hasMember("inheritRotation") || anchorValue.getMember("inheritRotation").asBoolean();
+        boolean inheritScale = !anchorValue.hasMember("inheritScale") || anchorValue.getMember("inheritScale").asBoolean();
+        boolean includePitch = anchorValue.hasMember("includePitch") && anchorValue.getMember("includePitch").asBoolean();
+
+        switch (type) {
+            case "block" -> {
+                int x = anchorValue.hasMember("x") ? anchorValue.getMember("x").asInt() : 0;
+                int y = anchorValue.hasMember("y") ? anchorValue.getMember("y").asInt() : 0;
+                int z = anchorValue.hasMember("z") ? anchorValue.getMember("z").asInt() : 0;
+                model.setAnchorToBlock(x, y, z, localPosition, localRotation, localScale, inheritRotation, inheritScale, localSpace);
+            }
+            case "model" -> {
+                Object host = anchorValue.hasMember("model") && anchorValue.getMember("model").isHostObject()
+                        ? anchorValue.getMember("model").asHostObject()
+                        : null;
+                if (host instanceof ModelProxy modelProxy) {
+                    model.setAnchorToModel(modelProxy, localPosition, localRotation, localScale, inheritRotation, inheritScale, localSpace);
+                    return;
+                }
+                if (anchorValue.hasMember("modelId")) {
+                    long modelId = readLong(anchorValue.getMember("modelId"), -1L);
+                    if (modelId >= 0) {
+                        ModelProxy modelProxy = ModelManager.getInstance().getById(modelId);
+                        if (modelProxy != null) {
+                            model.setAnchorToModel(modelProxy, localPosition, localRotation, localScale, inheritRotation, inheritScale, localSpace);
+                            return;
+                        }
+                    }
+                }
+                model.clearAnchor();
+            }
+            case "entity", "player" -> {
+                String targetUuid = null;
+                if (anchorValue.hasMember("uuid")) {
+                    targetUuid = anchorValue.getMember("uuid").asString();
+                } else if (anchorValue.hasMember("player") && anchorValue.getMember("player").isHostObject()) {
+                    Object host = anchorValue.getMember("player").asHostObject();
+                    if (host instanceof PlayerProxy proxy) {
+                        targetUuid = proxy.getUuid();
+                    }
+                }
+                if (targetUuid != null) {
+                    model.setAnchorToEntity(targetUuid, localPosition, localRotation, localScale,
+                            inheritRotation, inheritScale, includePitch, localSpace);
+                } else {
+                    model.clearAnchor();
+                }
+            }
+            default -> model.clearAnchor();
         }
     }
 
