@@ -3,6 +3,7 @@ package com.moud.client;
 import com.moud.client.animation.ClientPlayerModelManager;
 import com.moud.client.animation.PlayerPartConfigManager;
 import com.moud.client.api.service.ClientAPIService;
+import com.moud.client.audio.VoiceKeybindManager;
 import com.moud.client.display.ClientDisplayManager;
 import com.moud.client.editor.assets.AssetThumbnailCache;
 import com.moud.client.editor.selection.EditorSelectionRenderer;
@@ -79,6 +80,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     @Override
     public void onInitializeClient() {
         instance = this;
+        VoiceKeybindManager.init();
         LOGGER.info("Initializing Moud client...");
 
         serviceManager.initializeBaseSystems();
@@ -117,6 +119,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             serviceManager.shutdown();
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> scriptLoader.tick(this, serviceManager));
+        ClientTickEvents.END_CLIENT_TICK.register(VoiceKeybindManager::tick);
     }
 
     private void registerHudRenderer() {

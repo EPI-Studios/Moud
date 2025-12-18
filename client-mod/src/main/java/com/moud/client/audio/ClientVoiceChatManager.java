@@ -3,6 +3,7 @@ package com.moud.client.audio;
 import com.moud.client.audio.voice.*;
 import com.moud.client.network.ClientNetworkManager;
 import com.moud.client.runtime.ClientScriptingRuntime;
+import com.moud.client.settings.VoiceSettingsManager;
 import com.moud.network.MoudPackets;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
@@ -27,7 +28,8 @@ public final class ClientVoiceChatManager {
     private static final int MAX_DRAIN_FRAMES = 16;
     private final ConcurrentMap<String, Value> processorFactories = new ConcurrentHashMap<>();
     private final ArrayBlockingQueue<VoiceCapturedFrame> inputQueue = new ArrayBlockingQueue<>(MAX_INPUT_QUEUE_FRAMES);
-    private final ArrayBlockingQueue<VoiceIncomingFrame> outputQueue = new ArrayBlockingQueue<>(MAX_OUTPUT_QUEUE_FRAMES);
+    private final ArrayBlockingQueue<VoiceIncomingFrame> outputQueue =
+            new ArrayBlockingQueue<>(MAX_OUTPUT_QUEUE_FRAMES);
     private final AtomicBoolean inputDrainScheduled = new AtomicBoolean(false);
     private final AtomicBoolean outputDrainScheduled = new AtomicBoolean(false);
     private final VoiceVad voiceVad = new VoiceVad();
@@ -129,6 +131,9 @@ public final class ClientVoiceChatManager {
         if (!enabled || data == null || data.length == 0) {
             return;
         }
+        if (VoiceSettingsManager.get().microphoneMuted) {
+            return;
+        }
         if (sessionId == null || sessionId.isBlank()) {
             return;
         }
@@ -161,6 +166,9 @@ public final class ClientVoiceChatManager {
 
     public void handleVoiceStreamChunk(MoudPackets.VoiceStreamChunkPacket packet) {
         if (!enabled || packet == null || packet.data() == null || packet.data().length == 0) {
+            return;
+        }
+        if (VoiceSettingsManager.get().deafened) {
             return;
         }
 
@@ -321,7 +329,11 @@ public final class ClientVoiceChatManager {
             microphoneChain = VoiceProcessorChain.empty();
         }
 
-        VoiceAudioUtil.applyGainWithLimiter(samples, spec.gain() * VoiceTuning.INPUT_GAIN, VoiceTuning.LIMITER_PEAK);
+        VoiceAudioUtil.applyGainWithLimiter(
+                samples,
+                spec.gain() * VoiceTuning.getInputGain(),
+                VoiceTuning.LIMITER_PEAK
+        );
 
         float level = VoiceAudioUtil.computeRmsLevel(samples);
         boolean speaking = voiceVad.isSpeaking(level, frame.timestampMs());
@@ -354,7 +366,11 @@ public final class ClientVoiceChatManager {
         }
         short[] samples = VoiceAudioUtil.decodePcmS16Le(frame.data());
         VoiceProcessingSpec spec = microphoneProcessing;
-        VoiceAudioUtil.applyGainWithLimiter(samples, spec.gain() * VoiceTuning.INPUT_GAIN, VoiceTuning.LIMITER_PEAK);
+        VoiceAudioUtil.applyGainWithLimiter(
+                samples,
+                spec.gain() * VoiceTuning.getInputGain(),
+                VoiceTuning.LIMITER_PEAK
+        );
         float level = VoiceAudioUtil.computeRmsLevel(samples);
         boolean speaking = voiceVad.isSpeaking(level, frame.timestampMs());
         if (!speaking && voiceVad.dropSilence()) {
@@ -399,7 +415,7 @@ public final class ClientVoiceChatManager {
         }
 
         float mixGain = voiceVolume;
-        float overallGain = combined.gain() * VoiceTuning.OUTPUT_GAIN * mixGain;
+        float overallGain = combined.gain() * VoiceTuning.getOutputGain() * mixGain;
         VoiceAudioUtil.applyGainWithLimiter(samples, overallGain, VoiceTuning.LIMITER_PEAK);
 
         byte[] pcm = VoiceAudioUtil.encodePcmS16Le(samples);
@@ -419,7 +435,7 @@ public final class ClientVoiceChatManager {
         float mixGain = voiceVolume;
         VoiceAudioUtil.applyGainWithLimiter(
                 samples,
-                VoiceTuning.OUTPUT_GAIN * mixGain,
+                VoiceTuning.getOutputGain() * mixGain,
                 VoiceTuning.LIMITER_PEAK
         );
         byte[] pcm = VoiceAudioUtil.encodePcmS16Le(samples);
