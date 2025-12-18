@@ -1,6 +1,9 @@
 package com.moud.server.entity;
 
 import com.moud.server.proxy.ModelProxy;
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.timer.Task;
+import net.minestom.server.timer.TaskSchedule;
 import net.minestom.server.entity.Entity;
 import org.jetbrains.annotations.Nullable;
 
@@ -17,6 +20,7 @@ public class ModelManager {
     private final Map<Long, ModelProxy> modelsById = new ConcurrentHashMap<>();
     private final Map<UUID, ModelProxy> modelsByEntityUuid = new ConcurrentHashMap<>();
     private final Map<Long, SceneBinding> sceneBindings = new ConcurrentHashMap<>();
+    private Task anchorUpdateTask;
 
     private ModelManager() {}
 
@@ -31,12 +35,17 @@ public class ModelManager {
     public void register(ModelProxy model) {
         modelsById.put(model.getId(), model);
         modelsByEntityUuid.put(model.getEntity().getUuid(), model);
+        ensureUpdateTask();
     }
 
     public void unregister(ModelProxy model) {
         modelsById.remove(model.getId());
         modelsByEntityUuid.remove(model.getEntity().getUuid());
         sceneBindings.remove(model.getId());
+        if (modelsById.isEmpty() && anchorUpdateTask != null) {
+            anchorUpdateTask.cancel();
+            anchorUpdateTask = null;
+        }
     }
 
     @Nullable
@@ -62,6 +71,10 @@ public class ModelManager {
         modelsById.clear();
         modelsByEntityUuid.clear();
         sceneBindings.clear();
+        if (anchorUpdateTask != null) {
+            anchorUpdateTask.cancel();
+            anchorUpdateTask = null;
+        }
     }
 
     public void tagSceneBinding(long modelId, String sceneId, String objectId) {
@@ -73,5 +86,27 @@ public class ModelManager {
     }
 
     public record SceneBinding(String sceneId, String objectId) {
+    }
+
+    private void ensureUpdateTask() {
+        if (anchorUpdateTask != null) {
+            return;
+        }
+        anchorUpdateTask = MinecraftServer.getSchedulerManager()
+                .buildTask(this::tickAnchoredModels)
+                .repeat(TaskSchedule.tick(1))
+                .schedule();
+    }
+
+    private void tickAnchoredModels() {
+        if (modelsById.isEmpty()) {
+            if (anchorUpdateTask != null) {
+                anchorUpdateTask.cancel();
+                anchorUpdateTask = null;
+            }
+            return;
+        }
+
+        modelsById.values().forEach(ModelProxy::updateAnchorTracking);
     }
 }

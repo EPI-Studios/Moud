@@ -4,7 +4,7 @@ import com.moud.api.math.Vector3;
 
 public final class DisplayAnchor {
     public enum Type {
-        FREE, BLOCK, ENTITY, PLAYER
+        FREE, BLOCK, ENTITY, PLAYER, MODEL
     }
 
     private Type type = Type.FREE;
@@ -12,7 +12,12 @@ public final class DisplayAnchor {
     private int y;
     private int z;
     private String uuid;
+    private Long modelId;
     private Vector3 offset = Vector3.zero();
+    private boolean local = false;
+    private boolean inheritRotation = false;
+    private boolean inheritScale = false;
+    private boolean includePitch = false;
 
     public Type type() {
         return type;
@@ -59,12 +64,57 @@ public final class DisplayAnchor {
         return this;
     }
 
+    public Long modelId() {
+        return modelId;
+    }
+
+    public DisplayAnchor modelId(long modelId) {
+        this.modelId = modelId;
+        return this;
+    }
+
     public Vector3 offset() {
         return offset;
     }
 
     public DisplayAnchor offset(Vector3 offset) {
         this.offset = offset;
+        return this;
+    }
+
+    public boolean local() {
+        return local;
+    }
+
+    public DisplayAnchor local(boolean local) {
+        this.local = local;
+        return this;
+    }
+
+    public boolean inheritRotation() {
+        return inheritRotation;
+    }
+
+    public DisplayAnchor inheritRotation(boolean inheritRotation) {
+        this.inheritRotation = inheritRotation;
+        return this;
+    }
+
+    public boolean inheritScale() {
+        return inheritScale;
+    }
+
+    public DisplayAnchor inheritScale(boolean inheritScale) {
+        this.inheritScale = inheritScale;
+        return this;
+    }
+
+    public boolean includePitch() {
+        return includePitch;
+    }
+
+    public DisplayAnchor includePitch(boolean includePitch) {
+        this.includePitch = includePitch;
         return this;
     }
 }

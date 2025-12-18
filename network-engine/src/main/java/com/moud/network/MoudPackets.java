@@ -21,7 +21,8 @@ public final class MoudPackets {
     public enum DisplayAnchorType {
         FREE,
         BLOCK,
-        ENTITY
+        ENTITY,
+        MODEL
     }
 
     public enum DisplayContentType {
@@ -441,7 +442,29 @@ public final class MoudPackets {
             @Field(order = 1) DisplayAnchorType anchorType,
             @Field(order = 2, optional = true) @Nullable Vector3 anchorBlockPosition,
             @Field(order = 3, optional = true) @Nullable UUID anchorEntityUuid,
-            @Field(order = 4, optional = true) @Nullable Vector3 anchorOffset
+            @Field(order = 4, optional = true) @Nullable Vector3 anchorOffset,
+            @Field(order = 5, optional = true) @Nullable Long anchorModelId,
+            @Field(order = 6) boolean anchorOffsetLocal,
+            @Field(order = 7) boolean inheritRotation,
+            @Field(order = 8) boolean inheritScale,
+            @Field(order = 9) boolean includePitch
+    ) {
+    }
+
+    @Packet(value = "moud:update_model_anchor", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_UpdateModelAnchorPacket(
+            @Field(order = 0) long modelId,
+            @Field(order = 1) DisplayAnchorType anchorType,
+            @Field(order = 2, optional = true) @Nullable UUID anchorEntityUuid,
+            @Field(order = 3, optional = true) @Nullable Long anchorModelId,
+            @Field(order = 4, optional = true) @Nullable Vector3 anchorBlockPosition,
+            @Field(order = 5) Vector3 localPosition,
+            @Field(order = 6) Quaternion localRotation,
+            @Field(order = 7) Vector3 localScale,
+            @Field(order = 8) boolean localSpace,
+            @Field(order = 9) boolean inheritRotation,
+            @Field(order = 10) boolean inheritScale,
+            @Field(order = 11) boolean includePitch
     ) {
     }
 

@@ -43,7 +43,12 @@ public class MediaDisplayProxy {
     private int anchorBlockZ;
     private WeakReference<Entity> anchorEntityRef;
     private UUID anchorEntityUuid;
+    private Long anchorModelId;
     private Vector3 anchorOffset = Vector3.zero();
+    private boolean anchorOffsetLocal = false;
+    private boolean inheritRotation = false;
+    private boolean inheritScale = false;
+    private boolean includePitch = false;
 
     private MoudPackets.DisplayContentType contentType = MoudPackets.DisplayContentType.IMAGE;
     private String primarySource;
@@ -91,6 +96,11 @@ public class MediaDisplayProxy {
         this.anchorType = MoudPackets.DisplayAnchorType.FREE;
         this.anchorEntityRef = null;
         this.anchorEntityUuid = null;
+        this.anchorModelId = null;
+        this.anchorOffsetLocal = false;
+        this.inheritRotation = false;
+        this.inheritScale = false;
+        this.includePitch = false;
         broadcastTransform();
         broadcastAnchorUpdate();
     }
@@ -159,6 +169,11 @@ public class MediaDisplayProxy {
             this.anchorType = MoudPackets.DisplayAnchorType.FREE;
             this.anchorEntityRef = null;
             this.anchorEntityUuid = null;
+            this.anchorModelId = null;
+            this.anchorOffsetLocal = false;
+            this.inheritRotation = false;
+            this.inheritScale = false;
+            this.includePitch = false;
             positionChanged = true;
         }
         if (newRotation != null) {
@@ -193,30 +208,75 @@ public class MediaDisplayProxy {
         this.anchorBlockY = y;
         this.anchorBlockZ = z;
         this.anchorOffset = offset != null ? new Vector3(offset) : Vector3.zero();
+        this.anchorModelId = null;
         this.anchorEntityRef = null;
         this.anchorEntityUuid = null;
+        this.anchorOffsetLocal = false;
+        this.inheritRotation = false;
+        this.inheritScale = false;
+        this.includePitch = false;
         updateAnchorTracking();
         broadcastAnchorUpdate();
     }
 
     @HostAccess.Export
     public void setAnchorToEntity(UUID entityUuid, Vector3 offset) {
+        setAnchorToEntity(entityUuid, offset, false, false, false, false);
+    }
+
+    @HostAccess.Export
+    public void setAnchorToEntity(UUID entityUuid, Vector3 offset, boolean anchorOffsetLocal, boolean inheritRotation,
+                                  boolean inheritScale, boolean includePitch) {
         Entity entity = resolveAnchorEntity(entityUuid);
         if (entity == null) {
             LOGGER.warn("Attempted to anchor display {} to missing entity {}", id, entityUuid);
             return;
         }
-        attachToEntity(entity, offset);
+        attachToEntity(entity, offset, anchorOffsetLocal, inheritRotation, inheritScale, includePitch);
     }
 
     public void attachToEntity(Entity entity, Vector3 offset) {
+        attachToEntity(entity, offset, false, false, false, false);
+    }
+
+    public void attachToEntity(Entity entity, Vector3 offset, boolean anchorOffsetLocal, boolean inheritRotation,
+                               boolean inheritScale, boolean includePitch) {
         if (entity == null) {
             return;
         }
         this.anchorType = MoudPackets.DisplayAnchorType.ENTITY;
         this.anchorEntityUuid = entity.getUuid();
         this.anchorEntityRef = new WeakReference<>(entity);
+        this.anchorModelId = null;
         this.anchorOffset = offset != null ? new Vector3(offset) : Vector3.zero();
+        this.anchorOffsetLocal = anchorOffsetLocal;
+        this.inheritRotation = inheritRotation;
+        this.inheritScale = inheritScale;
+        this.includePitch = includePitch;
+        updateAnchorTracking();
+        broadcastAnchorUpdate();
+    }
+
+    @HostAccess.Export
+    public void setAnchorToModel(ModelProxy model, Vector3 offset) {
+        setAnchorToModel(model, offset, true, true, true, false);
+    }
+
+    @HostAccess.Export
+    public void setAnchorToModel(ModelProxy model, Vector3 offset, boolean anchorOffsetLocal, boolean inheritRotation,
+                                 boolean inheritScale, boolean includePitch) {
+        if (model == null) {
+            return;
+        }
+        this.anchorType = MoudPackets.DisplayAnchorType.MODEL;
+        this.anchorModelId = model.getId();
+        this.anchorEntityRef = null;
+        this.anchorEntityUuid = null;
+        this.anchorOffset = offset != null ? new Vector3(offset) : Vector3.zero();
+        this.anchorOffsetLocal = anchorOffsetLocal;
+        this.inheritRotation = inheritRotation;
+        this.inheritScale = inheritScale;
+        this.includePitch = includePitch;
         updateAnchorTracking();
         broadcastAnchorUpdate();
     }
@@ -226,6 +286,12 @@ public class MediaDisplayProxy {
         this.anchorType = MoudPackets.DisplayAnchorType.FREE;
         this.anchorEntityRef = null;
         this.anchorEntityUuid = null;
+        this.anchorModelId = null;
+        this.anchorOffset = Vector3.zero();
+        this.anchorOffsetLocal = false;
+        this.inheritRotation = false;
+        this.inheritScale = false;
+        this.includePitch = false;
         broadcastAnchorUpdate();
     }
 
@@ -358,6 +424,7 @@ public class MediaDisplayProxy {
         switch (anchorType) {
             case BLOCK -> updateBlockAnchor();
             case ENTITY -> updateEntityAnchor();
+            case MODEL -> updateModelAnchor();
             case FREE -> {
             }
         }
@@ -387,7 +454,41 @@ public class MediaDisplayProxy {
         }
 
         Pos position = entity.getPosition();
-        Vector3 target = new Vector3(position.x(), position.y(), position.z()).add(anchorOffset);
+        Vector3 base = new Vector3(position.x(), position.y(), position.z());
+        Vector3 offset = anchorOffset != null ? new Vector3(anchorOffset) : Vector3.zero();
+        if (anchorOffsetLocal) {
+            float pitch = includePitch ? position.pitch() : 0.0f;
+            float yaw = position.yaw();
+            Quaternion parentRotation = Quaternion.fromEuler(pitch, yaw, 0.0f);
+            offset = parentRotation.rotate(offset);
+        }
+        Vector3 target = base.add(offset);
+        updatePositionIfChanged(target);
+    }
+
+    private void updateModelAnchor() {
+        if (anchorModelId == null) {
+            clearAnchor();
+            return;
+        }
+
+        ModelProxy model = ModelManager.getInstance().getById(anchorModelId);
+        if (model == null) {
+            LOGGER.debug("Display {} anchor model {} missing, reverting to free mode", id, anchorModelId);
+            clearAnchor();
+            return;
+        }
+
+        Vector3 base = model.getPosition() != null ? new Vector3(model.getPosition()) : Vector3.zero();
+        Quaternion parentRotation = model.getRotation() != null ? new Quaternion(model.getRotation()) : Quaternion.identity();
+        Vector3 parentScale = model.getScale() != null ? new Vector3(model.getScale()) : Vector3.one();
+
+        Vector3 offset = anchorOffset != null ? new Vector3(anchorOffset) : Vector3.zero();
+        if (anchorOffsetLocal) {
+            Vector3 scaledLocal = offset.multiply(parentScale);
+            offset = parentRotation.rotate(scaledLocal);
+        }
+        Vector3 target = base.add(offset);
         updatePositionIfChanged(target);
     }
 
@@ -446,8 +547,28 @@ public class MediaDisplayProxy {
                 anchorType,
                 anchorType == MoudPackets.DisplayAnchorType.BLOCK ? new Vector3(anchorBlockX, anchorBlockY, anchorBlockZ) : null,
                 anchorType == MoudPackets.DisplayAnchorType.ENTITY ? anchorEntityUuid : null,
-                anchorOffset != null ? new Vector3(anchorOffset) : null
+                anchorOffset != null ? new Vector3(anchorOffset) : null,
+                anchorType == MoudPackets.DisplayAnchorType.MODEL ? anchorModelId : null,
+                anchorOffsetLocal,
+                inheritRotation,
+                inheritScale,
+                includePitch
         ));
+    }
+
+    public MoudPackets.S2C_UpdateDisplayAnchorPacket snapshotAnchor() {
+        return new MoudPackets.S2C_UpdateDisplayAnchorPacket(
+                id,
+                anchorType,
+                anchorType == MoudPackets.DisplayAnchorType.BLOCK ? new Vector3(anchorBlockX, anchorBlockY, anchorBlockZ) : null,
+                anchorType == MoudPackets.DisplayAnchorType.ENTITY ? anchorEntityUuid : null,
+                anchorOffset != null ? new Vector3(anchorOffset) : null,
+                anchorType == MoudPackets.DisplayAnchorType.MODEL ? anchorModelId : null,
+                anchorOffsetLocal,
+                inheritRotation,
+                inheritScale,
+                includePitch
+        );
     }
 
     private void broadcastContent() {

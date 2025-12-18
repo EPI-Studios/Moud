@@ -4,7 +4,11 @@ import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.plugin.api.world.DisplayBillboardMode;
 import com.moud.plugin.api.world.DisplayHandle;
+import com.moud.server.entity.ModelManager;
 import com.moud.server.proxy.MediaDisplayProxy;
+import com.moud.server.proxy.ModelProxy;
+
+import java.util.UUID;
 
 public final class DisplayHandleAdapter implements DisplayHandle {
     private final MediaDisplayProxy proxy;
@@ -81,6 +85,31 @@ public final class DisplayHandleAdapter implements DisplayHandle {
     @Override
     public void setAnchorToEntity(String uuid, Vector3 offset) {
         proxy.setAnchorToEntity(java.util.UUID.fromString(uuid), offset);
+    }
+
+    @Override
+    public void setAnchorToEntity(String uuid, Vector3 offset, boolean local, boolean inheritRotation, boolean inheritScale, boolean includePitch) {
+        proxy.setAnchorToEntity(UUID.fromString(uuid), offset, local, inheritRotation, inheritScale, includePitch);
+    }
+
+    @Override
+    public void setAnchorToModel(long modelId, Vector3 offset) {
+        ModelProxy model = ModelManager.getInstance().getById(modelId);
+        if (model == null) {
+            proxy.clearAnchor();
+            return;
+        }
+        proxy.setAnchorToModel(model, offset);
+    }
+
+    @Override
+    public void setAnchorToModel(long modelId, Vector3 offset, boolean local, boolean inheritRotation, boolean inheritScale, boolean includePitch) {
+        ModelProxy model = ModelManager.getInstance().getById(modelId);
+        if (model == null) {
+            proxy.clearAnchor();
+            return;
+        }
+        proxy.setAnchorToModel(model, offset, local, inheritRotation, inheritScale, includePitch);
     }
 
     @Override

@@ -18,6 +18,15 @@ public interface DisplayHandle extends AutoCloseable {
     void setRenderThroughBlocks(boolean enabled);
     void setAnchorToBlock(int x, int y, int z, Vector3 offset);
     void setAnchorToEntity(String uuid, Vector3 offset);
+    default void setAnchorToEntity(String uuid, Vector3 offset, boolean local, boolean inheritRotation, boolean inheritScale, boolean includePitch) {
+        setAnchorToEntity(uuid, offset);
+    }
+    default void setAnchorToModel(long modelId, Vector3 offset) {
+        throw new UnsupportedOperationException("Model anchoring is not supported by this runtime.");
+    }
+    default void setAnchorToModel(long modelId, Vector3 offset, boolean local, boolean inheritRotation, boolean inheritScale, boolean includePitch) {
+        setAnchorToModel(modelId, offset);
+    }
     void clearAnchor();
     void setImage(String source);
     void setVideo(String url, double fps, boolean loop);

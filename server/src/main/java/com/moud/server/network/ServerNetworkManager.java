@@ -570,6 +570,7 @@ public final class ServerNetworkManager {
                     List.of()
             );
             send(minestomPlayer, createPacket);
+            send(minestomPlayer, model.snapshotAnchor());
             String texture = model.getTexture();
             if (texture != null && !texture.isBlank()) {
                 send(minestomPlayer, new MoudPackets.S2C_UpdateModelTexturePacket(model.getId(), texture));
@@ -591,6 +592,7 @@ public final class ServerNetworkManager {
         if (!displays.isEmpty()) {
             for (MediaDisplayProxy display : displays) {
                 send(minestomPlayer, display.snapshot());
+                send(minestomPlayer, display.snapshotAnchor());
             }
             LogContext displaySyncContext = baseContext.merge(LogContext.builder()
                     .put("synced_displays", displays.size())

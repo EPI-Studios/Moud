@@ -301,8 +301,6 @@ declare global {
         };
     }
 
-
-    // Re-exported type aliases for ambient usage
     type Vector3 = import('./index').Vector3;
     type Quaternion = import('./index').Quaternion;
     type Matrix4 = import('./index').Matrix4;
@@ -335,6 +333,9 @@ declare global {
     type PlayerLeaveEvent = import('./index').PlayerLeaveEvent;
     type EntityInteractionEvent = import('./index').EntityInteractionEvent;
     type PlayerModel = import('./index').PlayerModel;
+    type Model = import('./index').Model;
+    type ModelOptions = import('./index').ModelOptions;
+    type PhysicsModelOptions = import('./index').PhysicsModelOptions;
     type Text = import('./index').Text;
     type SharedValueApi = import('./index').SharedValueApi;
     type SharedStore = import('./index').SharedStore;
@@ -1281,12 +1282,27 @@ export interface DisplayContentOptions {
 
 /** Anchor configuration for a media display. */
 export interface DisplayAnchorOptions {
-    type?: 'free' | 'block' | 'entity' | 'player';
+    type?: 'free' | 'block' | 'entity' | 'player' | 'model';
     x?: number;
     y?: number;
     z?: number;
     uuid?: string;
+    /** If set, anchors to this model instance. */
+    model?: Model;
+    /** Anchors to a model by ID . */
+    modelId?: number;
     offset?: Vector3;
+    /**
+     * If true, `offset` is interpreted in the parent's local space (rotated by the parent's rotation, and scaled for models).
+     * Defaults to false.
+     */
+    local?: boolean;
+    /** If true, the display's rotation is multiplied by the parent's rotation. Defaults to false. */
+    inheritRotation?: boolean;
+    /** If true, the display's scale is multiplied by the parent's scale (models only). Defaults to false. */
+    inheritScale?: boolean;
+    /** If true, entity anchors include pitch as well as yaw (head-like). Defaults to false. */
+    includePitch?: boolean;
 }
 
 /** Playback settings for media displays. */
@@ -1320,7 +1336,8 @@ export interface Display {
     setBillboard(mode: DisplayBillboardMode): void;
     setRenderThroughBlocks(enabled: boolean): void;
     setAnchorToBlock(x: number, y: number, z: number, offset?: Vector3): void;
-    setAnchorToEntity(uuid: string, offset?: Vector3): void;
+    setAnchorToEntity(uuid: string, offset?: Vector3, local?: boolean, inheritRotation?: boolean, inheritScale?: boolean, includePitch?: boolean): void;
+    setAnchorToModel(model: Model, offset?: Vector3, local?: boolean, inheritRotation?: boolean, inheritScale?: boolean, includePitch?: boolean): void;
     clearAnchor(): void;
     setImage(source: string): void;
     setVideo(url: string, fps?: number, loop?: boolean): void;
@@ -1332,6 +1349,88 @@ export interface Display {
     setPlaybackSpeed(speed: number): void;
     seek(seconds: number): void;
     remove(): void;
+}
+
+/** Options for creating a 3D model in the world. */
+export interface ModelAnchorOptions {
+    type?: 'free' | 'block' | 'entity' | 'player' | 'model';
+    /** For `block` anchors. */
+    x?: number;
+    y?: number;
+    z?: number;
+    /** For `entity`/`player` anchors. */
+    uuid?: string;
+    /** For `model` anchors. */
+    model?: Model;
+    /** For `model` anchors (advanced / cross-runtime usage). */
+    modelId?: number;
+    /** Local translation applied after parenting. Defaults to `Vector3.zero()`. */
+    localPosition?: Vector3;
+    /**
+     * Local rotation applied after parenting.
+     *
+     * @remarks You can pass either a Quaternion instance, or an euler object `{ pitch, yaw, roll }`.
+     */
+    localRotation?: Quaternion | { pitch?: number; yaw?: number; roll?: number };
+    /** Local scale applied after parenting. Defaults to `Vector3.one()`. */
+    localScale?: Vector3;
+    /** If true, localPosition is interpreted in the parent's local space. Defaults to true. */
+    localSpace?: boolean;
+    /** If true, the model's rotation is multiplied by the parent's rotation. Defaults to true. */
+    inheritRotation?: boolean;
+    /** If true, the model's scale is multiplied by the parent's scale. Defaults to true. */
+    inheritScale?: boolean;
+    /** If true, entity anchors include pitch as well as yaw (head-like). Defaults to false. */
+    includePitch?: boolean;
+}
+
+/** Options for creating a 3D model in the world. */
+export interface ModelOptions {
+    /** Namespaced path to an OBJ model (e.g., `moud:models/toad.obj`). */
+    model: string;
+    position?: Vector3;
+    rotation?: Quaternion;
+    scale?: Vector3;
+    /** Optional texture override (e.g., `moud:textures/toad.png`). */
+    texture?: string;
+    /** Collision configuration (true = auto, false = none, or explicit bounds). */
+    collision?: boolean | { width?: number; height?: number; depth?: number };
+    /** Optional attachment configuration (parented transform). */
+    anchor?: ModelAnchorOptions;
+}
+
+/** Options for creating a physics-backed 3D model in the world. */
+export interface PhysicsModelOptions extends ModelOptions {
+    physics: {
+        mass?: number;
+        linearVelocity?: Vector3;
+        playerPush?: boolean;
+    };
+}
+
+/** Controls a 3D model instance. */
+export interface Model {
+    getId(): number;
+    getModelPath(): string;
+    setPosition(position: Vector3): void;
+    getPosition(): Vector3;
+    setRotation(rotation: Quaternion): void;
+    getRotation(): Quaternion;
+    setRotationFromEuler(pitch: number, yaw: number, roll: number): void;
+    setScale(scale: Vector3): void;
+    getScale(): Vector3;
+    setTransform(position?: Vector3, rotation?: Quaternion, scale?: Vector3): void;
+    setTexture(texturePath: string): void;
+    remove(): void;
+    clearAnchor(): void;
+    setAnchorToPlayer(player: Player, localPosition: Vector3): void;
+    setAnchorToPlayer(player: Player, localPosition: Vector3, localRotation: Quaternion, localScale: Vector3,
+                      inheritRotation: boolean, inheritScale: boolean, includePitch: boolean, localSpace: boolean): void;
+    setAnchorToEntity(uuid: string, localPosition: Vector3, localRotation: Quaternion, localScale: Vector3,
+                      inheritRotation: boolean, inheritScale: boolean, includePitch: boolean, localSpace: boolean): void;
+    setAnchorToModel(model: Model, localPosition: Vector3): void;
+    setAnchorToModel(model: Model, localPosition: Vector3, localRotation: Quaternion, localScale: Vector3,
+                     inheritRotation: boolean, inheritScale: boolean, localSpace: boolean): void;
 }
 
 
@@ -1393,6 +1492,20 @@ export interface World {
      * @param blockId The namespaced ID of the block to place.
      */
     setBlock(x: number, y: number, z: number, blockId: string): void;
+
+    /**
+     * Creates a renderable 3D model in the world.
+     * @param options The model configuration.
+     * @returns A Model controller.
+     */
+    createModel(options: ModelOptions): Model;
+
+    /**
+     * Creates a physics-enabled 3D model in the world.
+     * @param options The model + physics configuration.
+     * @returns A Model controller.
+     */
+    createPhysicsModel(options: PhysicsModelOptions): Model;
 
     /**
      * Creates a static, non-player entity that looks like a player.
