@@ -24,6 +24,7 @@ import com.moud.client.network.ClientPacketWrapper;
 import com.moud.client.network.DataPayload;
 import com.moud.client.network.MoudPayload;
 import com.moud.client.player.PlayerStateManager;
+import com.moud.client.permissions.ClientPermissionState;
 import com.moud.client.runtime.ClientScriptingRuntime;
 import com.moud.client.shared.SharedValueManager;
 import com.moud.client.ui.ServerUIOverlayManager;
@@ -65,6 +66,7 @@ public class ClientNetworkRegistry {
         ClientPacketWrapper.registerHandler(MoudPackets.CameraLockPacket.class, (player, packet) -> handleCameraLock(packet, services));
         ClientPacketWrapper.registerHandler(MoudPackets.PlayerStatePacket.class, (player, packet) -> handlePlayerState(packet, services));
         ClientPacketWrapper.registerHandler(MoudPackets.ExtendedPlayerStatePacket.class, (player, packet) -> handleExtendedPlayerState(packet, services));
+        ClientPacketWrapper.registerHandler(MoudPackets.PermissionStatePacket.class, (player, packet) -> ClientPermissionState.getInstance().handle(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.UIOverlayUpsertPacket.class, (player, packet) -> handleUiOverlayUpsert(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.UIOverlayRemovePacket.class, (player, packet) -> handleUiOverlayRemove(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.UIOverlayClearPacket.class, (player, packet) -> handleUiOverlayClear());

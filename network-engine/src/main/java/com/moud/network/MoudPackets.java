@@ -194,6 +194,14 @@ public final class MoudPackets {
     public record HelloPacket(@Field(order = 0) int protocolVersion) {
     }
 
+    @Packet(value = "moud:permission_state", direction = Direction.SERVER_TO_CLIENT)
+    public record PermissionStatePacket(
+            @Field(order = 0) boolean op,
+            @Field(order = 1) boolean editor,
+            @Field(order = 2) boolean devUtils
+    ) {
+    }
+
     @Packet(value = "moud:script_event_s", direction = Direction.CLIENT_TO_SERVER)
     public record ServerboundScriptEventPacket(@Field(order = 0) String eventName, @Field(order = 1) String eventData) {
     }

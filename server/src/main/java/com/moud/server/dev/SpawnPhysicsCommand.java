@@ -4,6 +4,8 @@ import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.server.physics.PhysicsService;
 import com.moud.server.proxy.ModelProxy;
+import com.moud.server.permissions.PermissionManager;
+import com.moud.server.permissions.ServerPermission;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.minestom.server.command.CommandSender;
@@ -66,6 +68,10 @@ public final class SpawnPhysicsCommand extends Command {
                        double scale) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
+            return;
+        }
+        if (!PermissionManager.getInstance().has(player, ServerPermission.DEV_UTILS)) {
+            sender.sendMessage(Component.text("You do not have permission to use dev utilities.", NamedTextColor.RED));
             return;
         }
         if (player.getInstance() == null) {

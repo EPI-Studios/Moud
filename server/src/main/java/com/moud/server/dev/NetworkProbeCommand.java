@@ -1,7 +1,10 @@
 package com.moud.server.dev;
 
 import com.moud.server.network.diagnostics.NetworkProbe;
+import com.moud.server.permissions.PermissionManager;
+import com.moud.server.permissions.ServerPermission;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.command.builder.Command;
@@ -29,12 +32,18 @@ public final class NetworkProbeCommand extends Command {
 
         addSyntax((sender, context) -> sendSnapshot(sender, context.get(limitArg)), limitArg);
         addSyntax((sender, context) -> {
+            if (!ensureAllowed(sender)) {
+                return;
+            }
             NetworkProbe.getInstance().reset();
             sender.sendMessage(Component.text("Network probe counters reset."));
         }, resetLiteral);
     }
 
     private void sendSnapshot(CommandSender sender, int limit) {
+        if (!ensureAllowed(sender)) {
+            return;
+        }
         NetworkProbe.NetworkSnapshot snapshot = NetworkProbe.getInstance().snapshot();
 
         sender.sendMessage(Component.text(String.format(Locale.US,
@@ -55,6 +64,17 @@ public final class NetworkProbeCommand extends Command {
                 .filter(NetworkProbe.PacketStatSnapshot::hasTraffic)
                 .limit(limit)
                 .forEach(stat -> sender.sendMessage(Component.text("  - " + formatStat(stat))));
+    }
+
+    private boolean ensureAllowed(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            return true;
+        }
+        if (PermissionManager.getInstance().has(player, ServerPermission.DEV_UTILS)) {
+            return true;
+        }
+        sender.sendMessage(Component.text("You do not have permission to use dev utilities.", NamedTextColor.RED));
+        return false;
     }
 
     private String formatStat(NetworkProbe.PacketStatSnapshot stat) {
