@@ -3,6 +3,7 @@ package com.moud.server.proxy;
 import com.moud.server.ts.TsExpose;
 import com.moud.network.MoudPackets;
 import com.moud.server.network.ServerNetworkManager;
+import com.moud.server.scripting.ScriptMapper;
 import net.minestom.server.entity.Player;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
@@ -24,76 +25,8 @@ public class CameraLockProxy {
         this.player = player;
     }
 
-    private Object convertValue(Value value) {
-        if (value == null) {
-            return null;
-        }
-        if (value.isHostObject()) {
-            Object hostObj = value.asHostObject();
-            if (hostObj instanceof com.moud.api.math.Vector3 vec) {
-                return Map.of("x", vec.x, "y", vec.y, "z", vec.z);
-            }
-            if (hostObj instanceof Map<?, ?> map) {
-                Map<String, Object> converted = new HashMap<>();
-                map.forEach((k, v) -> {
-                    if (k != null && v != null) {
-                        converted.put(k.toString(), v instanceof Value val ? convertValue(val) : v);
-                    }
-                });
-                return converted;
-            }
-            if (hostObj instanceof List<?> list) {
-                List<Object> converted = new ArrayList<>();
-                for (Object element : list) {
-                    if (element instanceof Value val) {
-                        Object convertedElement = convertValue(val);
-                        if (convertedElement != null) {
-                            converted.add(convertedElement);
-                        }
-                    } else if (element != null) {
-                        converted.add(element);
-                    }
-                }
-                return converted;
-            }
-        }
-        if (value.hasArrayElements()) {
-            List<Object> list = new ArrayList<>();
-            long size = value.getArraySize();
-            for (int i = 0; i < size; i++) {
-                Object converted = convertValue(value.getArrayElement(i));
-                if (converted != null) {
-                    list.add(converted);
-                }
-            }
-            return list;
-        }
-        if (value.hasMembers()) {
-            Map<String, Object> map = new HashMap<>();
-            for (String key : value.getMemberKeys()) {
-                Object member = convertValue(value.getMember(key));
-                if (member != null) {
-                    map.put(key, member);
-                }
-            }
-            return map;
-        }
-        if (value.isNumber()) {
-            if (value.fitsInInt()) return value.asInt();
-            if (value.fitsInLong()) return value.asLong();
-            return value.asDouble();
-        }
-        if (value.isBoolean()) {
-            return value.asBoolean();
-        }
-        if (value.isString()) {
-            return value.asString();
-        }
-        return null;
-    }
-
     private Map<String, Object> valueToMap(Value options) {
-        Object converted = convertValue(options);
+        Object converted = ScriptMapper.toJavaObject(options);
         if (converted instanceof Map<?, ?> convertedMap) {
             Map<String, Object> result = new HashMap<>();
             convertedMap.forEach((k, v) -> {
@@ -107,7 +40,7 @@ public class CameraLockProxy {
     }
 
     private List<Object> valueToList(Value options) {
-        Object converted = convertValue(options);
+        Object converted = ScriptMapper.toJavaObject(options);
         if (converted instanceof List<?> list) {
             return new ArrayList<>(list);
         }
