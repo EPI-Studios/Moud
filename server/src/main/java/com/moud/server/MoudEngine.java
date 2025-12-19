@@ -14,6 +14,7 @@ import com.moud.server.instance.InstanceManager;
 import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.network.MinestomByteBuffer;
+import com.moud.server.network.ResourcePackService;
 import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.plugin.PluginLoader;
 import com.moud.server.project.ProjectLoader;
@@ -27,6 +28,8 @@ import com.moud.server.particle.ParticleEmitterManager;
 import com.moud.server.permissions.PermissionCommands;
 import com.moud.server.permissions.PermissionManager;
 import com.moud.server.scripting.JavaScriptRuntime;
+import com.moud.server.scripting.MoudScriptModule;
+import com.moud.server.system.MoudSystem;
 import com.moud.server.task.AsyncManager;
 import com.moud.server.editor.AnimationTickHandler;
 import com.moud.network.dispatcher.NetworkDispatcher;
@@ -35,11 +38,17 @@ import com.moud.network.buffer.ByteBuffer;
 import com.moud.server.shared.SharedValueManager;
 import com.moud.server.zone.ZoneManager;
 import net.minestom.server.MinecraftServer;
+import net.minestom.server.timer.Task;
 import net.minestom.server.timer.TaskSchedule;
+import org.graalvm.polyglot.HostAccess;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.nio.file.Path;
 import java.nio.file.Files;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -51,6 +60,7 @@ public class MoudEngine {
 
     private JavaScriptRuntime runtime;
     private final AssetManager assetManager;
+    private final AssetProxy assetProxy;
     private final SceneManager sceneManager;
     private final PermissionManager permissionManager;
     private final AnimationManager animationManager;
@@ -59,6 +69,7 @@ public class MoudEngine {
     private final PluginManager pluginManager;
     private final PluginLoader pluginLoader;
     private final ServerNetworkManager networkManager;
+    private final ResourcePackService resourcePackService;
     private final EventDispatcher eventDispatcher;
     private ScriptingAPI scriptingAPI;
     private final AsyncManager asyncManager;
@@ -73,6 +84,11 @@ public class MoudEngine {
     private final ServerVoiceChatManager voiceChatManager;
     private final SharedValueManager sharedValueManager;
     private final ProfilerService profilerService;
+    private final ConsoleAPI consoleAPI = new ConsoleAPI();
+    private final com.moud.server.api.CameraAPI cameraAPI = new com.moud.server.api.CameraAPI();
+    private final List<MoudScriptModule> scriptModules = new CopyOnWriteArrayList<>();
+    private final List<MoudSystem> systems = new CopyOnWriteArrayList<>();
+    private volatile Task systemsTask;
 
     private final AtomicBoolean initialized = new AtomicBoolean(false);
     private final AtomicBoolean reloading = new AtomicBoolean(false);
@@ -124,7 +140,12 @@ public class MoudEngine {
 
             this.assetManager = new AssetManager(projectRoot);
             assetManager.initialize();
+            this.assetProxy = new AssetProxy(assetManager);
             this.zoneManager = new ZoneManager(this);
+
+            this.instanceManager = new InstanceManager();
+            InstanceManager.install(instanceManager);
+            instanceManager.initialize();
 
             this.sceneManager = new SceneManager(projectRoot, assetManager);
             SceneManager.install(sceneManager);
@@ -142,12 +163,12 @@ public class MoudEngine {
             this.eventDispatcher = new EventDispatcher(this);
             this.runtime = new JavaScriptRuntime(this);
             this.asyncManager = new AsyncManager(this);
+            registerDefaultScriptModules();
 
-            this.instanceManager = new InstanceManager();
-            InstanceManager.install(instanceManager);
-            instanceManager.initialize();
+            this.resourcePackService = new ResourcePackService();
+            resourcePackService.initializeAsync();
 
-            this.networkManager = new ServerNetworkManager(eventDispatcher, clientScriptManager);
+            this.networkManager = new ServerNetworkManager(eventDispatcher, clientScriptManager, resourcePackService);
             networkManager.initialize();
             this.voiceChatManager = new ServerVoiceChatManager();
             ServerVoiceChatManager.install(voiceChatManager);
@@ -156,6 +177,8 @@ public class MoudEngine {
             this.particleEmitterManager = new ParticleEmitterManager(networkManager);
             ParticleEmitterManager.install(particleEmitterManager);
             particleEmitterManager.initialize(networkManager);
+            registerDefaultSystems();
+            sceneManager.initializeRuntimeAdapters();
 
             this.physicsService = new PhysicsService();
             PhysicsService.install(physicsService);
@@ -190,12 +213,7 @@ public class MoudEngine {
                 initialized.set(true);
                 this.eventDispatcher.dispatchLoadEvent("server.load");
                 LOGGER.startup("Moud Engine initialized successfully");
-                MinecraftServer.getSchedulerManager().buildTask(() -> {
-                    animationTickHandler.tick(MinecraftServer.TICK_MS / 1000f);
-                }).repeat(TaskSchedule.millis(net.minestom.server.MinecraftServer.TICK_MS)).schedule();
-                MinecraftServer.getSchedulerManager().buildTask(() -> {
-                    particleBatcher.flush();
-                }).repeat(TaskSchedule.millis(net.minestom.server.MinecraftServer.TICK_MS)).schedule();
+                startSystemsTick();
             }).exceptionally(ex -> {
                 LOGGER.critical("Failed to load user scripts during startup. The server might not function correctly.", ex);
                 return null;
@@ -235,7 +253,80 @@ public class MoudEngine {
 
     private void bindGlobalAPIs() {
         this.scriptingAPI = new ScriptingAPI(this);
-        runtime.bindAPIs(scriptingAPI, new AssetProxy(assetManager), new ConsoleAPI(), new com.moud.server.api.CameraAPI());
+        runtime.bindModules(scriptingAPI, consoleAPI, scriptModules);
+    }
+
+    public void registerSystem(MoudSystem system) {
+        if (system == null) {
+            return;
+        }
+        systems.add(system);
+    }
+
+    private void registerDefaultSystems() {
+        if (!systems.isEmpty()) {
+            return;
+        }
+
+        registerSystem(deltaTime -> animationTickHandler.tick(deltaTime));
+        if (particleBatcher != null) {
+            registerSystem(deltaTime -> particleBatcher.flush());
+        }
+    }
+
+    private void startSystemsTick() {
+        if (systemsTask != null) {
+            return;
+        }
+
+        systemsTask = MinecraftServer.getSchedulerManager().buildTask(() -> {
+            float deltaTime = MinecraftServer.TICK_MS / 1000f;
+            for (MoudSystem system : systems) {
+                if (system == null) {
+                    continue;
+                }
+                try {
+                    system.onTick(deltaTime);
+                } catch (Exception e) {
+                    LOGGER.error(LogContext.builder()
+                            .put("phase", "system-tick")
+                            .put("system", system.getClass().getName())
+                            .build(), "System tick failed", e);
+                }
+            }
+        }).repeat(TaskSchedule.tick(1)).schedule();
+    }
+
+    private void registerDefaultScriptModules() {
+        if (!scriptModules.isEmpty()) {
+            return;
+        }
+
+        for (Field field : ScriptingAPI.class.getFields()) {
+            if (Modifier.isStatic(field.getModifiers())) {
+                continue;
+            }
+            if (!field.isAnnotationPresent(HostAccess.Export.class)) {
+                continue;
+            }
+
+            Field moduleField = field;
+            scriptModules.add(MoudScriptModule.of(moduleField.getName(), () -> {
+                ScriptingAPI api = scriptingAPI;
+                if (api == null) {
+                    return null;
+                }
+                try {
+                    return moduleField.get(api);
+                } catch (IllegalAccessException e) {
+                    return null;
+                }
+            }));
+        }
+
+        scriptModules.add(MoudScriptModule.of("async", this::getAsyncManager));
+        scriptModules.add(MoudScriptModule.of("assets", () -> assetProxy));
+        scriptModules.add(MoudScriptModule.of("camera", () -> cameraAPI));
     }
 
     public void reloadUserScripts() {
@@ -343,6 +434,23 @@ public class MoudEngine {
         if (pluginManager != null) pluginManager.shutdown();
         if (sharedValueManager != null) sharedValueManager.shutdown();
         if (profilerService != null) profilerService.stop();
+        if (systemsTask != null) {
+            systemsTask.cancel();
+            systemsTask = null;
+        }
+        for (MoudSystem system : systems) {
+            if (system == null) {
+                continue;
+            }
+            try {
+                system.onShutdown();
+            } catch (Exception e) {
+                LOGGER.warn(LogContext.builder()
+                        .put("phase", "system-shutdown")
+                        .put("system", system.getClass().getName())
+                        .build(), "System shutdown failed", e);
+            }
+        }
         LOGGER.shutdown("Moud Engine shutdown complete.");
     }
 
