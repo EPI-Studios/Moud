@@ -1,19 +1,18 @@
 package com.moud.server.proxy;
 
-import com.moud.server.ts.TsExpose;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.moud.server.audio.ServerAudioManager;
 import com.moud.server.audio.ServerMicrophoneManager;
 import com.moud.server.audio.ServerVoiceChatManager;
 import com.moud.server.network.ServerNetworkManager;
+import com.moud.server.scripting.ScriptMapper;
+import com.moud.server.ts.TsExpose;
 import net.minestom.server.entity.Player;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 @TsExpose
@@ -122,43 +121,7 @@ public final class PlayerAudioProxy {
             return Map.of();
         }
 
-        Map<String, Object> payload = new java.util.HashMap<>();
-        for (String key : options.getMemberKeys()) {
-            Value value = options.getMember(key);
-            payload.put(key, convertValue(value));
-        }
-        return payload;
-    }
-
-    private Object convertValue(Value value) {
-        if (value == null || value.isNull()) {
-            return null;
-        }
-        if (value.isBoolean()) {
-            return value.asBoolean();
-        }
-        if (value.fitsInDouble()) {
-            return value.asDouble();
-        }
-        if (value.isString()) {
-            return value.asString();
-        }
-        if (value.hasArrayElements()) {
-            int size = (int) value.getArraySize();
-            List<Object> array = new ArrayList<>(size);
-            for (int i = 0; i < size; i++) {
-                array.add(convertValue(value.getArrayElement(i)));
-            }
-            return array;
-        }
-        if (value.hasMembers()) {
-            Map<String, Object> nested = new java.util.HashMap<>();
-            for (String key : value.getMemberKeys()) {
-                nested.put(key, convertValue(value.getMember(key)));
-            }
-            return nested;
-        }
-        return value.toString();
+        return ScriptMapper.toMap(options);
     }
 
     private void sendCommand(String event, Map<String, Object> payload) {
