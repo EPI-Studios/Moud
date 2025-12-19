@@ -47,6 +47,10 @@ public class EventDispatcher {
         LOGGER.info("Event dispatcher initialized.");
     }
 
+    public <E> void registerEventMapper(String eventName, Class<E> eventClass, EventConverter.EventMapper<E> mapper) {
+        converter.register(eventName, eventClass, mapper);
+    }
+
     private void registerMinestomListeners() {
         eventNode.addListener(PlayerSpawnEvent.class, event -> {
             if (event.isFirstSpawn()) {
