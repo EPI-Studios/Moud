@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -42,7 +43,7 @@ public final class ProfilerService {
             LogContext.builder().put("subsystem", "profiler").build()
     );
 
-    private static final ProfilerService INSTANCE = new ProfilerService();
+    private static ProfilerService instance;
     private static final int FRAME_LIMIT = 600;
     private static final int SAMPLE_LIMIT = 2048;
     private static final ObjectMapper CAPTURE_MAPPER = new ObjectMapper()
@@ -69,11 +70,18 @@ public final class ProfilerService {
     private final AtomicBoolean capturing = new AtomicBoolean(false);
     private volatile CaptureBuilder activeCapture;
 
-    private ProfilerService() {
+    public static synchronized void install(ProfilerService profilerService) {
+        instance = Objects.requireNonNull(profilerService, "profilerService");
+    }
+
+    public ProfilerService() {
     }
 
     public static ProfilerService getInstance() {
-        return INSTANCE;
+        if (instance == null) {
+            instance = new ProfilerService();
+        }
+        return instance;
     }
 
     public ScriptProfiler scriptProfiler() {

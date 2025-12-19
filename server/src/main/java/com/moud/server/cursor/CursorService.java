@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -37,7 +38,11 @@ public class CursorService {
     private final ServerNetworkManager networkManager;
     private Task updateTask;
 
-    private CursorService(ServerNetworkManager networkManager) {
+    public static synchronized void install(CursorService cursorService) {
+        instance = Objects.requireNonNull(cursorService, "cursorService");
+    }
+
+    public CursorService(ServerNetworkManager networkManager) {
         this.networkManager = networkManager;
     }
 

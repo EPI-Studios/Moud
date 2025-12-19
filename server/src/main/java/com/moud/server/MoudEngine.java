@@ -51,6 +51,8 @@ public class MoudEngine {
 
     private JavaScriptRuntime runtime;
     private final AssetManager assetManager;
+    private final SceneManager sceneManager;
+    private final PermissionManager permissionManager;
     private final AnimationManager animationManager;
     private final AnimationTickHandler animationTickHandler = new AnimationTickHandler();
     private final ClientScriptManager clientScriptManager;
@@ -67,6 +69,10 @@ public class MoudEngine {
     private final PhysicsService physicsService;
     private final ParticleBatcher particleBatcher;
     private final ParticleEmitterManager particleEmitterManager;
+    private final InstanceManager instanceManager;
+    private final ServerVoiceChatManager voiceChatManager;
+    private final SharedValueManager sharedValueManager;
+    private final ProfilerService profilerService;
 
     private final AtomicBoolean initialized = new AtomicBoolean(false);
     private final AtomicBoolean reloading = new AtomicBoolean(false);
@@ -120,14 +126,15 @@ public class MoudEngine {
             assetManager.initialize();
             this.zoneManager = new ZoneManager(this);
 
-            SceneManager.getInstance().setAssetManager(assetManager);
-            SceneManager.getInstance().initialize(projectRoot);
+            this.sceneManager = new SceneManager(projectRoot, assetManager);
+            SceneManager.install(sceneManager);
 
-            PermissionManager.getInstance().initialize(projectRoot);
+            this.permissionManager = new PermissionManager(projectRoot);
+            PermissionManager.install(permissionManager);
             PermissionCommands.register();
 
-            this.animationManager = AnimationManager.getInstance();
-            animationManager.initialize(projectRoot);
+            this.animationManager = new AnimationManager(projectRoot);
+            AnimationManager.install(animationManager);
 
             this.clientScriptManager = new ClientScriptManager();
             clientScriptManager.initialize();
@@ -136,22 +143,31 @@ public class MoudEngine {
             this.runtime = new JavaScriptRuntime(this);
             this.asyncManager = new AsyncManager(this);
 
-            InstanceManager.getInstance().initialize();
+            this.instanceManager = new InstanceManager();
+            InstanceManager.install(instanceManager);
+            instanceManager.initialize();
 
             this.networkManager = new ServerNetworkManager(eventDispatcher, clientScriptManager);
             networkManager.initialize();
-            ServerVoiceChatManager.getInstance().initialize();
+            this.voiceChatManager = new ServerVoiceChatManager();
+            ServerVoiceChatManager.install(voiceChatManager);
+            voiceChatManager.initialize();
             this.particleBatcher = new ParticleBatcher(networkManager);
-            this.particleEmitterManager = ParticleEmitterManager.getInstance();
+            this.particleEmitterManager = new ParticleEmitterManager(networkManager);
+            ParticleEmitterManager.install(particleEmitterManager);
             particleEmitterManager.initialize(networkManager);
 
-            this.physicsService = PhysicsService.getInstance();
+            this.physicsService = new PhysicsService();
+            PhysicsService.install(physicsService);
             physicsService.initialize();
 
-            this.cursorService = CursorService.getInstance(networkManager);
+            this.cursorService = new CursorService(networkManager);
+            CursorService.install(cursorService);
             cursorService.initialize();
 
-            SharedValueManager.getInstance().initialize();
+            this.sharedValueManager = new SharedValueManager();
+            SharedValueManager.install(sharedValueManager);
+            sharedValueManager.initialize();
 
             this.scriptingAPI = new ScriptingAPI(this);
             bindGlobalAPIs();
@@ -160,7 +176,9 @@ public class MoudEngine {
             hotReloadEndpoint.start(port);
 
             DevUtilities.initialize(enableDevUtilities);
-            ProfilerService.getInstance().start();
+            this.profilerService = new ProfilerService();
+            ProfilerService.install(profilerService);
+            profilerService.start();
             if (enableProfileUi) {
                 LOGGER.info(LogContext.builder().put("profile_ui", true).build(),
                         "Profiler UI flag detected; launching window");
@@ -320,11 +338,11 @@ public class MoudEngine {
         if (cursorService != null) cursorService.shutdown();
         if (asyncManager != null) asyncManager.shutdown();
         if (runtime != null) runtime.shutdown();
-        com.moud.server.audio.ServerVoiceChatManager.getInstance().shutdown();
+        if (voiceChatManager != null) voiceChatManager.shutdown();
         if (physicsService != null) physicsService.shutdown();
         if (pluginManager != null) pluginManager.shutdown();
-        SharedValueManager.getInstance().shutdown();
-        ProfilerService.getInstance().stop();
+        if (sharedValueManager != null) sharedValueManager.shutdown();
+        if (profilerService != null) profilerService.stop();
         LOGGER.shutdown("Moud Engine shutdown complete.");
     }
 

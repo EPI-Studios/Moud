@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Objects;
 
 
 public final class AnimationManager {
@@ -28,7 +29,7 @@ public final class AnimationManager {
             LogContext.builder().put("subsystem", "animation").build()
     );
 
-    private static final AnimationManager INSTANCE = new AnimationManager();
+    private static AnimationManager instance;
 
     private Path animationsRoot;
     private final ConcurrentHashMap<String, PlaybackState> playing = new ConcurrentHashMap<>();
@@ -37,11 +38,22 @@ public final class AnimationManager {
     private final ConcurrentHashMap<String, List<Runnable>> eventListeners = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, List<Runnable>> completionListeners = new ConcurrentHashMap<>();
 
-    private AnimationManager() {
+    public static synchronized void install(AnimationManager animationManager) {
+        instance = Objects.requireNonNull(animationManager, "animationManager");
+    }
+
+    public AnimationManager(Path projectRoot) {
+        initialize(projectRoot);
+    }
+
+    public AnimationManager() {
     }
 
     public static AnimationManager getInstance() {
-        return INSTANCE;
+        if (instance == null) {
+            instance = new AnimationManager();
+        }
+        return instance;
     }
 
     public void initialize(Path projectRoot) {
@@ -78,7 +90,7 @@ public final class AnimationManager {
         }
     }
 
-    public void handleLoad(MoudPackets.AnimationLoadPacket packet, ServerNetworkManager networkManager, Object player) {
+    public void handleLoad(MoudPackets.AnimationLoadPacket packet, ServerNetworkManager networkManager, Player player) {
         if (packet == null || packet.projectPath() == null) {
             return;
         }
@@ -102,7 +114,7 @@ public final class AnimationManager {
         }
     }
 
-    public void handleList(ServerNetworkManager networkManager, Object player) {
+    public void handleList(ServerNetworkManager networkManager, Player player) {
         List<MoudPackets.AnimationFileInfo> infos = new ArrayList<>();
         if (animationsRoot != null && Files.exists(animationsRoot)) {
             try {
@@ -128,7 +140,10 @@ public final class AnimationManager {
                 LOGGER.warn("Failed to list animations", e);
             }
         }
-        networkManager.send((Player) player, new MoudPackets.AnimationListResponsePacket(infos));
+        if (networkManager == null || player == null) {
+            return;
+        }
+        networkManager.send(player, new MoudPackets.AnimationListResponsePacket(infos));
     }
 
     public void handlePlay(MoudPackets.AnimationPlayPacket packet) {
@@ -173,9 +188,11 @@ public final class AnimationManager {
         }
     }
 
-    private void sendLoadResponse(ServerNetworkManager networkManager, Object player, String path, AnimationClip clip, boolean success, String error) {
-        if (networkManager == null) return;
-        networkManager.send((Player) player, new MoudPackets.AnimationLoadResponsePacket(path, clip, success, error));
+    private void sendLoadResponse(ServerNetworkManager networkManager, Player player, String path, AnimationClip clip, boolean success, String error) {
+        if (networkManager == null || player == null) {
+            return;
+        }
+        networkManager.send(player, new MoudPackets.AnimationLoadResponsePacket(path, clip, success, error));
     }
 
     public void tick(double deltaSeconds) {
