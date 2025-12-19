@@ -1,6 +1,8 @@
 package com.moud.server.scripting;
 
 import com.moud.server.MoudEngine;
+import com.moud.server.ConsoleAPI;
+import com.moud.server.api.ScriptingAPI;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.profiler.ProfilerService;
 import com.moud.server.profiler.model.ScriptExecutionMetadata;
@@ -16,6 +18,7 @@ import org.graalvm.polyglot.proxy.ProxyExecutable;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -129,75 +132,93 @@ public class JavaScriptRuntime {
         }
     }
 
-    public void bindAPIs(Object... apis) {
+    public void bindModules(ScriptingAPI scriptingAPI, ConsoleAPI consoleAPI, Collection<MoudScriptModule> modules) {
         CompletableFuture.runAsync(() -> {
             jsContext.enter();
             try {
                 Value bindings = jsContext.getBindings("js");
-                Value moudObj = jsContext.eval("js", "({})");
+                Value api = jsContext.eval("js", "({})");
 
-                for (Object api : apis) {
-                    if (api instanceof com.moud.server.api.ScriptingAPI) {
-                        com.moud.server.api.ScriptingAPI scriptingAPI = (com.moud.server.api.ScriptingAPI) api;
+                bindEventAPI(api, scriptingAPI);
+                bindModules(api, modules);
 
-                        moudObj.putMember("on", new ProxyExecutable() {
-                            @Override
-                            public Object execute(Value... arguments) {
-                                if (arguments.length >= 2) {
-                                    scriptingAPI.on(arguments[0].asString(), arguments[1]);
-                                }
-                                return null;
-                            }
-                        });
-
-                        moudObj.putMember("once", new ProxyExecutable() {
-                            @Override
-                            public Object execute(Value... arguments) {
-                                if (arguments.length >= 2) {
-                                    scriptingAPI.once(arguments[0].asString(), arguments[1]);
-                                }
-                                return null;
-                            }
-                        });
-
-                        moudObj.putMember("off", new ProxyExecutable() {
-                            @Override
-                            public Object execute(Value... arguments) {
-                                if (arguments.length >= 2) {
-                                    scriptingAPI.off(arguments[0].asString(), arguments[1]);
-                                }
-                                return null;
-                            }
-                        });
-
-                        moudObj.putMember("server", scriptingAPI.server);
-                        moudObj.putMember("world", scriptingAPI.world);
-                        moudObj.putMember("lighting", scriptingAPI.lighting);
-                    moudObj.putMember("zones", scriptingAPI.zones);
-                    moudObj.putMember("math", scriptingAPI.math);
-                    moudObj.putMember("commands", scriptingAPI.commands);
-                    moudObj.putMember("scene", scriptingAPI.scene);
-                    moudObj.putMember("async", scriptingAPI.getAsync());
-                    moudObj.putMember("particles", scriptingAPI.particles);
-                    moudObj.putMember("primitives", scriptingAPI.primitives);
-                    moudObj.putMember("ik", scriptingAPI.ik);
-
-                } else if (api instanceof com.moud.server.proxy.AssetProxy) {
-                    moudObj.putMember("assets", api);
-                } else if (api instanceof com.moud.server.ConsoleAPI) {
-                    bindings.putMember("console", api);
-                    } else if (api instanceof com.moud.server.api.CameraAPI) {
-                        moudObj.putMember("camera", api);
-                    }
+                if (consoleAPI != null) {
+                    bindings.putMember("console", consoleAPI);
                 }
 
-                bindings.putMember("Moud", moudObj);
-                bindings.putMember("api", moudObj);
+                bindings.putMember("Moud", api);
+                bindings.putMember("api", api);
 
             } finally {
                 jsContext.leave();
             }
         }, executor);
+    }
+
+    private void bindEventAPI(Value apiObject, ScriptingAPI scriptingAPI) {
+        if (apiObject == null || scriptingAPI == null) {
+            return;
+        }
+
+        apiObject.putMember("on", new ProxyExecutable() {
+            @Override
+            public Object execute(Value... arguments) {
+                if (arguments.length >= 2) {
+                    scriptingAPI.on(arguments[0].asString(), arguments[1]);
+                }
+                return null;
+            }
+        });
+
+        apiObject.putMember("once", new ProxyExecutable() {
+            @Override
+            public Object execute(Value... arguments) {
+                if (arguments.length >= 2) {
+                    scriptingAPI.once(arguments[0].asString(), arguments[1]);
+                }
+                return null;
+            }
+        });
+
+        apiObject.putMember("off", new ProxyExecutable() {
+            @Override
+            public Object execute(Value... arguments) {
+                if (arguments.length >= 2) {
+                    scriptingAPI.off(arguments[0].asString(), arguments[1]);
+                }
+                return null;
+            }
+        });
+    }
+
+    private void bindModules(Value apiObject, Collection<MoudScriptModule> modules) {
+        if (apiObject == null || modules == null || modules.isEmpty()) {
+            return;
+        }
+
+        for (MoudScriptModule module : modules) {
+            if (module == null) {
+                continue;
+            }
+
+            String namespace = module.getNamespace();
+            if (namespace == null || namespace.isBlank()) {
+                continue;
+            }
+
+            Object proxy;
+            try {
+                proxy = module.getProxy();
+            } catch (Exception e) {
+                LOGGER.warn("Failed to resolve script module '{}' proxy", namespace, e);
+                continue;
+            }
+            if (proxy == null) {
+                continue;
+            }
+
+            apiObject.putMember(namespace, proxy);
+        }
     }
 
     public CompletableFuture<Void> executeScript(Path scriptPath) {
