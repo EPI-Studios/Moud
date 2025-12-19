@@ -15,6 +15,9 @@ public final class MeshCollider {
     }
 
     public static CollisionResult collideWithStepUp(Box box, Vec3d movement, CollisionMesh mesh, float stepHeight) {
+        if (mesh != null && (mesh.getOffsetX() != 0 || mesh.getOffsetY() != 0 || mesh.getOffsetZ() != 0)) {
+            box = box.offset(-mesh.getOffsetX(), -mesh.getOffsetY(), -mesh.getOffsetZ());
+        }
         double targetY = movement.y;
         double allowedY = collideAxis(box, targetY, Direction.Axis.Y, mesh);
 

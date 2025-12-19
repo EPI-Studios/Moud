@@ -280,6 +280,10 @@ public class RenderableModel {
         }
         return position;
     }
+
+    public boolean isAnchored() {
+        return anchorType != null && anchorType != MoudPackets.DisplayAnchorType.FREE;
+    }
     public void setSmoothingDurationTicks(float ticks) {
         this.smoothingDurationTicks = Math.max(1.0f, ticks);
     }

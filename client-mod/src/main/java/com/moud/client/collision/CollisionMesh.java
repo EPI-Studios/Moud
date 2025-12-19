@@ -12,6 +12,9 @@ public class CollisionMesh {
     private final List<Triangle> triangles;
     private final BVHNode bvh;
     private final Box bounds;
+    private volatile double offsetX;
+    private volatile double offsetY;
+    private volatile double offsetZ;
 
     public CollisionMesh(float[] vertices, int[] indices) {
         this.vertices = vertices;
@@ -39,7 +42,32 @@ public class CollisionMesh {
     }
 
     public Box getBounds() {
-        return bounds;
+        Box local = bounds;
+        if (local == null) {
+            return null;
+        }
+        if (offsetX == 0 && offsetY == 0 && offsetZ == 0) {
+            return local;
+        }
+        return local.offset(offsetX, offsetY, offsetZ);
+    }
+
+    public void setOffset(double x, double y, double z) {
+        this.offsetX = x;
+        this.offsetY = y;
+        this.offsetZ = z;
+    }
+
+    public double getOffsetX() {
+        return offsetX;
+    }
+
+    public double getOffsetY() {
+        return offsetY;
+    }
+
+    public double getOffsetZ() {
+        return offsetZ;
     }
 
     public List<Triangle> queryTriangles(Box region) {

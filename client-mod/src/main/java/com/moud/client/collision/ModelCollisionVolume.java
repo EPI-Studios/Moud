@@ -141,6 +141,63 @@ public final class ModelCollisionVolume {
         }
     }
 
+    public void updateTransform(RenderableModel model) {
+        Objects.requireNonNull(model, "model");
+
+        Vector3 modelPos = model.getPosition();
+        Quaternion modelRot = model.getRotation();
+        Vector3 modelScale = model.getScale();
+
+        Vector3 posSnapshot = modelPos != null ? new Vector3(modelPos) : Vector3.zero();
+        Quaternion rotSnapshot = modelRot != null ? new Quaternion(modelRot) : Quaternion.identity();
+        Vector3 scaleSnapshot = modelScale != null ? new Vector3(modelScale) : Vector3.one();
+
+        this.position = posSnapshot;
+        this.rotation = rotSnapshot;
+        this.scale = scaleSnapshot;
+
+        List<OBB> collisionBoxesSnapshot = model.getCollisionBoxes();
+        int collisionHash = hashCollisionBoxes(collisionBoxesSnapshot);
+
+        if (collisionBoxesSnapshot != null && collisionBoxesSnapshot.size() > 1) {
+            if (canReuseCollisionBoxes(collisionHash, rotSnapshot, scaleSnapshot)) {
+                shiftByDelta(posSnapshot);
+                return;
+            }
+
+            List<Box> boxes = computeFromCollisionBoxes(collisionBoxesSnapshot, posSnapshot, rotSnapshot, scaleSnapshot);
+            Box boundsBox = enclosingBox(boxes);
+            if (boundsBox != null && !isTooLarge(boundsBox)) {
+                this.bounds = boundsBox;
+                this.boxCache = boxes;
+                this.voxelShape = null;
+                this.shapePosition = posSnapshot;
+                this.shapeRotation = rotSnapshot;
+                this.shapeScale = scaleSnapshot;
+                this.collisionBoxesHash = collisionHash;
+                return;
+            }
+        }
+
+        Box fallback = computeFromFallback(model.getCollisionWidth(), model.getCollisionHeight(), model.getCollisionDepth(), posSnapshot, rotSnapshot);
+        if (fallback == null && model.hasMeshBounds()) {
+            fallback = computeFromMeshBounds(model.getMeshMin(), model.getMeshMax(), posSnapshot, rotSnapshot, scaleSnapshot);
+        }
+
+        if (fallback != null && !isTooLarge(fallback)) {
+            this.bounds = fallback;
+            this.voxelShape = VoxelShapes.cuboid(fallback.minX, fallback.minY, fallback.minZ, fallback.maxX, fallback.maxY, fallback.maxZ);
+            this.boxCache = List.of();
+            this.shapePosition = posSnapshot;
+            this.shapeRotation = rotSnapshot;
+            this.shapeScale = scaleSnapshot;
+            this.collisionBoxesHash = collisionHash;
+            return;
+        }
+
+        shiftByDelta(posSnapshot);
+    }
+
     public boolean isActive() {
         return bounds != null && hasShapes();
     }
@@ -307,6 +364,77 @@ public final class ModelCollisionVolume {
         }
 
         return boxes;
+    }
+
+    private Box computeFromMeshBounds(Vector3 localMin, Vector3 localMax, Vector3 pos, Quaternion rot, Vector3 scale) {
+        if (localMin == null || localMax == null) {
+            return null;
+        }
+
+        Vector3 scaleVec = scale != null ? scale : Vector3.one();
+        Quaternion rotationLocal = rot != null ? rot : Quaternion.identity();
+        Vector3 positionLocal = pos != null ? pos : Vector3.zero();
+
+        double minX = Double.POSITIVE_INFINITY;
+        double minY = Double.POSITIVE_INFINITY;
+        double minZ = Double.POSITIVE_INFINITY;
+        double maxX = Double.NEGATIVE_INFINITY;
+        double maxY = Double.NEGATIVE_INFINITY;
+        double maxZ = Double.NEGATIVE_INFINITY;
+
+        float[] xs = new float[]{localMin.x, localMax.x};
+        float[] ys = new float[]{localMin.y, localMax.y};
+        float[] zs = new float[]{localMin.z, localMax.z};
+
+        for (float x : xs) {
+            for (float y : ys) {
+                for (float z : zs) {
+                    Vector3 corner = new Vector3(
+                            x * scaleVec.x,
+                            y * scaleVec.y,
+                            z * scaleVec.z
+                    );
+                    Vector3 world = rotationLocal.rotate(corner).add(positionLocal);
+                    minX = Math.min(minX, world.x);
+                    minY = Math.min(minY, world.y);
+                    minZ = Math.min(minZ, world.z);
+                    maxX = Math.max(maxX, world.x);
+                    maxY = Math.max(maxY, world.y);
+                    maxZ = Math.max(maxZ, world.z);
+                }
+            }
+        }
+
+        if (!Double.isFinite(minX) || !Double.isFinite(minY) || !Double.isFinite(minZ)) {
+            return null;
+        }
+
+        Box box = new Box(minX, minY, minZ, maxX, maxY, maxZ);
+        return isTooLarge(box) ? null : box;
+    }
+
+    private void shiftByDelta(Vector3 posSnapshot) {
+        if (posSnapshot == null) {
+            return;
+        }
+        Vector3 delta = posSnapshot.subtract(shapePosition);
+        if (Math.abs(delta.x) <= 1.0e-6 && Math.abs(delta.y) <= 1.0e-6 && Math.abs(delta.z) <= 1.0e-6) {
+            return;
+        }
+        if (bounds != null) {
+            bounds = bounds.offset(delta.x, delta.y, delta.z);
+        }
+        if (voxelShape != null) {
+            voxelShape = voxelShape.offset(delta.x, delta.y, delta.z);
+        }
+        if (boxCache != null && !boxCache.isEmpty()) {
+            List<Box> shifted = new ArrayList<>(boxCache.size());
+            for (Box box : boxCache) {
+                shifted.add(box.offset(delta.x, delta.y, delta.z));
+            }
+            boxCache = shifted;
+        }
+        shapePosition = posSnapshot;
     }
 
     private void buildFromMultipleBoxes(List<Box> boxes) {

@@ -2,12 +2,15 @@ package com.moud.client.init;
 
 import com.moud.client.animation.ClientPlayerModelManager;
 import com.moud.client.api.service.ClientAPIService;
+import com.moud.client.collision.ClientCollisionManager;
+import com.moud.client.collision.ModelCollisionManager;
 import com.moud.client.cursor.ClientCursorManager;
 import com.moud.client.display.ClientDisplayManager;
 import com.moud.client.display.DisplaySurface;
 import com.moud.client.ik.ClientIKManager;
 import com.moud.client.lighting.ClientLightingService;
 import com.moud.client.model.ClientModelManager;
+import com.moud.client.model.RenderableModel;
 import com.moud.client.movement.ClientMovementTracker;
 import com.moud.client.particle.ParticleEmitterSystem;
 import com.moud.client.particle.ParticleSystem;
@@ -136,7 +139,13 @@ public class ClientServiceManager {
 
         com.moud.client.editor.EditorModeManager.getInstance().tick(client);
         ClientMovementTracker.getInstance().tick();
-        ClientModelManager.getInstance().getModels().forEach(model -> model.tickSmoothing(1.0f));
+        for (RenderableModel model : ClientModelManager.getInstance().getModels()) {
+            model.tickSmoothing(1.0f);
+            if (model.isAnchored()) {
+                ModelCollisionManager.getInstance().updateTransform(model);
+                ClientCollisionManager.updatePosition(model.getId(), model.getPosition());
+            }
+        }
         ClientDisplayManager.getInstance().tickSmoothing(1.0f);
         ClientPrimitiveManager.getInstance().tickSmoothing(1.0f);
     }

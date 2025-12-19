@@ -37,6 +37,17 @@ public final class ModelCollisionManager {
         volume.update(model);
     }
 
+    public void updateTransform(RenderableModel model) {
+        if (model == null) {
+            return;
+        }
+        ModelCollisionVolume volume = volumes.get(model.getId());
+        if (volume == null) {
+            return;
+        }
+        volume.updateTransform(model);
+    }
+
     public void removeModel(long modelId) {
         volumes.remove(modelId);
     }
