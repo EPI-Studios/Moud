@@ -6,8 +6,11 @@ import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
 import com.moud.server.anchor.AnchorBehavior;
 import com.moud.server.anchor.Transformable;
+import com.moud.server.assets.ModelTextureResolver;
 import com.moud.server.collision.MinestomCollisionAdapter;
 import com.moud.server.entity.ModelManager;
+import com.moud.server.network.NetworkCompression;
+import com.moud.server.network.sync.SyncableObject;
 import com.moud.server.physics.PhysicsService;
 import com.moud.server.physics.mesh.ModelCollisionLibrary;
 import com.moud.server.physics.mesh.ModelCollisionLibrary.MeshData;
@@ -23,26 +26,17 @@ import net.minestom.server.instance.Instance;
 import net.minestom.server.timer.TaskSchedule;
 import org.graalvm.polyglot.HostAccess;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Stream;
-import java.util.zip.GZIPOutputStream;
 
 @TsExpose
-public class ModelProxy implements Transformable {
+public class ModelProxy implements Transformable, SyncableObject {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(ModelProxy.class);
     private final long id;
     private final Entity entity;
     private final String modelPath;
-
-
 
     private Vector3 position;
     private Quaternion rotation;
@@ -59,9 +53,7 @@ public class ModelProxy implements Transformable {
     private Vector3 lastBroadcastScale;
     private long lastBroadcastNanos;
 
-
     private final AnchorBehavior anchor = new AnchorBehavior(this::onAnchorChanged);
-
 
     private static final double MIN_COLLISION_SIZE = 0.11;
 
@@ -84,10 +76,7 @@ public class ModelProxy implements Transformable {
         this.manualCollisionOverride = manualCollisionOverride;
         this.texturePath = texturePath != null ? texturePath : "";
         if (this.texturePath.isBlank()) {
-            inferTexturePath();
-        }
-        if (this.texturePath == null) {
-            this.texturePath = "";
+            this.texturePath = ModelTextureResolver.inferTextureId(modelPath).orElse("");
         }
 
         this.entity = new Entity(EntityType.INTERACTION);
@@ -172,75 +161,14 @@ public class ModelProxy implements Transformable {
         this.rotation = worldRot;
         this.scale = worldScale;
         this.entity.teleport(new Pos(worldPos.x, worldPos.y, worldPos.z));
+        PhysicsService physics = PhysicsService.getInstance();
+        if (physics != null) {
+            physics.handleModelManualTransform(this, worldPos, worldRot);
+        }
     }
 
-         private void onAnchorChanged(AnchorBehavior anchor) {
+    private void onAnchorChanged(AnchorBehavior anchor) {
         broadcastAnchorUpdate();
-    }
-
-    private void inferTexturePath() {
-        try {
-            Path projectRoot = com.moud.server.project.ProjectLoader.findProjectRoot();
-            if (projectRoot == null || modelPath == null || !modelPath.contains(":")) {
-                return;
-            }
-            String[] parts = modelPath.split(":", 2);
-            String namespace = parts[0];
-            String path = parts[1];
-            Path assetsRoot = projectRoot.resolve("assets").resolve(namespace);
-
-            Optional<String> mapFile = resolveMapKd(assetsRoot, path);
-            String candidateName = mapFile.orElseGet(() -> {
-                String base = Path.of(path).getFileName().toString();
-                if (base.endsWith(".obj")) {
-                    base = base.substring(0, base.length() - 4) + ".png";
-                }
-                return base;
-            });
-
-            if (candidateName == null || candidateName.isBlank()) {
-                return;
-            }
-
-            try (Stream<Path> matches = Files.walk(assetsRoot.resolve("textures"))) {
-                Optional<Path> found = matches
-                        .filter(Files::isRegularFile)
-                        .filter(p -> p.getFileName().toString().equalsIgnoreCase(candidateName))
-                        .findFirst();
-                if (found.isPresent()) {
-                    Path rel = assetsRoot.resolve("textures").relativize(found.get());
-                    String textureId = namespace + ":textures/" + rel.toString().replace('\\', '/');
-                    this.texturePath = textureId;
-                }
-            }
-        } catch (Exception ignored) {
-        }
-    }
-
-    private Optional<String> resolveMapKd(Path assetsRoot, String modelRelativePath) {
-        try {
-            Path modelPathFs = assetsRoot.resolve(modelRelativePath);
-            Path mtl = modelPathFs.getParent().resolve(replaceExt(modelPathFs.getFileName().toString(), ".mtl"));
-            if (!Files.isRegularFile(mtl)) {
-                return Optional.empty();
-            }
-            return Files.lines(mtl)
-                    .map(String::trim)
-                    .filter(l -> l.startsWith("map_Kd"))
-                    .map(l -> l.substring("map_Kd".length()).trim())
-                    .filter(s -> !s.isBlank())
-                    .findFirst();
-        } catch (Exception e) {
-            return Optional.empty();
-        }
-    }
-
-    private String replaceExt(String name, String ext) {
-        int idx = name.lastIndexOf('.');
-        if (idx >= 0) {
-            return name.substring(0, idx) + ext;
-        }
-        return name + ext;
     }
 
     public enum CollisionMode {
@@ -257,8 +185,8 @@ public class ModelProxy implements Transformable {
                 LOGGER.warn("Mesh collision payload unavailable for {} (mesh data missing)", modelPath);
                 return;
             }
-            this.cachedCompressedVertices = compressFloatArray(mesh.vertices());
-            this.cachedCompressedIndices = compressIntArray(mesh.indices());
+            this.cachedCompressedVertices = NetworkCompression.gzipFloatArray(mesh.vertices());
+            this.cachedCompressedIndices = NetworkCompression.gzipIntArray(mesh.indices());
             LOGGER.info("Prepared mesh collision payload for model {} (vertices={}, indices={})",
                     modelPath,
                     mesh.vertices() != null ? mesh.vertices().length : 0,
@@ -271,41 +199,6 @@ public class ModelProxy implements Transformable {
         if (cachedCompressedVertices == null || cachedCompressedIndices == null) {
             prepareCollisionPayload();
         }
-    }
-
-    private byte[] compressFloatArray(float[] data) throws IOException {
-        if (data == null || data.length == 0) return null;
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (GZIPOutputStream gzip = new GZIPOutputStream(baos)) {
-            byte[] bytes = new byte[data.length * 4];
-            int idx = 0;
-            for (float v : data) {
-                int bits = Float.floatToIntBits(v);
-                bytes[idx++] = (byte) (bits);
-                bytes[idx++] = (byte) (bits >>> 8);
-                bytes[idx++] = (byte) (bits >>> 16);
-                bytes[idx++] = (byte) (bits >>> 24);
-            }
-            gzip.write(bytes);
-        }
-        return baos.toByteArray();
-    }
-
-    private byte[] compressIntArray(int[] data) throws IOException {
-        if (data == null || data.length == 0) return null;
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (GZIPOutputStream gzip = new GZIPOutputStream(baos)) {
-            byte[] bytes = new byte[data.length * 4];
-            int idx = 0;
-            for (int v : data) {
-                bytes[idx++] = (byte) (v);
-                bytes[idx++] = (byte) (v >>> 8);
-                bytes[idx++] = (byte) (v >>> 16);
-                bytes[idx++] = (byte) (v >>> 24);
-            }
-            gzip.write(bytes);
-        }
-        return baos.toByteArray();
     }
 
     private MoudPackets.CollisionMode toWireCollisionMode() {
@@ -335,12 +228,21 @@ public class ModelProxy implements Transformable {
     }
 
     private void broadcastCreate() {
-        if (cachedCompressedVertices == null || cachedCompressedIndices == null) {
-            prepareCollisionPayload();
-        }
-        MoudPackets.S2C_CreateModelPacket packet = new MoudPackets.S2C_CreateModelPacket(
-                id, modelPath, position, rotation, scale,
-                getCollisionWidth(), getCollisionHeight(), getCollisionDepth(),
+        ensureCollisionPayload();
+        broadcast(buildCreatePacket());
+        snapshotBroadcastState();
+    }
+
+    private MoudPackets.S2C_CreateModelPacket buildCreatePacket() {
+        return new MoudPackets.S2C_CreateModelPacket(
+                id,
+                modelPath,
+                position,
+                rotation,
+                scale,
+                getCollisionWidth(),
+                getCollisionHeight(),
+                getCollisionDepth(),
                 texturePath,
                 toCollisionData(collisionBoxes),
                 toWireCollisionMode(),
@@ -348,8 +250,6 @@ public class ModelProxy implements Transformable {
                 cachedCompressedIndices,
                 List.of()
         );
-        broadcast(packet);
-        snapshotBroadcastState();
     }
 
     private void broadcastUpdate() {
@@ -387,7 +287,23 @@ public class ModelProxy implements Transformable {
         );
     }
 
-         public void updateAnchorTracking() {
+    @Override
+    public List<Object> snapshotPackets() {
+        ensureCollisionPayload();
+
+        List<Object> packets = new ArrayList<>(3);
+        packets.add(buildCreatePacket());
+        packets.add(snapshotAnchor());
+
+        String texture = getTexture();
+        if (texture != null && !texture.isBlank()) {
+            packets.add(new MoudPackets.S2C_UpdateModelTexturePacket(id, texture));
+        }
+
+        return packets;
+    }
+
+    public void updateAnchorTracking() {
         anchor.updateTracking(this);
     }
 

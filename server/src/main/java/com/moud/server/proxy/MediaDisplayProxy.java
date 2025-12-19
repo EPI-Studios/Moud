@@ -2,6 +2,7 @@ package com.moud.server.proxy;
 
 import com.moud.server.anchor.AnchorBehavior;
 import com.moud.server.anchor.Transformable;
+import com.moud.server.network.sync.SyncableObject;
 import com.moud.server.ts.TsExpose;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
@@ -20,7 +21,7 @@ import java.util.Locale;
 import java.util.UUID;
 
 @TsExpose
-public class MediaDisplayProxy implements Transformable {
+public class MediaDisplayProxy implements Transformable, SyncableObject {
     private static final Logger LOGGER = LoggerFactory.getLogger(MediaDisplayProxy.class);
     private static final float POSITION_EPSILON = 0.0001f;
 
@@ -447,6 +448,11 @@ public class MediaDisplayProxy implements Transformable {
 
     public MoudPackets.S2C_CreateDisplayPacket snapshot() {
         return buildCreatePacket();
+    }
+
+    @Override
+    public List<Object> snapshotPackets() {
+        return List.of(snapshot(), snapshotAnchor());
     }
 
     private MoudPackets.S2C_CreateDisplayPacket buildCreatePacket() {
