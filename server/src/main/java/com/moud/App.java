@@ -1,6 +1,7 @@
 package com.moud;
 
 import com.moud.server.MoudEngine;
+import com.moud.server.console.ServerConsole;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.extras.MojangAuth;
 import org.slf4j.Logger;
@@ -49,6 +50,7 @@ public class App {
 
             minecraftServer.start("0.0.0.0", port);
             LOGGER.info("Server started on port {}", port);
+            ServerConsole.startAsync();
 
         } catch (Exception e) {
             LOGGER.error("Failed to start server", e);
