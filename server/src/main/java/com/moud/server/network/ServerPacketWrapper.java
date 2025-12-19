@@ -54,6 +54,15 @@ public class ServerPacketWrapper {
         DISPATCHER.on(packetClass, handler);
     }
 
+    public static <T> void registerPlayerHandler(Class<T> packetClass, java.util.function.BiConsumer<Player, T> handler) {
+        DISPATCHER.on(packetClass, (playerObj, packet) -> {
+            if (!(playerObj instanceof Player player)) {
+                return;
+            }
+            handler.accept(player, packet);
+        });
+    }
+
     public static void handleIncoming(String channel, byte[] data, Object player) {
         long start = System.nanoTime();
         boolean success = false;
