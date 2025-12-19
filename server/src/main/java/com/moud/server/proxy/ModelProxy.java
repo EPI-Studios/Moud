@@ -4,6 +4,8 @@ import com.moud.api.collision.OBB;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
+import com.moud.server.anchor.AnchorBehavior;
+import com.moud.server.anchor.Transformable;
 import com.moud.server.collision.MinestomCollisionAdapter;
 import com.moud.server.entity.ModelManager;
 import com.moud.server.physics.PhysicsService;
@@ -26,17 +28,15 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
 import java.util.zip.GZIPOutputStream;
 
 @TsExpose
-public class ModelProxy {
+public class ModelProxy implements Transformable {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(ModelProxy.class);
     private final long id;
     private final Entity entity;
@@ -59,27 +59,16 @@ public class ModelProxy {
     private Vector3 lastBroadcastScale;
     private long lastBroadcastNanos;
 
-    private MoudPackets.DisplayAnchorType anchorType = MoudPackets.DisplayAnchorType.FREE;
-    private UUID anchorEntityUuid;
-    private Long anchorModelId;
-    private Integer anchorBlockX;
-    private Integer anchorBlockY;
-    private Integer anchorBlockZ;
-    private Vector3 anchorLocalPosition = Vector3.zero();
-    private Quaternion anchorLocalRotation = Quaternion.identity();
-    private Vector3 anchorLocalScale = Vector3.one();
-    private boolean anchorLocalSpace = true;
-    private boolean anchorInheritRotation = true;
-    private boolean anchorInheritScale = true;
-    private boolean anchorIncludePitch = false;
 
-    // Increased to ensure collision box half-extents > 0.05
+    private final AnchorBehavior anchor = new AnchorBehavior(this::onAnchorChanged);
+
+
     private static final double MIN_COLLISION_SIZE = 0.11;
 
-    private static final double MIN_POS_DELTA_SQ = 1.0e-4; // 1 cm movement
+    private static final double MIN_POS_DELTA_SQ = 1.0e-4;
     private static final double MIN_SCALE_DELTA = 1.0e-4;
     private static final float MIN_ROTATION_DELTA_DEG = 0.1f;
-    private static final long MIN_BROADCAST_INTERVAL_NANOS = 20_000_000L; // 20 ms (~50/s)
+    private static final long MIN_BROADCAST_INTERVAL_NANOS = 20_000_000L;
 
 
     public ModelProxy(Instance instance, String modelPath, Vector3 position, Quaternion rotation, Vector3 scale, String texturePath) {
@@ -170,6 +159,23 @@ public class ModelProxy {
         this.lastBroadcastRotation = rotation != null ? new Quaternion(rotation) : null;
         this.lastBroadcastScale = scale != null ? new Vector3(scale) : null;
         this.lastBroadcastNanos = System.nanoTime();
+    }
+
+
+
+    @Override
+    public void applyAnchoredTransform(Vector3 worldPos, Quaternion worldRot, Vector3 worldScale) {
+        if (worldPos == null || worldRot == null || worldScale == null) {
+            return;
+        }
+        this.position = worldPos;
+        this.rotation = worldRot;
+        this.scale = worldScale;
+        this.entity.teleport(new Pos(worldPos.x, worldPos.y, worldPos.z));
+    }
+
+         private void onAnchorChanged(AnchorBehavior anchor) {
+        broadcastAnchorUpdate();
     }
 
     private void inferTexturePath() {
@@ -362,103 +368,27 @@ public class ModelProxy {
     }
 
     public MoudPackets.S2C_UpdateModelAnchorPacket snapshotAnchor() {
+        MoudPackets.DisplayAnchorType anchorType = anchor.getAnchorType();
         return new MoudPackets.S2C_UpdateModelAnchorPacket(
                 id,
                 anchorType,
-                anchorType == MoudPackets.DisplayAnchorType.ENTITY ? anchorEntityUuid : null,
-                anchorType == MoudPackets.DisplayAnchorType.MODEL ? anchorModelId : null,
-                anchorType == MoudPackets.DisplayAnchorType.BLOCK && anchorBlockX != null && anchorBlockY != null && anchorBlockZ != null
-                        ? new Vector3(anchorBlockX, anchorBlockY, anchorBlockZ)
+                anchorType == MoudPackets.DisplayAnchorType.ENTITY ? anchor.getAnchorEntityUuid() : null,
+                anchorType == MoudPackets.DisplayAnchorType.MODEL ? anchor.getAnchorModelId() : null,
+                anchorType == MoudPackets.DisplayAnchorType.BLOCK && anchor.getAnchorBlockX() != null
+                        ? new Vector3(anchor.getAnchorBlockX(), anchor.getAnchorBlockY(), anchor.getAnchorBlockZ())
                         : null,
-                anchorLocalPosition != null ? new Vector3(anchorLocalPosition) : Vector3.zero(),
-                anchorLocalRotation != null ? new Quaternion(anchorLocalRotation) : Quaternion.identity(),
-                anchorLocalScale != null ? new Vector3(anchorLocalScale) : Vector3.one(),
-                anchorLocalSpace,
-                anchorInheritRotation,
-                anchorInheritScale,
-                anchorIncludePitch
+                anchor.getLocalPosition(),
+                anchor.getLocalRotation(),
+                anchor.getLocalScale(),
+                anchor.isLocalSpace(),
+                anchor.isInheritRotation(),
+                anchor.isInheritScale(),
+                anchor.isIncludePitch()
         );
     }
 
-    public void updateAnchorTracking() {
-        if (anchorType == null || anchorType == MoudPackets.DisplayAnchorType.FREE) {
-            return;
-        }
-
-        ParentTransform parent = resolveAnchorParent();
-        if (parent == null) {
-            clearAnchor();
-            return;
-        }
-
-        Vector3 localPos = anchorLocalPosition != null ? new Vector3(anchorLocalPosition) : Vector3.zero();
-        Quaternion localRot = anchorLocalRotation != null ? new Quaternion(anchorLocalRotation) : Quaternion.identity();
-        Vector3 localScale = anchorLocalScale != null ? new Vector3(anchorLocalScale) : Vector3.one();
-
-        Vector3 translated = localPos;
-        if (anchorLocalSpace) {
-            translated = localPos.multiply(parent.scale());
-            translated = parent.rotation().rotate(translated);
-        }
-
-        Vector3 worldPos = parent.position().add(translated);
-        Quaternion worldRot = anchorInheritRotation ? parent.rotation().multiply(localRot).normalize() : localRot;
-        Vector3 worldScale = anchorInheritScale ? parent.scale().multiply(localScale) : localScale;
-
-        applyAnchoredWorldTransform(worldPos, worldRot, worldScale);
-    }
-
-    private void applyAnchoredWorldTransform(Vector3 worldPos, Quaternion worldRot, Vector3 worldScale) {
-        if (worldPos == null || worldRot == null || worldScale == null) {
-            return;
-        }
-        this.position = worldPos;
-        this.rotation = worldRot;
-        this.scale = worldScale;
-        this.entity.teleport(new Pos(worldPos.x, worldPos.y, worldPos.z));
-    }
-
-    private ParentTransform resolveAnchorParent() {
-        return switch (anchorType) {
-            case BLOCK -> {
-                if (anchorBlockX == null || anchorBlockY == null || anchorBlockZ == null) {
-                    yield null;
-                }
-                Vector3 pos = new Vector3(anchorBlockX + 0.5f, anchorBlockY + 0.5f, anchorBlockZ + 0.5f);
-                yield new ParentTransform(pos, Quaternion.identity(), Vector3.one());
-            }
-            case ENTITY -> {
-                if (anchorEntityUuid == null) {
-                    yield null;
-                }
-                net.minestom.server.entity.Player player = net.minestom.server.MinecraftServer.getConnectionManager()
-                        .getOnlinePlayerByUuid(anchorEntityUuid);
-                if (player == null) {
-                    yield null;
-                }
-                Pos pos = player.getPosition();
-                float pitch = anchorIncludePitch ? pos.pitch() : 0.0f;
-                Quaternion rot = Quaternion.fromEuler(pitch, pos.yaw(), 0.0f);
-                yield new ParentTransform(new Vector3(pos.x(), pos.y(), pos.z()), rot, Vector3.one());
-            }
-            case MODEL -> {
-                if (anchorModelId == null || anchorModelId == id) {
-                    yield null;
-                }
-                ModelProxy parent = ModelManager.getInstance().getById(anchorModelId);
-                if (parent == null) {
-                    yield null;
-                }
-                Vector3 parentPos = parent.getPosition() != null ? new Vector3(parent.getPosition()) : Vector3.zero();
-                Quaternion parentRot = parent.getRotation() != null ? new Quaternion(parent.getRotation()) : Quaternion.identity();
-                Vector3 parentScale = parent.getScale() != null ? new Vector3(parent.getScale()) : Vector3.one();
-                yield new ParentTransform(parentPos, parentRot, parentScale);
-            }
-            case FREE -> null;
-        };
-    }
-
-    private record ParentTransform(Vector3 position, Quaternion rotation, Vector3 scale) {
+         public void updateAnchorTracking() {
+        anchor.updateTracking(this);
     }
 
     @HostAccess.Export
@@ -480,7 +410,7 @@ public class ModelProxy {
         if (position == null) {
             return;
         }
-        if (anchorType != MoudPackets.DisplayAnchorType.FREE) {
+        if (anchor.isAnchored()) {
             clearAnchor();
         }
         Vector3 pos = new Vector3(position);
@@ -500,7 +430,7 @@ public class ModelProxy {
 
     @HostAccess.Export
     public void setTransform(Vector3 position, Quaternion rotation, Vector3 scale) {
-        if (anchorType != MoudPackets.DisplayAnchorType.FREE) {
+        if (anchor.isAnchored()) {
             clearAnchor();
         }
         if (position != null) {
@@ -522,7 +452,7 @@ public class ModelProxy {
 
     @HostAccess.Export
     public void setRotation(Quaternion rotation) {
-        if (anchorType != MoudPackets.DisplayAnchorType.FREE) {
+        if (anchor.isAnchored()) {
             clearAnchor();
         }
         this.rotation = rotation;
@@ -535,7 +465,7 @@ public class ModelProxy {
 
     @HostAccess.Export
     public void setRotationFromEuler(double pitch, double yaw, double roll) {
-        if (anchorType != MoudPackets.DisplayAnchorType.FREE) {
+        if (anchor.isAnchored()) {
             clearAnchor();
         }
         this.rotation = Quaternion.fromEuler((float)pitch, (float)yaw, (float)roll);
@@ -553,7 +483,7 @@ public class ModelProxy {
 
     @HostAccess.Export
     public void setScale(Vector3 scale) {
-        if (anchorType != MoudPackets.DisplayAnchorType.FREE) {
+        if (anchor.isAnchored()) {
             clearAnchor();
         }
         this.scale = scale;
@@ -573,20 +503,7 @@ public class ModelProxy {
     @HostAccess.Export
     public void setAnchorToBlock(int x, int y, int z, Vector3 localPosition, Quaternion localRotation, Vector3 localScale,
                                  boolean inheritRotation, boolean inheritScale, boolean localSpace) {
-        this.anchorType = MoudPackets.DisplayAnchorType.BLOCK;
-        this.anchorEntityUuid = null;
-        this.anchorModelId = null;
-        this.anchorBlockX = x;
-        this.anchorBlockY = y;
-        this.anchorBlockZ = z;
-        this.anchorLocalPosition = localPosition != null ? new Vector3(localPosition) : Vector3.zero();
-        this.anchorLocalRotation = localRotation != null ? new Quaternion(localRotation) : Quaternion.identity();
-        this.anchorLocalScale = localScale != null ? new Vector3(localScale) : Vector3.one();
-        this.anchorLocalSpace = localSpace;
-        this.anchorInheritRotation = inheritRotation;
-        this.anchorInheritScale = inheritScale;
-        this.anchorIncludePitch = false;
-        broadcastAnchorUpdate();
+        anchor.anchorToBlock(x, y, z, localPosition, localRotation, localScale, inheritRotation, inheritScale, localSpace);
         updateAnchorTracking();
     }
 
@@ -613,20 +530,8 @@ public class ModelProxy {
         }
         try {
             UUID parsed = UUID.fromString(uuid);
-            this.anchorType = MoudPackets.DisplayAnchorType.ENTITY;
-            this.anchorEntityUuid = parsed;
-            this.anchorModelId = null;
-            this.anchorBlockX = null;
-            this.anchorBlockY = null;
-            this.anchorBlockZ = null;
-            this.anchorLocalPosition = localPosition != null ? new Vector3(localPosition) : Vector3.zero();
-            this.anchorLocalRotation = localRotation != null ? new Quaternion(localRotation) : Quaternion.identity();
-            this.anchorLocalScale = localScale != null ? new Vector3(localScale) : Vector3.one();
-            this.anchorLocalSpace = localSpace;
-            this.anchorInheritRotation = inheritRotation;
-            this.anchorInheritScale = inheritScale;
-            this.anchorIncludePitch = includePitch;
-            broadcastAnchorUpdate();
+            anchor.anchorToEntity(parsed, localPosition, localRotation, localScale,
+                    inheritRotation, inheritScale, includePitch, localSpace);
             updateAnchorTracking();
         } catch (IllegalArgumentException e) {
             LOGGER.warn("Invalid UUID '{}' for model anchor", uuid, e);
@@ -644,39 +549,14 @@ public class ModelProxy {
         if (model == null) {
             return;
         }
-        this.anchorType = MoudPackets.DisplayAnchorType.MODEL;
-        this.anchorEntityUuid = null;
-        this.anchorModelId = model.getId();
-        this.anchorBlockX = null;
-        this.anchorBlockY = null;
-        this.anchorBlockZ = null;
-        this.anchorLocalPosition = localPosition != null ? new Vector3(localPosition) : Vector3.zero();
-        this.anchorLocalRotation = localRotation != null ? new Quaternion(localRotation) : Quaternion.identity();
-        this.anchorLocalScale = localScale != null ? new Vector3(localScale) : Vector3.one();
-        this.anchorLocalSpace = localSpace;
-        this.anchorInheritRotation = inheritRotation;
-        this.anchorInheritScale = inheritScale;
-        this.anchorIncludePitch = false;
-        broadcastAnchorUpdate();
+        anchor.anchorToModel(model.getId(), localPosition, localRotation, localScale,
+                inheritRotation, inheritScale, localSpace);
         updateAnchorTracking();
     }
 
     @HostAccess.Export
     public void clearAnchor() {
-        this.anchorType = MoudPackets.DisplayAnchorType.FREE;
-        this.anchorEntityUuid = null;
-        this.anchorModelId = null;
-        this.anchorBlockX = null;
-        this.anchorBlockY = null;
-        this.anchorBlockZ = null;
-        this.anchorLocalPosition = Vector3.zero();
-        this.anchorLocalRotation = Quaternion.identity();
-        this.anchorLocalScale = Vector3.one();
-        this.anchorLocalSpace = true;
-        this.anchorInheritRotation = true;
-        this.anchorInheritScale = true;
-        this.anchorIncludePitch = false;
-        broadcastAnchorUpdate();
+        anchor.clear();
     }
 
     @HostAccess.Export
