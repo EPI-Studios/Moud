@@ -64,6 +64,13 @@ public final class ClientCollisionManager {
         }
     }
 
+    public static void updatePosition(long modelId, Vector3 position) {
+        CollisionEntry entry = ENTRIES.get(modelId);
+        if (entry != null) {
+            entry.updatePosition(position);
+        }
+    }
+
     public static List<CollisionMesh> getMeshesNear(Box region) {
         List<CollisionMesh> result = new ArrayList<>();
         for (CollisionEntry entry : ENTRIES.values()) {
@@ -92,6 +99,9 @@ public final class ClientCollisionManager {
         List<Triangle> tris = new ArrayList<>();
         for (CollisionEntry entry : ENTRIES.values()) {
             CollisionMesh mesh = entry.worldMesh;
+            if (mesh != null && (mesh.getOffsetX() != 0 || mesh.getOffsetY() != 0 || mesh.getOffsetZ() != 0)) {
+                continue;
+            }
             if (mesh != null && mesh.getTriangles() != null) {
                 tris.addAll(mesh.getTriangles());
             }
@@ -155,11 +165,21 @@ public final class ClientCollisionManager {
         private final float[] localVertices;
         private final int[] indices;
         private CollisionMesh worldMesh;
+        private Vector3 basePosition = Vector3.zero();
 
         CollisionEntry(float[] localVertices, int[] indices, Vector3 pos, Quaternion rot, Vector3 scale) {
             this.localVertices = localVertices;
             this.indices = indices;
             rebuild(pos, rot, scale);
+        }
+
+        void updatePosition(Vector3 pos) {
+            if (worldMesh == null) {
+                return;
+            }
+            Vector3 p = pos != null ? pos : Vector3.zero();
+            Vector3 delta = p.subtract(basePosition);
+            worldMesh.setOffset(delta.x, delta.y, delta.z);
         }
 
         void updateTransform(Vector3 pos, Quaternion rot, Vector3 scale) {
@@ -169,6 +189,7 @@ public final class ClientCollisionManager {
         private void rebuild(Vector3 pos, Quaternion rot, Vector3 scale) {
             float[] transformed = applyTransform(localVertices, pos, rot, scale);
             this.worldMesh = new CollisionMesh(transformed, indices);
+            this.basePosition = pos != null ? new Vector3(pos) : Vector3.zero();
         }
 
         private float[] applyTransform(float[] verts, Vector3 pos, Quaternion rot, Vector3 scale) {
