@@ -749,13 +749,12 @@ public final class SceneManager {
             scenes.put(persisted.getSceneId(), state);
             if (persisted.getObjects() != null) {
                 persisted.getObjects().forEach(snapshot -> {
-                    SceneObject object = new SceneObject(snapshot.getObjectId(), snapshot.getObjectType(), snapshot.getProperties());
+                    SceneObject object = new SceneObject(
+                            snapshot.getObjectId(),
+                            snapshot.getObjectType(),
+                            snapshot.getProperties()
+                    );
                     state.objects.put(object.id, object);
-                    try {
-                        initializeAdapter(state.sceneId, object);
-                    } catch (Exception e) {
-                        LOGGER.error("Failed to spawn runtime object from persisted scene {}", state.sceneId, e);
-                    }
                 });
             }
             state.version.set(persisted.getVersion());
@@ -763,6 +762,16 @@ public final class SceneManager {
         } catch (Exception e) {
             LOGGER.error("Failed to load scene file {}", path, e);
         }
+    }
+
+    public void initializeRuntimeAdapters() {
+        scenes.forEach((sceneId, state) -> state.objects.values().forEach(object -> {
+            try {
+                initializeAdapter(sceneId, object);
+            } catch (Exception e) {
+                LOGGER.error("Failed to spawn runtime object from persisted scene {}", sceneId, e);
+            }
+        }));
     }
 
     private void persistScene(String sceneId) {
@@ -777,7 +786,11 @@ public final class SceneManager {
                 .map(SceneManager::toSnapshot)
                 .collect(Collectors.toList());
         List<PersistedSceneObject> persistedObjects = objects.stream()
-                .map(snapshot -> new PersistedSceneObject(snapshot.objectId(), snapshot.objectType(), snapshot.properties()))
+                .map(snapshot -> new PersistedSceneObject(
+                        snapshot.objectId(),
+                        snapshot.objectType(),
+                        snapshot.properties()
+                ))
                 .collect(Collectors.toList());
         PersistedScene model = new PersistedScene(sceneId, state.version.get(), persistedObjects);
         Path file = storageDirectory.resolve(sceneId + ".json");
