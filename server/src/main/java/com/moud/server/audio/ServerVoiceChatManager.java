@@ -32,7 +32,7 @@ public final class ServerVoiceChatManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerVoiceChatManager.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private static final ServerVoiceChatManager INSTANCE = new ServerVoiceChatManager();
+    private static ServerVoiceChatManager instance;
 
     private static final long LEVEL_EVENT_INTERVAL_MS = Long.getLong("moud.voice.levelIntervalMs", 100L);
     private static final long SPEAKING_TIMEOUT_MS = Long.getLong("moud.voice.speakingTimeoutMs", 350L);
@@ -49,11 +49,18 @@ public final class ServerVoiceChatManager {
     private volatile boolean initialized;
     private Task tickTask;
 
-    private ServerVoiceChatManager() {
+    public static synchronized void install(ServerVoiceChatManager voiceChatManager) {
+        instance = Objects.requireNonNull(voiceChatManager, "voiceChatManager");
+    }
+
+    public ServerVoiceChatManager() {
     }
 
     public static ServerVoiceChatManager getInstance() {
-        return INSTANCE;
+        if (instance == null) {
+            instance = new ServerVoiceChatManager();
+        }
+        return instance;
     }
 
     public synchronized void initialize() {

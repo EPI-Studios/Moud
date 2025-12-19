@@ -11,6 +11,7 @@ import com.moud.server.editor.runtime.PlayerModelRuntimeAdapter;
 import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.network.ServerNetworkManager;
+import com.moud.server.rendering.FogUniformRegistry;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -20,7 +21,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-import com.moud.server.rendering.FogUniformRegistry;
 
 public final class SceneManager {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(
@@ -28,7 +28,7 @@ public final class SceneManager {
             LogContext.builder().put("subsystem", "scene-editor").build()
     );
 
-    private static final SceneManager INSTANCE = new SceneManager();
+    private static SceneManager instance;
 
     private final ConcurrentMap<String, SceneState> scenes = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
@@ -36,10 +36,23 @@ public final class SceneManager {
     private Path projectRoot;
     private com.moud.server.assets.AssetManager assetManager;
 
-    private SceneManager() {}
+    public static synchronized void install(SceneManager sceneManager) {
+        instance = Objects.requireNonNull(sceneManager, "sceneManager");
+    }
+
+    public SceneManager(Path projectRoot, com.moud.server.assets.AssetManager assetManager) {
+        this.assetManager = assetManager;
+        initialize(projectRoot);
+    }
+
+    private SceneManager() {
+    }
 
     public static SceneManager getInstance() {
-        return INSTANCE;
+        if (instance == null) {
+            instance = new SceneManager();
+        }
+        return instance;
     }
 
     public synchronized void initialize(Path projectRoot) {

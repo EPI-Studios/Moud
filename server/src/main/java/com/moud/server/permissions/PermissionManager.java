@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -34,6 +35,10 @@ public final class PermissionManager {
 
     private static PermissionManager instance;
 
+    public static synchronized void install(PermissionManager permissionManager) {
+        instance = Objects.requireNonNull(permissionManager, "permissionManager");
+    }
+
     private final ConcurrentMap<UUID, EnumSet<ServerPermission>> permissionsByPlayer = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, String> lastKnownNameByPlayer = new ConcurrentHashMap<>();
     private volatile Path storagePath;
@@ -46,7 +51,11 @@ public final class PermissionManager {
         return instance;
     }
 
-    private PermissionManager() {
+    public PermissionManager() {
+    }
+
+    public PermissionManager(Path projectRoot) {
+        initialize(projectRoot);
     }
 
     public synchronized void initialize(Path projectRoot) {

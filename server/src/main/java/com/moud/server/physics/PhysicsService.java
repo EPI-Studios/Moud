@@ -58,6 +58,7 @@ import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -74,12 +75,17 @@ public final class PhysicsService {
     public static final int LAYER_DYNAMIC = 0;
     public static final int LAYER_STATIC = 1;
 
-    private static final class Holder {
-        private static final PhysicsService INSTANCE = new PhysicsService();
+    private static PhysicsService instance;
+
+    public static synchronized void install(PhysicsService physicsService) {
+        instance = Objects.requireNonNull(physicsService, "physicsService");
     }
 
-    public static PhysicsService getInstance() {
-        return Holder.INSTANCE;
+    public static synchronized PhysicsService getInstance() {
+        if (instance == null) {
+            instance = new PhysicsService();
+        }
+        return instance;
     }
 
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -98,7 +104,7 @@ public final class PhysicsService {
     private final ConcurrentHashMap<Long, Integer> chunkBodies = new ConcurrentHashMap<>();
     private volatile float lastDeltaSeconds = 0f;
 
-    private PhysicsService() {
+    public PhysicsService() {
     }
 
     public synchronized void initialize() {

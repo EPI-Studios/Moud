@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.Objects;
 
 public class InstanceManager {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(InstanceManager.class);
@@ -37,7 +38,11 @@ public class InstanceManager {
     private static final int DEFAULT_WORLD_RADIUS_CHUNKS =
             (int) Math.ceil((SceneDefaults.BASE_SCENE_SIZE_BLOCKS / 2.0) / (double) CHUNK_SIZE);
 
-    private InstanceManager() {
+    public static synchronized void install(InstanceManager instanceManager) {
+        instance = Objects.requireNonNull(instanceManager, "instanceManager");
+    }
+
+    public InstanceManager() {
         this.minestomInstanceManager = MinecraftServer.getInstanceManager();
         this.namedInstances = new ConcurrentHashMap<>();
         this.instanceRegistry = new ConcurrentHashMap<>();

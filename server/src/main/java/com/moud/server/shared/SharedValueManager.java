@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -22,11 +23,15 @@ public class SharedValueManager {
     );
     private static SharedValueManager instance;
 
+    public static synchronized void install(SharedValueManager sharedValueManager) {
+        instance = Objects.requireNonNull(sharedValueManager, "sharedValueManager");
+    }
+
     private final ConcurrentHashMap<String, ConcurrentHashMap<String, SharedValueStore>> playerStores;
     private final ValueSynchronizer synchronizer;
     private final SharedValuePacketHandler packetHandler;
 
-    private SharedValueManager() {
+    public SharedValueManager() {
         this.playerStores = new ConcurrentHashMap<>();
         this.synchronizer = new ValueSynchronizer(this);
         this.packetHandler = new SharedValuePacketHandler(this);

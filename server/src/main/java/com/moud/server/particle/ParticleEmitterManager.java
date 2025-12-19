@@ -11,21 +11,33 @@ import net.minestom.server.entity.Player;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 
 public final class ParticleEmitterManager {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(ParticleEmitterManager.class);
-    private static final ParticleEmitterManager INSTANCE = new ParticleEmitterManager();
+    private static ParticleEmitterManager instance;
 
     private final Map<String, ParticleEmitterConfig> emitters = new ConcurrentHashMap<>();
     private ServerNetworkManager networkManager;
 
-    private ParticleEmitterManager() {
+    public static synchronized void install(ParticleEmitterManager particleEmitterManager) {
+        instance = Objects.requireNonNull(particleEmitterManager, "particleEmitterManager");
+    }
+
+    public ParticleEmitterManager(ServerNetworkManager networkManager) {
+        this.networkManager = networkManager;
+    }
+
+    public ParticleEmitterManager() {
     }
 
     public static ParticleEmitterManager getInstance() {
-        return INSTANCE;
+        if (instance == null) {
+            instance = new ParticleEmitterManager();
+        }
+        return instance;
     }
 
     public void initialize(ServerNetworkManager networkManager) {
