@@ -2,6 +2,8 @@ package com.moud.server.dev;
 
 import com.moud.api.math.Vector3;
 import com.moud.server.physics.PhysicsService;
+import com.moud.server.permissions.PermissionManager;
+import com.moud.server.permissions.ServerPermission;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.minestom.server.command.builder.Command;
@@ -21,14 +23,18 @@ public final class PhysicsExplosionCommand extends Command {
         ArgumentDouble verticalArg = ArgumentType.Double("verticalBoost");
         verticalArg.setDefaultValue(() -> 1.0);
 
-        addSyntax((sender, ctx) -> {
-            if (!(sender instanceof Player player)) {
-                sender.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
-                return;
-            }
-            double radius = Math.max(0.1, ctx.get(radiusArg));
-            double strength = ctx.get(strengthArg);
-            double verticalBoost = ctx.get(verticalArg);
+	        addSyntax((sender, ctx) -> {
+	            if (!(sender instanceof Player player)) {
+	                sender.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
+	                return;
+	            }
+	            if (!PermissionManager.getInstance().has(player, ServerPermission.DEV_UTILS)) {
+	                sender.sendMessage(Component.text("You do not have permission to use dev utilities.", NamedTextColor.RED));
+	                return;
+	            }
+	            double radius = Math.max(0.1, ctx.get(radiusArg));
+	            double strength = ctx.get(strengthArg);
+	            double verticalBoost = ctx.get(verticalArg);
             Vector3 center = new Vector3(
                     player.getPosition().x(),
                     player.getEyeHeight() + player.getPosition().y(),

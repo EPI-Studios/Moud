@@ -24,6 +24,8 @@ import com.moud.server.profiler.ProfilerUI;
 import com.moud.server.physics.PhysicsService;
 import com.moud.server.particle.ParticleBatcher;
 import com.moud.server.particle.ParticleEmitterManager;
+import com.moud.server.permissions.PermissionCommands;
+import com.moud.server.permissions.PermissionManager;
 import com.moud.server.scripting.JavaScriptRuntime;
 import com.moud.server.task.AsyncManager;
 import com.moud.server.editor.AnimationTickHandler;
@@ -120,6 +122,9 @@ public class MoudEngine {
 
             SceneManager.getInstance().setAssetManager(assetManager);
             SceneManager.getInstance().initialize(projectRoot);
+
+            PermissionManager.getInstance().initialize(projectRoot);
+            PermissionCommands.register();
 
             this.animationManager = AnimationManager.getInstance();
             animationManager.initialize(projectRoot);

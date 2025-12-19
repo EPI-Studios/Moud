@@ -21,11 +21,14 @@ import com.moud.server.movement.ServerMovementHandler;
 import com.moud.server.ui.UIOverlayService;
 import com.moud.server.network.diagnostics.NetworkProbe;
 import com.moud.server.player.PlayerCameraManager;
+import com.moud.server.player.PlayerCursorDirectionManager;
 import com.moud.server.plugin.PluginEventBus;
 import com.moud.server.proxy.MediaDisplayProxy;
 import com.moud.server.proxy.PlayerModelProxy;
 import com.moud.server.particle.ParticleEmitterManager;
 import com.moud.server.network.ResourcePackServer.ResourcePackInfo;
+import com.moud.server.permissions.PermissionManager;
+import com.moud.server.permissions.ServerPermission;
 import net.kyori.adventure.text.Component;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
@@ -34,7 +37,6 @@ import net.minestom.server.event.player.PlayerDisconnectEvent;
 import net.minestom.server.event.player.PlayerPluginMessageEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
 import net.minestom.server.event.player.PlayerResourcePackStatusEvent;
-import com.moud.server.player.PlayerCursorDirectionManager;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -58,6 +60,7 @@ public final class ServerNetworkManager {
             LogContext.builder().put("subsystem", "network").build()
     );
     private static final int SUPPORTED_PROTOCOL_VERSION = 1;
+    private static final String HELLO_PACKET_ID = "moud:hello";
 
     private final EventDispatcher eventDispatcher;
     private final ClientScriptManager clientScriptManager;
@@ -158,6 +161,10 @@ public final class ServerNetworkManager {
 
     private void handleSceneStateRequest(Object player, RequestSceneStatePacket packet) {
         Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer) || !hasEditorPermission(minestomPlayer)) {
+            send(minestomPlayer, new SceneStatePacket(packet.sceneId(), List.of(), 0));
+            return;
+        }
         var snapshot = SceneManager.getInstance().createSnapshot(packet.sceneId());
         send(minestomPlayer, new SceneStatePacket(
                 packet.sceneId(),
@@ -168,6 +175,17 @@ public final class ServerNetworkManager {
 
     private void handleSceneEditRequest(Object player, SceneEditPacket packet) {
         Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer) || !hasEditorPermission(minestomPlayer)) {
+            send(minestomPlayer, new SceneEditAckPacket(
+                    packet.sceneId(),
+                    false,
+                    "Permission denied",
+                    null,
+                    packet.clientVersion(),
+                    null
+            ));
+            return;
+        }
         var result = SceneManager.getInstance().applyEdit(packet.sceneId(), packet.action(), packet.payload(), packet.clientVersion());
         SceneEditAckPacket ack = new SceneEditAckPacket(
                 packet.sceneId(),
@@ -183,55 +201,76 @@ public final class ServerNetworkManager {
 
     private void handleEditorAssetsRequest(Object player, RequestEditorAssetsPacket packet) {
         Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer) || !hasEditorPermission(minestomPlayer)) {
+            send(minestomPlayer, new EditorAssetListPacket(List.of()));
+            return;
+        }
         var assets = SceneManager.getInstance().getEditorAssets();
         send(minestomPlayer, new EditorAssetListPacket(assets));
     }
 
     private void handleProjectMapRequest(Object player, RequestProjectMapPacket packet) {
         Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer) || !hasEditorPermission(minestomPlayer)) {
+            send(minestomPlayer, new ProjectMapPacket(List.of()));
+            return;
+        }
         var entries = SceneManager.getInstance().getProjectFileEntries();
         send(minestomPlayer, new ProjectMapPacket(entries));
     }
 
     private void handleAnimationSave(Object player, MoudPackets.AnimationSavePacket packet) {
         Player minestomPlayer = (Player) player;
-        if (!isMoudClient(minestomPlayer)) return;
+        if (!isMoudClient(minestomPlayer) || !hasEditorPermission(minestomPlayer)) return;
         AnimationManager.getInstance().handleSave(packet);
     }
 
     private void handleAnimationLoad(Object player, MoudPackets.AnimationLoadPacket packet) {
         Player minestomPlayer = (Player) player;
-        if (!isMoudClient(minestomPlayer)) return;
+        if (!isMoudClient(minestomPlayer) || !hasEditorPermission(minestomPlayer)) {
+            send(minestomPlayer, new MoudPackets.AnimationLoadResponsePacket(
+                    packet.projectPath(),
+                    null,
+                    false,
+                    "Permission denied"
+            ));
+            return;
+        }
         AnimationManager.getInstance().handleLoad(packet, this, minestomPlayer);
     }
 
     private void handleAnimationList(Object player, MoudPackets.AnimationListPacket packet) {
         Player minestomPlayer = (Player) player;
-        if (!isMoudClient(minestomPlayer)) return;
+        if (!isMoudClient(minestomPlayer) || !hasEditorPermission(minestomPlayer)) {
+            send(minestomPlayer, new MoudPackets.AnimationListResponsePacket(List.of()));
+            return;
+        }
         AnimationManager.getInstance().handleList(this, minestomPlayer);
     }
 
     private void handleAnimationPlay(Object player, MoudPackets.AnimationPlayPacket packet) {
         Player minestomPlayer = (Player) player;
-        if (!isMoudClient(minestomPlayer)) return;
+        if (!isMoudClient(minestomPlayer) || !hasEditorPermission(minestomPlayer)) return;
         AnimationManager.getInstance().handlePlay(packet);
     }
 
     private void handleAnimationStop(Object player, MoudPackets.AnimationStopPacket packet) {
         Player minestomPlayer = (Player) player;
-        if (!isMoudClient(minestomPlayer)) return;
+        if (!isMoudClient(minestomPlayer) || !hasEditorPermission(minestomPlayer)) return;
         AnimationManager.getInstance().handleStop(packet);
     }
 
     private void handleAnimationSeek(Object player, MoudPackets.AnimationSeekPacket packet) {
         Player minestomPlayer = (Player) player;
-        if (!isMoudClient(minestomPlayer)) return;
+        if (!isMoudClient(minestomPlayer) || !hasEditorPermission(minestomPlayer)) return;
         AnimationManager.getInstance().handleSeek(packet);
     }
 
     private void handleProjectFileRequest(Object player, RequestProjectFilePacket packet) {
         Player minestomPlayer = (Player) player;
-        if (!isMoudClient(minestomPlayer)) {
+        if (!isMoudClient(minestomPlayer) || !hasEditorPermission(minestomPlayer)) {
+            String requestedPath = packet.path() == null ? "" : packet.path().trim();
+            send(minestomPlayer, new ProjectFileContentPacket(requestedPath, null, false, "Permission denied", null));
             return;
         }
         String requestedPath = packet.path() == null ? "" : packet.path().trim();
@@ -273,6 +312,10 @@ public final class ServerNetworkManager {
     }
 
     private void handleRuntimeModelUpdate(Object player, MoudPackets.UpdateRuntimeModelPacket packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer) || !hasEditorPermission(minestomPlayer)) {
+            return;
+        }
         var proxy = ModelManager.getInstance().getById(packet.modelId());
         if (proxy == null) {
             return;
@@ -286,6 +329,10 @@ public final class ServerNetworkManager {
     }
 
     private void handleRuntimeDisplayUpdate(Object player, MoudPackets.UpdateRuntimeDisplayPacket packet) {
+        Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer) || !hasEditorPermission(minestomPlayer)) {
+            return;
+        }
         var proxy = DisplayManager.getInstance().getById(packet.displayId());
         if (proxy == null) {
             return;
@@ -303,7 +350,7 @@ public final class ServerNetworkManager {
 
     private void handlePlayerTransformUpdate(Object player, MoudPackets.UpdatePlayerTransformPacket packet) {
         Player minestomPlayer = (Player) player;
-        if (!isMoudClient(minestomPlayer)) return;
+        if (!isMoudClient(minestomPlayer) || !hasEditorPermission(minestomPlayer)) return;
         if (packet.playerId() == null || packet.position() == null) {
             return;
         }
@@ -322,7 +369,11 @@ public final class ServerNetworkManager {
 
     private void handleBlueprintSave(Object player, SaveBlueprintPacket packet) {
         Player minestomPlayer = (Player) player;
-        if (!isMoudClient(minestomPlayer)) return;
+        if (!isMoudClient(minestomPlayer) || !hasEditorPermission(minestomPlayer)) {
+            String name = packet.name() == null ? "" : packet.name().trim();
+            send(minestomPlayer, new BlueprintSaveAckPacket(name, false, "Permission denied"));
+            return;
+        }
         String name = packet.name() == null ? "" : packet.name().trim();
         boolean success = false;
         String message;
@@ -343,7 +394,11 @@ public final class ServerNetworkManager {
 
     private void handleBlueprintRequest(Object player, RequestBlueprintPacket packet) {
         Player minestomPlayer = (Player) player;
-        if (!isMoudClient(minestomPlayer)) return;
+        if (!isMoudClient(minestomPlayer) || !hasEditorPermission(minestomPlayer)) {
+            String name = packet.name() == null ? "" : packet.name().trim();
+            send(minestomPlayer, new BlueprintDataPacket(name, null, false, "Permission denied"));
+            return;
+        }
         String name = packet.name() == null ? "" : packet.name().trim();
         byte[] data = null;
         boolean success = false;
@@ -369,6 +424,7 @@ public final class ServerNetworkManager {
 
     private void handleClientReady(Object player, ClientReadyPacket packet) {
         Player minestomPlayer = (Player) player;
+        if (!isMoudClient(minestomPlayer)) return;
         LogContext context = playerContext(minestomPlayer);
         LOGGER.info(context, "Client {} is ready, syncing lights and particle emitters", minestomPlayer.getUsername());
         ServerLightingManager.getInstance().syncLightsToPlayer(minestomPlayer);
@@ -386,6 +442,9 @@ public final class ServerNetworkManager {
                 MinestomByteBuffer buffer = new MinestomByteBuffer(event.getMessage());
                 String innerChannel = buffer.readString();
                 byte[] innerData = buffer.readByteArray();
+                if (!isMoudClient(player) && !HELLO_PACKET_ID.equals(innerChannel)) {
+                    return;
+                }
                 ServerPacketWrapper.handleIncoming(innerChannel, innerData, player);
             } catch (Exception e) {
                 LOGGER.error(playerContext(player), "Failed to unwrap Moud payload from client {}", e, player.getUsername());
@@ -527,6 +586,7 @@ public final class ServerNetworkManager {
         pushResourcePack(minestomPlayer);
 
         sendClientScripts(minestomPlayer);
+        syncPermissionState(minestomPlayer);
 
         Collection<PlayerModelProxy> playerModels = PlayerModelProxy.getAllModels();
         if (!playerModels.isEmpty()) {
@@ -609,6 +669,20 @@ public final class ServerNetworkManager {
             LOGGER.info(lightingContext, "Syncing lights to player {} after initialization delay", minestomPlayer.getUsername());
             ServerLightingManager.getInstance().syncLightsToPlayer(minestomPlayer);
         }).delay(java.time.Duration.ofSeconds(1)).schedule();
+    }
+
+    public void syncPermissionState(Player player) {
+        if (player == null) {
+            return;
+        }
+        boolean op = PermissionManager.getInstance().has(player, ServerPermission.OP);
+        boolean editor = PermissionManager.getInstance().has(player, ServerPermission.EDITOR);
+        boolean devUtils = PermissionManager.getInstance().has(player, ServerPermission.DEV_UTILS);
+        send(player, new MoudPackets.PermissionStatePacket(op, editor, devUtils));
+    }
+
+    private boolean hasEditorPermission(Player player) {
+        return PermissionManager.getInstance().has(player, ServerPermission.EDITOR);
     }
 
     private void pushResourcePack(Player player) {

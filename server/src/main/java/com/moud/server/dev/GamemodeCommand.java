@@ -1,5 +1,7 @@
 package com.moud.server.dev;
 
+import com.moud.server.permissions.PermissionManager;
+import com.moud.server.permissions.ServerPermission;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.minestom.server.command.CommandSender;
@@ -23,6 +25,10 @@ public final class GamemodeCommand extends Command {
         addSyntax((sender, context) -> {
             if (!(sender instanceof Player player)) {
                 sender.sendMessage(Component.text("This command can only be used by players", NamedTextColor.RED));
+                return;
+            }
+            if (!PermissionManager.getInstance().has(player, ServerPermission.DEV_UTILS)) {
+                sender.sendMessage(Component.text("You do not have permission to use dev utilities.", NamedTextColor.RED));
                 return;
             }
 

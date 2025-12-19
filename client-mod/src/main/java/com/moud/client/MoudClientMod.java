@@ -20,6 +20,7 @@ import com.moud.client.model.ClientModelManager;
 import com.moud.client.network.ClientPacketWrapper;
 import com.moud.client.particle.ParticleEmitterSystem;
 import com.moud.client.particle.ParticleSystem;
+import com.moud.client.permissions.ClientPermissionState;
 import com.moud.client.util.WindowAnimator;
 import com.moud.network.MoudPackets;
 import com.zigythebird.playeranim.api.PlayerAnimationAccess;
@@ -148,11 +149,13 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         serviceManager.initializeRuntimeServices();
         scriptLoader.resetState();
         scriptLoader.onJoin(handler);
+        ClientPermissionState.getInstance().reset();
         ClientPacketWrapper.sendToServer(new MoudPackets.HelloPacket(PROTOCOL_VERSION));
     }
 
     private void onDisconnectServer(ClientPlayNetworkHandler handler, MinecraftClient client) {
         markAsMoudServer(false);
+        ClientPermissionState.getInstance().reset();
         scriptLoader.onDisconnect(handler);
 
         com.moud.client.api.service.ClientAPIService apiService = serviceManager.getApiService();

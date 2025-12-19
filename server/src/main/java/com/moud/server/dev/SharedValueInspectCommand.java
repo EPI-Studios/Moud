@@ -5,7 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moud.server.shared.SharedValueManager;
 import com.moud.server.shared.diagnostics.SharedStoreSnapshot;
 import com.moud.server.shared.diagnostics.SharedValueSnapshot;
+import com.moud.server.permissions.PermissionManager;
+import com.moud.server.permissions.ServerPermission;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.command.builder.Command;
@@ -30,6 +33,9 @@ public final class SharedValueInspectCommand extends Command {
         ArgumentString storeArg = ArgumentType.String("store");
 
         setDefaultExecutor((sender, context) -> {
+            if (!ensureAllowed(sender)) {
+                return;
+            }
             if (sender instanceof Player player) {
                 showStores(sender, player, null);
             } else {
@@ -38,6 +44,9 @@ public final class SharedValueInspectCommand extends Command {
         });
 
         addSyntax((sender, context) -> {
+            if (!ensureAllowed(sender)) {
+                return;
+            }
             String playerToken = context.get(playerArg);
             String storeName = context.get(storeArg);
             Player target = resolvePlayer(sender, playerToken);
@@ -48,6 +57,9 @@ public final class SharedValueInspectCommand extends Command {
         }, playerArg, storeArg);
 
         addSyntax((sender, context) -> {
+            if (!ensureAllowed(sender)) {
+                return;
+            }
             String playerToken = context.get(playerArg);
             Player target = resolvePlayer(sender, playerToken);
             if (target == null) {
@@ -131,6 +143,17 @@ public final class SharedValueInspectCommand extends Command {
                 sender.sendMessage(Component.text("  - " + line));
             });
         }
+    }
+
+    private boolean ensureAllowed(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            return true;
+        }
+        if (PermissionManager.getInstance().has(player, ServerPermission.DEV_UTILS)) {
+            return true;
+        }
+        sender.sendMessage(Component.text("You do not have permission to use dev utilities.", NamedTextColor.RED));
+        return false;
     }
 
     private String formatStoreHeader(SharedStoreSnapshot store) {

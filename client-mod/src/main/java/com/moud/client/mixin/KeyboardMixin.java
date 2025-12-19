@@ -5,6 +5,7 @@ import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.audio.VoiceChatController;
 import com.moud.client.editor.EditorModeManager;
 import com.moud.client.editor.ui.EditorImGuiLayer;
+import com.moud.client.permissions.ClientPermissionState;
 import com.moud.client.ui.UIInputManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Keyboard;
@@ -32,6 +33,16 @@ public class KeyboardMixin {
         }
 
         if (key == GLFW.GLFW_KEY_F8 && action == GLFW.GLFW_PRESS && MoudClientMod.isOnMoudServer()) {
+            if (!editor.isActive() && !ClientPermissionState.getInstance().canUseEditor()) {
+                if (client != null && client.player != null) {
+                    String message = ClientPermissionState.getInstance().isReceived()
+                            ? "You do not have permission to use the editor."
+                            : "Editor permissions not synced yet.";
+                    client.player.sendMessage(Text.literal(message), true);
+                }
+                ci.cancel();
+                return;
+            }
             boolean enabled = editor.toggle();
 
             if (client != null && client.player != null) {
