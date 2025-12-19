@@ -44,6 +44,5 @@ public final class DevUtilities {
         commandManager.register(new SpawnPhysicsCommand());
         commandManager.register(new PhysicsExplosionCommand());
         commandManager.register(new TimeControlCommand());
-        commandManager.register(new PlayAnimationCommand());
     }
 }
