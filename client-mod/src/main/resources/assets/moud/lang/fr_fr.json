@@ -1,0 +1,42 @@
+{
+  "category.moud.voice": "Moud - Vocal",
+  "key.moud.voice.push_to_talk": "Push-to-talk",
+  "key.moud.voice.toggle_mute": "Couper/activer le micro",
+  "key.moud.voice.toggle_deafen": "Activer/désactiver la sourdine",
+  "key.moud.voice.open_settings": "Réglages du vocal",
+
+  "moud.voice.screen.title": "Vocal",
+
+  "moud.voice.section.input": "Entrée",
+  "moud.voice.section.output": "Sortie",
+  "moud.voice.section.activation": "Activation",
+
+  "moud.voice.device": "Périph.",
+  "moud.voice.input_device.tooltip": "Sélectionnez le microphone à utiliser",
+  "moud.voice.device.default": "Par défaut",
+
+  "moud.voice.input_gain_short": "Gain",
+  "moud.voice.input_gain.tooltip": "Sensibilité micro (>100% = amplification)",
+
+  "moud.voice.output_volume": "Volume sortie",
+  "moud.voice.output_volume.tooltip": "Volume des voix des autres joueurs",
+
+  "moud.voice.mic_test": "Tester",
+  "moud.voice.mic_test.stop": "Stop",
+  "moud.voice.mic_test.tooltip": "Testez votre microphone",
+
+  "moud.voice.mode": "Mode",
+  "moud.voice.muted": "Muet",
+  "moud.voice.mic_muted.tooltip": "Quand activé, les autres ne vous entendent pas",
+
+  "moud.voice.activation_mode.tooltip": "Comment le micro est activé",
+  "moud.voice.activation.ptt": "Push-to-talk",
+  "moud.voice.activation.vad": "Détection voix",
+
+  "moud.voice.silence": "Silence",
+  "moud.voice.drop_silence.tooltip": "Arrête la transmission quand vous ne parlez pas (VAD)",
+
+  "moud.voice.vad_threshold.tooltip": "Niveau audio pour activer la transmission",
+
+  "moud.voice.keybinds.hint": "(Configurer dans Options > Contrôles)"
+}
