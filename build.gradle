@@ -3,9 +3,14 @@ plugins {
     id 'fabric-loom' version "1.11-SNAPSHOT" apply false
 }
 
+def moudVersion = rootProject.file('VERSION').text.trim()
+
 subprojects {
     apply plugin: 'java'
     apply plugin: 'checkstyle'
+
+    group = 'com.moud'
+    version = moudVersion
 
     repositories {
         mavenCentral()

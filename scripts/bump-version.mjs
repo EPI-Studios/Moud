@@ -70,7 +70,7 @@ const sync = spawnSync('node', ['scripts/sync-version.mjs'], {
   stdio: 'inherit'
 });
 if (sync.status !== 0) {
-  console.error('Failed to propagate version to package manifests.');
+  console.error('Failed to propagate version to versioned manifests.');
   process.exit(sync.status ?? 1);
 }
 

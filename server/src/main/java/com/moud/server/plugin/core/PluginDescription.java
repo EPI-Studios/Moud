@@ -1,6 +1,6 @@
 package com.moud.server.plugin.core;
 
-import com.moud.server.plugin.PluginLoader;
+import com.moud.plugin.api.PluginApi;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.InputStream;
@@ -27,7 +27,7 @@ public final class PluginDescription {
         id         = (String) map.get("id");
         mainClass  = (String) map.get("main-class");
         version    = (String) map.getOrDefault("version", "0.0.0");
-        apiVersion = (String) map.getOrDefault("api-version", PluginLoader.API_VERSION);
+        apiVersion = (String) map.getOrDefault("api-version", PluginApi.API_VERSION);
         depends    = (List<String>) map.getOrDefault("depends", List.of());
         description = (String) map.getOrDefault("description", "No description provided");
     }

@@ -4,9 +4,6 @@ plugins {
     id 'com.moud.logging-lint'
 }
 
-group = 'com.moud'
-version = rootProject.file('VERSION').text.trim()
-
 repositories {
     mavenCentral()
     maven {

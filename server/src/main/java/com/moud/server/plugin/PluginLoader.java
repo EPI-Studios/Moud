@@ -1,6 +1,7 @@
 package com.moud.server.plugin;
 
 import com.moud.plugin.api.Plugin;
+import com.moud.plugin.api.PluginApi;
 import com.moud.server.assets.AssetsExtractor;
 import com.moud.server.plugin.context.PluginContextImpl;
 import com.moud.server.plugin.core.DependencyResolver;
@@ -26,11 +27,6 @@ import java.util.jar.JarFile;
 public class PluginLoader {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PluginLoader.class);
-    /**
-     * API version expected by the core.
-     * Bump this when making breaking changes to the plugin API.
-     */
-    public static final String API_VERSION = "1.0";
     private static Path PLUGINS_DIR;
 
     private final PluginManager manager;
@@ -146,7 +142,7 @@ public class PluginLoader {
      * <ul>
      *     <li>Checks for the presence of {@code plugin.yml} at the root of the JAR.</li>
      *     <li>Parses {@link PluginDescription} from {@code plugin.yml}.</li>
-     *     <li>Validates {@code api-version} against {@link #API_VERSION}.</li>
+     *     <li>Validates {@code api-version} against {@link PluginApi#API_VERSION}.</li>
      *     <li>Creates an isolated {@link PluginClassLoader} for the plugin.</li>
      * </ul>
      *
@@ -173,9 +169,9 @@ public class PluginLoader {
                 PluginDescription desc = new PluginDescription(in);
 
                 // API compatibility check
-                if (!API_VERSION.equals(desc.apiVersion)) {
+                if (!PluginApi.API_VERSION.equals(desc.apiVersion)) {
                     LOGGER.warn(String.format("⚠ %s: api-version \"%s\" is incompatible (core=%s)",
-                            jarPath.getFileName(), desc.apiVersion, API_VERSION));
+                            jarPath.getFileName(), desc.apiVersion, PluginApi.API_VERSION));
                     return null;
                 }
 

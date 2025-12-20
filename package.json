@@ -9,7 +9,8 @@
     "build": "pnpm --filter \"./packages/*\" build",
     "dev": "pnpm --filter example-ts dev",
     "sync-version": "node ./scripts/sync-version.mjs",
-    "bump-version": "node ./scripts/bump-version.mjs"
+    "bump-version": "node ./scripts/bump-version.mjs",
+    "tag-release": "node ./scripts/tag-release.mjs"
   },
   "devDependencies": {
     "typescript": "^5.0.0",
