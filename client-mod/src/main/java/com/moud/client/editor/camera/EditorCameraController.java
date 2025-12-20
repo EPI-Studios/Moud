@@ -213,6 +213,34 @@ public final class EditorCameraController {
         return rightMouseDown || middleMouseDown;
     }
 
+    public boolean releaseCaptureIfButtonsUp() {
+        if (!active || client == null || client.getWindow() == null) {
+            return false;
+        }
+        long windowHandle = client.getWindow().getHandle();
+        boolean rightPressed = GLFW.glfwGetMouseButton(windowHandle, GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS;
+        boolean middlePressed = GLFW.glfwGetMouseButton(windowHandle, GLFW.GLFW_MOUSE_BUTTON_MIDDLE) == GLFW.GLFW_PRESS;
+
+        boolean changed = false;
+        if (!rightPressed && rightMouseDown) {
+            rightMouseDown = false;
+            changed = true;
+        }
+        if (!middlePressed && middleMouseDown) {
+            middleMouseDown = false;
+            changed = true;
+        }
+
+        if (!rightMouseDown && !middleMouseDown) {
+            if (client.mouse != null && client.mouse.isCursorLocked()) {
+                unlockCursor();
+                changed = true;
+            }
+        }
+
+        return changed;
+    }
+
     public boolean handleKeyPress(int key, int action) {
         if (!active) {
             return false;
