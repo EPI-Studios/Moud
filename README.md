@@ -246,14 +246,15 @@ git clone https://github.com/EPI-Studios/Moud.git
 cd Moud
 
 The rest will be in the documentation
-
+```
 ### Profiler
 
 Enable performance profiling with the `--profile-ui` flag:
 
-```bash
+```
 java -jar moud-server.jar --profile-ui
 ```
+
 
 The profiler window shows:
 - Script execution times (timeouts, intervals, events)
