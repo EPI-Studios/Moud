@@ -23,6 +23,7 @@ import com.moud.client.particle.ParticleSystem;
 import com.moud.client.permissions.ClientPermissionState;
 import com.moud.client.util.WindowAnimator;
 import com.moud.network.MoudPackets;
+import com.moud.network.protocol.MoudProtocol;
 import com.zigythebird.playeranim.api.PlayerAnimationAccess;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
@@ -46,7 +47,6 @@ import org.slf4j.LoggerFactory;
 import java.util.function.Consumer;
 
 public final class MoudClientMod implements ClientModInitializer, ResourcePackProvider {
-    public static final int PROTOCOL_VERSION = 1;
     public static final Logger LOGGER = LoggerFactory.getLogger("MoudClient");
 
     private static MoudClientMod instance;
@@ -150,7 +150,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         scriptLoader.resetState();
         scriptLoader.onJoin(handler);
         ClientPermissionState.getInstance().reset();
-        ClientPacketWrapper.sendToServer(new MoudPackets.HelloPacket(PROTOCOL_VERSION));
+        ClientPacketWrapper.sendToServer(new MoudPackets.HelloPacket(MoudProtocol.PROTOCOL_VERSION));
     }
 
     private void onDisconnectServer(ClientPlayNetworkHandler handler, MinecraftClient client) {
