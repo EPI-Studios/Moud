@@ -53,6 +53,11 @@ public abstract class MouseMixin {
         this.firstMouseMove = true;
     }
 
+    @Inject(method = "unlockCursor", at = @At("HEAD"))
+    private void onCursorUnlock(CallbackInfo ci) {
+        this.firstMouseMove = true;
+    }
+
     @Inject(method = "onMouseButton", at = @At("HEAD"), cancellable = true)
     private void moud_onMouseButton(long window, int button, int action, int mods, CallbackInfo ci) {
       //  System.out.println("[MoudMouse] onMouseButton - button: " + button + ", action: " + action);

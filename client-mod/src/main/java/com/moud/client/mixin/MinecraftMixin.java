@@ -1,7 +1,9 @@
 package com.moud.client.mixin;
 
 import com.moud.client.api.service.ClientAPIService;
+import com.moud.client.editor.EditorModeManager;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.Screen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -28,6 +30,13 @@ public class MinecraftMixin {
             if (ClientAPIService.INSTANCE.events != null) {
                 ClientAPIService.INSTANCE.events.dispatch("render:resize", width, height);
             }
+        }
+    }
+
+    @Inject(method = "setScreen", at = @At("TAIL"))
+    private void moud_onSetScreen(Screen screen, CallbackInfo ci) {
+        if (screen == null) {
+            EditorModeManager.getInstance().onScreenClosed();
         }
     }
 

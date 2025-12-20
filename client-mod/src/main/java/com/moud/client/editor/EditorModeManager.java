@@ -112,6 +112,7 @@ public final class EditorModeManager {
         if (!active || client == null || client.player == null) {
             return;
         }
+        ensureCursorVisible(client);
         cameraController.tick();
         EditorImGuiLayer.getInstance().tick();
         if (client.world != null) {
@@ -120,6 +121,41 @@ public final class EditorModeManager {
             RuntimeObjectRegistry.getInstance().syncPlayers(Collections.emptyList());
         }
         RaycastPicker.getInstance().updateHover();
+    }
+
+    public void onScreenClosed() {
+        if (!active) {
+            return;
+        }
+        ensureCursorVisible(MinecraftClient.getInstance());
+    }
+
+    private void ensureCursorVisible(MinecraftClient client) {
+        if (client == null || client.currentScreen != null || client.mouse == null) {
+            return;
+        }
+
+        boolean changed = cameraController.releaseCaptureIfButtonsUp();
+        if (cameraController.isCapturingInput()) {
+            return;
+        }
+
+        if (client.mouse.isCursorLocked()) {
+            client.mouse.unlockCursor();
+            changed = true;
+        }
+
+        if (client.getWindow() != null) {
+            long windowHandle = client.getWindow().getHandle();
+            if (GLFW.glfwGetInputMode(windowHandle, GLFW.GLFW_CURSOR) != GLFW.GLFW_CURSOR_NORMAL) {
+                GLFW.glfwSetInputMode(windowHandle, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            EditorImGuiLayer.getInstance().resetMouseState();
+        }
     }
 
     public boolean consumeKeyEvent(int key, int scancode, int action, int modifiers) {
