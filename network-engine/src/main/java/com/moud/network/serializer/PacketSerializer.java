@@ -4,6 +4,7 @@ import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
 import com.moud.network.buffer.ByteBuffer;
+import com.moud.network.limits.NetworkLimits;
 import com.moud.network.metadata.PacketMetadata;
 
 import java.lang.reflect.Constructor;
@@ -181,6 +182,11 @@ public class PacketSerializer {
         Class<?> elementClass = extractRawClass(elementType);
 
         int size = buffer.readInt();
+        if (size < 0 || size > NetworkLimits.MAX_COLLECTION_ELEMENTS) {
+            throw new IllegalArgumentException(
+                    "List size " + size + " exceeds limit " + NetworkLimits.MAX_COLLECTION_ELEMENTS
+            );
+        }
         List<Object> list = new ArrayList<>(size);
 
         for (int i = 0; i < size; i++) {

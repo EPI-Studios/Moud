@@ -2,6 +2,7 @@ package com.moud.network.serializer;
 
 import com.moud.api.math.Vector3;
 import com.moud.network.buffer.ByteBuffer;
+import com.moud.network.limits.NetworkLimits;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,14 +20,7 @@ public class MapSerializerUtil {
     }
 
     public static Map<String, Object> readStringObjectMap(ByteBuffer buffer) {
-        int size = buffer.readInt();
-        Map<String, Object> map = new HashMap<>();
-        for (int i = 0; i < size; i++) {
-            String key = buffer.readString();
-            Object value = readObject(buffer);
-            map.put(key, value);
-        }
-        return map;
+        return readStringObjectMap(buffer, 0);
     }
 
     private static void writeObject(ByteBuffer buffer, Object obj) {
@@ -75,7 +69,30 @@ public class MapSerializerUtil {
         }
     }
 
-    private static Object readObject(ByteBuffer buffer) {
+    private static Map<String, Object> readStringObjectMap(ByteBuffer buffer, int depth) {
+        if (depth > NetworkLimits.MAX_NESTING_DEPTH) {
+            throw new IllegalArgumentException("Map payload nesting depth exceeds limit " + NetworkLimits.MAX_NESTING_DEPTH);
+        }
+
+        int size = buffer.readInt();
+        if (size < 0 || size > NetworkLimits.MAX_MAP_ENTRIES) {
+            throw new IllegalArgumentException("Map size " + size + " exceeds limit " + NetworkLimits.MAX_MAP_ENTRIES);
+        }
+
+        Map<String, Object> map = new HashMap<>(Math.min(size, 16));
+        for (int i = 0; i < size; i++) {
+            String key = buffer.readString();
+            Object value = readObject(buffer, depth + 1);
+            map.put(key, value);
+        }
+        return map;
+    }
+
+    private static Object readObject(ByteBuffer buffer, int depth) {
+        if (depth > NetworkLimits.MAX_NESTING_DEPTH) {
+            throw new IllegalArgumentException("Payload nesting depth exceeds limit " + NetworkLimits.MAX_NESTING_DEPTH);
+        }
+
         int type = buffer.readInt();
         return switch (type) {
             case 0 -> null;
@@ -88,18 +105,27 @@ public class MapSerializerUtil {
             case 7 -> new Vector3(buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
             case 8 -> {
                 int size = buffer.readInt();
-                Map<String, Object> nested = new HashMap<>();
+                if (size < 0 || size > NetworkLimits.MAX_MAP_ENTRIES) {
+                    throw new IllegalArgumentException("Map size " + size + " exceeds limit " + NetworkLimits.MAX_MAP_ENTRIES);
+                }
+
+                Map<String, Object> nested = new HashMap<>(Math.min(size, 16));
                 for (int i = 0; i < size; i++) {
                     String key = buffer.readString();
-                    nested.put(key, readObject(buffer));
+                    nested.put(key, readObject(buffer, depth + 1));
                 }
                 yield nested;
             }
             case 9 -> {
                 int size = buffer.readInt();
+                if (size < 0 || size > NetworkLimits.MAX_COLLECTION_ELEMENTS) {
+                    throw new IllegalArgumentException(
+                            "List size " + size + " exceeds limit " + NetworkLimits.MAX_COLLECTION_ELEMENTS
+                    );
+                }
                 List<Object> list = new ArrayList<>(size);
                 for (int i = 0; i < size; i++) {
-                    list.add(readObject(buffer));
+                    list.add(readObject(buffer, depth + 1));
                 }
                 yield list;
             }

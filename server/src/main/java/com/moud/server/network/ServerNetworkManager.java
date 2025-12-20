@@ -31,6 +31,7 @@ import com.moud.server.network.ResourcePackServer.ResourcePackInfo;
 import com.moud.server.permissions.PermissionManager;
 import com.moud.server.permissions.ServerPermission;
 import com.moud.server.ui.UIOverlayService;
+import com.moud.network.limits.NetworkLimits;
 import net.kyori.adventure.text.Component;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.Player;
@@ -41,6 +42,8 @@ import net.minestom.server.event.player.PlayerResourcePackStatusEvent;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.nio.BufferUnderflowException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -138,18 +141,87 @@ public final class ServerNetworkManager {
         Player player = event.getPlayer();
 
         if ("moud:wrapper".equals(outerChannel)) {
+            byte[] message = event.getMessage();
+            if (message == null) {
+                return;
+            }
+            if (message.length > NetworkLimits.MAX_WRAPPER_BYTES) {
+                LOGGER.warn(
+                        playerContext(player),
+                        "Dropping oversized wrapper payload from {}: {} bytes > {}",
+                        player.getUsername(),
+                        message.length,
+                        NetworkLimits.MAX_WRAPPER_BYTES
+                );
+                player.kick(Component.text("Packet too large."));
+                return;
+            }
+
             try {
-                MinestomByteBuffer buffer = new MinestomByteBuffer(event.getMessage());
-                String innerChannel = buffer.readString();
-                byte[] innerData = buffer.readByteArray();
+                java.nio.ByteBuffer buffer = java.nio.ByteBuffer.wrap(message);
+                String innerChannel = readVarIntString(buffer, NetworkLimits.MAX_CHANNEL_BYTES);
+                int payloadLength = readVarInt(buffer);
+                if (payloadLength < 0 || payloadLength > NetworkLimits.MAX_PACKET_BYTES) {
+                    LOGGER.warn(
+                            playerContext(player),
+                            "Dropping oversized packet payload from {}: {} bytes > {} (channel={})",
+                            player.getUsername(),
+                            payloadLength,
+                            NetworkLimits.MAX_PACKET_BYTES,
+                            innerChannel
+                    );
+                    player.kick(Component.text("Packet too large."));
+                    return;
+                }
+                if (payloadLength > buffer.remaining()) {
+                    throw new BufferUnderflowException();
+                }
                 if (!isMoudClient(player) && !HELLO_PACKET_ID.equals(innerChannel)) {
                     return;
                 }
+                byte[] innerData = new byte[payloadLength];
+                buffer.get(innerData);
                 ServerPacketWrapper.handleIncoming(innerChannel, innerData, player);
             } catch (Exception e) {
                 LOGGER.error(playerContext(player), "Failed to unwrap Moud payload from client {}", e, player.getUsername());
             }
         }
+    }
+
+    private static int readVarInt(java.nio.ByteBuffer buffer) {
+        int numRead = 0;
+        int result = 0;
+
+        byte read;
+        do {
+            if (!buffer.hasRemaining()) {
+                throw new BufferUnderflowException();
+            }
+
+            read = buffer.get();
+            int value = (read & 0b0111_1111);
+            result |= (value << (7 * numRead));
+
+            numRead++;
+            if (numRead > 5) {
+                throw new IllegalArgumentException("VarInt is too big");
+            }
+        } while ((read & 0b1000_0000) != 0);
+
+        return result;
+    }
+
+    private static String readVarIntString(java.nio.ByteBuffer buffer, int maxBytes) {
+        int byteLength = readVarInt(buffer);
+        if (byteLength < 0 || byteLength > maxBytes) {
+            throw new IllegalArgumentException("String length " + byteLength + " exceeds limit " + maxBytes);
+        }
+        if (byteLength > buffer.remaining()) {
+            throw new BufferUnderflowException();
+        }
+        byte[] bytes = new byte[byteLength];
+        buffer.get(bytes);
+        return new String(bytes, StandardCharsets.UTF_8);
     }
 
     public <T> boolean send(Player player, T packet) {
