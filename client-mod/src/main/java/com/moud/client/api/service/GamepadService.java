@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 
 public final class GamepadService {
 
@@ -20,15 +22,21 @@ public final class GamepadService {
     private final GamepadSnapshot[] snapshots = new GamepadSnapshot[MAX_GAMEPADS];
     private final Map<String, Value> listeners = new ConcurrentHashMap<>();
     private Context context;
+    private ExecutorService scriptExecutor;
     private volatile boolean vibrationEnabled = true;
 
     public void setContext(Context context) {
         this.context = context;
     }
 
+    public void setExecutor(ExecutorService executor) {
+        this.scriptExecutor = executor;
+    }
+
     public void cleanUp() {
         listeners.clear();
         context = null;
+        scriptExecutor = null;
         Arrays.fill(snapshots, null);
     }
 
@@ -69,13 +77,35 @@ public final class GamepadService {
     }
 
     private void fireEvent(GamepadSnapshot snapshot) {
-        if (listeners.isEmpty() || context == null) {
+        Context ctx = this.context;
+        ExecutorService executor = this.scriptExecutor;
+        if (listeners.isEmpty() || ctx == null) {
             return;
         }
 
+        if (executor != null) {
+            try {
+                executor.execute(() -> fireEventOnScriptThread(ctx, snapshot));
+            } catch (RejectedExecutionException e) {
+                LOGGER.debug("Gamepad event skipped: script executor rejected execution", e);
+            }
+            return;
+        }
+
+        fireEventOnScriptThread(ctx, snapshot);
+    }
+
+    private void fireEventOnScriptThread(Context ctx, GamepadSnapshot snapshot) {
+        if (this.context != ctx) {
+            return;
+        }
+
+        boolean entered = false;
         try {
-            context.enter();
-            for (Value listener : listeners.values()) {
+            ctx.enter();
+            entered = true;
+            Value[] callbacks = listeners.values().toArray(new Value[0]);
+            for (Value listener : callbacks) {
                 if (listener == null || !listener.canExecute()) {
                     continue;
                 }
@@ -85,8 +115,16 @@ public final class GamepadService {
                     LOGGER.error("Gamepad listener execution failed", e);
                 }
             }
+        } catch (Exception e) {
+            LOGGER.error("Failed to fire gamepad event", e);
         } finally {
-            context.leave();
+            if (entered) {
+                try {
+                    ctx.leave();
+                } catch (Exception e) {
+                    LOGGER.error("Failed to leave context", e);
+                }
+            }
         }
     }
 

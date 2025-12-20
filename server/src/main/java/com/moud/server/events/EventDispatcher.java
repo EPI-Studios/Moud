@@ -7,6 +7,8 @@ import com.moud.server.logging.MoudLogger;
 import com.moud.server.profiler.model.ScriptExecutionMetadata;
 import com.moud.server.profiler.model.ScriptExecutionType;
 import com.moud.server.proxy.PlayerProxy;
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
@@ -17,6 +19,7 @@ import net.minestom.server.event.player.PlayerDisconnectEvent;
 import net.minestom.server.event.player.PlayerMoveEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
 import org.graalvm.polyglot.Value;
+import org.graalvm.polyglot.proxy.ProxyArray;
 import org.graalvm.polyglot.proxy.ProxyObject;
 
 import java.util.ArrayList;
@@ -27,6 +30,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 public class EventDispatcher {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(EventDispatcher.class);
+    private static final Gson GSON = new Gson();
 
     private record HandlerEntry(Value callback, boolean once) {}
 
@@ -223,18 +227,55 @@ public class EventDispatcher {
 
         try {
             PlayerProxy playerProxy = new PlayerProxy(player);
+            Object payload = parseScriptEventPayload(eventData);
             for (HandlerEntry entry : handlerList) {
                 ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
                         ScriptExecutionType.EVENT,
                         eventName,
                         player.getUsername()
                 );
-                engine.getRuntime().executeCallback(entry.callback(), metadata, playerProxy, eventData);
+                engine.getRuntime().executeCallback(entry.callback(), metadata, playerProxy, payload);
             }
             LOGGER.debug("Successfully dispatched script event '{}' for player {}", eventName, player.getUsername());
         } catch (Exception e) {
             LOGGER.error("Error during script event dispatch for '{}' from player {}", eventName, player.getUsername(), e);
         }
+    }
+
+    private static Object parseScriptEventPayload(String eventData) {
+        if (eventData == null || eventData.isBlank()) {
+            return null;
+        }
+
+        try {
+            Object parsed = GSON.fromJson(eventData, Object.class);
+            return toJsProxy(parsed);
+        } catch (JsonSyntaxException e) {
+            return eventData;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object toJsProxy(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> converted = new java.util.LinkedHashMap<>(map.size());
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                String key = String.valueOf(entry.getKey());
+                converted.put(key, toJsProxy(entry.getValue()));
+            }
+            return ProxyObject.fromMap(converted);
+        }
+        if (value instanceof List<?> list) {
+            Object[] converted = new Object[list.size()];
+            for (int i = 0; i < list.size(); i++) {
+                converted[i] = toJsProxy(list.get(i));
+            }
+            return ProxyArray.fromArray(converted);
+        }
+        return value;
     }
 
     public boolean hasHandlers(String eventName) {
