@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ExecutorService;
 
 public final class ClientAPIService {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientAPIService.class);
@@ -83,15 +84,17 @@ public final class ClientAPIService {
         }
 
         try {
+            ExecutorService executor = this.scriptingRuntime != null ? this.scriptingRuntime.getExecutor() : null;
             this.network.setContext(context);
             this.rendering.setContext(context);
             this.ui.setContext(context);
-            this.ui.setExecutor(this.scriptingRuntime != null ? this.scriptingRuntime.getExecutor() : null);
+            this.ui.setExecutor(executor);
             this.console.setContext(context);
             this.camera.setContext(context);
             this.lighting.setContext(context);
             this.audio.setContext(context);
             this.gamepad.setContext(context);
+            this.gamepad.setExecutor(executor);
             this.events.setContext(context);
 
             if (this.input != null) {
