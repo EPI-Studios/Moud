@@ -9,6 +9,7 @@ import com.moud.api.particle.ScalarKeyframe;
 import com.moud.api.particle.UVRegion;
 import com.moud.api.particle.Vector3f;
 import com.moud.network.buffer.ByteBuffer;
+import com.moud.network.limits.NetworkLimits;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -84,6 +85,11 @@ public final class ParticleDescriptorSerializer implements PacketSerializer.Type
         FrameAnimation frameAnim = readOptional(buffer, b -> frameSerializer.read(b));
 
         int behaviorCount = buffer.readInt();
+        if (behaviorCount < 0 || behaviorCount > NetworkLimits.MAX_COLLECTION_ELEMENTS) {
+            throw new IllegalArgumentException(
+                    "Behavior list size " + behaviorCount + " exceeds limit " + NetworkLimits.MAX_COLLECTION_ELEMENTS
+            );
+        }
         List<String> behaviors = new ArrayList<>(behaviorCount);
         for (int i = 0; i < behaviorCount; i++) {
             behaviors.add(buffer.readString());
@@ -133,6 +139,11 @@ public final class ParticleDescriptorSerializer implements PacketSerializer.Type
 
     private List<ScalarKeyframe> readScalarList(ByteBuffer buffer) {
         int count = buffer.readInt();
+        if (count < 0 || count > NetworkLimits.MAX_COLLECTION_ELEMENTS) {
+            throw new IllegalArgumentException(
+                    "Keyframe list size " + count + " exceeds limit " + NetworkLimits.MAX_COLLECTION_ELEMENTS
+            );
+        }
         List<ScalarKeyframe> list = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             list.add(scalarSerializer.read(buffer));
@@ -149,6 +160,11 @@ public final class ParticleDescriptorSerializer implements PacketSerializer.Type
 
     private List<ColorKeyframe> readColorList(ByteBuffer buffer) {
         int count = buffer.readInt();
+        if (count < 0 || count > NetworkLimits.MAX_COLLECTION_ELEMENTS) {
+            throw new IllegalArgumentException(
+                    "Keyframe list size " + count + " exceeds limit " + NetworkLimits.MAX_COLLECTION_ELEMENTS
+            );
+        }
         List<ColorKeyframe> list = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             list.add(colorSerializer.read(buffer));

@@ -2,6 +2,7 @@ package com.moud.server.network;
 
 import com.moud.network.dispatcher.NetworkDispatcher;
 import com.moud.network.engine.PacketEngine;
+import com.moud.network.limits.NetworkLimits;
 import com.moud.server.network.diagnostics.NetworkProbe;
 import net.minestom.server.entity.Player;
 import net.minestom.server.network.packet.server.common.PluginMessagePacket;
@@ -23,7 +24,7 @@ public class ServerPacketWrapper {
 
             @Override
             public com.moud.network.buffer.ByteBuffer wrap(byte[] data) {
-                return new MinestomByteBuffer(data);
+                return new InboundPacketByteBuffer(data);
             }
         });
     }
@@ -75,8 +76,10 @@ public class ServerPacketWrapper {
         );
 
         try {
-            DISPATCHER.handle(channel, data, player);
-            success = true;
+            if (data != null && data.length <= NetworkLimits.MAX_PACKET_BYTES) {
+                DISPATCHER.handle(channel, data, player);
+                success = true;
+            }
         } finally {
             Player minestomPlayer = player instanceof Player ? (Player) player : null;
             NetworkProbe.getInstance().recordInbound(minestomPlayer, channel, data != null ? data.length : 0, System.nanoTime() - start, success);

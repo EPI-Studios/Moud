@@ -4,6 +4,7 @@ import com.moud.api.particle.ParticleDescriptor;
 import com.moud.api.particle.ParticleEmitterConfig;
 import com.moud.api.particle.Vector3f;
 import com.moud.network.buffer.ByteBuffer;
+import com.moud.network.limits.NetworkLimits;
 
 public final class ParticleEmitterConfigSerializer implements PacketSerializer.TypeSerializer<ParticleEmitterConfig> {
     private final ParticleDescriptorSerializer descriptorSerializer = new ParticleDescriptorSerializer();
@@ -67,6 +68,11 @@ public final class ParticleEmitterConfigSerializer implements PacketSerializer.T
 
     private java.util.List<String> readTexturePool(ByteBuffer buffer) {
         int count = buffer.readInt();
+        if (count < 0 || count > NetworkLimits.MAX_COLLECTION_ELEMENTS) {
+            throw new IllegalArgumentException(
+                    "Texture pool size " + count + " exceeds limit " + NetworkLimits.MAX_COLLECTION_ELEMENTS
+            );
+        }
         java.util.List<String> list = new java.util.ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             list.add(buffer.readString());

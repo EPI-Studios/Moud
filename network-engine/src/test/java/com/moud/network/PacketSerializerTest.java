@@ -2,6 +2,7 @@ package com.moud.network;
 
 import com.moud.api.math.Vector3;
 import com.moud.network.buffer.ByteBuffer;
+import com.moud.network.limits.NetworkLimits;
 import com.moud.network.metadata.PacketMetadata;
 import com.moud.network.registry.PacketRegistry;
 import com.moud.network.serializer.PacketSerializer;
@@ -20,6 +21,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class PacketSerializerTest {
 
@@ -142,10 +144,67 @@ class PacketSerializerTest {
         assertEquals(packet, decoded, "SceneEditAckPacket did not round-trip with optional data");
     }
 
+    @Test
+    void rejectsOversizedListPayloads() {
+        PacketMetadata metadata = requireMetadata(MoudPackets.UIOverlayRemovePacket.class);
+
+        byte[] bytes;
+        try {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            DataOutputStream dataOut = new DataOutputStream(out);
+            dataOut.writeInt(NetworkLimits.MAX_COLLECTION_ELEMENTS + 1);
+            dataOut.flush();
+            bytes = out.toByteArray();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        TestByteBuffer readBuffer = new TestByteBuffer(bytes);
+        assertThrows(IllegalArgumentException.class, () -> serializer.deserialize(
+                bytes,
+                MoudPackets.UIOverlayRemovePacket.class,
+                metadata,
+                readBuffer
+        ));
+    }
+
+    @Test
+    void rejectsOversizedMapPayloads() {
+        PacketMetadata metadata = requireMetadata(MoudPackets.SceneEditPacket.class);
+
+        byte[] bytes;
+        try {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            DataOutputStream dataOut = new DataOutputStream(out);
+
+            writeTestString(dataOut, "scene-main");
+            writeTestString(dataOut, "update");
+            dataOut.writeInt(NetworkLimits.MAX_MAP_ENTRIES + 1);
+            dataOut.flush();
+            bytes = out.toByteArray();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        TestByteBuffer readBuffer = new TestByteBuffer(bytes);
+        assertThrows(IllegalArgumentException.class, () -> serializer.deserialize(
+                bytes,
+                MoudPackets.SceneEditPacket.class,
+                metadata,
+                readBuffer
+        ));
+    }
+
     private static PacketMetadata requireMetadata(Class<?> packetClass) {
         PacketMetadata metadata = registry.getByClass(packetClass);
         assertNotNull(metadata, "Missing metadata for " + packetClass.getSimpleName());
         return metadata;
+    }
+
+    private static void writeTestString(DataOutputStream dataOut, String value) throws IOException {
+        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        dataOut.writeInt(bytes.length);
+        dataOut.write(bytes);
     }
 
     private static final class TestByteBuffer implements ByteBuffer {
