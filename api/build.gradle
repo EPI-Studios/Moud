@@ -6,9 +6,6 @@ repositories {
     mavenCentral()
 }
 
-group = 'com.moud'
-version = '0.1.0-alpha'
-
 dependencies {
     api "org.graalvm.polyglot:polyglot:24.1.0"
     api "org.graalvm.js:js-language:24.1.0"

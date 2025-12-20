@@ -7,10 +7,11 @@ const checkOnly = args.includes('--check');
 
 const rootDir = resolve(new URL('..', import.meta.url).pathname);
 const versionFile = resolve(rootDir, 'VERSION');
-const packageFiles = [
+const versionedJsonFiles = [
   resolve(rootDir, 'package.json'),
   resolve(rootDir, 'packages', 'sdk', 'package.json'),
   resolve(rootDir, 'packages', 'moud-cli', 'package.json'),
+  resolve(rootDir, 'client-mod', 'src', 'main', 'resources', 'fabric.mod.json'),
 ];
 
 const version = (await readFile(versionFile, 'utf8')).trim();
@@ -20,7 +21,7 @@ if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
 }
 
 let dirtyFiles = [];
-for (const file of packageFiles) {
+for (const file of versionedJsonFiles) {
   const json = JSON.parse(await readFile(file, 'utf8'));
   if (json.version === version) {
     continue;

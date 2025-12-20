@@ -32,6 +32,7 @@ import com.moud.server.permissions.PermissionManager;
 import com.moud.server.permissions.ServerPermission;
 import com.moud.server.ui.UIOverlayService;
 import com.moud.network.limits.NetworkLimits;
+import com.moud.network.protocol.MoudProtocol;
 import net.kyori.adventure.text.Component;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.Player;
@@ -61,7 +62,6 @@ public final class ServerNetworkManager {
             ServerNetworkManager.class,
             LogContext.builder().put("subsystem", "network").build()
     );
-    private static final int SUPPORTED_PROTOCOL_VERSION = 1;
     private static final String HELLO_PACKET_ID = "moud:hello";
 
     private final EventDispatcher eventDispatcher;
@@ -332,12 +332,12 @@ public final class ServerNetworkManager {
         LogContext baseContext = playerContext(minestomPlayer).merge(LogContext.builder()
                 .put("client_protocol", clientVersion)
                 .build());
-        if (clientVersion != SUPPORTED_PROTOCOL_VERSION) {
+        if (clientVersion != MoudProtocol.PROTOCOL_VERSION) {
             LogContext mismatchContext = baseContext.merge(LogContext.builder()
-                    .put("expected_protocol", SUPPORTED_PROTOCOL_VERSION)
+                    .put("expected_protocol", MoudProtocol.PROTOCOL_VERSION)
                     .build());
             LOGGER.warn(mismatchContext, "Player {} has unsupported Moud protocol version: {} (expected: {})",
-                    minestomPlayer.getUsername(), clientVersion, SUPPORTED_PROTOCOL_VERSION);
+                    minestomPlayer.getUsername(), clientVersion, MoudProtocol.PROTOCOL_VERSION);
             minestomPlayer.kick("Unsupported Moud client version");
             return;
         }
