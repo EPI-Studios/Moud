@@ -29,6 +29,39 @@ public interface DisplayHandle extends AutoCloseable {
     }
     void clearAnchor();
     void setImage(String source);
+    /**
+     * Displays a client-side framebuffer on this display surface.
+     *
+     * <p>The client multi-pass renderer can expose a framebuffer as a normal Minecraft texture using the identifier
+     * pattern {@code moud:fbo/&lt;namespace&gt;/&lt;path&gt;}. This method converts a framebuffer id into the exported texture id and applies it via {@link #setImage(String)}.
+     *
+     * @param framebufferId The framebuffer identifier.
+     */
+    default void setFramebuffer(String framebufferId) {
+        setImage(framebufferExportTextureId(framebufferId));
+    }
+
+    /**
+     * Converts a framebuffer id into the exported texture id used by displays ({@code moud:fbo/...}).
+     *
+     * @param framebufferId The framebuffer identifier.
+     * @return The exported texture id.
+     */
+    static String framebufferExportTextureId(String framebufferId) {
+        if (framebufferId == null || framebufferId.isBlank()) {
+            return "moud:fbo/moud/unknown";
+        }
+
+        String trimmed = framebufferId.trim();
+        if (trimmed.startsWith("moud:fbo/")) {
+            return trimmed;
+        }
+
+        int colon = trimmed.indexOf(':');
+        String namespace = colon > 0 ? trimmed.substring(0, colon) : "moud";
+        String path = colon > 0 ? trimmed.substring(colon + 1) : trimmed;
+        return "moud:fbo/" + namespace + "/" + path;
+    }
     void setVideo(String url, double fps, boolean loop);
     void setFrameSequence(String[] frames, double fps, boolean loop);
     void setFrameRate(double fps);
