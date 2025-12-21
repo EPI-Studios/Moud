@@ -28,3 +28,10 @@ client-mod/run/shaderpacks/
 /example/java-plugin/src/main/java/com/moud/example/worldgenerator/
 /example/ts/embedded-spigot/
 /example/ts/.moud/plugins/
+
+# Local caches/build
+.gradle-home/
+.gradle-local/
+.gradle-user-home/
+example/ts/.moud-build/
+packages/sdk/dist/
