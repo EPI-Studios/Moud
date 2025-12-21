@@ -21,6 +21,7 @@ import com.moud.client.network.ClientPacketWrapper;
 import com.moud.client.particle.ParticleEmitterSystem;
 import com.moud.client.particle.ParticleSystem;
 import com.moud.client.permissions.ClientPermissionState;
+import com.moud.client.rendering.FramebufferTextureExports;
 import com.moud.client.util.WindowAnimator;
 import com.moud.network.MoudPackets;
 import com.moud.network.protocol.MoudProtocol;
@@ -172,6 +173,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             ClientModelManager.getInstance().clear();
             ClientPlayerModelManager.getInstance().clear();
             ClientDisplayManager.getInstance().clear();
+            FramebufferTextureExports.clear();
             SceneSelectionManager.getInstance().clear();
             AssetThumbnailCache.getInstance().clear();
         });

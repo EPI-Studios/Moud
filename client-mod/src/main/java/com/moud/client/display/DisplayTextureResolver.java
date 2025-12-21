@@ -1,5 +1,6 @@
 package com.moud.client.display;
 
+import com.moud.client.rendering.FramebufferTextureExports;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
@@ -65,6 +66,9 @@ final class DisplayTextureResolver {
             String path2 = identifier.getPath();
             if (path2.startsWith("moud/") && path2.length() > 5) {
                 return Identifier.of("moud", path2.substring(5));
+            }
+            if (path2.startsWith("fbo/")) {
+                FramebufferTextureExports.ensureExport(identifier);
             }
         }
         return identifier;

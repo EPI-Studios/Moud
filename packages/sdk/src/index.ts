@@ -47,6 +47,7 @@ declare global {
     const api: import('./index').MoudAPI;
 
     const Moud: import('./index').MoudAPI & {
+        rendering: import('./index').RenderingService;
         audio: import('./index').ClientAudioAPI;
         gamepad: import('./index').GamepadAPI;
         [key: string]: any;
@@ -1351,6 +1352,28 @@ export interface Display {
     remove(): void;
 }
 
+/**
+ * Converts a framebuffer identifier into the exported texture identifier understood by displays.
+ *
+ * @remarks Client framebuffers rendered by the multi-pass system can be exposed as normal Minecraft textures using the
+ * `moud:fbo/<namespace>/<path>`.
+ */
+export function framebufferExportTextureId(framebufferId: string): string {
+    if (!framebufferId) {
+        return 'moud:fbo/moud/unknown';
+    }
+
+    const trimmed = framebufferId.trim();
+    if (trimmed.startsWith('moud:fbo/')) {
+        return trimmed;
+    }
+
+    const colon = trimmed.indexOf(':');
+    const namespace = colon > 0 ? trimmed.slice(0, colon) : 'moud';
+    const path = colon > 0 ? trimmed.slice(colon + 1) : trimmed;
+    return `moud:fbo/${namespace}/${path}`;
+}
+
 /** Options for creating a 3D model in the world. */
 export interface ModelAnchorOptions {
     type?: 'free' | 'block' | 'entity' | 'player' | 'model';
@@ -2352,6 +2375,13 @@ export interface SceneCamera {
     fov: number;
     nearPlane: number;
     farPlane: number;
+    getId?(): string;
+    getLabel?(): string;
+    getPosition?(): Vector3;
+    getRotation?(): Vector3;
+    getFov?(): number;
+    getNearPlane?(): number;
+    getFarPlane?(): number;
 }
 
 // Animation API surface (client/server scripts)
@@ -2959,7 +2989,203 @@ export interface RenderingService {
      * @param value Number or boolean value to assign.
      */
     setShaderUniform(shaderId: string, uniformName: string, value: number | boolean): void;
+
+    /**
+     * Creates or replaces a Veil framebuffer (FBO) managed by the client mod.
+     *
+     * @remarks Client-only.
+     */
+    createFramebuffer(framebufferId: string, options?: ClientFramebufferOptions): void;
+    /**
+     * Removes a previously created framebuffer (only affects framebuffers created via {@link createFramebuffer}).
+     *
+     * @remarks Client-only.
+     */
+    removeFramebuffer(framebufferId: string): void;
+
+    /**
+     * Defines or updates a multi-pass render pass that runs automatically each frame at the chosen stage.
+     *
+     * @remarks Client-only.
+     */
+    defineRenderPass(passId: string, pass: ClientRenderPassOptions): void;
+    /**
+     * Removes a render pass.
+     *
+     * @remarks Client-only.
+     */
+    removeRenderPass(passId: string): void;
+    /**
+     * Enables or disables an existing render pass.
+     *
+     * @remarks Client-only.
+     */
+    setRenderPassEnabled(passId: string, enabled: boolean): void;
 }
+
+/** Attachment kinds supported by {@link ClientFramebufferOptions}. */
+export type ClientFramebufferAttachmentType = 'texture' | 'render_buffer';
+
+/**
+ * Framebuffer attachment definition for {@link ClientFramebufferOptions}.
+ *
+ * @remarks Client-only.
+ */
+export interface ClientFramebufferAttachmentOptions {
+    /** Defaults to `'texture'`. */
+    type?: ClientFramebufferAttachmentType;
+    /** Veil attachment format name (e.g. `'RGBA8'`, `'RGB16F'`, `'DEPTH_COMPONENT'`). */
+    format?: string;
+    /** Mip levels (textures) or samples (render buffers). Defaults to `1`. */
+    levels?: number;
+    /** Enables linear filtering for texture attachments. Defaults to `false`. */
+    linear?: boolean;
+    /** Optional alias name exposed to shaders as a sampler uniform. */
+    name?: string;
+}
+
+/** Clear color used by {@link ClientFramebufferOptions} and clear passes. */
+export interface ClientClearColor {
+    r?: number;
+    g?: number;
+    b?: number;
+    a?: number;
+    depth?: number;
+    /** Alternate component aliases supported by the runtime. */
+    x?: number;
+    y?: number;
+    z?: number;
+    w?: number;
+}
+
+/**
+ * Client-side framebuffer configuration for multi-pass rendering.
+ *
+ * @remarks Client-only.
+ */
+export interface ClientFramebufferOptions {
+    /** Fixed width. If omitted, the framebuffer tracks the screen size. */
+    width?: number;
+    /** Fixed height. If omitted, the framebuffer tracks the screen size. */
+    height?: number;
+    /**
+     * Screen scale (ex: `0.5` for half resolution). Only applies when `width/height` are omitted.
+     * @defaultValue 1
+     */
+    scale?: number;
+    /**
+     * If true, the framebuffer is cleared once per frame before rendering stages run.
+     * @defaultValue true
+     */
+    autoClear?: boolean;
+    /** Optional clear color used when {@link autoClear} is enabled. */
+    clearColor?: ClientClearColor;
+    /** Color attachments (preferred key). */
+    colorBuffers?: ClientFramebufferAttachmentOptions[];
+    /** Color attachments (Veil key). */
+    color_buffers?: ClientFramebufferAttachmentOptions[];
+    /** Convenience: single attachment or list. */
+    color?: ClientFramebufferAttachmentOptions | ClientFramebufferAttachmentOptions[];
+    /** Optional depth attachment. */
+    depth?: boolean | ClientFramebufferAttachmentOptions;
+}
+
+/** Supported render stages. */
+export type ClientRenderStage =
+    | 'after_sky'
+    | 'after_solid_blocks'
+    | 'after_cutout_mipped_blocks'
+    | 'after_cutout_blocks'
+    | 'after_entities'
+    | 'after_block_entities'
+    | 'after_translucent_blocks'
+    | 'after_tripwire_blocks'
+    | 'after_particles'
+    | 'after_weather'
+    | 'after_level';
+
+/** Uniform value types supported by client render passes. */
+export type ClientUniformValue =
+    | number
+    | boolean
+    | Vector3
+    | Quaternion
+    | ClientClearColor
+    | number[]
+    | Record<string, unknown>;
+
+/** Base fields shared by all render passes. */
+export interface ClientRenderPassBase {
+    /** Controls which pass implementation runs. */
+    type: 'blit' | 'copy' | 'world' | 'clear';
+    /** Stage to execute the pass (ex: `'after_level'`). */
+    stage?: ClientRenderStage | string;
+    /** Ordering within the same stage. Lower runs earlier. */
+    order?: number;
+    /** Enables/disables the pass. */
+    enabled?: boolean;
+}
+
+/** Full-screen shader pass. */
+export interface ClientBlitPassOptions extends ClientRenderPassBase {
+    type: 'blit';
+    shader: string;
+    in?: string;
+    out?: string;
+    clear?: boolean;
+    uniforms?: Record<string, ClientUniformValue>;
+}
+
+/** Copies buffers between framebuffers (no shader). */
+export interface ClientCopyPassOptions extends ClientRenderPassBase {
+    type: 'copy';
+    in?: string;
+    out?: string;
+    color?: boolean;
+    depth?: boolean;
+    linear?: boolean;
+}
+
+/** Renders the world from a perspective into a framebuffer. */
+export interface ClientWorldPassOptions extends ClientRenderPassBase {
+    type: 'world';
+    out: string;
+    camera?: {
+        position?: Vector3;
+        rotation?: Quaternion;
+        /** Alternative to `rotation`: camera will face this world position. */
+        lookAt?: Vector3;
+        /** Optional up vector used with `lookAt` (defaults to world up). */
+        up?: Vector3;
+    };
+    /**
+     * Field of view. Values above `2π` are treated as degrees by the runtime.
+     * If omitted, uses the current game projection FOV.
+     */
+    fov?: number;
+    near?: number;
+    far?: number;
+    /**
+     * View distance in blocks used for chunk culling and the far plane heuristic.
+     */
+    renderDistance?: number;
+    drawLights?: boolean;
+    clear?: boolean;
+}
+
+/** Clears a framebuffer. */
+export interface ClientClearPassOptions extends ClientRenderPassBase {
+    type: 'clear';
+    target?: string;
+    clearColor?: ClientClearColor;
+}
+
+/** Union of all supported client render pass definitions. */
+export type ClientRenderPassOptions =
+    | ClientBlitPassOptions
+    | ClientCopyPassOptions
+    | ClientWorldPassOptions
+    | ClientClearPassOptions;
 
 /**
  * Definition of a custom render pipeline used by {@link RenderingService.createRenderType}.
