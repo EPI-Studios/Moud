@@ -7,7 +7,7 @@ import java.lang.annotation.*;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
-public @interface HudPreviewList {
+public @interface UIPreviewList {
 
     /**
      * Display name in IntelliJ HUD Preview panel.
