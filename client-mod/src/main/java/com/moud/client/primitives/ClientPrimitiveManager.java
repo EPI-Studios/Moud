@@ -31,16 +31,24 @@ public final class ClientPrimitiveManager {
                 packet.scale(),
                 packet.material(),
                 packet.vertices(),
-                packet.groupId()
+                packet.indices(),
+                packet.groupId(),
+                packet.physics()
         );
         primitives.put(packet.primitiveId(), primitive);
         if (packet.groupId() != null) {
             groups.computeIfAbsent(packet.groupId(), key -> ConcurrentHashMap.newKeySet())
                     .add(packet.primitiveId());
         }
-        com.moud.client.MoudClientMod.LOGGER.info("[Primitives] Created id={} type={} group={} verts={}",
+
+        if (primitive.hasCollision()) {
+            PrimitiveCollisionManager.getInstance().registerPrimitive(primitive);
+        }
+
+        com.moud.client.MoudClientMod.LOGGER.info("[Primitives] Created id={} type={} group={} verts={} collision={} dynamic={}",
                 packet.primitiveId(), packet.type(), packet.groupId(),
-                packet.vertices() != null ? packet.vertices().size() : 0);
+                packet.vertices() != null ? packet.vertices().size() : 0,
+                primitive.hasCollision(), primitive.isDynamic());
     }
 
     public void handleBatchCreate(MoudPackets.S2C_PrimitiveBatchCreatePacket packet) {
@@ -56,7 +64,9 @@ public final class ClientPrimitiveManager {
                     entry.scale(),
                     entry.material(),
                     entry.vertices(),
-                    entry.groupId()
+                    entry.groupId(),
+                    entry.indices(),
+                    entry.physics()
             ));
         }
     }
@@ -66,6 +76,9 @@ public final class ClientPrimitiveManager {
         ClientPrimitive primitive = primitives.get(packet.primitiveId());
         if (primitive != null) {
             primitive.updateTransform(packet.position(), packet.rotation(), packet.scale());
+            if (primitive.hasCollision()) {
+                PrimitiveCollisionManager.getInstance().updatePrimitive(primitive);
+            }
         } else {
             com.moud.client.MoudClientMod.LOGGER.warn("[Primitives] Transform for unknown id {}", packet.primitiveId());
         }
@@ -77,6 +90,9 @@ public final class ClientPrimitiveManager {
             ClientPrimitive primitive = primitives.get(entry.primitiveId());
             if (primitive != null) {
                 primitive.updateTransform(entry.position(), entry.rotation(), entry.scale());
+                if (primitive.hasCollision()) {
+                    PrimitiveCollisionManager.getInstance().updatePrimitive(primitive);
+                }
             }
         }
     }
@@ -95,7 +111,7 @@ public final class ClientPrimitiveManager {
         if (packet == null) return;
         ClientPrimitive primitive = primitives.get(packet.primitiveId());
         if (primitive != null) {
-            primitive.updateVertices(packet.vertices());
+            primitive.updateMesh(packet.vertices(), packet.indices());
         } else {
             com.moud.client.MoudClientMod.LOGGER.warn("[Primitives] Vertices for unknown id {}", packet.primitiveId());
         }
@@ -118,10 +134,15 @@ public final class ClientPrimitiveManager {
 
     private void remove(long id) {
         ClientPrimitive removed = primitives.remove(id);
-        if (removed != null && removed.getGroupId() != null) {
-            Set<Long> set = groups.get(removed.getGroupId());
-            if (set != null) {
-                set.remove(id);
+        if (removed != null) {
+            if (removed.getGroupId() != null) {
+                Set<Long> set = groups.get(removed.getGroupId());
+                if (set != null) {
+                    set.remove(id);
+                }
+            }
+            if (removed.hasCollision()) {
+                PrimitiveCollisionManager.getInstance().unregisterPrimitive(id);
             }
         }
     }
@@ -141,6 +162,8 @@ public final class ClientPrimitiveManager {
     }
 
     public void clear() {
+        // Clear all collisions
+        PrimitiveCollisionManager.getInstance().clear();
         primitives.clear();
         groups.clear();
     }

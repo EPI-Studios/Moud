@@ -1,5 +1,6 @@
 package com.moud.client.init;
 
+import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.client.animation.AnimatedPlayerModel;
 import com.moud.client.animation.ClientPlayerModelManager;
@@ -19,6 +20,7 @@ import com.moud.client.particle.ParticleRenderer;
 import com.moud.client.primitives.ClientPrimitive;
 import com.moud.client.primitives.ClientPrimitiveManager;
 import com.moud.client.primitives.PrimitiveRenderer;
+import com.moud.network.MoudPackets;
 import foundry.veil.api.client.render.CullFrustum;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.VeilRenderer;
@@ -38,6 +40,8 @@ import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.joml.Quaternionf;
+
+import java.util.List;
 
 public class ClientRenderController {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientRenderController.class);
@@ -238,7 +242,8 @@ public class ClientRenderController {
         var boxes = ModelCollisionManager.getInstance().getDebugBoxes();
         var meshBounds = ClientCollisionManager.getDebugMeshBounds();
         var tris = ClientCollisionManager.getDebugTriangles();
-        if (boxes.isEmpty() && meshBounds.isEmpty() && tris.isEmpty()) {
+        var primitiveBoxes = getPrimitiveDebugBoxes();
+        if (boxes.isEmpty() && meshBounds.isEmpty() && tris.isEmpty() && primitiveBoxes.isEmpty()) {
             return;
         }
         VertexConsumerProvider consumers = context.consumers();
@@ -255,6 +260,9 @@ public class ClientRenderController {
         matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
         for (Box box : boxes) {
             WorldRenderer.drawBox(matrices, buffer, box, 1.0f, 0.2f, 0.2f, 1.0f);
+        }
+        for (Box box : primitiveBoxes) {
+            WorldRenderer.drawBox(matrices, buffer, box, 1.0f, 0.2f, 1.0f, 1.0f);
         }
         if (!tris.isEmpty()) {
             for (Triangle tri : tris) {
@@ -274,6 +282,73 @@ public class ClientRenderController {
             }
         }
         matrices.pop();
+    }
+
+    private List<Box> getPrimitiveDebugBoxes() {
+        List<Box> boxes = new java.util.ArrayList<>();
+        for (ClientPrimitive prim : ClientPrimitiveManager.getInstance().getPrimitives()) {
+            if (prim == null || prim.isLineType()) {
+                continue;
+            }
+            Vector3 pos = prim.getInterpolatedPosition(0f);
+            Vector3 scale = prim.getInterpolatedScale(0f);
+            double hx, hy, hz;
+            switch (prim.getType()) {
+                case SPHERE -> {
+                    double r = Math.max(Math.max(Math.abs(scale.x), Math.abs(scale.y)), Math.abs(scale.z)) * 0.5;
+                    hx = hy = hz = r;
+                }
+                case CYLINDER, CAPSULE, CONE -> {
+                    hx = Math.abs(scale.x) * 0.5;
+                    hy = Math.abs(scale.y) * 0.5;
+                    hz = Math.abs(scale.z) * 0.5;
+                }
+                case MESH -> {
+                    Box meshBounds = computeMeshBounds(prim, pos);
+                    if (meshBounds != null) {
+                        boxes.add(meshBounds);
+                    }
+                    continue;
+                }
+                default -> { // CUBE, PLANE
+                    hx = Math.abs(scale.x) * 0.5;
+                    hy = Math.abs(scale.y) * 0.5;
+                    hz = Math.abs(scale.z) * 0.5;
+                }
+            }
+            boxes.add(new Box(pos.x - hx, pos.y - hy, pos.z - hz,
+                    pos.x + hx, pos.y + hy, pos.z + hz));
+        }
+        return boxes;
+    }
+
+    private Box computeMeshBounds(ClientPrimitive prim, Vector3 pos) {
+        java.util.List<Vector3> verts = prim.getVertices();
+        if (verts == null || verts.isEmpty()) {
+            return null;
+        }
+        Vector3 scale = prim.getInterpolatedScale(0f);
+        com.moud.api.math.Quaternion rot = prim.getInterpolatedRotation(0f);
+        double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE, minZ = Double.MAX_VALUE;
+        double maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE, maxZ = -Double.MAX_VALUE;
+        for (Vector3 v : verts) {
+            double sx = v.x * scale.x;
+            double sy = v.y * scale.y;
+            double sz = v.z * scale.z;
+            double wx = sx + pos.x;
+            double wy = sy + pos.y;
+            double wz = sz + pos.z;
+            minX = Math.min(minX, wx);
+            minY = Math.min(minY, wy);
+            minZ = Math.min(minZ, wz);
+            maxX = Math.max(maxX, wx);
+            maxY = Math.max(maxY, wy);
+            maxZ = Math.max(maxZ, wz);
+        }
+        if (minX > maxX) {
+            return null;
+        }
+        return new Box(minX, minY, minZ, maxX, maxY, maxZ);
     }
 
     private static void drawLine(VertexConsumer buffer, MatrixStack matrices, Vec3d a, Vec3d b,
@@ -359,6 +434,9 @@ public class ClientRenderController {
                         primitive.getType(), primitive.isUnlit(), primitive.isRenderThroughBlocks());
             }
             if (primitive.isLineType()) {
+                if (!isVisible(createLineBounds(primitive), renderContext)) {
+                    continue;
+                }
                 matrices.push();
                 matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
                 int light = primitive.isUnlit() || primitive.isRenderThroughBlocks()
@@ -370,8 +448,11 @@ public class ClientRenderController {
             }
             Vector3 interpolatedPos = primitive.getInterpolatedPosition(tickDelta);
             var interpolatedRot = primitive.getInterpolatedRotation(tickDelta);
-            Quaternionf rotation = new Quaternionf(interpolatedRot.x, interpolatedRot.y, interpolatedRot.z, interpolatedRot.w);
             Vector3 scale = primitive.getInterpolatedScale(tickDelta);
+            if (!isVisible(createPrimitiveBounds(primitive, interpolatedPos, interpolatedRot, scale), renderContext)) {
+                continue;
+            }
+            Quaternionf rotation = new Quaternionf(interpolatedRot.x, interpolatedRot.y, interpolatedRot.z, interpolatedRot.w);
 
             matrices.push();
             matrices.translate(interpolatedPos.x - cameraPos.x, interpolatedPos.y - cameraPos.y, interpolatedPos.z - cameraPos.z);
@@ -385,5 +466,137 @@ public class ClientRenderController {
             primitiveRenderer.renderSolid(primitive, matrices, consumers, light);
             matrices.pop();
         }
+    }
+
+    private Box createLineBounds(ClientPrimitive primitive) {
+        java.util.List<Vector3> verts = primitive != null ? primitive.getVertices() : null;
+        if (verts == null || verts.isEmpty()) {
+            return null;
+        }
+        double minX = Double.POSITIVE_INFINITY;
+        double minY = Double.POSITIVE_INFINITY;
+        double minZ = Double.POSITIVE_INFINITY;
+        double maxX = Double.NEGATIVE_INFINITY;
+        double maxY = Double.NEGATIVE_INFINITY;
+        double maxZ = Double.NEGATIVE_INFINITY;
+        boolean found = false;
+        for (Vector3 v : verts) {
+            if (v == null) {
+                continue;
+            }
+            found = true;
+            minX = Math.min(minX, v.x);
+            minY = Math.min(minY, v.y);
+            minZ = Math.min(minZ, v.z);
+            maxX = Math.max(maxX, v.x);
+            maxY = Math.max(maxY, v.y);
+            maxZ = Math.max(maxZ, v.z);
+        }
+        if (!found) {
+            return null;
+        }
+        double pad = 0.03125;
+        return new Box(minX - pad, minY - pad, minZ - pad, maxX + pad, maxY + pad, maxZ + pad);
+    }
+
+    private Box createPrimitiveBounds(ClientPrimitive primitive, Vector3 position, Quaternion rotation, Vector3 scale) {
+        if (primitive == null || position == null || rotation == null || scale == null) {
+            return null;
+        }
+        MoudPackets.PrimitiveType type = primitive.getType();
+        if (type == MoudPackets.PrimitiveType.MESH) {
+            ClientPrimitive.MeshBounds meshBounds = primitive.getMeshBounds();
+            return meshBounds != null ? createMeshBounds(position, rotation, scale, meshBounds) : null;
+        }
+
+        double baseHalfX = 0.5;
+        double baseHalfY = 0.5;
+        double baseHalfZ = 0.5;
+        if (type == MoudPackets.PrimitiveType.PLANE) {
+            baseHalfY = 0.03125;
+        } else if (type == MoudPackets.PrimitiveType.CAPSULE) {
+            baseHalfY = 1.0;
+        }
+
+        double halfX = Math.max(0.03125, Math.abs(scale.x) * baseHalfX);
+        double halfY = Math.max(0.03125, Math.abs(scale.y) * baseHalfY);
+        double halfZ = Math.max(0.03125, Math.abs(scale.z) * baseHalfZ);
+        return createOrientedBounds(position.x, position.y, position.z, rotation, halfX, halfY, halfZ);
+    }
+
+    private Box createMeshBounds(Vector3 position, Quaternion rotation, Vector3 scale, ClientPrimitive.MeshBounds meshBounds) {
+        double minX = meshBounds.minX();
+        double minY = meshBounds.minY();
+        double minZ = meshBounds.minZ();
+        double maxX = meshBounds.maxX();
+        double maxY = meshBounds.maxY();
+        double maxZ = meshBounds.maxZ();
+
+        double localCenterX = (minX + maxX) * 0.5;
+        double localCenterY = (minY + maxY) * 0.5;
+        double localCenterZ = (minZ + maxZ) * 0.5;
+        double localHalfX = (maxX - minX) * 0.5;
+        double localHalfY = (maxY - minY) * 0.5;
+        double localHalfZ = (maxZ - minZ) * 0.5;
+
+        double scaledCenterX = localCenterX * scale.x;
+        double scaledCenterY = localCenterY * scale.y;
+        double scaledCenterZ = localCenterZ * scale.z;
+
+        double qx = rotation.x;
+        double qy = rotation.y;
+        double qz = rotation.z;
+        double qw = rotation.w;
+        double tx = 2.0 * (qy * scaledCenterZ - qz * scaledCenterY);
+        double ty = 2.0 * (qz * scaledCenterX - qx * scaledCenterZ);
+        double tz = 2.0 * (qx * scaledCenterY - qy * scaledCenterX);
+        double rotatedCenterX = scaledCenterX + qw * tx + (qy * tz - qz * ty);
+        double rotatedCenterY = scaledCenterY + qw * ty + (qz * tx - qx * tz);
+        double rotatedCenterZ = scaledCenterZ + qw * tz + (qx * ty - qy * tx);
+
+        double centerX = position.x + rotatedCenterX;
+        double centerY = position.y + rotatedCenterY;
+        double centerZ = position.z + rotatedCenterZ;
+
+        double halfX = Math.max(0.03125, localHalfX * Math.abs(scale.x));
+        double halfY = Math.max(0.03125, localHalfY * Math.abs(scale.y));
+        double halfZ = Math.max(0.03125, localHalfZ * Math.abs(scale.z));
+
+        return createOrientedBounds(centerX, centerY, centerZ, rotation, halfX, halfY, halfZ);
+    }
+
+    private Box createOrientedBounds(double centerX, double centerY, double centerZ, Quaternion rotation,
+                                     double halfX, double halfY, double halfZ) {
+        double x = rotation.x;
+        double y = rotation.y;
+        double z = rotation.z;
+        double w = rotation.w;
+
+        double xx = x * x;
+        double yy = y * y;
+        double zz = z * z;
+        double xy = x * y;
+        double xz = x * z;
+        double yz = y * z;
+        double wx = w * x;
+        double wy = w * y;
+        double wz = w * z;
+
+        double m00 = 1.0 - 2.0 * (yy + zz);
+        double m01 = 2.0 * (xy - wz);
+        double m02 = 2.0 * (xz + wy);
+        double m10 = 2.0 * (xy + wz);
+        double m11 = 1.0 - 2.0 * (xx + zz);
+        double m12 = 2.0 * (yz - wx);
+        double m20 = 2.0 * (xz - wy);
+        double m21 = 2.0 * (yz + wx);
+        double m22 = 1.0 - 2.0 * (xx + yy);
+
+        double worldHalfX = Math.abs(m00) * halfX + Math.abs(m01) * halfY + Math.abs(m02) * halfZ;
+        double worldHalfY = Math.abs(m10) * halfX + Math.abs(m11) * halfY + Math.abs(m12) * halfZ;
+        double worldHalfZ = Math.abs(m20) * halfX + Math.abs(m21) * halfY + Math.abs(m22) * halfZ;
+
+        return new Box(centerX - worldHalfX, centerY - worldHalfY, centerZ - worldHalfZ,
+                centerX + worldHalfX, centerY + worldHalfY, centerZ + worldHalfZ);
     }
 }

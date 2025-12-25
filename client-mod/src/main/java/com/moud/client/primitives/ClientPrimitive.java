@@ -3,6 +3,7 @@ package com.moud.client.primitives;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +18,7 @@ public class ClientPrimitive {
     private Vector3 scale;
     private MoudPackets.PrimitiveMaterial material;
     private List<Vector3> vertices;
+    private List<Integer> indices;
     private Vector3 previousPosition;
     private Vector3 targetPosition;
     private Quaternion previousRotation;
@@ -25,9 +27,18 @@ public class ClientPrimitive {
     private Vector3 targetScale;
     private long lastUpdateTime;
 
+    public record MeshBounds(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
+    }
+
+    private volatile @Nullable MeshBounds meshBounds;
+
+    private boolean hasCollision;
+    private boolean isDynamic;
+    private float mass;
+
     public ClientPrimitive(long id, MoudPackets.PrimitiveType type, Vector3 position, Quaternion rotation,
                            Vector3 scale, MoudPackets.PrimitiveMaterial material, List<Vector3> vertices,
-                           String groupId) {
+                           List<Integer> indices, String groupId, MoudPackets.PrimitivePhysics physics) {
         this.id = id;
         this.type = type;
         this.groupId = groupId;
@@ -36,6 +47,19 @@ public class ClientPrimitive {
         this.scale = scale != null ? new Vector3(scale) : Vector3.one();
         this.material = material != null ? material : MoudPackets.PrimitiveMaterial.solid(1f, 1f, 1f);
         this.vertices = copyVertices(vertices);
+        this.indices = copyIndices(indices);
+        recomputeMeshBounds();
+
+        if (physics != null) {
+            this.hasCollision = physics.hasCollision();
+            this.isDynamic = physics.isDynamic();
+            this.mass = physics.mass();
+        } else {
+            boolean isLine = type == MoudPackets.PrimitiveType.LINE || type == MoudPackets.PrimitiveType.LINE_STRIP;
+            this.hasCollision = !isLine;
+            this.isDynamic = false;
+            this.mass = 0f;
+        }
 
         this.previousPosition = new Vector3(this.position);
         this.targetPosition = new Vector3(this.position);
@@ -44,6 +68,12 @@ public class ClientPrimitive {
         this.previousScale = new Vector3(this.scale);
         this.targetScale = new Vector3(this.scale);
         this.lastUpdateTime = System.currentTimeMillis();
+    }
+
+    public ClientPrimitive(long id, MoudPackets.PrimitiveType type, Vector3 position, Quaternion rotation,
+                           Vector3 scale, MoudPackets.PrimitiveMaterial material, List<Vector3> vertices,
+                           List<Integer> indices, String groupId) {
+        this(id, type, position, rotation, scale, material, vertices, indices, groupId, null);
     }
 
     public long getId() {
@@ -66,6 +96,14 @@ public class ClientPrimitive {
         return vertices;
     }
 
+    public List<Integer> getIndices() {
+        return indices;
+    }
+
+    public @Nullable MeshBounds getMeshBounds() {
+        return meshBounds;
+    }
+
     public boolean isLineType() {
         return type == MoudPackets.PrimitiveType.LINE || type == MoudPackets.PrimitiveType.LINE_STRIP;
     }
@@ -80,6 +118,18 @@ public class ClientPrimitive {
 
     public boolean isDoubleSided() {
         return material != null && material.doubleSided();
+    }
+
+    public boolean hasCollision() {
+        return hasCollision;
+    }
+
+    public boolean isDynamic() {
+        return isDynamic;
+    }
+
+    public float getMass() {
+        return mass;
     }
 
     public void updateTransform(Vector3 newPos, Quaternion newRot, Vector3 newScale) {
@@ -124,6 +174,13 @@ public class ClientPrimitive {
 
     public void updateVertices(List<Vector3> verts) {
         this.vertices = copyVertices(verts);
+        recomputeMeshBounds();
+    }
+
+    public void updateMesh(List<Vector3> verts, List<Integer> inds) {
+        this.vertices = copyVertices(verts);
+        this.indices = copyIndices(inds);
+        recomputeMeshBounds();
     }
 
     public void tickSmoothing(float deltaTicks) {
@@ -154,5 +211,44 @@ public class ClientPrimitive {
             }
         }
         return copy;
+    }
+
+    private List<Integer> copyIndices(List<Integer> inds) {
+        List<Integer> copy = new ArrayList<>();
+        if (inds != null) {
+            for (Integer idx : inds) {
+                if (idx != null) {
+                    copy.add(idx);
+                }
+            }
+        }
+        return copy;
+    }
+
+    private void recomputeMeshBounds() {
+        if (type != MoudPackets.PrimitiveType.MESH || vertices == null || vertices.isEmpty()) {
+            meshBounds = null;
+            return;
+        }
+        float minX = Float.POSITIVE_INFINITY;
+        float minY = Float.POSITIVE_INFINITY;
+        float minZ = Float.POSITIVE_INFINITY;
+        float maxX = Float.NEGATIVE_INFINITY;
+        float maxY = Float.NEGATIVE_INFINITY;
+        float maxZ = Float.NEGATIVE_INFINITY;
+        boolean found = false;
+        for (Vector3 v : vertices) {
+            if (v == null) {
+                continue;
+            }
+            found = true;
+            minX = Math.min(minX, v.x);
+            minY = Math.min(minY, v.y);
+            minZ = Math.min(minZ, v.z);
+            maxX = Math.max(maxX, v.x);
+            maxY = Math.max(maxY, v.y);
+            maxZ = Math.max(maxZ, v.z);
+        }
+        meshBounds = found ? new MeshBounds(minX, minY, minZ, maxX, maxY, maxZ) : null;
     }
 }

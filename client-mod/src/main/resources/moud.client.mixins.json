@@ -14,6 +14,7 @@
     "BuiltChunkStorageMixin",
     "CameraMixin",
     "ChatHudMixin",
+    "ClientPlayerEntityMixin",
     "ClientPlayNetworkHandlerMixin",
     "CollisionViewMixin",
     "EntityRenderDispatcherMixin",
