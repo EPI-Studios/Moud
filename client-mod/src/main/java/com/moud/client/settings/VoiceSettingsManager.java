@@ -1,5 +1,6 @@
 package com.moud.client.settings;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import net.fabricmc.loader.api.FabricLoader;
@@ -14,7 +15,9 @@ import java.nio.file.Path;
 public final class VoiceSettingsManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VoiceSettingsManager.class);
-    private static final ObjectMapper MAPPER = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+    private static final ObjectMapper MAPPER = new ObjectMapper()
+            .enable(SerializationFeature.INDENT_OUTPUT)
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     private static final Path CONFIG_PATH = FabricLoader.getInstance()
             .getConfigDir()
             .resolve("moud-voice-settings.json");
