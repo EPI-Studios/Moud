@@ -29,6 +29,10 @@ public class ScriptingAPI {
     @HostAccess.Export
     public final WorldProxy world;
     @HostAccess.Export
+    public final WorldManagerProxy worlds;
+    @HostAccess.Export
+    public final PhysicsAPIProxy physics;
+    @HostAccess.Export
     public final LightingAPIProxy lighting;
     @HostAccess.Export
     public final ZoneAPIProxy zones;
@@ -51,7 +55,9 @@ public class ScriptingAPI {
         this.validator = new APIValidator();
 
         this.server = new ServerProxy();
-        this.world = new WorldProxy().createInstance();
+        this.world = new WorldProxy();
+        this.worlds = new WorldManagerProxy();
+        this.physics = new PhysicsAPIProxy();
         this.lighting = new LightingAPIProxy();
         this.zones = new ZoneAPIProxy(engine.getZoneManager());
         this.math = new MathProxy();

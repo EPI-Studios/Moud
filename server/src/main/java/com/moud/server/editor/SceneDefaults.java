@@ -5,7 +5,7 @@ public final class SceneDefaults {
 
     public static final String DEFAULT_SCENE_ID = "default";
 
-    public static final int BASE_SCENE_SIZE_BLOCKS = 1000;
+    public static final int BASE_SCENE_SIZE_BLOCKS = 4096;
 
     public static final int BASE_TERRAIN_HEIGHT = 64;
     public static final String DEFAULT_SURFACE_BLOCK = "minecraft:grass_block";

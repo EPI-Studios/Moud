@@ -19,6 +19,8 @@ import com.moud.server.proxy.ModelProxy;
 import com.moud.server.proxy.TextProxy;
 import net.minestom.server.instance.Instance;
 
+import java.nio.file.Path;
+
 public final class WorldServiceImpl implements WorldService {
     private Instance target() {
         return InstanceManager.getInstance().getDefaultInstance();
@@ -107,6 +109,16 @@ public final class WorldServiceImpl implements WorldService {
         }
 
         return new TextHandleAdapter(proxy);
+    }
+
+    @Override
+    public Instance loadWorld(String name, Path worldPath) {
+        return InstanceManager.getInstance().loadWorld(name, worldPath);
+    }
+
+    @Override
+    public Instance loadWorld(String name, Path worldPath, String sceneId) {
+        return InstanceManager.getInstance().loadWorld(name, worldPath, sceneId);
     }
 
     private void applyBillboard(MediaDisplayProxy proxy, DisplayBillboardMode mode) {

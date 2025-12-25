@@ -1,6 +1,7 @@
 package com.moud.server;
 
 import com.moud.server.audio.ServerVoiceChatManager;
+import com.moud.server.blocks.placement.VanillaPlacementRules;
 import com.moud.server.editor.AnimationManager;
 import com.moud.server.api.HotReloadEndpoint;
 import com.moud.server.api.ScriptingAPI;
@@ -143,12 +144,12 @@ public class MoudEngine {
             this.assetProxy = new AssetProxy(assetManager);
             this.zoneManager = new ZoneManager(this);
 
-            this.instanceManager = new InstanceManager();
+            this.instanceManager = new InstanceManager(projectRoot);
             InstanceManager.install(instanceManager);
-            instanceManager.initialize();
-
             this.sceneManager = new SceneManager(projectRoot, assetManager);
             SceneManager.install(sceneManager);
+            instanceManager.initialize();
+            VanillaPlacementRules.registerAll();
 
             this.permissionManager = new PermissionManager(projectRoot);
             PermissionManager.install(permissionManager);
@@ -449,6 +450,13 @@ public class MoudEngine {
                         .put("phase", "system-shutdown")
                         .put("system", system.getClass().getName())
                         .build(), "System shutdown failed", e);
+            }
+        }
+        if (instanceManager != null) {
+            try {
+                instanceManager.shutdown();
+            } catch (Exception e) {
+                LOGGER.warn("Failed to shut down instance manager cleanly", e);
             }
         }
         LOGGER.shutdown("Moud Engine shutdown complete.");
