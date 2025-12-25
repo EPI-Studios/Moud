@@ -22,6 +22,7 @@ public final class SceneRuntimeFactory {
         register("particle_emitter", (sceneId, engine) -> new ParticleEmitterRuntimeAdapter());
         register("post_effect", (sceneId, engine) -> new PostEffectRuntimeAdapter(sceneId));
         register("zone", (sceneId, engine) -> new ZoneRuntimeAdapter());
+        register("primitive", (sceneId, engine) -> new PrimitiveRuntimeAdapter(sceneId));
     }
 
     private SceneRuntimeFactory() {

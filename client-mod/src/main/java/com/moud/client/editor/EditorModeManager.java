@@ -4,11 +4,14 @@ import com.moud.client.editor.assets.EditorAssetCatalog;
 import com.moud.client.editor.camera.EditorCameraController;
 import com.moud.client.editor.config.EditorConfig;
 import com.moud.client.editor.picking.RaycastPicker;
+import com.moud.client.editor.picking.SceneObjectPicker;
+import com.moud.client.editor.scene.SceneObject;
 import com.moud.client.editor.runtime.RuntimeObjectRegistry;
 import com.moud.client.editor.scene.SceneHistoryManager;
+import com.moud.client.editor.runtime.RuntimeObject;
+import com.moud.client.editor.runtime.RuntimeObjectType;
 import com.moud.client.editor.scene.SceneSessionManager;
 import com.moud.client.editor.scene.blueprint.BlueprintCornerSelector;
-import com.moud.client.editor.selection.SceneSelectionManager;
 import com.moud.client.editor.ui.EditorImGuiLayer;
 import com.moud.client.editor.ui.SceneEditorOverlay;
 import net.minecraft.client.MinecraftClient;
@@ -180,6 +183,14 @@ public final class EditorModeManager {
             return true;
         }
 
+        if (action == GLFW.GLFW_PRESS) {
+            boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
+            if (ctrl && key == GLFW.GLFW_KEY_D) {
+                SceneEditorOverlay.getInstance().duplicateSelection(SceneSessionManager.getInstance());
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -214,16 +225,27 @@ public final class EditorModeManager {
 
             RaycastPicker picker = RaycastPicker.getInstance();
             picker.updateHover();
-            var hovered = picker.getHoveredObject();
+            RuntimeObject hovered = picker.getHoveredObject();
+            String hoveredLimb = picker.getHoveredLimb();
+
+            if (hovered != null && hovered.getType() == RuntimeObjectType.PLAYER_MODEL && hoveredLimb != null) {
+                picker.selectHovered();
+                SceneEditorOverlay.getInstance().selectRuntimeObject(hovered);
+                return true;
+            }
+
+            SceneObject pickedSceneObject = SceneObjectPicker.pickHoveredSceneObject();
+            if (pickedSceneObject != null) {
+                SceneEditorOverlay.getInstance().selectFromExternal(pickedSceneObject.getId());
+                return true;
+            }
+
             if (hovered != null) {
                 picker.selectHovered();
                 SceneEditorOverlay.getInstance().selectRuntimeObject(hovered);
                 return true;
             }
 
-            if (SceneSelectionManager.getInstance().handleClickSelection()) {
-                return true;
-            }
             return true; // prevent vanilla block interactions while editor is active
         }
 

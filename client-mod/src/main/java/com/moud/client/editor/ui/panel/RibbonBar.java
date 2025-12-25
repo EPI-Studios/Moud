@@ -75,8 +75,15 @@ public final class RibbonBar {
         ImGui.separator();
         ImGui.textDisabled("Drag assets from the browser or explorer into the scene.");
         ImGui.textDisabled("Utilities");
+        boolean hasSelection = overlay.getSelectedObject() != null;
+        if (!hasSelection) {
+            ImGui.beginDisabled();
+        }
         if (ImGui.button("Duplicate Selection")) {
-            // TODO: implement multi-selection duplication
+            overlay.duplicateSelection(session);
+        }
+        if (!hasSelection) {
+            ImGui.endDisabled();
         }
         ImGui.sameLine();
         if (ImGui.button("Focus Selection")) {
@@ -155,6 +162,10 @@ public final class RibbonBar {
         }
         if (ImGui.beginMenu("Lights")) {
             renderAssetMenu("light");
+            ImGui.endMenu();
+        }
+        if (ImGui.beginMenu("Primitives")) {
+            renderAssetMenu("primitive");
             ImGui.endMenu();
         }
         if (ImGui.menuItem("Particle Emitter")) {

@@ -401,9 +401,147 @@ public final class SceneManager {
                 });
 
         assets.addAll(builtInLightAssets());
+        assets.addAll(builtInPrimitiveAssets());
         assets.add(fakePlayerAsset());
 
         return assets;
+    }
+
+    private List<MoudPackets.EditorAssetDefinition> builtInPrimitiveAssets() {
+        List<MoudPackets.EditorAssetDefinition> primitives = new ArrayList<>();
+
+        Map<String, Object> baseMaterial = new HashMap<>();
+        baseMaterial.put("r", 0.9);
+        baseMaterial.put("g", 0.4);
+        baseMaterial.put("b", 0.2);
+        baseMaterial.put("a", 1.0);
+        baseMaterial.put("unlit", false);
+        baseMaterial.put("doubleSided", false);
+        baseMaterial.put("renderThroughBlocks", false);
+
+        Map<String, Object> defaultPhysics = new HashMap<>();
+        defaultPhysics.put("dynamic", false);
+        defaultPhysics.put("mass", 1.0);
+
+        primitives.add(new MoudPackets.EditorAssetDefinition(
+                "primitive/cube",
+                "Primitive: Cube",
+                "primitive",
+                Map.of(
+                        "label", "Cube",
+                        "primitiveType", "cube",
+                        "scale", vectorMap(1.0, 1.0, 1.0),
+                        "material", new HashMap<>(baseMaterial),
+                        "physics", new HashMap<>(defaultPhysics)
+                )
+        ));
+
+        primitives.add(new MoudPackets.EditorAssetDefinition(
+                "primitive/sphere",
+                "Primitive: Sphere",
+                "primitive",
+                Map.of(
+                        "label", "Sphere",
+                        "primitiveType", "sphere",
+                        "scale", vectorMap(1.0, 1.0, 1.0),
+                        "material", Map.of(
+                                "r", 0.3,
+                                "g", 0.7,
+                                "b", 0.95,
+                                "a", 1.0,
+                                "unlit", false,
+                                "doubleSided", false,
+                                "renderThroughBlocks", false
+                        ),
+                        "physics", new HashMap<>(defaultPhysics)
+                )
+        ));
+
+        primitives.add(new MoudPackets.EditorAssetDefinition(
+                "primitive/cylinder",
+                "Primitive: Cylinder",
+                "primitive",
+                Map.of(
+                        "label", "Cylinder",
+                        "primitiveType", "cylinder",
+                        "scale", vectorMap(1.0, 2.0, 1.0),
+                        "material", Map.of(
+                                "r", 0.2,
+                                "g", 0.85,
+                                "b", 0.45,
+                                "a", 1.0,
+                                "unlit", false,
+                                "doubleSided", false,
+                                "renderThroughBlocks", false
+                        ),
+                        "physics", new HashMap<>(defaultPhysics)
+                )
+        ));
+
+        primitives.add(new MoudPackets.EditorAssetDefinition(
+                "primitive/capsule",
+                "Primitive: Capsule",
+                "primitive",
+                Map.of(
+                        "label", "Capsule",
+                        "primitiveType", "capsule",
+                        "scale", vectorMap(1.0, 2.0, 1.0),
+                        "material", Map.of(
+                                "r", 0.6,
+                                "g", 0.35,
+                                "b", 0.85,
+                                "a", 1.0,
+                                "unlit", false,
+                                "doubleSided", false,
+                                "renderThroughBlocks", false
+                        ),
+                        "physics", new HashMap<>(defaultPhysics)
+                )
+        ));
+
+        primitives.add(new MoudPackets.EditorAssetDefinition(
+                "primitive/cone",
+                "Primitive: Cone",
+                "primitive",
+                Map.of(
+                        "label", "Cone",
+                        "primitiveType", "cone",
+                        "scale", vectorMap(1.0, 2.0, 1.0),
+                        "material", Map.of(
+                                "r", 0.95,
+                                "g", 0.75,
+                                "b", 0.2,
+                                "a", 1.0,
+                                "unlit", false,
+                                "doubleSided", false,
+                                "renderThroughBlocks", false
+                        ),
+                        "physics", new HashMap<>(defaultPhysics)
+                )
+        ));
+
+        primitives.add(new MoudPackets.EditorAssetDefinition(
+                "primitive/plane",
+                "Primitive: Plane",
+                "primitive",
+                Map.of(
+                        "label", "Plane",
+                        "primitiveType", "plane",
+                        "scale", vectorMap(4.0, 1.0, 4.0),
+                        "material", Map.of(
+                                "r", 0.4,
+                                "g", 0.4,
+                                "b", 0.4,
+                                "a", 1.0,
+                                "unlit", false,
+                                "doubleSided", false,
+                                "renderThroughBlocks", false
+                        ),
+                        "physics", new HashMap<>(defaultPhysics)
+                )
+        ));
+
+        return primitives;
     }
 
     public List<MoudPackets.ProjectFileEntry> getProjectFileEntries() {
@@ -520,6 +658,8 @@ public final class SceneManager {
                 return createObject(state, payload);
             case "update":
                 return updateObject(state, payload);
+            case "patch":
+                return patchObject(state, payload);
             case "delete":
                 return deleteObject(state, payload);
             default:
@@ -560,6 +700,7 @@ public final class SceneManager {
         if (existing == null) {
             return SceneEditResult.failure("Object not found: " + objectId, state.version.get());
         }
+        Map<String, Object> before = new HashMap<>(existing.properties);
         Map<String, Object> properties = snapshotProperties(payload.getOrDefault("properties", Map.of()));
         existing.properties.clear();
         existing.properties.putAll(properties);
@@ -571,7 +712,56 @@ public final class SceneManager {
             return SceneEditResult.success(objectId, toSnapshot(existing), "updated", version);
         } catch (Exception e) {
             LOGGER.error("Failed to update runtime object for {}", objectId, e);
+            existing.properties.clear();
+            existing.properties.putAll(before);
+            try {
+                initializeAdapter(state.sceneId, existing);
+            } catch (Exception restoreError) {
+                LOGGER.warn("Failed to restore runtime object state for {} after update failure", objectId, restoreError);
+            }
             return SceneEditResult.failure("Failed to update runtime object: " + e.getMessage(), state.version.get());
+        }
+    }
+
+    private SceneEditResult patchObject(SceneState state, Map<String, Object> payload) {
+        String objectId = asString(payload.get("id"));
+        if (objectId.isEmpty()) {
+            return SceneEditResult.failure("Missing object id for patch", state.version.get());
+        }
+        SceneObject existing = state.objects.get(objectId);
+        if (existing == null) {
+            return SceneEditResult.failure("Object not found: " + objectId, state.version.get());
+        }
+
+        Map<String, Object> before = new HashMap<>(existing.properties);
+        Map<String, Object> patch = snapshotProperties(payload.getOrDefault("properties", Map.of()));
+        patch.forEach((key, value) -> {
+            if (key == null) {
+                return;
+            }
+            if (value == null) {
+                existing.properties.remove(key);
+            } else {
+                existing.properties.put(key, value);
+            }
+        });
+
+        try {
+            initializeAdapter(state.sceneId, existing);
+            long version = state.version.incrementAndGet();
+            LOGGER.debug("Scene object {} patched", objectId);
+            persistScene(state.sceneId);
+            return SceneEditResult.success(objectId, toSnapshot(existing), "patched", version);
+        } catch (Exception e) {
+            LOGGER.error("Failed to patch runtime object for {}", objectId, e);
+            existing.properties.clear();
+            existing.properties.putAll(before);
+            try {
+                initializeAdapter(state.sceneId, existing);
+            } catch (Exception restoreError) {
+                LOGGER.warn("Failed to restore runtime object state for {} after patch failure", objectId, restoreError);
+            }
+            return SceneEditResult.failure("Failed to patch runtime object: " + e.getMessage(), state.version.get());
         }
     }
 
@@ -585,7 +775,11 @@ public final class SceneManager {
             return SceneEditResult.failure("Object not found: " + objectId, state.version.get());
         }
         if (removed.adapter != null) {
-            removed.adapter.remove();
+            try {
+                removed.adapter.remove();
+            } catch (Exception e) {
+                LOGGER.warn("Failed to remove runtime object adapter for {}", objectId, e);
+            }
         }
         long version = state.version.incrementAndGet();
         LOGGER.debug("Scene object {} deleted", objectId);

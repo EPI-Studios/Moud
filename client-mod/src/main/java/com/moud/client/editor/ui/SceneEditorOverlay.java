@@ -174,6 +174,8 @@ public final class SceneEditorOverlay {
             case "marker" -> "[K]";
             case "camera" -> "[C]";
             case "particle_emitter" -> "[P]";
+            case "primitive" -> "[R]";
+            case "zone" -> "[Z]";
             default -> "[ ]";
         };
     }
@@ -216,9 +218,12 @@ public final class SceneEditorOverlay {
 
     private static Vec3d extractVec3(Object value, Vec3d fallback) {
         if (value instanceof Map<?, ?> map) {
-            double x = toDouble(map.get("x"), fallback.x);
-            double y = toDouble(map.get("y"), fallback.y);
-            double z = toDouble(map.get("z"), fallback.z);
+            double defaultX = fallback != null ? fallback.x : 0.0;
+            double defaultY = fallback != null ? fallback.y : 0.0;
+            double defaultZ = fallback != null ? fallback.z : 0.0;
+            double x = toDouble(map.get("x"), defaultX);
+            double y = toDouble(map.get("y"), defaultY);
+            double z = toDouble(map.get("z"), defaultZ);
             return new Vec3d(x, y, z);
         }
         return fallback;
@@ -1634,6 +1639,53 @@ public final class SceneEditorOverlay {
         payload.put("id", object.getId());
         SceneSessionManager.getInstance().submitEdit("delete", payload);
         SceneEditorDiagnostics.log("Deleted " + object.getId());
+    }
+
+    public void duplicateSelection(SceneSessionManager session) {
+        if (session == null) {
+            return;
+        }
+        SceneObject selected = getSelectedObject();
+        if (selected == null) {
+            SceneEditorDiagnostics.log("Nothing selected to duplicate.");
+            return;
+        }
+
+        String sourceId = selected.getId();
+        String newId = sourceId + "-copy-" + System.currentTimeMillis();
+        Map<String, Object> props = new ConcurrentHashMap<>(selected.getProperties());
+        props.put("label", sceneLabel(selected) + " Copy");
+        offsetDuplicateProperties(props);
+
+        Map<String, Object> payload = new ConcurrentHashMap<>();
+        payload.put("type", selected.getType());
+        payload.put("id", newId);
+        payload.put("properties", props);
+        session.submitEdit("create", payload);
+        SceneEditorDiagnostics.log("Duplicated " + sourceId);
+    }
+
+    private void offsetDuplicateProperties(Map<String, Object> props) {
+        if (props == null) {
+            return;
+        }
+        double dx = 1.0;
+        double dy = 0.0;
+        double dz = 1.0;
+
+        if (props.get("corner1") instanceof Map<?, ?> && props.get("corner2") instanceof Map<?, ?>) {
+            Vec3d c1 = extractVec3(props.get("corner1"), new Vec3d(0, 0, 0)).add(dx, dy, dz);
+            Vec3d c2 = extractVec3(props.get("corner2"), new Vec3d(0, 0, 0)).add(dx, dy, dz);
+            props.put("corner1", vectorToMap(new float[]{(float) c1.x, (float) c1.y, (float) c1.z}));
+            props.put("corner2", vectorToMap(new float[]{(float) c2.x, (float) c2.y, (float) c2.z}));
+            return;
+        }
+
+        Vec3d position = extractVec3(props.get("position"), null);
+        if (position != null) {
+            Vec3d moved = position.add(dx, dy, dz);
+            props.put("position", vectorToMap(new float[]{(float) moved.x, (float) moved.y, (float) moved.z}));
+        }
     }
 
     private String sceneLabel(SceneObject object) {

@@ -76,6 +76,34 @@ public final class InspectorPanel {
     private final ImFloat heightFogY = new ImFloat(64f);
     private final ImFloat heightFogThickness = new ImFloat(0.25f);
     private final float[] heightFogColor = new float[]{0.3f, 0.3f, 0.35f, 1.0f};
+
+    private static final String[] PRIMITIVE_TYPE_LABELS = {
+            "Cube",
+            "Sphere",
+            "Cylinder",
+            "Capsule",
+            "Cone",
+            "Plane"
+    };
+
+    private static final String[] PRIMITIVE_TYPE_VALUES = {
+            "cube",
+            "sphere",
+            "cylinder",
+            "capsule",
+            "cone",
+            "plane"
+    };
+
+    private final ImInt primitiveTypeIndex = new ImInt(0);
+    private final ImBoolean primitiveDynamic = new ImBoolean(false);
+    private final ImFloat primitiveMass = new ImFloat(1.0f);
+    private final ImBoolean primitiveUnlit = new ImBoolean(false);
+    private final ImBoolean primitiveDoubleSided = new ImBoolean(false);
+    private final ImBoolean primitiveRenderThroughBlocks = new ImBoolean(false);
+    private final float[] primitiveColor = new float[]{1f, 1f, 1f, 1f};
+    private final ImString primitiveTextureBuffer = new ImString("", 192);
+    private final ImString primitiveTextureFilePickerFilter = new ImString(128);
     private String currentObjectId;
 
     public InspectorPanel(SceneEditorOverlay overlay) {
@@ -465,6 +493,7 @@ public final class InspectorPanel {
             return;
         }
         Map<String, Object> props = object.getProperties();
+        String type = object.getType() == null ? "" : object.getType().toLowerCase(Locale.ROOT);
         inspectorLabel.set(String.valueOf(props.getOrDefault("label", object.getId())));
         markerLabelBuffer.set(inspectorLabel.get());
         modelPathBuffer.set(String.valueOf(props.getOrDefault("modelPath", "")));
@@ -499,6 +528,30 @@ public final class InspectorPanel {
             }
         }
         playerAnimationOverride.set(String.valueOf(props.getOrDefault("animationOverride", "")));
+
+        if ("primitive".equals(type)) {
+            primitiveTypeIndex.set(resolvePrimitiveTypeIndex(String.valueOf(props.getOrDefault("primitiveType", "cube"))));
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> material = props.get("material") instanceof Map<?, ?> map ? (Map<String, Object>) map : null;
+            primitiveColor[0] = material != null ? toFloat(material.getOrDefault("r", 1f)) : 1f;
+            primitiveColor[1] = material != null ? toFloat(material.getOrDefault("g", 1f)) : 1f;
+            primitiveColor[2] = material != null ? toFloat(material.getOrDefault("b", 1f)) : 1f;
+            primitiveColor[3] = material != null ? toFloat(material.getOrDefault("a", 1f)) : 1f;
+            primitiveUnlit.set(material != null && boolValue(material.get("unlit"), false));
+            primitiveDoubleSided.set(material != null && boolValue(material.get("doubleSided"), false));
+            primitiveRenderThroughBlocks.set(material != null && boolValue(material.get("renderThroughBlocks"), false));
+            Object textureValue = material != null ? material.get("texture") : null;
+            if (textureValue == null || String.valueOf(textureValue).isBlank()) {
+                textureValue = props.get("texture");
+            }
+            primitiveTextureBuffer.set(textureValue != null ? String.valueOf(textureValue) : "");
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> physics = props.get("physics") instanceof Map<?, ?> map ? (Map<String, Object>) map : null;
+            primitiveDynamic.set(physics != null && boolValue(physics.get("dynamic"), false));
+            primitiveMass.set(physics != null ? toFloat(physics.getOrDefault("mass", 1.0f)) : 1.0f);
+        }
     }
 
     public void onRuntimeSelection(RuntimeObject runtimeObject) {
@@ -547,6 +600,7 @@ public final class InspectorPanel {
             case "particle_emitter" -> renderParticleEmitterProperties(session, selected, props);
             case "post_effect" -> renderPostEffectProperties(session, selected, props);
             case "zone" -> renderZoneProperties(session, selected, props);
+            case "primitive" -> renderPrimitiveProperties(session, selected);
             default -> {
             }
         }
@@ -737,6 +791,123 @@ public final class InspectorPanel {
         if (ImGui.dragFloat("Snap step", snapValue.getData(), 0.1f, 0.05f, 50f, "%.2f")) {
             snapValue.set(Math.max(0.05f, snapValue.get()));
         }
+    }
+
+    private void renderPrimitiveProperties(SceneSessionManager session, SceneObject selected) {
+        ImGui.textDisabled("Primitive");
+        ImGui.separator();
+
+        boolean[] changed = new boolean[]{false};
+        if (ImGui.combo("Shape", primitiveTypeIndex, PRIMITIVE_TYPE_LABELS)) {
+            changed[0] = true;
+        }
+
+        ImGui.separator();
+        ImGui.textDisabled("Material");
+        if (ImGui.colorEdit4("Color", primitiveColor)) {
+            changed[0] = true;
+        }
+        if (ImGui.checkbox("Unlit", primitiveUnlit)) {
+            changed[0] = true;
+        }
+        ImGui.sameLine();
+        if (ImGui.checkbox("Double Sided", primitiveDoubleSided)) {
+            changed[0] = true;
+        }
+        ImGui.sameLine();
+        if (ImGui.checkbox("Render Through Blocks", primitiveRenderThroughBlocks)) {
+            changed[0] = true;
+        }
+
+        if (ImGui.inputText("Texture", primitiveTextureBuffer)) {
+            changed[0] = true;
+        }
+        ImGui.sameLine();
+        if (ImGui.button("Pick##primitive_texture_picker")) {
+            ImGui.openPopup("primitive_texture_picker");
+        }
+        String pickedPrimitiveTexture = renderProjectFilePickerPopup(
+                "primitive_texture_picker",
+                "Select Primitive Texture",
+                primitiveTextureFilePickerFilter,
+                node -> hasExtension(node.path(), ".png", ".jpg", ".jpeg")
+        );
+        if (pickedPrimitiveTexture != null) {
+            primitiveTextureBuffer.set(toResourcePath(pickedPrimitiveTexture));
+            changed[0] = true;
+        }
+        acceptProjectFileDrop(value -> {
+            primitiveTextureBuffer.set(value);
+            changed[0] = true;
+        }, true);
+        if (ImGui.button("Clear Texture##primitive_texture_clear")) {
+            primitiveTextureBuffer.set("");
+            changed[0] = true;
+        }
+
+        ImGui.separator();
+        ImGui.textDisabled("Physics");
+        if (ImGui.checkbox("Dynamic", primitiveDynamic)) {
+            changed[0] = true;
+        }
+        if (primitiveDynamic.get()) {
+            if (ImGui.dragFloat("Mass", primitiveMass.getData(), 0.05f, 0.05f, 1000f, "%.2f")) {
+                primitiveMass.set(Math.max(0.05f, primitiveMass.get()));
+                changed[0] = true;
+            }
+        }
+
+        if (!changed[0]) {
+            return;
+        }
+
+        Map<String, Object> before = history.snapshot(selected);
+        Map<String, Object> patch = new ConcurrentHashMap<>();
+        patch.put("primitiveType", resolvePrimitiveTypeValue(primitiveTypeIndex.get()));
+
+        Map<String, Object> material = new ConcurrentHashMap<>();
+        material.put("r", primitiveColor[0]);
+        material.put("g", primitiveColor[1]);
+        material.put("b", primitiveColor[2]);
+        material.put("a", primitiveColor[3]);
+        String texture = primitiveTextureBuffer.get();
+        if (texture != null && !texture.isBlank()) {
+            material.put("texture", texture);
+        }
+        material.put("unlit", primitiveUnlit.get());
+        material.put("doubleSided", primitiveDoubleSided.get());
+        material.put("renderThroughBlocks", primitiveRenderThroughBlocks.get());
+        patch.put("material", material);
+
+        Map<String, Object> physics = new ConcurrentHashMap<>();
+        physics.put("dynamic", primitiveDynamic.get());
+        physics.put("mass", primitiveMass.get());
+        patch.put("physics", physics);
+
+        session.submitPropertyUpdate(selected.getId(), patch);
+        Map<String, Object> after = new ConcurrentHashMap<>(before);
+        after.putAll(patch);
+        history.recordDiscreteChange(selected.getId(), before, after);
+    }
+
+    private static int resolvePrimitiveTypeIndex(String token) {
+        if (token == null) {
+            return 0;
+        }
+        String normalized = token.trim().toLowerCase(Locale.ROOT);
+        for (int i = 0; i < PRIMITIVE_TYPE_VALUES.length; i++) {
+            if (PRIMITIVE_TYPE_VALUES[i].equals(normalized)) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    private static String resolvePrimitiveTypeValue(int index) {
+        if (index < 0 || index >= PRIMITIVE_TYPE_VALUES.length) {
+            return PRIMITIVE_TYPE_VALUES[0];
+        }
+        return PRIMITIVE_TYPE_VALUES[index];
     }
 
     private void updateUniformBuffers(Map<String, Object> uniforms, boolean isHeightFog) {
@@ -1397,5 +1568,16 @@ public final class InspectorPanel {
         cameraFov.set(70f);
         cameraNear.set(0.1f);
         cameraFar.set(128f);
+        primitiveTypeIndex.set(0);
+        primitiveDynamic.set(false);
+        primitiveMass.set(1.0f);
+        primitiveUnlit.set(false);
+        primitiveDoubleSided.set(false);
+        primitiveRenderThroughBlocks.set(false);
+        primitiveColor[0] = 1f;
+        primitiveColor[1] = 1f;
+        primitiveColor[2] = 1f;
+        primitiveColor[3] = 1f;
+        primitiveTextureBuffer.set("");
     }
 }
