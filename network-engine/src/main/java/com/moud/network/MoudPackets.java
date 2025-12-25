@@ -50,7 +50,8 @@ public final class MoudPackets {
         LINE,
         LINE_STRIP,
         PLANE,
-        CONE
+        CONE,
+        MESH
     }
 
     @Packet(value = "moud:sync_scripts", direction = Direction.SERVER_TO_CLIENT)
@@ -98,6 +99,22 @@ public final class MoudPackets {
     @Packet(value = "moud:player_state", direction = Direction.SERVER_TO_CLIENT)
     public record PlayerStatePacket(@Field(order = 0) boolean hideHotbar, @Field(order = 1) boolean hideHand,
                                     @Field(order = 2) boolean hideExperience) {
+    }
+
+    /**
+     * Smooth player position sync packet - used for server-authoritative movement.
+     * Unlike vanilla teleport, this allows client-side interpolation for smooth rendering.
+     */
+    @Packet(value = "moud:player_position_sync", direction = Direction.SERVER_TO_CLIENT)
+    public record PlayerPositionSyncPacket(
+            @Field(order = 0) double x,
+            @Field(order = 1) double y,
+            @Field(order = 2) double z,
+            @Field(order = 3) double velX,
+            @Field(order = 4) double velY,
+            @Field(order = 5) double velZ,
+            @Field(order = 6) boolean onGround
+    ) {
     }
 
     @Packet(value = "moud:extended_player_state", direction = Direction.SERVER_TO_CLIENT)
@@ -872,6 +889,23 @@ public final class MoudPackets {
         }
     }
 
+    /**
+     * Physics configuration for primitives.
+     * Sent with create packet so client knows how to handle collisions.
+     */
+    public record PrimitivePhysics(
+            @Field(order = 0) boolean hasCollision,    // Whether primitive has collision at all
+            @Field(order = 1) boolean isDynamic,       // Dynamic = falls/moves, Static = fixed
+            @Field(order = 2) float mass               // Mass for dynamic bodies (0 = static)
+    ) {
+        public static final PrimitivePhysics NONE = new PrimitivePhysics(false, false, 0f);
+        public static final PrimitivePhysics STATIC = new PrimitivePhysics(true, false, 0f);
+
+        public static PrimitivePhysics dynamic(float mass) {
+            return new PrimitivePhysics(true, true, mass);
+        }
+    }
+
     @Packet(value = "moud:primitive_create", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_PrimitiveCreatePacket(
             @Field(order = 0) long primitiveId,
@@ -881,7 +915,9 @@ public final class MoudPackets {
             @Field(order = 4) Vector3 scale,
             @Field(order = 5) PrimitiveMaterial material,
             @Field(order = 6, optional = true) @Nullable List<Vector3> vertices,
-            @Field(order = 7, optional = true) @Nullable String groupId
+            @Field(order = 7, optional = true) @Nullable String groupId,
+            @Field(order = 8, optional = true) @Nullable List<Integer> indices,
+            @Field(order = 9, optional = true) @Nullable PrimitivePhysics physics
     ) {
     }
 
@@ -904,7 +940,8 @@ public final class MoudPackets {
     @Packet(value = "moud:primitive_vertices", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_PrimitiveVerticesPacket(
             @Field(order = 0) long primitiveId,
-            @Field(order = 1) List<Vector3> vertices
+            @Field(order = 1) List<Vector3> vertices,
+            @Field(order = 2, optional = true) @Nullable List<Integer> indices
     ) {
     }
 
@@ -934,7 +971,9 @@ public final class MoudPackets {
             @Field(order = 4) Vector3 scale,
             @Field(order = 5) PrimitiveMaterial material,
             @Field(order = 6, optional = true) @Nullable List<Vector3> vertices,
-            @Field(order = 7, optional = true) @Nullable String groupId
+            @Field(order = 7, optional = true) @Nullable String groupId,
+            @Field(order = 8, optional = true) @Nullable List<Integer> indices,
+            @Field(order = 9, optional = true) @Nullable PrimitivePhysics physics
     ) {
     }
 
