@@ -131,6 +131,25 @@ public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEnt
                 );
             }
         }
+
+        Object scaleRaw = object.getProperties().get("scale");
+        if (scaleRaw instanceof Map<?, ?> map) {
+            double sx = SceneEditorOverlay.toDouble(map.get("x"), 1.0);
+            double sy = SceneEditorOverlay.toDouble(map.get("y"), 1.0);
+            double sz = SceneEditorOverlay.toDouble(map.get("z"), 1.0);
+            double hx = Math.max(0.05, Math.abs(sx) * 0.5);
+            double hy = Math.max(0.05, Math.abs(sy) * 0.5);
+            double hz = Math.max(0.05, Math.abs(sz) * 0.5);
+            return new Box(
+                    position.x - hx,
+                    position.y - hy,
+                    position.z - hz,
+                    position.x + hx,
+                    position.y + hy,
+                    position.z + hz
+            );
+        }
+
         double size = 0.75;
         return new Box(
                 position.x - size,

@@ -18,6 +18,7 @@ public final class SceneSessionManager {
     private static final SceneSessionManager INSTANCE = new SceneSessionManager();
 
     private final EditorSceneGraph sceneGraph = new EditorSceneGraph();
+    private final Map<String, PendingEdit> pendingEdits = new ConcurrentHashMap<>();
     private String activeSceneId = "default";
     private boolean awaitingSnapshot;
     private boolean editorActive;
@@ -256,9 +257,11 @@ public final class SceneSessionManager {
         if (!ack.success()) {
             LOGGER.warn("Scene edit failed: {}", ack.message());
             SceneEditorDiagnostics.log("Edit failed: " + ack.message());
+            rollbackPendingEdits(ack.objectId());
             return;
         }
         sceneGraph.applyAcknowledgement(ack);
+        acknowledgePendingEdit(ack.objectId());
         SceneEditorDiagnostics.log("Edit applied (" + ack.message() + ")");
         if (ack.updatedObject() == null && ack.objectId() != null) {
             SceneHistoryManager.getInstance().dropEntriesForObject(ack.objectId());
@@ -288,13 +291,16 @@ public final class SceneSessionManager {
         if (object == null) {
             return;
         }
+        rememberPendingEdit(objectId, object);
+
         ConcurrentHashMap<String, Object> merged = new ConcurrentHashMap<>(object.getProperties());
-        merged.putAll(updatedValues);
+        applyPatch(merged, updatedValues);
+        sceneGraph.mergeProperties(objectId, merged);
+
         ConcurrentHashMap<String, Object> payload = new ConcurrentHashMap<>();
         payload.put("id", objectId);
-        payload.put("properties", merged);
-        sceneGraph.mergeProperties(objectId, merged);
-        submitEdit("update", payload);
+        payload.put("properties", new ConcurrentHashMap<>(updatedValues));
+        submitEdit("patch", payload);
     }
 
     public void submitFullProperties(String objectId, Map<String, Object> newProperties) {
@@ -305,6 +311,7 @@ public final class SceneSessionManager {
         if (object == null) {
             return;
         }
+        rememberPendingEdit(objectId, object);
         ConcurrentHashMap<String, Object> payload = new ConcurrentHashMap<>();
         ConcurrentHashMap<String, Object> copy = new ConcurrentHashMap<>(newProperties);
         payload.put("id", objectId);
@@ -321,18 +328,24 @@ public final class SceneSessionManager {
         if (object == null) {
             return;
         }
-        ConcurrentHashMap<String, Object> merged = new ConcurrentHashMap<>(object.getProperties());
-        merged.put("position", vectorToMap(translation));
-        merged.put("rotation", rotationToMap(rotation));
+        rememberPendingEdit(objectId, object);
+
+        Map<String, Object> patch = new ConcurrentHashMap<>();
+        patch.put("position", vectorToMap(translation));
+        patch.put("rotation", rotationToMap(rotation));
         if (quaternion != null) {
-            merged.put("rotationQuat", quaternionToMap(quaternion));
+            patch.put("rotationQuat", quaternionToMap(quaternion));
         }
-        merged.put("scale", vectorToMap(scale));
+        patch.put("scale", vectorToMap(scale));
+
+        ConcurrentHashMap<String, Object> merged = new ConcurrentHashMap<>(object.getProperties());
+        applyPatch(merged, patch);
+        sceneGraph.mergeProperties(objectId, merged);
+
         ConcurrentHashMap<String, Object> payload = new ConcurrentHashMap<>();
         payload.put("id", objectId);
-        payload.put("properties", merged);
-        sceneGraph.mergeProperties(objectId, merged);
-        submitEdit("update", payload);
+        payload.put("properties", patch);
+        submitEdit("patch", payload);
     }
 
     public void mergeAnimationProperty(String sceneId, String objectId, String propertyKey, com.moud.api.animation.PropertyTrack.PropertyType propertyType, float value, Map<String, Object> payload) {
@@ -445,8 +458,78 @@ public final class SceneSessionManager {
         return activeSceneId;
     }
 
+    public boolean isEditorActive() {
+        return editorActive;
+    }
+
     public EditorSceneGraph getSceneGraph() {
         return sceneGraph;
+    }
+
+    private void rememberPendingEdit(String objectId, SceneObject object) {
+        if (objectId == null || object == null) {
+            return;
+        }
+        pendingEdits.compute(objectId, (key, existing) -> {
+            if (existing == null) {
+                return new PendingEdit(new ConcurrentHashMap<>(object.getProperties()), 1);
+            }
+            existing.inFlight++;
+            return existing;
+        });
+    }
+
+    private void acknowledgePendingEdit(String objectId) {
+        if (objectId == null) {
+            return;
+        }
+        pendingEdits.computeIfPresent(objectId, (key, existing) -> {
+            existing.inFlight = Math.max(0, existing.inFlight - 1);
+            return existing.inFlight <= 0 ? null : existing;
+        });
+    }
+
+    private void rollbackPendingEdits(String objectId) {
+        if (objectId != null) {
+            PendingEdit pending = pendingEdits.remove(objectId);
+            if (pending != null) {
+                sceneGraph.mergeProperties(objectId, new ConcurrentHashMap<>(pending.before));
+            }
+        } else {
+            pendingEdits.forEach((key, pending) -> {
+                if (pending != null) {
+                    sceneGraph.mergeProperties(key, new ConcurrentHashMap<>(pending.before));
+                }
+            });
+            pendingEdits.clear();
+        }
+        forceRefresh();
+    }
+
+    private void applyPatch(Map<String, Object> target, Map<String, Object> patch) {
+        if (target == null || patch == null) {
+            return;
+        }
+        patch.forEach((key, value) -> {
+            if (key == null) {
+                return;
+            }
+            if (value == null) {
+                target.remove(key);
+            } else {
+                target.put(key, value);
+            }
+        });
+    }
+
+    private static final class PendingEdit {
+        private final Map<String, Object> before;
+        private int inFlight;
+
+        private PendingEdit(Map<String, Object> before, int inFlight) {
+            this.before = before;
+            this.inFlight = inFlight;
+        }
     }
 
     private Map<String, Object> vectorToMap(Vector3 vec) {
