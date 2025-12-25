@@ -42,5 +42,12 @@ public enum PrimitiveType {
     /**
      * A cone pointing along the Y axis.
      */
-    CONE
+    CONE,
+
+    /**
+     * Custom indexed triangle mesh.
+     * <p>
+     * Geometry is provided via {@link com.moud.plugin.api.services.primitives.PrimitiveHandle#setMesh(List, List)}.
+     */
+    MESH
 }

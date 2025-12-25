@@ -150,6 +150,42 @@ public interface PrimitiveService {
     }
 
     /**
+     * Creates a custom indexed triangle mesh primitive.
+     * <p>
+     * Vertices are in local space. When {@code indices} is null/empty, {@code vertices} is interpreted as a triangle
+     * list (every 3 vertices forms one triangle). When {@code indices} is provided, it must reference {@code vertices}
+     * and be a multiple of 3 (triangle indices).
+     *
+     * @param position Center position
+     * @param rotation Rotation
+     * @param scale Scale
+     * @param vertices Mesh vertices (local space)
+     * @param indices Optional triangle indices
+     * @param material Material/color settings
+     * @param groupId Optional group ID for batch operations
+     * @return Handle to the created primitive
+     */
+    PrimitiveHandle createMesh(Vector3 position, Quaternion rotation, Vector3 scale,
+                               List<Vector3> vertices, List<Integer> indices,
+                               PrimitiveMaterial material, String groupId);
+
+    /**
+     * Creates a mesh with full control, no group.
+     */
+    default PrimitiveHandle createMesh(Vector3 position, Quaternion rotation, Vector3 scale,
+                                       List<Vector3> vertices, List<Integer> indices,
+                                       PrimitiveMaterial material) {
+        return createMesh(position, rotation, scale, vertices, indices, material, null);
+    }
+
+    /**
+     * Creates a mesh with identity rotation and scale.
+     */
+    default PrimitiveHandle createMesh(Vector3 position, List<Vector3> vertices, List<Integer> indices, PrimitiveMaterial material) {
+        return createMesh(position, Quaternion.identity(), Vector3.one(), vertices, indices, material, null);
+    }
+
+    /**
      * Creates a primitive with full control over all parameters.
      *
      * @param type Primitive type
