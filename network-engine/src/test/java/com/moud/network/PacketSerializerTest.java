@@ -1,6 +1,7 @@
 package com.moud.network;
 
 import com.moud.api.math.Vector3;
+import com.moud.api.math.Quaternion;
 import com.moud.network.buffer.ByteBuffer;
 import com.moud.network.limits.NetworkLimits;
 import com.moud.network.metadata.PacketMetadata;
@@ -142,6 +143,37 @@ class PacketSerializerTest {
         );
 
         assertEquals(packet, decoded, "SceneEditAckPacket did not round-trip with optional data");
+    }
+
+    @Test
+    void roundTripsPrimitiveCreatePacketWithPhysics() {
+        PacketMetadata metadata = requireMetadata(MoudPackets.S2C_PrimitiveCreatePacket.class);
+
+        MoudPackets.S2C_PrimitiveCreatePacket packet = new MoudPackets.S2C_PrimitiveCreatePacket(
+                42L,
+                MoudPackets.PrimitiveType.CUBE,
+                new Vector3(1.0f, 2.0f, 3.0f),
+                new Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+                new Vector3(0.8f, 0.8f, 0.8f),
+                MoudPackets.PrimitiveMaterial.solid(0.3f, 0.7f, 0.9f),
+                null,
+                "group-test",
+                List.of(0, 1, 2),
+                MoudPackets.PrimitivePhysics.dynamic(1.0f)
+        );
+
+        TestByteBuffer writeBuffer = new TestByteBuffer();
+        byte[] bytes = serializer.serialize(packet, metadata, writeBuffer);
+
+        TestByteBuffer readBuffer = new TestByteBuffer(bytes);
+        MoudPackets.S2C_PrimitiveCreatePacket decoded = serializer.deserialize(
+                bytes,
+                MoudPackets.S2C_PrimitiveCreatePacket.class,
+                metadata,
+                readBuffer
+        );
+
+        assertEquals(packet, decoded, "S2C_PrimitiveCreatePacket did not round-trip with physics");
     }
 
     @Test

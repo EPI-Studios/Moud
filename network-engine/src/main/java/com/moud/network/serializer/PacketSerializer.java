@@ -51,6 +51,7 @@ public class PacketSerializer {
         register(com.moud.api.particle.ParticleEmitterConfig.class, new ParticleEmitterConfigSerializer());
         register(MoudPackets.UIElementDefinition.class, new UIElementDefinitionSerializer());
         register(MoudPackets.PrimitiveMaterial.class, new PrimitiveMaterialSerializer());
+        register(MoudPackets.PrimitivePhysics.class, new PrimitivePhysicsSerializer());
         register(MoudPackets.PrimitiveBatchEntry.class, new PrimitiveBatchEntrySerializer());
         register(MoudPackets.PrimitiveTransformEntry.class, new PrimitiveTransformEntrySerializer());
         register(MoudPackets.IKJointData.class, new IKJointDataSerializer());
@@ -465,12 +466,22 @@ public class PacketSerializer {
             boolean hasVerts = value.vertices() != null;
             buffer.writeBoolean(hasVerts);
             if (hasVerts) {
-                writeValue(buffer, value.vertices(), List.class, value.getClass().getRecordComponents()[6].getGenericType());
+                writeValue(buffer, value.vertices(), List.class, MoudPackets.PrimitiveBatchEntry.class.getRecordComponents()[6].getGenericType());
             }
             boolean hasGroup = value.groupId() != null;
             buffer.writeBoolean(hasGroup);
             if (hasGroup) {
                 buffer.writeString(value.groupId());
+            }
+            boolean hasIndices = value.indices() != null;
+            buffer.writeBoolean(hasIndices);
+            if (hasIndices) {
+                writeValue(buffer, value.indices(), List.class, MoudPackets.PrimitiveBatchEntry.class.getRecordComponents()[8].getGenericType());
+            }
+            boolean hasPhysics = value.physics() != null;
+            buffer.writeBoolean(hasPhysics);
+            if (hasPhysics) {
+                writeValue(buffer, value.physics(), MoudPackets.PrimitivePhysics.class, MoudPackets.PrimitivePhysics.class);
             }
         }
 
@@ -487,7 +498,12 @@ public class PacketSerializer {
             List<Vector3> verts = hasVerts ? (List<Vector3>) readValue(buffer, List.class, MoudPackets.PrimitiveBatchEntry.class.getRecordComponents()[6].getGenericType()) : null;
             boolean hasGroup = buffer.readBoolean();
             String groupId = hasGroup ? buffer.readString() : null;
-            return new MoudPackets.PrimitiveBatchEntry(id, type, pos, rot, scale, mat, verts, groupId);
+            boolean hasIndices = buffer.readBoolean();
+            @SuppressWarnings("unchecked")
+            List<Integer> indices = hasIndices ? (List<Integer>) readValue(buffer, List.class, MoudPackets.PrimitiveBatchEntry.class.getRecordComponents()[8].getGenericType()) : null;
+            boolean hasPhysics = buffer.readBoolean();
+            MoudPackets.PrimitivePhysics physics = hasPhysics ? (MoudPackets.PrimitivePhysics) readValue(buffer, MoudPackets.PrimitivePhysics.class, MoudPackets.PrimitivePhysics.class) : null;
+            return new MoudPackets.PrimitiveBatchEntry(id, type, pos, rot, scale, mat, verts, groupId, indices, physics);
         }
     }
 
@@ -522,6 +538,23 @@ public class PacketSerializer {
             Vector3 pos = (Vector3) readValue(buffer, Vector3.class, Vector3.class);
             Quaternion rot = (Quaternion) readValue(buffer, Quaternion.class, Quaternion.class);
             return new MoudPackets.IKJointData(pos, rot);
+        }
+    }
+
+    private class PrimitivePhysicsSerializer implements TypeSerializer<MoudPackets.PrimitivePhysics> {
+        @Override
+        public void write(ByteBuffer buffer, MoudPackets.PrimitivePhysics value) {
+            writeValue(buffer, value.hasCollision(), boolean.class, boolean.class);
+            writeValue(buffer, value.isDynamic(), boolean.class, boolean.class);
+            writeValue(buffer, value.mass(), float.class, float.class);
+        }
+
+        @Override
+        public MoudPackets.PrimitivePhysics read(ByteBuffer buffer) {
+            boolean hasCollision = (boolean) readValue(buffer, boolean.class, boolean.class);
+            boolean isDynamic = (boolean) readValue(buffer, boolean.class, boolean.class);
+            float mass = (float) readValue(buffer, float.class, float.class);
+            return new MoudPackets.PrimitivePhysics(hasCollision, isDynamic, mass);
         }
     }
 }
