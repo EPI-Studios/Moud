@@ -2,6 +2,7 @@ package com.moud.server.instance;
 
 import com.moud.server.editor.SceneDefaults;
 import com.moud.server.logging.MoudLogger;
+import com.moud.server.physics.PhysicsService;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
@@ -10,18 +11,28 @@ import net.minestom.server.event.player.PlayerSpawnEvent;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.instance.SharedInstance;
-import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.LightingChunk;
 import net.minestom.server.tag.Tag;
+import net.minestom.server.timer.Task;
+import net.minestom.server.timer.TaskSchedule;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class InstanceManager {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(InstanceManager.class);
@@ -30,27 +41,34 @@ public class InstanceManager {
     private final net.minestom.server.instance.InstanceManager minestomInstanceManager;
     private final Map<String, Instance> namedInstances;
     private final Map<UUID, Instance> instanceRegistry;
+    private final Path projectRoot;
+    private final SceneTerrainGenerator terrainGenerator = new SceneTerrainGenerator();
     private InstanceContainer defaultInstance;
     private InstanceContainer limboInstance;
+    private Task autosaveTask;
+    private final AtomicBoolean autosaveInProgress = new AtomicBoolean(false);
+    private final AtomicBoolean autosavePending = new AtomicBoolean(false);
     public static final Tag<Pos> SPAWN_TAG = Tag.Transient("moud:spawn");
     private static final Pos FALLBACK_SPAWN = new Pos(0.5, 66, 0.5);
-    private static final int CHUNK_SIZE = 16;
-    private static final int DEFAULT_WORLD_RADIUS_CHUNKS =
-            (int) Math.ceil((SceneDefaults.BASE_SCENE_SIZE_BLOCKS / 2.0) / (double) CHUNK_SIZE);
 
     public static synchronized void install(InstanceManager instanceManager) {
         instance = Objects.requireNonNull(instanceManager, "instanceManager");
     }
 
-    public InstanceManager() {
+    public InstanceManager(Path projectRoot) {
         this.minestomInstanceManager = MinecraftServer.getInstanceManager();
         this.namedInstances = new ConcurrentHashMap<>();
         this.instanceRegistry = new ConcurrentHashMap<>();
+        this.projectRoot = projectRoot;
+    }
+
+    public InstanceManager() {
+        this(null);
     }
 
     public static synchronized InstanceManager getInstance() {
         if (instance == null) {
-            instance = new InstanceManager();
+            instance = new InstanceManager(null);
         }
         return instance;
     }
@@ -62,6 +80,7 @@ public class InstanceManager {
         registerSpawnListener();
         int preloadRadius = Integer.parseInt(System.getProperty("moud.chunk.preloadRadius", "3"));
         new ChunkPreloader(preloadRadius).register();
+        configureAutosave();
     }
 
     private void registerSpawnListener() {
@@ -98,11 +117,12 @@ public class InstanceManager {
         if (defaultInstance == null) {
             defaultInstance = minestomInstanceManager.createInstanceContainer();
             defaultInstance.setChunkSupplier(LightingChunk::new);
-            defaultInstance.setGenerator(unit -> {});
+            defaultInstance.setGenerator(terrainGenerator::generate);
             defaultInstance.setTag(SPAWN_TAG, new Pos(0.5, SceneDefaults.defaultSpawnY(), 0.5));
+            configureDefaultChunkLoader(defaultInstance);
             namedInstances.put("default", defaultInstance);
             instanceRegistry.put(defaultInstance.getUniqueId(), defaultInstance);
-            LOGGER.info("Default instance created with flat world generator");
+            LOGGER.info("Default instance created with scene terrain generator");
         }
     }
 
@@ -121,6 +141,213 @@ public class InstanceManager {
             createDefaultInstance();
         }
         return defaultInstance;
+    }
+
+    public void updateDefaultTerrain(SceneTerrainGenerator.TerrainSettings settings) {
+        if (settings == null) {
+            return;
+        }
+        terrainGenerator.setSettings(settings);
+    }
+
+    private void configureAutosave() {
+        if (projectRoot == null) {
+            return;
+        }
+
+        long autosaveSeconds;
+        try {
+            String raw = System.getProperty("moud.scene.autosaveSeconds");
+            if (raw == null) {
+                raw = System.getProperty("moud.world.autosaveSeconds", "60");
+            }
+            autosaveSeconds = Long.parseLong(raw);
+        } catch (NumberFormatException e) {
+            autosaveSeconds = 60;
+        }
+
+        if (autosaveSeconds <= 0) {
+            return;
+        }
+
+        autosaveTask = MinecraftServer.getSchedulerManager()
+                .buildTask(this::autosaveDefaultInstance)
+                .repeat(TaskSchedule.seconds(autosaveSeconds))
+                .schedule();
+        LOGGER.info("Default scene autosave enabled (every {}s)", autosaveSeconds);
+    }
+
+    private void autosaveDefaultInstance() {
+        InstanceContainer instance = defaultInstance;
+        if (instance == null) {
+            return;
+        }
+        if (!autosaveInProgress.compareAndSet(false, true)) {
+            autosavePending.set(true);
+            return;
+        }
+
+        instance.saveChunksToStorage().whenComplete((ignored, throwable) -> {
+            autosaveInProgress.set(false);
+            if (throwable != null) {
+                LOGGER.error("Default scene autosave failed", throwable);
+            }
+            if (autosavePending.getAndSet(false)) {
+                autosaveDefaultInstance();
+            }
+        });
+    }
+
+    public void requestSceneSave(String sceneId) {
+        if (sceneId == null) {
+            return;
+        }
+        if (!SceneDefaults.DEFAULT_SCENE_ID.equals(sceneId)) {
+            return;
+        }
+        autosaveDefaultInstance();
+    }
+
+    private void configureDefaultChunkLoader(InstanceContainer instance) {
+        if (instance == null || projectRoot == null) {
+            return;
+        }
+
+        Path sceneDirectory = projectRoot.resolve(".moud").resolve("scenes");
+        Path sceneWorldFile = sceneDirectory.resolve(SceneDefaults.DEFAULT_SCENE_ID + ".polar");
+        try {
+            Files.createDirectories(sceneDirectory);
+            SceneWorldAccess worldAccess = new SceneWorldAccess(SceneDefaults.DEFAULT_SCENE_ID, projectRoot);
+            SceneWorldChunkLoader loader = new SceneWorldChunkLoader(sceneWorldFile, worldAccess);
+            if (!ensureMigratedDefaultWorld(instance, sceneWorldFile, loader)) {
+                instance.setChunkLoader(loader);
+                loader.loadInstance(instance);
+            }
+            LOGGER.info("Default scene storage set to {}", sceneWorldFile);
+        } catch (IOException e) {
+            LOGGER.error("Failed to configure default scene storage at {}", sceneWorldFile, e);
+        }
+    }
+
+    private boolean ensureMigratedDefaultWorld(
+            InstanceContainer instance,
+            Path sceneWorldFile,
+            SceneWorldChunkLoader worldLoader
+    ) {
+        if (instance == null || sceneWorldFile == null || Files.exists(sceneWorldFile) || projectRoot == null || worldLoader == null) {
+            return false;
+        }
+
+        Path legacyWorldPath = projectRoot.resolve(".moud").resolve("worlds").resolve("default");
+        if (!Files.isDirectory(legacyWorldPath)) {
+            return false;
+        }
+
+        LOGGER.info("Migrating legacy Anvil scene world {} to {}", legacyWorldPath, sceneWorldFile);
+
+        List<ChunkCoord> chunksToLoad = listAnvilChunks(legacyWorldPath);
+        if (chunksToLoad.isEmpty()) {
+            LOGGER.warn("Legacy Anvil world {} contains no region chunks; skipping migration", legacyWorldPath);
+            return false;
+        }
+
+        try {
+            instance.setChunkLoader(new SafeAnvilLoader(legacyWorldPath));
+
+            int loadedChunks = 0;
+            for (ChunkCoord coord : chunksToLoad) {
+                try {
+                    if (instance.loadChunk(coord.x(), coord.z()).join() != null) {
+                        loadedChunks++;
+                    }
+                } catch (Exception e) {
+                    LOGGER.debug("Failed to load legacy chunk {}, {} during migration", coord.x(), coord.z(), e);
+                }
+            }
+
+            instance.setChunkLoader(worldLoader);
+            worldLoader.loadInstance(instance);
+            instance.saveChunksToStorage().join();
+            LOGGER.info(
+                    "Migrated {} chunks from legacy Anvil world {} to {}",
+                    loadedChunks,
+                    legacyWorldPath,
+                    sceneWorldFile
+            );
+            return true;
+        } catch (Throwable t) {
+            LOGGER.warn("Failed to migrate legacy Anvil world {} to {}", legacyWorldPath, sceneWorldFile, t);
+            return false;
+        }
+    }
+
+    private static final Pattern REGION_FILE_PATTERN = Pattern.compile("^r\\.(?<x>-?\\d+)\\.(?<z>-?\\d+)\\.mca$");
+
+    private static List<ChunkCoord> listAnvilChunks(Path anvilWorldPath) {
+        if (anvilWorldPath == null) {
+            return List.of();
+        }
+        Path regionDir = anvilWorldPath.resolve("region");
+        if (!Files.isDirectory(regionDir)) {
+            return List.of();
+        }
+
+        List<ChunkCoord> result = new ArrayList<>();
+        try (var paths = Files.list(regionDir)) {
+            paths.filter(Files::isRegularFile).forEach(path -> {
+                String filename = path.getFileName().toString();
+                Matcher matcher = REGION_FILE_PATTERN.matcher(filename);
+                if (!matcher.matches()) {
+                    return;
+                }
+                int regionX;
+                int regionZ;
+                try {
+                    regionX = Integer.parseInt(matcher.group("x"));
+                    regionZ = Integer.parseInt(matcher.group("z"));
+                } catch (NumberFormatException ignored) {
+                    return;
+                }
+
+                byte[] locations = readRegionLocations(path);
+                if (locations == null || locations.length < 4096) {
+                    return;
+                }
+                for (int i = 0; i < 1024; i++) {
+                    int base = i * 4;
+                    int offset = ((locations[base] & 0xFF) << 16)
+                            | ((locations[base + 1] & 0xFF) << 8)
+                            | (locations[base + 2] & 0xFF);
+                    int sectors = locations[base + 3] & 0xFF;
+                    if (offset == 0 || sectors == 0) {
+                        continue;
+                    }
+                    int localX = i & 31;
+                    int localZ = (i >> 5) & 31;
+                    result.add(new ChunkCoord(regionX * 32 + localX, regionZ * 32 + localZ));
+                }
+            });
+        } catch (IOException e) {
+            return List.of();
+        }
+
+        return result;
+    }
+
+    private static byte[] readRegionLocations(Path regionFile) {
+        try (FileChannel channel = FileChannel.open(regionFile, StandardOpenOption.READ)) {
+            ByteBuffer buffer = ByteBuffer.allocate(4096);
+            int read = channel.read(buffer);
+            if (read <= 0) {
+                return null;
+            }
+            return buffer.array();
+        } catch (IOException ignored) {
+            return null;
+        }
+    }
+
+    private record ChunkCoord(int x, int z) {
     }
 
     public InstanceContainer createInstance(String name) {
@@ -158,6 +385,21 @@ public class InstanceManager {
     }
 
     public InstanceContainer loadWorld(String name, Path worldPath) {
+        return loadWorld(name, worldPath, null);
+    }
+
+    public InstanceContainer loadWorld(String name, Path worldPath, String sceneId) {
+        if (worldPath != null && isSceneWorldFile(worldPath)) {
+            String resolvedSceneId = (sceneId == null || sceneId.isBlank())
+                    ? guessSceneId(worldPath, name)
+                    : sceneId;
+            return loadSceneWorldFile(name, worldPath, resolvedSceneId);
+        }
+
+        if (worldPath != null && Files.isRegularFile(worldPath)) {
+            throw new IllegalArgumentException("World path must be a directory or a .polar file: " + worldPath);
+        }
+
         if (namedInstances.containsKey(name)) {
             LOGGER.warn("Instance with name '{}' already exists, cannot load world", name);
             Instance existing = namedInstances.get(name);
@@ -186,6 +428,73 @@ public class InstanceManager {
         instanceRegistry.put(instance.getUniqueId(), instance);
         LOGGER.info("Loaded world from {} into instance: {} ({}/25 chunks loaded)", worldPath, name, loadedChunks);
         return instance;
+    }
+
+    private InstanceContainer loadSceneWorldFile(String name, Path sceneWorldFile, String sceneId) {
+        if (namedInstances.containsKey(name)) {
+            LOGGER.warn("Instance with name '{}' already exists, cannot load world", name);
+            Instance existing = namedInstances.get(name);
+            if (existing instanceof InstanceContainer) {
+                return (InstanceContainer) existing;
+            }
+            throw new IllegalStateException("Instance exists but is not a container");
+        }
+
+        if (sceneWorldFile == null) {
+            throw new IllegalArgumentException("worldPath cannot be null");
+        }
+
+        InstanceContainer instance = minestomInstanceManager.createInstanceContainer();
+        instance.setChunkSupplier(LightingChunk::new);
+        instance.setTag(SPAWN_TAG, new Pos(0.5, SceneDefaults.defaultSpawnY(), 0.5));
+
+        try {
+            Path parent = sceneWorldFile.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+
+            SceneWorldAccess worldAccess = new SceneWorldAccess(sceneId, projectRoot);
+            SceneWorldChunkLoader loader = new SceneWorldChunkLoader(sceneWorldFile, worldAccess);
+            instance.setChunkLoader(loader);
+            loader.loadInstance(instance);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to load world from " + sceneWorldFile, e);
+        }
+
+        namedInstances.put(name, instance);
+        instanceRegistry.put(instance.getUniqueId(), instance);
+        LOGGER.info("Loaded world from {} into instance '{}' (sceneId='{}')", sceneWorldFile, name, sceneId);
+        return instance;
+    }
+
+    private static String guessSceneId(Path worldPath, String fallback) {
+        if (worldPath == null) {
+            return Objects.requireNonNullElse(fallback, "");
+        }
+        Path fileName = worldPath.getFileName();
+        if (fileName == null) {
+            return Objects.requireNonNullElse(fallback, "");
+        }
+        String filename = fileName.toString();
+        if (filename.endsWith(".polar")) {
+            String stem = filename.substring(0, filename.length() - ".polar".length());
+            if (!stem.isBlank()) {
+                return stem;
+            }
+        }
+        return Objects.requireNonNullElse(fallback, "");
+    }
+
+    private static boolean isSceneWorldFile(Path path) {
+        if (path == null) {
+            return false;
+        }
+        Path fileName = path.getFileName();
+        if (fileName == null) {
+            return false;
+        }
+        return fileName.toString().endsWith(".polar");
     }
 
     public void saveInstance(String name) {
@@ -248,8 +557,12 @@ public class InstanceManager {
     public void setDefaultInstance(String name) {
         Instance instance = namedInstances.get(name);
         if (instance instanceof InstanceContainer) {
+            InstanceContainer previous = this.defaultInstance;
             this.defaultInstance = (InstanceContainer) instance;
             LOGGER.info("Default instance set to: {}", name);
+            if (previous != this.defaultInstance) {
+                PhysicsService.getInstance().onDefaultInstanceChanged(this.defaultInstance);
+            }
         } else {
             LOGGER.warn("Cannot set default instance: '{}' is not a container instance", name);
         }
@@ -259,9 +572,32 @@ public class InstanceManager {
         return Map.copyOf(namedInstances);
     }
 
+    private CompletableFuture<Void> saveAllInstancesToStorage() {
+        List<CompletableFuture<Void>> saves = new ArrayList<>();
+        for (Map.Entry<String, Instance> entry : namedInstances.entrySet()) {
+            Instance instance = entry.getValue();
+            if (!(instance instanceof InstanceContainer container)) {
+                continue;
+            }
+            saves.add(container.saveChunksToStorage());
+        }
+
+        if (saves.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return CompletableFuture.allOf(saves.toArray(new CompletableFuture[0]));
+    }
+
     public void shutdown() {
         LOGGER.info("Shutting down instance manager");
-        saveAllInstances();
+        if (autosaveTask != null) {
+            autosaveTask.cancel();
+        }
+        try {
+            saveAllInstancesToStorage().orTimeout(30, TimeUnit.SECONDS).join();
+        } catch (RuntimeException e) {
+            LOGGER.error("Failed to save instances during shutdown", e);
+        }
         namedInstances.clear();
         instanceRegistry.clear();
     }

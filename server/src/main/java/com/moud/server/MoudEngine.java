@@ -179,11 +179,11 @@ public class MoudEngine {
             ParticleEmitterManager.install(particleEmitterManager);
             particleEmitterManager.initialize(networkManager);
             registerDefaultSystems();
-            sceneManager.initializeRuntimeAdapters();
 
             this.physicsService = new PhysicsService();
             PhysicsService.install(physicsService);
             physicsService.initialize();
+            sceneManager.initializeRuntimeAdapters();
 
             this.cursorService = new CursorService(networkManager);
             CursorService.install(cursorService);

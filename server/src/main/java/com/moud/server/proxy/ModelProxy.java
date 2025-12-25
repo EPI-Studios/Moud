@@ -547,7 +547,7 @@ public class ModelProxy implements Transformable, SyncableObject {
     public void setCollisionBoxes(List<OBB> boxes) {
         this.collisionBoxes = new ArrayList<>(boxes);
         List<BoundingBox> minestomBoxes = MinestomCollisionAdapter.convertToBoundingBoxes(
-                boxes, position, rotation, scale
+                boxes, rotation, scale
         );
         if (!manualCollisionOverride && !minestomBoxes.isEmpty()) {
             BoundingBox mainBox = MinestomCollisionAdapter.getLargestBox(minestomBoxes);
