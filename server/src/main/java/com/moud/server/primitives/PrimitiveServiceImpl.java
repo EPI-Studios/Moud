@@ -8,6 +8,9 @@ import com.moud.plugin.api.services.PrimitiveService;
 import com.moud.plugin.api.services.primitives.PrimitiveHandle;
 import com.moud.plugin.api.services.primitives.PrimitiveMaterial;
 import com.moud.plugin.api.services.primitives.PrimitiveType;
+import com.moud.server.instance.InstanceManager;
+import com.moud.server.physics.PrimitivePhysicsManager;
+import net.minestom.server.entity.Player;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +42,83 @@ public class PrimitiveServiceImpl implements PrimitiveService {
 
     public void setPacketSender(PrimitivePacketSender sender) {
         this.packetSender = sender;
+    }
+
+    public PrimitiveHandle createWithPhysics(
+            PrimitiveType type,
+            Vector3 position,
+            Quaternion rotation,
+            Vector3 scale,
+            PrimitiveMaterial material,
+            String groupId,
+            boolean dynamic,
+            float mass
+    ) {
+        long id = idCounter.getAndIncrement();
+        PrimitiveInstance prim = new PrimitiveInstance(id, type, position, rotation, scale, material, groupId, this);
+        prim.configurePhysics(dynamic, mass);
+        LOGGER.info("Creating primitive {} type={} pos={} scale={} group={} dynamic={} mass={}",
+                id, type, position, scale, groupId, dynamic, mass);
+        primitives.put(id, prim);
+        if (groupId != null) {
+            groups.computeIfAbsent(groupId, k -> ConcurrentHashMap.newKeySet()).add(id);
+        }
+        if (batching) {
+            batchCreates.add(prim);
+        } else {
+            broadcastCreate(prim);
+        }
+        com.moud.server.physics.PrimitivePhysicsManager.getInstance()
+                .onCreate(prim, com.moud.server.instance.InstanceManager.getInstance().getDefaultInstance());
+        return prim;
+    }
+
+    public PrimitiveHandle createMeshWithPhysics(
+            Vector3 position,
+            Quaternion rotation,
+            Vector3 scale,
+            List<Vector3> vertices,
+            List<Integer> indices,
+            PrimitiveMaterial material,
+            String groupId,
+            boolean dynamic,
+            float mass
+    ) {
+        long id = idCounter.getAndIncrement();
+        PrimitiveInstance prim = new PrimitiveInstance(id, PrimitiveType.MESH, position, rotation, scale, material, groupId, this, vertices, indices);
+        prim.configurePhysics(dynamic, mass);
+        LOGGER.info("Creating primitive {} type={} pos={} scale={} group={} verts={} indices={} dynamic={} mass={}",
+                id, PrimitiveType.MESH, prim.getPosition(), prim.getScale(), groupId, prim.getVertices().size(), prim.getIndices().size(), dynamic, mass);
+        primitives.put(id, prim);
+        if (groupId != null) {
+            groups.computeIfAbsent(groupId, k -> ConcurrentHashMap.newKeySet()).add(id);
+        }
+        if (batching) {
+            batchCreates.add(prim);
+        } else {
+            broadcastCreate(prim);
+        }
+        PrimitivePhysicsManager.getInstance()
+                .onCreate(prim, InstanceManager.getInstance().getDefaultInstance());
+        return prim;
+    }
+
+    public void applyPhysicsTransform(long primitiveId, Vector3 position, Quaternion rotation) {
+        PrimitiveInstance prim = primitives.get(primitiveId);
+        if (prim == null || prim.isRemoved()) {
+            return;
+        }
+        prim.applyPhysicsTransform(position, rotation);
+        if (packetSender == null) {
+            return;
+        }
+        S2C_PrimitiveTransformPacket packet = new S2C_PrimitiveTransformPacket(
+                prim.getId(),
+                prim.getPosition(),
+                prim.getRotation(),
+                prim.getScale()
+        );
+        packetSender.broadcastToAll(packet);
     }
 
     @Override
@@ -110,6 +190,27 @@ public class PrimitiveServiceImpl implements PrimitiveService {
         PrimitiveInstance prim = (PrimitiveInstance) create(PrimitiveType.CUBE, Vector3.zero(),
                 Quaternion.identity(), Vector3.one(), material, null);
         prim.setFromTo(from, to, thickness);
+        return prim;
+    }
+
+    @Override
+    public PrimitiveHandle createMesh(Vector3 position, Quaternion rotation, Vector3 scale,
+                                      List<Vector3> vertices, List<Integer> indices,
+                                      PrimitiveMaterial material, String groupId) {
+        long id = idCounter.getAndIncrement();
+        PrimitiveInstance prim = new PrimitiveInstance(id, PrimitiveType.MESH, position, rotation, scale, material, groupId, this, vertices, indices);
+        LOGGER.info("Creating primitive {} type={} pos={} scale={} group={} verts={} indices={}",
+                id, PrimitiveType.MESH, prim.getPosition(), prim.getScale(), groupId, prim.getVertices().size(), prim.getIndices().size());
+        primitives.put(id, prim);
+        if (groupId != null) {
+            groups.computeIfAbsent(groupId, k -> ConcurrentHashMap.newKeySet()).add(id);
+        }
+        if (batching) {
+            batchCreates.add(prim);
+        } else {
+            broadcastCreate(prim);
+        }
+        com.moud.server.physics.PrimitivePhysicsManager.getInstance().onCreate(prim, com.moud.server.instance.InstanceManager.getInstance().getDefaultInstance());
         return prim;
     }
 
@@ -210,7 +311,7 @@ public class PrimitiveServiceImpl implements PrimitiveService {
         if (!batchTransforms.isEmpty()) {
             broadcastBatchTransform(batchTransforms);
             for (PrimitiveInstance prim : batchTransforms) {
-                com.moud.server.physics.PrimitivePhysicsManager.getInstance().onTransform(prim);
+                PrimitivePhysicsManager.getInstance().onTransform(prim);
             }
             batchTransforms.clear();
         }
@@ -230,19 +331,24 @@ public class PrimitiveServiceImpl implements PrimitiveService {
             }
         }
         broadcastRemove(prim);
-        com.moud.server.physics.PrimitivePhysicsManager.getInstance().onRemove(prim.getId());
+       PrimitivePhysicsManager.getInstance().onRemove(prim.getId());
     }
 
     void broadcastCreate(PrimitiveInstance prim) {
         if (packetSender == null) return;
-        LOGGER.info("Broadcasting primitive_create id={} type={} pos={} scale={} group={} verts={}",
+        LOGGER.info("Broadcasting primitive_create id={} type={} pos={} scale={} group={} verts={} indices={} dynamic={} mass={}",
                 prim.getId(), prim.getType(), prim.getPosition(), prim.getScale(), prim.getGroupId(),
-                prim.getVertices() != null ? prim.getVertices().size() : 0);
+                prim.getVertices() != null ? prim.getVertices().size() : 0,
+                prim.getIndices() != null ? prim.getIndices().size() : 0,
+                prim.isPhysicsDynamic(), prim.getPhysicsMass());
         PrimitiveMaterial mat = prim.getMaterial();
         com.moud.network.MoudPackets.PrimitiveMaterial packetMat = new com.moud.network.MoudPackets.PrimitiveMaterial(
                 mat.r, mat.g, mat.b, mat.a, mat.texture, mat.unlit, mat.doubleSided, mat.renderThroughBlocks
         );
         com.moud.network.MoudPackets.PrimitiveType packetType = convertType(prim.getType());
+
+        MoudPackets.PrimitivePhysics physics = buildPhysicsInfo(prim);
+
         S2C_PrimitiveCreatePacket packet = new S2C_PrimitiveCreatePacket(
                 prim.getId(),
                 packetType,
@@ -251,9 +357,23 @@ public class PrimitiveServiceImpl implements PrimitiveService {
                 prim.getScale(),
                 packetMat,
                 prim.getVertices().isEmpty() ? null : prim.getVertices(),
-                prim.getGroupId()
+                prim.getGroupId(),
+                prim.getIndices().isEmpty() ? null : prim.getIndices(),
+                physics
         );
         packetSender.broadcastToAll(packet);
+    }
+
+    private MoudPackets.PrimitivePhysics buildPhysicsInfo(PrimitiveInstance prim) {
+        // LINE and LINE_STRIP have no physics
+        if (prim.getType() == PrimitiveType.LINE || prim.getType() == PrimitiveType.LINE_STRIP) {
+            return MoudPackets.PrimitivePhysics.NONE;
+        }
+        // all other primitives have collision
+        if (prim.isPhysicsDynamic()) {
+            return MoudPackets.PrimitivePhysics.dynamic(prim.getPhysicsMass());
+        }
+        return MoudPackets.PrimitivePhysics.STATIC;
     }
 
     void broadcastTransform(PrimitiveInstance prim) {
@@ -269,13 +389,13 @@ public class PrimitiveServiceImpl implements PrimitiveService {
                 prim.getScale()
         );
         packetSender.broadcastToAll(packet);
-        com.moud.server.physics.PrimitivePhysicsManager.getInstance().onTransform(prim);
+        PrimitivePhysicsManager.getInstance().onTransform(prim);
     }
 
     void broadcastMaterial(PrimitiveInstance prim) {
         if (packetSender == null) return;
         PrimitiveMaterial mat = prim.getMaterial();
-        com.moud.network.MoudPackets.PrimitiveMaterial packetMat = new com.moud.network.MoudPackets.PrimitiveMaterial(
+        MoudPackets.PrimitiveMaterial packetMat = new MoudPackets.PrimitiveMaterial(
                 mat.r, mat.g, mat.b, mat.a, mat.texture, mat.unlit, mat.doubleSided, mat.renderThroughBlocks
         );
         S2C_PrimitiveMaterialPacket packet = new S2C_PrimitiveMaterialPacket(prim.getId(), packetMat);
@@ -284,8 +404,16 @@ public class PrimitiveServiceImpl implements PrimitiveService {
 
     void broadcastVertices(PrimitiveInstance prim) {
         if (packetSender == null) return;
-        S2C_PrimitiveVerticesPacket packet = new S2C_PrimitiveVerticesPacket(prim.getId(), prim.getVertices());
+        S2C_PrimitiveVerticesPacket packet = new S2C_PrimitiveVerticesPacket(
+                prim.getId(),
+                prim.getVertices(),
+                prim.getIndices().isEmpty() ? null : prim.getIndices()
+        );
         packetSender.broadcastToAll(packet);
+        if (prim.getType() == PrimitiveType.MESH) {
+                    PrimitivePhysicsManager.getInstance()
+                    .onGeometryChanged(prim, InstanceManager.getInstance().getDefaultInstance());
+        }
     }
 
     void broadcastRemove(PrimitiveInstance prim) {
@@ -305,7 +433,7 @@ public class PrimitiveServiceImpl implements PrimitiveService {
         List<PrimitiveBatchEntry> entries = new ArrayList<>();
         for (PrimitiveInstance prim : prims) {
             PrimitiveMaterial mat = prim.getMaterial();
-            com.moud.network.MoudPackets.PrimitiveMaterial packetMat = new com.moud.network.MoudPackets.PrimitiveMaterial(
+            MoudPackets.PrimitiveMaterial packetMat = new MoudPackets.PrimitiveMaterial(
                     mat.r, mat.g, mat.b, mat.a, mat.texture, mat.unlit, mat.doubleSided, mat.renderThroughBlocks
             );
             entries.add(new PrimitiveBatchEntry(
@@ -316,7 +444,9 @@ public class PrimitiveServiceImpl implements PrimitiveService {
                     prim.getScale(),
                     packetMat,
                     prim.getVertices().isEmpty() ? null : prim.getVertices(),
-                    prim.getGroupId()
+                    prim.getGroupId(),
+                    prim.getIndices().isEmpty() ? null : prim.getIndices(),
+                    buildPhysicsInfo(prim)
             ));
         }
         S2C_PrimitiveBatchCreatePacket packet = new S2C_PrimitiveBatchCreatePacket(entries);
@@ -341,14 +471,15 @@ public class PrimitiveServiceImpl implements PrimitiveService {
 
     private MoudPackets.PrimitiveType convertType(PrimitiveType type) {
         return switch (type) {
-            case CUBE -> com.moud.network.MoudPackets.PrimitiveType.CUBE;
-            case SPHERE -> com.moud.network.MoudPackets.PrimitiveType.SPHERE;
-            case CYLINDER -> com.moud.network.MoudPackets.PrimitiveType.CYLINDER;
-            case CAPSULE -> com.moud.network.MoudPackets.PrimitiveType.CAPSULE;
-            case LINE -> com.moud.network.MoudPackets.PrimitiveType.LINE;
-            case LINE_STRIP -> com.moud.network.MoudPackets.PrimitiveType.LINE_STRIP;
-            case PLANE -> com.moud.network.MoudPackets.PrimitiveType.PLANE;
-            case CONE -> com.moud.network.MoudPackets.PrimitiveType.CONE;
+            case CUBE -> MoudPackets.PrimitiveType.CUBE;
+            case SPHERE -> MoudPackets.PrimitiveType.SPHERE;
+            case CYLINDER -> MoudPackets.PrimitiveType.CYLINDER;
+            case CAPSULE -> MoudPackets.PrimitiveType.CAPSULE;
+            case LINE -> MoudPackets.PrimitiveType.LINE;
+            case LINE_STRIP -> MoudPackets.PrimitiveType.LINE_STRIP;
+            case PLANE -> MoudPackets.PrimitiveType.PLANE;
+            case CONE -> MoudPackets.PrimitiveType.CONE;
+            case MESH -> MoudPackets.PrimitiveType.MESH;
         };
     }
 
@@ -359,7 +490,7 @@ public class PrimitiveServiceImpl implements PrimitiveService {
         List<PrimitiveBatchEntry> entries = new ArrayList<>();
         for (PrimitiveInstance prim : primitives.values()) {
             PrimitiveMaterial mat = prim.getMaterial();
-            com.moud.network.MoudPackets.PrimitiveMaterial packetMat = new com.moud.network.MoudPackets.PrimitiveMaterial(
+            MoudPackets.PrimitiveMaterial packetMat = new MoudPackets.PrimitiveMaterial(
                     mat.r, mat.g, mat.b, mat.a, mat.texture, mat.unlit, mat.doubleSided, mat.renderThroughBlocks
             );
             entries.add(new PrimitiveBatchEntry(
@@ -370,7 +501,9 @@ public class PrimitiveServiceImpl implements PrimitiveService {
                     prim.getScale(),
                     packetMat,
                     prim.getVertices().isEmpty() ? null : prim.getVertices(),
-                    prim.getGroupId()
+                    prim.getGroupId(),
+                    prim.getIndices().isEmpty() ? null : prim.getIndices(),
+                    buildPhysicsInfo(prim)
             ));
         }
         if (!entries.isEmpty()) {
@@ -382,6 +515,6 @@ public class PrimitiveServiceImpl implements PrimitiveService {
     public interface PrimitivePacketSender {
         void broadcastToAll(Object packet);
 
-        void sendToPlayer(net.minestom.server.entity.Player player, Object packet);
+        void sendToPlayer(Player player, Object packet);
     }
 }

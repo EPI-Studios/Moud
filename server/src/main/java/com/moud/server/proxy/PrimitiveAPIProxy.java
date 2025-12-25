@@ -73,6 +73,55 @@ public class PrimitiveAPIProxy {
     }
 
     @HostAccess.Export
+    public PrimitiveHandleProxy createMesh(Object vertices, Object indices, Object options) {
+        Map<?, ?> optsMap = toMap(options);
+        Vector3 position = Vector3.zero();
+        Quaternion rotation = Quaternion.identity();
+        Vector3 scale = Vector3.one();
+        PrimitiveMaterial material = buildMaterial(optsMap != null ? optsMap.get("material") : null);
+        String groupId = null;
+        boolean dynamic = false;
+        float mass = 1.0f;
+        if (optsMap != null) {
+            if (optsMap.containsKey("position")) {
+                position = toVector(optsMap.get("position"), Vector3.zero());
+            }
+            if (optsMap.containsKey("rotation")) {
+                rotation = toQuaternion(optsMap.get("rotation"), Quaternion.identity());
+            }
+            if (optsMap.containsKey("scale")) {
+                scale = toVector(optsMap.get("scale"), Vector3.one());
+            }
+            if (optsMap.containsKey("material")) {
+                material = buildMaterial(optsMap.get("material"));
+            }
+            if (optsMap.containsKey("groupId")) {
+                Object raw = optsMap.get("groupId");
+                groupId = raw != null ? raw.toString() : null;
+            }
+            if (optsMap.containsKey("physics")) {
+                Map<?, ?> physics = toMap(optsMap.get("physics"));
+                if (physics != null) {
+                    if (physics.containsKey("dynamic")) {
+                        Object raw = physics.get("dynamic");
+                        if (raw instanceof Boolean b) {
+                            dynamic = b;
+                        }
+                    }
+                    if (physics.containsKey("mass")) {
+                        mass = toFloat(physics.get("mass"), mass);
+                    }
+                }
+            }
+        }
+
+        List<Vector3> verts = toVectorList(vertices);
+        List<Integer> inds = toIntList(indices);
+        PrimitiveHandle handle = service.createMeshWithPhysics(position, rotation, scale, verts, inds, material, groupId, dynamic, mass);
+        return wrap(handle);
+    }
+
+    @HostAccess.Export
     public PrimitiveHandleProxy create(Object type, Object options) {
         PrimitiveType parsedType = parseType(type);
         if (parsedType == null) {
@@ -83,6 +132,8 @@ public class PrimitiveAPIProxy {
         Vector3 scale = Vector3.one();
         PrimitiveMaterial material = buildMaterial(options instanceof Map<?, ?> map ? map.get("material") : null);
         String groupId = null;
+        boolean dynamic = false;
+        float mass = 1.0f;
         Map<?, ?> optsMap = toMap(options);
         if (optsMap != null) {
             if (optsMap.containsKey("position")) {
@@ -101,8 +152,29 @@ public class PrimitiveAPIProxy {
                 Object raw = optsMap.get("groupId");
                 groupId = raw != null ? raw.toString() : null;
             }
+            if (optsMap.containsKey("physics")) {
+                Map<?, ?> physics = toMap(optsMap.get("physics"));
+                if (physics != null) {
+                    if (physics.containsKey("dynamic")) {
+                        Object raw = physics.get("dynamic");
+                        if (raw instanceof Boolean b) {
+                            dynamic = b;
+                        }
+                    }
+                    if (physics.containsKey("mass")) {
+                        mass = toFloat(physics.get("mass"), mass);
+                    }
+                }
+            }
         }
-        PrimitiveHandle handle = service.create(parsedType, position, rotation, scale, material, groupId);
+        PrimitiveHandle handle;
+        if (parsedType == PrimitiveType.MESH) {
+            List<Vector3> verts = optsMap != null ? toVectorList(optsMap.get("vertices")) : List.of();
+            List<Integer> inds = optsMap != null ? toIntList(optsMap.get("indices")) : null;
+            handle = service.createMeshWithPhysics(position, rotation, scale, verts, inds, material, groupId, dynamic, mass);
+        } else {
+            handle = service.createWithPhysics(parsedType, position, rotation, scale, material, groupId, dynamic, mass);
+        }
         return wrap(handle);
     }
 
@@ -265,6 +337,9 @@ public class PrimitiveAPIProxy {
 
     private List<Vector3> toVectorList(Object raw) {
         List<Vector3> result = new ArrayList<>();
+        if (raw == null) {
+            return result;
+        }
         if (raw instanceof List<?> list) {
             for (Object obj : list) {
                 Vector3 v = toVector(obj, null);
@@ -284,6 +359,42 @@ public class PrimitiveAPIProxy {
             Vector3 v = toVector(raw, null);
             if (v != null) {
                 result.add(v);
+            }
+        }
+        return result;
+    }
+
+    private List<Integer> toIntList(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        List<Integer> result = new ArrayList<>();
+        if (raw instanceof Number number) {
+            result.add(number.intValue());
+            return result;
+        }
+        if (raw instanceof List<?> list) {
+            for (Object obj : list) {
+                if (obj instanceof Number n) {
+                    result.add(n.intValue());
+                }
+            }
+            return result;
+        }
+        if (raw instanceof Value value) {
+            if (value.isNumber()) {
+                result.add(value.asInt());
+                return result;
+            }
+            if (value.hasArrayElements()) {
+                long size = value.getArraySize();
+                for (long i = 0; i < size; i++) {
+                    Value elem = value.getArrayElement(i);
+                    if (elem != null && elem.isNumber()) {
+                        result.add(elem.asInt());
+                    }
+                }
+                return result;
             }
         }
         return result;

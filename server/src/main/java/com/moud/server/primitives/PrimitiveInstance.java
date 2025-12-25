@@ -20,6 +20,9 @@ public class PrimitiveInstance implements PrimitiveHandle {
     private Quaternion rotation;
     private Vector3 scale;
     private List<Vector3> vertices;
+    private List<Integer> indices;
+    private boolean physicsDynamic = false;
+    private float physicsMass = 1.0f;
     private boolean removed = false;
     private boolean dirty = false;
     private boolean materialDirty = false;
@@ -28,6 +31,12 @@ public class PrimitiveInstance implements PrimitiveHandle {
     public PrimitiveInstance(long id, PrimitiveType type, Vector3 position, Quaternion rotation,
                              Vector3 scale, PrimitiveMaterial material, String groupId,
                              PrimitiveServiceImpl service) {
+        this(id, type, position, rotation, scale, material, groupId, service, null, null);
+    }
+
+    public PrimitiveInstance(long id, PrimitiveType type, Vector3 position, Quaternion rotation,
+                             Vector3 scale, PrimitiveMaterial material, String groupId,
+                             PrimitiveServiceImpl service, List<Vector3> vertices, List<Integer> indices) {
         this.id = id;
         this.type = type;
         this.position = position != null ? new Vector3(position) : Vector3.zero();
@@ -36,7 +45,30 @@ public class PrimitiveInstance implements PrimitiveHandle {
         this.material = material != null ? material.copy() : PrimitiveMaterial.white();
         this.groupId = groupId;
         this.service = service;
-        this.vertices = new ArrayList<>();
+        this.vertices = copyVertices(vertices);
+        this.indices = copyIndices(indices);
+    }
+
+    public boolean isPhysicsDynamic() {
+        return physicsDynamic;
+    }
+
+    public float getPhysicsMass() {
+        return physicsMass;
+    }
+
+    void configurePhysics(boolean dynamic, float mass) {
+        this.physicsDynamic = dynamic;
+        this.physicsMass = Float.isFinite(mass) && mass > 0.0f ? mass : 1.0f;
+    }
+
+    void applyPhysicsTransform(Vector3 position, Quaternion rotation) {
+        if (position != null) {
+            this.position = new Vector3(position);
+        }
+        if (rotation != null) {
+            this.rotation = new Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+        }
     }
 
     @Override
@@ -185,14 +217,21 @@ public class PrimitiveInstance implements PrimitiveHandle {
         return vertices;
     }
 
+    public List<Integer> getIndices() {
+        return indices;
+    }
+
     @Override
     public void setVertices(List<Vector3> vertices) {
-        this.vertices = new ArrayList<>();
-        if (vertices != null) {
-            for (Vector3 v : vertices) {
-                this.vertices.add(new Vector3(v));
-            }
-        }
+        this.vertices = copyVertices(vertices);
+        this.verticesDirty = true;
+        broadcastIfNotBatching();
+    }
+
+    @Override
+    public void setMesh(List<Vector3> vertices, List<Integer> indices) {
+        this.vertices = copyVertices(vertices);
+        this.indices = copyIndices(indices);
         this.verticesDirty = true;
         broadcastIfNotBatching();
     }
@@ -228,5 +267,29 @@ public class PrimitiveInstance implements PrimitiveHandle {
             }
             clearDirty();
         }
+    }
+
+    private List<Vector3> copyVertices(List<Vector3> verts) {
+        List<Vector3> copy = new ArrayList<>();
+        if (verts != null) {
+            for (Vector3 v : verts) {
+                if (v != null) {
+                    copy.add(new Vector3(v));
+                }
+            }
+        }
+        return copy;
+    }
+
+    private List<Integer> copyIndices(List<Integer> inds) {
+        List<Integer> copy = new ArrayList<>();
+        if (inds != null) {
+            for (Integer idx : inds) {
+                if (idx != null) {
+                    copy.add(idx);
+                }
+            }
+        }
+        return copy;
     }
 }
