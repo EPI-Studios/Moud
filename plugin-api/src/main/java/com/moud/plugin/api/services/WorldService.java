@@ -4,6 +4,9 @@ import com.moud.plugin.api.world.DisplayHandle;
 import com.moud.plugin.api.world.DisplayOptions;
 import com.moud.plugin.api.world.TextHandle;
 import com.moud.plugin.api.world.TextOptions;
+import net.minestom.server.instance.Instance;
+
+import java.nio.file.Path;
 
 /**
  * Exposes server world controls to plugins.
@@ -56,4 +59,27 @@ public interface WorldService {
      * @return a handle to control the text display.
      */
     TextHandle createText(TextOptions options);
+
+    /**
+     * Loads a world into a named instance.
+     *
+     * Supports Anvil world folders and `.polar` world save files.
+     *
+     * @param name      instance registry name for the world.
+     * @param worldPath path to the world folder or file.
+     * @return the loaded instance.
+     */
+    Instance loadWorld(String name, Path worldPath);
+
+    /**
+     * Loads a world into a named instance.
+     *
+     * Supports Anvil world folders and `.polar` world save files.
+     *
+     * @param name      instance registry name for the world.
+     * @param worldPath path to the world folder or file.
+     * @param sceneId   scene id used for world metadata (only used for `.polar` files).
+     * @return the loaded instance.
+     */
+    Instance loadWorld(String name, Path worldPath, String sceneId);
 }

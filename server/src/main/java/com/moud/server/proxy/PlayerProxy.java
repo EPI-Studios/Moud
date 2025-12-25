@@ -5,16 +5,20 @@ import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.api.validation.APIValidator;
+import com.moud.server.editor.SceneDefaults;
 import com.moud.server.movement.ServerMovementHandler;
 import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.shared.api.SharedValueApiProxy;
 import com.moud.server.entity.ModelManager;
+import com.moud.server.instance.InstanceManager;
+import com.moud.server.physics.PhysicsService;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Player;
 import net.minestom.server.collision.BoundingBox;
 import net.minestom.server.instance.Instance;
+import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.instance.block.Block;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
@@ -27,6 +31,7 @@ import java.util.Map;
 @TsExpose
 public class PlayerProxy {
     private static final Logger LOGGER = LoggerFactory.getLogger(PlayerProxy.class);
+    private static final Pos FALLBACK_SPAWN = new Pos(0.5, SceneDefaults.defaultSpawnY(), 0.5);
     private final Player player;
     private final ClientProxy client;
     private final APIValidator validator;
@@ -131,6 +136,41 @@ public class PlayerProxy {
     }
 
     @HostAccess.Export
+    public Vector3 getVelocity() {
+        Vec vel = player.getVelocity();
+        if (vel == null) {
+            return Vector3.zero();
+        }
+        return new Vector3(vel.x(), vel.y(), vel.z());
+    }
+
+    @HostAccess.Export
+    public void setVelocity(double x, double y, double z) {
+        validator.validateCoordinates(x, y, z);
+        MinecraftServer.getSchedulerManager().scheduleNextTick(() -> {
+            if (!player.isOnline()) {
+                return;
+            }
+            player.setVelocity(new Vec(x, y, z));
+        });
+    }
+
+    @HostAccess.Export
+    public void addVelocity(double x, double y, double z) {
+        validator.validateCoordinates(x, y, z);
+        MinecraftServer.getSchedulerManager().scheduleNextTick(() -> {
+            if (!player.isOnline()) {
+                return;
+            }
+            Vec current = player.getVelocity();
+            double vx = current != null ? current.x() : 0.0;
+            double vy = current != null ? current.y() : 0.0;
+            double vz = current != null ? current.z() : 0.0;
+            player.setVelocity(new Vec(vx + x, vy + y, vz + z));
+        });
+    }
+
+    @HostAccess.Export
     public Vector3 getDirection() {
         Vec dir = player.getPosition().direction();
         return new Vector3(dir.x(), dir.y(), dir.z());
@@ -162,8 +202,65 @@ public class PlayerProxy {
         validator.validateCoordinates(x, y, z);
         MinecraftServer.getSchedulerManager().scheduleNextTick(() -> {
             if (player.isOnline() && player.getInstance() != null) {
-                player.teleport(new Pos(x, y, z));
+                Pos target = new Pos(x, y, z);
+                player.teleport(target);
+                PhysicsService.getInstance().teleportPlayerPhysics(player, target);
             }
+        });
+    }
+
+    @HostAccess.Export
+    public void teleportToWorld(String worldName) {
+        validator.validateString(worldName, "worldName");
+        Instance instance = InstanceManager.getInstance().getInstanceByName(worldName);
+        if (instance == null) {
+            throw new APIException("WORLD_NOT_FOUND", "World not found: " + worldName);
+        }
+
+        Pos spawnPos = null;
+        if (instance instanceof InstanceContainer container) {
+            spawnPos = container.getTag(InstanceManager.SPAWN_TAG);
+        }
+        if (spawnPos == null) {
+            spawnPos = FALLBACK_SPAWN;
+        }
+
+        teleportToInstance(instance, spawnPos);
+    }
+
+    @HostAccess.Export
+    public void teleportToWorld(String worldName, double x, double y, double z) {
+        validator.validateString(worldName, "worldName");
+        validator.validateCoordinates(x, y, z);
+        Instance instance = InstanceManager.getInstance().getInstanceByName(worldName);
+        if (instance == null) {
+            throw new APIException("WORLD_NOT_FOUND", "World not found: " + worldName);
+        }
+        teleportToInstance(instance, new Pos(x, y, z));
+    }
+
+    private void teleportToInstance(Instance instance, Pos position) {
+        MinecraftServer.getSchedulerManager().scheduleNextTick(() -> {
+            if (!player.isOnline()) {
+                return;
+            }
+
+            Instance currentInstance = player.getInstance();
+            if (currentInstance == instance) {
+                player.teleport(position);
+                player.setRespawnPoint(position);
+                PhysicsService.getInstance().teleportPlayerPhysics(player, position);
+                return;
+            }
+
+            player.setInstance(instance, position).thenRun(() -> {
+                MinecraftServer.getSchedulerManager().scheduleNextTick(() -> {
+                    if (player.isOnline()) {
+                        player.setRespawnPoint(position);
+                    }
+                    PhysicsService.getInstance().teleportPlayerPhysics(player, position);
+                });
+            });
         });
     }
 

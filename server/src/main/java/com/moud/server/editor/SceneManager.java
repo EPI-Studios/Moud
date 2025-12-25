@@ -1,13 +1,12 @@
 package com.moud.server.editor;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
 import com.moud.server.editor.runtime.SceneRuntimeAdapter;
 import com.moud.server.editor.runtime.SceneRuntimeFactory;
 import com.moud.server.editor.runtime.PlayerModelRuntimeAdapter;
+import com.moud.server.instance.InstanceManager;
 import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.network.ServerNetworkManager;
@@ -31,7 +30,6 @@ public final class SceneManager {
     private static SceneManager instance;
 
     private final ConcurrentMap<String, SceneState> scenes = new ConcurrentHashMap<>();
-    private final ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
     private Path storageDirectory;
     private Path projectRoot;
     private com.moud.server.assets.AssetManager assetManager;
@@ -63,8 +61,6 @@ public final class SceneManager {
         storageDirectory = projectRoot.resolve(".moud").resolve("scenes");
         try {
             Files.createDirectories(storageDirectory);
-            seedBaseSceneTemplate();
-            loadScenesFromDisk();
         } catch (IOException e) {
             LOGGER.error("Failed to initialize scene storage", e);
         }
@@ -687,22 +683,56 @@ public final class SceneManager {
         }
     }
 
-    private void loadScenesFromDisk() {
-        if (storageDirectory == null || !Files.isDirectory(storageDirectory)) {
-            return;
+    public synchronized boolean hasScene(String sceneId) {
+        if (sceneId == null || sceneId.isBlank()) {
+            return false;
         }
-        try (var files = Files.list(storageDirectory)) {
-            files.filter(path -> path.toString().endsWith(".json")).forEach(this::loadSceneFile);
-        } catch (IOException e) {
-            LOGGER.error("Failed to iterate scene directory", e);
-        }
+        return scenes.containsKey(sceneId);
     }
 
-    private void seedBaseSceneTemplate() throws IOException {
-        Path defaultScene = storageDirectory.resolve(SceneDefaults.DEFAULT_SCENE_ID + ".json");
-        if (Files.exists(defaultScene)) {
+    public synchronized PersistedScene exportPersistedScene(String sceneId) {
+        if (sceneId == null || sceneId.isBlank()) {
+            return new PersistedScene("", 0L, List.of());
+        }
+        SceneState state = scenes.get(sceneId);
+        if (state == null) {
+            return baseSceneTemplate(sceneId);
+        }
+
+        var objects = state.objects.values().stream()
+                .map(SceneManager::toSnapshot)
+                .collect(Collectors.toList());
+        List<PersistedSceneObject> persistedObjects = objects.stream()
+                .map(snapshot -> new PersistedSceneObject(
+                        snapshot.objectId(),
+                        snapshot.objectType(),
+                        snapshot.properties()
+                ))
+                .collect(Collectors.toList());
+        return new PersistedScene(sceneId, state.version.get(), persistedObjects);
+    }
+
+    public synchronized void loadPersistedScene(PersistedScene persisted) {
+        if (persisted == null || persisted.getSceneId() == null || persisted.getSceneId().isBlank()) {
             return;
         }
+        SceneState state = new SceneState(persisted.getSceneId());
+        scenes.put(persisted.getSceneId(), state);
+        if (persisted.getObjects() != null) {
+            persisted.getObjects().forEach(snapshot -> {
+                SceneObject object = new SceneObject(
+                        snapshot.getObjectId(),
+                        snapshot.getObjectType(),
+                        snapshot.getProperties()
+                );
+                state.objects.put(object.id, object);
+            });
+        }
+        state.version.set(persisted.getVersion());
+    }
+
+    public PersistedScene baseSceneTemplate(String sceneId) {
+        String id = (sceneId == null || sceneId.isBlank()) ? SceneDefaults.DEFAULT_SCENE_ID : sceneId;
 
         Map<String, Object> properties = new LinkedHashMap<>();
         properties.put("label", "Base Terrain");
@@ -732,36 +762,11 @@ public final class SceneManager {
                 fogProps
         );
 
-        PersistedScene template = new PersistedScene(
-                SceneDefaults.DEFAULT_SCENE_ID,
+        return new PersistedScene(
+                id,
                 1L,
                 List.of(terrainDescriptor, fogDescriptor)
         );
-
-        mapper.writeValue(defaultScene.toFile(), template);
-        LOGGER.info("Created base scene template at {}", defaultScene);
-    }
-
-    private void loadSceneFile(Path path) {
-        try {
-            PersistedScene persisted = mapper.readValue(path.toFile(), PersistedScene.class);
-            SceneState state = new SceneState(persisted.getSceneId());
-            scenes.put(persisted.getSceneId(), state);
-            if (persisted.getObjects() != null) {
-                persisted.getObjects().forEach(snapshot -> {
-                    SceneObject object = new SceneObject(
-                            snapshot.getObjectId(),
-                            snapshot.getObjectType(),
-                            snapshot.getProperties()
-                    );
-                    state.objects.put(object.id, object);
-                });
-            }
-            state.version.set(persisted.getVersion());
-            LOGGER.info("Loaded scene '{}' with {} objects", persisted.getSceneId(), persisted.getObjects().size());
-        } catch (Exception e) {
-            LOGGER.error("Failed to load scene file {}", path, e);
-        }
     }
 
     public void initializeRuntimeAdapters() {
@@ -775,29 +780,13 @@ public final class SceneManager {
     }
 
     private void persistScene(String sceneId) {
-        if (storageDirectory == null) {
+        if (sceneId == null || sceneId.isBlank()) {
             return;
         }
-        SceneState state = scenes.get(sceneId);
-        if (state == null) {
-            return;
-        }
-        var objects = state.objects.values().stream()
-                .map(SceneManager::toSnapshot)
-                .collect(Collectors.toList());
-        List<PersistedSceneObject> persistedObjects = objects.stream()
-                .map(snapshot -> new PersistedSceneObject(
-                        snapshot.objectId(),
-                        snapshot.objectType(),
-                        snapshot.properties()
-                ))
-                .collect(Collectors.toList());
-        PersistedScene model = new PersistedScene(sceneId, state.version.get(), persistedObjects);
-        Path file = storageDirectory.resolve(sceneId + ".json");
         try {
-            mapper.writeValue(file.toFile(), model);
-        } catch (IOException e) {
-            LOGGER.error("Failed to persist scene {}", sceneId, e);
+            InstanceManager.getInstance().requestSceneSave(sceneId);
+        } catch (Exception e) {
+            LOGGER.debug("Failed to request scene save for {}", sceneId, e);
         }
     }
 

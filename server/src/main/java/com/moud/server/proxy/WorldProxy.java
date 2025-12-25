@@ -4,6 +4,7 @@ import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.api.validation.APIValidator;
+import com.moud.server.editor.SceneDefaults;
 import com.moud.server.entity.ModelManager;
 import com.moud.server.entity.ScriptedEntity;
 import com.moud.server.instance.InstanceManager;
@@ -57,10 +58,10 @@ public class WorldProxy {
     }
 
     private Instance requireInstance() {
-        if (instance == null) {
-            throw new APIException("INVALID_INSTANCE", "World is not initialized yet. Call createInstance() first.");
+        if (instance != null) {
+            return instance;
         }
-        return instance;
+        return InstanceManager.getInstance().getDefaultInstance();
     }
 
     @HostAccess.Export
@@ -68,9 +69,11 @@ public class WorldProxy {
         if (!(instance instanceof InstanceContainer)) {
             throw new APIException("INVALID_INSTANCE_TYPE", "Cannot set generator on non-container instance");
         }
+        int surfaceY = SceneDefaults.BASE_TERRAIN_HEIGHT;
         ((InstanceContainer) instance).setGenerator(unit -> {
             unit.modifier().fillHeight(0, 1, Block.BEDROCK);
-            unit.modifier().fillHeight(1, 64, Block.GRASS_BLOCK);
+            unit.modifier().fillHeight(1, surfaceY, Block.DIRT);
+            unit.modifier().fillHeight(surfaceY, surfaceY + 1, Block.GRASS_BLOCK);
         });
         return this;
     }
@@ -108,7 +111,9 @@ public class WorldProxy {
         validator.validateBlockId(blockId);
         Block block = Block.fromNamespaceId(blockId);
         if (block == null) throw new APIException("INVALID_BLOCK_ID", "Unknown block ID: " + blockId);
-        requireInstance().setBlock(x, y, z, block);
+        Instance target = requireInstance();
+        target.setBlock(x, y, z, block);
+        PhysicsService.getInstance().requestChunkRefreshForBlock(target, x, z);
     }
 
     @HostAccess.Export
@@ -164,6 +169,12 @@ public class WorldProxy {
         String texturePath = options.hasMember("texture") ? options.getMember("texture").asString() : null;
 
         ModelProxy model = new ModelProxy(instance, modelPath, position, rotation, scale, texturePath);
+        if (options.hasMember("collisionMode")) {
+            Value collisionMode = options.getMember("collisionMode");
+            if (collisionMode != null && collisionMode.isString()) {
+                model.setCollisionMode(collisionMode.asString());
+            }
+        }
 
         double autoWidth = clampCollisionSize(scale.x);
         double autoHeight = clampCollisionSize(scale.y);
@@ -418,11 +429,15 @@ public class WorldProxy {
         resultMap.put("normal", result.normal());
         resultMap.put("distance", result.distance());
 
-        if (result.entity() != null) {
-            resultMap.put("entity", new PlayerProxy((Player) result.entity()));
+        Entity hitEntity = result.entity();
+        if (hitEntity instanceof Player hitPlayer) {
+            resultMap.put("entity", new PlayerProxy(hitPlayer));
         } else {
             resultMap.put("entity", null);
         }
+
+        ModelProxy hitModel = hitEntity != null ? ModelManager.getInstance().getByEntity(hitEntity) : null;
+        resultMap.put("model", hitModel);
 
         if (result.block() != null) {
             resultMap.put("blockType", result.block().name());
