@@ -125,6 +125,16 @@ public class PrimitiveHandleProxy implements AutoCloseable {
     }
 
     @HostAccess.Export
+    public void setMesh(Object vertices, Object indices) {
+        List<Vector3> verts = toVectorList(vertices);
+        List<Integer> inds = toIntList(indices);
+        if (verts == null && inds == null) {
+            return;
+        }
+        handle.setMesh(verts, inds);
+    }
+
+    @HostAccess.Export
     public void remove() {
         handle.remove();
     }
@@ -166,6 +176,42 @@ public class PrimitiveHandleProxy implements AutoCloseable {
         Vector3 single = toVector(value);
         if (single != null) {
             result.add(single);
+        }
+        return result;
+    }
+
+    private List<Integer> toIntList(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        List<Integer> result = new ArrayList<>();
+        if (raw instanceof Number number) {
+            result.add(number.intValue());
+            return result;
+        }
+        if (raw instanceof List<?> list) {
+            for (Object obj : list) {
+                if (obj instanceof Number n) {
+                    result.add(n.intValue());
+                }
+            }
+            return result;
+        }
+        if (raw instanceof Value value) {
+            if (value.isNumber()) {
+                result.add(value.asInt());
+                return result;
+            }
+            if (value.hasArrayElements()) {
+                long size = value.getArraySize();
+                for (long i = 0; i < size; i++) {
+                    Value elem = value.getArrayElement(i);
+                    if (elem != null && elem.isNumber()) {
+                        result.add(elem.asInt());
+                    }
+                }
+                return result;
+            }
         }
         return result;
     }
