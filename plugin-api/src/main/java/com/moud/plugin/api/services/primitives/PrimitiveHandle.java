@@ -101,8 +101,21 @@ public interface PrimitiveHandle extends AutoCloseable {
 
     /**
      * For LINE and LINE_STRIP types, updates the vertices.
+     * <p>
+     * For {@link PrimitiveType#MESH}, prefer {@link #setMesh(List, List)}.
      */
     void setVertices(List<Vector3> vertices);
+
+    /**
+     * For {@link PrimitiveType#MESH}, updates the mesh geometry.
+     * <p>
+     * Vertices are in local space. When {@code indices} is null/empty, {@code vertices} is interpreted as a triangle
+     * list (every 3 vertices forms one triangle). When {@code indices} is provided, it must reference {@code vertices}
+     * and be a multiple of 3 (triangle indices).
+     */
+    default void setMesh(List<Vector3> vertices, List<Integer> indices) {
+        setVertices(vertices);
+    }
 
     /**
      * Removes this primitive.
