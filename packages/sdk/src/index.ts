@@ -588,6 +588,16 @@ export interface MoudAPI {
      */
     readonly world: World;
     /**
+     * World/instance manager for creating and loading additional worlds.
+     * @remarks Server-only.
+     */
+    readonly worlds: WorldManager;
+    /**
+     * Physics helpers for enabling player bodies and creating Jolt constraints.
+     * @remarks Server-only.
+     */
+    readonly physics: PhysicsAPI;
+    /**
      * API for creating and updating dynamic lights.
      */
     readonly lighting: LightingAPI;
@@ -673,8 +683,10 @@ export interface RaycastResult {
     readonly position: Vector3;
     /** The surface normal of the block face that was hit, or null if an entity was hit or it missed. */
     readonly normal: Vector3 | null;
-    /** The entity that was hit, or null. */
-    readonly entity: Player | null; // Note: Can be other entity types in the future
+    /** The player that was hit, or null. */
+    readonly entity: Player | null;
+    /** The 3D model that was hit, or null. */
+    readonly model: Model | null;
     /** The namespaced ID of the block that was hit (e.g., 'minecraft:stone'), or null. */
     readonly blockType: string | null;
     /** The distance from the origin to the hit point. */
@@ -717,6 +729,15 @@ export interface Player {
     /** @returns The current world position of the player as a Vector3. */
     getPosition(): Vector3;
 
+    /** @returns The player's current velocity (blocks/tick). */
+    getVelocity(): Vector3;
+
+    /** Sets the player's velocity (blocks/tick). */
+    setVelocity(x: number, y: number, z: number): void;
+
+    /** Adds to the player's current velocity (blocks/tick). */
+    addVelocity(x: number, y: number, z: number): void;
+
     /** @returns A normalized Vector3 representing the direction the player's head is facing. Works for all clients (vanilla and modded). */
     getDirection(): Vector3;
 
@@ -744,6 +765,16 @@ export interface Player {
      * Instantly moves the player to a new position in the world.
      */
     teleport(x: number, y: number, z: number): void;
+
+    /**
+     * Moves the player to a different world instance, using that world's configured spawn position when available.
+     */
+    teleportToWorld(worldName: string): void;
+
+    /**
+     * Moves the player to a different world instance at an explicit position.
+     */
+    teleportToWorld(worldName: string, x: number, y: number, z: number): void;
 
     /**
      * Accesses the API for synchronizing key-value data with the player's client.
@@ -1418,6 +1449,8 @@ export interface ModelOptions {
     texture?: string;
     /** Collision configuration (true = auto, false = none, or explicit bounds). */
     collision?: boolean | { width?: number; height?: number; depth?: number };
+    /** Collision mode hint (e.g., `auto`, `convex`, `mesh`). */
+    collisionMode?: string;
     /** Optional attachment configuration (parented transform). */
     anchor?: ModelAnchorOptions;
 }
@@ -1444,6 +1477,7 @@ export interface Model {
     getScale(): Vector3;
     setTransform(position?: Vector3, rotation?: Quaternion, scale?: Vector3): void;
     setTexture(texturePath: string): void;
+    setCollisionMode(mode: string): void;
     remove(): void;
     clearAnchor(): void;
     setAnchorToPlayer(player: Player, localPosition: Vector3): void;
@@ -1454,6 +1488,190 @@ export interface Model {
     setAnchorToModel(model: Model, localPosition: Vector3): void;
     setAnchorToModel(model: Model, localPosition: Vector3, localRotation: Quaternion, localScale: Vector3,
                      inheritRotation: boolean, inheritScale: boolean, localSpace: boolean): void;
+}
+
+/**
+ * Manages named worlds (Minestom instances).
+ * @remarks Server-only.
+ */
+export interface WorldManager {
+    /**
+     * Creates a new empty world instance.
+     */
+    createWorld(name: string): World;
+
+    /**
+     * Loads a world into a world instance.
+     *
+     * Supports Anvil world folders and `.polar` world save files.
+     */
+    loadWorld(name: string, path: string): World;
+
+    /**
+     * Loads a world into a world instance, overriding the scene id used for world metadata.
+     *
+     * This is only used for `.polar` world save files.
+     */
+    loadWorld(name: string, path: string, sceneId: string): World;
+
+    /**
+     * Retrieves a previously created world by name.
+     */
+    getWorld(name: string): World | null;
+
+    /**
+     * @returns The current default world.
+     */
+    getDefaultWorld(): World;
+
+    /**
+     * Persists a world to its configured storage backend.
+     */
+    saveWorld(name: string): void;
+
+    /**
+     * Persists all loaded worlds to their configured storage backends.
+     */
+    saveAllWorlds(): void;
+
+    /**
+     * Sets which world new players should spawn into.
+     */
+    setDefaultWorld(name: string): void;
+
+    /**
+     * Creates a shared world instance backed by a parent world.
+     */
+    createSharedWorld(name: string, parentWorldName: string): World;
+
+    /**
+     * Unloads a world instance by name.
+     */
+    unloadWorld(name: string): void;
+
+    /**
+     * Checks whether a world exists by name.
+     */
+    worldExists(name: string): boolean;
+}
+
+/**
+ * Jolt physics helpers for player bodies and constraints.
+ * @remarks Server-only.
+ */
+export interface PhysicsAPI {
+    /**
+     * Enables or disables physics-driven movement for a player.
+     */
+    setPlayerPhysics(player: Player, enabled: boolean): void;
+
+    /**
+     * When enabled, disables the built-in physics input controller so scripts can drive the body directly.
+     * @remarks Requires server physics to be enabled for players.
+     */
+    setPlayerScriptControl(player: Player, enabled: boolean): void;
+
+    /**
+     * Sets the gravity multiplier for a player's physics body.
+     * @remarks Requires server physics to be enabled for players.
+     */
+    setPlayerGravityFactor(player: Player, factor: number): void;
+
+    /**
+     * Applies an impulse (instantaneous push) to a physics body.
+     * @remarks Requires server physics to be enabled for players.
+     */
+    applyImpulse(target: Player | Model, impulse: Vector3): void;
+
+    /**
+     * Sets the linear velocity of a physics body.
+     * @remarks Requires server physics to be enabled for players.
+     */
+    setLinearVelocity(target: Player | Model, velocity: Vector3): void;
+
+    /**
+     * Reads the linear velocity of a physics body.
+     * @remarks Requires server physics to be enabled for players.
+     */
+    getLinearVelocity(target: Player | Model): Vector3;
+
+    /**
+     * True if a player physics body is grounded according to the physics controller.
+     * @remarks Requires server physics to be enabled for players.
+     */
+    isOnGround(player: Player): boolean;
+
+    /**
+     * Creates a distance constraint between 2 bodies (or a body and the world).
+     * @returns A constraint id that can be removed via {@link removeConstraint}.
+     */
+    createDistanceConstraint(options: DistanceConstraintOptions): number;
+
+    /**
+     * Creates a hinge constraint between 2 bodies (or a body and the world).
+     * @returns A constraint id that can be removed via {@link removeConstraint}.
+     */
+    createHingeConstraint(options: HingeConstraintOptions): number;
+
+    /**
+     * Creates a fixed constraint between 2 bodies (or a body and the world).
+     * @returns A constraint id that can be removed via {@link removeConstraint}.
+     */
+    createFixedConstraint(options: FixedConstraintOptions): number;
+
+    /**
+     * Removes a previously created constraint.
+     */
+    removeConstraint(constraintId: number): boolean;
+}
+
+export interface DistanceConstraintOptions {
+    /** First constrained body. */
+    a: Player | Model;
+    /** Second constrained body. Omit to constrain against the world. */
+    b?: Player | Model;
+    /** World-space anchor point on body A. Defaults to body A position. */
+    pointA?: Vector3;
+    /** World-space anchor point on body B. Defaults to body B position (or pointA when using the world). */
+    pointB?: Vector3;
+    /** Minimum distance in blocks/meters. */
+    minDistance?: number;
+    /** Maximum distance in blocks/meters. */
+    maxDistance: number;
+}
+
+export interface HingeConstraintOptions {
+    /** First constrained body. */
+    a: Player | Model;
+    /** Second constrained body. Omit to constrain against the world. */
+    b?: Player | Model;
+    /** World-space pivot point. */
+    pivot: Vector3;
+    /** World-space hinge axis. */
+    axis: Vector3;
+    /** Optional world-space normal axis (perpendicular to axis). */
+    normal?: Vector3;
+    /** Optional minimum hinge angle (radians). */
+    limitsMin?: number;
+    /** Optional maximum hinge angle (radians). */
+    limitsMax?: number;
+    /** Optional friction torque applied to the hinge. */
+    maxFrictionTorque?: number;
+}
+
+export interface FixedConstraintOptions {
+    /** First constrained body. */
+    a: Player | Model;
+    /** Second constrained body. Omit to constrain against the world. */
+    b?: Player | Model;
+    /** Optional world-space pivot point. Defaults to body A position. */
+    pivot?: Vector3;
+    /** Optional world-space X axis for the constraint frame. */
+    axisX?: Vector3;
+    /** Optional world-space Y axis for the constraint frame. */
+    axisY?: Vector3;
+    /** If true, lets Jolt pick a point based on the bodies. */
+    autoDetectPoint?: boolean;
 }
 
 
@@ -4215,7 +4433,9 @@ export type PrimitiveType =
     /** A flat plane in the XZ plane. */
     | 'plane'
     /** A cone pointing along the Y axis. */
-    | 'cone';
+    | 'cone'
+    /** Custom indexed triangle mesh. */
+    | 'mesh';
 
 /**
  * Material/appearance settings for a primitive.
@@ -4311,6 +4531,12 @@ export interface Primitive {
     /** For LINE and LINE_STRIP types, updates the vertices. */
     setVertices(vertices: Vector3[]): void;
 
+    /**
+     * For MESH type, updates the mesh geometry.
+     * @remarks Vertices are in local space; indices are optional (3 per triangle).
+     */
+    setMesh(vertices: Vector3[], indices?: number[] | null): void;
+
     /** Removes this primitive. */
     remove(): void;
 
@@ -4333,6 +4559,23 @@ export interface PrimitiveOptions {
     material?: PrimitiveMaterial;
     /** Optional group ID for batch operations. */
     groupId?: string;
+    /**
+     * Physics settings for the server-side collider.
+     * @remarks Server-only.
+     */
+    physics?: {
+        /**
+         * When true, the primitive is simulated as a dynamic rigid body.
+         * Note: vanilla (non-physics) players won't collide with it unless server player physics is enabled.
+         */
+        dynamic?: boolean;
+        /** Mass for dynamic primitives (defaults to 1). */
+        mass?: number;
+    };
+    /** For type 'mesh', mesh vertices (local space). */
+    vertices?: Vector3[];
+    /** For type 'mesh', optional triangle indices (3 per triangle). */
+    indices?: number[];
 }
 
 /**
@@ -4473,6 +4716,14 @@ export interface PrimitiveAPI {
      * @param options Creation options
      */
     create(type: PrimitiveType, options?: PrimitiveOptions): Primitive;
+
+    /**
+     * Creates a custom indexed triangle mesh primitive.
+     * @remarks Vertices are in local space; indices are optional (3 per triangle).
+     *
+     * Use `api.primitives.create('mesh', { vertices, indices, ... })` if you prefer passing a single options object.
+     */
+    createMesh(vertices: Vector3[], indices: number[] | null, options?: PrimitiveOptions): Primitive;
 
     // ========================
     // Queries
