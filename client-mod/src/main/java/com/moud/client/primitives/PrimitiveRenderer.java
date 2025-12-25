@@ -48,6 +48,7 @@ public class PrimitiveRenderer {
             case CAPSULE -> renderCapsule(consumer, matrix, entry, light, r, g, b, a);
             case PLANE -> renderPlane(consumer, matrix, entry, light, r, g, b, a);
             case CONE -> renderCone(consumer, matrix, entry, light, r, g, b, a);
+            case MESH -> renderMesh(primitive, consumer, matrix, entry, light, r, g, b, a);
             default -> renderCube(consumer, matrix, entry, light, r, g, b, a);
         }
     }
@@ -271,6 +272,38 @@ public class PrimitiveRenderer {
 
             Vector3 baseCenter = new Vector3(0f, baseY, 0f);
             addTri(consumer, matrix, entry, baseCenter, v0, v1, light, r, g, b, a, 0f, -1f, 0f);
+        }
+    }
+
+    private void renderMesh(ClientPrimitive primitive, VertexConsumer consumer, Matrix4f matrix, MatrixStack.Entry entry,
+                            int light, float r, float g, float b, float a) {
+        List<Vector3> verts = primitive.getVertices();
+        if (verts == null || verts.size() < 3) {
+            return;
+        }
+        List<Integer> indices = primitive.getIndices();
+        if (indices != null && indices.size() >= 3) {
+            for (int i = 0; i + 2 < indices.size(); i += 3) {
+                Integer ia = indices.get(i);
+                Integer ib = indices.get(i + 1);
+                Integer ic = indices.get(i + 2);
+                if (ia == null || ib == null || ic == null) continue;
+                if (ia < 0 || ib < 0 || ic < 0) continue;
+                if (ia >= verts.size() || ib >= verts.size() || ic >= verts.size()) continue;
+                Vector3 a0 = verts.get(ia);
+                Vector3 b0 = verts.get(ib);
+                Vector3 c0 = verts.get(ic);
+                if (a0 == null || b0 == null || c0 == null) continue;
+                addTri(consumer, matrix, entry, a0, b0, c0, light, r, g, b, a);
+            }
+            return;
+        }
+        for (int i = 0; i + 2 < verts.size(); i += 3) {
+            Vector3 a0 = verts.get(i);
+            Vector3 b0 = verts.get(i + 1);
+            Vector3 c0 = verts.get(i + 2);
+            if (a0 == null || b0 == null || c0 == null) continue;
+            addTri(consumer, matrix, entry, a0, b0, c0, light, r, g, b, a);
         }
     }
 
