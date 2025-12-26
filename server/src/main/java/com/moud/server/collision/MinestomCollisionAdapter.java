@@ -4,7 +4,6 @@ import com.moud.api.collision.OBB;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import net.minestom.server.collision.BoundingBox;
-import net.minestom.server.coordinate.Point;
 import net.minestom.server.coordinate.Vec;
 
 import java.util.ArrayList;
@@ -13,7 +12,7 @@ import java.util.List;
 public class MinestomCollisionAdapter {
     private static final double MAX_MAIN_BOX_DIM = 64.0;
 
-    public static List<BoundingBox> convertToBoundingBoxes(List<OBB> obbs, Vector3 position, Quaternion rotation, Vector3 scale) {
+    public static List<BoundingBox> convertToBoundingBoxes(List<OBB> obbs, Quaternion rotation, Vector3 scale) {
         List<BoundingBox> boxes = new ArrayList<>();
 
         for (OBB obb : obbs) {
@@ -23,7 +22,6 @@ public class MinestomCollisionAdapter {
                     obb.center.z * scale.z
             );
             Vector3 rotatedCenter = rotation.rotate(scaledCenter);
-            Vector3 worldCenter = position.add(rotatedCenter);
 
             Vector3 scaledExtents = new Vector3(
                     Math.abs(obb.halfExtents.x * scale.x),
@@ -35,7 +33,7 @@ public class MinestomCollisionAdapter {
                     scaledExtents.x * 2,
                     scaledExtents.y * 2,
                     scaledExtents.z * 2,
-                    new Vec(worldCenter.x - scaledExtents.x, worldCenter.y - scaledExtents.y, worldCenter.z - scaledExtents.z)
+                    new Vec(rotatedCenter.x, rotatedCenter.y - scaledExtents.y, rotatedCenter.z)
             ));
         }
 
@@ -81,15 +79,13 @@ public class MinestomCollisionAdapter {
         double centerX = (minX + maxX) * 0.5;
         double centerY = (minY + maxY) * 0.5;
         double centerZ = (minZ + maxZ) * 0.5;
-        double newMinX = centerX - width * 0.5;
         double newMinY = centerY - height * 0.5;
-        double newMinZ = centerZ - depth * 0.5;
 
         return new BoundingBox(
                 width,
                 height,
                 depth,
-                new Vec(newMinX, newMinY, newMinZ)
+                new Vec(centerX, newMinY, centerZ)
         );
     }
 }

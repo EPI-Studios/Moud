@@ -13,6 +13,7 @@ import com.moud.server.lighting.ServerLightingManager;
 import com.moud.server.camera.CameraRegistry;
 import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
+import com.moud.server.movement.PlayerMovementSimService;
 import com.moud.server.network.diagnostics.NetworkProbe;
 import com.moud.server.network.handler.AnimationPacketHandlers;
 import com.moud.server.network.handler.BlueprintPacketHandlers;
@@ -358,6 +359,7 @@ public final class ServerNetworkManager {
 
         sendClientScripts(minestomPlayer);
         syncPermissionState(minestomPlayer);
+        PlayerMovementSimService.getInstance().flushClientMode(minestomPlayer);
 
         Collection<PlayerModelProxy> playerModels = PlayerModelProxy.getAllModels();
         if (!playerModels.isEmpty()) {

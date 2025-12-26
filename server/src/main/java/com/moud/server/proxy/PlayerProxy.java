@@ -11,7 +11,6 @@ import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.shared.api.SharedValueApiProxy;
 import com.moud.server.entity.ModelManager;
 import com.moud.server.instance.InstanceManager;
-import com.moud.server.physics.PhysicsService;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
@@ -204,7 +203,6 @@ public class PlayerProxy {
             if (player.isOnline() && player.getInstance() != null) {
                 Pos target = new Pos(x, y, z);
                 player.teleport(target);
-                PhysicsService.getInstance().teleportPlayerPhysics(player, target);
             }
         });
     }
@@ -249,7 +247,6 @@ public class PlayerProxy {
             if (currentInstance == instance) {
                 player.teleport(position);
                 player.setRespawnPoint(position);
-                PhysicsService.getInstance().teleportPlayerPhysics(player, position);
                 return;
             }
 
@@ -258,7 +255,6 @@ public class PlayerProxy {
                     if (player.isOnline()) {
                         player.setRespawnPoint(position);
                     }
-                    PhysicsService.getInstance().teleportPlayerPhysics(player, position);
                 });
             });
         });
