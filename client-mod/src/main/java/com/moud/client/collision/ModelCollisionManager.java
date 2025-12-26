@@ -117,6 +117,31 @@ public final class ModelCollisionManager {
         return shapes != null ? shapes : Collections.emptyList();
     }
 
+    public List<Box> collectBounds(Box query) {
+        if (query == null || volumes.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Box> bounds = null;
+        for (ModelCollisionVolume volume : volumes.values()) {
+            if (!volume.isActive() || !volume.intersects(query)) {
+                continue;
+            }
+            if (ClientCollisionManager.hasDebugData(volume.getModelId())) {
+                continue;
+            }
+            Box modelBounds = volume.getBounds();
+            if (modelBounds == null) {
+                continue;
+            }
+            if (bounds == null) {
+                bounds = new ArrayList<>();
+            }
+            bounds.add(modelBounds);
+        }
+        return bounds != null ? bounds : Collections.emptyList();
+    }
+
     public long pick(Vec3d origin, Vec3d direction, double maxDistance) {
         if (origin == null || direction == null || volumes.isEmpty()) {
             return -1L;

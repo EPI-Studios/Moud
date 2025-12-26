@@ -11,6 +11,7 @@ import com.moud.client.animation.PlayerPartConfigManager;
 import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.collision.ClientCollisionManager;
 import com.moud.client.collision.ModelCollisionManager;
+import com.moud.client.camera.VanillaTeleportSmoothing;
 import com.moud.client.display.ClientDisplayManager;
 import com.moud.client.editor.runtime.RuntimeObjectRegistry;
 import com.moud.client.editor.scene.SceneSessionManager;
@@ -23,6 +24,7 @@ import com.moud.client.network.ClientPacketReceiver;
 import com.moud.client.network.ClientPacketWrapper;
 import com.moud.client.network.DataPayload;
 import com.moud.client.network.MoudPayload;
+import com.moud.client.movement.ClientMovementTracker;
 import com.moud.client.player.PlayerStateManager;
 import com.moud.client.permissions.ClientPermissionState;
 import com.moud.client.runtime.ClientScriptingRuntime;
@@ -153,6 +155,8 @@ public class ClientNetworkRegistry {
         ClientPacketWrapper.registerHandler(MoudPackets.InterpolationSettingsPacket.class, (player, packet) -> handleInterpolationSettings(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.FirstPersonConfigPacket.class, (player, packet) -> handleFirstPersonConfig(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.CameraControlPacket.class, (player, packet) -> handleCameraControl(packet, services));
+        ClientPacketWrapper.registerHandler(MoudPackets.PhysicsModePacket.class, (player, packet) -> handlePhysicsMode(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.PlayerSnapshotPacket.class, (player, packet) -> handlePlayerSnapshot(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_PlayModelAnimationWithFadePacket.class, (player, packet) -> {
             MinecraftClient.getInstance().execute(() -> {
                 AnimatedPlayerModel model = ClientPlayerModelManager.getInstance().getModel(packet.modelId());
@@ -181,8 +185,17 @@ public class ClientNetworkRegistry {
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_IKDetachPacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientIKManager.getInstance().handleDetach(packet)));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_IKRemoveChainPacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientIKManager.getInstance().handleRemove(packet)));
 
-
         LOGGER.info("Internal packet handlers registered.");
+    }
+
+    private void handlePhysicsMode(MoudPackets.PhysicsModePacket packet) {
+        MinecraftClient.getInstance().execute(() ->
+                ClientMovementTracker.getInstance().setPredictionMode(packet.enabled(), packet.controllerId(), packet.configOverride()));
+    }
+
+    private void handlePlayerSnapshot(MoudPackets.PlayerSnapshotPacket packet) {
+        MinecraftClient.getInstance().execute(() ->
+                ClientMovementTracker.getInstance().handleSnapshot(packet));
     }
 
     private void handleInterpolationSettings(MoudPackets.InterpolationSettingsPacket packet) {
@@ -811,12 +824,12 @@ public class ClientNetworkRegistry {
     }
 
     private boolean handleBuiltinScriptEvent(String eventName, String payload, ClientAPIService apiService) {
-        if (apiService == null) {
-            return false;
-        }
         try {
             switch (eventName) {
                 case "rendering:post:apply" -> {
+                    if (apiService == null) {
+                        return false;
+                    }
                     JsonObject json = builtinEventParser.fromJson(payload, JsonObject.class);
                     if (json != null && json.has("id")) {
                         apiService.rendering.applyPostEffect(json.get("id").getAsString());
@@ -824,6 +837,9 @@ public class ClientNetworkRegistry {
                     return true;
                 }
                 case "rendering:post:remove" -> {
+                    if (apiService == null) {
+                        return false;
+                    }
                     JsonObject json = builtinEventParser.fromJson(payload, JsonObject.class);
                     if (json != null && json.has("id")) {
                         apiService.rendering.removePostEffect(json.get("id").getAsString());
@@ -831,6 +847,9 @@ public class ClientNetworkRegistry {
                     return true;
                 }
                 case "rendering:post:set_uniforms" -> {
+                    if (apiService == null) {
+                        return false;
+                    }
                     JsonObject json = builtinEventParser.fromJson(payload, JsonObject.class);
                     if (json != null && json.has("id") && json.has("uniforms")) {
                         String id = json.get("id").getAsString();
@@ -854,14 +873,31 @@ public class ClientNetworkRegistry {
                     return true;
                 }
                 case "rendering:post:clear" -> {
+                    if (apiService == null) {
+                        return false;
+                    }
                     apiService.rendering.clearPostEffects();
                     return true;
                 }
                 case "ui:toast" -> {
+                    if (apiService == null) {
+                        return false;
+                    }
                     JsonObject json = builtinEventParser.fromJson(payload, JsonObject.class);
                     String title = json != null && json.has("title") ? json.get("title").getAsString() : "";
                     String body = json != null && json.has("body") ? json.get("body").getAsString() : "";
                     apiService.ui.showToast(title, body);
+                    return true;
+                }
+                case "camera:teleport_smoothing" -> {
+                    JsonObject json = builtinEventParser.fromJson(payload, JsonObject.class);
+                    if (json == null) {
+                        return true;
+                    }
+                    Boolean enabled = json.has("enabled") ? json.get("enabled").getAsBoolean() : null;
+                    Long durationMs = json.has("durationMs") ? json.get("durationMs").getAsLong() : null;
+                    Double threshold = json.has("threshold") ? json.get("threshold").getAsDouble() : null;
+                    VanillaTeleportSmoothing.configureUser(enabled, durationMs, threshold);
                     return true;
                 }
                 default -> {

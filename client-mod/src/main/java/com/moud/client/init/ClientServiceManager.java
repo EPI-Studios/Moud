@@ -67,6 +67,7 @@ public class ClientServiceManager {
 
     public void cleanupRuntimeServices() {
         LOGGER.info("Cleaning up Moud services...");
+        ClientMovementTracker.getInstance().reset();
         if (scriptingRuntime != null) {
             scriptingRuntime.shutdown();
             scriptingRuntime = null;
