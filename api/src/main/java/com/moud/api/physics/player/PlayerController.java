@@ -174,20 +174,20 @@ public final class PlayerController {
         MoveResult horiz = moveWithCollisions(up.box, dx, 0.0, dz, colliders);
         MoveResult down = moveWithCollisions(horiz.box, 0.0, -stepHeight, 0.0, colliders);
 
-        double movedX = down.actualDx;
-        double movedZ = down.actualDz;
+        double movedX = horiz.actualDx;
+        double movedZ = horiz.actualDz;
         double horizSq = movedX * movedX + movedZ * movedZ;
 
         return new MoveResult(
                 down.box,
                 movedX,
-                down.actualDy,
+                up.actualDy + down.actualDy,
                 movedZ,
-                down.hitX,
-                down.hitY,
-                down.hitZ,
+                horiz.hitX,
+                up.hitY || down.hitY,
+                horiz.hitZ,
                 down.hitDown,
-                down.collidedHorizontally,
+                horiz.collidedHorizontally,
                 horizSq
         );
     }
