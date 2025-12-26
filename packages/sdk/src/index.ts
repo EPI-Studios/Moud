@@ -2700,6 +2700,154 @@ export interface CameraVector {
     z: number;
 }
 
+/** Options for setting scriptable camera position offset. */
+export interface ScriptableCameraPositionOptions {
+    /** X offset (right/left relative to camera) in blocks. */
+    x?: number;
+    /** Y offset (up/down relative to camera) in blocks. */
+    y?: number;
+    /** Z offset (forward/back relative to camera) in blocks. */
+    z?: number;
+    /** Time in seconds to smoothly interpolate to the target offset. */
+    smoothTime?: number;
+    /** If true, apply the offset immediately without lerping. */
+    instant?: boolean;
+}
+
+/** Options for setting scriptable camera rotation offset. */
+export interface ScriptableCameraRotationOptions {
+    /** Yaw offset in degrees (left/right). */
+    yaw?: number;
+    /** Pitch offset in degrees (up/down). */
+    pitch?: number;
+    /** Roll offset in degrees (tilt). */
+    roll?: number;
+    /** Time in seconds to smoothly interpolate to the target rotation. */
+    smoothTime?: number;
+    /** If true, apply the rotation immediately without lerping. */
+    instant?: boolean;
+}
+
+/** Options for setting scriptable camera FOV offset. */
+export interface ScriptableCameraFovOptions {
+    /** FOV offset in degrees (positive = wider, negative = narrower). */
+    offset: number;
+    /** Time in seconds to smoothly interpolate to the target FOV. */
+    smoothTime?: number;
+    /** If true, apply the FOV immediately without lerping. */
+    instant?: boolean;
+}
+
+/** Options for camera shake effect. */
+export interface ScriptableCameraShakeOptions {
+    /** Intensity of the shake in blocks. Default: 0.5 */
+    intensity?: number;
+    /** Frequency of the shake oscillation in Hz. Default: 10 */
+    frequency?: number;
+    /** Duration of the shake in milliseconds. Default: 500 */
+    duration?: number;
+}
+
+/** Options for velocity-based camera tilt. */
+export interface ScriptableCameraVelocityTiltOptions {
+    /** Degrees of tilt per m/s of strafe velocity. Default: 2.0 */
+    amount?: number;
+    /** Smoothing time in seconds for the tilt. Default: 0.1 */
+    smoothing?: number;
+}
+
+/** Options for configuring scriptable camera smoothing. */
+export interface ScriptableCameraSmoothingOptions {
+    /** Smooth time for position offset interpolation in seconds. */
+    position?: number;
+    /** Smooth time for rotation offset interpolation in seconds. */
+    rotation?: number;
+    /** Smooth time for FOV offset interpolation in seconds. */
+    fov?: number;
+}
+
+/** Options for resetting scriptable camera. */
+export interface ScriptableCameraResetOptions {
+    /** If true, reset all offsets immediately without lerping. */
+    instant?: boolean;
+}
+
+/** Options for soft look-at targeting world coordinates. */
+export interface SoftLookAtOptions {
+    /** Target X world coordinate. */
+    x: number;
+    /** Target Y world coordinate. */
+    y: number;
+    /** Target Z world coordinate. */
+    z: number;
+    /** Blend strength (0-1). 0 = player has full control, 1 = camera fully looks at target. Default: 1 */
+    strength?: number;
+    /** Time in seconds to smooth the rotation towards the target. Default: 0.3 */
+    smoothTime?: number;
+}
+
+/** Options for soft look-at targeting an entity. */
+export interface SoftLookAtEntityOptions {
+    /** The entity ID to track. */
+    entityId: number;
+    /** Blend strength (0-1). 0 = player has full control, 1 = camera fully looks at target. Default: 1 */
+    strength?: number;
+    /** Time in seconds to smooth the rotation towards the target. Default: 0.3 */
+    smoothTime?: number;
+}
+
+/** Options for pitch rotation limits. */
+export interface PitchLimitsOptions {
+    /** Minimum pitch angle in degrees (looking down). Default: -90 */
+    min?: number;
+    /** Maximum pitch angle in degrees (looking up). Default: 90 */
+    max?: number;
+}
+
+/** Options for yaw rotation limits. */
+export interface YawLimitsOptions {
+    /** Range of allowed yaw movement in degrees from center (e.g. 90 = +/-90 degrees). */
+    range: number;
+    /** Center yaw in degrees. If not specified, uses current yaw when called. */
+    center?: number;
+}
+
+/** Options for camera follow target. */
+export interface FollowTargetOptions {
+    /** Target X world coordinate. */
+    x: number;
+    /** Target Y world coordinate. */
+    y: number;
+    /** Target Z world coordinate. */
+    z: number;
+    /** Lag factor (0-1). Higher values = more delay. Default: 0.1 */
+    lag?: number;
+}
+
+/** Options for cinematic camera bob (body cam style). */
+export interface CinematicBobOptions {
+    /** Whether to enable cinematic bob. Default: true */
+    enabled?: boolean;
+    /** Intensity multiplier for the bob effect. Default: 1.0 */
+    intensity?: number;
+    /** Roll multiplier for shoulder tilt during walking. Default: 3.0 */
+    rollMultiplier?: number;
+    /** Pitch multiplier for head nod during walking. Default: 1.0 */
+    pitchMultiplier?: number;
+}
+
+/** Options for Perlin noise-based camera shake (trauma system). */
+export interface PerlinShakeOptions {
+    /** Initial trauma value (0-1). Trauma decays over time. Default: 0.5 */
+    trauma?: number;
+    /** Maximum shake amplitude in degrees/blocks. Default: 15 */
+    amplitude?: number;
+    /** Speed of the noise evolution. Default: 5.0 */
+    speed?: number;
+    /** If true, trauma increases automatically based on player velocity. Default: false */
+    autoFromVelocity?: boolean;
+}
+
 /**
  * Controls the in-game camera from client scripts.
  * @remarks Client-only.
@@ -2751,6 +2899,253 @@ export interface CameraService {
     setThirdPerson(thirdPerson: boolean): void;
     /** @returns The player's current field of view in degrees. */
     getFov(): number;
+
+    /**
+     * Enables the scriptable camera mode. This allows applying offsets and modifiers
+     * to the player's camera while letting them retain full control.
+     * @remarks Unlike `enableCustomCamera()`, this mode blends with vanilla camera.
+     */
+    enableScriptableCamera(): void;
+
+    /**
+     * Disables the scriptable camera mode and resets all offsets.
+     */
+    disableScriptableCamera(): void;
+
+    /**
+     * Returns whether scriptable camera is currently active.
+     * @returns `true` when scriptable camera mode is enabled.
+     */
+    isScriptableCameraActive(): boolean;
+
+    /**
+     * Sets the position offset for the scriptable camera.
+     * The offset is applied relative to the player's camera position in camera-local space
+     * (x = right, y = up, z = forward).
+     * @param options Position offset and smoothing configuration.
+     * @example
+     * // Move camera 1 block to the right and 0.5 blocks down
+     * Moud.camera.setPositionOffset({ x: 1, y: -0.5, smoothTime: 0.2 });
+     */
+    setPositionOffset(options: ScriptableCameraPositionOptions): void;
+
+    /**
+     * Sets the rotation offset for the scriptable camera.
+     * The offset is added to the player's camera rotation.
+     * @param options Rotation offset in degrees and smoothing configuration.
+     * @example
+     * // Tilt the camera 10 degrees to the right
+     * Moud.camera.setRotationOffset({ roll: 10, smoothTime: 0.15 });
+     */
+    setRotationOffset(options: ScriptableCameraRotationOptions): void;
+
+    /**
+     * Sets the FOV offset for the scriptable camera.
+     * The offset is added to the player's current FOV setting.
+     * @param options FOV offset configuration, or a number for a simple offset.
+     * @example
+     * // Zoom in by reducing FOV by 20 degrees
+     * Moud.camera.setFovOffset({ offset: -20, smoothTime: 0.1 });
+     * // Or simply:
+     * Moud.camera.setFovOffset(-20);
+     */
+    setFovOffset(options: ScriptableCameraFovOptions | number): void;
+
+    /**
+     * Applies a camera shake effect. The shake automatically decays over the duration.
+     * @param options Shake configuration, or a number for intensity with default duration.
+     * @example
+     * // Strong shake for 1 second
+     * Moud.camera.shake({ intensity: 0.8, frequency: 15, duration: 1000 });
+     * // Quick light shake
+     * Moud.camera.shake(0.3);
+     */
+    shake(options: ScriptableCameraShakeOptions | number): void;
+
+    /**
+     * Stops any active camera shake immediately.
+     */
+    stopShake(): void;
+
+    /**
+     * Enables velocity-based camera tilt (like leaning into turns).
+     * When moving sideways, the camera will tilt in the direction of movement.
+     * @param options Tilt configuration.
+     * @example
+     * // Enable subtle velocity tilt
+     * Moud.camera.enableVelocityTilt({ amount: 3, smoothing: 0.15 });
+     */
+    enableVelocityTilt(options?: ScriptableCameraVelocityTiltOptions): void;
+
+    /**
+     * Disables velocity-based camera tilt.
+     */
+    disableVelocityTilt(): void;
+
+    /**
+     * Configures smoothing parameters for the scriptable camera.
+     * @param options Smoothing times for different camera properties.
+     * @example
+     * Moud.camera.setScriptableCameraSmoothing({ position: 0.2, rotation: 0.1, fov: 0.15 });
+     */
+    setScriptableCameraSmoothing(options: ScriptableCameraSmoothingOptions): void;
+
+    /**
+     * Resets all scriptable camera offsets to zero.
+     * @param options If instant is true, resets immediately without lerping.
+     * @example
+     * // Smoothly reset all offsets
+     * Moud.camera.resetScriptableCamera();
+     * // Immediately reset all offsets
+     * Moud.camera.resetScriptableCamera({ instant: true });
+     */
+    resetScriptableCamera(options?: ScriptableCameraResetOptions | boolean): void;
+
+    // ========== SOFT LOOK-AT API ==========
+
+    /**
+     * Makes the camera softly look towards world coordinates.
+     * The camera will blend between player input and the target based on strength.
+     * @param options Target position and blending configuration.
+     * @example
+     * // Look at coordinates with 80% strength
+     * Moud.camera.setSoftLookAt({ x: 100, y: 64, z: 200, strength: 0.8, smoothTime: 0.3 });
+     */
+    setSoftLookAt(options: SoftLookAtOptions): void;
+
+    /**
+     * Makes the camera softly track an entity.
+     * @param options Entity ID and blending configuration.
+     * @example
+     * // Track entity with full strength
+     * Moud.camera.setSoftLookAtEntity({ entityId: 123, strength: 1.0 });
+     */
+    setSoftLookAtEntity(options: SoftLookAtEntityOptions): void;
+
+    /**
+     * Clears any active soft look-at target.
+     */
+    clearSoftLookAt(): void;
+
+    // ========== ROTATION LIMITS API ==========
+
+    /**
+     * Sets pitch (up/down) rotation limits for the camera.
+     * @param options Minimum and maximum pitch angles in degrees.
+     * @example
+     * // Limit looking up/down to +/-45 degrees
+     * Moud.camera.setPitchLimits({ min: -45, max: 45 });
+     */
+    setPitchLimits(options: PitchLimitsOptions): void;
+
+    /**
+     * Clears pitch rotation limits.
+     */
+    clearPitchLimits(): void;
+
+    /**
+     * Sets yaw (left/right) rotation limits for the camera.
+     * @param options Range and optional center yaw in degrees.
+     * @example
+     * // Limit horizontal look to +/-90 degrees from current facing
+     * Moud.camera.setYawLimits({ range: 90 });
+     * // Limit to specific center direction
+     * Moud.camera.setYawLimits({ range: 45, center: 180 });
+     */
+    setYawLimits(options: YawLimitsOptions): void;
+
+    /**
+     * Clears yaw rotation limits.
+     */
+    clearYawLimits(): void;
+
+    /**
+     * Locks one or both rotation axes completely.
+     * @param axis The axis to lock: 'yaw', 'pitch', or 'both'.
+     * @example
+     * // Lock horizontal rotation
+     * Moud.camera.lockAxis('yaw');
+     * // Lock all rotation
+     * Moud.camera.lockAxis('both');
+     */
+    lockAxis(axis: 'yaw' | 'pitch' | 'both'): void;
+
+    /**
+     * Unlocks one or both rotation axes.
+     * @param axis The axis to unlock: 'yaw', 'pitch', or 'both'.
+     */
+    unlockAxis(axis: 'yaw' | 'pitch' | 'both'): void;
+
+    // ========== FOLLOW TARGET API ==========
+
+    /**
+     * Sets a follow target position with configurable lag.
+     * The camera smoothly follows the target position with delay.
+     * @param options Target position and lag configuration.
+     * @example
+     * // Follow position with some lag
+     * Moud.camera.setFollowTarget({ x: 100, y: 64, z: 200, lag: 0.2 });
+     */
+    setFollowTarget(options: FollowTargetOptions): void;
+
+    /**
+     * Updates the follow target position without changing lag settings.
+     * @param options New target position.
+     */
+    updateFollowTarget(options: { x: number; y: number; z: number }): void;
+
+    /**
+     * Stops following the target and returns camera control to player.
+     */
+    stopFollowTarget(): void;
+
+    // ========== CINEMATIC BOB API ==========
+
+    /**
+     * Enables cinematic camera bob (body cam style movement).
+     * Creates realistic head movement while walking.
+     * @param options Bob configuration.
+     * @example
+     * // Enable with default settings
+     * Moud.camera.setCinematicBob({ enabled: true });
+     * // Custom intensity
+     * Moud.camera.setCinematicBob({ intensity: 1.5, rollMultiplier: 4.0 });
+     */
+    setCinematicBob(options: CinematicBobOptions): void;
+
+    /**
+     * Disables cinematic camera bob.
+     */
+    disableCinematicBob(): void;
+
+    // ========== PERLIN SHAKE API ==========
+
+    /**
+     * Enables Perlin noise-based camera shake (trauma system).
+     * Creates more natural, organic camera shake than simple oscillation.
+     * @param options Shake configuration.
+     * @example
+     * // Enable with initial trauma
+     * Moud.camera.enablePerlinShake({ trauma: 0.5, amplitude: 10, speed: 3 });
+     * // Auto-shake from movement
+     * Moud.camera.enablePerlinShake({ autoFromVelocity: true });
+     */
+    enablePerlinShake(options?: PerlinShakeOptions): void;
+
+    /**
+     * Disables Perlin noise-based camera shake.
+     */
+    disablePerlinShake(): void;
+
+    /**
+     * Adds trauma to the Perlin shake system.
+     * Trauma naturally decays over time, creating impact-like effects.
+     * @param amount Amount of trauma to add (0-1). Values are clamped.
+     * @example
+     * // Add impact trauma
+     * Moud.camera.addTrauma(0.3);
+     */
+    addTrauma(amount: number): void;
 }
 
 /**
