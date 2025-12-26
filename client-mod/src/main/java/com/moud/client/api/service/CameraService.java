@@ -6,6 +6,8 @@ import net.minecraft.client.option.Perspective;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.MathHelper;
 import com.moud.client.editor.config.EditorConfig;
+import net.minecraft.util.math.noise.PerlinNoiseSampler;
+import net.minecraft.util.math.random.Random;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
@@ -87,6 +89,121 @@ public final class CameraService {
     private double dollyDirectionYaw = 0;
     private double dollyDirectionPitch = 0;
     private double dollyDirectionDistance = 6.0;
+
+    private boolean scriptableCameraActive = false;
+
+    private static class ScriptableCameraState {
+        public Vector3d positionOffset = new Vector3d();
+        public Vector3d targetPositionOffset = new Vector3d();
+        public Vector3d positionOffsetVelocity = new Vector3d();
+
+        public double yawOffset = 0, pitchOffset = 0, rollOffset = 0;
+        public double targetYawOffset = 0, targetPitchOffset = 0, targetRollOffset = 0;
+
+        public double fovOffset = 0;
+        public double targetFovOffset = 0;
+
+        public double positionSmoothTime = 0.15;
+        public double rotationSmoothTime = 0.1;
+        public double fovSmoothTime = 0.1;
+
+        public double shakeIntensity = 0;
+        public double shakeFrequency = 10;
+        public long shakeStartTime = 0;
+        public long shakeDuration = 0;
+
+        public boolean velocityTiltEnabled = false;
+        public double velocityTiltAmount = 2.0;
+        public double velocityTiltSmoothing = 0.1;
+        public double currentVelocityTilt = 0;
+
+        public boolean lookAtEnabled = false;
+        public Vector3d lookAtTarget = new Vector3d();
+        public int lookAtEntityId = -1;
+        public double lookAtStrength = 0.5;
+        public double lookAtSmoothTime = 0.2;
+        public double lookAtYawVelocity = 0;
+        public double lookAtPitchVelocity = 0;
+
+        public boolean pitchLimitsEnabled = false;
+        public double minPitch = -90;
+        public double maxPitch = 90;
+        public boolean yawLimitsEnabled = false;
+        public double minYaw = -180;
+        public double maxYaw = 180;
+        public double yawLimitCenter = 0;
+        public boolean yawLocked = false;
+        public boolean pitchLocked = false;
+        public double lockedYaw = 0;
+        public double lockedPitch = 0;
+
+        public boolean followTargetEnabled = false;
+        public Vector3d followTarget = new Vector3d();
+        public double followLag = 0.1;
+        public Vector3d followVelocity = new Vector3d();
+
+        public boolean proceduralBobEnabled = false;
+        public double bobIntensity = 1.0;
+        public double bobPhase = 0;
+        public double bobCurrentRoll = 0;
+        public double bobCurrentPitch = 0;
+
+        public boolean perlinShakeEnabled = false;
+        public double perlinTrauma = 0;
+        public double perlinTraumaGoal = 0;
+        public double perlinNoiseSpeed = 0.5;
+        public double perlinNoiseSpeedGoal = 0.5;
+        public double perlinNoiseTime = 0;
+        public double perlinAmplitude = 4.0;
+        public double perlinRoll = 0;
+        public boolean perlinAutoFromVelocity = false;
+
+        public void reset() {
+            positionOffset.set(0, 0, 0);
+            targetPositionOffset.set(0, 0, 0);
+            positionOffsetVelocity.set(0, 0, 0);
+            yawOffset = pitchOffset = rollOffset = 0;
+            targetYawOffset = targetPitchOffset = targetRollOffset = 0;
+            fovOffset = targetFovOffset = 0;
+            shakeIntensity = 0;
+            shakeDuration = 0;
+            velocityTiltEnabled = false;
+            currentVelocityTilt = 0;
+
+            lookAtEnabled = false;
+            lookAtEntityId = -1;
+            lookAtStrength = 0.5;
+            lookAtYawVelocity = lookAtPitchVelocity = 0;
+
+            pitchLimitsEnabled = false;
+            minPitch = -90;
+            maxPitch = 90;
+            yawLimitsEnabled = false;
+            minYaw = -180;
+            maxYaw = 180;
+            yawLocked = pitchLocked = false;
+
+            followTargetEnabled = false;
+            followVelocity.set(0, 0, 0);
+
+            proceduralBobEnabled = false;
+            bobIntensity = 1.0;
+            bobPhase = 0;
+            bobCurrentRoll = 0;
+            bobCurrentPitch = 0;
+
+            perlinShakeEnabled = false;
+            perlinTrauma = 0;
+            perlinTraumaGoal = 0;
+            perlinNoiseTime = 0;
+            perlinRoll = 0;
+            perlinAutoFromVelocity = false;
+        }
+    }
+    private final ScriptableCameraState scriptableState = new ScriptableCameraState();
+
+    private PerlinNoiseSampler perlinNoiseSampler;
+
     private static class DollyZoomConfig {
         double targetFov = 70;
         long duration = 1000;
@@ -101,6 +218,9 @@ public final class CameraService {
 
     public CameraService() {
         this.client = MinecraftClient.getInstance();
+        this.perlinNoiseSampler = new PerlinNoiseSampler(
+            Random.create()
+        );
     }
 
     public void setContext(Context jsContext) {
@@ -240,6 +360,693 @@ public final class CameraService {
         useSmoothDamp = false;
         currentVelocity.set(0, 0, 0);
         this.activeCameraId = null;
+    }
+
+    @HostAccess.Export
+    public void enableScriptableCamera() {
+        if (scriptableCameraActive) return;
+        scriptableCameraActive = true;
+        scriptableState.reset();
+        LOGGER.info("Scriptable camera enabled");
+    }
+
+    @HostAccess.Export
+    public void disableScriptableCamera() {
+        if (!scriptableCameraActive) return;
+        scriptableCameraActive = false;
+        scriptableState.reset();
+        LOGGER.info("Scriptable camera disabled");
+    }
+
+    public boolean isScriptableCameraActive() {
+        return scriptableCameraActive;
+    }
+
+    @HostAccess.Export
+    public void setPositionOffset(Value options) {
+        if (!scriptableCameraActive || !options.hasMembers()) {
+            LOGGER.warn("setPositionOffset() called but scriptable camera is not active or no options");
+            return;
+        }
+
+        double x = extractDouble(options, "x", scriptableState.targetPositionOffset.x);
+        double y = extractDouble(options, "y", scriptableState.targetPositionOffset.y);
+        double z = extractDouble(options, "z", scriptableState.targetPositionOffset.z);
+        scriptableState.targetPositionOffset.set(x, y, z);
+        LOGGER.info("setPositionOffset: x={}, y={}, z={}", x, y, z);
+
+        if (options.hasMember("smoothTime")) {
+            scriptableState.positionSmoothTime = Math.max(0.001, extractDouble(options, "smoothTime", 0.15));
+        }
+
+        if (options.hasMember("instant") && options.getMember("instant").asBoolean()) {
+            scriptableState.positionOffset.set(x, y, z);
+            scriptableState.positionOffsetVelocity.set(0, 0, 0);
+        }
+    }
+
+    @HostAccess.Export
+    public void setRotationOffset(Value options) {
+        if (!scriptableCameraActive || !options.hasMembers()) {
+            LOGGER.warn("setRotationOffset() called but scriptable camera is not active or no options");
+            return;
+        }
+
+        if (options.hasMember("yaw")) {
+            scriptableState.targetYawOffset = extractDouble(options, "yaw", scriptableState.targetYawOffset);
+        }
+        if (options.hasMember("pitch")) {
+            scriptableState.targetPitchOffset = extractDouble(options, "pitch", scriptableState.targetPitchOffset);
+        }
+        if (options.hasMember("roll")) {
+            scriptableState.targetRollOffset = extractDouble(options, "roll", scriptableState.targetRollOffset);
+        }
+        LOGGER.info("setRotationOffset: yaw={}, pitch={}, roll={}",
+            scriptableState.targetYawOffset, scriptableState.targetPitchOffset, scriptableState.targetRollOffset);
+
+        if (options.hasMember("smoothTime")) {
+            scriptableState.rotationSmoothTime = Math.max(0.001, extractDouble(options, "smoothTime", 0.1));
+        }
+
+        if (options.hasMember("instant") && options.getMember("instant").asBoolean()) {
+            scriptableState.yawOffset = scriptableState.targetYawOffset;
+            scriptableState.pitchOffset = scriptableState.targetPitchOffset;
+            scriptableState.rollOffset = scriptableState.targetRollOffset;
+        }
+    }
+
+    @HostAccess.Export
+    public void setFovOffset(Value options) {
+        if (!scriptableCameraActive) return;
+
+        if (options.isNumber()) {
+            scriptableState.targetFovOffset = options.asDouble();
+        } else if (options.hasMembers()) {
+            scriptableState.targetFovOffset = extractDouble(options, "offset", scriptableState.targetFovOffset);
+            if (options.hasMember("smoothTime")) {
+                scriptableState.fovSmoothTime = Math.max(0.001, extractDouble(options, "smoothTime", 0.1));
+            }
+            if (options.hasMember("instant") && options.getMember("instant").asBoolean()) {
+                scriptableState.fovOffset = scriptableState.targetFovOffset;
+            }
+        }
+    }
+
+    @HostAccess.Export
+    public void shake(Value options) {
+        if (!scriptableCameraActive) {
+            LOGGER.warn("shake() called but scriptable camera is not active");
+            return;
+        }
+
+        double intensity = 0.5;
+        double frequency = 10;
+        long duration = 500;
+
+        if (options.isNumber()) {
+            intensity = options.asDouble();
+        } else if (options.hasMembers()) {
+            intensity = extractDouble(options, "intensity", intensity);
+            frequency = extractDouble(options, "frequency", frequency);
+            if (options.hasMember("duration")) {
+                duration = options.getMember("duration").asLong();
+            }
+        }
+
+        scriptableState.shakeIntensity = intensity;
+        scriptableState.shakeFrequency = frequency;
+        scriptableState.shakeDuration = duration;
+        scriptableState.shakeStartTime = System.currentTimeMillis();
+        LOGGER.info("Shake started: intensity={}, frequency={}, duration={}", intensity, frequency, duration);
+    }
+
+    @HostAccess.Export
+    public void stopShake() {
+        scriptableState.shakeIntensity = 0;
+        scriptableState.shakeDuration = 0;
+    }
+    @HostAccess.Export
+    public void enableVelocityTilt(Value options) {
+        if (!scriptableCameraActive) return;
+
+        scriptableState.velocityTiltEnabled = true;
+
+        if (options != null && options.hasMembers()) {
+            scriptableState.velocityTiltAmount = extractDouble(options, "amount", 2.0);
+            scriptableState.velocityTiltSmoothing = extractDouble(options, "smoothing", 0.1);
+        }
+    }
+
+
+    @HostAccess.Export
+    public void disableVelocityTilt() {
+        scriptableState.velocityTiltEnabled = false;
+        scriptableState.currentVelocityTilt = 0;
+    }
+
+    @HostAccess.Export
+    public void setScriptableCameraSmoothing(Value options) {
+        if (!options.hasMembers()) return;
+
+        if (options.hasMember("position")) {
+            scriptableState.positionSmoothTime = Math.max(0.001, extractDouble(options, "position", 0.15));
+        }
+        if (options.hasMember("rotation")) {
+            scriptableState.rotationSmoothTime = Math.max(0.001, extractDouble(options, "rotation", 0.1));
+        }
+        if (options.hasMember("fov")) {
+            scriptableState.fovSmoothTime = Math.max(0.001, extractDouble(options, "fov", 0.1));
+        }
+    }
+
+
+    @HostAccess.Export
+    public void resetScriptableCamera(Value options) {
+        boolean instant = false;
+        if (options != null && options.hasMembers() && options.hasMember("instant")) {
+            instant = options.getMember("instant").asBoolean();
+        } else if (options != null && options.isBoolean()) {
+            instant = options.asBoolean();
+        }
+
+        scriptableState.targetPositionOffset.set(0, 0, 0);
+        scriptableState.targetYawOffset = 0;
+        scriptableState.targetPitchOffset = 0;
+        scriptableState.targetRollOffset = 0;
+        scriptableState.targetFovOffset = 0;
+        scriptableState.shakeIntensity = 0;
+        scriptableState.velocityTiltEnabled = false;
+        scriptableState.lookAtEnabled = false;
+        scriptableState.lookAtEntityId = -1;
+        scriptableState.pitchLimitsEnabled = false;
+        scriptableState.yawLimitsEnabled = false;
+        scriptableState.yawLocked = false;
+        scriptableState.pitchLocked = false;
+        scriptableState.followTargetEnabled = false;
+        scriptableState.proceduralBobEnabled = false;
+        scriptableState.perlinShakeEnabled = false;
+
+        if (instant) {
+            scriptableState.positionOffset.set(0, 0, 0);
+            scriptableState.positionOffsetVelocity.set(0, 0, 0);
+            scriptableState.yawOffset = 0;
+            scriptableState.pitchOffset = 0;
+            scriptableState.rollOffset = 0;
+            scriptableState.fovOffset = 0;
+            scriptableState.currentVelocityTilt = 0;
+            scriptableState.lookAtYawVelocity = 0;
+            scriptableState.lookAtPitchVelocity = 0;
+            scriptableState.followVelocity.set(0, 0, 0);
+            scriptableState.perlinRoll = 0;
+        }
+    }
+
+    @HostAccess.Export
+    public void setSoftLookAt(Value options) {
+        if (!scriptableCameraActive) {
+            LOGGER.warn("setSoftLookAt() called but scriptable camera is not active");
+            return;
+        }
+
+        if (!options.hasMembers()) return;
+
+        double x = extractDouble(options, "x", 0);
+        double y = extractDouble(options, "y", 0);
+        double z = extractDouble(options, "z", 0);
+        scriptableState.lookAtTarget.set(x, y, z);
+        scriptableState.lookAtEnabled = true;
+        scriptableState.lookAtEntityId = -1;
+
+        if (options.hasMember("strength")) {
+            scriptableState.lookAtStrength = MathHelper.clamp(extractDouble(options, "strength", 0.5), 0, 1);
+        }
+        if (options.hasMember("smoothTime")) {
+            scriptableState.lookAtSmoothTime = Math.max(0.01, extractDouble(options, "smoothTime", 0.2));
+        }
+
+        LOGGER.info("Soft lookAt enabled: target=({}, {}, {}), strength={}", x, y, z, scriptableState.lookAtStrength);
+    }
+
+    @HostAccess.Export
+    public void setSoftLookAtEntity(Value options) {
+        if (!scriptableCameraActive) {
+            LOGGER.warn("setSoftLookAtEntity() called but scriptable camera is not active");
+            return;
+        }
+
+        int entityId = -1;
+        if (options.isNumber()) {
+            entityId = options.asInt();
+        } else if (options.hasMembers() && options.hasMember("entityId")) {
+            entityId = (int) extractDouble(options, "entityId", -1);
+            if (options.hasMember("strength")) {
+                scriptableState.lookAtStrength = MathHelper.clamp(extractDouble(options, "strength", 0.5), 0, 1);
+            }
+            if (options.hasMember("smoothTime")) {
+                scriptableState.lookAtSmoothTime = Math.max(0.01, extractDouble(options, "smoothTime", 0.2));
+            }
+        }
+
+        if (entityId >= 0) {
+            scriptableState.lookAtEntityId = entityId;
+            scriptableState.lookAtEnabled = true;
+            LOGGER.info("Soft lookAt entity enabled: entityId={}", entityId);
+        }
+    }
+
+    @HostAccess.Export
+    public void clearSoftLookAt() {
+        scriptableState.lookAtEnabled = false;
+        scriptableState.lookAtEntityId = -1;
+        scriptableState.lookAtYawVelocity = 0;
+        scriptableState.lookAtPitchVelocity = 0;
+    }
+
+
+    @HostAccess.Export
+    public void setPitchLimits(Value options) {
+        if (!scriptableCameraActive) return;
+
+        if (options.hasMembers()) {
+            scriptableState.minPitch = extractDouble(options, "min", -90);
+            scriptableState.maxPitch = extractDouble(options, "max", 90);
+            scriptableState.pitchLimitsEnabled = true;
+            LOGGER.info("Pitch limits set: {} to {}", scriptableState.minPitch, scriptableState.maxPitch);
+        }
+    }
+
+    @HostAccess.Export
+    public void clearPitchLimits() {
+        scriptableState.pitchLimitsEnabled = false;
+        scriptableState.minPitch = -90;
+        scriptableState.maxPitch = 90;
+    }
+
+    @HostAccess.Export
+    public void setYawLimits(Value options) {
+        if (!scriptableCameraActive) return;
+
+        if (options.hasMembers()) {
+            double range = extractDouble(options, "range", 180); // Total degrees of freedom
+            scriptableState.minYaw = -range / 2;
+            scriptableState.maxYaw = range / 2;
+
+            // Center can be specified or uses current player yaw
+            if (options.hasMember("center")) {
+                scriptableState.yawLimitCenter = extractDouble(options, "center", 0);
+            } else if (client.player != null) {
+                scriptableState.yawLimitCenter = client.player.getYaw();
+            }
+
+            scriptableState.yawLimitsEnabled = true;
+            LOGGER.info("Yaw limits set: center={}, range={}", scriptableState.yawLimitCenter, range);
+        }
+    }
+
+    @HostAccess.Export
+    public void clearYawLimits() {
+        scriptableState.yawLimitsEnabled = false;
+    }
+
+
+    @HostAccess.Export
+    public void lockAxis(Value axis) {
+        if (!scriptableCameraActive) return;
+
+        String axisName = axis.isString() ? axis.asString() : "";
+
+        if ("yaw".equalsIgnoreCase(axisName)) {
+            scriptableState.yawLocked = true;
+            if (client.player != null) {
+                scriptableState.lockedYaw = client.player.getYaw();
+            }
+            LOGGER.info("Yaw axis locked at {}", scriptableState.lockedYaw);
+        } else if ("pitch".equalsIgnoreCase(axisName)) {
+            scriptableState.pitchLocked = true;
+            if (client.player != null) {
+                scriptableState.lockedPitch = client.player.getPitch();
+            }
+            LOGGER.info("Pitch axis locked at {}", scriptableState.lockedPitch);
+        } else if ("both".equalsIgnoreCase(axisName)) {
+            scriptableState.yawLocked = true;
+            scriptableState.pitchLocked = true;
+            if (client.player != null) {
+                scriptableState.lockedYaw = client.player.getYaw();
+                scriptableState.lockedPitch = client.player.getPitch();
+            }
+            LOGGER.info("Both axes locked");
+        }
+    }
+
+
+    @HostAccess.Export
+    public void unlockAxis(Value axis) {
+        String axisName = axis != null && axis.isString() ? axis.asString() : "both";
+
+        if ("yaw".equalsIgnoreCase(axisName)) {
+            scriptableState.yawLocked = false;
+        } else if ("pitch".equalsIgnoreCase(axisName)) {
+            scriptableState.pitchLocked = false;
+        } else {
+            scriptableState.yawLocked = false;
+            scriptableState.pitchLocked = false;
+        }
+    }
+
+
+    @HostAccess.Export
+    public void setFollowTarget(Value options) {
+        if (!scriptableCameraActive) return;
+
+        if (options.hasMembers()) {
+            double x = extractDouble(options, "x", 0);
+            double y = extractDouble(options, "y", 0);
+            double z = extractDouble(options, "z", 0);
+            scriptableState.followTarget.set(x, y, z);
+            scriptableState.followLag = Math.max(0.01, extractDouble(options, "lag", 0.1));
+            scriptableState.followTargetEnabled = true;
+            LOGGER.info("Follow target set: ({}, {}, {}), lag={}", x, y, z, scriptableState.followLag);
+        }
+    }
+
+    @HostAccess.Export
+    public void updateFollowTarget(Value options) {
+        if (!scriptableCameraActive || !scriptableState.followTargetEnabled) return;
+
+        if (options.hasMembers()) {
+            scriptableState.followTarget.set(
+                extractDouble(options, "x", scriptableState.followTarget.x),
+                extractDouble(options, "y", scriptableState.followTarget.y),
+                extractDouble(options, "z", scriptableState.followTarget.z)
+            );
+        }
+    }
+
+    @HostAccess.Export
+    public void stopFollowTarget() {
+        scriptableState.followTargetEnabled = false;
+        scriptableState.followVelocity.set(0, 0, 0);
+    }
+
+
+    @HostAccess.Export
+    public void setCinematicBob(Value options) {
+        if (!scriptableCameraActive) return;
+
+        if (options.hasMembers()) {
+            if (options.hasMember("enabled")) {
+                scriptableState.proceduralBobEnabled = options.getMember("enabled").asBoolean();
+            } else {
+                scriptableState.proceduralBobEnabled = true;
+            }
+
+            if (options.hasMember("intensity")) {
+                scriptableState.bobIntensity = Math.max(0, extractDouble(options, "intensity", 1.0));
+            }
+        } else if (options.isBoolean()) {
+            scriptableState.proceduralBobEnabled = options.asBoolean();
+        }
+    }
+
+    @HostAccess.Export
+    public void disableCinematicBob() {
+        scriptableState.proceduralBobEnabled = false;
+    }
+
+    @HostAccess.Export
+    public void enablePerlinShake(Value options) {
+        if (!scriptableCameraActive) return;
+
+        scriptableState.perlinShakeEnabled = true;
+
+        if (options != null && options.hasMembers()) {
+            scriptableState.perlinTrauma = extractDouble(options, "trauma", 0.5);
+            scriptableState.perlinTraumaGoal = scriptableState.perlinTrauma;
+            scriptableState.perlinAmplitude = extractDouble(options, "amplitude", 4.0);
+            scriptableState.perlinNoiseSpeed = extractDouble(options, "speed", 0.1);
+            scriptableState.perlinNoiseSpeedGoal = scriptableState.perlinNoiseSpeed;
+            scriptableState.perlinAutoFromVelocity = options.hasMember("autoFromVelocity")
+                && options.getMember("autoFromVelocity").asBoolean();
+        }
+
+        LOGGER.info("Perlin shake enabled: trauma={}, amplitude={}, auto={}",
+            scriptableState.perlinTrauma, scriptableState.perlinAmplitude, scriptableState.perlinAutoFromVelocity);
+    }
+
+
+    @HostAccess.Export
+    public void disablePerlinShake() {
+        scriptableState.perlinShakeEnabled = false;
+        scriptableState.perlinRoll = 0;
+    }
+
+    @HostAccess.Export
+    public void addTrauma(Value amount) {
+        if (!scriptableCameraActive || !scriptableState.perlinShakeEnabled) return;
+
+        double trauma = amount.isNumber() ? amount.asDouble() : 0.3;
+        scriptableState.perlinTrauma = MathHelper.clamp(scriptableState.perlinTrauma + trauma, 0, 1.5);
+        scriptableState.perlinTraumaGoal = scriptableState.perlinTrauma;
+    }
+
+    public void updateScriptableCamera(float tickDelta) {
+        if (!scriptableCameraActive) return;
+
+        double dt = Math.min(tickDelta * 0.05, 0.1);
+        float frameDelta = tickDelta * 0.05f;
+
+        smoothDampVector(
+            scriptableState.positionOffset,
+            scriptableState.targetPositionOffset,
+            scriptableState.positionOffsetVelocity,
+            scriptableState.positionSmoothTime,
+            Double.POSITIVE_INFINITY,
+            dt
+        );
+
+        double rotT = 1.0 - Math.pow(0.01, dt / scriptableState.rotationSmoothTime);
+        scriptableState.yawOffset = MathHelper.lerpAngleDegrees((float) rotT,
+            (float) scriptableState.yawOffset, (float) scriptableState.targetYawOffset);
+        scriptableState.pitchOffset = MathHelper.lerp(rotT,
+            scriptableState.pitchOffset, scriptableState.targetPitchOffset);
+        scriptableState.rollOffset = MathHelper.lerpAngleDegrees((float) rotT,
+            (float) scriptableState.rollOffset, (float) scriptableState.targetRollOffset);
+
+        double fovT = 1.0 - Math.pow(0.01, dt / scriptableState.fovSmoothTime);
+        scriptableState.fovOffset = MathHelper.lerp(fovT,
+            scriptableState.fovOffset, scriptableState.targetFovOffset);
+
+        if (scriptableState.velocityTiltEnabled && client.player != null) {
+            double velX = client.player.getVelocity().x;
+            double velZ = client.player.getVelocity().z;
+
+            double yawRad = Math.toRadians(client.player.getYaw());
+            double rightX = Math.sin(yawRad);
+            double rightZ = -Math.cos(yawRad);
+            double strafeVel = velX * rightX + velZ * rightZ;
+
+            double targetTilt = strafeVel * scriptableState.velocityTiltAmount * 20.0;
+            double tiltT = 1.0 - Math.pow(0.01, dt / scriptableState.velocityTiltSmoothing);
+            scriptableState.currentVelocityTilt = MathHelper.lerp(tiltT,
+                scriptableState.currentVelocityTilt, targetTilt);
+        }
+
+        if (scriptableState.proceduralBobEnabled && client.player != null) {
+            scriptableState.bobPhase += dt * 2.5;
+
+            double velX = client.player.getVelocity().x;
+            double velZ = client.player.getVelocity().z;
+            double speed = Math.sqrt(velX * velX + velZ * velZ);
+
+            double speedFactor = MathHelper.clamp(speed * 8.0, 0.0, 1.5);
+            if (!client.player.isOnGround()) speedFactor *= 0.1;
+
+            double targetRoll = Math.sin(scriptableState.bobPhase * Math.PI * 2)
+                * scriptableState.bobIntensity * speedFactor;
+            double targetPitch = Math.abs(Math.sin(scriptableState.bobPhase * Math.PI * 4))
+                * scriptableState.bobIntensity * speedFactor * 0.4;
+
+            double bobT = 1.0 - Math.pow(0.05, dt / 0.1);
+            scriptableState.bobCurrentRoll = MathHelper.lerp(bobT, scriptableState.bobCurrentRoll, targetRoll);
+            scriptableState.bobCurrentPitch = MathHelper.lerp(bobT, scriptableState.bobCurrentPitch, targetPitch);
+        }
+
+        if (scriptableState.perlinShakeEnabled && client.player != null) {
+            if (scriptableState.perlinNoiseTime >= 1000) {
+                scriptableState.perlinNoiseTime = 0;
+            }
+
+            if (scriptableState.perlinAutoFromVelocity) {
+                double velX = client.player.getVelocity().x;
+                double velZ = client.player.getVelocity().z;
+                double speed = Math.sqrt(velX * velX + velZ * velZ);
+
+                double normalizedSpeed = speed * 3.0;
+                if (client.player.isFallFlying()) normalizedSpeed *= 0.1;
+
+                scriptableState.perlinTraumaGoal = MathHelper.clamp(normalizedSpeed * 0.3, 0.0, 0.5);
+                scriptableState.perlinNoiseSpeedGoal = MathHelper.clamp(0.3 + normalizedSpeed, 0.3, 2.0);
+            }
+
+            scriptableState.perlinTrauma = lerp((float) scriptableState.perlinTrauma,
+                (float) scriptableState.perlinTraumaGoal, 0.95f, frameDelta);
+            scriptableState.perlinNoiseSpeed = lerp((float) scriptableState.perlinNoiseSpeed,
+                (float) scriptableState.perlinNoiseSpeedGoal, 0.95f, frameDelta);
+
+            scriptableState.perlinNoiseTime += scriptableState.perlinNoiseSpeed * frameDelta * 0.5;
+
+            double shakeIntensity = scriptableState.perlinTrauma * scriptableState.perlinTrauma * scriptableState.perlinTrauma;
+
+            if (shakeIntensity > 0.0001) {
+                double pitchNoise = scriptableState.perlinAmplitude * shakeIntensity *
+                    perlinNoiseSampler.sample(1, scriptableState.perlinNoiseTime, 0) * 0.3;
+                double yawNoise = scriptableState.perlinAmplitude * shakeIntensity *
+                    perlinNoiseSampler.sample(73, scriptableState.perlinNoiseTime, 0) * 0.3;
+                scriptableState.perlinRoll = scriptableState.perlinAmplitude * shakeIntensity *
+                    perlinNoiseSampler.sample(146, scriptableState.perlinNoiseTime, 0) * 0.5;
+
+                scriptableState.targetYawOffset += yawNoise * 0.02;
+                scriptableState.targetPitchOffset += pitchNoise * 0.1;
+            } else {
+                scriptableState.perlinRoll = 0;
+            }
+        }
+
+        if (scriptableState.followTargetEnabled && client.player != null) {
+            Vector3d playerPos = new Vector3d(client.player.getX(), client.player.getEyeY(), client.player.getZ());
+            Vector3d targetOffset = new Vector3d(scriptableState.followTarget).sub(playerPos);
+
+            smoothDampVector(
+                scriptableState.positionOffset,
+                targetOffset,
+                scriptableState.followVelocity,
+                scriptableState.followLag,
+                Double.POSITIVE_INFINITY,
+                dt
+            );
+        }
+    }
+
+    private static double lerp(float current, float target, float smoothing, float frameDelta) {
+        return current + (target - current) * (1.0 - Math.pow(smoothing, frameDelta));
+    }
+
+
+    public Vector3d getScriptablePositionOffset() {
+        if (!scriptableCameraActive) return null;
+
+        Vector3d offset = new Vector3d(scriptableState.positionOffset);
+
+        if (scriptableState.shakeIntensity > 0 && scriptableState.shakeDuration > 0) {
+            long elapsed = System.currentTimeMillis() - scriptableState.shakeStartTime;
+            if (elapsed < scriptableState.shakeDuration) {
+                double progress = (double) elapsed / scriptableState.shakeDuration;
+                double decay = 1.0 - progress;
+                double time = elapsed * 0.001 * scriptableState.shakeFrequency;
+
+                double shakeX = (Math.sin(time * 2.3) + Math.sin(time * 3.7) * 0.5) * scriptableState.shakeIntensity * decay;
+                double shakeY = (Math.sin(time * 2.9) + Math.sin(time * 4.1) * 0.5) * scriptableState.shakeIntensity * decay;
+                double shakeZ = (Math.sin(time * 2.1) + Math.sin(time * 3.3) * 0.5) * scriptableState.shakeIntensity * decay * 0.5;
+
+                offset.add(shakeX, shakeY, shakeZ);
+            } else {
+                scriptableState.shakeIntensity = 0;
+            }
+        }
+
+        return offset;
+    }
+
+    public double getScriptableYawOffset() {
+        return scriptableCameraActive ? scriptableState.yawOffset : 0;
+    }
+
+
+    public double getScriptablePitchOffset() {
+        if (!scriptableCameraActive) return 0;
+        return scriptableState.pitchOffset + scriptableState.bobCurrentPitch;
+    }
+
+    public double getScriptableRollOffset() {
+        if (!scriptableCameraActive) return 0;
+        return scriptableState.rollOffset + scriptableState.currentVelocityTilt
+            + scriptableState.perlinRoll + scriptableState.bobCurrentRoll;
+    }
+
+    public double getScriptableFovOffset() {
+        return scriptableCameraActive ? scriptableState.fovOffset : 0;
+    }
+
+    public boolean isLookAtEnabled() {
+        return scriptableCameraActive && scriptableState.lookAtEnabled;
+    }
+
+    public double[] computeLookAtRotation() {
+        if (!scriptableCameraActive || !scriptableState.lookAtEnabled) return null;
+        if (client.player == null) return null;
+
+        Vector3d targetPos = new Vector3d(scriptableState.lookAtTarget);
+
+        if (scriptableState.lookAtEntityId >= 0 && client.world != null) {
+            Entity entity = client.world.getEntityById(scriptableState.lookAtEntityId);
+            if (entity != null) {
+                targetPos.set(entity.getX(), entity.getEyeY(), entity.getZ());
+            }
+        }
+
+        double dx = targetPos.x - client.player.getX();
+        double dy = targetPos.y - client.player.getEyeY();
+        double dz = targetPos.z - client.player.getZ();
+
+        double horizontalDist = Math.sqrt(dx * dx + dz * dz);
+        double targetYaw = Math.toDegrees(Math.atan2(-dx, dz));
+        double targetPitch = Math.toDegrees(-Math.atan2(dy, horizontalDist));
+
+        return new double[] { targetYaw, MathHelper.clamp(targetPitch, -90, 90) };
+    }
+
+    public double getLookAtStrength() {
+        return scriptableState.lookAtStrength;
+    }
+
+    public double getLookAtSmoothTime() {
+        return scriptableState.lookAtSmoothTime;
+    }
+
+    public boolean isPitchLimitsEnabled() {
+        return scriptableCameraActive && scriptableState.pitchLimitsEnabled;
+    }
+
+    public double[] getPitchLimits() {
+        return new double[] { scriptableState.minPitch, scriptableState.maxPitch };
+    }
+
+    public boolean isYawLimitsEnabled() {
+        return scriptableCameraActive && scriptableState.yawLimitsEnabled;
+    }
+
+    public double[] getYawLimits() {
+        return new double[] { scriptableState.minYaw, scriptableState.maxYaw, scriptableState.yawLimitCenter };
+    }
+
+    public boolean isYawLocked() {
+        return scriptableCameraActive && scriptableState.yawLocked;
+    }
+
+    public boolean isPitchLocked() {
+        return scriptableCameraActive && scriptableState.pitchLocked;
+    }
+
+    public double getLockedYaw() {
+        return scriptableState.lockedYaw;
+    }
+
+    public double getLockedPitch() {
+        return scriptableState.lockedPitch;
+    }
+
+    public boolean isCinematicBobEnabled() {
+        return scriptableCameraActive && scriptableState.proceduralBobEnabled;
     }
 
     @HostAccess.Export
@@ -1329,11 +2136,15 @@ public final class CameraService {
         if (MoudClientMod.isCustomCameraActive()) {
             this.disableCustomCamera();
         }
+        if (scriptableCameraActive) {
+            this.disableScriptableCamera();
+        }
         pathPoints = null;
         cinematicKeyframes = null;
         lookAtEntity = null;
         lookAtPosition = null;
         dollyZoomActive = false;
+        scriptableState.reset();
         LOGGER.info("CameraService cleaned up.");
     }
 }

@@ -44,6 +44,11 @@ public final class PrimitiveCollisionManager {
         pendingUpdates.remove(id); // cancels interest in the result
     }
 
+    public void clear() {
+        collisions.clear();
+        pendingUpdates.clear();
+    }
+
     public List<VoxelShape> getCollisionShapes(Box queryBox) {
         List<VoxelShape> shapes = new ArrayList<>();
         for (PrimitiveCollision col : collisions.values()) {

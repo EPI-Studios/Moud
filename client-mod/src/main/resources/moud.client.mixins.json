@@ -6,6 +6,7 @@
   "mixins": [
     "EntityCollisionMixin",
     "LivingEntityMixin",
+    "LivingEntityMovementMixin",
     "accessor.LimbAnimatorAccessor",
     "accessor.LivingEntityAccessor"
   ],
@@ -14,8 +15,7 @@
     "BuiltChunkStorageMixin",
     "CameraMixin",
     "ChatHudMixin",
-    "ClientPlayerEntityMixin",
-    "ClientPlayNetworkHandlerMixin",
+    "ClientPlayerEntityMovementMixin",
     "CollisionViewMixin",
     "EntityRenderDispatcherMixin",
     "GameRendererMixin",
