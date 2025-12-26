@@ -5,6 +5,7 @@ import com.moud.server.events.EventDispatcher;
 import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.movement.ServerMovementHandler;
+import com.moud.server.movement.PlayerMovementSimService;
 import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.player.PlayerCameraManager;
 import com.moud.server.player.PlayerCursorDirectionManager;
@@ -27,6 +28,7 @@ public final class CorePacketHandlers implements PacketHandlerGroup {
     @Override
     public void register(PacketRegistry registry) {
         registry.register(MovementStatePacket.class, this::handleMovementState);
+        registry.register(PlayerInputPacket.class, this::handlePlayerInput);
         registry.register(ClientUpdateCameraPacket.class, this::handleCameraUpdate);
         registry.register(MouseMovementPacket.class, this::handleMouseMovement);
         registry.register(PlayerClickPacket.class, this::handlePlayerClick);
@@ -41,6 +43,13 @@ public final class CorePacketHandlers implements PacketHandlerGroup {
         }
         ServerMovementHandler.getInstance().handleMovementState(player, packet);
         eventDispatcher.dispatchMovementEvent(player, packet);
+    }
+
+    private void handlePlayerInput(Player player, PlayerInputPacket packet) {
+        if (!networkManager.isMoudClient(player)) {
+            return;
+        }
+        PlayerMovementSimService.getInstance().handleInput(player, packet);
     }
 
     private void handleCameraUpdate(Player player, ClientUpdateCameraPacket packet) {

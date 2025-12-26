@@ -26,6 +26,13 @@ public class PlayerCameraManager {
     }
 
     public Vector3 getCameraDirection(Player player) {
-        return cameraDirections.getOrDefault(player.getUuid(), new Vector3(0, 0, 1));
+        return getCameraDirection(player != null ? player.getUuid() : null);
+    }
+
+    public Vector3 getCameraDirection(UUID playerId) {
+        if (playerId == null) {
+            return new Vector3(0, 0, 1);
+        }
+        return cameraDirections.getOrDefault(playerId, new Vector3(0, 0, 1));
     }
 }

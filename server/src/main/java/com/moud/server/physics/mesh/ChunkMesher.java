@@ -2,8 +2,10 @@ package com.moud.server.physics.mesh;
 
 import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.MeshShapeSettings;
+import com.github.stephengold.joltjni.ShapeResult;
 import com.github.stephengold.joltjni.Triangle;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
+import com.github.stephengold.joltjni.readonly.ConstShape;
 import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.physics.PhysicsService;
@@ -75,11 +77,35 @@ public class ChunkMesher {
                 chunk.getChunkX(), chunk.getChunkZ(), faces.size(), triangles.size());
 
         MeshShapeSettings shapeSettings = new MeshShapeSettings(triangles);
+        ShapeResult shapeResult = shapeSettings.create();
+        if (shapeResult.hasError()) {
+            LOGGER.warn(
+                    LogContext.builder()
+                            .put("chunkX", chunk.getChunkX())
+                            .put("chunkZ", chunk.getChunkZ())
+                            .put("error", shapeResult.getError())
+                            .build(),
+                    "Failed to create chunk mesh shape: {}",
+                    shapeResult.getError()
+            );
+            return null;
+        }
+        ConstShape shape = shapeResult.get();
+        if (shape == null) {
+            LOGGER.warn(
+                    LogContext.builder()
+                            .put("chunkX", chunk.getChunkX())
+                            .put("chunkZ", chunk.getChunkZ())
+                            .build(),
+                    "Failed to create chunk mesh shape (null shape result)"
+            );
+            return null;
+        }
 
         BodyCreationSettings bodySettings = new BodyCreationSettings()
                 .setMotionType(EMotionType.Static)
                 .setObjectLayer(PhysicsService.LAYER_STATIC)
-                .setShape(shapeSettings.create().get());
+                .setShape(shape);
 
         return bodySettings;
     }
