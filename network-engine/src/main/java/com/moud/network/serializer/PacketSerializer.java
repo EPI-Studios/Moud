@@ -2,6 +2,7 @@ package com.moud.network.serializer;
 
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
+import com.moud.api.physics.player.PlayerPhysicsConfig;
 import com.moud.network.MoudPackets;
 import com.moud.network.buffer.ByteBuffer;
 import com.moud.network.limits.NetworkLimits;
@@ -55,6 +56,7 @@ public class PacketSerializer {
         register(MoudPackets.PrimitiveBatchEntry.class, new PrimitiveBatchEntrySerializer());
         register(MoudPackets.PrimitiveTransformEntry.class, new PrimitiveTransformEntrySerializer());
         register(MoudPackets.IKJointData.class, new IKJointDataSerializer());
+        register(PlayerPhysicsConfig.class, new PlayerPhysicsConfigSerializer());
     }
 
     public <T> void register(Class<T> type, TypeSerializer<T> serializer) {
@@ -321,6 +323,40 @@ public class PacketSerializer {
 
         public Quaternion read(ByteBuffer buffer) {
             return new Quaternion(buffer.readFloat(), buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
+        }
+    }
+
+    private static class PlayerPhysicsConfigSerializer implements TypeSerializer<PlayerPhysicsConfig> {
+        @Override
+        public void write(ByteBuffer buffer, PlayerPhysicsConfig value) {
+            buffer.writeFloat(value.speed());
+            buffer.writeFloat(value.accel());
+            buffer.writeFloat(value.friction());
+            buffer.writeFloat(value.airResistance());
+            buffer.writeFloat(value.gravity());
+            buffer.writeFloat(value.jumpForce());
+            buffer.writeFloat(value.stepHeight());
+            buffer.writeFloat(value.width());
+            buffer.writeFloat(value.height());
+            buffer.writeFloat(value.sprintMultiplier());
+            buffer.writeFloat(value.sneakMultiplier());
+        }
+
+        @Override
+        public PlayerPhysicsConfig read(ByteBuffer buffer) {
+            return new PlayerPhysicsConfig(
+                    buffer.readFloat(),
+                    buffer.readFloat(),
+                    buffer.readFloat(),
+                    buffer.readFloat(),
+                    buffer.readFloat(),
+                    buffer.readFloat(),
+                    buffer.readFloat(),
+                    buffer.readFloat(),
+                    buffer.readFloat(),
+                    buffer.readFloat(),
+                    buffer.readFloat()
+            );
         }
     }
 

@@ -2,6 +2,7 @@ package com.moud.network;
 
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
+import com.moud.api.physics.player.PlayerPhysicsConfig;
 import com.moud.network.annotation.Direction;
 import com.moud.network.annotation.Field;
 import com.moud.network.annotation.Packet;
@@ -99,22 +100,6 @@ public final class MoudPackets {
     @Packet(value = "moud:player_state", direction = Direction.SERVER_TO_CLIENT)
     public record PlayerStatePacket(@Field(order = 0) boolean hideHotbar, @Field(order = 1) boolean hideHand,
                                     @Field(order = 2) boolean hideExperience) {
-    }
-
-    /**
-     * Smooth player position sync packet - used for server-authoritative movement.
-     * Unlike vanilla teleport, this allows client-side interpolation for smooth rendering.
-     */
-    @Packet(value = "moud:player_position_sync", direction = Direction.SERVER_TO_CLIENT)
-    public record PlayerPositionSyncPacket(
-            @Field(order = 0) double x,
-            @Field(order = 1) double y,
-            @Field(order = 2) double z,
-            @Field(order = 3) double velX,
-            @Field(order = 4) double velY,
-            @Field(order = 5) double velZ,
-            @Field(order = 6) boolean onGround
-    ) {
     }
 
     @Packet(value = "moud:extended_player_state", direction = Direction.SERVER_TO_CLIENT)
@@ -277,6 +262,36 @@ public final class MoudPackets {
             @Field(order = 6) boolean sprinting,
             @Field(order = 7) boolean onGround,
             @Field(order = 8) float speed
+    ) {
+    }
+
+    @Packet(value = "moud:player_input", direction = Direction.CLIENT_TO_SERVER)
+    public record PlayerInputPacket(
+            @Field(order = 0) long sequenceId,
+            @Field(order = 1) float yaw,
+            @Field(order = 2) float pitch,
+            @Field(order = 3) int inputBits
+    ) {
+    }
+
+    @Packet(value = "moud:player_snapshot", direction = Direction.SERVER_TO_CLIENT)
+    public record PlayerSnapshotPacket(
+            @Field(order = 0) long lastProcessedSeq,
+            @Field(order = 1) double x,
+            @Field(order = 2) double y,
+            @Field(order = 3) double z,
+            @Field(order = 4) float velX,
+            @Field(order = 5) float velY,
+            @Field(order = 6) float velZ,
+            @Field(order = 7) boolean onGround
+    ) {
+    }
+
+    @Packet(value = "moud:physics_mode", direction = Direction.SERVER_TO_CLIENT)
+    public record PhysicsModePacket(
+            @Field(order = 0) boolean enabled,
+            @Field(order = 1, optional = true) @Nullable String controllerId,
+            @Field(order = 2, optional = true) @Nullable PlayerPhysicsConfig configOverride
     ) {
     }
 
