@@ -16,6 +16,7 @@ import com.moud.client.ik.ClientIKManager;
 import com.moud.client.model.ClientModelManager;
 import com.moud.client.model.ModelRenderer;
 import com.moud.client.model.RenderableModel;
+import com.moud.client.movement.ClientMovementTracker;
 import com.moud.client.particle.ParticleRenderer;
 import com.moud.client.primitives.ClientPrimitive;
 import com.moud.client.primitives.ClientPrimitiveManager;
@@ -60,6 +61,10 @@ public class ClientRenderController {
 
     public void register(ClientServiceManager services) {
         this.particleRenderer = new ParticleRenderer(services.getParticleSystem());
+
+        WorldRenderEvents.START.register(context -> {
+            ClientMovementTracker.getInstance().frameTick();
+        });
 
         WorldRenderEvents.AFTER_ENTITIES.register(renderContext -> render(renderContext, services));
     }
@@ -162,7 +167,13 @@ public class ClientRenderController {
             renderPrimitives(renderContext, services);
             if (particleRenderer != null && renderContext.consumers() != null) {
                 MatrixStack matrices = renderContext.matrixStack();
-                particleRenderer.render(matrices, renderContext.consumers(), camera, tickDelta, renderContext.frustum());
+                particleRenderer.render(
+                        matrices,
+                        renderContext.consumers(),
+                        camera,
+                        tickDelta,
+                        renderContext.frustum()
+                );
             }
             renderModelCollisionHitboxes(renderContext);
             if (services.getCursorManager() != null) {
@@ -370,9 +381,21 @@ public class ClientRenderController {
         }
         Vector3 scale = model.getScale();
         Vector3 meshHalf = model.getMeshHalfExtents();
-        double halfX = computeHalfExtent(meshHalf != null ? meshHalf.x : Double.NaN, scale.x, model.getCollisionWidth());
-        double halfY = computeHalfExtent(meshHalf != null ? meshHalf.y : Double.NaN, scale.y, model.getCollisionHeight());
-        double halfZ = computeHalfExtent(meshHalf != null ? meshHalf.z : Double.NaN, scale.z, model.getCollisionDepth());
+        double halfX = computeHalfExtent(
+                meshHalf != null ? meshHalf.x : Double.NaN,
+                scale.x,
+                model.getCollisionWidth()
+        );
+        double halfY = computeHalfExtent(
+                meshHalf != null ? meshHalf.y : Double.NaN,
+                scale.y,
+                model.getCollisionHeight()
+        );
+        double halfZ = computeHalfExtent(
+                meshHalf != null ? meshHalf.z : Double.NaN,
+                scale.z,
+                model.getCollisionDepth()
+        );
         return new Box(position.x - halfX, position.y - halfY, position.z - halfZ,
                 position.x + halfX, position.y + halfY, position.z + halfZ);
     }
@@ -452,16 +475,28 @@ public class ClientRenderController {
             if (!isVisible(createPrimitiveBounds(primitive, interpolatedPos, interpolatedRot, scale), renderContext)) {
                 continue;
             }
-            Quaternionf rotation = new Quaternionf(interpolatedRot.x, interpolatedRot.y, interpolatedRot.z, interpolatedRot.w);
+            Quaternionf rotation = new Quaternionf(
+                    interpolatedRot.x,
+                    interpolatedRot.y,
+                    interpolatedRot.z,
+                    interpolatedRot.w
+            );
 
             matrices.push();
-            matrices.translate(interpolatedPos.x - cameraPos.x, interpolatedPos.y - cameraPos.y, interpolatedPos.z - cameraPos.z);
+            matrices.translate(
+                    interpolatedPos.x - cameraPos.x,
+                    interpolatedPos.y - cameraPos.y,
+                    interpolatedPos.z - cameraPos.z
+            );
             matrices.multiply(rotation);
             matrices.scale(scale.x, scale.y, scale.z);
 
             int light = primitive.isUnlit() || primitive.isRenderThroughBlocks()
                     ? 0xF000F0
-                    : WorldRenderer.getLightmapCoordinates(world, BlockPos.ofFloored(interpolatedPos.x, interpolatedPos.y, interpolatedPos.z));
+                    : WorldRenderer.getLightmapCoordinates(
+                            world,
+                            BlockPos.ofFloored(interpolatedPos.x, interpolatedPos.y, interpolatedPos.z)
+                    );
 
             primitiveRenderer.renderSolid(primitive, matrices, consumers, light);
             matrices.pop();
@@ -524,7 +559,12 @@ public class ClientRenderController {
         return createOrientedBounds(position.x, position.y, position.z, rotation, halfX, halfY, halfZ);
     }
 
-    private Box createMeshBounds(Vector3 position, Quaternion rotation, Vector3 scale, ClientPrimitive.MeshBounds meshBounds) {
+    private Box createMeshBounds(
+            Vector3 position,
+            Quaternion rotation,
+            Vector3 scale,
+            ClientPrimitive.MeshBounds meshBounds
+    ) {
         double minX = meshBounds.minX();
         double minY = meshBounds.minY();
         double minZ = meshBounds.minZ();

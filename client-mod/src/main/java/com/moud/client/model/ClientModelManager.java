@@ -3,6 +3,7 @@ package com.moud.client.model;
 import com.moud.client.collision.ClientCollisionManager;
 import com.moud.client.collision.ModelCollisionManager;
 import com.moud.client.editor.runtime.RuntimeObjectRegistry;
+import com.moud.client.util.IdentifierUtils;
 import com.moud.client.util.OBJLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.resource.Resource;
@@ -48,7 +49,7 @@ public class ClientModelManager {
     }
 
     private void loadModelData(RenderableModel model) {
-        Identifier modelIdentifier = resolveModelIdentifier(model.getModelPath());
+        Identifier modelIdentifier = IdentifierUtils.resolveModelIdentifier(model.getModelPath());
         if (modelIdentifier == null) {
             LOGGER.error("Invalid model identifier for model {}: {}", model.getId(), model.getModelPath());
             return;
@@ -73,38 +74,6 @@ public class ClientModelManager {
             }
         });
     }
-
-    private Identifier resolveModelIdentifier(String rawPath) {
-        if (rawPath == null || rawPath.isBlank()) {
-            return null;
-        }
-        String normalized = rawPath.trim().replace('\\', '/');
-        if (normalized.startsWith("moud:moud/")) {
-            normalized = "moud:" + normalized.substring("moud:moud/".length());
-        }
-        if (!normalized.contains(":")) {
-            normalized = normalized.startsWith("moud/") ? "moud:" + normalized.substring(5) : "moud:" + normalized;
-        }
-        if (normalized.startsWith("moud:/")) {
-            normalized = "moud:" + normalized.substring("moud:/".length());
-        }
-        Identifier identifier = Identifier.tryParse(normalized);
-        if (identifier == null) {
-            return null;
-        }
-        if ("moud".equals(identifier.getNamespace())) {
-            String path = identifier.getPath();
-            while (path.startsWith("moud/")) {
-                path = path.substring(5);
-            }
-            if (path.isEmpty()) {
-                return null;
-            }
-            return Identifier.of("moud", path);
-        }
-        return identifier;
-    }
-
 
     public void removeModel(long id) {
         RenderableModel model = models.remove(id);

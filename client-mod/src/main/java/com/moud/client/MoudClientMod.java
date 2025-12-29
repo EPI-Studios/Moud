@@ -9,6 +9,8 @@ import com.moud.client.editor.assets.AssetThumbnailCache;
 import com.moud.client.editor.selection.EditorSelectionRenderer;
 import com.moud.client.editor.selection.SceneSelectionManager;
 import com.moud.client.editor.scene.blueprint.BlueprintPreviewRenderer;
+import com.moud.client.editor.scene.blueprint.BlueprintSchematicPreviewRenderer;
+import com.moud.client.editor.scene.blueprint.BlueprintGhostObjectPreviewRenderer;
 import com.moud.client.editor.ui.EditorImGuiLayer;
 import com.moud.client.editor.ui.WorldViewCapture;
 import com.moud.client.init.ClientNetworkRegistry;
@@ -23,6 +25,7 @@ import com.moud.client.particle.ParticleSystem;
 import com.moud.client.permissions.ClientPermissionState;
 import com.moud.client.rendering.FramebufferTextureExports;
 import com.moud.client.util.WindowAnimator;
+import com.moud.client.zone.ClientZoneManager;
 import com.moud.network.MoudPackets;
 import com.moud.network.protocol.MoudProtocol;
 import com.zigythebird.playeranim.api.PlayerAnimationAccess;
@@ -128,7 +131,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         HudRenderCallback.EVENT.register((drawContext, tickCounter) -> {
             WindowAnimator.tick();
 
-            com.moud.client.api.service.ClientAPIService apiService = serviceManager.getApiService();
+            ClientAPIService apiService = serviceManager.getApiService();
             if (apiService != null && apiService.events != null) {
                 apiService.events.dispatch("render:hud", tickCounter.getTickDelta(true));
             }
@@ -141,15 +144,38 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     }
 
     private void initializeEditorHelpers() {
-        WorldViewCapture.initialize();
-        EditorSelectionRenderer.initialize();
-        BlueprintPreviewRenderer.initialize();
+        try {
+            WorldViewCapture.initialize();
+        } catch (Throwable t) {
+            LOGGER.error("Failed to initialize WorldViewCapture", t);
+        }
+        try {
+            EditorSelectionRenderer.initialize();
+        } catch (Throwable t) {
+            LOGGER.error("Failed to initialize EditorSelectionRenderer", t);
+        }
+        try {
+            BlueprintPreviewRenderer.initialize();
+        } catch (Throwable t) {
+            LOGGER.error("Failed to initialize BlueprintPreviewRenderer", t);
+        }
+        try {
+            BlueprintSchematicPreviewRenderer.initialize();
+        } catch (Throwable t) {
+            LOGGER.error("Failed to initialize BlueprintSchematicPreviewRenderer", t);
+        }
+        try {
+            BlueprintGhostObjectPreviewRenderer.initialize();
+        } catch (Throwable t) {
+            LOGGER.error("Failed to initialize BlueprintGhostObjectPreviewRenderer", t);
+        }
     }
 
     private void onJoinServer(ClientPlayNetworkHandler handler, PacketSender sender, MinecraftClient client) {
         serviceManager.initializeRuntimeServices();
         scriptLoader.resetState();
         scriptLoader.onJoin(handler);
+        ClientZoneManager.clear();
         ClientPermissionState.getInstance().reset();
         ClientPacketWrapper.sendToServer(new MoudPackets.HelloPacket(MoudProtocol.PROTOCOL_VERSION));
     }
@@ -173,6 +199,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             ClientModelManager.getInstance().clear();
             ClientPlayerModelManager.getInstance().clear();
             ClientDisplayManager.getInstance().clear();
+            ClientZoneManager.clear();
             FramebufferTextureExports.clear();
             SceneSelectionManager.getInstance().clear();
             AssetThumbnailCache.getInstance().clear();

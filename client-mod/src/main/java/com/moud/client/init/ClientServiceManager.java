@@ -7,6 +7,7 @@ import com.moud.client.collision.ModelCollisionManager;
 import com.moud.client.cursor.ClientCursorManager;
 import com.moud.client.display.ClientDisplayManager;
 import com.moud.client.display.DisplaySurface;
+import com.moud.client.editor.EditorModeManager;
 import com.moud.client.ik.ClientIKManager;
 import com.moud.client.lighting.ClientLightingService;
 import com.moud.client.model.ClientModelManager;
@@ -22,6 +23,7 @@ import com.moud.client.shared.SharedValueManager;
 import com.moud.client.ui.ServerUIOverlayManager;
 import com.moud.client.ui.UIOverlayManager;
 import com.moud.client.ui.animation.UIAnimationManager;
+import com.moud.api.physics.player.PlayerPhysicsControllers;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
@@ -68,6 +70,7 @@ public class ClientServiceManager {
     public void cleanupRuntimeServices() {
         LOGGER.info("Cleaning up Moud services...");
         ClientMovementTracker.getInstance().reset();
+        PlayerPhysicsControllers.clearNonDefault();
         if (scriptingRuntime != null) {
             scriptingRuntime.shutdown();
             scriptingRuntime = null;
@@ -138,7 +141,7 @@ public class ClientServiceManager {
 
         ClientPlayerModelManager.getInstance().getModels().forEach(com.moud.client.animation.AnimatedPlayerModel::tick);
 
-        com.moud.client.editor.EditorModeManager.getInstance().tick(client);
+        EditorModeManager.getInstance().tick(client);
         ClientMovementTracker.getInstance().tick();
         for (RenderableModel model : ClientModelManager.getInstance().getModels()) {
             model.tickSmoothing(1.0f);

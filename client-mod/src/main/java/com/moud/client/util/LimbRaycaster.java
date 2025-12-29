@@ -1,20 +1,27 @@
 package com.moud.client.util;
 
+import com.moud.api.math.Vector3;
 import com.moud.client.animation.AnimatedPlayerModel;
+import com.moud.client.animation.IAnimatedPlayer;
+import com.moud.client.animation.PlayerPartConfigManager;
 import com.zigythebird.playeranim.animation.PlayerAnimationController;
+import com.zigythebird.playeranimcore.animation.AnimationController;
 import com.zigythebird.playeranimcore.bones.PlayerAnimBone;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
 import java.util.Map;
+import java.util.UUID;
 
 public final class LimbRaycaster {
 
+
     public static final Map<String, float[]> LIMB_BOUNDS = Map.of(
-            "head",      new float[]{-4, -8, -4, 4, 0, 4},
-            "body",      new float[]{-4, -12, -2, 4, 0, 2},
+            "head",      new float[]{-4, 0, -4, 4, 8, 4},
+            "body",      new float[]{-4, 0, -2, 4, 12, 2},
             "right_arm", new float[]{-3, -12, -2, 1, 0, 2},
             "left_arm",  new float[]{-1, -12, -2, 3, 0, 2},
             "right_leg", new float[]{-2, -12, -2, 2, 0, 2},
@@ -25,6 +32,30 @@ public final class LimbRaycaster {
 
     private LimbRaycaster() {}
 
+
+    public static LimbHit raycast(AbstractClientPlayerEntity playerEntity, Vec3d rayOrigin, Vec3d rayDir, float tickDelta) {
+        if (!(playerEntity instanceof IAnimatedPlayer animatedPlayer)) {
+            return null;
+        }
+
+        AnimationController controller = animatedPlayer.getAnimationPlayer().getController();
+        if (controller == null || !(controller instanceof PlayerAnimationController playerAnimController)) {
+            return null;
+        }
+
+        double lerpX = playerEntity.prevX + (playerEntity.getX() - playerEntity.prevX) * tickDelta;
+        double lerpY = playerEntity.prevY + (playerEntity.getY() - playerEntity.prevY) * tickDelta;
+        double lerpZ = playerEntity.prevZ + (playerEntity.getZ() - playerEntity.prevZ) * tickDelta;
+
+        float prevBodyYaw = playerEntity.prevBodyYaw;
+        float bodyYaw = playerEntity.bodyYaw;
+        float lerpedBodyYaw = prevBodyYaw + (bodyYaw - prevBodyYaw) * tickDelta;
+
+        UUID uuid = playerEntity.getUuid();
+        return raycastInternal(playerAnimController, lerpX, lerpY, lerpZ, lerpedBodyYaw, rayOrigin, rayDir, uuid);
+    }
+
+
     public static LimbHit raycast(AnimatedPlayerModel model, Vec3d rayOrigin, Vec3d rayDir, float tickDelta) {
         PlayerAnimationController controller = model.getAnimationController();
 
@@ -33,13 +64,19 @@ public final class LimbRaycaster {
         double lerpZ = model.getInterpolatedZ(tickDelta);
         float bodyYaw = model.getInterpolatedYaw(tickDelta);
 
+        UUID uuid = model.getEntity() != null ? model.getEntity().getUuid() : null;
+        return raycastInternal(controller, lerpX, lerpY, lerpZ, bodyYaw, rayOrigin, rayDir, uuid);
+    }
+
+    private static LimbHit raycastInternal(PlayerAnimationController controller, double lerpX, double lerpY, double lerpZ,
+                                          float bodyYaw, Vec3d rayOrigin, Vec3d rayDir, UUID playerUuid) {
         PlayerAnimBone bodyBone = controller.get3DTransform(new PlayerAnimBone("body"));
 
         String closestBone = null;
         float closestDist = Float.MAX_VALUE;
 
         for (String boneName : LIMB_BOUNDS.keySet()) {
-            Matrix4f boneMatrix = buildBoneWorldMatrix(controller, boneName, lerpX, lerpY, lerpZ, bodyYaw, bodyBone);
+            Matrix4f boneMatrix = buildBoneWorldMatrix(controller, boneName, lerpX, lerpY, lerpZ, bodyYaw, bodyBone, playerUuid);
 
             Matrix4f invMatrix = new Matrix4f(boneMatrix).invert();
 
@@ -64,15 +101,52 @@ public final class LimbRaycaster {
         return closestBone != null ? new LimbHit(closestBone, closestDist) : null;
     }
 
-    public static Matrix4f buildBoneWorldMatrix(PlayerAnimationController controller, String boneName, double x, double y, double z, float bodyYaw, PlayerAnimBone bodyBone) {
+    public static Matrix4f buildBoneWorldMatrix(PlayerAnimationController controller, String boneName, double x, double y, double z, float bodyYaw, PlayerAnimBone bodyBone, UUID playerUuid) {
         Matrix4f mat = getBoneParentMatrix(controller, boneName, x, y, z, bodyYaw, bodyBone);
         PlayerAnimBone bone = controller.get3DTransform(new PlayerAnimBone(boneName));
-        mat.translate(bone.getPosX() / 16f, bone.getPosY() / 16f, bone.getPosZ() / 16f);
 
-        mat.rotateZ(bone.getRotZ());
-        mat.rotateY(bone.getRotY());
-        mat.rotateX(bone.getRotX());
-        mat.scale(bone.getScaleX(), bone.getScaleY(), bone.getScaleZ());
+        // Get base transforms from animation
+        float posX = bone.getPosX() / 16f;
+        float posY = bone.getPosY() / 16f;
+        float posZ = bone.getPosZ() / 16f;
+        float rotX = bone.getRotX();
+        float rotY = bone.getRotY();
+        float rotZ = bone.getRotZ();
+        float scaleX = bone.getScaleX();
+        float scaleY = bone.getScaleY();
+        float scaleZ = bone.getScaleZ();
+
+        if (playerUuid != null) {
+            PlayerPartConfigManager.PartConfig config = PlayerPartConfigManager.getInstance().getPartConfig(playerUuid, boneName);
+            if (config != null && config.overrideAnimation) {
+                Vector3 customPos = config.getInterpolatedPosition();
+                if (customPos != null) {
+                    posX += (float) customPos.x / 16f;
+                    posY += (float) customPos.y / 16f;
+                    posZ += (float) customPos.z / 16f;
+                }
+
+                Vector3 customRot = config.getInterpolatedRotation();
+                if (customRot != null) {
+                    rotX += (float) Math.toRadians(customRot.x);
+                    rotY += (float) Math.toRadians(customRot.y);
+                    rotZ += (float) Math.toRadians(customRot.z);
+                }
+
+                Vector3 customScale = config.getInterpolatedScale();
+                if (customScale != null) {
+                    scaleX *= (float) customScale.x;
+                    scaleY *= (float) customScale.y;
+                    scaleZ *= (float) customScale.z;
+                }
+            }
+        }
+
+        mat.translate(posX, posY, posZ);
+        mat.rotateZ(rotZ);
+        mat.rotateY(rotY);
+        mat.rotateX(rotX);
+        mat.scale(scaleX, scaleY, scaleZ);
         return mat;
     }
 
@@ -84,15 +158,54 @@ public final class LimbRaycaster {
         double lerpZ = model.getInterpolatedZ(tickDelta);
         float bodyYaw = model.getInterpolatedYaw(tickDelta);
         PlayerAnimBone bodyBone = controller.get3DTransform(new PlayerAnimBone("body"));
-        Matrix4f mat = buildBoneWorldMatrix(controller, boneName, lerpX, lerpY, lerpZ, bodyYaw, bodyBone);
+        UUID uuid = model.getEntity() != null ? model.getEntity().getUuid() : null;
+        Matrix4f mat = buildBoneWorldMatrix(controller, boneName, lerpX, lerpY, lerpZ, bodyYaw, bodyBone, uuid);
+        return buildCorners(boneName, mat);
+    }
 
+    public static Vec3d[] getLimbWorldCorners(AbstractClientPlayerEntity playerEntity, String boneName, float tickDelta) {
+        if (!(playerEntity instanceof IAnimatedPlayer animatedPlayer)) {
+            return new Vec3d[0];
+        }
+        AnimationController controller = animatedPlayer.getAnimationPlayer().getController();
+        if (controller == null || !(controller instanceof PlayerAnimationController playerAnimController)) {
+            return new Vec3d[0];
+        }
+
+        double lerpX = playerEntity.prevX + (playerEntity.getX() - playerEntity.prevX) * tickDelta;
+        double lerpY = playerEntity.prevY + (playerEntity.getY() - playerEntity.prevY) * tickDelta;
+        double lerpZ = playerEntity.prevZ + (playerEntity.getZ() - playerEntity.prevZ) * tickDelta;
+
+        float prevBodyYaw = playerEntity.prevBodyYaw;
+        float bodyYaw = playerEntity.bodyYaw;
+        float lerpedBodyYaw = prevBodyYaw + (bodyYaw - prevBodyYaw) * tickDelta;
+
+        PlayerAnimBone bodyBone = playerAnimController.get3DTransform(new PlayerAnimBone("body"));
+        Matrix4f mat = buildBoneWorldMatrix(
+                playerAnimController,
+                boneName,
+                lerpX,
+                lerpY,
+                lerpZ,
+                lerpedBodyYaw,
+                bodyBone,
+                playerEntity.getUuid()
+        );
+        return buildCorners(boneName, mat);
+    }
+
+    private static Vec3d[] buildCorners(String boneName, Matrix4f mat) {
         float[] b = LIMB_BOUNDS.get(boneName);
         if (b == null) {
             return new Vec3d[0];
         }
 
-        float minX = b[0] / 16f, minY = b[1] / 16f, minZ = b[2] / 16f;
-        float maxX = b[3] / 16f, maxY = b[4] / 16f, maxZ = b[5] / 16f;
+        float minX = b[0] / 16f;
+        float minY = b[1] / 16f;
+        float minZ = b[2] / 16f;
+        float maxX = b[3] / 16f;
+        float maxY = b[4] / 16f;
+        float maxZ = b[5] / 16f;
 
         Vec3d[] corners = new Vec3d[8];
         corners[0] = transformPoint(mat, minX, minY, minZ);
