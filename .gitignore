@@ -36,3 +36,5 @@ client-mod/run/shaderpacks/
 example/ts/.moud-build/
 packages/sdk/dist/
 /example/ts/assets/
+/example/ts/animations
+/example/ts/.moud/

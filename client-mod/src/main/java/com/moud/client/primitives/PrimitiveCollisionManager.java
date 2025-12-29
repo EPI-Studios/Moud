@@ -52,6 +52,9 @@ public final class PrimitiveCollisionManager {
     public List<VoxelShape> getCollisionShapes(Box queryBox) {
         List<VoxelShape> shapes = new ArrayList<>();
         for (PrimitiveCollision col : collisions.values()) {
+            if (PrimitiveMeshCollisionManager.getInstance().hasMesh(col.id())) {
+                continue;
+            }
             if (col.bounds().intersects(queryBox)) {
                 if (!col.boxShapes().isEmpty()) {
                     shapes.addAll(col.boxShapes());

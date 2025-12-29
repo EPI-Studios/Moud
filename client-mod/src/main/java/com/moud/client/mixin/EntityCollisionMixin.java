@@ -5,6 +5,7 @@ import com.moud.client.collision.ClientCollisionManager;
 import com.moud.client.collision.CollisionMesh;
 import com.moud.client.collision.CollisionResult;
 import com.moud.client.collision.MeshCollider;
+import com.moud.client.primitives.PrimitiveMeshCollisionManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
@@ -26,7 +27,9 @@ public abstract class EntityCollisionMixin {
         if (box == null) return vanillaResult;
 
         Box query = box.union(box.offset(vanillaResult)).expand(0.5);
-        List<CollisionMesh> meshes = ClientCollisionManager.getMeshesNear(query);
+        List<CollisionMesh> meshes = new java.util.ArrayList<>();
+        meshes.addAll(ClientCollisionManager.getMeshesNear(query));
+        meshes.addAll(PrimitiveMeshCollisionManager.getInstance().getMeshesNear(query));
 
         if (meshes.isEmpty()) return vanillaResult;
 
