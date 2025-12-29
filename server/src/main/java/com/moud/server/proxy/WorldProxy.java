@@ -52,7 +52,11 @@ public class WorldProxy {
 
     public WorldProxy createInstance() {
         if (instance == null) {
-            instance = InstanceManager.getInstance().getDefaultInstance();
+            Instance resolved = InstanceManager.getInstance().getDefaultInstance();
+            if (resolved == null) {
+                throw new APIException("NO_INSTANCE", "No world instance is available");
+            }
+            instance = resolved;
         }
         return this;
     }
@@ -61,16 +65,21 @@ public class WorldProxy {
         if (instance != null) {
             return instance;
         }
-        return InstanceManager.getInstance().getDefaultInstance();
+        Instance resolved = InstanceManager.getInstance().getDefaultInstance();
+        if (resolved == null) {
+            throw new APIException("NO_INSTANCE", "No world instance is available");
+        }
+        return resolved;
     }
 
     @HostAccess.Export
     public WorldProxy setFlatGenerator() {
-        if (!(instance instanceof InstanceContainer)) {
+        Instance targetInstance = requireInstance();
+        if (!(targetInstance instanceof InstanceContainer)) {
             throw new APIException("INVALID_INSTANCE_TYPE", "Cannot set generator on non-container instance");
         }
         int surfaceY = SceneDefaults.BASE_TERRAIN_HEIGHT;
-        ((InstanceContainer) instance).setGenerator(unit -> {
+        ((InstanceContainer) targetInstance).setGenerator(unit -> {
             unit.modifier().fillHeight(0, 1, Block.BEDROCK);
             unit.modifier().fillHeight(1, surfaceY, Block.DIRT);
             unit.modifier().fillHeight(surfaceY, surfaceY + 1, Block.GRASS_BLOCK);
@@ -80,10 +89,11 @@ public class WorldProxy {
 
     @HostAccess.Export
     public WorldProxy setVoidGenerator() {
-        if (!(instance instanceof InstanceContainer)) {
+        Instance targetInstance = requireInstance();
+        if (!(targetInstance instanceof InstanceContainer)) {
             throw new APIException("INVALID_INSTANCE_TYPE", "Cannot set generator on non-container instance");
         }
-        ((InstanceContainer) instance).setGenerator(unit -> {});
+        ((InstanceContainer) targetInstance).setGenerator(unit -> {});
         return this;
     }
 
@@ -168,7 +178,7 @@ public class WorldProxy {
         Vector3 scale = options.hasMember("scale") ? readVector3(options.getMember("scale"), Vector3.one()) : Vector3.one();
         String texturePath = options.hasMember("texture") ? options.getMember("texture").asString() : null;
 
-        ModelProxy model = new ModelProxy(instance, modelPath, position, rotation, scale, texturePath);
+        ModelProxy model = new ModelProxy(requireInstance(), modelPath, position, rotation, scale, texturePath);
         if (options.hasMember("collisionMode")) {
             Value collisionMode = options.getMember("collisionMode");
             if (collisionMode != null && collisionMode.isString()) {
@@ -257,7 +267,7 @@ public class WorldProxy {
         Quaternion rotation = options.hasMember("rotation") ? readQuaternion(options.getMember("rotation"), Quaternion.identity()) : Quaternion.identity();
         Vector3 scale = options.hasMember("scale") ? readVector3(options.getMember("scale"), Vector3.one()) : Vector3.one();
 
-        MediaDisplayProxy display = new MediaDisplayProxy(instance, position, rotation, scale);
+        MediaDisplayProxy display = new MediaDisplayProxy(requireInstance(), position, rotation, scale);
 
         if (options.hasMember("renderThroughBlocks")) {
             display.setRenderThroughBlocks(options.getMember("renderThroughBlocks").asBoolean());
@@ -287,7 +297,7 @@ public class WorldProxy {
         EntityType type = EntityType.fromNamespaceId(entityType);
         if (type == null) throw new APIException("UNKNOWN_ENTITY_TYPE", "Unknown entity type: " + entityType);
         ScriptedEntity entity = new ScriptedEntity(type, jsInstance);
-        entity.setInstance(instance, new Pos(x, y, z));
+        entity.setInstance(requireInstance(), new Pos(x, y, z));
     }
 
     @HostAccess.Export
@@ -332,7 +342,7 @@ public class WorldProxy {
         TextProxy textProxy = new TextProxy(position, content, billboard);
         Entity textEntity = textProxy.getEntity();
         Pos initialPosition = new Pos(position.x, position.y, position.z, 0, 0);
-        textEntity.setInstance(instance, initialPosition);
+        textEntity.setInstance(requireInstance(), initialPosition);
 
         if (options.hasMember("shadow")) {
             textProxy.setShadow(options.getMember("shadow").asBoolean());
@@ -421,7 +431,7 @@ public class WorldProxy {
             filter = entity -> !entity.getUuid().toString().equals(playerToIgnore.getUuid());
         }
 
-        RaycastResult result = RaycastUtil.performRaycast(instance, origin, direction, maxDistance, filter);
+        RaycastResult result = RaycastUtil.performRaycast(requireInstance(), origin, direction, maxDistance, filter);
 
         Map<String, Object> resultMap = new HashMap<>();
         resultMap.put("didHit", result.didHit());
