@@ -32,11 +32,13 @@ import com.moud.server.scripting.JavaScriptRuntime;
 import com.moud.server.scripting.MoudScriptModule;
 import com.moud.server.system.MoudSystem;
 import com.moud.server.task.AsyncManager;
+import com.moud.server.typescript.TypeScriptTranspiler;
 import com.moud.server.editor.AnimationTickHandler;
 import com.moud.network.dispatcher.NetworkDispatcher;
 import com.moud.network.engine.PacketEngine;
 import com.moud.network.buffer.ByteBuffer;
 import com.moud.server.shared.SharedValueManager;
+import com.moud.server.physics.player.SharedPhysicsLoader;
 import com.moud.server.zone.ZoneManager;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.timer.Task;
@@ -60,6 +62,7 @@ public class MoudEngine {
     );
 
     private JavaScriptRuntime runtime;
+    private final Path projectRoot;
     private final AssetManager assetManager;
     private final AssetProxy assetProxy;
     private final SceneManager sceneManager;
@@ -113,6 +116,7 @@ public class MoudEngine {
         try {
             Path projectRoot = ProjectLoader.resolveProjectRoot(launchArgs)
                     .orElseThrow(() -> new IllegalStateException("Could not find a valid Moud project root."));
+            this.projectRoot = projectRoot;
 
             LOGGER.info(LogContext.builder()
                     .put("project_root", projectRoot.toString())
@@ -216,7 +220,10 @@ public class MoudEngine {
                 LOGGER.startup("Moud Engine initialized successfully");
                 startSystemsTick();
             }).exceptionally(ex -> {
-                LOGGER.critical("Failed to load user scripts during startup. The server might not function correctly.", ex);
+                LOGGER.critical(
+                        "Failed to load user scripts during startup. The server might not function correctly.",
+                        ex
+                );
                 return null;
             });
 
@@ -377,6 +384,8 @@ public class MoudEngine {
                 this.bindGlobalAPIs();
                 reloadState.set(ReloadState.LOADING_SCRIPTS);
 
+                loadSharedPhysicsControllers(bundle != null ? bundle.sharedPhysics() : null);
+
                 if (bundle != null && bundle.serverBundle() != null) {
                     this.runtime.executeSource(bundle.serverBundle(), "moud-server.js").join();
                 } else {
@@ -405,6 +414,35 @@ public class MoudEngine {
         });
     }
 
+    private void loadSharedPhysicsControllers(String sharedPhysicsOverride) {
+        String sharedPhysicsSource = sharedPhysicsOverride;
+
+        if (sharedPhysicsSource == null || sharedPhysicsSource.isBlank()) {
+            try {
+                Path sharedPhysicsEntry = projectRoot.resolve("shared/physics/index.ts");
+                if (Files.exists(sharedPhysicsEntry)) {
+                    sharedPhysicsSource = TypeScriptTranspiler.transpileSharedPhysics(sharedPhysicsEntry).get();
+                }
+            } catch (Exception e) {
+                LOGGER.warn("Failed to load shared physics from project", e);
+                return;
+            }
+        }
+
+        if (sharedPhysicsSource == null || sharedPhysicsSource.isBlank()) {
+            return;
+        }
+
+        try {
+            SharedPhysicsLoader physicsLoader = new SharedPhysicsLoader(this.runtime.getContext());
+            if (physicsLoader.loadSharedPhysics(sharedPhysicsSource)) {
+                LOGGER.info("Loaded shared physics controllers");
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to load shared physics controllers", e);
+        }
+    }
+
     private CompletableFuture<Void> loadUserScripts() {
         return CompletableFuture.runAsync(() -> {
             try {
@@ -415,6 +453,8 @@ public class MoudEngine {
                             .build(), "No entry point found at: {}", entryPoint);
                     return;
                 }
+
+                loadSharedPhysicsControllers(null);
                 runtime.executeScript(entryPoint).join();
             } catch (Exception e) {
                 LOGGER.error(LogContext.builder()
@@ -511,6 +551,6 @@ public class MoudEngine {
         FAILED
     }
 
-    public record ReloadBundle(String hash, String serverBundle, byte[] clientBundle) {
+    public record ReloadBundle(String hash, String serverBundle, String sharedPhysics, byte[] clientBundle) {
     }
 }

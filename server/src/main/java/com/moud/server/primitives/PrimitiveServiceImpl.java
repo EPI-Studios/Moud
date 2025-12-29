@@ -23,6 +23,8 @@ public class PrimitiveServiceImpl implements PrimitiveService {
     private static final Logger LOGGER = LoggerFactory.getLogger(PrimitiveServiceImpl.class);
     private static PrimitiveServiceImpl instance;
     private final Map<Long, PrimitiveInstance> primitives = new ConcurrentHashMap<>();
+    private final Collection<PrimitiveInstance> primitiveInstancesView =
+            Collections.unmodifiableCollection(primitives.values());
     private final Map<String, Set<Long>> groups = new ConcurrentHashMap<>();
     private final AtomicLong idCounter = new AtomicLong(1);
     private final List<PrimitiveInstance> batchCreates = new ArrayList<>();
@@ -68,8 +70,8 @@ public class PrimitiveServiceImpl implements PrimitiveService {
         } else {
             broadcastCreate(prim);
         }
-        com.moud.server.physics.PrimitivePhysicsManager.getInstance()
-                .onCreate(prim, com.moud.server.instance.InstanceManager.getInstance().getDefaultInstance());
+        PrimitivePhysicsManager.getInstance()
+                .onCreate(prim, InstanceManager.getInstance().getDefaultInstance());
         return prim;
     }
 
@@ -85,10 +87,31 @@ public class PrimitiveServiceImpl implements PrimitiveService {
             float mass
     ) {
         long id = idCounter.getAndIncrement();
-        PrimitiveInstance prim = new PrimitiveInstance(id, PrimitiveType.MESH, position, rotation, scale, material, groupId, this, vertices, indices);
+        PrimitiveInstance prim = new PrimitiveInstance(
+                id,
+                PrimitiveType.MESH,
+                position,
+                rotation,
+                scale,
+                material,
+                groupId,
+                this,
+                vertices,
+                indices
+        );
         prim.configurePhysics(dynamic, mass);
-        LOGGER.info("Creating primitive {} type={} pos={} scale={} group={} verts={} indices={} dynamic={} mass={}",
-                id, PrimitiveType.MESH, prim.getPosition(), prim.getScale(), groupId, prim.getVertices().size(), prim.getIndices().size(), dynamic, mass);
+        LOGGER.info(
+                "Creating primitive {} type={} pos={} scale={} group={} verts={} indices={} dynamic={} mass={}",
+                id,
+                PrimitiveType.MESH,
+                prim.getPosition(),
+                prim.getScale(),
+                groupId,
+                prim.getVertices().size(),
+                prim.getIndices().size(),
+                dynamic,
+                mass
+        );
         primitives.put(id, prim);
         if (groupId != null) {
             groups.computeIfAbsent(groupId, k -> ConcurrentHashMap.newKeySet()).add(id);
@@ -153,7 +176,9 @@ public class PrimitiveServiceImpl implements PrimitiveService {
     @Override
     public PrimitiveHandle createPlane(Vector3 position, float width, float depth, PrimitiveMaterial material) {
         Vector3 scale = new Vector3(width, 1, depth);
-        return create(PrimitiveType.PLANE, position, Quaternion.identity(), scale, material, null);
+        PrimitiveMaterial mat = material != null ? material.copy() : PrimitiveMaterial.white();
+        mat.setDoubleSided(true);
+        return create(PrimitiveType.PLANE, position, Quaternion.identity(), scale, mat, null);
     }
 
     @Override
@@ -198,9 +223,26 @@ public class PrimitiveServiceImpl implements PrimitiveService {
                                       List<Vector3> vertices, List<Integer> indices,
                                       PrimitiveMaterial material, String groupId) {
         long id = idCounter.getAndIncrement();
-        PrimitiveInstance prim = new PrimitiveInstance(id, PrimitiveType.MESH, position, rotation, scale, material, groupId, this, vertices, indices);
+        PrimitiveInstance prim = new PrimitiveInstance(
+                id,
+                PrimitiveType.MESH,
+                position,
+                rotation,
+                scale,
+                material,
+                groupId,
+                this,
+                vertices,
+                indices
+        );
         LOGGER.info("Creating primitive {} type={} pos={} scale={} group={} verts={} indices={}",
-                id, PrimitiveType.MESH, prim.getPosition(), prim.getScale(), groupId, prim.getVertices().size(), prim.getIndices().size());
+                id,
+                PrimitiveType.MESH,
+                prim.getPosition(),
+                prim.getScale(),
+                groupId,
+                prim.getVertices().size(),
+                prim.getIndices().size());
         primitives.put(id, prim);
         if (groupId != null) {
             groups.computeIfAbsent(groupId, k -> ConcurrentHashMap.newKeySet()).add(id);
@@ -210,7 +252,7 @@ public class PrimitiveServiceImpl implements PrimitiveService {
         } else {
             broadcastCreate(prim);
         }
-        com.moud.server.physics.PrimitivePhysicsManager.getInstance().onCreate(prim, com.moud.server.instance.InstanceManager.getInstance().getDefaultInstance());
+        PrimitivePhysicsManager.getInstance().onCreate(prim, InstanceManager.getInstance().getDefaultInstance());
         return prim;
     }
 
@@ -230,7 +272,7 @@ public class PrimitiveServiceImpl implements PrimitiveService {
         } else {
             broadcastCreate(prim);
         }
-        com.moud.server.physics.PrimitivePhysicsManager.getInstance().onCreate(prim, com.moud.server.instance.InstanceManager.getInstance().getDefaultInstance());
+        PrimitivePhysicsManager.getInstance().onCreate(prim, InstanceManager.getInstance().getDefaultInstance());
         return prim;
     }
 
@@ -242,6 +284,10 @@ public class PrimitiveServiceImpl implements PrimitiveService {
     @Override
     public Collection<PrimitiveHandle> getAllPrimitives() {
         return new ArrayList<>(primitives.values());
+    }
+
+    public Collection<PrimitiveInstance> getPrimitiveInstances() {
+        return primitiveInstancesView;
     }
 
     @Override
@@ -331,16 +377,24 @@ public class PrimitiveServiceImpl implements PrimitiveService {
             }
         }
         broadcastRemove(prim);
-       PrimitivePhysicsManager.getInstance().onRemove(prim.getId());
+        PrimitivePhysicsManager.getInstance().onRemove(prim.getId());
     }
 
     void broadcastCreate(PrimitiveInstance prim) {
         if (packetSender == null) return;
-        LOGGER.info("Broadcasting primitive_create id={} type={} pos={} scale={} group={} verts={} indices={} dynamic={} mass={}",
-                prim.getId(), prim.getType(), prim.getPosition(), prim.getScale(), prim.getGroupId(),
+        LOGGER.info(
+                "Broadcasting primitive_create id={} type={} pos={} scale={} group={} " +
+                        "verts={} indices={} dynamic={} mass={}",
+                prim.getId(),
+                prim.getType(),
+                prim.getPosition(),
+                prim.getScale(),
+                prim.getGroupId(),
                 prim.getVertices() != null ? prim.getVertices().size() : 0,
                 prim.getIndices() != null ? prim.getIndices().size() : 0,
-                prim.isPhysicsDynamic(), prim.getPhysicsMass());
+                prim.isPhysicsDynamic(),
+                prim.getPhysicsMass()
+        );
         PrimitiveMaterial mat = prim.getMaterial();
         com.moud.network.MoudPackets.PrimitiveMaterial packetMat = new com.moud.network.MoudPackets.PrimitiveMaterial(
                 mat.r, mat.g, mat.b, mat.a, mat.texture, mat.unlit, mat.doubleSided, mat.renderThroughBlocks
@@ -411,7 +465,7 @@ public class PrimitiveServiceImpl implements PrimitiveService {
         );
         packetSender.broadcastToAll(packet);
         if (prim.getType() == PrimitiveType.MESH) {
-                    PrimitivePhysicsManager.getInstance()
+            PrimitivePhysicsManager.getInstance()
                     .onGeometryChanged(prim, InstanceManager.getInstance().getDefaultInstance());
         }
     }

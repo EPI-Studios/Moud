@@ -82,6 +82,11 @@ final class SceneWorldChunkLoader implements IChunkLoader {
 
     private static PolarLoader createLoader(Path worldFile) throws IOException {
         if (worldFile == null) throw new IOException("World file path cannot be null");
-        return new PolarLoader(worldFile);
+        try {
+            return new PolarLoader(worldFile);
+        } catch (IndexOutOfBoundsException e) {
+            throw new IOException("Corrupted or invalid Polar world file: " + worldFile +
+                                " (file may be empty or have invalid header data)", e);
+        }
     }
 }

@@ -74,6 +74,9 @@ public class HotReloadEndpoint {
 
                 String hash = request.hasNonNull("hash") ? request.get("hash").asText() : null;
                 String serverBundle = request.hasNonNull("serverBundle") ? request.get("serverBundle").asText() : null;
+                String sharedPhysics = request.hasNonNull("sharedPhysics")
+                        ? request.get("sharedPhysics").asText()
+                        : null;
                 byte[] clientBundle = null;
 
                 if (request.hasNonNull("clientBundle")) {
@@ -85,7 +88,12 @@ public class HotReloadEndpoint {
                     }
                 }
 
-                MoudEngine.ReloadBundle bundle = new MoudEngine.ReloadBundle(hash, serverBundle, clientBundle);
+                MoudEngine.ReloadBundle bundle = new MoudEngine.ReloadBundle(
+                        hash,
+                        serverBundle,
+                        sharedPhysics,
+                        clientBundle
+                );
 
                 CompletableFuture.runAsync(() -> {
                     try {
