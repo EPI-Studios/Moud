@@ -21,10 +21,14 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -81,6 +85,7 @@ public class InstanceManager {
         int preloadRadius = Integer.parseInt(System.getProperty("moud.chunk.preloadRadius", "3"));
         new ChunkPreloader(preloadRadius).register();
         configureAutosave();
+        configurePeriodicBackups();
     }
 
     private void registerSpawnListener() {
@@ -177,6 +182,30 @@ public class InstanceManager {
         LOGGER.info("Default scene autosave enabled (every {}s)", autosaveSeconds);
     }
 
+    private void configurePeriodicBackups() {
+        long backupIntervalSeconds;
+        try {
+            String raw = System.getProperty("moud.backup.intervalSeconds", "3600");
+            backupIntervalSeconds = Long.parseLong(raw);
+        } catch (NumberFormatException e) {
+            backupIntervalSeconds = 3600;
+        }
+
+        if (backupIntervalSeconds <= 0) {
+            LOGGER.info("Periodic backups disabled");
+            return;
+        }
+
+        MinecraftServer.getSchedulerManager()
+                .buildTask(this::createWorldBackup)
+                .delay(TaskSchedule.seconds(backupIntervalSeconds))
+                .repeat(TaskSchedule.seconds(backupIntervalSeconds))
+                .schedule();
+
+        LOGGER.info("Periodic world backups enabled (every {} seconds, ~{} minutes)",
+                   backupIntervalSeconds, backupIntervalSeconds / 60);
+    }
+
     private void autosaveDefaultInstance() {
         InstanceContainer instance = defaultInstance;
         if (instance == null) {
@@ -208,6 +237,30 @@ public class InstanceManager {
         autosaveDefaultInstance();
     }
 
+    public Path createWorldBackup() {
+        if (projectRoot == null) {
+            LOGGER.warn("Cannot create backup: projectRoot is null");
+            return null;
+        }
+
+        Path sceneWorldFile = projectRoot.resolve(".moud").resolve("scenes")
+                .resolve(SceneDefaults.DEFAULT_SCENE_ID + ".polar");
+
+        if (!Files.exists(sceneWorldFile)) {
+            LOGGER.debug("No world file to backup: {}", sceneWorldFile);
+            return null;
+        }
+
+        try {
+            Path backupPath = createBackup(sceneWorldFile, "auto");
+            LOGGER.info("Created automatic backup: {}", backupPath);
+            return backupPath;
+        } catch (IOException e) {
+            LOGGER.error("Failed to create automatic backup of world file", e);
+            return null;
+        }
+    }
+
     private void configureDefaultChunkLoader(InstanceContainer instance) {
         if (instance == null || projectRoot == null) {
             return;
@@ -226,6 +279,118 @@ public class InstanceManager {
             LOGGER.info("Default scene storage set to {}", sceneWorldFile);
         } catch (IOException e) {
             LOGGER.error("Failed to configure default scene storage at {}", sceneWorldFile, e);
+
+            if (Files.exists(sceneWorldFile) && e.getMessage() != null && e.getMessage().contains("Corrupted or invalid")) {
+                handleCorruptedWorldFile(instance, sceneWorldFile);
+            }
+        }
+    }
+
+    private void handleCorruptedWorldFile(InstanceContainer instance, Path sceneWorldFile) {
+        System.err.println("\n" + "=".repeat(80));
+        System.err.println("ERROR: Corrupted world file detected!");
+        System.err.println("=".repeat(80));
+        System.err.println("Location: " + sceneWorldFile);
+        System.err.println("\nThe world file appears to be corrupted or empty and cannot be loaded.");
+        System.err.println("This may have happened due to an improper shutdown.");
+
+        Path backupPath = null;
+        try {
+            backupPath = createBackup(sceneWorldFile, "corrupted");
+            System.err.println("\n✓ Corrupted file backed up to: " + backupPath);
+        } catch (IOException e) {
+            System.err.println("\n✗ Warning: Failed to create backup: " + e.getMessage());
+            LOGGER.warn("Failed to backup corrupted world file", e);
+        }
+
+        System.err.println("\nYou have 2 choices:");
+        System.err.println("  1. Delete the corrupted file and start with a fresh file (backup will be preserved)");
+        System.err.println("  2. Exit and manually backup/recover the file");
+        System.err.println("\nWould you like to delete the corrupted file and start fresh? (yes/no): ");
+
+        try (Scanner scanner = new Scanner(System.in)) {
+            String response = scanner.nextLine().trim().toLowerCase();
+
+            if (response.equals("yes") || response.equals("y")) {
+                try {
+                    Files.deleteIfExists(sceneWorldFile);
+                    LOGGER.warn("Deleted corrupted world file: {}", sceneWorldFile);
+
+                    SceneWorldAccess worldAccess = new SceneWorldAccess(SceneDefaults.DEFAULT_SCENE_ID, projectRoot);
+                    SceneWorldChunkLoader loader = new SceneWorldChunkLoader(sceneWorldFile, worldAccess);
+                    if (!ensureMigratedDefaultWorld(instance, sceneWorldFile, loader)) {
+                        instance.setChunkLoader(loader);
+                        loader.loadInstance(instance);
+                    }
+                    System.out.println("✓ Successfully created fresh world file");
+                    if (backupPath != null) {
+                        System.out.println("✓ Original file backed up at: " + backupPath);
+                    }
+                    LOGGER.info("Successfully created fresh default scene storage at {}", sceneWorldFile);
+                } catch (IOException retryError) {
+                    System.err.println("✗ Failed to recover from corrupted world file");
+                    LOGGER.error("Failed to recover from corrupted world file at {}", sceneWorldFile, retryError);
+                    throw new RuntimeException("Cannot start server without a valid world file", retryError);
+                }
+            } else {
+                System.err.println("\nServer startup cancelled.");
+                if (backupPath != null) {
+                    System.err.println("Backup location: " + backupPath);
+                }
+                System.err.println("\nTo recover manually:");
+                System.err.println("  1. Inspect/recover the backup: " + (backupPath != null ? backupPath : sceneWorldFile));
+                System.err.println("  2. Delete the corrupted file: rm \"" + sceneWorldFile + "\"");
+                System.err.println("  3. Restart the server");
+                throw new RuntimeException("Server startup cancelled by user due to corrupted world file");
+            }
+        }
+    }
+
+    private Path createBackup(Path sourceFile, String reason) throws IOException {
+        if (!Files.exists(sourceFile)) {
+            throw new IOException("Source file does not exist: " + sourceFile);
+        }
+
+        Path backupDir = projectRoot.resolve(".moud").resolve("backups");
+        Files.createDirectories(backupDir);
+
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+        String originalFilename = sourceFile.getFileName().toString();
+        String backupFilename = originalFilename.replace(".polar", "_" + reason + "_" + timestamp + ".polar");
+
+        Path backupPath = backupDir.resolve(backupFilename);
+
+        Files.copy(sourceFile, backupPath, StandardCopyOption.REPLACE_EXISTING);
+
+        LOGGER.info("Created backup: {} -> {}", sourceFile, backupPath);
+
+        cleanupOldBackups(backupDir, 30);
+
+        return backupPath;
+    }
+
+    private void cleanupOldBackups(Path backupDir, int maxBackups) {
+        try {
+            List<Path> backups = Files.list(backupDir)
+                    .filter(p -> p.getFileName().toString().endsWith(".polar"))
+                    .sorted((p1, p2) -> {
+                        try {
+                            return Files.getLastModifiedTime(p2).compareTo(Files.getLastModifiedTime(p1));
+                        } catch (IOException e) {
+                            return 0;
+                        }
+                    })
+                    .toList();
+
+            if (backups.size() > maxBackups) {
+                for (int i = maxBackups; i < backups.size(); i++) {
+                    Files.deleteIfExists(backups.get(i));
+                    LOGGER.debug("Deleted old backup: {}", backups.get(i));
+                }
+                LOGGER.info("Cleaned up {} old backups", backups.size() - maxBackups);
+            }
+        } catch (IOException e) {
+            LOGGER.warn("Failed to cleanup old backups", e);
         }
     }
 
