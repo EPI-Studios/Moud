@@ -1,6 +1,7 @@
 package com.moud.server.movement;
 
 import com.moud.api.collision.AABB;
+import com.moud.api.collision.MeshCollisionResult;
 import com.moud.api.math.Vector3;
 import com.moud.api.physics.player.CollisionWorld;
 import com.moud.api.physics.player.PlayerInput;
@@ -9,9 +10,15 @@ import com.moud.api.physics.player.PlayerPhysicsConfig;
 import com.moud.api.physics.player.PlayerPhysicsControllers;
 import com.moud.api.physics.player.PlayerState;
 import com.moud.network.MoudPackets;
-import com.moud.server.entity.ModelManager;
 import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.physics.PhysicsService;
+import com.moud.server.physics.mesh.ServerMeshCollisionManager;
+import com.moud.server.scripting.ScriptPlayerContextProvider;
+import com.moud.server.scripting.ScriptThreadContext;
+import com.moud.server.physics.primitives.PrimitiveCollisionBounds;
+import com.moud.server.primitives.PrimitiveInstance;
+import com.moud.server.primitives.PrimitiveServiceImpl;
+import com.moud.server.zone.ZoneManager;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.collision.BoundingBox;
 import net.minestom.server.collision.Shape;
@@ -20,6 +27,7 @@ import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.player.PlayerDisconnectEvent;
+import net.minestom.server.event.player.PlayerGameModeChangeEvent;
 import net.minestom.server.event.player.PlayerMoveEvent;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
@@ -42,6 +50,8 @@ public final class PlayerMovementSimService {
     private static final float PLAYER_PUSH_STRENGTH = 0.35f;
     private static final int INPUT_DECAY_TICKS = 6;
     private static final double COLLISION_QUERY_EPS = 1.0e-9;
+    private static final double MESH_GROUND_PROBE = 0.05;
+    private static final double MESH_GROUND_PROBE_EPS = 1.0e-6;
 
     private static final PlayerMovementSimService INSTANCE = new PlayerMovementSimService();
 
@@ -49,7 +59,7 @@ public final class PlayerMovementSimService {
         return INSTANCE;
     }
 
-    private final PlayerPhysicsConfig defaultConfig = PlayerPhysicsConfig.defaults();
+    private final PlayerPhysicsConfig defaultConfig = PlayerPhysicsConfig.predictionDefaults();
     private final ConcurrentMap<UUID, SimPlayer> players = new ConcurrentHashMap<>();
     private final AtomicBoolean handlersRegistered = new AtomicBoolean(false);
     private volatile Task tickTask;
@@ -67,7 +77,12 @@ public final class PlayerMovementSimService {
         setPredictionMode(player, enabled, PlayerPhysicsControllers.DEFAULT_ID, defaultConfig);
     }
 
-    public void setPredictionMode(Player player, boolean enabled, String controllerId, PlayerPhysicsConfig configOverride) {
+    public void setPredictionMode(
+            Player player,
+            boolean enabled,
+            String controllerId,
+            PlayerPhysicsConfig configOverride
+    ) {
         if (player == null) {
             return;
         }
@@ -76,13 +91,20 @@ public final class PlayerMovementSimService {
             players.computeIfAbsent(playerId, ignored -> {
                 Pos pos = player.getPosition();
                 PlayerState state = new PlayerState(pos.x(), pos.y(), pos.z(), 0f, 0f, 0f, player.isOnGround(), false);
-                return new SimPlayer(playerId, state, controllerId, configOverride != null ? configOverride : defaultConfig);
+                return new SimPlayer(
+                        playerId,
+                        state,
+                        controllerId,
+                        configOverride != null ? configOverride : defaultConfig,
+                        new MinestomPlayerContextProvider(player)
+                );
             });
 
             SimPlayer sim = players.get(playerId);
             if (sim != null) {
                 sim.setController(controllerId);
                 sim.setConfig(configOverride != null ? configOverride : defaultConfig);
+                sim.setContextProvider(new MinestomPlayerContextProvider(player));
             }
         } else {
             players.remove(playerId);
@@ -167,6 +189,22 @@ public final class PlayerMovementSimService {
                 players.remove(player.getUuid());
             }
         });
+        handler.addListener(PlayerGameModeChangeEvent.class, event -> {
+            Player player = event.getPlayer();
+            if (player == null) {
+                return;
+            }
+            if (event.isCancelled()) {
+                return;
+            }
+            if (event.getNewGameMode() == player.getGameMode()) {
+                return;
+            }
+            if (!isPredictionEnabled(player)) {
+                return;
+            }
+            setPredictionMode(player, false);
+        });
     }
 
     private void tick() {
@@ -194,7 +232,17 @@ public final class PlayerMovementSimService {
 
             PlayerInput input = sim.nextInput();
             CollisionWorld world = new ServerCollisionWorld(instance, physics);
-            PlayerState nextState = sim.controller.step(sim.state, input, sim.config, world, FIXED_DT_SECONDS);
+            PlayerState nextState;
+            ScriptThreadContext.setPlayer(sim.playerId, sim.contextProvider);
+            try {
+                PlayerState grounded = applyMeshGroundProbe(instance, sim.state, sim.config);
+                nextState = sim.controller.step(grounded, input, sim.config, world, FIXED_DT_SECONDS);
+
+                nextState = applyMeshCollision(instance, sim.state, nextState, sim.config);
+            } finally {
+                ScriptThreadContext.clear();
+            }
+
             sim.state = nextState;
             sim.lastProcessedSeq = Math.max(sim.lastProcessedSeq, input.sequenceId());
 
@@ -256,6 +304,127 @@ public final class PlayerMovementSimService {
         );
     }
 
+
+    private static PlayerState applyMeshCollision(
+            Instance instance,
+            PlayerState prevState,
+            PlayerState nextState,
+            PlayerPhysicsConfig config
+    ) {
+        if (instance == null || prevState == null || nextState == null || config == null) {
+            return nextState;
+        }
+
+        double moveX = nextState.x() - prevState.x();
+        double moveY = nextState.y() - prevState.y();
+        double moveZ = nextState.z() - prevState.z();
+
+        if (Math.abs(moveX) < 1.0e-9 && Math.abs(moveY) < 1.0e-9 && Math.abs(moveZ) < 1.0e-9) {
+            return nextState;
+        }
+
+        AABB playerBox = playerAabb(prevState, config);
+        Vector3 movement = new Vector3(moveX, moveY, moveZ);
+
+        ServerMeshCollisionManager meshManager = ServerMeshCollisionManager.getInstance();
+        MeshCollisionResult meshResult = meshManager.collidePlayer(instance, playerBox, movement, config.stepHeight());
+
+        if (!meshResult.hasCollision()) {
+            return nextState;
+        }
+
+        Vector3 allowed = meshResult.allowedMovement();
+        double newX = prevState.x() + allowed.x;
+        double newY = prevState.y() + allowed.y;
+        double newZ = prevState.z() + allowed.z;
+
+        float velX = nextState.velX();
+        float velY = nextState.velY();
+        float velZ = nextState.velZ();
+
+        boolean blockedX = axisBlocked(moveX, allowed.x);
+        boolean blockedY = axisBlocked(moveY, allowed.y);
+        boolean blockedZ = axisBlocked(moveZ, allowed.z);
+
+        if (blockedX) {
+            velX = 0;
+        }
+        if (blockedY) {
+            velY = 0;
+        }
+        if (blockedZ) {
+            velZ = 0;
+        }
+
+        boolean onGround = nextState.onGround();
+        boolean landedOnMesh = !onGround && moveY < 0 && blockedY;
+        if (landedOnMesh) {
+            onGround = true;
+        }
+
+        boolean horizontalCollision = blockedX || blockedZ;
+
+        return new PlayerState(
+                newX, newY, newZ,
+                velX, velY, velZ,
+                onGround,
+                nextState.collidingHorizontally() || horizontalCollision
+        );
+    }
+
+    private static PlayerState applyMeshGroundProbe(Instance instance, PlayerState state, PlayerPhysicsConfig config) {
+        if (instance == null || state == null || config == null) {
+            return state;
+        }
+        if (state.onGround()) {
+            return state;
+        }
+        if (state.velY() > 0.02f) {
+            return state;
+        }
+
+        AABB playerBox = playerAabb(state, config);
+        Vector3 probe = new Vector3(0.0, -MESH_GROUND_PROBE, 0.0);
+
+        ServerMeshCollisionManager meshManager = ServerMeshCollisionManager.getInstance();
+        MeshCollisionResult result = meshManager.collidePlayer(instance, playerBox, probe, 0.0f);
+        Vector3 allowed = result.allowedMovement();
+
+        boolean blockedDown = result.verticalCollision()
+                && probe.y < 0.0
+                && allowed.y > probe.y + MESH_GROUND_PROBE_EPS;
+
+        if (!blockedDown) {
+            return state;
+        }
+
+        float velY = state.velY();
+        if (velY < 0.0f) {
+            velY = 0.0f;
+        }
+
+        return new PlayerState(
+                state.x(), state.y(), state.z(),
+                state.velX(), velY, state.velZ(),
+                true,
+                state.collidingHorizontally()
+        );
+    }
+
+    private static boolean axisBlocked(double requested, double allowed) {
+        if (Math.abs(requested) <= 1e-9) {
+            return false;
+        }
+        double diff = allowed - requested;
+        if (Math.abs(diff) <= 1e-6) {
+            return false;
+        }
+        if (allowed * requested < -1e-9) {
+            return true;
+        }
+        return Math.signum(allowed) == Math.signum(requested) && Math.abs(allowed) < Math.abs(requested) - 1e-6;
+    }
+
     private static final class ServerCollisionWorld implements CollisionWorld {
         private final Instance instance;
         private final PhysicsService physicsService;
@@ -312,38 +481,13 @@ public final class PlayerMovementSimService {
                 }
             }
 
-            if (instance != null) {
-                for (var model : ModelManager.getInstance().getAllModels()) {
-                    if (model == null) {
-                        continue;
-                    }
-                    Entity entity = model.getEntity();
-                    if (entity == null || entity.getInstance() != instance) {
-                        continue;
-                    }
-                    BoundingBox box = entity.getBoundingBox();
-                    if (box == null || box.width() <= 0.0 || box.height() <= 0.0 || box.depth() <= 0.0) {
-                        continue;
-                    }
-                    Pos pos = entity.getPosition();
-                    BoundingBox worldBox = box.withOffset(pos);
-                    AABB aabb = new AABB(
-                            worldBox.minX(),
-                            worldBox.minY(),
-                            worldBox.minZ(),
-                            worldBox.maxX(),
-                            worldBox.maxY(),
-                            worldBox.maxZ()
-                    );
-                    if (!aabb.intersects(query)) {
-                        continue;
-                    }
-                    result.add(aabb);
+            PrimitiveServiceImpl primitiveService = PrimitiveServiceImpl.getInstance();
+            for (PrimitiveInstance primitive : primitiveService.getPrimitiveInstances()) {
+                AABB bounds = PrimitiveCollisionBounds.computeAabb(primitive);
+                if (bounds == null || !bounds.intersects(query)) {
+                    continue;
                 }
-            }
-
-            if (physicsService != null) {
-                result.addAll(physicsService.getPlayerBlockingColliders(instance, query));
+                result.add(bounds);
             }
 
             if (result.size() <= 1) {
@@ -357,6 +501,7 @@ public final class PlayerMovementSimService {
     private static final class SimPlayer {
         private final UUID playerId;
         private PlayerPhysicsConfig config;
+        private ScriptPlayerContextProvider contextProvider;
         private String controllerId;
         private PlayerPhysicsController controller;
         private final NavigableMap<Long, PlayerInput> pendingInputs;
@@ -366,10 +511,17 @@ public final class PlayerMovementSimService {
         private long lastProcessedSeq;
         private int emptyInputTicks;
 
-        private SimPlayer(UUID playerId, PlayerState initialState, String controllerId, PlayerPhysicsConfig config) {
+        private SimPlayer(
+                UUID playerId,
+                PlayerState initialState,
+                String controllerId,
+                PlayerPhysicsConfig config,
+                ScriptPlayerContextProvider contextProvider
+        ) {
             this.playerId = Objects.requireNonNull(playerId, "playerId");
             this.state = Objects.requireNonNull(initialState, "initialState");
             this.config = Objects.requireNonNull(config, "config");
+            this.contextProvider = contextProvider;
             this.controllerId = controllerId != null ? controllerId : PlayerPhysicsControllers.DEFAULT_ID;
             this.controller = PlayerPhysicsControllers.get(this.controllerId);
             this.pendingInputs = new ConcurrentSkipListMap<>();
@@ -387,6 +539,10 @@ public final class PlayerMovementSimService {
 
         private void setConfig(PlayerPhysicsConfig config) {
             this.config = Objects.requireNonNull(config, "config");
+        }
+
+        private void setContextProvider(ScriptPlayerContextProvider contextProvider) {
+            this.contextProvider = contextProvider;
         }
 
         private PlayerInput nextInput() {
@@ -428,6 +584,76 @@ public final class PlayerMovementSimService {
                 lastProcessedSeq = entry.getKey();
                 return entry.getValue();
             }
+        }
+    }
+
+    private static final class MinestomPlayerContextProvider implements ScriptPlayerContextProvider {
+        private final Player player;
+
+        private MinestomPlayerContextProvider(Player player) {
+            this.player = player;
+        }
+
+        @Override
+        public boolean hasItem(String itemId) {
+            return false;
+        }
+
+        @Override
+        public float getHealth() {
+            if (player == null) {
+                return 20f;
+            }
+            try {
+                return player.getHealth();
+            } catch (Exception ignored) {
+                return 20f;
+            }
+        }
+
+        @Override
+        public boolean hasEffect(String effectId) {
+            return false;
+        }
+
+        @Override
+        public Object getData(String key) {
+            return null;
+        }
+
+        @Override
+        public String getBlock(double x, double y, double z) {
+            if (player == null) {
+                return "minecraft:air";
+            }
+            Instance instance = player.getInstance();
+            if (instance == null) {
+                return "minecraft:air";
+            }
+            int bx = (int) Math.floor(x);
+            int by = (int) Math.floor(y);
+            int bz = (int) Math.floor(z);
+            try {
+                return instance.getBlock(bx, by, bz).name();
+            } catch (Exception ignored) {
+                return "minecraft:air";
+            }
+        }
+
+        @Override
+        public boolean isInZone(double x, double y, double z, String zoneId) {
+            if (zoneId == null || zoneId.isBlank()) {
+                return false;
+            }
+            com.moud.server.MoudEngine engine = com.moud.server.MoudEngine.getInstance();
+            if (engine == null) {
+                return false;
+            }
+            ZoneManager zones = engine.getZoneManager();
+            if (zones == null) {
+                return false;
+            }
+            return zones.isInZone(x, y, z, zoneId);
         }
     }
 
