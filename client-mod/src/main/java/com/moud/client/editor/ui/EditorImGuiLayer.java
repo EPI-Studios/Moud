@@ -78,6 +78,7 @@ public final class EditorImGuiLayer {
         imgui.extension.imguizmo.ImGuizmo.setImGuiContext(imguiContext);
 
         ImGuiTheme.applyIdaEngineTheme();
+        EditorIcons.loadIcons();
 
         initialized = true;
         if (previous != null && !previous.isNotValidPtr()) {

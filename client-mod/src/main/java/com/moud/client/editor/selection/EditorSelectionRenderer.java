@@ -1,5 +1,6 @@
 package com.moud.client.editor.selection;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.moud.client.editor.EditorModeManager;
 import com.moud.client.editor.runtime.RuntimeObject;
 import com.moud.client.editor.runtime.RuntimeObjectRegistry;
@@ -12,21 +13,26 @@ import com.moud.client.editor.picking.RaycastPicker;
 import com.moud.client.util.LimbRaycaster;
 import com.moud.client.model.ClientModelManager;
 import com.moud.client.model.RenderableModel;
+import com.moud.client.zone.ClientZoneManager;
 import com.moud.client.animation.AnimatedPlayerModel;
 import com.moud.client.animation.ClientPlayerModelManager;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.WorldRenderer;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BufferRenderer;
+import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Matrix4f;
 import org.joml.Matrix3f;
 import org.joml.Vector3f;
 
 import java.util.Map;
+import java.util.Set;
 
 public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEntities {
     private EditorSelectionRenderer() {}
@@ -37,29 +43,56 @@ public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEnt
 
     @Override
     public void afterEntities(WorldRenderContext context) {
-        renderCornerGuides(context);
-        renderMarkers(context);
         RaycastPicker picker = RaycastPicker.getInstance();
         boolean limbSelected = picker.getSelectedLimb() != null;
-        SceneObject selected = SceneEditorOverlay.getInstance().getSelectedObject();
-        VertexConsumerProvider consumers = context.consumers();
-        if (selected != null && consumers != null && !limbSelected) {
-            Box box = computeBounds(selected);
-            if (box != null) {
-                Vec3d cameraPos = context.camera().getPos();
-                VertexConsumer buffer = consumers.getBuffer(RenderLayer.getLines());
-                context.matrixStack().push();
-                context.matrixStack().translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
-                WorldRenderer.drawBox(context.matrixStack(), buffer, box, 0.08f, 0.62f, 1.0f, 1.0f);
-                context.matrixStack().pop();
+        SceneEditorOverlay overlay = SceneEditorOverlay.getInstance();
+        Set<SceneObject> selectedObjects = overlay.getSelectedObjects();
+        String primaryId = overlay.getSelectedObject() != null ? overlay.getSelectedObject().getId() : null;
+
+        Vec3d cameraPos = context.camera().getPos();
+        MatrixStack matrices = context.matrixStack();
+
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.disableCull();
+        RenderSystem.disableDepthTest();
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+
+        BufferBuilder buffer = Tessellator.getInstance().begin(VertexFormat.DrawMode.DEBUG_LINES, VertexFormats.POSITION_COLOR);
+        matrices.push();
+        matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+        Matrix4f matrix = matrices.peek().getPositionMatrix();
+
+        if (!limbSelected) {
+            for (SceneObject selected : selectedObjects) {
+                Box box = computeBounds(selected);
+                if (box != null) {
+                    boolean isPrimary = selected.getId().equals(primaryId);
+                    if (isPrimary) {
+                        addBox(buffer, matrix, box, 0.08f, 0.62f, 1.0f, 1.0f);
+                    } else {
+                        addBox(buffer, matrix, box, 0.3f, 0.7f, 0.95f, 0.8f);
+                    }
+                }
             }
         }
-        if (consumers != null) {
-            VertexConsumer buffer = consumers.getBuffer(RenderLayer.getLines());
+
+        renderMarkers(context, buffer, matrix);
+        renderCornerGuides(context, buffer, matrix);
+
+        matrices.pop();
+        var built = buffer.endNullable();
+        if (built != null) {
+            BufferRenderer.drawWithGlobalProgram(built);
+            built.close();
         }
+
+        RenderSystem.enableDepthTest();
+        RenderSystem.enableCull();
+        RenderSystem.disableBlend();
     }
 
-    private void renderMarkers(WorldRenderContext context) {
+    private void renderMarkers(WorldRenderContext context, BufferBuilder buffer, Matrix4f matrix) {
         if (!EditorModeManager.getInstance().isActive()) {
             return;
         }
@@ -67,15 +100,6 @@ public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEnt
         if (graph.getObjects().isEmpty()) {
             return;
         }
-        VertexConsumerProvider consumers = context.consumers();
-        if (consumers == null) {
-            return;
-        }
-        VertexConsumer buffer = consumers.getBuffer(RenderLayer.getLines());
-        Vec3d cameraPos = context.camera().getPos();
-        var matrices = context.matrixStack();
-        matrices.push();
-        matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
         for (SceneObject object : graph.getObjects()) {
             String type = object.getType();
             if ("marker".equalsIgnoreCase(type)) {
@@ -92,15 +116,22 @@ public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEnt
                         pos.y + size,
                         pos.z + size
                 );
-                WorldRenderer.drawBox(matrices, buffer, markerBox, 0.98f, 0.82f, 0.2f, 1.0f);
+                addBox(buffer, matrix, markerBox, 0.98f, 0.82f, 0.2f, 1.0f);
             } else if ("zone".equalsIgnoreCase(type)) {
                 Box zoneBox = extractZoneBox(object);
                 if (zoneBox != null) {
-                    WorldRenderer.drawBox(matrices, buffer, zoneBox, 0.3f, 0.9f, 0.4f, 0.6f);
+                    addBox(buffer, matrix, zoneBox, 0.3f, 0.9f, 0.4f, 0.6f);
                 }
             }
         }
-        matrices.pop();
+
+        for (ClientZoneManager.ZoneSnapshot zone : ClientZoneManager.snapshot()) {
+            if (zone == null) {
+                continue;
+            }
+            Box zoneBox = new Box(zone.minX(), zone.minY(), zone.minZ(), zone.maxX(), zone.maxY(), zone.maxZ());
+            addBox(buffer, matrix, zoneBox, 0.9f, 0.35f, 0.95f, 0.4f);
+        }
     }
 
     private Box computeBounds(SceneObject object) {
@@ -199,20 +230,11 @@ public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEnt
     }
 
 
-    private void renderCornerGuides(WorldRenderContext context) {
+    private void renderCornerGuides(WorldRenderContext context, BufferBuilder buffer, Matrix4f matrix) {
         var selector = BlueprintCornerSelector.getInstance();
         if (!selector.isPicking() && !SceneEditorOverlay.getInstance().hasRegionCorners()) {
             return;
         }
-        VertexConsumerProvider consumers = context.consumers();
-        if (consumers == null) {
-            return;
-        }
-        Vec3d cameraPos = context.camera().getPos();
-        var matrices = context.matrixStack();
-        matrices.push();
-        matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
-        VertexConsumer buffer = consumers.getBuffer(RenderLayer.getLines());
 
         float[] cornerA = SceneEditorOverlay.getInstance().getRegionCornerA();
         float[] cornerB = SceneEditorOverlay.getInstance().getRegionCornerB();
@@ -220,20 +242,19 @@ public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEnt
         boolean bSet = SceneEditorOverlay.getInstance().isRegionBCaptured();
 
         if (aSet) {
-            drawCorner(buffer, matrices, cornerA, 0.2f, 0.6f, 0.9f);
+            drawCorner(buffer, matrix, cornerA, 0.2f, 0.6f, 0.9f);
         }
         if (bSet) {
-            drawCorner(buffer, matrices, cornerB, 0.9f, 0.5f, 0.3f);
+            drawCorner(buffer, matrix, cornerB, 0.9f, 0.5f, 0.3f);
         }
 
         if (aSet && bSet) {
             Box box = SceneEditorOverlay.buildBoxFromCorners(cornerA, cornerB);
-            WorldRenderer.drawBox(matrices, buffer, box, 0.4f, 0.8f, 0.4f, 0.6f);
+            addBox(buffer, matrix, box, 0.4f, 0.8f, 0.4f, 0.6f);
         }
-        matrices.pop();
     }
 
-    private void drawCorner(VertexConsumer buffer, MatrixStack matrices, float[] corner, float r, float g, float b) {
+    private void drawCorner(BufferBuilder buffer, Matrix4f matrix, float[] corner, float r, float g, float b) {
         double size = 0.15;
         Box box = new Box(
                 corner[0] - size,
@@ -243,6 +264,38 @@ public final class EditorSelectionRenderer implements WorldRenderEvents.AfterEnt
                 corner[1] + size,
                 corner[2] + size
         );
-        WorldRenderer.drawBox(matrices, buffer, box, r, g, b, 0.9f);
+        addBox(buffer, matrix, box, r, g, b, 0.9f);
+    }
+
+    private void addBox(BufferBuilder buffer, Matrix4f matrix, Box box, float r, float g, float b, float a) {
+        float minX = (float) box.minX;
+        float minY = (float) box.minY;
+        float minZ = (float) box.minZ;
+        float maxX = (float) box.maxX;
+        float maxY = (float) box.maxY;
+        float maxZ = (float) box.maxZ;
+
+        addLine(buffer, matrix, minX, minY, minZ, maxX, minY, minZ, r, g, b, a);
+        addLine(buffer, matrix, maxX, minY, minZ, maxX, minY, maxZ, r, g, b, a);
+        addLine(buffer, matrix, maxX, minY, maxZ, minX, minY, maxZ, r, g, b, a);
+        addLine(buffer, matrix, minX, minY, maxZ, minX, minY, minZ, r, g, b, a);
+
+        addLine(buffer, matrix, minX, maxY, minZ, maxX, maxY, minZ, r, g, b, a);
+        addLine(buffer, matrix, maxX, maxY, minZ, maxX, maxY, maxZ, r, g, b, a);
+        addLine(buffer, matrix, maxX, maxY, maxZ, minX, maxY, maxZ, r, g, b, a);
+        addLine(buffer, matrix, minX, maxY, maxZ, minX, maxY, minZ, r, g, b, a);
+
+        addLine(buffer, matrix, minX, minY, minZ, minX, maxY, minZ, r, g, b, a);
+        addLine(buffer, matrix, maxX, minY, minZ, maxX, maxY, minZ, r, g, b, a);
+        addLine(buffer, matrix, maxX, minY, maxZ, maxX, maxY, maxZ, r, g, b, a);
+        addLine(buffer, matrix, minX, minY, maxZ, minX, maxY, maxZ, r, g, b, a);
+    }
+
+    private void addLine(BufferBuilder buffer, Matrix4f matrix,
+                         float x1, float y1, float z1,
+                         float x2, float y2, float z2,
+                         float r, float g, float b, float a) {
+        buffer.vertex(matrix, x1, y1, z1).color(r, g, b, a);
+        buffer.vertex(matrix, x2, y2, z2).color(r, g, b, a);
     }
 }

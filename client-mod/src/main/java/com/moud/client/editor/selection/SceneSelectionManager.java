@@ -4,6 +4,7 @@ import com.moud.client.collision.ModelCollisionManager;
 import com.moud.client.editor.EditorModeManager;
 import com.moud.client.editor.ui.SceneEditorOverlay;
 import com.moud.network.MoudPackets;
+import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.Vec3d;
 
@@ -35,6 +36,10 @@ public final class SceneSelectionManager {
     }
 
     public boolean handleClickSelection() {
+        return handleClickSelection(false);
+    }
+
+    public boolean handleClickSelection(boolean shiftHeld) {
         if (!EditorModeManager.getInstance().isActive()) {
             return false;
         }
@@ -48,13 +53,16 @@ public final class SceneSelectionManager {
         Vec3d direction = Vec3d.fromPolar(camera.getPitch(), camera.getYaw());
         long modelId = ModelCollisionManager.getInstance().pick(origin, direction.normalize(), 256.0);
         if (modelId < 0) {
+            if (!shiftHeld) {
+                SceneEditorOverlay.getInstance().clearSelection();
+            }
             return false;
         }
         String objectId = modelBindings.get(modelId);
         if (objectId == null) {
             return false;
         }
-        SceneEditorOverlay.getInstance().selectFromExternal(objectId);
+        SceneEditorOverlay.getInstance().selectFromExternal(objectId, shiftHeld);
         return true;
     }
 

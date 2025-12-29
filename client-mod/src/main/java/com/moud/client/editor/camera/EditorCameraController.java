@@ -147,8 +147,28 @@ public final class EditorCameraController {
                 return;
             }
         }
-        focusPoint(target);
+        lookAtPoint(target);
     }
+
+    public void lookAtPoint(@Nullable Vec3d target) {
+        if (!active || target == null) {
+            return;
+        }
+        Vec3d toTarget = target.subtract(cameraPos);
+        double dist = toTarget.horizontalLength();
+        if (dist < 0.001 && Math.abs(toTarget.y) < 0.001) {
+            return;
+        }
+
+        double newYaw = Math.toDegrees(Math.atan2(-toTarget.x, toTarget.z));
+
+        double newPitch = Math.toDegrees(-Math.atan2(toTarget.y, dist));
+        newPitch = MathHelper.clamp(newPitch, -89.0, 89.0);
+
+        targetYaw = newYaw;
+        targetPitch = newPitch;
+    }
+
 
     public void focusPoint(@Nullable Vec3d target) {
         if (!active || target == null) {

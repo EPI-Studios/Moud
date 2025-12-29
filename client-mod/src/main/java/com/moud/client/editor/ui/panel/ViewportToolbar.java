@@ -19,14 +19,17 @@ public final class ViewportToolbar {
     }
 
     public void render(EditorDockingLayout.Rect viewportRect) {
-        float x = 320f;
-        float y = 64f;
-        if (viewportRect != null) {
-            x = Math.max(viewportRect.x + viewportRect.width - 360f, viewportRect.x + 16f);
-            y = viewportRect.y + 16f;
+        if (viewportRect == null) {
+            return;
         }
-        ImGui.setNextWindowPos(x, y);
-        ImGui.setNextWindowSize(420, 110, ImGuiCond.Always);
+        float toolbarWidth = Math.min(420f, Math.max(280f, viewportRect.width * 0.4f));
+        float toolbarHeight = overlay.hasMultiSelection() ? 130f : 110f;
+
+        float x = Math.max(viewportRect.x + viewportRect.width - toolbarWidth - 16f, viewportRect.x + 16f);
+        float y = viewportRect.y + 16f;
+
+        ImGui.setNextWindowPos(x, y, ImGuiCond.Always);
+        ImGui.setNextWindowSize(toolbarWidth, toolbarHeight, ImGuiCond.Always);
         int flags = ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize;
         if (!ImGui.begin("Gizmo Controls", flags)) {
             ImGui.end();
@@ -34,6 +37,9 @@ public final class ViewportToolbar {
         }
         renderOperationSection();
         renderModeSection();
+        if (overlay.hasMultiSelection()) {
+            renderPivotSection();
+        }
         renderSnapSection();
         ImGui.textDisabled("Hold F to fly the camera");
         ImGui.end();
@@ -66,6 +72,22 @@ public final class ViewportToolbar {
         ImGui.sameLine();
         if (ImGui.radioButton("World", mode == Mode.WORLD)) {
             overlay.setGizmoMode(Mode.WORLD);
+        }
+    }
+
+    private void renderPivotSection() {
+        ImGui.textDisabled("Pivot");
+        SceneEditorOverlay.PivotMode current = overlay.getPivotMode();
+        if (ImGui.radioButton("Center", current == SceneEditorOverlay.PivotMode.CENTER)) {
+            overlay.setPivotMode(SceneEditorOverlay.PivotMode.CENTER);
+        }
+        ImGui.sameLine();
+        if (ImGui.radioButton("Individual", current == SceneEditorOverlay.PivotMode.INDIVIDUAL)) {
+            overlay.setPivotMode(SceneEditorOverlay.PivotMode.INDIVIDUAL);
+        }
+        ImGui.sameLine();
+        if (ImGui.radioButton("Active", current == SceneEditorOverlay.PivotMode.ACTIVE)) {
+            overlay.setPivotMode(SceneEditorOverlay.PivotMode.ACTIVE);
         }
     }
 

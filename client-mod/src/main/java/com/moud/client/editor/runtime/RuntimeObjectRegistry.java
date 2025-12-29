@@ -1,26 +1,44 @@
 package com.moud.client.editor.runtime;
 
+import com.moud.api.animation.PropertyTrack;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
+import com.moud.api.particle.ParticleDescriptor;
+import com.moud.api.particle.ParticleEmitterConfig;
+import com.moud.api.particle.Vector3f;
+import com.moud.client.MoudClientMod;
+import com.moud.client.animation.ClientFakePlayerManager;
+import com.moud.client.animation.ClientPlayerModelManager;
+import com.moud.client.animation.PlayerPartConfigManager;
+import com.moud.client.api.service.CameraService;
+import com.moud.client.api.service.ClientAPIService;
+import com.moud.client.display.ClientDisplayManager;
 import com.moud.client.display.DisplaySurface;
-import com.moud.client.model.RenderableModel;
 import com.moud.client.editor.scene.SceneObject;
+import com.moud.client.editor.scene.SceneSessionManager;
+import com.moud.client.lighting.ClientLightingService;
+import com.moud.client.model.RenderableModel;
+import com.moud.client.particle.ParticleEmitterSystem;
+import com.moud.client.util.ParticleDescriptorMapper;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
+import net.minecraft.client.network.OtherClientPlayerEntity;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class RuntimeObjectRegistry {
     private static final RuntimeObjectRegistry INSTANCE = new RuntimeObjectRegistry();
+
+    private static final String PROP_POSITION = "position";
+    private static final String PROP_ROTATION = "rotation";
+    private static final String PROP_ROTATION_QUAT = "rotationQuat";
+    private static final String PROP_SCALE = "scale";
+    private static final String TYPE_EMITTER = "particle_emitter";
+    private static final String TYPE_PLAYER_MODEL = "player_model";
+    private static final String PREFIX_CAMERA = "camera-";
+    private static final String PREFIX_PLAYER_MODEL_PROP = "player_model:";
 
     private final Map<String, RuntimeObject> objects = new ConcurrentHashMap<>();
     private final Map<Long, String> modelIndex = new ConcurrentHashMap<>();
@@ -43,24 +61,68 @@ public final class RuntimeObjectRegistry {
     }
 
     public void removeLight(long lightId) {
-        String objectId = lightIndex.remove(lightId);
-        if (objectId != null) {
-            objects.remove(objectId);
-        }
+        removeObjectByIndex(lightIndex, lightId);
     }
 
-    public void syncEmitter(com.moud.client.editor.scene.SceneObject sceneObject) {
-        if (sceneObject == null) {
-            return;
+    public void syncModel(RenderableModel model) {
+        if (model == null) return;
+        RuntimeObject object = getOrCreate(RuntimeObjectType.MODEL, model.getId());
+        object.updateFromModel(model);
+        if (model.hasCollisionBoxes()) {
+            object.updateBoundsFromCollision(model.getCollisionBoxes());
         }
+        modelIndex.put(model.getId(), object.getObjectId());
+    }
+
+    public void removeModel(long modelId) {
+        removeObjectByIndex(modelIndex, modelId);
+    }
+
+    public void syncDisplay(DisplaySurface surface) {
+        if (surface == null) return;
+        RuntimeObject object = getOrCreate(RuntimeObjectType.DISPLAY, surface.getId());
+        object.updateFromDisplay(surface);
+        displayIndex.put(surface.getId(), object.getObjectId());
+    }
+
+    public void removeDisplay(long displayId) {
+        removeObjectByIndex(displayIndex, displayId);
+    }
+
+    public void syncPlayerModel(long modelId, Vec3d position, Vec3d rotationDeg) {
+        RuntimeObject object = getOrCreate(RuntimeObjectType.PLAYER_MODEL, modelId);
+        object.updateFromPlayerModel(position, rotationDeg);
+        playerModelIndex.put(modelId, object.getObjectId());
+    }
+
+    public void syncFakePlayer(long modelId, AbstractClientPlayerEntity player) {
+        RuntimeObject object = getOrCreate(RuntimeObjectType.PLAYER_MODEL, modelId);
+        object.updateFromPlayer(player);
+        playerModelIndex.put(modelId, object.getObjectId());
+    }
+
+    public void removePlayerModel(long modelId) {
+        removeObjectByIndex(playerModelIndex, modelId);
+    }
+
+    public void syncEmitter(SceneObject sceneObject) {
+        if (sceneObject == null) return;
         String objectId = sceneObject.getId();
-        RuntimeObject runtime = objects.computeIfAbsent(objectId, id -> new RuntimeObject(RuntimeObjectType.PARTICLE_EMITTER, id.hashCode()));
-        Map<String, Object> props = new java.util.HashMap<>(sceneObject.getProperties());
-        Vec3d pos = parseVec3(props.get("position"), runtime.getPosition());
+
+        RuntimeObject runtime = objects.computeIfAbsent(objectId, id ->
+                new RuntimeObject(RuntimeObjectType.PARTICLE_EMITTER, id.hashCode())
+        );
+
+        Map<String, Object> props = new HashMap<>(sceneObject.getProperties());
+
+        Vec3d pos = MapUtils.getAsVec3d(props.get(PROP_POSITION), runtime.getPosition());
         if (pos != null) runtime.setPosition(pos);
-        Vec3d rot = parseRotation(props.get("rotation"), runtime.getRotation());
+
+        Vec3d rot = MapUtils.getAsVec3dFromRot(props.get(PROP_ROTATION), runtime.getRotation());
         if (rot != null) runtime.setRotation(rot);
+
         runtime.setScale(new Vec3d(1, 1, 1));
+
         emitterIndex.put(objectId, objectId);
         upsertEmitterFromProps(objectId, props);
     }
@@ -69,10 +131,43 @@ public final class RuntimeObjectRegistry {
         if (objectId == null) return;
         emitterIndex.remove(objectId);
         objects.remove(objectId);
-        var emitterSystem = com.moud.client.MoudClientMod.getInstance().getParticleEmitterSystem();
-        if (emitterSystem != null) {
-            emitterSystem.remove(java.util.List.of(objectId));
+
+        ParticleEmitterSystem system = MoudClientMod.getInstance().getParticleEmitterSystem();
+        if (system != null) {
+            system.remove(List.of(objectId));
         }
+    }
+
+    public void syncPlayers(List<? extends AbstractClientPlayerEntity> players) {
+        Set<UUID> currentUuids = new HashSet<>();
+
+        for (AbstractClientPlayerEntity player : players) {
+            if (player == null) continue;
+            if (player instanceof OtherClientPlayerEntity other && ClientFakePlayerManager.isFakePlayer(other)) {
+                continue;
+            }
+
+            UUID uuid = player.getUuid();
+            currentUuids.add(uuid);
+            String key = "player:" + uuid;
+
+            RuntimeObject object = objects.computeIfAbsent(key, id ->
+                    new RuntimeObject(RuntimeObjectType.PLAYER,
+                            uuid.getLeastSignificantBits() ^ uuid.getMostSignificantBits(), key)
+            );
+
+            object.updateFromPlayer(player);
+            playerIndex.put(uuid, key);
+        }
+
+        playerIndex.keySet().removeIf(uuid -> {
+            if (!currentUuids.contains(uuid)) {
+                String objectId = playerIndex.get(uuid);
+                if (objectId != null) objects.remove(objectId);
+                return true;
+            }
+            return false;
+        });
     }
 
     public Collection<RuntimeObject> getObjects() {
@@ -86,35 +181,32 @@ public final class RuntimeObjectRegistry {
                 list.add(object);
             }
         }
-        list.sort(java.util.Comparator.comparing(RuntimeObject::getLabel));
+        list.sort(Comparator.comparing(RuntimeObject::getLabel));
         return list;
     }
 
-    public RuntimeObject getById(String objectId) {
-        return objects.get(objectId);
-    }
+    public RuntimeObject getById(String objectId) { return objects.get(objectId); }
+    public RuntimeObject getByModelId(long modelId) { return lookup(modelIndex, modelId); }
+    public RuntimeObject getByDisplayId(long displayId) { return lookup(displayIndex, displayId); }
+    public RuntimeObject getByPlayer(UUID uuid) { return lookup(playerIndex, uuid); }
+    public RuntimeObject getByPlayerModel(long modelId) { return lookup(playerModelIndex, modelId); }
 
-    public RuntimeObject getByModelId(long modelId) {
-        String objectId = modelIndex.get(modelId);
-        return objectId != null ? objects.get(objectId) : null;
-    }
+    public RuntimeObject pickRuntime(Vec3d origin, Vec3d direction, double maxDistance) {
+        RuntimeObject best = null;
+        double bestDistance = maxDistance;
 
-    public RuntimeObject getByDisplayId(long displayId) {
-        String objectId = displayIndex.get(displayId);
-        return objectId != null ? objects.get(objectId) : null;
-    }
+        for (RuntimeObject object : objects.values()) {
+            Box box = object.getBounds();
+            if (box == null) continue;
 
-    public RuntimeObject getByPlayer(UUID uuid) {
-        String objectId = playerIndex.get(uuid);
-        return objectId != null ? objects.get(objectId) : null;
+            double dist = MathUtils.intersectAabb(origin, direction, box);
+            if (dist >= 0 && dist < bestDistance) {
+                bestDistance = dist;
+                best = object;
+            }
+        }
+        return best;
     }
-
-    public RuntimeObject getByPlayerModel(long modelId) {
-        String objectId = playerModelIndex.get(modelId);
-        return objectId != null ? objects.get(objectId) : null;
-    }
-
-    private record WorldTransform(Vector3 position, Quaternion rotation, Vector3 scale) {}
 
     public void applyAnimationTransform(String objectId,
                                         Vector3 position,
@@ -122,477 +214,183 @@ public final class RuntimeObjectRegistry {
                                         Quaternion rotationQuat,
                                         Vector3 scale,
                                         Map<String, Float> properties) {
-        com.moud.client.editor.scene.SceneObject sceneObject = com.moud.client.editor.scene.SceneSessionManager.getInstance()
-                .getSceneGraph()
-                .get(objectId);
 
-        if (sceneObject != null) {
-            Map<String, Object> merged = new java.util.HashMap<>(sceneObject.getProperties());
-            if (position != null) {
-                merged.put("position", vectorToMap(position));
-            }
-            if (rotation != null) {
-                merged.put("rotation", rotationToMap(rotation));
-            }
-            if (rotationQuat != null) {
-                merged.put("rotationQuat", quaternionToMap(rotationQuat));
-            }
-            if (scale != null) {
-                merged.put("scale", vectorToMap(scale));
-            }
-            if (properties != null && !properties.isEmpty()) {
-                properties.forEach((key, value) -> applyNestedProperty(merged, key, value));
-            }
-            sceneObject.overwriteProperties(merged);
-            if ("particle_emitter".equalsIgnoreCase(sceneObject.getType())) {
-                upsertEmitterFromProps(objectId, merged);
-            }
+        updateSceneObjectProperties(objectId, position, rotation, rotationQuat, scale, properties);
+
+        if (objectId != null && objectId.startsWith(PREFIX_CAMERA)) {
+            handleCameraAnimation(objectId, position, rotation, rotationQuat, properties);
+            return;
         }
 
-        if (objectId != null && objectId.startsWith("camera-")) {
-            applyCameraTransform(objectId, position, rotation, rotationQuat, properties);
+        RuntimeObject obj = resolveRuntimeObject(objectId);
+        if (obj == null) {
             if (properties != null && !properties.isEmpty()) {
                 properties.forEach((key, value) -> applyAnimationProperty(objectId, key, null, value));
             }
             return;
         }
 
-        RuntimeObject obj = resolveRuntimeObject(objectId);
+        TransformResult world = calculateWorldTransform(objectId, position, rotation, rotationQuat, scale);
 
-        WorldTransform world = composeWorldTransform(objectId, position, rotation, rotationQuat, scale, new java.util.HashSet<>());
+        boolean changed = false;
+        if (world.pos != null) { obj.setPosition(world.pos); changed = true; }
+        if (world.rot != null) { obj.setRotation(world.rot); changed = true; }
+        if (world.scale != null) { obj.setScale(world.scale); changed = true; }
 
-        boolean transformChanged = false;
-        if (world.position != null) {
-            obj.setPosition(new Vec3d(world.position.x, world.position.y, world.position.z));
-            transformChanged = true;
-        }
-        if (world.rotation != null) {
-            Vector3 euler = world.rotation.toEuler();
-            obj.setRotation(new Vec3d(euler.x, euler.y, euler.z));
-            transformChanged = true;
-        }
-        if (world.scale != null) {
-            obj.setScale(new Vec3d(Math.max(0.0001, world.scale.x), Math.max(0.0001, world.scale.y), Math.max(0.0001, world.scale.z)));
-            transformChanged = true;
-        }
-
-        if (transformChanged) {
+        if (changed) {
             applyTransformsToBackings(obj);
         }
 
         if (properties != null && !properties.isEmpty()) {
-            String runtimeId = obj != null ? obj.getObjectId() : objectId;
-            properties.forEach((key, value) -> applyAnimationProperty(runtimeId, key, null, value));
+            properties.forEach((key, value) -> applyAnimationProperty(obj.getObjectId(), key, null, value));
         }
     }
 
+    public void applyAnimationProperty(String objectId, String propertyKey, PropertyTrack.PropertyType propertyType, float value) {
+        updateSceneObjectSingleProperty(objectId, propertyKey, value);
 
+        if (objectId.startsWith(PREFIX_CAMERA)) {
+            handleCameraProperty(objectId, propertyKey, value);
+            return;
+        }
 
-    public void applyAnimationProperty(String objectId, String propertyKey, com.moud.api.animation.PropertyTrack.PropertyType propertyType, float value) {
         RuntimeObject obj = resolveRuntimeObject(objectId);
-        SceneObject sceneObject = com.moud.client.editor.scene.SceneSessionManager.getInstance().getSceneGraph().get(objectId);
+        if (obj == null || propertyKey == null) return;
 
-        if (sceneObject != null && propertyKey != null) {
-            Map<String, Object> merged = new java.util.HashMap<>(sceneObject.getProperties());
-            applyNestedProperty(merged, propertyKey, value);
-            sceneObject.overwriteProperties(merged);
-
-            if ("particle_emitter".equalsIgnoreCase(sceneObject.getType())) {
-                upsertEmitterFromProps(objectId, merged);
-            }
-
-            if (objectId.startsWith("camera-")) {
-                com.moud.client.api.service.CameraService cameraService = com.moud.client.api.service.ClientAPIService.INSTANCE.camera;
-                boolean firstBind = !cameraService.isCustomCameraActive() || !objectId.equals(cameraService.getActiveCameraId());
-                if (firstBind) {
-                    cameraService.enableCustomCamera(objectId);
-                }
-                if (cameraService.isCustomCameraActive() && objectId.equals(cameraService.getActiveCameraId())) {
-                    Map<String, Object> options = new java.util.HashMap<>();
-                    Object posObj = merged.get("position");
-                    if (posObj != null) options.put("position", posObj);
-
-                    Object rotObj = merged.get("rotation");
-                    if (rotObj instanceof Map) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> rotMap = (Map<String, Object>) rotObj;
-                        Object pitch = rotMap.getOrDefault("pitch", rotMap.get("x"));
-                        Object yaw = rotMap.getOrDefault("yaw", rotMap.get("y"));
-                        Object roll = rotMap.getOrDefault("roll", rotMap.get("z"));
-                        if (pitch != null) options.put("pitch", pitch);
-                        if (yaw != null) options.put("yaw", yaw);
-                        if (roll != null) options.put("roll", roll);
-                    }
-
-                    Object fovObj = merged.get("fov");
-                    if (fovObj != null) options.put("fov", fovObj);
-
-                    if (!options.isEmpty()) {
-                        if (firstBind) {
-                            // On first bind, snap to avoid being stuck, then subsequent updates blend.
-                            cameraService.snapToFromMap(options);
-                        } else {
-                            cameraService.animateFromAnimation(options);
-                        }
-                    }
-                }
-            }
-        }
-
-        if (objectId.startsWith("camera-")) {
-            // Cameras don't have runtime backings beyond the scene graph/custom camera, so stop here.
-            return;
-        }
-
-        if (obj == null || propertyKey == null) {
-            return;
-        }
-
-        if (obj.getType() == RuntimeObjectType.PLAYER_MODEL && propertyKey.startsWith("player_model:")) {
+        if (obj.getType() == RuntimeObjectType.PLAYER_MODEL && propertyKey.startsWith(PREFIX_PLAYER_MODEL_PROP)) {
             applyLimbProperty(obj, propertyKey, value);
             return;
         }
 
-        Vec3d pos = obj.getPosition();
-        Vec3d rot = obj.getRotation();
-        Vec3d scl = obj.getScale();
-        boolean transformChanged = false;
-        switch (propertyKey) {
-            case "position.x" -> {
-                obj.setPosition(new Vec3d(value, pos.y, pos.z));
-                transformChanged = true;
-            }
-            case "position.y" -> {
-                obj.setPosition(new Vec3d(pos.x, value, pos.z));
-                transformChanged = true;
-            }
-            case "position.z" -> {
-                obj.setPosition(new Vec3d(pos.x, pos.y, value));
-                transformChanged = true;
-            }
-            case "rotation.x" -> {
-                obj.setRotation(new Vec3d(value, rot.y, rot.z));
-                transformChanged = true;
-            }
-            case "rotation.y" -> {
-                obj.setRotation(new Vec3d(rot.x, value, rot.z));
-                transformChanged = true;
-            }
-            case "rotation.z" -> {
-                obj.setRotation(new Vec3d(rot.x, rot.y, value));
-                transformChanged = true;
-            }
-            case "scale.x" -> {
-                obj.setScale(new Vec3d(Math.max(0.0001, value), scl.y, scl.z));
-                transformChanged = true;
-            }
-            case "scale.y" -> {
-                obj.setScale(new Vec3d(scl.x, Math.max(0.0001, value), scl.z));
-                transformChanged = true;
-            }
-            case "scale.z" -> {
-                obj.setScale(new Vec3d(scl.x, scl.y, Math.max(0.0001, value)));
-                transformChanged = true;
-            }
-            case "opacity" -> {
-                if (obj.getType() == RuntimeObjectType.DISPLAY) {
-                    com.moud.client.display.DisplaySurface surface = com.moud.client.display.ClientDisplayManager.getInstance().getById(obj.getRuntimeId());
-                    if (surface != null) {
-                        surface.setOpacity(value);
-                    }
-                }
-            }
-            case "intensity" -> {
-                if (obj.getType() == RuntimeObjectType.LIGHT) {
-                    com.moud.client.lighting.ClientLightingService.ManagedLight light = com.moud.client.lighting.ClientLightingService.getInstance().getManagedLight(obj.getRuntimeId());
-                    if (light != null) {
-                        light.brightness = value;
-                    }
-                }
-            }
-            case "range" -> {
-                if (obj.getType() == RuntimeObjectType.LIGHT) {
-                    com.moud.client.lighting.ClientLightingService.ManagedLight light = com.moud.client.lighting.ClientLightingService.getInstance().getManagedLight(obj.getRuntimeId());
-                    if (light != null) {
-                        light.radius = value;
-                    }
-                }
-            }
-            case "color.r" -> {
-                if (obj.getType() == RuntimeObjectType.LIGHT) {
-                    com.moud.client.lighting.ClientLightingService.ManagedLight light = com.moud.client.lighting.ClientLightingService.getInstance().getManagedLight(obj.getRuntimeId());
-                    if (light != null) {
-                        light.r = value;
-                    }
-                }
-            }
-            case "color.g" -> {
-                if (obj.getType() == RuntimeObjectType.LIGHT) {
-                    com.moud.client.lighting.ClientLightingService.ManagedLight light = com.moud.client.lighting.ClientLightingService.getInstance().getManagedLight(obj.getRuntimeId());
-                    if (light != null) {
-                        light.g = value;
-                    }
-                }
-            }
-            case "color.b" -> {
-                if (obj.getType() == RuntimeObjectType.LIGHT) {
-                    com.moud.client.lighting.ClientLightingService.ManagedLight light = com.moud.client.lighting.ClientLightingService.getInstance().getManagedLight(obj.getRuntimeId());
-                    if (light != null) {
-                        light.b = value;
-                    }
-                }
-            }
-            default -> {
-            }
-        }
-        if (transformChanged) {
+        boolean changed = applyTransformProperty(obj, propertyKey, value);
+        if (!changed) {
+            applySpecificProperty(obj, propertyKey, value);
+        } else {
             applyTransformsToBackings(obj);
         }
     }
 
-    private void applyCameraTransform(String objectId,
-                                      Vector3 position,
-                                      Vector3 rotation,
-                                      Quaternion rotationQuat,
-                                      Map<String, Float> properties) {
-        com.moud.client.api.service.CameraService cameraService = com.moud.client.api.service.ClientAPIService.INSTANCE.camera;
-        if (cameraService == null) {
-            return;
-        }
-        boolean firstBind = !cameraService.isCustomCameraActive() || !objectId.equals(cameraService.getActiveCameraId());
-        if (firstBind) {
-            cameraService.enableCustomCamera(objectId);
-        }
-        if (!cameraService.isCustomCameraActive() || !objectId.equals(cameraService.getActiveCameraId())) {
-            return;
+    private void updateSceneObjectProperties(String objectId, Vector3 pos, Vector3 rot, Quaternion quat, Vector3 scale, Map<String, Float> props) {
+        SceneObject sceneObject = SceneSessionManager.getInstance().getSceneGraph().get(objectId);
+        if (sceneObject == null) return;
+
+        Map<String, Object> merged = new HashMap<>(sceneObject.getProperties());
+        if (pos != null) merged.put(PROP_POSITION, MapUtils.toMap(pos));
+        if (rot != null) merged.put(PROP_ROTATION, MapUtils.toMapRot(rot));
+        if (quat != null) merged.put(PROP_ROTATION_QUAT, MapUtils.toMap(quat));
+        if (scale != null) merged.put(PROP_SCALE, MapUtils.toMap(scale));
+
+        if (props != null) {
+            props.forEach((k, v) -> MapUtils.applyNested(merged, k, v));
         }
 
-        java.util.Map<String, Object> options = new java.util.HashMap<>();
-        if (position != null) {
-            options.put("position", vectorToMap(position));
+        sceneObject.overwriteProperties(merged);
+        if (TYPE_EMITTER.equalsIgnoreCase(sceneObject.getType())) {
+            upsertEmitterFromProps(objectId, merged);
         }
-        Vector3 euler = rotation != null ? rotation : (rotationQuat != null ? rotationQuat.toEuler() : null);
+    }
+
+    private void updateSceneObjectSingleProperty(String objectId, String key, float value) {
+        SceneObject sceneObject = SceneSessionManager.getInstance().getSceneGraph().get(objectId);
+        if (sceneObject == null || key == null) return;
+
+        Map<String, Object> merged = new HashMap<>(sceneObject.getProperties());
+        MapUtils.applyNested(merged, key, value);
+        sceneObject.overwriteProperties(merged);
+
+        if (TYPE_EMITTER.equalsIgnoreCase(sceneObject.getType())) {
+            upsertEmitterFromProps(objectId, merged);
+        }
+    }
+
+    private void handleCameraAnimation(String objectId, Vector3 pos, Vector3 rot, Quaternion quat, Map<String, Float> props) {
+        CameraService service = ClientAPIService.INSTANCE.camera;
+        if (service == null) return;
+
+        boolean activate = !service.isCustomCameraActive() || !objectId.equals(service.getActiveCameraId());
+        if (activate) service.enableCustomCamera(objectId);
+        if (!service.isCustomCameraActive() || !objectId.equals(service.getActiveCameraId())) return;
+
+        Map<String, Object> options = new HashMap<>();
+        if (pos != null) options.put(PROP_POSITION, MapUtils.toMap(pos));
+
+        Vector3 euler = rot != null ? rot : (quat != null ? quat.toEuler() : null);
         if (euler != null) {
             options.put("pitch", euler.x);
             options.put("yaw", euler.y);
             options.put("roll", euler.z);
         }
-        if (properties != null && properties.containsKey("fov")) {
-            options.put("fov", properties.get("fov"));
+
+        if (props != null && props.containsKey("fov")) {
+            options.put("fov", props.get("fov"));
         }
 
         if (!options.isEmpty()) {
-            if (firstBind) {
-                cameraService.snapToFromMap(options);
-            } else {
-                cameraService.animateFromAnimation(options);
-            }
+            if (activate) service.snapToFromMap(options);
+            else service.animateFromAnimation(options);
         }
     }
 
-    private Map<String, Object> vectorToMap(Vector3 vec) {
-        Map<String, Object> map = new java.util.HashMap<>();
-        map.put("x", vec.x);
-        map.put("y", vec.y);
-        map.put("z", vec.z);
-        return map;
-    }
+    private void handleCameraProperty(String objectId, String key, float value) {
+        CameraService service = ClientAPIService.INSTANCE.camera;
+        if (service == null) return;
 
-    private Map<String, Object> rotationToMap(Vector3 vec) {
-        Map<String, Object> map = new java.util.HashMap<>();
-        map.put("pitch", vec.x);
-        map.put("yaw", vec.y);
-        map.put("roll", vec.z);
-        return map;
-    }
+        boolean activate = !service.isCustomCameraActive() || !objectId.equals(service.getActiveCameraId());
+        if (activate) service.enableCustomCamera(objectId);
+        if (!service.isCustomCameraActive() || !objectId.equals(service.getActiveCameraId())) return;
 
-    private Map<String, Object> quaternionToMap(Quaternion quat) {
-        Map<String, Object> map = new java.util.HashMap<>();
-        map.put("x", quat.x);
-        map.put("y", quat.y);
-        map.put("z", quat.z);
-        map.put("w", quat.w);
-        return map;
-    }
+        Map<String, Object> options = new HashMap<>();
+        MapUtils.applyNested(options, key, value);
 
-    private WorldTransform composeWorldTransform(String objectId,
-                                                 Vector3 localPos,
-                                                 Vector3 localEuler,
-                                                 Quaternion localQuat,
-                                                 Vector3 localScale,
-                                                 Set<String> visited) {
-        if (visited.contains(objectId)) {
-            return new WorldTransform(localPos, localQuat != null ? localQuat : (localEuler != null ? Quaternion.fromEuler(localEuler.x, localEuler.y, localEuler.z) : Quaternion.identity()), localScale != null ? localScale : Vector3.one());
-        }
-        visited.add(objectId);
-
-        Vector3 pos = localPos != null ? new Vector3(localPos) : null;
-        Vector3 euler = localEuler != null ? new Vector3(localEuler) : null;
-        Quaternion quat = localQuat != null ? localQuat : (euler != null ? Quaternion.fromEuler(euler.x, euler.y, euler.z) : null);
-        Vector3 scale = localScale != null ? new Vector3(localScale) : null;
-
-        SceneObject sceneObj = com.moud.client.editor.scene.SceneSessionManager.getInstance().getSceneGraph().get(objectId);
-        String parentId = sceneObj != null ? parentId(sceneObj.getProperties()) : null;
-        if (parentId == null) {
-            if (pos == null) pos = Vector3.zero();
-            if (quat == null) {
-                quat = euler != null ? Quaternion.fromEuler(euler.x, euler.y, euler.z) : Quaternion.identity();
-            }
-            if (scale == null) scale = Vector3.one();
-            return new WorldTransform(pos, quat, scale);
-        }
-
-        RuntimeObject parentRuntime = objects.get(parentId);
-        Vector3 parentPos = parentRuntime != null && parentRuntime.getPosition() != null
-                ? new Vector3(parentRuntime.getPosition().x, parentRuntime.getPosition().y, parentRuntime.getPosition().z)
-                : null;
-        Vec3d parentRotVec = parentRuntime != null ? parentRuntime.getRotation() : null;
-        Quaternion parentQuat = parentRotVec != null
-                ? Quaternion.fromEuler((float) parentRotVec.x, (float) parentRotVec.y, (float) parentRotVec.z)
-                : null;
-        Vector3 parentScale = parentRuntime != null && parentRuntime.getScale() != null
-                ? new Vector3(parentRuntime.getScale().x, parentRuntime.getScale().y, parentRuntime.getScale().z)
-                : null;
-
-        if (parentPos == null || parentQuat == null || parentScale == null) {
-            // Fallback to scene graph values if runtime not yet available
-            SceneObject parentScene = com.moud.client.editor.scene.SceneSessionManager.getInstance().getSceneGraph().get(parentId);
-            if (parentScene != null) {
-                Map<String, Object> parentProps = parentScene.getProperties();
-                parentPos = vectorFromMap(parentProps.get("position"), Vector3.zero());
-                parentQuat = quaternionFromMap(parentProps.get("rotationQuat"),
-                        rotationFromMap(parentProps.get("rotation"), Vector3.zero()));
-                parentScale = vectorFromMap(parentProps.get("scale"), Vector3.one());
-            }
-        }
-
-        if (parentPos == null || parentQuat == null || parentScale == null) {
-            if (pos == null) pos = Vector3.zero();
-            if (quat == null) {
-                quat = euler != null ? Quaternion.fromEuler(euler.x, euler.y, euler.z) : Quaternion.identity();
-            }
-            if (scale == null) scale = Vector3.one();
-            return new WorldTransform(pos, quat, scale);
-        }
-
-        WorldTransform parentWorld = composeWorldTransform(parentId, parentPos, parentQuat.toEuler(), parentQuat, parentScale, visited);
-
-        Vector3 localScaleSafe = scale != null ? scale : Vector3.one();
-        Quaternion localQuatSafe = quat != null ? quat : Quaternion.fromEuler(
-                euler != null ? euler.x : 0,
-                euler != null ? euler.y : 0,
-                euler != null ? euler.z : 0
-        );
-        Vector3 localPosSafe = pos != null ? pos : Vector3.zero();
-
-        Vector3 scaledLocal = localPosSafe.multiply(parentWorld.scale());
-        Vector3 rotatedLocal = parentWorld.rotation().rotate(scaledLocal);
-        Vector3 worldPos = parentWorld.position().add(rotatedLocal);
-        Quaternion worldQuat = parentWorld.rotation().multiply(localQuatSafe).normalize();
-        Vector3 worldScale = parentWorld.scale().multiply(localScaleSafe);
-
-        return new WorldTransform(worldPos, worldQuat, worldScale);
-    }
-
-    private String parentId(Map<String, Object> props) {
-        Object parent = props != null ? props.getOrDefault("parentId", props.get("parent")) : null;
-        if (parent == null) return null;
-        String id = String.valueOf(parent).trim();
-        return id.isEmpty() ? null : id;
-    }
-
-    private Vector3 vectorFromMap(Object raw, Vector3 fallback) {
-        if (raw instanceof Map<?, ?> map) {
-            double x = toDouble(map.get("x"), fallback != null ? fallback.x : 0);
-            double y = toDouble(map.get("y"), fallback != null ? fallback.y : 0);
-            double z = toDouble(map.get("z"), fallback != null ? fallback.z : 0);
-            return new Vector3(x, y, z);
-        }
-        return fallback;
-    }
-
-    private Vector3 rotationFromMap(Object raw, Vector3 fallback) {
-        if (raw instanceof Map<?, ?> map) {
-            boolean hasEuler = map.containsKey("pitch") || map.containsKey("yaw") || map.containsKey("roll");
-            double x = toDouble(hasEuler ? map.get("pitch") : map.get("x"), fallback != null ? fallback.x : 0);
-            double y = toDouble(hasEuler ? map.get("yaw") : map.get("y"), fallback != null ? fallback.y : 0);
-            double z = toDouble(hasEuler ? map.get("roll") : map.get("z"), fallback != null ? fallback.z : 0);
-            return new Vector3(x, y, z);
-        }
-        return fallback;
-    }
-
-    private Quaternion quaternionFromMap(Object rawQuat, Vector3 fallbackEuler) {
-        if (rawQuat instanceof Map<?, ?> map) {
-            double x = toDouble(map.get("x"), 0);
-            double y = toDouble(map.get("y"), 0);
-            double z = toDouble(map.get("z"), 0);
-            double w = toDouble(map.get("w"), 1);
-            return new Quaternion((float) x, (float) y, (float) z, (float) w);
-        }
-        if (fallbackEuler != null) {
-            return Quaternion.fromEuler(fallbackEuler.x, fallbackEuler.y, fallbackEuler.z);
-        }
-        return Quaternion.identity();
-    }
-
-    private double toDouble(Object raw, double fallback) {
-        if (raw instanceof Number n) {
-            return n.doubleValue();
-        }
-        try {
-            return raw != null ? Double.parseDouble(raw.toString()) : fallback;
-        } catch (Exception e) {
-            return fallback;
+        if (!options.isEmpty()) {
+            if (activate) service.snapToFromMap(options);
+            else service.animateFromAnimation(options);
         }
     }
 
-    private void applyTransformsToBackings(RuntimeObject obj) {
-        if (obj.getType() == RuntimeObjectType.DISPLAY) {
-            com.moud.client.display.DisplaySurface surface = com.moud.client.display.ClientDisplayManager.getInstance().getById(obj.getRuntimeId());
-            if (surface != null) {
-                Vec3d pos = obj.getPosition();
-                Vec3d rot = obj.getRotation();
-                Vec3d scl = obj.getScale();
-                Vector3 posVec = pos != null ? new Vector3(pos.x, pos.y, pos.z) : null;
-                Quaternion rotQuat = rot != null ? Quaternion.fromEuler((float) rot.x, (float) rot.y, (float) rot.z) : null;
-                Vector3 scaleVec = scl != null ? new Vector3(scl.x, scl.y, scl.z) : null;
-                surface.updateTransform(posVec, rotQuat, scaleVec, surface.getBillboardMode(), surface.isRenderThroughBlocks());
-            }
+    private boolean applyTransformProperty(RuntimeObject obj, String key, float val) {
+        Vec3d pos = obj.getPosition();
+        Vec3d rot = obj.getRotation();
+        Vec3d scl = obj.getScale();
+
+        switch (key) {
+            case "position.x" -> obj.setPosition(new Vec3d(val, pos.y, pos.z));
+            case "position.y" -> obj.setPosition(new Vec3d(pos.x, val, pos.z));
+            case "position.z" -> obj.setPosition(new Vec3d(pos.x, pos.y, val));
+            case "rotation.x" -> obj.setRotation(new Vec3d(val, rot.y, rot.z));
+            case "rotation.y" -> obj.setRotation(new Vec3d(rot.x, val, rot.z));
+            case "rotation.z" -> obj.setRotation(new Vec3d(rot.x, rot.y, val));
+            case "scale.x" -> obj.setScale(new Vec3d(Math.max(0.0001, val), scl.y, scl.z));
+            case "scale.y" -> obj.setScale(new Vec3d(scl.x, Math.max(0.0001, val), scl.z));
+            case "scale.z" -> obj.setScale(new Vec3d(scl.x, scl.y, Math.max(0.0001, val)));
+            default -> { return false; }
+        }
+        return true;
+    }
+
+    private void applySpecificProperty(RuntimeObject obj, String key, float val) {
+        if (obj.getType() == RuntimeObjectType.DISPLAY && "opacity".equals(key)) {
+            DisplaySurface surface = ClientDisplayManager.getInstance().getById(obj.getRuntimeId());
+            if (surface != null) surface.setOpacity(val);
         } else if (obj.getType() == RuntimeObjectType.LIGHT) {
-            com.moud.client.lighting.ClientLightingService.ManagedLight light = com.moud.client.lighting.ClientLightingService.getInstance().getManagedLight(obj.getRuntimeId());
+            ClientLightingService.ManagedLight light = ClientLightingService.getInstance().getManagedLight(obj.getRuntimeId());
             if (light != null) {
-                Vec3d pos = obj.getPosition();
-                if (pos != null) {
-                    light.targetPosition = pos;
-                }
-                Vec3d rot = obj.getRotation();
-                if (rot != null && "area".equalsIgnoreCase(light.type)) {
-                    light.targetDirection = rotationToDirection(rot);
+                switch (key) {
+                    case "intensity" -> light.brightness = val;
+                    case "range" -> light.radius = val;
+                    case "color.r" -> light.r = val;
+                    case "color.g" -> light.g = val;
+                    case "color.b" -> light.b = val;
                 }
             }
         }
     }
 
-    private Vec3d rotationToDirection(Vec3d rotDeg) {
-        double yaw = Math.toRadians(rotDeg.y);
-        double pitch = Math.toRadians(rotDeg.x);
-        double x = -Math.sin(yaw) * Math.cos(pitch);
-        double y = -Math.sin(pitch);
-        double z = Math.cos(yaw) * Math.cos(pitch);
-        Vec3d dir = new Vec3d(x, y, z);
-        if (dir.lengthSquared() < 1e-6) {
-            return new Vec3d(0.0, -1.0, 0.0);
-        }
-        return dir.normalize();
-    }
+    private void applyLimbProperty(RuntimeObject obj, String key, float val) {
+        String subKey = key.substring(PREFIX_PLAYER_MODEL_PROP.length());
+        String[] parts = subKey.split("\\.", 3);
+        if (parts.length < 2) return;
 
-    private void applyLimbProperty(RuntimeObject obj, String propertyKey, float value) {
-        String rest = propertyKey.substring("player_model:".length());
-        String[] parts = rest.split("\\.", 3);
-        if (parts.length < 2) {
-            return;
-        }
         String limb = parts[0];
         String category = parts[1];
         String component = parts.length >= 3 ? parts[2] : null;
@@ -608,155 +406,65 @@ public final class RuntimeObjectRegistry {
         };
         if (bone == null) return;
 
-        long modelId = -1;
-        int idx = obj.getObjectId().indexOf(':');
-        if (idx >= 0) {
-            try {
-                modelId = Long.parseLong(obj.getObjectId().substring(idx + 1));
-            } catch (NumberFormatException ignored) {
-            }
-        }
+        long modelId = parseModelId(obj.getObjectId());
         if (modelId < 0) return;
 
-        var model = com.moud.client.animation.ClientPlayerModelManager.getInstance().getModel(modelId);
+        var model = ClientPlayerModelManager.getInstance().getModel(modelId);
         if (model == null || model.getEntity() == null) return;
 
-        java.util.Map<String, Object> updates = new java.util.HashMap<>();
-        var part = com.moud.client.animation.PlayerPartConfigManager.getInstance().getPartConfig(model.getEntity().getUuid(), bone);
-        com.moud.api.math.Vector3 pos = part != null ? part.getInterpolatedPosition() : null;
-        com.moud.api.math.Vector3 rot = part != null ? part.getInterpolatedRotation() : null;
-        com.moud.api.math.Vector3 scale = part != null ? part.getInterpolatedScale() : null;
+        var part = PlayerPartConfigManager.getInstance().getPartConfig(model.getEntity().getUuid(), bone);
+        Map<String, Object> updates = new HashMap<>();
+
+        Vector3 pos = part != null ? part.getInterpolatedPosition() : Vector3.zero();
+        Vector3 rot = part != null ? part.getInterpolatedRotation() : Vector3.zero();
+        Vector3 scale = part != null ? part.getInterpolatedScale() : Vector3.one();
 
         switch (category) {
-            case "position" -> {
-                double x = pos != null ? pos.x : 0;
-                double y = pos != null ? pos.y : 0;
-                double z = pos != null ? pos.z : 0;
-                if ("x".equals(component)) x = value;
-                if ("y".equals(component)) y = value;
-                if ("z".equals(component)) z = value;
-                updates.put("position", new com.moud.api.math.Vector3(x, y, z));
-            }
-            case "rotation" -> {
-                double x = rot != null ? rot.x : 0;
-                double y = rot != null ? rot.y : 0;
-                double z = rot != null ? rot.z : 0;
-                if ("x".equals(component)) x = value;
-                if ("y".equals(component)) y = value;
-                if ("z".equals(component)) z = value;
-                updates.put("rotation", new com.moud.api.math.Vector3(x, y, z));
-            }
-            case "scale" -> {
-                double x = scale != null ? scale.x : 1;
-                double y = scale != null ? scale.y : 1;
-                double z = scale != null ? scale.z : 1;
-                if ("x".equals(component)) x = Math.max(0.0001, value);
-                if ("y".equals(component)) y = Math.max(0.0001, value);
-                if ("z".equals(component)) z = Math.max(0.0001, value);
-                updates.put("scale", new com.moud.api.math.Vector3(x, y, z));
-            }
-            default -> {
-            }
+            case "position" -> updates.put(PROP_POSITION, new Vector3(
+                    "x".equals(component) ? val : pos.x,
+                    "y".equals(component) ? val : pos.y,
+                    "z".equals(component) ? val : pos.z
+            ));
+            case "rotation" -> updates.put(PROP_ROTATION, new Vector3(
+                    "x".equals(component) ? val : rot.x,
+                    "y".equals(component) ? val : rot.y,
+                    "z".equals(component) ? val : rot.z
+            ));
+            case "scale" -> updates.put(PROP_SCALE, new Vector3(
+                    "x".equals(component) ? Math.max(0.0001, val) : scale.x,
+                    "y".equals(component) ? Math.max(0.0001, val) : scale.y,
+                    "z".equals(component) ? Math.max(0.0001, val) : scale.z
+            ));
         }
 
         if (!updates.isEmpty()) {
-            com.moud.client.animation.PlayerPartConfigManager.getInstance()
-                    .updatePartConfig(model.getEntity().getUuid(), bone, updates);
+            PlayerPartConfigManager.getInstance().updatePartConfig(model.getEntity().getUuid(), bone, updates);
         }
     }
 
-    public void syncModel(RenderableModel model) {
-        if (model == null) {
-            return;
-        }
-        RuntimeObject object = getOrCreate(RuntimeObjectType.MODEL, model.getId());
-        object.updateFromModel(model);
-        if (model.hasCollisionBoxes()) {
-            object.updateBoundsFromCollision(model.getCollisionBoxes());
-        }
-        modelIndex.put(model.getId(), object.getObjectId());
-    }
-
-    public void removeModel(long modelId) {
-        String objectId = modelIndex.remove(modelId);
-        if (objectId != null) {
-            objects.remove(objectId);
-        }
-    }
-
-    public void syncPlayerModel(long modelId, Vec3d position, Vec3d rotationDeg) {
-        RuntimeObject object = getOrCreate(RuntimeObjectType.PLAYER_MODEL, modelId);
-        object.updateFromPlayerModel(position, rotationDeg);
-        playerModelIndex.put(modelId, object.getObjectId());
-    }
-
-    public void removePlayerModel(long modelId) {
-        String objectId = playerModelIndex.remove(modelId);
-        if (objectId != null) {
-            objects.remove(objectId);
-        }
-    }
-
-    public void syncDisplay(DisplaySurface surface) {
-        if (surface == null) {
-            return;
-        }
-        RuntimeObject object = getOrCreate(RuntimeObjectType.DISPLAY, surface.getId());
-        object.updateFromDisplay(surface);
-        displayIndex.put(surface.getId(), object.getObjectId());
-    }
-
-    public void removeDisplay(long displayId) {
-        String objectId = displayIndex.remove(displayId);
-        if (objectId != null) {
-            objects.remove(objectId);
-        }
-    }
-
-    public void syncPlayers(List<? extends AbstractClientPlayerEntity> players) {
-        Set<UUID> seen = new HashSet<>();
-        for (AbstractClientPlayerEntity player : players) {
-            if (player == null) {
-                continue;
+    private void applyTransformsToBackings(RuntimeObject obj) {
+        if (obj.getType() == RuntimeObjectType.DISPLAY) {
+            DisplaySurface surface = ClientDisplayManager.getInstance().getById(obj.getRuntimeId());
+            if (surface != null) {
+                Vec3d rot = obj.getRotation();
+                surface.updateTransform(
+                        MapUtils.toVector3(obj.getPosition()),
+                        rot != null ? Quaternion.fromEuler((float) rot.x, (float) rot.y, (float) rot.z) : null,
+                        MapUtils.toVector3(obj.getScale()),
+                        surface.getBillboardMode(),
+                        surface.isRenderThroughBlocks()
+                );
             }
-            UUID uuid = player.getUuid();
-            seen.add(uuid);
-            String key = "player:" + uuid;
-            RuntimeObject object = objects.computeIfAbsent(key,
-                    id -> new RuntimeObject(RuntimeObjectType.PLAYER,
-                            uuid.getLeastSignificantBits() ^ uuid.getMostSignificantBits(),
-                            key));
-            object.updateFromPlayer(player);
-            playerIndex.put(uuid, key);
-        }
-
-        playerIndex.keySet().removeIf(uuid -> {
-            if (!seen.contains(uuid)) {
-                String objectId = playerIndex.get(uuid);
-                if (objectId != null) {
-                    objects.remove(objectId);
+        } else if (obj.getType() == RuntimeObjectType.LIGHT) {
+            ClientLightingService.ManagedLight light = ClientLightingService.getInstance().getManagedLight(obj.getRuntimeId());
+            if (light != null) {
+                if (obj.getPosition() != null) light.targetPosition = obj.getPosition();
+                Vec3d rot = obj.getRotation();
+                if (rot != null && "area".equalsIgnoreCase(light.type)) {
+                    light.targetDirection = MathUtils.rotationToDirection(rot);
                 }
-                return true;
-            }
-            return false;
-        });
-    }
-
-    public RuntimeObject pickRuntime(Vec3d origin, Vec3d direction, double maxDistance) {
-        RuntimeObject best = null;
-        double bestDistance = maxDistance;
-        for (RuntimeObject object : objects.values()) {
-            Box box = object.getBounds();
-            if (box == null) {
-                continue;
-            }
-            double distance = rayIntersectAabb(origin, direction, box);
-            if (distance >= 0 && distance < bestDistance) {
-                bestDistance = distance;
-                best = object;
             }
         }
-        return best;
     }
 
     private RuntimeObject getOrCreate(RuntimeObjectType type, long runtimeId) {
@@ -764,56 +472,23 @@ public final class RuntimeObjectRegistry {
         return objects.computeIfAbsent(objectId, id -> new RuntimeObject(type, runtimeId));
     }
 
-    private double rayIntersectAabb(Vec3d origin, Vec3d direction, Box box) {
-        double invX = 1.0 / (direction.x == 0 ? 1e-6 : direction.x);
-        double invY = 1.0 / (direction.y == 0 ? 1e-6 : direction.y);
-        double invZ = 1.0 / (direction.z == 0 ? 1e-6 : direction.z);
-
-        double t1 = (box.minX - origin.x) * invX;
-        double t2 = (box.maxX - origin.x) * invX;
-        double tmin = Math.min(t1, t2);
-        double tmax = Math.max(t1, t2);
-
-        double ty1 = (box.minY - origin.y) * invY;
-        double ty2 = (box.maxY - origin.y) * invY;
-        tmin = Math.max(tmin, Math.min(ty1, ty2));
-        tmax = Math.min(tmax, Math.max(ty1, ty2));
-
-        double tz1 = (box.minZ - origin.z) * invZ;
-        double tz2 = (box.maxZ - origin.z) * invZ;
-        tmin = Math.max(tmin, Math.min(tz1, tz2));
-        tmax = Math.min(tmax, Math.max(tz1, tz2));
-
-        if (tmax < 0 || tmin > tmax) {
-            return -1;
-        }
-        return tmin >= 0 ? tmin : tmax;
-    }
-
     private RuntimeObject resolveRuntimeObject(String objectId) {
-        if (objectId == null) {
-            return null;
-        }
+        if (objectId == null) return null;
         RuntimeObject direct = objects.get(objectId);
-        if (direct != null) {
-            return direct;
-        }
+        if (direct != null) return direct;
 
-        SceneObject sceneObj = com.moud.client.editor.scene.SceneSessionManager.getInstance().getSceneGraph().get(objectId);
-        if (sceneObj == null || !"player_model".equalsIgnoreCase(sceneObj.getType())) {
+        SceneObject sceneObj = SceneSessionManager.getInstance().getSceneGraph().get(objectId);
+        if (sceneObj == null || !TYPE_PLAYER_MODEL.equalsIgnoreCase(sceneObj.getType())) {
             return null;
         }
 
-        Vec3d scenePos = readVec3(sceneObj.getProperties().get("position"), null);
+        Vec3d scenePos = MapUtils.getAsVec3d(sceneObj.getProperties().get(PROP_POSITION), null);
+        if (scenePos == null) return null;
+
         RuntimeObject best = null;
         double bestDist = Double.MAX_VALUE;
         for (RuntimeObject candidate : objects.values()) {
-            if (candidate == null || candidate.getType() != RuntimeObjectType.PLAYER_MODEL || candidate.getPosition() == null) {
-                continue;
-            }
-            if (scenePos == null) {
-                return candidate;
-            }
+            if (candidate.getType() != RuntimeObjectType.PLAYER_MODEL || candidate.getPosition() == null) continue;
             double dist = candidate.getPosition().squaredDistanceTo(scenePos);
             if (dist < bestDist) {
                 bestDist = dist;
@@ -823,112 +498,220 @@ public final class RuntimeObjectRegistry {
         return best;
     }
 
-    private Vec3d readVec3(Object raw, Vec3d fallback) {
-        if (raw instanceof Map<?, ?> map) {
-            double x = toDouble(map.get("x"), fallback != null ? fallback.x : 0);
-            double y = toDouble(map.get("y"), fallback != null ? fallback.y : 0);
-            double z = toDouble(map.get("z"), fallback != null ? fallback.z : 0);
-            return new Vec3d(x, y, z);
-        }
-        return fallback;
+    private <K, V> void removeObjectByIndex(Map<K, V> indexMap, K key) {
+        V objId = indexMap.remove(key);
+        if (objId != null) objects.remove(objId);
     }
 
-    @SuppressWarnings("unchecked")
-    private void applyNestedProperty(Map<String, Object> props, String key, float value) {
-        if (key.contains(".")) {
-            String[] parts = key.split("\\.");
-            if (parts.length >= 2) {
-                String root = parts[0];
-                Map<String, Object> nested;
-                Object existingRoot = props.get(root);
-                if (existingRoot instanceof Map<?, ?> m) {
-                    nested = (Map<String, Object>) m;
-                } else {
-                    nested = new java.util.HashMap<>();
-                    props.put(root, nested);
-                }
-                if (parts.length == 2) {
-                    nested.put(parts[1], value);
-                } else {
-                    Map<String, Object> current = nested;
-                    for (int i = 1; i < parts.length - 1; i++) {
-                        Object child = current.get(parts[i]);
-                        if (child instanceof Map<?, ?> mm) {
-                            current = (Map<String, Object>) mm;
-                        } else {
-                            Map<String, Object> newChild = new java.util.HashMap<>();
-                            current.put(parts[i], newChild);
-                            current = newChild;
-                        }
-                    }
-                    current.put(parts[parts.length - 1], value);
-                }
-                return;
-            }
-        }
-        props.put(key, value);
+    private <K> RuntimeObject lookup(Map<K, String> index, K key) {
+        String id = index.get(key);
+        return id != null ? objects.get(id) : null;
     }
 
-    private Vec3d parseVec3(Object obj, Vec3d fallback) {
-        if (obj instanceof Map<?, ?> map) {
-            double x = asDouble(map.get("x"), fallback != null ? fallback.x : 0);
-            double y = asDouble(map.get("y"), fallback != null ? fallback.y : 0);
-            double z = asDouble(map.get("z"), fallback != null ? fallback.z : 0);
-            return new Vec3d(x, y, z);
-        }
-        return fallback;
-    }
-
-    private Vec3d parseRotation(Object obj, Vec3d fallback) {
-        if (obj instanceof Map<?, ?> map) {
-            Object ox = map.containsKey("pitch") ? map.get("pitch") : map.get("x");
-            Object oy = map.containsKey("yaw") ? map.get("yaw") : map.get("y");
-            Object oz = map.containsKey("roll") ? map.get("roll") : map.get("z");
-            double x = asDouble(ox, fallback != null ? fallback.x : 0);
-            double y = asDouble(oy, fallback != null ? fallback.y : 0);
-            double z = asDouble(oz, fallback != null ? fallback.z : 0);
-            return new Vec3d(x, y, z);
-        }
-        return fallback;
-    }
-
-    private double asDouble(Object o, double def) {
-        if (o instanceof Number n) return n.doubleValue();
+    private long parseModelId(String objectId) {
+        int idx = objectId.indexOf(':');
+        if (idx < 0) return -1;
         try {
-            return o != null ? Double.parseDouble(String.valueOf(o)) : def;
-        } catch (Exception ignored) {
-            return def;
+            return Long.parseLong(objectId.substring(idx + 1));
+        } catch (NumberFormatException e) {
+            return -1;
         }
     }
 
-    private void upsertEmitterFromProps(String emitterId, Map<String, Object> props) {
-        com.moud.client.particle.ParticleEmitterSystem system = com.moud.client.MoudClientMod.getInstance().getParticleEmitterSystem();
+    private void upsertEmitterFromProps(String id, Map<String, Object> props) {
+        ParticleEmitterSystem system = MoudClientMod.getInstance().getParticleEmitterSystem();
         if (system == null) return;
 
-        com.moud.api.particle.ParticleDescriptor descriptor = com.moud.client.util.ParticleDescriptorMapper.fromMap(emitterId, props);
+        ParticleDescriptor descriptor = ParticleDescriptorMapper.fromMap(id, props);
         if (descriptor == null) return;
 
-        float rate = (float) asDouble(props.getOrDefault("rate", props.getOrDefault("spawnRate", 10f)), 10f);
-        boolean enabled = props.getOrDefault("enabled", Boolean.TRUE) instanceof Boolean b ? b : true;
-        int maxParticles = (int) asDouble(props.getOrDefault("maxParticles", 1024), 1024);
-        com.moud.api.particle.Vector3f posJitter = com.moud.client.util.ParticleDescriptorMapper.vec3f(props.get("positionJitter"), new com.moud.api.particle.Vector3f(0f, 0f, 0f));
-        com.moud.api.particle.Vector3f velJitter = com.moud.client.util.ParticleDescriptorMapper.vec3f(props.get("velocityJitter"), new com.moud.api.particle.Vector3f(0f, 0f, 0f));
-        float lifetimeJitter = (float) asDouble(props.getOrDefault("lifetimeJitter", 0f), 0f);
-        long seed = props.get("seed") instanceof Number n ? n.longValue() : System.currentTimeMillis();
-        java.util.List<String> textures = com.moud.client.util.ParticleDescriptorMapper.stringList(props.get("textures"));
-
-        com.moud.api.particle.ParticleEmitterConfig config = new com.moud.api.particle.ParticleEmitterConfig(
-                emitterId,
+        ParticleEmitterConfig config = new ParticleEmitterConfig(
+                id,
                 descriptor,
-                rate,
-                enabled,
-                maxParticles,
-                posJitter,
-                velJitter,
-                lifetimeJitter,
-                seed,
-                textures
+                (float) MapUtils.asDouble(props.getOrDefault("rate", props.get("spawnRate")), 10.0),
+                MapUtils.asBoolean(props.get("enabled"), true),
+                (int) MapUtils.asDouble(props.getOrDefault("maxParticles", 1024), 1024),
+                ParticleDescriptorMapper.vec3f(props.get("positionJitter"), new Vector3f(0f, 0f, 0f)),
+                ParticleDescriptorMapper.vec3f(props.get("velocityJitter"), new Vector3f(0f, 0f, 0f)),
+                (float) MapUtils.asDouble(props.get("lifetimeJitter"), 0.0),
+                props.get("seed") instanceof Number n ? n.longValue() : System.currentTimeMillis(),
+                ParticleDescriptorMapper.stringList(props.get("textures"))
         );
-        system.upsert(java.util.List.of(config));
+        system.upsert(List.of(config));
+    }
+
+    private TransformResult calculateWorldTransform(String objectId, Vector3 pos, Vector3 rot, Quaternion quat, Vector3 scale) {
+        return calculateWorldTransformRecursive(objectId, pos, rot, quat, scale, new HashSet<>());
+    }
+
+    private TransformResult calculateWorldTransformRecursive(String objectId, Vector3 localPos, Vector3 localEuler, Quaternion localQuat, Vector3 localScale, Set<String> visited) {
+        if (!visited.add(objectId)) {
+            return new TransformResult(
+                    toVec3d(localPos),
+                    localEuler != null ? toVec3d(localEuler) : null,
+                    toVec3d(localScale)
+            );
+        }
+
+        Vector3 p = localPos != null ? localPos : Vector3.zero();
+        Quaternion q = localQuat != null ? localQuat : (localEuler != null ? Quaternion.fromEuler(localEuler.x, localEuler.y, localEuler.z) : Quaternion.identity());
+        Vector3 s = localScale != null ? localScale : Vector3.one();
+
+        SceneObject sceneObj = SceneSessionManager.getInstance().getSceneGraph().get(objectId);
+        String parentId = sceneObj != null ? MapUtils.asString(sceneObj.getProperties().getOrDefault("parentId", sceneObj.getProperties().get("parent"))) : null;
+
+        if (parentId == null) {
+            return new TransformResult(toVec3d(p), toVec3d(q.toEuler()), toVec3d(s));
+        }
+
+        TransformResult parentRes;
+        RuntimeObject parentRuntime = objects.get(parentId);
+
+        if (parentRuntime != null && parentRuntime.getPosition() != null) {
+            Vec3d pp = parentRuntime.getPosition();
+            Vec3d pr = parentRuntime.getRotation();
+            Vec3d ps = parentRuntime.getScale();
+            parentRes = calculateWorldTransformRecursive(
+                    parentId,
+                    pp != null ? new Vector3(pp.x, pp.y, pp.z) : null,
+                    pr != null ? new Vector3(pr.x, pr.y, pr.z) : null,
+                    null,
+                    ps != null ? new Vector3(ps.x, ps.y, ps.z) : null,
+                    visited
+            );
+        } else {
+            SceneObject parentScene = SceneSessionManager.getInstance().getSceneGraph().get(parentId);
+            if (parentScene != null) {
+                Map<String, Object> props = parentScene.getProperties();
+                parentRes = calculateWorldTransformRecursive(
+                        parentId,
+                        MapUtils.getVector3(props.get(PROP_POSITION), Vector3.zero()),
+                        MapUtils.getVector3FromRot(props.get(PROP_ROTATION), Vector3.zero()),
+                        null,
+                        MapUtils.getVector3(props.get(PROP_SCALE), Vector3.one()),
+                        visited
+                );
+            } else {
+                return new TransformResult(toVec3d(p), toVec3d(q.toEuler()), toVec3d(s));
+            }
+        }
+
+        Vector3 parentScale = parentRes.scale != null ? new Vector3(parentRes.scale.x, parentRes.scale.y, parentRes.scale.z) : Vector3.one();
+        Quaternion parentRot = parentRes.rot != null ? Quaternion.fromEuler((float)parentRes.rot.x, (float)parentRes.rot.y, (float)parentRes.rot.z) : Quaternion.identity();
+        Vector3 parentPos = parentRes.pos != null ? new Vector3(parentRes.pos.x, parentRes.pos.y, parentRes.pos.z) : Vector3.zero();
+
+        Vector3 scaledLocal = p.multiply(parentScale);
+        Vector3 rotatedLocal = parentRot.rotate(scaledLocal);
+        Vector3 finalPos = parentPos.add(rotatedLocal);
+        Quaternion finalRot = parentRot.multiply(q).normalize();
+        Vector3 finalScale = parentScale.multiply(s);
+
+        return new TransformResult(toVec3d(finalPos), toVec3d(finalRot.toEuler()), toVec3d(finalScale));
+    }
+
+    private record TransformResult(Vec3d pos, Vec3d rot, Vec3d scale) {}
+
+    private static Vec3d toVec3d(Vector3 v) { return v != null ? new Vec3d(v.x, v.y, v.z) : null; }
+
+    private static final class MapUtils {
+        static Vec3d getAsVec3d(Object o, Vec3d def) {
+            if (o instanceof Map<?,?> m) return new Vec3d(asDouble(m.get("x"), 0), asDouble(m.get("y"), 0), asDouble(m.get("z"), 0));
+            return def;
+        }
+
+        static Vec3d getAsVec3dFromRot(Object o, Vec3d def) {
+            if (o instanceof Map<?,?> m) {
+                boolean euler = m.containsKey("pitch") || m.containsKey("yaw");
+                return new Vec3d(
+                        asDouble(euler ? m.get("pitch") : m.get("x"), 0),
+                        asDouble(euler ? m.get("yaw") : m.get("y"), 0),
+                        asDouble(euler ? m.get("roll") : m.get("z"), 0)
+                );
+            }
+            return def;
+        }
+
+        static Vector3 getVector3(Object o, Vector3 def) {
+            Vec3d v = getAsVec3d(o, null);
+            return v != null ? new Vector3(v.x, v.y, v.z) : def;
+        }
+
+        static Vector3 getVector3FromRot(Object o, Vector3 def) {
+            Vec3d v = getAsVec3dFromRot(o, null);
+            return v != null ? new Vector3(v.x, v.y, v.z) : def;
+        }
+
+        static double asDouble(Object o, double def) {
+            if (o instanceof Number n) return n.doubleValue();
+            try { return o != null ? Double.parseDouble(o.toString()) : def; } catch (Exception e) { return def; }
+        }
+
+        static boolean asBoolean(Object o, boolean def) {
+            if (o instanceof Boolean b) return b;
+            return o != null ? Boolean.parseBoolean(o.toString()) : def;
+        }
+
+        static String asString(Object o) { return o != null ? o.toString().trim() : null; }
+
+        static Vector3 toVector3(Vec3d v) { return v != null ? new Vector3(v.x, v.y, v.z) : null; }
+
+        static Map<String, Object> toMap(Vector3 v) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("x", v.x); m.put("y", v.y); m.put("z", v.z);
+            return m;
+        }
+
+        static Map<String, Object> toMapRot(Vector3 v) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("pitch", v.x); m.put("yaw", v.y); m.put("roll", v.z);
+            return m;
+        }
+
+        static Map<String, Object> toMap(Quaternion q) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("x", q.x); m.put("y", q.y); m.put("z", q.z); m.put("w", q.w);
+            return m;
+        }
+
+        @SuppressWarnings("unchecked")
+        static void applyNested(Map<String, Object> map, String key, Object val) {
+            String[] parts = key.split("\\.");
+            Map<String, Object> cur = map;
+            for (int i=0; i<parts.length-1; i++) {
+                cur = (Map<String, Object>) cur.computeIfAbsent(parts[i], k -> new HashMap<>());
+            }
+            cur.put(parts[parts.length-1], val);
+        }
+    }
+
+    private static final class MathUtils {
+        static double intersectAabb(Vec3d origin, Vec3d dir, Box box) {
+            double invX = 1.0 / (dir.x == 0 ? 1e-6 : dir.x);
+            double invY = 1.0 / (dir.y == 0 ? 1e-6 : dir.y);
+            double invZ = 1.0 / (dir.z == 0 ? 1e-6 : dir.z);
+
+            double t1 = (box.minX - origin.x) * invX, t2 = (box.maxX - origin.x) * invX;
+            double tmin = Math.min(t1, t2), tmax = Math.max(t1, t2);
+
+            double ty1 = (box.minY - origin.y) * invY, ty2 = (box.maxY - origin.y) * invY;
+            tmin = Math.max(tmin, Math.min(ty1, ty2));
+            tmax = Math.min(tmax, Math.max(ty1, ty2));
+
+            double tz1 = (box.minZ - origin.z) * invZ, tz2 = (box.maxZ - origin.z) * invZ;
+            tmin = Math.max(tmin, Math.min(tz1, tz2));
+            tmax = Math.min(tmax, Math.max(tz1, tz2));
+
+            return (tmax < 0 || tmin > tmax) ? -1 : (tmin >= 0 ? tmin : tmax);
+        }
+
+        static Vec3d rotationToDirection(Vec3d rot) {
+            double y = Math.toRadians(rot.y);
+            double p = Math.toRadians(rot.x);
+            double dx = -Math.sin(y) * Math.cos(p);
+            double dy = -Math.sin(p);
+            double dz = Math.cos(y) * Math.cos(p);
+            Vec3d d = new Vec3d(dx, dy, dz);
+            return d.lengthSquared() < 1e-6 ? new Vec3d(0, -1, 0) : d.normalize();
+        }
     }
 }

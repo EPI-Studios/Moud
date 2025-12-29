@@ -1,6 +1,5 @@
 package com.moud.client.editor.ui;
 
-import com.moud.client.editor.EditorModeManager;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.render.Camera;
 import net.minecraft.util.math.Vec3d;
@@ -16,10 +15,6 @@ public final class WorldViewCapture {
 
     public static void initialize() {
         WorldRenderEvents.AFTER_ENTITIES.register(context -> {
-            if (!EditorModeManager.getInstance().isActive()) {
-                valid = false;
-                return;
-            }
             Camera camera = context.camera();
             if (camera == null) {
                 valid = false;
