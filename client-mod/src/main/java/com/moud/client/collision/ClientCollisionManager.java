@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -72,14 +73,30 @@ public final class ClientCollisionManager {
     }
 
     public static List<CollisionMesh> getMeshesNear(Box region) {
-        List<CollisionMesh> result = new ArrayList<>();
-        for (CollisionEntry entry : ENTRIES.values()) {
-            CollisionMesh mesh = entry.worldMesh;
+        List<MeshWithId> matches = new ArrayList<>();
+        for (Map.Entry<Long, CollisionEntry> entry : ENTRIES.entrySet()) {
+            CollisionMesh mesh = entry.getValue().worldMesh;
             if (mesh != null && mesh.getBounds() != null && mesh.getBounds().intersects(region)) {
-                result.add(mesh);
+                matches.add(new MeshWithId(entry.getKey(), mesh));
             }
         }
+
+        if (matches.isEmpty()) {
+            return List.of();
+        }
+        if (matches.size() == 1) {
+            return List.of(matches.getFirst().mesh());
+        }
+
+        matches.sort(Comparator.comparingLong(MeshWithId::id));
+        List<CollisionMesh> result = new ArrayList<>(matches.size());
+        for (MeshWithId match : matches) {
+            result.add(match.mesh());
+        }
         return result;
+    }
+
+    private record MeshWithId(long id, CollisionMesh mesh) {
     }
 
     public static List<Box> getDebugMeshBounds() {
