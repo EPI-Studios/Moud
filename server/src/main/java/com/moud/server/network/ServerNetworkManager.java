@@ -19,6 +19,7 @@ import com.moud.server.network.handler.AnimationPacketHandlers;
 import com.moud.server.network.handler.BlueprintPacketHandlers;
 import com.moud.server.network.handler.ClientReadyPacketHandler;
 import com.moud.server.network.handler.CorePacketHandlers;
+import com.moud.server.network.handler.DevPacketHandlers;
 import com.moud.server.network.handler.PacketRegistry;
 import com.moud.server.network.handler.RuntimeUpdatePacketHandlers;
 import com.moud.server.network.handler.ScenePacketHandlers;
@@ -136,6 +137,7 @@ public final class ServerNetworkManager {
         registry.registerGroup(new BlueprintPacketHandlers(this, blueprintStorage));
         registry.registerGroup(new VoicePacketHandlers(this, eventDispatcher));
         registry.registerGroup(new ClientReadyPacketHandler(this));
+        registry.registerGroup(new DevPacketHandlers());
     }
     private void onPluginMessage(PlayerPluginMessageEvent event) {
         String outerChannel = event.getIdentifier();
