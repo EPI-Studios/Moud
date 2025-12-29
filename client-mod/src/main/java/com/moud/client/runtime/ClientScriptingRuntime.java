@@ -13,6 +13,8 @@ import org.graalvm.polyglot.proxy.ProxyExecutable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -321,21 +323,51 @@ public class ClientScriptingRuntime {
 
         graalContext.enter();
         try {
-            for (Map.Entry<String, byte[]> entry : scriptsData.entrySet()) {
-                String scriptName = entry.getKey();
-                String scriptContent = new String(entry.getValue());
+            byte[] sharedPhysicsData = scriptsData.get("shared/physics.js");
+            if (sharedPhysicsData != null && sharedPhysicsData.length > 0) {
+                String sharedPhysicsSource = new String(sharedPhysicsData, StandardCharsets.UTF_8);
+                try {
+                    com.moud.client.physics.ClientPhysicsScriptLoader loader =
+                            new com.moud.client.physics.ClientPhysicsScriptLoader(graalContext);
+                    boolean registered = loader.loadSharedPhysics(sharedPhysicsSource);
+                    LOGGER.info("Loaded shared physics script (registeredController={})", registered);
+                } catch (Exception e) {
+                    handleScriptException(e, "shared/physics.js");
+                    throw e;
+                }
+            }
+
+            List<String> scriptNames = new ArrayList<>(scriptsData.keySet());
+            scriptNames.sort(String::compareTo);
+
+            for (String scriptName : scriptNames) {
+                if (scriptName == null || scriptName.isBlank()) {
+                    continue;
+                }
+                if ("shared/physics.js".equals(scriptName)) {
+                    continue;
+                }
+                if (scriptName.endsWith(".map")) {
+                    continue;
+                }
+                byte[] scriptBytes = scriptsData.get(scriptName);
+                if (scriptBytes == null || scriptBytes.length == 0) {
+                    continue;
+                }
+                String scriptContent = new String(scriptBytes, StandardCharsets.UTF_8);
 
                 try {
                     LOGGER.info("Executing client script: {}", scriptName);
                     graalContext.eval("js", scriptContent);
                     LOGGER.info("Successfully executed script: {}", scriptName);
-                    LOGGER.info("Client scripts loaded, sending ready signal to server");
-                    ClientPacketWrapper.sendToServer(new MoudPackets.ClientReadyPacket());
                 } catch (PolyglotException e) {
                     handleScriptException(e, scriptName);
                     throw new RuntimeException(e);
                 }
             }
+
+            LOGGER.info("Client scripts loaded, sending ready signal to server");
+            ClientPacketWrapper.sendToServer(new MoudPackets.ClientReadyPacket());
         } finally {
             graalContext.leave();
         }

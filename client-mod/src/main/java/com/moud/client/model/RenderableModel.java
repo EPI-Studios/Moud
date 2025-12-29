@@ -30,21 +30,14 @@ public class RenderableModel {
     private Quaternion rotation = Quaternion.identity();
     private Vector3 scale = Vector3.one();
 
-    private Vector3 renderPosition = Vector3.zero();
-    private Vector3 previousRenderPosition = Vector3.zero();
-    private Quaternion renderRotation = Quaternion.identity();
-    private Quaternion previousRenderRotation = Quaternion.identity();
-    private Vector3 renderScale = Vector3.one();
-    private Vector3 previousRenderScale = Vector3.one();
+    private Vector3 prevPosition = Vector3.zero();
+    private Vector3 currentPosition = Vector3.zero();
+    private Quaternion prevRotation = Quaternion.identity();
+    private Quaternion currentRotation = Quaternion.identity();
+    private Vector3 prevScale = Vector3.one();
+    private Vector3 currentScale = Vector3.one();
 
-    private Vector3 smoothingStartPosition = Vector3.zero();
-    private Quaternion smoothingStartRotation = Quaternion.identity();
-    private Vector3 smoothingStartScale = Vector3.one();
-    private static final float DEFAULT_SMOOTHING_TICKS = 5.0f;
-    private static final float SNAP_DISTANCE_SQ = 64.0f;
-    private float smoothingDurationTicks = DEFAULT_SMOOTHING_TICKS;
-    private float smoothingProgress = 1.0f;
-    private boolean smoothingEnabled = true;
+    private boolean instantMode = false;
     private boolean firstUpdate = true;
     private Identifier texture = Identifier.of("minecraft", "textures/block/white_concrete.png");
     private double collisionWidth;
@@ -84,48 +77,22 @@ public class RenderableModel {
             return;
         }
 
-        if (anchorType != null && anchorType != MoudPackets.DisplayAnchorType.FREE) {
-            this.position = new Vector3(pos);
-            this.rotation = new Quaternion(rot);
-            this.scale = new Vector3(scale);
-            this.firstUpdate = false;
-            return;
-        }
-
         this.position = new Vector3(pos);
         this.rotation = new Quaternion(rot);
         this.scale = new Vector3(scale);
 
-        if (firstUpdate || !smoothingEnabled) {
-            this.renderPosition = new Vector3(pos);
-            this.previousRenderPosition = new Vector3(pos);
-            this.smoothingStartPosition = new Vector3(pos);
-
-            this.renderRotation = new Quaternion(rot);
-            this.previousRenderRotation = new Quaternion(rot);
-            this.smoothingStartRotation = new Quaternion(rot);
-
-            this.renderScale = new Vector3(scale);
-            this.previousRenderScale = new Vector3(scale);
-            this.smoothingStartScale = new Vector3(scale);
-
-            this.smoothingProgress = 1.0f;
+        if (firstUpdate || (anchorType != null && anchorType != MoudPackets.DisplayAnchorType.FREE)) {
+            snapToTarget();
             firstUpdate = false;
-            return;
         }
+    }
 
-        this.smoothingStartPosition = new Vector3(renderPosition);
-        this.smoothingStartRotation = new Quaternion(renderRotation);
-        this.smoothingStartScale = new Vector3(renderScale);
 
-        if (smoothingEnabled) {
-            float distanceSq = distanceSquared(renderPosition, position);
-            if (distanceSq > SNAP_DISTANCE_SQ) {
-                snapToTarget();
-                return;
-            }
-            this.smoothingProgress = 0.0f;
-        } else {
+    public void updateTransform(Vector3 pos, Quaternion rot, Vector3 scale, boolean instant) {
+        this.instantMode = instant;
+        updateTransform(pos, rot, scale);
+
+        if (instant && !firstUpdate) {
             snapToTarget();
         }
     }
@@ -177,21 +144,23 @@ public class RenderableModel {
             position = localPosition != null ? new Vector3(localPosition) : Vector3.zero();
             rotation = localRotation != null ? new Quaternion(localRotation) : Quaternion.identity();
             scale = localScale != null ? new Vector3(localScale) : Vector3.one();
+            snapToTarget();
             firstUpdate = false;
         }
     }
 
     public long getId() { return id; }
     public String getModelPath() { return modelPath; }
+
     public Vector3 getInterpolatedPosition(float tickDelta) {
         if (anchorType != null && anchorType != MoudPackets.DisplayAnchorType.FREE) {
             return computeWorldTransform(tickDelta, 0).position();
         }
         float t = Math.max(0.0f, Math.min(1.0f, tickDelta));
         return new Vector3(
-                previousRenderPosition.x + (renderPosition.x - previousRenderPosition.x) * t,
-                previousRenderPosition.y + (renderPosition.y - previousRenderPosition.y) * t,
-                previousRenderPosition.z + (renderPosition.z - previousRenderPosition.z) * t
+                prevPosition.x + (currentPosition.x - prevPosition.x) * t,
+                prevPosition.y + (currentPosition.y - prevPosition.y) * t,
+                prevPosition.z + (currentPosition.z - prevPosition.z) * t
         );
     }
 
@@ -200,64 +169,62 @@ public class RenderableModel {
             return computeWorldTransform(tickDelta, 0).rotation();
         }
         float t = Math.max(0.0f, Math.min(1.0f, tickDelta));
-        return previousRenderRotation.slerp(renderRotation, t);
+        return prevRotation.slerp(currentRotation, t);
     }
+
     public Vector3 getInterpolatedScale(float tickDelta) {
         if (anchorType != null && anchorType != MoudPackets.DisplayAnchorType.FREE) {
             return computeWorldTransform(tickDelta, 0).scale();
         }
         float t = Math.max(0.0f, Math.min(1.0f, tickDelta));
         return new Vector3(
-                previousRenderScale.x + (renderScale.x - previousRenderScale.x) * t,
-                previousRenderScale.y + (renderScale.y - previousRenderScale.y) * t,
-                previousRenderScale.z + (renderScale.z - previousRenderScale.z) * t
+                prevScale.x + (currentScale.x - prevScale.x) * t,
+                prevScale.y + (currentScale.y - prevScale.y) * t,
+                prevScale.z + (currentScale.z - prevScale.z) * t
         );
     }
 
-    public void tickSmoothing(float deltaTicks) {
+    public void tick() {
         if (anchorType != null && anchorType != MoudPackets.DisplayAnchorType.FREE) {
             return;
         }
-        if (firstUpdate || !smoothingEnabled) {
+        if (firstUpdate) {
             return;
         }
 
-        if (deltaTicks <= 0.0f) {
-            deltaTicks = 1.0f;
+        this.prevPosition = new Vector3(currentPosition);
+        this.prevRotation = new Quaternion(currentRotation);
+        this.prevScale = new Vector3(currentScale);
+
+        this.currentPosition = new Vector3(position);
+        this.currentRotation = new Quaternion(rotation);
+        this.currentScale = new Vector3(scale);
+
+        if (instantMode) {
+            this.prevPosition = new Vector3(currentPosition);
+            this.prevRotation = new Quaternion(currentRotation);
+            this.prevScale = new Vector3(currentScale);
+            this.instantMode = false;
         }
+    }
 
-        this.previousRenderPosition = new Vector3(renderPosition);
-        this.previousRenderRotation = new Quaternion(renderRotation);
-        this.previousRenderScale = new Vector3(renderScale);
-
-        if (smoothingProgress >= 1.0f) {
-            snapToTarget();
-            return;
-        }
-
-        float duration = Math.max(1.0f, smoothingDurationTicks);
-        smoothingProgress = Math.min(1.0f, smoothingProgress + (deltaTicks / duration));
-        float t = Math.max(0.0f, Math.min(1.0f, smoothingProgress));
-
-        this.renderPosition = Vector3.lerp(smoothingStartPosition, position, t);
-        this.renderRotation = smoothingStartRotation.slerp(rotation, t);
-        this.renderScale = Vector3.lerp(smoothingStartScale, scale, t);
+    /**
+     * @deprecated Use tick() instead
+     */
+    @Deprecated
+    public void tickSmoothing(float deltaTicks) {
+        tick();
     }
 
     private void snapToTarget() {
-        this.renderPosition = new Vector3(position);
-        this.previousRenderPosition = new Vector3(position);
-        this.smoothingStartPosition = new Vector3(position);
+        this.currentPosition = new Vector3(position);
+        this.prevPosition = new Vector3(position);
 
-        this.renderRotation = new Quaternion(rotation);
-        this.previousRenderRotation = new Quaternion(rotation);
-        this.smoothingStartRotation = new Quaternion(rotation);
+        this.currentRotation = new Quaternion(rotation);
+        this.prevRotation = new Quaternion(rotation);
 
-        this.renderScale = new Vector3(scale);
-        this.previousRenderScale = new Vector3(scale);
-        this.smoothingStartScale = new Vector3(scale);
-
-        this.smoothingProgress = 1.0f;
+        this.currentScale = new Vector3(scale);
+        this.prevScale = new Vector3(scale);
     }
 
     public Quaternion getRotation() {
@@ -284,20 +251,16 @@ public class RenderableModel {
     public boolean isAnchored() {
         return anchorType != null && anchorType != MoudPackets.DisplayAnchorType.FREE;
     }
-    public void setSmoothingDurationTicks(float ticks) {
-        this.smoothingDurationTicks = Math.max(1.0f, ticks);
-    }
-    public float getSmoothingDurationTicks() {
-        return smoothingDurationTicks;
-    }
-    public void setSmoothingEnabled(boolean enabled) {
-        this.smoothingEnabled = enabled;
-        if (!enabled) {
+
+    public void setInstantMode(boolean instant) {
+        this.instantMode = instant;
+        if (instant) {
             snapToTarget();
         }
     }
-    public boolean isSmoothingEnabled() {
-        return smoothingEnabled;
+
+    public boolean isInstantMode() {
+        return instantMode;
     }
     public boolean hasMeshData() { return vertices != null && indices != null; }
     public float[] getVertices() { return vertices; }
@@ -462,32 +425,32 @@ public class RenderableModel {
 
     private WorldTransform fallbackWorldTransform() {
         return new WorldTransform(
-                renderPosition != null ? new Vector3(renderPosition) : Vector3.zero(),
-                renderRotation != null ? new Quaternion(renderRotation) : Quaternion.identity(),
-                renderScale != null ? new Vector3(renderScale) : Vector3.one()
+                currentPosition != null ? new Vector3(currentPosition) : Vector3.zero(),
+                currentRotation != null ? new Quaternion(currentRotation) : Quaternion.identity(),
+                currentScale != null ? new Vector3(currentScale) : Vector3.one()
         );
     }
 
     private Vector3 unanchoredInterpolatedPosition(float tickDelta) {
         float t = Math.max(0.0f, Math.min(1.0f, tickDelta));
         return new Vector3(
-                previousRenderPosition.x + (renderPosition.x - previousRenderPosition.x) * t,
-                previousRenderPosition.y + (renderPosition.y - previousRenderPosition.y) * t,
-                previousRenderPosition.z + (renderPosition.z - previousRenderPosition.z) * t
+                prevPosition.x + (currentPosition.x - prevPosition.x) * t,
+                prevPosition.y + (currentPosition.y - prevPosition.y) * t,
+                prevPosition.z + (currentPosition.z - prevPosition.z) * t
         );
     }
 
     private Quaternion unanchoredInterpolatedRotation(float tickDelta) {
         float t = Math.max(0.0f, Math.min(1.0f, tickDelta));
-        return previousRenderRotation.slerp(renderRotation, t);
+        return prevRotation.slerp(currentRotation, t);
     }
 
     private Vector3 unanchoredInterpolatedScale(float tickDelta) {
         float t = Math.max(0.0f, Math.min(1.0f, tickDelta));
         return new Vector3(
-                previousRenderScale.x + (renderScale.x - previousRenderScale.x) * t,
-                previousRenderScale.y + (renderScale.y - previousRenderScale.y) * t,
-                previousRenderScale.z + (renderScale.z - previousRenderScale.z) * t
+                prevScale.x + (currentScale.x - prevScale.x) * t,
+                prevScale.y + (currentScale.y - prevScale.y) * t,
+                prevScale.z + (currentScale.z - prevScale.z) * t
         );
     }
 

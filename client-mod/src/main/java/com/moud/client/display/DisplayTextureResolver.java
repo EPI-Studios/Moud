@@ -1,6 +1,7 @@
 package com.moud.client.display;
 
 import com.moud.client.rendering.FramebufferTextureExports;
+import com.moud.client.util.IdentifierUtils;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
@@ -45,28 +46,18 @@ final class DisplayTextureResolver {
         }
 
         String trimmed = path.trim();
-        if (!trimmed.contains(":") && !trimmed.startsWith("http")) {
-            if (trimmed.startsWith("moud/")) {
-                trimmed = "moud:" + trimmed.substring(5);
-            } else {
-                trimmed = "moud:" + trimmed;
-            }
+        Identifier identifier;
+        if (trimmed.startsWith("http")) {
+            identifier = Identifier.tryParse(trimmed);
+        } else {
+            identifier = IdentifierUtils.resolveMoudIdentifier(trimmed);
         }
-
-        if (trimmed.startsWith("moud:moud/")) {
-            trimmed = "moud:" + trimmed.substring("moud:moud/".length());
-        }
-
-        Identifier identifier = Identifier.tryParse(trimmed);
         if (identifier == null) {
             LOGGER.warn("Failed to parse texture identifier '{}'", trimmed);
             return null;
         }
         if ("moud".equals(identifier.getNamespace())) {
             String path2 = identifier.getPath();
-            if (path2.startsWith("moud/") && path2.length() > 5) {
-                return Identifier.of("moud", path2.substring(5));
-            }
             if (path2.startsWith("fbo/")) {
                 FramebufferTextureExports.ensureExport(identifier);
             }

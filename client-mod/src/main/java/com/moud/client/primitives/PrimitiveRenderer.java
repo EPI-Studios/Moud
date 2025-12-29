@@ -2,6 +2,7 @@ package com.moud.client.primitives;
 
 import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
+import com.moud.client.util.IdentifierUtils;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
@@ -395,15 +396,7 @@ public class PrimitiveRenderer {
         if (material == null || material.texture() == null || material.texture().isBlank()) {
             return DEFAULT_TEXTURE;
         }
-        String raw = material.texture().trim();
-        String normalized = raw.replace('\\', '/');
-        if (!normalized.contains(":")) {
-            normalized = normalized.startsWith("moud/") ? "moud:" + normalized.substring(5) : "moud:" + normalized;
-        }
-        if (normalized.startsWith("moud:moud/")) {
-            normalized = "moud:" + normalized.substring("moud:moud/".length());
-        }
-        Identifier parsed = Identifier.tryParse(normalized);
+        Identifier parsed = IdentifierUtils.resolveMoudIdentifier(material.texture());
         return parsed != null ? parsed : DEFAULT_TEXTURE;
     }
 }
