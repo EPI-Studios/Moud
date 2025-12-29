@@ -1,5 +1,6 @@
 package com.moud.server.assets;
 
+import com.moud.api.util.PathUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,7 +78,7 @@ public class AssetDiscovery {
     private void processAsset(Path root, Path assetPath) {
         try {
             Path relativePath = root.relativize(assetPath);
-            String assetId = relativePath.toString().replace('\\', '/');
+            String assetId = PathUtils.normalizeSlashes(relativePath.toString());
             AssetType type = determineAssetType(assetPath);
 
             AssetMetadata metadata = new AssetMetadata(assetId, assetPath, type);

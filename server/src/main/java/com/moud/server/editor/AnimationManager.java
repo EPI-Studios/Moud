@@ -1,9 +1,9 @@
 package com.moud.server.editor;
 
-import com.moud.api.animation.AnimationClip;
-import com.moud.api.animation.AnimationGson;
+import com.moud.api.animation.*;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
+import com.moud.api.util.PathUtils;
 import com.moud.network.MoudPackets;
 import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
@@ -122,7 +122,7 @@ public final class AnimationManager {
                         .filter(Files::isRegularFile)
                         .filter(p -> p.getFileName().toString().toLowerCase().endsWith(".an"))
                         .forEach(path -> {
-                            String rel = animationsRoot.relativize(path).toString().replace('\\', '/');
+                            String rel = PathUtils.normalizeSlashes(animationsRoot.relativize(path).toString());
                             float duration = 0f;
                             int trackCount = 0;
                             try {
@@ -232,7 +232,7 @@ public final class AnimationManager {
         }
         Map<String, TransformUpdate> pendingUpdates = new java.util.HashMap<>();
 
-        for (com.moud.api.animation.ObjectTrack objTrack : clip.objectTracks()) {
+        for (ObjectTrack objTrack : clip.objectTracks()) {
             SceneManager.SceneObject sceneObject = SceneManager.getInstance().getSceneObject(SceneDefaults.DEFAULT_SCENE_ID, objTrack.targetObjectId());
             if (sceneObject == null || objTrack.propertyTracks() == null) {
                 continue;
@@ -243,10 +243,12 @@ public final class AnimationManager {
                     id -> new TransformUpdate(sceneObject)
             );
 
-            for (Map.Entry<String, com.moud.api.animation.PropertyTrack> entry : objTrack.propertyTracks().entrySet()) {
-                com.moud.api.animation.PropertyTrack track = entry.getValue();
-                float value = sample(track, time);
-                update.applyProperty(entry.getKey(), value);
+            for (Map.Entry<String, PropertyTrack> entry : objTrack.propertyTracks().entrySet()) {
+                PropertyTrack track = entry.getValue();
+                Float value = sample(track, time);
+                if (value != null) {
+                    update.applyProperty(entry.getKey(), value);
+                }
             }
         }
 
@@ -258,7 +260,7 @@ public final class AnimationManager {
             String targetId = (clip.objectTracks() != null && !clip.objectTracks().isEmpty())
                     ? clip.objectTracks().get(0).targetObjectId()
                     : "";
-            for (com.moud.api.animation.EventKeyframe event : clip.eventTrack()) {
+            for (EventKeyframe event : clip.eventTrack()) {
                 if (event.time() >= previousTime && event.time() <= time) {
                     LOGGER.info("Animation event '{}' at {}s payload={}", event.name(), event.time(), event.payload());
                     ServerNetworkManager net = ServerNetworkManager.getInstance();
@@ -280,14 +282,14 @@ public final class AnimationManager {
         }
     }
 
-    private float sample(com.moud.api.animation.PropertyTrack track, float time) {
-        List<com.moud.api.animation.Keyframe> keyframes = track.keyframes();
+    private Float sample(PropertyTrack track, float time) {
+        List<Keyframe> keyframes = track.keyframes();
         if (keyframes == null || keyframes.isEmpty()) {
-            return track.minValue();
+            return null;
         }
-        com.moud.api.animation.Keyframe prev = null;
-        com.moud.api.animation.Keyframe next = null;
-        for (com.moud.api.animation.Keyframe kf : keyframes) {
+        Keyframe prev = null;
+        Keyframe next = null;
+        for (Keyframe kf : keyframes) {
             if (kf.time() <= time) {
                 prev = kf;
             }
@@ -306,18 +308,35 @@ public final class AnimationManager {
             return next.value();
         }
         float t = (time - prev.time()) / (next.time() - prev.time());
-        return interpolate(prev, next, t);
+
+        boolean isAngle = track.propertyType() == PropertyTrack.PropertyType.ANGLE ||
+                          (track.propertyPath() != null && track.propertyPath().contains("rotation"));
+        return interpolate(prev, next, t, isAngle);
     }
 
-    private float interpolate(com.moud.api.animation.Keyframe a, com.moud.api.animation.Keyframe b, float t) {
+    private float interpolate(Keyframe a, Keyframe b, float t, boolean isAngle) {
+        float startVal = a.value();
+        float endVal = b.value();
+
+        if (isAngle) {
+            float delta = endVal - startVal;
+            while (delta > 180f) delta -= 360f;
+            while (delta < -180f) delta += 360f;
+            endVal = startVal + delta;
+        }
+
         return switch (a.interpolation()) {
-            case STEP -> a.value();
-            case LINEAR -> a.value() + (b.value() - a.value()) * t;
-            case SMOOTH -> smoothstep(a.value(), b.value(), t);
-            case EASE_IN -> easeIn(a.value(), b.value(), t);
-            case EASE_OUT -> easeOut(a.value(), b.value(), t);
-            case BEZIER -> bezier(a.value(), b.value(), a.outTangent(), b.inTangent(), t);
+            case STEP -> startVal;
+            case LINEAR -> startVal + (endVal - startVal) * t;
+            case SMOOTH -> smoothstep(startVal, endVal, t);
+            case EASE_IN -> easeIn(startVal, endVal, t);
+            case EASE_OUT -> easeOut(startVal, endVal, t);
+            case BEZIER -> bezier(startVal, endVal, a.outTangent(), b.inTangent(), t);
         };
+    }
+
+    private float interpolate(Keyframe a, Keyframe b, float t) {
+        return interpolate(a, b, t, false);
     }
 
     private float smoothstep(float a, float b, float t) {
@@ -369,7 +388,7 @@ public final class AnimationManager {
         if (animationsRoot == null) {
             return null;
         }
-        String normalized = projectPath.replace('\\', '/');
+        String normalized = PathUtils.normalizeSlashes(projectPath);
         if (!normalized.endsWith(".an")) {
             normalized = normalized + ".an";
         }
@@ -386,6 +405,7 @@ public final class AnimationManager {
         private Quaternion rotationQuat;
         private Vector3 scale;
         private final Map<String, Float> scalarProperties = new java.util.HashMap<>();
+        private final Map<String, Map<String, Float>> limbProperties = new java.util.HashMap<>();  // limb -> property -> value
         private boolean positionChanged;
         private boolean rotationChanged;
         private boolean scaleChanged;
@@ -473,7 +493,22 @@ public final class AnimationManager {
                     scale.z = (float) Math.max(0.0001, value);
                     scaleChanged = true;
                 }
-                default -> scalarProperties.put(key, value);
+                default -> {
+                    if (key.startsWith("player_model:")) {
+                        String limbPath = key.substring("player_model:".length());
+                        int dotIdx = limbPath.indexOf('.');
+                        if (dotIdx > 0) {
+                            String limbName = limbPath.substring(0, dotIdx);
+                            String propertyPath = limbPath.substring(dotIdx + 1);
+                            limbProperties.computeIfAbsent(limbName, k -> new java.util.HashMap<>())
+                                    .put(propertyPath, value);
+                        } else {
+                            scalarProperties.put(key, value);
+                        }
+                    } else {
+                        scalarProperties.put(key, value);
+                    }
+                }
             }
         }
 
@@ -515,6 +550,14 @@ public final class AnimationManager {
 
         Map<String, Float> scalarProperties() {
             return scalarProperties;
+        }
+
+        Map<String, Map<String, Float>> limbProperties() {
+            return limbProperties;
+        }
+
+        boolean hasLimbProperties() {
+            return !limbProperties.isEmpty();
         }
 
         private void ensurePosition() {

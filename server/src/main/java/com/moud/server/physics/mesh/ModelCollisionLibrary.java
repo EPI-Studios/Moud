@@ -1,6 +1,7 @@
 package com.moud.server.physics.mesh;
 
 import com.moud.api.collision.OBB;
+import com.moud.api.util.PathUtils;
 import com.moud.server.assets.AssetManager;
 import com.moud.server.collision.MeshBoxDecomposer;
 import com.moud.server.editor.SceneManager;
@@ -113,7 +114,7 @@ public final class ModelCollisionLibrary {
             }
             return null;
         }
-        return resourcePath.replace('\\', '/');
+        return PathUtils.normalizeSlashes(resourcePath);
     }
 
     public static List<OBB> getCollisionBoxes(String modelPath) {
@@ -254,11 +255,6 @@ public final class ModelCollisionLibrary {
         return true;
     }
 
-    public static void clearCache() {
-        MESH_CACHE.clear();
-        COLLISION_BOX_CACHE.clear();
-        VHACD_HULL_CACHE.clear();
-    }
 
     private static <K, V> void trimCache(Map<K, V> cache, int maxSize) {
         int oversize = cache.size() - maxSize;

@@ -1,6 +1,7 @@
 package com.moud.server.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moud.api.util.PathUtils;
 import com.moud.server.project.ProjectLoader;
 import com.moud.server.typescript.TypeScriptTranspiler;
 import org.slf4j.Logger;
@@ -71,6 +72,8 @@ public class ClientScriptManager {
                             .forEach(path -> addScriptToZip(clientDir, path, zip));
                 }
             }
+
+            addSharedPhysicsToZip(projectRoot, zip);
         }
         byte[] bundled = baos.toByteArray();
         if (bundled.length > MAX_CLIENT_BUNDLE_BYTES) {
@@ -82,7 +85,7 @@ public class ClientScriptManager {
 
     private void addScriptToZip(Path clientDir, Path path, ZipOutputStream zip) {
         try {
-            String relativePath = clientDir.relativize(path).toString().replace('\\', '/');
+            String relativePath = PathUtils.normalizeSlashes(clientDir.relativize(path).toString());
             String content;
             if (path.toString().endsWith(".ts")) {
                 LOGGER.debug("Transpiling client script: {}", relativePath);
@@ -97,6 +100,27 @@ public class ClientScriptManager {
             LOGGER.debug("Packaged script: {}", relativePath);
         } catch (IOException | ExecutionException | InterruptedException e) {
             throw new RuntimeException("Failed to process client script: " + path, e);
+        }
+    }
+
+    private void addSharedPhysicsToZip(Path projectRoot, ZipOutputStream zip) {
+        if (projectRoot == null || zip == null) {
+            return;
+        }
+        Path sharedPhysics = projectRoot.resolve("shared/physics/index.ts");
+        if (!Files.exists(sharedPhysics)) {
+            return;
+        }
+
+        try {
+            LOGGER.info("Transpiling shared physics: {}", projectRoot.relativize(sharedPhysics));
+            String content = TypeScriptTranspiler.transpileSharedPhysics(sharedPhysics).get();
+            zip.putNextEntry(new ZipEntry("scripts/shared/physics.js"));
+            zip.write(content.getBytes());
+            zip.closeEntry();
+            LOGGER.info("Packaged shared physics script: scripts/shared/physics.js");
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to process shared physics script: " + sharedPhysics, e);
         }
     }
 

@@ -1,5 +1,6 @@
 package com.moud.client.editor.assets;
 
+import com.moud.api.util.PathUtils;
 import com.moud.client.network.ClientPacketWrapper;
 import com.moud.network.MoudPackets;
 import org.slf4j.Logger;
@@ -89,7 +90,7 @@ public final class ProjectFileIndex {
             if (entry == null || entry.path() == null || entry.path().isBlank()) {
                 continue;
             }
-            String normalized = entry.path().replace('\\', '/');
+            String normalized = PathUtils.normalizeSlashes(entry.path());
             String[] parts = normalized.split("/");
             EntryKind leafKind = toEntryKind(entry.kind());
             Node current = ensureRoot(parts[0], leafKind == EntryKind.FILE && parts.length == 1 ? EntryKind.FILE : EntryKind.DIRECTORY);

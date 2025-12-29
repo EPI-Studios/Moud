@@ -1,5 +1,6 @@
 package com.moud.server.assets;
 
+import com.moud.api.util.PathUtils;
 import com.moud.server.project.ProjectLoader;
 
 import java.nio.file.Files;
@@ -58,7 +59,7 @@ public final class ModelTextureResolver {
                 }
 
                 Path rel = texturesRoot.relativize(found.get());
-                String textureId = namespace + ":textures/" + rel.toString().replace('\\', '/');
+                String textureId = namespace + ":textures/" + PathUtils.normalizeSlashes(rel.toString());
                 return Optional.of(textureId);
             }
         } catch (Exception ignored) {
@@ -95,4 +96,3 @@ public final class ModelTextureResolver {
         return name + ext;
     }
 }
-
