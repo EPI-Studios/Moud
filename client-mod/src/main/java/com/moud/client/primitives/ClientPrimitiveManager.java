@@ -43,6 +43,7 @@ public final class ClientPrimitiveManager {
 
         if (primitive.hasCollision()) {
             PrimitiveCollisionManager.getInstance().registerPrimitive(primitive);
+            PrimitiveMeshCollisionManager.getInstance().registerPrimitive(primitive);
         }
 
         com.moud.client.MoudClientMod.LOGGER.info("[Primitives] Created id={} type={} group={} verts={} collision={} dynamic={}",
@@ -78,6 +79,7 @@ public final class ClientPrimitiveManager {
             primitive.updateTransform(packet.position(), packet.rotation(), packet.scale());
             if (primitive.hasCollision()) {
                 PrimitiveCollisionManager.getInstance().updatePrimitive(primitive);
+                PrimitiveMeshCollisionManager.getInstance().updatePrimitive(primitive);
             }
         } else {
             com.moud.client.MoudClientMod.LOGGER.warn("[Primitives] Transform for unknown id {}", packet.primitiveId());
@@ -92,6 +94,7 @@ public final class ClientPrimitiveManager {
                 primitive.updateTransform(entry.position(), entry.rotation(), entry.scale());
                 if (primitive.hasCollision()) {
                     PrimitiveCollisionManager.getInstance().updatePrimitive(primitive);
+                    PrimitiveMeshCollisionManager.getInstance().updatePrimitive(primitive);
                 }
             }
         }
@@ -112,6 +115,10 @@ public final class ClientPrimitiveManager {
         ClientPrimitive primitive = primitives.get(packet.primitiveId());
         if (primitive != null) {
             primitive.updateMesh(packet.vertices(), packet.indices());
+            if (primitive.hasCollision()) {
+                PrimitiveCollisionManager.getInstance().updatePrimitive(primitive);
+                PrimitiveMeshCollisionManager.getInstance().updatePrimitive(primitive);
+            }
         } else {
             com.moud.client.MoudClientMod.LOGGER.warn("[Primitives] Vertices for unknown id {}", packet.primitiveId());
         }
@@ -127,7 +134,7 @@ public final class ClientPrimitiveManager {
         Set<Long> ids = groups.remove(packet.groupId());
         if (ids != null) {
             for (Long id : ids) {
-                primitives.remove(id);
+                remove(id);
             }
         }
     }
@@ -143,6 +150,7 @@ public final class ClientPrimitiveManager {
             }
             if (removed.hasCollision()) {
                 PrimitiveCollisionManager.getInstance().unregisterPrimitive(id);
+                PrimitiveMeshCollisionManager.getInstance().unregisterPrimitive(id);
             }
         }
     }
@@ -164,6 +172,7 @@ public final class ClientPrimitiveManager {
     public void clear() {
         // Clear all collisions
         PrimitiveCollisionManager.getInstance().clear();
+        PrimitiveMeshCollisionManager.getInstance().clear();
         primitives.clear();
         groups.clear();
     }

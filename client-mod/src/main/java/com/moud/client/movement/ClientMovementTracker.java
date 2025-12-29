@@ -16,6 +16,7 @@ import com.moud.client.collision.ModelCollisionManager;
 import com.moud.client.network.ClientPacketWrapper;
 import com.moud.client.primitives.ClientPrimitiveCollisionBounds;
 import com.moud.client.primitives.ClientPrimitiveManager;
+import com.moud.client.primitives.PrimitiveMeshCollisionManager;
 import com.moud.network.MoudPackets;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.GameOptions;
@@ -481,7 +482,9 @@ public final class ClientMovementTracker {
 
         Vec3d movement = new Vec3d(moveX, moveY, moveZ);
         Box queryBox = playerBox.union(playerBox.offset(movement)).expand(0.5);
-        List<CollisionMesh> meshes = ClientCollisionManager.getMeshesNear(queryBox);
+        List<CollisionMesh> meshes = new ArrayList<>();
+        meshes.addAll(ClientCollisionManager.getMeshesNear(queryBox));
+        meshes.addAll(PrimitiveMeshCollisionManager.getInstance().getMeshesNear(queryBox));
 
         if (meshes.isEmpty()) {
             return translatedState;
@@ -549,7 +552,9 @@ public final class ClientMovementTracker {
 
         Vec3d movement = new Vec3d(moveX, moveY, moveZ);
         Box queryBox = playerBox.union(playerBox.offset(movement)).expand(0.5);
-        List<CollisionMesh> meshes = ClientCollisionManager.getMeshesNear(queryBox);
+        List<CollisionMesh> meshes = new ArrayList<>();
+        meshes.addAll(ClientCollisionManager.getMeshesNear(queryBox));
+        meshes.addAll(PrimitiveMeshCollisionManager.getInstance().getMeshesNear(queryBox));
 
         if (meshes.isEmpty()) {
             return physicsState;
@@ -615,7 +620,9 @@ public final class ClientMovementTracker {
 
         Vec3d probe = new Vec3d(0.0, -MESH_GROUND_PROBE, 0.0);
         Box queryBox = playerBox.union(playerBox.offset(probe)).expand(0.5);
-        List<CollisionMesh> meshes = ClientCollisionManager.getMeshesNear(queryBox);
+        List<CollisionMesh> meshes = new ArrayList<>();
+        meshes.addAll(ClientCollisionManager.getMeshesNear(queryBox));
+        meshes.addAll(PrimitiveMeshCollisionManager.getInstance().getMeshesNear(queryBox));
         if (meshes.isEmpty()) {
             return state;
         }
@@ -798,6 +805,9 @@ public final class ClientMovementTracker {
             }
 
             for (var primitive : ClientPrimitiveManager.getInstance().getPrimitives()) {
+                if (PrimitiveMeshCollisionManager.getInstance().hasMesh(primitive.getId())) {
+                    continue;
+                }
                 AABB bounds = ClientPrimitiveCollisionBounds.computeAabb(primitive);
                 if (bounds != null && bounds.intersects(query)) {
                     colliders.add(bounds);
