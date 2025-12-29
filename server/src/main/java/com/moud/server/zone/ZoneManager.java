@@ -1,7 +1,9 @@
 package com.moud.server.zone;
 
 import com.moud.api.math.Vector3;
+import com.moud.network.MoudPackets;
 import com.moud.server.MoudEngine;
+import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.profiler.model.ScriptExecutionMetadata;
 import com.moud.server.profiler.model.ScriptExecutionType;
 import com.moud.server.proxy.PlayerProxy;
@@ -14,7 +16,12 @@ import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ZoneManager {
@@ -55,7 +62,15 @@ public class ZoneManager {
             }
         }
 
-        LOGGER.info("Created zone '{}' in spatial grid cells ({},{}) to ({},{})", id, minCellX, minCellZ, maxCellX, maxCellZ);
+        LOGGER.info(
+                "Created zone '{}' in spatial grid cells ({},{}) to ({},{})",
+                id,
+                minCellX,
+                minCellZ,
+                maxCellX,
+                maxCellZ
+        );
+        broadcastZoneUpsert(zone);
     }
 
     public void removeZone(String id) {
@@ -64,6 +79,7 @@ public class ZoneManager {
             spatialGrid.values().forEach(set -> set.remove(zone));
             playerActiveZones.values().forEach(set -> set.remove(zone));
             LOGGER.info("Removed zone '{}'", id);
+            broadcastZoneRemove(id);
         }
     }
 
@@ -75,6 +91,54 @@ public class ZoneManager {
         } else {
             LOGGER.warn("Attempted to set callbacks for missing zone '{}'", id);
         }
+    }
+
+    public boolean isInZone(double x, double y, double z, String zoneId) {
+        if (zoneId == null || zoneId.isBlank()) {
+            return false;
+        }
+        Zone zone = zonesById.get(zoneId);
+        if (zone == null) {
+            return false;
+        }
+        Vector3 min = zone.getMin();
+        Vector3 max = zone.getMax();
+        return x >= min.x && x <= max.x
+                && y >= min.y && y <= max.y
+                && z >= min.z && z <= max.z;
+    }
+
+    public List<Zone> getZones() {
+        return new ArrayList<>(zonesById.values());
+    }
+
+    private void broadcastZoneUpsert(Zone zone) {
+        if (zone == null) {
+            return;
+        }
+        ServerNetworkManager network = ServerNetworkManager.getInstance();
+        if (network == null) {
+            return;
+        }
+
+        Vector3 min = zone.getMin();
+        Vector3 max = zone.getMax();
+        network.broadcast(new MoudPackets.ZoneUpsertPacket(new MoudPackets.ZoneDefinition(
+                zone.getId(),
+                min != null ? new Vector3(min) : Vector3.zero(),
+                max != null ? new Vector3(max) : Vector3.zero()
+        )));
+    }
+
+    private void broadcastZoneRemove(String id) {
+        if (id == null || id.isBlank()) {
+            return;
+        }
+        ServerNetworkManager network = ServerNetworkManager.getInstance();
+        if (network == null) {
+            return;
+        }
+        network.broadcast(new MoudPackets.ZoneRemovePacket(id));
     }
 
     private void onPlayerSpawn(PlayerSpawnEvent event) {
