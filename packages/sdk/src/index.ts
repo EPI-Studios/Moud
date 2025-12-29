@@ -1566,6 +1566,31 @@ export interface PhysicsAPI {
     setPlayerPhysics(player: Player, enabled: boolean): void;
 
     /**
+     * Enables or disables client-side prediction with shared physics controllers.
+     *
+     * When enabled, both client and server run the same physics code from `shared/physics/`.
+     * The client predicts movement locally (zero input delay), while the server validates
+     * and corrects any mismatches (anti-cheat).
+     *
+     * @param player The player to configure
+     * @param enabled Whether to enable prediction mode
+     * @param options Optional controller ID and config overrides
+     *
+     * @example
+     * ```typescript
+     * // Enable prediction with custom controller
+     * api.physics.setPredictionMode(player, true, {
+     *   controller: "my-game:custom",
+     *   config: { speed: 8.0, jumpForce: 12.0 }
+     * });
+     *
+     * // Disable prediction (return to vanilla movement)
+     * api.physics.setPredictionMode(player, false);
+     * ```
+     */
+    setPredictionMode(player: Player, enabled: boolean, options?: PredictionModeOptions): void;
+
+    /**
      * When enabled, disables the built-in physics input controller so scripts can drive the body directly.
      * @remarks Requires server physics to be enabled for players.
      */
@@ -1674,6 +1699,282 @@ export interface FixedConstraintOptions {
     autoDetectPoint?: boolean;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared Player Physics (runs on both client and server)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Immutable state representing a player's position, velocity, and grounded status.
+ * Used by shared physics controllers for client-side prediction and server-side simulation.
+ * @remarks Shared between client and server.
+ */
+export interface PlayerPhysicsState {
+    /** World X position */
+    readonly x: number;
+    /** World Y position (feet) */
+    readonly y: number;
+    /** World Z position */
+    readonly z: number;
+    /** Velocity X component (blocks/sec) */
+    readonly velX: number;
+    /** Velocity Y component (blocks/sec) */
+    readonly velY: number;
+    /** Velocity Z component (blocks/sec) */
+    readonly velZ: number;
+    /** True if the player is standing on ground */
+    readonly onGround: boolean;
+    /** True if the player is colliding horizontally */
+    readonly collidingHorizontally: boolean;
+}
+
+/**
+ * Input state for a single physics tick.
+ * @remarks Shared between client and server.
+ */
+export interface PlayerPhysicsInput {
+    /** Sequence number for reconciliation */
+    readonly sequenceId: number;
+    /** W key pressed */
+    readonly forward: boolean;
+    /** S key pressed */
+    readonly backward: boolean;
+    /** A key pressed */
+    readonly left: boolean;
+    /** D key pressed */
+    readonly right: boolean;
+    /** Space key pressed */
+    readonly jump: boolean;
+    /** Ctrl key pressed */
+    readonly sprint: boolean;
+    /** Shift key pressed */
+    readonly sneak: boolean;
+    /** Player yaw in degrees */
+    readonly yaw: number;
+    /** Player pitch in degrees */
+    readonly pitch: number;
+}
+
+/**
+ * Configuration values for player physics.
+ * @remarks Shared between client and server.
+ */
+export interface PlayerPhysicsConfig {
+    /** Base movement speed (blocks/sec) */
+    speed: number;
+    /** Acceleration rate (blocks/sec²) */
+    accel: number;
+    /** Ground friction (blocks/sec²) */
+    friction: number;
+    /** Air resistance factor */
+    airResistance: number;
+    /** Gravity acceleration (blocks/sec², negative = down) */
+    gravity: number;
+    /** Initial jump velocity (blocks/sec) */
+    jumpForce: number;
+    /** Maximum step-up height (blocks) */
+    stepHeight: number;
+    /** Player collision width */
+    width: number;
+    /** Player collision height */
+    height: number;
+    /** Speed multiplier when sprinting */
+    sprintMultiplier: number;
+    /** Speed multiplier when sneaking */
+    sneakMultiplier: number;
+}
+
+/**
+ * Axis-aligned bounding box for collision detection.
+ * @remarks Shared between client and server.
+ */
+export interface AABB {
+    readonly minX: number;
+    readonly minY: number;
+    readonly minZ: number;
+    readonly maxX: number;
+    readonly maxY: number;
+    readonly maxZ: number;
+}
+
+/**
+ * Collision world interface for querying collisions during physics simulation.
+ * @remarks Shared between client and server.
+ */
+export interface CollisionWorld {
+    /**
+     * Returns all AABBs that intersect with the query box.
+     */
+    getCollisions(query: AABB): AABB[];
+}
+
+/**
+ * Context object passed to shared physics controllers.
+ * Provides access to player data and world state that's synchronized between client and server.
+ * @remarks Shared between client and server.
+ */
+export interface PlayerPhysicsContext {
+    /** The player being simulated */
+    readonly player: {
+        /** Player UUID */
+        readonly uuid: string;
+        /** Check if player has an item in their inventory */
+        hasItem(itemId: string): boolean;
+        /** Get player's current health (0-20) */
+        getHealth(): number;
+        /** Check if player has a status effect */
+        hasEffect(effectId: string): boolean;
+        /** Get a custom data value set by scripts */
+        getData<T = unknown>(key: string): T | undefined;
+    };
+    /** World/environment queries */
+    readonly world: {
+        /** Get the block type at a position */
+        getBlock(x: number, y: number, z: number): string;
+        /** Check if a position is inside a named zone */
+        isInZone(x: number, y: number, z: number, zoneId: string): boolean;
+    };
+    /** Current server tick (for time-based effects) */
+    readonly tick: number;
+    /** Time since last physics step in seconds */
+    readonly dt: number;
+}
+
+/**
+ * A shared physics controller that runs identical code on client and server.
+ *
+ * Define these in `shared/physics/` folder. The same code will execute on both sides,
+ * ensuring client prediction matches server simulation exactly.
+ *
+ * @example
+ * ```typescript
+ * // shared/physics/index.ts
+ * export const controller: SharedPhysicsController = {
+ *   id: "my-game:custom",
+ *
+ *   step(state, input, config, collision, ctx) {
+ *     // Modify config based on context
+ *     let modifiedConfig = { ...config };
+ *
+ *     if (ctx.player.hasItem("speed_boots")) {
+ *       modifiedConfig.speed *= 1.5;
+ *     }
+ *
+ *     if (ctx.world.getBlock(state.x, state.y - 1, state.z) === "minecraft:ice") {
+ *       modifiedConfig.friction = 0.1;
+ *     }
+ *
+ *     // Run default physics with modified config
+ *     return Physics.defaultStep(state, input, modifiedConfig, collision, ctx.dt);
+ *   }
+ * };
+ * ```
+ *
+ * @remarks Shared between client and server.
+ */
+export interface SharedPhysicsController {
+    /** Unique identifier for this controller (e.g., "my-game:jetpack") */
+    readonly id: string;
+
+    /**
+     * Compute the next physics state.
+     *
+     * @param state Current player state
+     * @param input Current input state
+     * @param config Base physics configuration (can be modified)
+     * @param collision Collision world for AABB queries
+     * @param ctx Context with player data, world info, and timing
+     * @returns The new player state after this physics step
+     */
+    step(
+        state: PlayerPhysicsState,
+        input: PlayerPhysicsInput,
+        config: PlayerPhysicsConfig,
+        collision: CollisionWorld,
+        ctx: PlayerPhysicsContext
+    ): PlayerPhysicsState;
+}
+
+/**
+ * Built-in physics utilities available in shared physics scripts.
+ * @remarks Shared between client and server.
+ */
+export interface PhysicsUtils {
+    /**
+     * Run the default player physics simulation.
+     * Use this as a base and modify config/state as needed.
+     */
+    defaultStep(
+        state: PlayerPhysicsState,
+        input: PlayerPhysicsInput,
+        config: PlayerPhysicsConfig,
+        collision: CollisionWorld,
+        dt: number
+    ): PlayerPhysicsState;
+
+    /**
+     * Create a new player state with modified values.
+     */
+    createState(
+        x: number,
+        y: number,
+        z: number,
+        velX: number,
+        velY: number,
+        velZ: number,
+        onGround: boolean,
+        collidingHorizontally?: boolean
+    ): PlayerPhysicsState;
+
+    /**
+     * Get default physics configuration values.
+     */
+    defaultConfig(): PlayerPhysicsConfig;
+
+    /**
+     * Create an AABB from min/max coordinates.
+     */
+    createAABB(
+        minX: number,
+        minY: number,
+        minZ: number,
+        maxX: number,
+        maxY: number,
+        maxZ: number
+    ): AABB;
+
+    /**
+     * Linear interpolation between two values.
+     */
+    lerp(a: number, b: number, t: number): number;
+
+    /**
+     * Clamp a value between min and max.
+     */
+    clamp(value: number, min: number, max: number): number;
+
+    /**
+     * Move a value towards a target by a maximum delta.
+     */
+    moveTowards(current: number, target: number, maxDelta: number): number;
+}
+
+declare global {
+    /**
+     * Physics utilities available in shared physics scripts.
+     * @remarks Available in shared physics scripts only.
+     */
+    const Physics: PhysicsUtils;
+}
+
+/**
+ * Options for enabling player physics prediction.
+ */
+export interface PredictionModeOptions {
+    /** The ID of the shared physics controller to use */
+    controller?: string;
+    /** Optional config overrides */
+    config?: Partial<PlayerPhysicsConfig>;
+}
 
 /**
  * API for managing the main game world.
@@ -3103,7 +3404,7 @@ export interface CameraService {
 
     /**
      * Enables cinematic camera bob (body cam style movement).
-     * Creates realistic head movement while walking.
+     * Creates natural head movement while walking.
      * @param options Bob configuration.
      * @example
      * // Enable with default settings

@@ -38,6 +38,7 @@ export class HotReloadManager {
         action: 'reload_scripts',
         hash: artifacts.hash,
         serverBundle: artifacts.server,
+        sharedPhysics: artifacts.shared ?? null,
         clientBundle: artifacts.client.toString('base64')
       }, {
         timeout: 5000,
