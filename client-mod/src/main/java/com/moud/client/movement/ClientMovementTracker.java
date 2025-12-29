@@ -2,13 +2,20 @@ package com.moud.client.movement;
 
 import com.moud.api.collision.AABB;
 import com.moud.api.physics.player.CollisionWorld;
+import com.moud.api.physics.player.PlayerController;
 import com.moud.api.physics.player.PlayerInput;
 import com.moud.api.physics.player.PlayerPhysicsController;
 import com.moud.api.physics.player.PlayerPhysicsConfig;
 import com.moud.api.physics.player.PlayerPhysicsControllers;
 import com.moud.api.physics.player.PlayerState;
+import com.moud.client.collision.ClientCollisionManager;
+import com.moud.client.collision.CollisionMesh;
+import com.moud.client.collision.CollisionResult;
+import com.moud.client.collision.MeshCollider;
 import com.moud.client.collision.ModelCollisionManager;
 import com.moud.client.network.ClientPacketWrapper;
+import com.moud.client.primitives.ClientPrimitiveCollisionBounds;
+import com.moud.client.primitives.ClientPrimitiveManager;
 import com.moud.network.MoudPackets;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.GameOptions;
@@ -34,6 +41,12 @@ public final class ClientMovementTracker {
     private static final int MAX_HISTORY = 256;
     private static final double SNAP_DISTANCE_SQ = 16.0;
     private static final double RECONCILE_EPSILON_SQ = 0.0004;
+    private static final double IDLE_RECONCILE_EPSILON_SQ = 0.0225;
+    private static final double SMOOTH_CORRECTION_MAX_SQ = 1.0;
+    private static final float SMOOTH_CORRECTION_RATE = 0.15f;
+    private static final float MAX_FRAME_DT = 0.25f;
+    private static final double CORRECTION_EPS = 1.0e-6;
+    private static final double MESH_GROUND_PROBE = 0.05;
 
     private final MinecraftClient client;
 
@@ -41,6 +54,11 @@ public final class ClientMovementTracker {
     private PlayerPhysicsConfig config = PlayerPhysicsConfig.defaults();
     private String controllerId = PlayerPhysicsControllers.DEFAULT_ID;
     private PlayerPhysicsController controller = PlayerPhysicsControllers.get(PlayerPhysicsControllers.DEFAULT_ID);
+
+    private boolean requestedPredictionEnabled = false;
+    private String requestedControllerId = PlayerPhysicsControllers.DEFAULT_ID;
+    private PlayerPhysicsConfig requestedConfig = PlayerPhysicsConfig.defaults();
+
     private PlayerState state;
     private long nextSequenceId = 1L;
     private long lastServerAck = 0L;
@@ -54,6 +72,12 @@ public final class ClientMovementTracker {
     private boolean lastSneaking = false;
     private boolean lastSprinting = false;
     private boolean lastOnGround = false;
+
+    private long lastFrameTimeNs = 0L;
+
+    private double pendingCorrectionX = 0.0;
+    private double pendingCorrectionY = 0.0;
+    private double pendingCorrectionZ = 0.0;
 
     private ClientMovementTracker() {
         this.client = MinecraftClient.getInstance();
@@ -74,17 +98,43 @@ public final class ClientMovementTracker {
         String resolvedControllerId = controllerId != null && !controllerId.isBlank()
                 ? controllerId
                 : PlayerPhysicsControllers.DEFAULT_ID;
+        requestedPredictionEnabled = enabled;
+        requestedControllerId = resolvedControllerId;
+        requestedConfig = configOverride != null ? configOverride : PlayerPhysicsConfig.defaults();
+
         boolean known = PlayerPhysicsControllers.has(resolvedControllerId);
         boolean canEnable = enabled && known;
         if (enabled && !known) {
-            LOGGER.warn("Server requested unknown player physics controller '{}'; prediction disabled", resolvedControllerId);
+            LOGGER.warn(
+                    "Server requested unknown player physics controller '{}'; prediction disabled",
+                    resolvedControllerId
+            );
         }
 
         predictionEnabled = canEnable;
-        config = configOverride != null ? configOverride : PlayerPhysicsConfig.defaults();
+        config = requestedConfig;
         this.controllerId = resolvedControllerId;
         this.controller = PlayerPhysicsControllers.get(resolvedControllerId);
         resetPredictionState();
+    }
+
+    public void tryEnablePendingPrediction() {
+        if (predictionEnabled) {
+            return;
+        }
+        if (!requestedPredictionEnabled) {
+            return;
+        }
+        if (!PlayerPhysicsControllers.has(requestedControllerId)) {
+            return;
+        }
+
+        predictionEnabled = true;
+        controllerId = requestedControllerId;
+        config = requestedConfig != null ? requestedConfig : PlayerPhysicsConfig.defaults();
+        controller = PlayerPhysicsControllers.get(requestedControllerId);
+        resetPredictionState();
+        LOGGER.info("Prediction controller '{}' registered; prediction enabled", requestedControllerId);
     }
 
     public void handleSnapshot(MoudPackets.PlayerSnapshotPacket snapshot) {
@@ -116,6 +166,7 @@ public final class ClientMovementTracker {
         PlayerState replayed = replay(serverState);
         if (state == null) {
             state = replayed;
+            clearPendingCorrection();
             applyToPlayer(client.player, state);
             return;
         }
@@ -125,17 +176,136 @@ public final class ClientMovementTracker {
         double dz = replayed.z() - state.z();
         double distSq = dx * dx + dy * dy + dz * dz;
 
+        double effectiveEpsilonSq = isEffectivelyIdle() ? IDLE_RECONCILE_EPSILON_SQ : RECONCILE_EPSILON_SQ;
+
         if (distSq > SNAP_DISTANCE_SQ) {
             state = replayed;
             pendingInputs.clear();
+            clearPendingCorrection();
             applyToPlayer(client.player, state);
             return;
         }
 
-        if (distSq > RECONCILE_EPSILON_SQ) {
+        if (distSq <= effectiveEpsilonSq) {
+            clearPendingCorrection();
+            return;
+        }
+        if (distSq <= SMOOTH_CORRECTION_MAX_SQ) {
+            pendingCorrectionX = dx;
+            pendingCorrectionY = dy;
+            pendingCorrectionZ = dz;
+            state = new PlayerState(
+                    state.x(), state.y(), state.z(),
+                    replayed.velX(), replayed.velY(), replayed.velZ(),
+                    replayed.onGround(),
+                    replayed.collidingHorizontally()
+            );
+        } else {
             state = replayed;
+            clearPendingCorrection();
             applyToPlayer(client.player, state);
         }
+    }
+
+    public void frameTick() {
+        if (client.player == null || client.options == null || client.world == null) {
+            return;
+        }
+        if (!predictionEnabled) {
+            return;
+        }
+
+        long now = System.nanoTime();
+        if (lastFrameTimeNs == 0L) {
+            lastFrameTimeNs = now;
+            return;
+        }
+        float frameDt = (now - lastFrameTimeNs) / 1_000_000_000f;
+        lastFrameTimeNs = now;
+
+        if (frameDt > MAX_FRAME_DT) {
+            frameDt = MAX_FRAME_DT;
+        }
+        if (frameDt < 0.001f) {
+            return;
+        }
+
+        PlayerEntity player = client.player;
+        GameOptions options = client.options;
+
+        boolean forward = options.forwardKey.isPressed();
+        boolean backward = options.backKey.isPressed();
+        boolean left = options.leftKey.isPressed();
+        boolean right = options.rightKey.isPressed();
+        boolean jumping = options.jumpKey.isPressed();
+        boolean sneaking = options.sneakKey.isPressed();
+        boolean sprinting = options.sprintKey.isPressed();
+        float yaw = player.getYaw();
+        float pitch = player.getPitch();
+
+        if (state == null) {
+            Vec3d vel = player.getVelocity();
+            state = new PlayerState(
+                    player.getX(),
+                    player.getY(),
+                    player.getZ(),
+                    (float) vel.x,
+                    (float) vel.y,
+                    (float) vel.z,
+                    player.isOnGround(),
+                    false
+            );
+        }
+
+        applyPendingCorrection(frameDt);
+        state = applyMeshGroundProbeToState(state);
+
+        PlayerInput frameInput = new PlayerInput(
+                0L,
+                forward,
+                backward,
+                left,
+                right,
+                jumping,
+                sprinting,
+                sneaking,
+                yaw,
+                pitch
+        );
+
+        CollisionWorld world = new ClientCollisionWorld(client);
+        PlayerState physicsState;
+        try {
+            physicsState = controller.step(state, frameInput, config, world, frameDt);
+        } catch (Throwable t) {
+            LOGGER.warn("Prediction controller '{}' failed; disabling prediction", controllerId, t);
+            predictionEnabled = false;
+            controllerId = PlayerPhysicsControllers.DEFAULT_ID;
+            controller = PlayerPhysicsControllers.get(PlayerPhysicsControllers.DEFAULT_ID);
+            config = PlayerPhysicsConfig.defaults();
+            resetPredictionState();
+            return;
+        }
+        state = applyMeshCollisionToState(state, physicsState);
+
+        double oldX = player.getX();
+        double oldY = player.getY();
+        double oldZ = player.getZ();
+
+        player.setPos(state.x(), state.y(), state.z());
+        player.prevX = state.x();
+        player.prevY = state.y();
+        player.prevZ = state.z();
+        player.lastRenderX = state.x();
+        player.lastRenderY = state.y();
+        player.lastRenderZ = state.z();
+        player.setVelocity(state.velX(), state.velY(), state.velZ());
+        player.setOnGround(state.onGround());
+
+        float dx = (float)(state.x() - oldX);
+        float dz = (float)(state.z() - oldZ);
+        float horizontalSpeed = (float)Math.sqrt(dx * dx + dz * dz);
+        player.limbAnimator.updateLimbs(horizontalSpeed * 4.0f, 1.0f);
     }
 
     public void tick() {
@@ -155,20 +325,6 @@ public final class ClientMovementTracker {
         boolean sprinting = options.sprintKey.isPressed();
 
         if (predictionEnabled && client.world != null) {
-            if (state == null) {
-                Vec3d vel = player.getVelocity();
-                state = new PlayerState(
-                        player.getX(),
-                        player.getY(),
-                        player.getZ(),
-                        (float) vel.x,
-                        (float) vel.y,
-                        (float) vel.z,
-                        player.isOnGround(),
-                        false
-                );
-            }
-
             long seq = nextSequenceId++;
             int bits = encodeInputBits(forward, backward, left, right, jumping, sneaking, sprinting);
             float yaw = player.getYaw();
@@ -194,12 +350,8 @@ public final class ClientMovementTracker {
 
             ClientPacketWrapper.sendToServer(new MoudPackets.PlayerInputPacket(seq, yaw, pitch, bits));
 
-            CollisionWorld world = new ClientCollisionWorld(client);
-            state = controller.step(state, input, config, world, FIXED_DT_SECONDS);
-            applyToPlayer(player, state);
-
-            boolean onGround = state.onGround();
-            float speed = (float) Math.hypot(state.velX(), state.velZ());
+            boolean onGround = state != null && state.onGround();
+            float speed = state != null ? (float) Math.hypot(state.velX(), state.velZ()) : 0f;
             maybeSendMovementState(forward, backward, left, right, jumping, sneaking, sprinting, onGround, speed);
             return;
         }
@@ -211,6 +363,9 @@ public final class ClientMovementTracker {
 
     public void reset() {
         predictionEnabled = false;
+        requestedPredictionEnabled = false;
+        requestedControllerId = PlayerPhysicsControllers.DEFAULT_ID;
+        requestedConfig = PlayerPhysicsConfig.defaults();
         resetPredictionState();
 
         lastForward = false;
@@ -228,6 +383,135 @@ public final class ClientMovementTracker {
         nextSequenceId = 1L;
         lastServerAck = 0L;
         pendingInputs.clear();
+        lastFrameTimeNs = 0L;
+        clearPendingCorrection();
+    }
+
+    private void clearPendingCorrection() {
+        pendingCorrectionX = 0.0;
+        pendingCorrectionY = 0.0;
+        pendingCorrectionZ = 0.0;
+    }
+
+    private boolean isEffectivelyIdle() {
+        if (client == null || client.options == null) {
+            return false;
+        }
+        if (state == null) {
+            return false;
+        }
+
+        GameOptions options = client.options;
+        boolean wantsMovement = options.forwardKey.isPressed()
+                || options.backKey.isPressed()
+                || options.leftKey.isPressed()
+                || options.rightKey.isPressed()
+                || options.jumpKey.isPressed();
+
+        if (wantsMovement) {
+            return false;
+        }
+
+        if (!state.onGround()) {
+            return false;
+        }
+
+        float velX = state.velX();
+        float velY = state.velY();
+        float velZ = state.velZ();
+        float horizontalSpeedSq = velX * velX + velZ * velZ;
+
+        return horizontalSpeedSq < 1.0f && Math.abs(velY) < 0.25f;
+    }
+
+    private void applyPendingCorrection(float frameDt) {
+        if (state == null) {
+            return;
+        }
+
+        double absX = Math.abs(pendingCorrectionX);
+        double absY = Math.abs(pendingCorrectionY);
+        double absZ = Math.abs(pendingCorrectionZ);
+        if (absX < CORRECTION_EPS && absY < CORRECTION_EPS && absZ < CORRECTION_EPS) {
+            clearPendingCorrection();
+            return;
+        }
+
+        float clampedDt = Math.max(0.0f, Math.min(frameDt, MAX_FRAME_DT));
+        double t = clampedDt / FIXED_DT_SECONDS;
+        double alpha = 1.0 - Math.pow(1.0 - SMOOTH_CORRECTION_RATE, t);
+        if (alpha <= 0.0) {
+            return;
+        }
+
+        double moveX = pendingCorrectionX * alpha;
+        double moveY = pendingCorrectionY * alpha;
+        double moveZ = pendingCorrectionZ * alpha;
+
+        PlayerState before = state;
+
+        CollisionWorld world = new ClientCollisionWorld(client);
+        PlayerState afterBlocks = PlayerController.applyTranslation(before, config, world, moveX, moveY, moveZ);
+        PlayerState afterMeshes = applyMeshCollisionToTranslation(before, afterBlocks);
+        state = afterMeshes;
+
+        double appliedX = state.x() - before.x();
+        double appliedY = state.y() - before.y();
+        double appliedZ = state.z() - before.z();
+
+        pendingCorrectionX -= appliedX;
+        pendingCorrectionY -= appliedY;
+        pendingCorrectionZ -= appliedZ;
+    }
+    private PlayerState applyMeshCollisionToTranslation(PlayerState prevState, PlayerState translatedState) {
+        double moveX = translatedState.x() - prevState.x();
+        double moveY = translatedState.y() - prevState.y();
+        double moveZ = translatedState.z() - prevState.z();
+
+        if (Math.abs(moveX) < 1e-9 && Math.abs(moveY) < 1e-9 && Math.abs(moveZ) < 1e-9) {
+            return translatedState;
+        }
+
+        double halfWidth = config.width() > 0 ? config.width() * 0.5 : 0.3;
+        double height = config.height() > 0 ? config.height() : 1.8;
+        Box playerBox = new Box(
+                prevState.x() - halfWidth, prevState.y(), prevState.z() - halfWidth,
+                prevState.x() + halfWidth, prevState.y() + height, prevState.z() + halfWidth
+        );
+
+        Vec3d movement = new Vec3d(moveX, moveY, moveZ);
+        Box queryBox = playerBox.union(playerBox.offset(movement)).expand(0.5);
+        List<CollisionMesh> meshes = ClientCollisionManager.getMeshesNear(queryBox);
+
+        if (meshes.isEmpty()) {
+            return translatedState;
+        }
+
+        Vec3d finalMovement = movement;
+        boolean horizontalCollision = false;
+        for (CollisionMesh mesh : meshes) {
+            Vec3d before = finalMovement;
+            CollisionResult result = MeshCollider.collideWithStepUp(playerBox, finalMovement, mesh, config.stepHeight());
+            finalMovement = result.allowedMovement();
+            horizontalCollision |= axisBlocked(before.x, finalMovement.x) || axisBlocked(before.z, finalMovement.z);
+        }
+
+        double finalX = prevState.x() + finalMovement.x;
+        double finalY = prevState.y() + finalMovement.y;
+        double finalZ = prevState.z() + finalMovement.z;
+
+        boolean onGround = translatedState.onGround();
+        boolean landedOnMesh = !onGround && moveY < 0 && axisBlocked(moveY, finalMovement.y);
+        if (landedOnMesh) {
+            onGround = true;
+        }
+
+        return new PlayerState(
+                finalX, finalY, finalZ,
+                translatedState.velX(), translatedState.velY(), translatedState.velZ(),
+                onGround,
+                translatedState.collidingHorizontally() || horizontalCollision
+        );
     }
 
     private void dropAckedInputs(long ackSeq) {
@@ -240,9 +524,123 @@ public final class ClientMovementTracker {
         PlayerState replayed = serverState;
         CollisionWorld world = new ClientCollisionWorld(client);
         for (PlayerInput input : pendingInputs) {
-            replayed = controller.step(replayed, input, config, world, FIXED_DT_SECONDS);
+            replayed = applyMeshGroundProbeToState(replayed);
+            PlayerState physicsState = controller.step(replayed, input, config, world, FIXED_DT_SECONDS);
+            replayed = applyMeshCollisionToState(replayed, physicsState);
         }
         return replayed;
+    }
+
+    private PlayerState applyMeshCollisionToState(PlayerState prevState, PlayerState physicsState) {
+        double moveX = physicsState.x() - prevState.x();
+        double moveY = physicsState.y() - prevState.y();
+        double moveZ = physicsState.z() - prevState.z();
+
+        if (Math.abs(moveX) < 1e-9 && Math.abs(moveY) < 1e-9 && Math.abs(moveZ) < 1e-9) {
+            return physicsState;
+        }
+
+        double halfWidth = config.width() > 0 ? config.width() * 0.5 : 0.3;
+        double height = config.height() > 0 ? config.height() : 1.8;
+        Box playerBox = new Box(
+                prevState.x() - halfWidth, prevState.y(), prevState.z() - halfWidth,
+                prevState.x() + halfWidth, prevState.y() + height, prevState.z() + halfWidth
+        );
+
+        Vec3d movement = new Vec3d(moveX, moveY, moveZ);
+        Box queryBox = playerBox.union(playerBox.offset(movement)).expand(0.5);
+        List<CollisionMesh> meshes = ClientCollisionManager.getMeshesNear(queryBox);
+
+        if (meshes.isEmpty()) {
+            return physicsState;
+        }
+
+        Vec3d finalMovement = movement;
+        boolean horizontalCollision = false;
+        for (CollisionMesh mesh : meshes) {
+            Vec3d before = finalMovement;
+            CollisionResult result = MeshCollider.collideWithStepUp(
+                    playerBox,
+                    finalMovement,
+                    mesh,
+                    config.stepHeight()
+            );
+            finalMovement = result.allowedMovement();
+            horizontalCollision |= axisBlocked(before.x, finalMovement.x) || axisBlocked(before.z, finalMovement.z);
+        }
+
+        double finalX = prevState.x() + finalMovement.x;
+        double finalY = prevState.y() + finalMovement.y;
+        double finalZ = prevState.z() + finalMovement.z;
+
+        float finalVelX = physicsState.velX();
+        float finalVelY = physicsState.velY();
+        float finalVelZ = physicsState.velZ();
+
+        if (axisBlocked(moveX, finalMovement.x)) finalVelX = 0;
+        if (axisBlocked(moveY, finalMovement.y)) finalVelY = 0;
+        if (axisBlocked(moveZ, finalMovement.z)) finalVelZ = 0;
+
+        boolean onGround = physicsState.onGround();
+        boolean landedOnMesh = !onGround && moveY < 0 && axisBlocked(moveY, finalMovement.y);
+        if (landedOnMesh) {
+            onGround = true;
+        }
+
+        return new PlayerState(
+                finalX, finalY, finalZ,
+                finalVelX, finalVelY, finalVelZ,
+                onGround,
+                physicsState.collidingHorizontally() || horizontalCollision
+        );
+    }
+
+    private PlayerState applyMeshGroundProbeToState(PlayerState state) {
+        if (state == null || config == null) {
+            return state;
+        }
+        if (state.onGround()) {
+            return state;
+        }
+        if (state.velY() > 0.02f) {
+            return state;
+        }
+
+        double halfWidth = config.width() > 0 ? config.width() * 0.5 : 0.3;
+        double height = config.height() > 0 ? config.height() : 1.8;
+        Box playerBox = new Box(
+                state.x() - halfWidth, state.y(), state.z() - halfWidth,
+                state.x() + halfWidth, state.y() + height, state.z() + halfWidth
+        );
+
+        Vec3d probe = new Vec3d(0.0, -MESH_GROUND_PROBE, 0.0);
+        Box queryBox = playerBox.union(playerBox.offset(probe)).expand(0.5);
+        List<CollisionMesh> meshes = ClientCollisionManager.getMeshesNear(queryBox);
+        if (meshes.isEmpty()) {
+            return state;
+        }
+
+        Vec3d allowed = probe;
+        for (CollisionMesh mesh : meshes) {
+            CollisionResult result = MeshCollider.collideWithStepUp(playerBox, allowed, mesh, 0.0f);
+            allowed = result.allowedMovement();
+        }
+
+        if (!axisBlocked(probe.y, allowed.y)) {
+            return state;
+        }
+
+        float velY = state.velY();
+        if (velY < 0.0f) {
+            velY = 0.0f;
+        }
+
+        return new PlayerState(
+                state.x(), state.y(), state.z(),
+                state.velX(), velY, state.velZ(),
+                true,
+                state.collidingHorizontally()
+        );
     }
 
     private static int encodeInputBits(boolean forward, boolean backward, boolean left, boolean right,
@@ -258,11 +656,31 @@ public final class ClientMovementTracker {
         return bits;
     }
 
+    private static boolean axisBlocked(double requested, double allowed) {
+        if (Math.abs(requested) <= 1e-9) {
+            return false;
+        }
+        double diff = allowed - requested;
+        if (Math.abs(diff) <= 1e-6) {
+            return false;
+        }
+        if (allowed * requested < -1e-9) {
+            return true;
+        }
+        return Math.signum(allowed) == Math.signum(requested) && Math.abs(allowed) < Math.abs(requested) - 1e-6;
+    }
+
     private void applyToPlayer(PlayerEntity player, PlayerState state) {
         if (player == null || state == null) {
             return;
         }
         player.setPos(state.x(), state.y(), state.z());
+        player.prevX = state.x();
+        player.prevY = state.y();
+        player.prevZ = state.z();
+        player.lastRenderX = state.x();
+        player.lastRenderY = state.y();
+        player.lastRenderZ = state.z();
         player.setVelocity(state.velX(), state.velY(), state.velZ());
     }
 
@@ -377,6 +795,13 @@ public final class ClientMovementTracker {
             Box region = new Box(query.minX(), query.minY(), query.minZ(), query.maxX(), query.maxY(), query.maxZ());
             for (Box bounds : ModelCollisionManager.getInstance().collectBounds(region)) {
                 colliders.add(new AABB(bounds.minX, bounds.minY, bounds.minZ, bounds.maxX, bounds.maxY, bounds.maxZ));
+            }
+
+            for (var primitive : ClientPrimitiveManager.getInstance().getPrimitives()) {
+                AABB bounds = ClientPrimitiveCollisionBounds.computeAabb(primitive);
+                if (bounds != null && bounds.intersects(query)) {
+                    colliders.add(bounds);
+                }
             }
 
             if (colliders.size() <= 1) {
