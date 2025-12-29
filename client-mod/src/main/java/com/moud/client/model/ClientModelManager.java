@@ -33,7 +33,6 @@ public class ClientModelManager {
         models.computeIfAbsent(id, key -> {
             LOGGER.info("Creating client-side model ID {} with path {}", id, modelPath);
             RenderableModel model = new RenderableModel(id, modelPath);
-            model.setSmoothingDurationTicks(3.0f);
             loadModelData(model);
             RuntimeObjectRegistry.getInstance().syncModel(model);
             return model;
