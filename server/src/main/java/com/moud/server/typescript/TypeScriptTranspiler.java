@@ -29,6 +29,14 @@ public final class TypeScriptTranspiler {
     }
 
     public static CompletableFuture<String> transpile(Path tsFile, boolean isClientScript) {
+        return transpile(tsFile, isClientScript ? BundleFormat.CLIENT_IIFE : BundleFormat.SERVER_ESM);
+    }
+
+    public static CompletableFuture<String> transpileSharedPhysics(Path tsFile) {
+        return transpile(tsFile, BundleFormat.SHARED_PHYSICS_CJS);
+    }
+
+    private static CompletableFuture<String> transpile(Path tsFile, BundleFormat bundleFormat) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 if (!Files.exists(tsFile)) {
@@ -37,10 +45,10 @@ public final class TypeScriptTranspiler {
 
                 String npxPath = findNpxExecutable();
                 if (npxPath != null) {
-                    return transpileWithEsbuild(tsFile, npxPath, isClientScript);
+                    return transpileWithEsbuild(tsFile, npxPath, bundleFormat);
                 }
 
-                Path cachedBundle = resolveCachedBundle();
+                Path cachedBundle = resolveCachedBundle(bundleFormat);
                 if (cachedBundle != null && Files.exists(cachedBundle)) {
                     LOGGER.info("Using cached server bundle from {}", cachedBundle);
                     return Files.readString(cachedBundle, StandardCharsets.UTF_8);
@@ -56,10 +64,10 @@ public final class TypeScriptTranspiler {
         });
     }
 
-    private static Path resolveCachedBundle() {
+    private static Path resolveCachedBundle(BundleFormat bundleFormat) {
         try {
             Path projectRoot = ProjectLoader.findProjectRoot();
-            Path bundle = projectRoot.resolve(".moud/cache/server.bundle.js");
+            Path bundle = projectRoot.resolve(".moud/cache/" + bundleFormat.cacheFileName);
             if (Files.exists(bundle)) {
                 return bundle;
             }
@@ -98,7 +106,7 @@ public final class TypeScriptTranspiler {
         return null;
     }
 
-    private static String transpileWithEsbuild(Path tsFile, String npxPath, boolean isClientScript) throws Exception {
+    private static String transpileWithEsbuild(Path tsFile, String npxPath, BundleFormat bundleFormat) throws Exception {
         Path projectRoot = ProjectLoader.findProjectRoot();
         Path tempDir = Files.createTempDirectory("moud-ts");
         Path jsFile = tempDir.resolve(tsFile.getFileName().toString().replaceFirst("\\.tsx?$", ".js"));
@@ -113,9 +121,8 @@ public final class TypeScriptTranspiler {
             cmdLine.addArgument("--outfile=" + jsFile.toAbsolutePath(), true);
             cmdLine.addArgument("--bundle");
             cmdLine.addArgument("--target=es2020");
-            // Use IIFE format for client scripts (GraalVM compatible), ESM for server
-            cmdLine.addArgument("--format=" + (isClientScript ? "iife" : "esm"));
-            cmdLine.addArgument("--platform=" + (isClientScript ? "browser" : "node"));
+            cmdLine.addArgument("--format=" + bundleFormat.esbuildFormat);
+            cmdLine.addArgument("--platform=" + bundleFormat.esbuildPlatform);
 
             DefaultExecutor executor = DefaultExecutor.builder().get();
             executor.setWorkingDirectory(projectRoot.toFile());
@@ -130,7 +137,7 @@ public final class TypeScriptTranspiler {
             if (exitCode != 0) {
                 String error = stderr.toString(StandardCharsets.UTF_8);
                 LOGGER.error("esbuild failed with exit code {}: {}", exitCode, error);
-                Path cachedBundle = resolveCachedBundle();
+                Path cachedBundle = resolveCachedBundle(bundleFormat);
                 if (cachedBundle != null && Files.exists(cachedBundle)) {
                     LOGGER.warn("Falling back to cached bundle {}", cachedBundle);
                     return Files.readString(cachedBundle, StandardCharsets.UTF_8);
@@ -146,6 +153,22 @@ public final class TypeScriptTranspiler {
             } catch (IOException cleanupError) {
                 LOGGER.debug("Failed to clean up temporary transpilation artifacts", cleanupError);
             }
+        }
+    }
+
+    private enum BundleFormat {
+        SERVER_ESM("esm", "node", "server.bundle.js"),
+        CLIENT_IIFE("iife", "browser", "client.bundle.js"),
+        SHARED_PHYSICS_CJS("cjs", "neutral", "shared.bundle.js");
+
+        private final String esbuildFormat;
+        private final String esbuildPlatform;
+        private final String cacheFileName;
+
+        BundleFormat(String esbuildFormat, String esbuildPlatform, String cacheFileName) {
+            this.esbuildFormat = esbuildFormat;
+            this.esbuildPlatform = esbuildPlatform;
+            this.cacheFileName = cacheFileName;
         }
     }
 }
