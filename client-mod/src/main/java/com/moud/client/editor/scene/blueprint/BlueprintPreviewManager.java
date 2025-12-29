@@ -27,6 +27,13 @@ public final class BlueprintPreviewManager {
         state.blueprint = blueprint;
         state.position = position.clone();
         state.boxes = new ArrayList<>();
+        if (blueprint.blocks != null) {
+            Blueprint.BlockVolume volume = blueprint.blocks;
+            int sizeX = Math.max(1, volume.sizeX);
+            int sizeY = Math.max(1, volume.sizeY);
+            int sizeZ = Math.max(1, volume.sizeZ);
+            state.boxes.add(new RelativeBox(0.0, 0.0, 0.0, sizeX, sizeY, sizeZ));
+        }
         if (blueprint.objects != null) {
             for (BlueprintObject object : blueprint.objects) {
                 if (object.boundsMin != null && object.boundsMax != null) {
@@ -44,9 +51,6 @@ public final class BlueprintPreviewManager {
                 }
             }
         }
-        if (blueprint.blocks != null) {
-            addBlockColumns(state, blueprint.blocks);
-        }
         current = state;
     }
 
@@ -63,7 +67,31 @@ public final class BlueprintPreviewManager {
         if (state == null) {
             return;
         }
-        state.yawDegrees = yawDegrees;
+        state.rotation[1] = yawDegrees;
+    }
+
+    public void setRotation(float pitch, float yaw, float roll) {
+        PreviewState state = current;
+        if (state == null) {
+            return;
+        }
+        state.rotation[0] = pitch;
+        state.rotation[1] = yaw;
+        state.rotation[2] = roll;
+    }
+
+    public void setScale(float x, float y, float z) {
+        PreviewState state = current;
+        if (state == null) {
+            return;
+        }
+        state.scale[0] = x;
+        state.scale[1] = y;
+        state.scale[2] = z;
+    }
+
+    public void setUniformScale(float scale) {
+        setScale(scale, scale, scale);
     }
 
     public PreviewState getCurrent() {
@@ -73,8 +101,13 @@ public final class BlueprintPreviewManager {
     public static final class PreviewState {
         public Blueprint blueprint;
         public float[] position = new float[3];
-        public float yawDegrees;
+        public float[] rotation = new float[3]; // pitch, yaw, roll in degrees
+        public float[] scale = new float[]{1f, 1f, 1f};
         public List<RelativeBox> boxes = List.of();
+
+        public float getYawDegrees() {
+            return rotation[1];
+        }
     }
 
     public static final class RelativeBox {
