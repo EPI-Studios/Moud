@@ -3,10 +3,16 @@ package com.moud.server.proxy;
 import com.moud.server.ts.TsExpose;
 import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
+import com.moud.server.entity.FakePlayer;
+import com.moud.server.instance.InstanceManager;
 import com.moud.server.network.ServerNetworkManager;
+import com.moud.server.scripting.PolyglotValueUtil;
 import net.minestom.server.MinecraftServer;
+import net.minestom.server.coordinate.Pos;
+import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.player.PlayerSpawnEvent;
+import net.minestom.server.instance.Instance;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
@@ -28,9 +34,10 @@ public class PlayerModelProxy {
     private static final AtomicLong ID_COUNTER = new AtomicLong(1);
     private static final ConcurrentHashMap<Long, PlayerModelProxy> ALL_MODELS = new ConcurrentHashMap<>();
     private static final ScheduledExecutorService ANIMATION_SCHEDULER = Executors.newScheduledThreadPool(1);
-    private static final int WALK_UPDATE_PERIOD_MS = 16; // ~60hz for smoother waypoint motion
+    private static final int WALK_UPDATE_PERIOD_MS = 50; // 20 TPS - match Minecraft's tick rate
 
     private final long modelId;
+    private final FakePlayer fakePlayer;
     private Vector3 position;
     private String instanceName;
     private float yaw;
@@ -52,25 +59,6 @@ public class PlayerModelProxy {
     private float walkSpeed = 2.0f; // meters per second
     private ScheduledFuture<?> walkTask;
 
-    static {
-        MinecraftServer.getGlobalEventHandler().addListener(PlayerSpawnEvent.class, event -> {
-            if (event.isFirstSpawn()) {
-                Player player = event.getPlayer();
-                ServerNetworkManager networkManager = ServerNetworkManager.getInstance();
-                if (networkManager == null) return;
-
-                for (PlayerModelProxy model : ALL_MODELS.values()) {
-                    networkManager.send(player, new MoudPackets.PlayerModelCreatePacket(model.modelId, model.position, model.skinUrl));
-                    networkManager.send(player, new MoudPackets.PlayerModelUpdatePacket(model.modelId, model.position, model.yaw, model.pitch, model.instanceName));
-
-                    if (model.currentAnimation != null && !model.currentAnimation.isEmpty()) {
-                        networkManager.send(player, new MoudPackets.S2C_PlayModelAnimationPacket(model.modelId, model.currentAnimation));
-                    }
-                }
-            }
-        });
-    }
-
     public PlayerModelProxy(Vector3 position, String skinUrl) {
         this.modelId = ID_COUNTER.getAndIncrement();
         this.position = position != null ? position : Vector3.zero();
@@ -78,11 +66,29 @@ public class PlayerModelProxy {
         this.yaw = 0.0f;
         this.pitch = 0.0f;
 
+        this.fakePlayer = new FakePlayer(modelId, "Model" + modelId);
+
+        Instance defaultInstance = MinecraftServer.getInstanceManager().getInstances().stream()
+                .findFirst()
+                .orElse(null);
+
+        if (defaultInstance == null) {
+            LOGGER.error("No instance available to spawn FakePlayer {}", modelId);
+            throw new RuntimeException("Cannot spawn FakePlayer: no instance available");
+        }
+
+        Pos spawnPos = new Pos(position.x, position.y, position.z, yaw, pitch);
+        fakePlayer.setInstance(defaultInstance, spawnPos).thenRun(() -> {
+            LOGGER.info("FakePlayer {} spawned at position {} in instance {}",
+                       modelId, spawnPos, defaultInstance.getUniqueId());
+
+            if (skinUrl != null && !skinUrl.isEmpty()) {
+                applySkinToFakePlayer(skinUrl);
+            }
+        });
+
         ALL_MODELS.put(modelId, this);
-        broadcastCreate();
-
         setMovementState(MovementState.IDLE);
-
     }
 
     private void setMovementState(MovementState newState) {
@@ -91,16 +97,11 @@ public class PlayerModelProxy {
         this.movementState = newState;
         LOGGER.debug("Model {} changing state to {}", modelId, newState);
 
-        updateStateAnimation();
     }
 
     private void updateStateAnimation() {
         if (manualAnimation != null || !autoAnimation) {
             return;
-        }
-        switch (movementState) {
-            case IDLE -> playAnimation("moud:player_animations/idle");
-            case WALKING -> playAnimation("moud:player_animations/walk");
         }
     }
 
@@ -110,9 +111,22 @@ public class PlayerModelProxy {
     }
 
     @HostAccess.Export
-    public void setInstance(String instance) {
-        this.instanceName = instance;
-        broadcastUpdate();
+    public void setInstance(String instanceName) {
+        this.instanceName = instanceName;
+
+        Instance targetInstance = MinecraftServer.getInstanceManager().getInstances().stream()
+                .filter(inst -> inst.getUniqueId().toString().equals(instanceName))
+                .findFirst()
+                .orElse(null);
+
+        if (targetInstance != null) {
+            Pos currentPos = fakePlayer.getPosition();
+            fakePlayer.setInstance(targetInstance, currentPos).thenRun(() -> {
+                LOGGER.info("FakePlayer {} moved to instance {}", modelId, instanceName);
+            });
+        } else {
+            LOGGER.warn("Instance {} not found for FakePlayer {}", instanceName, modelId);
+        }
     }
 
     @HostAccess.Export
@@ -126,13 +140,23 @@ public class PlayerModelProxy {
             stopWalking();
         }
         this.position = position;
-        broadcastUpdate();
+
+        Pos newPos = new Pos(position.x, position.y, position.z, yaw, pitch);
+        fakePlayer.teleport(newPos).thenRun(() -> {
+            LOGGER.debug("FakePlayer {} teleported to {}", modelId, newPos);
+        });
     }
 
     @HostAccess.Export
-    public void walkTo(Vector3 target, Value options) {
+    public void walkTo(Value targetValue, Value options) {
         if (isWalking()) {
             stopWalking();
+        }
+
+        Vector3 target = valueToVector3(targetValue);
+        if (target == null) {
+            LOGGER.error("Invalid target position for walkTo: {}", targetValue);
+            return;
         }
 
         this.walkTarget = target;
@@ -148,6 +172,28 @@ public class PlayerModelProxy {
         setMovementState(MovementState.WALKING);
 
         walkTask = ANIMATION_SCHEDULER.scheduleAtFixedRate(this::updateWalking, 0, WALK_UPDATE_PERIOD_MS, TimeUnit.MILLISECONDS);
+    }
+
+
+    private static Vector3 valueToVector3(Value value) {
+        if (value == null || value.isNull()) {
+            return null;
+        }
+
+        if (value.isHostObject() && value.asHostObject() instanceof Vector3) {
+            return value.asHostObject();
+        }
+        if (value.hasMembers()) {
+            double x = PolyglotValueUtil.readDouble(value, "x", Double.NaN);
+            double y = PolyglotValueUtil.readDouble(value, "y", Double.NaN);
+            double z = PolyglotValueUtil.readDouble(value, "z", Double.NaN);
+            if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) {
+                return null;
+            }
+            return new Vector3(x, y, z);
+        }
+
+        return null;
     }
 
     @HostAccess.Export
@@ -180,7 +226,8 @@ public class PlayerModelProxy {
 
         if (distanceToTarget < moveDistancePerTick) {
             this.position = walkTarget;
-            broadcastUpdate();
+            Pos finalPos = new Pos(position.x, position.y, position.z, yaw, pitch);
+            fakePlayer.teleport(finalPos);
             stopWalking();
             return;
         }
@@ -193,7 +240,8 @@ public class PlayerModelProxy {
             this.yaw = (float) Math.toDegrees(Math.atan2(-dirNorm.x, dirNorm.z));
         }
 
-        broadcastUpdate();
+        Pos newPos = new Pos(position.x, position.y, position.z, yaw, pitch);
+        fakePlayer.teleport(newPos);
     }
 
     @HostAccess.Export
@@ -211,14 +259,34 @@ public class PlayerModelProxy {
                     this.pitch = v.fitsInFloat() ? v.asFloat() : (float) v.asDouble();
                 }
             }
-            broadcastUpdate();
+
+            Pos currentPos = fakePlayer.getPosition();
+            Pos newPos = currentPos.withView(yaw, pitch);
+            fakePlayer.teleport(newPos);
         }
     }
 
     @HostAccess.Export
     public void setSkin(String skinUrl) {
         this.skinUrl = skinUrl != null ? skinUrl : "";
-        broadcastSkin();
+        applySkinToFakePlayer(skinUrl);
+    }
+
+    private void applySkinToFakePlayer(String skinUrl) {
+        if (skinUrl == null || skinUrl.isEmpty()) {
+            LOGGER.warn("Empty skin URL provided for player model {}", modelId);
+            return;
+        }
+
+        try {
+
+            LOGGER.info("Skin URL set for FakePlayer {}: {}", modelId, skinUrl);
+
+            // TODO: implement async skin loading via PlayerSkin.fromUrl()
+
+        } catch (Exception e) {
+            LOGGER.error("Failed to set skin for FakePlayer {}", modelId, e);
+        }
     }
 
     @HostAccess.Export
@@ -235,6 +303,9 @@ public class PlayerModelProxy {
 
     @HostAccess.Export
     public void playAnimation(String animationName) {
+        if (animationName != null && animationName.equals(this.currentAnimation)) {
+            return;
+        }
         this.currentAnimation = animationName;
         broadcastAnimation();
     }
@@ -289,7 +360,9 @@ public class PlayerModelProxy {
     public void remove() {
         stopWalking();
         ALL_MODELS.remove(modelId);
-        broadcastRemove();
+
+        fakePlayer.removeFakePlayer();
+        LOGGER.info("PlayerModelProxy {} removed", modelId);
     }
 
     @HostAccess.Export
@@ -299,22 +372,6 @@ public class PlayerModelProxy {
         }
     }
 
-    private void broadcastCreate() {
-        MoudPackets.PlayerModelCreatePacket packet = new MoudPackets.PlayerModelCreatePacket(modelId, position, skinUrl);
-        LOGGER.info("Broadcasting PlayerModelCreatePacket for model {} at position {}", modelId, position);
-        broadcast(packet);
-    }
-
-    private void broadcastUpdate() {
-        MoudPackets.PlayerModelUpdatePacket packet = new MoudPackets.PlayerModelUpdatePacket(modelId, position, yaw, pitch, instanceName);
-        broadcast(packet);
-    }
-
-    private void broadcastSkin() {
-        MoudPackets.PlayerModelSkinPacket packet = new MoudPackets.PlayerModelSkinPacket(modelId, skinUrl);
-        broadcast(packet);
-    }
-
     private void broadcastAnimation() {
         MoudPackets.S2C_PlayModelAnimationPacket packet = new MoudPackets.S2C_PlayModelAnimationPacket(modelId, currentAnimation);
         broadcast(packet);
@@ -322,11 +379,6 @@ public class PlayerModelProxy {
 
     private void stopAnimation() {
         MoudPackets.S2C_PlayModelAnimationPacket packet = new MoudPackets.S2C_PlayModelAnimationPacket(modelId, "");
-        broadcast(packet);
-    }
-
-    private void broadcastRemove() {
-        MoudPackets.PlayerModelRemovePacket packet = new MoudPackets.PlayerModelRemovePacket(modelId);
         broadcast(packet);
     }
 
@@ -386,4 +438,8 @@ public class PlayerModelProxy {
         this.pitch = pitch;
     }
 
+    public FakePlayer getFakePlayer() {
+        return fakePlayer;
+    }
 }
+
