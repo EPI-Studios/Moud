@@ -36,6 +36,22 @@ public final class PlayerPhysicsControllers {
         return CONTROLLERS.containsKey(normalizeId(id));
     }
 
+    public static boolean unregister(String id) {
+        if (id == null || id.isBlank()) {
+            return false;
+        }
+        String normalized = normalizeId(id);
+        if (DEFAULT_ID.equals(normalized)) {
+            return false;
+        }
+        return CONTROLLERS.remove(normalized) != null;
+    }
+
+    public static void clearNonDefault() {
+        CONTROLLERS.keySet().removeIf(key -> !DEFAULT_ID.equals(key));
+        CONTROLLERS.computeIfAbsent(DEFAULT_ID, ignored -> new DefaultPlayerPhysicsController());
+    }
+
     private static String normalizeId(String id) {
         String trimmed = Objects.requireNonNull(id, "id").trim();
         if (trimmed.isEmpty()) {
@@ -44,4 +60,3 @@ public final class PlayerPhysicsControllers {
         return trimmed;
     }
 }
-
