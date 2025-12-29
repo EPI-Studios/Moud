@@ -3,6 +3,8 @@ package com.moud.client.editor.ui.panel;
 import com.moud.api.particle.RenderType;
 import com.moud.api.particle.Billboarding;
 import com.moud.api.particle.CollisionMode;
+import com.moud.api.util.PathUtils;
+import com.moud.client.animation.ClientFakePlayerManager;
 import com.moud.client.animation.ClientPlayerModelManager;
 import com.moud.client.animation.PlayerPartConfigManager;
 import com.moud.client.editor.assets.ProjectFileIndex;
@@ -14,6 +16,7 @@ import com.moud.client.editor.scene.SceneObject;
 import com.moud.client.editor.scene.SceneSessionManager;
 import com.moud.client.editor.ui.SceneEditorOverlay;
 import com.moud.client.editor.ui.layout.EditorDockingLayout;
+import com.moud.client.rendering.PostEffectUniformRegistry;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
@@ -23,6 +26,8 @@ import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
 import imgui.type.ImString;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
+import net.minecraft.client.network.OtherClientPlayerEntity;
 import net.minecraft.util.math.Vec3d;
 
 import java.nio.charset.StandardCharsets;
@@ -130,7 +135,7 @@ public final class InspectorPanel {
         if (projectPath == null || projectPath.isBlank()) {
             return projectPath;
         }
-        String normalized = projectPath.replace('\\', '/');
+        String normalized = PathUtils.normalizeSlashes(projectPath);
         if (!normalized.startsWith("assets/")) {
             return normalized;
         }
@@ -430,13 +435,25 @@ public final class InspectorPanel {
         ImGui.separator();
 
         long modelId = parseModelId(runtime.getObjectId());
-        var animModel = ClientPlayerModelManager.getInstance().getModel(modelId);
-        if (animModel == null || animModel.getEntity() == null) {
+
+        AbstractClientPlayerEntity playerEntity = null;
+
+        OtherClientPlayerEntity fakePlayer = ClientFakePlayerManager.getInstance().getFakePlayer(modelId);
+        if (fakePlayer != null) {
+            playerEntity = fakePlayer;
+        } else {
+            var animModel = ClientPlayerModelManager.getInstance().getModel(modelId);
+            if (animModel != null) {
+                playerEntity = animModel.getEntity();
+            }
+        }
+
+        if (playerEntity == null) {
             ImGui.textColored(0xFF0000FF, "Model data not found");
             return;
         }
 
-        var uuid = animModel.getEntity().getUuid();
+        var uuid = playerEntity.getUuid();
         String boneName = boneNameFromLimb(limb);
         PlayerPartConfigManager.PartConfig config = boneName != null
                 ? PlayerPartConfigManager.getInstance().getPartConfig(uuid, boneName)
@@ -692,8 +709,8 @@ public final class InspectorPanel {
         if (typeChanged) {
             props.put("effectId", currentId);
             Map<String, Object> defaults = currentId.equals("veil:height_fog")
-                    ? com.moud.client.rendering.PostEffectUniformRegistry.defaultHeightFog()
-                    : com.moud.client.rendering.PostEffectUniformRegistry.defaultFog();
+                    ? PostEffectUniformRegistry.defaultHeightFog()
+                    : PostEffectUniformRegistry.defaultFog();
 
             updateUniformBuffers(defaults, currentId.equals("veil:height_fog"));
 

@@ -2,6 +2,7 @@ package com.moud.server.editor;
 
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
+import com.moud.api.util.PathUtils;
 import com.moud.network.MoudPackets;
 import com.moud.server.editor.runtime.SceneRuntimeAdapter;
 import com.moud.server.editor.runtime.SceneRuntimeFactory;
@@ -141,6 +142,18 @@ public final class SceneManager {
             changed = true;
         }
 
+        Map<String, Map<String, Float>> limbProps = update.limbProperties();
+        if (limbProps != null && !limbProps.isEmpty()) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> limbConfig = (Map<String, Object>) props.computeIfAbsent("limbOverrides", k -> new java.util.HashMap<>());
+            limbProps.forEach((limbName, limbValues) -> {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> limbData = (Map<String, Object>) limbConfig.computeIfAbsent(limbName, k -> new java.util.HashMap<>());
+                limbValues.forEach((propPath, value) -> applyNestedProperty(limbData, propPath, value));
+            });
+            changed = true;
+        }
+
         if (!changed) {
             return;
         }
@@ -156,7 +169,18 @@ public final class SceneManager {
 
         ServerNetworkManager net = ServerNetworkManager.getInstance();
         if (net != null) {
-            Map<String, Float> payload = (scalars == null || scalars.isEmpty()) ? null : new java.util.HashMap<>(scalars);
+            // Include limb properties in payload for client sync
+            Map<String, Float> payload = new java.util.HashMap<>();
+            if (scalars != null) {
+                payload.putAll(scalars);
+            }
+            if (limbProps != null) {
+                limbProps.forEach((limbName, limbValues) -> {
+                    limbValues.forEach((propPath, value) -> {
+                        payload.put("player_model:" + limbName + "." + propPath, value);
+                    });
+                });
+            }
             net.broadcast(new MoudPackets.AnimationTransformUpdatePacket(
                     sceneId,
                     objectId,
@@ -164,7 +188,7 @@ public final class SceneManager {
                     rotation,
                     rotationQuat,
                     scale,
-                    payload
+                    payload.isEmpty() ? null : payload
             ));
         }
     }
@@ -563,7 +587,7 @@ public final class SceneManager {
             Files.walk(directory)
                     .filter(Files::isRegularFile)
                     .forEach(path -> {
-                        String relative = projectRoot.relativize(path).toString().replace('\\', '/');
+                        String relative = PathUtils.normalizeSlashes(projectRoot.relativize(path).toString());
                         entries.add(new MoudPackets.ProjectFileEntry(relative, MoudPackets.ProjectEntryKind.FILE));
                     });
         } catch (IOException e) {

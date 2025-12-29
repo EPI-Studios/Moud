@@ -1,11 +1,11 @@
 package com.moud.client.editor.assets;
 
+import com.moud.api.util.PathUtils;
 import com.moud.client.network.ClientPacketWrapper;
 import com.moud.network.MoudPackets;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
 
 public final class ProjectFileContentCache {
     private static final ProjectFileContentCache INSTANCE = new ProjectFileContentCache();
@@ -44,7 +44,7 @@ public final class ProjectFileContentCache {
     }
 
     private String normalize(String path) {
-        return path.replace('\\', '/');
+        return PathUtils.normalizeSlashes(path);
     }
 
     public static final class Entry {
