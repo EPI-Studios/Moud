@@ -28,6 +28,22 @@ class PlayerControllerTest {
     }
 
     @Test
+    void resolvesPenetrationWhenInsideWall() {
+        CollisionWorld world = box -> List.of(
+                new AABB(0.35, 0.0, -1.0, 1.0, 2.0, 1.0)
+        );
+
+        PlayerPhysicsConfig config = PlayerPhysicsConfig.defaults();
+        PlayerState start = new PlayerState(0.2, 0.0, 0.0, 0.0f, 0.0f, 0.0f, true, false);
+        PlayerInput input = new PlayerInput(1L, false, false, false, false, false, false, false, 0.0f, 0.0f);
+
+        PlayerState next = PlayerController.step(start, input, config, world, 0.05f);
+
+        assertTrue(next.x() <= 0.051, "Expected penetration resolver to push out of wall");
+        assertEquals(0.0f, next.velX(), 1.0e-6f, "Velocity should be preserved during depenetration");
+    }
+
+    @Test
     void stepsUpSmallObstacle() {
         CollisionWorld world = box -> List.of(
                 new AABB(0.35, 0.0, -1.0, 1.0, 0.5, 1.0)
@@ -57,4 +73,3 @@ class PlayerControllerTest {
         assertTrue(next.onGround(), "Expected to be grounded after stepping");
     }
 }
-
