@@ -32,6 +32,9 @@ public final class EditorModeManager {
     private boolean unlockCursorOnDisable;
     private final EditorCameraController cameraController = EditorCameraController.getInstance();
     private GameMode previousGameMode = null;
+    private boolean boxSelectPending = false;
+    private double boxSelectPressX;
+    private double boxSelectPressY;
 
     private EditorModeManager() {
     }
@@ -211,12 +214,19 @@ public final class EditorModeManager {
         }
 
         if (cameraController.handleMouseButton(button, action, mods, cursorX, cursorY)) {
+            if (boxSelectPending) {
+                SceneEditorOverlay.getInstance().cancelBoxSelection();
+                boxSelectPending = false;
+            }
             return true;
         }
 
         if (BlueprintCornerSelector.getInstance().handleMouseButton(button, action)) {
             return true;
         }
+
+        SceneEditorOverlay overlay = SceneEditorOverlay.getInstance();
+        boolean shiftHeld = (mods & GLFW.GLFW_MOD_SHIFT) != 0;
 
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && action == GLFW.GLFW_PRESS) {
             if (EditorImGuiLayer.getInstance().isMouseOverUI()) {
@@ -230,26 +240,39 @@ public final class EditorModeManager {
 
             if (hovered != null && hovered.getType() == RuntimeObjectType.PLAYER_MODEL && hoveredLimb != null) {
                 picker.selectHovered();
-                SceneEditorOverlay.getInstance().selectRuntimeObject(hovered);
+                overlay.selectRuntimeObject(hovered);
                 return true;
             }
 
             SceneObject pickedSceneObject = SceneObjectPicker.pickHoveredSceneObject();
             if (pickedSceneObject != null) {
-                SceneEditorOverlay.getInstance().selectFromExternal(pickedSceneObject.getId());
+                overlay.selectFromExternal(pickedSceneObject.getId(), shiftHeld);
                 return true;
             }
 
             if (hovered != null) {
                 picker.selectHovered();
-                SceneEditorOverlay.getInstance().selectRuntimeObject(hovered);
+                overlay.selectRuntimeObject(hovered);
                 return true;
             }
+
+            boxSelectPending = true;
+            boxSelectPressX = cursorX;
+            boxSelectPressY = cursorY;
+            overlay.startBoxSelection((float) cursorX, (float) cursorY);
 
             return true; // prevent vanilla block interactions while editor is active
         }
 
-        return cameraController.isCapturingInput();
+        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && action == GLFW.GLFW_RELEASE) {
+            if (boxSelectPending) {
+                overlay.finishBoxSelection(shiftHeld);
+                boxSelectPending = false;
+                return true;
+            }
+        }
+
+        return cameraController.isCapturingInput() || boxSelectPending;
     }
 
     public boolean consumeMouseScroll(double horizontal, double vertical) {
@@ -271,6 +294,14 @@ public final class EditorModeManager {
         if (client != null && client.currentScreen != null) {
             return false;
         }
+
+        if (boxSelectPending && client != null && client.getWindow() != null) {
+            double[] xpos = new double[1];
+            double[] ypos = new double[1];
+            GLFW.glfwGetCursorPos(client.getWindow().getHandle(), xpos, ypos);
+            SceneEditorOverlay.getInstance().updateBoxSelection((float) xpos[0], (float) ypos[0]);
+        }
+
         return cameraController.handleMouseDelta(deltaX, deltaY);
     }
 

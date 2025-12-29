@@ -1,14 +1,18 @@
 package com.moud.client.editor.ui;
 
+import com.moud.api.animation.AnimationClip;
+import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
+import com.moud.client.MoudClientMod;
 import com.moud.client.animation.AnimatedPlayerModel;
+import com.moud.client.animation.ClientFakePlayerManager;
 import com.moud.client.animation.ClientPlayerModelManager;
+import com.moud.client.animation.IAnimatedPlayer;
 import com.moud.client.animation.PlayerPartConfigManager;
 import com.moud.client.editor.EditorModeManager;
 import com.moud.client.editor.assets.EditorAssetCatalog;
 import com.moud.client.editor.camera.EditorCameraController;
 import com.moud.client.editor.picking.RaycastPicker;
-import com.moud.client.editor.runtime.Capsule;
 import com.moud.client.editor.runtime.RuntimeObject;
 import com.moud.client.editor.runtime.RuntimeObjectRegistry;
 import com.moud.client.editor.runtime.RuntimeObjectType;
@@ -24,6 +28,7 @@ import com.moud.client.model.ClientModelManager;
 import com.moud.client.model.RenderableModel;
 import com.moud.client.network.ClientPacketWrapper;
 import com.moud.client.util.LimbRaycaster;
+import com.moud.client.util.ParticleDescriptorMapper;
 import com.moud.network.MoudPackets;
 import com.moud.network.MoudPackets.AnimationListResponsePacket;
 import com.moud.network.MoudPackets.AnimationLoadResponsePacket;
@@ -41,12 +46,14 @@ import imgui.type.ImFloat;
 import imgui.type.ImString;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.nbt.NbtHelper;
 import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Property;
 import net.minecraft.util.Identifier;
@@ -60,8 +67,10 @@ import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public final class SceneEditorOverlay {
     public static final String PAYLOAD_HIERARCHY = "MoudHierarchyObject";
@@ -71,7 +80,8 @@ public final class SceneEditorOverlay {
     public static final String[] LIGHT_TYPE_LABELS = {"Point", "Area"};
     private static final Logger LOGGER = LoggerFactory.getLogger(SceneEditorOverlay.class);
     private static final SceneEditorOverlay INSTANCE = new SceneEditorOverlay();
-    private static final long MAX_BLOCK_CAPTURE_BLOCKS = 10000;
+    private static final long MAX_BLOCK_CAPTURE_BLOCKS =
+            Long.getLong("moud.editor.maxBlockCaptureBlocks", 100_000L);
     private static final String DEFAULT_PLAYER_MODEL_SKIN = " ";
     private static final int PANEL_WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove;
     private static final long HIERARCHY_CACHE_MS = 100;
@@ -98,12 +108,15 @@ public final class SceneEditorOverlay {
     private final InspectorPanel inspectorPanel = new InspectorPanel(this);
     private final ScriptViewerPanel scriptViewerPanel = new ScriptViewerPanel(this);
     private final AnimationTimelinePanel animationTimelinePanel = new AnimationTimelinePanel(this);
-    private final com.moud.client.editor.ui.panel.EventTrackEditor eventTrackEditor = new com.moud.client.editor.ui.panel.EventTrackEditor();
+    private final EventTrackEditor eventTrackEditor = new EventTrackEditor();
     private final AssetBrowserPanel assetBrowserPanel = new AssetBrowserPanel(this);
-    private final DiagnosticsPanel diagnosticsPanel = new DiagnosticsPanel(this);
+    private final AnimationBrowserPanel animationBrowserPanel = new AnimationBrowserPanel(this);
+    private final AnimationTimelineWrapperPanel animationTimelineWrapper = new AnimationTimelineWrapperPanel(this);
+    private final BlueprintBrowserPanel blueprintBrowserPanel = new BlueprintBrowserPanel(this);
+    private final BlueprintCreatePanel blueprintCreatePanel = new BlueprintCreatePanel(this);
     private final ViewportToolbar viewportToolbar = new ViewportToolbar(this);
     private final RibbonBar ribbonBar = new RibbonBar(this);
-    private final BlueprintToolsPanel blueprintToolsPanel = new BlueprintToolsPanel(this);
+    private final SceneToolbar sceneToolbar = new SceneToolbar(this);
     private final ImString modelPopupFilter = new ImString(64);
     private final ImString displayPopupFilter = new ImString(64);
     private final ImString lightPopupFilter = new ImString(64);
@@ -119,11 +132,14 @@ public final class SceneEditorOverlay {
     private final float[] previewRotation = new float[]{0f, 0f, 0f};
     private final float[] previewScale = new float[]{1f, 1f, 1f};
     private final float[] previewMatrix = identity();
+    // Multi-selection support
+    private final Set<String> selectedObjectIds = new LinkedHashSet<>();
     private String selectedLimbType;
-    private String selectedSceneObjectId;
+    private String selectedSceneObjectId; // Primary/active selection (last selected)
     private String selectedRuntimeId;
     private int currentOperation = Operation.TRANSLATE;
     private int gizmoMode = Mode.LOCAL;
+    private PivotMode pivotMode = PivotMode.CENTER;
     private boolean useSnap = false;
     private boolean gizmoManipulating;
     private String gizmoObjectId;
@@ -135,9 +151,9 @@ public final class SceneEditorOverlay {
     private boolean showInspectorPanel = true;
     private boolean showAssetBrowser = true;
     private boolean showScriptViewer = true;
-    private boolean showDiagnostics = true;
     private boolean showGizmoToolbar = true;
     private boolean showSelectionBounds = true;
+    private boolean showBlueprintTools = false;
     private boolean regionASet;
     private boolean regionBSet;
     private boolean previewGizmoActive = false;
@@ -146,6 +162,14 @@ public final class SceneEditorOverlay {
     private String lastSeekId = null;
     private float lastSeekTime = Float.NaN;
     private long lastSeekSentMs = 0L;
+    // Box selection (marquee)
+    private boolean boxSelecting = false;
+    private float boxSelectStartX;
+    private float boxSelectStartY;
+    private float boxSelectEndX;
+    private float boxSelectEndY;
+    // Editor mode
+    private EditorMode currentMode = EditorMode.SCENE;
 
     private SceneEditorOverlay() {
         playerModelSkinBuffer.set(DEFAULT_PLAYER_MODEL_SKIN);
@@ -195,11 +219,25 @@ public final class SceneEditorOverlay {
         return arr;
     }
 
-    private static void composeMatrix(float[] translation, float[] scale, float[] quaternion, float[] outMatrix) {
+    private static void composeMatrixFromQuaternion(float[] translation, float[] scale, float[] quaternion, float[] outMatrix) {
+        if (quaternion == null || quaternion.length != 4) {
+            throw new IllegalArgumentException("Expected quaternion array of length 4");
+        }
         Quaternionf q = new Quaternionf(quaternion[0], quaternion[1], quaternion[2], quaternion[3]);
         Matrix4f matrix = new Matrix4f()
                 .translation(translation[0], translation[1], translation[2])
                 .rotate(q)
+                .scale(scale[0], scale[1], scale[2]);
+        matrix.get(outMatrix);
+    }
+
+    private static void composeMatrixFromEulerDegrees(float[] translation, float[] rotationDegrees, float[] scale, float[] outMatrix) {
+        float rx = (float) Math.toRadians(rotationDegrees[0]);
+        float ry = (float) Math.toRadians(rotationDegrees[1]);
+        float rz = (float) Math.toRadians(rotationDegrees[2]);
+        Matrix4f matrix = new Matrix4f()
+                .translation(translation[0], translation[1], translation[2])
+                .rotateXYZ(rx, ry, rz)
                 .scale(scale[0], scale[1], scale[2]);
         matrix.get(outMatrix);
     }
@@ -375,30 +413,538 @@ public final class SceneEditorOverlay {
         }
         SceneSessionManager session = SceneSessionManager.getInstance();
         EditorAssetCatalog.getInstance().requestAssetsIfNeeded();
+
+        // Handle global keyboard shortcuts
+        handleGlobalShortcuts();
+
         float displayWidth = ImGui.getIO().getDisplaySizeX();
         float displayHeight = ImGui.getIO().getDisplaySizeY();
-        dockingLayout.begin(displayWidth, displayHeight);
+
+        // Calculate top offset based on current mode
+        float topOffset = currentMode == EditorMode.SCENE
+            ? EditorDockingLayout.getSceneModeTopHeight()
+            : EditorDockingLayout.getRibbonHeight();
+
+        boolean splitRightSide = currentMode == EditorMode.SCENE && showScriptViewer;
+        dockingLayout.begin(displayWidth, displayHeight, topOffset, splitRightSide);
         renderRibbonWindow(session);
-        if (showExplorer) {
-            explorerPanel.render(session);
-        }
-        if (showInspectorPanel) {
-            inspectorPanel.render(session);
-        }
-        if (showScriptViewer) {
-            scriptViewerPanel.render(session);
-        }
-        if (showAssetBrowser) {
-            assetBrowserPanel.render();
-        }
-        if (showDiagnostics) {
-            showDiagnostics = diagnosticsPanel.render(showDiagnostics);
-        }
-        if (showGizmoToolbar) {
-            viewportToolbar.render(dockingLayout.getViewportRect());
+
+        // Mode-specific panels
+        if (currentMode == EditorMode.SCENE) {
+            // Render scene toolbar below ribbon
+            sceneToolbar.render(session, RibbonBar.getRibbonHeight());
+
+            // Scene mode panels
+            if (showExplorer) {
+                explorerPanel.render(session);
+            }
+            if (showInspectorPanel) {
+                inspectorPanel.render(session);
+            }
+            if (showScriptViewer) {
+                scriptViewerPanel.render(session);
+            }
+            if (showAssetBrowser) {
+                assetBrowserPanel.render();
+            }
+        } else if (currentMode == EditorMode.ANIMATION) {
+            // Animation mode panels
+            // Left: Scene hierarchy
+            if (showExplorer) {
+                explorerPanel.render(session);
+            }
+            // Inspector panel for editing selected objects/limbs
+            if (showInspectorPanel) {
+                inspectorPanel.render(session);
+            }
+            // Right: Animation browser (list of .an files)
+            animationBrowserPanel.render();
+            // Bottom: Timeline editor
+            animationTimelineWrapper.render();
+        } else if (currentMode == EditorMode.BLUEPRINT) {
+            // Blueprint mode panels
+            // Left: Scene hierarchy
+            if (showExplorer) {
+                explorerPanel.render(session);
+            }
+            // Right: Blueprint browser (saved blueprints)
+            blueprintBrowserPanel.render(session);
+            // Bottom: Create & preview tools
+            blueprintCreatePanel.render(session);
+        } else if (currentMode == EditorMode.PLAY) {
+            // Play mode - minimal UI
+            // TODO: Add play mode stop button overlay
         }
         renderAssetPopups(session);
-        blueprintToolsPanel.render(session);
+
+        // Draw box selection rectangle
+        if (boxSelecting) {
+            renderBoxSelectionOverlay();
+        }
+    }
+
+    /**
+     * Render the box selection rectangle overlay.
+     */
+    private void renderBoxSelectionOverlay() {
+        var drawList = ImGui.getBackgroundDrawList();
+
+        float minX = Math.min(boxSelectStartX, boxSelectEndX);
+        float maxX = Math.max(boxSelectStartX, boxSelectEndX);
+        float minY = Math.min(boxSelectStartY, boxSelectEndY);
+        float maxY = Math.max(boxSelectStartY, boxSelectEndY);
+
+        // Draw filled rectangle with transparency
+        int fillColor = ImGui.colorConvertFloat4ToU32(0.2f, 0.5f, 0.9f, 0.15f);
+        drawList.addRectFilled(minX, minY, maxX, maxY, fillColor);
+
+        // Draw border
+        int borderColor = ImGui.colorConvertFloat4ToU32(0.2f, 0.6f, 1.0f, 0.8f);
+        drawList.addRect(minX, minY, maxX, maxY, borderColor, 0f, 0, 2f);
+    }
+
+    /**
+     * Handle global keyboard shortcuts for editor.
+     */
+    private void handleGlobalShortcuts() {
+        // Don't handle shortcuts if ImGui wants keyboard input (e.g., text field focused)
+        if (ImGui.getIO().getWantCaptureKeyboard()) {
+            return;
+        }
+
+        boolean ctrlHeld = ImGui.getIO().getKeyCtrl();
+
+        // Ctrl+A - Select All
+        if (ctrlHeld && ImGui.isKeyPressed(ImGui.getKeyIndex(imgui.flag.ImGuiKey.A))) {
+            selectAll();
+        }
+
+        // Escape - Clear selection
+        if (ImGui.isKeyPressed(ImGui.getKeyIndex(imgui.flag.ImGuiKey.Escape))) {
+            clearSelection();
+        }
+
+        // Delete - Delete selected objects
+        if (ImGui.isKeyPressed(ImGui.getKeyIndex(imgui.flag.ImGuiKey.Delete))) {
+            deleteSelectedObjects();
+        }
+
+        // F - Focus on selection (look at center of selected objects)
+        if (ImGui.isKeyPressed(ImGui.getKeyIndex(imgui.flag.ImGuiKey.F))) {
+            focusOnSelection();
+        }
+
+        // G - Snap to ground
+        if (ImGui.isKeyPressed(ImGui.getKeyIndex(imgui.flag.ImGuiKey.G))) {
+            snapToGround();
+        }
+    }
+
+    /**
+     * Focus camera on the center of all selected objects.
+     */
+    private void focusOnSelection() {
+        if (selectedObjectIds.isEmpty()) {
+            return;
+        }
+        Vec3d center = getSelectionCenter();
+        if (center != null) {
+            EditorCameraController.getInstance().lookAtPoint(center);
+        }
+    }
+
+    /**
+     * Get the center point of all selected objects.
+     */
+    public Vec3d getSelectionCenter() {
+        if (selectedObjectIds.isEmpty()) {
+            return null;
+        }
+
+        SceneSessionManager session = SceneSessionManager.getInstance();
+        double sumX = 0, sumY = 0, sumZ = 0;
+        int count = 0;
+
+        for (String id : selectedObjectIds) {
+            SceneObject obj = session.getSceneGraph().get(id);
+            if (obj == null) continue;
+
+            Map<String, Object> props = obj.getProperties();
+            float[] pos = new float[3];
+            if ("zone".equalsIgnoreCase(obj.getType())) {
+                Vec3d center = zoneCenter(props);
+                pos[0] = (float) center.x;
+                pos[1] = (float) center.y;
+                pos[2] = (float) center.z;
+            } else {
+                extractVector(props.getOrDefault("position", null), pos);
+            }
+            sumX += pos[0];
+            sumY += pos[1];
+            sumZ += pos[2];
+            count++;
+        }
+
+        if (count == 0) {
+            return null;
+        }
+        return new Vec3d(sumX / count, sumY / count, sumZ / count);
+    }
+
+    // ============ ALIGNMENT TOOLS ============
+
+    public enum AlignAxis { X, Y, Z }
+    public enum AlignMode { MIN, CENTER, MAX }
+
+    /**
+     * Pivot mode for multi-selection transforms.
+     * CENTER: Transform around selection center (default)
+     * INDIVIDUAL: Each object transforms around its own origin
+     * ACTIVE: Transform around the active/primary selection
+     */
+    public enum PivotMode { CENTER, INDIVIDUAL, ACTIVE }
+
+    /**
+     * Align all selected objects along an axis to min, center, or max.
+     */
+    public void alignSelection(AlignAxis axis, AlignMode mode) {
+        if (selectedObjectIds.size() < 2) {
+            return; // Need at least 2 objects to align
+        }
+
+        SceneSessionManager session = SceneSessionManager.getInstance();
+
+        // Find min, max, and center along the axis
+        double min = Double.MAX_VALUE;
+        double max = Double.MIN_VALUE;
+        for (String id : selectedObjectIds) {
+            SceneObject obj = session.getSceneGraph().get(id);
+            if (obj == null) continue;
+
+            float[] pos = getObjectPositionAsArray(obj);
+            double val = axis == AlignAxis.X ? pos[0] : (axis == AlignAxis.Y ? pos[1] : pos[2]);
+            min = Math.min(min, val);
+            max = Math.max(max, val);
+        }
+
+        double target = switch (mode) {
+            case MIN -> min;
+            case MAX -> max;
+            case CENTER -> (min + max) / 2.0;
+        };
+
+        // Apply alignment
+        for (String id : selectedObjectIds) {
+            SceneObject obj = session.getSceneGraph().get(id);
+            if (obj == null) continue;
+
+            Map<String, Object> props = obj.getProperties();
+            float[] pos = getObjectPositionAsArray(obj);
+            float[] scale = new float[]{1f, 1f, 1f};
+            extractVector(props.getOrDefault("scale", null), scale);
+            float[] quat = new float[]{0f, 0f, 0f, 1f};
+            float[] maybeQuat = extractQuaternion(props.get("rotationQuat"), null);
+            if (maybeQuat != null) {
+                System.arraycopy(maybeQuat, 0, quat, 0, 4);
+            }
+            float[] euler = new float[3];
+            quaternionToEulerDegrees(quat, euler);
+
+            // Update the target axis
+            float[] newPos = pos.clone();
+            switch (axis) {
+                case X -> newPos[0] = (float) target;
+                case Y -> newPos[1] = (float) target;
+                case Z -> newPos[2] = (float) target;
+            }
+
+            updateTransform(session, obj, newPos, euler, scale, true, true, quat);
+        }
+
+        updateActiveTransformFromSelection();
+    }
+
+    /**
+     * Distribute selected objects evenly along an axis.
+     */
+    public void distributeSelection(AlignAxis axis) {
+        if (selectedObjectIds.size() < 3) {
+            return; // Need at least 3 objects to distribute
+        }
+
+        SceneSessionManager session = SceneSessionManager.getInstance();
+
+        // Collect objects with their positions along the axis
+        List<Map.Entry<SceneObject, Double>> objects = new ArrayList<>();
+        for (String id : selectedObjectIds) {
+            SceneObject obj = session.getSceneGraph().get(id);
+            if (obj == null) continue;
+            float[] pos = getObjectPositionAsArray(obj);
+            double val = axis == AlignAxis.X ? pos[0] : (axis == AlignAxis.Y ? pos[1] : pos[2]);
+            objects.add(Map.entry(obj, val));
+        }
+
+        // Sort by position
+        objects.sort(Comparator.comparingDouble(Map.Entry::getValue));
+
+        // Calculate spacing
+        double first = objects.get(0).getValue();
+        double last = objects.get(objects.size() - 1).getValue();
+        double spacing = (last - first) / (objects.size() - 1);
+
+        // Apply distribution
+        for (int i = 1; i < objects.size() - 1; i++) {
+            SceneObject obj = objects.get(i).getKey();
+            double targetVal = first + spacing * i;
+
+            Map<String, Object> props = obj.getProperties();
+            float[] pos = getObjectPositionAsArray(obj);
+            float[] scale = new float[]{1f, 1f, 1f};
+            extractVector(props.getOrDefault("scale", null), scale);
+            float[] quat = new float[]{0f, 0f, 0f, 1f};
+            float[] maybeQuat = extractQuaternion(props.get("rotationQuat"), null);
+            if (maybeQuat != null) {
+                System.arraycopy(maybeQuat, 0, quat, 0, 4);
+            }
+            float[] euler = new float[3];
+            quaternionToEulerDegrees(quat, euler);
+
+            float[] newPos = pos.clone();
+            switch (axis) {
+                case X -> newPos[0] = (float) targetVal;
+                case Y -> newPos[1] = (float) targetVal;
+                case Z -> newPos[2] = (float) targetVal;
+            }
+
+            updateTransform(session, obj, newPos, euler, scale, true, true, quat);
+        }
+
+        updateActiveTransformFromSelection();
+    }
+
+    /**
+     * Snap selected objects to the ground (raycast down).
+     */
+    public void snapToGround() {
+        if (selectedObjectIds.isEmpty()) {
+            return;
+        }
+
+        SceneSessionManager session = SceneSessionManager.getInstance();
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.world == null) {
+            return;
+        }
+
+        for (String id : selectedObjectIds) {
+            SceneObject obj = session.getSceneGraph().get(id);
+            if (obj == null) continue;
+
+            Map<String, Object> props = obj.getProperties();
+            float[] pos = getObjectPositionAsArray(obj);
+            float[] scale = new float[]{1f, 1f, 1f};
+            extractVector(props.getOrDefault("scale", null), scale);
+            float[] quat = new float[]{0f, 0f, 0f, 1f};
+            float[] maybeQuat = extractQuaternion(props.get("rotationQuat"), null);
+            if (maybeQuat != null) {
+                System.arraycopy(maybeQuat, 0, quat, 0, 4);
+            }
+            float[] euler = new float[3];
+            quaternionToEulerDegrees(quat, euler);
+
+            // Raycast downward from object position
+            Vec3d origin = new Vec3d(pos[0], pos[1], pos[2]);
+            double groundY = findGroundY(client.world, origin, 100.0);
+
+            if (groundY != Double.MIN_VALUE) {
+                float[] newPos = pos.clone();
+                newPos[1] = (float) groundY;
+                updateTransform(session, obj, newPos, euler, scale, true, true, quat);
+            }
+        }
+
+        updateActiveTransformFromSelection();
+    }
+
+    /**
+     * Find the ground Y position by raycasting down from origin.
+     */
+    private double findGroundY(ClientWorld world, Vec3d origin, double maxDistance) {
+        for (double y = origin.y; y > origin.y - maxDistance && y > world.getBottomY(); y -= 0.5) {
+            BlockPos pos = new BlockPos((int) Math.floor(origin.x), (int) Math.floor(y), (int) Math.floor(origin.z));
+            BlockState state = world.getBlockState(pos);
+            if (!state.isAir() && !state.getFluidState().isEmpty() == false) {
+                // Found a solid block
+                return pos.getY() + 1.0; // Place on top of the block
+            }
+        }
+        return Double.MIN_VALUE; // No ground found
+    }
+
+    /**
+     * Helper to get object position as float array.
+     */
+    private float[] getObjectPositionAsArray(SceneObject obj) {
+        Map<String, Object> props = obj.getProperties();
+        float[] pos = new float[3];
+        if ("zone".equalsIgnoreCase(obj.getType())) {
+            Vec3d center = zoneCenter(props);
+            pos[0] = (float) center.x;
+            pos[1] = (float) center.y;
+            pos[2] = (float) center.z;
+        } else {
+            extractVector(props.getOrDefault("position", null), pos);
+        }
+        return pos;
+    }
+
+    // ============ BOX SELECTION (MARQUEE) ============
+
+    /**
+     * Start box selection at the given screen coordinates.
+     */
+    public void startBoxSelection(float x, float y) {
+        boxSelecting = true;
+        boxSelectStartX = x;
+        boxSelectStartY = y;
+        boxSelectEndX = x;
+        boxSelectEndY = y;
+    }
+
+    /**
+     * Update box selection end point.
+     */
+    public void updateBoxSelection(float x, float y) {
+        if (!boxSelecting) return;
+        boxSelectEndX = x;
+        boxSelectEndY = y;
+    }
+
+    /**
+     * Complete box selection and select all objects within the box.
+     * @param addToSelection if true, add to current selection; if false, replace selection
+     */
+    public void finishBoxSelection(boolean addToSelection) {
+        if (!boxSelecting) return;
+        boxSelecting = false;
+
+        // Get normalized box bounds
+        float minX = Math.min(boxSelectStartX, boxSelectEndX);
+        float maxX = Math.max(boxSelectStartX, boxSelectEndX);
+        float minY = Math.min(boxSelectStartY, boxSelectEndY);
+        float maxY = Math.max(boxSelectStartY, boxSelectEndY);
+
+        // Require minimum drag distance (5 pixels) to count as box selection
+        if (maxX - minX < 5 && maxY - minY < 5) {
+            return;
+        }
+
+        if (!addToSelection) {
+            clearSelection();
+        }
+
+        // Get view/projection matrices from camera
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.gameRenderer == null) return;
+
+        var camera = client.gameRenderer.getCamera();
+        Vec3d cameraPos = camera.getPos();
+        float screenWidth = ImGui.getIO().getDisplaySizeX();
+        float screenHeight = ImGui.getIO().getDisplaySizeY();
+
+        // Get projection matrix
+        Matrix4f projectionMatrix = new Matrix4f(client.gameRenderer.getBasicProjectionMatrix(
+                client.options.getFov().getValue().floatValue()
+        ));
+
+        // Build view matrix from camera
+        Matrix4f viewMatrix = new Matrix4f();
+        viewMatrix.rotateX((float) Math.toRadians(camera.getPitch()));
+        viewMatrix.rotateY((float) Math.toRadians(camera.getYaw() + 180f));
+        viewMatrix.translate((float) -cameraPos.x, (float) -cameraPos.y, (float) -cameraPos.z);
+
+        // Combined matrix
+        Matrix4f mvp = new Matrix4f(projectionMatrix).mul(viewMatrix);
+
+        // Check each object in scene
+        SceneSessionManager session = SceneSessionManager.getInstance();
+        for (SceneObject obj : session.getSceneGraph().getObjects()) {
+            float[] pos = getObjectPositionAsArray(obj);
+            Vector3f screenPos = worldToScreen(pos[0], pos[1], pos[2], mvp, screenWidth, screenHeight);
+
+            // Check if in front of camera and within box
+            if (screenPos.z > 0 && screenPos.z < 1) {
+                if (screenPos.x >= minX && screenPos.x <= maxX &&
+                    screenPos.y >= minY && screenPos.y <= maxY) {
+                    addToSelection(obj.getId());
+                }
+            }
+        }
+
+        updateActiveTransformFromSelection();
+    }
+
+    /**
+     * Cancel box selection without selecting anything.
+     */
+    public void cancelBoxSelection() {
+        boxSelecting = false;
+    }
+
+    /**
+     * Check if box selection is currently active.
+     */
+    public boolean isBoxSelecting() {
+        return boxSelecting;
+    }
+
+    /**
+     * Get box selection bounds for rendering [startX, startY, endX, endY].
+     */
+    public float[] getBoxSelectionBounds() {
+        return new float[]{boxSelectStartX, boxSelectStartY, boxSelectEndX, boxSelectEndY};
+    }
+
+    /**
+     * Project a world position to screen coordinates.
+     */
+    private Vector3f worldToScreen(float wx, float wy, float wz, Matrix4f mvp, float screenWidth, float screenHeight) {
+        org.joml.Vector4f pos = new org.joml.Vector4f(wx, wy, wz, 1.0f);
+        mvp.transform(pos);
+
+        if (pos.w <= 0) {
+            return new Vector3f(-1, -1, -1); // Behind camera
+        }
+
+        // Perspective divide
+        float ndcX = pos.x / pos.w;
+        float ndcY = pos.y / pos.w;
+        float ndcZ = pos.z / pos.w;
+
+        // Convert to screen coordinates
+        float screenX = (ndcX + 1.0f) * 0.5f * screenWidth;
+        float screenY = (1.0f - ndcY) * 0.5f * screenHeight; // Flip Y
+
+        return new Vector3f(screenX, screenY, (ndcZ + 1.0f) * 0.5f);
+    }
+
+    /**
+     * Delete all selected objects.
+     */
+    private void deleteSelectedObjects() {
+        if (selectedObjectIds.isEmpty()) {
+            return;
+        }
+        SceneSessionManager session = SceneSessionManager.getInstance();
+        // Copy to avoid concurrent modification
+        Set<String> toDelete = new LinkedHashSet<>(selectedObjectIds);
+        for (String id : toDelete) {
+            SceneObject obj = session.getSceneGraph().get(id);
+            if (obj != null) {
+                deleteSceneObject(obj);
+            }
+        }
+        clearSelection();
     }
 
     public void openAnimation(String projectPath) {
@@ -433,7 +979,7 @@ public final class SceneEditorOverlay {
         ClientPacketWrapper.sendToServer(new MoudPackets.AnimationListPacket());
     }
 
-    public void saveAnimation(String projectPath, com.moud.api.animation.AnimationClip clip) {
+    public void saveAnimation(String projectPath, AnimationClip clip) {
         if (projectPath == null || projectPath.isBlank() || clip == null) {
             SceneEditorDiagnostics.log("Cannot save animation: missing path or clip.");
             return;
@@ -471,13 +1017,12 @@ public final class SceneEditorOverlay {
 
     private void renderRibbonWindow(SceneSessionManager session) {
         dockingLayout.apply(EditorDockingLayout.Region.RIBBON);
-        ImGui.setNextWindowSize(ImGui.getIO().getDisplaySizeX(), 96);
-        ImGui.setNextWindowPos(0, 0);
+        // Removed hardcoded size/position - dockingLayout.apply() already sets them correctly
         if (!ImGui.begin("Ribbon", PANEL_WINDOW_FLAGS | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)) {
             ImGui.end();
             return;
         }
-        ribbonBar.render(session);
+        ribbonBar.render();
         ImGui.end();
     }
 
@@ -492,6 +1037,10 @@ public final class SceneEditorOverlay {
 
     public void renderWorldGizmo(Matrix4f viewMatrix, Matrix4f projectionMatrix) {
         if (!EditorModeManager.getInstance().isActive()) {
+            return;
+        }
+        if (previewGizmoActive) {
+            finalizeGizmoChange();
             return;
         }
         SceneSessionManager session = SceneSessionManager.getInstance();
@@ -519,6 +1068,12 @@ public final class SceneEditorOverlay {
         } else {
             SceneObject runtimeSceneObj = selected != null ? selected
                     : (selectedRuntime != null ? session.getSceneGraph().get(selectedRuntime.getObjectId()) : null);
+
+            // Store previous transform for delta calculation (multi-selection)
+            float[] prevTranslation = new float[]{activeTranslation[0], activeTranslation[1], activeTranslation[2]};
+            float[] prevRotationQuat = new float[]{activeRotationQuat[0], activeRotationQuat[1], activeRotationQuat[2], activeRotationQuat[3]};
+            float[] prevScale = new float[]{activeScale[0], activeScale[1], activeScale[2]};
+
             ImGuizmo.manipulate(
                     viewArr,
                     projArr,
@@ -533,13 +1088,20 @@ public final class SceneEditorOverlay {
                 if (!gizmoManipulating) {
                     gizmoManipulating = true;
                     gizmoObjectId = currentObjectId;
-                    if (runtimeSceneObj != null) {
-                        history.beginContinuousChange(runtimeSceneObj);
+                    // Begin history for all selected objects
+                    for (SceneObject obj : getSelectedObjects()) {
+                        history.beginContinuousChange(obj);
                     }
                 }
                 ImGuizmo.decomposeMatrixToComponents(activeMatrix, activeTranslation, activeRotation, activeScale);
                 updateRotationFromMatrix(activeMatrix, activeRotationQuat, activeRotation);
-                if (runtimeSceneObj != null) {
+
+                // Apply transform to all selected objects
+                if (selectedObjectIds.size() > 1) {
+                    // Multi-selection: apply delta transform to all objects
+                    applyBatchTransform(session, prevTranslation, prevRotationQuat, prevScale);
+                } else if (runtimeSceneObj != null) {
+                    // Single selection
                     updateTransform(session, runtimeSceneObj, activeTranslation, activeRotation, activeScale, false, false, activeRotationQuat);
                 } else if (selectedRuntime != null) {
                     updateRuntimeTransform(selectedRuntime, activeTranslation, activeRotation, activeScale);
@@ -550,25 +1112,170 @@ public final class SceneEditorOverlay {
         }
     }
 
+    /**
+     * Apply batch transform to all selected objects based on the delta from previous transform.
+     * Behavior depends on current pivot mode:
+     * - CENTER/ACTIVE: transforms are relative to the pivot point
+     * - INDIVIDUAL: each object transforms around its own origin
+     */
+    private void applyBatchTransform(SceneSessionManager session, float[] prevTranslation, float[] prevRotationQuat, float[] prevScale) {
+        // Calculate deltas
+        float dx = activeTranslation[0] - prevTranslation[0];
+        float dy = activeTranslation[1] - prevTranslation[1];
+        float dz = activeTranslation[2] - prevTranslation[2];
+
+        // Calculate rotation delta as quaternion
+        Quaternionf prevQ = new Quaternionf(prevRotationQuat[0], prevRotationQuat[1], prevRotationQuat[2], prevRotationQuat[3]);
+        Quaternionf newQ = new Quaternionf(activeRotationQuat[0], activeRotationQuat[1], activeRotationQuat[2], activeRotationQuat[3]);
+        Quaternionf deltaQ = new Quaternionf(prevQ).conjugate().premul(newQ);
+
+        // Calculate scale ratio
+        float sx = prevScale[0] != 0 ? activeScale[0] / prevScale[0] : 1f;
+        float sy = prevScale[1] != 0 ? activeScale[1] / prevScale[1] : 1f;
+        float sz = prevScale[2] != 0 ? activeScale[2] / prevScale[2] : 1f;
+
+        // Pivot point (used for CENTER and ACTIVE modes)
+        float pivotX = prevTranslation[0];
+        float pivotY = prevTranslation[1];
+        float pivotZ = prevTranslation[2];
+
+        for (String id : selectedObjectIds) {
+            SceneObject obj = session.getSceneGraph().get(id);
+            if (obj == null) continue;
+
+            Map<String, Object> props = obj.getProperties();
+            float[] objPos = new float[3];
+            float[] objScale = new float[3];
+            float[] objQuat = new float[4];
+
+            if ("zone".equalsIgnoreCase(obj.getType())) {
+                Vec3d center = zoneCenter(props);
+                objPos[0] = (float) center.x;
+                objPos[1] = (float) center.y;
+                objPos[2] = (float) center.z;
+                Vec3d size = zoneSize(props);
+                objScale[0] = (float) size.x;
+                objScale[1] = (float) size.y;
+                objScale[2] = (float) size.z;
+                objQuat[0] = 0; objQuat[1] = 0; objQuat[2] = 0; objQuat[3] = 1;
+            } else {
+                extractVector(props.getOrDefault("position", null), objPos);
+                extractVector(props.getOrDefault("scale", null), objScale);
+                float[] maybeQuat = extractQuaternion(props.get("rotationQuat"), null);
+                if (maybeQuat != null) {
+                    System.arraycopy(maybeQuat, 0, objQuat, 0, 4);
+                } else {
+                    float[] euler = new float[3];
+                    extractEuler(props.getOrDefault("rotation", null), euler);
+                    eulerDegreesToQuaternion(euler, objQuat);
+                }
+            }
+
+            float[] newPos;
+            float[] newQuat;
+            float[] newScale;
+
+            if (pivotMode == PivotMode.INDIVIDUAL) {
+                // INDIVIDUAL mode: each object transforms around its own origin
+                // Translation is applied directly
+                newPos = new float[]{
+                        objPos[0] + dx,
+                        objPos[1] + dy,
+                        objPos[2] + dz
+                };
+
+                // Rotation is applied to object's own rotation (around its own origin)
+                Quaternionf objQ = new Quaternionf(objQuat[0], objQuat[1], objQuat[2], objQuat[3]);
+                objQ.premul(deltaQ);
+                objQ.normalize();
+                newQuat = new float[]{objQ.x, objQ.y, objQ.z, objQ.w};
+
+                // Scale is applied to object's own scale
+                newScale = new float[]{objScale[0] * sx, objScale[1] * sy, objScale[2] * sz};
+            } else {
+                // CENTER or ACTIVE mode: transform around the pivot point
+                // Transform position: translate, then rotate around pivot, then scale from pivot
+                float relX = objPos[0] - pivotX;
+                float relY = objPos[1] - pivotY;
+                float relZ = objPos[2] - pivotZ;
+
+                // Apply rotation around pivot
+                Vector3f relPos = new Vector3f(relX, relY, relZ);
+                deltaQ.transform(relPos);
+
+                // Apply scale from pivot
+                relPos.x *= sx;
+                relPos.y *= sy;
+                relPos.z *= sz;
+
+                // New position = pivot + rotated/scaled relative position + translation delta
+                newPos = new float[]{
+                        pivotX + relPos.x + dx,
+                        pivotY + relPos.y + dy,
+                        pivotZ + relPos.z + dz
+                };
+
+                // Apply rotation to object's own rotation
+                Quaternionf objQ = new Quaternionf(objQuat[0], objQuat[1], objQuat[2], objQuat[3]);
+                objQ.premul(deltaQ);
+                objQ.normalize();
+                newQuat = new float[]{objQ.x, objQ.y, objQ.z, objQ.w};
+
+                // Apply scale
+                newScale = new float[]{objScale[0] * sx, objScale[1] * sy, objScale[2] * sz};
+            }
+
+            float[] newEuler = new float[3];
+            quaternionToEulerDegrees(newQuat, newEuler);
+
+            // Update object
+            updateTransform(session, obj, newPos, newEuler, newScale, false, true, newQuat);
+        }
+    }
+
     private void handleLimbGizmo(RuntimeObject runtime, String currentObjectId, float[] viewArr, float[] projArr) {
         long modelId = parseModelId(runtime.getObjectId());
-        AnimatedPlayerModel animModel = modelId >= 0 ? ClientPlayerModelManager.getInstance().getModel(modelId) : null;
-        if (animModel == null) {
-            return;
-        }
         SceneObject sceneObj = resolvePlayerSceneObject(runtime);
         float tickDelta = MinecraftClient.getInstance().getRenderTickCounter().getTickDelta(true);
-        double lx = animModel.getInterpolatedX(tickDelta);
-        double ly = animModel.getInterpolatedY(tickDelta);
-        double lz = animModel.getInterpolatedZ(tickDelta);
-        float bodyYaw = animModel.getInterpolatedYaw(tickDelta);
-        PlayerAnimationController controller = animModel.getAnimationController();
+
+        // Try to get player data from either system
+        double lx, ly, lz;
+        float bodyYaw;
+        PlayerAnimationController controller;
+
+        // First try new FakePlayer system
+        net.minecraft.client.network.OtherClientPlayerEntity fakePlayer = ClientFakePlayerManager.getInstance().getFakePlayer(modelId);
+        if (fakePlayer != null && fakePlayer instanceof IAnimatedPlayer animatedPlayer) {
+            lx = fakePlayer.prevX + (fakePlayer.getX() - fakePlayer.prevX) * tickDelta;
+            ly = fakePlayer.prevY + (fakePlayer.getY() - fakePlayer.prevY) * tickDelta;
+            lz = fakePlayer.prevZ + (fakePlayer.getZ() - fakePlayer.prevZ) * tickDelta;
+            float prevBodyYaw = fakePlayer.prevBodyYaw;
+            bodyYaw = fakePlayer.bodyYaw;
+            float lerpedBodyYaw = prevBodyYaw + (bodyYaw - prevBodyYaw) * tickDelta;
+            bodyYaw = lerpedBodyYaw;
+
+            com.zigythebird.playeranimcore.animation.AnimationController tempController = animatedPlayer.getAnimationPlayer().getController();
+            if (!(tempController instanceof PlayerAnimationController)) {
+                return;
+            }
+            controller = (PlayerAnimationController) tempController;
+        } else {
+            // Fall back to old AnimatedPlayerModel system
+            AnimatedPlayerModel animModel = modelId >= 0 ? ClientPlayerModelManager.getInstance().getModel(modelId) : null;
+            if (animModel == null) {
+                return;
+            }
+            lx = animModel.getInterpolatedX(tickDelta);
+            ly = animModel.getInterpolatedY(tickDelta);
+            lz = animModel.getInterpolatedZ(tickDelta);
+            bodyYaw = animModel.getInterpolatedYaw(tickDelta);
+            controller = animModel.getAnimationController();
+        }
         PlayerAnimBone bodyBone = controller.get3DTransform(new PlayerAnimBone("body"));
         String boneName = boneNameFromLimb(selectedLimbType);
         Matrix4f parentMat = LimbRaycaster.getBoneParentMatrix(controller, boneName != null ? boneName : selectedLimbType, lx, ly, lz, bodyYaw, bodyBone);
-        java.util.UUID uuid = resolvePlayerModelUuid(runtime);
-        PlayerPartConfigManager.PartConfig config = uuid != null && boneName != null
-                ? PlayerPartConfigManager.getInstance().getPartConfig(uuid, boneName)
+        PlayerPartConfigManager.PartConfig config = boneName != null
+                ? resolvePlayerModelPartConfig(runtime, boneName)
                 : null;
         Vector3 cfgPos = (config != null && config.position != null) ? config.position : Vector3.zero();
         Vector3 cfgRot = (config != null && config.rotation != null) ? config.rotation : Vector3.zero();
@@ -788,56 +1495,69 @@ public final class SceneEditorOverlay {
             hovered = picker.getSelectedObject();
             limb = picker.getSelectedLimb();
         }
-        if (hovered == null || limb == null) return;
-        var caps = hovered.getLimbCapsules();
-        if (caps == null) return;
-        Capsule capsule = caps.get(limb);
-        if (capsule == null) return;
+        if (hovered == null || limb == null || hovered.getType() != RuntimeObjectType.PLAYER_MODEL) {
+            return;
+        }
+
+        String boneName = boneNameFromLimb(limb);
+        if (boneName == null) {
+            return;
+        }
+
+        long modelId = parseModelId(hovered.getObjectId());
+        float tickDelta = MinecraftClient.getInstance().getRenderTickCounter().getTickDelta(true);
+
+        Vec3d[] corners = null;
+        var fakePlayer = ClientFakePlayerManager.getInstance().getFakePlayer(modelId);
+        if (fakePlayer != null) {
+            corners = LimbRaycaster.getLimbWorldCorners(fakePlayer, boneName, tickDelta);
+        } else {
+            AnimatedPlayerModel animModel = modelId >= 0 ? ClientPlayerModelManager.getInstance().getModel(modelId) : null;
+            if (animModel != null) {
+                corners = LimbRaycaster.getLimbWorldCorners(animModel, boneName, tickDelta);
+            }
+        }
+        if (corners == null || corners.length != 8) {
+            return;
+        }
+
         MatrixStack matrices = ctx.matrixStack();
         matrices.push();
         Vec3d camPos = ctx.camera().getPos();
         matrices.translate(-camPos.x, -camPos.y, -camPos.z);
-        Vec3d a = capsule.a();
-        Vec3d b = capsule.b();
-        Vec3d mid = a.add(b).multiply(0.5);
-        double r = capsule.radius();
-        drawLine(matrices, lineBuffer, a, b, 1f, 0.7f, 0.2f, 1f);
-        Vec3d right = new Vec3d(r, 0, 0);
-        Vec3d up = new Vec3d(0, r, 0);
-        drawLine(matrices, lineBuffer, mid.subtract(right), mid.add(right), 1f, 0.7f, 0.2f, 1f);
-        drawLine(matrices, lineBuffer, mid.subtract(up), mid.add(up), 1f, 0.7f, 0.2f, 1f);
-        Vec3d min = new Vec3d(
-                Math.min(a.x, b.x) - r,
-                Math.min(a.y, b.y) - r,
-                Math.min(a.z, b.z) - r
-        );
-        Vec3d max = new Vec3d(
-                Math.max(a.x, b.x) + r,
-                Math.max(a.y, b.y) + r,
-                Math.max(a.z, b.z) + r
-        );
-        drawLine(matrices, lineBuffer, new Vec3d(min.x, min.y, min.z), new Vec3d(max.x, min.y, min.z), 1f, 0.4f, 0.1f, 0.8f);
-        drawLine(matrices, lineBuffer, new Vec3d(min.x, min.y, min.z), new Vec3d(min.x, max.y, min.z), 1f, 0.4f, 0.1f, 0.8f);
-        drawLine(matrices, lineBuffer, new Vec3d(min.x, min.y, min.z), new Vec3d(min.x, min.y, max.z), 1f, 0.4f, 0.1f, 0.8f);
-        drawLine(matrices, lineBuffer, new Vec3d(max.x, max.y, max.z), new Vec3d(min.x, max.y, max.z), 1f, 0.4f, 0.1f, 0.8f);
-        drawLine(matrices, lineBuffer, new Vec3d(max.x, max.y, max.z), new Vec3d(max.x, min.y, max.z), 1f, 0.4f, 0.1f, 0.8f);
-        drawLine(matrices, lineBuffer, new Vec3d(max.x, max.y, max.z), new Vec3d(max.x, max.y, min.z), 1f, 0.4f, 0.1f, 0.8f);
-        drawLine(matrices, lineBuffer, new Vec3d(max.x, min.y, min.z), new Vec3d(max.x, max.y, min.z), 1f, 0.4f, 0.1f, 0.8f);
-        drawLine(matrices, lineBuffer, new Vec3d(max.x, min.y, min.z), new Vec3d(max.x, min.y, max.z), 1f, 0.4f, 0.1f, 0.8f);
-        drawLine(matrices, lineBuffer, new Vec3d(min.x, max.y, min.z), new Vec3d(max.x, max.y, min.z), 1f, 0.4f, 0.1f, 0.8f);
-        drawLine(matrices, lineBuffer, new Vec3d(min.x, max.y, min.z), new Vec3d(min.x, max.y, max.z), 1f, 0.4f, 0.1f, 0.8f);
-        drawLine(matrices, lineBuffer, new Vec3d(min.x, min.y, max.z), new Vec3d(max.x, min.y, max.z), 1f, 0.4f, 0.1f, 0.8f);
-        drawLine(matrices, lineBuffer, new Vec3d(min.x, min.y, max.z), new Vec3d(min.x, max.y, max.z), 1f, 0.4f, 0.1f, 0.8f);
+
+        float r = 1f;
+        float g = 0.7f;
+        float b = 0.2f;
+        float a = 1f;
+        drawLine(matrices, lineBuffer, corners[0], corners[1], r, g, b, a);
+        drawLine(matrices, lineBuffer, corners[1], corners[2], r, g, b, a);
+        drawLine(matrices, lineBuffer, corners[2], corners[3], r, g, b, a);
+        drawLine(matrices, lineBuffer, corners[3], corners[0], r, g, b, a);
+
+        drawLine(matrices, lineBuffer, corners[4], corners[5], r, g, b, a);
+        drawLine(matrices, lineBuffer, corners[5], corners[6], r, g, b, a);
+        drawLine(matrices, lineBuffer, corners[6], corners[7], r, g, b, a);
+        drawLine(matrices, lineBuffer, corners[7], corners[4], r, g, b, a);
+
+        drawLine(matrices, lineBuffer, corners[0], corners[4], r, g, b, a);
+        drawLine(matrices, lineBuffer, corners[1], corners[5], r, g, b, a);
+        drawLine(matrices, lineBuffer, corners[2], corners[6], r, g, b, a);
+        drawLine(matrices, lineBuffer, corners[3], corners[7], r, g, b, a);
         matrices.pop();
     }
 
     public void selectFromExternal(String objectId) {
+        selectFromExternal(objectId, false);
+    }
+
+    public void selectFromExternal(String objectId, boolean additive) {
         if (objectId == null) {
             return;
         }
         SceneObject object = SceneSessionManager.getInstance().getSceneGraph().get(objectId);
         if (object != null) {
-            selectObject(object);
+            selectObject(object, additive);
         }
     }
 
@@ -881,20 +1601,20 @@ public final class SceneEditorOverlay {
         this.showAssetBrowser = visible;
     }
 
-    public boolean isDiagnosticsVisible() {
-        return showDiagnostics;
-    }
-
-    public void setDiagnosticsVisible(boolean visible) {
-        this.showDiagnostics = visible;
-    }
-
     public boolean isGizmoToolbarVisible() {
         return showGizmoToolbar;
     }
 
     public void setGizmoToolbarVisible(boolean visible) {
         this.showGizmoToolbar = visible;
+    }
+
+    public boolean isBlueprintToolsVisible() {
+        return showBlueprintTools;
+    }
+
+    public void setBlueprintToolsVisible(boolean visible) {
+        this.showBlueprintTools = visible;
     }
 
     public AnimationTimelinePanel getTimelinePanel() {
@@ -916,18 +1636,18 @@ public final class SceneEditorOverlay {
             com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(payload).getAsJsonObject();
             String type = json.has("type") ? json.get("type").getAsString() : "burst";
             if ("burst".equalsIgnoreCase(type)) {
-                var descriptor = com.moud.client.util.ParticleDescriptorMapper.fromMap("event-burst", jsonToMap(json));
+                var descriptor = ParticleDescriptorMapper.fromMap("event-burst", jsonToMap(json));
                 if (descriptor != null) {
-                    com.moud.client.MoudClientMod.getInstance().getParticleSystem().spawn(descriptor);
+                    MoudClientMod.getInstance().getParticleSystem().spawn(descriptor);
                 }
             }
         } catch (Exception e) {
-            com.moud.client.MoudClientMod.getLogger().warn("Failed to trigger particle event payload {}", payload, e);
+            MoudClientMod.getLogger().warn("Failed to trigger particle event payload {}", payload, e);
         }
     }
 
     private Map<String, Object> jsonToMap(com.google.gson.JsonObject json) {
-        java.util.HashMap<String, Object> map = new java.util.HashMap<>();
+        Map<String, Object> map = new HashMap<>();
         for (var entry : json.entrySet()) {
             if (entry.getValue().isJsonPrimitive()) {
                 var prim = entry.getValue().getAsJsonPrimitive();
@@ -957,39 +1677,282 @@ public final class SceneEditorOverlay {
         return false;
     }
 
+    /**
+     * Select a single object, clearing any existing selection.
+     */
     private void selectObject(SceneObject object) {
+        selectObject(object, false);
+    }
+
+    /**
+     * Select an object. If additive is true (Shift+Click), add/remove from selection.
+     * Otherwise, clear selection and select only this object.
+     */
+    public void selectObject(SceneObject object, boolean additive) {
         finalizeGizmoChange();
-        selectedSceneObjectId = object.getId();
         selectedRuntimeId = null;
         selectedLimbType = null;
         RaycastPicker.getInstance().clearSelection();
-        Map<String, Object> props = object.getProperties();
-        if ("zone".equalsIgnoreCase(object.getType())) {
-            Vec3d center = zoneCenter(props);
-            Vec3d size = zoneSize(props);
-            activeTranslation[0] = (float) center.x;
-            activeTranslation[1] = (float) center.y;
-            activeTranslation[2] = (float) center.z;
-            activeScale[0] = (float) size.x;
-            activeScale[1] = (float) size.y;
-            activeScale[2] = (float) size.z;
-            activeRotation[0] = activeRotation[1] = activeRotation[2] = 0f;
-            eulerDegreesToQuaternion(activeRotation, activeRotationQuat);
-        } else {
-            extractVector(props.getOrDefault("position", null), activeTranslation);
-            extractVector(props.getOrDefault("scale", null), activeScale);
-            float[] maybeQuat = extractQuaternion(props.get("rotationQuat"), null);
-            if (maybeQuat != null) {
-                System.arraycopy(maybeQuat, 0, activeRotationQuat, 0, 4);
-                quaternionToEulerDegrees(activeRotationQuat, activeRotation);
+
+        if (additive) {
+            // Toggle selection
+            String id = object.getId();
+            if (selectedObjectIds.contains(id)) {
+                selectedObjectIds.remove(id);
+                // If removed the primary, pick another as primary
+                if (id.equals(selectedSceneObjectId)) {
+                    selectedSceneObjectId = selectedObjectIds.isEmpty() ? null : selectedObjectIds.iterator().next();
+                }
             } else {
-                extractEuler(props.getOrDefault("rotation", null), activeRotation);
-                eulerDegreesToQuaternion(activeRotation, activeRotationQuat);
+                selectedObjectIds.add(id);
+                selectedSceneObjectId = id;
+            }
+        } else {
+            // Single selection - clear and select
+            selectedObjectIds.clear();
+            selectedObjectIds.add(object.getId());
+            selectedSceneObjectId = object.getId();
+        }
+
+        // Update active transform from primary selection or selection center
+        updateActiveTransformFromSelection();
+
+        EditorCameraController.getInstance().initialSelectionChanged(object, false);
+        inspectorPanel.onSelectionChanged(selectedObjectIds.size() == 1 ? object : null);
+    }
+
+    /**
+     * Add object to selection without clearing existing selection.
+     */
+    public void addToSelection(SceneObject object) {
+        if (object == null) return;
+        addToSelection(object.getId());
+    }
+
+    /**
+     * Add object to selection by ID without clearing existing selection.
+     */
+    public void addToSelection(String objectId) {
+        if (objectId == null) return;
+        selectedObjectIds.add(objectId);
+        selectedSceneObjectId = objectId;
+        updateActiveTransformFromSelection();
+    }
+
+    /**
+     * Remove object from selection.
+     */
+    public void removeFromSelection(SceneObject object) {
+        if (object == null) return;
+        selectedObjectIds.remove(object.getId());
+        if (object.getId().equals(selectedSceneObjectId)) {
+            selectedSceneObjectId = selectedObjectIds.isEmpty() ? null : selectedObjectIds.iterator().next();
+        }
+        updateActiveTransformFromSelection();
+    }
+
+    /**
+     * Select all objects in the scene.
+     */
+    public void selectAll() {
+        finalizeGizmoChange();
+        selectedRuntimeId = null;
+        selectedLimbType = null;
+        RaycastPicker.getInstance().clearSelection();
+
+        selectedObjectIds.clear();
+        SceneSessionManager session = SceneSessionManager.getInstance();
+        for (SceneObject obj : session.getSceneGraph().getObjects()) {
+            selectedObjectIds.add(obj.getId());
+        }
+        // Set primary to first object
+        selectedSceneObjectId = selectedObjectIds.isEmpty() ? null : selectedObjectIds.iterator().next();
+        updateActiveTransformFromSelection();
+        inspectorPanel.onSelectionChanged(null); // Multi-selection, no single object
+    }
+
+    /**
+     * Clear all selection.
+     */
+    public void clearSelection() {
+        finalizeGizmoChange();
+        selectedObjectIds.clear();
+        selectedSceneObjectId = null;
+        selectedRuntimeId = null;
+        selectedLimbType = null;
+        RaycastPicker.getInstance().clearSelection();
+        inspectorPanel.onSelectionChanged(null);
+    }
+
+    /**
+     * Get all selected objects.
+     */
+    public Set<SceneObject> getSelectedObjects() {
+        SceneSessionManager session = SceneSessionManager.getInstance();
+        Set<SceneObject> result = new LinkedHashSet<>();
+        for (String id : selectedObjectIds) {
+            SceneObject obj = session.getSceneGraph().get(id);
+            if (obj != null) {
+                result.add(obj);
             }
         }
-        composeMatrix(activeTranslation, activeScale, activeRotationQuat, activeMatrix);
-        EditorCameraController.getInstance().initialSelectionChanged(object, false);
-        inspectorPanel.onSelectionChanged(object);
+        return result;
+    }
+
+    /**
+     * Get the set of selected object IDs.
+     */
+    public Set<String> getSelectedObjectIds() {
+        return Collections.unmodifiableSet(selectedObjectIds);
+    }
+
+    /**
+     * Check if an object is selected.
+     */
+    public boolean isSelected(String objectId) {
+        return selectedObjectIds.contains(objectId);
+    }
+
+    /**
+     * Check if multiple objects are selected.
+     */
+    public boolean hasMultiSelection() {
+        return selectedObjectIds.size() > 1;
+    }
+
+    /**
+     * Focus the camera on an object.
+     */
+    public void focusOnObject(SceneObject object) {
+        EditorCameraController.getInstance().focusSelection(object);
+    }
+
+    /**
+     * Render context menu for an object.
+     */
+    public void renderObjectContextMenu(SceneObject object, SceneSessionManager session) {
+        if (ImGui.menuItem("Focus")) {
+            EditorCameraController.getInstance().focusSelection(object);
+        }
+        if (ImGui.menuItem("Create Empty Child")) {
+            spawnEmptyObject(session, object.getId());
+        }
+        if (ImGui.menuItem("Delete")) {
+            deleteSceneObject(object);
+        }
+    }
+
+    /**
+     * Emit drag payload for hierarchy dragging.
+     */
+    public void emitHierarchyDragPayload(SceneObject object, String displayName) {
+        if (ImGui.beginDragDropSource()) {
+            byte[] idBytes = object.getId().getBytes(StandardCharsets.UTF_8);
+            ImGui.setDragDropPayload(PAYLOAD_HIERARCHY, idBytes);
+            ImGui.text("Move " + displayName);
+            ImGui.endDragDropSource();
+        }
+        if (ImGui.beginDragDropTarget()) {
+            handleHierarchyDrop(object.getId());
+            ImGui.endDragDropTarget();
+        }
+    }
+
+    /**
+     * Update the active transform based on current selection and pivot mode.
+     * For single selection: use object's transform.
+     * For multi-selection: position depends on pivot mode.
+     */
+    private void updateActiveTransformFromSelection() {
+        if (selectedObjectIds.isEmpty()) {
+            return;
+        }
+
+        SceneSessionManager session = SceneSessionManager.getInstance();
+
+        if (selectedObjectIds.size() == 1) {
+            // Single selection - use object's transform directly
+            SceneObject object = session.getSceneGraph().get(selectedSceneObjectId);
+            if (object == null) return;
+
+            Map<String, Object> props = object.getProperties();
+            if ("zone".equalsIgnoreCase(object.getType())) {
+                Vec3d center = zoneCenter(props);
+                Vec3d size = zoneSize(props);
+                activeTranslation[0] = (float) center.x;
+                activeTranslation[1] = (float) center.y;
+                activeTranslation[2] = (float) center.z;
+                activeScale[0] = (float) size.x;
+                activeScale[1] = (float) size.y;
+                activeScale[2] = (float) size.z;
+                activeRotation[0] = activeRotation[1] = activeRotation[2] = 0f;
+                eulerDegreesToQuaternion(activeRotation, activeRotationQuat);
+            } else {
+                extractVector(props.getOrDefault("position", null), activeTranslation);
+                extractVector(props.getOrDefault("scale", null), activeScale);
+                float[] maybeQuat = extractQuaternion(props.get("rotationQuat"), null);
+                if (maybeQuat != null) {
+                    System.arraycopy(maybeQuat, 0, activeRotationQuat, 0, 4);
+                    quaternionToEulerDegrees(activeRotationQuat, activeRotation);
+                } else {
+                    extractEuler(props.getOrDefault("rotation", null), activeRotation);
+                    eulerDegreesToQuaternion(activeRotation, activeRotationQuat);
+                }
+            }
+        } else {
+            // Multi-selection - position depends on pivot mode
+            switch (pivotMode) {
+                case ACTIVE -> {
+                    // Use active/primary selection's position as pivot
+                    SceneObject activeObj = session.getSceneGraph().get(selectedSceneObjectId);
+                    if (activeObj != null) {
+                        Map<String, Object> props = activeObj.getProperties();
+                        if ("zone".equalsIgnoreCase(activeObj.getType())) {
+                            Vec3d center = zoneCenter(props);
+                            activeTranslation[0] = (float) center.x;
+                            activeTranslation[1] = (float) center.y;
+                            activeTranslation[2] = (float) center.z;
+                        } else {
+                            extractVector(props.getOrDefault("position", null), activeTranslation);
+                        }
+                    }
+                }
+                case INDIVIDUAL, CENTER -> {
+                    // CENTER: compute center of all objects
+                    // INDIVIDUAL: still show gizmo at center, but transforms apply individually
+                    double sumX = 0, sumY = 0, sumZ = 0;
+                    int count = 0;
+                    for (String id : selectedObjectIds) {
+                        SceneObject obj = session.getSceneGraph().get(id);
+                        if (obj == null) continue;
+                        Map<String, Object> props = obj.getProperties();
+                        float[] pos = new float[3];
+                        if ("zone".equalsIgnoreCase(obj.getType())) {
+                            Vec3d center = zoneCenter(props);
+                            pos[0] = (float) center.x;
+                            pos[1] = (float) center.y;
+                            pos[2] = (float) center.z;
+                        } else {
+                            extractVector(props.getOrDefault("position", null), pos);
+                        }
+                        sumX += pos[0];
+                        sumY += pos[1];
+                        sumZ += pos[2];
+                        count++;
+                    }
+                    if (count > 0) {
+                        activeTranslation[0] = (float) (sumX / count);
+                        activeTranslation[1] = (float) (sumY / count);
+                        activeTranslation[2] = (float) (sumZ / count);
+                    }
+                }
+            }
+            // For multi-selection, use identity rotation and uniform scale
+            activeRotation[0] = activeRotation[1] = activeRotation[2] = 0f;
+            activeScale[0] = activeScale[1] = activeScale[2] = 1f;
+            eulerDegreesToQuaternion(activeRotation, activeRotationQuat);
+        }
+        composeMatrixFromQuaternion(activeTranslation, activeScale, activeRotationQuat, activeMatrix);
     }
 
     public void selectRuntimeObject(RuntimeObject runtimeObject) {
@@ -1022,7 +1985,7 @@ public final class SceneEditorOverlay {
             activeScale[1] = (float) scl.y;
             activeScale[2] = (float) scl.z;
         }
-        composeMatrix(activeTranslation, activeScale, activeRotationQuat, activeMatrix);
+        composeMatrixFromQuaternion(activeTranslation, activeScale, activeRotationQuat, activeMatrix);
         inspectorPanel.onRuntimeSelection(runtimeObject);
     }
 
@@ -1051,7 +2014,7 @@ public final class SceneEditorOverlay {
             activeScale[0] = scale[0];
             activeScale[1] = scale[1];
             activeScale[2] = scale[2];
-            composeMatrix(activeTranslation, activeScale, activeRotationQuat, activeMatrix);
+            composeMatrixFromQuaternion(activeTranslation, activeScale, activeRotationQuat, activeMatrix);
             return;
         }
         float[] quat = quaternion != null ? quaternion.clone() : null;
@@ -1066,14 +2029,14 @@ public final class SceneEditorOverlay {
         if (selectedLimbType != null && runtime != null && runtime.getType() == RuntimeObjectType.PLAYER_MODEL) {
             if (applyLimbTransform(runtime, selectedLimbType, translation, activeRotation, scale)) {
                 if (recomputeMatrix) {
-                    composeMatrix(translation, scale, activeRotationQuat, activeMatrix);
+                    composeMatrixFromQuaternion(translation, scale, activeRotationQuat, activeMatrix);
                 }
                 animationTimelinePanel.recordLimbTransform(selected, selectedLimbType, translation, activeRotation, scale);
                 return;
             }
         }
         if (recomputeMatrix) {
-            composeMatrix(translation, scale, activeRotationQuat, activeMatrix);
+            composeMatrixFromQuaternion(translation, scale, activeRotationQuat, activeMatrix);
         }
         if (discreteChange) {
             Map<String, Object> before = history.snapshot(selected);
@@ -1093,17 +2056,22 @@ public final class SceneEditorOverlay {
     }
 
     public boolean applyLimbTransform(RuntimeObject runtime, String limbKey, float[] translation, float[] rotation, float[] scale) {
-        java.util.UUID uuid = resolvePlayerModelUuid(runtime);
         String bone = boneNameFromLimb(limbKey);
-        if (uuid == null || bone == null) {
+        if (bone == null) {
             return false;
         }
-        java.util.Map<String, Object> updates = new java.util.HashMap<>();
-        updates.put("position", new com.moud.api.math.Vector3(translation[0], translation[1], translation[2]));
-        updates.put("rotation", new com.moud.api.math.Vector3(rotation[0], rotation[1], rotation[2]));
-        updates.put("scale", new com.moud.api.math.Vector3(scale[0], scale[1], scale[2]));
+        List<UUID> uuids = resolvePlayerModelUuids(runtime);
+        if (uuids.isEmpty()) {
+            return false;
+        }
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("position", new Vector3(translation[0], translation[1], translation[2]));
+        updates.put("rotation", new Vector3(rotation[0], rotation[1], rotation[2]));
+        updates.put("scale", new Vector3(scale[0], scale[1], scale[2]));
         updates.put("overrideAnimation", true);
-        PlayerPartConfigManager.getInstance().updatePartConfig(uuid, bone, updates);
+        for (UUID uuid : uuids) {
+            PlayerPartConfigManager.getInstance().updatePartConfig(uuid, bone, updates);
+        }
         syncLimbToSceneObject(runtime, bone, translation, rotation, scale);
         return true;
     }
@@ -1116,18 +2084,18 @@ public final class SceneEditorOverlay {
         if (sceneObj == null) {
             return;
         }
-        Map<String, Object> limbData = new java.util.HashMap<>();
-        Map<String, Object> posMap = new java.util.HashMap<>();
+        Map<String, Object> limbData = new HashMap<>();
+        Map<String, Object> posMap = new HashMap<>();
         posMap.put("x", (double) translation[0]);
         posMap.put("y", (double) translation[1]);
         posMap.put("z", (double) translation[2]);
         limbData.put("position", posMap);
-        Map<String, Object> rotMap = new java.util.HashMap<>();
+        Map<String, Object> rotMap = new HashMap<>();
         rotMap.put("x", (double) rotation[0]);
         rotMap.put("y", (double) rotation[1]);
         rotMap.put("z", (double) rotation[2]);
         limbData.put("rotation", rotMap);
-        Map<String, Object> scaleMap = new java.util.HashMap<>();
+        Map<String, Object> scaleMap = new HashMap<>();
         scaleMap.put("x", (double) scale[0]);
         scaleMap.put("y", (double) scale[1]);
         scaleMap.put("z", (double) scale[2]);
@@ -1179,15 +2147,14 @@ public final class SceneEditorOverlay {
     }
 
     private boolean populateLimbTransform(RuntimeObject runtime, String limbKey) {
-        java.util.UUID uuid = resolvePlayerModelUuid(runtime);
         String bone = boneNameFromLimb(limbKey);
-        if (uuid == null || bone == null) {
+        if (bone == null) {
             return false;
         }
-        PlayerPartConfigManager.PartConfig config = PlayerPartConfigManager.getInstance().getPartConfig(uuid, bone);
-        com.moud.api.math.Vector3 pos = config != null ? config.getInterpolatedPosition() : null;
-        com.moud.api.math.Vector3 rot = config != null ? config.getInterpolatedRotation() : null;
-        com.moud.api.math.Vector3 scl = config != null ? config.getInterpolatedScale() : null;
+        PlayerPartConfigManager.PartConfig config = resolvePlayerModelPartConfig(runtime, bone);
+        Vector3 pos = config != null ? config.getInterpolatedPosition() : null;
+        Vector3 rot = config != null ? config.getInterpolatedRotation() : null;
+        Vector3 scl = config != null ? config.getInterpolatedScale() : null;
         activeTranslation[0] = pos != null ? pos.x : 0f;
         activeTranslation[1] = pos != null ? pos.y : 0f;
         activeTranslation[2] = pos != null ? pos.z : 0f;
@@ -1201,13 +2168,55 @@ public final class SceneEditorOverlay {
         return true;
     }
 
-    private java.util.UUID resolvePlayerModelUuid(RuntimeObject runtime) {
+    private List<UUID> resolvePlayerModelUuids(RuntimeObject runtime) {
+        if (runtime == null || runtime.getObjectId() == null) {
+            return List.of();
+        }
+        LinkedHashSet<UUID> uuids = new LinkedHashSet<>();
+        if (runtime.getPlayerUuid() != null) {
+            uuids.add(runtime.getPlayerUuid());
+        }
+        long modelId = parseModelId(runtime.getObjectId());
+        if (modelId >= 0) {
+            var fakePlayer = ClientFakePlayerManager.getInstance().getFakePlayer(modelId);
+            if (fakePlayer != null) {
+                uuids.add(fakePlayer.getUuid());
+            }
+            var model = ClientPlayerModelManager.getInstance().getModel(modelId);
+            if (model != null && model.getEntity() != null) {
+                uuids.add(model.getEntity().getUuid());
+            }
+        }
+        return new ArrayList<>(uuids);
+    }
+
+    private PlayerPartConfigManager.PartConfig resolvePlayerModelPartConfig(RuntimeObject runtime, String boneName) {
+        if (boneName == null) {
+            return null;
+        }
+        for (UUID uuid : resolvePlayerModelUuids(runtime)) {
+            PlayerPartConfigManager.PartConfig config = PlayerPartConfigManager.getInstance().getPartConfig(uuid, boneName);
+            if (config != null) {
+                return config;
+            }
+        }
+        return null;
+    }
+
+    private UUID resolvePlayerModelUuid(RuntimeObject runtime) {
         if (runtime == null || runtime.getObjectId() == null) {
             return null;
+        }
+        if (runtime.getPlayerUuid() != null) {
+            return runtime.getPlayerUuid();
         }
         long modelId = parseModelId(runtime.getObjectId());
         if (modelId < 0) {
             return null;
+        }
+        var fakePlayer = ClientFakePlayerManager.getInstance().getFakePlayer(modelId);
+        if (fakePlayer != null) {
+            return fakePlayer.getUuid();
         }
         var model = ClientPlayerModelManager.getInstance().getModel(modelId);
         if (model == null || model.getEntity() == null) {
@@ -1305,6 +2314,24 @@ public final class SceneEditorOverlay {
         this.gizmoMode = gizmoMode;
     }
 
+    public PivotMode getPivotMode() {
+        return pivotMode;
+    }
+
+    public void setPivotMode(PivotMode mode) {
+        this.pivotMode = mode;
+        updateActiveTransformFromSelection();
+    }
+
+    public EditorMode getCurrentMode() {
+        return currentMode;
+    }
+
+    public void setMode(EditorMode mode) {
+        if (mode == null) return;
+        this.currentMode = mode;
+    }
+
     public boolean isSnapEnabled() {
         return useSnap;
     }
@@ -1374,7 +2401,7 @@ public final class SceneEditorOverlay {
             return;
         }
         if (ImGui.beginDragDropSource()) {
-            byte[] pathBytes = path.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            byte[] pathBytes = path.getBytes(StandardCharsets.UTF_8);
             ImGui.setDragDropPayload(PAYLOAD_PROJECT_FILE, pathBytes);
             ImGui.text(path);
             ImGui.endDragDropSource();
@@ -1392,18 +2419,18 @@ public final class SceneEditorOverlay {
 
     private Map<String, List<SceneObject>> buildHierarchy(SceneSessionManager session) {
         Map<String, List<SceneObject>> children = new ConcurrentHashMap<>();
-        children.putIfAbsent("", new java.util.concurrent.CopyOnWriteArrayList<>());
+        children.putIfAbsent("", new CopyOnWriteArrayList<>());
         for (SceneObject object : session.getSceneGraph().getObjects()) {
             String parent = parentIdOf(object);
-            children.computeIfAbsent(parent, k -> new java.util.concurrent.CopyOnWriteArrayList<>()).add(object);
-            children.putIfAbsent(object.getId(), new java.util.concurrent.CopyOnWriteArrayList<>());
+            children.computeIfAbsent(parent, k -> new CopyOnWriteArrayList<>()).add(object);
+            children.putIfAbsent(object.getId(), new CopyOnWriteArrayList<>());
         }
-        children.values().forEach(list -> list.sort(java.util.Comparator.comparing(this::sceneLabel, String.CASE_INSENSITIVE_ORDER)));
+        children.values().forEach(list -> list.sort(Comparator.comparing(this::sceneLabel, String.CASE_INSENSITIVE_ORDER)));
         return children;
     }
 
     public void renderHierarchyNode(SceneSessionManager session, SceneObject object, Map<String, List<SceneObject>> tree, String filterText) {
-        java.util.List<SceneObject> children = tree.getOrDefault(object.getId(), java.util.List.of());
+        List<SceneObject> children = tree.getOrDefault(object.getId(), List.of());
         String filter = filterText == null ? "" : filterText.trim().toLowerCase();
         if (!filter.isEmpty() && !matchesHierarchyFilter(object, filter)) {
             boolean descendantMatches = false;
@@ -1422,14 +2449,15 @@ public final class SceneEditorOverlay {
         if (!hasChildren) {
             flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen;
         }
-        if (Objects.equals(selectedSceneObjectId, object.getId())) {
+        if (selectedObjectIds.contains(object.getId())) {
             flags |= ImGuiTreeNodeFlags.Selected;
         }
         String label = sceneLabel(object);
         String visibleLabel = String.format("%s %s##%s", typeIcon(object.getType()), label, object.getId());
         boolean open = ImGui.treeNodeEx(object.getId(), flags, visibleLabel);
         if (ImGui.isItemClicked()) {
-            selectObject(object);
+            boolean shiftHeld = ImGui.getIO().getKeyShift();
+            selectObject(object, shiftHeld);
         }
         if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
             EditorCameraController.getInstance().focusSelection(object);
@@ -1447,7 +2475,7 @@ public final class SceneEditorOverlay {
             ImGui.endPopup();
         }
         if (ImGui.beginDragDropSource()) {
-            byte[] idBytes = object.getId().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            byte[] idBytes = object.getId().getBytes(StandardCharsets.UTF_8);
             ImGui.setDragDropPayload(PAYLOAD_HIERARCHY, idBytes);
             ImGui.text("Move " + label);
             ImGui.endDragDropSource();
@@ -1467,14 +2495,14 @@ public final class SceneEditorOverlay {
     public void handleHierarchyDrop(String newParent) {
         byte[] payload = ImGui.acceptDragDropPayload(PAYLOAD_HIERARCHY);
         if (payload != null) {
-            String draggedId = new String(payload, java.nio.charset.StandardCharsets.UTF_8);
+            String draggedId = new String(payload, StandardCharsets.UTF_8);
             if (!Objects.equals(draggedId, newParent)) {
                 reparentObject(draggedId, newParent);
             }
         }
         payload = ImGui.acceptDragDropPayload(PAYLOAD_ASSET);
         if (payload != null) {
-            String assetId = new String(payload, java.nio.charset.StandardCharsets.UTF_8);
+            String assetId = new String(payload, StandardCharsets.UTF_8);
             spawnAssetById(assetId, newParent);
         }
     }
@@ -1791,6 +2819,19 @@ public final class SceneEditorOverlay {
                 BlueprintMarker marker = new BlueprintMarker();
                 marker.name = String.valueOf(object.getProperties().getOrDefault("name", object.getId()));
                 marker.position = toRelative(pos, region);
+                float[] rotation = new float[3];
+                extractEuler(object.getProperties().getOrDefault("rotation", null), rotation);
+                marker.rotation = rotation.clone();
+                float[] scale = new float[]{1f, 1f, 1f};
+                extractVector(object.getProperties().getOrDefault("scale", null), scale);
+                marker.scale = scale.clone();
+                Map<String, Object> extra = new HashMap<>(object.getProperties());
+                extra.remove("position");
+                extra.remove("rotation");
+                extra.remove("rotationQuat");
+                extra.remove("scale");
+                extra.remove("label");
+                marker.properties = extra;
                 blueprint.markers.add(marker);
                 continue;
             }
@@ -1804,6 +2845,23 @@ public final class SceneEditorOverlay {
             float[] scale = new float[]{1f, 1f, 1f};
             extractVector(object.getProperties().getOrDefault("scale", null), scale);
             blueprintObject.scale = scale.clone();
+
+            Map<String, Object> extra = new HashMap<>(object.getProperties());
+            extra.remove("position");
+            extra.remove("rotation");
+            extra.remove("rotationQuat");
+            extra.remove("scale");
+            extra.remove("label");
+            if ("zone".equals(type)) {
+                Vec3d c1 = extractVec3(object.getProperties().get("corner1"), null);
+                Vec3d c2 = extractVec3(object.getProperties().get("corner2"), null);
+                if (c1 != null && c2 != null) {
+                    extra.put("corner1", vectorToMap(toRelative(c1, region)));
+                    extra.put("corner2", vectorToMap(toRelative(c2, region)));
+                }
+            }
+            blueprintObject.properties = extra;
+
             if ("model".equals(type)) {
                 Object modelPath = object.getProperties().get("modelPath");
                 Object texture = object.getProperties().get("texture");
@@ -1844,12 +2902,39 @@ public final class SceneEditorOverlay {
                 SceneEditorDiagnostics.log("Blueprint '" + normalized + "' not found on server");
                 return;
             }
+            boolean usedProvidedPosition = false;
+            if (position != null && position.length >= 3) {
+                float x = position[0];
+                float y = position[1];
+                float z = position[2];
+                boolean looksUninitialized = x == 0f && y == 0f && z == 0f;
+                boolean looksInvalid = Float.isNaN(x) || Float.isNaN(y) || Float.isNaN(z)
+                        || Float.isInfinite(x) || Float.isInfinite(y) || Float.isInfinite(z);
+                if (!looksUninitialized && !looksInvalid) {
+                    previewPosition[0] = x;
+                    previewPosition[1] = y;
+                    previewPosition[2] = z;
+                    usedProvidedPosition = true;
+                }
+            }
+            if (!usedProvidedPosition && MinecraftClient.getInstance().player != null) {
+                Vec3d playerPos = MinecraftClient.getInstance().player.getPos();
+                previewPosition[0] = (float) playerPos.x;
+                previewPosition[1] = (float) playerPos.y;
+                previewPosition[2] = (float) playerPos.z;
+            }
+            if (position != null && position.length >= 3) {
+                position[0] = previewPosition[0];
+                position[1] = previewPosition[1];
+                position[2] = previewPosition[2];
+            }
             previewRotation[0] = previewRotation[2] = 0f;
             previewRotation[1] = 0f;
             previewScale[0] = previewScale[1] = previewScale[2] = 1f;
-            BlueprintPreviewManager.getInstance().show(blueprint, position);
-            BlueprintPreviewManager.getInstance().rotate(previewRotation[1]);
-            composeMatrix(previewPosition, previewRotation, previewScale, previewMatrix);
+            BlueprintPreviewManager.getInstance().show(blueprint, previewPosition);
+            BlueprintPreviewManager.getInstance().setRotation(previewRotation[0], previewRotation[1], previewRotation[2]);
+            BlueprintPreviewManager.getInstance().setScale(previewScale[0], previewScale[1], previewScale[2]);
+            composeMatrixFromEulerDegrees(previewPosition, previewRotation, previewScale, previewMatrix);
             SceneEditorDiagnostics.log("Loaded preview for " + blueprint.name);
         });
     }
@@ -1881,7 +2966,8 @@ public final class SceneEditorOverlay {
         int sizeZ = Math.max(1, MathHelper.ceil(region.maxZ - region.minZ));
         long total = (long) sizeX * sizeY * sizeZ;
         if (total > MAX_BLOCK_CAPTURE_BLOCKS) {
-            SceneEditorDiagnostics.log("Region too large for block capture (" + total + " blocks). Skipping blocks.");
+            SceneEditorDiagnostics.log("Region too large for block capture (" + total + " blocks > " + MAX_BLOCK_CAPTURE_BLOCKS + "). "
+                    + "Skipping blocks (set -Dmoud.editor.maxBlockCaptureBlocks=... to increase).");
             return null;
         }
         List<String> palette = new ArrayList<>();
@@ -1891,6 +2977,7 @@ public final class SceneEditorOverlay {
         boolean useShort = false;
         byte[] byteVoxels = new byte[(int) total];
         byte[] shortVoxels = null;
+        List<Blueprint.BlockEntityData> blockEntities = new ArrayList<>();
         BlockPos.Mutable mutable = new BlockPos.Mutable();
         int cursor = 0;
         for (int y = 0; y < sizeY; y++) {
@@ -1923,6 +3010,20 @@ public final class SceneEditorOverlay {
                         byteVoxels[cursor] = (byte) paletteIdx;
                     }
                     cursor++;
+
+                    try {
+                        BlockEntity blockEntity = world.getBlockEntity(mutable);
+                        if (blockEntity != null) {
+                            var nbt = blockEntity.createNbtWithId(world.getRegistryManager());
+                            Blueprint.BlockEntityData data = new Blueprint.BlockEntityData();
+                            data.x = x;
+                            data.y = y;
+                            data.z = z;
+                            data.nbt = NbtHelper.toFormattedString(nbt);
+                            blockEntities.add(data);
+                        }
+                    } catch (Throwable ignored) {
+                    }
                 }
             }
         }
@@ -1933,6 +3034,7 @@ public final class SceneEditorOverlay {
         volume.palette = palette;
         volume.useShortIndices = useShort;
         volume.voxels = useShort ? shortVoxels : byteVoxels;
+        volume.blockEntities = blockEntities.isEmpty() ? null : blockEntities;
         SceneEditorDiagnostics.log("Captured " + total + " blocks (" + palette.size() + " palette entries) for blueprint.");
         return volume;
     }
@@ -1985,7 +3087,14 @@ public final class SceneEditorOverlay {
         if (!WorldViewCapture.copyMatrices(view, projection)) {
             return;
         }
-        composeMatrix(previewPosition, previewRotation, previewScale, previewMatrix);
+        float width = ImGui.getIO().getDisplaySizeX();
+        float height = ImGui.getIO().getDisplaySizeY();
+        ImGuizmo.beginFrame();
+        ImGuizmo.setOrthographic(false);
+        ImGuizmo.setDrawList(ImGui.getBackgroundDrawList());
+        ImGuizmo.setRect(0, 0, width, height);
+
+        composeMatrixFromEulerDegrees(previewPosition, previewRotation, previewScale, previewMatrix);
         float[] viewArr = matrixToArray(view);
         float[] projArr = matrixToArray(projection);
         ImGuizmo.manipulate(
@@ -1999,8 +3108,20 @@ public final class SceneEditorOverlay {
         );
         if (ImGuizmo.isUsing()) {
             ImGuizmo.decomposeMatrixToComponents(previewMatrix, previewPosition, previewRotation, previewScale);
+            if (preview != null && preview.blueprint != null && preview.blueprint.blocks != null) {
+                // Schematic-style constraints: yaw-only rotation (snapped) and unit scale (sign encodes mirror).
+                previewRotation[0] = 0f;
+                previewRotation[2] = 0f;
+                previewRotation[1] = Math.round(previewRotation[1] / 90f) * 90f;
+
+                previewScale[1] = 1f;
+                previewScale[0] = previewScale[0] < 0 ? -1f : 1f;
+                previewScale[2] = previewScale[2] < 0 ? -1f : 1f;
+                composeMatrixFromEulerDegrees(previewPosition, previewRotation, previewScale, previewMatrix);
+            }
             BlueprintPreviewManager.getInstance().move(previewPosition);
-            BlueprintPreviewManager.getInstance().rotate(previewRotation[1]);
+            BlueprintPreviewManager.getInstance().setRotation(previewRotation[0], previewRotation[1], previewRotation[2]);
+            BlueprintPreviewManager.getInstance().setScale(previewScale[0], previewScale[1], previewScale[2]);
         }
     }
 
@@ -2049,6 +3170,9 @@ public final class SceneEditorOverlay {
     }
 
     public void setPreviewGizmoActive(boolean active) {
+        if (active) {
+            finalizeGizmoChange();
+        }
         this.previewGizmoActive = active;
     }
 
@@ -2061,12 +3185,16 @@ public final class SceneEditorOverlay {
     }
 
     public void updatePreviewMatrix() {
-        composeMatrix(previewPosition, previewRotation, previewScale, previewMatrix);
+        composeMatrixFromEulerDegrees(previewPosition, previewRotation, previewScale, previewMatrix);
     }
 
     private Vec3d getObjectPosition(SceneObject object) {
         Object raw = object.getProperties().get("position");
         if (!(raw instanceof Map<?, ?> map)) {
+            String type = object.getType() == null ? "" : object.getType().toLowerCase(Locale.ROOT);
+            if ("zone".equals(type)) {
+                return zoneCenter(object.getProperties());
+            }
             return null;
         }
         Object x = map.get("x");
@@ -2277,7 +3405,7 @@ public final class SceneEditorOverlay {
         payload.put("properties", props);
         session.submitEdit("create", payload);
         session.forceRefresh();
-        SceneEditorDiagnostics.log("Created zone at " + java.util.Arrays.toString(position));
+        SceneEditorDiagnostics.log("Created zone at " + Arrays.toString(position));
     }
 
     public void spawnPlayerModel(SceneSessionManager session, String parentId) {
@@ -2376,7 +3504,7 @@ public final class SceneEditorOverlay {
         if (matchesHierarchyFilter(object, filter)) {
             return true;
         }
-        for (SceneObject child : tree.getOrDefault(object.getId(), java.util.List.of())) {
+        for (SceneObject child : tree.getOrDefault(object.getId(), List.of())) {
             if (matchesHierarchyFilterRecursive(child, tree, filter)) {
                 return true;
             }
@@ -2397,9 +3525,9 @@ public final class SceneEditorOverlay {
         if (runtimeObject == null) {
             return;
         }
-        com.moud.api.math.Vector3 position = new com.moud.api.math.Vector3(translation[0], translation[1], translation[2]);
-        com.moud.api.math.Vector3 scaleVec = new com.moud.api.math.Vector3(scale[0], scale[1], scale[2]);
-        com.moud.api.math.Quaternion quat = new com.moud.api.math.Quaternion(
+        Vector3 position = new Vector3(translation[0], translation[1], translation[2]);
+        Vector3 scaleVec = new Vector3(scale[0], scale[1], scale[2]);
+        Quaternion quat = new Quaternion(
                 activeRotationQuat[0],
                 activeRotationQuat[1],
                 activeRotationQuat[2],
@@ -2412,7 +3540,7 @@ public final class SceneEditorOverlay {
                     quat,
                     scaleVec
             );
-            com.moud.client.network.ClientPacketWrapper.sendToServer(packet);
+            ClientPacketWrapper.sendToServer(packet);
             runtimeObject.setPosition(new Vec3d(position.x, position.y, position.z));
             runtimeObject.setRotation(new Vec3d(rotation[0], rotation[1], rotation[2]));
             runtimeObject.setScale(new Vec3d(scale[0], scale[1], scale[2]));
@@ -2423,7 +3551,7 @@ public final class SceneEditorOverlay {
                     quat,
                     scaleVec
             );
-            com.moud.client.network.ClientPacketWrapper.sendToServer(packet);
+            ClientPacketWrapper.sendToServer(packet);
             runtimeObject.setPosition(new Vec3d(position.x, position.y, position.z));
             runtimeObject.setRotation(new Vec3d(rotation[0], rotation[1], rotation[2]));
             runtimeObject.setScale(new Vec3d(scale[0], scale[1], scale[2]));
@@ -2433,7 +3561,7 @@ public final class SceneEditorOverlay {
                     position,
                     null
             );
-            com.moud.client.network.ClientPacketWrapper.sendToServer(packet);
+            ClientPacketWrapper.sendToServer(packet);
             runtimeObject.setPosition(new Vec3d(position.x, position.y, position.z));
             runtimeObject.setRotation(new Vec3d(rotation[0], rotation[1], rotation[2]));
         }

@@ -20,7 +20,6 @@ import java.util.Map;
 public final class AssetBrowserPanel {
     private final SceneEditorOverlay overlay;
     private final ImString assetFilter = new ImString(64);
-    private final ImString animationFilter = new ImString(64);
 
     public AssetBrowserPanel(SceneEditorOverlay overlay) {
         this.overlay = overlay;
@@ -36,21 +35,7 @@ public final class AssetBrowserPanel {
     }
 
     private void renderTabs() {
-        if (ImGui.beginTabBar("asset_tabs")) {
-            if (ImGui.beginTabItem("Assets")) {
-                renderAssetsTab();
-                ImGui.endTabItem();
-            }
-            if (ImGui.beginTabItem("Animations")) {
-                renderAnimationsTab();
-                ImGui.endTabItem();
-            }
-            if (ImGui.beginTabItem("Animation Timeline")) {
-                renderTimelineTab();
-                ImGui.endTabItem();
-            }
-            ImGui.endTabBar();
-        }
+        renderAssetsTab();
     }
 
     private void renderAssetsTab() {
@@ -86,42 +71,6 @@ public final class AssetBrowserPanel {
                 renderTypeBadge(entry.objectType());
                 ImGui.endGroup();
                 ImGui.popID();
-            }
-            ImGui.endTable();
-        }
-    }
-
-    private void renderAnimationsTab() {
-        ProjectFileIndex.getInstance().requestSyncIfNeeded();
-        List<ProjectFileIndex.Node> animations = ProjectFileIndex.getInstance().listFilesWithExtensions(".an");
-        ImGui.setNextItemWidth(-1);
-        ImGui.inputTextWithHint("##animation_search", "Search animations (.an)", animationFilter);
-        ImGui.separator();
-        if (animations.isEmpty()) {
-            ImGui.textDisabled("No .an files found. Add animations under animations/ in the project.");
-            return;
-        }
-        String filter = animationFilter.get().trim().toLowerCase(Locale.ROOT);
-        if (ImGui.beginTable("an_list", 2, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerV)) {
-            ImGui.tableSetupColumn("Name");
-            ImGui.tableSetupColumn("Path");
-            for (ProjectFileIndex.Node node : animations) {
-                if (!filter.isEmpty() && !node.name().toLowerCase(Locale.ROOT).contains(filter) && !node.path().toLowerCase(Locale.ROOT).contains(filter)) {
-                    continue;
-                }
-                ImGui.tableNextRow();
-                ImGui.tableSetColumnIndex(0);
-                if (ImGui.selectable(node.name())) {
-                    overlay.openAnimation(node.path());
-                }
-                if (ImGui.beginDragDropSource()) {
-                    byte[] bytes = node.path().getBytes(java.nio.charset.StandardCharsets.UTF_8);
-                    ImGui.setDragDropPayload("MoudAnimationFile", bytes);
-                    ImGui.text("Attach " + node.name());
-                    ImGui.endDragDropSource();
-                }
-                ImGui.tableSetColumnIndex(1);
-                ImGui.textDisabled(node.path());
             }
             ImGui.endTable();
         }
@@ -185,9 +134,5 @@ public final class AssetBrowserPanel {
             case "light" -> new float[]{1f, 0.82f, 0.55f};
             default -> new float[]{0.75f, 0.75f, 0.75f};
         };
-    }
-
-    private void renderTimelineTab() {
-        overlay.getTimelinePanel().renderInCurrentWindow();
     }
 }

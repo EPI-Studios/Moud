@@ -4,12 +4,14 @@ import com.moud.client.editor.runtime.Capsule;
 import com.moud.client.editor.runtime.RuntimeObject;
 import com.moud.client.editor.runtime.RuntimeObjectRegistry;
 import com.moud.client.animation.AnimatedPlayerModel;
+import com.moud.client.animation.ClientFakePlayerManager;
 import com.moud.client.animation.ClientPlayerModelManager;
 import com.moud.client.util.LimbRaycaster;
 import com.moud.client.editor.runtime.RuntimeObjectType;
 import com.moud.client.editor.ui.EditorImGuiLayer;
 import com.moud.client.editor.ui.WorldViewCapture;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.OtherClientPlayerEntity;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.util.Window;
 import net.minecraft.util.math.Box;
@@ -143,14 +145,25 @@ public final class RaycastPicker {
 
             if (obj.getType() == RuntimeObjectType.PLAYER_MODEL) {
                 long modelId = parseModelId(obj.getObjectId());
-                AnimatedPlayerModel animModel = ClientPlayerModelManager.getInstance().getModel(modelId);
-                if (animModel != null) {
-                    float tickDelta = MinecraftClient.getInstance().getRenderTickCounter().getTickDelta(true);
-                    LimbRaycaster.LimbHit hit = LimbRaycaster.raycast(animModel, rayStart, rayDir, tickDelta);
+                float tickDelta = MinecraftClient.getInstance().getRenderTickCounter().getTickDelta(true);
+
+                OtherClientPlayerEntity fakePlayer = ClientFakePlayerManager.getInstance().getFakePlayer(modelId);
+                if (fakePlayer != null) {
+                    LimbRaycaster.LimbHit hit = LimbRaycaster.raycast(fakePlayer, rayStart, rayDir, tickDelta);
                     if (hit != null) {
                         hitDistance = hit.distance() * hit.distance();
                         detectedLimb = hit.boneName();
                         hitFound = true;
+                    }
+                } else {
+                    AnimatedPlayerModel animModel = ClientPlayerModelManager.getInstance().getModel(modelId);
+                    if (animModel != null) {
+                        LimbRaycaster.LimbHit hit = LimbRaycaster.raycast(animModel, rayStart, rayDir, tickDelta);
+                        if (hit != null) {
+                            hitDistance = hit.distance() * hit.distance();
+                            detectedLimb = hit.boneName();
+                            hitFound = true;
+                        }
                     }
                 }
             } else {

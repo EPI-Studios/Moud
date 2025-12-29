@@ -12,6 +12,7 @@ public final class EditorDockingLayout {
         INSPECTOR,
         SCRIPT_VIEWER,
         ASSET_BROWSER,
+        CONSOLE,
         ANIMATION_TIMELINE,
         DIAGNOSTICS
     }
@@ -20,7 +21,8 @@ public final class EditorDockingLayout {
     private static final float MIN_EXPLORER_WIDTH = 280f;
     private static final float MIN_INSPECTOR_WIDTH = 320f;
     private static final float MIN_BOTTOM_HEIGHT = 220f;
-    private static final float RIBBON_HEIGHT = 96f;
+    private static final float RIBBON_HEIGHT = 45f;
+    private static final float SCENE_TOOLBAR_HEIGHT = 35f;
 
     private Rect ribbon;
     private Rect explorer;
@@ -33,13 +35,23 @@ public final class EditorDockingLayout {
     private float lastWidth;
     private float lastHeight;
     private boolean layoutDirty;
+    private float topOffset;
 
     public void begin(float width, float height) {
+        begin(width, height, RIBBON_HEIGHT);
+    }
+
+    public void begin(float width, float height, float topOffset) {
+        begin(width, height, topOffset, true);
+    }
+
+    public void begin(float width, float height, float topOffset, boolean splitRightSide) {
         layoutDirty = width != lastWidth || height != lastHeight;
         lastWidth = width;
         lastHeight = height;
+        this.topOffset = topOffset;
 
-        float ribbonHeight = Math.min(Math.max(RIBBON_HEIGHT, height * 0.08f), 128f);
+        float ribbonHeight = topOffset;
         float bottomHeight = Math.max(MIN_BOTTOM_HEIGHT, height * 0.26f);
         float contentHeight = Math.max(180f, height - ribbonHeight - bottomHeight);
 
@@ -58,13 +70,15 @@ public final class EditorDockingLayout {
             centerWidth = Math.max(MIN_CENTER_WIDTH, width - inspectorWidth - explorerWidth);
         }
 
-        float inspectorHeight = contentHeight * 0.55f;
+        float inspectorHeight = splitRightSide ? contentHeight * 0.55f : contentHeight;
         float scriptHeight = contentHeight - inspectorHeight;
 
         ribbon = new Rect(0f, 0f, width, ribbonHeight);
         explorer = new Rect(0f, ribbonHeight, explorerWidth, contentHeight);
         inspector = new Rect(width - inspectorWidth, ribbonHeight, inspectorWidth, inspectorHeight);
-        scriptViewer = new Rect(width - inspectorWidth, ribbonHeight + inspectorHeight, inspectorWidth, scriptHeight);
+        scriptViewer = splitRightSide
+                ? new Rect(width - inspectorWidth, ribbonHeight + inspectorHeight, inspectorWidth, scriptHeight)
+                : null;
         viewport = new Rect(explorerWidth, ribbonHeight, centerWidth, contentHeight);
 
         float diagnosticsWidth = Math.max(320f, width * 0.28f);
@@ -85,6 +99,7 @@ public final class EditorDockingLayout {
             case SCRIPT_VIEWER -> scriptViewer;
             case ASSET_BROWSER -> assetBrowser;
             case ANIMATION_TIMELINE -> animationTimeline;
+            case CONSOLE -> diagnostics;
             case DIAGNOSTICS -> diagnostics;
         };
         if (rect == null) {
@@ -97,6 +112,14 @@ public final class EditorDockingLayout {
 
     public Rect getViewportRect() {
         return viewport;
+    }
+
+    public static float getSceneModeTopHeight() {
+        return RIBBON_HEIGHT + SCENE_TOOLBAR_HEIGHT;
+    }
+
+    public static float getRibbonHeight() {
+        return RIBBON_HEIGHT;
     }
 
     public static final class Rect {

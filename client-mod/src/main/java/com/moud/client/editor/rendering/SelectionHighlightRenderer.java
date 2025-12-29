@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.moud.client.editor.picking.RaycastPicker;
 import com.moud.client.editor.runtime.RuntimeObject;
 import com.moud.client.editor.ui.SceneEditorOverlay;
+import com.moud.client.rendering.DebugLineRenderer;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.Box;
@@ -68,8 +69,7 @@ public final class SelectionHighlightRenderer {
 
     private void renderBox(MatrixStack matrices, Box box, float[] color) {
         Matrix4f matrix = matrices.peek().getPositionMatrix();
-        Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder buffer = tessellator.begin(VertexFormat.DrawMode.DEBUG_LINES, VertexFormats.POSITION_COLOR);
+        BufferBuilder buffer = DebugLineRenderer.begin();
 
         float minX = (float) box.minX;
         float minY = (float) box.minY;
@@ -93,11 +93,11 @@ public final class SelectionHighlightRenderer {
         addLine(buffer, matrix, maxX, minY, maxZ, maxX, maxY, maxZ, color);
         addLine(buffer, matrix, minX, minY, maxZ, minX, maxY, maxZ, color);
 
-        BufferRenderer.drawWithGlobalProgram(buffer.end());
+        DebugLineRenderer.draw(buffer);
     }
 
     private void addLine(BufferBuilder buffer, Matrix4f matrix, float x1, float y1, float z1, float x2, float y2, float z2, float[] color) {
-        buffer.vertex(matrix, x1, y1, z1).color(color[0], color[1], color[2], color[3]);
+        VertexConsumer color1 = buffer.vertex(matrix, x1, y1, z1).color(color[0], color[1], color[2], color[3]);
         buffer.vertex(matrix, x2, y2, z2).color(color[0], color[1], color[2], color[3]);
     }
 }
