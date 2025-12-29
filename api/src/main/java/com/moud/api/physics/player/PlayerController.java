@@ -6,9 +6,56 @@ import java.util.List;
 
 public final class PlayerController {
     private static final double EPSILON = 1.0e-9;
+    private static final double PENETRATION_EPS = 1.0e-6;
+    private static final int MAX_PENETRATION_ITERATIONS = 6;
     private static final float MAX_PITCH = 90.0f;
 
     private PlayerController() {
+    }
+
+    public static PlayerState applyTranslation(
+            PlayerState current,
+            PlayerPhysicsConfig config,
+            CollisionWorld world,
+            double dx,
+            double dy,
+            double dz
+    ) {
+        if (current == null) {
+            current = PlayerState.at(0.0, 0.0, 0.0);
+        }
+        if (config == null) {
+            config = PlayerPhysicsConfig.defaults();
+        }
+        if (Math.abs(dx) < EPSILON && Math.abs(dy) < EPSILON && Math.abs(dz) < EPSILON) {
+            return current;
+        }
+
+        AABB box = playerBox(current.x(), current.y(), current.z(), config);
+        List<AABB> colliders;
+        if (world == null) {
+            colliders = List.of();
+        } else {
+            AABB broadphase = box.union(box.moved(dx, dy, dz)).expanded(0.25, 0.25, 0.25);
+            colliders = world.getCollisions(broadphase);
+        }
+
+        box = resolvePenetration(box, colliders);
+        MoveResult moved = moveWithCollisions(box, dx, dy, dz, colliders);
+
+        boolean grounded = moved.hitDown
+                || (current.onGround() && dy <= 0.0 && isSupported(moved.box, colliders));
+
+        return new PlayerState(
+                moved.box.centerX(),
+                moved.box.minY(),
+                moved.box.centerZ(),
+                current.velX(),
+                current.velY(),
+                current.velZ(),
+                grounded,
+                moved.collidedHorizontally
+        );
     }
 
     public static PlayerState step(
@@ -35,7 +82,7 @@ public final class PlayerController {
         float velX = current.velX();
         float velY = current.velY();
         float velZ = current.velZ();
-        boolean onGround = current.onGround();
+        boolean wasOnGround = current.onGround();
 
         boolean jump = input.jump();
         boolean sprint = input.sprint();
@@ -56,60 +103,82 @@ public final class PlayerController {
         float targetVelX = (float) (moveDir[0] * targetSpeed);
         float targetVelZ = (float) (moveDir[1] * targetSpeed);
 
-        float accel = onGround ? config.accel() : config.airResistance();
+        float accel = wasOnGround ? config.accel() : config.airResistance();
         velX = moveTowards(velX, targetVelX, accel * clampedDt);
         velZ = moveTowards(velZ, targetVelZ, accel * clampedDt);
 
-        if (onGround && !input.hasMovementInput()) {
+        if (wasOnGround && !input.hasMovementInput()) {
             velX = moveTowards(velX, 0.0f, config.friction() * clampedDt);
             velZ = moveTowards(velZ, 0.0f, config.friction() * clampedDt);
         }
 
-        if (onGround) {
-            if (jump) {
-                velY = config.jumpForce();
-                onGround = false;
-            } else if (velY < 0.0f) {
-                velY = 0.0f;
-            }
-        } else {
-            velY += config.gravity() * clampedDt;
-        }
-
         double dx = velX * clampedDt;
-        double dy = velY * clampedDt;
         double dz = velZ * clampedDt;
 
         AABB box = playerBox(current.x(), current.y(), current.z(), config);
-        AABB broadphase = box.union(box.moved(dx, dy, dz)).expanded(0.25, 0.25, 0.25);
+
+        float broadphaseVelY = velY;
+        if (wasOnGround && jump) {
+            broadphaseVelY = config.jumpForce();
+        } else {
+            broadphaseVelY += config.gravity() * clampedDt;
+        }
+        double broadphaseDy = broadphaseVelY * clampedDt;
+
+        AABB broadphase = box.union(box.moved(dx, broadphaseDy, dz)).expanded(0.25, 0.25, 0.25);
         List<AABB> colliders = world != null ? world.getCollisions(broadphase) : List.of();
 
-        MoveResult normal = moveWithCollisions(box, dx, dy, dz, colliders);
-        MoveResult best = normal;
+        box = resolvePenetration(box, colliders);
 
-        boolean shouldTryStep = config.stepHeight() > 0.0f && normal.collidedHorizontally && (onGround || current.onGround());
+        MoveResult horizontal = moveWithCollisions(box, dx, 0.0, dz, colliders);
+        MoveResult best = horizontal;
+
+        boolean shouldTryStep = config.stepHeight() > 0.0f
+                && horizontal.collidedHorizontally
+                && wasOnGround;
         if (shouldTryStep) {
-            MoveResult stepped = tryStepUp(box, dx, dy, dz, colliders, config.stepHeight());
+            MoveResult stepped = tryStepUp(box, dx, 0.0, dz, colliders, config.stepHeight());
             if (stepped.horizontalDistanceSq > best.horizontalDistanceSq + 1.0e-8) {
                 best = stepped;
             }
         }
 
-        double newX = best.box.centerX();
-        double newY = best.box.minY();
-        double newZ = best.box.centerZ();
+        boolean supported = wasOnGround && velY <= 0.0f && isSupported(best.box, colliders);
+        boolean onGroundNow = best.hitDown || supported;
+        boolean jumpedThisTick = false;
+
+        if (onGroundNow) {
+            if (jump) {
+                velY = config.jumpForce();
+                onGroundNow = false;
+                jumpedThisTick = true;
+            } else if (velY < 0.0f) {
+                velY = 0.0f;
+            }
+        }
+        if (!onGroundNow && !jumpedThisTick) {
+            velY += config.gravity() * clampedDt;
+        }
+
+        double dy = velY * clampedDt;
+        MoveResult vertical = moveWithCollisions(best.box, 0.0, dy, 0.0, colliders);
+
+        double newX = vertical.box.centerX();
+        double newY = vertical.box.minY();
+        double newZ = vertical.box.centerZ();
 
         if (best.hitX) {
             velX = 0.0f;
         }
-        if (best.hitY) {
+        if (vertical.hitY) {
             velY = 0.0f;
         }
         if (best.hitZ) {
             velZ = 0.0f;
         }
 
-        boolean grounded = best.hitDown || (current.onGround() && velY <= 0.0f && isSupported(best.box, colliders));
+        boolean grounded = vertical.hitDown
+                || (current.onGround() && velY <= 0.0f && isSupported(vertical.box, colliders));
         boolean collidingHorizontally = best.collidedHorizontally;
 
         return new PlayerState(newX, newY, newZ, velX, velY, velZ, grounded, collidingHorizontally);
@@ -132,7 +201,7 @@ public final class PlayerController {
 
     private static double[] computeMoveDirection(PlayerInput input, float yawDegrees) {
         int forward = (input.forward() ? 1 : 0) - (input.backward() ? 1 : 0);
-        int strafe = (input.right() ? 1 : 0) - (input.left() ? 1 : 0);
+        int strafe = (input.left() ? 1 : 0) - (input.right() ? 1 : 0);
 
         if (forward == 0 && strafe == 0) {
             return new double[]{0.0, 0.0};
@@ -169,7 +238,14 @@ public final class PlayerController {
         );
     }
 
-    private static MoveResult tryStepUp(AABB box, double dx, double dy, double dz, List<AABB> colliders, float stepHeight) {
+    private static MoveResult tryStepUp(
+            AABB box,
+            double dx,
+            double dy,
+            double dz,
+            List<AABB> colliders,
+            float stepHeight
+    ) {
         MoveResult up = moveWithCollisions(box, 0.0, stepHeight, 0.0, colliders);
         MoveResult horiz = moveWithCollisions(up.box, dx, 0.0, dz, colliders);
         MoveResult down = moveWithCollisions(horiz.box, 0.0, -stepHeight, 0.0, colliders);
@@ -264,6 +340,72 @@ public final class PlayerController {
         return false;
     }
 
+    private static AABB resolvePenetration(AABB box, List<AABB> colliders) {
+        if (box == null || colliders == null || colliders.isEmpty()) {
+            return box;
+        }
+
+        AABB current = box;
+        for (int iter = 0; iter < MAX_PENETRATION_ITERATIONS; iter++) {
+            double bestDx = 0.0;
+            double bestDy = 0.0;
+            double bestDz = 0.0;
+            double bestLenSq = 0.0;
+
+            boolean found = false;
+            for (AABB c : colliders) {
+                if (c == null || !current.intersects(c)) {
+                    continue;
+                }
+                double overlapX = Math.min(current.maxX(), c.maxX()) - Math.max(current.minX(), c.minX());
+                double overlapY = Math.min(current.maxY(), c.maxY()) - Math.max(current.minY(), c.minY());
+                double overlapZ = Math.min(current.maxZ(), c.maxZ()) - Math.max(current.minZ(), c.minZ());
+                if (overlapX <= 0.0 || overlapY <= 0.0 || overlapZ <= 0.0) {
+                    continue;
+                }
+
+                double pushX = 0.0;
+                double pushY = 0.0;
+                double pushZ = 0.0;
+
+                double minOverlap = overlapX;
+                int axis = 0; // 0=X, 1=Y, 2=Z
+                if (overlapY < minOverlap) {
+                    minOverlap = overlapY;
+                    axis = 1;
+                }
+                if (overlapZ < minOverlap) {
+                    minOverlap = overlapZ;
+                    axis = 2;
+                }
+
+                if (axis == 0) {
+                    pushX = current.centerX() < c.centerX() ? -(minOverlap + PENETRATION_EPS) : (minOverlap + PENETRATION_EPS);
+                } else if (axis == 1) {
+                    pushY = current.centerY() < c.centerY() ? -(minOverlap + PENETRATION_EPS) : (minOverlap + PENETRATION_EPS);
+                } else {
+                    pushZ = current.centerZ() < c.centerZ() ? -(minOverlap + PENETRATION_EPS) : (minOverlap + PENETRATION_EPS);
+                }
+
+                double lenSq = pushX * pushX + pushY * pushY + pushZ * pushZ;
+                if (!found || lenSq > bestLenSq) {
+                    found = true;
+                    bestLenSq = lenSq;
+                    bestDx = pushX;
+                    bestDy = pushY;
+                    bestDz = pushZ;
+                }
+            }
+
+            if (!found || bestLenSq <= 0.0) {
+                break;
+            }
+            current = current.moved(bestDx, bestDy, bestDz);
+        }
+
+        return current;
+    }
+
     private static double clipAxisX(AABB box, double dx, List<AABB> colliders) {
         if (dx == 0.0) {
             return 0.0;
@@ -278,10 +420,16 @@ public final class PlayerController {
                 if (max >= -EPSILON && max < clipped) {
                     clipped = max;
                 }
+                if (max < -EPSILON && box.minX() < c.maxX() - EPSILON) {
+                    clipped = Math.min(clipped, 0.0);
+                }
             } else {
                 double min = c.maxX() - box.minX();
                 if (min <= EPSILON && min > clipped) {
                     clipped = min;
+                }
+                if (min > EPSILON && box.maxX() > c.minX() + EPSILON) {
+                    clipped = Math.max(clipped, 0.0);
                 }
             }
         }
@@ -302,10 +450,16 @@ public final class PlayerController {
                 if (max >= -EPSILON && max < clipped) {
                     clipped = max;
                 }
+                if (max < -EPSILON && box.minY() < c.maxY() - EPSILON) {
+                    clipped = Math.min(clipped, 0.0);
+                }
             } else {
                 double min = c.maxY() - box.minY();
                 if (min <= EPSILON && min > clipped) {
                     clipped = min;
+                }
+                if (min > EPSILON && box.maxY() > c.minY() + EPSILON) {
+                    clipped = Math.max(clipped, 0.0);
                 }
             }
         }
@@ -326,10 +480,16 @@ public final class PlayerController {
                 if (max >= -EPSILON && max < clipped) {
                     clipped = max;
                 }
+                if (max < -EPSILON && box.minZ() < c.maxZ() - EPSILON) {
+                    clipped = Math.min(clipped, 0.0);
+                }
             } else {
                 double min = c.maxZ() - box.minZ();
                 if (min <= EPSILON && min > clipped) {
                     clipped = min;
+                }
+                if (min > EPSILON && box.maxZ() > c.minZ() + EPSILON) {
+                    clipped = Math.max(clipped, 0.0);
                 }
             }
         }
