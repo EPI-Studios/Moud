@@ -10,9 +10,11 @@ const SUPPORTED_SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs
 export interface TranspileArtifacts {
     server: string;
     client: Buffer;
+    shared: string | null;
     hash: string;
     serverBundlePath: string;
     clientBundlePath: string;
+    sharedBundlePath: string | null;
     manifestPath: string;
     entryPoint: string;
 }
@@ -72,15 +74,16 @@ export class Transpiler {
         return entryPoint;
     }
 
-    private async persistArtifacts(projectRoot: string, server: string, client: Buffer, hash: string, entryPoint: string) {
+    private async persistArtifacts(projectRoot: string, server: string, client: Buffer, shared: string | null, hash: string, entryPoint: string) {
         const cacheDir = path.join(projectRoot, '.moud', 'cache');
         await fs.promises.mkdir(cacheDir, { recursive: true });
 
         const serverBundlePath = path.join(cacheDir, 'server.bundle.js');
         const clientBundlePath = path.join(cacheDir, 'client.bundle');
+        const sharedBundlePath = shared ? path.join(cacheDir, 'shared.bundle.js') : null;
         const manifestPath = path.join(cacheDir, 'manifest.json');
 
-        await Promise.all([
+        const writes: Promise<void>[] = [
             fs.promises.writeFile(serverBundlePath, server, 'utf-8'),
             fs.promises.writeFile(clientBundlePath, client),
             fs.promises.writeFile(
@@ -89,6 +92,7 @@ export class Transpiler {
                     {
                         hash,
                         entryPoint: path.relative(projectRoot, entryPoint).replace(/\\/g, '/'),
+                        hasSharedPhysics: shared !== null,
                         generatedAt: new Date().toISOString()
                     },
                     null,
@@ -96,9 +100,15 @@ export class Transpiler {
                 ),
                 'utf-8'
             )
-        ]);
+        ];
 
-        return { serverBundlePath, clientBundlePath, manifestPath };
+        if (shared && sharedBundlePath) {
+            writes.push(fs.promises.writeFile(sharedBundlePath, shared, 'utf-8'));
+        }
+
+        await Promise.all(writes);
+
+        return { serverBundlePath, clientBundlePath, sharedBundlePath, manifestPath };
     }
 
     public async transpileProject(isProduction = false): Promise<TranspileArtifacts> {
@@ -125,7 +135,33 @@ export class Transpiler {
             }
 
             const clientDir = path.join(projectRoot, 'client');
+            const sharedDir = path.join(projectRoot, 'shared');
             const zip = new AdmZip();
+
+            // Transpile shared physics scripts (runs on both client and server)
+            let sharedOutput: string | null = null;
+            const sharedPhysicsEntry = path.join(sharedDir, 'physics', 'index.ts');
+            if (fs.existsSync(sharedPhysicsEntry)) {
+                const sharedResult = await esbuild.build({
+                    absWorkingDir: projectRoot,
+                    entryPoints: [sharedPhysicsEntry],
+                    bundle: true,
+                    platform: 'neutral',
+                    format: 'cjs',
+                    target: 'es2022',
+                    write: false,
+                    minify: isProduction,
+                    sourcemap: !isProduction,
+                    external: ['@epi-studio/moud-sdk']
+                }).catch(error => {
+                    throw new Error(`Failed to transpile shared physics: ${error instanceof Error ? error.message : String(error)}`);
+                });
+
+                sharedOutput = sharedResult.outputFiles[0]?.text ?? null;
+                if (sharedOutput) {
+                    zip.addFile('scripts/shared/physics.js', Buffer.from(sharedOutput));
+                }
+            }
 
             if (fs.existsSync(clientDir)) {
                 const clientFiles = await this.findFiles(clientDir, SUPPORTED_SOURCE_EXTENSIONS);
@@ -161,16 +197,22 @@ export class Transpiler {
             }
 
             const clientBuffer = zip.toBuffer();
-            const hash = crypto.createHash('sha256').update(serverOutput).update(clientBuffer).digest('hex');
+            const hashInput = crypto.createHash('sha256').update(serverOutput).update(clientBuffer);
+            if (sharedOutput) {
+                hashInput.update(sharedOutput);
+            }
+            const hash = hashInput.digest('hex');
 
-            const persistence = await this.persistArtifacts(projectRoot, serverOutput, clientBuffer, hash, entryPoint);
+            const persistence = await this.persistArtifacts(projectRoot, serverOutput, clientBuffer, sharedOutput, hash, entryPoint);
 
             return {
                 server: serverOutput,
                 client: clientBuffer,
+                shared: sharedOutput,
                 hash,
                 serverBundlePath: persistence.serverBundlePath,
                 clientBundlePath: persistence.clientBundlePath,
+                sharedBundlePath: persistence.sharedBundlePath,
                 manifestPath: persistence.manifestPath,
                 entryPoint
             };
