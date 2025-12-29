@@ -15,8 +15,16 @@ public final class Blueprint {
         public int sizeX;
         public int sizeY;
         public int sizeZ;
-        public java.util.List<String> palette;
+        public List<String> palette;
         public byte[] voxels;
         public boolean useShortIndices;
+        public List<BlockEntityData> blockEntities;
+    }
+
+    public static final class BlockEntityData {
+        public int x;
+        public int y;
+        public int z;
+        public String nbt;
     }
 }

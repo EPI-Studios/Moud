@@ -1,5 +1,8 @@
 package com.moud.client.editor.scene.blueprint;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public final class BlueprintObject {
     public String type;
     public String label;
@@ -10,5 +13,6 @@ public final class BlueprintObject {
     public String texture;
     public float[] boundsMin;
     public float[] boundsMax;
+    public Map<String, Object> properties = new HashMap<>();
     public BlueprintObject() {}
 }

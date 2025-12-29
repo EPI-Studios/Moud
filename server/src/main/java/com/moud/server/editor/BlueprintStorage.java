@@ -5,6 +5,9 @@ import com.moud.server.logging.MoudLogger;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Stream;
 
 public final class BlueprintStorage {
     private static final MoudLogger LOGGER = MoudLogger.getLogger(BlueprintStorage.class);
@@ -34,6 +37,39 @@ public final class BlueprintStorage {
 
     public boolean exists(String name) {
         return Files.exists(resolvePath(name));
+    }
+
+    public List<String> list() {
+        List<String> names = new ArrayList<>();
+        if (!Files.isDirectory(directory)) {
+            return names;
+        }
+        try (Stream<Path> stream = Files.list(directory)) {
+            stream.filter(p -> p.toString().endsWith(".json"))
+                    .map(p -> p.getFileName().toString())
+                    .map(n -> n.substring(0, n.length() - 5)) // remove .json
+                    .sorted()
+                    .forEach(names::add);
+        } catch (IOException e) {
+            LOGGER.error("Failed to list blueprints in {}", directory, e);
+        }
+        return names;
+    }
+
+
+    public boolean delete(String name) {
+        Path path = resolvePath(name);
+        if (!Files.exists(path)) {
+            return false;
+        }
+        try {
+            Files.delete(path);
+            LOGGER.info("Deleted blueprint: {}", name);
+            return true;
+        } catch (IOException e) {
+            LOGGER.error("Failed to delete blueprint {}", name, e);
+            return false;
+        }
     }
 
     private Path resolvePath(String name) {
