@@ -575,6 +575,31 @@ public final class MoudPackets {
     ) {
     }
 
+    public record ZoneDefinition(
+            @Field(order = 0) String id,
+            @Field(order = 1) Vector3 min,
+            @Field(order = 2) Vector3 max
+    ) {
+    }
+
+    @Packet(value = "moud:zone_sync", direction = Direction.SERVER_TO_CLIENT)
+    public record ZoneSyncPacket(
+            @Field(order = 0) List<ZoneDefinition> zones
+    ) {
+    }
+
+    @Packet(value = "moud:zone_upsert", direction = Direction.SERVER_TO_CLIENT)
+    public record ZoneUpsertPacket(
+            @Field(order = 0) ZoneDefinition zone
+    ) {
+    }
+
+    @Packet(value = "moud:zone_remove", direction = Direction.SERVER_TO_CLIENT)
+    public record ZoneRemovePacket(
+            @Field(order = 0) String id
+    ) {
+    }
+
     @Packet(value = "moud:editor_assets_request", direction = Direction.CLIENT_TO_SERVER)
     public record RequestEditorAssetsPacket() {
     }
@@ -735,6 +760,15 @@ public final class MoudPackets {
     ) {
     }
 
+    @Packet(value = "moud:blueprint_save_chunk", direction = Direction.CLIENT_TO_SERVER)
+    public record SaveBlueprintChunkPacket(
+            @Field(order = 0) String name,
+            @Field(order = 1) int totalChunks,
+            @Field(order = 2) int chunkIndex,
+            @Field(order = 3) byte[] data
+    ) {
+    }
+
     @Packet(value = "moud:blueprint_save_ack", direction = Direction.SERVER_TO_CLIENT)
     public record BlueprintSaveAckPacket(
             @Field(order = 0) String name,
@@ -755,6 +789,58 @@ public final class MoudPackets {
             @Field(order = 1, optional = true) byte[] data,
             @Field(order = 2) boolean success,
             @Field(order = 3) String message
+    ) {
+    }
+
+    @Packet(value = "moud:blueprint_data_chunk", direction = Direction.SERVER_TO_CLIENT)
+    public record BlueprintDataChunkPacket(
+            @Field(order = 0) String name,
+            @Field(order = 1) int totalChunks,
+            @Field(order = 2) int chunkIndex,
+            @Field(order = 3) byte[] data
+    ) {
+    }
+
+    @Packet(value = "moud:blueprint_place", direction = Direction.CLIENT_TO_SERVER)
+    public record PlaceBlueprintPacket(
+            @Field(order = 0) String sceneId,
+            @Field(order = 1) String blueprintName,
+            @Field(order = 2) float[] position,
+            @Field(order = 3) float[] rotation,
+            @Field(order = 4) float[] scale
+    ) {
+    }
+
+    @Packet(value = "moud:blueprint_place_ack", direction = Direction.SERVER_TO_CLIENT)
+    public record BlueprintPlaceAckPacket(
+            @Field(order = 0) String blueprintName,
+            @Field(order = 1) boolean success,
+            @Field(order = 2) String message,
+            @Field(order = 3, optional = true) List<String> createdObjectIds
+    ) {
+    }
+
+    @Packet(value = "moud:blueprint_list", direction = Direction.CLIENT_TO_SERVER)
+    public record ListBlueprintsPacket() {
+    }
+
+    @Packet(value = "moud:blueprint_list_response", direction = Direction.SERVER_TO_CLIENT)
+    public record BlueprintListPacket(
+            @Field(order = 0) List<String> names
+    ) {
+    }
+
+    @Packet(value = "moud:blueprint_delete", direction = Direction.CLIENT_TO_SERVER)
+    public record DeleteBlueprintPacket(
+            @Field(order = 0) String name
+    ) {
+    }
+
+    @Packet(value = "moud:blueprint_delete_ack", direction = Direction.SERVER_TO_CLIENT)
+    public record BlueprintDeleteAckPacket(
+            @Field(order = 0) String name,
+            @Field(order = 1) boolean success,
+            @Field(order = 2) String message
     ) {
     }
 
@@ -1037,6 +1123,16 @@ public final class MoudPackets {
             @Field(order = 11, optional = true) @Nullable Map<String, Object> outputProcessing,
             @Field(order = 12, optional = true) @Nullable Vector3 position,
             @Field(order = 13, optional = true) @Nullable String replayId
+    ) {
+    }
+
+    @Packet(value = "moud:request_player_anims", direction = Direction.CLIENT_TO_SERVER)
+    public record RequestPlayerAnimationsPacket() {
+    }
+
+    @Packet(value = "moud:player_anims_list", direction = Direction.SERVER_TO_CLIENT)
+    public record PlayerAnimationsListPacket(
+            @Field(order = 0) List<String> animationIds
     ) {
     }
 }

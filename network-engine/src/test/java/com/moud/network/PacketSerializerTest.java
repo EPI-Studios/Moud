@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -174,6 +175,36 @@ class PacketSerializerTest {
         );
 
         assertEquals(packet, decoded, "S2C_PrimitiveCreatePacket did not round-trip with physics");
+    }
+
+    @Test
+    void roundTripsPlaceBlueprintPacketWithFloatArrays() {
+        PacketMetadata metadata = requireMetadata(MoudPackets.PlaceBlueprintPacket.class);
+
+        MoudPackets.PlaceBlueprintPacket packet = new MoudPackets.PlaceBlueprintPacket(
+                "default",
+                "test-blueprint",
+                new float[]{1.0f, 2.0f, 3.0f},
+                new float[]{10.0f, 20.0f, 30.0f},
+                new float[]{0.5f, 1.25f, 2.0f}
+        );
+
+        TestByteBuffer writeBuffer = new TestByteBuffer();
+        byte[] bytes = serializer.serialize(packet, metadata, writeBuffer);
+
+        TestByteBuffer readBuffer = new TestByteBuffer(bytes);
+        MoudPackets.PlaceBlueprintPacket decoded = serializer.deserialize(
+                bytes,
+                MoudPackets.PlaceBlueprintPacket.class,
+                metadata,
+                readBuffer
+        );
+
+        assertEquals(packet.sceneId(), decoded.sceneId());
+        assertEquals(packet.blueprintName(), decoded.blueprintName());
+        assertArrayEquals(packet.position(), decoded.position(), 0.0001f);
+        assertArrayEquals(packet.rotation(), decoded.rotation(), 0.0001f);
+        assertArrayEquals(packet.scale(), decoded.scale(), 0.0001f);
     }
 
     @Test

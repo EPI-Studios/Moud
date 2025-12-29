@@ -9,7 +9,9 @@ import com.moud.network.limits.NetworkLimits;
 import com.moud.network.metadata.PacketMetadata;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.RecordComponent;
 import java.util.*;
 
 public class PacketSerializer {
@@ -34,6 +36,7 @@ public class PacketSerializer {
         register(UUID.class, new UUIDSerializer());
         register(Vector3.class, new Vector3Serializer());
         register(byte[].class, new ByteArraySerializer());
+        register(float[].class, new FloatArraySerializer());
         register(Quaternion.class, new QuaternionSerializer());
         register(byte[].class, new ByteArraySerializer());
         register(MoudPackets.CursorUpdateData.class, new CursorUpdateDataSerializer());
@@ -57,6 +60,7 @@ public class PacketSerializer {
         register(MoudPackets.PrimitiveTransformEntry.class, new PrimitiveTransformEntrySerializer());
         register(MoudPackets.IKJointData.class, new IKJointDataSerializer());
         register(PlayerPhysicsConfig.class, new PlayerPhysicsConfigSerializer());
+        register(MoudPackets.ZoneDefinition.class, new ZoneDefinitionSerializer());
     }
 
     public <T> void register(Class<T> type, TypeSerializer<T> serializer) {
@@ -125,9 +129,15 @@ public class PacketSerializer {
 
         if (serializer != null) {
             serializer.write(buffer, value);
-        } else {
-            throw new UnsupportedOperationException("No serializer for type: " + rawType);
+            return;
         }
+
+        if (rawType.isRecord()) {
+            writeRecord(buffer, value, rawType);
+            return;
+        }
+
+        throw new UnsupportedOperationException("No serializer for type: " + rawType);
     }
 
     private void writeList(ByteBuffer buffer, List<?> list, java.lang.reflect.Type listType) {
@@ -173,6 +183,11 @@ public class PacketSerializer {
         if (serializer != null) {
             return serializer.read(buffer);
         }
+
+        if (rawType.isRecord()) {
+            return readRecord(buffer, rawType);
+        }
+
         throw new UnsupportedOperationException("No serializer for type: " + rawType);
     }
 
@@ -209,6 +224,51 @@ public class PacketSerializer {
             }
         }
         throw new UnsupportedOperationException("Unsupported type: " + type);
+    }
+
+    private void writeRecord(ByteBuffer buffer, Object value, Class<?> recordType) {
+        if (value == null) {
+            throw new IllegalArgumentException("Cannot serialize null record: " + recordType.getSimpleName());
+        }
+        RecordComponent[] components = recordType.getRecordComponents();
+        for (RecordComponent component : components) {
+            Object componentValue;
+            try {
+                componentValue = component.getAccessor().invoke(value);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                throw new RuntimeException("Failed to read record component " + component.getName(), e);
+            }
+
+            if (componentValue == null) {
+                throw new IllegalArgumentException(
+                        "Non-optional record component " + component.getName() + " is null for " + recordType.getSimpleName()
+                );
+            }
+
+            Class<?> componentClass = extractRawClass(component.getGenericType());
+            writeValue(buffer, componentValue, componentClass, component.getGenericType());
+        }
+    }
+
+    private Object readRecord(ByteBuffer buffer, Class<?> recordType) {
+        RecordComponent[] components = recordType.getRecordComponents();
+        Object[] args = new Object[components.length];
+        Class<?>[] paramTypes = new Class<?>[components.length];
+
+        for (int i = 0; i < components.length; i++) {
+            RecordComponent component = components[i];
+            java.lang.reflect.Type componentGenericType = component.getGenericType();
+            Class<?> componentClass = extractRawClass(componentGenericType);
+            args[i] = readValue(buffer, componentClass, componentGenericType);
+            paramTypes[i] = component.getType();
+        }
+
+        try {
+            Constructor<?> ctor = recordType.getDeclaredConstructor(paramTypes);
+            return ctor.newInstance(args);
+        } catch (ReflectiveOperationException e) {
+            return createInstance(recordType, args);
+        }
     }
     @SuppressWarnings("unchecked")
     private <T> T createInstance(Class<T> clazz, Object[] args) {
@@ -367,6 +427,31 @@ public class PacketSerializer {
 
         public byte[] read(ByteBuffer buffer) {
             return buffer.readByteArray();
+        }
+    }
+
+    private static class FloatArraySerializer implements TypeSerializer<float[]> {
+        @Override
+        public void write(ByteBuffer buffer, float[] value) {
+            buffer.writeInt(value.length);
+            for (float v : value) {
+                buffer.writeFloat(v);
+            }
+        }
+
+        @Override
+        public float[] read(ByteBuffer buffer) {
+            int size = buffer.readInt();
+            if (size < 0 || size > NetworkLimits.MAX_COLLECTION_ELEMENTS) {
+                throw new IllegalArgumentException(
+                        "Array size " + size + " exceeds limit " + NetworkLimits.MAX_COLLECTION_ELEMENTS
+                );
+            }
+            float[] out = new float[size];
+            for (int i = 0; i < size; i++) {
+                out[i] = buffer.readFloat();
+            }
+            return out;
         }
     }
 
