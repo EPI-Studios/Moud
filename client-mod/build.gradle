@@ -1,5 +1,6 @@
 plugins {
     id 'fabric-loom'
+    id 'com.diffplug.spotless' version '6.25.0'
 }
 
 repositories {
@@ -31,7 +32,7 @@ dependencies {
     include implementation(project(':network-engine'))
 
     modImplementation("foundry.veil:veil-fabric-1.21.1:2.5.1")
-    include("foundry.veil:veil-fabric-1.21.1:2.5.1")
+    include "foundry.veil:veil-fabric-1.21.1:2.5.1"
     include "org.reflections:reflections:0.10.2"
 
     include modImplementation("com.zigythebird.playeranim:PlayerAnimationLibFabric:1.0.12+mc1.21.1")
@@ -54,4 +55,13 @@ dependencies {
     // gson
     include implementation ('com.google.code.gson:gson:2.10.1')
 
+}
+
+tasks.withType(net.fabricmc.loom.task.AbstractRunTask).configureEach {
+    notCompatibleWithConfigurationCache(
+            "Fabric Loom run tasks generate argument files under build/loom-cache, which can go missing when configuration cache is reused."
+    )
+    doFirst {
+        file("${buildDir}/loom-cache/argFiles").mkdirs()
+    }
 }
