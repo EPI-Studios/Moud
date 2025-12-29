@@ -3,11 +3,7 @@ package com.moud.client.init;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.moud.client.MoudClientMod;
-import com.moud.client.animation.AnimatedPlayerModel;
-import com.moud.client.animation.ClientPlayerModelManager;
-import com.moud.client.animation.ExternalPartConfigLayer;
-import com.moud.client.animation.IAnimatedPlayer;
-import com.moud.client.animation.PlayerPartConfigManager;
+import com.moud.client.animation.*;
 import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.collision.ClientCollisionManager;
 import com.moud.client.collision.ModelCollisionManager;
@@ -15,6 +11,7 @@ import com.moud.client.camera.VanillaTeleportSmoothing;
 import com.moud.client.display.ClientDisplayManager;
 import com.moud.client.editor.runtime.RuntimeObjectRegistry;
 import com.moud.client.editor.scene.SceneSessionManager;
+import com.moud.client.editor.scene.SceneEditorDiagnostics;
 import com.moud.client.editor.scene.blueprint.ClientBlueprintNetwork;
 import com.moud.client.editor.ui.SceneEditorOverlay;
 import com.moud.client.ik.ClientIKManager;
@@ -30,11 +27,14 @@ import com.moud.client.permissions.ClientPermissionState;
 import com.moud.client.runtime.ClientScriptingRuntime;
 import com.moud.client.shared.SharedValueManager;
 import com.moud.client.ui.ServerUIOverlayManager;
+import com.moud.client.util.IdentifierUtils;
 import com.moud.client.util.WindowAnimator;
 import com.moud.client.primitives.ClientPrimitiveManager;
+import com.moud.client.zone.ClientZoneManager;
 import com.moud.network.MoudPackets;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.OtherClientPlayerEntity;
 import net.minecraft.util.Identifier;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyArray;
@@ -134,6 +134,10 @@ public class ClientNetworkRegistry {
         ClientPacketWrapper.registerHandler(MoudPackets.SceneBindingPacket.class, (player, packet) -> com.moud.client.editor.selection.SceneSelectionManager.getInstance().handleBindingPacket(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.BlueprintSaveAckPacket.class, (player, packet) -> ClientBlueprintNetwork.getInstance().handleSaveAck(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.BlueprintDataPacket.class, (player, packet) -> ClientBlueprintNetwork.getInstance().handleBlueprintData(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.BlueprintDataChunkPacket.class, (player, packet) -> ClientBlueprintNetwork.getInstance().handleBlueprintDataChunk(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.BlueprintPlaceAckPacket.class, (player, packet) -> ClientBlueprintNetwork.getInstance().handlePlaceAck(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.BlueprintListPacket.class, (player, packet) -> ClientBlueprintNetwork.getInstance().handleBlueprintList(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.BlueprintDeleteAckPacket.class, (player, packet) -> ClientBlueprintNetwork.getInstance().handleDeleteAck(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.AnimationLoadResponsePacket.class, (player, packet) -> SceneEditorOverlay.getInstance().handleAnimationLoadResponse(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.AnimationListResponsePacket.class, (player, packet) -> SceneEditorOverlay.getInstance().handleAnimationListResponse(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.CursorAppearancePacket.class, (player, packet) -> {
@@ -155,6 +159,21 @@ public class ClientNetworkRegistry {
         ClientPacketWrapper.registerHandler(MoudPackets.InterpolationSettingsPacket.class, (player, packet) -> handleInterpolationSettings(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.FirstPersonConfigPacket.class, (player, packet) -> handleFirstPersonConfig(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.CameraControlPacket.class, (player, packet) -> handleCameraControl(packet, services));
+        ClientPacketWrapper.registerHandler(MoudPackets.ZoneSyncPacket.class, (player, packet) ->
+                MinecraftClient.getInstance().execute(() -> {
+                    ClientZoneManager.applySync(packet.zones());
+                    SceneEditorDiagnostics.log("Runtime zones synced: " + packet.zones().size());
+                }));
+        ClientPacketWrapper.registerHandler(MoudPackets.ZoneUpsertPacket.class, (player, packet) ->
+                MinecraftClient.getInstance().execute(() -> {
+                    ClientZoneManager.upsert(packet.zone());
+                    SceneEditorDiagnostics.log("Runtime zone upsert: " + packet.zone().id());
+                }));
+        ClientPacketWrapper.registerHandler(MoudPackets.ZoneRemovePacket.class, (player, packet) ->
+                MinecraftClient.getInstance().execute(() -> {
+                    ClientZoneManager.remove(packet.id());
+                    SceneEditorDiagnostics.log("Runtime zone removed: " + packet.id());
+                }));
         ClientPacketWrapper.registerHandler(MoudPackets.PhysicsModePacket.class, (player, packet) -> handlePhysicsMode(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.PlayerSnapshotPacket.class, (player, packet) -> handlePlayerSnapshot(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_PlayModelAnimationWithFadePacket.class, (player, packet) -> {
@@ -184,6 +203,7 @@ public class ClientNetworkRegistry {
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_IKAttachPacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientIKManager.getInstance().handleAttach(packet)));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_IKDetachPacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientIKManager.getInstance().handleDetach(packet)));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_IKRemoveChainPacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientIKManager.getInstance().handleRemove(packet)));
+        ClientPacketWrapper.registerHandler(MoudPackets.RequestPlayerAnimationsPacket.class, (player, packet) -> handleRequestPlayerAnimations());
 
         LOGGER.info("Internal packet handlers registered.");
     }
@@ -535,6 +555,19 @@ public class ClientNetworkRegistry {
     private void handlePlayModelAnimation(MoudPackets.S2C_PlayModelAnimationPacket packet) {
         MinecraftClient client = MinecraftClient.getInstance();
         client.execute(() -> {
+            ClientFakePlayerManager fakePlayerManager =
+                    ClientFakePlayerManager.getInstance();
+            OtherClientPlayerEntity fakePlayer =
+                    fakePlayerManager.getFakePlayer(packet.modelId());
+
+            if (fakePlayer != null) {
+                if (fakePlayer instanceof IAnimatedPlayer animatedPlayer) {
+                    animatedPlayer.getAnimationPlayer().playAnimation(packet.animationId());
+                    LOGGER.info("Applied animation '{}' to fake player with model ID {}", packet.animationId(), packet.modelId());
+                }
+                return;
+            }
+
             AnimatedPlayerModel model = ClientPlayerModelManager.getInstance().getModel(packet.modelId());
             if (model != null) {
                 model.playAnimation(packet.animationId());
@@ -748,42 +781,7 @@ public class ClientNetworkRegistry {
     }
 
     private Identifier parseTextureId(String rawPath) {
-        if (rawPath == null || rawPath.isBlank()) {
-            return null;
-        }
-        String normalized = rawPath.trim().replace('\\', '/');
-        if (normalized.startsWith("/")) {
-            normalized = normalized.substring(1);
-        }
-        if (normalized.startsWith("assets/")) {
-            normalized = normalized.substring("assets/".length());
-        }
-        if (normalized.startsWith("moud:moud/")) {
-            normalized = "moud:" + normalized.substring("moud:moud/".length());
-        }
-        if (!normalized.contains(":")) {
-            String effective = normalized;
-            if (normalized.contains("/")) {
-                int firstSlash = normalized.indexOf('/');
-                String maybeNamespace = normalized.substring(0, firstSlash);
-                String remainder = normalized.substring(firstSlash + 1);
-                if (!maybeNamespace.isBlank() && !remainder.isBlank()) {
-                    effective = maybeNamespace + ":" + remainder;
-                }
-            }
-            if (!effective.contains(":")) {
-                effective = effective.startsWith("moud/") ? "moud:" + effective.substring(5) : "moud:" + effective;
-            }
-            normalized = effective;
-        }
-        Identifier parsed = Identifier.tryParse(normalized);
-        if (parsed != null && "moud".equals(parsed.getNamespace())) {
-            String path = parsed.getPath();
-            if (path.startsWith("moud/") && path.length() > 5) {
-                return Identifier.of("moud", path.substring(5));
-            }
-        }
-        return parsed;
+        return IdentifierUtils.resolveTextureIdentifier(rawPath);
     }
 
     private boolean applyModelTexture(RenderableModel model, String texturePath, long modelId) {
@@ -908,5 +906,30 @@ public class ClientNetworkRegistry {
             LOGGER.warn("Failed to handle builtin client event {}: {}", eventName, e.getMessage());
             return false;
         }
+    }
+
+    private void handleRequestPlayerAnimations() {
+        MinecraftClient.getInstance().execute(() -> {
+            try {
+                Map<Identifier, ?> animationsMap = com.zigythebird.playeranim.animation.PlayerAnimResources.getAnimations();
+
+                List<String> animationIds = new ArrayList<>();
+                if (animationsMap != null && !animationsMap.isEmpty()) {
+                    animationsMap.keySet().forEach(id -> animationIds.add(id.toString()));
+                    LOGGER.info("Found {} PlayerAnim animations", animationIds.size());
+                } else {
+                    LOGGER.info("No PlayerAnim animations found");
+                }
+
+                animationIds.sort(String::compareTo);
+
+                MoudPackets.PlayerAnimationsListPacket response = new MoudPackets.PlayerAnimationsListPacket(animationIds);
+                ClientPacketWrapper.sendToServer(response);
+
+            } catch (Exception e) {
+                LOGGER.error("Failed to get PlayerAnim animations list", e);
+                ClientPacketWrapper.sendToServer(new MoudPackets.PlayerAnimationsListPacket(new ArrayList<>()));
+            }
+        });
     }
 }
