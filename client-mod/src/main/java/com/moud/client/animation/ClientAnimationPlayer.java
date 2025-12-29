@@ -26,7 +26,7 @@ public class ClientAnimationPlayer {
         this.player = player;
     }
 
-    private AnimationController getController() {
+    public AnimationController getController() {
         if (this.animationController == null) {
             try {
                 this.animationController = (AnimationController) PlayerAnimationAccess.getPlayerAnimationLayer(player, PlayerAnimLibMod.ANIMATION_LAYER_ID);
