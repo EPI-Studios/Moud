@@ -244,7 +244,18 @@ public class JavaScriptRuntime {
                             scriptPath.getFileName(),
                             e.getSourceLocation().getStartLine(),
                             e.getSourceLocation().getStartColumn());
-                    LOGGER.error("└─> {}: {}", e.getMessage().split(":")[0], e.getMessage().substring(e.getMessage().indexOf(":") + 1).trim());
+                    String message = e.getMessage();
+                    if (message == null) {
+                        LOGGER.error("└─> <no message>");
+                    } else {
+                        int colonIndex = message.indexOf(':');
+                        if (colonIndex > 0 && colonIndex + 1 < message.length()) {
+                            LOGGER.error("└─> {}: {}", message.substring(0, colonIndex),
+                                    message.substring(colonIndex + 1).trim());
+                        } else {
+                            LOGGER.error("└─> {}", message);
+                        }
+                    }
                 } else {
                     LOGGER.error("Host error during script execution", e);
                 }
@@ -375,6 +386,10 @@ public class JavaScriptRuntime {
 
     public ExecutorService getExecutor() {
         return executor;
+    }
+
+    public Context getContext() {
+        return jsContext;
     }
 
     public void shutdown() {
