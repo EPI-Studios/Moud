@@ -1,5 +1,6 @@
 package com.moud.client.editor.assets;
 
+import com.moud.client.util.IdentifierUtils;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.texture.AbstractTexture;
 import net.minecraft.client.texture.ResourceTexture;
@@ -70,36 +71,10 @@ public final class AssetThumbnailCache {
     }
 
     private String normalizeKey(String path) {
-        String trimmed = path.trim().replace('\\', '/');
-        if (trimmed.isEmpty()) {
-            return "";
-        }
-        if (trimmed.startsWith("/")) {
-            trimmed = trimmed.substring(1);
-        }
-        if (trimmed.startsWith("assets/")) {
-            trimmed = trimmed.substring("assets/".length());
-        }
-        return trimmed;
+        return IdentifierUtils.normalizeAssetPathKey(path);
     }
 
     private Identifier parseIdentifier(String path) {
-        String candidate = path;
-        if (!candidate.contains(":") && candidate.contains("/")) {
-            int slash = candidate.indexOf('/');
-            String namespace = candidate.substring(0, slash);
-            String remainder = candidate.substring(slash + 1);
-            if (!namespace.isBlank() && !remainder.isBlank()) {
-                candidate = namespace + ":" + remainder;
-            }
-        }
-        Identifier parsed = Identifier.tryParse(candidate);
-        if (parsed != null) {
-            return parsed;
-        }
-        if (candidate.contains(":")) {
-            return null;
-        }
-        return Identifier.of("moud", candidate);
+        return IdentifierUtils.resolveTextureIdentifier(path);
     }
 }
