@@ -25,7 +25,7 @@ public final class LightRuntimeAdapter implements SceneRuntimeAdapter {
         String lightType = stringProperty(props, "lightType", "point").toLowerCase();
         Map<String, Object> lightData = buildLightData(props, lightType);
         lightId = ServerLightingManager.getInstance().spawnLight(lightType, lightData);
-        LOGGER.info("Created {} light {} for scene {}", lightType, lightId, sceneId);
+        LOGGER.debug("Created {} light {} for scene {}", lightType, lightId, sceneId);
     }
 
     @Override
@@ -46,7 +46,7 @@ public final class LightRuntimeAdapter implements SceneRuntimeAdapter {
     public void remove() {
         if (lightId != -1L) {
             ServerLightingManager.getInstance().removeLight(lightId);
-            LOGGER.info("Removed light {} for scene {}", lightId, sceneId);
+            LOGGER.debug("Removed light {} for scene {}", lightId, sceneId);
             lightId = -1L;
         }
     }

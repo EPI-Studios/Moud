@@ -36,7 +36,9 @@ public class ServerLightingManager {
         lightData.put("id", lightId);
         lightIdCounter.accumulateAndGet(lightId, Math::max);
 
-        LOGGER.info("Light {} data being sent: {}", lightId, lightData);
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("Broadcasting light {} {} ({} properties)", lightId, isNewLight ? "create" : "update", lightData.size());
+        }
 
         broadcastLightOperation(isNewLight ? "create" : "update", lightData);
     }
@@ -67,7 +69,7 @@ public class ServerLightingManager {
         List<Map<String, Object>> allLights = new ArrayList<>(lights.values());
         Map<String, Object> syncData = Map.of("lights", allLights);
         sendEventToPlayer(player, "lighting:sync", syncData);
-        LOGGER.info("Synced {} lights to player {}", allLights.size(), player.getUsername());
+        LOGGER.debug("Synced {} lights to player {}", allLights.size(), player.getUsername());
     }
 
     private void broadcastLightOperation(String operation, Map<String, Object> data) {
