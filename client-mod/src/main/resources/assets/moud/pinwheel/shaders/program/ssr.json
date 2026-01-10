@@ -1,0 +1,13 @@
+{
+  "vertex": "veil:blit_screen",
+  "fragment": "moud:ssr",
+  "textures": {
+    "DiffuseSampler0": "veil:dynamic_buffer/albedo",
+    "DiffuseDepthSampler": {
+      "type": "framebuffer",
+      "name": "minecraft:main:depth"
+    },
+    "VeilDynamicNormal": "veil:dynamic_buffer/normal",
+    "VeilDynamicDebug": "veil:dynamic_buffer/debug"
+  }
+}
