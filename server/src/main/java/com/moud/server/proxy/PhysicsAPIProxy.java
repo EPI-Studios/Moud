@@ -60,6 +60,7 @@ public final class PhysicsAPIProxy {
         String controllerId = null;
         PlayerPhysicsConfig configOverride = null;
         if (options != null && !options.isNull() && options.hasMembers()) {
+            PlayerPhysicsConfig baselineConfig = enabled ? PlayerPhysicsConfig.predictionDefaults() : PlayerPhysicsConfig.defaults();
             if (options.hasMember("controllerId")) {
                 controllerId = options.getMember("controllerId").asString();
             } else if (options.hasMember("controller")) {
@@ -68,9 +69,9 @@ public final class PhysicsAPIProxy {
 
             Value configValue = options.hasMember("config") ? options.getMember("config") : null;
             if (configValue != null && !configValue.isNull()) {
-                configOverride = readPlayerPhysicsConfig(configValue, PlayerPhysicsConfig.defaults());
+                configOverride = readPlayerPhysicsConfig(configValue, baselineConfig);
             } else if (options.hasMember("speed") || options.hasMember("accel") || options.hasMember("gravity")) {
-                configOverride = readPlayerPhysicsConfig(options, PlayerPhysicsConfig.defaults());
+                configOverride = readPlayerPhysicsConfig(options, baselineConfig);
             }
         }
 

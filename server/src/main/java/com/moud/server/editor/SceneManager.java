@@ -34,6 +34,7 @@ public final class SceneManager {
     private Path storageDirectory;
     private Path projectRoot;
     private com.moud.server.assets.AssetManager assetManager;
+    private volatile long lastAssetRefreshMs = 0L;
 
     public static synchronized void install(SceneManager sceneManager) {
         instance = Objects.requireNonNull(sceneManager, "sceneManager");
@@ -401,6 +402,7 @@ public final class SceneManager {
 
         assetManager.getDiscoveredAssets().values().stream()
                 .filter(meta -> meta.getType() == com.moud.server.assets.AssetDiscovery.AssetType.MODEL)
+                .sorted(Comparator.comparing(com.moud.server.assets.AssetDiscovery.AssetMetadata::getId))
                 .forEach(meta -> {
                     String label = humanize(meta.getId());
                     String assetPath = toResourcePath(meta.getId());
@@ -413,6 +415,7 @@ public final class SceneManager {
 
         assetManager.getDiscoveredAssets().values().stream()
                 .filter(meta -> meta.getType() == com.moud.server.assets.AssetDiscovery.AssetType.TEXTURE)
+                .sorted(Comparator.comparing(com.moud.server.assets.AssetDiscovery.AssetMetadata::getId))
                 .forEach(meta -> {
                     String label = "Display: " + humanize(meta.getId());
                     String assetPath = toResourcePath(meta.getId());
@@ -429,6 +432,22 @@ public final class SceneManager {
         assets.add(fakePlayerAsset());
 
         return assets;
+    }
+
+    public void refreshAssetsIfDue(long minIntervalMs) {
+        if (assetManager == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (minIntervalMs > 0 && now - lastAssetRefreshMs < minIntervalMs) {
+            return;
+        }
+        lastAssetRefreshMs = now;
+        try {
+            assetManager.refresh();
+        } catch (IOException e) {
+            LOGGER.warn("Failed to refresh asset cache", e);
+        }
     }
 
     private List<MoudPackets.EditorAssetDefinition> builtInPrimitiveAssets() {
