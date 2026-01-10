@@ -2,6 +2,7 @@ package com.moud.client.init;
 
 import com.moud.client.animation.ClientPlayerModelManager;
 import com.moud.client.api.service.ClientAPIService;
+import com.moud.client.collision.ClientChunkCollisionManager;
 import com.moud.client.collision.ClientCollisionManager;
 import com.moud.client.collision.ModelCollisionManager;
 import com.moud.client.cursor.ClientCursorManager;
@@ -17,13 +18,16 @@ import com.moud.client.particle.ParticleEmitterSystem;
 import com.moud.client.particle.ParticleSystem;
 import com.moud.client.player.ClientCameraManager;
 import com.moud.client.player.PlayerStateManager;
+import com.moud.client.physics.ClientPhysicsWorld;
 import com.moud.client.primitives.ClientPrimitiveManager;
+import com.moud.client.primitives.PrimitiveMeshCollisionManager;
 import com.moud.client.runtime.ClientScriptingRuntime;
 import com.moud.client.shared.SharedValueManager;
 import com.moud.client.ui.ServerUIOverlayManager;
 import com.moud.client.ui.UIOverlayManager;
 import com.moud.client.ui.animation.UIAnimationManager;
 import com.moud.api.physics.player.PlayerPhysicsControllers;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
@@ -49,6 +53,24 @@ public class ClientServiceManager {
         }
         this.cursorManager = ClientCursorManager.getInstance();
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+        ClientChunkEvents.CHUNK_LOAD.register((world, chunk) -> {
+            if (chunk != null) {
+                ClientChunkCollisionManager.getInstance().onChunkLoad(chunk.getPos().x, chunk.getPos().z);
+            }
+        });
+        ClientChunkEvents.CHUNK_UNLOAD.register((world, chunk) -> {
+            if (chunk != null) {
+                ClientChunkCollisionManager.getInstance().onChunkUnload(chunk.getPos().x, chunk.getPos().z);
+            }
+        });
+        try {
+            ClientPhysicsWorld.getInstance().initialize();
+            ClientCollisionManager.syncAllToJoltPhysics();
+            PrimitiveMeshCollisionManager.getInstance().syncAllToJoltPhysics();
+        } catch (Exception e) {
+            LOGGER.warn("Failed to initialize client physics, mesh collision will use legacy system", e);
+        }
+
         baseSystemsInitialized = true;
     }
 
@@ -69,8 +91,10 @@ public class ClientServiceManager {
 
     public void cleanupRuntimeServices() {
         LOGGER.info("Cleaning up Moud services...");
+        ClientPhysicsWorld.getInstance().reset();
         ClientMovementTracker.getInstance().reset();
         PlayerPhysicsControllers.clearNonDefault();
+        ClientChunkCollisionManager.getInstance().clear();
         if (scriptingRuntime != null) {
             scriptingRuntime.shutdown();
             scriptingRuntime = null;
@@ -138,6 +162,8 @@ public class ClientServiceManager {
         if (clientCameraManager != null) {
             clientCameraManager.tick();
         }
+
+        ClientChunkCollisionManager.getInstance().tick();
 
         ClientPlayerModelManager.getInstance().getModels().forEach(com.moud.client.animation.AnimatedPlayerModel::tick);
 

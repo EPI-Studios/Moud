@@ -24,7 +24,10 @@ import com.moud.client.particle.ParticleEmitterSystem;
 import com.moud.client.particle.ParticleSystem;
 import com.moud.client.permissions.ClientPermissionState;
 import com.moud.client.rendering.FramebufferTextureExports;
+import com.moud.client.resources.InMemoryPackResources;
 import com.moud.client.util.WindowAnimator;
+import com.moud.client.ui.loading.MoudPreloadState;
+import com.moud.client.ui.screen.MoudPreloadScreen;
 import com.moud.client.zone.ClientZoneManager;
 import com.moud.network.MoudPackets;
 import com.moud.network.protocol.MoudProtocol;
@@ -32,6 +35,7 @@ import com.zigythebird.playeranim.api.PlayerAnimationAccess;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientLoginConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
@@ -39,28 +43,38 @@ import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.resource.ResourceManager;
-import net.minecraft.resource.ResourcePackManager;
-import net.minecraft.resource.ResourcePackProfile;
-import net.minecraft.resource.ResourcePackProvider;
-import net.minecraft.resource.ResourceType;
+import net.minecraft.resource.*;
+import net.minecraft.resource.featuretoggle.FeatureSet;
+import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 public final class MoudClientMod implements ClientModInitializer, ResourcePackProvider {
     public static final Logger LOGGER = LoggerFactory.getLogger("MoudClient");
 
     private static MoudClientMod instance;
+    private static final String MOUD_SHADER_PACK_ID = "moud_shaders";
+    private static final boolean ENABLE_MOUD_SHADER_PACK = !"false".equalsIgnoreCase(System.getProperty("moud.enableMoudShaders", "true"));
 
     private final ClientServiceManager serviceManager = new ClientServiceManager();
     private final ScriptBundleLoader scriptLoader = new ScriptBundleLoader();
     private final ClientRenderController renderController = new ClientRenderController();
     private final ClientNetworkRegistry networkRegistry = new ClientNetworkRegistry();
+    private InMemoryPackResources moudShaderPack;
 
     private boolean isOnMoudServer = false;
+    private long joinAttemptStartMillis = 0L;
+    private static final long PRELOAD_NON_MOUD_TIMEOUT_MILLIS = 3_000L;
 
     public static Logger getLogger() {
         return LOGGER;
@@ -87,6 +101,8 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
         instance = this;
         VoiceKeybindManager.init();
         LOGGER.info("Initializing Moud client...");
+
+        initializeMoudShaderPack();
 
         serviceManager.initializeBaseSystems();
         networkRegistry.registerPackets(this, serviceManager, scriptLoader);
@@ -117,6 +133,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     }
 
     private void registerLifecycleEvents() {
+        ClientLoginConnectionEvents.INIT.register((handler, client) -> onLoginStart(client));
         ClientPlayConnectionEvents.JOIN.register(this::onJoinServer);
         ClientPlayConnectionEvents.DISCONNECT.register(this::onDisconnectServer);
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
@@ -124,7 +141,33 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             serviceManager.shutdown();
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> scriptLoader.tick(this, serviceManager));
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (!MoudPreloadState.isActive()) {
+                return;
+            }
+            if (isOnMoudServer) {
+                return;
+            }
+            long started = joinAttemptStartMillis;
+            if (started <= 0L) {
+                return;
+            }
+            long elapsed = System.currentTimeMillis() - started;
+            if (elapsed >= PRELOAD_NON_MOUD_TIMEOUT_MILLIS) {
+                MoudPreloadState.reset();
+            }
+        });
         ClientTickEvents.END_CLIENT_TICK.register(VoiceKeybindManager::tick);
+    }
+
+    private void onLoginStart(MinecraftClient client) {
+        joinAttemptStartMillis = System.currentTimeMillis();
+        MoudPreloadState.begin();
+        MoudPreloadState.setPhase("Joining server...");
+        MoudPreloadState.setProgress(0.01f);
+        client.execute(() -> {
+            MinecraftClient.getInstance().setScreen(new MoudPreloadScreen());
+        });
     }
 
     private void registerHudRenderer() {
@@ -172,7 +215,22 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     }
 
     private void onJoinServer(ClientPlayNetworkHandler handler, PacketSender sender, MinecraftClient client) {
+        if (!MoudPreloadState.isActive()) {
+            MoudPreloadState.begin();
+        }
+        MoudPreloadState.setPhase("Connected, waiting for data...");
+        MoudPreloadState.setProgress(0.03f);
+        client.execute(() -> {
+            MinecraftClient.getInstance().setScreen(new MoudPreloadScreen());
+        });
+
         serviceManager.initializeRuntimeServices();
+        try {
+            if (serviceManager.getRuntime() != null) {
+                serviceManager.getRuntime().initialize();
+            }
+        } catch (Throwable ignored) {
+        }
         scriptLoader.resetState();
         scriptLoader.onJoin(handler);
         ClientZoneManager.clear();
@@ -182,6 +240,8 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
 
     private void onDisconnectServer(ClientPlayNetworkHandler handler, MinecraftClient client) {
         markAsMoudServer(false);
+        MoudPreloadState.reset();
+        joinAttemptStartMillis = 0L;
         ClientPermissionState.getInstance().reset();
         scriptLoader.onDisconnect(handler);
 
@@ -203,11 +263,10 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             FramebufferTextureExports.clear();
             SceneSelectionManager.getInstance().clear();
             AssetThumbnailCache.getInstance().clear();
+            renderController.resetFrameTime();
+            serviceManager.cleanupRuntimeServices();
+            ClientRenderController.setCustomCameraActive(false);
         });
-
-        renderController.resetFrameTime();
-        serviceManager.cleanupRuntimeServices();
-        ClientRenderController.setCustomCameraActive(false);
     }
 
     public void markAsMoudServer(boolean isMoud) {
@@ -217,6 +276,7 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
     @Override
     public void register(Consumer<ResourcePackProfile> profileAdder) {
         scriptLoader.registerResourcePack(profileAdder);
+        registerMoudShaderPack(profileAdder);
     }
 
     private void registerResourcePackProvider() {
@@ -227,6 +287,75 @@ public final class MoudClientMod implements ClientModInitializer, ResourcePackPr
             LOGGER.info("Registered dynamic resource pack provider.");
         } else {
             LOGGER.warn("Could not register dynamic resource pack provider: missing accessor.");
+        }
+    }
+
+    private void initializeMoudShaderPack() {
+        if (!ENABLE_MOUD_SHADER_PACK) {
+            return;
+        }
+
+        Map<String, byte[]> resources = new HashMap<>();
+        addClasspathResource(resources, "assets/veil/pinwheel/shaders/program/light/point.fsh");
+        addClasspathResource(resources, "assets/veil/pinwheel/shaders/program/light/point.json");
+        addClasspathResource(resources, "assets/veil/pinwheel/shaders/program/light/directional.fsh");
+        addClasspathResource(resources, "assets/veil/pinwheel/shaders/program/light/directional.json");
+        addClasspathResource(resources, "assets/veil/pinwheel/shaders/program/light/area.fsh");
+        addClasspathResource(resources, "assets/veil/pinwheel/shaders/program/light/area.json");
+
+        if (resources.isEmpty()) {
+            LOGGER.warn("Moud shaders not found in client resources; skipping override pack");
+            return;
+        }
+
+        moudShaderPack = new InMemoryPackResources(
+                MOUD_SHADER_PACK_ID,
+                Text.of("Moud Shaders"),
+                resources
+        );
+        LOGGER.info("Initialized Moud shader override pack ({} resources)", resources.size());
+    }
+
+    private void registerMoudShaderPack(Consumer<ResourcePackProfile> profileAdder) {
+        if (moudShaderPack == null) {
+            return;
+        }
+
+        ResourcePackProfile.PackFactory factory = new ResourcePackProfile.PackFactory() {
+            @Override
+            public ResourcePack open(ResourcePackInfo info) {
+                return moudShaderPack;
+            }
+
+            @Override
+            public ResourcePack openWithOverlays(ResourcePackInfo info, ResourcePackProfile.Metadata metadata) {
+                return moudShaderPack;
+            }
+        };
+
+        var info = new ResourcePackInfo(
+                MOUD_SHADER_PACK_ID,
+                Text.of("Moud Shaders"),
+                ResourcePackSource.BUILTIN,
+                null
+        );
+        var metadata = new ResourcePackProfile.Metadata(
+                Text.of("Moud Shaders"),
+                ResourcePackCompatibility.COMPATIBLE,
+                FeatureSet.empty(),
+                Collections.emptyList()
+        );
+        var position = new ResourcePackPosition(true, ResourcePackProfile.InsertionPosition.TOP, true);
+        profileAdder.accept(new ResourcePackProfile(info, factory, metadata, position));
+    }
+
+    private static void addClasspathResource(Map<String, byte[]> resources, String path) {
+        try (InputStream in = MoudClientMod.class.getClassLoader().getResourceAsStream(path)) {
+            if (in == null) {
+                return;
+            }
+            resources.put(path, in.readAllBytes());
+        } catch (IOException ignored) {
         }
     }
 
