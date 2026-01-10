@@ -1189,60 +1189,12 @@ export interface Server {
  * @remarks Server-only.
  */
 export interface PlayerModelOptions {
-    /** The initial position of the model in the world. */
-    position: Vector3;
+    /** The initial position of the model in the world. Defaults to `Vector3.zero()`. */
+    position?: Vector3;
+    /** Optional initial rotation of the model (degrees). */
+    rotation?: { yaw?: number; pitch?: number };
     /** The URL of the skin to apply to the model. */
     skinUrl?: string;
-
-    /**
-     * Makes the model walk towards a target destination.
-     * The model will automatically rotate to face the target.
-     * @param target The world position (Vector3) to walk to.
-     * @param options Optional settings, like speed.
-     */
-    walkTo(target: Vector3, options?: { speed?: number }): void;
-
-    /**
-     * Immediately stops the model's current walking movement.
-     * The model will transition to its idle animation.
-     */
-    stopWalking(): void;
-
-    /**
-     * Checks if the model is currently executing a `walkTo` command.
-     * @returns `true` if the model is walking, `false` otherwise.
-     */
-    isWalking(): boolean;
-
-    /**
-     * Changes the skin of the model.
-     * @param skinUrl The URL of the new skin texture.
-     */
-    setSkin(skinUrl: string): void;
-
-    /**
-     * Plays an animation, smoothly fading from the current animation.
-     * @param animationName The ID of the animation to play.
-     * @param durationMs The duration of the fade transition in milliseconds.
-     */
-    playAnimationWithFade(animationName: string, durationMs: number): void;
-
-    /**
-     * Plays an animation on the model, instantly overriding the current one.
-     * @param animationName The ID of the animation to play (e.g., 'moud:idle', 'moud:walk').
-     */
-    playAnimation(animationName: string): void;
-
-    /**
-     * Removes the model from the world for all players.
-     */
-    remove(): void;
-
-    /**
-     * Registers a callback function to execute when a player clicks on this model.
-     * @param callback The function to execute. It receives the player who clicked and click details.
-     */
-    onClick(callback: (player: Player, clickData: { button: number; mouseX: number; mouseY: number }) => void): void;
 }
 
 /**
@@ -1346,6 +1298,20 @@ export interface DisplayPlaybackOptions {
     fps?: number;
 }
 
+/** PBR material options for display surfaces. */
+export interface DisplayPbrOptions {
+    enabled?: boolean;
+    /** Texture ID (e.g. `moud:textures/foo.png`) to override the base color source. */
+    baseColor?: string;
+    normal?: string;
+    /** Texture ID that packs roughness in G and metallic in B (glTF convention). */
+    metallicRoughness?: string;
+    emissive?: string;
+    occlusion?: string;
+    metallicFactor?: number;
+    roughnessFactor?: number;
+}
+
 /** Options for creating a world display surface. */
 export interface DisplayOptions {
     position?: Vector3;
@@ -1356,6 +1322,7 @@ export interface DisplayOptions {
     anchor?: DisplayAnchorOptions;
     content?: DisplayContentOptions;
     playback?: DisplayPlaybackOptions;
+    pbr?: DisplayPbrOptions;
 }
 
 /** Controls a world display surface that renders images/video. */
@@ -1380,6 +1347,7 @@ export interface Display {
     pause(): void;
     setPlaybackSpeed(speed: number): void;
     seek(seconds: number): void;
+    setPbr(options: DisplayPbrOptions): void;
     remove(): void;
 }
 
@@ -1449,8 +1417,15 @@ export interface ModelOptions {
     texture?: string;
     /** Collision configuration (true = auto, false = none, or explicit bounds). */
     collision?: boolean | { width?: number; height?: number; depth?: number };
-    /** Collision mode hint (e.g., `auto`, `convex`, `mesh`). */
-    collisionMode?: string;
+    /**
+     * Collision mode for this model.
+     * - `"auto"`: Automatically choose mesh collision if available, otherwise box.
+     * - `"mesh"`: Use triangle mesh collision for accurate terrain/props.
+     * - `"convex"`: Use convex hull collision (good for simple shapes).
+     * - `"box"`: Use axis-aligned bounding box collision.
+     * @default "auto"
+     */
+    collisionMode?: 'auto' | 'mesh' | 'convex' | 'box' | string;
     /** Optional attachment configuration (parented transform). */
     anchor?: ModelAnchorOptions;
 }
@@ -1477,6 +1452,22 @@ export interface Model {
     getScale(): Vector3;
     setTransform(position?: Vector3, rotation?: Quaternion, scale?: Vector3): void;
     setTexture(texturePath: string): void;
+    /**
+     * Plays a GLB animation on this model (static by default until called).
+     *
+     * @remarks Server-only. Requires Moud client mod and a `.glb` with animations.
+     */
+    playAnimation(animation: string | number, options?: { loop?: boolean; speed?: number; startTime?: number; time?: number }): void;
+    /** Pauses the currently active GLB animation (keeps the current pose). */
+    pauseAnimation(): void;
+    /** Stops the current GLB animation and resets to bind pose (T-pose). */
+    stopAnimation(): void;
+    /** Seeks the currently active animation time in seconds. */
+    seekAnimation(seconds: number): void;
+    /** Sets playback speed multiplier (1 = normal). */
+    setAnimationSpeed(speed: number): void;
+    /** Enables/disables looping for the current animation. */
+    setLoopAnimation(loop: boolean): void;
     setCollisionMode(mode: string): void;
     remove(): void;
     clearAnchor(): void;
@@ -2668,10 +2659,35 @@ export interface PlayerModel {
     /** @returns The current world position of the model. */
     getPosition(): Vector3;
 
+    /** Moves the model to a different world instance (Minestom instance UUID). */
+    setInstance(instanceName: string): void;
+
+    /** @returns The instance UUID this model is currently in, if set. */
+    getInstanceName(): string | null;
+
     /**
      * Sets the world position of the model.
      */
     setPosition(position: Vector3): void;
+
+    /**
+     * Makes the model walk towards a target destination.
+     * The model will automatically rotate to face the target.
+     * @param target The world position (Vector3) to walk to.
+     * @param options Optional settings, like speed.
+     */
+    walkTo(target: Vector3, options?: { speed?: number }): void;
+
+    /**
+     * Immediately stops the model's current walking movement.
+     */
+    stopWalking(): void;
+
+    /**
+     * Checks if the model is currently executing a `walkTo` command.
+     * @returns `true` if the model is walking, `false` otherwise.
+     */
+    isWalking(): boolean;
 
     /**
      * Sets the rotation of the model.
@@ -2690,6 +2706,31 @@ export interface PlayerModel {
      * @param animationName The namespaced ID of the animation to play (e.g., 'moud:wave').
      */
     playAnimation(animationName: string): void;
+
+    /**
+     * Plays an animation, smoothly fading from the current animation.
+     * @param animationName The ID of the animation to play.
+     * @param durationMs The duration of the fade transition in milliseconds.
+     */
+    playAnimationWithFade(animationName: string, durationMs: number): void;
+
+    /**
+     * Enables a manual animation override (disables auto-animation selection).
+     * Pass an empty string to clear the override.
+     */
+    setManualAnimation(animationName: string): void;
+
+    /** Clears any manual animation override. */
+    clearManualAnimation(): void;
+
+    /** Enables/disables automatic animation selection. */
+    setAutoAnimation(enabled: boolean): void;
+
+    /** Enables/disables looping for the manual animation mode. */
+    setLoopAnimation(loop: boolean): void;
+
+    /** Sets animation duration used by fade-based playback. */
+    setAnimationDuration(durationMs: number): void;
 
     /**
      * Removes the model from the world for all players.
@@ -3517,16 +3558,16 @@ export interface Command {
     /**
      * Registers a command without aliases.
      * @param name Primary literal used to execute the command.
-     * @param callback Invoked when a player runs the command.
+     * @param callback Invoked when a player runs the command, with its arguments.
      */
-    register(name: string, callback: (player: Player) => void): void;
+    register(name: string, callback: (player: Player, args: string[]) => void): void;
     /**
      * Registers a command with additional aliases.
      * @param name Primary literal used to execute the command.
      * @param aliases Additional names that trigger the same command.
-     * @param callback Invoked when a player runs the command.
+     * @param callback Invoked when a player runs the command, with its arguments.
      */
-    registerWithAliases(name: string, aliases: string[], callback: (player: Player) => void): void;
+    registerWithAliases(name: string, aliases: string[], callback: (player: Player, args: string[]) => void): void;
 }
 
 export interface SceneAPI {
