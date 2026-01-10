@@ -1,0 +1,41 @@
+{
+  "format": "NEW_ENTITY",
+  "mode": "QUADS",
+  "bufferSize": "SMALL",
+  "sort": true,
+  "affectsCrumbling": true,
+  "outline": false,
+  "layers": [
+    {
+      "type": "minecraft:multi_texture",
+      "textures": [
+        { "texture": "%1$s", "blur": true, "mipmap": false },
+        { "texture": "%2$s", "blur": true, "mipmap": false },
+        { "texture": "%3$s", "blur": true, "mipmap": false },
+        { "texture": "%4$s", "blur": true, "mipmap": false },
+        { "texture": "%5$s", "blur": true, "mipmap": false }
+      ]
+    },
+    {
+      "type": "veil:shader",
+      "name": "moud:gltf/pbr_blend"
+    },
+    {
+      "type": "minecraft:depth_test",
+      "mode": "lequal"
+    },
+    {
+      "type": "minecraft:cull",
+      "face": "none"
+    },
+    {
+      "type": "minecraft:transparency",
+      "mode": "translucent"
+    },
+    {
+      "type": "minecraft:write_mask",
+      "color": true,
+      "depth": false
+    }
+  ]
+}
