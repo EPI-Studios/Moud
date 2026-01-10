@@ -6,6 +6,7 @@ plugins {
 
 repositories {
     mavenCentral()
+    maven { url = "https://repo.javagl.de/" }
     maven {
         url = "https://repo.minestom.com/"
     }
@@ -48,7 +49,10 @@ dependencies {
     implementation "org.openjfx:javafx-fxml:${javafxVersion}:${javafxPlatform}"
 
     implementation 'org.yaml:snakeyaml:2.3'
+    implementation 'org.joml:joml:1.10.8'
 
+    implementation("de.javagl:jgltf-model:2.0.4")
+    implementation("de.javagl:jgltf-impl-v2:2.0.4")
 
 }
 

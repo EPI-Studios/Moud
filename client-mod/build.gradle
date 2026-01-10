@@ -6,6 +6,7 @@ plugins {
 repositories {
     mavenCentral()
     maven { url = "https://maven.fabricmc.net/" }
+    maven { url = "https://repo.javagl.de/" }
     maven {
         name = 'BlameJared Maven (CrT / Bookshelf)'
         url = 'https://maven.blamejared.com'
@@ -53,8 +54,18 @@ dependencies {
     include implementation('org.jcodec:jcodec-javase:0.2.5')
 
     // gson
-    include implementation ('com.google.code.gson:gson:2.10.1')
+    include implementation('com.google.code.gson:gson:2.10.1')
 
+    include implementation("de.javagl:jgltf-model:2.0.4")
+    include implementation("de.javagl:jgltf-impl-v1:2.0.4")
+    include implementation("de.javagl:jgltf-impl-v2:2.0.4")
+
+    include implementation("com.github.stephengold:jolt-jni-Linux64:3.5.0")
+    include runtimeOnly("com.github.stephengold:jolt-jni-Linux64:3.5.0:DebugSp")
+    include runtimeOnly("com.github.stephengold:jolt-jni-Linux_ARM64:3.5.0:DebugSp")
+    include runtimeOnly("com.github.stephengold:jolt-jni-Windows64:3.5.0:DebugSp")
+    include runtimeOnly("com.github.stephengold:jolt-jni-MacOSX64:3.5.0:DebugSp")
+    include runtimeOnly("com.github.stephengold:jolt-jni-MacOSX_ARM64:3.5.0:DebugSp")
 }
 
 tasks.withType(net.fabricmc.loom.task.AbstractRunTask).configureEach {
