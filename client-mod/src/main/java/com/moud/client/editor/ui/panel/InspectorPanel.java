@@ -14,9 +14,14 @@ import com.moud.client.editor.runtime.RuntimeObjectType;
 import com.moud.client.editor.scene.SceneHistoryManager;
 import com.moud.client.editor.scene.SceneObject;
 import com.moud.client.editor.scene.SceneSessionManager;
+import com.moud.client.editor.selection.SceneSelectionManager;
 import com.moud.client.editor.ui.SceneEditorOverlay;
 import com.moud.client.editor.ui.layout.EditorDockingLayout;
+import com.moud.client.model.ClientModelManager;
+import com.moud.client.model.RenderableModel;
+import com.moud.client.model.gltf.GltfSkinnedModelLoader;
 import com.moud.client.rendering.PostEffectUniformRegistry;
+import com.moud.client.util.IdentifierUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
@@ -26,15 +31,22 @@ import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
 import imgui.type.ImString;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.network.OtherClientPlayerEntity;
+import net.minecraft.resource.Resource;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -60,9 +72,25 @@ public final class InspectorPanel {
     private final float[] lightDirectionValue = new float[]{0f, -1f, 0f};
     private final ImString modelPathBuffer = new ImString("", 192);
     private final ImString texturePathBuffer = new ImString("", 192);
+    private final ImString modelAnimationClipBuffer = new ImString("", 128);
+    private final ImBoolean modelAnimationPlaying = new ImBoolean(false);
+    private final ImBoolean modelAnimationLoop = new ImBoolean(true);
+    private final ImFloat modelAnimationSpeed = new ImFloat(1f);
+    private final ImFloat modelAnimationTime = new ImFloat(0f);
+    private final Map<String, List<RenderableModel.AnimationInfo>> glbAnimationCache = new ConcurrentHashMap<>();
+    private final Map<String, CompletableFuture<List<RenderableModel.AnimationInfo>>> glbAnimationLoads = new ConcurrentHashMap<>();
+    private final Map<String, String> glbAnimationErrors = new ConcurrentHashMap<>();
     private final ImString modelFilePickerFilter = new ImString(128);
     private final ImString textureFilePickerFilter = new ImString(128);
     private final ImString displayFilePickerFilter = new ImString(128);
+    private final ImBoolean displayPbrEnabled = new ImBoolean(false);
+    private final ImString displayPbrBaseColor = new ImString("", 256);
+    private final ImString displayPbrNormal = new ImString("", 256);
+    private final ImString displayPbrMetallicRoughness = new ImString("", 256);
+    private final ImString displayPbrEmissive = new ImString("", 256);
+    private final ImString displayPbrOcclusion = new ImString("", 256);
+    private final ImFloat displayPbrMetallicFactor = new ImFloat(0f);
+    private final ImFloat displayPbrRoughnessFactor = new ImFloat(1f);
     private final float[] markerPositionBuffer = new float[]{0f, 0f, 0f};
     private final ImString playerAnimationOverride = new ImString("", 128);
     private final ImBoolean playerAutoAnimation = new ImBoolean(true);
@@ -81,7 +109,11 @@ public final class InspectorPanel {
     private final ImFloat heightFogY = new ImFloat(64f);
     private final ImFloat heightFogThickness = new ImFloat(0.25f);
     private final float[] heightFogColor = new float[]{0.3f, 0.3f, 0.35f, 1.0f};
-
+    private final ImFloat ssrStrength = new ImFloat(0.35f);
+    private final ImFloat ssrMaxDistance = new ImFloat(32f);
+    private final ImFloat ssrStepSize = new ImFloat(0.2f);
+    private final ImFloat ssrThickness = new ImFloat(0.002f);
+    private final ImFloat ssrEdgeFade = new ImFloat(0.12f);
     private static final String[] PRIMITIVE_TYPE_LABELS = {
             "Cube",
             "Sphere",
@@ -99,6 +131,8 @@ public final class InspectorPanel {
             "cone",
             "plane"
     };
+
+    private record AnimationLookup(List<RenderableModel.AnimationInfo> animations, boolean loading, String error) {}
 
     private final ImInt primitiveTypeIndex = new ImInt(0);
     private final ImBoolean primitiveDynamic = new ImBoolean(false);
@@ -400,6 +434,7 @@ public final class InspectorPanel {
             ImGui.end();
             return;
         }
+
         SceneObject selected = overlay.getSelectedObject();
         RuntimeObject runtimeObject = overlay.getSelectedRuntime();
         String selectedLimb = overlay.getSelectedLimbType();
@@ -515,11 +550,24 @@ public final class InspectorPanel {
         markerLabelBuffer.set(inspectorLabel.get());
         modelPathBuffer.set(String.valueOf(props.getOrDefault("modelPath", "")));
         texturePathBuffer.set(String.valueOf(props.getOrDefault("texture", "")));
+        modelAnimationClipBuffer.set(String.valueOf(props.getOrDefault("animationClip", "")));
+        modelAnimationPlaying.set(boolValue(props.get("animationPlaying"), false));
+        modelAnimationLoop.set(boolValue(props.get("animationLoop"), true));
+        modelAnimationSpeed.set(toFloat(props.getOrDefault("animationSpeed", 1f)));
+        modelAnimationTime.set(toFloat(props.getOrDefault("animationTime", 0f)));
         displayContentBuffer.set(String.valueOf(props.getOrDefault("displayContent", "")));
         displayTypeBuffer.set(String.valueOf(props.getOrDefault("displayType", "image")));
         displayLoopToggle.set(boolValue(props.get("loop"), true));
         displayPlayingToggle.set(boolValue(props.get("playing"), true));
         displayFrameRateValue.set(toFloat(props.getOrDefault("frameRate", 24f)));
+        displayPbrEnabled.set(boolValue(props.get("pbrEnabled"), false));
+        displayPbrBaseColor.set(String.valueOf(props.getOrDefault("pbrBaseColor", "")));
+        displayPbrNormal.set(String.valueOf(props.getOrDefault("pbrNormal", "")));
+        displayPbrMetallicRoughness.set(String.valueOf(props.getOrDefault("pbrMetallicRoughness", "")));
+        displayPbrEmissive.set(String.valueOf(props.getOrDefault("pbrEmissive", "")));
+        displayPbrOcclusion.set(String.valueOf(props.getOrDefault("pbrOcclusion", "")));
+        displayPbrMetallicFactor.set(toFloat(props.getOrDefault("pbrMetallicFactor", 0f)));
+        displayPbrRoughnessFactor.set(toFloat(props.getOrDefault("pbrRoughnessFactor", 1f)));
         Object lightType = props.getOrDefault("lightType", "point");
         lightTypeIndex.set("area".equalsIgnoreCase(String.valueOf(lightType)) ? 1 : 0);
         lightBrightnessValue.set(toFloat(props.getOrDefault("brightness", 1f)));
@@ -683,6 +731,211 @@ public final class InspectorPanel {
             update.put("texture", value);
             session.submitPropertyUpdate(selected.getId(), update);
         }, true);
+
+        renderModelAnimationSection(session, selected);
+    }
+
+    private void renderModelAnimationSection(SceneSessionManager session, SceneObject selected) {
+        if (session == null || selected == null) {
+            return;
+        }
+
+        if (!ImGui.collapsingHeader("Animation", ImGuiTreeNodeFlags.DefaultOpen)) {
+            return;
+        }
+
+        Long modelId = SceneSelectionManager.getInstance().getBindingForObject(selected.getId());
+        RenderableModel runtimeModel = modelId != null ? ClientModelManager.getInstance().getModel(modelId) : null;
+        String modelPath = modelPathBuffer.get() != null ? modelPathBuffer.get().trim() : "";
+        AnimationLookup animationsLookup = lookupAnimations(modelPath, runtimeModel);
+        List<RenderableModel.AnimationInfo> animations = animationsLookup.animations();
+
+        String clip = modelAnimationClipBuffer.get() != null ? modelAnimationClipBuffer.get() : "";
+        String preview = clip.isBlank() ? "(none)" : clip;
+
+        if (animationsLookup.loading()) {
+            ImGui.textDisabled("Loading animations...");
+        } else if (animationsLookup.error() != null && !animationsLookup.error().isBlank()) {
+            ImGui.textColored(1f, 0.55f, 0.55f, 1f, "Failed to read animations: " + animationsLookup.error());
+        }
+
+        if (!modelPath.isBlank() && modelPath.toLowerCase(Locale.ROOT).endsWith(".glb")) {
+            ImGui.sameLine();
+            if (ImGui.smallButton("Refresh##glb_animations")) {
+                glbAnimationCache.remove(modelPath);
+                glbAnimationErrors.remove(modelPath);
+                CompletableFuture<List<RenderableModel.AnimationInfo>> existing = glbAnimationLoads.remove(modelPath);
+                if (existing != null) {
+                    existing.cancel(true);
+                }
+                animationsLookup = lookupAnimations(modelPath, runtimeModel);
+                animations = animationsLookup.animations();
+            }
+        }
+
+        if (!animations.isEmpty()) {
+            if (ImGui.beginCombo("Clip", preview)) {
+                for (RenderableModel.AnimationInfo info : animations) {
+                    if (info == null) {
+                        continue;
+                    }
+                    String name = info.name();
+                    boolean selectedClip = name != null && name.equalsIgnoreCase(clip);
+                    if (ImGui.selectable(name, selectedClip)) {
+                        modelAnimationClipBuffer.set(name);
+                        modelAnimationTime.set(0f);
+                        Map<String, Object> update = new ConcurrentHashMap<>();
+                        update.put("animationClip", name);
+                        update.put("animationTime", 0f);
+                        session.submitPropertyUpdate(selected.getId(), update);
+                    }
+                    if (selectedClip) {
+                        ImGui.setItemDefaultFocus();
+                    }
+                }
+                ImGui.endCombo();
+            }
+        } else {
+            ImGui.inputTextWithHint("Clip", "animation name", modelAnimationClipBuffer);
+        }
+
+        boolean hasClip = modelAnimationClipBuffer.get() != null && !modelAnimationClipBuffer.get().trim().isEmpty();
+        if (ImGui.button(modelAnimationPlaying.get() ? "Pause##model_animation" : "Play##model_animation")) {
+            boolean next = !modelAnimationPlaying.get();
+            modelAnimationPlaying.set(next);
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("animationPlaying", next);
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+        ImGui.sameLine();
+        if (ImGui.checkbox("Playing", modelAnimationPlaying)) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("animationPlaying", modelAnimationPlaying.get());
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+        if (ImGui.checkbox("Loop", modelAnimationLoop)) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("animationLoop", modelAnimationLoop.get());
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+
+        if (ImGui.dragFloat("Speed", modelAnimationSpeed.getData(), 0.05f, 0f, 8f, "%.2f")) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("animationSpeed", modelAnimationSpeed.get());
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+
+        float duration = 0f;
+        if (hasClip && animations != null && !animations.isEmpty()) {
+            for (RenderableModel.AnimationInfo info : animations) {
+                if (info != null && info.name() != null && info.name().equalsIgnoreCase(modelAnimationClipBuffer.get())) {
+                    duration = Math.max(0f, info.durationSeconds());
+                    break;
+                }
+            }
+        }
+        float maxTime = duration > 0f ? duration : 10f;
+        if (ImGui.dragFloat("Time (s)", modelAnimationTime.getData(), 0.02f, 0f, maxTime, "%.2f")) {
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("animationTime", modelAnimationTime.get());
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+
+        if (ImGui.button("Stop Animation")) {
+            modelAnimationClipBuffer.set("");
+            modelAnimationPlaying.set(false);
+            modelAnimationLoop.set(true);
+            modelAnimationSpeed.set(1f);
+            modelAnimationTime.set(0f);
+            Map<String, Object> update = new ConcurrentHashMap<>();
+            update.put("animationClip", "");
+            update.put("animationPlaying", false);
+            update.put("animationLoop", true);
+            update.put("animationSpeed", 1f);
+            update.put("animationTime", 0f);
+            session.submitPropertyUpdate(selected.getId(), update);
+        }
+
+        if (modelId == null) {
+            ImGui.textDisabled("Tip: runtime model binding pending (spawn/sync)...");
+        } else if (runtimeModel == null) {
+            ImGui.textDisabled("Tip: runtime model not loaded on client yet.");
+        } else if (runtimeModel.getModelPath() != null && !runtimeModel.getModelPath().toLowerCase(Locale.ROOT).endsWith(".glb")) {
+            ImGui.textDisabled("Tip: only GLB models have animations.");
+        } else if (runtimeModel.hasAnimations() && !hasClip) {
+            ImGui.textDisabled("Tip: select a clip to scrub in-place.");
+        }
+    }
+
+    private AnimationLookup lookupAnimations(String modelPath, RenderableModel runtimeModel) {
+        if (runtimeModel != null) {
+            List<RenderableModel.AnimationInfo> runtimeAnimations = runtimeModel.getAnimations();
+            if (runtimeAnimations != null && !runtimeAnimations.isEmpty()) {
+                return new AnimationLookup(runtimeAnimations, false, null);
+            }
+        }
+
+        if (modelPath == null) {
+            return new AnimationLookup(List.of(), false, null);
+        }
+        String trimmed = modelPath.trim();
+        if (trimmed.isBlank() || !trimmed.toLowerCase(Locale.ROOT).endsWith(".glb")) {
+            return new AnimationLookup(List.of(), false, null);
+        }
+
+        List<RenderableModel.AnimationInfo> cached = glbAnimationCache.get(trimmed);
+        if (cached != null) {
+            return new AnimationLookup(cached, false, glbAnimationErrors.get(trimmed));
+        }
+
+        CompletableFuture<List<RenderableModel.AnimationInfo>> inFlight = glbAnimationLoads.get(trimmed);
+        if (inFlight == null) {
+            glbAnimationLoads.computeIfAbsent(trimmed, key -> CompletableFuture.<List<RenderableModel.AnimationInfo>>supplyAsync(() -> {
+                try {
+                    glbAnimationErrors.remove(key);
+                    return loadGlbAnimations(key);
+                } catch (Exception e) {
+                    glbAnimationErrors.put(key, e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+                    return List.<RenderableModel.AnimationInfo>of();
+                }
+            }).whenComplete((list, error) -> {
+                if (error != null) {
+                    glbAnimationErrors.put(trimmed, error.getMessage() != null ? error.getMessage() : error.getClass().getSimpleName());
+                    glbAnimationCache.put(trimmed, List.<RenderableModel.AnimationInfo>of());
+                } else {
+                    glbAnimationCache.put(trimmed, list != null ? list : List.<RenderableModel.AnimationInfo>of());
+                }
+                glbAnimationLoads.remove(trimmed);
+            }));
+        }
+
+        return new AnimationLookup(List.of(), true, glbAnimationErrors.get(trimmed));
+    }
+
+    private List<RenderableModel.AnimationInfo> loadGlbAnimations(String modelPath) throws Exception {
+        Identifier identifier = IdentifierUtils.resolveModelIdentifier(modelPath);
+        if (identifier == null) {
+            return List.of();
+        }
+        Optional<Resource> resource = MinecraftClient.getInstance().getResourceManager().getResource(identifier);
+        if (resource.isEmpty()) {
+            return List.of();
+        }
+
+        List<RenderableModel.AnimationInfo> infos = new ArrayList<>();
+        try (InputStream inputStream = resource.get().getInputStream()) {
+            List<GltfSkinnedModelLoader.LoadedAnimation> animations = GltfSkinnedModelLoader.readAnimations(inputStream);
+            if (animations == null || animations.isEmpty()) {
+                return List.of();
+            }
+            for (GltfSkinnedModelLoader.LoadedAnimation anim : animations) {
+                if (anim == null || anim.name() == null || anim.name().isBlank()) {
+                    continue;
+                }
+                infos.add(new RenderableModel.AnimationInfo(anim.name(), anim.duration(), anim.channelCount()));
+            }
+        }
+        return infos;
     }
 
 
@@ -692,6 +945,7 @@ public final class InspectorPanel {
 
         String currentId = String.valueOf(props.getOrDefault("effectId", "veil:fog"));
         boolean isHeightFog = currentId.equalsIgnoreCase("veil:height_fog");
+        boolean isSsr = currentId.equalsIgnoreCase("moud:ssr");
         boolean typeChanged = false;
 
         if (ImGui.beginCombo("Effect", currentId)) {
@@ -703,6 +957,10 @@ public final class InspectorPanel {
                 currentId = "veil:height_fog";
                 typeChanged = true;
             }
+            if (ImGui.selectable("moud:ssr", currentId.equalsIgnoreCase("moud:ssr"))) {
+                currentId = "moud:ssr";
+                typeChanged = true;
+            }
             ImGui.endCombo();
         }
 
@@ -710,9 +968,9 @@ public final class InspectorPanel {
             props.put("effectId", currentId);
             Map<String, Object> defaults = currentId.equals("veil:height_fog")
                     ? PostEffectUniformRegistry.defaultHeightFog()
-                    : PostEffectUniformRegistry.defaultFog();
+                    : (currentId.equals("moud:ssr") ? PostEffectUniformRegistry.defaultSsr() : PostEffectUniformRegistry.defaultFog());
 
-            updateUniformBuffers(defaults, currentId.equals("veil:height_fog"));
+            updateUniformBuffers(defaults, currentId);
 
             props.put("uniforms", defaults);
             session.submitPropertyUpdate(selected.getId(), props);
@@ -723,11 +981,32 @@ public final class InspectorPanel {
                 ? new ConcurrentHashMap<>((Map<String, Object>) m)
                 : new ConcurrentHashMap<>();
 
-        updateUniformBuffers(uniforms, isHeightFog);
+        updateUniformBuffers(uniforms, currentId);
 
         boolean valuesChanged = false;
 
-        if (!isHeightFog) {
+        if (isSsr) {
+            if (ImGui.dragFloat("Strength", ssrStrength.getData(), 0.01f, 0f, 2f, "%.2f")) {
+                uniforms.put("SsrStrength", ssrStrength.get());
+                valuesChanged = true;
+            }
+            if (ImGui.dragFloat("Max Distance", ssrMaxDistance.getData(), 0.5f, 1f, 256f, "%.1f")) {
+                uniforms.put("SsrMaxDistance", ssrMaxDistance.get());
+                valuesChanged = true;
+            }
+            if (ImGui.dragFloat("Step Size", ssrStepSize.getData(), 0.01f, 0.02f, 4f, "%.2f")) {
+                uniforms.put("SsrStepSize", ssrStepSize.get());
+                valuesChanged = true;
+            }
+            if (ImGui.dragFloat("Thickness", ssrThickness.getData(), 0.0002f, 0.0002f, 0.05f, "%.4f")) {
+                uniforms.put("SsrThickness", ssrThickness.get());
+                valuesChanged = true;
+            }
+            if (ImGui.dragFloat("Edge Fade", ssrEdgeFade.getData(), 0.01f, 0.01f, 0.5f, "%.2f")) {
+                uniforms.put("SsrEdgeFade", ssrEdgeFade.get());
+                valuesChanged = true;
+            }
+        } else if (!isHeightFog) {
             if (ImGui.dragFloat("Fog Start", fogStart.getData(), 1f)) {
                 uniforms.put("FogStart", fogStart.get());
                 valuesChanged = true;
@@ -927,7 +1206,17 @@ public final class InspectorPanel {
         return PRIMITIVE_TYPE_VALUES[index];
     }
 
-    private void updateUniformBuffers(Map<String, Object> uniforms, boolean isHeightFog) {
+    private void updateUniformBuffers(Map<String, Object> uniforms, String effectId) {
+        boolean isHeightFog = effectId != null && effectId.equalsIgnoreCase("veil:height_fog");
+        boolean isSsr = effectId != null && effectId.equalsIgnoreCase("moud:ssr");
+        if (isSsr) {
+            if (uniforms.containsKey("SsrStrength")) ssrStrength.set(toFloat(uniforms.get("SsrStrength")));
+            if (uniforms.containsKey("SsrMaxDistance")) ssrMaxDistance.set(toFloat(uniforms.get("SsrMaxDistance")));
+            if (uniforms.containsKey("SsrStepSize")) ssrStepSize.set(toFloat(uniforms.get("SsrStepSize")));
+            if (uniforms.containsKey("SsrThickness")) ssrThickness.set(toFloat(uniforms.get("SsrThickness")));
+            if (uniforms.containsKey("SsrEdgeFade")) ssrEdgeFade.set(toFloat(uniforms.get("SsrEdgeFade")));
+            return;
+        }
         if (!isHeightFog) {
             if (uniforms.containsKey("FogStart")) fogStart.set(toFloat(uniforms.get("FogStart")));
             if (uniforms.containsKey("FogEnd")) fogEnd.set(toFloat(uniforms.get("FogEnd")));
@@ -999,6 +1288,137 @@ public final class InspectorPanel {
             Map<String, Object> update = new ConcurrentHashMap<>();
             update.put("frameRate", displayFrameRateValue.get());
             session.submitPropertyUpdate(selected.getId(), update);
+        }
+
+        if (ImGui.collapsingHeader("PBR", ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (ImGui.checkbox("Enable PBR", displayPbrEnabled)) {
+                Map<String, Object> update = new ConcurrentHashMap<>();
+                update.put("pbrEnabled", displayPbrEnabled.get());
+                session.submitPropertyUpdate(selected.getId(), update);
+            }
+
+            if (displayPbrEnabled.get()) {
+                if (ImGui.inputText("Base Color", displayPbrBaseColor)) {
+                    Map<String, Object> update = new ConcurrentHashMap<>();
+                    update.put("pbrBaseColor", displayPbrBaseColor.get());
+                    session.submitPropertyUpdate(selected.getId(), update);
+                }
+                if (ImGui.button("Pick##pbr_basecolor_picker")) {
+                    ImGui.openPopup("pbr_basecolor_picker");
+                }
+                String picked = renderProjectFilePickerPopup(
+                        "pbr_basecolor_picker",
+                        "Select Base Color Texture",
+                        textureFilePickerFilter,
+                        node -> hasExtension(node.path(), ".png", ".jpg", ".jpeg")
+                );
+                if (picked != null) {
+                    String value = toResourcePath(picked);
+                    displayPbrBaseColor.set(value);
+                    Map<String, Object> update = new ConcurrentHashMap<>();
+                    update.put("pbrBaseColor", value);
+                    session.submitPropertyUpdate(selected.getId(), update);
+                }
+
+                if (ImGui.inputText("Normal", displayPbrNormal)) {
+                    Map<String, Object> update = new ConcurrentHashMap<>();
+                    update.put("pbrNormal", displayPbrNormal.get());
+                    session.submitPropertyUpdate(selected.getId(), update);
+                }
+                if (ImGui.button("Pick##pbr_normal_picker")) {
+                    ImGui.openPopup("pbr_normal_picker");
+                }
+                picked = renderProjectFilePickerPopup(
+                        "pbr_normal_picker",
+                        "Select Normal Texture",
+                        textureFilePickerFilter,
+                        node -> hasExtension(node.path(), ".png", ".jpg", ".jpeg")
+                );
+                if (picked != null) {
+                    String value = toResourcePath(picked);
+                    displayPbrNormal.set(value);
+                    Map<String, Object> update = new ConcurrentHashMap<>();
+                    update.put("pbrNormal", value);
+                    session.submitPropertyUpdate(selected.getId(), update);
+                }
+
+                if (ImGui.inputText("MetallicRoughness", displayPbrMetallicRoughness)) {
+                    Map<String, Object> update = new ConcurrentHashMap<>();
+                    update.put("pbrMetallicRoughness", displayPbrMetallicRoughness.get());
+                    session.submitPropertyUpdate(selected.getId(), update);
+                }
+                if (ImGui.button("Pick##pbr_mr_picker")) {
+                    ImGui.openPopup("pbr_mr_picker");
+                }
+                picked = renderProjectFilePickerPopup(
+                        "pbr_mr_picker",
+                        "Select Metallic/Roughness Texture",
+                        textureFilePickerFilter,
+                        node -> hasExtension(node.path(), ".png", ".jpg", ".jpeg")
+                );
+                if (picked != null) {
+                    String value = toResourcePath(picked);
+                    displayPbrMetallicRoughness.set(value);
+                    Map<String, Object> update = new ConcurrentHashMap<>();
+                    update.put("pbrMetallicRoughness", value);
+                    session.submitPropertyUpdate(selected.getId(), update);
+                }
+
+                if (ImGui.inputText("Emissive", displayPbrEmissive)) {
+                    Map<String, Object> update = new ConcurrentHashMap<>();
+                    update.put("pbrEmissive", displayPbrEmissive.get());
+                    session.submitPropertyUpdate(selected.getId(), update);
+                }
+                if (ImGui.button("Pick##pbr_emissive_picker")) {
+                    ImGui.openPopup("pbr_emissive_picker");
+                }
+                picked = renderProjectFilePickerPopup(
+                        "pbr_emissive_picker",
+                        "Select Emissive Texture",
+                        textureFilePickerFilter,
+                        node -> hasExtension(node.path(), ".png", ".jpg", ".jpeg")
+                );
+                if (picked != null) {
+                    String value = toResourcePath(picked);
+                    displayPbrEmissive.set(value);
+                    Map<String, Object> update = new ConcurrentHashMap<>();
+                    update.put("pbrEmissive", value);
+                    session.submitPropertyUpdate(selected.getId(), update);
+                }
+
+                if (ImGui.inputText("Occlusion", displayPbrOcclusion)) {
+                    Map<String, Object> update = new ConcurrentHashMap<>();
+                    update.put("pbrOcclusion", displayPbrOcclusion.get());
+                    session.submitPropertyUpdate(selected.getId(), update);
+                }
+                if (ImGui.button("Pick##pbr_occlusion_picker")) {
+                    ImGui.openPopup("pbr_occlusion_picker");
+                }
+                picked = renderProjectFilePickerPopup(
+                        "pbr_occlusion_picker",
+                        "Select Occlusion Texture",
+                        textureFilePickerFilter,
+                        node -> hasExtension(node.path(), ".png", ".jpg", ".jpeg")
+                );
+                if (picked != null) {
+                    String value = toResourcePath(picked);
+                    displayPbrOcclusion.set(value);
+                    Map<String, Object> update = new ConcurrentHashMap<>();
+                    update.put("pbrOcclusion", value);
+                    session.submitPropertyUpdate(selected.getId(), update);
+                }
+
+                if (ImGui.sliderFloat("Metallic Factor", displayPbrMetallicFactor.getData(), 0f, 1f, "%.2f")) {
+                    Map<String, Object> update = new ConcurrentHashMap<>();
+                    update.put("pbrMetallicFactor", displayPbrMetallicFactor.get());
+                    session.submitPropertyUpdate(selected.getId(), update);
+                }
+                if (ImGui.sliderFloat("Roughness Factor", displayPbrRoughnessFactor.getData(), 0f, 1f, "%.2f")) {
+                    Map<String, Object> update = new ConcurrentHashMap<>();
+                    update.put("pbrRoughnessFactor", displayPbrRoughnessFactor.get());
+                    session.submitPropertyUpdate(selected.getId(), update);
+                }
+            }
         }
     }
 
