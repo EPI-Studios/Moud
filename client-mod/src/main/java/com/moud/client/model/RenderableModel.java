@@ -12,6 +12,8 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -19,13 +21,78 @@ import java.util.List;
 import java.util.UUID;
 
 public class RenderableModel {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RenderableModel.class);
+
+    public interface MeshAnimator {
+        void tick(RenderableModel model);
+
+        default void destroy() {}
+    }
+
+    public interface AnimationController {
+        boolean selectAnimation(String name);
+
+        boolean selectAnimation(int index);
+
+        void clearAnimation();
+
+        void setPlaying(boolean playing);
+
+        void setLoop(boolean loop);
+
+        void setSpeed(float speed);
+
+        void seek(float timeSeconds);
+    }
+
     public static final int FLOATS_PER_VERTEX = 8;
+
+    public enum AlphaMode {
+        OPAQUE,
+        MASK,
+        BLEND
+    }
+
+    public record Submesh(
+            int indexStart,
+            int indexCount,
+            Identifier baseColorTexture,
+            Identifier normalTexture,
+            Identifier metallicRoughnessTexture,
+            Identifier emissiveTexture,
+            Identifier occlusionTexture,
+            float baseColorR,
+            float baseColorG,
+            float baseColorB,
+            float baseColorA,
+            float metallicFactor,
+            float roughnessFactor,
+            float emissiveR,
+            float emissiveG,
+            float emissiveB,
+            AlphaMode alphaMode,
+            float alphaCutoff,
+            boolean doubleSided
+    ) {}
+
+    public record AnimationInfo(String name, float durationSeconds, int channelCount) {
+    }
 
     private final long id;
     private final String modelPath;
     private float[] vertices;
     private int[] indices;
     private MeshBuffer meshBuffer;
+    private MeshAnimator meshAnimator;
+    private List<AnimationInfo> animations = List.of();
+    private List<Submesh> submeshes = List.of();
+    private float[] prevMeshVertices;
+    private float[] currentMeshVertices;
+    private float[] interpolatedMeshVertices;
+    private float lastInterpolatedTickDelta = -1.0f;
+    private long meshRevision = 0L;
+    private long interpolatedRevision = -1L;
+    private float[] bindPoseVertices;
     private Vector3 position = Vector3.zero();
     private Quaternion rotation = Quaternion.identity();
     private Vector3 scale = Vector3.one();
@@ -62,14 +129,34 @@ public class RenderableModel {
     }
 
     public void uploadMesh(OBJLoader.OBJMesh meshData) {
-        this.vertices = Arrays.copyOf(meshData.vertices(), meshData.vertices().length);
-        this.indices = Arrays.copyOf(meshData.indices(), meshData.indices().length);
+        setMeshData(meshData.vertices(), meshData.indices(), true);
+    }
+
+    public void setMeshData(float[] vertices, int[] indices, boolean buildMeshBuffer) {
+        if (vertices == null || indices == null) {
+            return;
+        }
+        meshRevision++;
+        prevMeshVertices = this.vertices != null ? this.vertices : vertices;
+        currentMeshVertices = vertices;
+        lastInterpolatedTickDelta = -1.0f;
+        interpolatedRevision = -1L;
+        if (buildMeshBuffer) {
+            this.vertices = Arrays.copyOf(vertices, vertices.length);
+            this.indices = Arrays.copyOf(indices, indices.length);
+        } else {
+            this.vertices = vertices;
+            this.indices = indices;
+        }
         computeMeshBounds();
 
         if (this.meshBuffer != null) {
             this.meshBuffer.close();
+            this.meshBuffer = null;
         }
-        this.meshBuffer = new MeshBuffer(this.vertices, this.indices);
+        if (buildMeshBuffer) {
+            this.meshBuffer = new MeshBuffer(this.vertices, this.indices);
+        }
     }
 
     public void updateTransform(Vector3 pos, Quaternion rot, Vector3 scale) {
@@ -185,6 +272,18 @@ public class RenderableModel {
     }
 
     public void tick() {
+        if (meshAnimator != null) {
+            try {
+                meshAnimator.tick(this);
+            } catch (Throwable t) {
+                LOGGER.warn("Mesh animator for model {} failed; disabling it", id, t);
+                try {
+                    meshAnimator.destroy();
+                } catch (Throwable ignored) {
+                }
+                meshAnimator = null;
+            }
+        }
         if (anchorType != null && anchorType != MoudPackets.DisplayAnchorType.FREE) {
             return;
         }
@@ -267,6 +366,77 @@ public class RenderableModel {
     public int[] getIndices() { return indices; }
     public MeshBuffer getMeshBuffer() { return meshBuffer; }
     public boolean hasMeshBuffer() { return meshBuffer != null && meshBuffer.isUploaded(); }
+    public void setMeshAnimator(MeshAnimator animator) {
+        if (this.meshAnimator != null) {
+            try {
+                this.meshAnimator.destroy();
+            } catch (Throwable ignored) {
+            }
+        }
+        this.meshAnimator = animator;
+    }
+
+    public void setAnimations(List<AnimationInfo> animations) {
+        this.animations = animations != null ? List.copyOf(animations) : List.of();
+    }
+
+    public List<AnimationInfo> getAnimations() {
+        return animations;
+    }
+
+    public boolean hasAnimations() {
+        return animations != null && !animations.isEmpty();
+    }
+
+    public void setBindPoseVertices(float[] bindPoseVertices) {
+        this.bindPoseVertices = bindPoseVertices;
+    }
+
+    public void applyAnimationState(
+            String animationName,
+            Integer animationIndex,
+            boolean playing,
+            boolean loop,
+            float speed,
+            float timeSeconds
+    ) {
+        if (!(meshAnimator instanceof AnimationController controller)) {
+            return;
+        }
+
+        if (animationName == null && animationIndex == null) {
+            controller.clearAnimation();
+            controller.setPlaying(false);
+            controller.setLoop(true);
+            controller.setSpeed(1.0f);
+            controller.seek(0.0f);
+            if (bindPoseVertices != null && indices != null) {
+                setMeshData(bindPoseVertices, indices, false);
+            }
+            return;
+        }
+
+        boolean selected = false;
+        if (animationName != null && !animationName.isBlank()) {
+            selected = controller.selectAnimation(animationName.trim());
+        } else if (animationIndex != null && animationIndex >= 0) {
+            selected = controller.selectAnimation(animationIndex);
+        }
+
+        if (!selected) {
+            controller.clearAnimation();
+            controller.setPlaying(false);
+            if (bindPoseVertices != null && indices != null) {
+                setMeshData(bindPoseVertices, indices, false);
+            }
+            return;
+        }
+
+        controller.setLoop(loop);
+        controller.setSpeed(speed <= 0.0f ? 1.0f : speed);
+        controller.seek(Math.max(0.0f, timeSeconds));
+        controller.setPlaying(playing);
+    }
     public Identifier getTexture() { return texture; }
     public void setTexture(Identifier texture) {
         Identifier normalized = normalizeTexture(texture);
@@ -275,9 +445,87 @@ public class RenderableModel {
         }
         if (!normalized.equals(this.texture)) {
             this.texture = normalized;
-            org.slf4j.LoggerFactory.getLogger(RenderableModel.class)
-                    .info("RenderableModel {} texture set to {}", id, normalized);
+            LOGGER.info("RenderableModel {} texture set to {}", id, normalized);
         }
+    }
+
+    public List<Submesh> getSubmeshes() {
+        return submeshes;
+    }
+
+    public boolean hasSubmeshes() {
+        return submeshes != null && !submeshes.isEmpty();
+    }
+
+    public void setSubmeshes(List<Submesh> submeshes) {
+        this.submeshes = submeshes != null ? List.copyOf(submeshes) : List.of();
+    }
+
+    public boolean hasAnimatedMesh() {
+        return meshAnimator != null
+                && prevMeshVertices != null
+                && currentMeshVertices != null
+                && prevMeshVertices.length == currentMeshVertices.length
+                && currentMeshVertices.length == vertices.length;
+    }
+
+    public float[] getVerticesForRender(float tickDelta) {
+        if (!hasAnimatedMesh()) {
+            return vertices;
+        }
+        float t = Math.max(0.0f, Math.min(1.0f, tickDelta));
+        if (interpolatedMeshVertices == null || interpolatedMeshVertices.length != currentMeshVertices.length) {
+            interpolatedMeshVertices = new float[currentMeshVertices.length];
+            lastInterpolatedTickDelta = -1.0f;
+            interpolatedRevision = -1L;
+        }
+        if (interpolatedRevision == meshRevision && Math.abs(lastInterpolatedTickDelta - t) < 1.0e-6f) {
+            return interpolatedMeshVertices;
+        }
+        lastInterpolatedTickDelta = t;
+        interpolatedRevision = meshRevision;
+
+        final int stride = FLOATS_PER_VERTEX;
+        for (int i = 0; i < currentMeshVertices.length; i += stride) {
+            float px0 = prevMeshVertices[i];
+            float py0 = prevMeshVertices[i + 1];
+            float pz0 = prevMeshVertices[i + 2];
+            float px1 = currentMeshVertices[i];
+            float py1 = currentMeshVertices[i + 1];
+            float pz1 = currentMeshVertices[i + 2];
+
+            interpolatedMeshVertices[i] = px0 + (px1 - px0) * t;
+            interpolatedMeshVertices[i + 1] = py0 + (py1 - py0) * t;
+            interpolatedMeshVertices[i + 2] = pz0 + (pz1 - pz0) * t;
+
+            interpolatedMeshVertices[i + 3] = currentMeshVertices[i + 3];
+            interpolatedMeshVertices[i + 4] = currentMeshVertices[i + 4];
+
+            float nx0 = prevMeshVertices[i + 5];
+            float ny0 = prevMeshVertices[i + 6];
+            float nz0 = prevMeshVertices[i + 7];
+            float nx1 = currentMeshVertices[i + 5];
+            float ny1 = currentMeshVertices[i + 6];
+            float nz1 = currentMeshVertices[i + 7];
+
+            float nx = nx0 + (nx1 - nx0) * t;
+            float ny = ny0 + (ny1 - ny0) * t;
+            float nz = nz0 + (nz1 - nz0) * t;
+            float len = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
+            if (len > 1.0e-6f) {
+                nx /= len;
+                ny /= len;
+                nz /= len;
+            } else {
+                nx = 0.0f;
+                ny = 1.0f;
+                nz = 0.0f;
+            }
+            interpolatedMeshVertices[i + 5] = nx;
+            interpolatedMeshVertices[i + 6] = ny;
+            interpolatedMeshVertices[i + 7] = nz;
+        }
+        return interpolatedMeshVertices;
     }
     public boolean hasCollisionBox() {
         return collisionWidth > 0 && collisionHeight > 0 && collisionDepth > 0;
@@ -458,12 +706,20 @@ public class RenderableModel {
     }
 
     public void destroy() {
+        if (this.meshAnimator != null) {
+            try {
+                this.meshAnimator.destroy();
+            } catch (Throwable ignored) {
+            }
+            this.meshAnimator = null;
+        }
         if (this.meshBuffer != null) {
             this.meshBuffer.close();
             this.meshBuffer = null;
         }
         this.vertices = null;
         this.indices = null;
+        this.submeshes = List.of();
         this.meshMin = null;
         this.meshMax = null;
     }
