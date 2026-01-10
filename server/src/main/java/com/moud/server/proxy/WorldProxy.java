@@ -178,13 +178,15 @@ public class WorldProxy {
         Vector3 scale = options.hasMember("scale") ? readVector3(options.getMember("scale"), Vector3.one()) : Vector3.one();
         String texturePath = options.hasMember("texture") ? options.getMember("texture").asString() : null;
 
-        ModelProxy model = new ModelProxy(requireInstance(), modelPath, position, rotation, scale, texturePath);
+        ModelProxy.CollisionMode collisionMode = null;
         if (options.hasMember("collisionMode")) {
-            Value collisionMode = options.getMember("collisionMode");
-            if (collisionMode != null && collisionMode.isString()) {
-                model.setCollisionMode(collisionMode.asString());
+            Value collisionModeValue = options.getMember("collisionMode");
+            if (collisionModeValue != null && collisionModeValue.isString()) {
+                collisionMode = parseCollisionMode(collisionModeValue.asString());
             }
         }
+
+        ModelProxy model = new ModelProxy(requireInstance(), modelPath, position, rotation, scale, texturePath, false, collisionMode);
 
         double autoWidth = clampCollisionSize(scale.x);
         double autoHeight = clampCollisionSize(scale.y);
@@ -287,6 +289,10 @@ public class WorldProxy {
 
         if (options.hasMember("playback")) {
             applyPlayback(display, options.getMember("playback"));
+        }
+
+        if (options.hasMember("pbr")) {
+            display.setPbr(options.getMember("pbr"));
         }
 
         return display;
@@ -700,6 +706,20 @@ public class WorldProxy {
             }
         }
         return result;
+    }
+
+    private ModelProxy.CollisionMode parseCollisionMode(String mode) {
+        if (mode == null || mode.isBlank()) {
+            return ModelProxy.CollisionMode.AUTO;
+        }
+        String normalized = mode.trim().toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+        return switch (normalized) {
+            case "MESH", "STATIC_MESH", "STATICMESH", "STATIC" -> ModelProxy.CollisionMode.STATIC_MESH;
+            case "CONVEX", "CONVEX_HULLS", "CONVEXHULLS" -> ModelProxy.CollisionMode.CONVEX;
+            case "BOX", "CAPSULE", "AABB" -> ModelProxy.CollisionMode.CAPSULE;
+            case "NONE", "OFF", "DISABLED" -> ModelProxy.CollisionMode.CAPSULE;
+            default -> ModelProxy.CollisionMode.AUTO;
+        };
     }
 
     public Instance getInstance() {

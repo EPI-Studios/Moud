@@ -16,6 +16,14 @@ public final class DisplayRuntimeAdapter implements SceneRuntimeAdapter {
 
     private final String sceneId;
     private MediaDisplayProxy display;
+    private boolean lastPbrEnabled = false;
+    private String lastPbrBaseColor = "";
+    private String lastPbrNormal = "";
+    private String lastPbrMetallicRoughness = "";
+    private String lastPbrEmissive = "";
+    private String lastPbrOcclusion = "";
+    private double lastPbrMetallicFactor = 0.0;
+    private double lastPbrRoughnessFactor = 1.0;
 
     public DisplayRuntimeAdapter(String sceneId) {
         this.sceneId = sceneId;
@@ -37,6 +45,7 @@ public final class DisplayRuntimeAdapter implements SceneRuntimeAdapter {
 
         applyContent(props);
         applyLooping(props);
+        applyPbr(props);
     }
 
     @Override
@@ -52,6 +61,7 @@ public final class DisplayRuntimeAdapter implements SceneRuntimeAdapter {
         display.setTransform(position, rotation, scale);
         applyContent(props);
         applyLooping(props);
+        applyPbr(props);
     }
 
     @Override
@@ -108,6 +118,53 @@ public final class DisplayRuntimeAdapter implements SceneRuntimeAdapter {
         } else {
             display.pause();
         }
+    }
+
+    private void applyPbr(Map<String, Object> props) {
+        if (display == null || props == null) {
+            return;
+        }
+
+        boolean enabled = boolProperty(props.get("pbrEnabled"), false);
+        String baseColor = stringProperty(props, "pbrBaseColor", "").trim();
+        String normal = stringProperty(props, "pbrNormal", "").trim();
+        String mr = stringProperty(props, "pbrMetallicRoughness", "").trim();
+        String emissive = stringProperty(props, "pbrEmissive", "").trim();
+        String occlusion = stringProperty(props, "pbrOcclusion", "").trim();
+        double metallicFactor = toDouble(props.getOrDefault("pbrMetallicFactor", 0.0), 0.0);
+        double roughnessFactor = toDouble(props.getOrDefault("pbrRoughnessFactor", 1.0), 1.0);
+
+        boolean changed = enabled != lastPbrEnabled
+                || !baseColor.equals(lastPbrBaseColor)
+                || !normal.equals(lastPbrNormal)
+                || !mr.equals(lastPbrMetallicRoughness)
+                || !emissive.equals(lastPbrEmissive)
+                || !occlusion.equals(lastPbrOcclusion)
+                || Math.abs(metallicFactor - lastPbrMetallicFactor) > 1.0e-6
+                || Math.abs(roughnessFactor - lastPbrRoughnessFactor) > 1.0e-6;
+        if (!changed) {
+            return;
+        }
+
+        lastPbrEnabled = enabled;
+        lastPbrBaseColor = baseColor;
+        lastPbrNormal = normal;
+        lastPbrMetallicRoughness = mr;
+        lastPbrEmissive = emissive;
+        lastPbrOcclusion = occlusion;
+        lastPbrMetallicFactor = metallicFactor;
+        lastPbrRoughnessFactor = roughnessFactor;
+
+        display.setPbrState(
+                enabled,
+                baseColor,
+                normal,
+                mr,
+                emissive,
+                occlusion,
+                metallicFactor,
+                roughnessFactor
+        );
     }
 
     private static String stringProperty(Map<String, Object> props, String key, String defaultValue) {

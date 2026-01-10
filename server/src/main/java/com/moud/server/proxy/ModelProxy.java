@@ -25,6 +25,7 @@ import net.minestom.server.entity.metadata.other.InteractionMeta;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.timer.TaskSchedule;
 import org.graalvm.polyglot.HostAccess;
+import org.graalvm.polyglot.Value;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -55,6 +56,13 @@ public class ModelProxy implements Transformable, SyncableObject {
 
     private final AnchorBehavior anchor = new AnchorBehavior(this::onAnchorChanged);
 
+    private String animationName;
+    private Integer animationIndex;
+    private boolean animationPlaying;
+    private boolean animationLoop = true;
+    private float animationSpeed = 1.0f;
+    private float animationTimeSeconds;
+
     private static final double MIN_COLLISION_SIZE = 0.11;
 
     private static final double MIN_POS_DELTA_SQ = 1.0e-4;
@@ -64,16 +72,22 @@ public class ModelProxy implements Transformable, SyncableObject {
 
 
     public ModelProxy(Instance instance, String modelPath, Vector3 position, Quaternion rotation, Vector3 scale, String texturePath) {
-        this(instance, modelPath, position, rotation, scale, texturePath, false);
+        this(instance, modelPath, position, rotation, scale, texturePath, false, null);
     }
 
     public ModelProxy(Instance instance, String modelPath, Vector3 position, Quaternion rotation, Vector3 scale, String texturePath, boolean manualCollisionOverride) {
+        this(instance, modelPath, position, rotation, scale, texturePath, manualCollisionOverride, null);
+    }
+
+    public ModelProxy(Instance instance, String modelPath, Vector3 position, Quaternion rotation, Vector3 scale,
+                      String texturePath, boolean manualCollisionOverride, CollisionMode collisionMode) {
         this.id = ModelManager.getInstance().nextId();
         this.modelPath = modelPath;
         this.position = position;
         this.rotation = rotation;
         this.scale = scale;
         this.manualCollisionOverride = manualCollisionOverride;
+        this.collisionMode = collisionMode != null ? collisionMode : CollisionMode.AUTO;
         this.texturePath = texturePath != null ? texturePath : "";
         if (this.texturePath.isBlank()) {
             this.texturePath = ModelTextureResolver.inferTextureId(modelPath).orElse("");
@@ -182,16 +196,31 @@ public class ModelProxy implements Transformable, SyncableObject {
         try {
             MeshData mesh = ModelCollisionLibrary.getMesh(modelPath);
             if (mesh == null) {
-                LOGGER.warn("Mesh collision payload unavailable for {} (mesh data missing)", modelPath);
+                LOGGER.warn("Mesh collision payload unavailable for model {} at path '{}' (mesh data missing)", id, modelPath);
+                return;
+            }
+            if (mesh.vertices() == null || mesh.vertices().length < 9) {
+                LOGGER.warn("Model {} at '{}' has insufficient vertex data for mesh collision (vertices={})",
+                        id, modelPath, mesh.vertices() != null ? mesh.vertices().length : 0);
+                return;
+            }
+            if (mesh.indices() == null || mesh.indices().length < 3) {
+                LOGGER.warn("Model {} at '{}' has insufficient index data for mesh collision (indices={})",
+                        id, modelPath, mesh.indices() != null ? mesh.indices().length : 0);
                 return;
             }
             this.cachedCompressedVertices = NetworkCompression.gzipFloatArray(mesh.vertices());
             this.cachedCompressedIndices = NetworkCompression.gzipIntArray(mesh.indices());
-            LOGGER.info("Prepared mesh collision payload for model {} (vertices={}, indices={})",
+            LOGGER.info("Prepared mesh collision payload for model {} at '{}' (vertices={}, indices={}, compressedSizes={}+{})",
+                    id,
                     modelPath,
-                    mesh.vertices() != null ? mesh.vertices().length : 0,
-                    mesh.indices() != null ? mesh.indices().length : 0);
-        } catch (Exception ignored) {
+                    mesh.vertices().length,
+                    mesh.indices().length,
+                    cachedCompressedVertices != null ? cachedCompressedVertices.length : 0,
+                    cachedCompressedIndices != null ? cachedCompressedIndices.length : 0);
+        } catch (Exception e) {
+            LOGGER.error("Failed to prepare mesh collision payload for model {} at '{}': {}",
+                    id, modelPath, e.getMessage(), e);
         }
     }
 
@@ -203,7 +232,13 @@ public class ModelProxy implements Transformable, SyncableObject {
 
     private MoudPackets.CollisionMode toWireCollisionMode() {
         return switch (collisionMode) {
-            case STATIC_MESH -> MoudPackets.CollisionMode.MESH;
+            case STATIC_MESH -> {
+                if (cachedCompressedVertices != null && cachedCompressedIndices != null) {
+                    yield MoudPackets.CollisionMode.MESH;
+                }
+                LOGGER.warn("Model {} requested STATIC_MESH collision but mesh data unavailable, falling back to BOX", id);
+                yield MoudPackets.CollisionMode.BOX;
+            }
             case CONVEX -> MoudPackets.CollisionMode.CONVEX_HULLS;
             case CAPSULE -> MoudPackets.CollisionMode.BOX;
             case AUTO -> {
@@ -229,6 +264,11 @@ public class ModelProxy implements Transformable, SyncableObject {
 
     private void broadcastCreate() {
         ensureCollisionPayload();
+        ServerNetworkManager networkManager = ServerNetworkManager.getInstance();
+        if (networkManager != null) {
+            networkManager.broadcastMeshDataIfNeeded(modelPath, toWireCollisionMode(),
+                    cachedCompressedVertices, cachedCompressedIndices);
+        }
         broadcast(buildCreatePacket());
         snapshotBroadcastState();
     }
@@ -246,8 +286,8 @@ public class ModelProxy implements Transformable, SyncableObject {
                 texturePath,
                 toCollisionData(collisionBoxes),
                 toWireCollisionMode(),
-                cachedCompressedVertices,
-                cachedCompressedIndices,
+                null,
+                null,
                 List.of()
         );
     }
@@ -298,6 +338,10 @@ public class ModelProxy implements Transformable, SyncableObject {
         String texture = getTexture();
         if (texture != null && !texture.isBlank()) {
             packets.add(new MoudPackets.S2C_UpdateModelTexturePacket(id, texture));
+        }
+
+        if (animationName != null || animationIndex != null) {
+            packets.add(snapshotAnimationState());
         }
 
         return packets;
@@ -486,6 +530,138 @@ public class ModelProxy implements Transformable, SyncableObject {
     @HostAccess.Export
     public String getTexture() {
         return texturePath;
+    }
+
+    @HostAccess.Export
+    public void playAnimation(String animationName) {
+        playAnimation(animationName, null);
+    }
+
+    @HostAccess.Export
+    public void playAnimation(String animationName, Value options) {
+        String next = animationName != null ? animationName.trim() : "";
+        if (next.isEmpty()) {
+            stopAnimation();
+            return;
+        }
+        this.animationName = next;
+        this.animationIndex = null;
+        applyAnimationOptions(options);
+        this.animationPlaying = true;
+        broadcast(snapshotAnimationState());
+    }
+
+    @HostAccess.Export
+    public void playAnimation(int animationIndex) {
+        playAnimation(animationIndex, null);
+    }
+
+    @HostAccess.Export
+    public void playAnimation(int animationIndex, Value options) {
+        if (animationIndex < 0) {
+            throw new IllegalArgumentException("animationIndex must be >= 0");
+        }
+        this.animationName = null;
+        this.animationIndex = animationIndex;
+        applyAnimationOptions(options);
+        this.animationPlaying = true;
+        broadcast(snapshotAnimationState());
+    }
+
+    @HostAccess.Export
+    public void pauseAnimation() {
+        if (!animationPlaying) {
+            return;
+        }
+        this.animationPlaying = false;
+        if (animationName != null || animationIndex != null) {
+            broadcast(snapshotAnimationState());
+        }
+    }
+
+    @HostAccess.Export
+    public void stopAnimation() {
+        if (animationName == null && animationIndex == null && !animationPlaying) {
+            return;
+        }
+        this.animationName = null;
+        this.animationIndex = null;
+        this.animationPlaying = false;
+        this.animationTimeSeconds = 0.0f;
+        this.animationSpeed = 1.0f;
+        this.animationLoop = true;
+        broadcast(snapshotAnimationState());
+    }
+
+    @HostAccess.Export
+    public void seekAnimation(double timeSeconds) {
+        if (!Double.isFinite(timeSeconds)) {
+            return;
+        }
+        this.animationTimeSeconds = (float) Math.max(0.0, timeSeconds);
+        if (animationName != null || animationIndex != null) {
+            broadcast(snapshotAnimationState());
+        }
+    }
+
+    @HostAccess.Export
+    public void setAnimationSpeed(double speed) {
+        if (!Double.isFinite(speed)) {
+            return;
+        }
+        this.animationSpeed = (float) Math.max(0.0, speed);
+        if (animationName != null || animationIndex != null) {
+            broadcast(snapshotAnimationState());
+        }
+    }
+
+    @HostAccess.Export
+    public void setLoopAnimation(boolean loop) {
+        this.animationLoop = loop;
+        if (animationName != null || animationIndex != null) {
+            broadcast(snapshotAnimationState());
+        }
+    }
+
+    private void applyAnimationOptions(Value options) {
+        if (options == null || options.isNull() || !options.hasMembers()) {
+            return;
+        }
+        if (options.hasMember("loop")) {
+            try {
+                this.animationLoop = options.getMember("loop").asBoolean();
+            } catch (Exception ignored) {
+            }
+        }
+        if (options.hasMember("speed")) {
+            try {
+                this.animationSpeed = (float) Math.max(0.0, options.getMember("speed").asDouble());
+            } catch (Exception ignored) {
+            }
+        }
+        if (options.hasMember("startTime")) {
+            try {
+                this.animationTimeSeconds = (float) Math.max(0.0, options.getMember("startTime").asDouble());
+            } catch (Exception ignored) {
+            }
+        } else if (options.hasMember("time")) {
+            try {
+                this.animationTimeSeconds = (float) Math.max(0.0, options.getMember("time").asDouble());
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private MoudPackets.S2C_WorldModelAnimationStatePacket snapshotAnimationState() {
+        return new MoudPackets.S2C_WorldModelAnimationStatePacket(
+                id,
+                animationName,
+                animationIndex,
+                animationPlaying,
+                animationLoop,
+                animationSpeed,
+                animationTimeSeconds
+        );
     }
 
     @HostAccess.Export

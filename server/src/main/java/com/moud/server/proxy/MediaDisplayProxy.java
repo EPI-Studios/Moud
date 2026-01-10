@@ -10,6 +10,7 @@ import com.moud.network.MoudPackets;
 import com.moud.server.entity.DisplayManager;
 import com.moud.server.network.ServerNetworkManager;
 import net.minestom.server.instance.Instance;
+import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.HostAccess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +47,15 @@ public class MediaDisplayProxy implements Transformable, SyncableObject {
     private float playbackSpeed = 1.0f;
     private float playbackOffsetSeconds = 0.0f;
     private long playbackStartMillis = System.currentTimeMillis();
+
+    private boolean pbrEnabled = false;
+    private String pbrBaseColor;
+    private String pbrNormal;
+    private String pbrMetallicRoughness;
+    private String pbrEmissive;
+    private String pbrOcclusion;
+    private float pbrMetallicFactor = 0.0f;
+    private float pbrRoughnessFactor = 1.0f;
 
     private boolean removed = false;
 
@@ -324,6 +334,33 @@ public class MediaDisplayProxy implements Transformable, SyncableObject {
         broadcastContent();
     }
 
+    @HostAccess.Export
+    public void setPbr(Value options) {
+        applyPbrOptions(options);
+        broadcastPbr();
+    }
+
+    public void setPbrState(
+            boolean enabled,
+            String baseColor,
+            String normal,
+            String metallicRoughness,
+            String emissive,
+            String occlusion,
+            double metallicFactor,
+            double roughnessFactor
+    ) {
+        this.pbrEnabled = enabled;
+        this.pbrBaseColor = normalizeOptionalPath(baseColor);
+        this.pbrNormal = normalizeOptionalPath(normal);
+        this.pbrMetallicRoughness = normalizeOptionalPath(metallicRoughness);
+        this.pbrEmissive = normalizeOptionalPath(emissive);
+        this.pbrOcclusion = normalizeOptionalPath(occlusion);
+        this.pbrMetallicFactor = (float) clamp01(metallicFactor);
+        this.pbrRoughnessFactor = (float) clamp01(roughnessFactor);
+        broadcastPbr();
+    }
+
     public MoudPackets.DisplayContentType getContentType() {
         return contentType;
     }
@@ -452,7 +489,89 @@ public class MediaDisplayProxy implements Transformable, SyncableObject {
 
     @Override
     public List<Object> snapshotPackets() {
-        return List.of(snapshot(), snapshotAnchor());
+        return List.of(snapshot(), snapshotAnchor(), snapshotPbr());
+    }
+
+    private void applyPbrOptions(Value options) {
+        if (options == null || options.isNull() || !options.hasMembers()) {
+            return;
+        }
+        if (options.hasMember("enabled")) {
+            try {
+                this.pbrEnabled = options.getMember("enabled").asBoolean();
+            } catch (Exception ignored) {
+            }
+        }
+        if (options.hasMember("baseColor")) {
+            try {
+                this.pbrBaseColor = normalizeOptionalPath(options.getMember("baseColor").asString());
+            } catch (Exception ignored) {
+            }
+        }
+        if (options.hasMember("normal")) {
+            try {
+                this.pbrNormal = normalizeOptionalPath(options.getMember("normal").asString());
+            } catch (Exception ignored) {
+            }
+        }
+        if (options.hasMember("metallicRoughness")) {
+            try {
+                this.pbrMetallicRoughness = normalizeOptionalPath(options.getMember("metallicRoughness").asString());
+            } catch (Exception ignored) {
+            }
+        } else if (options.hasMember("mr")) {
+            try {
+                this.pbrMetallicRoughness = normalizeOptionalPath(options.getMember("mr").asString());
+            } catch (Exception ignored) {
+            }
+        }
+        if (options.hasMember("emissive")) {
+            try {
+                this.pbrEmissive = normalizeOptionalPath(options.getMember("emissive").asString());
+            } catch (Exception ignored) {
+            }
+        }
+        if (options.hasMember("occlusion")) {
+            try {
+                this.pbrOcclusion = normalizeOptionalPath(options.getMember("occlusion").asString());
+            } catch (Exception ignored) {
+            }
+        } else if (options.hasMember("ao")) {
+            try {
+                this.pbrOcclusion = normalizeOptionalPath(options.getMember("ao").asString());
+            } catch (Exception ignored) {
+            }
+        }
+        if (options.hasMember("metallicFactor")) {
+            try {
+                this.pbrMetallicFactor = (float) clamp01(options.getMember("metallicFactor").asDouble());
+            } catch (Exception ignored) {
+            }
+        }
+        if (options.hasMember("roughnessFactor")) {
+            try {
+                this.pbrRoughnessFactor = (float) clamp01(options.getMember("roughnessFactor").asDouble());
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private MoudPackets.S2C_UpdateDisplayPbrPacket snapshotPbr() {
+        return new MoudPackets.S2C_UpdateDisplayPbrPacket(
+                id,
+                pbrEnabled,
+                pbrBaseColor,
+                pbrNormal,
+                pbrMetallicRoughness,
+                pbrEmissive,
+                pbrOcclusion,
+                pbrMetallicFactor,
+                pbrRoughnessFactor
+        );
+    }
+
+    private void broadcastPbr() {
+        broadcast(snapshotPbr());
     }
 
     private MoudPackets.S2C_CreateDisplayPacket buildCreatePacket() {
@@ -479,6 +598,21 @@ public class MediaDisplayProxy implements Transformable, SyncableObject {
                 playbackSpeed,
                 getPlaybackOffsetSeconds()
         );
+    }
+
+    private static String normalizeOptionalPath(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static double clamp01(double value) {
+        if (!Double.isFinite(value)) {
+            return 0.0;
+        }
+        return Math.max(0.0, Math.min(1.0, value));
     }
 
     private void broadcast(Object packet) {

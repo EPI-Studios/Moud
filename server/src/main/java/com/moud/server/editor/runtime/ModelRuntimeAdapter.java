@@ -19,6 +19,11 @@ public final class ModelRuntimeAdapter implements SceneRuntimeAdapter {
     private final String sceneId;
     private ModelProxy model;
     private String objectId;
+    private String lastAnimClip = "";
+    private boolean lastAnimPlaying = false;
+    private boolean lastAnimLoop = true;
+    private double lastAnimSpeed = 1.0;
+    private double lastAnimTime = 0.0;
 
     public ModelRuntimeAdapter(String sceneId) {
         this.sceneId = sceneId;
@@ -44,6 +49,7 @@ public final class ModelRuntimeAdapter implements SceneRuntimeAdapter {
         );
         ModelManager.getInstance().tagSceneBinding(model.getId(), sceneId, snapshot.objectId());
         broadcastBinding(false);
+        applyAnimation(props);
     }
 
     @Override
@@ -63,6 +69,7 @@ public final class ModelRuntimeAdapter implements SceneRuntimeAdapter {
             LOGGER.info("Scene '{}' updating model {} texture from '{}' to '{}'", sceneId, model.getId(), model.getTexture(), texture);
             model.setTexture(texture);
         }
+        applyAnimation(props);
     }
 
     @Override
@@ -124,6 +131,119 @@ public final class ModelRuntimeAdapter implements SceneRuntimeAdapter {
             return raw != null ? Double.parseDouble(raw.toString()) : fallback;
         } catch (Exception e) {
             return fallback;
+        }
+    }
+
+    private static boolean boolProperty(Object raw, boolean fallback) {
+        if (raw instanceof Boolean b) {
+            return b;
+        }
+        if (raw instanceof Number n) {
+            return n.intValue() != 0;
+        }
+        if (raw instanceof String s) {
+            String trimmed = s.trim().toLowerCase();
+            if (trimmed.isEmpty()) {
+                return fallback;
+            }
+            if ("true".equals(trimmed) || "1".equals(trimmed) || "yes".equals(trimmed) || "on".equals(trimmed)) {
+                return true;
+            }
+            if ("false".equals(trimmed) || "0".equals(trimmed) || "no".equals(trimmed) || "off".equals(trimmed)) {
+                return false;
+            }
+        }
+        return fallback;
+    }
+
+    private void applyAnimation(Map<String, Object> props) {
+        if (model == null || props == null) {
+            return;
+        }
+
+        String clip = stringProperty(props, "animationClip", "").trim();
+        Integer clipIndex = parseAnimationIndex(clip);
+        boolean playing = boolProperty(props.getOrDefault("animationPlaying", false), false);
+        boolean loop = boolProperty(props.getOrDefault("animationLoop", true), true);
+        double speed = toDouble(props.getOrDefault("animationSpeed", 1.0), 1.0);
+        double time = toDouble(props.getOrDefault("animationTime", 0.0), 0.0);
+
+        boolean clipChanged = !Objects.equals(clip, lastAnimClip);
+        boolean playingChanged = playing != lastAnimPlaying;
+        boolean loopChanged = loop != lastAnimLoop;
+        boolean speedChanged = Math.abs(speed - lastAnimSpeed) > 1.0e-6;
+        boolean timeChanged = Math.abs(time - lastAnimTime) > 1.0e-6;
+
+        if (!clipChanged && !playingChanged && !loopChanged && !speedChanged && !timeChanged) {
+            return;
+        }
+
+        lastAnimClip = clip;
+        lastAnimPlaying = playing;
+        lastAnimLoop = loop;
+        lastAnimSpeed = speed;
+        lastAnimTime = time;
+
+        if (clip.isEmpty()) {
+            model.stopAnimation();
+            return;
+        }
+
+        if (clipChanged) {
+            if (clipIndex != null) {
+                model.playAnimation(clipIndex.intValue());
+            } else {
+                model.playAnimation(clip);
+            }
+            model.setLoopAnimation(loop);
+            model.setAnimationSpeed(speed);
+            model.seekAnimation(time);
+            if (!playing) {
+                model.pauseAnimation();
+            }
+            return;
+        }
+
+        if (loopChanged) {
+            model.setLoopAnimation(loop);
+        }
+        if (speedChanged) {
+            model.setAnimationSpeed(speed);
+        }
+        if (timeChanged) {
+            model.seekAnimation(time);
+        }
+        if (playingChanged) {
+            if (playing) {
+                if (clipIndex != null) {
+                    model.playAnimation(clipIndex.intValue());
+                } else {
+                    model.playAnimation(clip);
+                }
+            } else {
+                model.pauseAnimation();
+            }
+        }
+    }
+
+    private static Integer parseAnimationIndex(String token) {
+        if (token == null) {
+            return null;
+        }
+        String trimmed = token.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        String lower = trimmed.toLowerCase();
+        if (!lower.startsWith("animation_")) {
+            return null;
+        }
+        String remainder = trimmed.substring("animation_".length()).trim();
+        try {
+            int index = Integer.parseInt(remainder);
+            return index >= 0 ? index : null;
+        } catch (NumberFormatException ignored) {
+            return null;
         }
     }
 
