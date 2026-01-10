@@ -1,6 +1,8 @@
 package com.moud.client.rendering;
 
 import foundry.veil.api.client.render.VeilRenderSystem;
+import foundry.veil.api.client.render.post.PostPipeline;
+import foundry.veil.api.client.render.post.stage.CompositePostPipeline;
 import foundry.veil.platform.VeilEventPlatform;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.Identifier;
@@ -18,7 +20,6 @@ public final class PostProcessingManager {
 
     public PostProcessingManager() {
         VeilEventPlatform.INSTANCE.preVeilPostProcessing((pipelineId, pipeline, context) -> {
-            // This callback runs on the Render Thread
             synchronized (activeEffects) {
                 if (activeEffects.contains(pipelineId)) {
                     uniformManager.applyUniforms(pipelineId, context);
@@ -35,12 +36,17 @@ public final class PostProcessingManager {
                 return;
             }
 
-            // CRITICAL FIX: Ensure this runs on the main client thread
             MinecraftClient.getInstance().execute(() -> {
                 synchronized (activeEffects) {
                     if (activeEffects.add(pipelineId)) {
                         try {
-                            VeilRenderSystem.renderer().getPostProcessingManager().add(pipelineId);
+                            var veilManager = VeilRenderSystem.renderer().getPostProcessingManager();
+                            int priority = 1000;
+                            PostPipeline pipeline = veilManager.getPipeline(pipelineId);
+                            if (pipeline instanceof CompositePostPipeline composite) {
+                                priority = composite.getPriority();
+                            }
+                            veilManager.add(priority, pipelineId);
                             LOGGER.info("Applied post-processing effect: {}", pipelineId);
                         } catch (Exception e) {
                             LOGGER.error("Failed to add Veil pipeline {}", pipelineId, e);
@@ -58,8 +64,6 @@ public final class PostProcessingManager {
         try {
             Identifier pipelineId = Identifier.tryParse(effectId);
             if (pipelineId == null) return;
-
-            // CRITICAL FIX: Ensure this runs on the main client thread
             MinecraftClient.getInstance().execute(() -> {
                 synchronized (activeEffects) {
                     if (activeEffects.remove(pipelineId)) {
@@ -74,7 +78,6 @@ public final class PostProcessingManager {
     }
 
     public void clearAllEffects() {
-        // CRITICAL FIX: Ensure this runs on the main client thread
         MinecraftClient.getInstance().execute(() -> {
             synchronized (activeEffects) {
                 for (Identifier pipelineId : activeEffects) {
@@ -87,7 +90,6 @@ public final class PostProcessingManager {
     }
 
     public void updateUniforms(String effectId, Map<String, Object> uniforms) {
-        // This just updates a ConcurrentHashMap, safe to call from any thread
         uniformManager.updateUniforms(effectId, uniforms);
     }
 }

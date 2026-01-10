@@ -1,0 +1,15 @@
+{
+  "stages": [
+    {
+      "type": "veil:blit",
+      "shader": "moud:ssr",
+      "in": "minecraft:main"
+    }
+  ],
+  "dynamicBuffers": [
+    "normal",
+    "debug"
+  ],
+  "priority": 1100
+}
+

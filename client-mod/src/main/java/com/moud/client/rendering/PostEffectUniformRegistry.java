@@ -9,11 +9,14 @@ public final class PostEffectUniformRegistry {
     public static Map<String, Object> sanitize(String effectId, Map<String, Object> raw) {
         if (effectId == null) return raw;
         String norm = effectId.toLowerCase();
-        if ("shaders:fog".equals(norm)) {
+        if ("veil:fog".equals(norm) || "shaders:fog".equals(norm)) {
             return sanitizeFog(raw);
         }
-        if ("shaders:height_fog".equals(norm)) {
+        if ("veil:height_fog".equals(norm) || "shaders:height_fog".equals(norm)) {
             return sanitizeHeightFog(raw);
+        }
+        if ("moud:ssr".equals(norm)) {
+            return sanitizeSsr(raw);
         }
         return raw;
     }
@@ -37,6 +40,17 @@ public final class PostEffectUniformRegistry {
         );
     }
 
+    private static Map<String, Object> sanitizeSsr(Map<String, Object> raw) {
+        if (raw == null) return defaultSsr();
+        return Map.of(
+                "SsrStrength", clamp(raw.getOrDefault("SsrStrength", defaultSsr().get("SsrStrength")), 0.0f, 2.0f),
+                "SsrMaxDistance", clamp(raw.getOrDefault("SsrMaxDistance", defaultSsr().get("SsrMaxDistance")), 1.0f, 256.0f),
+                "SsrStepSize", clamp(raw.getOrDefault("SsrStepSize", defaultSsr().get("SsrStepSize")), 0.02f, 4.0f),
+                "SsrThickness", clamp(raw.getOrDefault("SsrThickness", defaultSsr().get("SsrThickness")), 0.0002f, 0.05f),
+                "SsrEdgeFade", clamp(raw.getOrDefault("SsrEdgeFade", defaultSsr().get("SsrEdgeFade")), 0.01f, 0.5f)
+        );
+    }
+
     public static Map<String, Object> defaultFog() {
         return Map.of(
                 "FogStart", -10f,
@@ -51,6 +65,16 @@ public final class PostEffectUniformRegistry {
                 "FOG_Y", 64.99f,
                 "THICKNESS", 0.1f,
                 "FogColor", Map.of("r", 0.2f, "g", 0.2f, "b", 0.2f, "a", 1.0f)
+        );
+    }
+
+    public static Map<String, Object> defaultSsr() {
+        return Map.of(
+                "SsrStrength", 0.35f,
+                "SsrMaxDistance", 32.0f,
+                "SsrStepSize", 0.2f,
+                "SsrThickness", 0.002f,
+                "SsrEdgeFade", 0.12f
         );
     }
 
