@@ -15,6 +15,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,6 +49,9 @@ public final class ModelCollisionLibrary {
 
     public static MeshData getMesh(String modelPath) {
         if (modelPath == null || modelPath.isBlank()) {
+            return null;
+        }
+        if (!isMeshPath(modelPath)) {
             return null;
         }
         MeshData cached = MESH_CACHE.get(modelPath);
@@ -91,7 +95,12 @@ public final class ModelCollisionLibrary {
         }
 
         try (InputStream inputStream = new ByteArrayInputStream(modelAsset.getData())) {
-            MeshData mesh = ObjModelLoader.loadMesh(inputStream);
+            MeshData mesh;
+            if (GltfModelCollisionLoader.isGlbPath(modelPath)) {
+                mesh = GltfModelCollisionLoader.loadGlbMesh(inputStream);
+            } else {
+                mesh = ObjModelLoader.loadMesh(inputStream);
+            }
             if (mesh.vertices().length < 9 || mesh.indices().length < 3) {
                 LOGGER.warn("Model '{}' does not contain enough data for collision mesh", modelPath);
                 return null;
@@ -121,6 +130,9 @@ public final class ModelCollisionLibrary {
         if (modelPath == null || modelPath.isBlank()) {
             return null;
         }
+        if (!isMeshPath(modelPath)) {
+            return null;
+        }
         List<OBB> boxes = COLLISION_BOX_CACHE.compute(modelPath, (k, existing) -> {
             if (existing != null && !existing.isEmpty() && isReasonable(existing)) {
                 return existing;
@@ -137,6 +149,9 @@ public final class ModelCollisionLibrary {
 
     public static CompletableFuture<List<OBB>> getCollisionBoxesAsync(String modelPath) {
         if (modelPath == null || modelPath.isBlank()) {
+            return CompletableFuture.completedFuture(List.of());
+        }
+        if (!isMeshPath(modelPath)) {
             return CompletableFuture.completedFuture(List.of());
         }
         List<OBB> cached = COLLISION_BOX_CACHE.get(modelPath);
@@ -156,6 +171,9 @@ public final class ModelCollisionLibrary {
 
     public static List<float[]> getConvexHulls(String modelPath) {
         if (modelPath == null || modelPath.isBlank()) {
+            return List.of();
+        }
+        if (!isMeshPath(modelPath)) {
             return List.of();
         }
         List<float[]> hulls = VHACD_HULL_CACHE.computeIfAbsent(modelPath, key -> {
@@ -207,6 +225,9 @@ public final class ModelCollisionLibrary {
     }
 
     private static List<OBB> generateCollisionBoxes(String modelPath) {
+        if (!isMeshPath(modelPath)) {
+            return null;
+        }
         MeshData mesh = getMesh(modelPath);
         if (mesh == null || mesh.vertices().length < 9 || mesh.indices().length < 3) {
             LOGGER.warn("Cannot generate collision boxes for '{}': no mesh data", modelPath);
@@ -216,6 +237,14 @@ public final class ModelCollisionLibrary {
         List<OBB> boxes = MeshBoxDecomposer.decompose(mesh.vertices(), mesh.indices(), modelPath);
         LOGGER.info("Generated {} collision boxes for model '{}'", boxes.size(), modelPath);
         return boxes;
+    }
+
+    private static boolean isMeshPath(String modelPath) {
+        if (modelPath == null) {
+            return false;
+        }
+        String lower = modelPath.toLowerCase(Locale.ROOT);
+        return lower.endsWith(".obj") || lower.endsWith(".glb");
     }
 
     public static double[] computeBounds(String modelPath) {
