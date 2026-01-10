@@ -41,8 +41,11 @@ import com.moud.server.shared.SharedValueManager;
 import com.moud.server.physics.player.SharedPhysicsLoader;
 import com.moud.server.zone.ZoneManager;
 import net.minestom.server.MinecraftServer;
+import net.minestom.server.event.server.ServerListPingEvent;
+import net.minestom.server.ping.ResponseData;
 import net.minestom.server.timer.Task;
 import net.minestom.server.timer.TaskSchedule;
+import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
 
 import java.lang.reflect.Field;
@@ -60,8 +63,11 @@ public class MoudEngine {
             MoudEngine.class,
             LogContext.builder().put("subsystem", "engine").build()
     );
+    private static final String SERVERLIST_VERSION_MARKER = "moud:" + com.moud.network.protocol.MoudProtocol.PROTOCOL_VERSION;
 
     private JavaScriptRuntime runtime;
+    private final Context sharedPhysicsContext;
+    private final SharedPhysicsLoader sharedPhysicsLoader;
     private final Path projectRoot;
     private final AssetManager assetManager;
     private final AssetProxy assetProxy;
@@ -107,6 +113,7 @@ public class MoudEngine {
     public MoudEngine(String[] launchArgs) {
         instance = this;
         LOGGER.startup("Initializing Moud Engine...");
+        registerServerListPingMarker();
 
         boolean enableReload = hasArg(launchArgs, "--enable-reload");
         boolean enableDevUtilities = hasArg(launchArgs, "--dev-utils");
@@ -167,6 +174,16 @@ public class MoudEngine {
 
             this.eventDispatcher = new EventDispatcher(this);
             this.runtime = new JavaScriptRuntime(this);
+            this.sharedPhysicsContext = createSharedPhysicsContext();
+            this.sharedPhysicsLoader = new SharedPhysicsLoader(sharedPhysicsContext);
+            synchronized (sharedPhysicsContext) {
+                sharedPhysicsContext.enter();
+                try {
+                    sharedPhysicsContext.getBindings("js").putMember("console", consoleAPI);
+                } finally {
+                    sharedPhysicsContext.leave();
+                }
+            }
             this.asyncManager = new AsyncManager(this);
             registerDefaultScriptModules();
 
@@ -231,6 +248,17 @@ public class MoudEngine {
             LOGGER.critical("Failed to initialize Moud engine: {}", e.getMessage(), e);
             throw new RuntimeException("Engine initialization failed", e);
         }
+    }
+
+    private void registerServerListPingMarker() {
+        MinecraftServer.getGlobalEventHandler().addListener(ServerListPingEvent.class, event -> {
+            ResponseData responseData = event.getResponseData();
+            if (responseData == null) {
+                responseData = new ResponseData();
+                event.setResponseData(responseData);
+            }
+            responseData.setVersion(SERVERLIST_VERSION_MARKER);
+        });
     }
 
     private boolean hasArg(String[] args, String flag) {
@@ -414,6 +442,22 @@ public class MoudEngine {
         });
     }
 
+    private static Context createSharedPhysicsContext() {
+        HostAccess hostAccess = HostAccess.newBuilder()
+                .allowAccessAnnotatedBy(HostAccess.Export.class)
+                .allowAllImplementations(true)
+                .allowAllClassImplementations(true)
+                .allowArrayAccess(true)
+                .allowListAccess(true)
+                .allowMapAccess(true)
+                .build();
+
+        return Context.newBuilder("js")
+                .allowHostAccess(hostAccess)
+                .option("engine.WarnInterpreterOnly", "false")
+                .build();
+    }
+
     private void loadSharedPhysicsControllers(String sharedPhysicsOverride) {
         String sharedPhysicsSource = sharedPhysicsOverride;
 
@@ -434,8 +478,7 @@ public class MoudEngine {
         }
 
         try {
-            SharedPhysicsLoader physicsLoader = new SharedPhysicsLoader(this.runtime.getContext());
-            if (physicsLoader.loadSharedPhysics(sharedPhysicsSource)) {
+            if (sharedPhysicsLoader.loadSharedPhysics(sharedPhysicsSource)) {
                 LOGGER.info("Loaded shared physics controllers");
             }
         } catch (Exception e) {
@@ -470,6 +513,13 @@ public class MoudEngine {
         if (cursorService != null) cursorService.shutdown();
         if (asyncManager != null) asyncManager.shutdown();
         if (runtime != null) runtime.shutdown();
+        if (sharedPhysicsContext != null) {
+            try {
+                sharedPhysicsContext.close(true);
+            } catch (Exception e) {
+                LOGGER.warn("Failed to close shared physics context cleanly", e);
+            }
+        }
         if (voiceChatManager != null) voiceChatManager.shutdown();
         if (physicsService != null) physicsService.shutdown();
         if (pluginManager != null) pluginManager.shutdown();

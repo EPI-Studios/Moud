@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -78,7 +79,7 @@ public class AssetDiscovery {
     private void processAsset(Path root, Path assetPath) {
         try {
             Path relativePath = root.relativize(assetPath);
-            String assetId = PathUtils.normalizeSlashes(relativePath.toString());
+            String assetId = PathUtils.normalizeSlashes(relativePath.toString()).toLowerCase(Locale.ROOT);
             AssetType type = determineAssetType(assetPath);
 
             AssetMetadata metadata = new AssetMetadata(assetId, assetPath, type);
@@ -97,7 +98,7 @@ public class AssetDiscovery {
             return AssetType.SHADER;
         } else if (fileName.endsWith(".png") || fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) {
             return AssetType.TEXTURE;
-        } else if (fileName.endsWith(".obj") || fileName.endsWith(".gltf") || fileName.endsWith(".fbx")) {
+        } else if (fileName.endsWith(".obj") || fileName.endsWith(".gltf") || fileName.endsWith(".glb") || fileName.endsWith(".fbx")) {
             return AssetType.MODEL;
         } else if (fileName.endsWith(".ogg") || fileName.endsWith(".wav") || fileName.endsWith(".mp3")) {
             return AssetType.SOUND;

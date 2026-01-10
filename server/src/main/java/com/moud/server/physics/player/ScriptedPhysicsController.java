@@ -48,28 +48,37 @@ public final class ScriptedPhysicsController implements PlayerPhysicsController 
 
     public PlayerState stepWithPlayer(PlayerState current, PlayerInput input, PlayerPhysicsConfig config,
                                        CollisionWorld world, float dt, UUID playerUuid) {
-        if (stepFunction == null || !stepFunction.canExecute()) {
+        if (stepFunction == null || jsContext == null) {
             return PlayerController.step(current, input, config, world, dt);
         }
 
-        try {
-            jsContext.enter();
+        synchronized (jsContext) {
+            boolean entered = false;
+            try {
+                jsContext.enter();
+                entered = true;
 
-            Value jsState = createJsState(current);
-            Value jsInput = createJsInput(input);
-            Value jsConfig = createJsConfig(config);
-            Value jsCollision = createJsCollisionWorld(world);
-            Value jsContext = createJsContext(playerUuid, dt, ScriptThreadContext.getPlayerContext());
+                Value jsState = createJsState(current);
+                Value jsInput = createJsInput(input);
+                Value jsConfig = createJsConfig(config);
+                Value jsCollision = createJsCollisionWorld(world);
+                Value jsPlayerContext = createJsContext(playerUuid, dt, ScriptThreadContext.getPlayerContext());
 
-            Value result = stepFunction.execute(jsState, jsInput, jsConfig, jsCollision, jsContext);
+                Value result = stepFunction.execute(jsState, jsInput, jsConfig, jsCollision, jsPlayerContext);
 
-            return parseJsState(result, current);
-        } catch (Exception e) {
-            LOGGER.warn("Scripted physics controller '{}' threw exception, using default physics: {}",
-                    id, e.getMessage());
-            return PlayerController.step(current, input, config, world, dt);
-        } finally {
-            jsContext.leave();
+                return parseJsState(result, current);
+            } catch (Throwable t) {
+                LOGGER.warn("Scripted physics controller '{}' threw exception, using default physics: {}",
+                        id, t.getMessage());
+                return PlayerController.step(current, input, config, world, dt);
+            } finally {
+                if (entered) {
+                    try {
+                        jsContext.leave();
+                    } catch (Throwable ignored) {
+                    }
+                }
+            }
         }
     }
 

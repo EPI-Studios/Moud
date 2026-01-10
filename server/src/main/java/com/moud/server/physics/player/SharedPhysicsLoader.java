@@ -3,7 +3,6 @@ package com.moud.server.physics.player;
 import com.moud.api.physics.player.PlayerPhysicsControllers;
 import com.moud.server.logging.MoudLogger;
 import org.graalvm.polyglot.Context;
-import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Source;
 import org.graalvm.polyglot.Value;
 
@@ -24,35 +23,44 @@ public final class SharedPhysicsLoader {
             return false;
         }
 
-        try {
-            jsContext.enter();
+        synchronized (jsContext) {
+            boolean entered = false;
+            try {
+                jsContext.enter();
+                entered = true;
 
-            jsContext.getBindings("js").putMember("Physics", physicsBinding);
+                jsContext.getBindings("js").putMember("Physics", physicsBinding);
 
-            String wrappedSource = """
-                (function() {
-                    const exports = {};
-                    const module = { exports: exports };
-                    %s
-                    return module.exports.controller || module.exports.default || module.exports
-                        || exports.controller || exports.default;
-                })()
-                """.formatted(scriptSource);
+                String wrappedSource = """
+                    (function() {
+                        const exports = {};
+                        const module = { exports: exports };
+                        %s
+                        return module.exports.controller || module.exports.default || module.exports
+                            || exports.controller || exports.default;
+                    })()
+                    """.formatted(scriptSource);
 
-            Source source = Source.newBuilder("js", wrappedSource, "shared-physics.js").build();
-            Value result = jsContext.eval(source);
+                Source source = Source.newBuilder("js", wrappedSource, "shared-physics.js").build();
+                Value result = jsContext.eval(source);
 
-            if (result == null || result.isNull()) {
-                LOGGER.debug("Shared physics script did not export a controller");
+                if (result == null || result.isNull()) {
+                    LOGGER.debug("Shared physics script did not export a controller");
+                    return false;
+                }
+
+                return registerController(result);
+            } catch (Exception e) {
+                LOGGER.error("Failed to load shared physics script: {}", e.getMessage(), e);
                 return false;
+            } finally {
+                if (entered) {
+                    try {
+                        jsContext.leave();
+                    } catch (Exception ignored) {
+                    }
+                }
             }
-
-            return registerController(result);
-        } catch (Exception e) {
-            LOGGER.error("Failed to load shared physics script: {}", e.getMessage(), e);
-            return false;
-        } finally {
-            jsContext.leave();
         }
     }
 
@@ -70,7 +78,16 @@ public final class SharedPhysicsLoader {
             return false;
         }
 
-        if (stepValue == null || stepValue.isNull() || !stepValue.canExecute()) {
+        boolean executable = false;
+        if (stepValue != null && !stepValue.isNull()) {
+            try {
+                executable = stepValue.canExecute();
+            } catch (Exception ignored) {
+                executable = false;
+            }
+        }
+
+        if (!executable) {
             LOGGER.warn("Shared physics controller missing 'step' function");
             return false;
         }

@@ -24,6 +24,7 @@ public class ClientScriptManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientScriptManager.class);
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final int MAX_CLIENT_BUNDLE_BYTES = 2 * 1024 * 1024; // keep under Minestom framed packet cap
+    private static final long MAX_BUNDLED_ASSET_BYTES = 64L * 1024L * 1024L;
 
     private byte[] compiledClientResources;
     private String clientResourcesHash;
@@ -45,7 +46,7 @@ public class ClientScriptManager {
                     clientResourcesHash, compiledClientResources.length);
             return;
         } else if (resourcePackConfigured && Files.exists(cachedBundle)) {
-            LOGGER.info("Resource pack configured; ignoring cached client bundle to avoid shipping assets in payload.");
+            LOGGER.info("Resource pack configured; rebuilding client bundle (may include select assets).");
         }
 
         if (!Files.exists(clientDir)) {
@@ -53,15 +54,15 @@ public class ClientScriptManager {
             return;
         }
 
-        LOGGER.info("Compiling client scripts (assets are served via resource pack)...");
-        this.compiledClientResources = packageClientResources(projectRoot, clientDir);
+        LOGGER.info("Compiling client scripts...");
+        this.compiledClientResources = packageClientResources(projectRoot, clientDir, resourcePackConfigured);
         this.clientResourcesHash = generateHash(compiledClientResources);
 
         LOGGER.info("Client scripts packaged successfully. Hash: {}, Size: {} bytes",
                 clientResourcesHash, compiledClientResources.length);
     }
 
-    private byte[] packageClientResources(Path projectRoot, Path clientDir) throws IOException {
+    private byte[] packageClientResources(Path projectRoot, Path clientDir, boolean resourcePackConfigured) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(baos)) {
 
@@ -74,6 +75,9 @@ public class ClientScriptManager {
             }
 
             addSharedPhysicsToZip(projectRoot, zip);
+            if (resourcePackConfigured) {
+                addAssetsFromResourcePack(zip);
+            }
         }
         byte[] bundled = baos.toByteArray();
         if (bundled.length > MAX_CLIENT_BUNDLE_BYTES) {
@@ -81,6 +85,73 @@ public class ClientScriptManager {
                     bundled.length, MAX_CLIENT_BUNDLE_BYTES);
         }
         return bundled;
+    }
+
+    private void addAssetsFromResourcePack(ZipOutputStream zip) {
+        String packPathEnv = System.getenv("MOUD_RESOURCE_PACK_PATH");
+        if (packPathEnv == null || packPathEnv.isBlank()) {
+            return;
+        }
+        Path packPath = Paths.get(packPathEnv);
+        if (!Files.isRegularFile(packPath)) {
+            LOGGER.warn("MOUD_RESOURCE_PACK_PATH is set but is not a file: {}", packPath);
+            return;
+        }
+
+        String prefixesProp = System.getProperty("moud.clientBundleAssetPrefixes", "assets/moud/");
+        String[] prefixes = Stream.of(prefixesProp.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .toArray(String[]::new);
+
+        if (prefixes.length == 0) {
+            return;
+        }
+
+        long totalBytes = 0L;
+        try (java.util.zip.ZipFile zipFile = new java.util.zip.ZipFile(packPath.toFile())) {
+            var entries = zipFile.entries();
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
+                if (entry.isDirectory()) {
+                    continue;
+                }
+                String name = PathUtils.normalizeSlashes(entry.getName());
+                if (!startsWithAny(name, prefixes)) {
+                    continue;
+                }
+
+                byte[] data = zipFile.getInputStream(entry).readAllBytes();
+                totalBytes += data.length;
+                if (totalBytes > MAX_BUNDLED_ASSET_BYTES) {
+                    LOGGER.warn("Bundled assets exceeded {} bytes, stopping early (set -Dmoud.clientBundleAssetPrefixes to reduce scope)",
+                            MAX_BUNDLED_ASSET_BYTES);
+                    break;
+                }
+
+                zip.putNextEntry(new ZipEntry(name));
+                zip.write(data);
+                zip.closeEntry();
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to bundle assets from resource pack at {}", packPath, e);
+            return;
+        }
+
+        LOGGER.info("Bundled {} bytes of assets from resource pack (prefixes={})",
+                totalBytes, java.util.Arrays.toString(prefixes));
+    }
+
+    private static boolean startsWithAny(String value, String[] prefixes) {
+        if (value == null) {
+            return false;
+        }
+        for (String prefix : prefixes) {
+            if (value.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void addScriptToZip(Path clientDir, Path path, ZipOutputStream zip) {

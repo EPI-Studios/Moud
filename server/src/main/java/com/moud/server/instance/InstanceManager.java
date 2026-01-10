@@ -2,6 +2,7 @@ package com.moud.server.instance;
 
 import com.moud.server.editor.SceneDefaults;
 import com.moud.server.logging.MoudLogger;
+import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.physics.PhysicsService;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
@@ -54,6 +55,8 @@ public class InstanceManager {
     private final AtomicBoolean autosavePending = new AtomicBoolean(false);
     public static final Tag<Pos> SPAWN_TAG = Tag.Transient("moud:spawn");
     private static final Pos FALLBACK_SPAWN = new Pos(0.5, 66, 0.5);
+    private static final long NON_MOUD_LIMBO_GRACE_MILLIS = 2_000L;
+    private static final long MOUD_LIMBO_MAX_WAIT_MILLIS = 120_000L;
 
     public static synchronized void install(InstanceManager instanceManager) {
         instance = Objects.requireNonNull(instanceManager, "instanceManager");
@@ -110,10 +113,53 @@ public class InstanceManager {
                 }
 
                 Pos finalSpawnPosition = spawnPosition;
-                player.setInstance(realInstance, spawnPosition).thenRun(() -> {
-                    player.setRespawnPoint(finalSpawnPosition);
-                    LOGGER.info("Player {} spawned at position: {}", player.getUsername(), finalSpawnPosition);
-                });
+                long spawnStart = System.currentTimeMillis();
+
+                final Task[] gateTask = new Task[1];
+                gateTask[0] = MinecraftServer.getSchedulerManager()
+                        .buildTask(() -> {
+                            if (!player.isOnline()) {
+                                gateTask[0].cancel();
+                                return;
+                            }
+                            if (player.getInstance() != limboInstance) {
+                                gateTask[0].cancel();
+                                return;
+                            }
+
+                            ServerNetworkManager networkManager = ServerNetworkManager.getInstance();
+                            boolean isMoudClient = networkManager != null && networkManager.isMoudClient(player);
+                            boolean clientReady = isMoudClient && networkManager.isClientReady(player);
+                            long elapsedMillis = System.currentTimeMillis() - spawnStart;
+
+                            if (clientReady) {
+                                gateTask[0].cancel();
+                                player.setInstance(realInstance, finalSpawnPosition).thenRun(() -> {
+                                    player.setRespawnPoint(finalSpawnPosition);
+                                    LOGGER.info("Player {} released from limbo (client ready)", player.getUsername());
+                                });
+                                return;
+                            }
+
+                            if (!isMoudClient && elapsedMillis >= NON_MOUD_LIMBO_GRACE_MILLIS) {
+                                gateTask[0].cancel();
+                                player.setInstance(realInstance, finalSpawnPosition).thenRun(() -> {
+                                    player.setRespawnPoint(finalSpawnPosition);
+                                    LOGGER.info("Player {} released from limbo (non-Moud)", player.getUsername());
+                                });
+                                return;
+                            }
+
+                            if (isMoudClient && elapsedMillis >= MOUD_LIMBO_MAX_WAIT_MILLIS) {
+                                gateTask[0].cancel();
+                                player.setInstance(realInstance, finalSpawnPosition).thenRun(() -> {
+                                    player.setRespawnPoint(finalSpawnPosition);
+                                    LOGGER.warn("Player {} released from limbo after timeout", player.getUsername());
+                                });
+                            }
+                        })
+                        .repeat(TaskSchedule.tick(5))
+                        .schedule();
             }
         });
     }

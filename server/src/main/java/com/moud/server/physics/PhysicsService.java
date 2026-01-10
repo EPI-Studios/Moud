@@ -211,6 +211,10 @@ public final class PhysicsService {
         return obj != null ? obj.body : null;
     }
 
+    public ChunkPhysicsManager getChunkPhysicsManager() {
+        return chunkPhysics;
+    }
+
     public List<AABB> getPlayerBlockingColliders(Instance instance, AABB queryBox) {
         if (instance == null || queryBox == null || physicsObjects.isEmpty()) {
             return List.of();
@@ -222,10 +226,6 @@ public final class PhysicsService {
             }
             Entity entity = object.model.getEntity();
             if (entity == null || entity.getInstance() != instance) {
-                continue;
-            }
-            boolean blocksPlayer = object.body.getMotionType() == EMotionType.Static || !object.allowPlayerPush;
-            if (!blocksPlayer) {
                 continue;
             }
             BoundingBox box = object.getWorldBoundingBox();

@@ -9,6 +9,7 @@ import com.moud.plugin.api.services.primitives.PrimitiveHandle;
 import com.moud.plugin.api.services.primitives.PrimitiveMaterial;
 import com.moud.plugin.api.services.primitives.PrimitiveType;
 import com.moud.server.instance.InstanceManager;
+import com.moud.server.movement.JoltPredictionCollisionWorld;
 import com.moud.server.physics.PrimitivePhysicsManager;
 import net.minestom.server.entity.Player;
 import org.slf4j.Logger;
@@ -72,6 +73,10 @@ public class PrimitiveServiceImpl implements PrimitiveService {
         }
         PrimitivePhysicsManager.getInstance()
                 .onCreate(prim, InstanceManager.getInstance().getDefaultInstance());
+        var instance = InstanceManager.getInstance().getDefaultInstance();
+        if (instance != null) {
+            JoltPredictionCollisionWorld.getInstance().upsertPrimitive(instance, prim);
+        }
         return prim;
     }
 
@@ -123,6 +128,10 @@ public class PrimitiveServiceImpl implements PrimitiveService {
         }
         PrimitivePhysicsManager.getInstance()
                 .onCreate(prim, InstanceManager.getInstance().getDefaultInstance());
+        var instance = InstanceManager.getInstance().getDefaultInstance();
+        if (instance != null) {
+            JoltPredictionCollisionWorld.getInstance().upsertPrimitive(instance, prim);
+        }
         return prim;
     }
 
@@ -142,6 +151,10 @@ public class PrimitiveServiceImpl implements PrimitiveService {
                 prim.getScale()
         );
         packetSender.broadcastToAll(packet);
+        var instance = InstanceManager.getInstance().getDefaultInstance();
+        if (instance != null) {
+            JoltPredictionCollisionWorld.getInstance().upsertPrimitive(instance, prim);
+        }
     }
 
     @Override
@@ -253,6 +266,10 @@ public class PrimitiveServiceImpl implements PrimitiveService {
             broadcastCreate(prim);
         }
         PrimitivePhysicsManager.getInstance().onCreate(prim, InstanceManager.getInstance().getDefaultInstance());
+        var instance = InstanceManager.getInstance().getDefaultInstance();
+        if (instance != null) {
+            JoltPredictionCollisionWorld.getInstance().upsertPrimitive(instance, prim);
+        }
         return prim;
     }
 
@@ -311,7 +328,8 @@ public class PrimitiveServiceImpl implements PrimitiveService {
                 }
             }
             broadcastRemove(prim);
-            com.moud.server.physics.PrimitivePhysicsManager.getInstance().onRemove(primitiveId);
+            PrimitivePhysicsManager.getInstance().onRemove(primitiveId);
+            JoltPredictionCollisionWorld.getInstance().removePrimitive(primitiveId);
             return true;
         }
         return false;
@@ -323,7 +341,10 @@ public class PrimitiveServiceImpl implements PrimitiveService {
         if (ids != null) {
             for (Long id : ids) {
                 primitives.remove(id);
-                com.moud.server.physics.PrimitivePhysicsManager.getInstance().onRemove(id);
+                PrimitivePhysicsManager.getInstance().onRemove(id);
+                if (id != null) {
+                    JoltPredictionCollisionWorld.getInstance().removePrimitive(id);
+                }
             }
             broadcastRemoveGroup(groupId);
         }
@@ -352,12 +373,25 @@ public class PrimitiveServiceImpl implements PrimitiveService {
         batching = false;
         if (!batchCreates.isEmpty()) {
             broadcastBatchCreate(batchCreates);
+            var instance = InstanceManager.getInstance().getDefaultInstance();
+            if (instance != null) {
+                JoltPredictionCollisionWorld predictionWorld = JoltPredictionCollisionWorld.getInstance();
+                for (PrimitiveInstance prim : batchCreates) {
+                    if (prim != null) {
+                        predictionWorld.upsertPrimitive(instance, prim);
+                    }
+                }
+            }
             batchCreates.clear();
         }
         if (!batchTransforms.isEmpty()) {
             broadcastBatchTransform(batchTransforms);
+            var instance = InstanceManager.getInstance().getDefaultInstance();
             for (PrimitiveInstance prim : batchTransforms) {
                 PrimitivePhysicsManager.getInstance().onTransform(prim);
+                if (instance != null) {
+                    JoltPredictionCollisionWorld.getInstance().upsertPrimitive(instance, prim);
+                }
             }
             batchTransforms.clear();
         }
@@ -378,6 +412,7 @@ public class PrimitiveServiceImpl implements PrimitiveService {
         }
         broadcastRemove(prim);
         PrimitivePhysicsManager.getInstance().onRemove(prim.getId());
+        JoltPredictionCollisionWorld.getInstance().removePrimitive(prim.getId());
     }
 
     void broadcastCreate(PrimitiveInstance prim) {
@@ -396,10 +431,10 @@ public class PrimitiveServiceImpl implements PrimitiveService {
                 prim.getPhysicsMass()
         );
         PrimitiveMaterial mat = prim.getMaterial();
-        com.moud.network.MoudPackets.PrimitiveMaterial packetMat = new com.moud.network.MoudPackets.PrimitiveMaterial(
+        MoudPackets.PrimitiveMaterial packetMat = new MoudPackets.PrimitiveMaterial(
                 mat.r, mat.g, mat.b, mat.a, mat.texture, mat.unlit, mat.doubleSided, mat.renderThroughBlocks
         );
-        com.moud.network.MoudPackets.PrimitiveType packetType = convertType(prim.getType());
+        MoudPackets.PrimitiveType packetType = convertType(prim.getType());
 
         MoudPackets.PrimitivePhysics physics = buildPhysicsInfo(prim);
 
@@ -444,6 +479,10 @@ public class PrimitiveServiceImpl implements PrimitiveService {
         );
         packetSender.broadcastToAll(packet);
         PrimitivePhysicsManager.getInstance().onTransform(prim);
+        var instance = InstanceManager.getInstance().getDefaultInstance();
+        if (instance != null) {
+            JoltPredictionCollisionWorld.getInstance().upsertPrimitive(instance, prim);
+        }
     }
 
     void broadcastMaterial(PrimitiveInstance prim) {
@@ -467,6 +506,10 @@ public class PrimitiveServiceImpl implements PrimitiveService {
         if (prim.getType() == PrimitiveType.MESH) {
             PrimitivePhysicsManager.getInstance()
                     .onGeometryChanged(prim, InstanceManager.getInstance().getDefaultInstance());
+        }
+        var instance = InstanceManager.getInstance().getDefaultInstance();
+        if (instance != null) {
+            JoltPredictionCollisionWorld.getInstance().upsertPrimitive(instance, prim);
         }
     }
 
@@ -537,7 +580,7 @@ public class PrimitiveServiceImpl implements PrimitiveService {
         };
     }
 
-    public void syncToPlayer(net.minestom.server.entity.Player player) {
+    public void syncToPlayer(Player player) {
         if (packetSender == null || player == null || primitives.isEmpty()) {
             return;
         }
