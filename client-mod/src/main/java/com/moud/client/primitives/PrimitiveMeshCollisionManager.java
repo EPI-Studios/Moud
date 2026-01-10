@@ -3,8 +3,12 @@ package com.moud.client.primitives;
 import com.moud.api.math.Quaternion;
 import com.moud.api.math.Vector3;
 import com.moud.client.collision.CollisionMesh;
+import com.moud.client.physics.ClientPhysicsBodyIds;
+import com.moud.client.physics.ClientPhysicsWorld;
 import com.moud.network.MoudPackets;
 import net.minecraft.util.math.Box;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -51,6 +55,7 @@ public final class PrimitiveMeshCollisionManager {
                 Entry created = buildEntry(primitive, resolvedRotation, resolvedScale);
                 if (created != null) {
                     created.mesh.setOffset(resolvedPosition.x, resolvedPosition.y, resolvedPosition.z);
+                    syncEntryToJolt(id, created, resolvedPosition);
                 }
                 return created;
             }
@@ -60,21 +65,52 @@ public final class PrimitiveMeshCollisionManager {
                 Entry rebuilt = buildEntry(primitive, resolvedRotation, resolvedScale);
                 if (rebuilt != null) {
                     rebuilt.mesh.setOffset(resolvedPosition.x, resolvedPosition.y, resolvedPosition.z);
+                    syncEntryToJolt(id, rebuilt, resolvedPosition);
                 }
                 return rebuilt;
             }
 
             existing.mesh.setOffset(resolvedPosition.x, resolvedPosition.y, resolvedPosition.z);
+            updateJoltTransform(id, resolvedPosition);
             return existing;
         });
     }
 
     public void unregisterPrimitive(long primitiveId) {
         entries.remove(primitiveId);
+        ClientPhysicsWorld physics = ClientPhysicsWorld.getInstance();
+        if (physics.isInitialized()) {
+            physics.removeStaticMesh(ClientPhysicsBodyIds.primitive(primitiveId));
+        }
     }
 
     public void clear() {
+        ClientPhysicsWorld physics = ClientPhysicsWorld.getInstance();
+        if (physics.isInitialized() && !entries.isEmpty()) {
+            for (Long primitiveId : entries.keySet()) {
+                if (primitiveId == null) {
+                    continue;
+                }
+                physics.removeStaticMesh(ClientPhysicsBodyIds.primitive(primitiveId));
+            }
+        }
         entries.clear();
+    }
+
+    public void syncAllToJoltPhysics() {
+        ClientPhysicsWorld physics = ClientPhysicsWorld.getInstance();
+        if (!physics.isInitialized() || entries.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<Long, Entry> entry : entries.entrySet()) {
+            Long primitiveId = entry.getKey();
+            Entry meshEntry = entry.getValue();
+            if (primitiveId == null || meshEntry == null || meshEntry.mesh == null) {
+                continue;
+            }
+            Vector3 offset = new Vector3(meshEntry.mesh.getOffsetX(), meshEntry.mesh.getOffsetY(), meshEntry.mesh.getOffsetZ());
+            syncEntryToJolt(primitiveId, meshEntry, offset);
+        }
     }
 
     public List<CollisionMesh> getMeshesNear(Box region) {
@@ -111,6 +147,46 @@ public final class PrimitiveMeshCollisionManager {
     }
 
     private record MeshWithId(long id, CollisionMesh mesh) {
+    }
+
+    private static void syncEntryToJolt(long primitiveId, Entry entry, Vector3 position) {
+        if (entry == null || entry.mesh == null) {
+            return;
+        }
+        ClientPhysicsWorld physics = ClientPhysicsWorld.getInstance();
+        if (!physics.isInitialized()) {
+            return;
+        }
+
+        float[] vertices = entry.mesh.getVertices();
+        int[] indices = entry.mesh.getIndices();
+        Vector3 resolved = position != null ? position : Vector3.zero();
+
+        physics.addStaticMesh(
+                ClientPhysicsBodyIds.primitive(primitiveId),
+                vertices,
+                indices,
+                new Vector3f((float) resolved.x, (float) resolved.y, (float) resolved.z),
+                new Quaternionf(),
+                new Vector3f(1, 1, 1)
+        );
+    }
+
+    private static void updateJoltTransform(long primitiveId, Vector3 position) {
+        ClientPhysicsWorld physics = ClientPhysicsWorld.getInstance();
+        if (!physics.isInitialized()) {
+            return;
+        }
+        Vector3 resolved = position != null ? position : Vector3.zero();
+        long bodyId = ClientPhysicsBodyIds.primitive(primitiveId);
+        if (!physics.hasStaticMesh(bodyId)) {
+            return;
+        }
+        physics.updateMeshTransform(
+                bodyId,
+                new Vector3f((float) resolved.x, (float) resolved.y, (float) resolved.z),
+                null
+        );
     }
 
     private static Entry buildEntry(ClientPrimitive primitive, Quaternion rotation, Vector3 scale) {
