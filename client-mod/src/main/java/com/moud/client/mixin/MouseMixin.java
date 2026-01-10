@@ -3,6 +3,7 @@ package com.moud.client.mixin;
 import com.moud.client.api.service.ClientAPIService;
 import com.moud.client.editor.EditorModeManager;
 import com.moud.client.editor.ui.EditorImGuiLayer;
+import com.moud.client.movement.ClientMovementTracker;
 import com.moud.client.network.ClientPacketWrapper;
 import com.moud.client.ui.UIOverlayManager;
 import com.moud.network.MoudPackets;
@@ -133,7 +134,7 @@ public abstract class MouseMixin {
         double dy = currentY - lastY;
 
         if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
-            ClientPacketWrapper.sendToServer(new MoudPackets.MouseMovementPacket((float) dx, (float) dy));
+            ClientMovementTracker.getInstance().queueMouseDelta(dx, dy);
             if (ClientAPIService.INSTANCE != null && ClientAPIService.INSTANCE.input != null) {
                 ClientAPIService.INSTANCE.input.triggerMouseMoveEvent(dx, dy);
             }
