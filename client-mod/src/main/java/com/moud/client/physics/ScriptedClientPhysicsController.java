@@ -49,36 +49,38 @@ public final class ScriptedClientPhysicsController implements PlayerPhysicsContr
     @Override
     public PlayerState step(PlayerState current, PlayerInput input, PlayerPhysicsConfig config,
                             CollisionWorld world, float dt) {
-        if (stepFunction == null || jsContext == null || !canExecuteSafely(stepFunction)) {
+        if (stepFunction == null || jsContext == null) {
             return defaultStep(current, input, config, world, dt);
         }
 
-        boolean entered = false;
-        try {
-            if (isContextClosedSafely(jsContext)) {
+        synchronized (jsContext) {
+            boolean entered = false;
+            try {
+                if (isContextClosedSafely(jsContext)) {
+                    return defaultStep(current, input, config, world, dt);
+                }
+                jsContext.enter();
+                entered = true;
+
+                Value jsState = createJsState(current);
+                Value jsInput = createJsInput(input);
+                Value jsConfig = createJsConfig(config);
+                Value jsCollision = createJsCollisionWorld(world);
+                Value jsCtx = createJsContext(dt);
+
+                Value result = stepFunction.execute(jsState, jsInput, jsConfig, jsCollision, jsCtx);
+
+                return parseJsState(result, current);
+            } catch (Throwable t) {
+                logFallback(t);
                 return defaultStep(current, input, config, world, dt);
-            }
-            jsContext.enter();
-            entered = true;
-
-            Value jsState = createJsState(current);
-            Value jsInput = createJsInput(input);
-            Value jsConfig = createJsConfig(config);
-            Value jsCollision = createJsCollisionWorld(world);
-            Value jsCtx = createJsContext(dt);
-
-            Value result = stepFunction.execute(jsState, jsInput, jsConfig, jsCollision, jsCtx);
-
-            return parseJsState(result, current);
-        } catch (Throwable t) {
-            logFallback(t);
-            return defaultStep(current, input, config, world, dt);
-        } finally {
-            if (entered) {
-                try {
-                    jsContext.leave();
-                } catch (Throwable t) {
-                    logFallback(t);
+            } finally {
+                if (entered) {
+                    try {
+                        jsContext.leave();
+                    } catch (Throwable t) {
+                        logFallback(t);
+                    }
                 }
             }
         }
@@ -87,15 +89,6 @@ public final class ScriptedClientPhysicsController implements PlayerPhysicsContr
     private PlayerState defaultStep(PlayerState current, PlayerInput input, PlayerPhysicsConfig config,
                                     CollisionWorld world, float dt) {
         return PlayerController.step(current, input, config, world, dt);
-    }
-
-    private boolean canExecuteSafely(Value value) {
-        try {
-            return value.canExecute();
-        } catch (Throwable t) {
-            logFallback(t);
-            return false;
-        }
     }
 
     private boolean isContextClosedSafely(Context context) {

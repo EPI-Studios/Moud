@@ -39,35 +39,48 @@ public final class ClientPhysicsScriptLoader {
             return false;
         }
 
-        try {
-            jsContext.enter();
-
-            jsContext.getBindings("js").putMember("Physics", physicsBinding);
-
-            String wrappedSource = """
-                (function() {
-                    const exports = {};
-                    const module = { exports: exports };
-                    %s
-                    return module.exports.controller || module.exports.default || module.exports
-                        || exports.controller || exports.default;
-                })()
-                """.formatted(scriptSource);
-
-            Source source = Source.newBuilder("js", wrappedSource, "shared-physics.js").build();
-            Value result = jsContext.eval(source);
-
-            if (result == null || result.isNull()) {
-                LOGGER.debug("Client: Shared physics script did not export a controller");
-                return false;
-            }
-
-            return registerController(result);
-        } catch (Exception e) {
-            LOGGER.error("Client: Failed to load shared physics: {}", e.getMessage(), e);
+        if (jsContext == null) {
             return false;
-        } finally {
-            jsContext.leave();
+        }
+
+        synchronized (jsContext) {
+            boolean entered = false;
+            try {
+                jsContext.enter();
+                entered = true;
+
+                jsContext.getBindings("js").putMember("Physics", physicsBinding);
+
+                String wrappedSource = """
+                    (function() {
+                        const exports = {};
+                        const module = { exports: exports };
+                        %s
+                        return module.exports.controller || module.exports.default || module.exports
+                            || exports.controller || exports.default;
+                    })()
+                    """.formatted(scriptSource);
+
+                Source source = Source.newBuilder("js", wrappedSource, "shared-physics.js").build();
+                Value result = jsContext.eval(source);
+
+                if (result == null || result.isNull()) {
+                    LOGGER.debug("Client: Shared physics script did not export a controller");
+                    return false;
+                }
+
+                return registerController(result);
+            } catch (Throwable t) {
+                LOGGER.error("Client: Failed to load shared physics: {}", t.getMessage(), t);
+                return false;
+            } finally {
+                if (entered) {
+                    try {
+                        jsContext.leave();
+                    } catch (Throwable ignored) {
+                    }
+                }
+            }
         }
     }
 
