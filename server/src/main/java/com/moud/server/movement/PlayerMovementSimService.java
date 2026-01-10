@@ -1,7 +1,6 @@
 package com.moud.server.movement;
 
 import com.moud.api.collision.AABB;
-import com.moud.api.collision.MeshCollisionResult;
 import com.moud.api.math.Vector3;
 import com.moud.api.physics.player.CollisionWorld;
 import com.moud.api.physics.player.PlayerInput;
@@ -12,7 +11,6 @@ import com.moud.api.physics.player.PlayerState;
 import com.moud.network.MoudPackets;
 import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.physics.PhysicsService;
-import com.moud.server.physics.mesh.ServerMeshCollisionManager;
 import com.moud.server.scripting.ScriptPlayerContextProvider;
 import com.moud.server.scripting.ScriptThreadContext;
 import com.moud.server.physics.primitives.PrimitiveCollisionBounds;
@@ -51,7 +49,6 @@ public final class PlayerMovementSimService {
     private static final int INPUT_DECAY_TICKS = 6;
     private static final double COLLISION_QUERY_EPS = 1.0e-9;
     private static final double MESH_GROUND_PROBE = 0.05;
-    private static final double MESH_GROUND_PROBE_EPS = 1.0e-6;
 
     private static final PlayerMovementSimService INSTANCE = new PlayerMovementSimService();
 
@@ -214,6 +211,7 @@ public final class PlayerMovementSimService {
 
         ServerNetworkManager network = ServerNetworkManager.getInstance();
         PhysicsService physics = PhysicsService.getInstance();
+        JoltPredictionCollisionWorld joltWorld = JoltPredictionCollisionWorld.getInstance();
 
         List<UUID> toRemove = null;
         for (SimPlayer sim : players.values()) {
@@ -230,15 +228,17 @@ public final class PlayerMovementSimService {
                 continue;
             }
 
+            joltWorld.syncMeshesForInstance(instance);
+
             PlayerInput input = sim.nextInput();
             CollisionWorld world = new ServerCollisionWorld(instance, physics);
             PlayerState nextState;
             ScriptThreadContext.setPlayer(sim.playerId, sim.contextProvider);
             try {
-                PlayerState grounded = applyMeshGroundProbe(instance, sim.state, sim.config);
+                PlayerState grounded = applyJoltMeshGroundProbe(joltWorld, sim, sim.state, sim.config);
                 nextState = sim.controller.step(grounded, input, sim.config, world, FIXED_DT_SECONDS);
 
-                nextState = applyMeshCollision(instance, sim.state, nextState, sim.config);
+                nextState = applyJoltMeshCollision(joltWorld, sim, grounded, nextState, sim.config);
             } finally {
                 ScriptThreadContext.clear();
             }
@@ -305,13 +305,14 @@ public final class PlayerMovementSimService {
     }
 
 
-    private static PlayerState applyMeshCollision(
-            Instance instance,
+    private static PlayerState applyJoltMeshCollision(
+            JoltPredictionCollisionWorld joltWorld,
+            SimPlayer sim,
             PlayerState prevState,
             PlayerState nextState,
             PlayerPhysicsConfig config
     ) {
-        if (instance == null || prevState == null || nextState == null || config == null) {
+        if (joltWorld == null || sim == null || prevState == null || nextState == null || config == null) {
             return nextState;
         }
 
@@ -319,32 +320,36 @@ public final class PlayerMovementSimService {
         double moveY = nextState.y() - prevState.y();
         double moveZ = nextState.z() - prevState.z();
 
-        if (Math.abs(moveX) < 1.0e-9 && Math.abs(moveY) < 1.0e-9 && Math.abs(moveZ) < 1.0e-9) {
+        var character = sim.ensureJoltCharacter(joltWorld, config);
+        if (character == null || !joltWorld.isInitialized()) {
             return nextState;
         }
 
-        AABB playerBox = playerAabb(prevState, config);
-        Vector3 movement = new Vector3(moveX, moveY, moveZ);
+        boolean allowStep = prevState.onGround() && nextState.velY() <= 0.02f;
+        float stepHeight = config.stepHeight();
+        float height = config.height();
 
-        ServerMeshCollisionManager meshManager = ServerMeshCollisionManager.getInstance();
-        MeshCollisionResult meshResult = meshManager.collidePlayer(instance, playerBox, movement, config.stepHeight());
+        JoltPredictionCollisionWorld.MoveResult result = joltWorld.moveCharacter(
+                character,
+                prevState.x(), prevState.y(), prevState.z(),
+                moveX, moveY, moveZ,
+                FIXED_DT_SECONDS,
+                height,
+                stepHeight,
+                allowStep
+        );
 
-        if (!meshResult.hasCollision()) {
-            return nextState;
-        }
+        double newX = prevState.x() + result.dx();
+        double newY = prevState.y() + result.dy();
+        double newZ = prevState.z() + result.dz();
 
-        Vector3 allowed = meshResult.allowedMovement();
-        double newX = prevState.x() + allowed.x;
-        double newY = prevState.y() + allowed.y;
-        double newZ = prevState.z() + allowed.z;
+        boolean blockedX = axisBlocked(moveX, result.dx());
+        boolean blockedY = axisBlocked(moveY, result.dy());
+        boolean blockedZ = axisBlocked(moveZ, result.dz());
 
         float velX = nextState.velX();
         float velY = nextState.velY();
         float velZ = nextState.velZ();
-
-        boolean blockedX = axisBlocked(moveX, allowed.x);
-        boolean blockedY = axisBlocked(moveY, allowed.y);
-        boolean blockedZ = axisBlocked(moveZ, allowed.z);
 
         if (blockedX) {
             velX = 0;
@@ -361,19 +366,29 @@ public final class PlayerMovementSimService {
         if (landedOnMesh) {
             onGround = true;
         }
-
-        boolean horizontalCollision = blockedX || blockedZ;
+        if (velY > 0.02f) {
+            onGround = false;
+        }
+        if (onGround && velY < 0.0f) {
+            velY = 0.0f;
+        }
+        boolean horizontalCollision = nextState.collidingHorizontally() || blockedX || blockedZ || result.collidingHorizontally();
 
         return new PlayerState(
                 newX, newY, newZ,
                 velX, velY, velZ,
                 onGround,
-                nextState.collidingHorizontally() || horizontalCollision
+                horizontalCollision
         );
     }
 
-    private static PlayerState applyMeshGroundProbe(Instance instance, PlayerState state, PlayerPhysicsConfig config) {
-        if (instance == null || state == null || config == null) {
+    private static PlayerState applyJoltMeshGroundProbe(
+            JoltPredictionCollisionWorld joltWorld,
+            SimPlayer sim,
+            PlayerState state,
+            PlayerPhysicsConfig config
+    ) {
+        if (joltWorld == null || sim == null || state == null || config == null) {
             return state;
         }
         if (state.onGround()) {
@@ -383,18 +398,26 @@ public final class PlayerMovementSimService {
             return state;
         }
 
-        AABB playerBox = playerAabb(state, config);
-        Vector3 probe = new Vector3(0.0, -MESH_GROUND_PROBE, 0.0);
+        var character = sim.ensureJoltCharacter(joltWorld, config);
+        if (character == null || !joltWorld.isInitialized()) {
+            return state;
+        }
 
-        ServerMeshCollisionManager meshManager = ServerMeshCollisionManager.getInstance();
-        MeshCollisionResult result = meshManager.collidePlayer(instance, playerBox, probe, 0.0f);
-        Vector3 allowed = result.allowedMovement();
+        JoltPredictionCollisionWorld.MoveResult result = joltWorld.moveCharacter(
+                character,
+                state.x(), state.y(), state.z(),
+                0.0, -MESH_GROUND_PROBE, 0.0,
+                FIXED_DT_SECONDS,
+                config.height(),
+                0.0f,
+                false
+        );
+        boolean grounded = axisBlocked(-MESH_GROUND_PROBE, result.dy());
+        if (!grounded && result.onGround()) {
+            grounded = Math.abs(result.dx()) > 1.0e-6 || Math.abs(result.dz()) > 1.0e-6;
+        }
 
-        boolean blockedDown = result.verticalCollision()
-                && probe.y < 0.0
-                && allowed.y > probe.y + MESH_GROUND_PROBE_EPS;
-
-        if (!blockedDown) {
+        if (!grounded) {
             return state;
         }
 
@@ -490,6 +513,10 @@ public final class PlayerMovementSimService {
                 result.add(bounds);
             }
 
+            if (physicsService != null) {
+                result.addAll(physicsService.getPlayerBlockingColliders(instance, query));
+            }
+
             if (result.size() <= 1) {
                 return result;
             }
@@ -510,6 +537,9 @@ public final class PlayerMovementSimService {
         private PlayerInput lastInput;
         private long lastProcessedSeq;
         private int emptyInputTicks;
+        private com.github.stephengold.joltjni.CharacterVirtual joltCharacter;
+        private float joltWidth = -1f;
+        private float joltHeight = -1f;
 
         private SimPlayer(
                 UUID playerId,
@@ -526,6 +556,28 @@ public final class PlayerMovementSimService {
             this.controller = PlayerPhysicsControllers.get(this.controllerId);
             this.pendingInputs = new ConcurrentSkipListMap<>();
             this.lastInput = new PlayerInput(0L, false, false, false, false, false, false, false, 0.0f, 0.0f);
+        }
+
+        private com.github.stephengold.joltjni.CharacterVirtual ensureJoltCharacter(
+                JoltPredictionCollisionWorld joltWorld,
+                PlayerPhysicsConfig config
+        ) {
+            if (joltWorld == null || config == null) {
+                return null;
+            }
+            float width = config.width() > 0 ? config.width() : 0.6f;
+            float height = config.height() > 0 ? config.height() : 1.8f;
+            if (joltCharacter == null || Math.abs(width - joltWidth) > 1.0e-6f || Math.abs(height - joltHeight) > 1.0e-6f) {
+                try {
+                    joltCharacter = joltWorld.createCharacter(width, height);
+                    joltWidth = width;
+                    joltHeight = height;
+                } catch (Throwable t) {
+                    joltCharacter = null;
+                    return null;
+                }
+            }
+            return joltCharacter;
         }
 
         private void setController(String controllerId) {
