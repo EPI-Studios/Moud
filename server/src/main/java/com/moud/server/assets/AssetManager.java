@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -65,7 +66,7 @@ public class AssetManager {
         while (normalized.contains("//")) {
             normalized = normalized.replace("//", "/");
         }
-        return normalized;
+        return normalized.toLowerCase(Locale.ROOT);
     }
 
     private void trimCache() {

@@ -6,14 +6,19 @@ import com.github.stephengold.joltjni.BodyInterface;
 import com.github.stephengold.joltjni.CollisionGroup;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.moud.api.math.Vector3;
+import com.moud.network.MoudPackets;
+import com.moud.server.network.NetworkCompression;
+import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.instance.InstanceManager;
 import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
+import com.moud.server.movement.JoltPredictionCollisionWorld;
 import com.moud.server.physics.PhysicsService;
 import com.moud.server.physics.mesh.ChunkMesher;
 import com.moud.server.proxy.ModelProxy;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
+import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.instance.InstanceChunkLoadEvent;
 import net.minestom.server.event.instance.InstanceChunkUnloadEvent;
@@ -22,6 +27,7 @@ import net.minestom.server.event.player.PlayerBlockPlaceEvent;
 import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.Instance;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -37,6 +43,9 @@ public final class ChunkPhysicsManager {
     private final PhysicsService service;
     private final ConcurrentHashMap<ChunkKey, Integer> chunkBodies = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<ChunkKey, Long> pendingRefreshNs = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<ChunkKey, ChunkCollisionPayload> collisionPayloads = new ConcurrentHashMap<>();
+    private static final int MAX_CHUNK_COLLISION_BYTES =
+            Integer.getInteger("moud.physics.chunkCollisionMaxBytes", 3 * 1024 * 1024);
 
     public ChunkPhysicsManager(PhysicsService service) {
         this.service = Objects.requireNonNull(service, "service");
@@ -76,6 +85,53 @@ public final class ChunkPhysicsManager {
 
     public void requestChunkRefresh(Instance instance, int chunkX, int chunkZ) {
         scheduleRefresh(instance, chunkX, chunkZ);
+    }
+
+    public void handleChunkCollisionRequest(Player player, int chunkX, int chunkZ) {
+        if (player == null) {
+            return;
+        }
+        Instance instance = player.getInstance();
+        if (instance == null) {
+            return;
+        }
+
+        ChunkKey key = ChunkKey.from(instance, chunkX, chunkZ);
+        ChunkCollisionPayload cached = collisionPayloads.get(key);
+        if (cached != null) {
+            sendChunkCollision(player, chunkX, chunkZ, cached);
+            return;
+        }
+
+        Chunk chunk = instance.getChunk(chunkX, chunkZ);
+        if (chunk != null) {
+            refreshChunk(chunk);
+            ChunkCollisionPayload payload = collisionPayloads.get(key);
+            if (payload != null) {
+                sendChunkCollision(player, chunkX, chunkZ, payload);
+            } else {
+                sendChunkCollisionRemove(player, chunkX, chunkZ);
+            }
+            return;
+        }
+
+        instance.loadChunk(chunkX, chunkZ).thenAccept(loaded -> {
+            if (loaded == null) {
+                return;
+            }
+            MinecraftServer.getSchedulerManager().scheduleNextTick(() -> {
+                if (!player.isOnline()) {
+                    return;
+                }
+                refreshChunk(loaded);
+                ChunkCollisionPayload payload = collisionPayloads.get(key);
+                if (payload != null) {
+                    sendChunkCollision(player, chunkX, chunkZ, payload);
+                } else {
+                    sendChunkCollisionRemove(player, chunkX, chunkZ);
+                }
+            });
+        });
     }
 
     private void scheduleRefresh(Instance instance, int chunkX, int chunkZ) {
@@ -201,16 +257,37 @@ public final class ChunkPhysicsManager {
             return;
         }
 
-        BodyCreationSettings settings;
+        ChunkMesher.ChunkCollisionMesh mesh;
         try {
             boolean fullBlocksOnly = !service.isDefaultInstance(chunk.getInstance());
-            settings = ChunkMesher.createChunk(chunk, fullBlocksOnly);
+            mesh = ChunkMesher.createChunkMesh(chunk, fullBlocksOnly);
         } catch (Exception ex) {
             LOGGER.error("Chunk meshing exception", ex);
             return;
         }
 
         ChunkKey key = ChunkKey.from(chunk);
+        BodyCreationSettings settings = mesh.bodySettings();
+
+        ChunkCollisionPayload payload = null;
+        if (settings != null) {
+            payload = compressPayload(mesh.vertices(), mesh.indices());
+        }
+
+        if (settings == null || payload == null) {
+            collisionPayloads.remove(key);
+            broadcastChunkCollision(chunk.getInstance(), chunk.getChunkX(), chunk.getChunkZ(), null);
+        } else {
+            collisionPayloads.put(key, payload);
+            broadcastChunkCollision(chunk.getInstance(), chunk.getChunkX(), chunk.getChunkZ(), payload);
+        }
+        JoltPredictionCollisionWorld predictionWorld = JoltPredictionCollisionWorld.getInstance();
+        if (settings == null || payload == null || isPayloadTooLarge(payload)) {
+            predictionWorld.removeChunkMesh(chunk.getInstance(), chunk.getChunkX(), chunk.getChunkZ());
+        } else {
+            predictionWorld.upsertChunkMesh(chunk.getInstance(), chunk.getChunkX(), chunk.getChunkZ(), mesh.vertices(), mesh.indices());
+        }
+
         CollisionGroup group = service.collisionGroupForInstance(chunk.getInstance());
 
         service.executeOnPhysicsThread(() -> {
@@ -245,6 +322,9 @@ public final class ChunkPhysicsManager {
 
         ChunkKey key = ChunkKey.from(chunk);
         Integer bodyId = chunkBodies.remove(key);
+        collisionPayloads.remove(key);
+        broadcastChunkCollision(chunk.getInstance(), chunk.getChunkX(), chunk.getChunkZ(), null);
+        JoltPredictionCollisionWorld.getInstance().removeChunkMesh(chunk.getInstance(), chunk.getChunkX(), chunk.getChunkZ());
         if (bodyId == null) {
             return;
         }
@@ -258,6 +338,91 @@ public final class ChunkPhysicsManager {
 
     private boolean shouldHandleChunk(Chunk chunk) {
         return chunk != null && service.shouldHandleInstance(chunk.getInstance());
+    }
+
+    private static ChunkCollisionPayload compressPayload(float[] vertices, int[] indices) {
+        if (vertices == null || vertices.length < 9 || indices == null || indices.length < 3) {
+            return null;
+        }
+        try {
+            byte[] compressedVertices = NetworkCompression.gzipFloatArray(vertices);
+            byte[] compressedIndices = NetworkCompression.gzipIntArray(indices);
+            if (compressedVertices == null || compressedIndices == null) {
+                return null;
+            }
+            return new ChunkCollisionPayload(compressedVertices, compressedIndices);
+        } catch (IOException ignored) {
+            return null;
+        }
+    }
+
+    private void sendChunkCollision(Player player, int chunkX, int chunkZ, ChunkCollisionPayload payload) {
+        if (player == null || payload == null) {
+            return;
+        }
+        ServerNetworkManager network = ServerNetworkManager.getInstance();
+        if (network == null) {
+            return;
+        }
+        boolean tooLarge = isPayloadTooLarge(payload);
+        network.send(player, new MoudPackets.ChunkCollisionPacket(
+                chunkX,
+                chunkZ,
+                tooLarge,
+                tooLarge ? null : payload.compressedVertices(),
+                tooLarge ? null : payload.compressedIndices()
+        ));
+    }
+
+    private void sendChunkCollisionRemove(Player player, int chunkX, int chunkZ) {
+        if (player == null) {
+            return;
+        }
+        ServerNetworkManager network = ServerNetworkManager.getInstance();
+        if (network == null) {
+            return;
+        }
+        network.send(player, new MoudPackets.ChunkCollisionPacket(chunkX, chunkZ, true, null, null));
+    }
+
+    private void broadcastChunkCollision(Instance instance, int chunkX, int chunkZ, ChunkCollisionPayload payload) {
+        ServerNetworkManager network = ServerNetworkManager.getInstance();
+        if (network == null || instance == null) {
+            return;
+        }
+
+        boolean remove = payload == null || isPayloadTooLarge(payload);
+        MoudPackets.ChunkCollisionPacket packet = new MoudPackets.ChunkCollisionPacket(
+                chunkX,
+                chunkZ,
+                remove,
+                !remove ? payload.compressedVertices() : null,
+                !remove ? payload.compressedIndices() : null
+        );
+
+        int radius = Integer.getInteger("moud.physics.chunkCollisionSyncRadius", 16);
+        for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
+            if (player == null || player.getInstance() != instance) {
+                continue;
+            }
+            Pos pos = player.getPosition();
+            int px = pos.chunkX();
+            int pz = pos.chunkZ();
+            if (Math.abs(px - chunkX) > radius || Math.abs(pz - chunkZ) > radius) {
+                continue;
+            }
+            network.send(player, packet);
+        }
+    }
+
+    private static boolean isPayloadTooLarge(ChunkCollisionPayload payload) {
+        if (payload == null) {
+            return false;
+        }
+        byte[] verts = payload.compressedVertices();
+        byte[] idx = payload.compressedIndices();
+        int size = (verts != null ? verts.length : 0) + (idx != null ? idx.length : 0);
+        return size > MAX_CHUNK_COLLISION_BYTES;
     }
 
     private void primeChunksForInstance(Instance instance) {
@@ -331,6 +496,9 @@ public final class ChunkPhysicsManager {
         return new EntityAndInstance(entity, instance);
     }
 
-    private record EntityAndInstance(net.minestom.server.entity.Entity entity, Instance instance) {
+    private record EntityAndInstance(Entity entity, Instance instance) {
+    }
+
+    private record ChunkCollisionPayload(byte[] compressedVertices, byte[] compressedIndices) {
     }
 }
