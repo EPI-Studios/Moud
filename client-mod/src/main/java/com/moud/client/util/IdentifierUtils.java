@@ -3,6 +3,8 @@ package com.moud.client.util;
 import com.moud.api.util.PathUtils;
 import net.minecraft.util.Identifier;
 
+import java.util.Locale;
+
 public final class IdentifierUtils {
     private IdentifierUtils() {
     }
@@ -11,7 +13,7 @@ public final class IdentifierUtils {
         if (rawPath == null) {
             return "";
         }
-        String normalized = PathUtils.normalizeSlashes(rawPath.trim());
+        String normalized = PathUtils.normalizeSlashes(rawPath.trim()).toLowerCase(Locale.ROOT);
         if (normalized.isEmpty()) {
             return "";
         }
@@ -28,7 +30,7 @@ public final class IdentifierUtils {
         if (rawPath == null || rawPath.isBlank()) {
             return null;
         }
-        String normalized = PathUtils.normalizeSlashes(rawPath.trim());
+        String normalized = PathUtils.normalizeSlashes(rawPath.trim()).toLowerCase(Locale.ROOT);
         if (normalized.startsWith("moud:moud/")) {
             normalized = "moud:" + normalized.substring("moud:moud/".length());
         }
