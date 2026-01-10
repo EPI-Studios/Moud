@@ -38,10 +38,11 @@ public final class ClientReadyPacketHandler implements PacketHandlerGroup {
         if (!networkManager.isMoudClient(player)) {
             return;
         }
+        networkManager.markClientReady(player);
         LogContext context = LogContext.builder()
                 .put("player", player.getUsername())
                 .build();
-        LOGGER.info(context, "Client {} is ready, syncing lights and particle emitters", player.getUsername());
+        LOGGER.debug(context, "Client {} is ready, syncing runtime state", player.getUsername());
 
         ServerLightingManager.getInstance().syncLightsToPlayer(player);
         ParticleEmitterManager.getInstance().syncToPlayer(player);

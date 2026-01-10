@@ -422,6 +422,23 @@ public final class MoudPackets {
     ) {
     }
 
+    @Packet(value = "moud:request_chunk_collision", direction = Direction.CLIENT_TO_SERVER)
+    public record RequestChunkCollisionPacket(
+            @Field(order = 0) int chunkX,
+            @Field(order = 1) int chunkZ
+    ) {
+    }
+
+    @Packet(value = "moud:chunk_collision", direction = Direction.SERVER_TO_CLIENT)
+    public record ChunkCollisionPacket(
+            @Field(order = 0) int chunkX,
+            @Field(order = 1) int chunkZ,
+            @Field(order = 2) boolean remove,
+            @Field(order = 3, optional = true) @Nullable byte[] compressedVertices,
+            @Field(order = 4, optional = true) @Nullable byte[] compressedIndices
+    ) {
+    }
+
     public record CollisionBoxData(
             @Field(order = 0) Vector3 center,
             @Field(order = 1) Vector3 halfExtents,
@@ -439,6 +456,15 @@ public final class MoudPackets {
     @Packet(value = "moud:remove_model", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_RemoveModelPacket(
             @Field(order = 0) long modelId
+    ) {
+    }
+
+    @Packet(value = "moud:model_mesh_data", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_ModelMeshDataPacket(
+            @Field(order = 0) String modelPath,
+            @Field(order = 1) CollisionMode collisionMode,
+            @Field(order = 2, optional = true) @Nullable byte[] compressedMeshVertices,
+            @Field(order = 3, optional = true) @Nullable byte[] compressedMeshIndices
     ) {
     }
 
@@ -508,6 +534,18 @@ public final class MoudPackets {
     ) {
     }
 
+    @Packet(value = "moud:world_model_animation_state", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_WorldModelAnimationStatePacket(
+            @Field(order = 0) long modelId,
+            @Field(order = 1, optional = true) @Nullable String animationName,
+            @Field(order = 2, optional = true) @Nullable Integer animationIndex,
+            @Field(order = 3) boolean playing,
+            @Field(order = 4) boolean loop,
+            @Field(order = 5) float speed,
+            @Field(order = 6) float timeSeconds
+    ) {
+    }
+
     @Packet(value = "moud:update_display_content", direction = Direction.SERVER_TO_CLIENT)
     public record S2C_UpdateDisplayContentPacket(
             @Field(order = 0) long displayId,
@@ -525,6 +563,20 @@ public final class MoudPackets {
             @Field(order = 1) boolean playing,
             @Field(order = 2) float playbackSpeed,
             @Field(order = 3) float startOffsetSeconds
+    ) {
+    }
+
+    @Packet(value = "moud:update_display_pbr", direction = Direction.SERVER_TO_CLIENT)
+    public record S2C_UpdateDisplayPbrPacket(
+            @Field(order = 0) long displayId,
+            @Field(order = 1) boolean enabled,
+            @Field(order = 2, optional = true) @Nullable String baseColor,
+            @Field(order = 3, optional = true) @Nullable String normal,
+            @Field(order = 4, optional = true) @Nullable String metallicRoughness,
+            @Field(order = 5, optional = true) @Nullable String emissive,
+            @Field(order = 6, optional = true) @Nullable String occlusion,
+            @Field(order = 7) float metallicFactor,
+            @Field(order = 8) float roughnessFactor
     ) {
     }
 

@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.moud.client.MoudClientMod;
 import com.moud.client.animation.*;
 import com.moud.client.api.service.ClientAPIService;
+import com.moud.client.collision.ClientChunkCollisionManager;
 import com.moud.client.collision.ClientCollisionManager;
 import com.moud.client.collision.ModelCollisionManager;
 import com.moud.client.camera.VanillaTeleportSmoothing;
@@ -52,6 +53,18 @@ public class ClientNetworkRegistry {
     private static final Identifier DEFAULT_MODEL_TEXTURE = Identifier.of("minecraft", "textures/block/white_concrete.png");
     private final Gson builtinEventParser = new Gson();
 
+    private static final Map<String, CachedMeshData> MESH_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public record CachedMeshData(MoudPackets.CollisionMode mode, byte[] compressedVertices, byte[] compressedIndices) {}
+
+    public static CachedMeshData getCachedMesh(String modelPath) {
+        return MESH_CACHE.get(modelPath);
+    }
+
+    public static void clearMeshCache() {
+        MESH_CACHE.clear();
+    }
+
     public void registerPackets(MoudClientMod mod, ClientServiceManager services, ScriptBundleLoader loader) {
         PayloadTypeRegistry.playS2C().register(DataPayload.ID, DataPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(MoudPayload.ID, MoudPayload.CODEC);
@@ -85,6 +98,7 @@ public class ClientNetworkRegistry {
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateDisplayAnchorPacket.class, (player, packet) -> handleUpdateDisplayAnchor(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateDisplayContentPacket.class, (player, packet) -> handleUpdateDisplayContent(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateDisplayPlaybackPacket.class, (player, packet) -> handleUpdateDisplayPlayback(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateDisplayPbrPacket.class, (player, packet) -> handleUpdateDisplayPbr(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_RemoveDisplayPacket.class, (player, packet) -> handleRemoveDisplay(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_PrimitiveCreatePacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientPrimitiveManager.getInstance().handleCreate(packet)));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_PrimitiveBatchCreatePacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientPrimitiveManager.getInstance().handleBatchCreate(packet)));
@@ -176,6 +190,8 @@ public class ClientNetworkRegistry {
                 }));
         ClientPacketWrapper.registerHandler(MoudPackets.PhysicsModePacket.class, (player, packet) -> handlePhysicsMode(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.PlayerSnapshotPacket.class, (player, packet) -> handlePlayerSnapshot(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.ChunkCollisionPacket.class, (player, packet) ->
+                MinecraftClient.getInstance().execute(() -> ClientChunkCollisionManager.getInstance().handleChunkCollisionPacket(packet)));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_PlayModelAnimationWithFadePacket.class, (player, packet) -> {
             MinecraftClient.getInstance().execute(() -> {
                 AnimatedPlayerModel model = ClientPlayerModelManager.getInstance().getModel(packet.modelId());
@@ -187,12 +203,14 @@ public class ClientNetworkRegistry {
                 }
             });
         });
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_ModelMeshDataPacket.class, (player, packet) -> handleModelMeshData(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_CreateModelPacket.class, (player, packet) -> handleCreateModel(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateModelAnchorPacket.class, (player, packet) -> handleUpdateModelAnchor(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateModelTransformPacket.class, (player, packet) -> handleUpdateModelTransform(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateModelTexturePacket.class, (player, packet) -> handleUpdateModelTexture(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_UpdateModelCollisionPacket.class, (player, packet) -> handleUpdateModelCollision(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_SyncModelCollisionBoxesPacket.class, (player, packet) -> handleSyncModelCollisionBoxes(packet));
+        ClientPacketWrapper.registerHandler(MoudPackets.S2C_WorldModelAnimationStatePacket.class, (player, packet) -> handleWorldModelAnimationState(packet));
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_RemoveModelPacket.class, (player, packet) -> handleRemoveModel(packet));
 
         ClientPacketWrapper.registerHandler(MoudPackets.S2C_IKCreateChainPacket.class, (player, packet) -> MinecraftClient.getInstance().execute(() -> ClientIKManager.getInstance().handleCreate(packet)));
@@ -634,6 +652,21 @@ public class ClientNetworkRegistry {
         });
     }
 
+    private void handleModelMeshData(MoudPackets.S2C_ModelMeshDataPacket packet) {
+        String modelPath = packet.modelPath();
+        if (modelPath == null || modelPath.isBlank()) {
+            LOGGER.warn("Received mesh data packet with null/empty model path");
+            return;
+        }
+        byte[] verts = packet.compressedMeshVertices();
+        byte[] indices = packet.compressedMeshIndices();
+        int vLen = verts != null ? verts.length : 0;
+        int iLen = indices != null ? indices.length : 0;
+        LOGGER.info("Caching mesh data for '{}': mode={}, vertsBytes={}, indicesBytes={}",
+                modelPath, packet.collisionMode(), vLen, iLen);
+        MESH_CACHE.put(modelPath, new CachedMeshData(packet.collisionMode(), verts, indices));
+    }
+
     private void handleCreateModel(MoudPackets.S2C_CreateModelPacket packet) {
         MinecraftClient.getInstance().execute(() -> {
             ClientModelManager.getInstance().createModel(packet.modelId(), packet.modelPath());
@@ -650,14 +683,32 @@ public class ClientNetworkRegistry {
                 ModelCollisionManager.getInstance().sync(model);
                 RuntimeObjectRegistry.getInstance().syncModel(model);
             }
-            int vLen = packet.compressedMeshVertices() != null ? packet.compressedMeshVertices().length : -1;
-            int iLen = packet.compressedMeshIndices() != null ? packet.compressedMeshIndices().length : -1;
+
+            byte[] compressedVerts = packet.compressedMeshVertices();
+            byte[] compressedIndices = packet.compressedMeshIndices();
             MoudPackets.CollisionMode mode = packet.collisionMode();
+
+            // if packet doesn't have mesh data it tries to cache
+            if ((compressedVerts == null || compressedVerts.length == 0) && packet.modelPath() != null) {
+                CachedMeshData cached = MESH_CACHE.get(packet.modelPath());
+                if (cached != null) {
+                    compressedVerts = cached.compressedVertices();
+                    compressedIndices = cached.compressedIndices();
+                    if (mode == null || mode == MoudPackets.CollisionMode.BOX) {
+                        mode = cached.mode();
+                    }
+                    LOGGER.debug("Using cached mesh for model {} (path: {})", packet.modelId(), packet.modelPath());
+                }
+            }
+
+            int vLen = compressedVerts != null ? compressedVerts.length : -1;
+            int iLen = compressedIndices != null ? compressedIndices.length : -1;
+
             if ((mode == null || mode == MoudPackets.CollisionMode.BOX) && vLen > 0 && iLen > 0) {
                 mode = MoudPackets.CollisionMode.MESH;
             }
-            LOGGER.info("CreateModel collision payload: mode={}, vertsBytes={}, indicesBytes={}", mode, vLen, iLen);
-            ClientCollisionManager.registerModel(packet.modelId(), mode, packet.compressedMeshVertices(), packet.compressedMeshIndices(), packet.position(), packet.rotation(), packet.scale());
+            LOGGER.info("CreateModel collision: id={}, mode={}, vertsBytes={}, indicesBytes={}", packet.modelId(), mode, vLen, iLen);
+            ClientCollisionManager.registerModel(packet.modelId(), mode, compressedVerts, compressedIndices, packet.position(), packet.rotation(), packet.scale());
         });
     }
 
@@ -756,6 +807,22 @@ public class ClientNetworkRegistry {
         });
     }
 
+    private void handleWorldModelAnimationState(MoudPackets.S2C_WorldModelAnimationStatePacket packet) {
+        MinecraftClient.getInstance().execute(() -> {
+            RenderableModel model = ClientModelManager.getInstance().getModel(packet.modelId());
+            if (model != null) {
+                model.applyAnimationState(
+                        packet.animationName(),
+                        packet.animationIndex(),
+                        packet.playing(),
+                        packet.loop(),
+                        packet.speed(),
+                        packet.timeSeconds()
+                );
+            }
+        });
+    }
+
     private void handleCreateDisplay(MoudPackets.S2C_CreateDisplayPacket packet) {
         MinecraftClient.getInstance().execute(() -> ClientDisplayManager.getInstance().handleCreate(packet));
     }
@@ -774,6 +841,10 @@ public class ClientNetworkRegistry {
 
     private void handleUpdateDisplayPlayback(MoudPackets.S2C_UpdateDisplayPlaybackPacket packet) {
         MinecraftClient.getInstance().execute(() -> ClientDisplayManager.getInstance().handlePlayback(packet));
+    }
+
+    private void handleUpdateDisplayPbr(MoudPackets.S2C_UpdateDisplayPbrPacket packet) {
+        MinecraftClient.getInstance().execute(() -> ClientDisplayManager.getInstance().handlePbr(packet));
     }
 
     private void handleRemoveDisplay(MoudPackets.S2C_RemoveDisplayPacket packet) {
