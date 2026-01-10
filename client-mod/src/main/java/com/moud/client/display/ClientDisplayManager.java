@@ -65,6 +65,23 @@ public final class ClientDisplayManager {
         }
     }
 
+    public void handlePbr(MoudPackets.S2C_UpdateDisplayPbrPacket packet) {
+        DisplaySurface surface = displays.get(packet.displayId());
+        if (surface != null) {
+            surface.updatePbr(
+                    packet.enabled(),
+                    packet.baseColor(),
+                    packet.normal(),
+                    packet.metallicRoughness(),
+                    packet.emissive(),
+                    packet.occlusion(),
+                    packet.metallicFactor(),
+                    packet.roughnessFactor()
+            );
+            RuntimeObjectRegistry.getInstance().syncDisplay(surface);
+        }
+    }
+
     public void remove(long id) {
         DisplaySurface surface = displays.remove(id);
         if (surface != null) {

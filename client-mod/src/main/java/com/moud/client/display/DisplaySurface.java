@@ -5,6 +5,7 @@ import com.moud.api.math.Vector3;
 import com.moud.client.model.ClientModelManager;
 import com.moud.client.model.RenderableModel;
 import com.moud.client.util.ClientEntityResolver;
+import com.moud.client.util.IdentifierUtils;
 import com.moud.network.MoudPackets;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
@@ -70,6 +71,15 @@ public final class DisplaySurface {
     private float playbackBaseSeconds = 0.0f;
     private long playbackBaseTimeMillis = Util.getMeasuringTimeMs();
 
+    private boolean pbrEnabled = false;
+    private Identifier pbrBaseColorOverride;
+    private Identifier pbrNormalOverride;
+    private Identifier pbrMetallicRoughnessOverride;
+    private Identifier pbrEmissiveOverride;
+    private Identifier pbrOcclusionOverride;
+    private float pbrMetallicFactor = 0.0f;
+    private float pbrRoughnessFactor = 1.0f;
+
     private BlockPos cachedBlockPos = BlockPos.ORIGIN;
     private MoudPackets.DisplayBillboardMode billboardMode = MoudPackets.DisplayBillboardMode.NONE;
     private boolean renderThroughBlocks = false;
@@ -119,6 +129,38 @@ public final class DisplaySurface {
 
     public float getOpacity() {
         return opacity;
+    }
+
+    public boolean isPbrEnabled() {
+        return pbrEnabled;
+    }
+
+    public Identifier getPbrBaseColorOverride() {
+        return pbrBaseColorOverride;
+    }
+
+    public Identifier getPbrNormalOverride() {
+        return pbrNormalOverride;
+    }
+
+    public Identifier getPbrMetallicRoughnessOverride() {
+        return pbrMetallicRoughnessOverride;
+    }
+
+    public Identifier getPbrEmissiveOverride() {
+        return pbrEmissiveOverride;
+    }
+
+    public Identifier getPbrOcclusionOverride() {
+        return pbrOcclusionOverride;
+    }
+
+    public float getPbrMetallicFactor() {
+        return pbrMetallicFactor;
+    }
+
+    public float getPbrRoughnessFactor() {
+        return pbrRoughnessFactor;
     }
 
     public void setOpacity(float opacity) {
@@ -268,6 +310,26 @@ public final class DisplaySurface {
                 videoDecoder.pause();
             }
         }
+    }
+
+    void updatePbr(
+            boolean enabled,
+            String baseColor,
+            String normal,
+            String metallicRoughness,
+            String emissive,
+            String occlusion,
+            float metallicFactor,
+            float roughnessFactor
+    ) {
+        this.pbrEnabled = enabled;
+        this.pbrBaseColorOverride = IdentifierUtils.resolveTextureIdentifier(baseColor);
+        this.pbrNormalOverride = IdentifierUtils.resolveTextureIdentifier(normal);
+        this.pbrMetallicRoughnessOverride = IdentifierUtils.resolveTextureIdentifier(metallicRoughness);
+        this.pbrEmissiveOverride = IdentifierUtils.resolveTextureIdentifier(emissive);
+        this.pbrOcclusionOverride = IdentifierUtils.resolveTextureIdentifier(occlusion);
+        this.pbrMetallicFactor = clamp01(metallicFactor);
+        this.pbrRoughnessFactor = clamp01(roughnessFactor);
     }
 
     public void tick() {
@@ -570,5 +632,12 @@ public final class DisplaySurface {
 
     public boolean shouldLoop() {
         return this.loop;
+    }
+
+    private static float clamp01(float value) {
+        if (!Float.isFinite(value)) {
+            return 0.0f;
+        }
+        return Math.max(0.0f, Math.min(1.0f, value));
     }
 }
