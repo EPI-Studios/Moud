@@ -146,6 +146,10 @@ public final class ModelCollisionManager {
         if (origin == null || direction == null || volumes.isEmpty()) {
             return -1L;
         }
+        ClientCollisionManager.RaycastHit meshHit = ClientCollisionManager.raycastAny(origin, direction, maxDistance);
+        if (meshHit != null) {
+            return meshHit.modelId();
+        }
         double bestDistance = maxDistance;
         long bestId = -1L;
         for (ModelCollisionVolume volume : volumes.values()) {
