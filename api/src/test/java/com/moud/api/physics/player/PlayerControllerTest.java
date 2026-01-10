@@ -18,7 +18,7 @@ class PlayerControllerTest {
 
         PlayerPhysicsConfig config = PlayerPhysicsConfig.defaults();
         PlayerState start = new PlayerState(0.0, 0.0, 0.0, 0.0f, 0.0f, 0.0f, true, false);
-        PlayerInput input = new PlayerInput(1L, false, false, false, true, false, false, false, 0.0f, 0.0f);
+        PlayerInput input = new PlayerInput(1L, false, false, false, true, false, false, false, 180.0f, 0.0f);
 
         PlayerState next = PlayerController.step(start, input, config, world, 0.25f);
 
@@ -65,7 +65,7 @@ class PlayerControllerTest {
         );
 
         PlayerState start = new PlayerState(0.0, 0.0, 0.0, 0.0f, 0.0f, 0.0f, true, false);
-        PlayerInput input = new PlayerInput(1L, false, false, false, true, false, false, false, 0.0f, 0.0f);
+        PlayerInput input = new PlayerInput(1L, false, false, false, true, false, false, false, 180.0f, 0.0f);
 
         PlayerState next = PlayerController.step(start, input, config, world, 0.25f);
 
