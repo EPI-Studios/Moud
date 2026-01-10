@@ -21,7 +21,6 @@ public class LightingService {
     public LightingService() {
         this.internalLightingService = ClientLightingService.getInstance();
         this.internalLightingService.initialize();
-        LOGGER.debug("LightingService (wrapper) obtained singleton instance.");
     }
 
     public void setContext(Context jsContext) {
@@ -29,9 +28,7 @@ public class LightingService {
     }
 
     public void handleNetworkEvent(String eventName, String eventData) {
-
         MinecraftClient.getInstance().execute(() -> {
-            LOGGER.debug("Handling lighting event on client thread: {}", eventName);
             try {
                 Map<String, Object> data = MAPPER.readValue(eventData, MAP_TYPE_REFERENCE);
 
@@ -76,6 +73,5 @@ public class LightingService {
     public void cleanUp() {
         internalLightingService.cleanup();
         jsContext = null;
-        LOGGER.debug("LightingService wrapper cleaned up for session.");
     }
 }
