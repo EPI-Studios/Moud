@@ -79,6 +79,7 @@ public final class ScenePacketHandlers implements PacketHandlerGroup {
             networkManager.send(player, new EditorAssetListPacket(List.of()));
             return;
         }
+        SceneManager.getInstance().refreshAssetsIfDue(750);
         var assets = SceneManager.getInstance().getEditorAssets();
         networkManager.send(player, new EditorAssetListPacket(assets));
     }

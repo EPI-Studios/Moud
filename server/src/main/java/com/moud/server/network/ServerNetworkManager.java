@@ -65,6 +65,8 @@ public final class ServerNetworkManager {
             LogContext.builder().put("subsystem", "network").build()
     );
     private static final String HELLO_PACKET_ID = "moud:hello";
+    private static final int SYNC_PACKETS_PER_TICK = Integer.getInteger("moud.network.syncPacketsPerTick", 20);
+    private static final int BROADCAST_PACKETS_PER_TICK = Integer.getInteger("moud.network.broadcastPacketsPerTick", 15);
 
     private final EventDispatcher eventDispatcher;
     private final ClientScriptManager clientScriptManager;
@@ -72,6 +74,8 @@ public final class ServerNetworkManager {
     private final ConcurrentMap<UUID, ClientSession> moudClients = new ConcurrentHashMap<>();
     private final Set<UUID> resourcePackRequested = ConcurrentHashMap.newKeySet();
     private final ConcurrentMap<UUID, Integer> resourcePackAttempts = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, java.util.Queue<Object>> broadcastQueues = new ConcurrentHashMap<>();
+    private volatile boolean broadcastFlushScheduled = false;
     private final BlueprintStorage blueprintStorage;
     private static ServerNetworkManager instance;
 
@@ -280,18 +284,80 @@ public final class ServerNetworkManager {
     }
 
     public <T> int broadcast(T packet) {
-        int sentCount = 0;
+        return broadcast(packet, true);
+    }
+
+    public <T> int broadcastImmediate(T packet) {
+        return broadcast(packet, false);
+    }
+
+    private <T> int broadcast(T packet, boolean throttle) {
+        int queuedCount = 0;
         for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
-            if (send(player, packet)) {
-                sentCount++;
+            if (!isMoudClient(player)) {
+                continue;
+            }
+            if (throttle) {
+                java.util.Queue<Object> queue = broadcastQueues.computeIfAbsent(
+                        player.getUuid(), k -> new java.util.concurrent.ConcurrentLinkedQueue<>());
+                queue.offer(packet);
+                queuedCount++;
+            } else {
+                if (send(player, packet)) {
+                    queuedCount++;
+                }
             }
         }
 
-        if (sentCount == 0) {
+        if (throttle && queuedCount > 0) {
+            scheduleBroadcastFlush();
+        }
+
+        if (queuedCount == 0) {
             LOGGER.trace("Broadcast {} skipped - no active Moud clients", packet.getClass().getSimpleName());
         }
 
-        return sentCount;
+        return queuedCount;
+    }
+
+    private void scheduleBroadcastFlush() {
+        if (broadcastFlushScheduled) {
+            return;
+        }
+        broadcastFlushScheduled = true;
+        MinecraftServer.getSchedulerManager().scheduleNextTick(this::flushBroadcastQueues);
+    }
+
+    private void flushBroadcastQueues() {
+        broadcastFlushScheduled = false;
+        boolean hasMore = false;
+        int perTick = Math.max(1, BROADCAST_PACKETS_PER_TICK);
+
+        for (var entry : broadcastQueues.entrySet()) {
+            UUID playerId = entry.getKey();
+            java.util.Queue<Object> queue = entry.getValue();
+            Player player = MinecraftServer.getConnectionManager().getOnlinePlayerByUuid(playerId);
+            if (player == null || !player.isOnline()) {
+                queue.clear();
+                continue;
+            }
+
+            int sent = 0;
+            while (sent < perTick && !queue.isEmpty()) {
+                Object packet = queue.poll();
+                if (packet != null) {
+                    send(player, packet);
+                    sent++;
+                }
+            }
+            if (!queue.isEmpty()) {
+                hasMore = true;
+            }
+        }
+
+        if (hasMore) {
+            scheduleBroadcastFlush();
+        }
     }
 
     public <T> int broadcastExcept(T packet, Player exceptPlayer) {
@@ -315,6 +381,63 @@ public final class ServerNetworkManager {
             }
         }
         return sentCount;
+    }
+
+    public boolean broadcastMeshDataIfNeeded(String modelPath, MoudPackets.CollisionMode collisionMode,
+                                              byte[] compressedVertices, byte[] compressedIndices) {
+        if (modelPath == null || modelPath.isBlank()) {
+            return false;
+        }
+        if (collisionMode == null || collisionMode == MoudPackets.CollisionMode.BOX) {
+            return false;
+        }
+        if (compressedVertices == null || compressedVertices.length == 0 ||
+            compressedIndices == null || compressedIndices.length == 0) {
+            return false;
+        }
+
+        MoudPackets.S2C_ModelMeshDataPacket meshPacket = new MoudPackets.S2C_ModelMeshDataPacket(
+                modelPath, collisionMode, compressedVertices, compressedIndices);
+
+        boolean sentAny = false;
+        for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
+            ClientSession session = moudClients.get(player.getUuid());
+            if (session == null) {
+                continue;
+            }
+            if (session.markMeshSent(modelPath)) {
+                send(player, meshPacket);
+                sentAny = true;
+            }
+        }
+        return sentAny;
+    }
+
+    public boolean sendMeshDataIfNeeded(Player player, String modelPath, MoudPackets.CollisionMode collisionMode,
+                                         byte[] compressedVertices, byte[] compressedIndices) {
+        if (player == null || modelPath == null || modelPath.isBlank()) {
+            return false;
+        }
+        if (collisionMode == null || collisionMode == MoudPackets.CollisionMode.BOX) {
+            return false;
+        }
+        if (compressedVertices == null || compressedVertices.length == 0 ||
+            compressedIndices == null || compressedIndices.length == 0) {
+            return false;
+        }
+
+        ClientSession session = moudClients.get(player.getUuid());
+        if (session == null) {
+            return false;
+        }
+        if (!session.markMeshSent(modelPath)) {
+            return false;
+        }
+
+        MoudPackets.S2C_ModelMeshDataPacket meshPacket = new MoudPackets.S2C_ModelMeshDataPacket(
+                modelPath, collisionMode, compressedVertices, compressedIndices);
+        send(player, meshPacket);
+        return true;
     }
 
     public <T> int broadcastInRange(T packet, net.minestom.server.coordinate.Pos position, double range) {
@@ -365,20 +488,25 @@ public final class ServerNetworkManager {
 
         Collection<PlayerModelProxy> playerModels = PlayerModelProxy.getAllModels();
         if (!playerModels.isEmpty()) {
+            List<Object> packets = new ArrayList<>(playerModels.size() * 3);
             playerModels.forEach(model -> {
-                send(minestomPlayer, new PlayerModelCreatePacket(model.getModelId(), model.getPosition(), model.getSkinUrl()));
-                send(minestomPlayer, new PlayerModelUpdatePacket(model.getModelId(), model.getPosition(), model.getYaw(), model.getPitch(), model.getInstanceName()));
+                if (model == null) {
+                    return;
+                }
+                packets.add(new PlayerModelCreatePacket(model.getModelId(), model.getPosition(), model.getSkinUrl()));
+                packets.add(new PlayerModelUpdatePacket(model.getModelId(), model.getPosition(), model.getYaw(), model.getPitch(), model.getInstanceName()));
 
                 String skinUrl = model.getSkinUrl();
                 if (skinUrl != null && !skinUrl.isEmpty()) {
-                    send(minestomPlayer, new PlayerModelSkinPacket(model.getModelId(), skinUrl));
+                    packets.add(new PlayerModelSkinPacket(model.getModelId(), skinUrl));
                 }
 
                 String currentAnimation = model.getCurrentAnimation();
                 if (currentAnimation != null && !currentAnimation.isEmpty()) {
-                    send(minestomPlayer, new S2C_PlayModelAnimationPacket(model.getModelId(), currentAnimation));
+                    packets.add(new S2C_PlayModelAnimationPacket(model.getModelId(), currentAnimation));
                 }
             });
+            sendBatched(minestomPlayer, packets, "player_models");
 
             LogContext playerModelContext = baseContext.merge(LogContext.builder()
                     .put("synced_player_models", playerModels.size())
@@ -386,14 +514,32 @@ public final class ServerNetworkManager {
             LOGGER.info(playerModelContext, "Synced {} existing player models to {}", playerModels.size(), minestomPlayer.getUsername());
         }
 
+        Set<String> sentMeshPaths = new java.util.HashSet<>();
+        List<Object> meshPackets = new ArrayList<>();
         ModelManager.getInstance().getAllModels().forEach(model -> {
             if (model == null) {
                 return;
             }
-            for (Object syncPacket : model.snapshotPackets()) {
-                send(minestomPlayer, syncPacket);
+            String modelPath = model.getModelPath();
+            if (modelPath != null && !modelPath.isBlank() && sentMeshPaths.add(modelPath)) {
+                MoudPackets.CollisionMode wireMode = model.getWireCollisionMode();
+                byte[] verts = model.getCompressedVertices();
+                byte[] indices = model.getCompressedIndices();
+                if (wireMode != null && wireMode != MoudPackets.CollisionMode.BOX &&
+                    verts != null && verts.length > 0 && indices != null && indices.length > 0) {
+                    sendMeshDataIfNeeded(minestomPlayer, modelPath, wireMode, verts, indices);
+                }
             }
         });
+
+        List<Object> modelPackets = new ArrayList<>();
+        ModelManager.getInstance().getAllModels().forEach(model -> {
+            if (model == null) {
+                return;
+            }
+            modelPackets.addAll(model.snapshotPackets());
+        });
+        sendBatched(minestomPlayer, modelPackets, "models");
         int modelCount = ModelManager.getInstance().getAllModels().size();
         if (modelCount > 0) {
             LogContext modelSyncContext = baseContext.merge(LogContext.builder()
@@ -408,14 +554,14 @@ public final class ServerNetworkManager {
 
         Collection<MediaDisplayProxy> displays = DisplayManager.getInstance().getAllDisplays();
         if (!displays.isEmpty()) {
+            List<Object> displayPackets = new ArrayList<>();
             for (MediaDisplayProxy display : displays) {
                 if (display == null) {
                     continue;
                 }
-                for (Object syncPacket : display.snapshotPackets()) {
-                    send(minestomPlayer, syncPacket);
-                }
+                displayPackets.addAll(display.snapshotPackets());
             }
+            sendBatched(minestomPlayer, displayPackets, "displays");
             LogContext displaySyncContext = baseContext.merge(LogContext.builder()
                     .put("synced_displays", displays.size())
                     .build());
@@ -428,9 +574,44 @@ public final class ServerNetworkManager {
                     .put("phase", "lighting-sync")
                     .put("delay_ms", java.time.Duration.ofSeconds(1).toMillis())
                     .build());
-            LOGGER.info(lightingContext, "Syncing lights to player {} after initialization delay", minestomPlayer.getUsername());
+            LOGGER.debug(lightingContext, "Syncing lights to player {} after initialization delay", minestomPlayer.getUsername());
             ServerLightingManager.getInstance().syncLightsToPlayer(minestomPlayer);
         }).delay(java.time.Duration.ofSeconds(1)).schedule();
+    }
+
+    private void sendBatched(Player player, List<Object> packets, String label) {
+        if (player == null || packets == null || packets.isEmpty()) {
+            return;
+        }
+        int perTick = Math.max(1, SYNC_PACKETS_PER_TICK);
+        LogContext context = playerContext(player).merge(LogContext.builder()
+                .put("phase", "sync-batch")
+                .put("label", label)
+                .put("packets", packets.size())
+                .put("per_tick", perTick)
+                .build());
+        LOGGER.debug(context, "Sending {} sync packets to {} in batches", packets.size(), player.getUsername());
+        MinecraftServer.getSchedulerManager().scheduleNextTick(() -> sendBatchedTick(player, packets, 0, perTick, label));
+    }
+
+    private void sendBatchedTick(Player player, List<Object> packets, int start, int perTick, String label) {
+        if (player == null || packets == null) {
+            return;
+        }
+        if (!player.isOnline() || !isMoudClient(player)) {
+            return;
+        }
+        int end = Math.min(packets.size(), start + perTick);
+        for (int i = start; i < end; i++) {
+            Object packet = packets.get(i);
+            if (packet != null) {
+                send(player, packet);
+            }
+        }
+        if (end >= packets.size()) {
+            return;
+        }
+        MinecraftServer.getSchedulerManager().scheduleNextTick(() -> sendBatchedTick(player, packets, end, perTick, label));
     }
 
     public void syncPermissionState(Player player) {
@@ -548,6 +729,7 @@ public final class ServerNetworkManager {
         moudClients.remove(player.getUuid());
         resourcePackRequested.remove(player.getUuid());
         resourcePackAttempts.remove(player.getUuid());
+        broadcastQueues.remove(player.getUuid());
         PlayerCameraManager.getInstance().onPlayerDisconnect(player);
         PlayerCursorDirectionManager.getInstance().onPlayerDisconnect(player);
         CursorService.getInstance().onPlayerQuit(player);
@@ -633,6 +815,24 @@ public final class ServerNetworkManager {
         return moudClients.containsKey(player.getUuid());
     }
 
+    public boolean isClientReady(Player player) {
+        if (player == null) {
+            return false;
+        }
+        ClientSession session = moudClients.get(player.getUuid());
+        return session != null && session.isClientReady();
+    }
+
+    public void markClientReady(Player player) {
+        if (player == null) {
+            return;
+        }
+        ClientSession session = moudClients.get(player.getUuid());
+        if (session != null) {
+            session.setClientReady(true);
+        }
+    }
+
     private LogContext playerContext(Player player) {
         return LogContext.builder()
                 .put("player", player.getUsername())
@@ -644,9 +844,19 @@ public final class ServerNetworkManager {
         private final Instant handshakeTime;
         private String resourcesHash;
         private String resourcePackHash;
+        private volatile boolean clientReady;
+        private final Set<String> sentMeshPaths = ConcurrentHashMap.newKeySet();
 
         private ClientSession(Instant handshakeTime) {
             this.handshakeTime = handshakeTime;
+        }
+
+        public boolean markMeshSent(String modelPath) {
+            return sentMeshPaths.add(modelPath);
+        }
+
+        public boolean hasSentMesh(String modelPath) {
+            return sentMeshPaths.contains(modelPath);
         }
 
         public Instant handshakeTime() {
@@ -667,6 +877,14 @@ public final class ServerNetworkManager {
 
         public void setResourcePackHash(String resourcePackHash) {
             this.resourcePackHash = resourcePackHash;
+        }
+
+        public boolean isClientReady() {
+            return clientReady;
+        }
+
+        public void setClientReady(boolean clientReady) {
+            this.clientReady = clientReady;
         }
     }
 

@@ -11,6 +11,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
@@ -45,12 +46,6 @@ final class ResourcePackBuilder {
             }
         }
 
-        Path repoRoot = projectRoot.getParent() != null ? projectRoot.getParent().getParent() : null;
-        Path internalClientAssets = repoRoot != null ? repoRoot.resolve("client-mod/src/main/resources/assets") : null;
-        if (internalClientAssets != null && Files.isDirectory(internalClientAssets)) {
-            assetRoots.add(internalClientAssets);
-        }
-
         if (assetRoots.isEmpty()) {
             LOGGER.warn("No asset directories found skipping resource pack build");
             return null;
@@ -62,8 +57,9 @@ final class ResourcePackBuilder {
         try {
             Files.createDirectories(cacheDir);
             AtomicInteger addedCount;
-            try (OutputStream os = new BufferedOutputStream(Files.newOutputStream(packPath));
+            try (OutputStream os = new BufferedOutputStream(Files.newOutputStream(packPath), 65536);
                  ZipOutputStream zip = new ZipOutputStream(os)) {
+                zip.setLevel(0);
 
                 writePackMeta(zip);
                 Set<String> added = new HashSet<>();
@@ -115,7 +111,8 @@ final class ResourcePackBuilder {
     private static void addAsset(Path file, Path assetsDir, ZipOutputStream zip, Set<String> added, AtomicInteger addedCount) {
         try {
             String relative = PathUtils.normalizeSlashes(assetsDir.relativize(file).toString());
-            String entryName = "assets/" + relative;
+            String lowerRelative = relative.toLowerCase(Locale.ROOT);
+            String entryName = "assets/" + lowerRelative;
             if (!added.add(entryName)) {
                 return;
             }

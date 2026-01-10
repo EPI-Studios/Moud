@@ -7,6 +7,7 @@ import com.moud.server.logging.MoudLogger;
 import com.moud.server.movement.ServerMovementHandler;
 import com.moud.server.movement.PlayerMovementSimService;
 import com.moud.server.network.ServerNetworkManager;
+import com.moud.server.physics.PhysicsService;
 import com.moud.server.player.PlayerCameraManager;
 import com.moud.server.player.PlayerCursorDirectionManager;
 import com.moud.server.proxy.PlayerModelProxy;
@@ -35,6 +36,7 @@ public final class CorePacketHandlers implements PacketHandlerGroup {
         registry.register(PlayerModelClickPacket.class, this::handlePlayerModelClick);
         registry.register(UIInteractionPacket.class, this::handleUiInteraction);
         registry.register(ClientUpdateValuePacket.class, this::handleSharedValueUpdate);
+        registry.register(RequestChunkCollisionPacket.class, this::handleRequestChunkCollision);
     }
 
     private void handleMovementState(Player player, MovementStatePacket packet) {
@@ -102,5 +104,17 @@ public final class CorePacketHandlers implements PacketHandlerGroup {
                 .build();
         LOGGER.debug(context, "Received shared value update: {}.{} = {}",
                 packet.storeName(), packet.key(), packet.value());
+    }
+
+    private void handleRequestChunkCollision(Player player, RequestChunkCollisionPacket packet) {
+        if (!networkManager.isMoudClient(player)) {
+            return;
+        }
+        if (packet == null) {
+            return;
+        }
+        PhysicsService.getInstance()
+                .getChunkPhysicsManager()
+                .handleChunkCollisionRequest(player, packet.chunkX(), packet.chunkZ());
     }
 }
