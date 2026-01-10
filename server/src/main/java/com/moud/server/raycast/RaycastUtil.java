@@ -107,17 +107,6 @@ public class RaycastUtil {
             return raycastModelOBB(origin, direction, model, maxDist);
         }
 
-        Entity entity = model.getEntity();
-        if (entity != null) {
-            double aabbDist = raycastToBoundingBox(
-                    new Pos(origin.x, origin.y, origin.z),
-                    new Vec(direction.x, direction.y, direction.z),
-                    entity.getBoundingBox(),
-                    entity.getPosition()
-            );
-            if (aabbDist < 0 || aabbDist > maxDist) return -1;
-        }
-
         Vector3 localOrigin = origin.subtract(model.getPosition());
         Quaternion invRot = model.getRotation().conjugate();
         localOrigin = invRot.rotate(localOrigin);
@@ -133,6 +122,19 @@ public class RaycastUtil {
         float sx = scale.x;
         float sy = scale.y;
         float sz = scale.z;
+
+        double[] bounds = ModelCollisionLibrary.computeBounds(model.getModelPath());
+        if (bounds != null && bounds.length >= 6) {
+            double minX = Math.min(bounds[0] * sx, bounds[3] * sx);
+            double minY = Math.min(bounds[1] * sy, bounds[4] * sy);
+            double minZ = Math.min(bounds[2] * sz, bounds[5] * sz);
+            double maxX = Math.max(bounds[0] * sx, bounds[3] * sx);
+            double maxY = Math.max(bounds[1] * sy, bounds[4] * sy);
+            double maxZ = Math.max(bounds[2] * sz, bounds[5] * sz);
+            if (!rayIntersectsAabb(localOrigin, localDir, minX, minY, minZ, maxX, maxY, maxZ, maxDist)) {
+                return -1;
+            }
+        }
 
         for (int i = 0; i < indices.length; i += 3) {
             int i0 = indices[i] * 3;
@@ -151,6 +153,40 @@ public class RaycastUtil {
         }
 
         return hit && closestT <= maxDist ? closestT : -1;
+    }
+
+    private static boolean rayIntersectsAabb(Vector3 origin, Vector3 direction,
+                                             double minX, double minY, double minZ,
+                                             double maxX, double maxY, double maxZ,
+                                             double maxDistance) {
+        double dx = Math.abs(direction.x) < 1e-12 ? 1e-12 : direction.x;
+        double dy = Math.abs(direction.y) < 1e-12 ? 1e-12 : direction.y;
+        double dz = Math.abs(direction.z) < 1e-12 ? 1e-12 : direction.z;
+
+        double invX = 1.0 / dx;
+        double invY = 1.0 / dy;
+        double invZ = 1.0 / dz;
+
+        double t1 = (minX - origin.x) * invX;
+        double t2 = (maxX - origin.x) * invX;
+        double tmin = Math.min(t1, t2);
+        double tmax = Math.max(t1, t2);
+
+        double ty1 = (minY - origin.y) * invY;
+        double ty2 = (maxY - origin.y) * invY;
+        tmin = Math.max(tmin, Math.min(ty1, ty2));
+        tmax = Math.min(tmax, Math.max(ty1, ty2));
+
+        double tz1 = (minZ - origin.z) * invZ;
+        double tz2 = (maxZ - origin.z) * invZ;
+        tmin = Math.max(tmin, Math.min(tz1, tz2));
+        tmax = Math.min(tmax, Math.max(tz1, tz2));
+
+        if (tmax < 0 || tmin > tmax) {
+            return false;
+        }
+        double t = tmin >= 0 ? tmin : tmax;
+        return t >= 0 && t <= maxDistance;
     }
 
     private static double intersectTriangle(Vector3 orig, Vector3 dir, Vector3 v0, Vector3 v1, Vector3 v2) {
