@@ -40,8 +40,16 @@ public final class AssetBrowserPanel {
 
     private void renderAssetsTab() {
         List<MoudPackets.EditorAssetDefinition> assets = EditorAssetCatalog.getInstance().getAssets();
-        ImGui.setNextItemWidth(-1);
+        float refreshWidth = 86f;
+        float avail = ImGui.getContentRegionAvailX();
+        ImGui.setNextItemWidth(Math.max(1f, avail - refreshWidth - 8f));
         ImGui.inputTextWithHint("##asset_search", "Search models, displays, lights...", assetFilter);
+        ImGui.sameLine();
+        if (ImGui.button("Refresh", refreshWidth, 0f)) {
+            EditorAssetCatalog.getInstance().forceRefresh();
+            ProjectFileIndex.getInstance().forceRefresh();
+            AssetThumbnailCache.getInstance().clear();
+        }
         ImGui.separator();
         if (assets.isEmpty()) {
             ImGui.textDisabled("No assets available. Trigger a server rescan.");

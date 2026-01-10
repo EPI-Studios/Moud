@@ -6,6 +6,7 @@ import com.moud.client.editor.runtime.RuntimeObjectRegistry;
 import com.moud.client.animation.AnimatedPlayerModel;
 import com.moud.client.animation.ClientFakePlayerManager;
 import com.moud.client.animation.ClientPlayerModelManager;
+import com.moud.client.collision.ClientCollisionManager;
 import com.moud.client.util.LimbRaycaster;
 import com.moud.client.editor.runtime.RuntimeObjectType;
 import com.moud.client.editor.ui.EditorImGuiLayer;
@@ -167,6 +168,17 @@ public final class RaycastPicker {
                     }
                 }
             } else {
+                if (obj.getType() == RuntimeObjectType.MODEL) {
+                    long modelId = parseModelId(obj.getObjectId());
+                    if (modelId >= 0 && ClientCollisionManager.hasMesh(modelId)) {
+                        ClientCollisionManager.RaycastHit meshHit = ClientCollisionManager.raycastModel(modelId, rayStart, rayDir, MAX_REACH);
+                        if (meshHit != null) {
+                            hitDistance = meshHit.distance() * meshHit.distance();
+                            detectedLimb = null;
+                            hitFound = true;
+                        }
+                    }
+                }
                 Box bounds = obj.getBounds();
                 if (bounds != null) {
                     Vec3d hit = raycastBox(rayStart, rayEnd, bounds);
