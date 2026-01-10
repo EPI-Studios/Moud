@@ -35,6 +35,7 @@ import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
@@ -48,6 +49,8 @@ public class ClientRenderController {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientRenderController.class);
     private static final boolean DISABLE_VEIL_BUFFERS = Boolean.getBoolean("moud.disableVeilBuffers");
     private static final boolean DISABLE_VEIL_BLOOM = Boolean.getBoolean("moud.disableVeilBloom");
+    private static final boolean ENABLE_VEIL_LIGHTMAP_BUFFERS = Boolean.getBoolean("moud.enableVeilLightmapBuffers");
+    private static final boolean DEBUG_GLTF_LIGHT = Boolean.getBoolean("moud.debugGltfLight");
 
     private static boolean customCameraActive = false;
 
@@ -58,6 +61,8 @@ public class ClientRenderController {
     private ParticleRenderer particleRenderer;
     private long particleFrameTimeNs = 0L;
     private boolean veilBuffersEnabled = false;
+    private long lastGltfLightLogNs = 0L;
+    private boolean loggedGltfUniformError = false;
 
     public void register(ClientServiceManager services) {
         this.particleRenderer = new ParticleRenderer(services.getParticleSystem());
@@ -85,122 +90,140 @@ public class ClientRenderController {
         }
 
         VeilRenderer veilRenderer = VeilRenderSystem.renderer();
-        boolean enabledBuffers = false;
         if (veilRenderer != null && !DISABLE_VEIL_BUFFERS && !veilBuffersEnabled) {
             try {
-                enabledBuffers = veilRenderer.enableBuffers(VeilRenderer.COMPOSITE,
-                        DynamicBufferType.ALBEDO,
-                        DynamicBufferType.NORMAL);
+                if (ENABLE_VEIL_LIGHTMAP_BUFFERS) {
+                    veilBuffersEnabled = veilRenderer.enableBuffers(VeilRenderer.COMPOSITE,
+                            DynamicBufferType.ALBEDO,
+                            DynamicBufferType.NORMAL,
+                            DynamicBufferType.LIGHT_UV,
+                            DynamicBufferType.LIGHT_COLOR,
+                            DynamicBufferType.DEBUG);
+                } else {
+                    veilBuffersEnabled = veilRenderer.enableBuffers(VeilRenderer.COMPOSITE,
+                            DynamicBufferType.ALBEDO,
+                            DynamicBufferType.NORMAL,
+                            DynamicBufferType.DEBUG);
+                }
                 if (DISABLE_VEIL_BLOOM) {
                     // intentionally left blank to preserve existing behavior while skipping bloom toggle
                 }
-                veilBuffersEnabled = enabledBuffers;
             } catch (Throwable t) {
                 LOGGER.debug("Failed to enable Veil dynamic buffers", t);
             }
-        } else if (veilBuffersEnabled) {
-            enabledBuffers = true;
         }
 
-        try {
-            if (playerModelRenderer != null && !ClientPlayerModelManager.getInstance().getModels().isEmpty()) {
+        if (playerModelRenderer != null && !ClientPlayerModelManager.getInstance().getModels().isEmpty()) {
 
-                for (AnimatedPlayerModel model : ClientPlayerModelManager.getInstance().getModels()) {
-                    double x = model.getInterpolatedX(tickDelta) - camera.getPos().getX();
-                    double y = model.getInterpolatedY(tickDelta) - camera.getPos().getY();
-                    double z = model.getInterpolatedZ(tickDelta) - camera.getPos().getZ();
+            for (AnimatedPlayerModel model : ClientPlayerModelManager.getInstance().getModels()) {
+                double x = model.getInterpolatedX(tickDelta) - camera.getPos().getX();
+                double y = model.getInterpolatedY(tickDelta) - camera.getPos().getY();
+                double z = model.getInterpolatedZ(tickDelta) - camera.getPos().getZ();
 
-                    MatrixStack matrices = new MatrixStack();
-                    matrices.translate(x, y, z);
+                MatrixStack matrices = new MatrixStack();
+                matrices.translate(x, y, z);
+
+                int light = WorldRenderer.getLightmapCoordinates(world, model.getBlockPos());
+
+                playerModelRenderer.render(model, matrices, renderContext.consumers(), light, tickDelta);
+            }
+        }
+        Vec3d cameraPos = camera.getPos();
+
+        if (modelRenderer != null && !ClientModelManager.getInstance().getModels().isEmpty()) {
+            MatrixStack matrices = renderContext.matrixStack();
+            var consumers = renderContext.consumers();
+            if (consumers != null) {
+                for (RenderableModel model : ClientModelManager.getInstance().getModels()) {
+                    Vector3 interpolatedPos = model.getInterpolatedPosition(tickDelta);
+                    if (!isModelVisible(model, interpolatedPos, renderContext, tickDelta)) {
+                        continue;
+                    }
+                    double dx = interpolatedPos.x - cameraPos.x;
+                    double dy = interpolatedPos.y - cameraPos.y;
+                    double dz = interpolatedPos.z - cameraPos.z;
+
+                    matrices.push();
+                    matrices.translate(dx, dy, dz);
 
                     int light = WorldRenderer.getLightmapCoordinates(world, model.getBlockPos());
-
-                    playerModelRenderer.render(model, matrices, renderContext.consumers(), light, tickDelta);
-                }
-            }
-            Vec3d cameraPos = camera.getPos();
-
-            if (modelRenderer != null && !ClientModelManager.getInstance().getModels().isEmpty()) {
-                MatrixStack matrices = renderContext.matrixStack();
-                var consumers = renderContext.consumers();
-                if (consumers != null) {
-                    for (RenderableModel model : ClientModelManager.getInstance().getModels()) {
-                        Vector3 interpolatedPos = model.getInterpolatedPosition(tickDelta);
-                        if (!isModelVisible(model, interpolatedPos, renderContext)) {
-                            continue;
-                        }
-                        double dx = interpolatedPos.x - cameraPos.x;
-                        double dy = interpolatedPos.y - cameraPos.y;
-                        double dz = interpolatedPos.z - cameraPos.z;
-
-                        matrices.push();
-                        matrices.translate(dx, dy, dz);
-
-                        int light = WorldRenderer.getLightmapCoordinates(world, model.getBlockPos());
-                        modelRenderer.render(model, matrices, consumers, light, tickDelta);
-                        matrices.pop();
-                    }
-                }
-            }
-            if (displayRenderer != null && !ClientDisplayManager.getInstance().isEmpty()) {
-                MatrixStack matrices = renderContext.matrixStack();
-                var consumers = renderContext.consumers();
-                if (consumers != null) {
-                    for (DisplaySurface surface : ClientDisplayManager.getInstance().getDisplays()) {
-                        Vector3 interpolatedPos = surface.getInterpolatedPosition(tickDelta);
-                        if (!isDisplayVisible(surface, interpolatedPos, renderContext)) {
-                            continue;
-                        }
-                        double dx = interpolatedPos.x - cameraPos.x;
-                        double dy = interpolatedPos.y - cameraPos.y;
-                        double dz = interpolatedPos.z - cameraPos.z;
-
-                        matrices.push();
-                        matrices.translate(dx, dy, dz);
-
-                        int light = WorldRenderer.getLightmapCoordinates(world, surface.getBlockPos());
-                        displayRenderer.render(surface, matrices, consumers, light, tickDelta);
-                        matrices.pop();
-                    }
-                }
-            }
-            renderPrimitives(renderContext, services);
-            if (particleRenderer != null && renderContext.consumers() != null) {
-                MatrixStack matrices = renderContext.matrixStack();
-                particleRenderer.render(
-                        matrices,
-                        renderContext.consumers(),
-                        camera,
-                        tickDelta,
-                        renderContext.frustum()
-                );
-            }
-            renderModelCollisionHitboxes(renderContext);
-            if (services.getCursorManager() != null) {
-                services.getCursorManager().render(
-                        renderContext.matrixStack(),
-                        renderContext.consumers(),
-                        renderContext.tickCounter().getTickDelta(true)
-                );
-            }
-
-            ClientIKManager.getInstance().render(
-                    renderContext.matrixStack(),
-                    renderContext.consumers(),
-                    camera.getPos()
-            );
-            SceneEditorOverlay.getInstance().renderCameraGizmos(renderContext);
-        } finally {
-            if (enabledBuffers && veilRenderer != null) {
-                try {
-                    veilRenderer.disableBuffers(VeilRenderer.COMPOSITE,
-                            DynamicBufferType.ALBEDO,
-                            DynamicBufferType.NORMAL);
-                } catch (Throwable t) {
-                    LOGGER.debug("Failed to disable Veil dynamic buffers", t);
+                    maybeLogGltfLight(model, light);
+                    modelRenderer.render(model, matrices, consumers, light, tickDelta);
+                    matrices.pop();
                 }
             }
         }
+        if (displayRenderer != null && !ClientDisplayManager.getInstance().isEmpty()) {
+            MatrixStack matrices = renderContext.matrixStack();
+            var consumers = renderContext.consumers();
+            if (consumers != null) {
+                for (DisplaySurface surface : ClientDisplayManager.getInstance().getDisplays()) {
+                    Vector3 interpolatedPos = surface.getInterpolatedPosition(tickDelta);
+                    if (!isDisplayVisible(surface, interpolatedPos, renderContext)) {
+                        continue;
+                    }
+                    double dx = interpolatedPos.x - cameraPos.x;
+                    double dy = interpolatedPos.y - cameraPos.y;
+                    double dz = interpolatedPos.z - cameraPos.z;
+
+                    matrices.push();
+                    matrices.translate(dx, dy, dz);
+
+                    int light = WorldRenderer.getLightmapCoordinates(world, surface.getBlockPos());
+                    displayRenderer.render(surface, matrices, consumers, light, tickDelta);
+                    matrices.pop();
+                }
+            }
+        }
+        renderPrimitives(renderContext, services);
+        if (particleRenderer != null && renderContext.consumers() != null) {
+            MatrixStack matrices = renderContext.matrixStack();
+            particleRenderer.render(
+                    matrices,
+                    renderContext.consumers(),
+                    camera,
+                    tickDelta,
+                    renderContext.frustum()
+            );
+        }
+        renderModelCollisionHitboxes(renderContext);
+        if (services.getCursorManager() != null) {
+            services.getCursorManager().render(
+                    renderContext.matrixStack(),
+                    renderContext.consumers(),
+                    renderContext.tickCounter().getTickDelta(true)
+            );
+        }
+
+        ClientIKManager.getInstance().render(
+                renderContext.matrixStack(),
+                renderContext.consumers(),
+                camera.getPos()
+        );
+        SceneEditorOverlay.getInstance().renderCameraGizmos(renderContext);
+    }
+
+    private void maybeLogGltfLight(RenderableModel model, int packedLight) {
+        if (!DEBUG_GLTF_LIGHT || model == null) {
+            return;
+        }
+        long now = System.nanoTime();
+        if (now - lastGltfLightLogNs < 1_000_000_000L) {
+            return;
+        }
+        lastGltfLightLogNs = now;
+
+        int blockCoord = packedLight & 0xFFFF;
+        int skyCoord = (packedLight >>> 16) & 0xFFFF;
+        int blockLevel = (blockCoord >>> 4) & 0xF;
+        int skyLevel = (skyCoord >>> 4) & 0xF;
+        Vector3 pos = model.getPosition();
+        LOGGER.info("[GLTF LightDebug] modelId={} pos=({}, {}, {}) packed={} blockCoord={} skyCoord={} blockLevel={} skyLevel={}",
+                model.getId(),
+                String.format("%.2f", pos.x), String.format("%.2f", pos.y), String.format("%.2f", pos.z),
+                packedLight,
+                blockCoord, skyCoord,
+                blockLevel, skyLevel);
     }
 
     private float computeParticleFrameDeltaSeconds() {
@@ -214,8 +237,19 @@ public class ClientRenderController {
         return dt;
     }
 
-    private boolean isModelVisible(RenderableModel model, Vector3 position, WorldRenderContext context) {
-        return isVisible(createModelBounds(model, position), context);
+    private boolean isModelVisible(RenderableModel model, Vector3 position, WorldRenderContext context, float tickDelta) {
+        if (model == null) {
+            return true;
+        }
+        return isVisible(
+                createModelBounds(
+                        model,
+                        position,
+                        model.getInterpolatedRotation(tickDelta),
+                        model.getInterpolatedScale(tickDelta)
+                ),
+                context
+        );
     }
 
     private boolean isDisplayVisible(DisplaySurface surface, Vector3 position, WorldRenderContext context) {
@@ -375,29 +409,59 @@ public class ClientRenderController {
 
     }
 
-    private Box createModelBounds(RenderableModel model, Vector3 position) {
-        if (model == null || position == null) {
+    private Box createModelBounds(RenderableModel model, Vector3 position, Quaternion rotation, Vector3 scale) {
+        if (model == null || position == null || rotation == null || scale == null) {
             return null;
         }
-        Vector3 scale = model.getScale();
+        Vector3 meshMin = model.getMeshMin();
+        Vector3 meshMax = model.getMeshMax();
+
+        if (meshMin != null && meshMax != null) {
+            double minX = Math.min(meshMin.x, meshMax.x);
+            double minY = Math.min(meshMin.y, meshMax.y);
+            double minZ = Math.min(meshMin.z, meshMax.z);
+            double maxX = Math.max(meshMin.x, meshMax.x);
+            double maxY = Math.max(meshMin.y, meshMax.y);
+            double maxZ = Math.max(meshMin.z, meshMax.z);
+
+            double localCenterX = (minX + maxX) * 0.5;
+            double localCenterY = (minY + maxY) * 0.5;
+            double localCenterZ = (minZ + maxZ) * 0.5;
+            double localHalfX = (maxX - minX) * 0.5;
+            double localHalfY = (maxY - minY) * 0.5;
+            double localHalfZ = (maxZ - minZ) * 0.5;
+
+            double scaledCenterX = localCenterX * scale.x;
+            double scaledCenterY = localCenterY * scale.y;
+            double scaledCenterZ = localCenterZ * scale.z;
+
+            double qx = rotation.x;
+            double qy = rotation.y;
+            double qz = rotation.z;
+            double qw = rotation.w;
+            double tx = 2.0 * (qy * scaledCenterZ - qz * scaledCenterY);
+            double ty = 2.0 * (qz * scaledCenterX - qx * scaledCenterZ);
+            double tz = 2.0 * (qx * scaledCenterY - qy * scaledCenterX);
+            double rotatedCenterX = scaledCenterX + qw * tx + (qy * tz - qz * ty);
+            double rotatedCenterY = scaledCenterY + qw * ty + (qz * tx - qx * tz);
+            double rotatedCenterZ = scaledCenterZ + qw * tz + (qx * ty - qy * tx);
+
+            double centerX = position.x + rotatedCenterX;
+            double centerY = position.y + rotatedCenterY;
+            double centerZ = position.z + rotatedCenterZ;
+
+            double halfX = Math.max(0.25, localHalfX * Math.abs(scale.x));
+            double halfY = Math.max(0.25, localHalfY * Math.abs(scale.y));
+            double halfZ = Math.max(0.25, localHalfZ * Math.abs(scale.z));
+
+            return createOrientedBounds(centerX, centerY, centerZ, rotation, halfX, halfY, halfZ);
+        }
+
         Vector3 meshHalf = model.getMeshHalfExtents();
-        double halfX = computeHalfExtent(
-                meshHalf != null ? meshHalf.x : Double.NaN,
-                scale.x,
-                model.getCollisionWidth()
-        );
-        double halfY = computeHalfExtent(
-                meshHalf != null ? meshHalf.y : Double.NaN,
-                scale.y,
-                model.getCollisionHeight()
-        );
-        double halfZ = computeHalfExtent(
-                meshHalf != null ? meshHalf.z : Double.NaN,
-                scale.z,
-                model.getCollisionDepth()
-        );
-        return new Box(position.x - halfX, position.y - halfY, position.z - halfZ,
-                position.x + halfX, position.y + halfY, position.z + halfZ);
+        double halfX = computeHalfExtent(meshHalf != null ? meshHalf.x : Double.NaN, scale.x, model.getCollisionWidth());
+        double halfY = computeHalfExtent(meshHalf != null ? meshHalf.y : Double.NaN, scale.y, model.getCollisionHeight());
+        double halfZ = computeHalfExtent(meshHalf != null ? meshHalf.z : Double.NaN, scale.z, model.getCollisionDepth());
+        return createOrientedBounds(position.x, position.y, position.z, rotation, halfX, halfY, halfZ);
     }
 
     private Box createDisplayBounds(DisplaySurface surface, Vector3 position) {
