@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/Powered%20by-Minestom-815db1?style=for-the-badge&logo=openjdk&logoColor=white" alt="Powered by Minestom" />
   <img src="https://img.shields.io/badge/Running%20on-Fabric-2C2C2C?style=for-the-badge&logo=openjdk&logoColor=white" alt="Running on Fabric" />
   <a href="https://moud.epistudios.fr/"><img src="https://img.shields.io/badge/Wiki-Documentation-4A90E2?style=for-the-badge&logo=gitbook&logoColor=white" alt="Wiki" /></a>
-  <a href="https://discord.gg/RWfQ3sTy"><img src="https://img.shields.io/badge/Discord-online-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" />
+  <a href="https://discord.gg/hdwFTJVM"><img src="https://img.shields.io/badge/Discord-online-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" />
 </p>
 
 
