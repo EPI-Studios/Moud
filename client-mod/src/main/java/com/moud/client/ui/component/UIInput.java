@@ -1,4 +1,3 @@
-// File: src/main/java/com/moud/client/ui/component/UIInput.java
 package com.moud.client.ui.component;
 
 import com.moud.client.api.service.UIService;
@@ -8,6 +7,9 @@ import net.minecraft.client.gui.DrawContext;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 import org.lwjgl.glfw.GLFW;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class UIInput extends UIComponent {
     private volatile String value = "";
@@ -33,8 +35,8 @@ public class UIInput extends UIComponent {
         if (displayText.isEmpty()) return;
 
         int textCol = parseColor(value.isEmpty() && !focused ? "#999999" : textColor, opacity);
-        int textX = getX() + (int) paddingLeft;
-        int textY = getY() + (getHeight() - MinecraftClient.getInstance().textRenderer.fontHeight) / 2;
+        int textX = (int) getX() + (int) paddingLeft;
+        int textY = (int) (getY() + (getHeight() - MinecraftClient.getInstance().textRenderer.fontHeight) / 2f);
 
         if (hasSelection()) {
             renderSelection(context, displayText, textX, textY);
@@ -146,6 +148,12 @@ public class UIInput extends UIComponent {
     }
 
     private void triggerChange(String newValue, String oldValue) {
+        if (serverControlled) {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("value", newValue);
+            payload.put("previousValue", oldValue);
+            notifyServerInteraction("change", payload);
+        }
         executeEventHandler("change", this, newValue, oldValue);
     }
 
@@ -182,6 +190,11 @@ public class UIInput extends UIComponent {
     }
 
     private void triggerSubmit() {
+        if (serverControlled) {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("value", this.value);
+            notifyServerInteraction("submit", payload);
+        }
         executeEventHandler("submit", this, this.value);
     }
 

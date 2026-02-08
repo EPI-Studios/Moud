@@ -1,9 +1,11 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.player.PlayerChatEvent;
 import org.graalvm.polyglot.HostAccess;
 
+@TsExpose
 public class ChatEventProxy {
     private final Player player;
     private final String message;

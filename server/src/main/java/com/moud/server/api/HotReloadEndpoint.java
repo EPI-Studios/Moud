@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moud.server.MoudEngine;
 import com.moud.server.logging.MoudLogger;
-import com.moud.server.project.ProjectLoader;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -13,7 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.nio.file.Path;
+import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
 
 public class HotReloadEndpoint {
@@ -73,15 +72,42 @@ public class HotReloadEndpoint {
 
                 LOGGER.info("Hot reload request received");
 
+                String hash = request.hasNonNull("hash") ? request.get("hash").asText() : null;
+                String serverBundle = request.hasNonNull("serverBundle") ? request.get("serverBundle").asText() : null;
+                String sharedPhysics = request.hasNonNull("sharedPhysics")
+                        ? request.get("sharedPhysics").asText()
+                        : null;
+                byte[] clientBundle = null;
+
+                if (request.hasNonNull("clientBundle")) {
+                    try {
+                        clientBundle = Base64.getDecoder().decode(request.get("clientBundle").asText());
+                    } catch (IllegalArgumentException decodeException) {
+                        sendResponse(exchange, 400, "{\"error\":\"Invalid client bundle encoding\"}");
+                        return;
+                    }
+                }
+
+                MoudEngine.ReloadBundle bundle = new MoudEngine.ReloadBundle(
+                        hash,
+                        serverBundle,
+                        sharedPhysics,
+                        clientBundle
+                );
+
                 CompletableFuture.runAsync(() -> {
                     try {
-                        engine.reloadUserScripts();
+                        engine.reloadUserScripts(bundle);
                     } catch (Exception e) {
                         LOGGER.error("Failed to reload scripts", e);
                     }
                 });
 
-                sendResponse(exchange, 200, "{\"status\":\"success\",\"message\":\"Scripts reloaded\"}");
+                String responseBody = hash != null
+                        ? String.format("{\"status\":\"success\",\"hash\":\"%s\"}", hash)
+                        : "{\"status\":\"success\"}";
+
+                sendResponse(exchange, 200, responseBody);
 
             } catch (Exception e) {
                 LOGGER.error("Error handling reload request", e);

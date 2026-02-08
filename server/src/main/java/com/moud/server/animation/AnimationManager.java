@@ -29,10 +29,8 @@ public class AnimationManager {
         return instance;
     }
 
-    public void initialize() {
+    public void initialize(Path projectRoot) {
         try {
-            Path projectRoot = ProjectLoader.findProjectRoot();
-
             Path[] animationDirs = {
                     projectRoot.resolve("assets").resolve("moud").resolve("data").resolve("animation"),
                     projectRoot.resolve("assets").resolve("animations"),

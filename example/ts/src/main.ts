@@ -1,8 +1,3 @@
-// Set up a flat world with a spawn point at (0, 64, 0)
-api.getWorld()
-    .setFlatGenerator()
-    .setSpawn(0, 64, 0);
-
 // Fired when a player joins the server
 api.on('player.join', (player) => {
     console.log(`Player ${player.getName()} has joined. Locking camera and setting up cursor.`);

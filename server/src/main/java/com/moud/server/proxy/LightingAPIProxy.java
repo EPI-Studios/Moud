@@ -1,5 +1,6 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.api.math.Vector3;
 import com.moud.server.lighting.ServerLightingManager;
 import org.graalvm.polyglot.HostAccess;
@@ -7,6 +8,7 @@ import org.graalvm.polyglot.HostAccess;
 import java.util.HashMap;
 import java.util.Map;
 
+@TsExpose
 public class LightingAPIProxy {
 
     private final ServerLightingManager manager;

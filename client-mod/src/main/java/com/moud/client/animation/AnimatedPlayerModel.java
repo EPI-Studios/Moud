@@ -27,9 +27,8 @@ import java.util.UUID;
 
 public class AnimatedPlayerModel {
     private static final Logger LOGGER = LoggerFactory.getLogger(AnimatedPlayerModel.class);
-    private static final double MOVEMENT_THRESHOLD_SQUARED = 0.001 * 0.001;
 
-    private final OtherClientPlayerEntity fakePlayer;
+    private final OtherClientPlayerEntity playerEntity;
     private final PlayerAnimationController animationController;
     private final PlayerEntityModel<OtherClientPlayerEntity> model;
 
@@ -41,41 +40,37 @@ public class AnimatedPlayerModel {
     private MovementState currentState = MovementState.IDLE;
     private String overrideAnimation = null;
     private long overrideAnimationEndTime = 0;
+    private final long modelId;
     public AnimatedPlayerModel(ClientWorld world) {
         MinecraftClient client = MinecraftClient.getInstance();
         this.model = new PlayerEntityModel<>(client.getEntityModelLoader().getModelPart(EntityModelLayers.PLAYER), false);
 
         GameProfile gameProfile = new GameProfile(UUID.randomUUID(), "MoudModel_" + this.hashCode());
-        this.fakePlayer = new OtherClientPlayerEntity(world, gameProfile);
+        this.playerEntity = new OtherClientPlayerEntity(world, gameProfile);
+        this.modelId = gameProfile.getId().getLeastSignificantBits() ^ gameProfile.getId().getMostSignificantBits();
 
-        this.animationController = new PlayerAnimationController(this.fakePlayer, (controller, state, animSetter) -> PlayState.CONTINUE);
+        this.animationController = new PlayerAnimationController(this.playerEntity, (controller, state, animSetter) -> PlayState.CONTINUE);
 
-        PlayerAnimManager manager = ((IAnimatedPlayer) this.fakePlayer).playerAnimLib$getAnimManager();
+        PlayerAnimManager manager = ((IAnimatedPlayer) this.playerEntity).playerAnimLib$getAnimManager();
 
         manager.addAnimLayer(1000, this.animationController);
 
+
         LOGGER.debug("AnimatedPlayerModel created. Controller hash: {}", this.animationController.hashCode());
-        playBaseAnimation(MovementState.IDLE);
+    }
+
+    public long getModelId() {
+        return modelId;
     }
 
     public void tick() {
 
-        this.fakePlayer.tick();
-
-        double dx = x - prevX;
-        double dz = z - prevZ;
-        boolean isMoving = (dx * dx + dz * dz) > MOVEMENT_THRESHOLD_SQUARED;
-
-        if (isMoving && currentState == MovementState.IDLE) {
-            setState(MovementState.WALKING);
-        } else if (!isMoving && currentState == MovementState.WALKING) {
-            setState(MovementState.IDLE);
-        }
+        this.playerEntity.tick();
 
         if (overrideAnimation != null && System.currentTimeMillis() > overrideAnimationEndTime) {
             LOGGER.debug("Override animation '{}' ended. Returning to base state: {}", overrideAnimation, currentState);
             overrideAnimation = null;
-            playBaseAnimation(currentState);
+            this.animationController.stop();
         }
     }
 
@@ -84,22 +79,26 @@ public class AnimatedPlayerModel {
         LOGGER.debug("Model state change: {} -> {}", currentState, newState);
         this.currentState = newState;
         if (overrideAnimation == null) {
-            playBaseAnimation(newState);
+            //
         }
     }
 
-    private void playBaseAnimation(MovementState state) {
-        String animId = (state == MovementState.IDLE) ? "moud:idle" : "moud:walk";
-        Animation animation = PlayerAnimResources.getAnimation(Identifier.of(animId));
-        if (animation != null) {
-            animationController.triggerAnimation(RawAnimation.begin().then(animation, Animation.LoopType.LOOP));
-            LOGGER.debug("Playing base animation '{}'. Controller active: {}", animId, animationController.isActive());
-        } else {
-            LOGGER.warn("Base animation '{}' not found in PlayerAnimResources. Make sure it is packaged correctly.", animId);
-        }
-    }
 
     public void playAnimationWithFade(String animationIdStr, int durationTicks) {
+        if (animationIdStr == null || animationIdStr.isBlank()) {
+            this.overrideAnimation = null;
+            this.animationController.stop();
+            return;
+        }
+        playAnimation(animationIdStr);
+    }
+
+    public void playAnimation(String animationIdStr) {
+        if (animationIdStr == null || animationIdStr.isBlank()) {
+            this.overrideAnimation = null;
+            this.animationController.stop();
+            return;
+        }
         Identifier animationId = Identifier.tryParse(animationIdStr);
         if (animationId == null) {
             animationId = Identifier.of("moud", animationIdStr);
@@ -109,64 +108,61 @@ public class AnimatedPlayerModel {
         if (animation != null) {
 
             this.overrideAnimation = animationIdStr;
-            long duration = Math.max(50, (long) (animation.length() * 50));
-            this.overrideAnimationEndTime = System.currentTimeMillis() + duration;
-
-            RawAnimation newAnimation = RawAnimation.begin().thenPlay(animation);
-            AbstractFadeModifier fade = AbstractFadeModifier.standardFadeIn(durationTicks, EasingType.EASE_IN_OUT_SINE);
-            this.animationController.replaceAnimationWithFade(fade, newAnimation);
-
-            LOGGER.debug("Triggering one-shot animation '{}' WITH FADE. Duration: {} ticks", animationId, durationTicks);
-        } else {
-            LOGGER.warn("Animation '{}' not found in PlayerAnimResources.", animationId);
+            long duration;
+            duration = Math.max(250, (long) (animation.length() * 50));
+            this.overrideAnimationEndTime = Long.MAX_VALUE;
+            animationController.triggerAnimation(RawAnimation.begin().thenPlay(animation));
+            LOGGER.debug("Triggering one-shot animation '{}'. Duration: {}ms", animationId, duration);
         }
+
     }
 
-    public void playAnimation(String animationIdStr) {
-        Identifier animationId = Identifier.tryParse(animationIdStr);
-        if (animationId == null) {
-            animationId = Identifier.of("moud", animationIdStr);
+    private Identifier resolveAnimationId(String raw) {
+        Identifier primary = Identifier.tryParse(raw);
+        if (primary != null && PlayerAnimResources.getAnimation(primary) != null) {
+            return primary;
         }
-
-        Animation animation = PlayerAnimResources.getAnimation(animationId);
-        if (animation != null) {
-            boolean isBaseMovementAnim = "idle".equals(animationId.getPath()) || "walk".equals(animationId.getPath());
-
-            if (isBaseMovementAnim) {
-                this.overrideAnimation = null;
-                setState("walk".equals(animationId.getPath()) ? MovementState.WALKING : MovementState.IDLE);
-                LOGGER.debug("Triggering base animation '{}'.", animationId);
-            } else {
-                this.overrideAnimation = animationIdStr;
-                long duration = Math.max(50, (long) (animation.length() * 50));
-                this.overrideAnimationEndTime = System.currentTimeMillis() + duration;
-                animationController.triggerAnimation(RawAnimation.begin().thenPlay(animation));
-                LOGGER.debug("Triggering one-shot animation '{}'. Duration: {}ms", animationId, duration);
+        // Try strip namespace/path variants for common cases
+        String path = raw;
+        if (raw.contains(":")) {
+            path = raw.substring(raw.indexOf(":") + 1);
+        }
+        String basename = path.contains("/") ? path.substring(path.lastIndexOf("/") + 1) : path;
+        Identifier[] candidates = new Identifier[] {
+                Identifier.of("moud", path),
+                Identifier.of("moud", "player_animations/" + basename),
+                Identifier.of("moud", basename)
+        };
+        for (Identifier id : candidates) {
+            if (PlayerAnimResources.getAnimation(id) != null) {
+                return id;
             }
-        } else {
-            LOGGER.warn("Animation '{}' not found in PlayerAnimResources.", animationId);
         }
+        return primary != null ? primary : Identifier.of("moud", basename);
     }
 
     public void setupAnim(float partialTick) {
+        playerEntity.setPos(getInterpolatedX(partialTick), getInterpolatedY(partialTick), getInterpolatedZ(partialTick));
+        playerEntity.setYaw(getInterpolatedYaw(partialTick));
+        playerEntity.setPitch(getInterpolatedPitch(partialTick));
+        playerEntity.headYaw = playerEntity.getYaw();
+        playerEntity.bodyYaw = playerEntity.getYaw();
 
-        fakePlayer.setPos(getInterpolatedX(partialTick), getInterpolatedY(partialTick), getInterpolatedZ(partialTick));
-        fakePlayer.setYaw(getInterpolatedYaw(partialTick));
-        fakePlayer.setPitch(getInterpolatedPitch(partialTick));
-        fakePlayer.headYaw = fakePlayer.getYaw();
-        fakePlayer.bodyYaw = fakePlayer.getYaw();
-
-        model.setAngles(fakePlayer, 0, 0, 0, fakePlayer.getYaw(), fakePlayer.getPitch());
+        model.setAngles(playerEntity, 0, 0, 0, playerEntity.getYaw(), playerEntity.getPitch());
         LOGGER.trace("SetupAnim called for Model. Controller Active: {}", animationController.isActive());
 
     }
 
-    public OtherClientPlayerEntity getFakePlayer() {
-        return this.fakePlayer;
+    public OtherClientPlayerEntity getEntity() {
+        return this.playerEntity;
     }
 
     public PlayerEntityModel<OtherClientPlayerEntity> getModel() {
         return model;
+    }
+
+    public PlayerAnimationController getAnimationController() {
+        return animationController;
     }
 
     public void updateSkin(String skinUrl) {
@@ -175,7 +171,7 @@ public class AnimatedPlayerModel {
             return;
         }
         try {
-            GameProfile gameProfile = this.fakePlayer.getGameProfile();
+            GameProfile gameProfile = this.playerEntity.getGameProfile();
             gameProfile.getProperties().clear();
             String textureData = String.format("{\"textures\":{\"SKIN\":{\"url\":\"%s\"}}}", skinUrl);
             String encoded = java.util.Base64.getEncoder().encodeToString(textureData.getBytes());
@@ -187,45 +183,60 @@ public class AnimatedPlayerModel {
     }
 
     public void updatePositionAndRotation(Vector3 position, float yaw, float pitch) {
-        if (!hasPosition) {
-            this.prevX = position.x;
-            this.prevY = position.y;
-            this.prevZ = position.z;
-            this.prevYaw = yaw;
-            this.prevPitch = pitch;
-            this.hasPosition = true;
-        } else {
-            this.prevX = this.x;
-            this.prevY = this.y;
-            this.prevZ = this.z;
-            this.prevYaw = this.yaw;
-            this.prevPitch = this.pitch;
-        }
+        float wrappedYaw = MathHelper.wrapDegrees(yaw);
+        float wrappedPitch = MathHelper.wrapDegrees(pitch);
+        this.prevX = position.x;
+        this.prevY = position.y;
+        this.prevZ = position.z;
+        this.prevYaw = wrappedYaw;
+        this.prevPitch = wrappedPitch;
         this.x = position.x;
         this.y = position.y;
         this.z = position.z;
-        this.yaw = yaw;
-        this.pitch = pitch;
+        this.yaw = wrappedYaw;
+        this.pitch = wrappedPitch;
+        this.hasPosition = true;
+
+        playerEntity.setPos(this.x, this.y, this.z);
+        playerEntity.setYaw(this.yaw);
+        playerEntity.setPitch(this.pitch);
     }
 
+    private Identifier resolveBaseAnimation(String baseName) {
+        String[] candidates = new String[] {
+                "moud:player_animations/" + baseName,
+                "moud:" + baseName,
+                baseName
+        };
+        for (String candidate : candidates) {
+            Identifier id = Identifier.tryParse(candidate);
+            if (id != null && PlayerAnimResources.getAnimation(id) != null) {
+                return id;
+            }
+        }
+        return Identifier.of("moud", baseName);
+    }
+
+
+
     public double getInterpolatedX(float tickDelta) {
-        return MathHelper.lerp(tickDelta, prevX, x);
+        return x;
     }
 
     public double getInterpolatedY(float tickDelta) {
-        return MathHelper.lerp(tickDelta, prevY, y);
+        return y;
     }
 
     public double getInterpolatedZ(float tickDelta) {
-        return MathHelper.lerp(tickDelta, prevZ, z);
+        return z;
     }
 
     public float getInterpolatedYaw(float tickDelta) {
-        return MathHelper.lerpAngleDegrees(tickDelta, prevYaw, yaw);
+        return yaw;
     }
 
     public float getInterpolatedPitch(float tickDelta) {
-        return MathHelper.lerp(tickDelta, prevPitch, pitch);
+        return pitch;
     }
 
     public BlockPos getBlockPos() {

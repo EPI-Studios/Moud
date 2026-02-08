@@ -1,10 +1,12 @@
 plugins {
     id 'fabric-loom'
+    id 'com.diffplug.spotless' version '6.25.0'
 }
 
 repositories {
     mavenCentral()
     maven { url = "https://maven.fabricmc.net/" }
+    maven { url = "https://repo.javagl.de/" }
     maven {
         name = 'BlameJared Maven (CrT / Bookshelf)'
         url = 'https://maven.blamejared.com'
@@ -21,6 +23,7 @@ loom {
 }
 
 dependencies {
+    implementation 'org.jetbrains:annotations:15.0'
     minecraft "com.mojang:minecraft:1.21.1"
     mappings "net.fabricmc:yarn:1.21.1+build.1:v2"
     modImplementation "net.fabricmc:fabric-loader:0.17.2"
@@ -29,8 +32,8 @@ dependencies {
     include implementation(project(':api'))
     include implementation(project(':network-engine'))
 
-    modImplementation("foundry.veil:veil-fabric-1.21.1:2.3.2")
-    include("foundry.veil:veil-fabric-1.21.1:2.3.2")
+    modImplementation("foundry.veil:veil-fabric-1.21.1:2.5.1")
+    include "foundry.veil:veil-fabric-1.21.1:2.5.1"
     include "org.reflections:reflections:0.10.2"
 
     include modImplementation("com.zigythebird.playeranim:PlayerAnimationLibFabric:1.0.12+mc1.21.1")
@@ -47,4 +50,29 @@ dependencies {
     include implementation('com.fasterxml.jackson.core:jackson-databind:2.17.0')
     include implementation('com.fasterxml.jackson.core:jackson-annotations:2.17.0')
 
+    include implementation('org.jcodec:jcodec:0.2.5')
+    include implementation('org.jcodec:jcodec-javase:0.2.5')
+
+    // gson
+    include implementation('com.google.code.gson:gson:2.10.1')
+
+    include implementation("de.javagl:jgltf-model:2.0.4")
+    include implementation("de.javagl:jgltf-impl-v1:2.0.4")
+    include implementation("de.javagl:jgltf-impl-v2:2.0.4")
+
+    include implementation("com.github.stephengold:jolt-jni-Linux64:3.5.0")
+    include runtimeOnly("com.github.stephengold:jolt-jni-Linux64:3.5.0:DebugSp")
+    include runtimeOnly("com.github.stephengold:jolt-jni-Linux_ARM64:3.5.0:DebugSp")
+    include runtimeOnly("com.github.stephengold:jolt-jni-Windows64:3.5.0:DebugSp")
+    include runtimeOnly("com.github.stephengold:jolt-jni-MacOSX64:3.5.0:DebugSp")
+    include runtimeOnly("com.github.stephengold:jolt-jni-MacOSX_ARM64:3.5.0:DebugSp")
+}
+
+tasks.withType(net.fabricmc.loom.task.AbstractRunTask).configureEach {
+    notCompatibleWithConfigurationCache(
+            "Fabric Loom run tasks generate argument files under build/loom-cache, which can go missing when configuration cache is reused."
+    )
+    doFirst {
+        file("${buildDir}/loom-cache/argFiles").mkdirs()
+    }
 }

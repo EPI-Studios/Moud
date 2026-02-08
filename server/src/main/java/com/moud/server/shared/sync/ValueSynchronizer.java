@@ -1,12 +1,13 @@
 package com.moud.server.shared.sync;
 
 import com.moud.network.MoudPackets;
+import com.moud.server.logging.LogContext;
+import com.moud.server.logging.MoudLogger;
 import com.moud.server.network.ServerPacketWrapper;
+import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.shared.SharedValueManager;
 import com.moud.server.shared.core.SharedValueStore;
 import net.minestom.server.entity.Player;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -15,7 +16,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.Map;
 
 public class ValueSynchronizer {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ValueSynchronizer.class);
+    private static final MoudLogger LOGGER = MoudLogger.getLogger(
+            ValueSynchronizer.class,
+            LogContext.builder().put("subsystem", "shared-values").put("component", "synchronizer").build()
+    );
     private static final int BATCH_INTERVAL_MS = 50;
 
     private final SharedValueManager manager;
@@ -73,10 +77,19 @@ public class ValueSynchronizer {
                 playerId, store.getStoreName(), changes, timestamp
         );
 
-        player.sendPacket(ServerPacketWrapper.createPacket(packet));
+        ServerNetworkManager manager = ServerNetworkManager.getInstance();
+        if (manager != null) {
+            manager.send(player, packet);
+        }
         store.markAllClean();
 
-        LOGGER.debug("Immediate sync sent to {}: {} changes in store '{}'",
+        LOGGER.debug(LogContext.builder()
+                        .put("player", player.getUsername())
+                        .put("player_uuid", player.getUuid())
+                        .put("store", store.getStoreName())
+                        .put("changes", changes.size())
+                        .build(),
+                "Immediate sync sent to {}: {} changes in store '{}'",
                 player.getUsername(), changes.size(), store.getStoreName());
     }
 
@@ -99,10 +112,19 @@ public class ValueSynchronizer {
                             playerId, storeName, dirtyValues, timestamp
                     );
 
-                    player.sendPacket(ServerPacketWrapper.createPacket(packet));
+                    ServerNetworkManager manager = ServerNetworkManager.getInstance();
+                    if (manager != null) {
+                        manager.send(player, packet);
+                    }
                     store.markAllClean();
 
-                    LOGGER.debug("Batched sync sent to {}: {} changes in store '{}'",
+                    LOGGER.debug(LogContext.builder()
+                                    .put("player", player.getUsername())
+                                    .put("player_uuid", player.getUuid())
+                                    .put("store", storeName)
+                                    .put("changes", dirtyValues.size())
+                                    .build(),
+                            "Batched sync sent to {}: {} changes in store '{}'",
                             player.getUsername(), dirtyValues.size(), storeName);
                 }
             });

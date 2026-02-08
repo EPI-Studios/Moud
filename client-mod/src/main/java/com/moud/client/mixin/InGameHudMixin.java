@@ -1,6 +1,7 @@
 package com.moud.client.mixin;
 
 import com.moud.client.player.PlayerStateManager;
+import com.moud.client.ui.UIOverlayManager;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.InGameHud;
 import net.minecraft.client.render.RenderTickCounter;
@@ -52,5 +53,10 @@ public class InGameHudMixin {
         if (PlayerStateManager.getInstance().isPlayerListHidden()) {
             ci.cancel();
         }
+    }
+
+    @Inject(method = "render", at = @At("TAIL"))
+    private void moud_renderOverlayAfterChat(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
+        UIOverlayManager.getInstance().renderOverlays(context, tickCounter);
     }
 }

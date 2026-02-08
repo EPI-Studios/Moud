@@ -2,6 +2,7 @@ package com.moud.client.api.service;
 
 import com.moud.client.rendering.PostProcessingManager;
 import com.moud.client.rendering.CustomRenderTypeManager;
+import com.moud.client.rendering.MultiPassRenderingManager;
 import com.moud.client.runtime.ClientScriptingRuntime;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
@@ -16,15 +17,18 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.Queue;
+import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
-public final class RenderingService {
+public final class  RenderingService {
     private static final Logger LOGGER = LoggerFactory.getLogger(RenderingService.class);
+    private static final java.util.List<String> DEFAULT_EFFECTS = java.util.List.of("veil:fog", "veil:height_fog");
     private final PostProcessingManager postProcessingManager = new PostProcessingManager();
     private final CustomRenderTypeManager renderTypeManager = new CustomRenderTypeManager();
+    private final MultiPassRenderingManager multiPassRenderingManager = new MultiPassRenderingManager();
     private final Map<String, Value> renderHandlers = new ConcurrentHashMap<>();
     private final Map<String, Value> animationFrameCallbacks = new ConcurrentHashMap<>();
     private final Map<Identifier, Map<String, Object>> pendingUniformUpdates = new ConcurrentHashMap<>();
@@ -33,6 +37,7 @@ public final class RenderingService {
     private ClientScriptingRuntime scriptingRuntime;
     private volatile Context jsContext;
     private final AtomicBoolean contextValid = new AtomicBoolean(false);
+    private final AtomicBoolean defaultFogApplied = new AtomicBoolean(false);
 
     public RenderingService() {
     }
@@ -151,6 +156,39 @@ public final class RenderingService {
         } catch (Exception e) {
             LOGGER.error("Failed to queue shader uniform update", e);
         }
+    }
+
+    @HostAccess.Export
+    public void createFramebuffer(String framebufferId, Value options) {
+        multiPassRenderingManager.createFramebuffer(framebufferId, asMap(options));
+    }
+
+    @HostAccess.Export
+    public void removeFramebuffer(String framebufferId) {
+        multiPassRenderingManager.removeFramebuffer(framebufferId);
+    }
+
+    @HostAccess.Export
+    public void defineRenderPass(String passId, Value options) {
+        multiPassRenderingManager.defineRenderPass(passId, asMap(options));
+    }
+
+    @HostAccess.Export
+    public void removeRenderPass(String passId) {
+        multiPassRenderingManager.removeRenderPass(passId);
+    }
+
+    @HostAccess.Export
+    public void setRenderPassEnabled(String passId, boolean enabled) {
+        multiPassRenderingManager.setRenderPassEnabled(passId, enabled);
+    }
+
+    public void createFramebufferFromNetwork(String framebufferId, Map<String, Object> options) {
+        multiPassRenderingManager.createFramebuffer(framebufferId, options != null ? options : Collections.emptyMap());
+    }
+
+    public void defineRenderPassFromNetwork(String passId, Map<String, Object> options) {
+        multiPassRenderingManager.defineRenderPass(passId, options != null ? options : Collections.emptyMap());
     }
 
     public void applyPendingUniforms() {
@@ -282,5 +320,85 @@ public final class RenderingService {
         scriptingRuntime = null;
         jsContext = null;
         LOGGER.info("RenderingService cleaned up");
+    }
+
+    public void applyPostEffect(String effectId) {
+        postProcessingManager.applyEffect(effectId);
+    }
+
+    public void removePostEffect(String effectId) {
+        postProcessingManager.removeEffect(effectId);
+    }
+
+    public void clearPostEffects() {
+        postProcessingManager.clearAllEffects();
+    }
+
+    public void setPostEffectUniforms(String effectId, Map<String, Object> uniforms) {
+        postProcessingManager.updateUniforms(effectId, uniforms);
+    }
+
+    public void applyDefaultFogIfNeeded() {
+        if (defaultFogApplied.compareAndSet(false, true)) {
+            DEFAULT_EFFECTS.forEach(id -> {
+                if ("veil:height_fog".equalsIgnoreCase(id)) {
+                    postProcessingManager.updateUniforms(id, com.moud.client.rendering.PostEffectUniformRegistry.defaultHeightFog());
+                } else {
+                    postProcessingManager.updateUniforms(id, com.moud.client.rendering.PostEffectUniformRegistry.defaultFog());
+                }
+                postProcessingManager.applyEffect(id);
+            });
+        }
+    }
+
+    private Map<String, Object> asMap(Value value) {
+        Object converted = convertValueToJava(value);
+        if (converted instanceof Map<?, ?> map) {
+            Map<String, Object> result = new java.util.LinkedHashMap<>();
+            map.forEach((key, val) -> {
+                if (key != null) {
+                    result.put(String.valueOf(key), val);
+                }
+            });
+            return result;
+        }
+        return Collections.emptyMap();
+    }
+
+    private Object convertValueToJava(Value value) {
+        if (value == null || value.isNull()) {
+            return null;
+        }
+        if (value.isHostObject()) {
+            try {
+                return value.asHostObject();
+            } catch (Exception ignored) {
+            }
+        }
+        if (value.isBoolean()) {
+            return value.asBoolean();
+        }
+        if (value.isNumber()) {
+            return value.asDouble();
+        }
+        if (value.isString()) {
+            return value.asString();
+        }
+        if (value.hasArrayElements()) {
+            int size = (int) value.getArraySize();
+            java.util.List<Object> list = new java.util.ArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                list.add(convertValueToJava(value.getArrayElement(i)));
+            }
+            return list;
+        }
+        if (value.hasMembers()) {
+            java.util.Map<String, Object> map = new java.util.LinkedHashMap<>();
+            for (String key : value.getMemberKeys()) {
+                map.put(key, convertValueToJava(value.getMember(key)));
+            }
+            return map;
+        }
+        return value.toString();
     }
 }

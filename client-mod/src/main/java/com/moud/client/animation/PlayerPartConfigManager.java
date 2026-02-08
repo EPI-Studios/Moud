@@ -91,6 +91,8 @@ public class PlayerPartConfigManager {
                 if (overrideProp instanceof Boolean) {
                     this.overrideAnimation = (Boolean) overrideProp;
                 }
+            } else if (props.containsKey("position") || props.containsKey("rotation") || props.containsKey("scale")) {
+                this.overrideAnimation = true;
             }
         }
 

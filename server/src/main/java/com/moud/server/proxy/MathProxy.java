@@ -1,8 +1,10 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.api.math.*;
 import org.graalvm.polyglot.HostAccess;
 
+@TsExpose
 public class MathProxy {
 
     public MathProxy() {}
@@ -119,6 +121,11 @@ public class MathProxy {
     }
 
     @HostAccess.Export
+    public Quaternion quaternion(double x, double y, double z, double w) {
+        return new Quaternion((float) x, (float) y, (float) z, (float) w);
+    }
+
+    @HostAccess.Export
     public Quaternion quaternion() {
         return Quaternion.identity();
     }
@@ -129,8 +136,18 @@ public class MathProxy {
     }
 
     @HostAccess.Export
+    public Quaternion quaternionFromEuler(double pitch, double yaw, double roll) {
+        return Quaternion.fromEuler((float) pitch, (float) yaw, (float) roll);
+    }
+
+    @HostAccess.Export
     public Quaternion quaternionFromAxisAngle(Vector3 axis, float angle) {
         return Quaternion.fromAxisAngle(axis, angle);
+    }
+
+    @HostAccess.Export
+    public Quaternion quaternionFromAxisAngle(Vector3 axis, double angle) {
+        return Quaternion.fromAxisAngle(axis, (float) angle);
     }
 
     @HostAccess.Export

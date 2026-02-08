@@ -11,7 +11,7 @@ public class MinestomByteBuffer implements ByteBuffer {
     private final NetworkBuffer buffer;
 
     public MinestomByteBuffer() {
-        this.buffer = new NetworkBuffer(java.nio.ByteBuffer.allocate(1024));
+        this.buffer = new NetworkBuffer();
     }
 
     public MinestomByteBuffer(byte[] data) {

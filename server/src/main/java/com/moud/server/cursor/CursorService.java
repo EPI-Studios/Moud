@@ -2,6 +2,7 @@ package com.moud.server.cursor;
 
 import com.moud.api.math.Vector3;
 import com.moud.network.MoudPackets;
+import com.moud.server.raycast.RaycastUtil;
 import com.moud.server.network.ServerNetworkManager;
 import com.moud.server.player.PlayerCameraManager;
 import net.minestom.server.MinecraftServer;
@@ -11,7 +12,6 @@ import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.instance.Instance;
-import net.minestom.server.instance.block.Block;
 import net.minestom.server.timer.Task;
 import net.minestom.server.timer.TaskSchedule;
 import org.jetbrains.annotations.NotNull;
@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -37,7 +38,11 @@ public class CursorService {
     private final ServerNetworkManager networkManager;
     private Task updateTask;
 
-    private CursorService(ServerNetworkManager networkManager) {
+    public static synchronized void install(CursorService cursorService) {
+        instance = Objects.requireNonNull(cursorService, "cursorService");
+    }
+
+    public CursorService(ServerNetworkManager networkManager) {
         this.networkManager = networkManager;
     }
 
@@ -197,120 +202,20 @@ public class CursorService {
     }
 
     private RaycastResult performEntityAndBlockRaycast(@NotNull Instance instance, @NotNull Point origin, @NotNull Vec direction, double maxDistance, Player excludePlayer) {
-        final double step = 0.05;
-        Vec normalizedDirection = direction.normalize();
-        if (normalizedDirection.lengthSquared() == 0) {
-            return new RaycastResult(
-                    new Vector3(origin.x(), origin.y(), origin.z()),
-                    new Vector3(0, 1, 0),
-                    false,
-                    null
-            );
-        }
-
-        Entity closestEntity = null;
-        double closestEntityDistance = Double.MAX_VALUE;
-        Point closestEntityHit = null;
-
-        for (Entity entity : instance.getEntities()) {
-            if (entity.equals(excludePlayer)) continue;
-
-            double entityDistance = raycastToEntity(origin, normalizedDirection, entity, maxDistance);
-            if (entityDistance >= 0 && entityDistance < closestEntityDistance) {
-                closestEntityDistance = entityDistance;
-                closestEntity = entity;
-                closestEntityHit = origin.add(normalizedDirection.mul(entityDistance));
-            }
-        }
-
-        Point lastPos = origin;
-        for (double d = 0; d < maxDistance; d += step) {
-            if (closestEntity != null && d >= closestEntityDistance) {
-                return new RaycastResult(
-                        new Vector3(closestEntityHit.x(), closestEntityHit.y(), closestEntityHit.z()),
-                        new Vector3(0, 1, 0),
-                        false,
-                        closestEntity
-                );
-            }
-
-            Point currentPos = origin.add(normalizedDirection.mul(d));
-            Block block = instance.getBlock(currentPos);
-
-            if (!block.isAir()) {
-                Vector3 normal = calculateBlockNormal(lastPos, currentPos);
-                Point hitPos = origin.add(normalizedDirection.mul(Math.max(0, d - step)));
-
-                return new RaycastResult(
-                        new Vector3(hitPos.x(), hitPos.y(), hitPos.z()),
-                        normal,
-                        true,
-                        null
-                );
-            }
-            lastPos = currentPos;
-        }
-
-        if (closestEntity != null) {
-            return new RaycastResult(
-                    new Vector3(closestEntityHit.x(), closestEntityHit.y(), closestEntityHit.z()),
-                    new Vector3(0, 1, 0),
-                    false,
-                    closestEntity
-            );
-        }
-
-        Point endPos = origin.add(normalizedDirection.mul(maxDistance));
+        var result = RaycastUtil.performRaycast(
+                instance,
+                origin,
+                direction,
+                maxDistance,
+                entity -> excludePlayer == null || !entity.getUuid().equals(excludePlayer.getUuid())
+        );
+        boolean blockHit = result.block() != null;
         return new RaycastResult(
-                new Vector3(endPos.x(), endPos.y(), endPos.z()),
-                new Vector3(0, 1, 0),
-                false,
-                null
+                result.position(),
+                result.normal() != null ? result.normal() : new Vector3(0, 1, 0),
+                blockHit,
+                result.entity()
         );
-    }
-
-    private double raycastToEntity(Point origin, Vec direction, Entity entity, double maxDistance) {
-        Pos entityPos = entity.getPosition();
-        double entityRadius = 0.5;
-
-        Vec toEntity = new Vec(
-                entityPos.x() - origin.x(),
-                entityPos.y() + entity.getBoundingBox().height() / 2 - origin.y(),
-                entityPos.z() - origin.z()
-        );
-
-        double projectionLength = toEntity.dot(direction);
-        if (projectionLength < 0 || projectionLength > maxDistance) {
-            return -1;
-        }
-
-        Vec projection = direction.mul(projectionLength);
-        Vec rejection = toEntity.sub(projection);
-
-        if (rejection.length() <= entityRadius) {
-            return Math.max(0, projectionLength - entityRadius);
-        }
-
-        return -1;
-    }
-
-    private Vector3 calculateBlockNormal(Point lastPos, Point currentPos) {
-        int lastBlockX = lastPos.blockX();
-        int lastBlockY = lastPos.blockY();
-        int lastBlockZ = lastPos.blockZ();
-
-        int currentBlockX = currentPos.blockX();
-        int currentBlockY = currentPos.blockY();
-        int currentBlockZ = currentPos.blockZ();
-
-        if (currentBlockX > lastBlockX) return new Vector3(-1, 0, 0);
-        if (currentBlockX < lastBlockX) return new Vector3(1, 0, 0);
-        if (currentBlockY > lastBlockY) return new Vector3(0, -1, 0);
-        if (currentBlockY < lastBlockY) return new Vector3(0, 1, 0);
-        if (currentBlockZ > lastBlockZ) return new Vector3(0, 0, -1);
-        if (currentBlockZ < lastBlockZ) return new Vector3(0, 0, 1);
-
-        return new Vector3(0, 1, 0);
     }
 
     private record RaycastResult(Vector3 hitPosition, Vector3 blockNormal, boolean isBlockHit, Entity hitEntity) {}

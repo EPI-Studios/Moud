@@ -1,0 +1,9 @@
+{
+  "vertex": "moud:gltf/pbr",
+  "fragment": "moud:gltf/pbr",
+  "definitions": [
+    {
+      "GLTF_ALPHA_MODE_BLEND": 1
+    }
+  ]
+}

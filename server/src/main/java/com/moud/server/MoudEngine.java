@@ -1,46 +1,109 @@
 package com.moud.server;
 
-import com.moud.server.animation.AnimationManager;
+import com.moud.server.audio.ServerVoiceChatManager;
+import com.moud.server.blocks.placement.VanillaPlacementRules;
+import com.moud.server.editor.AnimationManager;
 import com.moud.server.api.HotReloadEndpoint;
 import com.moud.server.api.ScriptingAPI;
 import com.moud.server.assets.AssetManager;
-
 import com.moud.server.client.ClientScriptManager;
 import com.moud.server.cursor.CursorService;
+import com.moud.server.dev.DevUtilities;
+import com.moud.server.editor.SceneManager;
 import com.moud.server.events.EventDispatcher;
+import com.moud.server.instance.InstanceManager;
+import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
 import com.moud.server.network.MinestomByteBuffer;
+import com.moud.server.network.ResourcePackService;
 import com.moud.server.network.ServerNetworkManager;
+import com.moud.server.plugin.PluginLoader;
 import com.moud.server.project.ProjectLoader;
+import com.moud.server.plugin.core.PluginManager;
 import com.moud.server.proxy.AssetProxy;
+import com.moud.server.profiler.ProfilerService;
+import com.moud.server.profiler.ProfilerUI;
+import com.moud.server.physics.PhysicsService;
+import com.moud.server.particle.ParticleBatcher;
+import com.moud.server.particle.ParticleEmitterManager;
+import com.moud.server.permissions.PermissionCommands;
+import com.moud.server.permissions.PermissionManager;
 import com.moud.server.scripting.JavaScriptRuntime;
+import com.moud.server.scripting.MoudScriptModule;
+import com.moud.server.system.MoudSystem;
 import com.moud.server.task.AsyncManager;
+import com.moud.server.typescript.TypeScriptTranspiler;
+import com.moud.server.editor.AnimationTickHandler;
 import com.moud.network.dispatcher.NetworkDispatcher;
 import com.moud.network.engine.PacketEngine;
 import com.moud.network.buffer.ByteBuffer;
+import com.moud.server.shared.SharedValueManager;
+import com.moud.server.physics.player.SharedPhysicsLoader;
 import com.moud.server.zone.ZoneManager;
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.event.server.ServerListPingEvent;
+import net.minestom.server.ping.ResponseData;
+import net.minestom.server.timer.Task;
+import net.minestom.server.timer.TaskSchedule;
+import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.HostAccess;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.nio.file.Path;
+import java.nio.file.Files;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class MoudEngine {
-    private static final MoudLogger LOGGER = MoudLogger.getLogger(MoudEngine.class);
+    private static final MoudLogger LOGGER = MoudLogger.getLogger(
+            MoudEngine.class,
+            LogContext.builder().put("subsystem", "engine").build()
+    );
+    private static final String SERVERLIST_VERSION_MARKER = "moud:" + com.moud.network.protocol.MoudProtocol.PROTOCOL_VERSION;
 
     private JavaScriptRuntime runtime;
+    private final Context sharedPhysicsContext;
+    private final SharedPhysicsLoader sharedPhysicsLoader;
+    private final Path projectRoot;
     private final AssetManager assetManager;
+    private final AssetProxy assetProxy;
+    private final SceneManager sceneManager;
+    private final PermissionManager permissionManager;
     private final AnimationManager animationManager;
+    private final AnimationTickHandler animationTickHandler = new AnimationTickHandler();
     private final ClientScriptManager clientScriptManager;
+    private final PluginManager pluginManager;
+    private final PluginLoader pluginLoader;
     private final ServerNetworkManager networkManager;
+    private final ResourcePackService resourcePackService;
     private final EventDispatcher eventDispatcher;
     private ScriptingAPI scriptingAPI;
     private final AsyncManager asyncManager;
     private final PacketEngine packetEngine;
     private final CursorService cursorService;
     private final HotReloadEndpoint hotReloadEndpoint;
-
     private final ZoneManager zoneManager;
+    private final PhysicsService physicsService;
+    private final ParticleBatcher particleBatcher;
+    private final ParticleEmitterManager particleEmitterManager;
+    private final InstanceManager instanceManager;
+    private final ServerVoiceChatManager voiceChatManager;
+    private final SharedValueManager sharedValueManager;
+    private final ProfilerService profilerService;
+    private final ConsoleAPI consoleAPI = new ConsoleAPI();
+    private final com.moud.server.api.CameraAPI cameraAPI = new com.moud.server.api.CameraAPI();
+    private final List<MoudScriptModule> scriptModules = new CopyOnWriteArrayList<>();
+    private final List<MoudSystem> systems = new CopyOnWriteArrayList<>();
+    private volatile Task systemsTask;
+
     private final AtomicBoolean initialized = new AtomicBoolean(false);
+    private final AtomicBoolean reloading = new AtomicBoolean(false);
+    private final AtomicReference<ReloadState> reloadState = new AtomicReference<>(ReloadState.IDLE);
+
     private static MoudEngine instance;
 
     public static MoudEngine getInstance() {
@@ -50,16 +113,21 @@ public class MoudEngine {
     public MoudEngine(String[] launchArgs) {
         instance = this;
         LOGGER.startup("Initializing Moud Engine...");
+        registerServerListPingMarker();
 
         boolean enableReload = hasArg(launchArgs, "--enable-reload");
+        boolean enableDevUtilities = hasArg(launchArgs, "--dev-utils");
+        boolean enableProfileUi = hasArg(launchArgs, "--profile-ui") || hasArg(launchArgs, "--profiler-ui");
         int port = getPortFromArgs(launchArgs);
-
 
         try {
             Path projectRoot = ProjectLoader.resolveProjectRoot(launchArgs)
                     .orElseThrow(() -> new IllegalStateException("Could not find a valid Moud project root."));
+            this.projectRoot = projectRoot;
 
-            LOGGER.info("Loading project from: {}", projectRoot);
+            LOGGER.info(LogContext.builder()
+                    .put("project_root", projectRoot.toString())
+                    .build(), "Loading project from: {}", projectRoot);
 
             this.packetEngine = new PacketEngine();
             packetEngine.initialize("com.moud.network");
@@ -77,26 +145,74 @@ public class MoudEngine {
             };
             NetworkDispatcher dispatcher = packetEngine.createDispatcher(bufferFactory);
 
+            this.pluginManager = new PluginManager(projectRoot);
+            this.pluginLoader = new PluginLoader(pluginManager);
+
+            this.pluginLoader.loadAssets();
+
             this.assetManager = new AssetManager(projectRoot);
             assetManager.initialize();
+            this.assetProxy = new AssetProxy(assetManager);
+            this.zoneManager = new ZoneManager(this);
 
-            this.animationManager = new AnimationManager();
-            animationManager.initialize();
+            this.instanceManager = new InstanceManager(projectRoot);
+            InstanceManager.install(instanceManager);
+            this.sceneManager = new SceneManager(projectRoot, assetManager);
+            SceneManager.install(sceneManager);
+            instanceManager.initialize();
+            VanillaPlacementRules.registerAll();
+
+            this.permissionManager = new PermissionManager(projectRoot);
+            PermissionManager.install(permissionManager);
+            PermissionCommands.register();
+
+            this.animationManager = new AnimationManager(projectRoot);
+            AnimationManager.install(animationManager);
 
             this.clientScriptManager = new ClientScriptManager();
             clientScriptManager.initialize();
 
             this.eventDispatcher = new EventDispatcher(this);
             this.runtime = new JavaScriptRuntime(this);
+            this.sharedPhysicsContext = createSharedPhysicsContext();
+            this.sharedPhysicsLoader = new SharedPhysicsLoader(sharedPhysicsContext);
+            synchronized (sharedPhysicsContext) {
+                sharedPhysicsContext.enter();
+                try {
+                    sharedPhysicsContext.getBindings("js").putMember("console", consoleAPI);
+                } finally {
+                    sharedPhysicsContext.leave();
+                }
+            }
             this.asyncManager = new AsyncManager(this);
+            registerDefaultScriptModules();
 
-            this.networkManager = new ServerNetworkManager(eventDispatcher, clientScriptManager);
+            this.resourcePackService = new ResourcePackService();
+            resourcePackService.initializeAsync();
+
+            this.networkManager = new ServerNetworkManager(eventDispatcher, clientScriptManager, resourcePackService);
             networkManager.initialize();
+            this.voiceChatManager = new ServerVoiceChatManager();
+            ServerVoiceChatManager.install(voiceChatManager);
+            voiceChatManager.initialize();
+            this.particleBatcher = new ParticleBatcher(networkManager);
+            this.particleEmitterManager = new ParticleEmitterManager(networkManager);
+            ParticleEmitterManager.install(particleEmitterManager);
+            particleEmitterManager.initialize(networkManager);
+            registerDefaultSystems();
 
-            this.zoneManager = new ZoneManager(this);
+            this.physicsService = new PhysicsService();
+            PhysicsService.install(physicsService);
+            physicsService.initialize();
+            sceneManager.initializeRuntimeAdapters();
 
-            this.cursorService = CursorService.getInstance(networkManager);
+            this.cursorService = new CursorService(networkManager);
+            CursorService.install(cursorService);
             cursorService.initialize();
+
+            this.sharedValueManager = new SharedValueManager();
+            SharedValueManager.install(sharedValueManager);
+            sharedValueManager.initialize();
 
             this.scriptingAPI = new ScriptingAPI(this);
             bindGlobalAPIs();
@@ -104,21 +220,45 @@ public class MoudEngine {
             this.hotReloadEndpoint = new HotReloadEndpoint(this, enableReload);
             hotReloadEndpoint.start(port);
 
+            DevUtilities.initialize(enableDevUtilities);
+            this.profilerService = new ProfilerService();
+            ProfilerService.install(profilerService);
+            profilerService.start();
+            if (enableProfileUi) {
+                LOGGER.info(LogContext.builder().put("profile_ui", true).build(),
+                        "Profiler UI flag detected; launching window");
+                ProfilerUI.launchAsync();
+            }
+
             loadUserScripts().thenRun(() -> {
+                this.pluginLoader.loadPlugins();
                 initialized.set(true);
                 this.eventDispatcher.dispatchLoadEvent("server.load");
                 LOGGER.startup("Moud Engine initialized successfully");
+                startSystemsTick();
             }).exceptionally(ex -> {
-                LOGGER.critical("Failed to load user scripts during startup. The server might not function correctly.", ex);
+                LOGGER.critical(
+                        "Failed to load user scripts during startup. The server might not function correctly.",
+                        ex
+                );
                 return null;
             });
 
-
-            LOGGER.startup("Moud Engine initialized successfully");
         } catch (Exception e) {
             LOGGER.critical("Failed to initialize Moud engine: {}", e.getMessage(), e);
             throw new RuntimeException("Engine initialization failed", e);
         }
+    }
+
+    private void registerServerListPingMarker() {
+        MinecraftServer.getGlobalEventHandler().addListener(ServerListPingEvent.class, event -> {
+            ResponseData responseData = event.getResponseData();
+            if (responseData == null) {
+                responseData = new ResponseData();
+                event.setResponseData(responseData);
+            }
+            responseData.setVersion(SERVERLIST_VERSION_MARKER);
+        });
     }
 
     private boolean hasArg(String[] args, String flag) {
@@ -133,10 +273,13 @@ public class MoudEngine {
     private int getPortFromArgs(String[] args) {
         for (int i = 0; i < args.length - 1; i++) {
             if ("--port".equals(args[i])) {
+                String rawPort = args[i + 1];
                 try {
-                    return Integer.parseInt(args[i + 1]);
+                    return Integer.parseInt(rawPort);
                 } catch (NumberFormatException e) {
-                    LOGGER.warn("Invalid port number, using default 25565");
+                    LOGGER.warn(LogContext.builder()
+                            .put("raw_port", rawPort)
+                            .build(), "Invalid port number, using default 25565");
                     return 25565;
                 }
             }
@@ -146,34 +289,201 @@ public class MoudEngine {
 
     private void bindGlobalAPIs() {
         this.scriptingAPI = new ScriptingAPI(this);
-        runtime.bindAPIs(scriptingAPI, new AssetProxy(assetManager), new ConsoleAPI());
+        runtime.bindModules(scriptingAPI, consoleAPI, scriptModules);
+    }
+
+    public void registerSystem(MoudSystem system) {
+        if (system == null) {
+            return;
+        }
+        systems.add(system);
+    }
+
+    private void registerDefaultSystems() {
+        if (!systems.isEmpty()) {
+            return;
+        }
+
+        registerSystem(deltaTime -> animationTickHandler.tick(deltaTime));
+        if (particleBatcher != null) {
+            registerSystem(deltaTime -> particleBatcher.flush());
+        }
+    }
+
+    private void startSystemsTick() {
+        if (systemsTask != null) {
+            return;
+        }
+
+        systemsTask = MinecraftServer.getSchedulerManager().buildTask(() -> {
+            float deltaTime = MinecraftServer.TICK_MS / 1000f;
+            for (MoudSystem system : systems) {
+                if (system == null) {
+                    continue;
+                }
+                try {
+                    system.onTick(deltaTime);
+                } catch (Exception e) {
+                    LOGGER.error(LogContext.builder()
+                            .put("phase", "system-tick")
+                            .put("system", system.getClass().getName())
+                            .build(), "System tick failed", e);
+                }
+            }
+        }).repeat(TaskSchedule.tick(1)).schedule();
+    }
+
+    private void registerDefaultScriptModules() {
+        if (!scriptModules.isEmpty()) {
+            return;
+        }
+
+        for (Field field : ScriptingAPI.class.getFields()) {
+            if (Modifier.isStatic(field.getModifiers())) {
+                continue;
+            }
+            if (!field.isAnnotationPresent(HostAccess.Export.class)) {
+                continue;
+            }
+
+            Field moduleField = field;
+            scriptModules.add(MoudScriptModule.of(moduleField.getName(), () -> {
+                ScriptingAPI api = scriptingAPI;
+                if (api == null) {
+                    return null;
+                }
+                try {
+                    return moduleField.get(api);
+                } catch (IllegalAccessException e) {
+                    return null;
+                }
+            }));
+        }
+
+        scriptModules.add(MoudScriptModule.of("async", this::getAsyncManager));
+        scriptModules.add(MoudScriptModule.of("assets", () -> assetProxy));
+        scriptModules.add(MoudScriptModule.of("camera", () -> cameraAPI));
     }
 
     public void reloadUserScripts() {
-        LOGGER.info("Reloading user scripts...");
+        reloadUserScripts(null);
+    }
+
+    public void reloadUserScripts(ReloadBundle bundle) {
+        if (!reloading.compareAndSet(false, true)) {
+            LOGGER.warn("Reload already in progress, ignoring request");
+            return;
+        }
+
+        LOGGER.info("Starting async reload of user scripts...");
+        reloadState.set(ReloadState.SHUTTING_DOWN_OLD);
+
         CompletableFuture.runAsync(() -> {
             try {
+                if (bundle != null && bundle.clientBundle() != null) {
+                    clientScriptManager.updateClientBundle(bundle.clientBundle(), bundle.hash());
+                } else {
+                    try {
+                        clientScriptManager.initialize();
+                    } catch (Exception e) {
+                        LOGGER.warn("Failed to rebuild client bundle during reload", e);
+                    }
+                }
+
+                if (assetManager != null) {
+                    try {
+                        assetManager.refresh();
+                        if (networkManager != null) {
+                            networkManager.reloadResourcePack();
+                        }
+                    } catch (Exception e) {
+                        LOGGER.warn("Failed to refresh asset catalog", e);
+                    }
+                }
+
                 if (this.runtime != null) {
+                    LOGGER.info("Shutting down old runtime...");
                     this.runtime.shutdown();
+                    reloadState.set(ReloadState.INITIALIZING_NEW);
                 }
 
                 LOGGER.info("Initializing new scripting environment...");
                 this.runtime = new JavaScriptRuntime(this);
-
                 this.bindGlobalAPIs();
+                reloadState.set(ReloadState.LOADING_SCRIPTS);
 
-                Path entryPoint = ProjectLoader.findEntryPoint();
-                if (!entryPoint.toFile().exists()) {
-                    LOGGER.warn("No entry point found at: {}", entryPoint);
-                    return;
+                loadSharedPhysicsControllers(bundle != null ? bundle.sharedPhysics() : null);
+
+                if (bundle != null && bundle.serverBundle() != null) {
+                    this.runtime.executeSource(bundle.serverBundle(), "moud-server.js").join();
+                } else {
+                    Path entryPoint = ProjectLoader.findEntryPoint();
+                    if (!Files.exists(entryPoint)) {
+                        LOGGER.warn(LogContext.builder()
+                                .put("entry_point", entryPoint.toString())
+                                .build(), "No entry point found at: {}", entryPoint);
+                        reloadState.set(ReloadState.FAILED);
+                        return;
+                    }
+
+                    this.runtime.executeScript(entryPoint).join();
                 }
-                this.runtime.executeScript(entryPoint).join();
-
+                reloadState.set(ReloadState.COMPLETE);
                 LOGGER.success("User scripts reloaded successfully");
+
             } catch (Exception e) {
-                LOGGER.error("Failed to reload user scripts", e);
+                LOGGER.error(LogContext.builder()
+                        .put("phase", "reload")
+                        .build(), "Failed to reload user scripts", e);
+                reloadState.set(ReloadState.FAILED);
+            } finally {
+                reloading.set(false);
             }
         });
+    }
+
+    private static Context createSharedPhysicsContext() {
+        HostAccess hostAccess = HostAccess.newBuilder()
+                .allowAccessAnnotatedBy(HostAccess.Export.class)
+                .allowAllImplementations(true)
+                .allowAllClassImplementations(true)
+                .allowArrayAccess(true)
+                .allowListAccess(true)
+                .allowMapAccess(true)
+                .build();
+
+        return Context.newBuilder("js")
+                .allowHostAccess(hostAccess)
+                .option("engine.WarnInterpreterOnly", "false")
+                .build();
+    }
+
+    private void loadSharedPhysicsControllers(String sharedPhysicsOverride) {
+        String sharedPhysicsSource = sharedPhysicsOverride;
+
+        if (sharedPhysicsSource == null || sharedPhysicsSource.isBlank()) {
+            try {
+                Path sharedPhysicsEntry = projectRoot.resolve("shared/physics/index.ts");
+                if (Files.exists(sharedPhysicsEntry)) {
+                    sharedPhysicsSource = TypeScriptTranspiler.transpileSharedPhysics(sharedPhysicsEntry).get();
+                }
+            } catch (Exception e) {
+                LOGGER.warn("Failed to load shared physics from project", e);
+                return;
+            }
+        }
+
+        if (sharedPhysicsSource == null || sharedPhysicsSource.isBlank()) {
+            return;
+        }
+
+        try {
+            if (sharedPhysicsLoader.loadSharedPhysics(sharedPhysicsSource)) {
+                LOGGER.info("Loaded shared physics controllers");
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to load shared physics controllers", e);
+        }
     }
 
     private CompletableFuture<Void> loadUserScripts() {
@@ -181,12 +491,18 @@ public class MoudEngine {
             try {
                 Path entryPoint = ProjectLoader.findEntryPoint();
                 if (!entryPoint.toFile().exists()) {
-                    LOGGER.warn("No entry point found at: {}", entryPoint);
+                    LOGGER.warn(LogContext.builder()
+                            .put("entry_point", entryPoint.toString())
+                            .build(), "No entry point found at: {}", entryPoint);
                     return;
                 }
+
+                loadSharedPhysicsControllers(null);
                 runtime.executeScript(entryPoint).join();
             } catch (Exception e) {
-                LOGGER.error("Failed to find or load project script", e);
+                LOGGER.error(LogContext.builder()
+                        .put("phase", "initial-load")
+                        .build(), "Failed to find or load project script", e);
                 throw new RuntimeException(e);
             }
         });
@@ -194,10 +510,45 @@ public class MoudEngine {
 
     public void shutdown() {
         if (hotReloadEndpoint != null) hotReloadEndpoint.stop();
-
         if (cursorService != null) cursorService.shutdown();
         if (asyncManager != null) asyncManager.shutdown();
         if (runtime != null) runtime.shutdown();
+        if (sharedPhysicsContext != null) {
+            try {
+                sharedPhysicsContext.close(true);
+            } catch (Exception e) {
+                LOGGER.warn("Failed to close shared physics context cleanly", e);
+            }
+        }
+        if (voiceChatManager != null) voiceChatManager.shutdown();
+        if (physicsService != null) physicsService.shutdown();
+        if (pluginManager != null) pluginManager.shutdown();
+        if (sharedValueManager != null) sharedValueManager.shutdown();
+        if (profilerService != null) profilerService.stop();
+        if (systemsTask != null) {
+            systemsTask.cancel();
+            systemsTask = null;
+        }
+        for (MoudSystem system : systems) {
+            if (system == null) {
+                continue;
+            }
+            try {
+                system.onShutdown();
+            } catch (Exception e) {
+                LOGGER.warn(LogContext.builder()
+                        .put("phase", "system-shutdown")
+                        .put("system", system.getClass().getName())
+                        .build(), "System shutdown failed", e);
+            }
+        }
+        if (instanceManager != null) {
+            try {
+                instanceManager.shutdown();
+            } catch (Exception e) {
+                LOGGER.warn("Failed to shut down instance manager cleanly", e);
+            }
+        }
         LOGGER.shutdown("Moud Engine shutdown complete.");
     }
 
@@ -225,4 +576,31 @@ public class MoudEngine {
         return zoneManager;
     }
 
+    public ReloadState getReloadState() {
+        return reloadState.get();
+    }
+
+    public boolean isReloading() {
+        return reloading.get();
+    }
+
+    public ParticleBatcher getParticleBatcher() {
+        return particleBatcher;
+    }
+
+    public ParticleEmitterManager getParticleEmitterManager() {
+        return particleEmitterManager;
+    }
+
+    public enum ReloadState {
+        IDLE,
+        SHUTTING_DOWN_OLD,
+        INITIALIZING_NEW,
+        LOADING_SCRIPTS,
+        COMPLETE,
+        FAILED
+    }
+
+    public record ReloadBundle(String hash, String serverBundle, String sharedPhysics, byte[] clientBundle) {
+    }
 }

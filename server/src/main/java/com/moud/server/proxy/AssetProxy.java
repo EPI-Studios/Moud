@@ -1,10 +1,12 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.server.assets.AssetManager;
 import org.graalvm.polyglot.HostAccess;
 
 import java.io.IOException;
 
+@TsExpose
 public class AssetProxy {
     private final AssetManager assetManager;
 
@@ -39,6 +41,16 @@ public class AssetProxy {
             return new DataAssetProxy(asset);
         } catch (IOException e) {
             throw new RuntimeException("Failed to load data: " + path, e);
+        }
+    }
+
+    @HostAccess.Export
+    public String loadText(String path) {
+        try {
+            AssetManager.LoadedAsset asset = assetManager.loadAsset(path);
+            return asset.getContent();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load text: " + path, e);
         }
     }
 

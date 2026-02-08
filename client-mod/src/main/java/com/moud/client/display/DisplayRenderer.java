@@ -1,0 +1,168 @@
+package com.moud.client.display;
+
+import com.moud.api.math.Quaternion;
+import com.moud.api.math.Vector3;
+import com.moud.network.MoudPackets;
+import foundry.veil.api.client.render.rendertype.VeilRenderType;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.Identifier;
+import org.joml.Matrix4f;
+import org.joml.Quaternionf;
+
+public final class DisplayRenderer {
+    private static final float EPSILON = 1.0e-4f;
+
+    public void render(DisplaySurface surface, MatrixStack matrices, VertexConsumerProvider consumers, int light, float tickDelta) {
+        Identifier texture = surface.resolveTexture(tickDelta);
+        if (texture == null || consumers == null) {
+            return;
+        }
+        boolean renderOnTop = surface.isRenderThroughBlocks();
+        Camera camera = MinecraftClient.getInstance().gameRenderer.getCamera();
+        int finalLight = renderOnTop ? 0xF000F0 : light;
+        RenderLayer layer = null;
+        int overlayUv = OverlayTexture.DEFAULT_UV;
+        if (!renderOnTop
+                && surface.isPbrEnabled()
+                && (surface.getContentType() == MoudPackets.DisplayContentType.IMAGE
+                || surface.getContentType() == MoudPackets.DisplayContentType.FRAME_SEQUENCE)) {
+            Identifier baseColor = surface.getPbrBaseColorOverride() != null ? surface.getPbrBaseColorOverride() : texture;
+            DisplayPbrMaterialResolver resolver = DisplayPbrMaterialResolver.getInstance();
+            var guessed = resolver.resolve(baseColor).orElse(null);
+
+            Identifier normal = surface.getPbrNormalOverride();
+            if (normal == null) {
+                normal = guessed != null ? guessed.normal() : resolver.defaultNormal();
+            }
+
+            Identifier metallicRoughness = surface.getPbrMetallicRoughnessOverride();
+            if (metallicRoughness == null) {
+                metallicRoughness = guessed != null ? guessed.metallicRoughness() : resolver.defaultMetallicRoughness();
+            }
+
+            Identifier emissive = surface.getPbrEmissiveOverride();
+            if (emissive == null) {
+                emissive = guessed != null ? guessed.emissive() : resolver.defaultEmissive();
+            }
+
+            Identifier occlusion = surface.getPbrOcclusionOverride();
+            if (occlusion == null) {
+                occlusion = guessed != null ? guessed.occlusion() : resolver.defaultOcclusion();
+            }
+
+            layer = getDisplayPbrLayerOrNull(baseColor, normal, metallicRoughness, emissive, occlusion);
+            overlayUv = packUnorm4(surface.getPbrMetallicFactor()) | (packUnorm4(surface.getPbrRoughnessFactor()) << 16);
+        }
+        if (layer == null) {
+            layer = renderOnTop
+                    ? DisplayRenderLayers.getOnTopLayer(texture)
+                    : DisplayRenderLayers.getLayer(texture);
+        }
+        VertexConsumer vertexConsumer = consumers.getBuffer(layer);
+        matrices.push();
+        Quaternion rotation = surface.getInterpolatedRotation(tickDelta);
+        Quaternionf rotationQuat = new Quaternionf(rotation.x, rotation.y, rotation.z, rotation.w);
+        MoudPackets.DisplayBillboardMode billboardMode = surface.getBillboardMode();
+        if (billboardMode != null && billboardMode != MoudPackets.DisplayBillboardMode.NONE) {
+            Quaternionf camRot = camera.getRotation();
+            switch (billboardMode) {
+                case CAMERA_FACING -> {
+                    rotationQuat.set(camRot);
+                    rotationQuat.rotateY((float) Math.PI);
+                }
+                case VERTICAL -> {
+                    float yaw = -camera.getYaw();
+                    rotationQuat.rotationY((float) Math.toRadians(yaw));
+                    rotationQuat.rotateY((float) Math.PI);
+                }
+                default -> {}
+            }
+        }
+        matrices.multiply(rotationQuat);
+        Vector3 scale = surface.getInterpolatedScale(tickDelta);
+        float sx = Math.max(scale.x, EPSILON);
+        float sy = Math.max(scale.y, EPSILON);
+        float sz = Math.max(scale.z, EPSILON);
+        matrices.scale(sx, sy, sz);
+        MatrixStack.Entry entry = matrices.peek();
+        Matrix4f positionMatrix = entry.getPositionMatrix();
+        addQuad(surface, vertexConsumer, positionMatrix, entry, finalLight, overlayUv);
+        matrices.pop();
+    }
+
+    private void addQuad(
+            DisplaySurface surface,
+            VertexConsumer consumer,
+            Matrix4f matrix,
+            MatrixStack.Entry entry,
+            int light,
+            int overlayUv
+    ) {
+        float halfWidth = 0.5f;
+        float halfHeight = 0.5f;
+        float z = 0.0f;
+        float x0 = -halfWidth;
+        float y0 = -halfHeight;
+        float x1 = halfWidth;
+        float y1 = -halfHeight;
+        float x2 = halfWidth;
+        float y2 = halfHeight;
+        float x3 = -halfWidth;
+        float y3 = halfHeight;
+        writeVertex(surface, consumer, matrix, entry, x0, y0, z, 0.0f, 1.0f, light, overlayUv);
+        writeVertex(surface, consumer, matrix, entry, x1, y1, z, 1.0f, 1.0f, light, overlayUv);
+        writeVertex(surface, consumer, matrix, entry, x2, y2, z, 1.0f, 0.0f, light, overlayUv);
+        writeVertex(surface, consumer, matrix, entry, x3, y3, z, 0.0f, 0.0f, light, overlayUv);
+    }
+
+    private void writeVertex(
+            DisplaySurface surface,
+            VertexConsumer consumer,
+            Matrix4f matrix,
+            MatrixStack.Entry entry,
+            float x,
+            float y,
+            float z,
+            float u,
+            float v,
+            int light,
+            int overlayUv
+    ) {
+        consumer.vertex(matrix, x, y, z)
+                .color(1.0f, 1.0f, 1.0f, surface.getOpacity())
+                .texture(u, v)
+                .overlay(overlayUv)
+                .light(light)
+                .normal(entry, 0.0f, 0.0f, 1.0f);
+    }
+
+    private static RenderLayer getDisplayPbrLayerOrNull(
+            Identifier baseColor,
+            Identifier normal,
+            Identifier metallicRoughness,
+            Identifier emissive,
+            Identifier occlusion
+    ) {
+        try {
+            return VeilRenderType.get(Identifier.of("moud", "display/pbr_blend"),
+                    baseColor,
+                    normal,
+                    metallicRoughness,
+                    emissive,
+                    occlusion);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static int packUnorm4(float value) {
+        float clamped = Math.max(0.0f, Math.min(1.0f, value));
+        return (int) (clamped * 15.0f + 0.5f) & 0xFFFF;
+    }
+}

@@ -1,6 +1,7 @@
 package com.moud.network.dispatcher;
 
 import com.moud.network.buffer.ByteBuffer;
+import com.moud.network.limits.NetworkLimits;
 import com.moud.network.metadata.PacketMetadata;
 import com.moud.network.registry.PacketRegistry;
 import com.moud.network.serializer.PacketSerializer;
@@ -51,6 +52,20 @@ public class NetworkDispatcher {
     }
 
     public void handle(String packetId, byte[] data, Object player) {
+        if (data == null) {
+            LOGGER.warn("Received null payload for packet: {}", packetId);
+            return;
+        }
+        if (data.length > NetworkLimits.MAX_PACKET_BYTES) {
+            LOGGER.warn(
+                    "Dropping oversized packet {}: {} bytes > {}",
+                    packetId,
+                    data.length,
+                    NetworkLimits.MAX_PACKET_BYTES
+            );
+            return;
+        }
+
         PacketMetadata metadata = registry.getById(packetId);
         if (metadata == null) {
             LOGGER.warn("Received unknown packet: {}", packetId);

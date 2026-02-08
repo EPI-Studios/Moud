@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ExecutorService;
 
 public final class ClientAPIService {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientAPIService.class);
@@ -21,6 +22,8 @@ public final class ClientAPIService {
     public final CursorService cursor;
     public final CameraService camera;
     public final LightingService lighting;
+    public final AudioService audio;
+    public final GamepadService gamepad;
     public final ClientSharedApiProxy shared;
     private final ClientUpdateManager updateManager;
     public final EventService events;
@@ -43,10 +46,13 @@ public final class ClientAPIService {
         this.console = new ConsoleAPI();
         this.camera = new CameraService();
         this.lighting = new LightingService();
+        this.audio = new AudioService();
+        this.gamepad = new GamepadService();
         this.shared = new ClientSharedApiProxy();
         this.events = new EventService(this);
 
         this.network.setLightingService(this.lighting);
+        this.network.setAudioService(this.audio);
 
         this.updateManager = new ClientUpdateManager(this);
 
@@ -59,6 +65,9 @@ public final class ClientAPIService {
             return;
         }
         this.scriptingRuntime = runtime;
+        if (this.audio != null) {
+            this.audio.setRuntime(runtime);
+        }
         this.input = new InputService(runtime);
         LOGGER.info("InputService initialized.");
 
@@ -75,13 +84,17 @@ public final class ClientAPIService {
         }
 
         try {
+            ExecutorService executor = this.scriptingRuntime != null ? this.scriptingRuntime.getExecutor() : null;
             this.network.setContext(context);
             this.rendering.setContext(context);
             this.ui.setContext(context);
-            this.ui.setExecutor(this.scriptingRuntime != null ? this.scriptingRuntime.getExecutor() : null);
+            this.ui.setExecutor(executor);
             this.console.setContext(context);
             this.camera.setContext(context);
             this.lighting.setContext(context);
+            this.audio.setContext(context);
+            this.gamepad.setContext(context);
+            this.gamepad.setExecutor(executor);
             this.events.setContext(context);
 
             if (this.input != null) {
@@ -117,6 +130,8 @@ public final class ClientAPIService {
             if (camera != null) camera.cleanUp();
             if (cursor != null) cursor.cleanUp();
             if (lighting != null) lighting.cleanUp();
+            if (audio != null) audio.cleanUp();
+            if (gamepad != null) gamepad.cleanUp();
             if (input != null) input.cleanUp();
             if (updateManager != null) updateManager.cleanup();
             if (events != null) events.cleanUp();

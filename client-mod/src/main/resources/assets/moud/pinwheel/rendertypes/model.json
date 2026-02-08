@@ -1,0 +1,38 @@
+{
+  "format": "NEW_ENTITY",
+  "mode": "TRIANGLES",
+  "bufferSize": "TRANSIENT",
+  "sort": false,
+  "affectsCrumbling": false,
+  "outline": false,
+  "layers": [
+    {
+      "type": "minecraft:texture",
+      "texture": "%1$s",
+      "blur": false,
+      "mipmap": false
+    },
+    {
+      "type": "veil:shader",
+      "name": "moud:model"
+    },
+    {
+      "type": "minecraft:depth_test",
+      "mode": "lequal"
+    },
+    {
+      "type": "minecraft:transparency",
+      "mode": "translucent"
+    },
+    {
+      "type": "minecraft:cull",
+      "face": "none"
+    },
+    {
+      "type": "minecraft:lightmap"
+    },
+    {
+      "type": "minecraft:overlay"
+    }
+  ]
+}
