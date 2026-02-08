@@ -1,0 +1,42 @@
+{
+  "category.moud.voice": "Moud - Voice Chat",
+  "key.moud.voice.push_to_talk": "Push to Talk",
+  "key.moud.voice.toggle_mute": "Toggle Microphone Mute",
+  "key.moud.voice.toggle_deafen": "Toggle Deafen",
+  "key.moud.voice.open_settings": "Voice Chat Settings",
+
+  "moud.voice.screen.title": "Voice Chat",
+
+  "moud.voice.section.input": "Input",
+  "moud.voice.section.output": "Output",
+  "moud.voice.section.activation": "Activation",
+
+  "moud.voice.device": "Device",
+  "moud.voice.input_device.tooltip": "Select which microphone to use",
+  "moud.voice.device.default": "System Default",
+
+  "moud.voice.input_gain_short": "Gain",
+  "moud.voice.input_gain.tooltip": "Adjust mic sensitivity (over 100% = boost)",
+
+  "moud.voice.output_volume": "Output Volume",
+  "moud.voice.output_volume.tooltip": "Volume of other players' voices",
+
+  "moud.voice.mic_test": "Test Mic",
+  "moud.voice.mic_test.stop": "Stop",
+  "moud.voice.mic_test.tooltip": "Test your microphone",
+
+  "moud.voice.mode": "Mode",
+  "moud.voice.muted": "Muted",
+  "moud.voice.mic_muted.tooltip": "When on, others cannot hear you",
+
+  "moud.voice.activation_mode.tooltip": "How your mic is activated",
+  "moud.voice.activation.ptt": "Push to Talk",
+  "moud.voice.activation.vad": "Voice Activity",
+
+  "moud.voice.silence": "Silence",
+  "moud.voice.drop_silence.tooltip": "Stop transmitting when not speaking (VAD only)",
+
+  "moud.voice.vad_threshold.tooltip": "Audio level to activate transmission",
+
+  "moud.voice.keybinds.hint": "(Configure in Options > Controls)"
+}

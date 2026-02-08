@@ -1,7 +1,9 @@
 package com.moud.client.runtime;
 
 import com.moud.client.api.service.ClientAPIService;
+import com.moud.client.MoudClientMod;
 import com.moud.client.network.ClientPacketWrapper;
+import com.moud.client.ui.loading.MoudPreloadState;
 import com.moud.client.ui.UIOverlayManager;
 import com.moud.network.MoudPackets;
 import net.minecraft.client.MinecraftClient;
@@ -13,23 +15,29 @@ import org.graalvm.polyglot.proxy.ProxyExecutable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class ClientScriptingRuntime {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientScriptingRuntime.class);
     private static final Queue<Runnable> scriptTaskQueue = new ConcurrentLinkedQueue<>();
 
     private Context graalContext;
-    private final ExecutorService scriptExecutor;
+    private Context sharedPhysicsContext;
+    private final ThreadPoolExecutor scriptExecutor;
     private final ScheduledExecutorService timerExecutor;
     private final ClientAPIService apiService;
     private final AtomicBoolean initialized = new AtomicBoolean(false);
+    private final AtomicReference<CompletableFuture<Void>> initializeFuture = new AtomicReference<>(null);
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
+    private final AtomicBoolean clientReadySent = new AtomicBoolean(false);
 
     private final AtomicLong timerIdCounter = new AtomicLong(0);
     private final ConcurrentHashMap<Long, ScheduledFuture<?>> activeTimers = new ConcurrentHashMap<>();
@@ -40,7 +48,20 @@ public class ClientScriptingRuntime {
 
     public ClientScriptingRuntime(ClientAPIService apiService) {
         this.apiService = apiService;
-        this.scriptExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "ClientScript-Executor"));
+        this.scriptExecutor = new ThreadPoolExecutor(
+                1,
+                1,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new LinkedBlockingDeque<>(),
+                r -> {
+                    Thread t = new Thread(r, "ClientScript-Executor");
+                    t.setDaemon(true);
+                    t.setPriority(Thread.NORM_PRIORITY + 1);
+                    return t;
+                },
+                new ThreadPoolExecutor.DiscardOldestPolicy()
+        );
         this.timerExecutor = Executors.newScheduledThreadPool(2, r -> new Thread(r, "ClientScript-Timer"));
     }
 
@@ -53,10 +74,15 @@ public class ClientScriptingRuntime {
             return CompletableFuture.completedFuture(null);
         }
 
-        return CompletableFuture.runAsync(() -> {
+        CompletableFuture<Void> existing = initializeFuture.get();
+        if (existing != null) {
+            return existing;
+        }
+
+        CompletableFuture<Void> created = CompletableFuture.runAsync(() -> {
             try {
                 LOGGER.info("Initializing client scripting runtime...");
-
+                // Todo: Make this stuff more secure
                 HostAccess hostAccess = HostAccess.newBuilder()
                         .allowAccessAnnotatedBy(HostAccess.Export.class)
                         .allowAllImplementations(true)
@@ -69,7 +95,20 @@ public class ClientScriptingRuntime {
                 this.graalContext = Context.newBuilder("js")
                         .allowHostAccess(hostAccess)
                         .allowIO(true)
+                        .option("engine.WarnInterpreterOnly", "false")
                         .build();
+
+                this.sharedPhysicsContext = Context.newBuilder("js")
+                        .allowHostAccess(hostAccess)
+                        .option("engine.WarnInterpreterOnly", "false")
+                        .build();
+
+                this.sharedPhysicsContext.enter();
+                try {
+                    this.sharedPhysicsContext.getBindings("js").putMember("console", apiService.console);
+                } finally {
+                    this.sharedPhysicsContext.leave();
+                }
 
                 bindGlobalAPIs();
                 bindTimerFunctionsToContext();
@@ -84,6 +123,11 @@ public class ClientScriptingRuntime {
                 throw new RuntimeException(e);
             }
         }, scriptExecutor);
+
+        if (!initializeFuture.compareAndSet(null, created)) {
+            return initializeFuture.get();
+        }
+        return created;
     }
 
     private void bindGlobalAPIs() {
@@ -108,11 +152,17 @@ public class ClientScriptingRuntime {
         if (apiService.lighting != null) {
             moudObj.putMember("lighting", apiService.lighting);
         }
+        if (apiService.audio != null) {
+            moudObj.putMember("audio", apiService.audio);
+        }
         if (apiService.shared != null) {
             moudObj.putMember("shared", apiService.shared);
         }
         if (apiService.events != null) {
             moudObj.putMember("events", apiService.events);
+        }
+        if (apiService.gamepad != null) {
+            moudObj.putMember("gamepad", apiService.gamepad);
         }
 
         bindings.putMember("Moud", moudObj);
@@ -158,6 +208,16 @@ public class ClientScriptingRuntime {
                 if (apiService.input != null && !moudObj.hasMember("input")) {
                     moudObj.putMember("input", apiService.input);
                     LOGGER.info("Input service bound to Moud object");
+                }
+
+                if (apiService.audio != null && !moudObj.hasMember("audio")) {
+                    moudObj.putMember("audio", apiService.audio);
+                    LOGGER.info("Audio service bound to Moud object");
+                }
+
+                if (apiService.gamepad != null && !moudObj.hasMember("gamepad")) {
+                    moudObj.putMember("gamepad", apiService.gamepad);
+                    LOGGER.info("Gamepad service bound to Moud object");
                 }
 
             } catch (Exception e) {
@@ -289,27 +349,82 @@ public class ClientScriptingRuntime {
 
     private void loadScriptsInternal(Map<String, byte[]> scriptsData) throws Exception {
         LOGGER.info("Loading {} client scripts", scriptsData.size());
+        long startNanos = System.nanoTime();
 
         graalContext.enter();
         try {
-            for (Map.Entry<String, byte[]> entry : scriptsData.entrySet()) {
-                String scriptName = entry.getKey();
-                String scriptContent = new String(entry.getValue());
-
+            byte[] sharedPhysicsData = scriptsData.get("shared/physics.js");
+            if (sharedPhysicsData != null && sharedPhysicsData.length > 0) {
+                String sharedPhysicsSource = new String(sharedPhysicsData, StandardCharsets.UTF_8);
                 try {
-                    LOGGER.info("Executing client script: {}", scriptName);
-                    graalContext.eval("js", scriptContent);
-                    LOGGER.info("Successfully executed script: {}", scriptName);
-                    LOGGER.info("Client scripts loaded, sending ready signal to server");
-                    ClientPacketWrapper.sendToServer(new MoudPackets.ClientReadyPacket());
+                    com.moud.client.physics.ClientPhysicsScriptLoader loader =
+                            new com.moud.client.physics.ClientPhysicsScriptLoader(
+                                    sharedPhysicsContext != null ? sharedPhysicsContext : graalContext
+                            );
+                    boolean registered = loader.loadSharedPhysics(sharedPhysicsSource);
+                    LOGGER.debug("Loaded shared physics script (registeredController={})", registered);
+                } catch (Exception e) {
+                    handleScriptException(e, "shared/physics.js");
+                    throw e;
+                }
+            }
+
+            List<String> scriptNames = new ArrayList<>(scriptsData.keySet());
+            List<ScriptToLoad> scriptsToLoad = new ArrayList<>();
+
+            for (String scriptName : scriptNames) {
+                if (scriptName == null || scriptName.isBlank()) {
+                    continue;
+                }
+                if ("shared/physics.js".equals(scriptName)) {
+                    continue;
+                }
+                if (scriptName.endsWith(".map")) {
+                    continue;
+                }
+                byte[] scriptBytes = scriptsData.get(scriptName);
+                if (scriptBytes == null || scriptBytes.length == 0) {
+                    continue;
+                }
+                String scriptContent = new String(scriptBytes, StandardCharsets.UTF_8);
+                scriptsToLoad.add(new ScriptToLoad(scriptName, scriptContent));
+            }
+
+            scriptsToLoad.sort((a, b) -> a.name.compareTo(b.name));
+
+            for (ScriptToLoad script : scriptsToLoad) {
+                try {
+                    LOGGER.debug("Executing client script: {}", script.name);
+                    graalContext.eval("js", script.content);
                 } catch (PolyglotException e) {
-                    handleScriptException(e, scriptName);
+                    handleScriptException(e, script.name);
                     throw new RuntimeException(e);
                 }
             }
+
+            long durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
+            LOGGER.info("Client scripts loaded in {}ms, sending ready signal to server", durationMs);
+
+            MinecraftClient.getInstance().execute(() -> {
+                sendClientReady("client_ready_sent_client_thread");
+            });
         } finally {
             graalContext.leave();
         }
+    }
+
+    private record ScriptToLoad(String name, String content) {
+    }
+
+    private void sendClientReady(String markName) {
+        if (!MoudClientMod.isOnMoudServer()) {
+            return;
+        }
+        if (!clientReadySent.compareAndSet(false, true)) {
+            return;
+        }
+        MoudPreloadState.finish();
+        ClientPacketWrapper.sendToServer(new MoudPackets.ClientReadyPacket());
     }
 
     public void processScriptQueue() {
@@ -368,6 +483,20 @@ public class ClientScriptingRuntime {
         return scriptExecutor;
     }
 
+    public void executePriority(Runnable runnable) {
+        if (scriptExecutor.isShutdown()) {
+            return;
+        }
+        BlockingQueue<Runnable> queue = scriptExecutor.getQueue();
+        if (queue instanceof LinkedBlockingDeque<Runnable> deque) {
+            if (!deque.offerFirst(runnable)) {
+                LOGGER.warn("Failed to enqueue priority task; queue size={}", deque.size());
+            }
+        } else {
+            scriptExecutor.execute(runnable);
+        }
+    }
+
     public void shutdown() {
         if (!shutdown.compareAndSet(false, true)) {
             return;
@@ -385,6 +514,15 @@ public class ClientScriptingRuntime {
                 LOGGER.error("Error closing GraalVM context", e);
             }
             graalContext = null;
+        }
+
+        if (sharedPhysicsContext != null) {
+            try {
+                sharedPhysicsContext.close(true);
+            } catch (Exception e) {
+                LOGGER.error("Error closing shared physics context", e);
+            }
+            sharedPhysicsContext = null;
         }
 
         shutdownExecutor(scriptExecutor, "Script Executor");

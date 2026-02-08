@@ -1,11 +1,15 @@
 package com.moud.server.shared.core;
 
+import com.moud.server.shared.diagnostics.SharedStoreSnapshot;
+import com.moud.server.shared.diagnostics.SharedValueSnapshot;
 import org.graalvm.polyglot.Value;
+
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.Map;
-import java.util.List;
-import java.util.HashMap;
 
 public class SharedValueStore {
     private final String storeName;
@@ -27,6 +31,7 @@ public class SharedValueStore {
         Object oldValue = oldSharedValue != null ? oldSharedValue.getValue() : null;
 
         SharedValue newSharedValue = new SharedValue(key, value, permission, syncMode);
+        newSharedValue.markWritten(SharedValue.Writer.SERVER, "server");
         values.put(key, newSharedValue);
 
         triggerChangeListeners(key, value, oldValue);
@@ -60,7 +65,7 @@ public class SharedValueStore {
         }
 
         Object oldValue = sharedValue.getValue();
-        sharedValue.setValue(value);
+        sharedValue.setValue(value, SharedValue.Writer.CLIENT, playerId);
         triggerChangeListeners(key, value, oldValue);
         return true;
     }
@@ -152,5 +157,38 @@ public class SharedValueStore {
         values.clear();
         changeListeners.clear();
         keyListeners.clear();
+    }
+
+    public int getChangeListenerCount() {
+        return changeListeners.size();
+    }
+
+    public int getKeyListenerCount() {
+        return keyListeners.size();
+    }
+
+    public SharedStoreSnapshot snapshot() {
+        Map<String, SharedValueSnapshot> snapshotMap = new LinkedHashMap<>();
+        values.forEach((key, sharedValue) -> {
+            snapshotMap.put(key, new SharedValueSnapshot(
+                    key,
+                    sharedValue.getClonedValue(),
+                    sharedValue.getPermission(),
+                    sharedValue.getSyncMode(),
+                    sharedValue.getLastModified(),
+                    sharedValue.isDirty(),
+                    sharedValue.getLastWriter(),
+                    sharedValue.getLastWriterId()
+            ));
+        });
+
+        return new SharedStoreSnapshot(
+                playerId,
+                storeName,
+                snapshotMap.size(),
+                getChangeListenerCount(),
+                getKeyListenerCount(),
+                snapshotMap
+        );
     }
 }

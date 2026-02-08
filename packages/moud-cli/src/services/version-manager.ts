@@ -63,6 +63,22 @@ export class VersionManager {
     }
   }
 
+  async checkForCliUpdate(): Promise<{ current: string; latest: string } | null> {
+    try {
+      const latestVersion = await this.getLatestCLIVersion();
+      const currentVersion = this.getCurrentCliVersion();
+
+      if (this.isNewerVersion(latestVersion, currentVersion)) {
+        return { current: currentVersion, latest: latestVersion };
+      }
+
+      return null;
+    } catch (error) {
+      console.warn(`Failed to check for CLI updates: ${error instanceof Error ? error.message : String(error)}`);
+      return null;
+    }
+  }
+
   private async getLatestCLIVersion(): Promise<string> {
     const response = await axios.get<GitHubRelease>(
       'https://api.github.com/repos/EPI-Studios/Moud/releases/latest',

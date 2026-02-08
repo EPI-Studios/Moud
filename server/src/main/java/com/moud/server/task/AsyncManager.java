@@ -3,6 +3,8 @@ package com.moud.server.task;
 import com.moud.server.MoudEngine;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.logging.MoudLogger;
+import com.moud.server.profiler.model.ScriptExecutionMetadata;
+import com.moud.server.profiler.model.ScriptExecutionType;
 import net.minestom.server.MinecraftServer;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
@@ -36,7 +38,10 @@ public class AsyncManager {
         if (!task.canExecute()) {
             throw new APIException("SERVER_TASK_NOT_EXECUTABLE", "The provided value is not a function.");
         }
-        MinecraftServer.getSchedulerManager().scheduleNextTick(() -> engine.getRuntime().executeCallback(task));
+        MinecraftServer.getSchedulerManager().scheduleNextTick(() -> engine.getRuntime().executeCallback(
+                task,
+                ScriptExecutionMetadata.of(ScriptExecutionType.ASYNC_TASK, "runOnServerThread", "")
+        ));
     }
 
     public void shutdown() {

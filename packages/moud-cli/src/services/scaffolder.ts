@@ -1,22 +1,31 @@
 import fs from 'fs';
 import path from 'path';
 import { logger } from './logger.js';
+import { VersionManager } from './version-manager.js';
 
-const packageJsonTemplate = (projectName: string) => ({
-  name: projectName,
-  version: "1.0.0",
-  description: `A Moud game: ${projectName}`,
-  "moud:main": "src/main.ts",
-  scripts: {
-    dev: "moud dev",
-    build: "moud pack"
-  },
-  devDependencies: {
-    "@epi-studio/moud-sdk": "^0.1.1-alpha",
-    "@epi-studio/moud-cli": "^0.1.3",
-    "typescript": "^5.0.0"
-  }
-});
+const versionManager = new VersionManager();
+
+const packageJsonTemplate = (projectName: string) => {
+  const cliVersion = versionManager.getCurrentCliVersion();
+  const sdkVersion = versionManager.getCompatibleSDKVersion();
+
+  return {
+    name: projectName,
+    version: "0.1.0",
+    description: `A Moud game: ${projectName}`,
+    "moud:main": "src/main.ts",
+    scripts: {
+      dev: "moud dev",
+      pack: "moud pack"
+    },
+    packageManager: "pnpm@9",
+    devDependencies: {
+      "@epi-studio/moud-sdk": sdkVersion.startsWith("^") ? sdkVersion : `^${sdkVersion}`,
+      "@epi-studio/moud-cli": cliVersion.startsWith("^") ? cliVersion : `^${cliVersion}`,
+      "typescript": "^5.4.0"
+    }
+  };
+};
 
 const mainTsTemplate = `/// <reference types="@epi-studio/moud-sdk" />
 
@@ -49,7 +58,7 @@ api.on('player.chat', (event) => {
 
 const world = api.getWorld();
 world.setFlatGenerator();
-world.setSpawn(0, 64, 0);
+world.setSpawn(8.5, 66, 8.5);
 
 console.log('Game server initialized!');
 `;
@@ -87,17 +96,17 @@ A Moud game project.
 
 1. Install dependencies:
    \`\`\`bash
-   npm install
+   pnpm install
    \`\`\`
 
 2. Start development server:
    \`\`\`bash
-   npm run dev
+   pnpm run dev
    \`\`\`
 
 3. Build for distribution:
    \`\`\`bash
-   npm run build
+   pnpm run pack
    \`\`\`
 
 ## Project Structure

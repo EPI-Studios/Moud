@@ -3,20 +3,36 @@
   "minVersion": "0.8",
   "package": "com.moud.client.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [],
+  "mixins": [
+    "EntityCollisionMixin",
+    "LivingEntityMixin",
+    "LivingEntityMovementMixin",
+    "accessor.LimbAnimatorAccessor",
+    "accessor.LivingEntityAccessor"
+  ],
   "client": [
     "AnimatedPlayerMixin",
+    "BuiltChunkStorageMixin",
     "CameraMixin",
     "ChatHudMixin",
-    "ClientPlayNetworkHandlerMixin",
+    "ClientPlayerEntityMovementMixin",
+    "ClientWorldFakePlayerMixin",
+    "CollisionViewMixin",
     "EntityRenderDispatcherMixin",
     "GameRendererMixin",
+    "GlDebugMixin",
     "HeldItemRendererMixin",
     "InGameHudMixin",
     "KeyboardMixin",
+    "MoudPreloadScreenMixin",
     "MinecraftMixin",
     "MouseMixin",
-    "WorldRendererMixin"
+    "OtherClientPlayerEntityMixin",
+    "RateLimitedConnectionMixin",
+    "VeilLanguageDefinitionsMixin",
+    "WorldRendererMixin",
+    "accessor.CameraAccessor",
+    "accessor.ResourcePackManagerAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

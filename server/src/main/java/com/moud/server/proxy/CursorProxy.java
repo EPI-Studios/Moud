@@ -1,5 +1,6 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.api.math.Vector3;
 import com.moud.server.cursor.Cursor;
 import com.moud.server.cursor.CursorService;
@@ -13,6 +14,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@TsExpose
 public class CursorProxy {
     private final Player player;
     private final CursorService cursorService;

@@ -1,5 +1,3 @@
-// File: src/main/java/com/moud/server/lighting/ServerLightingManager.java
-
 package com.moud.server.lighting;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class ServerLightingManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerLightingManager.class);
@@ -19,6 +18,7 @@ public class ServerLightingManager {
     private static ServerLightingManager instance;
 
     private final Map<Long, Map<String, Object>> lights = new ConcurrentHashMap<>();
+    private final AtomicLong lightIdCounter = new AtomicLong(0L);
 
     private ServerLightingManager() {}
 
@@ -34,8 +34,11 @@ public class ServerLightingManager {
         Map<String, Object> lightData = lights.computeIfAbsent(lightId, k -> new ConcurrentHashMap<>());
         lightData.putAll(properties);
         lightData.put("id", lightId);
+        lightIdCounter.accumulateAndGet(lightId, Math::max);
 
-        LOGGER.info("Light {} data being sent: {}", lightId, lightData);
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("Broadcasting light {} {} ({} properties)", lightId, isNewLight ? "create" : "update", lightData.size());
+        }
 
         broadcastLightOperation(isNewLight ? "create" : "update", lightData);
     }
@@ -43,6 +46,18 @@ public class ServerLightingManager {
         if (lights.remove(lightId) != null) {
             broadcastLightOperation("remove", Map.of("id", lightId));
         }
+    }
+
+    public long spawnLight(String type, Map<String, Object> properties) {
+        long id = lightIdCounter.incrementAndGet();
+        Map<String, Object> lightData = lights.computeIfAbsent(id, k -> new ConcurrentHashMap<>());
+        lightData.clear();
+        lightData.putAll(properties);
+        lightData.put("id", id);
+        lightData.put("type", type);
+
+        broadcastLightOperation("create", lightData);
+        return id;
     }
 
     public void syncLightsToPlayer(Player player) {
@@ -54,7 +69,7 @@ public class ServerLightingManager {
         List<Map<String, Object>> allLights = new ArrayList<>(lights.values());
         Map<String, Object> syncData = Map.of("lights", allLights);
         sendEventToPlayer(player, "lighting:sync", syncData);
-        LOGGER.info("Synced {} lights to player {}", allLights.size(), player.getUsername());
+        LOGGER.debug("Synced {} lights to player {}", allLights.size(), player.getUsername());
     }
 
     private void broadcastLightOperation(String operation, Map<String, Object> data) {

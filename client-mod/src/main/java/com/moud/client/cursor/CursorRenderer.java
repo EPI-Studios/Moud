@@ -38,6 +38,13 @@ public class CursorRenderer {
             return;
         }
 
+
+        int light = LightmapTextureManager.MAX_LIGHT_COORDINATE;
+        if (client.world != null) {
+            net.minecraft.util.math.BlockPos blockPos = net.minecraft.util.math.BlockPos.ofFloored(worldPos);
+            light = WorldRenderer.getLightmapCoordinates(client.world, blockPos);
+        }
+
         matrices.push();
 
         matrices.translate(relativePos.x, relativePos.y, relativePos.z);
@@ -59,7 +66,7 @@ public class CursorRenderer {
         RenderLayer renderLayer = RenderLayer.getEntityTranslucent(textureId);
         VertexConsumer consumer = consumers.getBuffer(renderLayer);
 
-        renderQuad(consumer, matrices, cursor);
+        renderQuad(consumer, matrices, cursor, light);
 
         matrices.pop();
 
@@ -68,7 +75,7 @@ public class CursorRenderer {
         }
     }
 
-    private void renderQuad(VertexConsumer consumer, MatrixStack matrices, RemoteCursor cursor) {
+    private void renderQuad(VertexConsumer consumer, MatrixStack matrices, RemoteCursor cursor, int light) {
         MatrixStack.Entry entry = matrices.peek();
         Matrix4f positionMatrix = entry.getPositionMatrix();
 
@@ -79,7 +86,6 @@ public class CursorRenderer {
         float alpha = 0.9f;
 
         float size = 0.5f;
-        int light = LightmapTextureManager.MAX_LIGHT_COORDINATE;
         int overlay = OverlayTexture.DEFAULT_UV;
 
         consumer.vertex(positionMatrix, -size, -size, 0).color(r, g, b, alpha).texture(0, 1).overlay(overlay).light(light).normal(0, 0, 1);

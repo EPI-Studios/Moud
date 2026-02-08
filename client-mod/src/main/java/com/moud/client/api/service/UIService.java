@@ -1,8 +1,14 @@
 package com.moud.client.api.service;
 
 import com.moud.client.ui.UIOverlayManager;
+import com.moud.client.ui.atlas.UITextureAtlasManager;
 import com.moud.client.ui.component.*;
+import com.moud.client.ui.animation.UIAnimationManager;
+import com.moud.client.network.ClientNetworkManager;
+import com.moud.network.MoudPackets;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.toast.SystemToast;
+import net.minecraft.text.Text;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
@@ -12,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.UUID;
 
 public final class UIService {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIService.class);
@@ -22,6 +29,8 @@ public final class UIService {
     private Context jsContext;
     private ExecutorService scriptExecutor;
     private Value resizeCallback = null;
+    private volatile int pendingResizeWidth = -1;
+    private volatile int pendingResizeHeight = -1;
 
     public UIService() {
         this.client = MinecraftClient.getInstance();
@@ -30,10 +39,12 @@ public final class UIService {
 
     public void setContext(Context jsContext) {
         this.jsContext = jsContext;
+        flushPendingResize();
     }
 
     public void setExecutor(ExecutorService executor) {
         this.scriptExecutor = executor;
+        flushPendingResize();
     }
 
     public Context getJsContext() {
@@ -70,12 +81,21 @@ public final class UIService {
         return client.textRenderer.getWidth(text);
     }
 
-    private <T extends UIComponent> T registerComponent(T component) {
-        String id = "moud_ui_" + java.util.UUID.randomUUID().toString();
-        component.setComponentId(id);
+    public <T extends UIComponent> T registerComponent(T component, boolean addToOverlay) {
+        String id = component.getComponentId();
+        if (id == null || id.isBlank()) {
+            id = "moud_ui_" + UUID.randomUUID();
+            component.setComponentId(id);
+        }
         elements.put(id, component);
-        overlayManager.addOverlayElement(component);
+        if (addToOverlay) {
+            overlayManager.addOverlayElement(component);
+        }
         return component;
+    }
+
+    private <T extends UIComponent> T registerComponent(T component) {
+        return registerComponent(component, true);
     }
 
     @HostAccess.Export
@@ -107,6 +127,9 @@ public final class UIService {
     public void removeElement(String id) {
         UIComponent component = elements.remove(id);
         if (component != null) {
+            if (component.parent != null) {
+                component.parent.removeChild(component);
+            }
             overlayManager.removeOverlayElement(component);
         }
     }
@@ -120,6 +143,8 @@ public final class UIService {
         if (callback != null && callback.canExecute()) {
             this.resizeCallback = callback;
             LOGGER.info("UI resize callback registered.");
+
+            triggerResizeEvent();
         }
     }
 
@@ -130,29 +155,87 @@ public final class UIService {
         return registerComponent(image);
     }
 
+    public void notifyServerInteraction(UIComponent component, String action, Map<String, Object> payload) {
+        if (component == null || !component.isServerControlled()) {
+            return;
+        }
+        try {
+            ClientNetworkManager.send(new MoudPackets.UIInteractionPacket(
+                    component.getComponentId(),
+                    action,
+                    payload
+            ));
+        } catch (Exception e) {
+            LOGGER.debug("Failed to send UI interaction for component {}", component.getComponentId(), e);
+        }
+    }
+
 
     public void triggerResizeEvent() {
+        int w = getScreenWidth();
+        int h = getScreenHeight();
         if (resizeCallback != null && scriptExecutor != null && !scriptExecutor.isShutdown() && jsContext != null) {
             scriptExecutor.execute(() -> {
                 jsContext.enter();
                 try {
                     LOGGER.debug("Firing UI resize event to script.");
-                    resizeCallback.execute(getScreenWidth(), getScreenHeight());
+                    resizeCallback.execute(w, h);
                 } catch (Exception e) {
                     LOGGER.error("Error executing UI resize callback", e);
                 } finally {
                     jsContext.leave();
                 }
             });
+        } else {
+            pendingResizeWidth = w;
+            pendingResizeHeight = h;
         }
+    }
+
+    private void flushPendingResize() {
+        if (resizeCallback == null || jsContext == null || scriptExecutor == null || scriptExecutor.isShutdown()) {
+            return;
+        }
+        if (pendingResizeWidth < 0 || pendingResizeHeight < 0) {
+            return;
+        }
+        int w = pendingResizeWidth;
+        int h = pendingResizeHeight;
+        pendingResizeWidth = pendingResizeHeight = -1;
+        triggerResizeEventWithArgs(w, h);
+    }
+
+    private void triggerResizeEventWithArgs(int width, int height) {
+        if (resizeCallback == null || jsContext == null || scriptExecutor == null || scriptExecutor.isShutdown()) {
+            pendingResizeWidth = width;
+            pendingResizeHeight = height;
+            return;
+        }
+        scriptExecutor.execute(() -> {
+            jsContext.enter();
+            try {
+                LOGGER.debug("Firing deferred UI resize event to script.");
+                resizeCallback.execute(width, height);
+            } catch (Exception e) {
+                LOGGER.error("Error executing deferred UI resize callback", e);
+            } finally {
+                jsContext.leave();
+            }
+        });
     }
 
 
     public void cleanUp() {
         elements.values().forEach(overlayManager::removeOverlayElement);
         elements.clear();
+        UITextureAtlasManager.getInstance().clear();
         jsContext = null;
         scriptExecutor = null;
         LOGGER.info("UIService cleaned up.");
+    }
+
+    public void showToast(String title, String body) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) return;
     }
 }

@@ -97,22 +97,26 @@ public final class CursorService {
     }
 
     public void onScreenClose() {
-        if (forceHidden) {
+        if (forceHidden && !com.moud.client.editor.EditorModeManager.getInstance().isActive()) {
             client.execute(() -> {
                 if (client.mouse != null) {
                     client.mouse.lockCursor();
                 }
             });
+        } else if (com.moud.client.editor.EditorModeManager.getInstance().isActive()) {
+            show();
         }
     }
 
     public void onFocusGained() {
-        if (forceHidden && client.currentScreen == null) {
+        if (forceHidden && client.currentScreen == null && !com.moud.client.editor.EditorModeManager.getInstance().isActive()) {
             client.execute(() -> {
                 if (client.mouse != null) {
                     client.mouse.lockCursor();
                 }
             });
+        } else if (com.moud.client.editor.EditorModeManager.getInstance().isActive() && client.currentScreen == null) {
+            show();
         }
     }
 

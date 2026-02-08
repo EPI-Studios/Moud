@@ -1,10 +1,15 @@
 package com.moud.server;
 
+import com.moud.server.logging.LogContext;
 import com.moud.server.logging.MoudLogger;
 import org.graalvm.polyglot.HostAccess;
 
 public class ConsoleAPI {
-    private static final MoudLogger LOGGER = MoudLogger.getLogger("Script.Console".getClass());
+    private static final MoudLogger LOGGER = MoudLogger
+            .getLogger("ScriptConsole")
+            .withContext(LogContext.builder()
+                    .put("subsystem", "script-console")
+                    .build());
     private static final int MAX_LOG_LENGTH = 4096;
 
 
@@ -69,4 +74,3 @@ public class ConsoleAPI {
         }
     }
 }
-

@@ -17,17 +17,9 @@ public class PlayerModelRenderer {
     public void render(AnimatedPlayerModel animatedModel, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, float partialTick) {
         EntityRenderDispatcher dispatcher = MinecraftClient.getInstance().getEntityRenderDispatcher();
 
-        var player = animatedModel.getFakePlayer();
-        player.setPos(
-                animatedModel.getInterpolatedX(partialTick),
-                animatedModel.getInterpolatedY(partialTick),
-                animatedModel.getInterpolatedZ(partialTick)
-        );
-        player.setYaw(animatedModel.getInterpolatedYaw(partialTick));
-        player.setPitch(animatedModel.getInterpolatedPitch(partialTick));
-        player.headYaw = player.getYaw();
-        player.bodyYaw = player.getYaw();
+        var player = animatedModel.getEntity();
 
+        // Setup animation state
         animatedModel.setupAnim(partialTick);
 
         matrices.push();
@@ -36,7 +28,8 @@ public class PlayerModelRenderer {
         try {
             EntityRenderer<?> renderer = dispatcher.getRenderer(player);
             if (renderer instanceof PlayerEntityRenderer playerRenderer) {
-                playerRenderer.render(player, 0, partialTick, matrices, vertexConsumers, light);
+                playerRenderer.render(player, animatedModel.getInterpolatedYaw(partialTick), partialTick, matrices, vertexConsumers, light);
+                LOGGER.debug("Rendered player model at camera-relative pos");
             } else {
                 dispatcher.render(player, 0, 0, 0, 0, partialTick, matrices, vertexConsumers, light);
             }

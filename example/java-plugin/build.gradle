@@ -1,0 +1,29 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.moud.example'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(':plugin-api')
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.jar {
+    manifest {
+        attributes(
+                'Implementation-Title': 'Moud Example Plugin',
+                'Implementation-Version': version
+        )
+    }
+}

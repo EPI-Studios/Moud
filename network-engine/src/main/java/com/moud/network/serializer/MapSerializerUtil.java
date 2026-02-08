@@ -2,8 +2,11 @@ package com.moud.network.serializer;
 
 import com.moud.api.math.Vector3;
 import com.moud.network.buffer.ByteBuffer;
+import com.moud.network.limits.NetworkLimits;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class MapSerializerUtil {
@@ -17,14 +20,7 @@ public class MapSerializerUtil {
     }
 
     public static Map<String, Object> readStringObjectMap(ByteBuffer buffer) {
-        int size = buffer.readInt();
-        Map<String, Object> map = new HashMap<>();
-        for (int i = 0; i < size; i++) {
-            String key = buffer.readString();
-            Object value = readObject(buffer);
-            map.put(key, value);
-        }
-        return map;
+        return readStringObjectMap(buffer, 0);
     }
 
     private static void writeObject(ByteBuffer buffer, Object obj) {
@@ -54,16 +50,49 @@ public class MapSerializerUtil {
             buffer.writeFloat((float) vec.x);
             buffer.writeFloat((float) vec.y);
             buffer.writeFloat((float) vec.z);
-        } else if (obj instanceof Map) {
-            buffer.writeInt(1); // fallback to string
-            buffer.writeString(obj.toString());
+        } else if (obj instanceof Map<?, ?> nested) {
+            buffer.writeInt(8); // type: Map
+            buffer.writeInt(nested.size());
+            for (Map.Entry<?, ?> entry : nested.entrySet()) {
+                buffer.writeString(String.valueOf(entry.getKey()));
+                writeObject(buffer, entry.getValue());
+            }
+        } else if (obj instanceof List<?> list) {
+            buffer.writeInt(9); // type: List
+            buffer.writeInt(list.size());
+            for (Object element : list) {
+                writeObject(buffer, element);
+            }
         } else {
             buffer.writeInt(1); // fallback to string
             buffer.writeString(obj.toString());
         }
     }
 
-    private static Object readObject(ByteBuffer buffer) {
+    private static Map<String, Object> readStringObjectMap(ByteBuffer buffer, int depth) {
+        if (depth > NetworkLimits.MAX_NESTING_DEPTH) {
+            throw new IllegalArgumentException("Map payload nesting depth exceeds limit " + NetworkLimits.MAX_NESTING_DEPTH);
+        }
+
+        int size = buffer.readInt();
+        if (size < 0 || size > NetworkLimits.MAX_MAP_ENTRIES) {
+            throw new IllegalArgumentException("Map size " + size + " exceeds limit " + NetworkLimits.MAX_MAP_ENTRIES);
+        }
+
+        Map<String, Object> map = new HashMap<>(Math.min(size, 16));
+        for (int i = 0; i < size; i++) {
+            String key = buffer.readString();
+            Object value = readObject(buffer, depth + 1);
+            map.put(key, value);
+        }
+        return map;
+    }
+
+    private static Object readObject(ByteBuffer buffer, int depth) {
+        if (depth > NetworkLimits.MAX_NESTING_DEPTH) {
+            throw new IllegalArgumentException("Payload nesting depth exceeds limit " + NetworkLimits.MAX_NESTING_DEPTH);
+        }
+
         int type = buffer.readInt();
         return switch (type) {
             case 0 -> null;
@@ -74,6 +103,32 @@ public class MapSerializerUtil {
             case 5 -> buffer.readLong();
             case 6 -> buffer.readFloat();
             case 7 -> new Vector3(buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
+            case 8 -> {
+                int size = buffer.readInt();
+                if (size < 0 || size > NetworkLimits.MAX_MAP_ENTRIES) {
+                    throw new IllegalArgumentException("Map size " + size + " exceeds limit " + NetworkLimits.MAX_MAP_ENTRIES);
+                }
+
+                Map<String, Object> nested = new HashMap<>(Math.min(size, 16));
+                for (int i = 0; i < size; i++) {
+                    String key = buffer.readString();
+                    nested.put(key, readObject(buffer, depth + 1));
+                }
+                yield nested;
+            }
+            case 9 -> {
+                int size = buffer.readInt();
+                if (size < 0 || size > NetworkLimits.MAX_COLLECTION_ELEMENTS) {
+                    throw new IllegalArgumentException(
+                            "List size " + size + " exceeds limit " + NetworkLimits.MAX_COLLECTION_ELEMENTS
+                    );
+                }
+                List<Object> list = new ArrayList<>(size);
+                for (int i = 0; i < size; i++) {
+                    list.add(readObject(buffer, depth + 1));
+                }
+                yield list;
+            }
             default -> null;
         };
     }

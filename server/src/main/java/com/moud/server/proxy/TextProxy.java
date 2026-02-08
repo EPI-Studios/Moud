@@ -1,5 +1,6 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.api.math.Vector3;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
@@ -7,13 +8,18 @@ import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.metadata.display.TextDisplayMeta;
+import net.minestom.server.instance.Instance;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 
+import java.util.UUID;
+
+@TsExpose
 public class TextProxy {
     private final Entity textEntity;
     private final TextDisplayMeta meta;
     private Entity interactionEntity;
+    private String instanceName;
 
     public TextProxy(Vector3 position, String content, String billboard) {
         this.textEntity = new Entity(EntityType.TEXT_DISPLAY);
@@ -46,6 +52,38 @@ public class TextProxy {
     }
 
     @HostAccess.Export
+    public void setInstance(String instance) {
+        this.instanceName = instance;
+        if (instance == null || instance.isBlank()) {
+            return;
+        }
+        Instance inst = resolveInstance(instance);
+        if (inst != null) {
+            Pos currentPos = textEntity.getPosition();
+            textEntity.setInstance(inst, currentPos);
+            if (interactionEntity != null) {
+                interactionEntity.setInstance(inst, currentPos);
+            }
+        }
+    }
+
+    @HostAccess.Export
+    public String getInstanceName() {
+        return instanceName;
+    }
+
+    private Instance resolveInstance(String id) {
+        var manager = com.moud.server.instance.InstanceManager.getInstance();
+        Instance byName = manager.getInstanceByName(id);
+        if (byName != null) return byName;
+        try {
+            return manager.getInstance(UUID.fromString(id));
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    @HostAccess.Export
     public void setColor(Value colorValue) {
         if (colorValue != null && colorValue.hasMembers()) {
             int r = colorValue.hasMember("r") ? colorValue.getMember("r").asInt() : 255;
@@ -58,6 +96,63 @@ public class TextProxy {
     @HostAccess.Export
     public void setColor(int r, int g, int b) {
         meta.setText(meta.getText().color(TextColor.color(r, g, b)));
+    }
+
+    @HostAccess.Export
+    public void setShadow(boolean enabled) {
+        meta.setShadow(enabled);
+    }
+
+    @HostAccess.Export
+    public void setSeeThrough(boolean enabled) {
+        meta.setSeeThrough(enabled);
+    }
+
+    @HostAccess.Export
+    public void setBackgroundColor(int argb) {
+        // Allow unsigned ARGB values passed as large doubles/longs.
+        meta.setBackgroundColor(argb);
+        meta.setUseDefaultBackground(false);
+    }
+
+    @HostAccess.Export
+    public void setTextOpacity(int opacity) {
+        int clamped = Math.max(0, Math.min(255, opacity));
+        meta.setTextOpacity((byte) clamped);
+    }
+
+    @HostAccess.Export
+    public void setLineWidth(int lineWidth) {
+        meta.setLineWidth(Math.max(1, lineWidth));
+    }
+
+    @HostAccess.Export
+    public void setAlignment(String alignment) {
+        if (alignment == null) {
+            return;
+        }
+        try {
+            Class<?> alignEnum = Class.forName(TextDisplayMeta.class.getName() + "$TextAlignment");
+            Object parsed = switch (alignment.toLowerCase()) {
+                case "left" -> Enum.valueOf((Class<Enum>) alignEnum.asSubclass(Enum.class), "LEFT");
+                case "right" -> Enum.valueOf((Class<Enum>) alignEnum.asSubclass(Enum.class), "RIGHT");
+                case "center", "centre" -> Enum.valueOf((Class<Enum>) alignEnum.asSubclass(Enum.class), "CENTER");
+                default -> null;
+            };
+            if (parsed != null) {
+                try {
+                    var method = meta.getClass().getMethod("setTextAlignment", alignEnum);
+                    method.invoke(meta, parsed);
+                } catch (Exception ignored) {
+                }
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    @HostAccess.Export
+    public void setBillboard(String billboard) {
+        meta.setBillboardRenderConstraints(parseBillboard(billboard));
     }
 
     @HostAccess.Export

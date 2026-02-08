@@ -20,6 +20,7 @@ public final class NetworkService {
     private final Map<String, Value> eventHandlers = new ConcurrentHashMap<>();
     private Context jsContext;
     private LightingService lightingService;
+    private AudioService audioService;
 
     public NetworkService() {
 
@@ -34,8 +35,17 @@ public final class NetworkService {
         this.lightingService = lightingService;
     }
 
+    public void setAudioService(AudioService audioService) {
+        this.audioService = audioService;
+    }
+
     @HostAccess.Export
-    public void sendToServer(String eventName, Object data) {
+    public void sendToServer(String eventName) {
+        ClientNetworkManager.sendToServer(eventName, "");
+    }
+
+    @HostAccess.Export
+    public void sendToServer(String eventName, Value data) {
         String serializedData = serializeData(data);
         ClientNetworkManager.sendToServer(eventName, serializedData);
     }
@@ -49,6 +59,10 @@ public final class NetworkService {
     public void triggerEvent(String eventName, String eventData) {
         if (eventName.startsWith("lighting:") && lightingService != null) {
             lightingService.handleNetworkEvent(eventName, eventData);
+            return;
+        }
+        if (eventName.startsWith("audio:") && audioService != null) {
+            audioService.handleNetworkEvent(eventName, eventData);
             return;
         }
 
@@ -92,16 +106,65 @@ public final class NetworkService {
         }
     }
 
-    private String serializeData(Object data) {
-        if (data == null) return "";
+    private String serializeData(Value data) {
+        if (data == null || data.isNull()) {
+            return "";
+        }
 
-        return data.toString();
+        if (data.isString()) {
+            return data.asString();
+        }
+
+        if ("undefined".equals(data.toString())) {
+            return "";
+        }
+
+        Object javaObj = convertValueToJava(data);
+        return GSON.toJson(javaObj);
+    }
+
+    private Object convertValueToJava(Value value) {
+        if (value == null || value.isNull()) {
+            return null;
+        }
+        if (value.isBoolean()) {
+            return value.asBoolean();
+        }
+        if (value.isNumber()) {
+            if (value.fitsInInt()) {
+                return value.asInt();
+            } else if (value.fitsInLong()) {
+                return value.asLong();
+            } else {
+                return value.asDouble();
+            }
+        }
+        if (value.isString()) {
+            return value.asString();
+        }
+        if (value.hasArrayElements()) {
+            int size = (int) value.getArraySize();
+            java.util.List<Object> list = new java.util.ArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                list.add(convertValueToJava(value.getArrayElement(i)));
+            }
+            return list;
+        }
+        if (value.hasMembers()) {
+            java.util.Map<String, Object> map = new java.util.LinkedHashMap<>();
+            for (String key : value.getMemberKeys()) {
+                map.put(key, convertValueToJava(value.getMember(key)));
+            }
+            return map;
+        }
+        return value.toString();
     }
 
     public void cleanUp() {
         eventHandlers.clear();
         jsContext = null;
         lightingService = null;
+        audioService = null;
         LOGGER.info("NetworkService cleaned up.");
     }
 }

@@ -1,10 +1,13 @@
 package com.moud.server.zone;
 
 import com.moud.api.math.Vector3;
+import com.moud.network.MoudPackets;
 import com.moud.server.MoudEngine;
+import com.moud.server.network.ServerNetworkManager;
+import com.moud.server.profiler.model.ScriptExecutionMetadata;
+import com.moud.server.profiler.model.ScriptExecutionType;
 import com.moud.server.proxy.PlayerProxy;
 import net.minestom.server.MinecraftServer;
-import net.minestom.server.coordinate.Point;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.player.PlayerDisconnectEvent;
 import net.minestom.server.event.player.PlayerMoveEvent;
@@ -13,18 +16,23 @@ import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ZoneManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ZoneManager.class);
-    private final MoudEngine engine;
+    private static final int GRID_CELL_SIZE = 16;
 
-    private final Map<Long, Set<Zone>> zonesByChunk = new ConcurrentHashMap<>();
+    private final MoudEngine engine;
     private final Map<String, Zone> zonesById = new ConcurrentHashMap<>();
+    private final Map<Long, Set<Zone>> spatialGrid = new ConcurrentHashMap<>();
+    private final Map<UUID, Set<Zone>> playerActiveZones = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> playerGridCells = new ConcurrentHashMap<>();
 
     public ZoneManager(MoudEngine engine) {
         this.engine = engine;
@@ -42,102 +50,206 @@ public class ZoneManager {
         Zone zone = new Zone(id, corner1, corner2, onEnter, onLeave);
         zonesById.put(id, zone);
 
-        int minChunkX = (int) Math.floor(zone.getMin().x / 16.0);
-        int maxChunkX = (int) Math.floor(zone.getMax().x / 16.0);
-        int minChunkZ = (int) Math.floor(zone.getMin().z / 16.0);
-        int maxChunkZ = (int) Math.floor(zone.getMax().z / 16.0);
+        int minCellX = (int) Math.floor(zone.getMin().x / GRID_CELL_SIZE);
+        int maxCellX = (int) Math.floor(zone.getMax().x / GRID_CELL_SIZE);
+        int minCellZ = (int) Math.floor(zone.getMin().z / GRID_CELL_SIZE);
+        int maxCellZ = (int) Math.floor(zone.getMax().z / GRID_CELL_SIZE);
 
-        for (int x = minChunkX; x <= maxChunkX; x++) {
-            for (int z = minChunkZ; z <= maxChunkZ; z++) {
-                long chunkHash = getChunkHash(x, z);
-                zonesByChunk.computeIfAbsent(chunkHash, k -> new HashSet<>()).add(zone);
+        for (int x = minCellX; x <= maxCellX; x++) {
+            for (int z = minCellZ; z <= maxCellZ; z++) {
+                long cellHash = getCellHash(x, z);
+                spatialGrid.computeIfAbsent(cellHash, k -> ConcurrentHashMap.newKeySet()).add(zone);
             }
         }
-        LOGGER.info("Created zone '{}' spanning from chunk ({},{}) to ({},{})", id, minChunkX, minChunkZ, maxChunkX, maxChunkZ);
+
+        LOGGER.info(
+                "Created zone '{}' in spatial grid cells ({},{}) to ({},{})",
+                id,
+                minCellX,
+                minCellZ,
+                maxCellX,
+                maxCellZ
+        );
+        broadcastZoneUpsert(zone);
     }
 
     public void removeZone(String id) {
         Zone zone = zonesById.remove(id);
         if (zone != null) {
-            zonesByChunk.values().forEach(set -> set.remove(zone));
+            spatialGrid.values().forEach(set -> set.remove(zone));
+            playerActiveZones.values().forEach(set -> set.remove(zone));
             LOGGER.info("Removed zone '{}'", id);
+            broadcastZoneRemove(id);
         }
+    }
+
+    public void setZoneCallbacks(String id, Value onEnter, Value onLeave) {
+        Zone zone = zonesById.get(id);
+        if (zone != null) {
+            zone.setCallbacks(onEnter, onLeave);
+            LOGGER.info("Updated callbacks for zone '{}'", id);
+        } else {
+            LOGGER.warn("Attempted to set callbacks for missing zone '{}'", id);
+        }
+    }
+
+    public boolean isInZone(double x, double y, double z, String zoneId) {
+        if (zoneId == null || zoneId.isBlank()) {
+            return false;
+        }
+        Zone zone = zonesById.get(zoneId);
+        if (zone == null) {
+            return false;
+        }
+        Vector3 min = zone.getMin();
+        Vector3 max = zone.getMax();
+        return x >= min.x && x <= max.x
+                && y >= min.y && y <= max.y
+                && z >= min.z && z <= max.z;
+    }
+
+    public List<Zone> getZones() {
+        return new ArrayList<>(zonesById.values());
+    }
+
+    private void broadcastZoneUpsert(Zone zone) {
+        if (zone == null) {
+            return;
+        }
+        ServerNetworkManager network = ServerNetworkManager.getInstance();
+        if (network == null) {
+            return;
+        }
+
+        Vector3 min = zone.getMin();
+        Vector3 max = zone.getMax();
+        network.broadcast(new MoudPackets.ZoneUpsertPacket(new MoudPackets.ZoneDefinition(
+                zone.getId(),
+                min != null ? new Vector3(min) : Vector3.zero(),
+                max != null ? new Vector3(max) : Vector3.zero()
+        )));
+    }
+
+    private void broadcastZoneRemove(String id) {
+        if (id == null || id.isBlank()) {
+            return;
+        }
+        ServerNetworkManager network = ServerNetworkManager.getInstance();
+        if (network == null) {
+            return;
+        }
+        network.broadcast(new MoudPackets.ZoneRemovePacket(id));
     }
 
     private void onPlayerSpawn(PlayerSpawnEvent event) {
         if (!event.isFirstSpawn()) return;
 
         Player player = event.getPlayer();
+        playerActiveZones.put(player.getUuid(), ConcurrentHashMap.newKeySet());
+
         MinecraftServer.getSchedulerManager().scheduleNextTick(() -> {
-            long chunkHash = getChunkHash(player.getPosition().chunkX(), player.getPosition().chunkZ());
-            Collection<Zone> zonesInChunk = zonesByChunk.get(chunkHash);
-            if (zonesInChunk != null) {
-                checkPlayerAgainstZones(player, zonesInChunk);
-            }
+            updatePlayerZones(player);
         });
     }
 
     private void onPlayerMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
-        Point newPos = event.getNewPosition();
-
-        long currentChunkHash = getChunkHash(newPos.chunkX(), newPos.chunkZ());
-        Set<Zone> zonesInCurrentChunk = zonesByChunk.get(currentChunkHash);
-
-        Set<Zone> zonesToCheck = new HashSet<>();
-        if (zonesInCurrentChunk != null) {
-            zonesToCheck.addAll(zonesInCurrentChunk);
-        }
-        for (Zone zone : zonesById.values()) {
-            if (zone.isPlayerInside(player)) {
-                zonesToCheck.add(zone);
-            }
-        }
-
-        if (zonesToCheck.isEmpty()) return;
-
-        checkPlayerAgainstZones(player, zonesToCheck);
+        int newCellX = (int) Math.floor(event.getNewPosition().x() / GRID_CELL_SIZE);
+        int newCellZ = (int) Math.floor(event.getNewPosition().z() / GRID_CELL_SIZE);
+        long newCellHash = getCellHash(newCellX, newCellZ);
+        playerGridCells.put(player.getUuid(), newCellHash);
+        updatePlayerZones(player);
     }
 
     private void onPlayerDisconnect(PlayerDisconnectEvent event) {
         Player player = event.getPlayer();
-        for (Zone zone : zonesById.values()) {
-            if (zone.isPlayerInside(player)) {
+        Set<Zone> activeZones = playerActiveZones.remove(player.getUuid());
+        playerGridCells.remove(player.getUuid());
+
+        if (activeZones != null) {
+            for (Zone zone : activeZones) {
                 triggerLeave(zone, player);
             }
         }
     }
 
-    private void checkPlayerAgainstZones(Player player, Collection<Zone> zones) {
-        for (Zone zone : zones) {
-            boolean isInsideNow = zone.contains(player);
+    private void updatePlayerZones(Player player) {
+        int cellX = (int) Math.floor(player.getPosition().x() / GRID_CELL_SIZE);
+        int cellZ = (int) Math.floor(player.getPosition().z() / GRID_CELL_SIZE);
+
+        Set<Zone> nearbyZones = new HashSet<>();
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                long cellHash = getCellHash(cellX + dx, cellZ + dz);
+                Set<Zone> zonesInCell = spatialGrid.get(cellHash);
+                if (zonesInCell != null) {
+                    nearbyZones.addAll(zonesInCell);
+                }
+            }
+        }
+
+        Set<Zone> activeZones = playerActiveZones.get(player.getUuid());
+        if (activeZones == null) {
+            activeZones = ConcurrentHashMap.newKeySet();
+            playerActiveZones.put(player.getUuid(), activeZones);
+        }
+
+        Set<Zone> zonesToRemove = new HashSet<>(activeZones);
+
+        for (Zone zone : nearbyZones) {
+            boolean isInside = zone.contains(player);
             boolean wasInside = zone.isPlayerInside(player);
 
-            if (isInsideNow && !wasInside) {
+            if (isInside && !wasInside) {
                 triggerEnter(zone, player);
-            } else if (!isInsideNow && wasInside) {
+                activeZones.add(zone);
+            } else if (!isInside && wasInside) {
                 triggerLeave(zone, player);
+                activeZones.remove(zone);
             }
+
+            zonesToRemove.remove(zone);
+        }
+
+        for (Zone zone : zonesToRemove) {
+            triggerLeave(zone, player);
+            activeZones.remove(zone);
         }
     }
 
     private void triggerEnter(Zone zone, Player player) {
+        if (zone.isPlayerInside(player)) {
+            return;
+        }
         zone.addPlayer(player);
         Value callback = zone.getOnEnterCallback();
         if (callback != null && callback.canExecute()) {
-            engine.getRuntime().executeCallback(callback, new PlayerProxy(player), zone.getId());
+            ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                    ScriptExecutionType.EVENT,
+                    "zone.enter",
+                    zone.getId()
+            );
+            engine.getRuntime().executeCallback(callback, metadata, new PlayerProxy(player), zone.getId());
         }
     }
 
     private void triggerLeave(Zone zone, Player player) {
+        if (!zone.isPlayerInside(player)) {
+            return;
+        }
         zone.removePlayer(player);
         Value callback = zone.getOnLeaveCallback();
         if (callback != null && callback.canExecute()) {
-            engine.getRuntime().executeCallback(callback, new PlayerProxy(player), zone.getId());
+            ScriptExecutionMetadata metadata = ScriptExecutionMetadata.of(
+                    ScriptExecutionType.EVENT,
+                    "zone.leave",
+                    zone.getId()
+            );
+            engine.getRuntime().executeCallback(callback, metadata, new PlayerProxy(player), zone.getId());
         }
     }
 
-    private long getChunkHash(int chunkX, int chunkZ) {
-        return (long) chunkX << 32 | (long) chunkZ & 0xFFFFFFFFL;
+    private long getCellHash(int cellX, int cellZ) {
+        return (long) cellX << 32 | (long) cellZ & 0xFFFFFFFFL;
     }
 }

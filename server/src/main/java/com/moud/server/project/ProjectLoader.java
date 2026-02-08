@@ -16,7 +16,21 @@ public class ProjectLoader {
     public static Path findEntryPoint() throws IOException {
         Path projectRoot = findProjectRoot();
         PackageInfo packageInfo = loadPackageInfo(projectRoot);
-        return projectRoot.resolve(packageInfo.getMoudMain());
+        Path declaredEntry = projectRoot.resolve(packageInfo.getMoudMain()).normalize();
+
+        Path cacheDir = projectRoot.resolve(".moud/cache");
+        Path manifestPath = cacheDir.resolve("manifest.json");
+        Path compiledBundle = cacheDir.resolve("server.bundle.js");
+
+        if (Files.exists(manifestPath) && Files.exists(compiledBundle)) {
+            CacheManifest manifest = MAPPER.readValue(manifestPath.toFile(), CacheManifest.class);
+            Path manifestEntry = projectRoot.resolve(manifest.entryPoint()).normalize();
+            if (manifestEntry.equals(declaredEntry)) {
+                return compiledBundle;
+            }
+        }
+
+        return declaredEntry;
     }
 
     public static boolean isTypeScriptProject() throws IOException {
@@ -25,30 +39,12 @@ public class ProjectLoader {
     }
 
     public static Path findProjectRoot() {
-        // NEED REMOVAL LATER
-        Path rootDir = Paths.get("").toAbsolutePath();
+        Path current = Paths.get("").toAbsolutePath();
 
-        if (rootDir.getFileName().toString().equals("server")) {
-            rootDir = rootDir.getParent();
+        if (current.getFileName() != null && current.getFileName().toString().equals("server")) {
+            current = current.getParent();
         }
 
-        Path exampleTsDir = rootDir.resolve("example/ts");
-
-        if (Files.exists(exampleTsDir.resolve("package.json"))) {
-            return exampleTsDir;
-        }
-
-        Path exampleJsDir = rootDir.resolve("example/js");
-        if (Files.exists(exampleJsDir.resolve("package.json"))) {
-            return exampleJsDir;
-        }
-
-        Path exampleDir = rootDir.resolve("example");
-        if (Files.exists(exampleDir.resolve("package.json"))) {
-            return exampleDir;
-        }
-
-        Path current = rootDir;
         while (current != null) {
             if (Files.exists(current.resolve("package.json"))) {
                 return current;
@@ -67,7 +63,7 @@ public class ProjectLoader {
     public static Optional<Path> resolveProjectRoot(String[] launchArgs) {
         for (int i = 0; i < launchArgs.length - 1; i++) {
             if ("--project-root".equalsIgnoreCase(launchArgs[i])) {
-                Path projectPath = Paths.get(launchArgs[i + 1]);
+                Path projectPath = Paths.get(launchArgs[i + 1]).toAbsolutePath().normalize();
                 if (Files.isDirectory(projectPath) && Files.exists(projectPath.resolve("package.json"))) {
                     return Optional.of(projectPath);
                 }
@@ -85,5 +81,13 @@ public class ProjectLoader {
         public String getMoudMain() {
             return moudMain != null ? moudMain : "src/main.js";
         }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record CacheManifest(
+            @JsonProperty("hash") String hash,
+            @JsonProperty("entryPoint") String entryPoint,
+            @JsonProperty("generatedAt") String generatedAt
+    ) {
     }
 }

@@ -17,6 +17,7 @@ public record PacketMetadata(String packetId, Class<?> packetClass, Direction di
         private final boolean optional;
         private final int maxLength;
         private final Class<?> type;
+        private final java.lang.reflect.Type genericType;
 
         public FieldMetadata(Field field, int order, boolean optional, int maxLength) {
             this.field = field;
@@ -24,6 +25,7 @@ public record PacketMetadata(String packetId, Class<?> packetClass, Direction di
             this.optional = optional;
             this.maxLength = maxLength;
             this.type = field.getType();
+            this.genericType = field.getGenericType();
             field.setAccessible(true);
         }
 
@@ -45,6 +47,10 @@ public record PacketMetadata(String packetId, Class<?> packetClass, Direction di
 
         public Class<?> getType() {
             return type;
+        }
+
+        public java.lang.reflect.Type getGenericType() {
+            return genericType;
         }
 
         public Object getValue(Object instance) {

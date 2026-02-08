@@ -1,11 +1,13 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.api.math.Vector3;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.player.PlayerMoveEvent;
 import org.graalvm.polyglot.HostAccess;
 
+@TsExpose
 public class PlayerMoveEventProxy {
     private final Player player;
     private final Pos newPosition;

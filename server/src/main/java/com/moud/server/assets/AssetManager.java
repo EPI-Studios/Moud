@@ -6,10 +6,13 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class AssetManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(AssetManager.class);
+    private static final int MAX_CACHE_ENTRIES = 256;
 
     private final AssetDiscovery discovery;
     private final ConcurrentHashMap<String, LoadedAsset> loadedAssets;
@@ -24,21 +27,57 @@ public class AssetManager {
         LOGGER.info("Asset manager initialized");
     }
 
+    public synchronized void refresh() throws IOException {
+        loadedAssets.clear();
+        discovery.scanAssets();
+        LOGGER.info("Asset cache refreshed");
+    }
+
     public LoadedAsset loadAsset(String assetId) throws IOException {
+        String normalizedId = normalizeAssetId(assetId);
+
         if (loadedAssets.containsKey(assetId)) {
             return loadedAssets.get(assetId);
         }
 
-        AssetDiscovery.AssetMetadata metadata = discovery.getAsset(assetId);
+        if (loadedAssets.containsKey(normalizedId)) {
+            return loadedAssets.get(normalizedId);
+        }
+
+        AssetDiscovery.AssetMetadata metadata = discovery.getAsset(normalizedId);
         if (metadata == null) {
             throw new IllegalArgumentException("Asset not found: " + assetId);
         }
 
         LoadedAsset loadedAsset = createLoadedAsset(metadata);
-        loadedAssets.put(assetId, loadedAsset);
+        loadedAssets.put(normalizedId, loadedAsset);
+        trimCache();
 
-        LOGGER.debug("Loaded asset: {}", assetId);
+        LOGGER.debug("Loaded asset: {} (requested as {})", normalizedId, assetId);
         return loadedAsset;
+    }
+
+    private String normalizeAssetId(String assetId) {
+        String normalized = assetId.replace("\\", "/");
+        if (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        normalized = normalized.replace(":", "/");
+        while (normalized.contains("//")) {
+            normalized = normalized.replace("//", "/");
+        }
+        return normalized.toLowerCase(Locale.ROOT);
+    }
+
+    private void trimCache() {
+        int oversize = loadedAssets.size() - MAX_CACHE_ENTRIES;
+        if (oversize <= 0) {
+            return;
+        }
+        var iterator = loadedAssets.keySet().iterator();
+        while (oversize-- > 0 && iterator.hasNext()) {
+            loadedAssets.remove(iterator.next());
+        }
     }
 
     private LoadedAsset createLoadedAsset(AssetDiscovery.AssetMetadata metadata) throws IOException {
@@ -128,5 +167,9 @@ public class AssetManager {
         public RawAsset(String id, Path path) throws IOException {
             super(id, path);
         }
+    }
+
+    public Map<String, AssetDiscovery.AssetMetadata> getDiscoveredAssets() {
+        return discovery.getAllAssets();
     }
 }

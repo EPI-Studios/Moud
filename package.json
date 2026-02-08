@@ -7,13 +7,16 @@
   ],
   "scripts": {
     "build": "pnpm --filter \"./packages/*\" build",
-    "dev": "pnpm --filter example-ts dev"
+    "dev": "pnpm --filter example-ts dev",
+    "sync-version": "node ./scripts/sync-version.mjs",
+    "bump-version": "node ./scripts/bump-version.mjs",
+    "tag-release": "node ./scripts/tag-release.mjs"
   },
   "devDependencies": {
     "typescript": "^5.0.0",
     "esbuild": "^0.19.0"
   },
-  "version": "1.0.0",
+  "version": "0.8.0",
   "description": "![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)  ![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)  ![Powered by Minestom](https://img.shields.io/badge/Powered%20by-Minestom-815db1?style=for-the-badge&logo=java&logoColor=white)  ![Running on Fabric](https://img.shields.io/badge/Running%20on-Fabric-2C2C2C?style=for-the-badge&logo=java&logoColor=white)  [![Wiki](https://img.shields.io/badge/Wiki-Documentation-4A90E2?style=for-the-badge&logo=book&logoColor=white)](https://moud.epistudios.fr/)",
   "main": "index.js",
   "directories": {

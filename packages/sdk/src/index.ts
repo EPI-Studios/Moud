@@ -46,6 +46,13 @@ declare global {
      */
     const api: import('./index').MoudAPI;
 
+    const Moud: import('./index').MoudAPI & {
+        rendering: import('./index').RenderingService;
+        audio: import('./index').ClientAudioAPI;
+        gamepad: import('./index').GamepadAPI;
+        [key: string]: any;
+    };
+
     /**
      * A secure console API for logging messages to the server console.
      * Mirrors the standard browser console API.
@@ -295,8 +302,6 @@ declare global {
         };
     }
 
-
-    // Re-exported type aliases for ambient usage
     type Vector3 = import('./index').Vector3;
     type Quaternion = import('./index').Quaternion;
     type Matrix4 = import('./index').Matrix4;
@@ -329,6 +334,9 @@ declare global {
     type PlayerLeaveEvent = import('./index').PlayerLeaveEvent;
     type EntityInteractionEvent = import('./index').EntityInteractionEvent;
     type PlayerModel = import('./index').PlayerModel;
+    type Model = import('./index').Model;
+    type ModelOptions = import('./index').ModelOptions;
+    type PhysicsModelOptions = import('./index').PhysicsModelOptions;
     type Text = import('./index').Text;
     type SharedValueApi = import('./index').SharedValueApi;
     type SharedStore = import('./index').SharedStore;
@@ -351,6 +359,18 @@ declare global {
     type UIInput = import('./index').UIInput;
     type UIService = import('./index').UIService;
     type ZoneAPI = import('./index').ZoneAPI;
+    type IKAPI = import('./index').IKAPI;
+    type IKChain = import('./index').IKChain;
+    type IKChainDefinition = import('./index').IKChainDefinition;
+    type IKChainState = import('./index').IKChainState;
+    type IKConstraints = import('./index').IKConstraints;
+    type IKJointDefinition = import('./index').IKJointDefinition;
+    type IKSolverType = import('./index').IKSolverType;
+    type PrimitiveAPI = import('./index').PrimitiveAPI;
+    type Primitive = import('./index').Primitive;
+    type PrimitiveMaterial = import('./index').PrimitiveMaterial;
+    type PrimitiveOptions = import('./index').PrimitiveOptions;
+    type PrimitiveType = import('./index').PrimitiveType;
 }
 
 /**
@@ -542,31 +562,97 @@ export interface MoudAPI {
      */
     on(eventName: string, callback: (player: Player, data: any) => void): void;
     /**
+     * Registers a handler that will automatically unregister itself after firing once.
+     * @param eventName The event identifier.
+     * @param callback The handler to invoke once.
+     */
+    once(eventName: string, callback: (...args: unknown[]) => void): void;
+    /**
+     * Removes a previously registered handler for an event.
+     * @param eventName The event identifier that was passed to {@link on} or {@link once}.
+     * @param callback The original handler function.
+     */
+    off(eventName: string, callback: (...args: unknown[]) => void): void;
+    /**
      * Registers a callback that fires *only once* when the server finishes its initial startup.
      * This event does not fire on hot reloads, making it ideal for persistent, one-time setup.
      */
     on(eventName: 'server.load', callback: () => void): void;
     /**
-     * Accesses the server-wide API for managing players and broadcasting messages.
-     * @returns The Server API proxy.
+     * Server-wide helpers for broadcasting messages, enumerating players, and running commands.
+     * @remarks Mirrors {@link ServerProxy} on the backend.
+     */
+    readonly server: Server;
+    /**
+     * The default world proxy used for block manipulation and entity spawning.
+     */
+    readonly world: World;
+    /**
+     * World/instance manager for creating and loading additional worlds.
+     * @remarks Server-only.
+     */
+    readonly worlds: WorldManager;
+    /**
+     * Physics helpers for enabling player bodies and creating Jolt constraints.
+     * @remarks Server-only.
+     */
+    readonly physics: PhysicsAPI;
+    /**
+     * API for creating and updating dynamic lights.
+     */
+    readonly lighting: LightingAPI;
+    /**
+     * Server-side trigger zone helpers used by the scene editor and scripts.
+     */
+    readonly zones: ZoneAPI;
+    /**
+     * Mathematical helper utilities that mirror the server-side `MathProxy`.
+     */
+    readonly math: Math;
+    /**
+     * Runtime command registration API.
+     */
+    readonly commands: Command;
+    /**
+     * Asset loader that reads packaged datapack resources.
+     */
+    readonly assets: Asset;
+    readonly camera: CameraAPI;
+    /**
+     * Scene helpers for the active scene.
+     */
+    readonly scene: SceneAPI;
+    /**
+     * Asynchronous task runner shared with {@link AsyncManager}.
+     */
+    readonly async: AsyncManager;
+    /** Particle engine entry point. */
+    readonly particles: ParticleAPI;
+    /**
+     * Inverse Kinematics API for procedural animation.
+     * Use this for creating IK chains that can animate limbs, spider legs, tentacles, etc.
+     */
+    readonly ik: IKAPI;
+    /**
+     * Primitive mesh rendering API.
+     * Use this for creating simple geometric shapes like cubes, spheres, lines, etc.
+     */
+    readonly primitives: PrimitiveAPI;
+
+    /**
+     * @deprecated Use the {@link server} property instead.
      */
     getServer(): Server;
-
     /**
-     * Accesses the main world/instance API for block manipulation and entity spawning.
-     * @returns The World API proxy.
+     * @deprecated Use the {@link world} property instead.
      */
     getWorld(): World;
-
     /**
-     * Accesses the lighting API for creating and managing dynamic lights.
-     * @returns The Lighting API proxy.
+     * @deprecated Use the {@link lighting} property instead.
      */
     getLighting(): LightingAPI;
-
     /**
-     * Accesses the asynchronous task manager for running long-running, non-blocking operations.
-     * @returns The AsyncManager API proxy.
+     * @deprecated Use the {@link async} property instead.
      */
     getAsync(): AsyncManager;
 }
@@ -597,8 +683,10 @@ export interface RaycastResult {
     readonly position: Vector3;
     /** The surface normal of the block face that was hit, or null if an entity was hit or it missed. */
     readonly normal: Vector3 | null;
-    /** The entity that was hit, or null. */
-    readonly entity: Player | null; // Note: Can be other entity types in the future
+    /** The player that was hit, or null. */
+    readonly entity: Player | null;
+    /** The 3D model that was hit, or null. */
+    readonly model: Model | null;
     /** The namespaced ID of the block that was hit (e.g., 'minecraft:stone'), or null. */
     readonly blockType: string | null;
     /** The distance from the origin to the hit point. */
@@ -641,6 +729,15 @@ export interface Player {
     /** @returns The current world position of the player as a Vector3. */
     getPosition(): Vector3;
 
+    /** @returns The player's current velocity (blocks/tick). */
+    getVelocity(): Vector3;
+
+    /** Sets the player's velocity (blocks/tick). */
+    setVelocity(x: number, y: number, z: number): void;
+
+    /** Adds to the player's current velocity (blocks/tick). */
+    addVelocity(x: number, y: number, z: number): void;
+
     /** @returns A normalized Vector3 representing the direction the player's head is facing. Works for all clients (vanilla and modded). */
     getDirection(): Vector3;
 
@@ -657,9 +754,27 @@ export interface Player {
     getPitch(): number;
 
     /**
+     * Checks whether the player is standing near a ledge (no support ahead).
+     * Considers both blocks and model colliders on the server.
+     * @param forwardDistance How far ahead to probe from the player's feet, in blocks. Defaults to 0.6.
+     * @param dropThreshold Maximum vertical gap to still count as support. Defaults to 0.75 blocks.
+     */
+    isAtEdge(forwardDistance?: number, dropThreshold?: number): boolean;
+
+    /**
      * Instantly moves the player to a new position in the world.
      */
     teleport(x: number, y: number, z: number): void;
+
+    /**
+     * Moves the player to a different world instance, using that world's configured spawn position when available.
+     */
+    teleportToWorld(worldName: string): void;
+
+    /**
+     * Moves the player to a different world instance at an explicit position.
+     */
+    teleportToWorld(worldName: string, x: number, y: number, z: number): void;
 
     /**
      * Accesses the API for synchronizing key-value data with the player's client.
@@ -690,6 +805,9 @@ export interface Player {
      * @returns The PlayerAnimation API proxy.
      */
     readonly animation: PlayerAnimation;
+
+    /** @returns The audio interface for this player's client. */
+    getAudio(): PlayerAudio;
 
     // --- Added missing movement state methods ---
 
@@ -777,6 +895,233 @@ export interface Player {
     resetAllParts(): void;
 }
 
+export interface PlayerAudio {
+    play(options: SoundPlayOptions): void;
+    update(options: SoundUpdateOptions): void;
+    stop(options: SoundStopOptions): void;
+    startMicrophone(options?: MicrophoneStartOptions): void;
+    stopMicrophone(): void;
+    isMicrophoneActive(): boolean;
+    getMicrophoneSession(): MicrophoneSession | null;
+    getVoiceState(): VoiceState | null;
+    getVoiceRouting(): VoiceRouting;
+    setVoiceRouting(options: VoiceRoutingOptions): void;
+    startVoiceRecording(options?: VoiceRecordingStartOptions): string | null;
+    stopVoiceRecording(): void;
+    deleteVoiceRecording(recordingId: string): void;
+    replayVoiceRecording(recordingId: string, options?: VoiceReplayOptions): void;
+}
+
+export type SoundCategory =
+    | 'master'
+    | 'music'
+    | 'record'
+    | 'weather'
+    | 'block'
+    | 'hostile'
+    | 'neutral'
+    | 'player'
+    | 'ambient'
+    | 'voice';
+
+export interface SoundPlayOptions {
+    id: string;
+    sound: string;
+    category?: SoundCategory;
+    volume?: number;
+    pitch?: number;
+    startDelayMs?: number;
+    fadeInMs?: number;
+    fadeInEasing?: 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out';
+    fadeOutMs?: number;
+    fadeOutEasing?: 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out';
+    loop?: boolean;
+    positional?: boolean;
+    position?: Vector3 | [number, number, number];
+    minDistance?: number;
+    maxDistance?: number;
+    distanceModel?: 'linear' | 'inverse' | 'exponential';
+    rolloff?: number;
+    pitchRamp?: {
+        pitch: number;
+        durationMs: number;
+        easing?: 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out';
+    };
+    volumeLfo?: {
+        frequencyHz: number;
+        depth: number;
+        waveform?: 'sine' | 'triangle' | 'square' | 'saw';
+    };
+    pitchLfo?: {
+        frequencyHz: number;
+        depthSemitones: number;
+        waveform?: 'sine' | 'triangle' | 'square' | 'saw';
+    };
+    mixGroup?: string;
+    duck?: {
+        group: string;
+        amount: number;
+        attackMs?: number;
+        releaseMs?: number;
+    };
+    crossFadeGroup?: string;
+    crossFadeMs?: number;
+}
+
+export interface SoundUpdateOptions extends Partial<Omit<SoundPlayOptions, 'id'>> {
+    id: string;
+}
+
+export interface SoundStopOptions {
+    id: string;
+    fadeOutMs?: number;
+    immediate?: boolean;
+}
+
+export interface MicrophoneStartOptions {
+    sessionId?: string;
+    sampleRate?: number;
+    frameSizeMs?: number;
+    legacyScriptEvents?: boolean;
+    inputProcessing?: VoiceProcessingSpec;
+    inputProcessors?: Array<string | VoiceProcessorRef>;
+    vad?: {
+        thresholdDb?: number;
+        hangoverMs?: number;
+        dropSilence?: boolean;
+    };
+}
+
+export interface MicrophoneSession {
+    sessionId: string;
+    active: boolean;
+    state?: string | null;
+    timestamp: number;
+    sampleRate: number;
+    channels: number;
+    chunkBase64?: string;
+}
+
+export interface ClientMicrophoneAPI {
+    start(options?: MicrophoneStartOptions): void;
+    stop(): void;
+    isActive(): boolean;
+}
+
+export interface ClientAudioAPI {
+    play(options: SoundPlayOptions): void;
+    update(options: SoundUpdateOptions): void;
+    stop(options: SoundStopOptions): void;
+    getMicrophone(): ClientMicrophoneAPI;
+    getVoice(): ClientVoiceAPI;
+}
+
+export interface VoiceCodecParams {
+    codec: string;
+    sampleRate: number;
+    channels: number;
+    frameSizeMs: number;
+}
+
+export type VoiceRoutingMode = 'proximity' | 'channel' | 'radio' | 'direct';
+
+export type VoiceSpeechMode = 'normal' | 'whisper' | 'shout';
+
+export interface VoiceProcessorRef {
+    id: string;
+    options?: Record<string, any>;
+}
+
+export interface VoiceProcessingSpec {
+    gain?: number;
+    replace?: boolean;
+    chain?: Array<string | VoiceProcessorRef>;
+    id?: string;
+    options?: Record<string, any>;
+}
+
+export interface VoiceRouting {
+    mode: VoiceRoutingMode;
+    range: number;
+    speechMode?: VoiceSpeechMode;
+    channel?: string | null;
+    targets?: string[];
+    priority?: number;
+    positional?: boolean;
+    outputProcessing?: VoiceProcessingSpec | null;
+}
+
+export interface VoiceRoutingOptions extends Partial<VoiceRouting> {}
+
+export interface VoiceState {
+    active: boolean;
+    speaking: boolean;
+    level: number;
+    lastSpokeAt: number;
+    lastPacketAt: number;
+    sessionId?: string | null;
+    codecParams?: VoiceCodecParams | null;
+    routing: VoiceRouting;
+    recordingId?: string | null;
+}
+
+export interface VoiceRecordingStartOptions {
+    id?: string;
+    maxDurationMs?: number;
+}
+
+export interface VoiceReplayOptions {
+    targets?: string[];
+    range?: number;
+    position?: Vector3 | [number, number, number];
+    outputProcessing?: VoiceProcessingSpec;
+    replayId?: string;
+}
+
+export type VoiceDirection = 'input' | 'output';
+
+export interface VoiceProcessContext {
+    direction: VoiceDirection;
+    nowMs: number;
+    level: number;
+    speaking: boolean;
+    sessionId?: string;
+    speakerId?: string;
+    sampleRate?: number;
+    channels?: number;
+    frameSizeMs?: number;
+    sequence?: number;
+    position?: Vector3;
+}
+
+export type VoiceProcessor = (samples: number[], ctx: VoiceProcessContext) => void;
+
+export type VoiceProcessorFactory = (options?: any) => VoiceProcessor | { process: VoiceProcessor };
+
+export interface ClientVoiceAPI {
+    registerProcessor(id: string, factory: VoiceProcessorFactory): void;
+    setEnabled(enabled: boolean): void;
+    isEnabled(): boolean;
+    setOutputProcessing(speakerUuid: string, processing: VoiceProcessingSpec): void;
+    clearOutputProcessing(speakerUuid: string): void;
+}
+
+export interface GamepadAPI {
+    isConnected(index: number): boolean;
+    getState(index: number): GamepadSnapshot | null;
+    onChange(callback: (snapshot: GamepadSnapshot) => void): string;
+    removeListener(listenerId: string): void;
+}
+
+export interface GamepadSnapshot {
+    readonly index: number;
+    readonly name: string | null;
+    readonly axes: ReadonlyArray<number>;
+    readonly buttons: ReadonlyArray<boolean>;
+    readonly connected: boolean;
+    readonly timestamp: number;
+}
+
 /**
  * API for managing server-level operations.
  */
@@ -844,60 +1189,12 @@ export interface Server {
  * @remarks Server-only.
  */
 export interface PlayerModelOptions {
-    /** The initial position of the model in the world. */
-    position: Vector3;
+    /** The initial position of the model in the world. Defaults to `Vector3.zero()`. */
+    position?: Vector3;
+    /** Optional initial rotation of the model (degrees). */
+    rotation?: { yaw?: number; pitch?: number };
     /** The URL of the skin to apply to the model. */
     skinUrl?: string;
-
-    /**
-     * Makes the model walk towards a target destination.
-     * The model will automatically rotate to face the target.
-     * @param target The world position (Vector3) to walk to.
-     * @param options Optional settings, like speed.
-     */
-    walkTo(target: Vector3, options?: { speed?: number }): void;
-
-    /**
-     * Immediately stops the model's current walking movement.
-     * The model will transition to its idle animation.
-     */
-    stopWalking(): void;
-
-    /**
-     * Checks if the model is currently executing a `walkTo` command.
-     * @returns `true` if the model is walking, `false` otherwise.
-     */
-    isWalking(): boolean;
-
-    /**
-     * Changes the skin of the model.
-     * @param skinUrl The URL of the new skin texture.
-     */
-    setSkin(skinUrl: string): void;
-
-    /**
-     * Plays an animation, smoothly fading from the current animation.
-     * @param animationName The ID of the animation to play.
-     * @param durationMs The duration of the fade transition in milliseconds.
-     */
-    playAnimationWithFade(animationName: string, durationMs: number): void;
-
-    /**
-     * Plays an animation on the model, instantly overriding the current one.
-     * @param animationName The ID of the animation to play (e.g., 'moud:idle', 'moud:walk').
-     */
-    playAnimation(animationName: string): void;
-
-    /**
-     * Removes the model from the world for all players.
-     */
-    remove(): void;
-
-    /**
-     * Registers a callback function to execute when a player clicks on this model.
-     * @param callback The function to execute. It receives the player who clicked and click details.
-     */
-    onClick(callback: (player: Player, clickData: { button: number; mouseX: number; mouseY: number }) => void): void;
 }
 
 /**
@@ -911,6 +1208,18 @@ export interface TextOptions {
     content?: string;
     /** How the text should face the player. 'fixed', 'vertical', 'horizontal', 'center'. */
     billboard?: 'fixed' | 'vertical' | 'horizontal' | 'center';
+    /** Optional maximum line width in pixels before wrapping. */
+    lineWidth?: number;
+    /** Whether the text should render a shadow. */
+    shadow?: boolean;
+    /** Whether the text should render through blocks. */
+    seeThrough?: boolean;
+    /** ARGB background color for the text display (use 0 for none). */
+    backgroundColor?: number;
+    /** Text opacity from 0-255. */
+    textOpacity?: number;
+    /** Horizontal alignment. */
+    alignment?: 'left' | 'center' | 'right';
     /**
      * Creates an invisible, clickable hitbox for this text.
      * If width and height are not provided, the hitbox is automatically sized based on the text content.
@@ -943,6 +1252,720 @@ export interface TextOptions {
     getInteractionUuid(): string | null;
 }
 
+/** Billboard behaviour for world displays. */
+export type DisplayBillboardMode = 'none' | 'camera' | 'vertical';
+
+/** Content configuration for a media display. */
+export interface DisplayContentOptions {
+    type?: 'image' | 'texture' | 'video' | 'url' | 'stream' | 'frames' | 'sequence';
+    source?: string;
+    frames?: string[];
+    fps?: number;
+    loop?: boolean;
+}
+
+/** Anchor configuration for a media display. */
+export interface DisplayAnchorOptions {
+    type?: 'free' | 'block' | 'entity' | 'player' | 'model';
+    x?: number;
+    y?: number;
+    z?: number;
+    uuid?: string;
+    /** If set, anchors to this model instance. */
+    model?: Model;
+    /** Anchors to a model by ID . */
+    modelId?: number;
+    offset?: Vector3;
+    /**
+     * If true, `offset` is interpreted in the parent's local space (rotated by the parent's rotation, and scaled for models).
+     * Defaults to false.
+     */
+    local?: boolean;
+    /** If true, the display's rotation is multiplied by the parent's rotation. Defaults to false. */
+    inheritRotation?: boolean;
+    /** If true, the display's scale is multiplied by the parent's scale (models only). Defaults to false. */
+    inheritScale?: boolean;
+    /** If true, entity anchors include pitch as well as yaw (head-like). Defaults to false. */
+    includePitch?: boolean;
+}
+
+/** Playback settings for media displays. */
+export interface DisplayPlaybackOptions {
+    speed?: number;
+    offset?: number;
+    playing?: boolean;
+    loop?: boolean;
+    fps?: number;
+}
+
+/** PBR material options for display surfaces. */
+export interface DisplayPbrOptions {
+    enabled?: boolean;
+    /** Texture ID (e.g. `moud:textures/foo.png`) to override the base color source. */
+    baseColor?: string;
+    normal?: string;
+    /** Texture ID that packs roughness in G and metallic in B (glTF convention). */
+    metallicRoughness?: string;
+    emissive?: string;
+    occlusion?: string;
+    metallicFactor?: number;
+    roughnessFactor?: number;
+}
+
+/** Options for creating a world display surface. */
+export interface DisplayOptions {
+    position?: Vector3;
+    rotation?: Quaternion;
+    scale?: Vector3;
+    billboard?: DisplayBillboardMode;
+    renderThroughBlocks?: boolean;
+    anchor?: DisplayAnchorOptions;
+    content?: DisplayContentOptions;
+    playback?: DisplayPlaybackOptions;
+    pbr?: DisplayPbrOptions;
+}
+
+/** Controls a world display surface that renders images/video. */
+export interface Display {
+    setPosition(position: Vector3): void;
+    setRotation(rotation: Quaternion): void;
+    setRotationFromEuler(pitch: number, yaw: number, roll: number): void;
+    setTransform(position?: Vector3, rotation?: Quaternion, scale?: Vector3): void;
+    setScale(scale: Vector3): void;
+    setBillboard(mode: DisplayBillboardMode): void;
+    setRenderThroughBlocks(enabled: boolean): void;
+    setAnchorToBlock(x: number, y: number, z: number, offset?: Vector3): void;
+    setAnchorToEntity(uuid: string, offset?: Vector3, local?: boolean, inheritRotation?: boolean, inheritScale?: boolean, includePitch?: boolean): void;
+    setAnchorToModel(model: Model, offset?: Vector3, local?: boolean, inheritRotation?: boolean, inheritScale?: boolean, includePitch?: boolean): void;
+    clearAnchor(): void;
+    setImage(source: string): void;
+    setVideo(url: string, fps?: number, loop?: boolean): void;
+    setFrameSequence(frames: string[], fps?: number, loop?: boolean): void;
+    setFrameRate(fps: number): void;
+    setLoop(loop: boolean): void;
+    play(): void;
+    pause(): void;
+    setPlaybackSpeed(speed: number): void;
+    seek(seconds: number): void;
+    setPbr(options: DisplayPbrOptions): void;
+    remove(): void;
+}
+
+/**
+ * Converts a framebuffer identifier into the exported texture identifier understood by displays.
+ *
+ * @remarks Client framebuffers rendered by the multi-pass system can be exposed as normal Minecraft textures using the
+ * `moud:fbo/<namespace>/<path>`.
+ */
+export function framebufferExportTextureId(framebufferId: string): string {
+    if (!framebufferId) {
+        return 'moud:fbo/moud/unknown';
+    }
+
+    const trimmed = framebufferId.trim();
+    if (trimmed.startsWith('moud:fbo/')) {
+        return trimmed;
+    }
+
+    const colon = trimmed.indexOf(':');
+    const namespace = colon > 0 ? trimmed.slice(0, colon) : 'moud';
+    const path = colon > 0 ? trimmed.slice(colon + 1) : trimmed;
+    return `moud:fbo/${namespace}/${path}`;
+}
+
+/** Options for creating a 3D model in the world. */
+export interface ModelAnchorOptions {
+    type?: 'free' | 'block' | 'entity' | 'player' | 'model';
+    /** For `block` anchors. */
+    x?: number;
+    y?: number;
+    z?: number;
+    /** For `entity`/`player` anchors. */
+    uuid?: string;
+    /** For `model` anchors. */
+    model?: Model;
+    /** For `model` anchors (advanced / cross-runtime usage). */
+    modelId?: number;
+    /** Local translation applied after parenting. Defaults to `Vector3.zero()`. */
+    localPosition?: Vector3;
+    /**
+     * Local rotation applied after parenting.
+     *
+     * @remarks You can pass either a Quaternion instance, or an euler object `{ pitch, yaw, roll }`.
+     */
+    localRotation?: Quaternion | { pitch?: number; yaw?: number; roll?: number };
+    /** Local scale applied after parenting. Defaults to `Vector3.one()`. */
+    localScale?: Vector3;
+    /** If true, localPosition is interpreted in the parent's local space. Defaults to true. */
+    localSpace?: boolean;
+    /** If true, the model's rotation is multiplied by the parent's rotation. Defaults to true. */
+    inheritRotation?: boolean;
+    /** If true, the model's scale is multiplied by the parent's scale. Defaults to true. */
+    inheritScale?: boolean;
+    /** If true, entity anchors include pitch as well as yaw (head-like). Defaults to false. */
+    includePitch?: boolean;
+}
+
+/** Options for creating a 3D model in the world. */
+export interface ModelOptions {
+    /** Namespaced path to an OBJ model (e.g., `moud:models/toad.obj`). */
+    model: string;
+    position?: Vector3;
+    rotation?: Quaternion;
+    scale?: Vector3;
+    /** Optional texture override (e.g., `moud:textures/toad.png`). */
+    texture?: string;
+    /** Collision configuration (true = auto, false = none, or explicit bounds). */
+    collision?: boolean | { width?: number; height?: number; depth?: number };
+    /**
+     * Collision mode for this model.
+     * - `"auto"`: Automatically choose mesh collision if available, otherwise box.
+     * - `"mesh"`: Use triangle mesh collision for accurate terrain/props.
+     * - `"convex"`: Use convex hull collision (good for simple shapes).
+     * - `"box"`: Use axis-aligned bounding box collision.
+     * @default "auto"
+     */
+    collisionMode?: 'auto' | 'mesh' | 'convex' | 'box' | string;
+    /** Optional attachment configuration (parented transform). */
+    anchor?: ModelAnchorOptions;
+}
+
+/** Options for creating a physics-backed 3D model in the world. */
+export interface PhysicsModelOptions extends ModelOptions {
+    physics: {
+        mass?: number;
+        linearVelocity?: Vector3;
+        playerPush?: boolean;
+    };
+}
+
+/** Controls a 3D model instance. */
+export interface Model {
+    getId(): number;
+    getModelPath(): string;
+    setPosition(position: Vector3): void;
+    getPosition(): Vector3;
+    setRotation(rotation: Quaternion): void;
+    getRotation(): Quaternion;
+    setRotationFromEuler(pitch: number, yaw: number, roll: number): void;
+    setScale(scale: Vector3): void;
+    getScale(): Vector3;
+    setTransform(position?: Vector3, rotation?: Quaternion, scale?: Vector3): void;
+    setTexture(texturePath: string): void;
+    /**
+     * Plays a GLB animation on this model (static by default until called).
+     *
+     * @remarks Server-only. Requires Moud client mod and a `.glb` with animations.
+     */
+    playAnimation(animation: string | number, options?: { loop?: boolean; speed?: number; startTime?: number; time?: number }): void;
+    /** Pauses the currently active GLB animation (keeps the current pose). */
+    pauseAnimation(): void;
+    /** Stops the current GLB animation and resets to bind pose (T-pose). */
+    stopAnimation(): void;
+    /** Seeks the currently active animation time in seconds. */
+    seekAnimation(seconds: number): void;
+    /** Sets playback speed multiplier (1 = normal). */
+    setAnimationSpeed(speed: number): void;
+    /** Enables/disables looping for the current animation. */
+    setLoopAnimation(loop: boolean): void;
+    setCollisionMode(mode: string): void;
+    remove(): void;
+    clearAnchor(): void;
+    setAnchorToPlayer(player: Player, localPosition: Vector3): void;
+    setAnchorToPlayer(player: Player, localPosition: Vector3, localRotation: Quaternion, localScale: Vector3,
+                      inheritRotation: boolean, inheritScale: boolean, includePitch: boolean, localSpace: boolean): void;
+    setAnchorToEntity(uuid: string, localPosition: Vector3, localRotation: Quaternion, localScale: Vector3,
+                      inheritRotation: boolean, inheritScale: boolean, includePitch: boolean, localSpace: boolean): void;
+    setAnchorToModel(model: Model, localPosition: Vector3): void;
+    setAnchorToModel(model: Model, localPosition: Vector3, localRotation: Quaternion, localScale: Vector3,
+                     inheritRotation: boolean, inheritScale: boolean, localSpace: boolean): void;
+}
+
+/**
+ * Manages named worlds (Minestom instances).
+ * @remarks Server-only.
+ */
+export interface WorldManager {
+    /**
+     * Creates a new empty world instance.
+     */
+    createWorld(name: string): World;
+
+    /**
+     * Loads a world into a world instance.
+     *
+     * Supports Anvil world folders and `.polar` world save files.
+     */
+    loadWorld(name: string, path: string): World;
+
+    /**
+     * Loads a world into a world instance, overriding the scene id used for world metadata.
+     *
+     * This is only used for `.polar` world save files.
+     */
+    loadWorld(name: string, path: string, sceneId: string): World;
+
+    /**
+     * Retrieves a previously created world by name.
+     */
+    getWorld(name: string): World | null;
+
+    /**
+     * @returns The current default world.
+     */
+    getDefaultWorld(): World;
+
+    /**
+     * Persists a world to its configured storage backend.
+     */
+    saveWorld(name: string): void;
+
+    /**
+     * Persists all loaded worlds to their configured storage backends.
+     */
+    saveAllWorlds(): void;
+
+    /**
+     * Sets which world new players should spawn into.
+     */
+    setDefaultWorld(name: string): void;
+
+    /**
+     * Creates a shared world instance backed by a parent world.
+     */
+    createSharedWorld(name: string, parentWorldName: string): World;
+
+    /**
+     * Unloads a world instance by name.
+     */
+    unloadWorld(name: string): void;
+
+    /**
+     * Checks whether a world exists by name.
+     */
+    worldExists(name: string): boolean;
+}
+
+/**
+ * Jolt physics helpers for player bodies and constraints.
+ * @remarks Server-only.
+ */
+export interface PhysicsAPI {
+    /**
+     * Enables or disables physics-driven movement for a player.
+     */
+    setPlayerPhysics(player: Player, enabled: boolean): void;
+
+    /**
+     * Enables or disables client-side prediction with shared physics controllers.
+     *
+     * When enabled, both client and server run the same physics code from `shared/physics/`.
+     * The client predicts movement locally (zero input delay), while the server validates
+     * and corrects any mismatches (anti-cheat).
+     *
+     * @param player The player to configure
+     * @param enabled Whether to enable prediction mode
+     * @param options Optional controller ID and config overrides
+     *
+     * @example
+     * ```typescript
+     * // Enable prediction with custom controller
+     * api.physics.setPredictionMode(player, true, {
+     *   controller: "my-game:custom",
+     *   config: { speed: 8.0, jumpForce: 12.0 }
+     * });
+     *
+     * // Disable prediction (return to vanilla movement)
+     * api.physics.setPredictionMode(player, false);
+     * ```
+     */
+    setPredictionMode(player: Player, enabled: boolean, options?: PredictionModeOptions): void;
+
+    /**
+     * When enabled, disables the built-in physics input controller so scripts can drive the body directly.
+     * @remarks Requires server physics to be enabled for players.
+     */
+    setPlayerScriptControl(player: Player, enabled: boolean): void;
+
+    /**
+     * Sets the gravity multiplier for a player's physics body.
+     * @remarks Requires server physics to be enabled for players.
+     */
+    setPlayerGravityFactor(player: Player, factor: number): void;
+
+    /**
+     * Applies an impulse (instantaneous push) to a physics body.
+     * @remarks Requires server physics to be enabled for players.
+     */
+    applyImpulse(target: Player | Model, impulse: Vector3): void;
+
+    /**
+     * Sets the linear velocity of a physics body.
+     * @remarks Requires server physics to be enabled for players.
+     */
+    setLinearVelocity(target: Player | Model, velocity: Vector3): void;
+
+    /**
+     * Reads the linear velocity of a physics body.
+     * @remarks Requires server physics to be enabled for players.
+     */
+    getLinearVelocity(target: Player | Model): Vector3;
+
+    /**
+     * True if a player physics body is grounded according to the physics controller.
+     * @remarks Requires server physics to be enabled for players.
+     */
+    isOnGround(player: Player): boolean;
+
+    /**
+     * Creates a distance constraint between 2 bodies (or a body and the world).
+     * @returns A constraint id that can be removed via {@link removeConstraint}.
+     */
+    createDistanceConstraint(options: DistanceConstraintOptions): number;
+
+    /**
+     * Creates a hinge constraint between 2 bodies (or a body and the world).
+     * @returns A constraint id that can be removed via {@link removeConstraint}.
+     */
+    createHingeConstraint(options: HingeConstraintOptions): number;
+
+    /**
+     * Creates a fixed constraint between 2 bodies (or a body and the world).
+     * @returns A constraint id that can be removed via {@link removeConstraint}.
+     */
+    createFixedConstraint(options: FixedConstraintOptions): number;
+
+    /**
+     * Removes a previously created constraint.
+     */
+    removeConstraint(constraintId: number): boolean;
+}
+
+export interface DistanceConstraintOptions {
+    /** First constrained body. */
+    a: Player | Model;
+    /** Second constrained body. Omit to constrain against the world. */
+    b?: Player | Model;
+    /** World-space anchor point on body A. Defaults to body A position. */
+    pointA?: Vector3;
+    /** World-space anchor point on body B. Defaults to body B position (or pointA when using the world). */
+    pointB?: Vector3;
+    /** Minimum distance in blocks/meters. */
+    minDistance?: number;
+    /** Maximum distance in blocks/meters. */
+    maxDistance: number;
+}
+
+export interface HingeConstraintOptions {
+    /** First constrained body. */
+    a: Player | Model;
+    /** Second constrained body. Omit to constrain against the world. */
+    b?: Player | Model;
+    /** World-space pivot point. */
+    pivot: Vector3;
+    /** World-space hinge axis. */
+    axis: Vector3;
+    /** Optional world-space normal axis (perpendicular to axis). */
+    normal?: Vector3;
+    /** Optional minimum hinge angle (radians). */
+    limitsMin?: number;
+    /** Optional maximum hinge angle (radians). */
+    limitsMax?: number;
+    /** Optional friction torque applied to the hinge. */
+    maxFrictionTorque?: number;
+}
+
+export interface FixedConstraintOptions {
+    /** First constrained body. */
+    a: Player | Model;
+    /** Second constrained body. Omit to constrain against the world. */
+    b?: Player | Model;
+    /** Optional world-space pivot point. Defaults to body A position. */
+    pivot?: Vector3;
+    /** Optional world-space X axis for the constraint frame. */
+    axisX?: Vector3;
+    /** Optional world-space Y axis for the constraint frame. */
+    axisY?: Vector3;
+    /** If true, lets Jolt pick a point based on the bodies. */
+    autoDetectPoint?: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared Player Physics (runs on both client and server)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Immutable state representing a player's position, velocity, and grounded status.
+ * Used by shared physics controllers for client-side prediction and server-side simulation.
+ * @remarks Shared between client and server.
+ */
+export interface PlayerPhysicsState {
+    /** World X position */
+    readonly x: number;
+    /** World Y position (feet) */
+    readonly y: number;
+    /** World Z position */
+    readonly z: number;
+    /** Velocity X component (blocks/sec) */
+    readonly velX: number;
+    /** Velocity Y component (blocks/sec) */
+    readonly velY: number;
+    /** Velocity Z component (blocks/sec) */
+    readonly velZ: number;
+    /** True if the player is standing on ground */
+    readonly onGround: boolean;
+    /** True if the player is colliding horizontally */
+    readonly collidingHorizontally: boolean;
+}
+
+/**
+ * Input state for a single physics tick.
+ * @remarks Shared between client and server.
+ */
+export interface PlayerPhysicsInput {
+    /** Sequence number for reconciliation */
+    readonly sequenceId: number;
+    /** W key pressed */
+    readonly forward: boolean;
+    /** S key pressed */
+    readonly backward: boolean;
+    /** A key pressed */
+    readonly left: boolean;
+    /** D key pressed */
+    readonly right: boolean;
+    /** Space key pressed */
+    readonly jump: boolean;
+    /** Ctrl key pressed */
+    readonly sprint: boolean;
+    /** Shift key pressed */
+    readonly sneak: boolean;
+    /** Player yaw in degrees */
+    readonly yaw: number;
+    /** Player pitch in degrees */
+    readonly pitch: number;
+}
+
+/**
+ * Configuration values for player physics.
+ * @remarks Shared between client and server.
+ */
+export interface PlayerPhysicsConfig {
+    /** Base movement speed (blocks/sec) */
+    speed: number;
+    /** Acceleration rate (blocks/sec²) */
+    accel: number;
+    /** Ground friction (blocks/sec²) */
+    friction: number;
+    /** Air resistance factor */
+    airResistance: number;
+    /** Gravity acceleration (blocks/sec², negative = down) */
+    gravity: number;
+    /** Initial jump velocity (blocks/sec) */
+    jumpForce: number;
+    /** Maximum step-up height (blocks) */
+    stepHeight: number;
+    /** Player collision width */
+    width: number;
+    /** Player collision height */
+    height: number;
+    /** Speed multiplier when sprinting */
+    sprintMultiplier: number;
+    /** Speed multiplier when sneaking */
+    sneakMultiplier: number;
+}
+
+/**
+ * Axis-aligned bounding box for collision detection.
+ * @remarks Shared between client and server.
+ */
+export interface AABB {
+    readonly minX: number;
+    readonly minY: number;
+    readonly minZ: number;
+    readonly maxX: number;
+    readonly maxY: number;
+    readonly maxZ: number;
+}
+
+/**
+ * Collision world interface for querying collisions during physics simulation.
+ * @remarks Shared between client and server.
+ */
+export interface CollisionWorld {
+    /**
+     * Returns all AABBs that intersect with the query box.
+     */
+    getCollisions(query: AABB): AABB[];
+}
+
+/**
+ * Context object passed to shared physics controllers.
+ * Provides access to player data and world state that's synchronized between client and server.
+ * @remarks Shared between client and server.
+ */
+export interface PlayerPhysicsContext {
+    /** The player being simulated */
+    readonly player: {
+        /** Player UUID */
+        readonly uuid: string;
+        /** Check if player has an item in their inventory */
+        hasItem(itemId: string): boolean;
+        /** Get player's current health (0-20) */
+        getHealth(): number;
+        /** Check if player has a status effect */
+        hasEffect(effectId: string): boolean;
+        /** Get a custom data value set by scripts */
+        getData<T = unknown>(key: string): T | undefined;
+    };
+    /** World/environment queries */
+    readonly world: {
+        /** Get the block type at a position */
+        getBlock(x: number, y: number, z: number): string;
+        /** Check if a position is inside a named zone */
+        isInZone(x: number, y: number, z: number, zoneId: string): boolean;
+    };
+    /** Current server tick (for time-based effects) */
+    readonly tick: number;
+    /** Time since last physics step in seconds */
+    readonly dt: number;
+}
+
+/**
+ * A shared physics controller that runs identical code on client and server.
+ *
+ * Define these in `shared/physics/` folder. The same code will execute on both sides,
+ * ensuring client prediction matches server simulation exactly.
+ *
+ * @example
+ * ```typescript
+ * // shared/physics/index.ts
+ * export const controller: SharedPhysicsController = {
+ *   id: "my-game:custom",
+ *
+ *   step(state, input, config, collision, ctx) {
+ *     // Modify config based on context
+ *     let modifiedConfig = { ...config };
+ *
+ *     if (ctx.player.hasItem("speed_boots")) {
+ *       modifiedConfig.speed *= 1.5;
+ *     }
+ *
+ *     if (ctx.world.getBlock(state.x, state.y - 1, state.z) === "minecraft:ice") {
+ *       modifiedConfig.friction = 0.1;
+ *     }
+ *
+ *     // Run default physics with modified config
+ *     return Physics.defaultStep(state, input, modifiedConfig, collision, ctx.dt);
+ *   }
+ * };
+ * ```
+ *
+ * @remarks Shared between client and server.
+ */
+export interface SharedPhysicsController {
+    /** Unique identifier for this controller (e.g., "my-game:jetpack") */
+    readonly id: string;
+
+    /**
+     * Compute the next physics state.
+     *
+     * @param state Current player state
+     * @param input Current input state
+     * @param config Base physics configuration (can be modified)
+     * @param collision Collision world for AABB queries
+     * @param ctx Context with player data, world info, and timing
+     * @returns The new player state after this physics step
+     */
+    step(
+        state: PlayerPhysicsState,
+        input: PlayerPhysicsInput,
+        config: PlayerPhysicsConfig,
+        collision: CollisionWorld,
+        ctx: PlayerPhysicsContext
+    ): PlayerPhysicsState;
+}
+
+/**
+ * Built-in physics utilities available in shared physics scripts.
+ * @remarks Shared between client and server.
+ */
+export interface PhysicsUtils {
+    /**
+     * Run the default player physics simulation.
+     * Use this as a base and modify config/state as needed.
+     */
+    defaultStep(
+        state: PlayerPhysicsState,
+        input: PlayerPhysicsInput,
+        config: PlayerPhysicsConfig,
+        collision: CollisionWorld,
+        dt: number
+    ): PlayerPhysicsState;
+
+    /**
+     * Create a new player state with modified values.
+     */
+    createState(
+        x: number,
+        y: number,
+        z: number,
+        velX: number,
+        velY: number,
+        velZ: number,
+        onGround: boolean,
+        collidingHorizontally?: boolean
+    ): PlayerPhysicsState;
+
+    /**
+     * Get default physics configuration values.
+     */
+    defaultConfig(): PlayerPhysicsConfig;
+
+    /**
+     * Create an AABB from min/max coordinates.
+     */
+    createAABB(
+        minX: number,
+        minY: number,
+        minZ: number,
+        maxX: number,
+        maxY: number,
+        maxZ: number
+    ): AABB;
+
+    /**
+     * Linear interpolation between two values.
+     */
+    lerp(a: number, b: number, t: number): number;
+
+    /**
+     * Clamp a value between min and max.
+     */
+    clamp(value: number, min: number, max: number): number;
+
+    /**
+     * Move a value towards a target by a maximum delta.
+     */
+    moveTowards(current: number, target: number, maxDelta: number): number;
+}
+
+declare global {
+    /**
+     * Physics utilities available in shared physics scripts.
+     * @remarks Available in shared physics scripts only.
+     */
+    const Physics: PhysicsUtils;
+}
+
+/**
+ * Options for enabling player physics prediction.
+ */
+export interface PredictionModeOptions {
+    /** The ID of the shared physics controller to use */
+    controller?: string;
+    /** Optional config overrides */
+    config?: Partial<PlayerPhysicsConfig>;
+}
 
 /**
  * API for managing the main game world.
@@ -966,6 +1989,30 @@ export interface World {
      * @returns The World object for chaining.
      */
     setSpawn(x: number, y: number, z: number): this;
+    /**
+     * @returns The current in-game time (0-24000) for this world.
+     */
+    getTime(): number;
+    /**
+     * Sets the current time of day. Values follow vanilla semantics (0=sunrise, 6000=noon).
+     */
+    setTime(time: number): void;
+    /**
+     * @returns The rate at which time advances. Default is 1.
+     */
+    getTimeRate(): number;
+    /**
+     * Adjusts how quickly time advances. Set to 0 to freeze time.
+     */
+    setTimeRate(rate: number): void;
+    /**
+     * @returns The number of ticks between client time-sync packets.
+     */
+    getTimeSynchronizationTicks(): number;
+    /**
+     * Changes how often clients are synchronized with the server time. Use 0 to disable sync.
+     */
+    setTimeSynchronizationTicks(ticks: number): void;
 
     /**
      * Gets the namespaced ID of a block at a specific coordinate.
@@ -980,12 +2027,33 @@ export interface World {
     setBlock(x: number, y: number, z: number, blockId: string): void;
 
     /**
+     * Creates a renderable 3D model in the world.
+     * @param options The model configuration.
+     * @returns A Model controller.
+     */
+    createModel(options: ModelOptions): Model;
+
+    /**
+     * Creates a physics-enabled 3D model in the world.
+     * @param options The model + physics configuration.
+     * @returns A Model controller.
+     */
+    createPhysicsModel(options: PhysicsModelOptions): Model;
+
+    /**
      * Creates a static, non-player entity that looks like a player.
      * Can have a custom skin and play animations.
      * @param options The configuration for the player model.
      * @returns A PlayerModel object to control the model.
      */
     createPlayerModel(options: PlayerModelOptions): PlayerModel;
+
+    /**
+     * Creates a media display surface that can show images, videos, or frame sequences.
+     * @param options The configuration for the display.
+     * @returns A Display controller.
+     */
+    createDisplay(options: DisplayOptions): Display;
 
     /**
      * Creates floating text in the world.
@@ -1112,6 +2180,33 @@ export interface CameraTransitionOptions extends CameraStateOptions {
     easing?: (t: number) => number;
 }
 
+/** Options fora dolly zoom effect. */
+export interface CameraDollyOptions {
+    /** Target field of view (degrees) at the end of the zoom. */
+    targetFov?: number;
+    /** Duration of the effect in milliseconds. */
+    duration?: number;
+    /** Distance to keep between camera and target along the view direction. Default: 6. */
+    distance?: number;
+    /** If true, the camera will keep tracking the target each frame. Default: true. */
+    maintainTarget?: boolean;
+    /** If true, the camera will reposition along the view direction before zooming. Default: true. */
+    alignCamera?: boolean;
+    /** Explicit world-space target position to look at. If omitted, player view is used. */
+    target?: CameraVector;
+    /**
+     * Direction to derive the target from. Defaults to the player's current yaw/pitch.
+     * When provided, the target is computed at `distance` along this direction.
+     */
+    direction?: {
+        yaw?: number;
+        pitch?: number;
+        distance?: number;
+        /** If true (default), update direction from the player's current look each frame. */
+        fromPlayerLook?: boolean;
+    };
+}
+
 
 
 /**
@@ -1208,6 +2303,12 @@ export interface CameraLock {
      * @param durationMs The time in milliseconds for the transition.
      */
     smoothTransitionTo(targetPosition: Vector3, targetRotation: { yaw?: number; pitch?: number; roll?: number }, durationMs: number): void;
+
+    /**
+     * Performs a dolly zoom (Vertigo effect) toward a target.
+     * If no target is provided, the player's current look direction is used.
+     */
+    dollyZoom(options?: CameraDollyOptions): void;
 
     /** Resets the player's cursor direction, which can affect camera direction in some modes. */
     resetCursorRotation(): void;
@@ -1558,10 +2659,35 @@ export interface PlayerModel {
     /** @returns The current world position of the model. */
     getPosition(): Vector3;
 
+    /** Moves the model to a different world instance (Minestom instance UUID). */
+    setInstance(instanceName: string): void;
+
+    /** @returns The instance UUID this model is currently in, if set. */
+    getInstanceName(): string | null;
+
     /**
      * Sets the world position of the model.
      */
     setPosition(position: Vector3): void;
+
+    /**
+     * Makes the model walk towards a target destination.
+     * The model will automatically rotate to face the target.
+     * @param target The world position (Vector3) to walk to.
+     * @param options Optional settings, like speed.
+     */
+    walkTo(target: Vector3, options?: { speed?: number }): void;
+
+    /**
+     * Immediately stops the model's current walking movement.
+     */
+    stopWalking(): void;
+
+    /**
+     * Checks if the model is currently executing a `walkTo` command.
+     * @returns `true` if the model is walking, `false` otherwise.
+     */
+    isWalking(): boolean;
 
     /**
      * Sets the rotation of the model.
@@ -1580,6 +2706,31 @@ export interface PlayerModel {
      * @param animationName The namespaced ID of the animation to play (e.g., 'moud:wave').
      */
     playAnimation(animationName: string): void;
+
+    /**
+     * Plays an animation, smoothly fading from the current animation.
+     * @param animationName The ID of the animation to play.
+     * @param durationMs The duration of the fade transition in milliseconds.
+     */
+    playAnimationWithFade(animationName: string, durationMs: number): void;
+
+    /**
+     * Enables a manual animation override (disables auto-animation selection).
+     * Pass an empty string to clear the override.
+     */
+    setManualAnimation(animationName: string): void;
+
+    /** Clears any manual animation override. */
+    clearManualAnimation(): void;
+
+    /** Enables/disables automatic animation selection. */
+    setAutoAnimation(enabled: boolean): void;
+
+    /** Enables/disables looping for the manual animation mode. */
+    setLoopAnimation(loop: boolean): void;
+
+    /** Sets animation duration used by fade-based playback. */
+    setAnimationDuration(durationMs: number): void;
 
     /**
      * Removes the model from the world for all players.
@@ -1620,6 +2771,33 @@ export interface Text {
      */
     setColor(r: number, g: number, b: number): void;
 
+    /** Enables or disables the built-in text shadow. */
+    setShadow(enabled: boolean): void;
+
+    /** Makes the text render through blocks when enabled. */
+    setSeeThrough(enabled: boolean): void;
+
+    /** Sets the ARGB background color; use 0 to disable. */
+    setBackgroundColor(argb: number): void;
+
+    /** Sets text opacity from 0-255. */
+    setTextOpacity(opacity: number): void;
+
+    /** Sets the wrapping line width in pixels. */
+    setLineWidth(width: number): void;
+
+    /** Sets the horizontal alignment for wrapped text. */
+    setAlignment(alignment: 'left' | 'center' | 'right'): void;
+
+    /** Changes the billboard behaviour. */
+    setBillboard(mode: TextOptions['billboard']): void;
+
+    /** Creates a clickable hitbox for this text. */
+    enableHitbox(width?: number, height?: number): void;
+
+    /** Removes the clickable hitbox. */
+    disableHitbox(): void;
+
     /**
      * Removes the text from the world.
      */
@@ -1629,6 +2807,11 @@ export interface Text {
      * @returns The current world position of the text.
      */
     getPosition(): Vector3;
+
+    /**
+     * Gets the UUID of the interaction entity (hitbox) if present.
+     */
+    getInteractionUuid(): string | null;
 }
 
 // --- Shared Value Synchronization API ---
@@ -1729,6 +2912,81 @@ export interface Asset {
     loadData(path: string): DataAsset;
 }
 
+/**
+ * Camera helpers.
+ * @remarks Server-only.
+ */
+export interface CameraAPI {
+    getById(id: string): SceneCamera | undefined;
+    getByLabel(label: string): SceneCamera | undefined;
+    setPlayerCamera(player: Player, cameraIdOrLabel: string): boolean;
+    clearPlayerCamera(player: Player): void;
+}
+
+/**
+ * Scene camera data (from editor).
+ * @remarks Server-only.
+ */
+export interface SceneCamera {
+    id: string;
+    label: string;
+    position: Vector3;
+    rotation: Vector3; // pitch, yaw, roll
+    fov: number;
+    nearPlane: number;
+    farPlane: number;
+    getId?(): string;
+    getLabel?(): string;
+    getPosition?(): Vector3;
+    getRotation?(): Vector3;
+    getFov?(): number;
+    getNearPlane?(): number;
+    getFarPlane?(): number;
+}
+
+// Animation API surface (client/server scripts)
+export interface AnimationController {
+    play(): void;
+    pause(): void;
+    stop(): void;
+    seek(time: number): void;
+    setSpeed(speed: number): void;
+    setLoop(loop: boolean): void;
+    getTime(): number;
+    getDuration(): number;
+    isPlaying(): boolean;
+    onEvent(eventName: string, callback: () => void): void;
+    onComplete(callback: () => void): void;
+}
+
+export interface AnimationEvent {
+    animationId: string;
+    objectId: string;
+    eventName: string;
+    payload: Record<string, string>;
+}
+
+/** Supported property track types in animation clips. */
+export type AnimationPropertyType = 'float' | 'angle' | 'color' | 'quaternion';
+
+/** Describes a single keyframe on an animation property track. */
+export interface AnimationKeyframe {
+    time: number;
+    value: number;
+    inTangent?: number;
+    outTangent?: number;
+    interpolation?: 'step' | 'linear' | 'smooth' | 'ease_in' | 'ease_out' | 'bezier';
+}
+
+/** Describes a property track inside an animation clip. */
+export interface AnimationPropertyTrack {
+    propertyPath: string;
+    propertyType: AnimationPropertyType;
+    minValue: number;
+    maxValue: number;
+    keyframes: AnimationKeyframe[];
+}
+
 /** Describes a shader that has been loaded through {@link Asset.loadShader}. */
 export interface ShaderAsset {
     /** @returns The identifier that uniquely represents this asset. */
@@ -1784,6 +3042,154 @@ export interface CameraVector {
     z: number;
 }
 
+/** Options for setting scriptable camera position offset. */
+export interface ScriptableCameraPositionOptions {
+    /** X offset (right/left relative to camera) in blocks. */
+    x?: number;
+    /** Y offset (up/down relative to camera) in blocks. */
+    y?: number;
+    /** Z offset (forward/back relative to camera) in blocks. */
+    z?: number;
+    /** Time in seconds to smoothly interpolate to the target offset. */
+    smoothTime?: number;
+    /** If true, apply the offset immediately without lerping. */
+    instant?: boolean;
+}
+
+/** Options for setting scriptable camera rotation offset. */
+export interface ScriptableCameraRotationOptions {
+    /** Yaw offset in degrees (left/right). */
+    yaw?: number;
+    /** Pitch offset in degrees (up/down). */
+    pitch?: number;
+    /** Roll offset in degrees (tilt). */
+    roll?: number;
+    /** Time in seconds to smoothly interpolate to the target rotation. */
+    smoothTime?: number;
+    /** If true, apply the rotation immediately without lerping. */
+    instant?: boolean;
+}
+
+/** Options for setting scriptable camera FOV offset. */
+export interface ScriptableCameraFovOptions {
+    /** FOV offset in degrees (positive = wider, negative = narrower). */
+    offset: number;
+    /** Time in seconds to smoothly interpolate to the target FOV. */
+    smoothTime?: number;
+    /** If true, apply the FOV immediately without lerping. */
+    instant?: boolean;
+}
+
+/** Options for camera shake effect. */
+export interface ScriptableCameraShakeOptions {
+    /** Intensity of the shake in blocks. Default: 0.5 */
+    intensity?: number;
+    /** Frequency of the shake oscillation in Hz. Default: 10 */
+    frequency?: number;
+    /** Duration of the shake in milliseconds. Default: 500 */
+    duration?: number;
+}
+
+/** Options for velocity-based camera tilt. */
+export interface ScriptableCameraVelocityTiltOptions {
+    /** Degrees of tilt per m/s of strafe velocity. Default: 2.0 */
+    amount?: number;
+    /** Smoothing time in seconds for the tilt. Default: 0.1 */
+    smoothing?: number;
+}
+
+/** Options for configuring scriptable camera smoothing. */
+export interface ScriptableCameraSmoothingOptions {
+    /** Smooth time for position offset interpolation in seconds. */
+    position?: number;
+    /** Smooth time for rotation offset interpolation in seconds. */
+    rotation?: number;
+    /** Smooth time for FOV offset interpolation in seconds. */
+    fov?: number;
+}
+
+/** Options for resetting scriptable camera. */
+export interface ScriptableCameraResetOptions {
+    /** If true, reset all offsets immediately without lerping. */
+    instant?: boolean;
+}
+
+/** Options for soft look-at targeting world coordinates. */
+export interface SoftLookAtOptions {
+    /** Target X world coordinate. */
+    x: number;
+    /** Target Y world coordinate. */
+    y: number;
+    /** Target Z world coordinate. */
+    z: number;
+    /** Blend strength (0-1). 0 = player has full control, 1 = camera fully looks at target. Default: 1 */
+    strength?: number;
+    /** Time in seconds to smooth the rotation towards the target. Default: 0.3 */
+    smoothTime?: number;
+}
+
+/** Options for soft look-at targeting an entity. */
+export interface SoftLookAtEntityOptions {
+    /** The entity ID to track. */
+    entityId: number;
+    /** Blend strength (0-1). 0 = player has full control, 1 = camera fully looks at target. Default: 1 */
+    strength?: number;
+    /** Time in seconds to smooth the rotation towards the target. Default: 0.3 */
+    smoothTime?: number;
+}
+
+/** Options for pitch rotation limits. */
+export interface PitchLimitsOptions {
+    /** Minimum pitch angle in degrees (looking down). Default: -90 */
+    min?: number;
+    /** Maximum pitch angle in degrees (looking up). Default: 90 */
+    max?: number;
+}
+
+/** Options for yaw rotation limits. */
+export interface YawLimitsOptions {
+    /** Range of allowed yaw movement in degrees from center (e.g. 90 = +/-90 degrees). */
+    range: number;
+    /** Center yaw in degrees. If not specified, uses current yaw when called. */
+    center?: number;
+}
+
+/** Options for camera follow target. */
+export interface FollowTargetOptions {
+    /** Target X world coordinate. */
+    x: number;
+    /** Target Y world coordinate. */
+    y: number;
+    /** Target Z world coordinate. */
+    z: number;
+    /** Lag factor (0-1). Higher values = more delay. Default: 0.1 */
+    lag?: number;
+}
+
+/** Options for cinematic camera bob (body cam style). */
+export interface CinematicBobOptions {
+    /** Whether to enable cinematic bob. Default: true */
+    enabled?: boolean;
+    /** Intensity multiplier for the bob effect. Default: 1.0 */
+    intensity?: number;
+    /** Roll multiplier for shoulder tilt during walking. Default: 3.0 */
+    rollMultiplier?: number;
+    /** Pitch multiplier for head nod during walking. Default: 1.0 */
+    pitchMultiplier?: number;
+}
+
+/** Options for Perlin noise-based camera shake (trauma system). */
+export interface PerlinShakeOptions {
+    /** Initial trauma value (0-1). Trauma decays over time. Default: 0.5 */
+    trauma?: number;
+    /** Maximum shake amplitude in degrees/blocks. Default: 15 */
+    amplitude?: number;
+    /** Speed of the noise evolution. Default: 5.0 */
+    speed?: number;
+    /** If true, trauma increases automatically based on player velocity. Default: false */
+    autoFromVelocity?: boolean;
+}
+
 /**
  * Controls the in-game camera from client scripts.
  * @remarks Client-only.
@@ -1803,6 +3209,10 @@ export interface CameraService {
      * @param options Coordinates and orientation values to apply immediately.
      */
     snapTo(options: CameraTransitionOptions): void;
+    /**
+     * Performs a dolly zoom (Vertigo effect) toward a target. If none is supplied, the player's current look is used.
+     */
+    dollyZoom(options: CameraDollyOptions): void;
     /** @returns `true` when the custom camera is active. */
     isCustomCameraActive(): boolean;
     /** @returns The player's current X coordinate. */
@@ -1831,6 +3241,253 @@ export interface CameraService {
     setThirdPerson(thirdPerson: boolean): void;
     /** @returns The player's current field of view in degrees. */
     getFov(): number;
+
+    /**
+     * Enables the scriptable camera mode. This allows applying offsets and modifiers
+     * to the player's camera while letting them retain full control.
+     * @remarks Unlike `enableCustomCamera()`, this mode blends with vanilla camera.
+     */
+    enableScriptableCamera(): void;
+
+    /**
+     * Disables the scriptable camera mode and resets all offsets.
+     */
+    disableScriptableCamera(): void;
+
+    /**
+     * Returns whether scriptable camera is currently active.
+     * @returns `true` when scriptable camera mode is enabled.
+     */
+    isScriptableCameraActive(): boolean;
+
+    /**
+     * Sets the position offset for the scriptable camera.
+     * The offset is applied relative to the player's camera position in camera-local space
+     * (x = right, y = up, z = forward).
+     * @param options Position offset and smoothing configuration.
+     * @example
+     * // Move camera 1 block to the right and 0.5 blocks down
+     * Moud.camera.setPositionOffset({ x: 1, y: -0.5, smoothTime: 0.2 });
+     */
+    setPositionOffset(options: ScriptableCameraPositionOptions): void;
+
+    /**
+     * Sets the rotation offset for the scriptable camera.
+     * The offset is added to the player's camera rotation.
+     * @param options Rotation offset in degrees and smoothing configuration.
+     * @example
+     * // Tilt the camera 10 degrees to the right
+     * Moud.camera.setRotationOffset({ roll: 10, smoothTime: 0.15 });
+     */
+    setRotationOffset(options: ScriptableCameraRotationOptions): void;
+
+    /**
+     * Sets the FOV offset for the scriptable camera.
+     * The offset is added to the player's current FOV setting.
+     * @param options FOV offset configuration, or a number for a simple offset.
+     * @example
+     * // Zoom in by reducing FOV by 20 degrees
+     * Moud.camera.setFovOffset({ offset: -20, smoothTime: 0.1 });
+     * // Or simply:
+     * Moud.camera.setFovOffset(-20);
+     */
+    setFovOffset(options: ScriptableCameraFovOptions | number): void;
+
+    /**
+     * Applies a camera shake effect. The shake automatically decays over the duration.
+     * @param options Shake configuration, or a number for intensity with default duration.
+     * @example
+     * // Strong shake for 1 second
+     * Moud.camera.shake({ intensity: 0.8, frequency: 15, duration: 1000 });
+     * // Quick light shake
+     * Moud.camera.shake(0.3);
+     */
+    shake(options: ScriptableCameraShakeOptions | number): void;
+
+    /**
+     * Stops any active camera shake immediately.
+     */
+    stopShake(): void;
+
+    /**
+     * Enables velocity-based camera tilt (like leaning into turns).
+     * When moving sideways, the camera will tilt in the direction of movement.
+     * @param options Tilt configuration.
+     * @example
+     * // Enable subtle velocity tilt
+     * Moud.camera.enableVelocityTilt({ amount: 3, smoothing: 0.15 });
+     */
+    enableVelocityTilt(options?: ScriptableCameraVelocityTiltOptions): void;
+
+    /**
+     * Disables velocity-based camera tilt.
+     */
+    disableVelocityTilt(): void;
+
+    /**
+     * Configures smoothing parameters for the scriptable camera.
+     * @param options Smoothing times for different camera properties.
+     * @example
+     * Moud.camera.setScriptableCameraSmoothing({ position: 0.2, rotation: 0.1, fov: 0.15 });
+     */
+    setScriptableCameraSmoothing(options: ScriptableCameraSmoothingOptions): void;
+
+    /**
+     * Resets all scriptable camera offsets to zero.
+     * @param options If instant is true, resets immediately without lerping.
+     * @example
+     * // Smoothly reset all offsets
+     * Moud.camera.resetScriptableCamera();
+     * // Immediately reset all offsets
+     * Moud.camera.resetScriptableCamera({ instant: true });
+     */
+    resetScriptableCamera(options?: ScriptableCameraResetOptions | boolean): void;
+
+    // ========== SOFT LOOK-AT API ==========
+
+    /**
+     * Makes the camera softly look towards world coordinates.
+     * The camera will blend between player input and the target based on strength.
+     * @param options Target position and blending configuration.
+     * @example
+     * // Look at coordinates with 80% strength
+     * Moud.camera.setSoftLookAt({ x: 100, y: 64, z: 200, strength: 0.8, smoothTime: 0.3 });
+     */
+    setSoftLookAt(options: SoftLookAtOptions): void;
+
+    /**
+     * Makes the camera softly track an entity.
+     * @param options Entity ID and blending configuration.
+     * @example
+     * // Track entity with full strength
+     * Moud.camera.setSoftLookAtEntity({ entityId: 123, strength: 1.0 });
+     */
+    setSoftLookAtEntity(options: SoftLookAtEntityOptions): void;
+
+    /**
+     * Clears any active soft look-at target.
+     */
+    clearSoftLookAt(): void;
+
+    // ========== ROTATION LIMITS API ==========
+
+    /**
+     * Sets pitch (up/down) rotation limits for the camera.
+     * @param options Minimum and maximum pitch angles in degrees.
+     * @example
+     * // Limit looking up/down to +/-45 degrees
+     * Moud.camera.setPitchLimits({ min: -45, max: 45 });
+     */
+    setPitchLimits(options: PitchLimitsOptions): void;
+
+    /**
+     * Clears pitch rotation limits.
+     */
+    clearPitchLimits(): void;
+
+    /**
+     * Sets yaw (left/right) rotation limits for the camera.
+     * @param options Range and optional center yaw in degrees.
+     * @example
+     * // Limit horizontal look to +/-90 degrees from current facing
+     * Moud.camera.setYawLimits({ range: 90 });
+     * // Limit to specific center direction
+     * Moud.camera.setYawLimits({ range: 45, center: 180 });
+     */
+    setYawLimits(options: YawLimitsOptions): void;
+
+    /**
+     * Clears yaw rotation limits.
+     */
+    clearYawLimits(): void;
+
+    /**
+     * Locks one or both rotation axes completely.
+     * @param axis The axis to lock: 'yaw', 'pitch', or 'both'.
+     * @example
+     * // Lock horizontal rotation
+     * Moud.camera.lockAxis('yaw');
+     * // Lock all rotation
+     * Moud.camera.lockAxis('both');
+     */
+    lockAxis(axis: 'yaw' | 'pitch' | 'both'): void;
+
+    /**
+     * Unlocks one or both rotation axes.
+     * @param axis The axis to unlock: 'yaw', 'pitch', or 'both'.
+     */
+    unlockAxis(axis: 'yaw' | 'pitch' | 'both'): void;
+
+    // ========== FOLLOW TARGET API ==========
+
+    /**
+     * Sets a follow target position with configurable lag.
+     * The camera smoothly follows the target position with delay.
+     * @param options Target position and lag configuration.
+     * @example
+     * // Follow position with some lag
+     * Moud.camera.setFollowTarget({ x: 100, y: 64, z: 200, lag: 0.2 });
+     */
+    setFollowTarget(options: FollowTargetOptions): void;
+
+    /**
+     * Updates the follow target position without changing lag settings.
+     * @param options New target position.
+     */
+    updateFollowTarget(options: { x: number; y: number; z: number }): void;
+
+    /**
+     * Stops following the target and returns camera control to player.
+     */
+    stopFollowTarget(): void;
+
+    // ========== CINEMATIC BOB API ==========
+
+    /**
+     * Enables cinematic camera bob (body cam style movement).
+     * Creates natural head movement while walking.
+     * @param options Bob configuration.
+     * @example
+     * // Enable with default settings
+     * Moud.camera.setCinematicBob({ enabled: true });
+     * // Custom intensity
+     * Moud.camera.setCinematicBob({ intensity: 1.5, rollMultiplier: 4.0 });
+     */
+    setCinematicBob(options: CinematicBobOptions): void;
+
+    /**
+     * Disables cinematic camera bob.
+     */
+    disableCinematicBob(): void;
+
+    // ========== PERLIN SHAKE API ==========
+
+    /**
+     * Enables Perlin noise-based camera shake (trauma system).
+     * Creates more natural, organic camera shake than simple oscillation.
+     * @param options Shake configuration.
+     * @example
+     * // Enable with initial trauma
+     * Moud.camera.enablePerlinShake({ trauma: 0.5, amplitude: 10, speed: 3 });
+     * // Auto-shake from movement
+     * Moud.camera.enablePerlinShake({ autoFromVelocity: true });
+     */
+    enablePerlinShake(options?: PerlinShakeOptions): void;
+
+    /**
+     * Disables Perlin noise-based camera shake.
+     */
+    disablePerlinShake(): void;
+
+    /**
+     * Adds trauma to the Perlin shake system.
+     * Trauma naturally decays over time, creating impact-like effects.
+     * @param amount Amount of trauma to add (0-1). Values are clamped.
+     * @example
+     * // Add impact trauma
+     * Moud.camera.addTrauma(0.3);
+     */
+    addTrauma(amount: number): void;
 }
 
 /**
@@ -1901,16 +3558,40 @@ export interface Command {
     /**
      * Registers a command without aliases.
      * @param name Primary literal used to execute the command.
-     * @param callback Invoked when a player runs the command.
+     * @param callback Invoked when a player runs the command, with its arguments.
      */
-    register(name: string, callback: (player: Player) => void): void;
+    register(name: string, callback: (player: Player, args: string[]) => void): void;
     /**
      * Registers a command with additional aliases.
      * @param name Primary literal used to execute the command.
      * @param aliases Additional names that trigger the same command.
-     * @param callback Invoked when a player runs the command.
+     * @param callback Invoked when a player runs the command, with its arguments.
      */
-    registerWithAliases(name: string, aliases: string[], callback: (player: Player) => void): void;
+    registerWithAliases(name: string, aliases: string[], callback: (player: Player, args: string[]) => void): void;
+}
+
+export interface SceneAPI {
+    /** Gets the active scene information. */
+    get(): Promise<SceneState>;
+}
+
+/** Snapshot of a scene object authored in the editor. */
+export interface SceneObjectSnapshot {
+    id: string;
+    type: string;
+    properties: Record<string, unknown>;
+    /** Optional parent binding for hierarchical transforms. */
+    parentId?: string;
+    /** Alias for parentId accepted by some tooling. */
+    parent?: string;
+}
+
+/** Scene state returned from {@link SceneAPI.get}. */
+export interface SceneState {
+    id: string;
+    version?: number;
+    objects?: SceneObjectSnapshot[];
+    [key: string]: unknown;
 }
 
 /**
@@ -1987,6 +3668,12 @@ export interface InputService {
      * @param callback Receives `true` when pressed and `false` when released.
      */
     onKey(keyName: string, callback: (pressed: boolean) => void): void;
+    /**
+     * Registers a callback fired every tick while the given key is held.
+     * @param keyName Translation key, for example `key.keyboard.w`.
+     * @param callback Receives the duration in milliseconds the key has been held.
+     */
+    onKeyHold(keyName: string, callback: (heldMs: number) => void): void;
     /**
      * Registers a callback fired when the given mouse button changes state.
      * @param buttonName Human readable button name, e.g. `left`, `right`.
@@ -2257,7 +3944,203 @@ export interface RenderingService {
      * @param value Number or boolean value to assign.
      */
     setShaderUniform(shaderId: string, uniformName: string, value: number | boolean): void;
+
+    /**
+     * Creates or replaces a Veil framebuffer (FBO) managed by the client mod.
+     *
+     * @remarks Client-only.
+     */
+    createFramebuffer(framebufferId: string, options?: ClientFramebufferOptions): void;
+    /**
+     * Removes a previously created framebuffer (only affects framebuffers created via {@link createFramebuffer}).
+     *
+     * @remarks Client-only.
+     */
+    removeFramebuffer(framebufferId: string): void;
+
+    /**
+     * Defines or updates a multi-pass render pass that runs automatically each frame at the chosen stage.
+     *
+     * @remarks Client-only.
+     */
+    defineRenderPass(passId: string, pass: ClientRenderPassOptions): void;
+    /**
+     * Removes a render pass.
+     *
+     * @remarks Client-only.
+     */
+    removeRenderPass(passId: string): void;
+    /**
+     * Enables or disables an existing render pass.
+     *
+     * @remarks Client-only.
+     */
+    setRenderPassEnabled(passId: string, enabled: boolean): void;
 }
+
+/** Attachment kinds supported by {@link ClientFramebufferOptions}. */
+export type ClientFramebufferAttachmentType = 'texture' | 'render_buffer';
+
+/**
+ * Framebuffer attachment definition for {@link ClientFramebufferOptions}.
+ *
+ * @remarks Client-only.
+ */
+export interface ClientFramebufferAttachmentOptions {
+    /** Defaults to `'texture'`. */
+    type?: ClientFramebufferAttachmentType;
+    /** Veil attachment format name (e.g. `'RGBA8'`, `'RGB16F'`, `'DEPTH_COMPONENT'`). */
+    format?: string;
+    /** Mip levels (textures) or samples (render buffers). Defaults to `1`. */
+    levels?: number;
+    /** Enables linear filtering for texture attachments. Defaults to `false`. */
+    linear?: boolean;
+    /** Optional alias name exposed to shaders as a sampler uniform. */
+    name?: string;
+}
+
+/** Clear color used by {@link ClientFramebufferOptions} and clear passes. */
+export interface ClientClearColor {
+    r?: number;
+    g?: number;
+    b?: number;
+    a?: number;
+    depth?: number;
+    /** Alternate component aliases supported by the runtime. */
+    x?: number;
+    y?: number;
+    z?: number;
+    w?: number;
+}
+
+/**
+ * Client-side framebuffer configuration for multi-pass rendering.
+ *
+ * @remarks Client-only.
+ */
+export interface ClientFramebufferOptions {
+    /** Fixed width. If omitted, the framebuffer tracks the screen size. */
+    width?: number;
+    /** Fixed height. If omitted, the framebuffer tracks the screen size. */
+    height?: number;
+    /**
+     * Screen scale (ex: `0.5` for half resolution). Only applies when `width/height` are omitted.
+     * @defaultValue 1
+     */
+    scale?: number;
+    /**
+     * If true, the framebuffer is cleared once per frame before rendering stages run.
+     * @defaultValue true
+     */
+    autoClear?: boolean;
+    /** Optional clear color used when {@link autoClear} is enabled. */
+    clearColor?: ClientClearColor;
+    /** Color attachments (preferred key). */
+    colorBuffers?: ClientFramebufferAttachmentOptions[];
+    /** Color attachments (Veil key). */
+    color_buffers?: ClientFramebufferAttachmentOptions[];
+    /** Convenience: single attachment or list. */
+    color?: ClientFramebufferAttachmentOptions | ClientFramebufferAttachmentOptions[];
+    /** Optional depth attachment. */
+    depth?: boolean | ClientFramebufferAttachmentOptions;
+}
+
+/** Supported render stages. */
+export type ClientRenderStage =
+    | 'after_sky'
+    | 'after_solid_blocks'
+    | 'after_cutout_mipped_blocks'
+    | 'after_cutout_blocks'
+    | 'after_entities'
+    | 'after_block_entities'
+    | 'after_translucent_blocks'
+    | 'after_tripwire_blocks'
+    | 'after_particles'
+    | 'after_weather'
+    | 'after_level';
+
+/** Uniform value types supported by client render passes. */
+export type ClientUniformValue =
+    | number
+    | boolean
+    | Vector3
+    | Quaternion
+    | ClientClearColor
+    | number[]
+    | Record<string, unknown>;
+
+/** Base fields shared by all render passes. */
+export interface ClientRenderPassBase {
+    /** Controls which pass implementation runs. */
+    type: 'blit' | 'copy' | 'world' | 'clear';
+    /** Stage to execute the pass (ex: `'after_level'`). */
+    stage?: ClientRenderStage | string;
+    /** Ordering within the same stage. Lower runs earlier. */
+    order?: number;
+    /** Enables/disables the pass. */
+    enabled?: boolean;
+}
+
+/** Full-screen shader pass. */
+export interface ClientBlitPassOptions extends ClientRenderPassBase {
+    type: 'blit';
+    shader: string;
+    in?: string;
+    out?: string;
+    clear?: boolean;
+    uniforms?: Record<string, ClientUniformValue>;
+}
+
+/** Copies buffers between framebuffers (no shader). */
+export interface ClientCopyPassOptions extends ClientRenderPassBase {
+    type: 'copy';
+    in?: string;
+    out?: string;
+    color?: boolean;
+    depth?: boolean;
+    linear?: boolean;
+}
+
+/** Renders the world from a perspective into a framebuffer. */
+export interface ClientWorldPassOptions extends ClientRenderPassBase {
+    type: 'world';
+    out: string;
+    camera?: {
+        position?: Vector3;
+        rotation?: Quaternion;
+        /** Alternative to `rotation`: camera will face this world position. */
+        lookAt?: Vector3;
+        /** Optional up vector used with `lookAt` (defaults to world up). */
+        up?: Vector3;
+    };
+    /**
+     * Field of view. Values above `2π` are treated as degrees by the runtime.
+     * If omitted, uses the current game projection FOV.
+     */
+    fov?: number;
+    near?: number;
+    far?: number;
+    /**
+     * View distance in blocks used for chunk culling and the far plane heuristic.
+     */
+    renderDistance?: number;
+    drawLights?: boolean;
+    clear?: boolean;
+}
+
+/** Clears a framebuffer. */
+export interface ClientClearPassOptions extends ClientRenderPassBase {
+    type: 'clear';
+    target?: string;
+    clearColor?: ClientClearColor;
+}
+
+/** Union of all supported client render pass definitions. */
+export type ClientRenderPassOptions =
+    | ClientBlitPassOptions
+    | ClientCopyPassOptions
+    | ClientWorldPassOptions
+    | ClientClearPassOptions;
 
 /**
  * Definition of a custom render pipeline used by {@link RenderingService.createRenderType}.
@@ -2276,6 +4159,21 @@ export interface RenderTypeOptions {
     lightmap?: boolean;
     /** Whether depth testing is enabled. Defaults to `true`. */
     depthTest?: boolean;
+}
+
+/** Physics options when attaching a dynamic body to a model. */
+export interface DynamicPhysicsOptions {
+    /** Half extents of the collision shape. */
+    halfExtents: Vector3;
+    /** Mass in kilograms; defaults to 1. */
+    mass?: number;
+    /** Initial linear velocity applied at spawn. */
+    initialVelocity?: Vector3;
+    /**
+     * Allow player collisions to impart forces on this body.
+     * @defaultValue false
+     */
+    playerPush?: boolean;
 }
 
 /**
@@ -2330,10 +4228,25 @@ export interface UIComponent {
     setPos(x: number, y: number): this;
     /** Resizes the component. */
     setSize(width: number, height: number): this;
+    /**
+     * Anchors the component to a screen edge or corner. When centered anchors are used,
+     * the component's position is relative to the screen center.
+     */
+    setAnchor(anchor: 'top_left' | 'top_center' | 'top_right' | 'center_left' | 'center_center' | 'center_right' | 'bottom_left' | 'bottom_center' | 'bottom_right'): this;
+    /**
+     * Positions this component next to another component.
+     * @param targetComponentId Identifier of the component to align against.
+     * @param position Where to place this component relative to the target.
+     */
+    relativeTo(targetComponentId: string, position: 'right_of' | 'left_of' | 'below' | 'above'): this;
     /** Sets the background colour (ARGB hex). */
     setBackgroundColor(color: string): this;
     /** @returns The background colour (ARGB hex). */
     getBackgroundColor(): string;
+    /** Sets the background texture (e.g., "minecraft:textures/gui/widgets.png"). */
+    setBackgroundTexture(texture: string): this;
+    /** @returns The background texture identifier. */
+    getBackgroundTexture(): string;
     /** Sets the text colour (ARGB hex). */
     setTextColor(color: string): this;
     /** @returns The text colour (ARGB hex). */
@@ -2374,6 +4287,10 @@ export interface UIComponent {
     hide(): this;
     /** @returns `true` if the component is visible. */
     isVisible(): boolean;
+    /** Sets the component to fullscreen mode (fills entire screen automatically). */
+    setFullscreen(fullscreen: boolean): this;
+    /** @returns `true` if the component is in fullscreen mode. */
+    isFullscreen(): boolean;
     /**
      * Registers a callback for click events.
      * @param callback Receives the component, mouse X/Y and the pressed button.
@@ -2385,6 +4302,11 @@ export interface UIComponent {
      */
     onHover(callback: (component: UIComponent, ...args: unknown[]) => void): this;
     /**
+     * Registers a callback for unhover events (when mouse leaves the component).
+     * @param callback Receives the component and raw unhover event data.
+     */
+    onUnhover(callback: (component: UIComponent, ...args: unknown[]) => void): this;
+    /**
      * Registers a callback fired when the component gains focus.
      * @param callback Receives the focused component.
      */
@@ -2394,6 +4316,29 @@ export interface UIComponent {
      * @param callback Receives the blurred component.
      */
     onBlur(callback: (component: UIComponent) => void): this;
+    /**
+     * Animates the component's properties smoothly over time.
+     * @param options Animation configuration containing target values and settings.
+     * @example
+     * button.animate({
+     *   x: 100.5,
+     *   y: 200.25,
+     *   opacity: 0.5,
+     *   duration: 500,
+     *   easing: 'ease-out',
+     *   onComplete: () => console.log('Animation done!')
+     * });
+     */
+    animate(options: {
+        x?: number;
+        y?: number;
+        width?: number;
+        height?: number;
+        opacity?: number;
+        duration?: number;
+        easing?: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'ease-in-cubic' | 'ease-out-cubic' | 'ease-in-out-cubic';
+        onComplete?: () => void;
+    }): this;
 }
 
 /** Text label component returned by {@link UIService.createText}. */
@@ -2441,6 +4386,12 @@ export interface UIImage extends UIComponent {
     setSource(source: string): this;
     /** @returns The currently displayed image source. */
     getSource(): string;
+    /**
+     * Uses a sub-texture from an XML atlas (Starling/Animate format).
+     * @param atlasPath Path/identifier to the `.xml` atlas description.
+     * @param subTextureName Name attribute of the `<SubTexture>` to render.
+     */
+    setAtlasRegion(atlasPath: string, subTextureName: string): this;
 }
 
 /**
@@ -2542,4 +4493,1041 @@ export interface ZoneAPI {
      * @param id Unique identifier of the zone to remove.
      */
     remove(id: string): void;
+    /**
+     * Sets callbacks for an existing zone (including scene-defined zones).
+     * @param id Zone identifier.
+     * @param options Callbacks to attach.
+     */
+    setCallbacks(id: string, options: ZoneOptions): void;
+}
+
+
+export enum RenderType {
+    Translucent = 'translucent',
+    Additive = 'additive',
+    Cutout = 'cutout'
+}
+
+export enum Billboarding {
+    CameraFacing = 'camera_facing',
+    VelocityAligned = 'velocity_aligned',
+    AxisLocked = 'axis_locked',
+    None = 'none'
+}
+
+export enum CollisionMode {
+    None = 'none',
+    Kill = 'kill',
+    Bounce = 'bounce',
+    Slide = 'slide',
+    Stick = 'stick',
+    Damp = 'damp'
+}
+
+export enum SortHint {
+    None = 'none',
+    Depth = 'depth'
+}
+
+export enum Ease {
+    Linear = 'linear',
+    EaseIn = 'ease-in',
+    EaseOut = 'ease-out',
+    EaseInOut = 'ease-in-out'
+}
+
+export type Vector3Like = Pick<Vector3, 'x' | 'y' | 'z'>;
+
+export interface ScalarKeyframe {
+    /** Normalized time within the lifetime, clamped between 0 and 1. */
+    t: number;
+    value: number;
+    ease?: Ease;
+}
+
+export interface ColorKeyframe {
+    /** Normalized time within the lifetime, clamped between 0 and 1. */
+    t: number;
+    r: number;
+    g: number;
+    b: number;
+    a?: number;
+    ease?: Ease;
+}
+
+export interface UVRegion {
+    u0: number;
+    v0: number;
+    u1: number;
+    v1: number;
+}
+
+export interface FrameAnimation {
+    frames: number;
+    fps: number;
+    loop?: boolean;
+    pingPong?: boolean;
+    startFrame?: number;
+}
+
+export interface LightSettings {
+    block: number;
+    sky: number;
+    emissive?: boolean;
+}
+
+export interface ParticleDescriptor {
+    texture: string;
+    renderType?: RenderType;
+    billboarding?: Billboarding;
+    collision?: CollisionMode;
+    position: Vector3Like;
+    velocity?: Vector3Like;
+    acceleration?: Vector3Like;
+    drag?: number;
+    gravityMultiplier?: number;
+    lifetime: number;
+    sizeOverLife?: ScalarKeyframe[];
+    rotationOverLife?: ScalarKeyframe[];
+    colorOverLife?: ColorKeyframe[];
+    alphaOverLife?: ScalarKeyframe[];
+    uvRegion?: UVRegion;
+    frameAnimation?: FrameAnimation;
+    behaviors?: string[];
+    behaviorPayload?: Record<string, unknown>;
+    light?: LightSettings;
+    sortHint?: SortHint;
+    /** When true, particles also collide with player bodies using the configured collision mode. */
+    collideWithPlayers?: boolean;
+    /** Number of crossed impostor slices to render per particle (>=1). Use 2-3 for “faux volume” like flowers. */
+    impostorSlices?: number;
+}
+
+export interface ColorSample {
+    r: number;
+    g: number;
+    b: number;
+    a: number;
+}
+
+export interface ParticleEmitterConfig {
+    /** Unique emitter id so updates can target the same source. */
+    id: string;
+    /** Base particle template used for each spawn. */
+    descriptor: ParticleDescriptor;
+    /** Particles emitted per second. */
+    rate?: number;
+    /** Whether the emitter is active. */
+    enabled?: boolean;
+    /** Hard cap for total particles on the client; 0 or undefined for unlimited. */
+    maxParticles?: number;
+    /** Randomized offset applied per axis to the base position. */
+    positionJitter?: Vector3Like;
+    /** Randomized offset applied per axis to the base velocity. */
+    velocityJitter?: Vector3Like;
+    /** Randomized lifetime delta added per spawn (seconds). */
+    lifetimeJitter?: number;
+    /** Optional RNG seed to keep emission deterministic. */
+    seed?: number;
+    /** Optional list of textures to choose from per particle spawn. */
+    textures?: string[];
+}
+
+export interface ParticleEmitterUpdate extends Partial<ParticleEmitterConfig> {
+    id: string;
+    descriptor?: ParticleDescriptor;
+}
+
+export function evaluateScalarRamp(stops: ScalarKeyframe[] | undefined, t: number): number {
+    if (!stops || stops.length === 0) return 0;
+    if (stops.length === 1) return stops[0].value;
+    const clamped = clamp01(t);
+    let prev = stops[0];
+    for (let i = 1; i < stops.length; i++) {
+        const next = stops[i];
+        if (clamped <= next.t || i === stops.length - 1) {
+            const segmentT = clamp01((clamped - prev.t) / Math.max(1e-6, next.t - prev.t));
+            return lerp(prev.value, next.value, applyEase(segmentT, prev.ease ?? Ease.Linear));
+        }
+        prev = next;
+    }
+    return stops[stops.length - 1].value;
+}
+
+export function evaluateColorRamp(stops: ColorKeyframe[] | undefined, t: number): ColorSample {
+    if (!stops || stops.length === 0) return { r: 1, g: 1, b: 1, a: 1 };
+    if (stops.length === 1) {
+        const c = stops[0];
+        return { r: c.r, g: c.g, b: c.b, a: c.a ?? 1 };
+    }
+    const clamped = clamp01(t);
+    let prev = stops[0];
+    for (let i = 1; i < stops.length; i++) {
+        const next = stops[i];
+        if (clamped <= next.t || i === stops.length - 1) {
+            const segmentT = clamp01((clamped - prev.t) / Math.max(1e-6, next.t - prev.t));
+            const eased = applyEase(segmentT, prev.ease ?? Ease.Linear);
+            return {
+                r: lerp(prev.r, next.r, eased),
+                g: lerp(prev.g, next.g, eased),
+                b: lerp(prev.b, next.b, eased),
+                a: lerp(prev.a ?? 1, next.a ?? 1, eased)
+            };
+        }
+        prev = next;
+    }
+    const c = stops[stops.length - 1];
+    return { r: c.r, g: c.g, b: c.b, a: c.a ?? 1 };
+}
+
+export function sampleUniform(min: number, max: number, random: () => number = Math.random): number {
+    return min + (max - min) * random();
+}
+
+export function sampleGaussian(mean: number, stdDev: number, random: () => number = Math.random): number {
+    let u = 0;
+    let v = 0;
+    while (u === 0) u = random();
+    while (v === 0) v = random();
+    const mag = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    return mean + stdDev * mag;
+}
+
+export function jitterVector(base: Vector3Like, magnitude: number, random: () => number = Math.random): Vector3Like {
+    const theta = sampleUniform(0, 2 * Math.PI, random);
+    const phi = Math.acos(sampleUniform(-1, 1, random));
+    const r = magnitude * Math.cbrt(sampleUniform(0, 1, random));
+    const sinPhi = Math.sin(phi);
+    return {
+        x: base.x + r * sinPhi * Math.cos(theta),
+        y: base.y + r * Math.cos(phi),
+        z: base.z + r * sinPhi * Math.sin(theta)
+    };
+}
+
+function clamp01(value: number): number {
+    return Math.max(0, Math.min(1, value));
+}
+
+function lerp(a: number, b: number, t: number): number {
+    return a + (b - a) * t;
+}
+
+function applyEase(t: number, ease: Ease): number {
+    switch (ease) {
+    case Ease.EaseIn:
+        return t * t;
+    case Ease.EaseOut:
+        return 1 - (1 - t) * (1 - t);
+    case Ease.EaseInOut:
+        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    case Ease.Linear:
+    default:
+        return t;
+    }
+}
+
+/** Server-side particle API. */
+export interface ParticleAPI {
+    /**
+     * Enqueue one or more particles to spawn.
+     * @param descriptor Single descriptor or array.
+     */
+    spawn(descriptor: ParticleDescriptor | ParticleDescriptor[]): void;
+    /** Create a client-driven emitter; the client handles spawning using this configuration. */
+    createEmitter(config: ParticleEmitterConfig): void;
+    /** Update an existing emitter with new configuration; replaces provided fields. */
+    updateEmitter(config: ParticleEmitterUpdate): void;
+    /** Remove a client emitter by id. */
+    removeEmitter(id: string): void;
+}
+
+
+/**
+ * Available IK solver algorithms.
+ * @remarks Shared between client and server.
+ */
+export type IKSolverType =
+    | 'FABRIK'
+    | 'TWO_BONE'
+    | 'CCD';
+
+/**
+ * Angular constraints for an IK joint.
+ * @remarks Shared between client and server.
+ */
+export interface IKConstraints {
+    /** Minimum pitch angle (radians) - rotation around X axis. */
+    minPitch?: number;
+    /** Maximum pitch angle (radians). */
+    maxPitch?: number;
+    /** Minimum yaw angle (radians) - rotation around Y axis. */
+    minYaw?: number;
+    /** Maximum yaw angle (radians). */
+    maxYaw?: number;
+    /** Minimum roll angle (radians) - rotation around Z axis. */
+    minRoll?: number;
+    /** Maximum roll angle (radians). */
+    maxRoll?: number;
+    /** Preferred bend direction for this joint (e.g., knee bends backwards). */
+    poleVector?: Vector3;
+    /** Stiffness of joint (0-1). Higher = resists movement more. */
+    stiffness?: number;
+}
+
+/**
+ * Definition for a single joint in an IK chain.
+ * @remarks Shared between client and server.
+ */
+export interface IKJointDefinition {
+    /** Optional name for this joint (e.g., 'shoulder', 'elbow', 'wrist'). */
+    name?: string;
+    /** Length of the bone from this joint to the next. */
+    length: number;
+    /** Angular constraints for this joint. */
+    constraints?: IKConstraints;
+    /** Local offset from parent joint (for complex rigs). */
+    localOffset?: Vector3;
+}
+
+/**
+ * Definition for creating an IK chain.
+ * @remarks Server-only. Use this to configure chain structure and solver.
+ */
+export interface IKChainDefinition {
+    /** Unique identifier for this chain. */
+    id?: string;
+    /** Joint definitions - each joint has a length and optional constraints. */
+    joints: IKJointDefinition[];
+    /** Which IK algorithm to use. Default: 'FABRIK'. */
+    solverType?: IKSolverType;
+    /** Maximum iterations for iterative solvers. Default: 10. */
+    iterations?: number;
+    /** Distance tolerance for target reaching. Default: 0.001. */
+    tolerance?: number;
+    /** Whether to auto-orient joints to face the next joint. Default: true. */
+    autoOrient?: boolean;
+}
+
+/**
+ * Current state of an IK chain after solving.
+ * @remarks Shared between client and server.
+ */
+export interface IKChainState {
+    /** The chain ID this state belongs to. */
+    chainId: string;
+    /** Root position of the chain (first joint). */
+    rootPosition: Vector3;
+    /** Current target position. */
+    targetPosition: Vector3;
+    /** World-space positions of all joints, including end effector. */
+    jointPositions: Vector3[];
+    /** World-space rotations of all joints. */
+    jointRotations: Quaternion[];
+    /** Whether the end effector reached the target within tolerance. */
+    targetReached: boolean;
+    /** Distance from end effector to target. */
+    distanceToTarget: number;
+    /** Number of solver iterations used. */
+    iterationsUsed: number;
+    /** Server timestamp when this state was computed. */
+    timestamp: number;
+}
+
+/**
+ * Handle to an IK chain for manipulation.
+ * @remarks Server-only.
+ */
+export interface IKChain {
+    /** Gets the unique ID of this chain. */
+    getId(): string;
+
+    /** Gets the chain definition. */
+    getDefinition(): IKChainDefinition;
+
+    /** Gets the current state after the last solve. */
+    getState(): IKChainState;
+
+    /**
+     * Sets the root position of the chain.
+     * @param position World-space position for the chain root.
+     */
+    setRootPosition(position: Vector3): void;
+
+    /** Gets the current root position. */
+    getRootPosition(): Vector3;
+
+    /**
+     * Sets the target position for the end effector.
+     * The chain will solve towards this target.
+     * @param target World-space target position.
+     */
+    setTarget(target: Vector3): void;
+
+    /** Gets the current target position. */
+    getTarget(): Vector3;
+
+    /**
+     * Immediately solves the IK chain.
+     * @returns The updated chain state.
+     */
+    solve(): IKChainState;
+
+    /**
+     * Solves the chain and broadcasts the result to clients.
+     * @returns The updated chain state.
+     */
+    solveAndBroadcast(): IKChainState;
+
+    /**
+     * Updates the pole vector for a specific joint.
+     * Pole vectors determine the preferred bend direction (e.g., knee forward/backward).
+     * @param jointIndex Index of the joint.
+     * @param poleVector New pole vector direction.
+     */
+    setPoleVector(jointIndex: number, poleVector: Vector3): void;
+
+    /**
+     * Updates constraints for a specific joint.
+     * @param jointIndex Index of the joint.
+     * @param constraints New constraints.
+     */
+    setJointConstraints(jointIndex: number, constraints: IKConstraints): void;
+
+    /**
+     * Enables or disables automatic solving each tick.
+     * When enabled, the chain solves every server tick if the target changed.
+     * @param enabled Whether to auto-solve.
+     */
+    setAutoSolve(enabled: boolean): void;
+
+    /** Returns whether auto-solve is enabled. */
+    isAutoSolveEnabled(): boolean;
+
+    /**
+     * Sets the interpolation factor for smooth target following.
+     * 1.0 = instant snap to target, lower = smoother but slower response.
+     * @param factor Interpolation factor (0.0 - 1.0).
+     */
+    setInterpolationFactor(factor: number): void;
+
+    /**
+     * Attaches this chain to a model.
+     * The chain root will follow the model's position.
+     * @param modelId The model ID to attach to.
+     * @param offset Local offset from the model's position.
+     */
+    attachToModel(modelId: number, offset?: Vector3): void;
+
+    /**
+     * Attaches this chain to an entity (player or other).
+     * @param entityUuid UUID of the entity.
+     * @param offset Local offset from entity position.
+     */
+    attachToEntity(entityUuid: string, offset?: Vector3): void;
+
+    /** Detaches the chain from any attached model or entity. */
+    detach(): void;
+
+    /** Gets the model ID this chain is attached to, or -1 if not attached. */
+    getAttachedModelId(): number;
+
+    /** Gets the entity UUID this chain is attached to, or null. */
+    getAttachedEntityUuid(): string | null;
+
+    /** Checks if the chain is currently attached to something. */
+    isAttached(): boolean;
+
+    /** Removes this IK chain from the system. */
+    remove(): void;
+}
+
+/**
+ * Server-side IK API for creating and managing inverse kinematics chains.
+ * @remarks Server-only.
+ */
+export interface IKAPI {
+    /**
+     * Creates a new IK chain with the given definition.
+     * @param definition The chain definition specifying bones, constraints, and solver.
+     * @param rootPosition Initial world-space position for the chain root.
+     * @returns Handle to the created chain.
+     */
+    createChain(definition: IKChainDefinition, rootPosition: Vector3): IKChain;
+
+    /**
+     * Creates a two-bone IK chain (arm/leg).
+     * This is the most common case - a limb with upper and lower segments.
+     * @param id Unique identifier for this chain.
+     * @param upperLength Length of the upper bone (e.g., upper arm, thigh).
+     * @param lowerLength Length of the lower bone (e.g., forearm, shin).
+     * @param rootPosition Initial root position.
+     * @param poleVector Direction for elbow/knee to bend towards.
+     * @returns Handle to the created chain.
+     */
+    createTwoBoneChain(id: string, upperLength: number, lowerLength: number,
+                       rootPosition: Vector3, poleVector: Vector3): IKChain;
+
+    /**
+     * Creates a spider/insect leg chain with 3 segments.
+     * @param id Unique identifier.
+     * @param coxaLength Length of first segment (hip joint).
+     * @param femurLength Length of second segment (thigh).
+     * @param tibiaLength Length of third segment (shin).
+     * @param rootPosition Initial root position.
+     * @returns Handle to the created chain.
+     */
+    createSpiderLegChain(id: string, coxaLength: number, femurLength: number,
+                         tibiaLength: number, rootPosition: Vector3): IKChain;
+
+    /**
+     * Creates a spider/insect leg chain with 3 segments and a specific outward direction.
+     * The outward direction determines which way the leg bends (upward and toward this direction).
+     * This is the recommended method for spider legs as it ensures proper bending behavior.
+     *
+     * @param id Unique identifier.
+     * @param coxaLength Length of first segment (hip joint).
+     * @param femurLength Length of second segment (thigh).
+     * @param tibiaLength Length of third segment (shin).
+     * @param rootPosition Initial root position.
+     * @param outwardDirection Direction pointing away from spider body center (XZ plane).
+     *                         Typically calculated as { x: cos(legAngle), y: 0, z: sin(legAngle) }
+     * @returns Handle to the created chain.
+     *
+     * @example
+     * // Create 8 spider legs with proper bending
+     * for (let i = 0; i < 8; i++) {
+     *     const angle = (i / 8) * Math.PI * 2;
+     *     const outward = { x: Math.cos(angle), y: 0, z: Math.sin(angle) };
+     *     const leg = api.ik.createSpiderLegChainWithPole(`leg_${i}`, 0.3, 0.5, 0.6, rootPos, outward);
+     * }
+     */
+    createSpiderLegChainWithPole(id: string, coxaLength: number, femurLength: number,
+                                  tibiaLength: number, rootPosition: Vector3,
+                                  outwardDirection: Vector3): IKChain;
+
+    /**
+     * Creates a multi-segment chain with uniform bone lengths.
+     * Useful for tails, tentacles, or other appendages.
+     * @param id Unique identifier.
+     * @param segmentCount Number of segments.
+     * @param segmentLength Length of each segment.
+     * @param rootPosition Initial root position.
+     * @returns Handle to the created chain.
+     */
+    createUniformChain(id: string, segmentCount: number, segmentLength: number,
+                       rootPosition: Vector3): IKChain;
+
+    /**
+     * Gets an existing chain by ID.
+     * @param chainId The chain identifier.
+     * @returns The chain handle, or null if not found.
+     */
+    getChain(chainId: string): IKChain | null;
+
+    /**
+     * Gets all active chains.
+     */
+    getAllChains(): IKChain[];
+
+    /**
+     * Raycasts downward against server chunk meshes to find the first solid surface.
+     * @param options.position Start position for the ray (commonly above the foot).
+     * @param options.maxDistance Maximum distance to search (defaults to 256).
+     * @returns Hit data or null if nothing is hit.
+     */
+    raycastGround(options: { position: Vector3; maxDistance?: number }): { position: Vector3; normal: Vector3; distance: number } | null;
+
+    /**
+     * Gets all chains attached to a specific model.
+     */
+    getChainsForModel(modelId: number): IKChain[];
+
+    /**
+     * Gets all chains attached to a specific entity.
+     */
+    getChainsForEntity(entityUuid: string): IKChain[];
+
+    /**
+     * Removes a chain by ID.
+     * @param chainId The chain to remove.
+     * @returns true if the chain was found and removed.
+     */
+    removeChain(chainId: string): boolean;
+
+    /**
+     * Removes all chains attached to a model.
+     */
+    removeAllChainsForModel(modelId: number): void;
+
+    /**
+     * Removes all chains attached to an entity.
+     */
+    removeAllChainsForEntity(entityUuid: string): void;
+
+    /**
+     * Performs a one-off IK solve without creating a persistent chain.
+     * Useful for quick calculations or preview.
+     * @param definition Chain definition.
+     * @param rootPosition Root position.
+     * @param targetPosition Target position.
+     * @returns The solved chain state.
+     */
+    solveOnce(definition: IKChainDefinition, rootPosition: Vector3, targetPosition: Vector3): IKChainState;
+}
+
+// Helper functions for creating common IK constraint configurations
+
+/**
+ * Creates symmetric angular constraints (same limit in both directions).
+ * @param pitchLimit Maximum pitch angle in radians.
+ * @param yawLimit Maximum yaw angle in radians.
+ */
+export function ikConstraintsSymmetric(pitchLimit: number, yawLimit: number): IKConstraints {
+    return {
+        minPitch: -pitchLimit,
+        maxPitch: pitchLimit,
+        minYaw: -yawLimit,
+        maxYaw: yawLimit
+    };
+}
+
+/**
+ * Creates hinge joint constraints (like an elbow or knee).
+ * @param minAngle Minimum bend angle in radians.
+ * @param maxAngle Maximum bend angle in radians.
+ * @param axis The hinge axis.
+ */
+export function ikConstraintsHinge(minAngle: number, maxAngle: number, axis: Vector3): IKConstraints {
+    const constraints: IKConstraints = { poleVector: axis };
+
+    const absX = Math.abs(axis.x);
+    const absY = Math.abs(axis.y);
+    const absZ = Math.abs(axis.z);
+
+    if (absX > absY && absX > absZ) {
+        constraints.minPitch = minAngle;
+        constraints.maxPitch = maxAngle;
+        constraints.minYaw = 0;
+        constraints.maxYaw = 0;
+        constraints.minRoll = 0;
+        constraints.maxRoll = 0;
+    } else if (absY > absZ) {
+        constraints.minYaw = minAngle;
+        constraints.maxYaw = maxAngle;
+        constraints.minPitch = 0;
+        constraints.maxPitch = 0;
+        constraints.minRoll = 0;
+        constraints.maxRoll = 0;
+    } else {
+        constraints.minRoll = minAngle;
+        constraints.maxRoll = maxAngle;
+        constraints.minPitch = 0;
+        constraints.maxPitch = 0;
+        constraints.minYaw = 0;
+        constraints.maxYaw = 0;
+    }
+
+    return constraints;
+}
+
+/**
+ * Creates ball joint constraints (allows rotation in a cone).
+ * @param coneAngle Maximum angle from center in radians.
+ */
+export function ikConstraintsBallJoint(coneAngle: number): IKConstraints {
+    return {
+        minPitch: -coneAngle,
+        maxPitch: coneAngle,
+        minYaw: -coneAngle,
+        maxYaw: coneAngle,
+        minRoll: -Math.PI,
+        maxRoll: Math.PI
+    };
+}
+
+// =========================
+// Primitive Mesh Rendering
+// =========================
+
+/**
+ * Types of primitive shapes that can be rendered.
+ * @remarks Shared between client and server.
+ */
+export type PrimitiveType =
+    /** A unit cube centered at origin. */
+    | 'cube'
+    /** A unit sphere centered at origin. */
+    | 'sphere'
+    /** A cylinder along the Y axis. */
+    | 'cylinder'
+    /** A capsule (cylinder with hemispherical caps) along the Y axis. */
+    | 'capsule'
+    /** A single line segment between two points. */
+    | 'line'
+    /** Connected line segments through multiple points. */
+    | 'lineStrip'
+    /** A flat plane in the XZ plane. */
+    | 'plane'
+    /** A cone pointing along the Y axis. */
+    | 'cone'
+    /** Custom indexed triangle mesh. */
+    | 'mesh';
+
+/**
+ * Material/appearance settings for a primitive.
+ * @remarks Shared between client and server.
+ */
+export interface PrimitiveMaterial {
+    /** Red component (0-1). */
+    r?: number;
+    /** Green component (0-1). */
+    g?: number;
+    /** Blue component (0-1). */
+    b?: number;
+    /** Alpha/opacity component (0-1). */
+    a?: number;
+    /** Optional texture path. */
+    texture?: string;
+    /** If true, no shading is applied (flat color). */
+    unlit?: boolean;
+    /** If true, both sides of faces are rendered. */
+    doubleSided?: boolean;
+    /** If true, renders through blocks/geometry. */
+    renderThroughBlocks?: boolean;
+}
+
+/**
+ * Handle to a primitive mesh for manipulation.
+ * @remarks Server-only.
+ */
+export interface Primitive {
+    /** Gets the unique ID of this primitive. */
+    getId(): number;
+
+    /** Gets the type of this primitive. */
+    getType(): PrimitiveType;
+
+    /** Gets the group ID this primitive belongs to, or null. */
+    getGroupId(): string | null;
+
+    /** Gets the current position. */
+    getPosition(): Vector3;
+
+    /** Gets the current rotation. */
+    getRotation(): Quaternion;
+
+    /** Gets the current scale. */
+    getScale(): Vector3;
+
+    /** Sets the position. */
+    setPosition(position: Vector3): void;
+
+    /** Sets the rotation. */
+    setRotation(rotation: Quaternion): void;
+
+    /** Sets the scale. */
+    setScale(scale: Vector3): void;
+
+    /** Sets position, rotation, and scale in one call. */
+    setTransform(position: Vector3, rotation: Quaternion, scale: Vector3): void;
+
+    /**
+     * Orients the primitive to point from one position to another.
+     * Useful for bone/limb rendering - the primitive will be positioned
+     * at the midpoint and scaled/rotated to connect the two points.
+     *
+     * @param from Start position
+     * @param to End position
+     * @param thickness Scale factor for width/depth
+     */
+    setFromTo(from: Vector3, to: Vector3, thickness: number): void;
+
+    /**
+     * Sets the color (RGB, 0-1 range).
+     */
+    setColor(r: number, g: number, b: number): void;
+
+    /**
+     * Sets the color with alpha (RGBA, 0-1 range).
+     */
+    setColorAlpha(r: number, g: number, b: number, a: number): void;
+
+    /** Sets whether the primitive is unlit (no shading). */
+    setUnlit(unlit: boolean): void;
+
+    /** Sets whether the primitive renders through blocks. */
+    setRenderThroughBlocks(enabled: boolean): void;
+
+    /** Sets whether both sides of faces are rendered. */
+    setDoubleSided(doubleSided: boolean): void;
+
+    /** Sets a texture path for the primitive. */
+    setTexture(texturePath: string): void;
+
+    /** For LINE and LINE_STRIP types, updates the vertices. */
+    setVertices(vertices: Vector3[]): void;
+
+    /**
+     * For MESH type, updates the mesh geometry.
+     * @remarks Vertices are in local space; indices are optional (3 per triangle).
+     */
+    setMesh(vertices: Vector3[], indices?: number[] | null): void;
+
+    /** Removes this primitive. */
+    remove(): void;
+
+    /** Checks if this primitive has been removed. */
+    isRemoved(): boolean;
+}
+
+/**
+ * Options for creating a primitive.
+ * @remarks Server-only.
+ */
+export interface PrimitiveOptions {
+    /** Position in world space. */
+    position?: Vector3;
+    /** Rotation as quaternion. */
+    rotation?: Quaternion;
+    /** Scale in each dimension. */
+    scale?: Vector3;
+    /** Material/color settings. */
+    material?: PrimitiveMaterial;
+    /** Optional group ID for batch operations. */
+    groupId?: string;
+    /**
+     * Physics settings for the server-side collider.
+     * @remarks Server-only.
+     */
+    physics?: {
+        /**
+         * When true, the primitive is simulated as a dynamic rigid body.
+         * Note: vanilla (non-physics) players won't collide with it unless server player physics is enabled.
+         */
+        dynamic?: boolean;
+        /** Mass for dynamic primitives (defaults to 1). */
+        mass?: number;
+    };
+    /** For type 'mesh', mesh vertices (local space). */
+    vertices?: Vector3[];
+    /** For type 'mesh', optional triangle indices (3 per triangle). */
+    indices?: number[];
+}
+
+/**
+ * Server-side Primitive Rendering API for creating geometric shapes.
+ * @remarks Server-only.
+ *
+ * Primitives are simple geometric shapes (cubes, spheres, cylinders, lines, etc.)
+ * that can be rendered in the world. They're useful for:
+ * - Visualizing IK chains and bones
+ * - Procedural geometry
+ * - Dynamic structures
+ * - Visual effects
+ *
+ * @example
+ * // Create a red cube
+ * const cube = api.primitives.createCube(
+ *     { x: 0, y: 70, z: 0 },
+ *     { x: 1, y: 1, z: 1 },
+ *     { r: 1, g: 0, b: 0 }
+ * );
+ *
+ * @example
+ * // Create a bone between two points
+ * const bone = api.primitives.createBone(
+ *     { x: 0, y: 70, z: 0 },
+ *     { x: 2, y: 72, z: 1 },
+ *     0.1,
+ *     { r: 0, g: 1, b: 0 }
+ * );
+ */
+export interface PrimitiveAPI {
+    // ========================
+    // Basic Shape Creation
+    // ========================
+
+    /**
+     * Creates a cube primitive.
+     * @param position Center position
+     * @param scale Size in each dimension
+     * @param material Material/color settings
+     */
+    createCube(position: Vector3, scale: Vector3, material?: PrimitiveMaterial): Primitive;
+
+    /**
+     * Creates a sphere primitive.
+     * @param position Center position
+     * @param radius Sphere radius
+     * @param material Material/color settings
+     */
+    createSphere(position: Vector3, radius: number, material?: PrimitiveMaterial): Primitive;
+
+    /**
+     * Creates a cylinder primitive.
+     * @param position Center position
+     * @param radius Cylinder radius
+     * @param height Cylinder height
+     * @param material Material/color settings
+     */
+    createCylinder(position: Vector3, radius: number, height: number, material?: PrimitiveMaterial): Primitive;
+
+    /**
+     * Creates a capsule primitive (cylinder with hemispherical caps).
+     * @param position Center position
+     * @param radius Capsule radius
+     * @param height Total height including caps
+     * @param material Material/color settings
+     */
+    createCapsule(position: Vector3, radius: number, height: number, material?: PrimitiveMaterial): Primitive;
+
+    /**
+     * Creates a cone primitive.
+     * @param position Base center position
+     * @param radius Base radius
+     * @param height Cone height
+     * @param material Material/color settings
+     */
+    createCone(position: Vector3, radius: number, height: number, material?: PrimitiveMaterial): Primitive;
+
+    /**
+     * Creates a plane primitive.
+     * @param position Center position
+     * @param width Width (X axis)
+     * @param depth Depth (Z axis)
+     * @param material Material/color settings
+     */
+    createPlane(position: Vector3, width: number, depth: number, material?: PrimitiveMaterial): Primitive;
+
+    // ========================
+    // Line Primitives
+    // ========================
+
+    /**
+     * Creates a single line segment.
+     * @param start Start position
+     * @param end End position
+     * @param material Material/color settings
+     */
+    createLine(start: Vector3, end: Vector3, material?: PrimitiveMaterial): Primitive;
+
+    /**
+     * Creates a line strip through multiple points.
+     * @param points List of positions to connect
+     * @param material Material/color settings
+     */
+    createLineStrip(points: Vector3[], material?: PrimitiveMaterial): Primitive;
+
+    // ========================
+    // Bone/Limb Helpers
+    // ========================
+
+    /**
+     * Creates a bone-like shape between two points.
+     * Useful for visualizing IK chains - creates a cube stretched and rotated
+     * to connect two joint positions.
+     *
+     * @param from Start position (joint)
+     * @param to End position (next joint)
+     * @param thickness Width/depth of the bone
+     * @param material Material/color settings
+     */
+    createBone(from: Vector3, to: Vector3, thickness: number, material?: PrimitiveMaterial): Primitive;
+
+    /**
+     * Creates a joint sphere at a position.
+     * @param position Joint position
+     * @param radius Joint radius
+     * @param material Material/color settings
+     */
+    createJoint(position: Vector3, radius: number, material?: PrimitiveMaterial): Primitive;
+
+    // ========================
+    // Advanced Creation
+    // ========================
+
+    /**
+     * Creates a primitive with full control over all parameters.
+     * @param type Primitive type
+     * @param options Creation options
+     */
+    create(type: PrimitiveType, options?: PrimitiveOptions): Primitive;
+
+    /**
+     * Creates a custom indexed triangle mesh primitive.
+     * @remarks Vertices are in local space; indices are optional (3 per triangle).
+     *
+     * Use `api.primitives.create('mesh', { vertices, indices, ... })` if you prefer passing a single options object.
+     */
+    createMesh(vertices: Vector3[], indices: number[] | null, options?: PrimitiveOptions): Primitive;
+
+    // ========================
+    // Queries
+    // ========================
+
+    /** Gets a primitive by ID. */
+    getPrimitive(primitiveId: number): Primitive | null;
+
+    /** Gets all primitives. */
+    getAllPrimitives(): Primitive[];
+
+    /** Gets all primitives in a group. */
+    getPrimitivesInGroup(groupId: string): Primitive[];
+
+    // ========================
+    // Removal
+    // ========================
+
+    /** Removes a primitive by ID. */
+    removePrimitive(primitiveId: number): boolean;
+
+    /** Removes all primitives in a group. */
+    removeGroup(groupId: string): void;
+
+    /** Removes all primitives. */
+    removeAll(): void;
+
+    // ========================
+    // Batch Operations
+    // ========================
+
+    /**
+     * Begins a batch operation. Changes are collected and sent together
+     * for better network efficiency. Call endBatch() to apply.
+     */
+    beginBatch(): void;
+
+    /**
+     * Ends a batch operation and sends all collected changes.
+     */
+    endBatch(): void;
+
+    /**
+     * Returns whether we're currently in a batch operation.
+     */
+    isBatching(): boolean;
+}
+
+// Helper functions for creating materials
+
+/**
+ * Creates a solid color material.
+ */
+export function primitiveMaterial(r: number, g: number, b: number, a?: number): PrimitiveMaterial {
+    return { r, g, b, a: a ?? 1 };
+}
+
+/**
+ * Creates an unlit (no shading) material.
+ */
+export function primitiveUnlit(r: number, g: number, b: number, a?: number): PrimitiveMaterial {
+    return { r, g, b, a: a ?? 1, unlit: true };
+}
+
+/**
+ * Creates a material that renders through blocks.
+ */
+export function primitiveXRay(r: number, g: number, b: number, a?: number): PrimitiveMaterial {
+    return { r, g, b, a: a ?? 1, renderThroughBlocks: true };
 }

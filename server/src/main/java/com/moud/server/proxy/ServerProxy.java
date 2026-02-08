@@ -1,5 +1,6 @@
 package com.moud.server.proxy;
 
+import com.moud.server.ts.TsExpose;
 import com.moud.server.api.exception.APIException;
 import com.moud.server.api.validation.APIValidator;
 import net.kyori.adventure.text.Component;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@TsExpose
 public class ServerProxy {
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerProxy.class);
     private final APIValidator validator = new APIValidator();

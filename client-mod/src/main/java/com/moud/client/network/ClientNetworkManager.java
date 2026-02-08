@@ -16,4 +16,12 @@ public class ClientNetworkManager {
             LOGGER.error("Failed to send script event to server", e);
         }
     }
+
+    public static void send(Object packet) {
+        try {
+            ClientPacketWrapper.sendToServer(packet);
+        } catch (Exception e) {
+            LOGGER.error("Failed to send packet {}", packet != null ? packet.getClass().getSimpleName() : "null", e);
+        }
+    }
 }

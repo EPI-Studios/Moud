@@ -1,0 +1,17 @@
+{
+  "name": "Idle",
+  "emote": {
+    "beginTick": 0,
+    "endTick": 1,
+    "stopTick": 1,
+    "degrees": true,
+    "moves": [
+      {
+        "tick": 0
+      },
+      {
+        "tick": 1
+      }
+    ]
+  }
+}

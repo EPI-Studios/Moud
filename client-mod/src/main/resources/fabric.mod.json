@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "moud",
-  "version": "${version}",
+  "version": "0.8.0",
   "name": "Moud Client",
   "description": "Client-side scripting runtime for Moud servers",
   "authors": [
@@ -25,6 +25,7 @@
   "depends": {
     "fabricloader": ">=0.16.14",
     "fabric": "*",
-    "minecraft": "1.21.1"
+    "minecraft": "1.21.1",
+    "veil": "*"
   }
 }
