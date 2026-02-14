@@ -21,3 +21,11 @@ dependencies {
 application {
     mainClass = 'com.moud.server.minestom.MinestomServerMain'
 }
+
+// IntelliJ sometimes runs main classes via ad-hoc JavaExec tasks; ensure our project deps
+// are always present on the runtime classpath (classes dirs, not just jars).
+tasks.withType(JavaExec).configureEach {
+    dependsOn(':core:classes', ':net:classes')
+    classpath += project(':core').sourceSets.main.output
+    classpath += project(':net').sourceSets.main.output
+}
