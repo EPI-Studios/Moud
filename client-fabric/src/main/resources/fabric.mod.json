@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "moud",
+  "version": "0.0.0-dev",
+  "name": "Moud",
+  "description": "Moud",
+  "authors": ["moud"],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.moud.client.fabric.FabricClientEntrypoint"]
+  },
+  "mixins": [
+    "moud.client.mixins.json"
+  ],
+  "depends": {
+    "minecraft": "1.21.1",
+    "fabricloader": ">=0.17.2",
+    "fabric-api": "*"
+  }
+}
