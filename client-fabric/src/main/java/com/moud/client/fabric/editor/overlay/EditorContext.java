@@ -1,20 +1,20 @@
 package com.moud.client.fabric.editor.overlay;
 
-import com.moud.client.fabric.editor.camera.EditorFreeflyCamera;
+import com.moud.client.fabric.platform.MinecraftFreeflyCamera;
 
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class EditorContext {
-    private final EditorFreeflyCamera camera;
+    private final MinecraftFreeflyCamera camera;
     private volatile EditorOverlay overlay;
     private final AtomicLong pendingScrollBits = new AtomicLong();
     private volatile int viewportX, viewportY, viewportW, viewportH;
 
-    public EditorContext(EditorFreeflyCamera camera) {
+    public EditorContext(MinecraftFreeflyCamera camera) {
         this.camera = camera;
     }
 
-    public EditorFreeflyCamera camera() {
+    public MinecraftFreeflyCamera camera() {
         return camera;
     }
 

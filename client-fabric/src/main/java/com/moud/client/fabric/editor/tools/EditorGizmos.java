@@ -2,7 +2,8 @@ package com.moud.client.fabric.editor.tools;
 
 import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
-import com.moud.client.fabric.editor.ghost.EditorGhostBlocks;
+import com.moud.client.fabric.platform.MinecraftGhostBlocks;
+import com.moud.client.fabric.platform.MinecraftRenderBridge;
 
 import com.miry.ui.Ui;
 import com.miry.ui.render.UiRenderer;
@@ -13,15 +14,6 @@ import com.moud.core.PropertyDef;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.session.Session;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.Camera;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.BlockPos;
 import org.joml.*;
 
 import java.lang.Math;
@@ -92,7 +84,7 @@ public final class EditorGizmos implements AutoCloseable {
         float ry = parseFloat(props.get("ry"), defaultFor(def, "ry", "0"));
         float rz = parseFloat(props.get("rz"), defaultFor(def, "rz", "0"));
 
-        EditorGhostBlocks ghosts = EditorGhostBlocks.get();
+        MinecraftGhostBlocks ghosts = MinecraftGhostBlocks.get();
         int startX = Math.round(x);
         int startY = Math.round(y);
         int startZ = Math.round(z);
@@ -104,9 +96,9 @@ public final class EditorGizmos implements AutoCloseable {
         float startRz = rz;
 
         if (ghosts.isActive() && ghosts.nodeId() == sel.nodeId()) {
-            Vec3d sb = ghosts.startBase();
-            Vec3d ss = ghosts.startSize();
-            Vec3d sr = ghosts.startRotDeg();
+            Vector3d sb = ghosts.startBase();
+            Vector3d ss = ghosts.startSize();
+            Vector3d sr = ghosts.startRotDeg();
             startX = (int) Math.round(sb.x);
             startY = (int) Math.round(sb.y);
             startZ = (int) Math.round(sb.z);
@@ -117,9 +109,9 @@ public final class EditorGizmos implements AutoCloseable {
             startRy = (float) sr.y;
             startRz = (float) sr.z;
 
-            Vec3d gb = ghosts.renderBase();
-            Vec3d gs = ghosts.renderSize();
-            Vec3d gr = ghosts.renderRotDeg();
+            Vector3d gb = ghosts.renderBase();
+            Vector3d gs = ghosts.renderSize();
+            Vector3d gr = ghosts.renderRotDeg();
             x = (float) gb.x;
             y = (float) gb.y;
             z = (float) gb.z;
@@ -131,12 +123,17 @@ public final class EditorGizmos implements AutoCloseable {
             rz = (float) gr.z;
         }
 
-        BlockPos snappedOrigin = new BlockPos(Math.round(x), Math.round(y), Math.round(z));
+        int snappedX = Math.round(x);
+        int snappedY = Math.round(y);
+        int snappedZ = Math.round(z);
         int snappedSx = Math.max(1, Math.round(sx));
         int snappedSy = Math.max(1, Math.round(sy));
         int snappedSz = Math.max(1, Math.round(sz));
 
-        BlockState csgDefaultState = resolveBlockState(props.get("block"), defaultFor(def, "block", "minecraft:stone"));
+        String csgBlockId = props.get("block");
+        if (csgBlockId == null || csgBlockId.isBlank()) {
+            csgBlockId = defaultFor(def, "block", "minecraft:stone");
+        }
 
         basePos.set(x, y, z);
         size.set(sx, sy, sz);
@@ -157,8 +154,8 @@ public final class EditorGizmos implements AutoCloseable {
             default -> GizmoOverlay3D.Mode.NONE;
         });
 
-        Matrix4f viewProj = minecraftViewProjection(viewportW / (float) Math.max(1, viewportH), centerPos);
-        Vector3f cameraPos = minecraftCameraPos();
+        Matrix4f viewProj = MinecraftRenderBridge.viewProjection(DEFAULT_FOV_DEG, viewportW / (float) Math.max(1, viewportH), centerPos);
+        Vector3f cameraPos = MinecraftRenderBridge.cameraPos();
         if (viewProj == null || cameraPos == null) {
             return;
         }
@@ -202,7 +199,7 @@ public final class EditorGizmos implements AutoCloseable {
         boolean freeRotation = ui.input().shiftDown();
 
         if (!wasDragging && dragging) {
-            ghosts.startCsgBlock(sel.nodeId(), snappedOrigin, snappedSx, snappedSy, snappedSz, new Vec3d(rx, ry, rz), csgDefaultState);
+            ghosts.startCsgBlock(sel.nodeId(), snappedX, snappedY, snappedZ, snappedSx, snappedSy, snappedSz, new Vector3d(rx, ry, rz), csgBlockId);
         }
 
         if (dragging) {
@@ -215,7 +212,7 @@ public final class EditorGizmos implements AutoCloseable {
             float outRx = freeRotation ? rotDeg.x : snapDeg(rotDeg.x, ROTATION_SNAP_DEG);
             float outRy = freeRotation ? rotDeg.y : snapDeg(rotDeg.y, ROTATION_SNAP_DEG);
             float outRz = freeRotation ? rotDeg.z : snapDeg(rotDeg.z, ROTATION_SNAP_DEG);
-            ghosts.setRenderTransform(new Vec3d(px, py, pz), new Vec3d(psx, psy, psz), new Vec3d(outRx, outRy, outRz));
+            ghosts.setRenderTransform(new Vector3d(px, py, pz), new Vector3d(psx, psy, psz), new Vector3d(outRx, outRy, outRz));
             return;
         }
 
@@ -249,7 +246,7 @@ public final class EditorGizmos implements AutoCloseable {
                 return;
             }
 
-            ghosts.commitAndPredict(new Vec3d(tx, ty, tz), new Vec3d(tsx, tsy, tsz), new Vec3d(outRx, outRy, outRz));
+            ghosts.commitAndPredict(new Vector3d(tx, ty, tz), new Vector3d(tsx, tsy, tsz), new Vector3d(outRx, outRy, outRz));
             sendCsgTransform(sel.nodeId(), session, state, tx, ty, tz, tsx, tsy, tsz, outRx, outRy, outRz);
         }
     }
@@ -336,116 +333,6 @@ public final class EditorGizmos implements AutoCloseable {
         } catch (NumberFormatException ignored) {
             return 0.0f;
         }
-    }
-
-    private static Vector3f minecraftCameraPos() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.gameRenderer == null) {
-            return null;
-        }
-        Camera camera = client.gameRenderer.getCamera();
-        if (camera == null) {
-            return null;
-        }
-        Vec3d pos = camera.getPos();
-        return new Vector3f((float) pos.x, (float) pos.y, (float) pos.z);
-    }
-
-    private static Matrix4f minecraftViewProjection(float aspect, Vector3f focusWorld) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.gameRenderer == null) {
-            return null;
-        }
-        Camera camera = client.gameRenderer.getCamera();
-        if (camera == null) {
-            return null;
-        }
-
-        Vec3d pos = camera.getPos();
-        Matrix4f proj = new Matrix4f()
-                .perspective((float) Math.toRadians(DEFAULT_FOV_DEG), Math.max(0.01f, aspect), 0.05f, 512.0f);
-
-        Quaternionf q = new Quaternionf(camera.getRotation());
-        Matrix4f vpA = new Matrix4f(proj).mul(new Matrix4f()
-                .rotate(q)
-                .translate((float) -pos.x, (float) -pos.y, (float) -pos.z));
-        Matrix4f vpB = new Matrix4f(proj).mul(new Matrix4f()
-                .rotate(new Quaternionf(q).conjugate())
-                .translate((float) -pos.x, (float) -pos.y, (float) -pos.z));
-
-        float yawRad = (float) Math.toRadians(camera.getYaw() + 180.0f);
-        float pitchRad = (float) Math.toRadians(camera.getPitch());
-        Matrix4f vpC = new Matrix4f(proj).mul(new Matrix4f()
-                .rotateY(yawRad)
-                .rotateX(pitchRad)
-                .translate((float) -pos.x, (float) -pos.y, (float) -pos.z));
-        Matrix4f vpD = new Matrix4f(proj).mul(new Matrix4f()
-                .rotateX(pitchRad)
-                .rotateY(yawRad)
-                .translate((float) -pos.x, (float) -pos.y, (float) -pos.z));
-
-        if (focusWorld == null) {
-            return vpB;
-        }
-
-        Matrix4f best = vpB;
-        float bestScore = projectionScore(vpB, focusWorld);
-
-        float scoreA = projectionScore(vpA, focusWorld);
-        if (scoreA > bestScore) {
-            bestScore = scoreA;
-            best = vpA;
-        }
-
-        float scoreC = projectionScore(vpC, focusWorld);
-        if (scoreC > bestScore) {
-            bestScore = scoreC;
-            best = vpC;
-        }
-
-        float scoreD = projectionScore(vpD, focusWorld);
-        if (scoreD > bestScore) {
-            best = vpD;
-        }
-
-        return best;
-    }
-
-    private static BlockState resolveBlockState(String value, String fallback) {
-        String idString = value;
-        if (idString == null || idString.isBlank()) {
-            idString = fallback;
-        }
-        if (idString == null || idString.isBlank()) {
-            return Blocks.STONE.getDefaultState();
-        }
-        Identifier id = Identifier.tryParse(idString.trim());
-        if (id == null) {
-            return Blocks.STONE.getDefaultState();
-        }
-        Block b = Registries.BLOCK.get(id);
-        if (b == null || b == Blocks.AIR) {
-            return Blocks.STONE.getDefaultState();
-        }
-        return b.getDefaultState();
-    }
-
-    private static float projectionScore(Matrix4f viewProj, Vector3f p) {
-        if (viewProj == null || p == null) {
-            return Float.NEGATIVE_INFINITY;
-        }
-        Vector4f clip = new Vector4f(p.x, p.y, p.z, 1.0f).mul(viewProj);
-        if (!(clip.w > 1e-6f)) {
-            return Float.NEGATIVE_INFINITY;
-        }
-        float ndcX = clip.x / clip.w;
-        float ndcY = clip.y / clip.w;
-        float ndcZ = clip.z / clip.w;
-        float score = clip.w;
-        if (ndcZ >= -1.25f && ndcZ <= 1.25f) score += 10.0f;
-        if (Math.abs(ndcX) <= 1.25f) score += 5.0f;
-        if (Math.abs(ndcY) <= 1.25f) score += 5.0f;
-        return score;
     }
 
     @Override
