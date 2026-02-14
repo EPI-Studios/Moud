@@ -1,0 +1,18 @@
+.gradle/
+build/
+**/build/
+
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+.DS_Store
+
+*.log
+
+/assets/
+
+# Fabric Loom / dev runs
+**/run/
