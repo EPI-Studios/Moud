@@ -1,0 +1,24 @@
+pluginManagement {
+    repositories {
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'moud'
+
+include 'core'
+include 'net'
+include 'server-minestom'
+include 'client-fabric'
+
+def miryDir = file("../../../fliffel")
+if (miryDir.exists()) {
+    includeBuild(miryDir)
+    println("moud: using local Miry checkout at ${miryDir}")
+    include 'editor-client'
+}
