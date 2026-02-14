@@ -148,6 +148,9 @@ public final class CsgBlockWriter {
         }
 
         Block finalBlock = block;
-        CsgVoxelizer.forEachVoxel(x, y, z, sx, sy, sz, rxDeg, ryDeg, rzDeg, (xx, yy, zz) -> out.put(pack(xx, yy, zz), finalBlock));
+        CsgVoxelizer.forEachVoxel(
+                new CsgVoxelizer.VoxelDefinition(x, y, z, sx, sy, sz, rxDeg, ryDeg, rzDeg),
+                (xx, yy, zz) -> out.put(pack(xx, yy, zz), finalBlock)
+        );
     }
 }
