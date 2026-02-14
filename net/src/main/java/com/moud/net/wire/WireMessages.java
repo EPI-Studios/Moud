@@ -3,11 +3,26 @@ package com.moud.net.wire;
 import com.moud.core.NodeTypeDef;
 import com.moud.core.PropertyDef;
 import com.moud.core.PropertyType;
+import com.moud.core.assets.AssetHash;
+import com.moud.core.assets.AssetMeta;
+import com.moud.core.assets.AssetType;
+import com.moud.core.assets.ResPath;
 import com.moud.net.protocol.Hello;
 import com.moud.net.protocol.Message;
 import com.moud.net.protocol.MessageType;
 import com.moud.net.protocol.Ping;
 import com.moud.net.protocol.Pong;
+import com.moud.net.protocol.AssetDownloadBegin;
+import com.moud.net.protocol.AssetDownloadChunk;
+import com.moud.net.protocol.AssetDownloadComplete;
+import com.moud.net.protocol.AssetDownloadRequest;
+import com.moud.net.protocol.AssetManifestRequest;
+import com.moud.net.protocol.AssetManifestResponse;
+import com.moud.net.protocol.AssetTransferStatus;
+import com.moud.net.protocol.AssetUploadAck;
+import com.moud.net.protocol.AssetUploadBegin;
+import com.moud.net.protocol.AssetUploadChunk;
+import com.moud.net.protocol.AssetUploadComplete;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpBatch;
@@ -55,6 +70,16 @@ public final class WireMessages {
                     case SchemaSnapshot schema -> writeSchemaSnapshot(out, schema);
                     case SceneList sceneList -> writeSceneList(out, sceneList);
                     case SceneSelect sceneSelect -> WireIo.writeString(out, sceneSelect.sceneId());
+                    case AssetManifestRequest request -> writeLong(out, request.requestId());
+                    case AssetManifestResponse response -> writeAssetManifestResponse(out, response);
+                    case AssetUploadBegin begin -> writeAssetUploadBegin(out, begin);
+                    case AssetUploadAck ack -> writeAssetUploadAck(out, ack);
+                    case AssetUploadChunk chunk -> writeAssetUploadChunk(out, chunk);
+                    case AssetUploadComplete complete -> writeAssetUploadComplete(out, complete);
+                    case AssetDownloadRequest request -> writeAssetDownloadRequest(out, request);
+                    case AssetDownloadBegin begin -> writeAssetDownloadBegin(out, begin);
+                    case AssetDownloadChunk chunk -> writeAssetDownloadChunk(out, chunk);
+                    case AssetDownloadComplete complete -> writeAssetDownloadComplete(out, complete);
                 }
                 out.flip();
                 byte[] bytes = new byte[out.remaining()];
@@ -90,7 +115,36 @@ public final class WireMessages {
             case SCHEMA_SNAPSHOT -> readSchemaSnapshot(in);
             case SCENE_LIST -> readSceneList(in);
             case SCENE_SELECT -> new SceneSelect(WireIo.readString(in));
+            case ASSET_MANIFEST_REQUEST -> new AssetManifestRequest(readLong(in));
+            case ASSET_MANIFEST_RESPONSE -> readAssetManifestResponse(in);
+            case ASSET_UPLOAD_BEGIN -> readAssetUploadBegin(in);
+            case ASSET_UPLOAD_ACK -> readAssetUploadAck(in);
+            case ASSET_UPLOAD_CHUNK -> readAssetUploadChunk(in);
+            case ASSET_UPLOAD_COMPLETE -> readAssetUploadComplete(in);
+            case ASSET_DOWNLOAD_REQUEST -> readAssetDownloadRequest(in);
+            case ASSET_DOWNLOAD_BEGIN -> readAssetDownloadBegin(in);
+            case ASSET_DOWNLOAD_CHUNK -> readAssetDownloadChunk(in);
+            case ASSET_DOWNLOAD_COMPLETE -> readAssetDownloadComplete(in);
         };
+    }
+
+    private static void writeBytes(ByteBuffer out, byte[] bytes) {
+        Objects.requireNonNull(bytes, "bytes");
+        WireIo.writeVarInt(out, bytes.length);
+        out.put(bytes);
+    }
+
+    private static byte[] readBytes(ByteBuffer in) {
+        int len = WireIo.readVarInt(in);
+        if (len < 0 || len > 1_048_576) {
+            throw new IllegalArgumentException("Invalid bytes length: " + len);
+        }
+        if (in.remaining() < len) {
+            throw new IllegalArgumentException("Bytes truncated");
+        }
+        byte[] bytes = new byte[len];
+        in.get(bytes);
+        return bytes;
     }
 
     private static void writeLong(ByteBuffer out, long value) {
@@ -102,6 +156,192 @@ public final class WireMessages {
         long hi = Integer.toUnsignedLong(WireIo.readVarInt(in));
         long lo = Integer.toUnsignedLong(WireIo.readVarInt(in));
         return (hi << 32) | lo;
+    }
+
+    private static void writeAssetType(ByteBuffer out, AssetType type) {
+        WireIo.writeVarInt(out, type == null ? 0 : type.ordinal());
+    }
+
+    private static AssetType readAssetType(ByteBuffer in) {
+        int ordinal = WireIo.readVarInt(in);
+        AssetType[] values = AssetType.values();
+        if (ordinal < 0 || ordinal >= values.length) {
+            return AssetType.BINARY;
+        }
+        return values[ordinal];
+    }
+
+    private static void writeStatus(ByteBuffer out, AssetTransferStatus status) {
+        WireIo.writeVarInt(out, status == null ? AssetTransferStatus.ERROR.id() : status.id());
+    }
+
+    private static AssetTransferStatus readStatus(ByteBuffer in) {
+        return AssetTransferStatus.fromId(WireIo.readVarInt(in));
+    }
+
+    private static ResPath readResPathOrNull(ByteBuffer in) {
+        String value = WireIo.readString(in);
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return new ResPath(value);
+    }
+
+    private static AssetHash readHashOrNull(ByteBuffer in) {
+        String value = WireIo.readString(in);
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return new AssetHash(value);
+    }
+
+    private static void writeAssetManifestResponse(ByteBuffer out, AssetManifestResponse response) {
+        writeLong(out, response.requestId());
+        List<AssetManifestResponse.Entry> entries = response.entries() == null ? List.of() : response.entries();
+        WireIo.writeVarInt(out, entries.size());
+        for (AssetManifestResponse.Entry entry : entries) {
+            if (entry == null || entry.path() == null || entry.meta() == null) {
+                WireIo.writeString(out, "");
+                WireIo.writeString(out, "");
+                writeLong(out, 0L);
+                writeAssetType(out, AssetType.BINARY);
+                continue;
+            }
+            AssetMeta meta = entry.meta();
+            WireIo.writeString(out, entry.path().value());
+            WireIo.writeString(out, meta.hash().hex());
+            writeLong(out, meta.sizeBytes());
+            writeAssetType(out, meta.type());
+        }
+    }
+
+    private static AssetManifestResponse readAssetManifestResponse(ByteBuffer in) {
+        long requestId = readLong(in);
+        int count = WireIo.readVarInt(in);
+        if (count < 0 || count > 1_000_000) {
+            throw new IllegalArgumentException("Invalid asset manifest count: " + count);
+        }
+        List<AssetManifestResponse.Entry> entries = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            String path = WireIo.readString(in);
+            String hash = WireIo.readString(in);
+            long size = readLong(in);
+            AssetType type = readAssetType(in);
+            if (path == null || path.isBlank() || hash == null || hash.isBlank()) {
+                continue;
+            }
+            entries.add(new AssetManifestResponse.Entry(
+                    new ResPath(path),
+                    new AssetMeta(new AssetHash(hash), size, type)
+            ));
+        }
+        return new AssetManifestResponse(requestId, List.copyOf(entries));
+    }
+
+    private static void writeAssetUploadBegin(ByteBuffer out, AssetUploadBegin begin) {
+        WireIo.writeString(out, begin.path() == null ? "" : begin.path().value());
+        WireIo.writeString(out, begin.hash() == null ? "" : begin.hash().hex());
+        writeLong(out, begin.sizeBytes());
+        writeAssetType(out, begin.assetType());
+    }
+
+    private static AssetUploadBegin readAssetUploadBegin(ByteBuffer in) {
+        ResPath path = readResPathOrNull(in);
+        AssetHash hash = readHashOrNull(in);
+        long size = readLong(in);
+        AssetType type = readAssetType(in);
+        return new AssetUploadBegin(path, hash, size, type);
+    }
+
+    private static void writeAssetUploadAck(ByteBuffer out, AssetUploadAck ack) {
+        WireIo.writeString(out, ack.path() == null ? "" : ack.path().value());
+        WireIo.writeString(out, ack.hash() == null ? "" : ack.hash().hex());
+        writeStatus(out, ack.status());
+        WireIo.writeString(out, ack.message());
+    }
+
+    private static AssetUploadAck readAssetUploadAck(ByteBuffer in) {
+        ResPath path = readResPathOrNull(in);
+        AssetHash hash = readHashOrNull(in);
+        AssetTransferStatus status = readStatus(in);
+        String message = WireIo.readString(in);
+        return new AssetUploadAck(path, hash, status, message);
+    }
+
+    private static void writeAssetUploadChunk(ByteBuffer out, AssetUploadChunk chunk) {
+        WireIo.writeString(out, chunk.hash().hex());
+        WireIo.writeVarInt(out, chunk.index());
+        writeBytes(out, chunk.bytes());
+    }
+
+    private static AssetUploadChunk readAssetUploadChunk(ByteBuffer in) {
+        AssetHash hash = new AssetHash(WireIo.readString(in));
+        int index = WireIo.readVarInt(in);
+        byte[] bytes = readBytes(in);
+        return new AssetUploadChunk(hash, index, bytes);
+    }
+
+    private static void writeAssetUploadComplete(ByteBuffer out, AssetUploadComplete complete) {
+        WireIo.writeString(out, complete.path() == null ? "" : complete.path().value());
+        WireIo.writeString(out, complete.hash() == null ? "" : complete.hash().hex());
+    }
+
+    private static AssetUploadComplete readAssetUploadComplete(ByteBuffer in) {
+        ResPath path = readResPathOrNull(in);
+        AssetHash hash = readHashOrNull(in);
+        return new AssetUploadComplete(path, hash);
+    }
+
+    private static void writeAssetDownloadRequest(ByteBuffer out, AssetDownloadRequest request) {
+        WireIo.writeString(out, request.hash() == null ? "" : request.hash().hex());
+    }
+
+    private static AssetDownloadRequest readAssetDownloadRequest(ByteBuffer in) {
+        AssetHash hash = readHashOrNull(in);
+        return new AssetDownloadRequest(hash);
+    }
+
+    private static void writeAssetDownloadBegin(ByteBuffer out, AssetDownloadBegin begin) {
+        WireIo.writeString(out, begin.hash() == null ? "" : begin.hash().hex());
+        writeLong(out, begin.sizeBytes());
+        writeAssetType(out, begin.assetType());
+        writeStatus(out, begin.status());
+        WireIo.writeString(out, begin.message());
+    }
+
+    private static AssetDownloadBegin readAssetDownloadBegin(ByteBuffer in) {
+        AssetHash hash = readHashOrNull(in);
+        long size = readLong(in);
+        AssetType type = readAssetType(in);
+        AssetTransferStatus status = readStatus(in);
+        String message = WireIo.readString(in);
+        return new AssetDownloadBegin(hash, size, type, status, message);
+    }
+
+    private static void writeAssetDownloadChunk(ByteBuffer out, AssetDownloadChunk chunk) {
+        WireIo.writeString(out, chunk.hash().hex());
+        WireIo.writeVarInt(out, chunk.index());
+        writeBytes(out, chunk.bytes());
+    }
+
+    private static AssetDownloadChunk readAssetDownloadChunk(ByteBuffer in) {
+        AssetHash hash = new AssetHash(WireIo.readString(in));
+        int index = WireIo.readVarInt(in);
+        byte[] bytes = readBytes(in);
+        return new AssetDownloadChunk(hash, index, bytes);
+    }
+
+    private static void writeAssetDownloadComplete(ByteBuffer out, AssetDownloadComplete complete) {
+        WireIo.writeString(out, complete.hash() == null ? "" : complete.hash().hex());
+        writeStatus(out, complete.status());
+        WireIo.writeString(out, complete.message());
+    }
+
+    private static AssetDownloadComplete readAssetDownloadComplete(ByteBuffer in) {
+        AssetHash hash = readHashOrNull(in);
+        AssetTransferStatus status = readStatus(in);
+        String message = WireIo.readString(in);
+        return new AssetDownloadComplete(hash, status, message);
     }
 
     private static void writeSceneOpBatch(ByteBuffer out, SceneOpBatch batch) {
@@ -382,8 +622,99 @@ public final class WireMessages {
             case SchemaSnapshot schema -> size += estimateSchemaSnapshotSize(schema);
             case SceneList list -> size += estimateSceneListSize(list);
             case SceneSelect select -> size += stringSize(select.sceneId());
+            case AssetManifestRequest request -> size += longSize(request.requestId());
+            case AssetManifestResponse response -> size += estimateAssetManifestResponseSize(response);
+            case AssetUploadBegin begin -> size += estimateAssetUploadBeginSize(begin);
+            case AssetUploadAck ack -> size += estimateAssetUploadAckSize(ack);
+            case AssetUploadChunk chunk -> size += estimateAssetUploadChunkSize(chunk);
+            case AssetUploadComplete complete -> size += estimateAssetUploadCompleteSize(complete);
+            case AssetDownloadRequest request -> size += estimateAssetDownloadRequestSize(request);
+            case AssetDownloadBegin begin -> size += estimateAssetDownloadBeginSize(begin);
+            case AssetDownloadChunk chunk -> size += estimateAssetDownloadChunkSize(chunk);
+            case AssetDownloadComplete complete -> size += estimateAssetDownloadCompleteSize(complete);
         }
         return size + 16;
+    }
+
+    private static int estimateAssetManifestResponseSize(AssetManifestResponse response) {
+        int size = 0;
+        size += longSize(response.requestId());
+        List<AssetManifestResponse.Entry> entries = response.entries() == null ? List.of() : response.entries();
+        size += varIntSize(entries.size());
+        for (AssetManifestResponse.Entry entry : entries) {
+            if (entry == null || entry.path() == null || entry.meta() == null) {
+                size += stringSize("") + stringSize("") + longSize(0L) + varIntSize(0);
+                continue;
+            }
+            size += stringSize(entry.path().value());
+            size += stringSize(entry.meta().hash().hex());
+            size += longSize(entry.meta().sizeBytes());
+            size += varIntSize(entry.meta().type().ordinal());
+        }
+        return size;
+    }
+
+    private static int estimateAssetUploadBeginSize(AssetUploadBegin begin) {
+        int size = 0;
+        size += stringSize(begin.path() == null ? "" : begin.path().value());
+        size += stringSize(begin.hash() == null ? "" : begin.hash().hex());
+        size += longSize(begin.sizeBytes());
+        size += varIntSize(begin.assetType() == null ? 0 : begin.assetType().ordinal());
+        return size;
+    }
+
+    private static int estimateAssetUploadAckSize(AssetUploadAck ack) {
+        int size = 0;
+        size += stringSize(ack.path() == null ? "" : ack.path().value());
+        size += stringSize(ack.hash() == null ? "" : ack.hash().hex());
+        size += varIntSize(ack.status() == null ? AssetTransferStatus.ERROR.id() : ack.status().id());
+        size += stringSize(ack.message());
+        return size;
+    }
+
+    private static int estimateAssetUploadChunkSize(AssetUploadChunk chunk) {
+        int size = 0;
+        size += stringSize(chunk.hash() == null ? "" : chunk.hash().hex());
+        size += varIntSize(chunk.index());
+        size += varIntSize(chunk.bytes() == null ? 0 : chunk.bytes().length) + (chunk.bytes() == null ? 0 : chunk.bytes().length);
+        return size;
+    }
+
+    private static int estimateAssetUploadCompleteSize(AssetUploadComplete complete) {
+        int size = 0;
+        size += stringSize(complete.path() == null ? "" : complete.path().value());
+        size += stringSize(complete.hash() == null ? "" : complete.hash().hex());
+        return size;
+    }
+
+    private static int estimateAssetDownloadRequestSize(AssetDownloadRequest request) {
+        return stringSize(request.hash() == null ? "" : request.hash().hex());
+    }
+
+    private static int estimateAssetDownloadBeginSize(AssetDownloadBegin begin) {
+        int size = 0;
+        size += stringSize(begin.hash() == null ? "" : begin.hash().hex());
+        size += longSize(begin.sizeBytes());
+        size += varIntSize(begin.assetType() == null ? 0 : begin.assetType().ordinal());
+        size += varIntSize(begin.status() == null ? AssetTransferStatus.ERROR.id() : begin.status().id());
+        size += stringSize(begin.message());
+        return size;
+    }
+
+    private static int estimateAssetDownloadChunkSize(AssetDownloadChunk chunk) {
+        int size = 0;
+        size += stringSize(chunk.hash() == null ? "" : chunk.hash().hex());
+        size += varIntSize(chunk.index());
+        size += varIntSize(chunk.bytes() == null ? 0 : chunk.bytes().length) + (chunk.bytes() == null ? 0 : chunk.bytes().length);
+        return size;
+    }
+
+    private static int estimateAssetDownloadCompleteSize(AssetDownloadComplete complete) {
+        int size = 0;
+        size += stringSize(complete.hash() == null ? "" : complete.hash().hex());
+        size += varIntSize(complete.status() == null ? AssetTransferStatus.ERROR.id() : complete.status().id());
+        size += stringSize(complete.message());
+        return size;
     }
 
     private static int estimateSceneListSize(SceneList list) {
