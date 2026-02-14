@@ -1,6 +1,6 @@
 package com.moud.client.fabric.mixin;
 
-import com.moud.client.fabric.editor.camera.EditorFreeflyCamera;
+import com.moud.client.fabric.platform.MinecraftFreeflyCamera;
 import com.moud.client.fabric.editor.overlay.EditorContext;
 import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
 import net.minecraft.client.render.Camera;
@@ -19,7 +19,7 @@ public final class CameraMixin {
         if (ctx == null) {
             return;
         }
-        EditorFreeflyCamera freefly = ctx.camera();
+        MinecraftFreeflyCamera freefly = ctx.camera();
         if (!freefly.isEnabled()) {
             return;
         }

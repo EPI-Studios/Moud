@@ -1,6 +1,6 @@
 package com.moud.client.fabric.mixin;
 
-import com.moud.client.fabric.editor.ghost.EditorGhostBlocks;
+import com.moud.client.fabric.platform.MinecraftGhostBlocks;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.render.chunk.ChunkRendererRegion;
@@ -21,11 +21,10 @@ public abstract class SectionBuilderMixin {
     )
     private BlockState moud$maskCsgBlocks(ChunkRendererRegion region, BlockPos pos) {
         BlockState state = region.getBlockState(pos);
-        EditorGhostBlocks ghosts = EditorGhostBlocks.get();
+        MinecraftGhostBlocks ghosts = MinecraftGhostBlocks.get();
         if (ghosts.shouldHideInChunks(pos, state)) {
             return Blocks.AIR.getDefaultState();
         }
         return state;
     }
 }
-

@@ -1,4 +1,4 @@
-package com.moud.client.fabric.editor.ghost;
+package com.moud.client.fabric.platform;
 
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpResult;
@@ -9,17 +9,19 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.world.ClientWorld;
 import com.moud.core.csg.CsgVoxelizer;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
+import org.joml.Vector3d;
 
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 import java.util.Objects;
 
-public final class EditorGhostBlocks {
-    private static final EditorGhostBlocks INSTANCE = new EditorGhostBlocks();
+public final class MinecraftGhostBlocks {
+    private static final MinecraftGhostBlocks INSTANCE = new MinecraftGhostBlocks();
 
-    public static EditorGhostBlocks get() {
+    public static MinecraftGhostBlocks get() {
         return INSTANCE;
     }
 
@@ -42,19 +44,19 @@ public final class EditorGhostBlocks {
 
     private BlockState csgDefaultState = Blocks.STONE.getDefaultState();
 
-    private Vec3d startBase = Vec3d.ZERO;
-    private Vec3d startSize = new Vec3d(1.0, 1.0, 1.0);
-    private Vec3d startRotDeg = Vec3d.ZERO;
-    private Vec3d startCenter = Vec3d.ZERO;
+    private Vector3d startBase = new Vector3d();
+    private Vector3d startSize = new Vector3d(1.0, 1.0, 1.0);
+    private Vector3d startRotDeg = new Vector3d();
+    private Vector3d startCenter = new Vector3d();
 
-    private Vec3d renderBase = Vec3d.ZERO;
-    private Vec3d renderSize = new Vec3d(1.0, 1.0, 1.0);
-    private Vec3d renderRotDeg = Vec3d.ZERO;
+    private Vector3d renderBase = new Vector3d();
+    private Vector3d renderSize = new Vector3d(1.0, 1.0, 1.0);
+    private Vector3d renderRotDeg = new Vector3d();
     private long keepPreviewUntilNs;
     private long awaitingAckDeadlineNs;
     private int worldUpdatedStreak;
 
-    private EditorGhostBlocks() {
+    private MinecraftGhostBlocks() {
     }
 
     public boolean isActive() {
@@ -94,42 +96,43 @@ public final class EditorGhostBlocks {
         return csgDefaultState;
     }
 
-    public Vec3d startBase() {
+    public Vector3d startBase() {
         return startBase;
     }
 
-    public Vec3d startSize() {
+    public Vector3d startSize() {
         return startSize;
     }
 
-    public Vec3d startRotDeg() {
+    public Vector3d startRotDeg() {
         return startRotDeg;
     }
 
-    public Vec3d startCenter() {
+    public Vector3d startCenter() {
         return startCenter;
     }
 
-    public Vec3d renderBase() {
+    public Vector3d renderBase() {
         return renderBase;
     }
 
-    public Vec3d renderSize() {
+    public Vector3d renderSize() {
         return renderSize;
     }
 
-    public Vec3d renderRotDeg() {
+    public Vector3d renderRotDeg() {
         return renderRotDeg;
     }
 
     public void startCsgBlock(long nodeId,
-                             BlockPos base,
+                             int baseX,
+                             int baseY,
+                             int baseZ,
                              int sx,
                              int sy,
                              int sz,
-                             Vec3d rotDeg,
-                             BlockState csgDefaultState) {
-        Objects.requireNonNull(base, "base");
+                             Vector3d rotDeg,
+                             String blockId) {
         cancel();
 
         MinecraftClient client = MinecraftClient.getInstance();
@@ -141,23 +144,23 @@ public final class EditorGhostBlocks {
         int xs = Math.max(1, sx);
         int ys = Math.max(1, sy);
         int zs = Math.max(1, sz);
-        Vec3d r = rotDeg == null ? Vec3d.ZERO : rotDeg;
+        Vector3d r = rotDeg == null ? new Vector3d() : new Vector3d(rotDeg);
 
-        BlockState defaultState = csgDefaultState == null ? Blocks.STONE.getDefaultState() : csgDefaultState;
+        BlockState defaultState = resolveBlockState(blockId, Blocks.STONE.getDefaultState());
         if (defaultState.isAir()) {
             defaultState = Blocks.STONE.getDefaultState();
         }
 
-        int bx = base.getX();
-        int by = base.getY();
-        int bz = base.getZ();
+        int bx = baseX;
+        int by = baseY;
+        int bz = baseZ;
 
         LongOpenHashSet selectionPositions = new LongOpenHashSet();
         collectCsgPositions(bx, by, bz, xs, ys, zs, (float) r.x, (float) r.y, (float) r.z, selectionPositions);
 
-        Vec3d startBase = new Vec3d(bx, by, bz);
-        Vec3d startSize = new Vec3d(xs, ys, zs);
-        Vec3d startCenter = startBase.add(startSize.multiply(0.5));
+        Vector3d startBase = new Vector3d(bx, by, bz);
+        Vector3d startSize = new Vector3d(xs, ys, zs);
+        Vector3d startCenter = new Vector3d(startBase).add(new Vector3d(startSize).mul(0.5));
 
         LongOpenHashSet nextMask = new LongOpenHashSet(selectionPositions.size());
         BlockPos.Mutable pos = new BlockPos.Mutable();
@@ -202,18 +205,18 @@ public final class EditorGhostBlocks {
         scheduleMaskRerender();
     }
 
-    public void setRenderTransform(Vec3d base, Vec3d size, Vec3d rotDeg) {
+    public void setRenderTransform(Vector3d base, Vector3d size, Vector3d rotDeg) {
         if (phase != Phase.DRAGGING) {
             return;
         }
         if (base != null) {
-            renderBase = base;
+            renderBase = new Vector3d(base);
         }
         if (size != null) {
-            renderSize = size;
+            renderSize = new Vector3d(size);
         }
         if (rotDeg != null) {
-            renderRotDeg = rotDeg;
+            renderRotDeg = new Vector3d(rotDeg);
         }
         rebuildPreviewPositions();
     }
@@ -238,16 +241,16 @@ public final class EditorGhostBlocks {
         }
     }
 
-    public void commitAndPredict(Vec3d finalBase, Vec3d finalSize, Vec3d finalRotDeg) {
+    public void commitAndPredict(Vector3d finalBase, Vector3d finalSize, Vector3d finalRotDeg) {
         if (phase != Phase.DRAGGING) {
             return;
         }
-        Vec3d base = finalBase == null ? renderBase : finalBase;
-        Vec3d size = finalSize == null ? renderSize : finalSize;
-        Vec3d rot = finalRotDeg == null ? renderRotDeg : finalRotDeg;
-        renderBase = base;
-        renderSize = size;
-        renderRotDeg = rot;
+        Vector3d base = finalBase == null ? renderBase : finalBase;
+        Vector3d size = finalSize == null ? renderSize : finalSize;
+        Vector3d rot = finalRotDeg == null ? renderRotDeg : finalRotDeg;
+        renderBase = new Vector3d(base);
+        renderSize = new Vector3d(size);
+        renderRotDeg = new Vector3d(rot);
         rebuildPreviewPositions();
         phase = Phase.AWAITING_ACK;
         keepPreviewUntilNs = 0L;
@@ -332,6 +335,21 @@ public final class EditorGhostBlocks {
         previewPositions = next;
     }
 
+    private static BlockState resolveBlockState(String blockId, BlockState fallback) {
+        if (blockId == null || blockId.isBlank()) {
+            return fallback;
+        }
+        Identifier id = Identifier.tryParse(blockId.trim());
+        if (id == null) {
+            return fallback;
+        }
+        Block block = Registries.BLOCK.get(id);
+        if (block == null || block == Blocks.AIR) {
+            return fallback;
+        }
+        return block.getDefaultState();
+    }
+
     private void scheduleMaskRerender() {
         MinecraftClient client = MinecraftClient.getInstance();
         WorldRenderer wr = client == null ? null : client.worldRenderer;
@@ -356,13 +374,13 @@ public final class EditorGhostBlocks {
         maskMinX = maskMinY = maskMinZ = Integer.MAX_VALUE;
         maskMaxX = maskMaxY = maskMaxZ = Integer.MIN_VALUE;
         csgDefaultState = Blocks.STONE.getDefaultState();
-        startBase = Vec3d.ZERO;
-        startSize = new Vec3d(1.0, 1.0, 1.0);
-        startRotDeg = Vec3d.ZERO;
-        startCenter = Vec3d.ZERO;
-        renderBase = Vec3d.ZERO;
-        renderSize = new Vec3d(1.0, 1.0, 1.0);
-        renderRotDeg = Vec3d.ZERO;
+        startBase = new Vector3d();
+        startSize = new Vector3d(1.0, 1.0, 1.0);
+        startRotDeg = new Vector3d();
+        startCenter = new Vector3d();
+        renderBase = new Vector3d();
+        renderSize = new Vector3d(1.0, 1.0, 1.0);
+        renderRotDeg = new Vector3d();
         keepPreviewUntilNs = 0L;
         awaitingAckDeadlineNs = 0L;
         worldUpdatedStreak = 0;
@@ -381,6 +399,9 @@ public final class EditorGhostBlocks {
         if (out == null) {
             return;
         }
-        CsgVoxelizer.forEachVoxel(x, y, z, sx, sy, sz, rxDeg, ryDeg, rzDeg, (xx, yy, zz) -> out.add(BlockPos.asLong(xx, yy, zz)));
+        CsgVoxelizer.forEachVoxel(
+                new CsgVoxelizer.VoxelDefinition(x, y, z, sx, sy, sz, rxDeg, ryDeg, rzDeg),
+                (xx, yy, zz) -> out.add(BlockPos.asLong(xx, yy, zz))
+        );
     }
 }

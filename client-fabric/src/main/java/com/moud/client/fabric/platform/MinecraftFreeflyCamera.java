@@ -1,4 +1,4 @@
-package com.moud.client.fabric.editor.camera;
+package com.moud.client.fabric.platform;
 
 import com.moud.client.fabric.editor.overlay.EditorContext;
 import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
@@ -9,7 +9,7 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.lwjgl.glfw.GLFW;
 
-public final class EditorFreeflyCamera {
+public final class MinecraftFreeflyCamera {
     private boolean enabled;
     private boolean capturing;
 
@@ -31,7 +31,7 @@ public final class EditorFreeflyCamera {
     private double fastMultiplier = 4.0;
     private double slowMultiplier = 0.25;
 
-    public EditorFreeflyCamera() {
+    public MinecraftFreeflyCamera() {
     }
 
     public boolean isEnabled() {

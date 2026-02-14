@@ -1,6 +1,6 @@
 package com.moud.client.fabric.mixin;
 
-import com.moud.client.fabric.editor.ghost.EditorGhostBlocks;
+import com.moud.client.fabric.platform.MinecraftGhostBlocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
@@ -29,7 +29,7 @@ public abstract class WorldRendererMixin {
             )
     )
     private void moud$renderGhostBlocks(RenderTickCounter tickCounter, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightmapTextureManager lightmapTextureManager, Matrix4f matrix4f, Matrix4f matrix4f2, CallbackInfo ci) {
-        EditorGhostBlocks ghosts = EditorGhostBlocks.get();
+        MinecraftGhostBlocks ghosts = MinecraftGhostBlocks.get();
         if (!ghosts.isActive()) {
             return;
         }
@@ -54,7 +54,7 @@ public abstract class WorldRendererMixin {
             int py = BlockPos.unpackLongY(packed);
             int pz = BlockPos.unpackLongZ(packed);
 
-            if (ghosts.phase() == EditorGhostBlocks.Phase.AWAITING_ACK) {
+            if (ghosts.phase() == MinecraftGhostBlocks.Phase.AWAITING_ACK) {
                 mutable.set(px, py, pz);
                 var state = client.world.getBlockState(mutable);
                 if (state != null && state.getBlock() == ghosts.csgDefaultState().getBlock()) {
