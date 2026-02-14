@@ -1,5 +1,6 @@
 package com.moud.client.fabric.editor.state;
 
+import com.moud.client.fabric.assets.AssetsClient;
 import com.moud.client.fabric.editor.dialogs.CreateNodeDialog;
 import com.moud.client.fabric.editor.net.EditorNet;
 import com.moud.client.fabric.editor.tools.EditorTool;
@@ -11,6 +12,7 @@ public final class EditorRuntime {
     private final EditorState state;
     private final EditorNet net;
     private CreateNodeDialog createNodeDialog;
+    private AssetsClient assets;
     private Session session;
     private Texture viewportTexture;
     private EditorTool tool = EditorTool.MOVE;
@@ -94,5 +96,13 @@ public final class EditorRuntime {
 
     public void setCreateNodeDialog(CreateNodeDialog dialog) {
         this.createNodeDialog = dialog;
+    }
+
+    public AssetsClient assets() {
+        return assets;
+    }
+
+    public void setAssets(AssetsClient assets) {
+        this.assets = assets;
     }
 }

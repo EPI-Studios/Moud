@@ -1,9 +1,10 @@
 package com.moud.client.fabric;
 
+import com.moud.client.fabric.assets.AssetsClient;
 import com.moud.client.fabric.net.FabricEngineTransport;
 import com.moud.client.fabric.net.EnginePayload;
-import com.moud.client.fabric.editor.camera.EditorFreeflyCamera;
-import com.moud.client.fabric.editor.ghost.EditorGhostBlocks;
+import com.moud.client.fabric.platform.MinecraftFreeflyCamera;
+import com.moud.client.fabric.platform.MinecraftGhostBlocks;
 import com.moud.client.fabric.editor.overlay.EditorContext;
 import com.moud.client.fabric.editor.overlay.EditorOverlay;
 import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
@@ -29,14 +30,18 @@ import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
 public final class FabricClientEntrypoint implements ClientModInitializer {
-    private final EditorFreeflyCamera camera = new EditorFreeflyCamera();
+    private final MinecraftFreeflyCamera camera = new MinecraftFreeflyCamera();
     private final EditorContext editorContext = new EditorContext(camera);
+    private final AssetsClient assets = new AssetsClient();
     private FabricEngineTransport transport;
     private Session session;
     private EditorOverlay overlay;
     private boolean overlayOpen;
     private boolean pendingOverlayDispose;
     private KeyBinding toggleKey;
+    private volatile SchemaSnapshot lastSchema;
+    private volatile SceneList lastSceneList;
+    private volatile SceneSnapshot lastSnapshot;
 
     @Override
     public void onInitializeClient() {
@@ -74,8 +79,11 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
         transport = null;
         session = null;
         overlayOpen = false;
+        lastSchema = null;
+        lastSceneList = null;
+        lastSnapshot = null;
         camera.setEnabled(false);
-        EditorGhostBlocks.get().cancel();
+        MinecraftGhostBlocks.get().cancel();
         if (overlay != null) {
             overlay.setOpen(false);
         }
@@ -86,8 +94,11 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
         transport = null;
         session = null;
         overlayOpen = false;
+        lastSchema = null;
+        lastSceneList = null;
+        lastSnapshot = null;
         camera.setEnabled(false);
-        EditorGhostBlocks.get().cancel();
+        MinecraftGhostBlocks.get().cancel();
         if (overlay != null) {
             overlay.setOpen(false);
             pendingOverlayDispose = true;
@@ -104,7 +115,7 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
         if (client == null) {
             return;
         }
-        EditorGhostBlocks.get().clientTick();
+        MinecraftGhostBlocks.get().clientTick();
         if (pendingOverlayDispose && overlay != null) {
             if (GLFW.glfwGetCurrentContext() != 0L) {
                 pendingOverlayDispose = false;
@@ -132,7 +143,7 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
             } else {
                 overlayOpen = false;
                 camera.setEnabled(false);
-                EditorGhostBlocks.get().cancel();
+                MinecraftGhostBlocks.get().cancel();
                 if (overlay != null) {
                     overlay.setOpen(false);
                 }
@@ -157,14 +168,19 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
             GLFW.glfwSetInputMode(handle, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
         }
         if (overlayOpen && overlay == null && session != null && session.state() == SessionState.CONNECTED) {
-            overlay = new EditorOverlay();
+            overlay = new EditorOverlay(assets);
             overlay.setOpen(true);
+            applyBufferedStateToOverlay();
             overlay.requestSnapshot(session);
             editorContext.setOverlay(overlay);
         } else if (overlayOpen && overlay != null && !overlay.isOpen() && session != null && session.state() == SessionState.CONNECTED) {
             overlay.setOpen(true);
+            applyBufferedStateToOverlay();
             overlay.requestSnapshot(session);
             editorContext.setOverlay(overlay);
+        }
+        if (overlayOpen && session != null && session.state() == SessionState.CONNECTED) {
+            assets.tick(session);
         }
         if (session != null) {
             session.tick();
@@ -192,15 +208,22 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
     }
 
     private void onMessage(Lane lane, Message message) {
+        if (lane == Lane.ASSETS) {
+            assets.onMessage(message);
+            return;
+        }
         if (message instanceof SceneSnapshot snapshot) {
+            lastSnapshot = snapshot;
             if (overlay != null) {
                 overlay.onSnapshot(snapshot);
             }
         } else if (message instanceof SchemaSnapshot schema) {
+            lastSchema = schema;
             if (overlay != null) {
                 overlay.onSchema(schema);
             }
         } else if (message instanceof SceneList list) {
+            lastSceneList = list;
             if (overlay != null) {
                 overlay.onSceneList(list);
             }
@@ -208,7 +231,26 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
             if (overlay != null) {
                 overlay.onAck(ack);
             }
-            EditorGhostBlocks.get().onAck(ack);
+            MinecraftGhostBlocks.get().onAck(ack);
+        }
+    }
+
+    private void applyBufferedStateToOverlay() {
+        EditorOverlay ov = overlay;
+        if (ov == null) {
+            return;
+        }
+        SchemaSnapshot schema = lastSchema;
+        if (schema != null) {
+            ov.onSchema(schema);
+        }
+        SceneList list = lastSceneList;
+        if (list != null) {
+            ov.onSceneList(list);
+        }
+        SceneSnapshot snapshot = lastSnapshot;
+        if (snapshot != null) {
+            ov.onSnapshot(snapshot);
         }
     }
 }
