@@ -2,6 +2,17 @@ package com.moud.net;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.moud.core.assets.AssetHash;
+import com.moud.core.assets.AssetMeta;
+import com.moud.core.assets.AssetType;
+import com.moud.core.assets.ResPath;
+import com.moud.net.protocol.AssetManifestRequest;
+import com.moud.net.protocol.AssetManifestResponse;
+import com.moud.net.protocol.AssetTransferStatus;
+import com.moud.net.protocol.AssetUploadAck;
+import com.moud.net.protocol.AssetUploadBegin;
+import com.moud.net.protocol.AssetUploadChunk;
+import com.moud.net.protocol.AssetUploadComplete;
 import com.moud.net.protocol.Message;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpError;
@@ -73,5 +84,26 @@ public final class WireMessagesRoundTripTest {
         ));
         Message decoded = WireMessages.decode(WireMessages.encode(schema));
         assertEquals(schema, decoded);
+    }
+
+    @Test
+    void assets_roundTrip() {
+        ResPath path = new ResPath("res://textures/foo.png");
+        AssetHash hash = new AssetHash("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+        AssetMeta meta = new AssetMeta(hash, 1234L, AssetType.IMAGE);
+
+        List<Message> messages = List.of(
+                new AssetManifestRequest(1L),
+                new AssetManifestResponse(2L, List.of(new AssetManifestResponse.Entry(path, meta))),
+                new AssetUploadBegin(path, hash, 5L, AssetType.BINARY),
+                new AssetUploadAck(path, hash, AssetTransferStatus.OK, "ok"),
+                new AssetUploadChunk(hash, 0, new byte[]{1, 2, 3}),
+                new AssetUploadComplete(path, hash)
+        );
+
+        for (Message message : messages) {
+            Message decoded = WireMessages.decode(WireMessages.encode(message));
+            assertEquals(message, decoded);
+        }
     }
 }
