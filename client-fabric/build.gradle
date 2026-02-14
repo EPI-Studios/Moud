@@ -1,0 +1,42 @@
+plugins {
+    id 'fabric-loom' version '1.11-SNAPSHOT'
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.fabricmc.net/' }
+
+    maven {
+        url = 'https://repo.minestom.com/'
+        content {
+            includeGroup 'net.minestom'
+            includeGroup 'com.miry'
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:1.21.1"
+    mappings "net.fabricmc:yarn:1.21.1+build.1:v2"
+    modImplementation "net.fabricmc:fabric-loader:0.17.2"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:0.116.6+1.21.1"
+
+    include implementation(project(':core'))
+    include implementation(project(':net'))
+    include(implementation("com.miry:miry:1.0-SNAPSHOT") {
+        exclude group: "org.lwjgl"
+    })
+}
+
+loom {
+    mixin {
+        defaultRefmapName = "moud.refmap.json"
+    }
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+

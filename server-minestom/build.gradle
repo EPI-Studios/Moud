@@ -1,0 +1,23 @@
+plugins {
+    id 'application'
+}
+
+repositories {
+    maven {
+        url = 'https://repo.minestom.com/'
+    }
+}
+
+dependencies {
+    implementation project(':core')
+    implementation project(':net')
+
+    implementation('net.minestom:minestom-snapshots:f966351cb7') {
+        exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j2-impl'
+    }
+    runtimeOnly 'ch.qos.logback:logback-classic:1.5.6'
+}
+
+application {
+    mainClass = 'com.moud.server.minestom.MinestomServerMain'
+}
