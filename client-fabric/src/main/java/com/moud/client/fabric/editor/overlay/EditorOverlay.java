@@ -19,8 +19,9 @@ import com.miry.ui.theme.Theme;
 import com.miry.ui.event.UiEvent;
 import com.miry.ui.event.KeyEvent;
 import com.miry.ui.event.TextInputEvent;
+import com.moud.client.fabric.assets.AssetsClient;
 import com.moud.client.fabric.editor.dialogs.CreateNodeDialog;
-import com.moud.client.fabric.editor.ghost.EditorGhostBlocks;
+import com.moud.client.fabric.platform.MinecraftGhostBlocks;
 import com.moud.client.fabric.editor.net.EditorNet;
 import com.moud.client.fabric.editor.panels.*;
 import com.moud.client.fabric.editor.state.EditorRuntime;
@@ -61,10 +62,18 @@ public final class EditorOverlay {
     private InspectorPanel inspectorPanel;
     private EditorGizmos gizmos;
     private ScenePanel scenePanel;
-    private com.miry.ui.layout.SplitNode rootWithBars;
-    private com.miry.ui.layout.SplitNode bodyWithStatus;
+    private com.miry.ui.layout.SplitNode rootWithTop;
+    private com.miry.ui.layout.SplitNode mainWithBottom;
+    private com.miry.ui.layout.SplitNode mainRow;
+    private com.miry.ui.layout.SplitNode viewportAndRight;
+    private com.miry.ui.layout.SplitNode leftColumn;
+    private boolean prevCameraCapturing;
+    private boolean layoutSeeded;
+    private int layoutSeedW;
+    private int layoutSeedH;
 
-    public EditorOverlay() {
+    public EditorOverlay(AssetsClient assets) {
+        runtime.setAssets(assets);
     }
 
     public void setOpen(boolean open) {
@@ -96,7 +105,7 @@ public final class EditorOverlay {
 
     public void onAck(SceneOpAck ack) {
         state.onAck(ack);
-        EditorGhostBlocks.get().onAck(ack);
+        MinecraftGhostBlocks.get().onAck(ack);
     }
 
     public void onSchema(SchemaSnapshot schema) {
@@ -204,6 +213,15 @@ public final class EditorOverlay {
             uiContext.update(1.0f / 60.0f);
         }
 
+        boolean cameraCapturing = false;
+        if (ctx != null && ctx.camera() != null) {
+            cameraCapturing = ctx.camera().isCapturing();
+        }
+        if (uiContext != null && cameraCapturing && !prevCameraCapturing) {
+            uiContext.focus().clearFocus();
+        }
+        prevCameraCapturing = cameraCapturing;
+
         if (state.pendingSnapshot) {
             state.pendingSnapshot = false;
             net.requestSnapshot(session, state);
@@ -224,14 +242,14 @@ public final class EditorOverlay {
             return;
         }
 
-        applyBarRatios(h);
+        applyBarRatios(w, h);
         dockSpace.resize(w, h);
         windowManager.update(uiContext, input, w, h);
         boolean modalOpen = createNodeDialog != null && createNodeDialog.isOpen();
         boolean blockedByWindows = windowManager.blocksInput();
         boolean blocked = modalOpen || blockedByWindows;
 
-        processUiEvents();
+        processUiEvents(cameraCapturing);
         if (!blocked) {
             dockSpace.update(input);
         }
@@ -319,21 +337,42 @@ public final class EditorOverlay {
         EditorTheme.apply(theme);
     }
 
-    private void applyBarRatios(int h) {
-        if (rootWithBars == null || bodyWithStatus == null) {
+    private void applyBarRatios(int w, int h) {
+        if (rootWithTop == null || mainWithBottom == null || mainRow == null || viewportAndRight == null || leftColumn == null) {
             return;
         }
-        int toolbarPx = Math.max(32, theme.tokens.itemHeight + 10);
-        int statusPx = Math.max(22, theme.tokens.itemHeight - 2);
+        int topPx = 30;
 
-        float topRatio = toolbarPx / (float) Math.max(1, h);
-        topRatio = Math.max(0.03f, Math.min(0.18f, topRatio));
-        rootWithBars.splitRatio = topRatio;
+        float topRatio = topPx / (float) Math.max(1, h);
+        rootWithTop.splitRatio = clampRatio(topRatio, 0.03f, 0.20f);
 
-        int remaining = Math.max(1, h - toolbarPx);
-        float bodyRatio = (remaining - statusPx) / (float) remaining;
-        bodyRatio = Math.max(0.70f, Math.min(0.98f, bodyRatio));
-        bodyWithStatus.splitRatio = bodyRatio;
+        boolean reseed = !layoutSeeded || layoutSeedW != w || layoutSeedH != h;
+        if (!reseed) {
+            return;
+        }
+        layoutSeeded = true;
+        layoutSeedW = w;
+        layoutSeedH = h;
+
+        // Default split sizing (user can still resize via splitters).
+        int bottomPx = 32;
+        int remaining = Math.max(1, h - topPx);
+        float mainRatio = (remaining - bottomPx) / (float) remaining;
+        mainWithBottom.splitRatio = clampRatio(mainRatio, 0.55f, 0.98f);
+
+        // Left column sizing: approximate Godot dock widths in pixels.
+        int leftPx = 280;
+        int rightPx = 320;
+        int mainW = Math.max(1, w);
+        float leftRatio = leftPx / (float) mainW;
+        mainRow.splitRatio = clampRatio(leftRatio, 0.18f, 0.45f);
+
+        int centerAndRightW = Math.max(1, mainW - leftPx);
+        float centerRatio = (centerAndRightW - rightPx) / (float) centerAndRightW;
+        viewportAndRight.splitRatio = clampRatio(centerRatio, 0.40f, 0.82f);
+
+        // Left column split between Scene and FileSystem.
+        leftColumn.splitRatio = 0.50f;
     }
 
     public void pushKeyEvent(int key, int scancode, int glfwAction, int mods) {
@@ -356,11 +395,11 @@ public final class EditorOverlay {
         if (!open || uiContext == null) {
             return;
         }
-        if (createNodeDialog != null && createNodeDialog.isOpen()) {
-            createNodeDialog.handleTextInput(codepoint);
-            return;
-        }
-        uiContext.keyboard().pushCharEvent(codepoint);
+                if (createNodeDialog != null && createNodeDialog.isOpen()) {
+                    createNodeDialog.handleTextInput(codepoint);
+                    return;
+                }
+                uiContext.keyboard().pushCharEvent(codepoint);
     }
 
     public CreateNodeDialog getCreateNodeDialog() {
@@ -377,49 +416,48 @@ public final class EditorOverlay {
     }
 
     private DockSpace createDockSpace() {
+        LeafNode top = new LeafNode(new ToolbarPanel(runtime));
+
         scenePanel = new ScenePanel(runtime);
         LeafNode scene = new LeafNode(scenePanel);
+
+        LeafNode filesystem = new LeafNode(new AssetsPanel(runtime));
+
+        leftColumn = new SplitNode(scene, filesystem, true, 0.50f);
+
         gizmos = new EditorGizmos(runtime);
         LeafNode viewport = new LeafNode(new ViewportPanel(runtime, gizmos));
-        inspectorPanel = new InspectorPanel(runtime);
-        LeafNode rightDock = new LeafNode(inspectorPanel);
-        rightDock.addTab(new NodeGraphPanel(runtime));
-        LeafNode ops = new LeafNode(new OpsPanel(runtime));
-        LeafNode toolbar = new LeafNode(new ToolbarPanel(runtime));
-        LeafNode status = new LeafNode(new StatusPanel(runtime));
 
-        for (LeafNode leaf : new LeafNode[]{scene, viewport, rightDock, ops}) {
-            leaf.setHeaderButtons(LeafNode.HeaderButtons.CLOSE_ONLY);
-            leaf.setHeaderButtonsOnlyOnHover(true);
-            leaf.setHeaderHeight(20);
+        inspectorPanel = new InspectorPanel(runtime);
+        LeafNode right = new LeafNode(inspectorPanel);
+
+        LeafNode bottom = new LeafNode(new BottomPanel(runtime));
+
+        for (LeafNode leaf : new LeafNode[]{top, scene, filesystem, viewport, right, bottom}) {
+            leaf.setHeaderHeight(0);
+            leaf.setHeaderButtons(LeafNode.HeaderButtons.NONE);
         }
 
         int panelBg = Theme.toArgb(theme.panelBg);
         scene.setBackgroundArgb(panelBg);
-        rightDock.setBackgroundArgb(panelBg);
-        ops.setBackgroundArgb(panelBg);
-        viewport.setBackgroundArgb(0xFF15151A);
+        filesystem.setBackgroundArgb(panelBg);
+        right.setBackgroundArgb(panelBg);
+        bottom.setBackgroundArgb(panelBg);
+        viewport.setBackgroundArgb(0xFF15171B);
+        top.setBackgroundArgb(Theme.toArgb(theme.windowBg));
 
-        toolbar.setHeaderHeight(0);
-        toolbar.setHeaderButtons(LeafNode.HeaderButtons.NONE);
-        status.setHeaderHeight(0);
-        status.setHeaderButtons(LeafNode.HeaderButtons.NONE);
+        viewportAndRight = new SplitNode(viewport, right, false, 0.72f);
+        mainRow = new SplitNode(leftColumn, viewportAndRight, false, 0.30f);
+        mainWithBottom = new SplitNode(mainRow, bottom, true, 0.92f);
+        rootWithTop = new SplitNode(top, mainWithBottom, true, 0.06f);
 
-        SplitNode centerCol = new SplitNode(viewport, ops, true, 0.62f);
-
-        SplitNode leftAndCenter = new SplitNode(scene, centerCol, false, 0.30f);
-        SplitNode body = new SplitNode(leftAndCenter, rightDock, false, 0.78f);
-
-        bodyWithStatus = new SplitNode(body, status, true, 0.96f);
-        rootWithBars = new SplitNode(toolbar, bodyWithStatus, true, 0.06f);
-
-        DockSpace ds = new DockSpace(rootWithBars);
+        DockSpace ds = new DockSpace(rootWithTop);
         ds.setUi(ui);
         ds.setUiContext(uiContext);
         return ds;
     }
 
-    private void processUiEvents() {
+    private void processUiEvents(boolean cameraCapturing) {
         if (uiContext == null) return;
         UiEvent event;
         while ((event = uiContext.pollEvent()) != null) {
@@ -429,20 +467,21 @@ public final class EditorOverlay {
                         continue;
                     }
                 }
-                if (inspectorPanel != null) {
+                if (!cameraCapturing && inspectorPanel != null) {
                     inspectorPanel.handleKey(uiContext, keyEvent);
                 }
-                if (scenePanel != null) {
+                if (!cameraCapturing && scenePanel != null) {
                     scenePanel.handleKey(uiContext, keyEvent);
                 }
             } else if (event instanceof TextInputEvent textEvent) {
-                if (inspectorPanel != null) {
+                if (!cameraCapturing && inspectorPanel != null) {
                     inspectorPanel.handleTextInput(uiContext, textEvent);
-                }
-                if (scenePanel != null) {
-                    scenePanel.handleTextInput(uiContext, textEvent);
                 }
             }
         }
+    }
+
+    private static float clampRatio(float v, float min, float max) {
+        return Math.max(min, Math.min(max, v));
     }
 }
