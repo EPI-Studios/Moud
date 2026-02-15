@@ -37,6 +37,7 @@ public final class InspectorPanel extends Panel {
 
     private final Map<String, TextField> stringFields = new HashMap<>();
     private final Map<String, DraggableNumberField> numberFields = new HashMap<>();
+    private final Map<String, PropertyType> numberFieldTypes = new HashMap<>();
     private final Map<String, Float> pendingNumbers = new HashMap<>();
     private final Map<String, Float> lastSentNumbers = new HashMap<>();
     private final Map<String, Boolean> groupExpanded = new HashMap<>();
@@ -437,15 +438,25 @@ public final class InspectorPanel extends Panel {
             float min = -1_000_000.0f;
             float max = 1_000_000.0f;
             DraggableNumberField nf = new DraggableNumberField(initial, min, max);
+            if (def != null) {
+                numberFieldTypes.put(key, def.type());
+            }
             if (def != null && def.editorHints() != null) {
                 String step = def.editorHints().get("step");
                 if (step != null) {
                     nf.setSnapStep(parseFloat(step, 1.0f));
                 }
+                float rangeMin = min;
+                float rangeMax = max;
                 String minS = def.editorHints().get("min");
                 if (minS != null) {
-                    nf.setRange(parseFloat(minS, min), max);
+                    rangeMin = parseFloat(minS, rangeMin);
                 }
+                String maxS = def.editorHints().get("max");
+                if (maxS != null) {
+                    rangeMax = parseFloat(maxS, rangeMax);
+                }
+                nf.setRange(rangeMin, rangeMax);
             }
             nf.setListener(v -> {
                 if (!syncingNumbers) {
@@ -486,12 +497,14 @@ public final class InspectorPanel extends Panel {
             }
 
             float v = pendingNumbers.get(key);
+            PropertyType type = numberFieldTypes.get(key);
+            float cmp = type == PropertyType.INT ? Math.round(v) : v;
             Float last = lastSentNumbers.get(key);
-            if (last != null && Math.abs(last - v) < 1e-6f) {
+            if (last != null && Math.abs(last - cmp) < 1e-6f) {
                 pendingNumbers.remove(key);
                 continue;
             }
-            lastSentNumbers.put(key, v);
+            lastSentNumbers.put(key, cmp);
             pendingNumbers.remove(key);
             commitNumberProperty(nodeId, key, v);
         }
@@ -514,6 +527,7 @@ public final class InspectorPanel extends Panel {
         renameField.setCursorPos(renameField.text().length());
         stringFields.clear();
         numberFields.clear();
+        numberFieldTypes.clear();
         pendingNumbers.clear();
         lastSentNumbers.clear();
     }
@@ -558,7 +572,12 @@ public final class InspectorPanel extends Panel {
         if (net == null || session == null || state == null) {
             return;
         }
-        net.sendOps(session, state, List.of(new SceneOp.SetProperty(nodeId, key, trimFloat(value))));
+        if (!Float.isFinite(value)) {
+            return;
+        }
+        PropertyType type = numberFieldTypes.get(key);
+        String encoded = type == PropertyType.INT ? Integer.toString(Math.round(value)) : trimFloat(value);
+        net.sendOps(session, state, List.of(new SceneOp.SetProperty(nodeId, key, encoded)));
     }
 
     private void commitStringProperty(String key, String value) {
