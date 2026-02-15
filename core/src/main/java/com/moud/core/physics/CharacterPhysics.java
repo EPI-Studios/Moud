@@ -9,7 +9,7 @@ public final class CharacterPhysics {
     public static final float AIR_ACCEL = 10.0f;
     public static final float AIR_DECEL = 5.0f;
     public static final float SPRINT_MULT = 1.5f;
-    public static final float FLOOR_Y = 41.0f;
+    public static final float FLOOR_Y = -64.0f;
 
     private CharacterPhysics() {
     }
