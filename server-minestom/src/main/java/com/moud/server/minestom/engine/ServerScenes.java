@@ -1,10 +1,10 @@
 package com.moud.server.minestom.engine;
 
 import com.moud.net.protocol.SceneInfo;
+import net.minestom.server.instance.LightingChunk;
 import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.instance.InstanceManager;
 import net.minestom.server.instance.anvil.AnvilLoader;
-import net.minestom.server.instance.block.Block;
 
 import java.util.*;
 
@@ -50,7 +50,9 @@ public final class ServerScenes {
 
     private ServerScene createScene(String sceneId, String displayName) {
         InstanceContainer instance = instanceManager.createInstanceContainer();
-        instance.setGenerator(unit -> unit.modifier().fillHeight(0, 41, Block.STONE));
+        instance.setChunkSupplier(LightingChunk::new);
+        instance.setGenerator(unit -> {
+        });
         instance.setChunkLoader(new AnvilLoader("world_" + sceneId));
         return new ServerScene(sceneId, displayName, instance);
     }
@@ -75,4 +77,3 @@ public final class ServerScenes {
         }
     }
 }
-
