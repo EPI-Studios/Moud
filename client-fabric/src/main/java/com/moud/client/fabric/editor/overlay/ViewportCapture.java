@@ -1,10 +1,13 @@
 package com.moud.client.fabric.editor.overlay;
 
 import com.miry.graphics.Texture;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.util.Window;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
+import org.lwjgl.opengl.GL30;
 
 final class ViewportCapture {
     private static final long MIN_CAPTURE_INTERVAL_NS = 16_666_667L; // ~60 FPS cap
@@ -45,8 +48,18 @@ final class ViewportCapture {
         }
         lastCaptureNs = now;
 
+        Framebuffer src = null;
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client != null) {
+            src = client.getFramebuffer();
+        }
+
         int fbw = window.getFramebufferWidth();
         int fbh = window.getFramebufferHeight();
+        if (src != null) {
+            fbw = src.textureWidth;
+            fbh = src.textureHeight;
+        }
         if (fbw <= 0 || fbh <= 0) {
             return;
         }
@@ -55,6 +68,13 @@ final class ViewportCapture {
         if (write.width() != fbw || write.height() != fbh) {
             write.allocateRgba(fbw, fbh);
             write.setFilteringLinear();
+        }
+
+        int prevReadFbo = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
+        int prevReadBuffer = GL11.glGetInteger(GL11.GL_READ_BUFFER);
+        if (src != null) {
+            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, src.fbo);
+            GL11.glReadBuffer(src.fbo == 0 ? GL11.GL_BACK : GL30.GL_COLOR_ATTACHMENT0);
         }
         int prevActive = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
@@ -65,6 +85,10 @@ final class ViewportCapture {
         } finally {
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, prev);
             GL13.glActiveTexture(prevActive);
+            if (src != null) {
+                GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, prevReadFbo);
+                GL11.glReadBuffer(prevReadBuffer);
+            }
         }
 
         Texture tmp = front;
