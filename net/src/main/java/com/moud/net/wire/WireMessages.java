@@ -34,6 +34,8 @@ import com.moud.net.protocol.SceneList;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.protocol.SceneSnapshotRequest;
 import com.moud.net.protocol.SceneSelect;
+import com.moud.net.protocol.SceneSave;
+import com.moud.net.protocol.SceneSaveAck;
 import com.moud.net.protocol.SchemaSnapshot;
 import com.moud.net.protocol.ServerHello;
 import com.moud.net.protocol.PlayerInput;
@@ -72,6 +74,8 @@ public final class WireMessages {
                     case SchemaSnapshot schema -> writeSchemaSnapshot(out, schema);
                     case SceneList sceneList -> writeSceneList(out, sceneList);
                     case SceneSelect sceneSelect -> WireIo.writeString(out, sceneSelect.sceneId());
+                    case SceneSave sceneSave -> WireIo.writeString(out, sceneSave.sceneId());
+                    case SceneSaveAck ack -> writeSceneSaveAck(out, ack);
                     case AssetManifestRequest request -> writeLong(out, request.requestId());
                     case AssetManifestResponse response -> writeAssetManifestResponse(out, response);
                     case AssetUploadBegin begin -> writeAssetUploadBegin(out, begin);
@@ -119,6 +123,8 @@ public final class WireMessages {
             case SCHEMA_SNAPSHOT -> readSchemaSnapshot(in);
             case SCENE_LIST -> readSceneList(in);
             case SCENE_SELECT -> new SceneSelect(WireIo.readString(in));
+            case SCENE_SAVE -> new SceneSave(WireIo.readString(in));
+            case SCENE_SAVE_ACK -> readSceneSaveAck(in);
             case ASSET_MANIFEST_REQUEST -> new AssetManifestRequest(readLong(in));
             case ASSET_MANIFEST_RESPONSE -> readAssetManifestResponse(in);
             case ASSET_UPLOAD_BEGIN -> readAssetUploadBegin(in);
@@ -160,6 +166,22 @@ public final class WireMessages {
         boolean jump = (flags & 1) != 0;
         boolean sprint = (flags & 2) != 0;
         return new PlayerInput(tick, moveX, moveZ, yaw, pitch, jump, sprint);
+    }
+
+    private static void writeSceneSaveAck(ByteBuffer out, SceneSaveAck ack) {
+        WireIo.writeString(out, ack.sceneId());
+        WireIo.writeVarInt(out, ack.success() ? 1 : 0);
+        WireIo.writeString(out, ack.error());
+    }
+
+    private static SceneSaveAck readSceneSaveAck(ByteBuffer in) {
+        String sceneId = WireIo.readString(in);
+        boolean success = WireIo.readVarInt(in) != 0;
+        String error = WireIo.readString(in);
+        if (error != null && error.isBlank()) {
+            error = null;
+        }
+        return new SceneSaveAck(sceneId, success, error);
     }
 
     private static void writeRuntimeState(ByteBuffer out, RuntimeState state) {
@@ -762,9 +784,23 @@ public final class WireMessages {
             case AssetDownloadChunk chunk -> size += estimateAssetDownloadChunkSize(chunk);
             case AssetDownloadComplete complete -> size += estimateAssetDownloadCompleteSize(complete);
             case PlayerInput input -> size += estimatePlayerInputSize(input);
+            case SceneSave save -> size += estimateSceneSaveSize(save);
+            case SceneSaveAck ack -> size += estimateSceneSaveAckSize(ack);
             case RuntimeState state -> size += estimateRuntimeStateSize(state);
         }
         return size + 16;
+    }
+
+    private static int estimateSceneSaveSize(SceneSave save) {
+        return stringSize(save.sceneId());
+    }
+
+    private static int estimateSceneSaveAckSize(SceneSaveAck ack) {
+        int size = 0;
+        size += stringSize(ack.sceneId());
+        size += varIntSize(ack.success() ? 1 : 0);
+        size += stringSize(ack.error());
+        return size;
     }
 
     private static int estimatePlayerInputSize(PlayerInput input) {

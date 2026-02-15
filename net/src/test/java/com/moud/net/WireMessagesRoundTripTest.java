@@ -19,6 +19,8 @@ import com.moud.net.protocol.RuntimeState;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpError;
 import com.moud.net.protocol.SceneOpResult;
+import com.moud.net.protocol.SceneSave;
+import com.moud.net.protocol.SceneSaveAck;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.protocol.SceneSnapshotRequest;
 import com.moud.net.protocol.SchemaSnapshot;
@@ -120,6 +122,20 @@ public final class WireMessagesRoundTripTest {
                         true, 0.1f, 0.2f, 0.3f,
                         0.0125f,
                         12345, "thunder", 0.75f)
+        );
+
+        for (Message message : messages) {
+            Message decoded = WireMessages.decode(WireMessages.encode(message));
+            assertEquals(message, decoded);
+        }
+    }
+
+    @Test
+    void sceneSave_roundTrip() {
+        List<Message> messages = List.of(
+                new SceneSave("main"),
+                new SceneSaveAck("main", true, null),
+                new SceneSaveAck("sandbox", false, "disk full")
         );
 
         for (Message message : messages) {
