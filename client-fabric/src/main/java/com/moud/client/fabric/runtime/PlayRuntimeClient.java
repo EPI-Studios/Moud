@@ -53,6 +53,10 @@ public final class PlayRuntimeClient {
 
     private volatile RuntimeState lastServerState;
 
+    public RuntimeState lastServerState() {
+        return lastServerState;
+    }
+
     public boolean isActive() {
         return active;
     }
