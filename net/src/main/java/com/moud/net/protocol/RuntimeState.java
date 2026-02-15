@@ -14,8 +14,13 @@ public record RuntimeState(
         float camYawDeg,
         float camPitchDeg,
         boolean fogEnabled,
-        String fogColor,
-        float fogDensity
+        float fogColorR,
+        float fogColorG,
+        float fogColorB,
+        float fogDensity,
+        int timeTicks,
+        String weather,
+        float ambientLight
 ) implements Message {
     @Override
     public MessageType type() {
