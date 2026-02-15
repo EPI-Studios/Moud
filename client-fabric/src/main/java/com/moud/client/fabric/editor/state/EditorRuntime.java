@@ -7,6 +7,7 @@ import com.moud.client.fabric.editor.tools.EditorTool;
 
 import com.miry.graphics.Texture;
 import com.moud.net.session.Session;
+import com.moud.net.session.SessionState;
 
 public final class EditorRuntime {
     private final EditorState state;
@@ -104,5 +105,18 @@ public final class EditorRuntime {
 
     public void setAssets(AssetsClient assets) {
         this.assets = assets;
+    }
+
+    public boolean saveCurrentScene() {
+        Session session = this.session;
+        if (session == null || session.state() != SessionState.CONNECTED) {
+            return false;
+        }
+        String sceneId = state.activeSceneId;
+        if (sceneId == null || sceneId.isBlank()) {
+            return false;
+        }
+        net.saveScene(session, sceneId);
+        return true;
     }
 }
