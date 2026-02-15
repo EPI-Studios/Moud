@@ -15,6 +15,7 @@ dependencies {
     implementation('net.minestom:minestom-snapshots:f966351cb7') {
         exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j2-impl'
     }
+    implementation 'com.google.code.gson:gson:2.11.0'
     runtimeOnly 'ch.qos.logback:logback-classic:1.5.6'
 }
 
