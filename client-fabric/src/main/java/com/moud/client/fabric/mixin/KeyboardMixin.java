@@ -3,6 +3,8 @@ package com.moud.client.fabric.mixin;
 import com.moud.client.fabric.editor.overlay.EditorContext;
 import com.moud.client.fabric.editor.overlay.EditorOverlay;
 import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
+import com.moud.client.fabric.runtime.PlayRuntimeBus;
+import com.moud.client.fabric.runtime.PlayRuntimeClient;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Keyboard;
 import org.lwjgl.glfw.GLFW;
@@ -17,10 +19,30 @@ public final class KeyboardMixin {
     private void moud$onKey(long window, int key, int scancode, int action, int modifiers, CallbackInfo ci) {
         EditorContext ctx = EditorOverlayBus.get();
         if (ctx == null) {
+            PlayRuntimeClient runtime = PlayRuntimeBus.get();
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (runtime == null || !runtime.isActive() || client == null || client.currentScreen != null) {
+                return;
+            }
+            if (key == GLFW.GLFW_KEY_F8) {
+                return;
+            }
+            runtime.onKeyEvent(key, action);
+            ci.cancel();
             return;
         }
         EditorOverlay overlay = ctx.overlay();
         if (overlay == null || !overlay.isOpen()) {
+            PlayRuntimeClient runtime = PlayRuntimeBus.get();
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (runtime == null || !runtime.isActive() || client == null || client.currentScreen != null) {
+                return;
+            }
+            if (key == GLFW.GLFW_KEY_F8) {
+                return;
+            }
+            runtime.onKeyEvent(key, action);
+            ci.cancel();
             return;
         }
         MinecraftClient client = MinecraftClient.getInstance();

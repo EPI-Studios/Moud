@@ -3,6 +3,8 @@ package com.moud.client.fabric.mixin;
 import com.moud.client.fabric.platform.MinecraftFreeflyCamera;
 import com.moud.client.fabric.editor.overlay.EditorContext;
 import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
+import com.moud.client.fabric.runtime.PlayRuntimeBus;
+import com.moud.client.fabric.runtime.PlayRuntimeClient;
 import net.minecraft.client.render.Camera;
 import net.minecraft.entity.Entity;
 import net.minecraft.world.BlockView;
@@ -16,14 +18,18 @@ public final class CameraMixin {
     @Inject(method = "update", at = @At("TAIL"))
     private void moud$update(BlockView area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickDelta, CallbackInfo ci) {
         EditorContext ctx = EditorOverlayBus.get();
-        if (ctx == null) {
-            return;
+        if (ctx != null) {
+            MinecraftFreeflyCamera freefly = ctx.camera();
+            if (freefly.isEnabled()) {
+                freefly.updateRenderState();
+                freefly.applyToCamera((Camera) (Object) this);
+                return;
+            }
         }
-        MinecraftFreeflyCamera freefly = ctx.camera();
-        if (!freefly.isEnabled()) {
-            return;
+
+        PlayRuntimeClient runtime = PlayRuntimeBus.get();
+        if (runtime != null && runtime.isActive()) {
+            runtime.applyCameraOverride((Camera) (Object) this);
         }
-        freefly.updateRenderState();
-        freefly.applyToCamera((Camera) (Object) this);
     }
 }
