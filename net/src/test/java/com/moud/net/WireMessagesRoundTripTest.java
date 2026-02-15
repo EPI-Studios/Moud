@@ -14,6 +14,8 @@ import com.moud.net.protocol.AssetUploadBegin;
 import com.moud.net.protocol.AssetUploadChunk;
 import com.moud.net.protocol.AssetUploadComplete;
 import com.moud.net.protocol.Message;
+import com.moud.net.protocol.PlayerInput;
+import com.moud.net.protocol.RuntimeState;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpError;
 import com.moud.net.protocol.SceneOpResult;
@@ -99,6 +101,22 @@ public final class WireMessagesRoundTripTest {
                 new AssetUploadAck(path, hash, AssetTransferStatus.OK, "ok"),
                 new AssetUploadChunk(hash, 0, new byte[]{1, 2, 3}),
                 new AssetUploadComplete(path, hash)
+        );
+
+        for (Message message : messages) {
+            Message decoded = WireMessages.decode(WireMessages.encode(message));
+            assertEquals(message, decoded);
+        }
+    }
+
+    @Test
+    void runtime_roundTrip() {
+        List<Message> messages = List.of(
+                new PlayerInput(123L, 1.0f, -0.25f, 90.0f, -10.0f, true, false),
+                new RuntimeState(456L, 120L, "main",
+                        1.0f, 42.5f, -3.0f,
+                        0.5f, -1.2f, 0.3f, true,
+                        180.0f, 5.0f, true, "0.1,0.2,0.3", 0.0125f)
         );
 
         for (Message message : messages) {
