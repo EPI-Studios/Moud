@@ -11,6 +11,7 @@ import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
 import com.moud.net.protocol.Message;
 import com.moud.net.protocol.RuntimeState;
 import com.moud.net.protocol.SceneOpAck;
+import com.moud.net.protocol.SceneSaveAck;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.protocol.SchemaSnapshot;
 import com.moud.net.protocol.SceneList;
@@ -234,6 +235,20 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
         }
         if (message instanceof RuntimeState state) {
             playRuntime.onRuntimeState(state);
+            return;
+        }
+        if (message instanceof SceneSaveAck ack) {
+            if (overlay != null && overlay.isOpen()) {
+                overlay.onSceneSaveAck(ack);
+                return;
+            }
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client != null && client.inGameHud != null) {
+                String msg = ack.success()
+                        ? "Saved scene: " + ack.sceneId()
+                        : "Save failed (" + ack.sceneId() + "): " + (ack.error() == null ? "Unknown error" : ack.error());
+                client.inGameHud.setOverlayMessage(Text.literal(msg), false);
+            }
             return;
         }
         if (message instanceof SceneSnapshot snapshot) {

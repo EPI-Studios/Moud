@@ -28,6 +28,7 @@ import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
 import com.moud.client.fabric.editor.theme.EditorTheme;
 import com.moud.client.fabric.editor.tools.EditorGizmos;
+import com.moud.net.protocol.SceneSaveAck;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.protocol.SceneList;
@@ -71,6 +72,10 @@ public final class EditorOverlay {
     private boolean layoutSeeded;
     private int layoutSeedW;
     private int layoutSeedH;
+
+    private String toastMessage;
+    private boolean toastError;
+    private long toastUntilMs;
 
     public EditorOverlay(AssetsClient assets) {
         runtime.setAssets(assets);
@@ -116,7 +121,23 @@ public final class EditorOverlay {
         state.onSceneList(list);
     }
 
+    public void onSceneSaveAck(SceneSaveAck ack) {
+        if (ack == null) {
+            return;
+        }
+        if (ack.success()) {
+            showToast("Saved scene: " + ack.sceneId(), false, 2500);
+            return;
+        }
+        String error = ack.error();
+        if (error == null || error.isBlank()) {
+            error = "Unknown error";
+        }
+        showToast("Save failed (" + ack.sceneId() + "): " + error, true, 5000);
+    }
+
     public void requestSnapshot(Session session) {
+        runtime.setSession(session);
         net.requestSnapshot(session, state);
     }
 
@@ -272,6 +293,7 @@ public final class EditorOverlay {
                 createNodeDialog.render(batch, uiContext, ui, theme, w, h);
             }
 
+            renderToast(w, h);
             batch.end();
 
             if (depthWasEnabled) GL11.glEnable(GL11.GL_DEPTH_TEST);
@@ -310,6 +332,7 @@ public final class EditorOverlay {
             createNodeDialog.render(batch, uiContext, ui, theme, w, h);
         }
 
+        renderToast(w, h);
         batch.end();
 
         if (depthWasEnabled) GL11.glEnable(GL11.GL_DEPTH_TEST);
@@ -386,6 +409,17 @@ public final class EditorOverlay {
             default -> null;
         };
         if (act == null) {
+            return;
+        }
+        if (act == KeyEvent.Action.PRESS
+                && key == GLFW.GLFW_KEY_S
+                && ((mods & GLFW.GLFW_MOD_CONTROL) != 0 || (mods & GLFW.GLFW_MOD_SUPER) != 0)) {
+            boolean sent = runtime.saveCurrentScene();
+            if (sent) {
+                showToast("Saving scene: " + state.activeSceneId + "...", false, 2000);
+            } else {
+                showToast("Save failed: not connected", true, 3500);
+            }
             return;
         }
         uiContext.keyboard().pushKeyEvent(key, scancode, act, mods);
@@ -483,5 +517,35 @@ public final class EditorOverlay {
 
     private static float clampRatio(float v, float min, float max) {
         return Math.max(min, Math.min(max, v));
+    }
+
+    private void showToast(String message, boolean error, int durationMs) {
+        toastMessage = message;
+        toastError = error;
+        toastUntilMs = System.currentTimeMillis() + Math.max(250, durationMs);
+    }
+
+    private void renderToast(int w, int h) {
+        String message = toastMessage;
+        if (message == null || batch == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now >= toastUntilMs) {
+            toastMessage = null;
+            return;
+        }
+
+        int x = 12;
+        int boxH = 24;
+        int y = h - 12 - boxH;
+        int maxW = Math.max(120, Math.min(w - 24, 520));
+        int boxW = Math.min(maxW, Math.max(160, 16 + message.length() * 7));
+
+        int bg = toastError ? 0xCC331111 : 0xCC111111;
+        int fg = toastError ? 0xFFFFB3B3 : 0xFFFFFFFF;
+
+        batch.drawRect(x, y, boxW, boxH, bg);
+        batch.drawText(message, x + 10, batch.baselineForBox(y, boxH), fg);
     }
 }

@@ -4,6 +4,7 @@ import com.moud.client.fabric.editor.state.EditorState;
 
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneOpBatch;
+import com.moud.net.protocol.SceneSave;
 import com.moud.net.protocol.SceneSnapshotRequest;
 import com.moud.net.protocol.SceneSelect;
 import com.moud.net.session.Session;
@@ -32,5 +33,12 @@ public final class EditorNet {
         }
         session.send(Lane.STATE, new SceneSelect(sceneId));
         state.pendingSnapshot = true;
+    }
+
+    public void saveScene(Session session, String sceneId) {
+        if (session == null || sceneId == null || sceneId.isBlank()) {
+            return;
+        }
+        session.send(Lane.EVENTS, new SceneSave(sceneId));
     }
 }
