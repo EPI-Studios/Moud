@@ -4,6 +4,7 @@
   "package": "com.moud.client.fabric.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "BackgroundRendererMixin",
     "CameraMixin",
     "KeyboardMixin",
     "MouseMixin",
