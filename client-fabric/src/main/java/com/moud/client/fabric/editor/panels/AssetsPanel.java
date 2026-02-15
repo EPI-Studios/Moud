@@ -12,6 +12,7 @@ import com.miry.ui.widgets.StripTabs;
 import com.miry.ui.widgets.TextField;
 import com.moud.client.fabric.assets.AssetsClient;
 import com.moud.client.fabric.editor.state.EditorRuntime;
+import com.moud.client.fabric.editor.state.EditorState;
 import com.moud.core.assets.AssetType;
 import com.moud.net.protocol.AssetManifestResponse;
 
@@ -32,6 +33,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
     private final ArrayList<AssetManifestResponse.Entry> entries = new ArrayList<>();
     private boolean requestedOnce;
     private String lastFilter = "";
+    private int activeDockTab;
 
     public AssetsPanel(EditorRuntime runtime) {
         super("");
@@ -84,26 +86,34 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         renderToolbar(ui, r, uiContext, theme, x, cursorY, w, toolbarH);
         cursorY += toolbarH;
 
-        renderPathBar(r, theme, x, cursorY, w, pathH);
+        renderPathBar(r, theme, x, cursorY, w, pathH, activeDockTab == 0 ? "res://" : "scenes/");
         cursorY += pathH;
 
-        AssetsClient assets = runtime.assets();
-        if (assets != null && !requestedOnce) {
-            requestedOnce = true;
-            assets.requestManifest(runtime.session());
-        }
+        if (activeDockTab == 0) {
+            AssetsClient assets = runtime.assets();
+            if (assets != null && !requestedOnce) {
+                requestedOnce = true;
+                assets.requestManifest(runtime.session());
+            }
 
-        String filter = filterField.text() == null ? "" : filterField.text();
-        if (!filter.equals(lastFilter)) {
-            lastFilter = filter;
-            rebuildBrowser(filter);
-        }
+            String filter = filterField.text() == null ? "" : filterField.text();
+            if (!filter.equals(lastFilter)) {
+                lastFilter = filter;
+                rebuildBrowser(filter);
+            }
 
-        int browserX = x;
-        int browserY = cursorY;
-        int browserW = w;
-        int browserH = Math.max(0, y + h - browserY);
-        browser.render(r, ui.input(), theme, browserX, browserY, browserW, browserH);
+            int browserX = x;
+            int browserY = cursorY;
+            int browserW = w;
+            int browserH = Math.max(0, y + h - browserY);
+            browser.render(r, ui.input(), theme, browserX, browserY, browserW, browserH);
+        } else {
+            int listX = x;
+            int listY = cursorY;
+            int listW = w;
+            int listH = Math.max(0, y + h - listY);
+            renderScenesList(ui, r, theme, listX, listY, listW, listH);
+        }
 
         ui.endPanel();
     }
@@ -122,8 +132,8 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         dockTabStyle.highlightTop = true;
         dockTabStyle.highlightThickness = 2;
 
-        String[] labels = new String[]{"FileSystem"};
-        dockTabs.render(r, uiContext, input, theme, x, y, w, h, labels, 0, true, dockTabStyle);
+        String[] labels = new String[]{"FileSystem", "Scenes"};
+        activeDockTab = dockTabs.render(r, uiContext, input, theme, x, y, w, h, labels, activeDockTab, true, dockTabStyle);
     }
 
     private void renderToolbar(Ui ui, UiRenderer r, UiContext uiContext, Theme theme, int x, int y, int w, int h) {
@@ -156,14 +166,82 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         });
     }
 
-    private static void renderPathBar(UiRenderer r, Theme theme, int x, int y, int w, int h) {
+    private static void renderPathBar(UiRenderer r, Theme theme, int x, int y, int w, int h, String label) {
         int bg = Theme.toArgb(theme.headerBg);
         r.drawRect(x, y, w, h, bg);
         r.drawRect(x, y + h - 1, w, 1, Theme.toArgb(theme.headerLine));
 
         int pad = theme.design.space_md;
         int muted = Theme.toArgb(theme.disabledFg);
-        r.drawText("res://", x + pad, r.baselineForBox(y, h), muted);
+        r.drawText(label == null ? "" : label, x + pad, r.baselineForBox(y, h), muted);
+    }
+
+    private void renderScenesList(Ui ui, UiRenderer r, Theme theme, int x, int y, int w, int h) {
+        int bg = Theme.toArgb(theme.panelBg);
+        r.drawRect(x, y, w, h, bg);
+
+        EditorState state = runtime.state();
+        if (state == null || state.scenes == null || state.scenes.isEmpty()) {
+            r.drawText("(no scenes)", x + 12, r.baselineForBox(y + 8, 24), Theme.toArgb(theme.textMuted));
+            return;
+        }
+
+        var input = ui.input();
+        boolean canInteract = input != null;
+        float mx = canInteract ? input.mousePos().x : -1;
+        float my = canInteract ? input.mousePos().y : -1;
+        boolean click = canInteract && input.mouseReleased();
+
+        int pad = theme.design.space_sm;
+        int rowH = Math.max(24, Math.round(theme.design.widget_height_md));
+        int cursorY = y + pad;
+        String filter = filterField.text() == null ? "" : filterField.text().trim().toLowerCase(Locale.ROOT);
+
+        for (var scene : state.scenes) {
+            if (scene == null) {
+                continue;
+            }
+            String sceneId = scene.sceneId();
+            if (sceneId == null || sceneId.isBlank()) {
+                continue;
+            }
+            String filename = sceneId + ".moud.scene";
+            String display = scene.uiLabel();
+            if (display == null || display.isBlank()) {
+                display = sceneId;
+            }
+
+            if (!filter.isEmpty()) {
+                String hay = (filename + " " + display).toLowerCase(Locale.ROOT);
+                if (!hay.contains(filter)) {
+                    continue;
+                }
+            }
+
+            if (cursorY + rowH > y + h) {
+                break;
+            }
+
+            boolean active = sceneId.equals(state.activeSceneId);
+            boolean hovered = canInteract && mx >= x && my >= cursorY && mx < x + w && my < cursorY + rowH;
+            if (active) {
+                int fill = Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.65f);
+                r.drawRect(x, cursorY, w, rowH, fill);
+            } else if (hovered) {
+                int fill = Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.45f);
+                r.drawRect(x, cursorY, w, rowH, fill);
+            }
+
+            int textX = x + pad;
+            r.drawText(filename, textX, r.baselineForBox(cursorY, rowH), Theme.toArgb(theme.text));
+            int muted = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.80f);
+            r.drawText(display, textX + 180, r.baselineForBox(cursorY, rowH), muted);
+
+            if (hovered && click) {
+                runtime.net().selectScene(runtime.session(), state, sceneId);
+            }
+            cursorY += rowH;
+        }
     }
 
     private void rebuildBrowser(String filter) {
