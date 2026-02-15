@@ -176,8 +176,14 @@ public final class WireMessages {
         out.putFloat(state.camYawDeg());
         out.putFloat(state.camPitchDeg());
         WireIo.writeVarInt(out, state.fogEnabled() ? 1 : 0);
-        WireIo.writeString(out, state.fogColor());
+        WireIo.writeString(out, legacyFogColorString(state.fogColorR(), state.fogColorG(), state.fogColorB()));
         out.putFloat(state.fogDensity());
+        out.putFloat(state.fogColorR());
+        out.putFloat(state.fogColorG());
+        out.putFloat(state.fogColorB());
+        WireIo.writeVarInt(out, state.timeTicks());
+        WireIo.writeString(out, state.weather());
+        out.putFloat(state.ambientLight());
     }
 
     private static RuntimeState readRuntimeState(ByteBuffer in) {
@@ -194,11 +200,61 @@ public final class WireMessages {
         float yaw = in.getFloat();
         float pitch = in.getFloat();
         boolean fogEnabled = WireIo.readVarInt(in) != 0;
-        String fogColor = WireIo.readString(in);
+        String fogColor = WireIo.readString(in); // legacy
         float fogDensity = in.getFloat();
+
+        float fogColorR = 0.5f;
+        float fogColorG = 0.5f;
+        float fogColorB = 0.5f;
+        if (fogColor != null && !fogColor.isBlank()) {
+            int c1 = fogColor.indexOf(',');
+            int c2 = c1 < 0 ? -1 : fogColor.indexOf(',', c1 + 1);
+            if (c1 > 0 && c2 > c1) {
+                fogColorR = parseFloatOr(fogColor.substring(0, c1), fogColorR);
+                fogColorG = parseFloatOr(fogColor.substring(c1 + 1, c2), fogColorG);
+                fogColorB = parseFloatOr(fogColor.substring(c2 + 1), fogColorB);
+            }
+        }
+
+        int timeTicks = 6000;
+        String weather = "clear";
+        float ambientLight = 1.0f;
+
+        if (in.remaining() >= 3 * 4) {
+            fogColorR = in.getFloat();
+            fogColorG = in.getFloat();
+            fogColorB = in.getFloat();
+        }
+        if (in.hasRemaining()) {
+            timeTicks = WireIo.readVarInt(in);
+        }
+        if (in.hasRemaining()) {
+            weather = WireIo.readString(in);
+        }
+        if (in.remaining() >= 4) {
+            ambientLight = in.getFloat();
+        }
         return new RuntimeState(tick, lastProcessedTick, sceneId,
                 charX, charY, charZ, velX, velY, velZ, onFloor,
-                yaw, pitch, fogEnabled, fogColor, fogDensity);
+                yaw, pitch,
+                fogEnabled, fogColorR, fogColorG, fogColorB,
+                fogDensity, timeTicks, weather, ambientLight);
+    }
+
+    private static float parseFloatOr(String value, float fallback) {
+        try {
+            if (value == null) {
+                return fallback;
+            }
+            float v = Float.parseFloat(value.trim());
+            return Float.isFinite(v) ? v : fallback;
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
+    private static String legacyFogColorString(float r, float g, float b) {
+        return Float.toString(r) + "," + Float.toString(g) + "," + Float.toString(b);
     }
 
     private static void writeBytes(ByteBuffer out, byte[] bytes) {
@@ -728,8 +784,12 @@ public final class WireMessages {
         size += varIntSize(state.onFloor() ? 1 : 0);
         size += 2 * 4; // camYawDeg + camPitchDeg
         size += varIntSize(state.fogEnabled() ? 1 : 0);
-        size += stringSize(state.fogColor());
+        size += stringSize(legacyFogColorString(state.fogColorR(), state.fogColorG(), state.fogColorB()));
         size += 4; // fogDensity
+        size += 3 * 4; // fogColorR/G/B
+        size += varIntSize(state.timeTicks());
+        size += stringSize(state.weather());
+        size += 4; // ambientLight
         return size;
     }
 

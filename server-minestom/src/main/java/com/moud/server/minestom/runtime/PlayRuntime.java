@@ -12,6 +12,7 @@ import com.moud.net.transport.Lane;
 import com.moud.server.minestom.engine.ServerScene;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
+import net.minestom.server.instance.Weather;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -112,6 +113,8 @@ public final class PlayRuntime {
         applyCharacterTransform(scene, nodes.character(), phys.x(), phys.y(), phys.z(), yaw);
 
         WorldEnvironment env = readWorldEnvironment(scene);
+        applyWorldEnvironment(scene, env);
+        int timeTicks = (int) (scene.instance().getTime() % 24_000L);
         session.send(Lane.STATE, new RuntimeState(
                 scene.engine().ticks(),
                 input.clientTick(),
@@ -126,8 +129,13 @@ public final class PlayRuntime {
                 yaw,
                 pitch,
                 env.fogEnabled(),
-                env.fogColor(),
-                env.fogDensity()
+                env.fogColorR(),
+                env.fogColorG(),
+                env.fogColorB(),
+                env.fogDensity(),
+                timeTicks,
+                env.weather(),
+                env.ambientLight()
         ));
 
         player.teleport(new Pos(phys.x(), phys.y(), phys.z(), yaw, pitch));
@@ -215,12 +223,78 @@ public final class PlayRuntime {
         Node root = scene.engine().sceneTree().root();
         Node node = root.findChild("WorldEnvironment");
         if (node == null) {
-            return new WorldEnvironment(false, "0.5,0.5,0.5", 0.02f);
+            return new WorldEnvironment(
+                    false,
+                    0.5f,
+                    0.5f,
+                    0.5f,
+                    0.02f,
+                    true,
+                    6000,
+                    "clear",
+                    1.0f
+            );
         }
-        boolean enabled = parseBool(node.getProperty("fog_enabled"));
-        String color = defaulted(node.getProperty("fog_color"), "0.5,0.5,0.5");
-        float density = parseFloat(node.getProperty("fog_density"), 0.02f);
-        return new WorldEnvironment(enabled, color, density);
+        boolean fogEnabled = parseBool(node.getProperty("fog_enabled"));
+        float fogDensity = parseFloat(node.getProperty("fog_density"), 0.02f);
+
+        float fogColorR = parseFloat(node.getProperty("fog_color_r"), Float.NaN);
+        float fogColorG = parseFloat(node.getProperty("fog_color_g"), Float.NaN);
+        float fogColorB = parseFloat(node.getProperty("fog_color_b"), Float.NaN);
+
+        if (Float.isNaN(fogColorR) && Float.isNaN(fogColorG) && Float.isNaN(fogColorB)) {
+            float[] legacy = parseLegacyRgb(node.getProperty("fog_color"));
+            fogColorR = legacy[0];
+            fogColorG = legacy[1];
+            fogColorB = legacy[2];
+        } else {
+            fogColorR = finiteOr(fogColorR, 0.5f);
+            fogColorG = finiteOr(fogColorG, 0.5f);
+            fogColorB = finiteOr(fogColorB, 0.5f);
+        }
+
+        boolean timeEnabled = parseBool(defaulted(node.getProperty("time_enabled"), "true"));
+        int timeTicks = parseInt(node.getProperty("time_ticks"), 6000);
+        String weather = defaulted(node.getProperty("weather"), "clear");
+        float ambientLight = parseFloat(node.getProperty("ambient_light"), 1.0f);
+
+        return new WorldEnvironment(
+                fogEnabled,
+                fogColorR,
+                fogColorG,
+                fogColorB,
+                fogDensity,
+                timeEnabled,
+                timeTicks,
+                weather,
+                ambientLight
+        );
+    }
+
+    private void applyWorldEnvironment(ServerScene scene, WorldEnvironment env) {
+        if (scene == null || env == null) {
+            return;
+        }
+
+        if (env.timeEnabled()) {
+            scene.instance().setTimeRate(0);
+            scene.instance().setTime(env.timeTicks());
+        } else {
+            scene.instance().setTimeRate(1);
+        }
+
+        scene.instance().setWeather(toWeather(env.weather()));
+    }
+
+    private static Weather toWeather(String value) {
+        if (value == null) {
+            return Weather.CLEAR;
+        }
+        return switch (value.trim().toLowerCase()) {
+            case "rain" -> Weather.RAIN;
+            case "thunder" -> Weather.THUNDER;
+            default -> Weather.CLEAR;
+        };
     }
 
     private static String defaulted(String value, String fallback) {
@@ -228,6 +302,38 @@ public final class PlayRuntime {
             return fallback;
         }
         return value;
+    }
+
+    private static float finiteOr(float value, float fallback) {
+        return Float.isFinite(value) ? value : fallback;
+    }
+
+    private static float[] parseLegacyRgb(String value) {
+        float r = 0.5f;
+        float g = 0.5f;
+        float b = 0.5f;
+        if (value == null || value.isBlank()) {
+            return new float[]{r, g, b};
+        }
+        int c1 = value.indexOf(',');
+        int c2 = c1 < 0 ? -1 : value.indexOf(',', c1 + 1);
+        if (c1 > 0 && c2 > c1) {
+            r = parseFloat(value.substring(0, c1), r);
+            g = parseFloat(value.substring(c1 + 1, c2), g);
+            b = parseFloat(value.substring(c2 + 1), b);
+        }
+        return new float[]{r, g, b};
+    }
+
+    private static int parseInt(String value, int fallback) {
+        try {
+            if (value == null) {
+                return fallback;
+            }
+            return Integer.parseInt(value.trim());
+        } catch (Exception ignored) {
+            return fallback;
+        }
     }
 
     private static float parseFloat(String value, float fallback) {
@@ -287,7 +393,17 @@ public final class PlayRuntime {
     private record RuntimeNodes(Node character, Node camera) {
     }
 
-    private record WorldEnvironment(boolean fogEnabled, String fogColor, float fogDensity) {
+    private record WorldEnvironment(
+            boolean fogEnabled,
+            float fogColorR,
+            float fogColorG,
+            float fogColorB,
+            float fogDensity,
+            boolean timeEnabled,
+            int timeTicks,
+            String weather,
+            float ambientLight
+    ) {
     }
 
     private record PlayerSceneKey(UUID playerId, String sceneId) {

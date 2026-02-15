@@ -116,7 +116,10 @@ public final class WireMessagesRoundTripTest {
                 new RuntimeState(456L, 120L, "main",
                         1.0f, 42.5f, -3.0f,
                         0.5f, -1.2f, 0.3f, true,
-                        180.0f, 5.0f, true, "0.1,0.2,0.3", 0.0125f)
+                        180.0f, 5.0f,
+                        true, 0.1f, 0.2f, 0.3f,
+                        0.0125f,
+                        12345, "thunder", 0.75f)
         );
 
         for (Message message : messages) {
