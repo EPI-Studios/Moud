@@ -9,10 +9,13 @@ import com.moud.client.fabric.editor.overlay.EditorContext;
 import com.moud.client.fabric.editor.overlay.EditorOverlay;
 import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
 import com.moud.net.protocol.Message;
+import com.moud.net.protocol.RuntimeState;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.protocol.SchemaSnapshot;
 import com.moud.net.protocol.SceneList;
+import com.moud.client.fabric.runtime.PlayRuntimeBus;
+import com.moud.client.fabric.runtime.PlayRuntimeClient;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionRole;
 import com.moud.net.session.SessionState;
@@ -33,6 +36,7 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
     private final MinecraftFreeflyCamera camera = new MinecraftFreeflyCamera();
     private final EditorContext editorContext = new EditorContext(camera);
     private final AssetsClient assets = new AssetsClient();
+    private final PlayRuntimeClient playRuntime = new PlayRuntimeClient();
     private FabricEngineTransport transport;
     private Session session;
     private EditorOverlay overlay;
@@ -63,6 +67,7 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
         });
 
         EditorOverlayBus.set(editorContext);
+        PlayRuntimeBus.set(playRuntime);
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> onJoin());
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> onDisconnect());
@@ -71,6 +76,10 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
             if (session != null && session.state() == SessionState.CONNECTED && overlayOpen && overlay != null) {
                 overlay.render(session);
+            }
+            Session s = session;
+            if (playRuntime.isActive() && s != null && s.state() == SessionState.CONNECTED) {
+                playRuntime.sendInput(s, 60);
             }
         });
     }
@@ -84,6 +93,7 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
         lastSnapshot = null;
         camera.setEnabled(false);
         MinecraftGhostBlocks.get().cancel();
+        playRuntime.onDisconnect();
         if (overlay != null) {
             overlay.setOpen(false);
         }
@@ -99,6 +109,7 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
         lastSnapshot = null;
         camera.setEnabled(false);
         MinecraftGhostBlocks.get().cancel();
+        playRuntime.onDisconnect();
         if (overlay != null) {
             overlay.setOpen(false);
             pendingOverlayDispose = true;
@@ -116,6 +127,9 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
             return;
         }
         MinecraftGhostBlocks.get().clientTick();
+        Session currentSession = session;
+        boolean connected = currentSession != null && currentSession.state() == SessionState.CONNECTED;
+        playRuntime.setActive(connected && !overlayOpen);
         if (pendingOverlayDispose && overlay != null) {
             if (GLFW.glfwGetCurrentContext() != 0L) {
                 pendingOverlayDispose = false;
@@ -153,15 +167,18 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
             }
             editorContext.setOverlay(overlay);
         }
-        if (overlayOpen && transport == null && session == null && ClientPlayNetworking.canSend(EnginePayload.ID)) {
+        if (transport == null && session == null && ClientPlayNetworking.canSend(EnginePayload.ID)) {
             transport = new FabricEngineTransport();
             session = new Session(SessionRole.CLIENT, transport);
             session.setLogSink(s -> System.out.println("[moud-client] " + s));
             session.setMessageHandler(this::onMessage);
             session.start();
         }
-        if (overlayOpen && client.currentScreen == null) {
+        if ((overlayOpen || playRuntime.shouldBlockVanillaInput(client)) && client.currentScreen == null) {
             blockVanillaInput(client);
+        }
+        if (playRuntime.isActive() && client.currentScreen == null) {
+            client.mouse.lockCursor();
         }
         if (overlayOpen && !camera.isCapturing()) {
             long handle = client.getWindow().getHandle();
@@ -181,6 +198,9 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
         }
         if (overlayOpen && session != null && session.state() == SessionState.CONNECTED) {
             assets.tick(session);
+        }
+        if (playRuntime.isActive() && session != null) {
+            playRuntime.tick(session);
         }
         if (session != null) {
             session.tick();
@@ -210,6 +230,10 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
     private void onMessage(Lane lane, Message message) {
         if (lane == Lane.ASSETS) {
             assets.onMessage(message);
+            return;
+        }
+        if (message instanceof RuntimeState state) {
+            playRuntime.onRuntimeState(state);
             return;
         }
         if (message instanceof SceneSnapshot snapshot) {

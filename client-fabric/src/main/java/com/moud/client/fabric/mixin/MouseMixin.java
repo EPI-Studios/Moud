@@ -2,6 +2,8 @@ package com.moud.client.fabric.mixin;
 
 import com.moud.client.fabric.editor.overlay.EditorContext;
 import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
+import com.moud.client.fabric.runtime.PlayRuntimeBus;
+import com.moud.client.fabric.runtime.PlayRuntimeClient;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
 import net.minecraft.client.util.Window;
@@ -21,6 +23,14 @@ public abstract class MouseMixin {
     private void moud$onMouseScroll(long window, double horizontal, double vertical, CallbackInfo ci) {
         EditorContext ctx = EditorOverlayBus.get();
         if (ctx == null || !ctx.isActive()) {
+            PlayRuntimeClient runtime = PlayRuntimeBus.get();
+            if (runtime == null || !runtime.isActive()) {
+                return;
+            }
+            if (client == null || client.currentScreen != null) {
+                return;
+            }
+            ci.cancel();
             return;
         }
         if (client == null || client.currentScreen != null) {
@@ -34,6 +44,14 @@ public abstract class MouseMixin {
     private void moud$onMouseButton(long window, int button, int action, int mods, CallbackInfo ci) {
         EditorContext ctx = EditorOverlayBus.get();
         if (ctx == null || !ctx.isActive()) {
+            PlayRuntimeClient runtime = PlayRuntimeBus.get();
+            if (runtime == null || !runtime.isActive()) {
+                return;
+            }
+            if (client == null || client.currentScreen != null) {
+                return;
+            }
+            ci.cancel();
             return;
         }
         if (client == null || client.currentScreen != null) {
@@ -62,16 +80,27 @@ public abstract class MouseMixin {
         }
     }
 
-    @Inject(method = "updateMouse", at = @At("HEAD"))
+    @Inject(method = "updateMouse", at = @At("HEAD"), cancellable = true)
     private void moud$updateMouse(CallbackInfo ci) {
         EditorContext ctx = EditorOverlayBus.get();
-        if (ctx == null || !ctx.isActive()) {
+        if (ctx != null && ctx.isActive()) {
+            if (client == null || client.currentScreen != null) {
+                return;
+            }
+            ctx.camera().consumeMouseMove(client.mouse.getX(), client.mouse.getY());
+            ci.cancel();
+            return;
+        }
+
+        PlayRuntimeClient runtime = PlayRuntimeBus.get();
+        if (runtime == null || !runtime.isActive()) {
             return;
         }
         if (client == null || client.currentScreen != null) {
             return;
         }
-        ctx.camera().consumeMouseMove(client.mouse.getX(), client.mouse.getY());
+        runtime.onMouseMove(client.mouse.getX(), client.mouse.getY());
+        ci.cancel();
     }
 
     private double scaledMouseX() {
