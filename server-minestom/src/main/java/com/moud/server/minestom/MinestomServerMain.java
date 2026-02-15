@@ -37,21 +37,12 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 public final class MinestomServerMain {
     private static final String CHANNEL = "moud:engine";
     private static final double TICK_DT_SECONDS = 1.0 / 20.0;
 
     private boolean devMode = true;
-    private final Map<UUID, MinestomPlayerTransport> transports = new ConcurrentHashMap<>();
-    private final Map<UUID, Session> sessions = new ConcurrentHashMap<>();
-    private final Map<UUID, Boolean> schemaSent = new ConcurrentHashMap<>();
-    private final Map<UUID, Boolean> scenesSent = new ConcurrentHashMap<>();
-    private final Map<UUID, Long> scenesSentRevision = new ConcurrentHashMap<>();
-    private final Map<UUID, String> activeSceneId = new ConcurrentHashMap<>();
     private com.moud.server.minestom.engine.ServerScenes scenes;
     private com.moud.server.minestom.engine.ServerScene mainScene;
     private AssetService assets;
@@ -67,6 +58,7 @@ public final class MinestomServerMain {
         System.out.println("[moud] mode=" + (devMode ? "dev" : "player"));
 
         MinecraftServer minecraftServer = MinecraftServer.init();
+        MinecraftServer.getConnectionManager().setPlayerProvider(EnginePlayer::new);
 
         InstanceManager instanceManager = MinecraftServer.getInstanceManager();
         scenes = new com.moud.server.minestom.engine.ServerScenes(instanceManager);
@@ -79,23 +71,10 @@ public final class MinestomServerMain {
             throw new IllegalStateException("Failed to init asset store", e);
         }
 
-        PlainNode demo = new PlainNode("CSGBlock_demo");
-        demo.setProperty("@type", "CSGBlock");
-        demo.setProperty("x", "0");
-        demo.setProperty("y", "41");
-        demo.setProperty("z", "5");
-        demo.setProperty("sx", "1");
-        demo.setProperty("sy", "6");
-        demo.setProperty("sz", "1");
-        demo.setProperty("block", "minecraft:diamond_block");
-        mainScene.engine().sceneTree().root().addChild(demo);
-        mainScene.engine().bumpSceneRevision();
-        mainScene.engine().bumpCsgRevision();
-
         MinecraftServer.getGlobalEventHandler()
                 .addListener(AsyncPlayerConfigurationEvent.class, event -> {
                     event.setSpawningInstance(mainScene.instance());
-                    event.getPlayer().setRespawnPoint(new Pos(0, 42, 0));
+                    event.getPlayer().setRespawnPoint(new Pos(0, 0, 0));
                 })
                 .addListener(PlayerSpawnEvent.class, event -> onPlayerSpawn(event.getPlayer()))
                 .addListener(PlayerPluginMessageEvent.class, this::onPluginMessage)
@@ -117,75 +96,91 @@ public final class MinestomServerMain {
     }
 
     private void onPlayerSpawn(Player player) {
-        player.setRespawnPoint(new Pos(0, 42, 0));
-        player.setGameMode(GameMode.CREATIVE);
-        player.sendPluginMessage("minecraft:register", CHANNEL.getBytes(StandardCharsets.UTF_8));
-        transports.computeIfAbsent(player.getUuid(), uuid -> new MinestomPlayerTransport(player, CHANNEL));
-        Session session = new Session(SessionRole.SERVER, transports.get(player.getUuid()));
-        session.setLogSink(msg -> System.out.println("[moud][" + player.getUsername() + "] " + msg));
-        session.setMessageHandler((lane, message) -> onSessionMessage(player, lane, message));
-        session.start();
-        sessions.put(player.getUuid(), session);
-        activeSceneId.putIfAbsent(player.getUuid(), "main");
-        playRuntime.onPlayerSpawn(player, activeSceneId.getOrDefault(player.getUuid(), "main"));
+        if (!(player instanceof EnginePlayer enginePlayer)) {
+            return;
+        }
+
+        enginePlayer.setRespawnPoint(new Pos(0, 0, 0));
+        enginePlayer.setGameMode(GameMode.CREATIVE);
+        enginePlayer.sendPluginMessage("minecraft:register", CHANNEL.getBytes(StandardCharsets.UTF_8));
+
+        if (enginePlayer.transport() == null) {
+            enginePlayer.setTransport(new MinestomPlayerTransport(enginePlayer, CHANNEL));
+        }
+        if (enginePlayer.session() == null) {
+            Session session = new Session(SessionRole.SERVER, enginePlayer.transport());
+            session.setLogSink(msg -> System.out.println("[moud][" + enginePlayer.getUsername() + "] " + msg));
+            session.setMessageHandler((lane, message) -> onSessionMessage(enginePlayer, lane, message));
+            session.start();
+            enginePlayer.setSession(session);
+        }
+
+        playRuntime.onPlayerSpawn(enginePlayer, enginePlayer.activeSceneId());
     }
 
     private void onPluginMessage(PlayerPluginMessageEvent event) {
-        MinestomPlayerTransport transport = transports.get(event.getPlayer().getUuid());
+        if (!(event.getPlayer() instanceof EnginePlayer enginePlayer)) {
+            return;
+        }
+
+        MinestomPlayerTransport transport = enginePlayer.transport();
         if (transport == null) {
             return;
         }
         transport.acceptPluginMessage(event.getIdentifier(), event.getMessage());
-        Session session = sessions.get(event.getPlayer().getUuid());
+        Session session = enginePlayer.session();
         if (session != null) {
             session.tick();
         }
     }
 
     private void onDisconnect(Player player) {
-        sessions.remove(player.getUuid());
-        transports.remove(player.getUuid());
-        schemaSent.remove(player.getUuid());
-        scenesSent.remove(player.getUuid());
-        scenesSentRevision.remove(player.getUuid());
-        activeSceneId.remove(player.getUuid());
         playRuntime.onDisconnect(player.getUuid());
     }
 
     private void tick() {
         scenes.tickAll(TICK_DT_SECONDS);
-        for (Map.Entry<UUID, Session> entry : sessions.entrySet()) {
-            UUID uuid = entry.getKey();
-            Session session = entry.getValue();
-            if (session.state() == SessionState.CONNECTED && schemaSent.putIfAbsent(uuid, Boolean.TRUE) == null) {
-                SchemaSnapshot schema = buildSchemaSnapshot();
-                session.send(Lane.STATE, schema);
+        for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
+            if (!(player instanceof EnginePlayer enginePlayer)) {
+                continue;
             }
+            Session session = enginePlayer.session();
+            if (session == null) {
+                continue;
+            }
+
+            if (session.state() == SessionState.CONNECTED && !enginePlayer.schemaSent()) {
+                session.send(Lane.STATE, buildSchemaSnapshot());
+                enginePlayer.markSchemaSent();
+            }
+
             if (session.state() == SessionState.CONNECTED) {
-                sendSceneListIfNeeded(uuid, session);
-                String sceneId = activeSceneId.getOrDefault(uuid, "main");
+                sendSceneListIfNeeded(enginePlayer, session);
+                String sceneId = enginePlayer.activeSceneId();
                 ServerScene scene = scenes.get(sceneId);
                 if (scene == null) {
                     scene = mainScene;
                 }
                 if (scene != null) {
-                    playRuntime.tick(uuid, session, scene);
+                    playRuntime.tick(enginePlayer.getUuid(), session, scene);
                 }
             }
-        }
-        for (Session session : sessions.values()) {
+
             session.tick();
         }
     }
 
-    private void sendSceneListIfNeeded(UUID uuid, Session session) {
+    private void sendSceneListIfNeeded(EnginePlayer player, Session session) {
         long rev = scenes.scenesRevision();
-        long last = scenesSentRevision.getOrDefault(uuid, Long.MIN_VALUE);
-        if (scenesSent.putIfAbsent(uuid, Boolean.TRUE) != null && last == rev) {
+        long last = player.scenesSentRevision();
+        if (last == rev) {
             return;
         }
-        scenesSentRevision.put(uuid, rev);
-        String active = activeSceneId.getOrDefault(uuid, "main");
+        player.setScenesSentRevision(rev);
+        String active = player.activeSceneId();
+        if (active == null || active.isBlank()) {
+            active = "main";
+        }
         session.send(Lane.STATE, new SceneList(scenes.snapshotInfo(), active));
     }
 
@@ -418,13 +413,17 @@ public final class MinestomServerMain {
     }
 
     private void onSessionMessage(Player player, Lane lane, Message message) {
-        Session session = sessions.get(player.getUuid());
+        if (!(player instanceof EnginePlayer enginePlayer)) {
+            return;
+        }
+
+        Session session = enginePlayer.session();
         if (session == null) {
             return;
         }
 
         if (lane == Lane.INPUT && message instanceof PlayerInput input) {
-            playRuntime.onInput(player.getUuid(), input);
+            playRuntime.onInput(enginePlayer.getUuid(), input);
             return;
         }
 
@@ -437,16 +436,19 @@ public final class MinestomServerMain {
                 next = mainScene;
             }
             if (next != null) {
-                activeSceneId.put(player.getUuid(), next.sceneId());
-                playRuntime.onSceneChanged(player.getUuid(), next.sceneId());
-                player.setInstance(next.instance(), new Pos(0, 42, 0));
+                enginePlayer.setActiveSceneId(next.sceneId());
+                playRuntime.onSceneChanged(enginePlayer.getUuid(), next.sceneId());
+                player.setInstance(next.instance(), new Pos(0, 0, 0));
                 session.send(Lane.STATE, new SceneList(scenes.snapshotInfo(), next.sceneId()));
                 session.send(Lane.STATE, next.snapshot(0L));
             }
             return;
         }
 
-        String sceneId = activeSceneId.getOrDefault(player.getUuid(), "main");
+        String sceneId = enginePlayer.activeSceneId();
+        if (sceneId == null || sceneId.isBlank()) {
+            sceneId = "main";
+        }
         com.moud.server.minestom.engine.ServerScene scene = scenes.get(sceneId);
         if (scene == null) {
             scene = mainScene;
@@ -484,7 +486,7 @@ public final class MinestomServerMain {
         }
 
         if (lane == Lane.ASSETS && assets != null) {
-            assets.onMessage(player.getUuid(), session, message);
+            assets.onMessage(enginePlayer.getUuid(), session, message);
         }
     }
 }
