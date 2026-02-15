@@ -21,6 +21,8 @@ public sealed interface Message permits
         AssetDownloadRequest,
         AssetDownloadBegin,
         AssetDownloadChunk,
-        AssetDownloadComplete {
+        AssetDownloadComplete,
+        PlayerInput,
+        RuntimeState {
     MessageType type();
 }

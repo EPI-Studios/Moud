@@ -36,6 +36,8 @@ import com.moud.net.protocol.SceneSnapshotRequest;
 import com.moud.net.protocol.SceneSelect;
 import com.moud.net.protocol.SchemaSnapshot;
 import com.moud.net.protocol.ServerHello;
+import com.moud.net.protocol.PlayerInput;
+import com.moud.net.protocol.RuntimeState;
 
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
@@ -80,6 +82,8 @@ public final class WireMessages {
                     case AssetDownloadBegin begin -> writeAssetDownloadBegin(out, begin);
                     case AssetDownloadChunk chunk -> writeAssetDownloadChunk(out, chunk);
                     case AssetDownloadComplete complete -> writeAssetDownloadComplete(out, complete);
+                    case PlayerInput input -> writePlayerInput(out, input);
+                    case RuntimeState state -> writeRuntimeState(out, state);
                 }
                 out.flip();
                 byte[] bytes = new byte[out.remaining()];
@@ -125,7 +129,76 @@ public final class WireMessages {
             case ASSET_DOWNLOAD_BEGIN -> readAssetDownloadBegin(in);
             case ASSET_DOWNLOAD_CHUNK -> readAssetDownloadChunk(in);
             case ASSET_DOWNLOAD_COMPLETE -> readAssetDownloadComplete(in);
+            case PLAYER_INPUT -> readPlayerInput(in);
+            case RUNTIME_STATE -> readRuntimeState(in);
         };
+    }
+
+    private static void writePlayerInput(ByteBuffer out, PlayerInput input) {
+        writeLong(out, input.clientTick());
+        out.putFloat(input.moveX());
+        out.putFloat(input.moveZ());
+        out.putFloat(input.yawDeg());
+        out.putFloat(input.pitchDeg());
+        int flags = 0;
+        if (input.jump()) {
+            flags |= 1;
+        }
+        if (input.sprint()) {
+            flags |= 2;
+        }
+        WireIo.writeVarInt(out, flags);
+    }
+
+    private static PlayerInput readPlayerInput(ByteBuffer in) {
+        long tick = readLong(in);
+        float moveX = in.getFloat();
+        float moveZ = in.getFloat();
+        float yaw = in.getFloat();
+        float pitch = in.getFloat();
+        int flags = WireIo.readVarInt(in);
+        boolean jump = (flags & 1) != 0;
+        boolean sprint = (flags & 2) != 0;
+        return new PlayerInput(tick, moveX, moveZ, yaw, pitch, jump, sprint);
+    }
+
+    private static void writeRuntimeState(ByteBuffer out, RuntimeState state) {
+        writeLong(out, state.serverTick());
+        writeLong(out, state.lastProcessedTick());
+        WireIo.writeString(out, state.sceneId());
+        out.putFloat(state.charX());
+        out.putFloat(state.charY());
+        out.putFloat(state.charZ());
+        out.putFloat(state.velX());
+        out.putFloat(state.velY());
+        out.putFloat(state.velZ());
+        WireIo.writeVarInt(out, state.onFloor() ? 1 : 0);
+        out.putFloat(state.camYawDeg());
+        out.putFloat(state.camPitchDeg());
+        WireIo.writeVarInt(out, state.fogEnabled() ? 1 : 0);
+        WireIo.writeString(out, state.fogColor());
+        out.putFloat(state.fogDensity());
+    }
+
+    private static RuntimeState readRuntimeState(ByteBuffer in) {
+        long tick = readLong(in);
+        long lastProcessedTick = readLong(in);
+        String sceneId = WireIo.readString(in);
+        float charX = in.getFloat();
+        float charY = in.getFloat();
+        float charZ = in.getFloat();
+        float velX = in.getFloat();
+        float velY = in.getFloat();
+        float velZ = in.getFloat();
+        boolean onFloor = WireIo.readVarInt(in) != 0;
+        float yaw = in.getFloat();
+        float pitch = in.getFloat();
+        boolean fogEnabled = WireIo.readVarInt(in) != 0;
+        String fogColor = WireIo.readString(in);
+        float fogDensity = in.getFloat();
+        return new RuntimeState(tick, lastProcessedTick, sceneId,
+                charX, charY, charZ, velX, velY, velZ, onFloor,
+                yaw, pitch, fogEnabled, fogColor, fogDensity);
     }
 
     private static void writeBytes(ByteBuffer out, byte[] bytes) {
@@ -632,8 +705,32 @@ public final class WireMessages {
             case AssetDownloadBegin begin -> size += estimateAssetDownloadBeginSize(begin);
             case AssetDownloadChunk chunk -> size += estimateAssetDownloadChunkSize(chunk);
             case AssetDownloadComplete complete -> size += estimateAssetDownloadCompleteSize(complete);
+            case PlayerInput input -> size += estimatePlayerInputSize(input);
+            case RuntimeState state -> size += estimateRuntimeStateSize(state);
         }
         return size + 16;
+    }
+
+    private static int estimatePlayerInputSize(PlayerInput input) {
+        int size = 0;
+        size += longSize(input.clientTick());
+        size += 4 * 4;
+        size += varIntSize(0);
+        return size;
+    }
+
+    private static int estimateRuntimeStateSize(RuntimeState state) {
+        int size = 0;
+        size += longSize(state.serverTick());
+        size += longSize(state.lastProcessedTick());
+        size += stringSize(state.sceneId());
+        size += 6 * 4; // charX/Y/Z + velX/Y/Z
+        size += varIntSize(state.onFloor() ? 1 : 0);
+        size += 2 * 4; // camYawDeg + camPitchDeg
+        size += varIntSize(state.fogEnabled() ? 1 : 0);
+        size += stringSize(state.fogColor());
+        size += 4; // fogDensity
+        return size;
     }
 
     private static int estimateAssetManifestResponseSize(AssetManifestResponse response) {
