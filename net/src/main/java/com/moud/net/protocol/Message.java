@@ -8,6 +8,8 @@ public sealed interface Message permits
         SceneOpAck,
         SceneOpBatch,
         SceneSelect,
+        SceneSave,
+        SceneSaveAck,
         SceneSnapshot,
         SceneSnapshotRequest,
         SchemaSnapshot,
