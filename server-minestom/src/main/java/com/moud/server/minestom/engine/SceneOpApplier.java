@@ -221,10 +221,25 @@ public final class SceneOpApplier {
             if (child == null) {
                 continue;
             }
+            if (!shouldInheritTransform(child)) {
+                continue;
+            }
             changed |= applyTransformDeltaToNode(child, before, after, beforeInv, afterRot, deltaRot, factors, scaleChanged, rotChanged);
             changed |= applyTransformDeltaRecursive(child, before, after, beforeInv, afterRot, deltaRot, factors, scaleChanged, rotChanged);
         }
         return changed;
+    }
+
+    private static boolean shouldInheritTransform(Node node) {
+        if (node == null) {
+            return false;
+        }
+        String v = node.getProperty("@inherit_transform");
+        if (v == null || v.isBlank()) {
+            return true;
+        }
+        String s = v.trim().toLowerCase();
+        return !("false".equals(s) || "0".equals(s));
     }
 
     private boolean applyTransformDeltaToNode(Node node,
