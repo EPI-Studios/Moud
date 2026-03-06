@@ -1,19 +1,10 @@
 package com.moud.client.fabric.mixin;
 
-import com.moud.client.fabric.editor.overlay.EditorContext;
-import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
-import com.moud.client.fabric.runtime.PlayRuntimeBus;
-import com.moud.client.fabric.runtime.PlayRuntimeClient;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
 import net.minecraft.client.util.Window;
-import org.lwjgl.glfw.GLFW;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Mouse.class)
 public abstract class MouseMixin {
@@ -23,15 +14,7 @@ public abstract class MouseMixin {
     private void moud$onMouseScroll(long window, double horizontal, double vertical, CallbackInfo ci) {
         EditorContext ctx = EditorOverlayBus.get();
         if (ctx == null || !ctx.isActive()) {
-            PlayRuntimeClient runtime = PlayRuntimeBus.get();
-            if (runtime == null || !runtime.isActive()) {
-                return;
-            }
-            if (client == null || client.currentScreen != null) {
-                return;
-            }
-            ci.cancel();
-            return;
+            return; // in play mode, let vanilla hotbar scroll work
         }
         if (client == null || client.currentScreen != null) {
             return;
@@ -44,15 +27,7 @@ public abstract class MouseMixin {
     private void moud$onMouseButton(long window, int button, int action, int mods, CallbackInfo ci) {
         EditorContext ctx = EditorOverlayBus.get();
         if (ctx == null || !ctx.isActive()) {
-            PlayRuntimeClient runtime = PlayRuntimeBus.get();
-            if (runtime == null || !runtime.isActive()) {
-                return;
-            }
-            if (client == null || client.currentScreen != null) {
-                return;
-            }
-            ci.cancel();
-            return;
+            return; // in play mode, let vanilla handle clicks
         }
         if (client == null || client.currentScreen != null) {
             return;
@@ -87,20 +62,21 @@ public abstract class MouseMixin {
             if (client == null || client.currentScreen != null) {
                 return;
             }
-            ctx.camera().consumeMouseMove(client.mouse.getX(), client.mouse.getY());
             ci.cancel();
             return;
         }
+        // dans le playmode on laisse la souris
+    }
 
-        PlayRuntimeClient runtime = PlayRuntimeBus.get();
-        if (runtime == null || !runtime.isActive()) {
-            return;
+    @Inject(method = "onCursorPos", at = @At("HEAD"))
+    private void moud$onCursorPos(long window, double x, double y, CallbackInfo ci) {
+        EditorContext ctx = EditorOverlayBus.get();
+        if (ctx != null && ctx.isActive()) {
+            if (client == null || client.currentScreen != null) {
+                return;
+            }
+            ctx.camera().consumeMouseMove(x, y);
         }
-        if (client == null || client.currentScreen != null) {
-            return;
-        }
-        runtime.onMouseMove(client.mouse.getX(), client.mouse.getY());
-        ci.cancel();
     }
 
     private double scaledMouseX() {
