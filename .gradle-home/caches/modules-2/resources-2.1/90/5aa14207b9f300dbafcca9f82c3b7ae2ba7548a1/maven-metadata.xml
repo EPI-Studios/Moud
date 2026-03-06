@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata modelVersion="1.1.0">
+  <groupId>net.fabricmc</groupId>
+  <artifactId>fabric-loom</artifactId>
+  <versioning>
+    <lastUpdated>20250903082645</lastUpdated>
+    <snapshot>
+      <timestamp>20250903.082645</timestamp>
+      <buildNumber>8</buildNumber>
+    </snapshot>
+    <snapshotVersions>
+      <snapshotVersion>
+        <extension>jar</extension>
+        <value>1.11-20250903.082645-8</value>
+        <updated>20250903082645</updated>
+      </snapshotVersion>
+      <snapshotVersion>
+        <extension>pom</extension>
+        <value>1.11-20250903.082645-8</value>
+        <updated>20250903082645</updated>
+      </snapshotVersion>
+      <snapshotVersion>
+        <extension>module</extension>
+        <value>1.11-20250903.082645-8</value>
+        <updated>20250903082645</updated>
+      </snapshotVersion>
+      <snapshotVersion>
+        <classifier>sources</classifier>
+        <extension>jar</extension>
+        <value>1.11-20250903.082645-8</value>
+        <updated>20250903082645</updated>
+      </snapshotVersion>
+    </snapshotVersions>
+  </versioning>
+  <version>1.11-SNAPSHOT</version>
+</metadata>

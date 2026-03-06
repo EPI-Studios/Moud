@@ -1,0 +1,8 @@
+{
+  "shader": "res://shaders/mat_textured.moudshader",
+  "params": {
+    "albedo": "minecraft:block/crafting_table_top",
+    "tint": [0.9, 0.9, 0.9],
+    "opacity": 1.0
+  }
+}

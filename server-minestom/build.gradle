@@ -17,6 +17,15 @@ dependencies {
     }
     implementation 'com.google.code.gson:gson:2.11.0'
     runtimeOnly 'ch.qos.logback:logback-classic:1.5.6'
+
+    implementation("com.github.stephengold:jolt-jni-Linux64:3.5.0")
+    runtimeOnly("com.github.stephengold:jolt-jni-Linux64:3.5.0:DebugSp")
+    runtimeOnly("com.github.stephengold:jolt-jni-Linux_ARM64:3.5.0:DebugSp")
+    runtimeOnly("com.github.stephengold:jolt-jni-Windows64:3.5.0:DebugSp")
+    implementation("io.github.electrostat-lab:snaploader:1.1.1-stable")
+
+    implementation 'org.graalvm.polyglot:polyglot:24.1.0'
+    implementation 'org.graalvm.polyglot:js:24.1.0'
 }
 
 application {

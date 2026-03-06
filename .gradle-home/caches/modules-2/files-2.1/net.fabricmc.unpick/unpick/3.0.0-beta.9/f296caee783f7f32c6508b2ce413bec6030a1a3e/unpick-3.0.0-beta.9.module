@@ -1,0 +1,133 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "net.fabricmc.unpick",
+    "module": "unpick",
+    "version": "3.0.0-beta.9",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.5"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 21,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "org.ow2.asm",
+          "module": "asm",
+          "version": {
+            "requires": "9.6"
+          }
+        },
+        {
+          "group": "org.ow2.asm",
+          "module": "asm-tree",
+          "version": {
+            "requires": "9.6"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "unpick-3.0.0-beta.9.jar",
+          "url": "unpick-3.0.0-beta.9.jar",
+          "size": 131392,
+          "sha512": "cb128436e24671c3974d5c5775cb26ad22003a2411b7e68c370341efe9cdeed6846b05d70bbb3a75fa53f30fbaf7dbc8df26f11dc973a4fce8dcd3af9d8ccc96",
+          "sha256": "861e5d7498b2f637b8601f40c3a79226fe25d591674eba236c71f820595c260d",
+          "sha1": "fc6c6187d8bebb528cb9a57f61b7535e0e4043bf",
+          "md5": "d2f077c5289614d5fe7eb43a28aa5f22"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 21,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.ow2.asm",
+          "module": "asm-commons",
+          "version": {
+            "requires": "9.6"
+          }
+        },
+        {
+          "group": "org.ow2.asm",
+          "module": "asm-util",
+          "version": {
+            "requires": "9.6"
+          }
+        },
+        {
+          "group": "net.fabricmc.unpick",
+          "module": "unpick-format-utils",
+          "version": {
+            "requires": "3.0.0-beta.9"
+          }
+        },
+        {
+          "group": "org.ow2.asm",
+          "module": "asm",
+          "version": {
+            "requires": "9.6"
+          }
+        },
+        {
+          "group": "org.ow2.asm",
+          "module": "asm-tree",
+          "version": {
+            "requires": "9.6"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "unpick-3.0.0-beta.9.jar",
+          "url": "unpick-3.0.0-beta.9.jar",
+          "size": 131392,
+          "sha512": "cb128436e24671c3974d5c5775cb26ad22003a2411b7e68c370341efe9cdeed6846b05d70bbb3a75fa53f30fbaf7dbc8df26f11dc973a4fce8dcd3af9d8ccc96",
+          "sha256": "861e5d7498b2f637b8601f40c3a79226fe25d591674eba236c71f820595c260d",
+          "sha1": "fc6c6187d8bebb528cb9a57f61b7535e0e4043bf",
+          "md5": "d2f077c5289614d5fe7eb43a28aa5f22"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "unpick-3.0.0-beta.9-sources.jar",
+          "url": "unpick-3.0.0-beta.9-sources.jar",
+          "size": 51986,
+          "sha512": "40bfafbe4f7354a1dac0218141783e356aaea40e3cb9bd201d2ba3610d0af8e6a92173b5b54621204eab12bd603ab30e8124d307aff981f066319a04f3816258",
+          "sha256": "a2ad2926624ef06abfae6f77869a73122cc03c23fa32f6909670932b824f0e53",
+          "sha1": "c7a6c8d065d42620dc7917e62e1f982660742420",
+          "md5": "4d7dac52e5ccd88751240165a2eea08a"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "io.github.spair",
+    "module": "imgui-java-natives-linux",
+    "version": "1.88.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.12"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "imgui-java-natives-linux-1.88.0.jar",
+          "url": "imgui-java-natives-linux-1.88.0.jar",
+          "size": 2277217,
+          "sha512": "ecdbf2e086b42db4c3d00a786b82d928bb10c9e9a19867aa6316995de8e2f3c11e97573014c118ccd40262a845c192aeba1cf2304ec690a748394a4655fa77b5",
+          "sha256": "41beced9f55e8271c7e165875115d79f0b298857cee8a8cddf06bc3dfdd067e7",
+          "sha1": "48ecfdde40f302139f8d12a2add24f04b620a4f2",
+          "md5": "e9e065db21e624ed4a5f6f2657c22fff"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "imgui-java-natives-linux-1.88.0.jar",
+          "url": "imgui-java-natives-linux-1.88.0.jar",
+          "size": 2277217,
+          "sha512": "ecdbf2e086b42db4c3d00a786b82d928bb10c9e9a19867aa6316995de8e2f3c11e97573014c118ccd40262a845c192aeba1cf2304ec690a748394a4655fa77b5",
+          "sha256": "41beced9f55e8271c7e165875115d79f0b298857cee8a8cddf06bc3dfdd067e7",
+          "sha1": "48ecfdde40f302139f8d12a2add24f04b620a4f2",
+          "md5": "e9e065db21e624ed4a5f6f2657c22fff"
+        }
+      ]
+    }
+  ]
+}

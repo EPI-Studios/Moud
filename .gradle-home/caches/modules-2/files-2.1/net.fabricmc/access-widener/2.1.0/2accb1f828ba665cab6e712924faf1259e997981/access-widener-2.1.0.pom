@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>net.fabricmc</groupId>
+  <artifactId>access-widener</artifactId>
+  <version>2.1.0</version>
+  <name>access-widener</name>
+  <description>Access widener provides a way to loosen the access limits of classes in a data drive manner.</description>
+  <url>https://github.com/FabricMC/access-widener</url>
+  <licenses>
+    <license>
+      <name>The Apache License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <id>modmuss50</id>
+      <name>modmuss50</name>
+      <email>modmuss50@fabricmc.net</email>
+    </developer>
+    <developer>
+      <id>sfPlayer</id>
+      <name>Player</name>
+      <email>player@fabricmc.net</email>
+    </developer>
+  </developers>
+  <scm>
+    <connection>scm:git:https://github.com/FabricMC/access-widener.git</connection>
+    <developerConnection>scm:git:git@github.com:FabricMC/access-widener.git</developerConnection>
+    <url>https://github.com/FabricMC/access-widener</url>
+  </scm>
+  <issueManagement>
+    <system>GitHub</system>
+    <url>https://github.com/FabricMC/access-widener/issues</url>
+  </issueManagement>
+</project>

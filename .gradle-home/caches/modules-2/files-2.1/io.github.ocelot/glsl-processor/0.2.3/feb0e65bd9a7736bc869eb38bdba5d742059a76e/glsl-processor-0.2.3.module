@@ -1,0 +1,109 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "io.github.ocelot",
+    "module": "glsl-processor",
+    "version": "0.2.3",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.13"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "glsl-processor-0.2.3.jar",
+          "url": "glsl-processor-0.2.3.jar",
+          "size": 237311,
+          "sha512": "c30a4a9be4d4189cf140e35e0bf7355f0b7d3e7b7c5beca083ecdbffeb7ff55404d55eb91c105ad2d5c92a1c1ccf76203865082686bea695ffbff5f253c10abf",
+          "sha256": "f01a11101ce5b4a5230916707b13d89acf6abef6ee3ef6e92f2d788246b3507a",
+          "sha1": "f43cf0a51050fcdcbe8253368f0d77cf0439bf04",
+          "md5": "ace03fe9afda7ca69f23c15b85d19696"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.ow2.asm",
+          "module": "asm-tree",
+          "version": {
+            "requires": "9.6"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "glsl-processor-0.2.3.jar",
+          "url": "glsl-processor-0.2.3.jar",
+          "size": 237311,
+          "sha512": "c30a4a9be4d4189cf140e35e0bf7355f0b7d3e7b7c5beca083ecdbffeb7ff55404d55eb91c105ad2d5c92a1c1ccf76203865082686bea695ffbff5f253c10abf",
+          "sha256": "f01a11101ce5b4a5230916707b13d89acf6abef6ee3ef6e92f2d788246b3507a",
+          "sha1": "f43cf0a51050fcdcbe8253368f0d77cf0439bf04",
+          "md5": "ace03fe9afda7ca69f23c15b85d19696"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "glsl-processor-0.2.3-sources.jar",
+          "url": "glsl-processor-0.2.3-sources.jar",
+          "size": 117309,
+          "sha512": "38fe27c4cafb9d87fc2cb31ef5ecf4cebb22835fe448d917caf76d46b544016023fb3b6b52f9ae06b4c93f0ace946167a9aa06f20570fdcc9efcb72126a59229",
+          "sha256": "fb4d2c6325b5a645fc18c1db82e30cba0d777239e9e12a6dd6be1bd8df213c58",
+          "sha1": "9f2c5a625128598f9fce40cdbbb3c74f9f395e2d",
+          "md5": "c73a83314ea1987fe7be50f11e3b0bcf"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "glsl-processor-0.2.3-javadoc.jar",
+          "url": "glsl-processor-0.2.3-javadoc.jar",
+          "size": 540229,
+          "sha512": "e80188a5b3ff3273d4a64163945b45a989264c9cddb6f24b13b5fc0130e66235078dfa200a4fc3a7657162a6d7fc98efbc02ffcb80a94abcb4c14d3540877d10",
+          "sha256": "90b926b8b21d5979316b01184894b758f6646e0aa319d2b7f6fa0607fbf46519",
+          "sha1": "c617a6c29c7b1994cf1584a69aaa8d23ab8f0f14",
+          "md5": "4c70677f5e3c59bad2ea4b128cb7b41f"
+        }
+      ]
+    }
+  ]
+}

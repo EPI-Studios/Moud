@@ -1,0 +1,62 @@
+{
+  "format": 1,
+  "sceneId": "prefab_room",
+  "displayName": "Prefab Room",
+  "nodes": [
+    {
+      "id": 2,
+      "parent": 0,
+      "name": "RoomFloor",
+      "type": "CSGBlock",
+      "properties": {
+        "x": "-6",
+        "y": "-2",
+        "z": "-6",
+        "sx": "12",
+        "sy": "1",
+        "sz": "12",
+        "block": "minecraft:stone",
+        "solid": "true"
+      }
+    },
+    {
+      "id": 3,
+      "parent": 0,
+      "name": "RoomLight",
+      "type": "OmniLight3D",
+      "properties": {
+        "x": "0",
+        "y": "4",
+        "z": "0",
+        "color_r": "1",
+        "color_g": "0.95",
+        "color_b": "0.9",
+        "brightness": "1.5",
+        "radius": "16",
+        "enabled": "true"
+      }
+    },
+    {
+      "id": 4,
+      "parent": 0,
+      "name": "MaterialBox",
+      "type": "CSGBox",
+      "properties": {
+        "x": "-1.5",
+        "y": "-1",
+        "z": "1.5",
+        "sx": "3",
+        "sy": "2",
+        "sz": "3",
+        "rx": "0",
+        "ry": "30",
+        "rz": "0",
+        "material": "res://materials/demo_green.moudmat",
+        "texture": "moud:dynamic/white",
+        "solid": "true",
+        "visible": "true"
+      }
+    }
+  ]
+}
+

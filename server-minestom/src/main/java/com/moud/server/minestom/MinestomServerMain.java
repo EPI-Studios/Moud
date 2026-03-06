@@ -1,26 +1,68 @@
 package com.moud.server.minestom;
 
 import com.moud.core.NodeTypeDef;
+import com.moud.core.ProtocolVersions;
 import com.moud.core.assets.AssetHash;
 import com.moud.core.assets.AssetMeta;
 import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
 import com.moud.core.scene.Node;
-import com.moud.core.scene.PlainNode;
-import com.moud.core.scene.SceneTreeMutator;
-import com.moud.net.protocol.*;
+import com.moud.net.protocol.Message;
+import com.moud.net.protocol.PlayerInput;
+import com.moud.net.protocol.ProjectCreate;
+import com.moud.net.protocol.ProjectCreateAck;
+import com.moud.net.protocol.ProjectInfoRequest;
+import com.moud.net.protocol.RequestRespawn;
+import com.moud.net.protocol.SceneCreate;
+import com.moud.net.protocol.SceneCreateAck;
+import com.moud.net.protocol.SceneDelete;
+import com.moud.net.protocol.SceneDeleteAck;
+import com.moud.net.protocol.SceneList;
+import com.moud.net.protocol.SceneOp;
+import com.moud.net.protocol.SceneOpAck;
+import com.moud.net.protocol.SceneOpBatch;
+import com.moud.net.protocol.SceneOpError;
+import com.moud.net.protocol.SceneOpResult;
+import com.moud.net.protocol.SceneSave;
+import com.moud.net.protocol.SceneSaveAck;
+import com.moud.net.protocol.SceneSelect;
+import com.moud.net.protocol.SceneSnapshot;
+import com.moud.net.protocol.SceneSnapshotRequest;
+import com.moud.net.protocol.SchemaSnapshot;
+import com.moud.net.protocol.ScriptActionInvoke;
+import com.moud.net.protocol.ScriptActionInvokeAck;
+import com.moud.net.protocol.ScriptActionListRequest;
+import com.moud.net.protocol.ScriptActionListResponse;
+import com.moud.net.protocol.ScriptFileReadRequest;
+import com.moud.net.protocol.ScriptFileReadResponse;
+import com.moud.net.protocol.ScriptFileWriteAck;
+import com.moud.net.protocol.ScriptFileWriteRequest;
+import com.moud.net.protocol.ServerHello;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionRole;
 import com.moud.net.session.SessionState;
 import com.moud.net.transport.Lane;
 import com.moud.net.wire.WireMessages;
+import com.moud.core.scene.SceneTreeMutator;
 import com.moud.server.minestom.assets.AssetService;
-import com.moud.server.minestom.assets.FileSystemAssetStore;
+import com.moud.server.minestom.engine.SceneInstancer;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.engine.ServerScenes;
-import com.moud.server.minestom.net.MinestomPlayerTransport;
+import com.moud.server.minestom.project.ProjectService;
 import com.moud.server.minestom.runtime.PlayRuntime;
-import com.moud.server.minestom.scene.SceneFileIO;
+import com.moud.server.minestom.scripting.ScriptService;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.arguments.ArgumentWord;
@@ -33,14 +75,6 @@ import net.minestom.server.event.player.PlayerPluginMessageEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
 import net.minestom.server.instance.InstanceManager;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-
 public final class MinestomServerMain {
     private static final String CHANNEL = "moud:engine";
     private static final double TICK_DT_SECONDS = 1.0 / 20.0;
@@ -49,7 +83,11 @@ public final class MinestomServerMain {
     private ServerScenes scenes;
     private ServerScene mainScene;
     private AssetService assets;
+    private ProjectService project;
+    private ScriptService scripts;
     private final PlayRuntime playRuntime = new PlayRuntime();
+    private final SceneInstancer instancer = new SceneInstancer();
+    private Path projectRoot = Path.of(".");
 
     public static void main(String[] args) {
         new MinestomServerMain().run();
@@ -60,25 +98,44 @@ public final class MinestomServerMain {
         devMode = !"player".equalsIgnoreCase(mode);
         System.out.println("[moud] mode=" + (devMode ? "dev" : "player"));
 
+        String rootEnv = System.getenv().getOrDefault("MOUD_PROJECT_ROOT", ".").trim();
+        if (!rootEnv.isEmpty()) {
+            try {
+                projectRoot = Path.of(rootEnv).toAbsolutePath().normalize();
+            } catch (Exception ignored) {
+                projectRoot = Path.of(".").toAbsolutePath().normalize();
+            }
+        } else {
+            projectRoot = Path.of(".").toAbsolutePath().normalize();
+        }
+        System.out.println("[moud] projectRoot=" + projectRoot);
+
         MinecraftServer minecraftServer = MinecraftServer.init();
         MinecraftServer.getConnectionManager().setPlayerProvider(EnginePlayer::new);
 
         InstanceManager instanceManager = MinecraftServer.getInstanceManager();
         scenes = new ServerScenes(instanceManager);
         mainScene = scenes.ensureDefault("main", "Main");
+        project = new ProjectService(projectRoot);
+        scripts = new ScriptService(project);
 
         try {
-            assets = new AssetService(new FileSystemAssetStore(Path.of("assets")), devMode);
+            assets = new AssetService(new FileSystemAssetStore(projectRoot.resolve("assets")), devMode);
+            assets.setUploadCompleteCallback(this::onAssetUploaded);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to init asset store", e);
         }
 
         loadScenesFromDisk();
+        instancer.syncAll(scenes);
 
         MinecraftServer.getGlobalEventHandler()
                 .addListener(AsyncPlayerConfigurationEvent.class, event -> {
                     event.setSpawningInstance(mainScene.instance());
-                    event.getPlayer().setRespawnPoint(new Pos(0, 0, 0));
+                    // Spawn directly at PlayerStart if one exists, avoiding a visible
+                    // "wrong position first frame" flash.
+                    Pos startPos = PlayRuntime.findPlayerStartPos(mainScene);
+                    event.getPlayer().setRespawnPoint(startPos != null ? startPos : new Pos(0, 64, 0));
                 })
                 .addListener(PlayerSpawnEvent.class, event -> onPlayerSpawn(event.getPlayer()))
                 .addListener(PlayerPluginMessageEvent.class, this::onPluginMessage)
@@ -104,7 +161,7 @@ public final class MinestomServerMain {
             return;
         }
 
-        enginePlayer.setRespawnPoint(new Pos(0, 0, 0));
+        enginePlayer.setRespawnPoint(new Pos(0, 64, 0));
         enginePlayer.setGameMode(GameMode.CREATIVE);
         enginePlayer.sendPluginMessage("minecraft:register", CHANNEL.getBytes(StandardCharsets.UTF_8));
 
@@ -113,13 +170,16 @@ public final class MinestomServerMain {
         }
         if (enginePlayer.session() == null) {
             Session session = new Session(SessionRole.SERVER, enginePlayer.transport());
+            session.setServerHelloSupplier(() -> new ServerHello(ProtocolVersions.PROTOCOL_VERSION, devMode));
             session.setLogSink(msg -> System.out.println("[moud][" + enginePlayer.getUsername() + "] " + msg));
             session.setMessageHandler((lane, message) -> onSessionMessage(enginePlayer, lane, message));
             session.start();
             enginePlayer.setSession(session);
         }
 
-        playRuntime.onPlayerSpawn(enginePlayer, enginePlayer.activeSceneId());
+        ServerScene spawnScene = scenes.get(enginePlayer.activeSceneId());
+        if (spawnScene == null) spawnScene = mainScene;
+        playRuntime.onPlayerSpawn(enginePlayer, spawnScene);
     }
 
     private void onPluginMessage(PlayerPluginMessageEvent event) {
@@ -144,6 +204,10 @@ public final class MinestomServerMain {
 
     private void tick() {
         scenes.tickAll(TICK_DT_SECONDS);
+        for (ServerScene scene : scenes.allScenes()) {
+            playRuntime.applyEditorWorldEnvironment(scene);
+            scripts.tickRuntime(scene, TICK_DT_SECONDS);
+        }
         for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
             if (!(player instanceof EnginePlayer enginePlayer)) {
                 continue;
@@ -182,8 +246,9 @@ public final class MinestomServerMain {
         }
         player.setScenesSentRevision(rev);
         String active = player.activeSceneId();
-        if (active == null || active.isBlank()) {
+        if (active == null || active.isBlank() || scenes.get(active) == null) {
             active = "main";
+            player.setActiveSceneId(active);
         }
         session.send(Lane.STATE, new SceneList(scenes.snapshotInfo(), active));
     }
@@ -194,11 +259,11 @@ public final class MinestomServerMain {
                 .comparingInt(NodeTypeDef::order)
                 .thenComparing(NodeTypeDef::uiLabel)
                 .thenComparing(NodeTypeDef::typeId));
-        return new SchemaSnapshot(1L, java.util.List.copyOf(types));
+        return new SchemaSnapshot(1L, List.copyOf(types));
     }
 
     private void loadScenesFromDisk() {
-        Path scenesDir = Path.of("scenes");
+        Path scenesDir = projectRoot.resolve("scenes");
         if (!Files.exists(scenesDir) || !Files.isDirectory(scenesDir)) {
             return;
         }
@@ -232,6 +297,42 @@ public final class MinestomServerMain {
                     });
         } catch (Exception e) {
             System.err.println("[moud] failed to scan scenes/: " + e.getMessage());
+        }
+    }
+
+    private void onAssetUploaded(ResPath path, AssetMeta meta, byte[] bytes) {
+        if (path == null || !path.path().endsWith(".moud.scene")) {
+            return;
+        }
+
+        String filename = path.path().substring(path.path().lastIndexOf('/') + 1);
+        String sceneId = filename.substring(0, filename.length() - ".moud.scene".length());
+        if (sceneId.isBlank()) {
+            System.err.println("[moud] invalid scene filename: " + filename);
+            return;
+        }
+
+        try {
+            String json = new String(bytes, StandardCharsets.UTF_8);
+            var file = SceneFileIO.parse(json);
+            String displayName = file.displayName() == null || file.displayName().isBlank()
+                    ? sceneId
+                    : file.displayName();
+
+            ServerScene scene = scenes.ensureDefault(sceneId, displayName);
+            var specs = SceneFileIO.toNodeSpecs(file);
+            SceneTreeMutator.replaceRootChildren(scene.engine().sceneTree(), specs, scene.engine().nodeTypes());
+            scene.engine().bumpSceneRevision();
+            scene.engine().bumpCsgRevision();
+            System.out.println("[moud] imported scene '" + sceneId + "' from " + path.path());
+            try {
+                scene.persistToDisk();
+            } catch (Exception e) {
+                System.err.println("[moud] failed to persist imported scene '" + sceneId + "': " + e.getMessage());
+            }
+            instancer.syncAll(scenes);
+        } catch (Exception e) {
+            System.err.println("[moud] failed to import scene '" + sceneId + "': " + e.getMessage());
         }
     }
 
@@ -419,9 +520,9 @@ public final class MinestomServerMain {
         return new ResPath(trimmed);
     }
 
-    private static java.util.List<SceneTreeMutator.NodeSpec> toNodeSpecs(SceneSnapshot snapshot) {
+    private static List<SceneTreeMutator.NodeSpec> toNodeSpecs(SceneSnapshot snapshot) {
         if (snapshot == null || snapshot.nodes() == null || snapshot.nodes().isEmpty()) {
-            return java.util.List.of();
+            return List.of();
         }
 
         long rootId = 0L;
@@ -451,7 +552,7 @@ public final class MinestomServerMain {
             }
             out.add(new SceneTreeMutator.NodeSpec(node.nodeId(), node.parentId(), node.name(), node.type(), props));
         }
-        return java.util.List.copyOf(out);
+        return List.copyOf(out);
     }
 
     private void onSessionMessage(Player player, Lane lane, Message message) {
@@ -464,8 +565,129 @@ public final class MinestomServerMain {
             return;
         }
 
+        if (lane == Lane.STATE && message instanceof ProjectInfoRequest request) {
+            session.send(Lane.STATE, project.info(request.requestId()));
+            return;
+        }
+
+        if (lane == Lane.EVENTS && message instanceof ProjectCreate create) {
+            if (!devMode) {
+                session.send(Lane.EVENTS, new ProjectCreateAck(create.requestId(), false, "editor disabled (MOUD_MODE=player)", "", ""));
+                return;
+            }
+            session.send(Lane.EVENTS, project.create(create));
+            return;
+        }
+
+        if (lane == Lane.EVENTS && message instanceof ScriptActionListRequest request) {
+            if (!devMode) {
+                session.send(Lane.EVENTS, new ScriptActionListResponse(request.requestId(), request.nodeId(), false, "editor disabled (MOUD_MODE=player)", List.of()));
+                return;
+            }
+            session.send(Lane.EVENTS, scripts.onListActions(resolvePlayerScene(enginePlayer), request));
+            return;
+        }
+
+        if (lane == Lane.EVENTS && message instanceof ScriptActionInvoke request) {
+            if (!devMode) {
+                session.send(Lane.EVENTS, new ScriptActionInvokeAck(request.requestId(), request.nodeId(), false, "editor disabled (MOUD_MODE=player)"));
+                return;
+            }
+            session.send(Lane.EVENTS, scripts.onInvokeAction(resolvePlayerScene(enginePlayer), request));
+            return;
+        }
+
+        if (lane == Lane.EVENTS && message instanceof ScriptFileReadRequest request) {
+            if (!devMode) {
+                session.send(Lane.EVENTS, new ScriptFileReadResponse(request.requestId(), false, request.path(), "", "editor disabled (MOUD_MODE=player)"));
+                return;
+            }
+            String raw = request.path();
+            String path = raw == null ? "" : raw.trim();
+            if (path.isEmpty()) {
+                DebugLog.warn("script-files", "read rejected: empty path user=" + player.getUsername());
+                session.send(Lane.EVENTS, new ScriptFileReadResponse(request.requestId(), false, raw, "", "Script path is required"));
+                return;
+            }
+            String allowPath;
+            try {
+                allowPath = normalizeAllowedScriptPath(path);
+            } catch (Exception e) {
+                DebugLog.warn("script-files", "read rejected path='" + path + "' user=" + player.getUsername() + ": " + e.getMessage());
+                session.send(Lane.EVENTS, new ScriptFileReadResponse(request.requestId(), false, raw, "", e.getMessage()));
+                return;
+            }
+            try {
+                Path file = project.resolveProjectPath(allowPath);
+                if (!Files.isRegularFile(file)) {
+                    DebugLog.warn("script-files", "read not found path='" + allowPath + "' user=" + player.getUsername());
+                    session.send(Lane.EVENTS, new ScriptFileReadResponse(request.requestId(), false, allowPath, "", "Script not found: " + allowPath));
+                    return;
+                }
+                String content = Files.readString(file, StandardCharsets.UTF_8);
+                session.send(Lane.EVENTS, new ScriptFileReadResponse(request.requestId(), true, allowPath, content == null ? "" : content, null));
+            } catch (Exception e) {
+                DebugLog.error("script-files", "read failed path='" + allowPath + "' user=" + player.getUsername() + ": " + e.getMessage(), e);
+                String msg = e.getMessage() == null ? "Read failed" : e.getMessage();
+                session.send(Lane.EVENTS, new ScriptFileReadResponse(request.requestId(), false, allowPath, "", msg));
+            }
+            return;
+        }
+
+        if (lane == Lane.EVENTS && message instanceof ScriptFileWriteRequest request) {
+            if (!devMode) {
+                session.send(Lane.EVENTS, new ScriptFileWriteAck(request.requestId(), false, request.path(), "editor disabled (MOUD_MODE=player)"));
+                return;
+            }
+            String raw = request.path();
+            String path = raw == null ? "" : raw.trim();
+            if (path.isEmpty()) {
+                DebugLog.warn("script-files", "write rejected: empty path user=" + player.getUsername());
+                session.send(Lane.EVENTS, new ScriptFileWriteAck(request.requestId(), false, raw, "Script path is required"));
+                return;
+            }
+            String allowPath;
+            try {
+                allowPath = normalizeAllowedScriptPath(path);
+            } catch (Exception e) {
+                DebugLog.warn("script-files", "write rejected path='" + path + "' user=" + player.getUsername() + ": " + e.getMessage());
+                session.send(Lane.EVENTS, new ScriptFileWriteAck(request.requestId(), false, raw, e.getMessage()));
+                return;
+            }
+            String content = request.content() == null ? "" : request.content();
+            try {
+                Path file = project.resolveProjectPath(allowPath);
+                Files.createDirectories(file.getParent());
+                Path tmp = file.resolveSibling(file.getFileName().toString() + ".tmp");
+                Files.writeString(tmp, content, StandardCharsets.UTF_8);
+                try {
+                    Files.move(tmp, file, StandardCopyOption, StandardCopyOption);
+                } catch (Exception ignored) {
+                    Files.move(tmp, file, StandardCopyOption);
+                }
+                DebugLog.debug("script-files", "write ok path='" + allowPath + "' bytes=" + content.length() + " user=" + player.getUsername());
+                session.send(Lane.EVENTS, new ScriptFileWriteAck(request.requestId(), true, allowPath, null));
+            } catch (Exception e) {
+                DebugLog.error("script-files", "write failed path='" + allowPath + "' user=" + player.getUsername() + ": " + e.getMessage(), e);
+                String msg = e.getMessage() == null ? "Write failed" : e.getMessage();
+                session.send(Lane.EVENTS, new ScriptFileWriteAck(request.requestId(), false, allowPath, msg));
+            }
+            return;
+        }
+
         if (lane == Lane.INPUT && message instanceof PlayerInput input) {
-            playRuntime.onInput(enginePlayer.getUuid(), input);
+            scripts.onPlayerInput(enginePlayer.getUuid(), input);
+            return;
+        }
+
+        if (lane == Lane.EVENTS && message instanceof RequestRespawn) {
+            String sceneId = enginePlayer.activeSceneId();
+            ServerScene scene = sceneId != null ? scenes.get(sceneId) : null;
+            if (scene == null) scene = mainScene;
+            Pos startPos = PlayRuntime.findPlayerStartPos(scene);
+            if (startPos != null) {
+                player.teleport(startPos);
+            }
             return;
         }
 
@@ -489,17 +711,100 @@ public final class MinestomServerMain {
             }
 
             try {
-                SceneSnapshot snapshot = scene.snapshot(0L);
-                String json = SceneFileIO.toJson(scene.sceneId(), scene.displayName(), snapshot);
-
-                Path scenesDir = Path.of("scenes");
-                Files.createDirectories(scenesDir);
-                Files.writeString(scenesDir.resolve(scene.sceneId() + ".moud.scene"), json, StandardCharsets.UTF_8);
-
+                scene.persistToDisk();
                 session.send(Lane.EVENTS, new SceneSaveAck(scene.sceneId(), true, null));
             } catch (Exception e) {
                 session.send(Lane.EVENTS, new SceneSaveAck(scene.sceneId(), false, e.getMessage()));
             }
+            return;
+        }
+
+        if (lane == Lane.EVENTS && message instanceof SceneCreate create) {
+            String sid = normalizeSceneId(create.sceneId());
+            String displayName = create.displayName();
+            if (displayName != null) {
+                displayName = displayName.trim();
+            }
+
+            if (!devMode) {
+                session.send(Lane.EVENTS, new SceneCreateAck(sid, false, "editor disabled (MOUD_MODE=player)"));
+                return;
+            }
+            if (!isValidSceneId(sid)) {
+                session.send(Lane.EVENTS, new SceneCreateAck(sid, false, "Invalid scene id (use [a-z0-9_-], max 64 chars)"));
+                return;
+            }
+            if (scenes.get(sid) != null) {
+                session.send(Lane.EVENTS, new SceneCreateAck(sid, false, "Scene already exists"));
+                return;
+            }
+            if (displayName == null || displayName.isBlank()) {
+                displayName = sid;
+            }
+
+            ServerScene scene;
+            try {
+                scene = scenes.create(sid, displayName);
+                scene.persistToDisk();
+            } catch (Exception e) {
+                scenes.delete(sid);
+                session.send(Lane.EVENTS, new SceneCreateAck(sid, false, e.getMessage()));
+                return;
+            }
+
+            session.send(Lane.EVENTS, new SceneCreateAck(sid, true, null));
+            switchPlayerToScene(enginePlayer, session, scene);
+            return;
+        }
+
+        if (lane == Lane.EVENTS && message instanceof SceneDelete delete) {
+            String sid = normalizeSceneId(delete.sceneId());
+            if (!devMode) {
+                session.send(Lane.EVENTS, new SceneDeleteAck(sid, false, "editor disabled (MOUD_MODE=player)"));
+                return;
+            }
+            if (sid == null || sid.isBlank()) {
+                session.send(Lane.EVENTS, new SceneDeleteAck(sid, false, "Scene id required"));
+                return;
+            }
+            if ("main".equals(sid)) {
+                session.send(Lane.EVENTS, new SceneDeleteAck(sid, false, "Refusing to delete 'main'"));
+                return;
+            }
+
+            ServerScene existing = scenes.get(sid);
+            if (existing == null) {
+                session.send(Lane.EVENTS, new SceneDeleteAck(sid, false, "Scene not found"));
+                return;
+            }
+
+            try {
+                Files.deleteIfExists(sceneFilePath(sid));
+            } catch (Exception e) {
+                session.send(Lane.EVENTS, new SceneDeleteAck(sid, false, "Failed to delete scene file: " + e.getMessage()));
+                return;
+            }
+
+            scenes.delete(sid);
+            scripts.onSceneDeleted(sid);
+
+            for (Player p : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
+                if (!(p instanceof EnginePlayer ep)) {
+                    continue;
+                }
+                if (!sid.equals(ep.activeSceneId())) {
+                    continue;
+                }
+                Session s = ep.session();
+                if (s == null) {
+                    ep.setActiveSceneId("main");
+                    playRuntime.onSceneChanged(ep.getUuid(), "main");
+                    continue;
+                }
+                switchPlayerToScene(ep, s, mainScene);
+            }
+
+            session.send(Lane.EVENTS, new SceneDeleteAck(sid, true, null));
             return;
         }
 
@@ -516,26 +821,11 @@ public final class MinestomServerMain {
                 return;
             }
 
-            ServerScene target = next;
-            String currentSceneId = enginePlayer.activeSceneId();
-            if (currentSceneId != null && currentSceneId.equals(target.sceneId())) {
+            if (next.sceneId().equals(enginePlayer.activeSceneId())) {
                 return;
             }
 
-            enginePlayer.setActiveSceneId(target.sceneId());
-            playRuntime.onSceneChanged(enginePlayer.getUuid(), target.sceneId());
-            player.setInstance(target.instance(), new Pos(0, 0, 0))
-                    .thenRun(() -> MinecraftServer.getSchedulerManager().buildTask(() -> {
-                        if (session.state() != SessionState.CONNECTED) {
-                            return;
-                        }
-                        session.send(Lane.STATE, new SceneList(scenes.snapshotInfo(), target.sceneId()));
-                        session.send(Lane.STATE, target.snapshot(0L));
-                    }).schedule())
-                    .exceptionally(ex -> {
-                        System.err.println("[moud] failed to switch to scene '" + target.sceneId() + "': " + ex.getMessage());
-                        return null;
-                    });
+            switchPlayerToScene(enginePlayer, session, next);
             return;
         }
 
@@ -549,6 +839,7 @@ public final class MinestomServerMain {
         }
 
         if (message instanceof SceneSnapshotRequest(long requestId)) {
+            instancer.syncScene(scenes, scene);
             SceneSnapshot snapshot = scene.snapshot(requestId);
             session.send(Lane.STATE, snapshot);
             return;
@@ -568,13 +859,29 @@ public final class MinestomServerMain {
                     };
                     results.add(SceneOpResult.fail(target, SceneOpError.INVALID, "editor disabled (MOUD_MODE=player)"));
                 }
-                session.send(Lane.EVENTS, new SceneOpAck(batch.batchId(), scene.engine().sceneRevision(), java.util.List.copyOf(results)));
+                session.send(Lane.EVENTS, new SceneOpAck(batch.batchId(), scene.engine().sceneRevision(), List.copyOf(results)));
                 return;
             }
             String user = player.getUsername();
             String sid = scene.sceneId();
             scene.applier().setLogSink(s -> System.out.println("[moud][scene][" + user + "][" + sid + "] " + s));
             SceneOpAck ack = scene.apply(batch);
+            instancer.syncScene(scenes, scene);
+            if (ack != null && ack.sceneRevision() != scene.engine().sceneRevision()) {
+                ack = new SceneOpAck(ack.batchId(), scene.engine().sceneRevision(), ack.results());
+            }
+            if (ack != null && ack.results() != null) {
+                for (SceneOpResult r : ack.results()) {
+                    if (r == null || r.ok()) {
+                        continue;
+                    }
+                    String msg = r.message();
+                    if (msg == null || msg.isBlank()) {
+                        msg = r.error() == null ? "SceneOp failed" : r.error().name();
+                    }
+                    DebugLog.error("scene", "apply failed user=" + user + " scene=" + sid + " targetId=" + r.targetId() + " error=" + msg);
+                }
+            }
             session.send(Lane.EVENTS, ack);
             return;
         }
@@ -582,5 +889,99 @@ public final class MinestomServerMain {
         if (lane == Lane.ASSETS && assets != null) {
             assets.onMessage(enginePlayer.getUuid(), session, message);
         }
+    }
+
+    private ServerScene resolvePlayerScene(EnginePlayer player) {
+        if (player == null) {
+            return mainScene;
+        }
+        String sceneId = player.activeSceneId();
+        if (sceneId == null || sceneId.isBlank()) {
+            sceneId = "main";
+        }
+        ServerScene scene = scenes == null ? null : scenes.get(sceneId);
+        if (scene == null) {
+            scene = mainScene;
+        }
+        return scene;
+    }
+
+    private void switchPlayerToScene(EnginePlayer player, Session session, ServerScene target) {
+        if (player == null || session == null || target == null) {
+            return;
+        }
+        String targetId = target.sceneId();
+        player.setActiveSceneId(targetId);
+        playRuntime.onSceneChanged(player.getUuid(), targetId);
+
+        Pos targetStartPos = PlayRuntime.findPlayerStartPos(target);
+        Pos spawnPos = targetStartPos != null ? targetStartPos : new Pos(0, 64, 0);
+        player.setInstance(target.instance(), spawnPos)
+                .thenRun(() -> MinecraftServer.getSchedulerManager().buildTask(() -> {
+                    if (session.state() != SessionState.CONNECTED) {
+                        return;
+                    }
+                    session.send(Lane.STATE, new SceneList(scenes.snapshotInfo(), targetId));
+                    instancer.syncScene(scenes, target);
+                    session.send(Lane.STATE, target.snapshot(0L));
+                }).schedule())
+                .exceptionally(ex -> {
+                    System.err.println("[moud] failed to switch to scene '" + targetId + "': " + ex.getMessage());
+                    return null;
+                });
+    }
+
+    private Path sceneFilePath(String sceneId) {
+        return projectRoot.resolve("scenes").resolve(sceneId + ".moud.scene");
+    }
+
+    private static String normalizeSceneId(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        return raw.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String normalizeAllowedScriptPath(String raw) {
+        String path = raw == null ? "" : raw.trim();
+        if (path.isEmpty()) {
+            throw new IllegalArgumentException("Script path is required");
+        }
+        if (path.startsWith(ResPath.SCHEME)) {
+            ResPath rp = new ResPath(path);
+            String inner = rp.path();
+            if (!inner.startsWith("scripts/")) {
+                throw new IllegalArgumentException("Only res://scripts/ paths are allowed");
+            }
+            return rp.value();
+        }
+        if (!path.startsWith("scripts/")) {
+            throw new IllegalArgumentException("Only scripts/ paths are allowed");
+        }
+        return path;
+    }
+
+    private static boolean isValidSceneId(String sceneId) {
+        if (sceneId == null) {
+            return false;
+        }
+        String id = sceneId.trim();
+        if (id.isEmpty() || id.length() > 64) {
+            return false;
+        }
+        for (int i = 0; i < id.length(); i++) {
+            char c = id.charAt(i);
+            if (c == '_' || c == '-') {
+                continue;
+            }
+            if (c >= 'a' && c <= 'z') {
+                continue;
+            }
+            if (c >= '0' && c <= '9') {
+                continue;
+            }
+            return false;
+        }
+        return true;
     }
 }

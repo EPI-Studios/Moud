@@ -1,0 +1,51 @@
+{
+  "format": 1,
+  "sceneId": "eain",
+  "displayName": "Main",
+  "nodes": [
+    {
+      "id": 2,
+      "parent": 0,
+      "name": "ticker",
+      "type": "Ticker",
+      "properties": {
+        "ticks": "0"
+      }
+    },
+    {
+      "id": 3,
+      "parent": 0,
+      "name": "WorldEnvironment",
+      "type": "WorldEnvironment",
+      "properties": {
+        "weather": "clear",
+        "fog_color_r": "1",
+        "fog_density": "0.6",
+        "fog_color_b": "0.24313726",
+        "fog_enabled": "true",
+        "time_enabled": "true",
+        "fog_color_g": "0.54901963",
+        "time_ticks": "6000",
+        "ambient_light": "1359.7001"
+      }
+    },
+    {
+      "id": 6,
+      "parent": 0,
+      "name": "CSGBlock_3036",
+      "type": "CSGBlock",
+      "properties": {
+        "block": "minecraft:stone",
+        "rx": "0.0",
+        "ry": "0.0",
+        "rz": "0.0",
+        "x": "0",
+        "y": "21",
+        "z": "0",
+        "sx": "22",
+        "sy": "8",
+        "sz": "12"
+      }
+    }
+  ]
+}

@@ -1,0 +1,118 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "org.cadixdev",
+    "module": "lorenz",
+    "version": "0.5.7",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "6.7.1"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "org.cadixdev",
+          "module": "bombe",
+          "version": {
+            "requires": "0.3.4"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "lorenz-0.5.7.jar",
+          "url": "lorenz-0.5.7.jar",
+          "size": 96659,
+          "sha512": "f5599ee948c2febdbf37f9b38b969b27f184de424c8a45973fd083b88fba4f03c94cc9529dc2cbd660e6cc44bd2d6bf5a8d83cae2197f50cf148301b12b420d3",
+          "sha256": "223022f33fef6d5d88903b7c4fc8d7096ad6fd869acbc0fd241b0fcf8391d031",
+          "sha1": "68b615cec8ca89db6e55789b63046ccf363c8698",
+          "md5": "d8862009fac4695563f86e5f048816ba"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.cadixdev",
+          "module": "bombe",
+          "version": {
+            "requires": "0.3.4"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "lorenz-0.5.7.jar",
+          "url": "lorenz-0.5.7.jar",
+          "size": 96659,
+          "sha512": "f5599ee948c2febdbf37f9b38b969b27f184de424c8a45973fd083b88fba4f03c94cc9529dc2cbd660e6cc44bd2d6bf5a8d83cae2197f50cf148301b12b420d3",
+          "sha256": "223022f33fef6d5d88903b7c4fc8d7096ad6fd869acbc0fd241b0fcf8391d031",
+          "sha1": "68b615cec8ca89db6e55789b63046ccf363c8698",
+          "md5": "d8862009fac4695563f86e5f048816ba"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "lorenz-0.5.7-sources.jar",
+          "url": "lorenz-0.5.7-sources.jar",
+          "size": 117118,
+          "sha512": "1a8bf6380bb072e8e35f0d744744e16ca166013aeac5ffc6fa4d804704b8ba7b63ea0f51458891e362cbfe11d7cfa013543224140c38d327819d6261c9eba31b",
+          "sha256": "8da22ea970944b48a4a6bc7bb1efe58403f834515193d445d4f6895a8efb3945",
+          "sha1": "edf87221c19635d85a707c9d7532e1200bc38aae",
+          "md5": "ac3a75f0d6ead07d8281c80362256495"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "lorenz-0.5.7-javadoc.jar",
+          "url": "lorenz-0.5.7-javadoc.jar",
+          "size": 704478,
+          "sha512": "bb348fed4eaee7081c87001ade48804fa1df9e4b65d1f70bad8c8d775d60769c16cfc383b8c1b07f2e8fdf502f8905c24a4aedb4972920cbf222291a259ad836",
+          "sha256": "71d461297896f6c07ec38d3ee4b8dbdc5f54d3d6a572ae497ef5fcc7c47d8913",
+          "sha1": "93b7bdb086a128b7163745106cd924d05e8a91d9",
+          "md5": "2bd0d5fa6d3c70bdfbedb610e8333631"
+        }
+      ]
+    }
+  ]
+}

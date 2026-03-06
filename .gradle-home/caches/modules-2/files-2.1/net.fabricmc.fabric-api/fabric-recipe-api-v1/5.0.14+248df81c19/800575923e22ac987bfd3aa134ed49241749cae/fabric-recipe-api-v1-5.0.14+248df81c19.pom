@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>net.fabricmc.fabric-api</groupId>
+  <artifactId>fabric-recipe-api-v1</artifactId>
+  <version>5.0.14+248df81c19</version>
+  <name>Fabric Recipe API (v1)</name>
+  <description>Recipe extensions such as creation of new types of recipe ingredients.</description>
+  <url>https://github.com/FabricMC/fabric/tree/HEAD/fabric-recipe-api-v1</url>
+  <licenses>
+    <license>
+      <name>Apache-2.0</name>
+      <url>https://github.com/FabricMC/fabric/blob/HEAD/LICENSE</url>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <name>FabricMC</name>
+      <url>https://fabricmc.net/</url>
+    </developer>
+  </developers>
+  <scm>
+    <connection>scm:git:https://github.com/FabricMC/fabric.git</connection>
+    <developerConnection>scm:git:git@github.com:FabricMC/fabric.git</developerConnection>
+    <url>https://github.com/FabricMC/fabric</url>
+  </scm>
+  <issueManagement>
+    <system>GitHub</system>
+    <url>https://github.com/FabricMC/fabric/issues</url>
+  </issueManagement>
+  <dependencies>
+    <dependency>
+      <groupId>net.fabricmc.fabric-api</groupId>
+      <artifactId>fabric-networking-api-v1</artifactId>
+      <version>4.3.0+c7469b2119</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>

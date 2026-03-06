@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <!-- This module was also published with a richer model, Gradle metadata,  -->
+  <!-- which should be used instead. Do not delete the following line which  -->
+  <!-- is to indicate to Gradle or any Gradle module metadata file consumer  -->
+  <!-- that they should prefer consuming it instead. -->
+  <!-- do_not_remove: published-with-gradle-metadata -->
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.cadixdev</groupId>
+  <artifactId>lorenz</artifactId>
+  <version>0.5.7</version>
+  <name>Lorenz</name>
+  <description>A library for modelling, creating, and manipulating Java de-obfuscation mappings.</description>
+  <url>https://www.cadixdev.org/</url>
+  <inceptionYear>2016</inceptionYear>
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <id>jamierocks</id>
+      <name>Jamie Mansfield</name>
+      <email>jmansfield@cadixdev.org</email>
+      <url>https://www.jamiemansfield.me</url>
+      <timezone>Europe/London</timezone>
+    </developer>
+  </developers>
+  <scm>
+    <connection>scm:git:https://github.com/CadixDev/Lorenz.git</connection>
+    <developerConnection>scm:git:git@github.com:CadixDev/Lorenz.git</developerConnection>
+    <url>https://github.com/CadixDev/Lorenz</url>
+  </scm>
+  <issueManagement>
+    <system>GitHub</system>
+    <url>https://github.com/CadixDev/Lorenz/issues</url>
+  </issueManagement>
+  <dependencies>
+    <dependency>
+      <groupId>org.cadixdev</groupId>
+      <artifactId>bombe</artifactId>
+      <version>0.3.4</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>

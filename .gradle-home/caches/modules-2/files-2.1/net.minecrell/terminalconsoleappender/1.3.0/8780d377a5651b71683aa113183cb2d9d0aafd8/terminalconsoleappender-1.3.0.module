@@ -1,0 +1,132 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "net.minecrell",
+    "module": "terminalconsoleappender",
+    "version": "1.3.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "7.2"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "org.apache.logging.log4j",
+          "module": "log4j-core",
+          "version": {
+            "requires": "2.8.1"
+          }
+        },
+        {
+          "group": "org.jline",
+          "module": "jline-reader",
+          "version": {
+            "requires": "3.20.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "terminalconsoleappender-1.3.0.jar",
+          "url": "terminalconsoleappender-1.3.0.jar",
+          "size": 16949,
+          "sha512": "b90ece6b598476eebf5c22c37a689df71f58b6c209c00d4464db2a8dcaa08f6b089b85f7b9d68e68d6640e873f19721b5a4afd45d8de6785b5a91a9758d82e91",
+          "sha256": "1afea1bca095068f7f4483f061feed94753be34233ddb0df9ec380fc14d5a985",
+          "sha1": "b562e9bb61235c9520e26282cdee71f8f802d1fc",
+          "md5": "179d3abaf9736dbd8fbd4fa98e1c6ea1"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.apache.logging.log4j",
+          "module": "log4j-core",
+          "version": {
+            "requires": "2.8.1"
+          }
+        },
+        {
+          "group": "org.jline",
+          "module": "jline-reader",
+          "version": {
+            "requires": "3.20.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "terminalconsoleappender-1.3.0.jar",
+          "url": "terminalconsoleappender-1.3.0.jar",
+          "size": 16949,
+          "sha512": "b90ece6b598476eebf5c22c37a689df71f58b6c209c00d4464db2a8dcaa08f6b089b85f7b9d68e68d6640e873f19721b5a4afd45d8de6785b5a91a9758d82e91",
+          "sha256": "1afea1bca095068f7f4483f061feed94753be34233ddb0df9ec380fc14d5a985",
+          "sha1": "b562e9bb61235c9520e26282cdee71f8f802d1fc",
+          "md5": "179d3abaf9736dbd8fbd4fa98e1c6ea1"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "terminalconsoleappender-1.3.0-sources.jar",
+          "url": "terminalconsoleappender-1.3.0-sources.jar",
+          "size": 19537,
+          "sha512": "e378ce177f746bf7e98176188e39ba4adfd6e0ce3cacdd6dc8e9ae4911e0644ee6eefdd91d490cdc24fdb5c0eac423689b31a1f68b836b77623641c7526de918",
+          "sha256": "a6847b15ff3b8d51089558a872e2930798809c0cc6cf8d1c4639d7e2bac76fda",
+          "sha1": "2fd4d796402a408af0d26c848e02ec8f91dceae7",
+          "md5": "5375eb50bbd5935f37ff7d396626e711"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "terminalconsoleappender-1.3.0-javadoc.jar",
+          "url": "terminalconsoleappender-1.3.0-javadoc.jar",
+          "size": 49268,
+          "sha512": "654f525a107519e32844f4309c152a5b8d2ffd85f3d91072fda896a3c1185dbd151eba24dec707c9d0fd57f64a76b313eba6e3df77fec4f8a62f6b1f73a5b114",
+          "sha256": "e51a3637d9454b97924c462cba02f9576fd09db052f33980323e1d6b9b10def8",
+          "sha1": "ef5acdb46c511bfa1cb2d46a26ecf65e4a973c7a",
+          "md5": "52fa1477c6981bde6a3d22faa2cc5beb"
+        }
+      ]
+    }
+  ]
+}

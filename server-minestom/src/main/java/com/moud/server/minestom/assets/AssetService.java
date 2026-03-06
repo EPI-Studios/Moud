@@ -1,11 +1,9 @@
 package com.moud.server.minestom.assets;
 
 import com.moud.core.assets.AssetHash;
-import com.moud.core.assets.AssetManifest;
 import com.moud.core.assets.AssetMeta;
 import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
-import com.moud.net.protocol.Message;
 import com.moud.net.protocol.AssetDownloadBegin;
 import com.moud.net.protocol.AssetDownloadChunk;
 import com.moud.net.protocol.AssetDownloadComplete;
@@ -17,24 +15,30 @@ import com.moud.net.protocol.AssetUploadAck;
 import com.moud.net.protocol.AssetUploadBegin;
 import com.moud.net.protocol.AssetUploadChunk;
 import com.moud.net.protocol.AssetUploadComplete;
+import com.moud.net.protocol.Message;
 import com.moud.net.session.Session;
 import com.moud.net.transport.Lane;
-
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class AssetService {
+    public interface UploadCompleteCallback {
+        void onUploadComplete(ResPath path, AssetMeta meta, byte[] bytes);
+    }
+
     private static final int CHUNK_BYTES_MAX = 512 * 1024;
     private static final long MAX_ASSET_BYTES = 128L * 1024L * 1024L;
 
     private final AssetStore store;
     private final boolean uploadsEnabled;
     private final Map<UUID, UploadContext> uploads = new ConcurrentHashMap<>();
+    private UploadCompleteCallback uploadCompleteCallback;
 
     public AssetService(AssetStore store) {
         this(store, true);
@@ -43,6 +47,10 @@ public final class AssetService {
     public AssetService(AssetStore store, boolean uploadsEnabled) {
         this.store = Objects.requireNonNull(store);
         this.uploadsEnabled = uploadsEnabled;
+    }
+
+    public void setUploadCompleteCallback(UploadCompleteCallback callback) {
+        this.uploadCompleteCallback = callback;
     }
 
     public AssetStore store() {
@@ -76,7 +84,7 @@ public final class AssetService {
             }
             entries.add(new AssetManifestResponse.Entry(entry.getKey(), entry.getValue()));
         }
-        session.send(Lane.ASSETS, new AssetManifestResponse(request.requestId(), java.util.List.copyOf(entries)));
+        session.send(Lane.ASSETS, new AssetManifestResponse(request.requestId(), List.copyOf(entries)));
     }
 
     private void handleUploadBegin(UUID playerId, Session session, AssetUploadBegin begin) {
@@ -169,6 +177,9 @@ public final class AssetService {
         try {
             store.put(ctx.path, ctx.meta, bytes);
             session.send(Lane.ASSETS, new AssetUploadAck(ctx.path, ctx.meta.hash(), AssetTransferStatus.OK, "stored"));
+            if (uploadCompleteCallback != null) {
+                uploadCompleteCallback.onUploadComplete(ctx.path, ctx.meta, bytes);
+            }
         } catch (IOException e) {
             session.send(Lane.ASSETS, new AssetUploadAck(ctx.path, ctx.meta.hash(), AssetTransferStatus.ERROR, e.getMessage()));
         }
@@ -202,7 +213,7 @@ public final class AssetService {
         int index = 0;
         for (int off = 0; off < bytes.length; off += CHUNK_BYTES_MAX) {
             int len = Math.min(CHUNK_BYTES_MAX, bytes.length - off);
-            byte[] chunk = java.util.Arrays.copyOfRange(bytes, off, off + len);
+            byte[] chunk = Arrays.copyOfRange(bytes, off, off + len);
             session.send(Lane.ASSETS, new AssetDownloadChunk(hash, index++, chunk));
         }
         session.send(Lane.ASSETS, new AssetDownloadComplete(hash, AssetTransferStatus.OK, ""));

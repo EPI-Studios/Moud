@@ -1,0 +1,224 @@
+{
+  "format": 1,
+  "sceneId": "showcase",
+  "displayName": "Showcase",
+  "nodes": [
+    {
+      "id": 2,
+      "parent": 0,
+      "name": "WorldEnvironment",
+      "type": "WorldEnvironment",
+      "properties": {
+        "sky_mode": "custom",
+        "sky_material": "res://materials/sky_gradient.moudmat",
+        "sky_shader": "",
+        "clouds_mode": "custom",
+        "clouds_material": "res://materials/clouds_simple.moudmat",
+        "clouds_shader": "",
+        "cloud_height": "128.0",
+        "cloud_speed": "0.5",
+        "cloud_offset_x": "0.0",
+        "cloud_offset_z": "0.0",
+        "cloud_scale": "1.0",
+        "sky_color_top_r": "0.15",
+        "sky_color_top_g": "0.2",
+        "sky_color_top_b": "0.45",
+        "sky_color_horizon_r": "0.9",
+        "sky_color_horizon_g": "0.7",
+        "sky_color_horizon_b": "0.4",
+        "sky_color_sunrise_r": "1.0",
+        "sky_color_sunrise_g": "0.35",
+        "sky_color_sunrise_b": "0.2",
+        "sky_color_sunrise_strength": "1.0"
+      }
+    },
+    {
+      "id": 3,
+      "parent": 0,
+      "name": "Ground",
+      "type": "CSGBlock",
+      "properties": {
+        "x": "-40",
+        "y": "-2",
+        "z": "-40",
+        "sx": "80",
+        "sy": "1",
+        "sz": "80",
+        "block": "minecraft:stone",
+        "solid": "true"
+      }
+    },
+    {
+      "id": 4,
+      "parent": 0,
+      "name": "CollisionRamp",
+      "type": "CSGBox",
+      "properties": {
+        "x": "4",
+        "y": "-1",
+        "z": "6",
+        "sx": "10",
+        "sy": "2",
+        "sz": "6",
+        "rx": "0",
+        "ry": "25",
+        "rz": "-20",
+        "texture": "minecraft:block/stone",
+        "solid": "true"
+      }
+    },
+    {
+      "id": 5,
+      "parent": 0,
+      "name": "Stairs_0",
+      "type": "CSGBox",
+      "properties": {
+        "x": "-6",
+        "y": "-1",
+        "z": "4",
+        "sx": "4",
+        "sy": "1",
+        "sz": "6",
+        "texture": "minecraft:block/oak_planks",
+        "solid": "true"
+      }
+    },
+    {
+      "id": 6,
+      "parent": 0,
+      "name": "Stairs_1",
+      "type": "CSGBox",
+      "properties": {
+        "x": "-6",
+        "y": "0",
+        "z": "4",
+        "sx": "4",
+        "sy": "1",
+        "sz": "4",
+        "texture": "minecraft:block/oak_planks",
+        "solid": "true"
+      }
+    },
+    {
+      "id": 7,
+      "parent": 0,
+      "name": "Stairs_2",
+      "type": "CSGBox",
+      "properties": {
+        "x": "-6",
+        "y": "1",
+        "z": "4",
+        "sx": "4",
+        "sy": "1",
+        "sz": "2",
+        "texture": "minecraft:block/oak_planks",
+        "solid": "true"
+      }
+    },
+    {
+      "id": 8,
+      "parent": 0,
+      "name": "Mesh_Box_A",
+      "type": "MeshInstance3D",
+      "properties": {
+        "x": "0",
+        "y": "0",
+        "z": "10",
+        "rx": "0",
+        "ry": "0",
+        "rz": "0",
+        "sx": "1",
+        "sy": "1",
+        "sz": "1",
+        "mesh": "box",
+        "material": "res://materials/demo_green.moudmat",
+        "texture": "moud:dynamic/white"
+      }
+    },
+    {
+      "id": 9,
+      "parent": 0,
+      "name": "Mesh_Box_B",
+      "type": "MeshInstance3D",
+      "properties": {
+        "x": "2.5",
+        "y": "0",
+        "z": "10",
+        "rx": "0",
+        "ry": "0",
+        "rz": "0",
+        "sx": "1",
+        "sy": "1",
+        "sz": "1",
+        "mesh": "box",
+        "material": "res://materials/demo_checker.moudmat",
+        "texture": "moud:dynamic/white"
+      }
+    },
+    {
+      "id": 10,
+      "parent": 0,
+      "name": "PrefabRoomInstance",
+      "type": "SceneInstance3D",
+      "properties": {
+        "scene_id": "prefab_room",
+        "x": "18",
+        "y": "0",
+        "z": "0",
+        "rx": "0",
+        "ry": "0",
+        "rz": "0"
+      }
+    },
+    {
+      "id": 11,
+      "parent": 0,
+      "name": "PlayerBody",
+      "type": "CharacterBody3D",
+      "properties": {
+        "x": "0",
+        "y": "0",
+        "z": "0",
+        "ry": "0",
+        "speed": "6",
+        "script": "res://scripts/showcase_spin.js"
+      }
+    },
+    {
+      "id": 12,
+      "parent": 11,
+      "name": "PlayerCam",
+      "type": "Camera3D",
+      "properties": {
+        "x": "0",
+        "y": "1.6",
+        "z": "0",
+        "rx": "0",
+        "ry": "0",
+        "rz": "0",
+        "current": "true",
+        "fov": "75",
+        "near": "0.05",
+        "far": "1000"
+      }
+    },
+    {
+      "id": 13,
+      "parent": 11,
+      "name": "PlayerLight",
+      "type": "OmniLight3D",
+      "properties": {
+        "x": "0",
+        "y": "3",
+        "z": "0",
+        "color_r": "0.8",
+        "color_g": "0.9",
+        "color_b": "1",
+        "brightness": "1.0",
+        "radius": "12",
+        "enabled": "true"
+      }
+    }
+  ]
+}
+

@@ -1,10 +1,10 @@
 package com.moud.server.minestom.assets;
 
+
 import com.moud.core.assets.AssetHash;
 import com.moud.core.assets.AssetManifest;
 import com.moud.core.assets.AssetMeta;
 import com.moud.core.assets.ResPath;
-
 import java.io.IOException;
 
 public interface AssetStore {

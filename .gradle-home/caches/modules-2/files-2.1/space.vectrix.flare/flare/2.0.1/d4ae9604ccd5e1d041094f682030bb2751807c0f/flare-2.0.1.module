@@ -1,0 +1,109 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "space.vectrix.flare",
+    "module": "flare",
+    "version": "2.0.1",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "7.3.3"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "org.checkerframework",
+          "module": "checker-qual",
+          "version": {
+            "requires": "3.18.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "flare-2.0.1.jar",
+          "url": "flare-2.0.1.jar",
+          "size": 16804,
+          "sha512": "ae34c522eef9a615ac2dda1cc8f49ad1397b678877e5e4d566028984cec499d3d719b26e5e14eef3c2a942aa8c0aa1139c06181b0c0914a3ace57cad76eaa2c3",
+          "sha256": "0ad79b73206c1cb7b1e270a7847329b804fed30a33d38347f41464eb98163087",
+          "sha1": "2b4594f599d4d1becce5d5057f3d7a056237a0c6",
+          "md5": "54aa07023835938ab1eac9234701e8f8"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "flare-2.0.1.jar",
+          "url": "flare-2.0.1.jar",
+          "size": 16804,
+          "sha512": "ae34c522eef9a615ac2dda1cc8f49ad1397b678877e5e4d566028984cec499d3d719b26e5e14eef3c2a942aa8c0aa1139c06181b0c0914a3ace57cad76eaa2c3",
+          "sha256": "0ad79b73206c1cb7b1e270a7847329b804fed30a33d38347f41464eb98163087",
+          "sha1": "2b4594f599d4d1becce5d5057f3d7a056237a0c6",
+          "md5": "54aa07023835938ab1eac9234701e8f8"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "flare-2.0.1-javadoc.jar",
+          "url": "flare-2.0.1-javadoc.jar",
+          "size": 405936,
+          "sha512": "f387bf82e39fe35389e0f938f9d1461d9df6649c364c1f5913c7e13f0774a01010e5c33f1ca56bb25786881cb6f3fffd46919299dca29716486a6bb34c28c893",
+          "sha256": "a276170a1435e787a24552ac996e7100457dc29b408be992edd96a1be2799503",
+          "sha1": "1b296fbe6560f7e4fb5d347c3ce051174d7ff10d",
+          "md5": "5fa39545a05260efde7a9aab0885f79d"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "flare-2.0.1-sources.jar",
+          "url": "flare-2.0.1-sources.jar",
+          "size": 8539,
+          "sha512": "de762e66aff68c6ebc2efbc7714c6799d80b459a6f58f0979b5f7ee554536aa9056d60ee0df105401ff54a1ea23dd9618a412886c1db9e05cd8a02f3fcc68e3c",
+          "sha256": "9939b8b32f27a5be4a87ac0241513cf878a88082f91e37a36aaee7b15a85cfee",
+          "sha1": "0946e483301cdf78d6abfb57ee17827295f48871",
+          "md5": "5c8c7e43d033ce77b1a97db679db07d3"
+        }
+      ]
+    }
+  ]
+}

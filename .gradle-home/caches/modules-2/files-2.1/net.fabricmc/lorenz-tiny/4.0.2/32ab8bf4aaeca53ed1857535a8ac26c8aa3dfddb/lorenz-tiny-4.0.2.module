@@ -1,0 +1,132 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "net.fabricmc",
+    "module": "lorenz-tiny",
+    "version": "4.0.2",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "7.2"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "org.cadixdev",
+          "module": "lorenz",
+          "version": {
+            "requires": "0.5.7"
+          }
+        },
+        {
+          "group": "net.fabricmc",
+          "module": "mapping-io",
+          "version": {
+            "requires": "0.2.1"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "lorenz-tiny-4.0.2.jar",
+          "url": "lorenz-tiny-4.0.2.jar",
+          "size": 14773,
+          "sha512": "709ce24886f9afe55b93f88f5211e75bab2a7631c9a11dd9c8ec423128e93e62c1faa701af5c1c442aaeabd71b70930a96e6a7880256e95ff6a242554c4a1ea4",
+          "sha256": "9ea2b49f6149cf29917576af5024489b3927e2ec673aced27687a14f3aa99e7e",
+          "sha1": "1f5e748f1ff977a9ccbb3bdb35b2ec6a6e78d04a",
+          "md5": "522352e280edb67a31d9bfd6011e5dc9"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.cadixdev",
+          "module": "lorenz",
+          "version": {
+            "requires": "0.5.7"
+          }
+        },
+        {
+          "group": "net.fabricmc",
+          "module": "mapping-io",
+          "version": {
+            "requires": "0.2.1"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "lorenz-tiny-4.0.2.jar",
+          "url": "lorenz-tiny-4.0.2.jar",
+          "size": 14773,
+          "sha512": "709ce24886f9afe55b93f88f5211e75bab2a7631c9a11dd9c8ec423128e93e62c1faa701af5c1c442aaeabd71b70930a96e6a7880256e95ff6a242554c4a1ea4",
+          "sha256": "9ea2b49f6149cf29917576af5024489b3927e2ec673aced27687a14f3aa99e7e",
+          "sha1": "1f5e748f1ff977a9ccbb3bdb35b2ec6a6e78d04a",
+          "md5": "522352e280edb67a31d9bfd6011e5dc9"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "lorenz-tiny-4.0.2-sources.jar",
+          "url": "lorenz-tiny-4.0.2-sources.jar",
+          "size": 10520,
+          "sha512": "9405c8a52d4d9b762f588fc593f2331e84879694723d1184bdced2e55e00dcfe980ed7bb279eb04991e64158c1e7a01893d2b7d32346888801d0664e1b93045f",
+          "sha256": "6320782e0b2647984845244c30b46f8a0b465d813d1f36457ad5020a13c02119",
+          "sha1": "2f64b13007e7f976d3f5a5259c732739d84ed107",
+          "md5": "ad8cac23cfa72d9e222c998216fb945f"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "lorenz-tiny-4.0.2-javadoc.jar",
+          "url": "lorenz-tiny-4.0.2-javadoc.jar",
+          "size": 133849,
+          "sha512": "0c039a676a6b204f897d7ea853ccae455de4859d2df0453d95e84b03e614889c24b3f88b7af785e5495da19fedc72ceae8d6ff82e2dffaf3b10be41c5838c90a",
+          "sha256": "859ca0e9fcadcba41dbe928f713b89b5e5f2e5b01e7cfc9a76845a8781827606",
+          "sha1": "b0ec275085470eef5e16077a565281f10d0a30c5",
+          "md5": "ab8e890c96151d8f313ebe84f6d0338e"
+        }
+      ]
+    }
+  ]
+}

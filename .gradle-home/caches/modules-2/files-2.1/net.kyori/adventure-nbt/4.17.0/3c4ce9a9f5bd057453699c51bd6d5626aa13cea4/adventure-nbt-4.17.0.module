@@ -1,0 +1,195 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "net.kyori",
+    "module": "adventure-nbt",
+    "version": "4.17.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.4"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "net.kyori",
+          "module": "adventure-bom",
+          "version": {
+            "requires": "4.17.0"
+          },
+          "attributes": {
+            "org.gradle.category": "platform"
+          },
+          "endorseStrictVersions": true
+        },
+        {
+          "group": "net.kyori",
+          "module": "examination-api",
+          "version": {
+            "requires": "1.3.0"
+          }
+        },
+        {
+          "group": "net.kyori",
+          "module": "examination-string",
+          "version": {
+            "requires": "1.3.0"
+          }
+        },
+        {
+          "group": "org.jetbrains",
+          "module": "annotations",
+          "version": {
+            "requires": "24.1.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "adventure-nbt-4.17.0.jar",
+          "url": "adventure-nbt-4.17.0.jar",
+          "size": 96030,
+          "sha512": "400abedeea8783d79e3f17e7c2b206a24fa7cf959a5cc30547339f26c32615d9787821a45663b3712ba289b51953aaee43ac0456a69eee836698163c42de5b5e",
+          "sha256": "b488903084b0416f5371c47fb06f74b6e9c67397f402670f29b551cbe6d0b719",
+          "sha1": "45b1b7064a99cc667b6ff04dc7e4cb58765a98a2",
+          "md5": "bb55648b1488e9db2f34f131fd5e0ea7"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "net.kyori",
+          "module": "adventure-bom",
+          "version": {
+            "requires": "4.17.0"
+          },
+          "attributes": {
+            "org.gradle.category": "platform"
+          },
+          "endorseStrictVersions": true
+        },
+        {
+          "group": "net.kyori",
+          "module": "examination-api",
+          "version": {
+            "requires": "1.3.0"
+          }
+        },
+        {
+          "group": "net.kyori",
+          "module": "examination-string",
+          "version": {
+            "requires": "1.3.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "adventure-nbt-4.17.0.jar",
+          "url": "adventure-nbt-4.17.0.jar",
+          "size": 96030,
+          "sha512": "400abedeea8783d79e3f17e7c2b206a24fa7cf959a5cc30547339f26c32615d9787821a45663b3712ba289b51953aaee43ac0456a69eee836698163c42de5b5e",
+          "sha256": "b488903084b0416f5371c47fb06f74b6e9c67397f402670f29b551cbe6d0b719",
+          "sha1": "45b1b7064a99cc667b6ff04dc7e4cb58765a98a2",
+          "md5": "bb55648b1488e9db2f34f131fd5e0ea7"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "net.kyori",
+          "module": "adventure-bom",
+          "version": {
+            "requires": "4.17.0"
+          },
+          "attributes": {
+            "org.gradle.category": "platform"
+          },
+          "endorseStrictVersions": true
+        },
+        {
+          "group": "net.kyori",
+          "module": "examination-api",
+          "version": {
+            "requires": "1.3.0"
+          }
+        },
+        {
+          "group": "net.kyori",
+          "module": "examination-string",
+          "version": {
+            "requires": "1.3.0"
+          }
+        },
+        {
+          "group": "org.jetbrains",
+          "module": "annotations",
+          "version": {
+            "requires": "24.1.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "adventure-nbt-4.17.0-javadoc.jar",
+          "url": "adventure-nbt-4.17.0-javadoc.jar",
+          "size": 390295,
+          "sha512": "4c85be89c2ab095df516ffc5d175ac8612da31dd06ea6e3b7976f55e9c640ccf32c5ede14add31243bc9946b3b2086c6d83e7c0d261d60b6224e82d67e8a2b16",
+          "sha256": "31ecf20f490092139363c2239989487d83a5c562b9deadaaee9d5b85ad4b0c19",
+          "sha1": "68563aa2696af554245c26faf35574a96c98b686",
+          "md5": "28800f13d8f6504b2abef64c80d5ae15"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "adventure-nbt-4.17.0-sources.jar",
+          "url": "adventure-nbt-4.17.0-sources.jar",
+          "size": 83556,
+          "sha512": "930ed881ea37e49563259ebb84d227b91cf875364174f7c6a14578fbf69b727b3267a3a13b0c30b6ed9afc0f7ae7119c6722d9102467f929d538d3ba891031e8",
+          "sha256": "6f7751242e16438894b494dfd0cd03d788e66ee08bf296ced15bd5815e8d2fbe",
+          "sha1": "26aef866338df09f9216bb92f1e231910addfc0c",
+          "md5": "16445ec99d59cb665be4ac9a0122c66c"
+        }
+      ]
+    }
+  ]
+}

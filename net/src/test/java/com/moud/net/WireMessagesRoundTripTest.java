@@ -1,32 +1,10 @@
 package com.moud.net;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static Assertions.assertEquals;
 
-import com.moud.core.assets.AssetHash;
-import com.moud.core.assets.AssetMeta;
-import com.moud.core.assets.AssetType;
-import com.moud.core.assets.ResPath;
-import com.moud.net.protocol.AssetManifestRequest;
-import com.moud.net.protocol.AssetManifestResponse;
-import com.moud.net.protocol.AssetTransferStatus;
-import com.moud.net.protocol.AssetUploadAck;
-import com.moud.net.protocol.AssetUploadBegin;
-import com.moud.net.protocol.AssetUploadChunk;
-import com.moud.net.protocol.AssetUploadComplete;
-import com.moud.net.protocol.Message;
-import com.moud.net.protocol.PlayerInput;
-import com.moud.net.protocol.RuntimeState;
-import com.moud.net.protocol.SceneOpAck;
-import com.moud.net.protocol.SceneOpError;
-import com.moud.net.protocol.SceneOpResult;
-import com.moud.net.protocol.SceneSave;
-import com.moud.net.protocol.SceneSaveAck;
-import com.moud.net.protocol.SceneSnapshot;
-import com.moud.net.protocol.SceneSnapshotRequest;
-import com.moud.net.protocol.SchemaSnapshot;
-import com.moud.net.wire.WireMessages;
-import java.util.List;
-import org.junit.jupiter.api.Test;
+import com.moud.core.PropertyType;
+import java.util.Map;
+import org.junit.jupiter.api.Assertions;
 
 public final class WireMessagesRoundTripTest {
     @Test
@@ -82,8 +60,8 @@ public final class WireMessagesRoundTripTest {
     @Test
     void schemaSnapshot_roundTrips() {
         SchemaSnapshot schema = new SchemaSnapshot(1L, List.of(
-                new com.moud.core.NodeTypeDef("Node", java.util.Map.of(
-                        "foo", new com.moud.core.PropertyDef("foo", com.moud.core.PropertyType.STRING, "bar")
+                new NodeTypeDef("Node", Map.of(
+                        "foo", new PropertyDef("foo", STRING, "bar")
                 ))
         ));
         Message decoded = WireMessages.decode(WireMessages.encode(schema));
@@ -115,13 +93,14 @@ public final class WireMessagesRoundTripTest {
     void runtime_roundTrip() {
         List<Message> messages = List.of(
                 new PlayerInput(123L, 1.0f, -0.25f, 90.0f, -10.0f, true, false),
-                new RuntimeState(456L, 120L, "main",
-                        1.0f, 42.5f, -3.0f,
-                        0.5f, -1.2f, 0.3f, true,
-                        180.0f, 5.0f,
-                        true, 0.1f, 0.2f, 0.3f,
-                        0.0125f,
-                        12345, "thunder", 0.75f)
+                new RuntimeState(456L, "main",
+                        true, 0.1f, 0.2f, 0.3f, 0.0125f,
+                        12345, "thunder", 0.75f,
+                        true, 10.0f, 20.0f, 30.0f, 45.0f, -15.0f, 22.0f),
+                new RuntimeState(789L, "test",
+                        false, 0.5f, 0.5f, 0.5f, 0.02f,
+                        6000, "clear", 1.0f,
+                        false, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
         );
 
         for (Message message : messages) {
@@ -136,6 +115,69 @@ public final class WireMessagesRoundTripTest {
                 new SceneSave("main"),
                 new SceneSaveAck("main", true, null),
                 new SceneSaveAck("sandbox", false, "disk full")
+        );
+
+        for (Message message : messages) {
+            Message decoded = WireMessages.decode(WireMessages.encode(message));
+            assertEquals(message, decoded);
+        }
+    }
+
+    @Test
+    void sceneCreateDelete_roundTrip() {
+        List<Message> messages = List.of(
+                new SceneCreate("level1", "Level 1"),
+                new SceneDelete("level1"),
+                new SceneCreateAck("level1", true, null),
+                new SceneDeleteAck("level1", false, "scene in use")
+        );
+
+        for (Message message : messages) {
+            Message decoded = WireMessages.decode(WireMessages.encode(message));
+            assertEquals(message, decoded);
+        }
+    }
+
+    @Test
+    void control_roundTrip() {
+        List<Message> messages = List.of(
+                new Hello(3),
+                new ServerHello(3, false),
+                new ServerHello(3, true)
+        );
+
+        for (Message message : messages) {
+            Message decoded = WireMessages.decode(WireMessages.encode(message));
+            assertEquals(message, decoded);
+        }
+    }
+
+    @Test
+    void project_roundTrip() {
+        List<Message> messages = List.of(
+                new ProjectInfoRequest(1L),
+                new ProjectInfo(1L, false, "", ""),
+                new ProjectInfo(2L, true, "My Game", "Meek"),
+                new ProjectCreate(3L, "My Game", "Meek"),
+                new ProjectCreateAck(3L, true, null, "My Game", "Meek"),
+                new ProjectCreateAck(4L, false, "already exists", "", "")
+        );
+
+        for (Message message : messages) {
+            Message decoded = WireMessages.decode(WireMessages.encode(message));
+            assertEquals(message, decoded);
+        }
+    }
+
+    @Test
+    void scriptActions_roundTrip() {
+        List<Message> messages = List.of(
+                new ScriptActionListRequest(1L, 123L),
+                new ScriptActionListResponse(1L, 123L, true, null, List.of("Bake", "Spawn")),
+                new ScriptActionListResponse(2L, 123L, false, "no script", List.of()),
+                new ScriptActionInvoke(3L, 123L, "Bake"),
+                new ScriptActionInvokeAck(3L, 123L, true, null),
+                new ScriptActionInvokeAck(4L, 123L, false, "error")
         );
 
         for (Message message : messages) {

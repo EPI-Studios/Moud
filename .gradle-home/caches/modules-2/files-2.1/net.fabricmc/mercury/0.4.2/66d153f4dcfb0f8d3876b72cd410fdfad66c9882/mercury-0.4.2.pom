@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>net.fabricmc</groupId>
+  <artifactId>mercury</artifactId>
+  <version>0.4.2</version>
+  <name>Mercury</name>
+  <description>A source transformation and -remapping framework for Java.</description>
+  <url>https://github.com/FabricMC/Mercury</url>
+  <licenses>
+    <license>
+      <name>Eclipse Public License, Version 2.0</name>
+      <url>https://www.eclipse.org/legal/epl-2.0/</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <id>jamierocks</id>
+      <name>Jamie Mansfield</name>
+      <email>jmansfield@cadixdev.org</email>
+      <url>https://www.jamiemansfield.me/</url>
+      <timezone>Europe/London</timezone>
+    </developer>
+  </developers>
+  <scm>
+    <connection>scm:git:https://github.com/FabricMC/Mercury.git</connection>
+    <developerConnection>scm:git:https://github.com/FabricMC/Mercury.git</developerConnection>
+    <url>https://github.com/FabricMC/Mercury</url>
+  </scm>
+  <issueManagement>
+    <system>GitHub Issues</system>
+    <url>https://github.com/FabricMC/Mercury/issues</url>
+  </issueManagement>
+  <dependencies>
+    <dependency>
+      <groupId>org.cadixdev</groupId>
+      <artifactId>at</artifactId>
+      <version>0.1.0-rc1</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.cadixdev</groupId>
+      <artifactId>lorenz</artifactId>
+      <version>0.5.7</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>

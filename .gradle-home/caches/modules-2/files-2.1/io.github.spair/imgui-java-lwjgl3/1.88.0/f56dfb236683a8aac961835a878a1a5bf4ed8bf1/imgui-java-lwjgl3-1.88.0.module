@@ -1,0 +1,92 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "io.github.spair",
+    "module": "imgui-java-lwjgl3",
+    "version": "1.88.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.12"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "imgui-java-lwjgl3-1.88.0.jar",
+          "url": "imgui-java-lwjgl3-1.88.0.jar",
+          "size": 44704,
+          "sha512": "4053a7697fa5d6af81f761051a7f6a3b4a5a7309dc635713da421a779826a12e4f69cb7f716a1977e0efc69ede4b0c50e47427e227900b996cd94a001f365c0a",
+          "sha256": "1a750ff72ecded7c483879fd93d692d9a1a01a1ad16171f5c560bd8a09ba7718",
+          "sha1": "a8fc8b2cb8a63936cd8c1acbff4fb9bdd7ef92eb",
+          "md5": "0eaf7f60fa7ea19e4cc671b9de192834"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.lwjgl",
+          "module": "lwjgl-bom",
+          "version": {
+            "requires": "3.3.4"
+          },
+          "attributes": {
+            "org.gradle.category": "platform"
+          },
+          "endorseStrictVersions": true
+        },
+        {
+          "group": "org.lwjgl",
+          "module": "lwjgl"
+        },
+        {
+          "group": "org.lwjgl",
+          "module": "lwjgl-glfw"
+        },
+        {
+          "group": "org.lwjgl",
+          "module": "lwjgl-opengl"
+        },
+        {
+          "group": "io.github.spair",
+          "module": "imgui-java-binding",
+          "version": {
+            "requires": "1.88.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "imgui-java-lwjgl3-1.88.0.jar",
+          "url": "imgui-java-lwjgl3-1.88.0.jar",
+          "size": 44704,
+          "sha512": "4053a7697fa5d6af81f761051a7f6a3b4a5a7309dc635713da421a779826a12e4f69cb7f716a1977e0efc69ede4b0c50e47427e227900b996cd94a001f365c0a",
+          "sha256": "1a750ff72ecded7c483879fd93d692d9a1a01a1ad16171f5c560bd8a09ba7718",
+          "sha1": "a8fc8b2cb8a63936cd8c1acbff4fb9bdd7ef92eb",
+          "md5": "0eaf7f60fa7ea19e4cc671b9de192834"
+        }
+      ]
+    }
+  ]
+}

@@ -1,10 +1,10 @@
 package com.moud.core.assets;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static Assertions.assertEquals;
+import static Assertions.assertFalse;
+import static Assertions.assertThrows;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
 
 public final class ResPathTest {
     @Test

@@ -1,16 +1,14 @@
 package com.moud.server.minestom.assets;
 
+
 import com.moud.core.assets.AssetHash;
-import com.moud.core.assets.AssetManifest;
 import com.moud.core.assets.AssetMeta;
 import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
-
+import com.moud.core.assets.AssetManifest;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;

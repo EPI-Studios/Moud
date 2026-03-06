@@ -1,9 +1,9 @@
 package com.moud.client.fabric.assets;
 
+
 import com.moud.core.assets.AssetHash;
 import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
-import com.moud.net.protocol.Message;
 import com.moud.net.protocol.AssetDownloadBegin;
 import com.moud.net.protocol.AssetDownloadChunk;
 import com.moud.net.protocol.AssetDownloadComplete;
@@ -15,16 +15,13 @@ import com.moud.net.protocol.AssetUploadAck;
 import com.moud.net.protocol.AssetUploadBegin;
 import com.moud.net.protocol.AssetUploadChunk;
 import com.moud.net.protocol.AssetUploadComplete;
+import com.moud.net.protocol.Message;
 import com.moud.net.session.Session;
 import com.moud.net.transport.Lane;
-
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 public final class AssetsClient {
     public static final int CHUNK_BYTES = 256 * 1024;
@@ -78,6 +75,7 @@ public final class AssetsClient {
         }
         AssetHash hash = AssetHash.sha256(bytes);
         AssetType t = type == null ? AssetType.BINARY : type;
+        uploadQueue.removeIf(task -> task != null && path.equals(task.path));
         uploadQueue.add(new UploadTask(path, hash, bytes, t));
         ensureUploadStarted(session);
     }

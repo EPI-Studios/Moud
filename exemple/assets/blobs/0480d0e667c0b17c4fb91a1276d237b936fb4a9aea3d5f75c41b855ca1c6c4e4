@@ -1,0 +1,85 @@
+#stage fragment
+
+in vec2 texCoord;
+out vec4 fragColor;
+
+uniform vec3 moud_cameraPos;
+uniform vec2 moud_cloudOffset;
+uniform float moud_cloudScale;
+uniform float moud_cloudHeight;
+uniform float moud_cloudTime;
+uniform vec3 moud_camForward;
+uniform vec3 moud_camRight;
+uniform vec3 moud_camUp;
+uniform float moud_fovDeg;
+uniform float moud_aspectRatio;
+
+// @expose min=0 max=1 step=0.01 label=Opacity
+uniform float cloud_opacity;
+
+// @expose min=0.25 max=8 step=0.05 label=Detail
+uniform float cloud_detail;
+
+float hash12(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    float a = hash12(i);
+    float b = hash12(i + vec2(1, 0));
+    float c = hash12(i + vec2(0, 1));
+    float d = hash12(i + vec2(1, 1));
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+}
+
+float fbm(vec2 p) {
+    float v = 0.0;
+    float a = 0.5;
+    for (int i = 0; i < 5; i++) {
+        v += a * noise(p);
+        p *= 2.0;
+        a *= 0.5;
+    }
+    return v;
+}
+
+void main() {
+    // Reconstruct world-space ray direction.
+    vec2 ndc = texCoord * 2.0 - 1.0;
+    float tanHalfFov = tan(radians(moud_fovDeg) * 0.5);
+    vec3 rayDir = normalize(
+        moud_camForward
+        + moud_camRight * (ndc.x * moud_aspectRatio * tanHalfFov)
+        + moud_camUp    * (ndc.y * tanHalfFov)
+    );
+
+    // No clouds below the camera or when looking down past the cloud plane.
+    float camToPlane = moud_cloudHeight - moud_cameraPos.y;
+    if (rayDir.y * sign(camToPlane) < 0.01) {
+        fragColor = vec4(0.0);
+        return;
+    }
+
+    // Intersect ray with the horizontal cloud plane at moud_cloudHeight.
+    float tHit = camToPlane / rayDir.y;
+    vec2 worldXZ = moud_cameraPos.xz + rayDir.xz * tHit;
+
+    // Sample noise at the world-space cloud position (fixed in world as camera moves).
+    vec2 p = worldXZ * max(0.001, moud_cloudScale) * 0.005 + moud_cloudOffset * 0.01;
+    p += vec2(moud_cloudTime * 0.01, 0.0);
+
+    float d = max(0.001, cloud_detail);
+    float n = fbm(p * d);
+    float mask = smoothstep(0.55, 0.8, n);
+
+    // Fade clouds near the horizon to avoid hard edges.
+    float horizonFade = clamp((rayDir.y - 0.02) * 20.0, 0.0, 1.0);
+
+    vec3 cloudCol = mix(vec3(0.9), vec3(1.0), n);
+    fragColor = vec4(cloudCol, mask * clamp(cloud_opacity, 0.0, 1.0) * horizonFade);
+}

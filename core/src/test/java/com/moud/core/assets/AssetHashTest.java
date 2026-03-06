@@ -1,9 +1,8 @@
 package com.moud.core.assets;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static Assertions.assertEquals;
 
-import java.nio.charset.StandardCharsets;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
 
 public final class AssetHashTest {
     @Test

@@ -13,6 +13,13 @@ out/
 *.log
 
 /assets/
+/scenes/
 
 # Fabric Loom / dev runs
 **/run/
+
+# Auto-generated agent notes
+**/CLAUDE.md
+
+# Local docs clones
+Veil.wiki/

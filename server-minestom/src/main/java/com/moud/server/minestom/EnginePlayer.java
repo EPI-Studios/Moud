@@ -1,11 +1,9 @@
 package com.moud.server.minestom;
 
 import com.moud.net.session.Session;
-import com.moud.server.minestom.net.MinestomPlayerTransport;
+import java.util.UUID;
 import net.minestom.server.entity.Player;
 import net.minestom.server.network.player.PlayerConnection;
-
-import java.util.UUID;
 
 public final class EnginePlayer extends Player {
     private MinestomPlayerTransport transport;

@@ -1,0 +1,89 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "net.fabricmc",
+    "module": "mapping-io",
+    "version": "0.2.1",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "7.0.2"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "mapping-io-0.2.1.jar",
+          "url": "mapping-io-0.2.1.jar",
+          "size": 115815,
+          "sha512": "e0e6f0be5bfd56a76b2b3d8c7cf6936287bd56356db96ab623aa59fb65a7e76db53a7d55f460f4f92f94d0d20b9115c412b55cff6ff12328f42c208369ce0f13",
+          "sha256": "0f10bf89b161369052ffacfe08ff4edbce91371a89c7967dccfd83b092a39a97",
+          "sha1": "2a1aeedce104191bbb9e39e26abfbfeaf9b0590b",
+          "md5": "2f46d37f7e9f5766cc912eea1b585e82"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.ow2.asm",
+          "module": "asm",
+          "version": {
+            "requires": "9.1"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "mapping-io-0.2.1.jar",
+          "url": "mapping-io-0.2.1.jar",
+          "size": 115815,
+          "sha512": "e0e6f0be5bfd56a76b2b3d8c7cf6936287bd56356db96ab623aa59fb65a7e76db53a7d55f460f4f92f94d0d20b9115c412b55cff6ff12328f42c208369ce0f13",
+          "sha256": "0f10bf89b161369052ffacfe08ff4edbce91371a89c7967dccfd83b092a39a97",
+          "sha1": "2a1aeedce104191bbb9e39e26abfbfeaf9b0590b",
+          "md5": "2f46d37f7e9f5766cc912eea1b585e82"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "mapping-io-0.2.1-sources.jar",
+          "url": "mapping-io-0.2.1-sources.jar",
+          "size": 57352,
+          "sha512": "54670e804ceb59b6637c280c5d4bea901b06ed724046378fff2adf277fac644cbc05684dd248a640e21ab73022bf0d5143f5a686f6e1106cceb153a265606a47",
+          "sha256": "7bc3c23102f2bd0dfe6f2a2458156f0aaaa458995df0144e69fa9f9110755662",
+          "sha1": "355f83eb25f15b01f7b4e53c7d5f7b4ea55d3c8e",
+          "md5": "f9f6ffe0f7be574b4ed0f1a50ad42ee4"
+        }
+      ]
+    }
+  ]
+}

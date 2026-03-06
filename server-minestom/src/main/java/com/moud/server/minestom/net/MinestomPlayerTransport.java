@@ -3,12 +3,11 @@ package com.moud.server.minestom.net;
 import com.moud.net.transport.Lane;
 import com.moud.net.transport.Transport;
 import com.moud.net.transport.TransportFrames;
-import net.minestom.server.entity.Player;
-
 import java.util.ArrayDeque;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.function.BiConsumer;
+import net.minestom.server.entity.Player;
 
 public final class MinestomPlayerTransport implements Transport {
     private final Player player;

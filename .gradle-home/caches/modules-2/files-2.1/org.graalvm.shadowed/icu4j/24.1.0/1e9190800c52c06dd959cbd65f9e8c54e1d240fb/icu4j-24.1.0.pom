@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.graalvm.shadowed</groupId>
+  <artifactId>icu4j</artifactId>
+  <version>24.1.0</version>
+  <url>http://openjdk.java.net/projects/graal</url>
+  <name>Truffle Icu4j</name>
+  <description>ICU4J shaded module.</description>
+  <developers>
+    <developer>
+      <name>GraalVM Development</name>
+      <email>graalvm-dev@oss.oracle.com</email>
+      <organization>Oracle Corporation</organization>
+      <organizationUrl>http://www.graalvm.org/</organizationUrl>
+    </developer>
+  </developers>
+  <licenses>
+    <license>
+      <name>Unicode/ICU License</name>
+      <url>https://raw.githubusercontent.com/unicode-org/icu/main/LICENSE</url>
+    </license>
+  </licenses>
+  <scm>
+    <connection>scm:git:https://github.com/oracle/graal.git</connection>
+    <developerConnection>scm:git:git@github.com:oracle/graal.git</developerConnection>
+    <url>https://github.com/oracle/graal/tree/master/truffle</url>
+  </scm>
+</project>

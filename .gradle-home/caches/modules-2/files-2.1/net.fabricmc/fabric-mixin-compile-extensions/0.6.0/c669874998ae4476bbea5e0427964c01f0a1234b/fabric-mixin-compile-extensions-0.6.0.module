@@ -1,0 +1,116 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "net.fabricmc",
+    "module": "fabric-mixin-compile-extensions",
+    "version": "0.6.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "7.4.2"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "fabric-mixin-compile-extensions-0.6.0.jar",
+          "url": "fabric-mixin-compile-extensions-0.6.0.jar",
+          "size": 10288,
+          "sha512": "d07a507dce7aa94d6a2705f1bb04400873cac10c019ed07febe078e87b001df6bcbbab4618a081369aff822ec55d2c2489a919380a021becf21d4b90933d89fe",
+          "sha256": "23a8ffb25038ba5ddeee30182eb17144e89b9cc5a72c25a9486d0030f9aa4ca6",
+          "sha1": "6fda0c85c419f0a259da017a1424f27507eb30f0",
+          "md5": "9c079343d3f52a36f4a8df7759dae088"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "net.fabricmc",
+          "module": "mapping-io",
+          "version": {
+            "requires": "0.2.1"
+          }
+        },
+        {
+          "group": "net.fabricmc",
+          "module": "sponge-mixin",
+          "version": {
+            "requires": "0.11.4+mixin.0.8.5"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        },
+        {
+          "group": "org.ow2.asm",
+          "module": "asm-tree",
+          "version": {
+            "requires": "9.4"
+          }
+        },
+        {
+          "group": "org.ow2.asm",
+          "module": "asm",
+          "version": {
+            "requires": "9.4"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "fabric-mixin-compile-extensions-0.6.0.jar",
+          "url": "fabric-mixin-compile-extensions-0.6.0.jar",
+          "size": 10288,
+          "sha512": "d07a507dce7aa94d6a2705f1bb04400873cac10c019ed07febe078e87b001df6bcbbab4618a081369aff822ec55d2c2489a919380a021becf21d4b90933d89fe",
+          "sha256": "23a8ffb25038ba5ddeee30182eb17144e89b9cc5a72c25a9486d0030f9aa4ca6",
+          "sha1": "6fda0c85c419f0a259da017a1424f27507eb30f0",
+          "md5": "9c079343d3f52a36f4a8df7759dae088"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "fabric-mixin-compile-extensions-0.6.0-sources.jar",
+          "url": "fabric-mixin-compile-extensions-0.6.0-sources.jar",
+          "size": 9312,
+          "sha512": "f126119fe346dc67751bd56889d82fd77e0ff6db0281149a39f44b0095f8601a9ff0721372d65b9dbc26023d2b2db4e0f9b3c281a4ae9f3308728ba16fb5b454",
+          "sha256": "21c21e8f675535c321c695b911f676f7ec604b3bce8b9f3be3e860e41bf32059",
+          "sha1": "af30c18554df6ee173c1a8fde60ddd8bb63b8b70",
+          "md5": "a34931d9c8874dc79cd06c22a86490c0"
+        }
+      ]
+    }
+  ]
+}

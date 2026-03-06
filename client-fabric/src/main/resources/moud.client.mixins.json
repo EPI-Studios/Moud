@@ -6,11 +6,15 @@
   "client": [
     "BackgroundRendererMixin",
     "CameraMixin",
+    "GameRendererMixin",
     "KeyboardMixin",
+    "LightmapTextureManagerMixin",
     "MouseMixin",
     "SectionBuilderMixin",
     "WorldRendererMixin",
-    "accessor.CameraAccessor"
+    "WorldRendererSkyCloudOverrideMixin",
+    "accessor.CameraAccessor",
+    "accessor.GameRendererAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -1,13 +1,9 @@
 package com.moud.core.scene;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static Assertions.assertEquals;
+import static Assertions.assertNotNull;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
-import com.moud.core.scene.Node;
-import com.moud.core.scene.SceneTree;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
 
 class SceneTreeTest {
     @Test

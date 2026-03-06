@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>net.fabricmc.fabric-api</groupId>
+  <artifactId>fabric-game-rule-api-v1</artifactId>
+  <version>1.0.53+6ced4dd919</version>
+  <name>Fabric Game Rule API (v1)</name>
+  <description>Allows registration of custom game rules.</description>
+  <url>https://github.com/FabricMC/fabric/tree/HEAD/fabric-game-rule-api-v1</url>
+  <licenses>
+    <license>
+      <name>Apache-2.0</name>
+      <url>https://github.com/FabricMC/fabric/blob/HEAD/LICENSE</url>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <name>FabricMC</name>
+      <url>https://fabricmc.net/</url>
+    </developer>
+  </developers>
+  <scm>
+    <connection>scm:git:https://github.com/FabricMC/fabric.git</connection>
+    <developerConnection>scm:git:git@github.com:FabricMC/fabric.git</developerConnection>
+    <url>https://github.com/FabricMC/fabric</url>
+  </scm>
+  <issueManagement>
+    <system>GitHub</system>
+    <url>https://github.com/FabricMC/fabric/issues</url>
+  </issueManagement>
+</project>

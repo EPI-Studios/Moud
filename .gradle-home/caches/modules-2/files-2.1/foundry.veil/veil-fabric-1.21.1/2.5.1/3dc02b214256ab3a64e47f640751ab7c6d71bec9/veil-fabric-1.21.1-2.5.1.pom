@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <!-- This module was also published with a richer model, Gradle metadata,  -->
+  <!-- which should be used instead. Do not delete the following line which  -->
+  <!-- is to indicate to Gradle or any Gradle module metadata file consumer  -->
+  <!-- that they should prefer consuming it instead. -->
+  <!-- do_not_remove: published-with-gradle-metadata -->
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>foundry.veil</groupId>
+  <artifactId>veil-fabric-1.21.1</artifactId>
+  <version>2.5.1</version>
+  <dependencies>
+    <dependency>
+      <groupId>gg.moonflower</groupId>
+      <artifactId>molang-compiler</artifactId>
+      <version>3.1.1.19</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.ocelot</groupId>
+      <artifactId>glsl-processor</artifactId>
+      <version>0.2.3</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.spair</groupId>
+      <artifactId>imgui-java-binding</artifactId>
+      <version>1.88.0</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.spair</groupId>
+      <artifactId>imgui-java-lwjgl3</artifactId>
+      <version>1.88.0</version>
+      <scope>compile</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.lwjgl</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.lwjgl.lwjgl</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.jetbrains</groupId>
+      <artifactId>annotations</artifactId>
+      <version>24.0.1</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.spair</groupId>
+      <artifactId>imgui-java-natives-linux</artifactId>
+      <version>1.88.0</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.spair</groupId>
+      <artifactId>imgui-java-natives-macos</artifactId>
+      <version>1.88.0</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.spair</groupId>
+      <artifactId>imgui-java-natives-windows</artifactId>
+      <version>1.88.0</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>net.fabricmc</groupId>
+      <artifactId>fabric-loader</artifactId>
+      <version>0.17.0</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>net.fabricmc.fabric-api</groupId>
+      <artifactId>fabric-api</artifactId>
+      <version>0.116.0+1.21.1</version>
+      <scope>runtime</scope>
+    </dependency>
+  </dependencies>
+</project>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.cadixdev</groupId>
+  <artifactId>at</artifactId>
+  <version>0.1.0-rc1</version>
+  <name>at</name>
+  <description>A representation of access modifier transformers for Java.</description>
+  <url>https://github.com/CadixDev/at</url>
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <id>jamierocks</id>
+      <name>Jamie Mansfield</name>
+      <email>jmansfield@cadixdev.org</email>
+      <url>https://www.jamiemansfield.me/</url>
+      <timezone>Europe/London</timezone>
+    </developer>
+  </developers>
+  <scm>
+    <connection>scm:git:https://github.com/CadixDev/at.git</connection>
+    <developerConnection>scm:git:https://github.com/CadixDev/at.git</developerConnection>
+    <url>https://github.com/CadixDev/at</url>
+  </scm>
+  <issueManagement>
+    <system>GitHub Issues</system>
+    <url>https://github.com/CadixDev/at/issues</url>
+  </issueManagement>
+  <dependencies>
+    <dependency>
+      <groupId>org.cadixdev</groupId>
+      <artifactId>bombe</artifactId>
+      <version>0.3.4</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>

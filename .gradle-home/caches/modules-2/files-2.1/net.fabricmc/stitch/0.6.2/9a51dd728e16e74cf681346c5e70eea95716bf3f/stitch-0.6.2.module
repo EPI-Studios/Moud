@@ -1,0 +1,125 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "net.fabricmc",
+    "module": "stitch",
+    "version": "0.6.2",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "6.8.3",
+      "buildId": "45aenhq6k5axtgmiwmphssi3l4"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "stitch-0.6.2.jar",
+          "url": "stitch-0.6.2.jar",
+          "size": 148314,
+          "sha512": "e98398c161e771c1c631f2c47138d209733d99b42a893e991b72e79aa2cf72a337e406a2331faa4a6e1c82f9ce869062fb624aa84f1b52ae72f05431ca89e266",
+          "sha256": "3209f1fefba59f3ded04935463f2aabd137f1bf409cb42dab9a5870dd058b1a1",
+          "sha1": "258353092961557791208c9653e7d93610dfe74a",
+          "md5": "1700acbe4264f7e1bc02f067b9d3f8db"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "com.google.guava",
+          "module": "guava",
+          "version": {
+            "requires": "28.0-jre"
+          }
+        },
+        {
+          "group": "org.ow2.asm",
+          "module": "asm",
+          "version": {
+            "requires": "9.1"
+          }
+        },
+        {
+          "group": "org.ow2.asm",
+          "module": "asm-commons",
+          "version": {
+            "requires": "9.1"
+          }
+        },
+        {
+          "group": "org.ow2.asm",
+          "module": "asm-tree",
+          "version": {
+            "requires": "9.1"
+          }
+        },
+        {
+          "group": "org.ow2.asm",
+          "module": "asm-util",
+          "version": {
+            "requires": "9.1"
+          }
+        },
+        {
+          "group": "net.fabricmc",
+          "module": "tiny-mappings-parser",
+          "version": {
+            "requires": "0.3.0+build.17"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "stitch-0.6.2.jar",
+          "url": "stitch-0.6.2.jar",
+          "size": 148314,
+          "sha512": "e98398c161e771c1c631f2c47138d209733d99b42a893e991b72e79aa2cf72a337e406a2331faa4a6e1c82f9ce869062fb624aa84f1b52ae72f05431ca89e266",
+          "sha256": "3209f1fefba59f3ded04935463f2aabd137f1bf409cb42dab9a5870dd058b1a1",
+          "sha1": "258353092961557791208c9653e7d93610dfe74a",
+          "md5": "1700acbe4264f7e1bc02f067b9d3f8db"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "stitch-0.6.2-sources.jar",
+          "url": "stitch-0.6.2-sources.jar",
+          "size": 77510,
+          "sha512": "e8e303c764ff873fc9b2f02da6d38e35d9c3a3536733f6a9e1ba4e23972fb883209fd4b3cbfb10a0cad1b5ff84fd0ee1f5bfeb4cfe870451bdfea653e1a9df10",
+          "sha256": "71d93cc6c8df63c8b83424c5aba34b51b7b9cd36c810d065e8bb26143d833bcb",
+          "sha1": "0a38bdeb71a65a2ea4c54484d06ab241e7abeb98",
+          "md5": "68bc58b6567206b3e989f03ae5751ebd"
+        }
+      ]
+    }
+  ]
+}

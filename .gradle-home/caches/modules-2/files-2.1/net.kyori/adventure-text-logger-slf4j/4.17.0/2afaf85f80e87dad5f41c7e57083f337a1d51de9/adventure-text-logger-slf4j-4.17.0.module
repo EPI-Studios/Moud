@@ -1,0 +1,181 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "net.kyori",
+    "module": "adventure-text-logger-slf4j",
+    "version": "4.17.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.4"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "net.kyori",
+          "module": "adventure-bom",
+          "version": {
+            "requires": "4.17.0"
+          },
+          "attributes": {
+            "org.gradle.category": "platform"
+          },
+          "endorseStrictVersions": true
+        },
+        {
+          "group": "net.kyori",
+          "module": "adventure-api",
+          "version": {
+            "requires": "4.17.0"
+          }
+        },
+        {
+          "group": "org.slf4j",
+          "module": "slf4j-api",
+          "version": {
+            "requires": "1.7.36"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "adventure-text-logger-slf4j-4.17.0.jar",
+          "url": "adventure-text-logger-slf4j-4.17.0.jar",
+          "size": 19845,
+          "sha512": "19a4a79d90eb786a170683455c2c72ad8814806045c42b14014c159da3e88abc59eebee7427a7b8294c98fc4b1a974088f7ffaf4f1a4d7840b1a245823eeab51",
+          "sha256": "d3e39084845e030de1e14c1859919f8e7a29341282b364ee9b188a8f2f03992b",
+          "sha1": "ebc3d59bdce591f1e1daed8b5b9ebd13f231c946",
+          "md5": "aed50fff14d1ec5ee6f8196d44c790d4"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "net.kyori",
+          "module": "adventure-bom",
+          "version": {
+            "requires": "4.17.0"
+          },
+          "attributes": {
+            "org.gradle.category": "platform"
+          },
+          "endorseStrictVersions": true
+        },
+        {
+          "group": "net.kyori",
+          "module": "adventure-api",
+          "version": {
+            "requires": "4.17.0"
+          }
+        },
+        {
+          "group": "org.slf4j",
+          "module": "slf4j-api",
+          "version": {
+            "requires": "1.7.36"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "adventure-text-logger-slf4j-4.17.0.jar",
+          "url": "adventure-text-logger-slf4j-4.17.0.jar",
+          "size": 19845,
+          "sha512": "19a4a79d90eb786a170683455c2c72ad8814806045c42b14014c159da3e88abc59eebee7427a7b8294c98fc4b1a974088f7ffaf4f1a4d7840b1a245823eeab51",
+          "sha256": "d3e39084845e030de1e14c1859919f8e7a29341282b364ee9b188a8f2f03992b",
+          "sha1": "ebc3d59bdce591f1e1daed8b5b9ebd13f231c946",
+          "md5": "aed50fff14d1ec5ee6f8196d44c790d4"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "net.kyori",
+          "module": "adventure-bom",
+          "version": {
+            "requires": "4.17.0"
+          },
+          "attributes": {
+            "org.gradle.category": "platform"
+          },
+          "endorseStrictVersions": true
+        },
+        {
+          "group": "net.kyori",
+          "module": "adventure-api",
+          "version": {
+            "requires": "4.17.0"
+          }
+        },
+        {
+          "group": "org.slf4j",
+          "module": "slf4j-api",
+          "version": {
+            "requires": "1.7.36"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "adventure-text-logger-slf4j-4.17.0-javadoc.jar",
+          "url": "adventure-text-logger-slf4j-4.17.0-javadoc.jar",
+          "size": 295813,
+          "sha512": "693dbb4855972699db09def6f70854cc8fa1d9ad9e91fa95dbc147dd5dfb410a44afc2a7418a81689176247ff168e9e6bc08c9e29f3efff37d4c0bef302b095d",
+          "sha256": "3d5ac785d0be0cdc7867efe1a54c90a8603faed45917d3dd804e5aa8391fc77a",
+          "sha1": "ca8fa3bb5a730a4e6354fd1d3024c70c73eddb3f",
+          "md5": "a615afea507b0ae274c870a440e3a4b1"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "adventure-text-logger-slf4j-4.17.0-sources.jar",
+          "url": "adventure-text-logger-slf4j-4.17.0-sources.jar",
+          "size": 16906,
+          "sha512": "43e2f62fe01167c1a6f2b4a78cfef8fbd21cc86de90dd76158d2e4256aeebf4102495a019b2b0aaf4f5dc93109300247bd362decb6803a2a94a85431513fcda9",
+          "sha256": "ce04b491efba6ac8e23ded685c12918a2c3d1ff878ffead14d492fe30cf37204",
+          "sha1": "cedfa1e66726bd34145bcb243ba25798cf544c27",
+          "md5": "714c31cab37fd7ecd02d9866bf23c25e"
+        }
+      ]
+    }
+  ]
+}

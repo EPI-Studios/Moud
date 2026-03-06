@@ -1,0 +1,60 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "io.github.spair",
+    "module": "imgui-java-natives-macos",
+    "version": "1.88.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.12"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "imgui-java-natives-macos-1.88.0.jar",
+          "url": "imgui-java-natives-macos-1.88.0.jar",
+          "size": 3810597,
+          "sha512": "e48ffddcd53206f9aff8e710bae725c4ae26e6ddab14587e8ba5f69325c33008c451d14cc76d668b7a27cf3d8922fa868246aa36d00be9a6098bd2de171d049c",
+          "sha256": "7ac6b60d4ab6c783982126d13dda3e6e2c1e7a23b8c862417a45e5b44ed775ea",
+          "sha1": "f24c457f33d679113e1a5d74055b017c52ed01dd",
+          "md5": "72d24984b437568087bd2f9f5b3d3658"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "imgui-java-natives-macos-1.88.0.jar",
+          "url": "imgui-java-natives-macos-1.88.0.jar",
+          "size": 3810597,
+          "sha512": "e48ffddcd53206f9aff8e710bae725c4ae26e6ddab14587e8ba5f69325c33008c451d14cc76d668b7a27cf3d8922fa868246aa36d00be9a6098bd2de171d049c",
+          "sha256": "7ac6b60d4ab6c783982126d13dda3e6e2c1e7a23b8c862417a45e5b44ed775ea",
+          "sha1": "f24c457f33d679113e1a5d74055b017c52ed01dd",
+          "md5": "72d24984b437568087bd2f9f5b3d3658"
+        }
+      ]
+    }
+  ]
+}

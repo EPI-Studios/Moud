@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>net.fabricmc</groupId>
+  <artifactId>sponge-mixin</artifactId>
+  <version>0.16.3+mixin.0.8.7</version>
+  <name>Fabric Mixin</name>
+  <description>Fabric Mixin is a trait/mixin and bytecode weaving framework for Java using ASM.</description>
+  <url>https://github.com/FabricMC/Mixin</url>
+  <licenses>
+    <license>
+      <name>The MIT License</name>
+      <url>https://raw.githubusercontent.com/FabricMC/Mixin/main/LICENSE.txt</url>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <id>modmuss50</id>
+      <name>modmuss50</name>
+      <email>modmuss50@fabricmc.net</email>
+    </developer>
+    <developer>
+      <id>sfPlayer</id>
+      <name>Player</name>
+      <email>player@fabricmc.net</email>
+    </developer>
+  </developers>
+  <scm>
+    <connection>scm:git:https://github.com/FabricMC/Mixin.git</connection>
+    <developerConnection>scm:git:git@github.com:FabricMC/Mixin.git</developerConnection>
+    <url>https://github.com/FabricMC/Mixin</url>
+  </scm>
+  <issueManagement>
+    <system>GitHub</system>
+    <url>https://github.com/FabricMC/Mixin/issues</url>
+  </issueManagement>
+  <dependencies>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>21.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>2.2.4</version>
+    </dependency>
+    <dependency>
+      <groupId>org.ow2.asm</groupId>
+      <artifactId>asm-tree</artifactId>
+      <version>9.8</version>
+    </dependency>
+    <dependency>
+      <groupId>org.ow2.asm</groupId>
+      <artifactId>asm-commons</artifactId>
+      <version>9.8</version>
+    </dependency>
+    <dependency>
+      <groupId>org.ow2.asm</groupId>
+      <artifactId>asm-util</artifactId>
+      <version>9.8</version>
+    </dependency>
+  </dependencies>
+</project>
