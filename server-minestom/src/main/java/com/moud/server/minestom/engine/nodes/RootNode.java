@@ -1,7 +1,7 @@
 package com.moud.server.minestom.engine.nodes;
 
-import com.moud.core.scene.Node;
 
+import com.moud.core.scene.Node;
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class RootNode extends Node {
@@ -13,7 +13,9 @@ public final class RootNode extends Node {
 
     @Override
     protected void onReady() {
-        addChild(new TickerNode("ticker"));
+        if (findChild("ticker") == null) {
+            addChild(new TickerNode("ticker"));
+        }
     }
 
     @Override
@@ -25,4 +27,3 @@ public final class RootNode extends Node {
         return processed.get();
     }
 }
-

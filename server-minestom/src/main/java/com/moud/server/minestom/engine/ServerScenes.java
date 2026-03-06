@@ -1,9 +1,15 @@
 package com.moud.server.minestom.engine;
 
 import com.moud.net.protocol.SceneInfo;
-import net.minestom.server.instance.LightingChunk;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.instance.InstanceManager;
+import net.minestom.server.instance.LightingChunk;
 import net.minestom.server.instance.anvil.AnvilLoader;
 
 import java.util.*;
@@ -48,6 +54,17 @@ public final class ServerScenes {
         return scene;
     }
 
+    public ServerScene delete(String sceneId) {
+        if (sceneId == null || sceneId.isBlank()) {
+            return null;
+        }
+        ServerScene removed = scenes.remove(sceneId);
+        if (removed != null) {
+            scenesRevision++;
+        }
+        return removed;
+    }
+
     private ServerScene createScene(String sceneId, String displayName) {
         InstanceContainer instance = instanceManager.createInstanceContainer();
         instance.setChunkSupplier(LightingChunk::new);
@@ -75,5 +92,9 @@ public final class ServerScenes {
                 scene.tick(dtSeconds);
             }
         }
+    }
+
+    public List<ServerScene> allScenes() {
+        return List.copyOf(scenes.values());
     }
 }

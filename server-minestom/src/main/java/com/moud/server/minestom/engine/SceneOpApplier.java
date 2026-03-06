@@ -1,18 +1,31 @@
 package com.moud.server.minestom.engine;
 
-import com.moud.core.scene.Node;
-import com.moud.core.scene.PlainNode;
-import com.moud.core.NodeTypeDef;
-import com.moud.net.protocol.*;
 
-import java.util.*;
+import com.moud.core.NodeTypeDef;
+import com.moud.core.math.Quat;
+import com.moud.core.math.Vec3;
+import com.moud.core.scene.Node;
+import com.moud.net.protocol.SceneOp;
+import com.moud.net.protocol.SceneOpAck;
+import com.moud.net.protocol.SceneOpBatch;
+import com.moud.net.protocol.SceneOpError;
+import com.moud.net.protocol.SceneOpResult;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 
+
 public final class SceneOpApplier {
-    private static final Set<String> CSG_KEYS = Set.of("x", "y", "z", "rx", "ry", "rz", "sx", "sy", "sz", "block", "@type");
+    private static final Set<String> CSG_KEYS = Set.of("x", "y", "z", "rx", "ry", "rz", "sx", "sy", "sz", "block", "solid", "@type");
     private static final Set<String> POSITION_KEYS = Set.of("x", "y", "z");
     private static final Set<String> ROTATION_KEYS = Set.of("rx", "ry", "rz");
     private static final Set<String> SCALE_KEYS = Set.of("sx", "sy", "sz");
+    private static final String PROP_PREFAB_GENERATED = "@prefab_generated";
+    private static final String TYPE_SCENE_INSTANCE = "SceneInstance3D";
     private final Engine engine;
     private Consumer<String> logSink = s -> {
     };
@@ -40,9 +53,11 @@ public final class SceneOpApplier {
         List<SceneOpResult> results = new ArrayList<>(batch.ops().size());
         boolean anySceneChanged = false;
         boolean anyCsgChanged = false;
+        boolean anyGraphChanged = false;
+        boolean runtimeBatch = SceneBatchIds.isRuntime(batch.batchId());
 
         if (batch.atomic()) {
-            List<SceneOpResult> validation = validateAtomic(batch.ops());
+            List<SceneOpResult> validation = validateAtomic(batch.ops(), runtimeBatch);
             boolean ok = validation.stream().allMatch(SceneOpResult::ok);
             if (!ok) {
                 return new SceneOpAck(batch.batchId(), engine.sceneRevision(), List.copyOf(validation));
@@ -53,47 +68,18 @@ public final class SceneOpApplier {
         for (int i = 0; i < ops.size(); i++) {
             SceneOp op = ops.get(i);
 
-            if (op instanceof SceneOp.SetProperty setProperty && isTransformKey(setProperty.key())) {
-                Node node = engine.sceneTree().getNode(setProperty.nodeId());
-                if (node != null && node.children() != null && !node.children().isEmpty()) {
-                    int j = i;
-                    ArrayList<SceneOp.SetProperty> group = new ArrayList<>();
-                    while (j < ops.size()) {
-                        SceneOp next = ops.get(j);
-                        if (!(next instanceof SceneOp.SetProperty sp)) {
-                            break;
-                        }
-                        if (sp.nodeId() != setProperty.nodeId()) {
-                            break;
-                        }
-                        if (!isTransformKey(sp.key())) {
-                            break;
-                        }
-                        group.add(sp);
-                        j++;
-                    }
-
-                    if (group.size() > 1 && canApplyTransformGroup(node, group)) {
-                        ApplyOutcome out = applyTransformGroup(node, group);
-                        for (int k = 0; k < group.size(); k++) {
-                            results.add(out.result);
-                        }
-                        anySceneChanged |= out.sceneChanged;
-                        anyCsgChanged |= out.csgChanged;
-                        i = j - 1;
-                        continue;
-                    }
-                }
-            }
-
-            ApplyOutcome out = applyOne(op);
+            ApplyOutcome out = applyOne(op, runtimeBatch);
             results.add(out.result);
             anySceneChanged |= out.sceneChanged;
             anyCsgChanged |= out.csgChanged;
+            anyGraphChanged |= out.sceneChanged && isGraphOp(op);
         }
 
         if (anySceneChanged) {
             engine.bumpSceneRevision();
+        }
+        if (anyGraphChanged) {
+            engine.bumpGraphRevision();
         }
         if (anyCsgChanged) {
             engine.bumpCsgRevision();
@@ -106,237 +92,38 @@ public final class SceneOpApplier {
         return POSITION_KEYS.contains(key) || ROTATION_KEYS.contains(key) || SCALE_KEYS.contains(key);
     }
 
-    private boolean canApplyTransformGroup(Node node, List<SceneOp.SetProperty> group) {
-        if (node == null || group == null || group.isEmpty()) {
-            return false;
+    private boolean isGraphOp(SceneOp op) {
+        if (op instanceof SceneOp.SetProperty sp) {
+            return !isTransformKey(sp.key());
         }
-        String typeId = engine.nodeTypes().typeIdFor(node);
-        for (SceneOp.SetProperty op : group) {
-            if (op == null || op.key() == null || op.key().isBlank()) {
-                return false;
-            }
-            var vr = engine.nodeTypes().validateSetProperty(typeId, op.key(), op.value());
-            if (!vr.ok()) {
-                return false;
-            }
+        if (op instanceof SceneOp.RemoveProperty rp) {
+            return !isTransformKey(rp.key());
         }
         return true;
     }
 
-    private ApplyOutcome applyTransformGroup(Node node, List<SceneOp.SetProperty> group) {
-        InheritedTransform before = readInheritedTransform(node, null);
-        Map<String, String> overrides = new HashMap<>();
-        for (SceneOp.SetProperty op : group) {
-            overrides.put(op.key(), op.value());
-        }
-        InheritedTransform after = readInheritedTransform(node, overrides);
-
-        boolean movedAny = false;
-        if (!before.isNear(after, 1e-9)) {
-            movedAny = applyTransformDeltaToDescendants(node, before, after);
-        }
-
-        boolean affectsCsg = false;
-        for (SceneOp.SetProperty op : group) {
-            node.setProperty(op.key(), op.value());
-            affectsCsg |= affectsCsg(node, op.key());
-        }
-        if (movedAny) {
-            affectsCsg |= subtreeContainsCsg(node);
-        }
-
-        return new ApplyOutcome(SceneOpResult.ok(node.nodeId()), true, affectsCsg);
-    }
-
-    private InheritedTransform readInheritedTransform(Node node, Map<String, String> overrides) {
-        if (node == null) {
-            return InheritedTransform.identity();
-        }
-
-        double x = parseFloat(overrideOr(node, overrides, "x"), 0.0f);
-        double y = parseFloat(overrideOr(node, overrides, "y"), 0.0f);
-        double z = parseFloat(overrideOr(node, overrides, "z"), 0.0f);
-
-        float rx = parseFloat(overrideOr(node, overrides, "rx"), 0.0f);
-        float ry = parseFloat(overrideOr(node, overrides, "ry"), 0.0f);
-        float rz = parseFloat(overrideOr(node, overrides, "rz"), 0.0f);
-        Quat rot = Quat.fromEulerDeg(rx, ry, rz);
-
-        boolean hasScale = nodeAcceptsKey(node, "sx") && nodeAcceptsKey(node, "sy") && nodeAcceptsKey(node, "sz");
-        double sx = hasScale ? Math.max(1e-6, parseFloat(overrideOr(node, overrides, "sx"), 1.0f)) : 1.0;
-        double sy = hasScale ? Math.max(1e-6, parseFloat(overrideOr(node, overrides, "sy"), 1.0f)) : 1.0;
-        double sz = hasScale ? Math.max(1e-6, parseFloat(overrideOr(node, overrides, "sz"), 1.0f)) : 1.0;
-        Vec3 scale = new Vec3(sx, sy, sz);
-
-        Vec3 pivot = hasScale
-                ? new Vec3(x + sx * 0.5, y + sy * 0.5, z + sz * 0.5)
-                : new Vec3(x, y, z);
-
-        return new InheritedTransform(pivot, rot, scale, hasScale);
-    }
-
-    private static String overrideOr(Node node, Map<String, String> overrides, String key) {
-        if (overrides != null) {
-            String v = overrides.get(key);
-            if (v != null) {
-                return v;
-            }
-        }
-        return node.getProperty(key);
-    }
-
-    private boolean applyTransformDeltaToDescendants(Node node, InheritedTransform before, InheritedTransform after) {
-        if (node == null || before == null || after == null) {
-            return false;
-        }
-
-        Quat qBefore = before.rot.normalized();
-        Quat qAfter = after.rot.normalized();
-        Quat qBeforeInv = qBefore.inverse().normalized();
-        Quat qDeltaRot = qAfter.mul(qBeforeInv).normalized();
-
-        Vec3 factors = new Vec3(
-                safeDiv(after.scale.x, before.scale.x),
-                safeDiv(after.scale.y, before.scale.y),
-                safeDiv(after.scale.z, before.scale.z)
-        );
-
-        boolean scaleChanged = !factors.isNear(new Vec3(1.0, 1.0, 1.0), 1e-12);
-        boolean rotChanged = !qDeltaRot.isIdentity(1e-12);
-
-        return applyTransformDeltaRecursive(node, before, after, qBeforeInv, qAfter, qDeltaRot, factors, scaleChanged, rotChanged);
-    }
-
-    private boolean applyTransformDeltaRecursive(Node node,
-                                                 InheritedTransform before,
-                                                 InheritedTransform after,
-                                                 Quat beforeInv,
-                                                 Quat afterRot,
-                                                 Quat deltaRot,
-                                                 Vec3 factors,
-                                                 boolean scaleChanged,
-                                                 boolean rotChanged) {
-        boolean changed = false;
-        for (Node child : node.children()) {
-            if (child == null) {
-                continue;
-            }
-            if (!shouldInheritTransform(child)) {
-                continue;
-            }
-            changed |= applyTransformDeltaToNode(child, before, after, beforeInv, afterRot, deltaRot, factors, scaleChanged, rotChanged);
-            changed |= applyTransformDeltaRecursive(child, before, after, beforeInv, afterRot, deltaRot, factors, scaleChanged, rotChanged);
-        }
-        return changed;
-    }
-
-    private static boolean shouldInheritTransform(Node node) {
-        if (node == null) {
-            return false;
-        }
-        String v = node.getProperty("@inherit_transform");
-        if (v == null || v.isBlank()) {
-            return true;
-        }
-        String s = v.trim().toLowerCase();
-        return !("false".equals(s) || "0".equals(s));
-    }
-
-    private boolean applyTransformDeltaToNode(Node node,
-                                              InheritedTransform before,
-                                              InheritedTransform after,
-                                              Quat beforeInv,
-                                              Quat afterRot,
-                                              Quat deltaRot,
-                                              Vec3 factors,
-                                              boolean scaleChanged,
-                                              boolean rotChanged) {
-        boolean changed = false;
-
-        if (nodeAcceptsKey(node, "x") && nodeAcceptsKey(node, "y") && nodeAcceptsKey(node, "z")) {
-            NodePose pose = readPose(node);
-            Vec3 offsetWorld = pose.pivot.sub(before.pivot);
-            Vec3 offsetLocal = beforeInv.rotate(offsetWorld);
-            Vec3 offsetScaled = offsetLocal.mul(factors);
-            Vec3 offsetWorldAfter = afterRot.rotate(offsetScaled);
-            Vec3 newPivot = after.pivot.add(offsetWorldAfter);
-
-            Vec3 newSize = pose.size;
-            if (scaleChanged && pose.hasSize && nodeAcceptsKey(node, "sx") && nodeAcceptsKey(node, "sy") && nodeAcceptsKey(node, "sz")) {
-                long sx = Math.max(1L, Math.round(pose.size.x * factors.x));
-                long sy = Math.max(1L, Math.round(pose.size.y * factors.y));
-                long sz = Math.max(1L, Math.round(pose.size.z * factors.z));
-                newSize = new Vec3(sx, sy, sz);
-                node.setProperty("sx", Long.toString(sx));
-                node.setProperty("sy", Long.toString(sy));
-                node.setProperty("sz", Long.toString(sz));
-                changed = true;
-            }
-
-            writePivot(node, newPivot, newSize);
-            changed = true;
-        }
-
-        if (rotChanged && nodeAcceptsKey(node, "rx") && nodeAcceptsKey(node, "ry") && nodeAcceptsKey(node, "rz")) {
-            float rx = parseFloat(node.getProperty("rx"), 0.0f);
-            float ry = parseFloat(node.getProperty("ry"), 0.0f);
-            float rz = parseFloat(node.getProperty("rz"), 0.0f);
-            Quat qChild = Quat.fromEulerDeg(rx, ry, rz);
-            Quat qNew = deltaRot.mul(qChild).normalized();
-            Vec3 euler = qNew.toEulerDeg();
-            node.setProperty("rx", trimFloat((float) euler.x));
-            node.setProperty("ry", trimFloat((float) euler.y));
-            node.setProperty("rz", trimFloat((float) euler.z));
-            changed = true;
-        }
-
-        return changed;
-    }
-
-    private static double safeDiv(double a, double b) {
-        if (!Double.isFinite(a) || !Double.isFinite(b) || Math.abs(b) < 1e-12) {
-            return 1.0;
-        }
-        double v = a / b;
-        return Double.isFinite(v) ? v : 1.0;
-    }
-
-    private record InheritedTransform(Vec3 pivot, Quat rot, Vec3 scale, boolean hasScale) {
-        static InheritedTransform identity() {
-            return new InheritedTransform(new Vec3(0, 0, 0), Quat.IDENTITY, new Vec3(1, 1, 1), false);
-        }
-
-        boolean isNear(InheritedTransform other, double eps) {
-            if (other == null) {
-                return false;
-            }
-            if (!pivot.isNear(other.pivot, eps)) {
-                return false;
-            }
-            if (!scale.isNear(other.scale, eps)) {
-                return false;
-            }
-            Quat delta = other.rot.mul(rot.inverse()).normalized();
-            return delta.isIdentity(eps);
-        }
-    }
-
-    private List<SceneOpResult> validateAtomic(List<SceneOp> ops) {
+    private List<SceneOpResult> validateAtomic(List<SceneOp> ops, boolean runtimeBatch) {
         Map<Long, Set<String>> reservedNamesByParent = new HashMap<>();
         List<SceneOpResult> results = new ArrayList<>(ops.size());
         for (SceneOp op : ops) {
-            results.add(validateOne(op, reservedNamesByParent));
+            results.add(validateOne(op, reservedNamesByParent, runtimeBatch));
         }
         return results;
     }
 
-    private SceneOpResult validateOne(SceneOp op, Map<Long, Set<String>> reservedNamesByParent) {
+    private SceneOpResult validateOne(SceneOp op, Map<Long, Set<String>> reservedNamesByParent, boolean runtimeBatch) {
         return switch (op) {
             case SceneOp.CreateNode createNode -> {
                 Node parent = engine.sceneTree().getNode(createNode.parentId());
                 if (parent == null) {
                     logSink.accept("SceneOp: parent not found: " + createNode.parentId());
                     yield SceneOpResult.fail(createNode.parentId(), SceneOpError.NOT_FOUND, "parent not found");
+                }
+                if (isPrefabGenerated(parent)) {
+                    yield SceneOpResult.fail(createNode.parentId(), SceneOpError.INVALID, "cannot add children to prefab-generated nodes");
+                }
+                if (isSceneInstance(parent)) {
+                    yield SceneOpResult.fail(createNode.parentId(), SceneOpError.INVALID, "cannot add children to SceneInstance3D");
                 }
                 Set<String> reserved = reservedNamesByParent.computeIfAbsent(parent.nodeId(), id -> {
                     Set<String> set = new HashSet<>();
@@ -360,6 +147,9 @@ public final class SceneOpApplier {
                     logSink.accept("SceneOp: node not found: " + queueFree.nodeId());
                     yield SceneOpResult.fail(queueFree.nodeId(), SceneOpError.NOT_FOUND, "node not found");
                 }
+                if (isPrefabGenerated(node)) {
+                    yield SceneOpResult.fail(queueFree.nodeId(), SceneOpError.INVALID, "prefab-generated nodes are read-only");
+                }
                 if (node.parent() == null) {
                     logSink.accept("SceneOp: refusing to free root");
                     yield SceneOpResult.fail(queueFree.nodeId(), SceneOpError.INVALID, "cannot free root");
@@ -371,6 +161,9 @@ public final class SceneOpApplier {
                 if (node == null) {
                     logSink.accept("SceneOp: node not found: " + rename.nodeId());
                     yield SceneOpResult.fail(rename.nodeId(), SceneOpError.NOT_FOUND, "node not found");
+                }
+                if (isPrefabGenerated(node) && !runtimeBatch) {
+                    yield SceneOpResult.fail(rename.nodeId(), SceneOpError.INVALID, "prefab-generated nodes are read-only");
                 }
                 if (rename.newName() == null || rename.newName().isBlank()) {
                     yield SceneOpResult.fail(rename.nodeId(), SceneOpError.INVALID, "name empty");
@@ -396,6 +189,9 @@ public final class SceneOpApplier {
                 if (node == null) {
                     yield SceneOpResult.fail(setProperty.nodeId(), SceneOpError.NOT_FOUND, "node not found");
                 }
+                if (isPrefabGenerated(node) && !runtimeBatch) {
+                    yield SceneOpResult.fail(setProperty.nodeId(), SceneOpError.INVALID, "prefab-generated nodes are read-only");
+                }
                 if (setProperty.key() == null || setProperty.key().isBlank()) {
                     yield SceneOpResult.fail(setProperty.nodeId(), SceneOpError.INVALID, "key empty");
                 }
@@ -410,6 +206,9 @@ public final class SceneOpApplier {
                 Node node = engine.sceneTree().getNode(removeProperty.nodeId());
                 if (node == null) {
                     yield SceneOpResult.fail(removeProperty.nodeId(), SceneOpError.NOT_FOUND, "node not found");
+                }
+                if (isPrefabGenerated(node) && !runtimeBatch) {
+                    yield SceneOpResult.fail(removeProperty.nodeId(), SceneOpError.INVALID, "prefab-generated nodes are read-only");
                 }
                 if (removeProperty.key() == null || removeProperty.key().isBlank()) {
                     yield SceneOpResult.fail(removeProperty.nodeId(), SceneOpError.INVALID, "key empty");
@@ -426,12 +225,21 @@ public final class SceneOpApplier {
                 if (node == null) {
                     yield SceneOpResult.fail(reparent.nodeId(), SceneOpError.NOT_FOUND, "node not found");
                 }
+                if (isPrefabGenerated(node)) {
+                    yield SceneOpResult.fail(reparent.nodeId(), SceneOpError.INVALID, "prefab-generated nodes are read-only");
+                }
                 if (node.parent() == null) {
                     yield SceneOpResult.fail(reparent.nodeId(), SceneOpError.INVALID, "cannot reparent root");
                 }
                 Node newParent = engine.sceneTree().getNode(reparent.newParentId());
                 if (newParent == null) {
                     yield SceneOpResult.fail(reparent.newParentId(), SceneOpError.NOT_FOUND, "new parent not found");
+                }
+                if (isPrefabGenerated(newParent)) {
+                    yield SceneOpResult.fail(reparent.newParentId(), SceneOpError.INVALID, "cannot reparent into prefab-generated nodes");
+                }
+                if (isSceneInstance(newParent)) {
+                    yield SceneOpResult.fail(reparent.newParentId(), SceneOpError.INVALID, "cannot reparent into SceneInstance3D");
                 }
                 if (wouldCreateCycle(node, newParent)) {
                     yield SceneOpResult.fail(reparent.nodeId(), SceneOpError.INVALID, "cycle");
@@ -441,12 +249,18 @@ public final class SceneOpApplier {
         };
     }
 
-    private ApplyOutcome applyOne(SceneOp op) {
+    private ApplyOutcome applyOne(SceneOp op, boolean runtimeBatch) {
         return switch (op) {
             case SceneOp.CreateNode createNode -> {
                 Node parent = engine.sceneTree().getNode(createNode.parentId());
                 if (parent == null) {
                     yield new ApplyOutcome(SceneOpResult.fail(createNode.parentId(), SceneOpError.NOT_FOUND, "parent not found"), false);
+                }
+                if (isPrefabGenerated(parent)) {
+                    yield new ApplyOutcome(SceneOpResult.fail(createNode.parentId(), SceneOpError.INVALID, "cannot add children to prefab-generated nodes"), false);
+                }
+                if (isSceneInstance(parent)) {
+                    yield new ApplyOutcome(SceneOpResult.fail(createNode.parentId(), SceneOpError.INVALID, "cannot add children to SceneInstance3D"), false);
                 }
                 if (parent.findChild(createNode.name()) != null) {
                     yield new ApplyOutcome(SceneOpResult.fail(parent.nodeId(), SceneOpError.ALREADY_EXISTS, "child already exists"), false);
@@ -461,6 +275,9 @@ public final class SceneOpApplier {
                 if (node == null) {
                     yield new ApplyOutcome(SceneOpResult.fail(queueFree.nodeId(), SceneOpError.NOT_FOUND, "node not found"), false);
                 }
+                if (isPrefabGenerated(node)) {
+                    yield new ApplyOutcome(SceneOpResult.fail(queueFree.nodeId(), SceneOpError.INVALID, "prefab-generated nodes are read-only"), false);
+                }
                 if (node.parent() == null) {
                     yield new ApplyOutcome(SceneOpResult.fail(queueFree.nodeId(), SceneOpError.INVALID, "cannot free root"), false);
                 }
@@ -473,6 +290,9 @@ public final class SceneOpApplier {
                 if (node == null) {
                     yield new ApplyOutcome(SceneOpResult.fail(rename.nodeId(), SceneOpError.NOT_FOUND, "node not found"), false);
                 }
+                if (isPrefabGenerated(node) && !runtimeBatch) {
+                    yield new ApplyOutcome(SceneOpResult.fail(rename.nodeId(), SceneOpError.INVALID, "prefab-generated nodes are read-only"), false);
+                }
                 if (node.parent() != null && node.parent().findChild(rename.newName()) != null && !rename.newName().equals(node.name())) {
                     yield new ApplyOutcome(SceneOpResult.fail(rename.nodeId(), SceneOpError.ALREADY_EXISTS, "sibling already exists"), false);
                 }
@@ -483,6 +303,9 @@ public final class SceneOpApplier {
                 Node node = engine.sceneTree().getNode(setProperty.nodeId());
                 if (node == null) {
                     yield new ApplyOutcome(SceneOpResult.fail(setProperty.nodeId(), SceneOpError.NOT_FOUND, "node not found"), false);
+                }
+                if (isPrefabGenerated(node) && !runtimeBatch) {
+                    yield new ApplyOutcome(SceneOpResult.fail(setProperty.nodeId(), SceneOpError.INVALID, "prefab-generated nodes are read-only"), false);
                 }
                 if (setProperty.key() == null || setProperty.key().isBlank()) {
                     yield new ApplyOutcome(SceneOpResult.fail(setProperty.nodeId(), SceneOpError.INVALID, "key empty"), false);
@@ -496,57 +319,8 @@ public final class SceneOpApplier {
                 String value = setProperty.value();
 
                 boolean affectsCsg = affectsCsg(node, key);
-
-                if (POSITION_KEYS.contains(key) && node.children() != null && !node.children().isEmpty()) {
-                    float before = parseFloat(node.getProperty(key), 0.0f);
-                    float after = parseFloat(value, before);
-                    float delta = after - before;
-                    if (Math.abs(delta) > 1e-6f) {
-                        boolean movedAny = applyPositionDeltaToDescendants(node, key, delta);
-                        if (movedAny) {
-                            affectsCsg |= subtreeContainsCsg(node);
-                        }
-                    }
-                } else if (ROTATION_KEYS.contains(key) && node.children() != null && !node.children().isEmpty()) {
-                    float beforeRx = parseFloat(node.getProperty("rx"), 0.0f);
-                    float beforeRy = parseFloat(node.getProperty("ry"), 0.0f);
-                    float beforeRz = parseFloat(node.getProperty("rz"), 0.0f);
-                    float afterRx = "rx".equals(key) ? parseFloat(value, beforeRx) : beforeRx;
-                    float afterRy = "ry".equals(key) ? parseFloat(value, beforeRy) : beforeRy;
-                    float afterRz = "rz".equals(key) ? parseFloat(value, beforeRz) : beforeRz;
-
-                    Quat qBefore = Quat.fromEulerDeg(beforeRx, beforeRy, beforeRz);
-                    Quat qAfter = Quat.fromEulerDeg(afterRx, afterRy, afterRz);
-                    Quat qDelta = qAfter.mul(qBefore.inverse()).normalized();
-
-                    if (!qDelta.isIdentity(1e-9)) {
-                        Vec3 pivot = nodePivot(node);
-                        boolean movedAny = applyRotationDeltaToDescendants(node, pivot, qDelta);
-                        if (movedAny) {
-                            affectsCsg |= subtreeContainsCsg(node);
-                        }
-                    }
-                } else if (SCALE_KEYS.contains(key) && node.children() != null && !node.children().isEmpty()) {
-                    double beforeSx = Math.max(1e-6, parseFloat(node.getProperty("sx"), 1.0f));
-                    double beforeSy = Math.max(1e-6, parseFloat(node.getProperty("sy"), 1.0f));
-                    double beforeSz = Math.max(1e-6, parseFloat(node.getProperty("sz"), 1.0f));
-                    double afterSx = "sx".equals(key) ? Math.max(1e-6, parseFloat(value, (float) beforeSx)) : beforeSx;
-                    double afterSy = "sy".equals(key) ? Math.max(1e-6, parseFloat(value, (float) beforeSy)) : beforeSy;
-                    double afterSz = "sz".equals(key) ? Math.max(1e-6, parseFloat(value, (float) beforeSz)) : beforeSz;
-
-                    Vec3 factors = new Vec3(afterSx / beforeSx, afterSy / beforeSy, afterSz / beforeSz);
-                    if (!factors.isNear(new Vec3(1.0, 1.0, 1.0), 1e-9)) {
-                        float rx = parseFloat(node.getProperty("rx"), 0.0f);
-                        float ry = parseFloat(node.getProperty("ry"), 0.0f);
-                        float rz = parseFloat(node.getProperty("rz"), 0.0f);
-                        Quat parentRot = Quat.fromEulerDeg(rx, ry, rz);
-                        Vec3 pivot = nodePivot(node);
-
-                        boolean movedAny = applyScaleDeltaToDescendants(node, pivot, parentRot, factors);
-                        if (movedAny) {
-                            affectsCsg |= subtreeContainsCsg(node);
-                        }
-                    }
+                if (isTransformKey(key) || "@inherit_transform".equals(key)) {
+                    affectsCsg |= subtreeContainsCsgInheriting(node);
                 }
 
                 node.setProperty(key, value);
@@ -557,6 +331,9 @@ public final class SceneOpApplier {
                 if (node == null) {
                     yield new ApplyOutcome(SceneOpResult.fail(removeProperty.nodeId(), SceneOpError.NOT_FOUND, "node not found"), false);
                 }
+                if (isPrefabGenerated(node) && !runtimeBatch) {
+                    yield new ApplyOutcome(SceneOpResult.fail(removeProperty.nodeId(), SceneOpError.INVALID, "prefab-generated nodes are read-only"), false);
+                }
                 if (removeProperty.key() == null || removeProperty.key().isBlank()) {
                     yield new ApplyOutcome(SceneOpResult.fail(removeProperty.nodeId(), SceneOpError.INVALID, "key empty"), false);
                 }
@@ -565,14 +342,21 @@ public final class SceneOpApplier {
                 if (!vr.ok()) {
                     yield new ApplyOutcome(SceneOpResult.fail(removeProperty.nodeId(), SceneOpError.INVALID, vr.message()), false);
                 }
-                boolean affectsCsg = affectsCsg(node, removeProperty.key());
-                node.removeProperty(removeProperty.key());
+                String key = removeProperty.key();
+                boolean affectsCsg = affectsCsg(node, key);
+                if (isTransformKey(key) || "@inherit_transform".equals(key)) {
+                    affectsCsg |= subtreeContainsCsgInheriting(node);
+                }
+                node.removeProperty(key);
                 yield new ApplyOutcome(SceneOpResult.ok(removeProperty.nodeId()), true, affectsCsg);
             }
             case SceneOp.Reparent reparent -> {
                 Node node = engine.sceneTree().getNode(reparent.nodeId());
                 if (node == null) {
                     yield new ApplyOutcome(SceneOpResult.fail(reparent.nodeId(), SceneOpError.NOT_FOUND, "node not found"), false);
+                }
+                if (isPrefabGenerated(node)) {
+                    yield new ApplyOutcome(SceneOpResult.fail(reparent.nodeId(), SceneOpError.INVALID, "prefab-generated nodes are read-only"), false);
                 }
                 if (node.parent() == null) {
                     yield new ApplyOutcome(SceneOpResult.fail(reparent.nodeId(), SceneOpError.INVALID, "cannot reparent root"), false);
@@ -581,11 +365,18 @@ public final class SceneOpApplier {
                 if (newParent == null) {
                     yield new ApplyOutcome(SceneOpResult.fail(reparent.newParentId(), SceneOpError.NOT_FOUND, "new parent not found"), false);
                 }
+                if (isPrefabGenerated(newParent)) {
+                    yield new ApplyOutcome(SceneOpResult.fail(reparent.newParentId(), SceneOpError.INVALID, "cannot reparent into prefab-generated nodes"), false);
+                }
+                if (isSceneInstance(newParent)) {
+                    yield new ApplyOutcome(SceneOpResult.fail(reparent.newParentId(), SceneOpError.INVALID, "cannot reparent into SceneInstance3D"), false);
+                }
                 boolean ok = engine.sceneTree().reparent(reparent.nodeId(), reparent.newParentId(), reparent.index());
                 if (!ok) {
                     yield new ApplyOutcome(SceneOpResult.fail(reparent.nodeId(), SceneOpError.INVALID, "reparent failed"), false);
                 }
-                yield new ApplyOutcome(SceneOpResult.ok(reparent.nodeId()), true);
+                boolean affectsCsg = shouldInheritTransform(node) && subtreeContainsCsgInheriting(node);
+                yield new ApplyOutcome(SceneOpResult.ok(reparent.nodeId()), true, affectsCsg);
             }
         };
     }
@@ -616,6 +407,39 @@ public final class SceneOpApplier {
             }
         }
         return false;
+    }
+
+    private boolean subtreeContainsCsgInheriting(Node node) {
+        if (node == null) {
+            return false;
+        }
+        if ("CSGBlock".equals(engine.nodeTypes().typeIdFor(node))) {
+            return true;
+        }
+        for (Node child : node.children()) {
+            if (child == null) {
+                continue;
+            }
+            if (!shouldInheritTransform(child)) {
+                continue;
+            }
+            if (subtreeContainsCsgInheriting(child)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean shouldInheritTransform(Node node) {
+        if (node == null) {
+            return false;
+        }
+        String v = node.getProperty("@inherit_transform");
+        if (v == null || v.isBlank()) {
+            return true;
+        }
+        String s = v.trim().toLowerCase();
+        return !("false".equals(s) || "0".equals(s));
     }
 
     private static float parseFloat(String value, float fallback) {
@@ -947,6 +771,28 @@ public final class SceneOpApplier {
             }
             return wrapped;
         }
+    }
+
+    private boolean isPrefabGenerated(Node node) {
+        if (node == null) {
+            return false;
+        }
+        return isTrue(node.getProperty(PROP_PREFAB_GENERATED));
+    }
+
+    private boolean isSceneInstance(Node node) {
+        if (node == null) {
+            return false;
+        }
+        return TYPE_SCENE_INSTANCE.equals(engine.nodeTypes().typeIdFor(node));
+    }
+
+    private static boolean isTrue(String v) {
+        if (v == null) {
+            return false;
+        }
+        String s = v.trim();
+        return "1".equals(s) || "true".equalsIgnoreCase(s);
     }
 
     private record ApplyOutcome(SceneOpResult result, boolean sceneChanged, boolean csgChanged) {
