@@ -1,5 +1,6 @@
 package com.moud.core.math;
 
+
 public record Quat(double x, double y, double z, double w) {
 
     public static final Quat IDENTITY = new Quat(0, 0, 0, 1);
