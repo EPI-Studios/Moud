@@ -1,7 +1,7 @@
 package com.moud.core.assets;
 
-import com.moud.core.ValidationResult;
 
+import com.moud.core.ValidationResult;
 import java.util.Objects;
 
 public record ResPath(String value) {

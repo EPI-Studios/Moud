@@ -1,5 +1,6 @@
 package com.moud.core.assets;
 
+
 import java.util.Objects;
 
 public record AssetMeta(AssetHash hash, long sizeBytes, AssetType type) {

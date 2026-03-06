@@ -1,6 +1,10 @@
 package com.moud.core.scene;
 
 import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class SceneTree {
@@ -135,10 +139,17 @@ public final class SceneTree {
     }
 
     void registerNode(Node node) {
-        if (node.nodeId() == 0L) {
-            node.setNodeId(nextNodeId.getAndIncrement());
+        long id = node.nodeId();
+        if (id == 0L) {
+            id = nextNodeId.getAndIncrement();
+            node.setNodeId(id);
+        } else {
+            long desiredNext = id + 1;
+            if (desiredNext > 0L) {
+                nextNodeId.accumulateAndGet(desiredNext, Math::max);
+            }
         }
-        nodesById.put(node.nodeId(), node);
+        nodesById.put(id, node);
     }
 
     void unregisterNode(Node node) {

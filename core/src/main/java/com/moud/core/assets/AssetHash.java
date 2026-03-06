@@ -1,7 +1,7 @@
 package com.moud.core.assets;
 
-import com.moud.core.ValidationResult;
 
+import com.moud.core.ValidationResult;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Locale;
