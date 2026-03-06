@@ -40,6 +40,23 @@ import com.moud.net.protocol.SchemaSnapshot;
 import com.moud.net.protocol.ServerHello;
 import com.moud.net.protocol.PlayerInput;
 import com.moud.net.protocol.RuntimeState;
+import com.moud.net.protocol.RequestRespawn;
+import com.moud.net.protocol.SceneCreate;
+import com.moud.net.protocol.SceneCreateAck;
+import com.moud.net.protocol.SceneDelete;
+import com.moud.net.protocol.SceneDeleteAck;
+import com.moud.net.protocol.ProjectInfoRequest;
+import com.moud.net.protocol.ProjectInfo;
+import com.moud.net.protocol.ProjectCreate;
+import com.moud.net.protocol.ProjectCreateAck;
+import com.moud.net.protocol.ScriptActionListRequest;
+import com.moud.net.protocol.ScriptActionListResponse;
+import com.moud.net.protocol.ScriptActionInvoke;
+import com.moud.net.protocol.ScriptActionInvokeAck;
+import com.moud.net.protocol.ScriptFileReadRequest;
+import com.moud.net.protocol.ScriptFileReadResponse;
+import com.moud.net.protocol.ScriptFileWriteRequest;
+import com.moud.net.protocol.ScriptFileWriteAck;
 
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
@@ -64,7 +81,10 @@ public final class WireMessages {
                 WireIo.writeVarInt(out, message.type().id());
                 switch (message) {
                     case Hello hello -> WireIo.writeVarInt(out, hello.protocolVersion());
-                    case ServerHello serverHello -> WireIo.writeVarInt(out, serverHello.protocolVersion());
+                    case ServerHello serverHello -> {
+                        WireIo.writeVarInt(out, serverHello.protocolVersion());
+                        WireIo.writeVarInt(out, serverHello.devMode() ? 1 : 0);
+                    }
                     case Ping ping -> out.putLong(ping.nonce());
                     case Pong pong -> out.putLong(pong.nonce());
                     case SceneOpBatch batch -> writeSceneOpBatch(out, batch);
@@ -88,6 +108,79 @@ public final class WireMessages {
                     case AssetDownloadComplete complete -> writeAssetDownloadComplete(out, complete);
                     case PlayerInput input -> writePlayerInput(out, input);
                     case RuntimeState state -> writeRuntimeState(out, state);
+                    case RequestRespawn ignored -> {}
+                    case SceneCreate msg -> {
+                        WireIo.writeString(out, msg.sceneId());
+                        WireIo.writeString(out, msg.displayName());
+                    }
+                    case SceneCreateAck msg -> {
+                        WireIo.writeString(out, msg.sceneId());
+                        WireIo.writeVarInt(out, msg.success() ? 1 : 0);
+                        WireIo.writeString(out, msg.error());
+                    }
+                    case SceneDelete msg -> WireIo.writeString(out, msg.sceneId());
+                    case SceneDeleteAck msg -> {
+                        WireIo.writeString(out, msg.sceneId());
+                        WireIo.writeVarInt(out, msg.success() ? 1 : 0);
+                        WireIo.writeString(out, msg.error());
+                    }
+                    case ProjectInfoRequest msg -> writeLong(out, msg.requestId());
+                    case ProjectInfo msg -> {
+                        writeLong(out, msg.requestId());
+                        WireIo.writeVarInt(out, msg.exists() ? 1 : 0);
+                        WireIo.writeString(out, msg.name());
+                        WireIo.writeString(out, msg.author());
+                    }
+                    case ProjectCreate msg -> {
+                        writeLong(out, msg.requestId());
+                        WireIo.writeString(out, msg.name());
+                        WireIo.writeString(out, msg.author());
+                    }
+                    case ProjectCreateAck msg -> {
+                        writeLong(out, msg.requestId());
+                        WireIo.writeVarInt(out, msg.success() ? 1 : 0);
+                        WireIo.writeString(out, msg.error());
+                        WireIo.writeString(out, msg.name());
+                        WireIo.writeString(out, msg.author());
+                    }
+                    case ScriptActionListRequest msg -> {
+                        writeLong(out, msg.requestId());
+                        writeLong(out, msg.nodeId());
+                    }
+                    case ScriptActionListResponse msg -> writeScriptActionListResponse(out, msg);
+                    case ScriptActionInvoke msg -> {
+                        writeLong(out, msg.requestId());
+                        writeLong(out, msg.nodeId());
+                        WireIo.writeString(out, msg.action());
+                    }
+                    case ScriptActionInvokeAck msg -> {
+                        writeLong(out, msg.requestId());
+                        writeLong(out, msg.nodeId());
+                        WireIo.writeVarInt(out, msg.success() ? 1 : 0);
+                        WireIo.writeString(out, msg.error());
+                    }
+                    case ScriptFileReadRequest msg -> {
+                        writeLong(out, msg.requestId());
+                        WireIo.writeString(out, msg.path());
+                    }
+                    case ScriptFileReadResponse msg -> {
+                        writeLong(out, msg.requestId());
+                        WireIo.writeVarInt(out, msg.success() ? 1 : 0);
+                        WireIo.writeString(out, msg.path());
+                        WireIo.writeString(out, msg.content());
+                        WireIo.writeString(out, msg.error());
+                    }
+                    case ScriptFileWriteRequest msg -> {
+                        writeLong(out, msg.requestId());
+                        WireIo.writeString(out, msg.path());
+                        WireIo.writeString(out, msg.content());
+                    }
+                    case ScriptFileWriteAck msg -> {
+                        writeLong(out, msg.requestId());
+                        WireIo.writeVarInt(out, msg.success() ? 1 : 0);
+                        WireIo.writeString(out, msg.path());
+                        WireIo.writeString(out, msg.error());
+                    }
                 }
                 out.flip();
                 byte[] bytes = new byte[out.remaining()];
@@ -113,7 +206,7 @@ public final class WireMessages {
         MessageType type = MessageType.fromId(typeId);
         return switch (type) {
             case HELLO -> new Hello(WireIo.readVarInt(in));
-            case SERVER_HELLO -> new ServerHello(WireIo.readVarInt(in));
+            case SERVER_HELLO -> readServerHello(in);
             case PING -> new Ping(in.getLong());
             case PONG -> new Pong(in.getLong());
             case SCENE_OP_BATCH -> readSceneOpBatch(in);
@@ -137,7 +230,90 @@ public final class WireMessages {
             case ASSET_DOWNLOAD_COMPLETE -> readAssetDownloadComplete(in);
             case PLAYER_INPUT -> readPlayerInput(in);
             case RUNTIME_STATE -> readRuntimeState(in);
+            case REQUEST_RESPAWN -> new RequestRespawn();
+            case SCENE_CREATE -> new SceneCreate(WireIo.readString(in), WireIo.readString(in));
+            case SCENE_CREATE_ACK -> {
+                String sceneId = WireIo.readString(in);
+                boolean success = WireIo.readVarInt(in) != 0;
+                String error = WireIo.readString(in);
+                yield new SceneCreateAck(sceneId, success, error);
+            }
+            case SCENE_DELETE -> new SceneDelete(WireIo.readString(in));
+            case SCENE_DELETE_ACK -> {
+                String sceneId = WireIo.readString(in);
+                boolean success = WireIo.readVarInt(in) != 0;
+                String error = WireIo.readString(in);
+                yield new SceneDeleteAck(sceneId, success, error);
+            }
+            case PROJECT_INFO_REQUEST -> new ProjectInfoRequest(readLong(in));
+            case PROJECT_INFO -> {
+                long requestId = readLong(in);
+                boolean exists = WireIo.readVarInt(in) != 0;
+                String name = WireIo.readString(in);
+                String author = WireIo.readString(in);
+                yield new ProjectInfo(requestId, exists, name, author);
+            }
+            case PROJECT_CREATE -> {
+                long requestId = readLong(in);
+                String name = WireIo.readString(in);
+                String author = WireIo.readString(in);
+                yield new ProjectCreate(requestId, name, author);
+            }
+            case PROJECT_CREATE_ACK -> {
+                long requestId = readLong(in);
+                boolean success = WireIo.readVarInt(in) != 0;
+                String error = WireIo.readString(in);
+                String name = WireIo.readString(in);
+                String author = WireIo.readString(in);
+                yield new ProjectCreateAck(requestId, success, error, name, author);
+            }
+            case SCRIPT_ACTION_LIST_REQUEST -> new ScriptActionListRequest(readLong(in), readLong(in));
+            case SCRIPT_ACTION_LIST_RESPONSE -> readScriptActionListResponse(in);
+            case SCRIPT_ACTION_INVOKE -> {
+                long requestId = readLong(in);
+                long nodeId = readLong(in);
+                String action = WireIo.readString(in);
+                yield new ScriptActionInvoke(requestId, nodeId, action);
+            }
+            case SCRIPT_ACTION_INVOKE_ACK -> {
+                long requestId = readLong(in);
+                long nodeId = readLong(in);
+                boolean success = WireIo.readVarInt(in) != 0;
+                String error = WireIo.readString(in);
+                yield new ScriptActionInvokeAck(requestId, nodeId, success, error);
+            }
+            case SCRIPT_FILE_READ_REQUEST -> new ScriptFileReadRequest(readLong(in), WireIo.readString(in));
+            case SCRIPT_FILE_READ_RESPONSE -> {
+                long requestId = readLong(in);
+                boolean success = WireIo.readVarInt(in) != 0;
+                String path = WireIo.readString(in);
+                String content = WireIo.readString(in);
+                String error = WireIo.readString(in);
+                yield new ScriptFileReadResponse(requestId, success, path, content, error);
+            }
+            case SCRIPT_FILE_WRITE_REQUEST -> {
+                long requestId = readLong(in);
+                String path = WireIo.readString(in);
+                String content = WireIo.readString(in);
+                yield new ScriptFileWriteRequest(requestId, path, content);
+            }
+            case SCRIPT_FILE_WRITE_ACK -> {
+                long requestId = readLong(in);
+                boolean success = WireIo.readVarInt(in) != 0;
+                String path = WireIo.readString(in);
+                String error = WireIo.readString(in);
+                yield new ScriptFileWriteAck(requestId, success, path, error);
+            }
         };
+    }
+
+    private static ServerHello readServerHello(ByteBuffer in) {
+        int protocolVersion = WireIo.readVarInt(in);
+        boolean devMode = false;
+        if (in.hasRemaining()) {
+            devMode = WireIo.readVarInt(in) != 0;
+        }
+        return new ServerHello(protocolVersion, devMode);
     }
 
     private static void writePlayerInput(ByteBuffer out, PlayerInput input) {
@@ -186,97 +362,75 @@ public final class WireMessages {
 
     private static void writeRuntimeState(ByteBuffer out, RuntimeState state) {
         writeLong(out, state.serverTick());
-        writeLong(out, state.lastProcessedTick());
         WireIo.writeString(out, state.sceneId());
-        out.putFloat(state.charX());
-        out.putFloat(state.charY());
-        out.putFloat(state.charZ());
-        out.putFloat(state.velX());
-        out.putFloat(state.velY());
-        out.putFloat(state.velZ());
-        WireIo.writeVarInt(out, state.onFloor() ? 1 : 0);
-        out.putFloat(state.camYawDeg());
-        out.putFloat(state.camPitchDeg());
         WireIo.writeVarInt(out, state.fogEnabled() ? 1 : 0);
-        WireIo.writeString(out, legacyFogColorString(state.fogColorR(), state.fogColorG(), state.fogColorB()));
-        out.putFloat(state.fogDensity());
         out.putFloat(state.fogColorR());
         out.putFloat(state.fogColorG());
         out.putFloat(state.fogColorB());
+        out.putFloat(state.fogDensity());
         WireIo.writeVarInt(out, state.timeTicks());
         WireIo.writeString(out, state.weather());
         out.putFloat(state.ambientLight());
+        WireIo.writeVarInt(out, state.useSceneCamera() ? 1 : 0);
+        out.putFloat(state.sceneCamX());
+        out.putFloat(state.sceneCamY());
+        out.putFloat(state.sceneCamZ());
+        out.putFloat(state.sceneCamYawDeg());
+        out.putFloat(state.sceneCamPitchDeg());
+        out.putFloat(state.sceneCamRollDeg());
     }
 
     private static RuntimeState readRuntimeState(ByteBuffer in) {
-        long tick = readLong(in);
-        long lastProcessedTick = readLong(in);
+        long serverTick = readLong(in);
         String sceneId = WireIo.readString(in);
-        float charX = in.getFloat();
-        float charY = in.getFloat();
-        float charZ = in.getFloat();
-        float velX = in.getFloat();
-        float velY = in.getFloat();
-        float velZ = in.getFloat();
-        boolean onFloor = WireIo.readVarInt(in) != 0;
-        float yaw = in.getFloat();
-        float pitch = in.getFloat();
         boolean fogEnabled = WireIo.readVarInt(in) != 0;
-        String fogColor = WireIo.readString(in); // legacy
+        float fogColorR = in.getFloat();
+        float fogColorG = in.getFloat();
+        float fogColorB = in.getFloat();
         float fogDensity = in.getFloat();
-
-        float fogColorR = 0.5f;
-        float fogColorG = 0.5f;
-        float fogColorB = 0.5f;
-        if (fogColor != null && !fogColor.isBlank()) {
-            int c1 = fogColor.indexOf(',');
-            int c2 = c1 < 0 ? -1 : fogColor.indexOf(',', c1 + 1);
-            if (c1 > 0 && c2 > c1) {
-                fogColorR = parseFloatOr(fogColor.substring(0, c1), fogColorR);
-                fogColorG = parseFloatOr(fogColor.substring(c1 + 1, c2), fogColorG);
-                fogColorB = parseFloatOr(fogColor.substring(c2 + 1), fogColorB);
-            }
-        }
-
-        int timeTicks = 6000;
-        String weather = "clear";
-        float ambientLight = 1.0f;
-
-        if (in.remaining() >= 3 * 4) {
-            fogColorR = in.getFloat();
-            fogColorG = in.getFloat();
-            fogColorB = in.getFloat();
-        }
-        if (in.hasRemaining()) {
-            timeTicks = WireIo.readVarInt(in);
-        }
-        if (in.hasRemaining()) {
-            weather = WireIo.readString(in);
-        }
-        if (in.remaining() >= 4) {
-            ambientLight = in.getFloat();
-        }
-        return new RuntimeState(tick, lastProcessedTick, sceneId,
-                charX, charY, charZ, velX, velY, velZ, onFloor,
-                yaw, pitch,
-                fogEnabled, fogColorR, fogColorG, fogColorB,
-                fogDensity, timeTicks, weather, ambientLight);
+        int timeTicks = WireIo.readVarInt(in);
+        String weather = WireIo.readString(in);
+        float ambientLight = in.getFloat();
+        boolean useSceneCamera = WireIo.readVarInt(in) != 0;
+        float sceneCamX = in.getFloat();
+        float sceneCamY = in.getFloat();
+        float sceneCamZ = in.getFloat();
+        float sceneCamYawDeg = in.getFloat();
+        float sceneCamPitchDeg = in.getFloat();
+        float sceneCamRollDeg = in.getFloat();
+        return new RuntimeState(serverTick, sceneId, fogEnabled,
+                fogColorR, fogColorG, fogColorB, fogDensity,
+                timeTicks, weather, ambientLight,
+                useSceneCamera, sceneCamX, sceneCamY, sceneCamZ,
+                sceneCamYawDeg, sceneCamPitchDeg, sceneCamRollDeg);
     }
 
-    private static float parseFloatOr(String value, float fallback) {
-        try {
-            if (value == null) {
-                return fallback;
-            }
-            float v = Float.parseFloat(value.trim());
-            return Float.isFinite(v) ? v : fallback;
-        } catch (Exception ignored) {
-            return fallback;
+    private static void writeScriptActionListResponse(ByteBuffer out, ScriptActionListResponse msg) {
+        writeLong(out, msg.requestId());
+        writeLong(out, msg.nodeId());
+        WireIo.writeVarInt(out, msg.success() ? 1 : 0);
+        WireIo.writeString(out, msg.error());
+        List<String> actions = msg.actions() == null ? List.of() : msg.actions();
+        WireIo.writeVarInt(out, actions.size());
+        for (String action : actions) {
+            WireIo.writeString(out, action);
         }
     }
 
-    private static String legacyFogColorString(float r, float g, float b) {
-        return Float.toString(r) + "," + Float.toString(g) + "," + Float.toString(b);
+    private static ScriptActionListResponse readScriptActionListResponse(ByteBuffer in) {
+        long requestId = readLong(in);
+        long nodeId = readLong(in);
+        boolean success = WireIo.readVarInt(in) != 0;
+        String error = WireIo.readString(in);
+        int count = WireIo.readVarInt(in);
+        if (count < 0 || count > 100_000) {
+            throw new IllegalArgumentException("Invalid action count: " + count);
+        }
+        List<String> actions = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            actions.add(WireIo.readString(in));
+        }
+        return new ScriptActionListResponse(requestId, nodeId, success, error, actions);
     }
 
     private static void writeBytes(ByteBuffer out, byte[] bytes) {
@@ -787,6 +941,28 @@ public final class WireMessages {
             case SceneSave save -> size += estimateSceneSaveSize(save);
             case SceneSaveAck ack -> size += estimateSceneSaveAckSize(ack);
             case RuntimeState state -> size += estimateRuntimeStateSize(state);
+            case RequestRespawn ignored -> {}
+            case SceneCreate msg -> size += stringSize(msg.sceneId()) + stringSize(msg.displayName());
+            case SceneCreateAck msg -> size += stringSize(msg.sceneId()) + varIntSize(1) + stringSize(msg.error());
+            case SceneDelete msg -> size += stringSize(msg.sceneId());
+            case SceneDeleteAck msg -> size += stringSize(msg.sceneId()) + varIntSize(1) + stringSize(msg.error());
+            case ProjectInfoRequest msg -> size += longSize(msg.requestId());
+            case ProjectInfo msg -> size += longSize(msg.requestId()) + varIntSize(1) + stringSize(msg.name()) + stringSize(msg.author());
+            case ProjectCreate msg -> size += longSize(msg.requestId()) + stringSize(msg.name()) + stringSize(msg.author());
+            case ProjectCreateAck msg -> size += longSize(msg.requestId()) + varIntSize(1) + stringSize(msg.error()) + stringSize(msg.name()) + stringSize(msg.author());
+            case ScriptActionListRequest msg -> size += longSize(msg.requestId()) + longSize(msg.nodeId());
+            case ScriptActionListResponse msg -> {
+                size += longSize(msg.requestId()) + longSize(msg.nodeId()) + varIntSize(1) + stringSize(msg.error());
+                List<String> actions = msg.actions() == null ? List.of() : msg.actions();
+                size += varIntSize(actions.size());
+                for (String a : actions) size += stringSize(a);
+            }
+            case ScriptActionInvoke msg -> size += longSize(msg.requestId()) + longSize(msg.nodeId()) + stringSize(msg.action());
+            case ScriptActionInvokeAck msg -> size += longSize(msg.requestId()) + longSize(msg.nodeId()) + varIntSize(1) + stringSize(msg.error());
+            case ScriptFileReadRequest msg -> size += longSize(msg.requestId()) + stringSize(msg.path());
+            case ScriptFileReadResponse msg -> size += longSize(msg.requestId()) + varIntSize(1) + stringSize(msg.path()) + stringSize(msg.content()) + stringSize(msg.error());
+            case ScriptFileWriteRequest msg -> size += longSize(msg.requestId()) + stringSize(msg.path()) + stringSize(msg.content());
+            case ScriptFileWriteAck msg -> size += longSize(msg.requestId()) + varIntSize(1) + stringSize(msg.path()) + stringSize(msg.error());
         }
         return size + 16;
     }
@@ -814,18 +990,14 @@ public final class WireMessages {
     private static int estimateRuntimeStateSize(RuntimeState state) {
         int size = 0;
         size += longSize(state.serverTick());
-        size += longSize(state.lastProcessedTick());
         size += stringSize(state.sceneId());
-        size += 6 * 4; // charX/Y/Z + velX/Y/Z
-        size += varIntSize(state.onFloor() ? 1 : 0);
-        size += 2 * 4; // camYawDeg + camPitchDeg
-        size += varIntSize(state.fogEnabled() ? 1 : 0);
-        size += stringSize(legacyFogColorString(state.fogColorR(), state.fogColorG(), state.fogColorB()));
-        size += 4; // fogDensity
-        size += 3 * 4; // fogColorR/G/B
+        size += varIntSize(1); // fogEnabled
+        size += 4 * 4; // fogColorR/G/B + fogDensity
         size += varIntSize(state.timeTicks());
         size += stringSize(state.weather());
         size += 4; // ambientLight
+        size += varIntSize(1); // useSceneCamera
+        size += 6 * 4; // sceneCamX/Y/Z + Yaw/Pitch/Roll
         return size;
     }
 
