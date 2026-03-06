@@ -1,5 +1,6 @@
 package com.moud.net.protocol;
 
+
 import java.util.Objects;
 
 public record SceneInfo(String sceneId, String displayName) {

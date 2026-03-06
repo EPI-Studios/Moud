@@ -7,10 +7,10 @@ import com.moud.net.protocol.ServerHello;
 import com.moud.net.transport.Lane;
 import com.moud.net.transport.Transport;
 import com.moud.net.wire.WireMessages;
-
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public final class Session {
     private final SessionRole role;
@@ -20,6 +20,8 @@ public final class Session {
     };
     private BiConsumer<Lane, Message> messageHandler = (lane, message) -> {
     };
+    private Supplier<ServerHello> serverHelloSupplier = () -> new ServerHello(ProtocolVersions.PROTOCOL_VERSION, false);
+    private ServerHello serverHello;
 
     public Session(SessionRole role, Transport transport) {
         this.role = Objects.requireNonNull(role);
@@ -39,10 +41,19 @@ public final class Session {
         this.messageHandler = Objects.requireNonNull(messageHandler);
     }
 
+    public void setServerHelloSupplier(Supplier<ServerHello> serverHelloSupplier) {
+        this.serverHelloSupplier = Objects.requireNonNull(serverHelloSupplier);
+    }
+
+    public ServerHello serverHello() {
+        return serverHello;
+    }
+
     public void start() {
         if (state != SessionState.DISCONNECTED) {
             throw new IllegalStateException("Session already started: " + state);
         }
+        serverHello = null;
         state = SessionState.HANDSHAKING;
         if (role == SessionRole.CLIENT) {
             send(Lane.CONTROL, new Hello(ProtocolVersions.PROTOCOL_VERSION));
@@ -80,14 +91,16 @@ public final class Session {
         if (state != SessionState.HANDSHAKING) {
             return;
         }
-        if (!(message instanceof ServerHello(int protocolVersion))) {
+        if (!(message instanceof ServerHello hello)) {
             fail("client: expected ServerHello, got " + message.type());
             return;
         }
+        int protocolVersion = hello.protocolVersion();
         if (protocolVersion != ProtocolVersions.PROTOCOL_VERSION) {
-            fail("client: protocol mismatch " + protocolVersion);
+            fail("client: protocol mismatch " + protocolVersion + " (server) != " + ProtocolVersions.PROTOCOL_VERSION + " (client)");
             return;
         }
+        serverHello = hello;
         state = SessionState.CONNECTED;
         logSink.accept("client: connected");
     }
@@ -101,11 +114,15 @@ public final class Session {
             return;
         }
         if (protocolVersion != ProtocolVersions.PROTOCOL_VERSION) {
-            send(Lane.CONTROL, new ServerHello(protocolVersion));
-            fail("server: protocol mismatch " + protocolVersion);
+            send(Lane.CONTROL, new ServerHello(ProtocolVersions.PROTOCOL_VERSION, false));
+            fail("server: protocol mismatch " + protocolVersion + " (client) != " + ProtocolVersions.PROTOCOL_VERSION + " (server)");
             return;
         }
-        send(Lane.CONTROL, new ServerHello(ProtocolVersions.PROTOCOL_VERSION));
+        ServerHello hello = serverHelloSupplier.get();
+        if (hello == null || hello.protocolVersion() != ProtocolVersions.PROTOCOL_VERSION) {
+            hello = new ServerHello(ProtocolVersions.PROTOCOL_VERSION, hello != null && hello.devMode());
+        }
+        send(Lane.CONTROL, hello);
         state = SessionState.CONNECTED;
         logSink.accept("server: connected");
     }

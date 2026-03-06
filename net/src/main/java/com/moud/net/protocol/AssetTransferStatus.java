@@ -1,5 +1,6 @@
 package com.moud.net.protocol;
 
+
 public enum AssetTransferStatus {
     OK(0),
     REJECTED(1),

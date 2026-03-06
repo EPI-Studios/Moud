@@ -1,5 +1,6 @@
 package com.moud.net.protocol;
 
+
 public record SceneOpResult(
         long targetId,
         long createdId,

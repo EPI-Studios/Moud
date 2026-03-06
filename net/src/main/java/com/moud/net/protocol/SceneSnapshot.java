@@ -1,5 +1,6 @@
 package com.moud.net.protocol;
 
+
 import java.util.List;
 
 public record SceneSnapshot(long requestId, long revision, List<NodeSnapshot> nodes) implements Message {

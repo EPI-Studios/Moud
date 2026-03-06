@@ -1,5 +1,6 @@
 package com.moud.net.protocol;
 
+
 public enum SceneOpType {
     CREATE_NODE(1),
     QUEUE_FREE(2),

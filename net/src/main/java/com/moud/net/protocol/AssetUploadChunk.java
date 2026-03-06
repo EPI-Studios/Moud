@@ -1,7 +1,7 @@
 package com.moud.net.protocol;
 
-import com.moud.core.assets.AssetHash;
 
+import com.moud.core.assets.AssetHash;
 import java.util.Arrays;
 import java.util.Objects;
 

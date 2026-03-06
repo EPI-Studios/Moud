@@ -1,5 +1,6 @@
 package com.moud.net.protocol;
 
+
 import java.util.List;
 
 public record SceneOpBatch(long batchId, boolean atomic, List<SceneOp> ops) implements Message {

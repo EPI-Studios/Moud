@@ -1,5 +1,7 @@
 package com.moud.net.protocol;
 
+
+import com.moud.core.scene.Node;
 public sealed interface SceneOp permits SceneOp.CreateNode, SceneOp.QueueFree, SceneOp.Rename, SceneOp.SetProperty, SceneOp.RemoveProperty, SceneOp.Reparent {
     SceneOpType type();
 

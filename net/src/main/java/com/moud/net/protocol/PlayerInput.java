@@ -1,5 +1,6 @@
 package com.moud.net.protocol;
 
+
 public record PlayerInput(
         long clientTick,
         float moveX,

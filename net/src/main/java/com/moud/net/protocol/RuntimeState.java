@@ -1,18 +1,9 @@
 package com.moud.net.protocol;
 
+
 public record RuntimeState(
         long serverTick,
-        long lastProcessedTick,
         String sceneId,
-        float charX,
-        float charY,
-        float charZ,
-        float velX,
-        float velY,
-        float velZ,
-        boolean onFloor,
-        float camYawDeg,
-        float camPitchDeg,
         boolean fogEnabled,
         float fogColorR,
         float fogColorG,
@@ -20,7 +11,14 @@ public record RuntimeState(
         float fogDensity,
         int timeTicks,
         String weather,
-        float ambientLight
+        float ambientLight,
+        boolean useSceneCamera,
+        float sceneCamX,
+        float sceneCamY,
+        float sceneCamZ,
+        float sceneCamYawDeg,
+        float sceneCamPitchDeg,
+        float sceneCamRollDeg
 ) implements Message {
     @Override
     public MessageType type() {

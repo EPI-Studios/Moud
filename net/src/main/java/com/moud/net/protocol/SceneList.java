@@ -1,5 +1,6 @@
 package com.moud.net.protocol;
 
+
 import java.util.List;
 
 public record SceneList(List<SceneInfo> scenes, String activeSceneId) implements Message {

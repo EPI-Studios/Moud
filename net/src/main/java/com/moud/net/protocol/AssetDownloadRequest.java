@@ -1,5 +1,6 @@
 package com.moud.net.protocol;
 
+
 import com.moud.core.assets.AssetHash;
 
 public record AssetDownloadRequest(AssetHash hash) implements Message {
