@@ -1,12 +1,10 @@
 package com.moud.core;
 
 import com.moud.core.scene.Node;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-
 
 public final class NodeTypeRegistry {
     private final Map<String, NodeTypeDef> types = new HashMap<>();

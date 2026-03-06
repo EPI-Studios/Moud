@@ -1,5 +1,6 @@
 package com.moud.core;
 
+
 public enum PropertyType {
     STRING {
         @Override
