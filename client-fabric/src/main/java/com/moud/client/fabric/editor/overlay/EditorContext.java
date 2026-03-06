@@ -1,8 +1,5 @@
 package com.moud.client.fabric.editor.overlay;
 
-import com.moud.client.fabric.platform.MinecraftFreeflyCamera;
-
-import java.util.concurrent.atomic.AtomicLong;
 
 public final class EditorContext {
     private final MinecraftFreeflyCamera camera;

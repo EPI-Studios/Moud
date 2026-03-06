@@ -1,14 +1,5 @@
 package com.moud.client.fabric.editor.panels;
 
-import com.miry.ui.PanelContext;
-import com.miry.ui.Ui;
-import com.miry.ui.panels.Panel;
-import com.miry.ui.render.UiRenderer;
-import com.miry.ui.theme.Theme;
-import com.miry.ui.widgets.ConsoleLog;
-import com.miry.ui.widgets.StripTabs;
-import com.moud.client.fabric.editor.state.EditorRuntime;
-import com.moud.client.fabric.editor.state.EditorState;
 
 public final class BottomPanel extends Panel {
     private final EditorRuntime runtime;
@@ -29,6 +20,7 @@ public final class BottomPanel extends Panel {
         Ui ui = ctx.ui();
         UiRenderer r = ctx.renderer();
         Theme theme = ui.theme();
+        boolean interactive = runtime != null && !runtime.uiBlocked();
 
         int x = ctx.x();
         int y = ctx.y();
@@ -43,15 +35,15 @@ public final class BottomPanel extends Panel {
 
         int contentH = Math.max(0, barY - y);
         if (contentH > 8 && activeTab == 0) {
-            renderOutput(ui, r, theme, x, y, w, contentH);
+            renderOutput(ui, r, theme, x, y, w, contentH, interactive);
         }
 
-        renderTabBar(ctx, r, theme, x, barY, w, barH);
+        renderTabBar(ctx, r, theme, x, barY, w, barH, interactive);
 
         ui.endPanel();
     }
 
-    private void renderTabBar(PanelContext ctx, UiRenderer r, Theme theme, int x, int y, int w, int h) {
+    private void renderTabBar(PanelContext ctx, UiRenderer r, Theme theme, int x, int y, int w, int h, boolean interactive) {
         tabStyle.containerBg = Theme.toArgb(theme.windowBg);
         tabStyle.tabActiveBg = Theme.toArgb(theme.widgetHover);
         tabStyle.tabInactiveBg = 0;
@@ -65,10 +57,11 @@ public final class BottomPanel extends Panel {
         tabStyle.highlightThickness = 0;
 
         String[] labels = new String[]{"Output"};
-        activeTab = tabs.render(r, ctx.uiContext(), ctx.ui().input(), theme, x, y, w, h, labels, 0, true, tabStyle);
+        var input = interactive ? ctx.ui().input() : null;
+        activeTab = tabs.render(r, ctx.uiContext(), input, theme, x, y, w, h, labels, 0, true, tabStyle);
     }
 
-    private void renderOutput(Ui ui, UiRenderer r, Theme theme, int x, int y, int w, int h) {
+    private void renderOutput(Ui ui, UiRenderer r, Theme theme, int x, int y, int w, int h, boolean interactive) {
         int pad = theme.design.space_md;
         int cx = x + pad;
         int cy = y + pad;
@@ -89,7 +82,8 @@ public final class BottomPanel extends Panel {
             rebuildConsole(state);
         }
 
-        console.render(r, ui.input(), theme, cx, cy, cw, ch);
+        var input = interactive ? ui.input() : null;
+        console.render(r, input, theme, cx, cy, cw, ch);
     }
 
     private void rebuildConsole(EditorState state) {

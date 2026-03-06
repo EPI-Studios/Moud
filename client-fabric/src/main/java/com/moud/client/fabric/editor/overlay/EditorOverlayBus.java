@@ -1,6 +1,5 @@
 package com.moud.client.fabric.editor.overlay;
 
-import java.util.concurrent.atomic.AtomicReference;
 
 public final class EditorOverlayBus {
     private static final AtomicReference<EditorContext> CONTEXT = new AtomicReference<>();

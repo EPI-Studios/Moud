@@ -1,13 +1,8 @@
 package com.moud.client.fabric.editor.overlay;
 
-import com.miry.graphics.Texture;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.util.Window;
-import org.lwjgl.glfw.GLFW;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL13;
-import org.lwjgl.opengl.GL30;
 
 final class ViewportCapture {
     private static final long MIN_CAPTURE_INTERVAL_NS = 16_666_667L; // ~60 FPS cap
@@ -32,8 +27,27 @@ final class ViewportCapture {
 
         front = new Texture();
         front.setFilteringLinear();
+        setClampToEdge(front);
         back = new Texture();
         back.setFilteringLinear();
+        setClampToEdge(back);
+    }
+
+    private static void setClampToEdge(Texture texture) {
+        if (texture == null || texture.id() == 0) {
+            return;
+        }
+        int prevActive = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+        int prev = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        try {
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture.id());
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+        } finally {
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, prev);
+            GL13.glActiveTexture(prevActive);
+        }
     }
 
     void capture(Window window) {
@@ -57,8 +71,8 @@ final class ViewportCapture {
         int fbw = window.getFramebufferWidth();
         int fbh = window.getFramebufferHeight();
         if (src != null) {
-            fbw = src.textureWidth;
-            fbh = src.textureHeight;
+            fbw = Math.min(fbw, src.textureWidth);
+            fbh = Math.min(fbh, src.textureHeight);
         }
         if (fbw <= 0 || fbh <= 0) {
             return;
@@ -68,6 +82,7 @@ final class ViewportCapture {
         if (write.width() != fbw || write.height() != fbh) {
             write.allocateRgba(fbw, fbh);
             write.setFilteringLinear();
+            setClampToEdge(write);
         }
 
         int prevReadFbo = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);

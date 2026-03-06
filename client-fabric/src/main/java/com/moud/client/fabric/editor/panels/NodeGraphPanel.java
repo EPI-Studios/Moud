@@ -1,15 +1,7 @@
 package com.moud.client.fabric.editor.panels;
 
-import com.moud.client.fabric.editor.state.EditorRuntime;
-import com.moud.client.fabric.editor.state.EditorState;
-import com.moud.client.fabric.editor.net.EditorNet;
-import com.moud.client.fabric.editor.theme.EditorTheme;
 
-import com.miry.ui.PanelContext;
-import com.miry.ui.Ui;
-import com.miry.ui.panels.Panel;
-import com.miry.ui.render.UiRenderer;
-import com.miry.ui.theme.Theme;
+import com.moud.core.scene.Node;
 
 public final class NodeGraphPanel extends Panel {
     @SuppressWarnings("unused")

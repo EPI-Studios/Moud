@@ -1,44 +1,23 @@
 package com.moud.client.fabric.editor.overlay;
 
-import com.miry.graphics.batch.BatchRenderer;
-import com.miry.graphics.Framebuffer;
-import com.miry.graphics.Texture;
-import com.miry.graphics.post.GaussianBlur;
-import com.miry.ui.Ui;
-import com.miry.ui.UiContext;
-import com.miry.ui.font.FontAtlas;
-import com.miry.ui.font.FontData;
-import com.miry.ui.font.TextRenderer;
-import com.miry.ui.input.UiInput;
-import com.miry.ui.layout.DockSpace;
-import com.miry.ui.layout.LeafNode;
-import com.miry.ui.layout.SplitNode;
-import com.miry.ui.window.UiWindow;
-import com.miry.ui.window.WindowManager;
-import com.miry.ui.theme.Theme;
-import com.miry.ui.event.UiEvent;
-import com.miry.ui.event.KeyEvent;
-import com.miry.ui.event.TextInputEvent;
-import com.moud.client.fabric.assets.AssetsClient;
-import com.moud.client.fabric.editor.dialogs.CreateNodeDialog;
-import com.moud.client.fabric.platform.MinecraftGhostBlocks;
-import com.moud.client.fabric.editor.net.EditorNet;
-import com.moud.client.fabric.editor.panels.*;
-import com.moud.client.fabric.editor.state.EditorRuntime;
-import com.moud.client.fabric.editor.state.EditorState;
-import com.moud.client.fabric.editor.theme.EditorTheme;
-import com.moud.client.fabric.editor.tools.EditorGizmos;
-import com.moud.net.protocol.SceneSaveAck;
-import com.moud.net.protocol.SceneOpAck;
-import com.moud.net.protocol.SceneSnapshot;
+import com.moud.net.protocol.ProjectCreateAck;
+import com.moud.net.protocol.ProjectInfo;
+import com.moud.net.protocol.SceneCreateAck;
+import com.moud.net.protocol.SceneDeleteAck;
 import com.moud.net.protocol.SceneList;
+import com.moud.net.protocol.SceneOp;
+import com.moud.net.protocol.SceneOpAck;
+import com.moud.net.protocol.SceneSaveAck;
+import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.protocol.SchemaSnapshot;
+import com.moud.net.protocol.ScriptActionInvokeAck;
+import com.moud.net.protocol.ScriptActionListResponse;
+import com.moud.net.protocol.ScriptFileReadResponse;
+import com.moud.net.protocol.ScriptFileWriteAck;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.Window;
-import org.lwjgl.glfw.GLFW;
-import org.lwjgl.opengl.GL11;
 
 public final class EditorOverlay {
     private final Theme theme = new Theme();
@@ -55,6 +34,8 @@ public final class EditorOverlay {
     private GaussianBlur blur;
     private WindowManager windowManager;
     private CreateNodeDialog createNodeDialog;
+    private CreateProjectDialog createProjectDialog;
+    private ScriptEditorDialog scriptEditorDialog;
 
     private boolean open;
     private boolean prevLeft;
@@ -63,11 +44,12 @@ public final class EditorOverlay {
     private InspectorPanel inspectorPanel;
     private EditorGizmos gizmos;
     private ScenePanel scenePanel;
-    private com.miry.ui.layout.SplitNode rootWithTop;
-    private com.miry.ui.layout.SplitNode mainWithBottom;
-    private com.miry.ui.layout.SplitNode mainRow;
-    private com.miry.ui.layout.SplitNode viewportAndRight;
-    private com.miry.ui.layout.SplitNode leftColumn;
+    private AssetsPanel assetsPanel;
+    private SplitNode rootWithTop;
+    private SplitNode mainWithBottom;
+    private SplitNode mainRow;
+    private SplitNode viewportAndRight;
+    private SplitNode leftColumn;
     private boolean prevCameraCapturing;
     private boolean layoutSeeded;
     private int layoutSeedW;
@@ -98,6 +80,9 @@ public final class EditorOverlay {
                 }
             }
         }
+        if (!open) {
+            VeilDebugRenderer.instance().clear();
+        }
     }
 
     public boolean isOpen() {
@@ -111,6 +96,22 @@ public final class EditorOverlay {
     public void onAck(SceneOpAck ack) {
         state.onAck(ack);
         MinecraftGhostBlocks.get().onAck(ack);
+        if (ack != null && ack.results() != null) {
+            int failed = 0;
+            for (var r : ack.results()) {
+                if (r != null && !r.ok()) {
+                    failed++;
+                    String msg = r.message();
+                    if (msg == null || msg.isBlank()) {
+                        msg = r.error() == null ? "SceneOp failed" : r.error().name();
+                    }
+                    ClientDebugLog.error("SceneOp failed targetId=" + r.targetId() + " error=" + msg);
+                }
+            }
+            if (failed > 0 && ClientDebugLog.enabled()) {
+                ClientDebugLog.debug("SceneOpAck failedCount=" + failed + " batchId=" + ack.batchId() + " sceneRev=" + ack.sceneRevision());
+            }
+        }
     }
 
     public void onSchema(SchemaSnapshot schema) {
@@ -126,6 +127,7 @@ public final class EditorOverlay {
             return;
         }
         if (ack.success()) {
+            state.lastSavedRevision = state.scene.revision();
             showToast("Saved scene: " + ack.sceneId(), false, 2500);
             return;
         }
@@ -136,8 +138,117 @@ public final class EditorOverlay {
         showToast("Save failed (" + ack.sceneId() + "): " + error, true, 5000);
     }
 
+    public void onSceneCreateAck(SceneCreateAck ack) {
+        if (ack == null) {
+            return;
+        }
+        if (ack.success()) {
+            showToast("Created scene: " + ack.sceneId(), false, 2500);
+            return;
+        }
+        String error = ack.error();
+        if (error == null || error.isBlank()) {
+            error = "Unknown error";
+        }
+        showToast("Create failed (" + ack.sceneId() + "): " + error, true, 5000);
+    }
+
+    public void onSceneDeleteAck(SceneDeleteAck ack) {
+        if (ack == null) {
+            return;
+        }
+        if (ack.success()) {
+            showToast("Deleted scene: " + ack.sceneId(), false, 2500);
+            return;
+        }
+        String error = ack.error();
+        if (error == null || error.isBlank()) {
+            error = "Unknown error";
+        }
+        showToast("Delete failed (" + ack.sceneId() + "): " + error, true, 5000);
+    }
+
+    public void onProjectInfo(ProjectInfo info) {
+        if (info == null) {
+            return;
+        }
+        state.onProjectInfo(info);
+        syncProjectDialogState();
+    }
+
+    public void onProjectCreateAck(ProjectCreateAck ack) {
+        if (ack == null) {
+            return;
+        }
+        if (ack.success()) {
+            state.projectExists = true;
+            state.projectInfoKnown = true;
+            state.projectName = ack.name() == null ? "" : ack.name();
+            state.projectAuthor = ack.author() == null ? "" : ack.author();
+            showToast("Created project: " + state.projectName, false, 3000);
+            if (createProjectDialog != null) {
+                createProjectDialog.close();
+            }
+            return;
+        }
+        String error = ack.error();
+        if (error == null || error.isBlank()) {
+            error = "Unknown error";
+        }
+        showToast("Project create failed: " + error, true, 6000);
+    }
+
+    public void onScriptActionListResponse(ScriptActionListResponse response) {
+        if (response == null) {
+            return;
+        }
+        if (!response.success()) {
+            String err = response.error();
+            if (err == null || err.isBlank()) {
+                err = "Unknown error";
+            }
+            ClientDebugLog.error("ScriptActionList failed nodeId=" + response.nodeId() + " error=" + err);
+        }
+        state.onScriptActionListResponse(response, null);
+    }
+
+    public void onScriptActionInvokeAck(ScriptActionInvokeAck ack) {
+        if (ack == null) {
+            return;
+        }
+        if (ack.success()) {
+            showToast("Script action ok", false, 2000);
+            state.pendingSnapshot = true;
+            return;
+        }
+        String error = ack.error();
+        if (error == null || error.isBlank()) {
+            error = "Unknown error";
+        }
+        showToast("Script action failed: " + error, true, 6000);
+    }
+
+    public void onScriptFileReadResponse(ScriptFileReadResponse response) {
+        if (response == null) {
+            return;
+        }
+        if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
+            scriptEditorDialog.onReadResponse(response);
+        }
+    }
+
+    public void onScriptFileWriteAck(ScriptFileWriteAck ack) {
+        if (ack == null) {
+            return;
+        }
+        if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
+            scriptEditorDialog.onWriteAck(ack);
+        }
+    }
+
     public void requestSnapshot(Session session) {
         runtime.setSession(session);
+        net.requestProjectInfo(session, state);
         net.requestSnapshot(session, state);
     }
 
@@ -150,6 +261,7 @@ public final class EditorOverlay {
             fontAtlas = null;
             batch = null;
             gizmos = null;
+            MaterialPreviewRenderer.dropAll();
             return;
         }
         if (gizmos != null) {
@@ -173,6 +285,7 @@ public final class EditorOverlay {
             batch.close();
             batch = null;
         }
+        MaterialPreviewRenderer.clear();
     }
 
     public void render(Session session) {
@@ -218,9 +331,11 @@ public final class EditorOverlay {
                 || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_SUPER) == GLFW.GLFW_PRESS;
 
         ensureInitialized(window, handle);
+        syncProjectDialogState();
         viewportCapture.capture(window);
         runtime.setSession(session);
         runtime.setViewportTexture(viewportCapture.texture());
+        runtime.setUiSize(w, h);
         runtime.setFramebufferScale(framebufferScale, framebufferScale);
         runtime.setRightMouse(right, rightPressed, rightReleased);
 
@@ -228,6 +343,7 @@ public final class EditorOverlay {
                 .setMouseButtons(left, leftPressed, leftReleased)
                 .setModifiers(ctrl, shift, alt, sup)
                 .setScrollY(scrollY);
+        runtime.updateSceneDrag(input);
 
         ui.beginFrame(input, 1.0f / 60.0f);
         if (uiContext != null) {
@@ -248,6 +364,11 @@ public final class EditorOverlay {
             net.requestSnapshot(session, state);
         }
 
+        EditorRuntime.ToastRequest toast = runtime.consumeToastRequest();
+        if (toast != null) {
+            showToast(toast.message, toast.error, toast.durationMs);
+        }
+
         boolean cullWasEnabled = GL11.glIsEnabled(GL11.GL_CULL_FACE);
         if (cullWasEnabled) GL11.glDisable(GL11.GL_CULL_FACE);
         boolean depthWasEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
@@ -266,11 +387,14 @@ public final class EditorOverlay {
         applyBarRatios(w, h);
         dockSpace.resize(w, h);
         windowManager.update(uiContext, input, w, h);
-        boolean modalOpen = createNodeDialog != null && createNodeDialog.isOpen();
+        boolean modalOpen = (createNodeDialog != null && createNodeDialog.isOpen())
+                || (createProjectDialog != null && createProjectDialog.isOpen())
+                || (scriptEditorDialog != null && scriptEditorDialog.isOpen());
         boolean blockedByWindows = windowManager.blocksInput();
         boolean blocked = modalOpen || blockedByWindows;
 
-        processUiEvents(cameraCapturing);
+        runtime.setUiBlocked(blocked);
+        processUiEvents(cameraCapturing, blocked);
         if (!blocked) {
             dockSpace.update(input);
         }
@@ -283,18 +407,34 @@ public final class EditorOverlay {
             }
         }
 
+        MaterialPreviewRenderer.renderRequested();
+
         if (!needsBackdropBlur) {
             batch.begin(w, h, framebufferScale);
             dockSpace.render(batch);
+            // Context menus deferred by panels render here — after all panels, no scissor.
+            Runnable overlayMenus = runtime.consumeOverlayMenuRender();
+            if (overlayMenus != null) {
+                overlayMenus.run();
+            }
             uiContext.overlay().render(batch);
             windowManager.render(batch, uiContext, input, theme, w, h, null);
 
             if (createNodeDialog != null && createNodeDialog.isOpen()) {
                 createNodeDialog.render(batch, uiContext, ui, theme, w, h);
             }
+            if (createProjectDialog != null && createProjectDialog.isOpen()) {
+                createProjectDialog.render(batch, uiContext, ui, theme, w, h);
+            }
+            if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
+                scriptEditorDialog.render(batch, uiContext, ui, theme, w, h);
+            }
 
             renderToast(w, h);
             batch.end();
+            if (input.mouseReleased() && runtime.sceneDragId() != null) {
+                runtime.clearSceneDrag();
+            }
 
             if (depthWasEnabled) GL11.glEnable(GL11.GL_DEPTH_TEST);
             if (cullWasEnabled) GL11.glEnable(GL11.GL_CULL_FACE);
@@ -331,12 +471,33 @@ public final class EditorOverlay {
         if (createNodeDialog != null && createNodeDialog.isOpen()) {
             createNodeDialog.render(batch, uiContext, ui, theme, w, h);
         }
+        if (createProjectDialog != null && createProjectDialog.isOpen()) {
+            createProjectDialog.render(batch, uiContext, ui, theme, w, h);
+        }
+        if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
+            scriptEditorDialog.render(batch, uiContext, ui, theme, w, h);
+        }
 
         renderToast(w, h);
         batch.end();
+        if (input.mouseReleased() && runtime.sceneDragId() != null) {
+            runtime.clearSceneDrag();
+        }
 
         if (depthWasEnabled) GL11.glEnable(GL11.GL_DEPTH_TEST);
         if (cullWasEnabled) GL11.glEnable(GL11.GL_CULL_FACE);
+    }
+
+    private void syncProjectDialogState() {
+        if (createProjectDialog == null) {
+            return;
+        }
+        if (state.projectInfoKnown && !state.projectExists && !createProjectDialog.isOpen()) {
+            createProjectDialog.open();
+        }
+        if (state.projectExists && createProjectDialog.isOpen()) {
+            createProjectDialog.close();
+        }
     }
 
     private void ensureInitialized(Window window, long handle) {
@@ -351,6 +512,9 @@ public final class EditorOverlay {
         windowManager = new WindowManager();
         createNodeDialog = new CreateNodeDialog(runtime);
         runtime.setCreateNodeDialog(createNodeDialog);
+        createProjectDialog = new CreateProjectDialog(runtime);
+        scriptEditorDialog = new ScriptEditorDialog(runtime);
+        runtime.setScriptEditorDialog(scriptEditorDialog);
         dockSpace = createDockSpace();
         dockSpace.setSplitterSize(5);
         dockSpace.setSplitterDrawSize(2);
@@ -367,7 +531,7 @@ public final class EditorOverlay {
         int topPx = 30;
 
         float topRatio = topPx / (float) Math.max(1, h);
-        rootWithTop.splitRatio = clampRatio(topRatio, 0.03f, 0.20f);
+        rootWithTop.splitRatio = MathUtils.clamp(topRatio, 0.03f, 0.20f);
 
         boolean reseed = !layoutSeeded || layoutSeedW != w || layoutSeedH != h;
         if (!reseed) {
@@ -381,18 +545,18 @@ public final class EditorOverlay {
         int bottomPx = 32;
         int remaining = Math.max(1, h - topPx);
         float mainRatio = (remaining - bottomPx) / (float) remaining;
-        mainWithBottom.splitRatio = clampRatio(mainRatio, 0.55f, 0.98f);
+        mainWithBottom.splitRatio = MathUtils.clamp(mainRatio, 0.55f, 0.98f);
 
         // Left column sizing: approximate Godot dock widths in pixels.
         int leftPx = 280;
         int rightPx = 320;
         int mainW = Math.max(1, w);
         float leftRatio = leftPx / (float) mainW;
-        mainRow.splitRatio = clampRatio(leftRatio, 0.18f, 0.45f);
+        mainRow.splitRatio = MathUtils.clamp(leftRatio, 0.18f, 0.45f);
 
         int centerAndRightW = Math.max(1, mainW - leftPx);
         float centerRatio = (centerAndRightW - rightPx) / (float) centerAndRightW;
-        viewportAndRight.splitRatio = clampRatio(centerRatio, 0.40f, 0.82f);
+        viewportAndRight.splitRatio = MathUtils.clamp(centerRatio, 0.40f, 0.82f);
 
         // Left column split between Scene and FileSystem.
         leftColumn.splitRatio = 0.50f;
@@ -414,13 +578,18 @@ public final class EditorOverlay {
         if (act == KeyEvent.Action.PRESS
                 && key == GLFW.GLFW_KEY_S
                 && ((mods & GLFW.GLFW_MOD_CONTROL) != 0 || (mods & GLFW.GLFW_MOD_SUPER) != 0)) {
-            boolean sent = runtime.saveCurrentScene();
-            if (sent) {
-                showToast("Saving scene: " + state.activeSceneId + "...", false, 2000);
-            } else {
-                showToast("Save failed: not connected", true, 3500);
+            boolean modalOpen = (createNodeDialog != null && createNodeDialog.isOpen())
+                    || (createProjectDialog != null && createProjectDialog.isOpen())
+                    || (scriptEditorDialog != null && scriptEditorDialog.isOpen());
+            if (!modalOpen) {
+                boolean sent = runtime.saveCurrentScene();
+                if (sent) {
+                    showToast("Saving scene: " + state.activeSceneId + "...", false, 2000);
+                } else {
+                    showToast("Save failed: not connected", true, 3500);
+                }
+                return;
             }
-            return;
         }
         uiContext.keyboard().pushKeyEvent(key, scancode, act, mods);
     }
@@ -429,11 +598,19 @@ public final class EditorOverlay {
         if (!open || uiContext == null) {
             return;
         }
-                if (createNodeDialog != null && createNodeDialog.isOpen()) {
-                    createNodeDialog.handleTextInput(codepoint);
-                    return;
-                }
-                uiContext.keyboard().pushCharEvent(codepoint);
+        if (createProjectDialog != null && createProjectDialog.isOpen()) {
+            createProjectDialog.handleTextInput(uiContext, codepoint);
+            return;
+        }
+        if (createNodeDialog != null && createNodeDialog.isOpen()) {
+            createNodeDialog.handleTextInput(codepoint);
+            return;
+        }
+        if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
+            scriptEditorDialog.handleTextInput(uiContext, codepoint);
+            return;
+        }
+        uiContext.keyboard().pushCharEvent(codepoint);
     }
 
     public CreateNodeDialog getCreateNodeDialog() {
@@ -455,7 +632,9 @@ public final class EditorOverlay {
         scenePanel = new ScenePanel(runtime);
         LeafNode scene = new LeafNode(scenePanel);
 
-        LeafNode filesystem = new LeafNode(new AssetsPanel(runtime));
+        assetsPanel = new AssetsPanel(runtime);
+        runtime.setOpenCreateSceneAction(assetsPanel::openCreateScene);
+        LeafNode filesystem = new LeafNode(assetsPanel);
 
         leftColumn = new SplitNode(scene, filesystem, true, 0.50f);
 
@@ -491,13 +670,42 @@ public final class EditorOverlay {
         return ds;
     }
 
-    private void processUiEvents(boolean cameraCapturing) {
+    private void processUiEvents(boolean cameraCapturing, boolean blocked) {
         if (uiContext == null) return;
         UiEvent event;
         while ((event = uiContext.pollEvent()) != null) {
             if (event instanceof KeyEvent keyEvent) {
+                if (createProjectDialog != null && createProjectDialog.isOpen()) {
+                    if (createProjectDialog.handleKey(uiContext, keyEvent)) {
+                        continue;
+                    }
+                    if (blocked) {
+                        continue;
+                    }
+                }
                 if (createNodeDialog != null && createNodeDialog.isOpen()) {
                     if (createNodeDialog.handleKey(uiContext, keyEvent)) {
+                        continue;
+                    }
+                    if (blocked) {
+                        continue;
+                    }
+                }
+                if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
+                    if (scriptEditorDialog.handleKey(uiContext, keyEvent)) {
+                        continue;
+                    }
+                    if (blocked) {
+                        continue;
+                    }
+                }
+                if (blocked) {
+                    continue;
+                }
+                if (!cameraCapturing && keyEvent.isPress() && keyEvent.key() == GLFW.GLFW_KEY_F) {
+                    EditorContext editorCtx = EditorOverlayBus.get();
+                    if (editorCtx != null && editorCtx.isMouseOverViewport(input.mousePos().x, input.mousePos().y)) {
+                        frameSelected(editorCtx);
                         continue;
                     }
                 }
@@ -507,22 +715,109 @@ public final class EditorOverlay {
                 if (!cameraCapturing && scenePanel != null) {
                     scenePanel.handleKey(uiContext, keyEvent);
                 }
+                if (!cameraCapturing && assetsPanel != null) {
+                    assetsPanel.handleKey(uiContext, keyEvent);
+                }
             } else if (event instanceof TextInputEvent textEvent) {
+                if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
+                    scriptEditorDialog.handleTextInput(uiContext, textEvent.codepoint());
+                    continue;
+                }
+                if (blocked) {
+                    continue;
+                }
                 if (!cameraCapturing && inspectorPanel != null) {
                     inspectorPanel.handleTextInput(uiContext, textEvent);
+                }
+                if (!cameraCapturing && scenePanel != null) {
+                    scenePanel.handleTextInput(uiContext, textEvent);
+                }
+                if (!cameraCapturing && assetsPanel != null) {
+                    assetsPanel.handleTextInput(uiContext, textEvent);
                 }
             }
         }
     }
 
-    private static float clampRatio(float v, float min, float max) {
-        return Math.max(min, Math.min(max, v));
+    private void frameSelected(EditorContext ctx) {
+        if (ctx == null || ctx.camera() == null) {
+            return;
+        }
+        if (gizmos == null) {
+            return;
+        }
+        EditorState state = runtime.state();
+        if (state == null || state.scene == null || state.selectedId <= 0L) {
+            return;
+        }
+        long nodeId = state.selectedId;
+        SceneSnapshot.NodeSnapshot node = state.scene.getNode(nodeId);
+        if (node == null) {
+            return;
+        }
+        Vector3f world = new Vector3f();
+        if (!gizmos.tryGetWorldPos(state, nodeId, world)) {
+            return;
+        }
+        double distance = estimateFrameDistance(node);
+        ctx.camera().frameTarget(world.x, world.y, world.z, distance);
+    }
+
+    private static double estimateFrameDistance(SceneSnapshot.NodeSnapshot node) {
+        if (node == null || node.properties() == null) {
+            return 8.0;
+        }
+        float sx = 1.0f;
+        float sy = 1.0f;
+        float sz = 1.0f;
+        boolean any = false;
+        for (SceneSnapshot.Property p : node.properties()) {
+            if (p == null || p.key() == null) {
+                continue;
+            }
+            switch (p.key()) {
+                case "sx" -> {
+                    sx = ParseUtils.parseFloat(p.value(), sx);
+                    any = true;
+                }
+                case "sy" -> {
+                    sy = ParseUtils.parseFloat(p.value(), sy);
+                    any = true;
+                }
+                case "sz" -> {
+                    sz = ParseUtils.parseFloat(p.value(), sz);
+                    any = true;
+                }
+                default -> {
+                }
+            }
+        }
+        if (!any) {
+            return 8.0;
+        }
+        float max = Math.max(Math.abs(sx), Math.max(Math.abs(sy), Math.abs(sz)));
+        if (!Float.isFinite(max) || max <= 0.0f) {
+            return 8.0;
+        }
+        double dist = max * 2.5 + 2.0;
+        if (dist < 3.0) {
+            dist = 3.0;
+        }
+        if (dist > 64.0) {
+            dist = 64.0;
+        }
+        return dist;
     }
 
     private void showToast(String message, boolean error, int durationMs) {
         toastMessage = message;
         toastError = error;
         toastUntilMs = System.currentTimeMillis() + Math.max(250, durationMs);
+        if (error) {
+            ClientDebugLog.error(message);
+        } else if (ClientDebugLog.enabled()) {
+            ClientDebugLog.debug("toast: " + message);
+        }
     }
 
     private void renderToast(int w, int h) {
@@ -543,7 +838,7 @@ public final class EditorOverlay {
         int boxW = Math.min(maxW, Math.max(160, 16 + message.length() * 7));
 
         int bg = toastError ? 0xCC331111 : 0xCC111111;
-        int fg = toastError ? 0xFFFFB3B3 : 0xFFFFFFFF;
+        int fg = toastError ? Theme.toArgb(theme.danger) : 0xFFFFFFFF;
 
         batch.drawRect(x, y, boxW, boxH, bg);
         batch.drawText(message, x + 10, batch.baselineForBox(y, boxH), fg);

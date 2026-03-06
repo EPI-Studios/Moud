@@ -1,24 +1,13 @@
 package com.moud.client.fabric.editor.dialogs;
 
-import com.miry.ui.event.TextInputEvent;
-import com.moud.client.fabric.editor.state.EditorRuntime;
-import com.moud.client.fabric.editor.state.EditorState;
 
-import com.miry.ui.Ui;
-import com.miry.ui.UiContext;
-import com.miry.ui.event.KeyEvent;
-import com.miry.ui.render.UiRenderer;
-import com.miry.ui.theme.Theme;
-import com.miry.ui.widgets.TextField;
-import com.miry.platform.InputConstants;
 import com.moud.core.NodeTypeDef;
+import com.moud.core.scene.Node;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.session.Session;
-
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 
 public final class CreateNodeDialog {
     private static final int DIALOG_W = 600;
@@ -31,6 +20,7 @@ public final class CreateNodeDialog {
     private String parentName = "";
     private boolean justOpened;
     private boolean open;
+    private int typeListScrollY;
 
     public CreateNodeDialog(EditorRuntime runtime) {
         this.runtime = runtime;
@@ -48,6 +38,7 @@ public final class CreateNodeDialog {
 
         searchField.setText("");
         updateFilter();
+        typeListScrollY = 0;
         justOpened = true;
         open = true;
     }
@@ -121,7 +112,7 @@ public final class CreateNodeDialog {
         int createX = dialogX + dialogW - pad - buttonW;
         int cancelX = createX - theme.design.space_sm - buttonW;
 
-        boolean pressed = ui.input().mousePressed();
+        boolean pressed = ui.input() != null && ui.input().mousePressed();
         if (pressed) {
             // close on backdrop click
             if (mx < dialogX || my < dialogY || mx >= dialogX + dialogW || my >= dialogY + dialogH) {
@@ -138,7 +129,7 @@ public final class CreateNodeDialog {
         int contentW = dialogW - pad * 2;
         int contentH = buttonY - contentY - theme.design.space_md;
 
-        renderContent(r, theme, contentX, contentY, contentW, contentH);
+        renderContent(r, ctx, ui, theme, contentX, contentY, contentW, contentH);
 
         if (pressed) {
             if (hit(mx, my, cancelX, buttonY, buttonW, buttonH)) {
@@ -154,49 +145,72 @@ public final class CreateNodeDialog {
         }
     }
 
-    private void renderContent(UiRenderer r, Theme theme, int x, int y, int width, int height) {
+    private void renderContent(UiRenderer r, UiContext uiContext, Ui ui, Theme theme, int x, int y, int width, int height) {
         EditorState state = runtime.state();
         if (state == null) {
             return;
         }
 
+        var input = ui != null ? ui.input() : null;
+        boolean canInteract = input != null;
+        float mx = canInteract ? input.mousePos().x : -1;
+        float my = canInteract ? input.mousePos().y : -1;
+
         String parentInfo = "Parent: " + (parentName.isBlank() ? "#" + parentNodeId : parentName);
         r.drawText(parentInfo, x, r.baselineForBox(y, 18), Theme.toArgb(theme.textMuted));
         int cursorY = y + 22;
 
-        int searchH = theme.design.widget_height_sm;
-        int searchBg = Theme.toArgb(theme.widgetBg);
-        int searchOutline = Theme.toArgb(theme.widgetOutline);
-        r.drawRoundedRect(x, cursorY, width, searchH, theme.design.radius_sm, searchBg, theme.design.border_thin, searchOutline);
-
-        String searchText = searchField.text();
-        if (searchText != null && !searchText.isEmpty()) {
-            r.drawText(searchText, x + theme.design.space_sm, r.baselineForBox(cursorY, searchH), Theme.toArgb(theme.text));
-        } else {
-            r.drawText("Search...", x + theme.design.space_sm, r.baselineForBox(cursorY, searchH), Theme.toArgb(theme.textMuted));
+        int searchH = theme.design.widget_height_md;
+        searchField.render(r, uiContext, input, theme, x, cursorY, width, searchH, true);
+        if ((searchField.text() == null || searchField.text().isEmpty()) && (uiContext == null || !searchField.isFocused(uiContext))) {
+            int hint = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.70f);
+            float iconSize = Math.min(theme.design.icon_sm, searchH - 6);
+            if (theme.icons != null) {
+                theme.icons.draw(r, Icon.SEARCH, x + 6, cursorY + (searchH - iconSize) * 0.5f, iconSize, hint);
+            }
+            int hintX = x + 6 + (int) Math.ceil(iconSize) + 6;
+            r.drawText("Search...", hintX, r.baselineForBox(cursorY, searchH), hint);
         }
         cursorY += searchH + theme.design.space_sm;
-        int listH = height - (cursorY - y) - theme.design.space_sm;
+        int listH = Math.max(0, height - (cursorY - y) - theme.design.space_sm);
         int listBg = Theme.darkenArgb(Theme.toArgb(theme.widgetBg), 0.02f);
-        r.drawRoundedRect(x, cursorY, width, listH, theme.design.radius_sm, listBg, theme.design.border_thin, searchOutline);
+        int listOutline = Theme.toArgb(theme.widgetOutline);
+        r.drawRoundedRect(x, cursorY, width, listH, theme.design.radius_sm, listBg, theme.design.border_thin, listOutline);
 
         if (filteredTypes.isEmpty()) {
             r.drawText("No matches", x + theme.design.space_sm, r.baselineForBox(cursorY + theme.design.space_sm, 18), Theme.toArgb(theme.textMuted));
             return;
         }
 
-        int itemH = 20;
-        int itemY = cursorY + theme.design.space_xs;
-        int maxVisible = (listH - theme.design.space_xs * 2) / itemH;
+        int itemH = Math.max(18, theme.tokens.itemHeight);
+        int listX = x;
+        int listY = cursorY;
+        int listW = width;
+        int contentHeight = filteredTypes.size() * itemH + theme.design.space_xs * 2;
 
-        for (int i = 0; i < Math.min(filteredTypes.size(), maxVisible); i++) {
+        Ui.ScrollArea area = ui.beginScrollArea(r, "createNodeTypesScroll", listX, listY, listW, listH, contentHeight);
+        int scrollY = (int) area.scrollY();
+        typeListScrollY = scrollY;
+
+        int first = Math.max(0, scrollY / Math.max(1, itemH));
+        int visible = Math.max(1, (listH / Math.max(1, itemH)) + 2);
+        int last = Math.min(filteredTypes.size(), first + visible);
+
+        int itemY = listY + theme.design.space_xs - scrollY;
+        for (int i = first; i < last; i++) {
             String typeId = filteredTypes.get(i);
             NodeTypeDef def = state.typesById.get(typeId);
             String label = def == null ? typeId : def.uiLabel();
 
-            r.drawText(label, x + theme.design.space_sm, r.baselineForBox(itemY, itemH), Theme.toArgb(theme.text));
-            itemY += itemH;
+            int rowY = itemY + i * itemH;
+            boolean hovered = canInteract && mx >= listX && my >= rowY && mx < listX + listW && my < rowY + itemH;
+            if (hovered) {
+                int fill = Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.35f);
+                r.drawRect(listX + 1, rowY, Math.max(0, listW - 2), itemH, fill);
+            }
+            r.drawText(label, listX + theme.design.space_sm, r.baselineForBox(rowY, itemH), Theme.toArgb(theme.text));
         }
+        ui.endScrollArea(area);
     }
 
     public void handleTextInput(int codepoint) {
@@ -255,27 +269,34 @@ public final class CreateNodeDialog {
         }
 
         int cursorY = y + 22;
-        int searchH = theme.design.widget_height_sm;
+        int searchH = theme.design.widget_height_md;
         if (ctx != null && hit((int) ui.mouse().x, (int) ui.mouse().y, x, cursorY, width, searchH)) {
             searchField.focus(ctx);
             return;
         }
         cursorY += searchH + theme.design.space_sm;
 
-        int listH = height - (cursorY - y) - theme.design.space_sm;
+        int listH = Math.max(0, height - (cursorY - y) - theme.design.space_sm);
         int mx = (int) ui.mouse().x;
         int my = (int) ui.mouse().y;
         if (!hit(mx, my, x, cursorY, width, listH)) {
             return;
         }
 
-        int itemH = 20;
-        int idx = (int) ((my - cursorY - theme.design.space_xs) / itemH);
-        if (idx >= 0 && idx < filteredTypes.size()) {
-            String typeId = filteredTypes.get(idx);
-            createNode(state, typeId);
-            close();
+        int itemH = Math.max(18, theme.tokens.itemHeight);
+        int offsetY = my - (cursorY + theme.design.space_xs);
+        int contentY = offsetY + typeListScrollY;
+        if (contentY < 0) {
+            return;
         }
+        int idx = contentY / Math.max(1, itemH);
+        if (idx < 0 || idx >= filteredTypes.size()) {
+            return;
+        }
+
+        String typeId = filteredTypes.get(idx);
+        createNode(state, typeId);
+        close();
     }
 
     private static void drawButton(UiRenderer r,

@@ -1,6 +1,5 @@
 package com.moud.client.fabric.editor.theme;
 
-import com.miry.ui.theme.Theme;
 
 public final class EditorTheme {
     private EditorTheme() {
