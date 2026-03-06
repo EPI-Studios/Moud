@@ -1,5 +1,6 @@
 package com.moud.core.math;
 
+
 public record Transform(Vec3 pos, Quat rot, Vec3 scale) {
 
     public static final Transform IDENTITY = new Transform(new Vec3(0, 0, 0), Quat.IDENTITY, new Vec3(1, 1, 1));
