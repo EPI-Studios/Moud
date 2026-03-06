@@ -6,10 +6,13 @@
   "client": [
     "BackgroundRendererMixin",
     "CameraMixin",
+    "GameRendererMixin",
     "KeyboardMixin",
+    "LightmapTextureManagerMixin",
     "MouseMixin",
     "SectionBuilderMixin",
     "WorldRendererMixin",
+    "WorldRendererSkyCloudOverrideMixin",
     "accessor.CameraAccessor"
   ],
   "injectors": {

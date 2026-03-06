@@ -1,6 +1,7 @@
 package com.moud.client.fabric.mixin.accessor;
 
 import net.minecraft.client.render.Camera;
+import org.joml.Quaternionf;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.gen.Invoker;
@@ -15,5 +16,7 @@ public interface CameraAccessor {
 
     @Accessor("thirdPerson")
     void moud$setThirdPerson(boolean thirdPerson);
-}
 
+    @Accessor("rotation")
+    Quaternionf moud$getRotation();
+}

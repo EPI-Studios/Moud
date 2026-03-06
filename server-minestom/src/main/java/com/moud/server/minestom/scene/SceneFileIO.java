@@ -15,12 +15,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 public final class SceneFileIO {
     private static final Gson GSON = new GsonBuilder()
             .setPrettyPrinting()
             .create();
+
+    private static final String PROP_RUNTIME = "@runtime";
+    private static final String PROP_TRANSIENT = "@transient";
+    private static final String PROP_RUNTIME_ONLY = "runtime_only";
+    private static final String LEGACY_PLAYER_PREFIX = "player_";
 
     private SceneFileIO() {
     }
@@ -50,12 +54,50 @@ public final class SceneFileIO {
         if (file.nodes() == null || file.nodes().isEmpty()) {
             return List.of();
         }
+
+        HashMap<Long, ArrayList<Long>> childrenByParent = new HashMap<>();
+        for (SceneFile.NodeEntry node : file.nodes()) {
+            if (node == null || node.id() <= 0L) {
+                continue;
+            }
+            childrenByParent.computeIfAbsent(node.parent(), ignored -> new ArrayList<>()).add(node.id());
+        }
+
+        HashSet<Long> excluded = new HashSet<>();
+        for (SceneFile.NodeEntry node : file.nodes()) {
+            if (node == null || node.id() <= 0L) {
+                continue;
+            }
+            if (isRuntimeOnly(node.name(), node.properties())) {
+                excluded.add(node.id());
+            }
+        }
+
+        if (!excluded.isEmpty()) {
+            Deque<Long> stack = new ArrayDeque<>(excluded);
+            while (!stack.isEmpty()) {
+                long parent = stack.pop();
+                ArrayList<Long> kids = childrenByParent.get(parent);
+                if (kids == null || kids.isEmpty()) {
+                    continue;
+                }
+                for (long child : kids) {
+                    if (excluded.add(child)) {
+                        stack.push(child);
+                    }
+                }
+            }
+        }
+
         ArrayList<SceneTreeMutator.NodeSpec> out = new ArrayList<>(file.nodes().size());
         for (SceneFile.NodeEntry node : file.nodes()) {
             if (node == null || node.id() <= 0L) {
                 continue;
             }
             if (node.name() == null || node.name().isBlank()) {
+                continue;
+            }
+            if (excluded.contains(node.id())) {
                 continue;
             }
             out.add(new SceneTreeMutator.NodeSpec(
@@ -95,10 +137,9 @@ public final class SceneFileIO {
             if (node == null || node.nodeId() <= 0L) {
                 continue;
             }
-            if (!isRuntimePlayerNode(node)) {
-                continue;
+            if (isRuntimeOnly(node)) {
+                excluded.add(node.nodeId());
             }
-            excluded.add(node.nodeId());
         }
 
         if (!excluded.isEmpty()) {
@@ -151,15 +192,45 @@ public final class SceneFileIO {
         return new SceneFile(SceneFile.FORMAT_V1, sceneId, displayName, List.copyOf(nodes));
     }
 
-    private static boolean isRuntimePlayerNode(SceneSnapshot.NodeSnapshot node) {
+    private static boolean isRuntimeOnly(SceneSnapshot.NodeSnapshot node) {
         if (node == null) {
             return false;
         }
-        String name = node.name();
-        if (name == null || !name.startsWith("player_")) {
+        if (isRuntimeOnly(node.name(), null)) {
+            return true;
+        }
+        if (node.properties() == null) {
             return false;
         }
-        return "CharacterBody3D".equals(node.type());
+        for (SceneSnapshot.Property prop : node.properties()) {
+            if (prop == null || prop.key() == null) {
+                continue;
+            }
+            String key = prop.key();
+            if (PROP_RUNTIME.equals(key) || PROP_RUNTIME_ONLY.equals(key) || PROP_TRANSIENT.equals(key)) {
+                if (isTrue(prop.value())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean isRuntimeOnly(String name, Map<String, String> props) {
+        if (name != null && name.startsWith(LEGACY_PLAYER_PREFIX)) {
+            return true;
+        }
+        if (props == null || props.isEmpty()) {
+            return false;
+        }
+        return isTrue(props.get(PROP_RUNTIME)) || isTrue(props.get(PROP_TRANSIENT)) || isTrue(props.get(PROP_RUNTIME_ONLY));
+    }
+
+    private static boolean isTrue(String v) {
+        if (v == null) {
+            return false;
+        }
+        String s = v.trim();
+        return "1".equals(s) || "true".equalsIgnoreCase(s);
     }
 }
-

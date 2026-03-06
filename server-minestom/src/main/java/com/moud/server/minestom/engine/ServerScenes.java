@@ -48,6 +48,17 @@ public final class ServerScenes {
         return scene;
     }
 
+    public ServerScene delete(String sceneId) {
+        if (sceneId == null || sceneId.isBlank()) {
+            return null;
+        }
+        ServerScene removed = scenes.remove(sceneId);
+        if (removed != null) {
+            scenesRevision++;
+        }
+        return removed;
+    }
+
     private ServerScene createScene(String sceneId, String displayName) {
         InstanceContainer instance = instanceManager.createInstanceContainer();
         instance.setChunkSupplier(LightingChunk::new);
@@ -75,5 +86,9 @@ public final class ServerScenes {
                 scene.tick(dtSeconds);
             }
         }
+    }
+
+    public List<ServerScene> allScenes() {
+        return List.copyOf(scenes.values());
     }
 }

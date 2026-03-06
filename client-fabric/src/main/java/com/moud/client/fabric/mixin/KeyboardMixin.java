@@ -7,6 +7,7 @@ import com.moud.client.fabric.runtime.PlayRuntimeBus;
 import com.moud.client.fabric.runtime.PlayRuntimeClient;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Keyboard;
+import net.minecraft.client.gui.screen.GameMenuScreen;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -27,6 +28,12 @@ public final class KeyboardMixin {
             if (key == GLFW.GLFW_KEY_F8) {
                 return;
             }
+            if (key == GLFW.GLFW_KEY_ESCAPE && action == GLFW.GLFW_PRESS) {
+                runtime.onPauseMenuOpened();
+                client.setScreen(new GameMenuScreen(true));
+                ci.cancel();
+                return;
+            }
             runtime.onKeyEvent(key, action);
             ci.cancel();
             return;
@@ -39,6 +46,12 @@ public final class KeyboardMixin {
                 return;
             }
             if (key == GLFW.GLFW_KEY_F8) {
+                return;
+            }
+            if (key == GLFW.GLFW_KEY_ESCAPE && action == GLFW.GLFW_PRESS) {
+                runtime.onPauseMenuOpened();
+                client.setScreen(new GameMenuScreen(true));
+                ci.cancel();
                 return;
             }
             runtime.onKeyEvent(key, action);

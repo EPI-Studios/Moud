@@ -70,6 +70,23 @@ public final class MinecraftFreeflyCamera {
         }
     }
 
+    public void frameTarget(double targetX, double targetY, double targetZ, double distance) {
+        if (!enabled) {
+            return;
+        }
+        Vec3d dir = forwardDir();
+        double len = dir.length();
+        if (len < 1e-6) {
+            dir = new Vec3d(0.0, 0.0, 1.0);
+        } else {
+            dir = dir.multiply(1.0 / len);
+        }
+        double dist = MathHelper.clamp(distance, 0.5, 256.0);
+        pos = new Vec3d(targetX, targetY, targetZ).subtract(dir.multiply(dist));
+        targetYaw = yaw;
+        targetPitch = pitch;
+    }
+
     public boolean consumeMouseButton(int button, int action, double mouseX, double mouseY) {
         if (!enabled) {
             return false;

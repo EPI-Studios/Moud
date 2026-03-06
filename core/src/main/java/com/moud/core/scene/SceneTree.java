@@ -135,10 +135,17 @@ public final class SceneTree {
     }
 
     void registerNode(Node node) {
-        if (node.nodeId() == 0L) {
-            node.setNodeId(nextNodeId.getAndIncrement());
+        long id = node.nodeId();
+        if (id == 0L) {
+            id = nextNodeId.getAndIncrement();
+            node.setNodeId(id);
+        } else {
+            long desiredNext = id + 1;
+            if (desiredNext > 0L) {
+                nextNodeId.accumulateAndGet(desiredNext, Math::max);
+            }
         }
-        nodesById.put(node.nodeId(), node);
+        nodesById.put(id, node);
     }
 
     void unregisterNode(Node node) {

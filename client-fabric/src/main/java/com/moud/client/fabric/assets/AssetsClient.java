@@ -78,6 +78,7 @@ public final class AssetsClient {
         }
         AssetHash hash = AssetHash.sha256(bytes);
         AssetType t = type == null ? AssetType.BINARY : type;
+        uploadQueue.removeIf(task -> task != null && path.equals(task.path));
         uploadQueue.add(new UploadTask(path, hash, bytes, t));
         ensureUploadStarted(session);
     }

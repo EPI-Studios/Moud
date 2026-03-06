@@ -7,6 +7,10 @@ public sealed interface Message permits
         SceneList,
         SceneOpAck,
         SceneOpBatch,
+        SceneCreate,
+        SceneCreateAck,
+        SceneDelete,
+        SceneDeleteAck,
         SceneSelect,
         SceneSave,
         SceneSaveAck,
@@ -25,6 +29,18 @@ public sealed interface Message permits
         AssetDownloadChunk,
         AssetDownloadComplete,
         PlayerInput,
-        RuntimeState {
+        RuntimeState,
+        ProjectInfoRequest,
+        ProjectInfo,
+        ProjectCreate,
+        ProjectCreateAck,
+        ScriptActionListRequest,
+        ScriptActionListResponse,
+        ScriptActionInvoke,
+        ScriptActionInvokeAck,
+        ScriptFileReadRequest,
+        ScriptFileReadResponse,
+        ScriptFileWriteRequest,
+        ScriptFileWriteAck {
     MessageType type();
 }

@@ -27,14 +27,20 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 public final class AssetService {
+    public interface UploadCompleteCallback {
+        void onUploadComplete(ResPath path, AssetMeta meta, byte[] bytes);
+    }
+
     private static final int CHUNK_BYTES_MAX = 512 * 1024;
     private static final long MAX_ASSET_BYTES = 128L * 1024L * 1024L;
 
     private final AssetStore store;
     private final boolean uploadsEnabled;
     private final Map<UUID, UploadContext> uploads = new ConcurrentHashMap<>();
+    private UploadCompleteCallback uploadCompleteCallback;
 
     public AssetService(AssetStore store) {
         this(store, true);
@@ -43,6 +49,10 @@ public final class AssetService {
     public AssetService(AssetStore store, boolean uploadsEnabled) {
         this.store = Objects.requireNonNull(store);
         this.uploadsEnabled = uploadsEnabled;
+    }
+
+    public void setUploadCompleteCallback(UploadCompleteCallback callback) {
+        this.uploadCompleteCallback = callback;
     }
 
     public AssetStore store() {
@@ -169,6 +179,9 @@ public final class AssetService {
         try {
             store.put(ctx.path, ctx.meta, bytes);
             session.send(Lane.ASSETS, new AssetUploadAck(ctx.path, ctx.meta.hash(), AssetTransferStatus.OK, "stored"));
+            if (uploadCompleteCallback != null) {
+                uploadCompleteCallback.onUploadComplete(ctx.path, ctx.meta, bytes);
+            }
         } catch (IOException e) {
             session.send(Lane.ASSETS, new AssetUploadAck(ctx.path, ctx.meta.hash(), AssetTransferStatus.ERROR, e.getMessage()));
         }

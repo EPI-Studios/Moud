@@ -87,8 +87,20 @@ public abstract class MouseMixin {
             if (client == null || client.currentScreen != null) {
                 return;
             }
-            ctx.camera().consumeMouseMove(client.mouse.getX(), client.mouse.getY());
             ci.cancel();
+            return;
+        }
+        // dans le playmode on laisse la souris
+    }
+
+    @Inject(method = "onCursorPos", at = @At("HEAD"))
+    private void moud$onCursorPos(long window, double x, double y, CallbackInfo ci) {
+        EditorContext ctx = EditorOverlayBus.get();
+        if (ctx != null && ctx.isActive()) {
+            if (client == null || client.currentScreen != null) {
+                return;
+            }
+            ctx.camera().consumeMouseMove(x, y);
             return;
         }
 
@@ -99,8 +111,6 @@ public abstract class MouseMixin {
         if (client == null || client.currentScreen != null) {
             return;
         }
-        runtime.onMouseMove(client.mouse.getX(), client.mouse.getY());
-        ci.cancel();
     }
 
     private double scaledMouseX() {

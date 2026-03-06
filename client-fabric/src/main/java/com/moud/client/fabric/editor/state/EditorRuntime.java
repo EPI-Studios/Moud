@@ -2,26 +2,55 @@ package com.moud.client.fabric.editor.state;
 
 import com.moud.client.fabric.assets.AssetsClient;
 import com.moud.client.fabric.editor.dialogs.CreateNodeDialog;
+import com.moud.client.fabric.editor.dialogs.ScriptEditorDialog;
 import com.moud.client.fabric.editor.net.EditorNet;
 import com.moud.client.fabric.editor.tools.EditorTool;
 
 import com.miry.graphics.Texture;
+import com.miry.ui.input.UiInput;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
 
 public final class EditorRuntime {
+    private static final float SCENE_DRAG_THRESHOLD_PX = 6.0f;
+
+    public static final class ToastRequest {
+        public final String message;
+        public final boolean error;
+        public final int durationMs;
+
+        public ToastRequest(String message, boolean error, int durationMs) {
+            this.message = message == null ? "" : message;
+            this.error = error;
+            this.durationMs = durationMs;
+        }
+    }
+
     private final EditorState state;
     private final EditorNet net;
     private CreateNodeDialog createNodeDialog;
+    private ScriptEditorDialog scriptEditorDialog;
+    private Runnable openCreateSceneAction;
     private AssetsClient assets;
     private Session session;
     private Texture viewportTexture;
-    private EditorTool tool = EditorTool.MOVE;
+    private EditorTool tool = EditorTool.SELECT;
+    private boolean gridSnapEnabled;
+    private float gridSnapStep = 1.0f;
     private float framebufferScaleX = 1.0f;
     private float framebufferScaleY = 1.0f;
+    private int uiWidth;
+    private int uiHeight;
     private boolean rightDown;
     private boolean rightPressed;
     private boolean rightReleased;
+    private boolean uiBlocked;
+    private ToastRequest pendingToast;
+
+    private String sceneDragId;
+    private float sceneDragStartX;
+    private float sceneDragStartY;
+    private boolean sceneDragActive;
 
     public EditorRuntime(EditorState state, EditorNet net) {
         this.state = state;
@@ -60,6 +89,36 @@ public final class EditorRuntime {
         this.tool = tool == null ? EditorTool.SELECT : tool;
     }
 
+    public boolean gridSnapEnabled() {
+        return gridSnapEnabled;
+    }
+
+    public void setGridSnapEnabled(boolean enabled) {
+        gridSnapEnabled = enabled;
+    }
+
+    public float gridSnapStep() {
+        return gridSnapStep;
+    }
+
+    public void setGridSnapStep(float step) {
+        if (!Float.isFinite(step) || step <= 0.0f) {
+            return;
+        }
+        gridSnapStep = step;
+    }
+
+    public void cycleGridSnapStep() {
+        float s = gridSnapStep;
+        if (Math.abs(s - 1.0f) < 1e-6f) {
+            gridSnapStep = 0.5f;
+        } else if (Math.abs(s - 0.5f) < 1e-6f) {
+            gridSnapStep = 0.1f;
+        } else {
+            gridSnapStep = 1.0f;
+        }
+    }
+
     public float framebufferScaleX() {
         return framebufferScaleX;
     }
@@ -71,6 +130,19 @@ public final class EditorRuntime {
     public void setFramebufferScale(float framebufferScaleX, float framebufferScaleY) {
         this.framebufferScaleX = Math.max(0.1f, framebufferScaleX);
         this.framebufferScaleY = Math.max(0.1f, framebufferScaleY);
+    }
+
+    public int uiWidth() {
+        return uiWidth;
+    }
+
+    public int uiHeight() {
+        return uiHeight;
+    }
+
+    public void setUiSize(int width, int height) {
+        uiWidth = Math.max(0, width);
+        uiHeight = Math.max(0, height);
     }
 
     public boolean rightDown() {
@@ -91,12 +163,60 @@ public final class EditorRuntime {
         rightReleased = released;
     }
 
+    public boolean uiBlocked() {
+        return uiBlocked;
+    }
+
+    public void setUiBlocked(boolean uiBlocked) {
+        this.uiBlocked = uiBlocked;
+    }
+
+    public void requestToast(String message, boolean error, int durationMs) {
+        if (message == null || message.isBlank()) {
+            return;
+        }
+        pendingToast = new ToastRequest(message, error, durationMs);
+    }
+
+    public ToastRequest consumeToastRequest() {
+        ToastRequest toast = pendingToast;
+        pendingToast = null;
+        return toast;
+    }
+
     public CreateNodeDialog getCreateNodeDialog() {
         return createNodeDialog;
     }
 
     public void setCreateNodeDialog(CreateNodeDialog dialog) {
         this.createNodeDialog = dialog;
+    }
+
+    public void setScriptEditorDialog(ScriptEditorDialog dialog) {
+        this.scriptEditorDialog = dialog;
+    }
+
+    public ScriptEditorDialog scriptEditorDialog() {
+        return scriptEditorDialog;
+    }
+
+    public void openScriptEditor(long nodeId, String scriptPath) {
+        ScriptEditorDialog dialog = scriptEditorDialog;
+        if (dialog == null) {
+            return;
+        }
+        dialog.open(nodeId, scriptPath);
+    }
+
+    public void setOpenCreateSceneAction(Runnable action) {
+        this.openCreateSceneAction = action;
+    }
+
+    public void openCreateScene() {
+        Runnable action = openCreateSceneAction;
+        if (action != null) {
+            action.run();
+        }
     }
 
     public AssetsClient assets() {
@@ -118,5 +238,42 @@ public final class EditorRuntime {
         }
         net.saveScene(session, sceneId);
         return true;
+    }
+
+    public void beginSceneDrag(String sceneId, float mouseX, float mouseY) {
+        if (sceneId == null || sceneId.isBlank()) {
+            return;
+        }
+        sceneDragId = sceneId;
+        sceneDragStartX = mouseX;
+        sceneDragStartY = mouseY;
+        sceneDragActive = false;
+    }
+
+    public void updateSceneDrag(UiInput input) {
+        if (sceneDragId == null || sceneDragActive || input == null || !input.mouseDown()) {
+            return;
+        }
+        float mx = input.mousePos().x;
+        float my = input.mousePos().y;
+        float dx = mx - sceneDragStartX;
+        float dy = my - sceneDragStartY;
+        float threshold = SCENE_DRAG_THRESHOLD_PX;
+        if (dx * dx + dy * dy >= threshold * threshold) {
+            sceneDragActive = true;
+        }
+    }
+
+    public String sceneDragId() {
+        return sceneDragId;
+    }
+
+    public boolean sceneDragActive() {
+        return sceneDragActive;
+    }
+
+    public void clearSceneDrag() {
+        sceneDragId = null;
+        sceneDragActive = false;
     }
 }

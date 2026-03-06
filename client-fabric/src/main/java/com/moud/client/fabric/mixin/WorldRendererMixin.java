@@ -1,6 +1,7 @@
 package com.moud.client.fabric.mixin;
 
 import com.moud.client.fabric.platform.MinecraftGhostBlocks;
+import com.moud.client.fabric.render.VeilDebugRenderer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
@@ -30,9 +31,6 @@ public abstract class WorldRendererMixin {
     )
     private void moud$renderGhostBlocks(RenderTickCounter tickCounter, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightmapTextureManager lightmapTextureManager, Matrix4f matrix4f, Matrix4f matrix4f2, CallbackInfo ci) {
         MinecraftGhostBlocks ghosts = MinecraftGhostBlocks.get();
-        if (!ghosts.isActive()) {
-            return;
-        }
         if (client == null || client.world == null || camera == null) {
             return;
         }
@@ -49,22 +47,26 @@ public abstract class WorldRendererMixin {
 
         int lightValue = 0x00F000F0; // LightmapTextureManager.MAX_LIGHT_COORDINATE
         BlockPos.Mutable mutable = new BlockPos.Mutable();
-        for (long packed : ghosts.previewPositions()) {
-            int px = BlockPos.unpackLongX(packed);
-            int py = BlockPos.unpackLongY(packed);
-            int pz = BlockPos.unpackLongZ(packed);
+        if (ghosts.isActive()) {
+            for (long packed : ghosts.previewPositions()) {
+                int px = BlockPos.unpackLongX(packed);
+                int py = BlockPos.unpackLongY(packed);
+                int pz = BlockPos.unpackLongZ(packed);
 
-            if (ghosts.phase() == MinecraftGhostBlocks.Phase.AWAITING_ACK) {
-                mutable.set(px, py, pz);
-                var state = client.world.getBlockState(mutable);
-                if (state != null && state.getBlock() == ghosts.csgDefaultState().getBlock()) {
-                    continue;
+                if (ghosts.phase() == MinecraftGhostBlocks.Phase.AWAITING_ACK) {
+                    mutable.set(px, py, pz);
+                    var state = client.world.getBlockState(mutable);
+                    if (state != null && state.getBlock() == ghosts.csgDefaultState().getBlock()) {
+                        continue;
+                    }
                 }
+                matrices.push();
+                matrices.translate(px - cam.x, py - cam.y, pz - cam.z);
+                brm.renderBlockAsEntity(ghosts.csgDefaultState(), matrices, consumers, lightValue, OverlayTexture.DEFAULT_UV);
+                matrices.pop();
             }
-            matrices.push();
-            matrices.translate(px - cam.x, py - cam.y, pz - cam.z);
-            brm.renderBlockAsEntity(ghosts.csgDefaultState(), matrices, consumers, lightValue, OverlayTexture.DEFAULT_UV);
-            matrices.pop();
         }
+
+        VeilDebugRenderer.instance().render(new MatrixStack(), consumers, camera);
     }
 }

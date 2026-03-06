@@ -13,7 +13,9 @@ public final class RootNode extends Node {
 
     @Override
     protected void onReady() {
-        addChild(new TickerNode("ticker"));
+        if (findChild("ticker") == null) {
+            addChild(new TickerNode("ticker"));
+        }
     }
 
     @Override
@@ -25,4 +27,3 @@ public final class RootNode extends Node {
         return processed.get();
     }
 }
-

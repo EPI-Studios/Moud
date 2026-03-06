@@ -1,57 +1,37 @@
 package com.moud.client.fabric.runtime;
 
 import com.moud.client.fabric.mixin.accessor.CameraAccessor;
-import com.moud.core.physics.CharacterPhysics;
+import com.moud.client.fabric.render.VeilSceneNodeRenderer;
+import com.moud.client.fabric.scene.ClientSceneBus;
 import com.moud.net.protocol.PlayerInput;
 import com.moud.net.protocol.RuntimeState;
+import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
 import com.moud.net.transport.Lane;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
-import org.lwjgl.glfw.GLFW;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 import java.util.Objects;
 
 public final class PlayRuntimeClient {
-    private static final float LOOK_SENS_DEG_PER_PIXEL = 0.15f;
-    private static final float MIN_PITCH = -89.0f;
-    private static final float MAX_PITCH = 89.0f;
     private static final float EYE_HEIGHT = 1.6f;
-    private static final float CORRECTION_DECAY = 15.0f;
-    private static final float HARD_SNAP_DIST = 2.0f;
     private static final float DEFAULT_SPEED = 6.0f;
 
     private boolean active;
-    private boolean forward;
-    private boolean back;
-    private boolean left;
-    private boolean right;
-    private boolean jump;
-    private boolean sprint;
 
-    private boolean mouseInit;
-    private double lastMouseX;
-    private double lastMouseY;
-    private float yawDeg;
-    private float pitchDeg;
+    private final PlayRuntimeInputState input = new PlayRuntimeInputState();
+    private final PlayRuntimeLookState look = new PlayRuntimeLookState();
+    private final PlayRuntimePredictionState prediction = new PlayRuntimePredictionState();
+    private final PlayRuntimeSceneCameraAttachment sceneCamera = new PlayRuntimeSceneCameraAttachment();
+
     private long clientTick;
     private long lastSendNs;
 
-    private float predX;
-    private float predY;
-    private float predZ;
-    private float predVelX;
-    private float predVelY;
-    private float predVelZ;
-    private boolean predOnFloor;
-    private long lastFrameNs;
-
-    private float corrX;
-    private float corrY;
-    private float corrZ;
-
     private volatile RuntimeState lastServerState;
+    private volatile long bodyNodeId;
 
     public RuntimeState lastServerState() {
         return lastServerState;
@@ -61,111 +41,69 @@ public final class PlayRuntimeClient {
         return active;
     }
 
+    public boolean hasCamera() {
+        RuntimeState state = lastServerState;
+        return state == null || state.hasCamera();
+    }
+
     public void setActive(boolean active) {
         if (this.active == active) {
             return;
         }
         this.active = active;
-        clearInput();
-        mouseInit = false;
+        input.clear();
+        look.resetMouse();
         if (active) {
             RuntimeState state = lastServerState;
             if (state != null) {
-                yawDeg = normalizeYaw(state.camYawDeg());
-                pitchDeg = clampPitch(state.camPitchDeg());
-                predX = state.charX();
-                predY = state.charY();
-                predZ = state.charZ();
-                predVelX = state.velX();
-                predVelY = state.velY();
-                predVelZ = state.velZ();
-                predOnFloor = state.onFloor();
+                look.setAngles(state.camYawDeg(), state.camPitchDeg());
+                prediction.resetFromServer(state);
+                sceneCamera.updateFromServerState(state);
             }
-            corrX = corrY = corrZ = 0.0f;
-            lastFrameNs = 0L;
+        } else {
+            bodyNodeId = 0L;
+            VeilSceneNodeRenderer.clearRuntimeBodyOverride();
         }
     }
 
     public void onDisconnect() {
         active = false;
-        clearInput();
-        mouseInit = false;
+        input.clear();
+        look.resetMouse();
         lastServerState = null;
-        predX = predY = predZ = 0.0f;
-        predVelX = predVelY = predVelZ = 0.0f;
-        predOnFloor = true;
-        corrX = corrY = corrZ = 0.0f;
-        lastFrameNs = 0L;
+        bodyNodeId = 0L;
+        VeilSceneNodeRenderer.clearRuntimeBodyOverride();
+        prediction.reset();
+        sceneCamera.clear();
     }
 
     public void onRuntimeState(RuntimeState state) {
         lastServerState = state;
-        if (!active) {
+        bodyNodeId = state == null ? 0L : state.bodyNodeId();
+        sceneCamera.updateFromServerState(state);
+        if (!active || state == null) {
             return;
         }
-
-        float errX = state.charX() - predX;
-        float errY = state.charY() - predY;
-        float errZ = state.charZ() - predZ;
-
-        float dist = (float) Math.sqrt(errX * errX + errY * errY + errZ * errZ);
-        if (dist > HARD_SNAP_DIST) {
-            predX = state.charX();
-            predY = state.charY();
-            predZ = state.charZ();
-            predVelX = state.velX();
-            predVelY = state.velY();
-            predVelZ = state.velZ();
-            predOnFloor = state.onFloor();
-            corrX = corrY = corrZ = 0.0f;
-        } else {
-            predX = state.charX();
-            predY = state.charY();
-            predZ = state.charZ();
-            predVelX = state.velX();
-            predVelY = state.velY();
-            predVelZ = state.velZ();
-            predOnFloor = state.onFloor();
-            corrX -= errX;
-            corrY -= errY;
-            corrZ -= errZ;
-        }
+        prediction.applyServerState(state);
     }
 
     public void onKeyEvent(int key, int action) {
         if (!active) {
             return;
         }
-        boolean down = action != GLFW.GLFW_RELEASE;
-        switch (key) {
-            case GLFW.GLFW_KEY_W -> forward = down;
-            case GLFW.GLFW_KEY_S -> back = down;
-            case GLFW.GLFW_KEY_A -> left = down;
-            case GLFW.GLFW_KEY_D -> right = down;
-            case GLFW.GLFW_KEY_SPACE -> jump = down;
-            case GLFW.GLFW_KEY_LEFT_SHIFT -> sprint = down;
-            default -> {
-            }
-        }
+        input.onKeyEvent(key, action);
+    }
+
+    public void onPauseMenuOpened() {
+        input.clear();
+        look.resetMouse();
     }
 
     public void onMouseMove(double x, double y) {
         if (!active) {
             return;
         }
-        if (!mouseInit) {
-            mouseInit = true;
-            lastMouseX = x;
-            lastMouseY = y;
-            return;
-        }
-        double dx = x - lastMouseX;
-        double dy = y - lastMouseY;
-        lastMouseX = x;
-        lastMouseY = y;
-
-        yawDeg = normalizeYaw(yawDeg + (float) (dx * LOOK_SENS_DEG_PER_PIXEL));
-        pitchDeg = clampPitch(pitchDeg + (float) (dy * LOOK_SENS_DEG_PER_PIXEL));
+        look.onMouseMove(x, y);
     }
 
     public void tick(Session session) {
@@ -176,6 +114,11 @@ public final class PlayRuntimeClient {
         if (!active || session == null || session.state() != SessionState.CONNECTED) {
             return;
         }
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client != null && client.currentScreen != null) {
+            return;
+        }
+        look.syncFromVanillaPlayer(client);
         long now = System.nanoTime();
         int hz = Math.max(1, Math.min(240, maxHz));
         long interval = 1_000_000_000L / hz;
@@ -184,55 +127,25 @@ public final class PlayRuntimeClient {
         }
         lastSendNs = now;
 
-        float moveX = (right ? 1.0f : 0.0f) + (left ? -1.0f : 0.0f);
-        float moveZ = (forward ? 1.0f : 0.0f) + (back ? -1.0f : 0.0f);
-        float len = (float) Math.sqrt(moveX * moveX + moveZ * moveZ);
-        if (len > 1e-6f && len > 1.0f) {
-            moveX /= len;
-            moveZ /= len;
-        }
-
-        session.send(Lane.INPUT, new PlayerInput(++clientTick, moveX, moveZ, yawDeg, pitchDeg, jump, sprint));
+        PlayRuntimeInputState.Movement movement = input.movement();
+        session.send(Lane.INPUT, new PlayerInput(++clientTick, movement.moveX(), movement.moveZ(), look.yawDeg(), look.pitchDeg(), input.jump(), input.sprint()));
     }
 
     public void updatePrediction() {
         if (!active) {
             return;
         }
-        long now = System.nanoTime();
-        if (lastFrameNs == 0L) {
-            lastFrameNs = now;
-            return;
+        PlayRuntimeInputState.Movement movement = input.movement();
+        float speed = DEFAULT_SPEED;
+        long bodyId = bodyNodeId;
+        if (bodyId > 0L) {
+            SceneSnapshot.NodeSnapshot node = ClientSceneBus.getNode(bodyId);
+            float sceneSpeed = parseFloat(node, "speed", Float.NaN);
+            if (Float.isFinite(sceneSpeed) && sceneSpeed >= 0.0f) {
+                speed = sceneSpeed;
+            }
         }
-        float dt = (float) ((now - lastFrameNs) / 1_000_000_000.0);
-        lastFrameNs = now;
-        dt = Math.min(dt, 0.1f);
-
-        float moveX = (right ? 1.0f : 0.0f) + (left ? -1.0f : 0.0f);
-        float moveZ = (forward ? 1.0f : 0.0f) + (back ? -1.0f : 0.0f);
-        float len = (float) Math.sqrt(moveX * moveX + moveZ * moveZ);
-        if (len > 1e-6f && len > 1.0f) {
-            moveX /= len;
-            moveZ /= len;
-        }
-
-        CharacterPhysics.State current = new CharacterPhysics.State(
-                predX, predY, predZ, predVelX, predVelY, predVelZ, predOnFloor);
-        CharacterPhysics.State next = CharacterPhysics.simulate(
-                current, moveX, moveZ, yawDeg, DEFAULT_SPEED, jump, sprint, dt);
-
-        predX = next.x();
-        predY = next.y();
-        predZ = next.z();
-        predVelX = next.velX();
-        predVelY = next.velY();
-        predVelZ = next.velZ();
-        predOnFloor = next.onFloor();
-
-        float decay = (float) Math.exp(-CORRECTION_DECAY * dt);
-        corrX *= decay;
-        corrY *= decay;
-        corrZ *= decay;
+        prediction.updatePrediction(look.yawDeg(), movement.moveX(), movement.moveZ(), input.jump(), input.sprint(), speed);
     }
 
     public boolean applyCameraOverride(Camera camera) {
@@ -240,47 +153,109 @@ public final class PlayRuntimeClient {
         if (!active) {
             return false;
         }
-
+        RuntimeState st = lastServerState;
+        look.syncFromVanillaPlayer(MinecraftClient.getInstance());
         updatePrediction();
 
-        float camX = predX + corrX;
-        float camY = predY + corrY + EYE_HEIGHT;
-        float camZ = predZ + corrZ;
+        long bodyId = bodyNodeId;
+        if (bodyId > 0L) {
+            VeilSceneNodeRenderer.setRuntimeBodyOverride(bodyId, prediction.baseX(), prediction.baseY(), prediction.baseZ(), look.yawDeg());
+        } else {
+            VeilSceneNodeRenderer.clearRuntimeBodyOverride();
+        }
+
+        if (st != null && !st.hasCamera()) {
+            return false;
+        }
+
+        boolean useSceneCamera = st != null && st.useSceneCamera();
+        boolean attachedSceneCamera = useSceneCamera && sceneCamera.isAttached();
+
+        float camX;
+        float camY;
+        float camZ;
+        float yaw;
+        float pitch;
+        float rollDeg = 0.0f;
+        if (useSceneCamera && !attachedSceneCamera) {
+            camX = st.sceneCamX();
+            camY = st.sceneCamY();
+            camZ = st.sceneCamZ();
+            yaw = PlayRuntimeAngles.normalizeYaw(st.sceneCamYawDeg());
+            pitch = PlayRuntimeAngles.clampPitch(st.sceneCamPitchDeg());
+            rollDeg = st.sceneCamRollDeg();
+        } else {
+            if (useSceneCamera) {
+                yaw = PlayRuntimeAngles.normalizeYaw(look.yawDeg() + sceneCamera.localYawOffDeg());
+                pitch = PlayRuntimeAngles.clampPitch(look.pitchDeg() + sceneCamera.localPitchOffDeg());
+                rollDeg = sceneCamera.localRollOffDeg();
+            } else {
+                yaw = look.yawDeg();
+                pitch = look.pitchDeg();
+                rollDeg = 0.0f;
+            }
+
+            float baseX = prediction.baseX();
+            float baseY = prediction.baseY();
+            float baseZ = prediction.baseZ();
+
+            if (attachedSceneCamera && sceneCamera.isLocalOffsetValid()) {
+                float yawRad = (float) Math.toRadians(PlayRuntimeAngles.normalizeYaw(look.yawDeg()));
+                float cos = (float) Math.cos(yawRad);
+                float sin = (float) Math.sin(yawRad);
+                float wx = sceneCamera.localOffX() * cos + sceneCamera.localOffZ() * sin;
+                float wz = -sceneCamera.localOffX() * sin + sceneCamera.localOffZ() * cos;
+                camX = baseX + wx;
+                camY = baseY + sceneCamera.localOffY();
+                camZ = baseZ + wz;
+            } else {
+                camX = baseX;
+                camY = baseY + EYE_HEIGHT;
+                camZ = baseZ;
+            }
+        }
 
         if (!(camera instanceof CameraAccessor accessor)) {
             return false;
         }
         accessor.moud$setThirdPerson(false);
         accessor.moud$setCameraPosition(camX, camY, camZ);
-        accessor.moud$setRotation(yawDeg, pitchDeg);
+        accessor.moud$setRotation(yaw, pitch);
+
+        if (Float.isFinite(rollDeg) && Math.abs(rollDeg) > 1e-4f) {
+            Quaternionf base = accessor.moud$getRotation();
+            if (base != null) {
+                Quaternionf original = new Quaternionf(base);
+                Vector3f forward = new Vector3f(0.0f, 0.0f, 1.0f).rotate(original);
+                Quaternionf qRoll = new Quaternionf().fromAxisAngleRad(forward, (float) Math.toRadians(rollDeg));
+                base.set(qRoll).mul(original);
+            }
+        }
         return true;
+    }
+
+    private static float parseFloat(SceneSnapshot.NodeSnapshot node, String key, float fallback) {
+        if (node == null || key == null) {
+            return fallback;
+        }
+        var props = node.properties();
+        if (props == null || props.isEmpty()) {
+            return fallback;
+        }
+        for (SceneSnapshot.Property prop : props) {
+            if (prop != null && key.equals(prop.key())) {
+                try {
+                    float v = Float.parseFloat(prop.value());
+                    return Float.isFinite(v) ? v : fallback;
+                } catch (Exception ignored) {
+                    return fallback;
+                }
+            }
+        }
+        return fallback;
     }
 
     public boolean shouldBlockVanillaInput(MinecraftClient client) {
         return active && client != null && client.currentScreen == null;
-    }
-
-    private void clearInput() {
-        forward = back = left = right = jump = sprint = false;
-    }
-
-    private static float clampPitch(float pitchDeg) {
-        if (!Float.isFinite(pitchDeg)) {
-            return 0.0f;
-        }
-        return Math.max(MIN_PITCH, Math.min(MAX_PITCH, pitchDeg));
-    }
-
-    private static float normalizeYaw(float yawDeg) {
-        if (!Float.isFinite(yawDeg)) {
-            return 0.0f;
-        }
-        float wrapped = (float) (yawDeg % 360.0);
-        if (wrapped > 180.0f) {
-            wrapped -= 360.0f;
-        } else if (wrapped < -180.0f) {
-            wrapped += 360.0f;
-        }
-        return wrapped;
     }
 }

@@ -7,7 +7,7 @@ import com.miry.ui.render.UiRenderer;
 import com.miry.ui.theme.Theme;
 import com.miry.ui.widgets.ContextMenu;
 import com.moud.client.fabric.editor.state.EditorRuntime;
-import com.moud.client.fabric.editor.state.EditorState;
+import com.moud.client.fabric.editor.util.EditorUiUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +15,7 @@ import java.util.List;
 public final class ToolbarPanel extends Panel {
     private final EditorRuntime runtime;
 
-    private final List<String> menuTitles = List.of("Scene", "Help");
+    private final List<String> menuTitles = List.of("Scene");
     private final ArrayList<ContextMenu> menus = new ArrayList<>();
     private int openMenuIndex = -1;
 
@@ -45,8 +45,10 @@ public final class ToolbarPanel extends Panel {
             initMenus();
         }
 
-        boolean modalOpen = runtime.getCreateNodeDialog() != null && runtime.getCreateNodeDialog().isOpen();
-        boolean interactive = !modalOpen;
+        boolean interactive = runtime != null && !runtime.uiBlocked();
+        if (!interactive && hasOpenMenu()) {
+            closeMenus();
+        }
         renderTopBar(ctx, r, uiContext, theme, x, y, w, h, interactive);
     }
 
@@ -56,21 +58,13 @@ public final class ToolbarPanel extends Panel {
         }
 
         ContextMenu sceneMenu = menus.getFirst();
-        sceneMenu.addItem("Request Snapshot", () -> {
-            EditorState state = runtime.state();
-            runtime.net().requestSnapshot(runtime.session(), state);
+        sceneMenu.addItem("New Scene…", () -> runtime.openCreateScene());
+        sceneMenu.addItem("Save Scene", () -> {
+            boolean ok = runtime.saveCurrentScene();
+            runtime.requestToast(ok ? "Saving scene…" : "Save failed: not connected", !ok, ok ? 2000 : 3500);
         });
-        sceneMenu.addItem("Create Node…", () -> {
-            if (runtime.getCreateNodeDialog() == null) {
-                return;
-            }
-            EditorState state = runtime.state();
-            long parentId = state != null ? state.selectedId : 0L;
-            runtime.getCreateNodeDialog().open(parentId);
-        });
-
-        ContextMenu helpMenu = menus.getLast();
-        helpMenu.addItem("Controls", this::closeMenus);
+        sceneMenu.addSeparator();
+        sceneMenu.addItem("Request Snapshot", () -> runtime.net().requestSnapshot(runtime.session(), runtime.state()));
     }
 
     private void renderTopBar(PanelContext ctx,
@@ -154,6 +148,7 @@ public final class ToolbarPanel extends Panel {
         float my = input.mousePos().y;
         int itemH = theme.tokens.itemHeight;
         menu.updateFromInput(input, theme, itemH);
+        EditorUiUtil.clampOpenMenuToScreen(menu, runtime);
         menu.render(r, theme, itemH, Theme.toArgb(theme.panelBg), Theme.toArgb(theme.widgetHover), Theme.toArgb(theme.text), menu.hoverIndex());
         if (input.mousePressed()) {
             menu.handleClick((int) mx, (int) my, itemH);
@@ -170,7 +165,7 @@ public final class ToolbarPanel extends Panel {
             return;
         }
         openMenuIndex = index;
-        menus.get(index).open(x, y);
+        EditorUiUtil.openMenuClamped(menus.get(index), runtime, x, y);
     }
 
     private void closeMenus() {
