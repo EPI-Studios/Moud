@@ -1,44 +1,38 @@
 package com.moud.server.minestom.runtime;
 
-import com.moud.core.physics.CharacterPhysics;
+import com.moud.core.math.Transform;
 import com.moud.core.scene.Node;
-import com.moud.core.scene.PlainNode;
-import com.moud.net.protocol.PlayerInput;
 import com.moud.net.protocol.RuntimeState;
-import com.moud.net.protocol.SceneOp;
-import com.moud.net.protocol.SceneOpBatch;
 import com.moud.net.session.Session;
 import com.moud.net.transport.Lane;
 import com.moud.server.minestom.engine.ServerScene;
-import net.minestom.server.coordinate.Pos;
-import net.minestom.server.entity.Player;
-import net.minestom.server.instance.Weather;
-
+import com.moud.core.util.MathUtils;
+import com.moud.core.util.ParseUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import net.minestom.server.coordinate.Pos;
+import net.minestom.server.entity.Player;
 
 public final class PlayRuntime {
     private static final float MIN_PITCH = -89.0f;
     private static final float MAX_PITCH = 89.0f;
-    private static final float DT = 1.0f / 20.0f;
 
     private final Map<UUID, Player> players = new ConcurrentHashMap<>();
-    private final Map<UUID, PlayerInput> lastInputs = new ConcurrentHashMap<>();
     private final Map<UUID, String> activeScenes = new ConcurrentHashMap<>();
-    private final Map<PlayerSceneKey, RuntimeNodes> nodesByPlayerScene = new ConcurrentHashMap<>();
-    private final Map<UUID, CharacterPhysics.State> physicsStates = new ConcurrentHashMap<>();
-    private final Map<UUID, Long> lastProcessedTicks = new ConcurrentHashMap<>();
+    private final RuntimeWorldEnvironmentSystem worldEnvironment = new RuntimeWorldEnvironmentSystem();
+    private final RuntimeCameraSystem cameraSystem = new RuntimeCameraSystem(MIN_PITCH, MAX_PITCH);
 
-    public void onPlayerSpawn(Player player, String sceneId) {
+    public void onPlayerSpawn(Player player, ServerScene scene) {
         if (player == null) {
             return;
         }
         players.put(player.getUuid(), player);
-        if (sceneId != null && !sceneId.isBlank()) {
-            activeScenes.put(player.getUuid(), sceneId);
+        if (scene != null) {
+            activeScenes.put(player.getUuid(), scene.sceneId());
+            teleportToPlayerStart(player, scene);
         }
     }
 
@@ -47,11 +41,7 @@ public final class PlayRuntime {
             return;
         }
         players.remove(uuid);
-        lastInputs.remove(uuid);
         activeScenes.remove(uuid);
-        physicsStates.remove(uuid);
-        lastProcessedTicks.remove(uuid);
-        nodesByPlayerScene.keySet().removeIf(k -> uuid.equals(k.playerId()));
     }
 
     public void onSceneChanged(UUID uuid, String sceneId) {
@@ -60,17 +50,17 @@ public final class PlayRuntime {
         }
         if (sceneId == null || sceneId.isBlank()) {
             activeScenes.remove(uuid);
-            return;
+        } else {
+            activeScenes.put(uuid, sceneId);
         }
-        activeScenes.put(uuid, sceneId);
-        physicsStates.remove(uuid);
     }
 
-    public void onInput(UUID uuid, PlayerInput input) {
-        if (uuid == null || input == null) {
+    public void applyEditorWorldEnvironment(ServerScene scene) {
+        if (scene == null) {
             return;
         }
-        lastInputs.put(uuid, input);
+        worldEnvironment.ensureWorldEnvironment(scene);
+        worldEnvironment.applyWorldEnvironment(scene, worldEnvironment.readWorldEnvironment(scene));
     }
 
     public void tick(UUID uuid, Session session, ServerScene scene) {
@@ -81,331 +71,91 @@ public final class PlayRuntime {
         if (player == null) {
             return;
         }
-        String sceneId = scene.sceneId();
-        activeScenes.put(uuid, sceneId);
+        activeScenes.put(uuid, scene.sceneId());
 
-        ensureWorldEnvironment(scene);
-        RuntimeNodes nodes = ensureNodes(scene, uuid);
-        if (nodes == null) {
-            return;
-        }
+        worldEnvironment.ensureWorldEnvironment(scene);
+        RuntimeWorldEnvironmentSystem.WorldEnvironment env = worldEnvironment.readWorldEnvironment(scene);
+        worldEnvironment.applyWorldEnvironment(scene, env);
 
-        PlayerInput input = lastInputs.getOrDefault(uuid, new PlayerInput(0L, 0.0f, 0.0f, 0.0f, 0.0f, false, false));
-        float yaw = normalizeYaw(input.yawDeg());
-        float pitch = clampPitch(input.pitchDeg());
+        RuntimeCameraSystem.SelectedCamera selectedCamera = cameraSystem.selectSceneCamera(scene);
+        RuntimeCameraSystem.SceneCamera cameraPose = selectedCamera != null
+                ? selectedCamera.pose()
+                : null;
 
-        float speed = parseFloat(nodes.character().getProperty("speed"), 6.0f);
-
-        CharacterPhysics.State phys = physicsStates.get(uuid);
-        if (phys == null) {
-            float startX = parseFloat(nodes.character().getProperty("x"), 0.0f);
-            float startY = parseFloat(nodes.character().getProperty("y"), CharacterPhysics.FLOOR_Y);
-            float startZ = parseFloat(nodes.character().getProperty("z"), 0.0f);
-            phys = CharacterPhysics.State.at(startX, startY, startZ);
-        }
-
-        phys = CharacterPhysics.simulate(phys, input.moveX(), input.moveZ(),
-                yaw, speed, input.jump(), input.sprint(), DT);
-
-        physicsStates.put(uuid, phys);
-        lastProcessedTicks.put(uuid, input.clientTick());
-
-        applyCharacterTransform(scene, nodes.character(), phys.x(), phys.y(), phys.z(), yaw);
-
-        WorldEnvironment env = readWorldEnvironment(scene);
-        applyWorldEnvironment(scene, env);
         int timeTicks = (int) (scene.instance().getTime() % 24_000L);
         session.send(Lane.STATE, new RuntimeState(
                 scene.engine().ticks(),
-                input.clientTick(),
-                sceneId,
-                phys.x(),
-                phys.y(),
-                phys.z(),
-                phys.velX(),
-                phys.velY(),
-                phys.velZ(),
-                phys.onFloor(),
-                yaw,
-                pitch,
+                scene.sceneId(),
                 env.fogEnabled(),
-                env.fogColorR(),
-                env.fogColorG(),
-                env.fogColorB(),
+                env.fogColorR(), env.fogColorG(), env.fogColorB(),
                 env.fogDensity(),
                 timeTicks,
                 env.weather(),
-                env.ambientLight()
+                env.ambientLight(),
+                cameraPose != null,
+                cameraPose == null ? 0.0f : cameraPose.x(),
+                cameraPose == null ? 0.0f : cameraPose.y(),
+                cameraPose == null ? 0.0f : cameraPose.z(),
+                cameraPose == null ? 0.0f : cameraPose.yawDeg(),
+                cameraPose == null ? 0.0f : cameraPose.pitchDeg(),
+                cameraPose == null ? 0.0f : cameraPose.rollDeg()
         ));
 
-        player.teleport(new Pos(phys.x(), phys.y(), phys.z(), yaw, pitch));
+        // Teleport the Minestom entity to the scene camera position so the server
+        // loads the correct chunks around the camera, not the player's spawn point.
+        if (cameraPose != null) {
+            Pos cur = player.getPosition();
+            player.teleport(new Pos(cameraPose.x(), cameraPose.y(), cameraPose.z(),
+                    cur.yaw(), cur.pitch()));
+        }
     }
 
-    private void applyCharacterTransform(ServerScene scene, Node character, double x, double y, double z, float yaw) {
-        if (scene == null || character == null) {
-            return;
-        }
-        long nodeId = character.nodeId();
-        if (nodeId <= 0L) {
-            return;
-        }
+    // -----------------------------------------------------------------------
+    // PlayerStart
+    // -----------------------------------------------------------------------
 
-        ArrayList<SceneOp> ops = new ArrayList<>(4);
-        ops.add(new SceneOp.SetProperty(nodeId, "x", trimFloat((float) x)));
-        ops.add(new SceneOp.SetProperty(nodeId, "y", trimFloat((float) y)));
-        ops.add(new SceneOp.SetProperty(nodeId, "z", trimFloat((float) z)));
-        ops.add(new SceneOp.SetProperty(nodeId, "ry", trimFloat(yaw)));
-
-        long batchId = (scene.engine().ticks() << 32) ^ (long) nodeId;
-        scene.apply(new SceneOpBatch(batchId, true, List.copyOf(ops)));
+    /** Returns the world Pos of the first PlayerStart in the scene, or null if none. */
+    public static Pos findPlayerStartPos(ServerScene scene) {
+        Node start = findPlayerStart(scene);
+        if (start == null) {
+            return null;
+        }
+        Transform t = RuntimeTransforms.worldTransform(start);
+        float ry = ParseUtils.parseFloat(start.getProperty("ry"), 0.0f);
+        ry = MathUtils.normalizeYaw(ry);
+        return new Pos(t.pos().x(), t.pos().y(), t.pos().z(), ry, 0.0f);
     }
 
-    private void ensureWorldEnvironment(ServerScene scene) {
+    private static void teleportToPlayerStart(Player player, ServerScene scene) {
+        Pos pos = findPlayerStartPos(scene);
+        if (pos != null) {
+            player.teleport(pos);
+        }
+    }
+
+    private static Node findPlayerStart(ServerScene scene) {
+        if (scene == null) {
+            return null;
+        }
         Node root = scene.engine().sceneTree().root();
-        Node existing = root.findChild("WorldEnvironment");
-        if (existing != null) {
-            return;
+        if (root == null) {
+            return null;
         }
-        PlainNode env = new PlainNode("WorldEnvironment");
-        env.setProperty("@type", "WorldEnvironment");
-        scene.engine().nodeTypes().applyDefaults(env, "WorldEnvironment");
-        root.addChild(env);
-    }
-
-    private RuntimeNodes ensureNodes(ServerScene scene, UUID uuid) {
-        PlayerSceneKey key = new PlayerSceneKey(uuid, scene.sceneId());
-        RuntimeNodes cached = nodesByPlayerScene.get(key);
-        if (cached != null && isValid(scene, cached)) {
-            return cached;
-        }
-
-        Node root = scene.engine().sceneTree().root();
-        String prefix = uuid.toString().replace("-", "");
-        String bodyName = "player_" + prefix.substring(0, 8);
-
-        Node existing = root.findChild(bodyName);
-        if (existing != null) {
-            Node cam = existing.findChild("Camera3D");
-            if (cam != null) {
-                RuntimeNodes nodes = new RuntimeNodes(existing, cam);
-                nodesByPlayerScene.put(key, nodes);
-                return nodes;
+        ArrayList<Node> stack = new ArrayList<>();
+        stack.add(root);
+        while (!stack.isEmpty()) {
+            Node node = stack.remove(stack.size() - 1);
+            if (node == null) {
+                continue;
+            }
+            if ("PlayerStart".equals(scene.engine().nodeTypes().typeIdFor(node))) {
+                return node;
+            }
+            List<Node> children = node.children();
+            for (int i = children.size() - 1; i >= 0; i--) {
+                stack.add(children.get(i));
             }
         }
-
-        PlainNode character = new PlainNode(bodyName);
-        character.setProperty("@type", "CharacterBody3D");
-        scene.engine().nodeTypes().applyDefaults(character, "CharacterBody3D");
-
-        PlainNode camera = new PlainNode("Camera3D");
-        camera.setProperty("@type", "Camera3D");
-        camera.setProperty("@inherit_transform", "false");
-        scene.engine().nodeTypes().applyDefaults(camera, "Camera3D");
-
-        character.addChild(camera);
-        root.addChild(character);
-
-        RuntimeNodes nodes = new RuntimeNodes(character, camera);
-        nodesByPlayerScene.put(key, nodes);
-        return nodes;
-    }
-
-    private boolean isValid(ServerScene scene, RuntimeNodes nodes) {
-        if (nodes == null) {
-            return false;
-        }
-        Node c = scene.engine().sceneTree().getNode(nodes.character().nodeId());
-        Node cam = scene.engine().sceneTree().getNode(nodes.camera().nodeId());
-        return c == nodes.character() && cam == nodes.camera();
-    }
-
-    private WorldEnvironment readWorldEnvironment(ServerScene scene) {
-        Node root = scene.engine().sceneTree().root();
-        Node node = root.findChild("WorldEnvironment");
-        if (node == null) {
-            return new WorldEnvironment(
-                    false,
-                    0.5f,
-                    0.5f,
-                    0.5f,
-                    0.02f,
-                    true,
-                    6000,
-                    "clear",
-                    1.0f
-            );
-        }
-        boolean fogEnabled = parseBool(node.getProperty("fog_enabled"));
-        float fogDensity = parseFloat(node.getProperty("fog_density"), 0.02f);
-
-        float fogColorR = parseFloat(node.getProperty("fog_color_r"), Float.NaN);
-        float fogColorG = parseFloat(node.getProperty("fog_color_g"), Float.NaN);
-        float fogColorB = parseFloat(node.getProperty("fog_color_b"), Float.NaN);
-
-        if (Float.isNaN(fogColorR) && Float.isNaN(fogColorG) && Float.isNaN(fogColorB)) {
-            float[] legacy = parseLegacyRgb(node.getProperty("fog_color"));
-            fogColorR = legacy[0];
-            fogColorG = legacy[1];
-            fogColorB = legacy[2];
-        } else {
-            fogColorR = finiteOr(fogColorR, 0.5f);
-            fogColorG = finiteOr(fogColorG, 0.5f);
-            fogColorB = finiteOr(fogColorB, 0.5f);
-        }
-
-        boolean timeEnabled = parseBool(defaulted(node.getProperty("time_enabled"), "true"));
-        int timeTicks = parseInt(node.getProperty("time_ticks"), 6000);
-        String weather = defaulted(node.getProperty("weather"), "clear");
-        float ambientLight = parseFloat(node.getProperty("ambient_light"), 1.0f);
-
-        return new WorldEnvironment(
-                fogEnabled,
-                fogColorR,
-                fogColorG,
-                fogColorB,
-                fogDensity,
-                timeEnabled,
-                timeTicks,
-                weather,
-                ambientLight
-        );
-    }
-
-    private void applyWorldEnvironment(ServerScene scene, WorldEnvironment env) {
-        if (scene == null || env == null) {
-            return;
-        }
-
-        if (env.timeEnabled()) {
-            scene.instance().setTimeRate(0);
-            scene.instance().setTime(env.timeTicks());
-        } else {
-            scene.instance().setTimeRate(1);
-        }
-
-        scene.instance().setWeather(toWeather(env.weather()));
-    }
-
-    private static Weather toWeather(String value) {
-        if (value == null) {
-            return Weather.CLEAR;
-        }
-        return switch (value.trim().toLowerCase()) {
-            case "rain" -> Weather.RAIN;
-            case "thunder" -> Weather.THUNDER;
-            default -> Weather.CLEAR;
-        };
-    }
-
-    private static String defaulted(String value, String fallback) {
-        if (value == null || value.isBlank()) {
-            return fallback;
-        }
-        return value;
-    }
-
-    private static float finiteOr(float value, float fallback) {
-        return Float.isFinite(value) ? value : fallback;
-    }
-
-    private static float[] parseLegacyRgb(String value) {
-        float r = 0.5f;
-        float g = 0.5f;
-        float b = 0.5f;
-        if (value == null || value.isBlank()) {
-            return new float[]{r, g, b};
-        }
-        int c1 = value.indexOf(',');
-        int c2 = c1 < 0 ? -1 : value.indexOf(',', c1 + 1);
-        if (c1 > 0 && c2 > c1) {
-            r = parseFloat(value.substring(0, c1), r);
-            g = parseFloat(value.substring(c1 + 1, c2), g);
-            b = parseFloat(value.substring(c2 + 1), b);
-        }
-        return new float[]{r, g, b};
-    }
-
-    private static int parseInt(String value, int fallback) {
-        try {
-            if (value == null) {
-                return fallback;
-            }
-            return Integer.parseInt(value.trim());
-        } catch (Exception ignored) {
-            return fallback;
-        }
-    }
-
-    private static float parseFloat(String value, float fallback) {
-        try {
-            if (value == null) {
-                return fallback;
-            }
-            float v = Float.parseFloat(value.trim());
-            return Float.isFinite(v) ? v : fallback;
-        } catch (Exception ignored) {
-            return fallback;
-        }
-    }
-
-    private static boolean parseBool(String value) {
-        if (value == null) {
-            return false;
-        }
-        String v = value.trim().toLowerCase();
-        return "true".equals(v) || "1".equals(v);
-    }
-
-    private static float clampPitch(float pitchDeg) {
-        if (!Float.isFinite(pitchDeg)) {
-            return 0.0f;
-        }
-        return Math.max(MIN_PITCH, Math.min(MAX_PITCH, pitchDeg));
-    }
-
-    private static float normalizeYaw(float yawDeg) {
-        if (!Float.isFinite(yawDeg)) {
-            return 0.0f;
-        }
-        float wrapped = (float) (yawDeg % 360.0);
-        if (wrapped > 180.0f) {
-            wrapped -= 360.0f;
-        } else if (wrapped < -180.0f) {
-            wrapped += 360.0f;
-        }
-        return wrapped;
-    }
-
-    private static String trimFloat(float v) {
-        if (!Float.isFinite(v)) {
-            v = 0.0f;
-        }
-        if (Math.abs(v) < 1e-6f) {
-            v = 0.0f;
-        }
-        String s = Float.toString(v);
-        if (s.endsWith(".0")) {
-            return s.substring(0, s.length() - 2);
-        }
-        return s;
-    }
-
-    private record RuntimeNodes(Node character, Node camera) {
-    }
-
-    private record WorldEnvironment(
-            boolean fogEnabled,
-            float fogColorR,
-            float fogColorG,
-            float fogColorB,
-            float fogDensity,
-            boolean timeEnabled,
-            int timeTicks,
-            String weather,
-            float ambientLight
-    ) {
-    }
-
-    private record PlayerSceneKey(UUID playerId, String sceneId) {
+        return null;
     }
 }
