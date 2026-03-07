@@ -2,6 +2,7 @@ package com.moud.server.minestom.scripting;
 
 
 import com.moud.core.scene.Node;
+import java.util.UUID;
 
 final class RuntimeScriptUtil {
     private RuntimeScriptUtil() {

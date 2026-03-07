@@ -5,6 +5,8 @@ import foundry.veil.api.client.render.shader.ShaderManager;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Objects;
 import net.minecraft.util.Identifier;
 
@@ -53,4 +55,3 @@ public final class VeilDynamicShaders {
         private ShaderProgram program;
     }
 }
-

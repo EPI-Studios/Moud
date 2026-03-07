@@ -1,10 +1,17 @@
 package com.moud.client.fabric.editor.util;
 
 
+import com.moud.client.fabric.assets.AssetsClient;
+import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
+import org.lwjgl.util.tinyfd.TinyFileDialogs;
+
+import java.io.File;
+import java.nio.file.Files;
+import java.util.Locale;
 
 public final class AssetImportUtil {
     private AssetImportUtil() {
@@ -159,4 +166,3 @@ public final class AssetImportUtil {
     private record ImportTarget(String destDir, AssetType type) {
     }
 }
-

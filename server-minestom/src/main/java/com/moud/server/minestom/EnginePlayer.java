@@ -2,6 +2,8 @@ package com.moud.server.minestom;
 
 import com.moud.net.session.Session;
 import java.util.UUID;
+
+import com.moud.server.minestom.net.MinestomPlayerTransport;
 import net.minestom.server.entity.Player;
 import net.minestom.server.network.player.PlayerConnection;
 

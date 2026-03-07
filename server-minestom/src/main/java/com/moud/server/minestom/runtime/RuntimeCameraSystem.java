@@ -5,6 +5,8 @@ import com.moud.core.math.Quat;
 import com.moud.core.math.Transform;
 import com.moud.core.math.Vec3;
 import com.moud.core.scene.Node;
+import com.moud.core.util.MathUtils;
+import com.moud.core.util.ParseUtils;
 import com.moud.server.minestom.engine.ServerScene;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,7 +27,7 @@ final class RuntimeCameraSystem {
         if (scene == null) {
             return null;
         }
-        long graphRev = scene.engine().graphRevision();
+        long graphRev = scene.engine().sceneRevision();
         CameraCache cached = cameraCacheByScene.get(scene.sceneId());
         if (cached != null && cached.graphRevision == graphRev && cached.cameraNodeId > 0L) {
             Node node = scene.engine().sceneTree().getNode(cached.cameraNodeId);

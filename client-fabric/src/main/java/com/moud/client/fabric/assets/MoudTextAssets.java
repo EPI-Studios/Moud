@@ -7,10 +7,14 @@ import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
 import com.moud.net.protocol.AssetManifestResponse;
 import com.moud.net.protocol.AssetTransferStatus;
+import com.moud.client.fabric.net.ClientSessionBus;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 

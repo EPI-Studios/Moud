@@ -18,10 +18,13 @@ import com.moud.net.protocol.AssetUploadComplete;
 import com.moud.net.protocol.Message;
 import com.moud.net.session.Session;
 import com.moud.net.transport.Lane;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public final class AssetsClient {
     public static final int CHUNK_BYTES = 256 * 1024;

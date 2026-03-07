@@ -1,19 +1,26 @@
 package com.moud.server.minestom.physics;
 
+import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.BodyFilter;
 import com.github.stephengold.joltjni.BodyInterface;
 import com.github.stephengold.joltjni.BoxShape;
+import com.github.stephengold.joltjni.BroadPhaseLayerInterfaceTable;
 import com.github.stephengold.joltjni.CapsuleShape;
 import com.github.stephengold.joltjni.JobSystemSingleThreaded;
 import com.github.stephengold.joltjni.Jolt;
 import com.github.stephengold.joltjni.MassProperties;
+import com.github.stephengold.joltjni.ObjectLayerPairFilterTable;
+import com.github.stephengold.joltjni.ObjectVsBroadPhaseLayerFilterTable;
 import com.github.stephengold.joltjni.PhysicsSystem;
+import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Shape;
 import com.github.stephengold.joltjni.ShapeFilter;
 import com.github.stephengold.joltjni.SphereShape;
 import com.github.stephengold.joltjni.TempAllocatorImpl;
+import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
-import com.moud.core.math.Quat;
+import com.github.stephengold.joltjni.Quat;
 import com.moud.server.minestom.engine.Engine;
 import com.moud.core.math.Transform;
 import com.moud.core.physics.BodyHandle;
@@ -24,6 +31,7 @@ import com.moud.core.scene.Node;
 import com.moud.core.scene.SceneTree;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Jolt-backed {@link PhysicsWorld} implementation.
@@ -226,7 +234,7 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
                 settings.setMassPropertiesOverride(
                         new MassProperties().setMass(mass));
                 settings.setOverrideMassProperties(
-                        EOverrideMassProperties);
+                        EOverrideMassProperties.CalculateInertia);
             }
             try {
                 return bodies.createAndAddBody(settings, EActivation.Activate);

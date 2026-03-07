@@ -1,6 +1,18 @@
 package com.moud.client.fabric.editor.tools;
 
 
+import com.miry.ui.gizmo.GizmoOverlay3D;
+import com.miry.ui.gizmo.GizmoSpace;
+import com.miry.ui.Ui;
+import com.miry.ui.render.UiRenderer;
+import com.miry.ui.theme.Theme;
+import com.moud.client.fabric.editor.state.EditorRuntime;
+import com.moud.client.fabric.editor.state.EditorState;
+import com.moud.client.fabric.platform.MinecraftGhostBlocks;
+import com.moud.client.fabric.platform.MinecraftRenderBridge;
+import com.moud.client.fabric.render.DebugRenderer;
+import com.moud.client.fabric.render.VeilDebugRenderer;
+import com.moud.client.fabric.scene.ClientSceneBus;
 import com.moud.core.NodeTypeDef;
 import com.moud.core.PropertyDef;
 import com.moud.net.protocol.SceneOp;
@@ -9,8 +21,15 @@ import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.session.Session;
 import com.moud.net.transport.Lane;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.joml.Matrix4f;
+import org.joml.Matrix3f;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+import org.joml.Vector4f;
+import org.joml.Vector3d;
 
 public final class EditorGizmos implements AutoCloseable {
     private static final float DEFAULT_FOV_DEG = 70.0f;

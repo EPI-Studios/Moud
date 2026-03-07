@@ -1,5 +1,6 @@
 package com.moud.client.fabric.render;
 
+import org.joml.Vector3f;
 
 public interface DebugRenderer {
     void line(Vector3f from, Vector3f to, int colorARGB, float thickness);

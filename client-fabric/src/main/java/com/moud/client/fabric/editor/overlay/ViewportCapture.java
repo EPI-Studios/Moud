@@ -1,8 +1,14 @@
 package com.moud.client.fabric.editor.overlay;
 
+import com.miry.graphics.Texture;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.util.Window;
+import org.lwjgl.glfw.GLFW;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL12;
+import org.lwjgl.opengl.GL13;
+import org.lwjgl.opengl.GL30;
 
 final class ViewportCapture {
     private static final long MIN_CAPTURE_INTERVAL_NS = 16_666_667L; // ~60 FPS cap

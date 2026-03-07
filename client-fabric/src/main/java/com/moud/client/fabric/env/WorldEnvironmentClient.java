@@ -1,8 +1,10 @@
 package com.moud.client.fabric.env;
 
 
+import com.moud.client.fabric.scene.ClientSceneBus;
 import com.moud.net.protocol.SceneSnapshot;
 import java.util.List;
+import java.util.Locale;
 
 public final class WorldEnvironmentClient {
     private static final Object LOCK = new Object();
@@ -199,4 +201,3 @@ public final class WorldEnvironmentClient {
         }
     }
 }
-

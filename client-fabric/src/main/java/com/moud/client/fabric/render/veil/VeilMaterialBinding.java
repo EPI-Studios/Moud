@@ -1,11 +1,20 @@
 package com.moud.client.fabric.render.veil;
 
+import com.moud.client.fabric.render.MoudTextures;
+import com.moud.client.fabric.assets.MoudTextAssets;
+import com.moud.client.fabric.render.material.MoudMaterial;
+import com.moud.client.fabric.render.material.MoudMaterialParser;
+import com.moud.client.fabric.render.material.MoudShaderFile;
+import com.moud.client.fabric.render.material.MoudShaderParser;
+import com.moud.client.fabric.render.material.MoudShaderUniform;
 import com.moud.core.assets.AssetHash;
 import com.moud.core.assets.ResPath;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
 import foundry.veil.api.client.render.shader.uniform.ShaderUniformAccess;
 import java.util.Map;
+import java.util.Locale;
 import java.util.Objects;
+import java.nio.charset.StandardCharsets;
 import net.minecraft.util.Identifier;
 
 public final class VeilMaterialBinding {
@@ -179,4 +188,3 @@ public final class VeilMaterialBinding {
         return v == null ? "" : v.trim();
     }
 }
-

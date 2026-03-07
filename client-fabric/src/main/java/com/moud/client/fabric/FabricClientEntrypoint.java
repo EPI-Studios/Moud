@@ -1,5 +1,23 @@
 package com.moud.client.fabric;
 
+import com.moud.client.fabric.assets.AssetsClient;
+import com.moud.client.fabric.assets.MoudTextAssets;
+import com.moud.client.fabric.editor.overlay.EditorContext;
+import com.moud.client.fabric.editor.overlay.EditorOverlay;
+import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
+import com.moud.client.fabric.net.ClientSessionBus;
+import com.moud.client.fabric.net.EnginePayload;
+import com.moud.client.fabric.net.FabricEngineTransport;
+import com.moud.client.fabric.platform.MinecraftFreeflyCamera;
+import com.moud.client.fabric.platform.MinecraftGhostBlocks;
+import com.moud.client.fabric.render.MoudIcons;
+import com.moud.client.fabric.render.MoudTextures;
+import com.moud.client.fabric.render.VeilSceneNodeRenderer;
+import com.moud.client.fabric.render.env.VeilWorldEnvironmentRenderer;
+import com.moud.client.fabric.runtime.PlayRuntimeBus;
+import com.moud.client.fabric.runtime.PlayRuntimeClient;
+import com.moud.client.fabric.scene.ClientSceneBus;
+import com.moud.client.fabric.util.ClientDebugLog;
 import com.moud.net.protocol.Message;
 import com.moud.net.protocol.ProjectCreateAck;
 import com.moud.net.protocol.ProjectInfo;
@@ -32,6 +50,7 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.text.Text;
+import org.lwjgl.glfw.GLFW;
 
 public final class FabricClientEntrypoint implements ClientModInitializer {
     private static FabricClientEntrypoint instance;
@@ -84,6 +103,7 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
         VeilWorldEnvironmentRenderer.init();
         MoudTextures.init(assets);
         MoudTextAssets.init(assets);
+        initIcons();
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> onJoin());
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> onDisconnect());
@@ -104,6 +124,14 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
                 playRuntime.tick(s);
             }
         });
+    }
+
+    private static void initIcons() {
+        // Register editor icons from assets/moud/icons/*.png
+        // Add entries here as you drop PNGs into that folder:
+        // MoudIcons.loadFromResource("node",    "/assets/moud/icons/node.png");
+        // MoudIcons.loadFromResource("camera",  "/assets/moud/icons/camera.png");
+        // MoudIcons.loadFromResource("light",   "/assets/moud/icons/light.png");
     }
 
     private void onJoin() {

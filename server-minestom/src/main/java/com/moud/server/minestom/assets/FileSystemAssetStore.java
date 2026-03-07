@@ -7,8 +7,10 @@ import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
 import com.moud.core.assets.AssetManifest;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -136,4 +138,3 @@ public final class FileSystemAssetStore implements AssetStore {
         Files.move(tmp, manifestFile, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
     }
 }
-

@@ -1,6 +1,11 @@
 package com.moud.client.fabric.render;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.moud.client.fabric.assets.MoudTextAssets;
 import com.moud.core.assets.ResPath;
+import com.moud.client.fabric.render.material.MoudMaterial;
+import com.moud.client.fabric.render.material.MoudMaterialParser;
+import com.moud.client.fabric.scene.ClientSceneBus;
 import com.moud.net.protocol.SceneSnapshot;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.light.data.AreaLightData;
@@ -10,10 +15,13 @@ import foundry.veil.api.client.render.light.renderer.LightRenderHandle;
 import foundry.veil.api.client.render.light.renderer.LightRenderer;
 import foundry.veil.api.event.VeilRenderLevelStageEvent;
 import foundry.veil.fabric.event.FabricVeilRenderLevelStageEvent;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.Frustum;
@@ -27,6 +35,9 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Matrix4fc;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 public final class VeilSceneNodeRenderer {
     private static boolean initialized;

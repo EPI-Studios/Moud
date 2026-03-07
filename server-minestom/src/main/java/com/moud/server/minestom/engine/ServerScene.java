@@ -6,6 +6,7 @@ import com.moud.net.protocol.SceneSnapshot;
 import com.moud.server.minestom.engine.csg.CsgBlockWriter;
 import com.moud.server.minestom.engine.nodes.RootNode;
 import net.minestom.server.instance.InstanceContainer;
+import com.moud.server.minestom.engine.EngineSchema;
 
 import java.util.Objects;
 

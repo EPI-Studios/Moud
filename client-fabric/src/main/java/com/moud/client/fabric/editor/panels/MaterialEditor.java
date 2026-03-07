@@ -1,10 +1,39 @@
 package com.moud.client.fabric.editor.panels;
 
+import com.miry.platform.InputConstants;
+import com.miry.ui.clipboard.Clipboard;
+import com.miry.ui.Ui;
+import com.miry.ui.UiContext;
+import com.miry.ui.event.KeyEvent;
+import com.miry.ui.event.TextInputEvent;
+import com.miry.ui.render.UiRenderer;
+import com.miry.ui.theme.Icon;
+import com.miry.ui.theme.Theme;
+import com.miry.ui.widgets.ContextMenu;
+import com.miry.ui.widgets.DraggableNumberField;
+import com.miry.ui.widgets.TextField;
+import com.miry.graphics.Texture;
+import com.moud.client.fabric.assets.AssetsClient;
+import com.moud.client.fabric.assets.MoudTextAssets;
+import com.moud.client.fabric.editor.state.EditorRuntime;
+import com.moud.client.fabric.editor.util.EditorUiUtil;
+import com.moud.client.fabric.render.MoudTextures;
+import com.moud.client.fabric.render.material.MoudMaterial;
+import com.moud.client.fabric.render.material.MoudMaterialParser;
+import com.moud.client.fabric.render.material.MoudMaterialWriter;
+import com.moud.client.fabric.render.material.MoudShaderFile;
+import com.moud.client.fabric.render.material.MoudShaderUniform;
+import com.moud.client.fabric.render.material.MoudShaderParser;
+import com.moud.client.fabric.util.ParseUtils;
+import com.moud.client.fabric.render.preview.MaterialPreviewRenderer;
 import com.moud.core.PropertyDef;
 import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
 import com.moud.net.session.Session;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Locale;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -745,4 +774,3 @@ final class MaterialEditor {
         }
     }
 }
-

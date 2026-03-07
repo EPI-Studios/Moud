@@ -2,7 +2,23 @@ package com.moud.client.fabric.editor.panels;
 
 
 import com.moud.net.protocol.SceneInfo;
+import com.miry.ui.PanelContext;
+import com.miry.ui.UiContext;
+import com.miry.ui.panels.Panel;
+import com.miry.ui.render.UiRenderer;
+import com.miry.ui.theme.Icon;
+import com.miry.ui.theme.Theme;
+import com.miry.ui.widgets.TabBar;
+import com.miry.graphics.Texture;
+import com.moud.client.fabric.editor.net.EditorNet;
+import com.moud.client.fabric.editor.overlay.EditorContext;
+import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
+import com.moud.client.fabric.editor.state.EditorRuntime;
+import com.moud.client.fabric.editor.state.EditorState;
+import com.moud.client.fabric.editor.tools.EditorGizmos;
+import com.moud.client.fabric.editor.tools.EditorTool;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 public final class ViewportPanel extends Panel {
     private final EditorRuntime runtime;

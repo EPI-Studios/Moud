@@ -1,9 +1,15 @@
 package com.moud.client.fabric.mixin;
 
+import com.moud.client.fabric.env.WorldEnvironmentClient;
+import com.moud.client.fabric.env.WorldEnvironmentClient.Mode;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
+import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(WorldRenderer.class)
 public abstract class WorldRendererSkyCloudOverrideMixin {
@@ -21,4 +27,3 @@ public abstract class WorldRendererSkyCloudOverrideMixin {
         }
     }
 }
-

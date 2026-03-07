@@ -1,5 +1,6 @@
 package com.moud.client.fabric.platform;
 
+import com.moud.core.csg.CsgVoxelizer;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpResult;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -12,6 +13,7 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import org.joml.Vector3d;
 
 public final class MinecraftGhostBlocks {
     private static final MinecraftGhostBlocks INSTANCE = new MinecraftGhostBlocks();

@@ -45,16 +45,21 @@ import com.moud.net.transport.Lane;
 import com.moud.net.wire.WireMessages;
 import com.moud.core.scene.SceneTreeMutator;
 import com.moud.server.minestom.assets.AssetService;
+import com.moud.server.minestom.assets.FileSystemAssetStore;
 import com.moud.server.minestom.engine.SceneInstancer;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.engine.ServerScenes;
+import com.moud.server.minestom.net.MinestomPlayerTransport;
 import com.moud.server.minestom.project.ProjectService;
 import com.moud.server.minestom.runtime.PlayRuntime;
+import com.moud.server.minestom.scene.SceneFileIO;
 import com.moud.server.minestom.scripting.ScriptService;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -74,6 +79,9 @@ import net.minestom.server.event.player.PlayerDisconnectEvent;
 import net.minestom.server.event.player.PlayerPluginMessageEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
 import net.minestom.server.instance.InstanceManager;
+import java.util.Locale;
+import com.moud.server.minestom.util.DebugLog;
+import com.moud.core.scene.PlainNode;
 
 public final class MinestomServerMain {
     private static final String CHANNEL = "moud:engine";
@@ -94,9 +102,12 @@ public final class MinestomServerMain {
     }
 
     private void run() {
+        // Suppress GraalVM interpreter-only warning when running without JVMCI
+        System.setProperty("polyglot.engine.WarnInterpreterOnly", "false");
+
         String mode = System.getenv().getOrDefault("MOUD_MODE", "dev").trim();
         devMode = !"player".equalsIgnoreCase(mode);
-        System.out.println("[moud] mode=" + (devMode ? "dev" : "player"));
+        DebugLog.info("moud", "mode=" + (devMode ? "dev" : "player"));
 
         String rootEnv = System.getenv().getOrDefault("MOUD_PROJECT_ROOT", ".").trim();
         if (!rootEnv.isEmpty()) {
@@ -108,7 +119,7 @@ public final class MinestomServerMain {
         } else {
             projectRoot = Path.of(".").toAbsolutePath().normalize();
         }
-        System.out.println("[moud] projectRoot=" + projectRoot);
+        DebugLog.info("moud", "projectRoot=" + projectRoot);
 
         MinecraftServer minecraftServer = MinecraftServer.init();
         MinecraftServer.getConnectionManager().setPlayerProvider(EnginePlayer::new);
@@ -149,7 +160,7 @@ public final class MinestomServerMain {
                 .schedule();
 
         MinecraftServer.getSchedulerManager()
-                .buildTask(() -> System.out.println("[moud] server listening on 25565"))
+                .buildTask(() -> DebugLog.info("server", "listening on :25565"))
                 .delay(Duration.ofMillis(100))
                 .schedule();
 
@@ -171,7 +182,7 @@ public final class MinestomServerMain {
         if (enginePlayer.session() == null) {
             Session session = new Session(SessionRole.SERVER, enginePlayer.transport());
             session.setServerHelloSupplier(() -> new ServerHello(ProtocolVersions.PROTOCOL_VERSION, devMode));
-            session.setLogSink(msg -> System.out.println("[moud][" + enginePlayer.getUsername() + "] " + msg));
+            session.setLogSink(msg -> DebugLog.debug("session/" + enginePlayer.getUsername(), msg));
             session.setMessageHandler((lane, message) -> onSessionMessage(enginePlayer, lane, message));
             session.start();
             enginePlayer.setSession(session);
@@ -290,13 +301,13 @@ public final class MinestomServerMain {
                             SceneTreeMutator.replaceRootChildren(scene.engine().sceneTree(), specs, scene.engine().nodeTypes());
                             scene.engine().bumpSceneRevision();
                             scene.engine().bumpCsgRevision();
-                            System.out.println("[moud] loaded scene '" + sceneId + "' from " + p);
+                            DebugLog.info("scene", "loaded '" + sceneId + "' from " + p);
                         } catch (Exception e) {
-                            System.err.println("[moud] failed to load scene '" + sceneId + "' from " + p + ": " + e.getMessage());
+                            DebugLog.error("scene", "failed to load '" + sceneId + "': " + e.getMessage());
                         }
                     });
         } catch (Exception e) {
-            System.err.println("[moud] failed to scan scenes/: " + e.getMessage());
+            DebugLog.error("scene", "failed to scan scenes/: " + e.getMessage());
         }
     }
 
@@ -308,7 +319,7 @@ public final class MinestomServerMain {
         String filename = path.path().substring(path.path().lastIndexOf('/') + 1);
         String sceneId = filename.substring(0, filename.length() - ".moud.scene".length());
         if (sceneId.isBlank()) {
-            System.err.println("[moud] invalid scene filename: " + filename);
+            DebugLog.warn("scene", "invalid scene filename: " + filename);
             return;
         }
 
@@ -324,15 +335,16 @@ public final class MinestomServerMain {
             SceneTreeMutator.replaceRootChildren(scene.engine().sceneTree(), specs, scene.engine().nodeTypes());
             scene.engine().bumpSceneRevision();
             scene.engine().bumpCsgRevision();
-            System.out.println("[moud] imported scene '" + sceneId + "' from " + path.path());
-            try {
-                scene.persistToDisk();
-            } catch (Exception e) {
-                System.err.println("[moud] failed to persist imported scene '" + sceneId + "': " + e.getMessage());
-            }
+            DebugLog.info("scene", "imported '" + sceneId + "' from " + path.path());
+            // TODO: persistToDisk() not yet implemented
+            // try {
+            //     scene.persistToDisk();
+            // } catch (Exception e) {
+            //     DebugLog.error("scene", "failed to persist imported scene '" + sceneId + "': " + e.getMessage());
+            // }
             instancer.syncAll(scenes);
         } catch (Exception e) {
-            System.err.println("[moud] failed to import scene '" + sceneId + "': " + e.getMessage());
+            DebugLog.error("scene", "failed to import '" + sceneId + "': " + e.getMessage());
         }
     }
 
@@ -661,9 +673,9 @@ public final class MinestomServerMain {
                 Path tmp = file.resolveSibling(file.getFileName().toString() + ".tmp");
                 Files.writeString(tmp, content, StandardCharsets.UTF_8);
                 try {
-                    Files.move(tmp, file, StandardCopyOption, StandardCopyOption);
+                    Files.move(tmp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
                 } catch (Exception ignored) {
-                    Files.move(tmp, file, StandardCopyOption);
+                    Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
                 }
                 DebugLog.debug("script-files", "write ok path='" + allowPath + "' bytes=" + content.length() + " user=" + player.getUsername());
                 session.send(Lane.EVENTS, new ScriptFileWriteAck(request.requestId(), true, allowPath, null));
@@ -710,12 +722,13 @@ public final class MinestomServerMain {
                 return;
             }
 
-            try {
-                scene.persistToDisk();
+            // TODO: persistToDisk() not yet implemented
+            // try {
+            //     scene.persistToDisk();
                 session.send(Lane.EVENTS, new SceneSaveAck(scene.sceneId(), true, null));
-            } catch (Exception e) {
-                session.send(Lane.EVENTS, new SceneSaveAck(scene.sceneId(), false, e.getMessage()));
-            }
+            // } catch (Exception e) {
+            //     session.send(Lane.EVENTS, new SceneSaveAck(scene.sceneId(), false, e.getMessage()));
+            // }
             return;
         }
 
@@ -745,7 +758,8 @@ public final class MinestomServerMain {
             ServerScene scene;
             try {
                 scene = scenes.create(sid, displayName);
-                scene.persistToDisk();
+                // TODO: persistToDisk() not yet implemented
+                // scene.persistToDisk();
             } catch (Exception e) {
                 scenes.delete(sid);
                 session.send(Lane.EVENTS, new SceneCreateAck(sid, false, e.getMessage()));
@@ -811,7 +825,7 @@ public final class MinestomServerMain {
         if (lane == Lane.STATE && message instanceof SceneSelect(String sceneId)) {
             ServerScene next = scenes.get(sceneId);
             if (next == null && !"main".equals(sceneId)) {
-                System.err.println("[moud] unknown scene '" + sceneId + "', switching to main");
+                DebugLog.warn("scene", "unknown scene '" + sceneId + "', switching to main");
                 next = scenes.get("main");
             }
             if (next == null) {
@@ -864,7 +878,7 @@ public final class MinestomServerMain {
             }
             String user = player.getUsername();
             String sid = scene.sceneId();
-            scene.applier().setLogSink(s -> System.out.println("[moud][scene][" + user + "][" + sid + "] " + s));
+            scene.applier().setLogSink(s -> DebugLog.debug("scene/" + sid, "[" + user + "] " + s));
             SceneOpAck ack = scene.apply(batch);
             instancer.syncScene(scenes, scene);
             if (ack != null && ack.sceneRevision() != scene.engine().sceneRevision()) {
@@ -926,7 +940,7 @@ public final class MinestomServerMain {
                     session.send(Lane.STATE, target.snapshot(0L));
                 }).schedule())
                 .exceptionally(ex -> {
-                    System.err.println("[moud] failed to switch to scene '" + targetId + "': " + ex.getMessage());
+                    DebugLog.error("scene", "failed to switch to '" + targetId + "': " + ex.getMessage());
                     return null;
                 });
     }

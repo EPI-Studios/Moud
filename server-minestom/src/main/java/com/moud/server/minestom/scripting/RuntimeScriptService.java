@@ -2,12 +2,14 @@ package com.moud.server.minestom.scripting;
 
 
 import com.moud.net.protocol.PlayerInput;
-import com.moud.server.minestom.engine.Engine;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.project.ProjectService;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.graalvm.polyglot.Engine;
+import org.graalvm.polyglot.HostAccess;
 
 final class RuntimeScriptService {
     private final ProjectService project;

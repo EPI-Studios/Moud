@@ -3,6 +3,7 @@ package com.moud.client.fabric.render.material;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -55,4 +56,3 @@ public final class MoudShaderFile {
         return uniformsByName.get(name);
     }
 }
-

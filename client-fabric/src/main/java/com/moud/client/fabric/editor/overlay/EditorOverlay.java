@@ -1,5 +1,39 @@
 package com.moud.client.fabric.editor.overlay;
 
+import com.moud.client.fabric.assets.AssetsClient;
+import com.moud.client.fabric.editor.dialogs.CreateNodeDialog;
+import com.moud.client.fabric.editor.dialogs.CreateProjectDialog;
+import com.moud.client.fabric.editor.dialogs.ScriptEditorDialog;
+import com.moud.client.fabric.editor.tools.EditorGizmos;
+import com.moud.client.fabric.editor.net.EditorNet;
+import com.moud.client.fabric.editor.panels.AssetsPanel;
+import com.moud.client.fabric.editor.panels.InspectorPanel;
+import com.moud.client.fabric.editor.panels.ScenePanel;
+import com.moud.client.fabric.editor.state.EditorRuntime;
+import com.moud.client.fabric.editor.state.EditorState;
+import com.miry.graphics.Framebuffer;
+import com.miry.graphics.batch.BatchRenderer;
+import com.miry.graphics.post.GaussianBlur;
+import com.miry.ui.Ui;
+import com.miry.ui.UiContext;
+import com.miry.ui.input.UiInput;
+import com.miry.ui.font.FontAtlas;
+import com.miry.ui.font.FontData;
+import com.miry.ui.font.TextRenderer;
+import com.miry.ui.layout.DockSpace;
+import com.miry.ui.layout.LeafNode;
+import com.miry.ui.layout.SplitNode;
+import com.miry.ui.theme.Theme;
+import com.miry.ui.util.MathUtils;
+import com.miry.ui.window.WindowManager;
+import com.miry.ui.window.UiWindow;
+import com.miry.ui.event.UiEvent;
+import com.miry.ui.event.TextInputEvent;
+import com.moud.client.fabric.platform.MinecraftGhostBlocks;
+import com.moud.client.fabric.render.VeilDebugRenderer;
+import com.moud.client.fabric.render.preview.MaterialPreviewRenderer;
+import com.moud.client.fabric.util.ClientDebugLog;
+import com.moud.client.fabric.editor.theme.EditorTheme;
 import com.moud.net.protocol.ProjectCreateAck;
 import com.moud.net.protocol.ProjectInfo;
 import com.moud.net.protocol.SceneCreateAck;
@@ -18,6 +52,14 @@ import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.Window;
+import org.lwjgl.glfw.GLFW;
+import org.lwjgl.opengl.GL11;
+import com.miry.ui.event.KeyEvent;
+import com.moud.client.fabric.editor.panels.BottomPanel;
+import com.moud.client.fabric.editor.panels.ToolbarPanel;
+import com.moud.client.fabric.editor.panels.ViewportPanel;
+import com.miry.graphics.Texture;
+import org.joml.Vector3f;
 
 public final class EditorOverlay {
     private final Theme theme = new Theme();
@@ -453,7 +495,7 @@ public final class EditorOverlay {
         uiFramebuffer.ensureSize(Math.max(1, fbW), Math.max(1, fbH));
 
         try (Framebuffer.Binding ignored = uiFramebuffer.bindScoped()) {
-            GL11.glClearColor(theme.windowBg.x, theme.windowBg.y, theme.windowBg.z, theme.windowBg.w);
+            GL11.glClearColor(theme.windowBg.getR(), theme.windowBg.getG(), theme.windowBg.getB(), theme.windowBg.getA());
             GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
             batch.begin(w, h, framebufferScale);
             dockSpace.render(batch);
@@ -777,15 +819,15 @@ public final class EditorOverlay {
             }
             switch (p.key()) {
                 case "sx" -> {
-                    sx = ParseUtils.parseFloat(p.value(), sx);
+                    sx = parseFloat(p.value(), sx);
                     any = true;
                 }
                 case "sy" -> {
-                    sy = ParseUtils.parseFloat(p.value(), sy);
+                    sy = parseFloat(p.value(), sy);
                     any = true;
                 }
                 case "sz" -> {
-                    sz = ParseUtils.parseFloat(p.value(), sz);
+                    sz = parseFloat(p.value(), sz);
                     any = true;
                 }
                 default -> {
@@ -807,6 +849,18 @@ public final class EditorOverlay {
             dist = 64.0;
         }
         return dist;
+    }
+
+    private static float parseFloat(String raw, float fallback) {
+        if (raw == null || raw.isBlank()) {
+            return fallback;
+        }
+        try {
+            float v = Float.parseFloat(raw.trim());
+            return Float.isFinite(v) ? v : fallback;
+        } catch (Exception ignored) {
+            return fallback;
+        }
     }
 
     private void showToast(String message, boolean error, int durationMs) {

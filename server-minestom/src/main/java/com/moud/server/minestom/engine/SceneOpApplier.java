@@ -10,13 +10,10 @@ import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpBatch;
 import com.moud.net.protocol.SceneOpError;
 import com.moud.net.protocol.SceneOpResult;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+
+import java.util.*;
 import java.util.function.Consumer;
+import com.moud.core.scene.PlainNode;
 
 
 public final class SceneOpApplier {
@@ -79,7 +76,7 @@ public final class SceneOpApplier {
             engine.bumpSceneRevision();
         }
         if (anyGraphChanged) {
-            engine.bumpGraphRevision();
+            engine.bumpSceneRevision();
         }
         if (anyCsgChanged) {
             engine.bumpCsgRevision();

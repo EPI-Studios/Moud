@@ -2,9 +2,15 @@ package com.moud.client.fabric.render.material;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.lwjgl.opengl.GL20C;
+import org.lwjgl.opengl.GL32C;
 
 
 public final class MoudShaderParser {
@@ -188,4 +194,3 @@ public final class MoudShaderParser {
     private record ExposeInfo(Map<String, String> hints) {
     }
 }
-

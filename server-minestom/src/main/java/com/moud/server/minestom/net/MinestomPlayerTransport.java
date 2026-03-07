@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.function.BiConsumer;
 import net.minestom.server.entity.Player;
+import java.util.Deque;
 
 public final class MinestomPlayerTransport implements Transport {
     private final Player player;

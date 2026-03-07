@@ -5,21 +5,19 @@ import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpBatch;
 import com.moud.net.protocol.SceneOpResult;
-import com.moud.server.minestom.engine.Engine;
+import org.graalvm.polyglot.Engine;
+import com.moud.server.minestom.engine.SceneBatchIds;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.project.ProjectService;
+import com.moud.server.minestom.util.DebugLog;
+
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import org.graalvm.polyglot.Context;
-import org.graalvm.polyglot.HostAccess;
-import org.graalvm.polyglot.Value;
+
+import org.graalvm.polyglot.*;
 
 final class SceneRuntime {
     private static final String LOG_TAG = "script-runtime";
@@ -133,7 +131,7 @@ final class SceneRuntime {
     }
 
     private ArrayList<Target> targetsFor(ServerScene scene) {
-        long graphRev = scene.engine().graphRevision();
+        long graphRev = scene.engine().sceneRevision();
         if (cachedTargetsGraphRevision == graphRev) {
             return cachedTargets;
         }

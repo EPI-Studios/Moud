@@ -1,6 +1,25 @@
 package com.moud.client.fabric.editor.panels;
 
 
+import com.miry.ui.PanelContext;
+import com.miry.ui.Ui;
+import com.miry.ui.UiContext;
+import com.miry.ui.clipboard.Clipboard;
+import com.miry.ui.event.KeyEvent;
+import com.miry.ui.event.TextInputEvent;
+import com.miry.ui.panels.Panel;
+import com.miry.ui.render.UiRenderer;
+import com.miry.ui.theme.Theme;
+import com.miry.ui.theme.Icon;
+import com.miry.ui.widgets.AssetBrowser;
+import com.miry.ui.widgets.ContextMenu;
+import com.miry.ui.widgets.StripTabs;
+import com.miry.ui.widgets.TextField;
+import com.moud.client.fabric.assets.AssetsClient;
+import com.moud.client.fabric.editor.util.AssetImportUtil;
+import com.moud.client.fabric.editor.util.EditorUiUtil;
+import com.moud.client.fabric.editor.state.EditorRuntime;
+import com.moud.client.fabric.editor.state.EditorState;
 import com.moud.core.assets.AssetType;
 import com.moud.net.protocol.AssetManifestResponse;
 import com.moud.net.protocol.AssetTransferStatus;
@@ -8,6 +27,7 @@ import com.moud.net.protocol.AssetUploadAck;
 import com.moud.net.protocol.SceneInfo;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Locale;
 
 public final class AssetsPanel extends Panel implements AssetsClient.Listener {
     private final EditorRuntime runtime;

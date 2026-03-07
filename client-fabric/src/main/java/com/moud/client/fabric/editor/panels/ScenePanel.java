@@ -1,10 +1,32 @@
 package com.moud.client.fabric.editor.panels;
 
 import com.miry.platform.InputConstants;
+import com.miry.ui.UiContext;
+import com.miry.ui.PanelContext;
+import com.miry.ui.Ui;
+import com.miry.ui.event.KeyEvent;
+import com.miry.ui.event.TextInputEvent;
+import com.miry.ui.panels.Panel;
+import com.miry.ui.render.UiRenderer;
+import com.miry.ui.theme.Theme;
+import com.miry.ui.theme.Icon;
+import com.miry.ui.input.UiInput;
+import com.miry.ui.widgets.ContextMenu;
+import com.miry.ui.widgets.StripTabs;
+import com.miry.ui.widgets.TextField;
+import com.miry.ui.widgets.TreeNode;
+import com.miry.ui.widgets.TreeView;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.moud.client.fabric.editor.state.EditorRuntime;
+import com.moud.client.fabric.editor.state.EditorState;
+import com.moud.client.fabric.editor.util.EditorUiUtil;
+import com.moud.client.fabric.assets.AssetsClient;
 import com.moud.core.NodeTypeDef;
 import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
 import com.moud.core.scene.Node;
+import com.moud.core.scene.SceneFile;
 import com.moud.net.protocol.AssetTransferStatus;
 import com.moud.net.protocol.AssetUploadAck;
 import com.moud.net.protocol.SceneOp;
@@ -20,7 +42,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Locale;
+import java.nio.charset.StandardCharsets;
 
 public final class ScenePanel extends Panel {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -71,29 +95,29 @@ public final class ScenePanel extends Panel {
         }
         if (renamingNodeId >= 0) {
             renameTreeField.handleKey(e, ctx.clipboard());
-            if (e.isPressOrRepeat() && e.key() == InputConstants) {
+            if (e.isPressOrRepeat() && e.key() == InputConstants.KEY_ENTER) {
                 commitInlineRename();
-            } else if (e.isPressOrRepeat() && e.key() == InputConstants) {
+            } else if (e.isPressOrRepeat() && e.key() == InputConstants.KEY_ESCAPE) {
                 renamingNodeId = -1;
             }
             return;
         }
         if (saveBranchOpen) {
-            if (e.isPressOrRepeat() && e.key() == InputConstants) {
+            if (e.isPressOrRepeat() && e.key() == InputConstants.KEY_ESCAPE) {
                 saveBranchOpen = false;
                 saveBranchError = null;
                 return;
             }
             if (saveBranchSceneIdField.isFocused(ctx)) {
                 saveBranchSceneIdField.handleKey(e, ctx.clipboard());
-                if (e.isPressOrRepeat() && e.key() == InputConstants) {
+                if (e.isPressOrRepeat() && e.key() == InputConstants.KEY_ENTER) {
                     commitSaveBranch();
                 }
                 return;
             }
             if (saveBranchDisplayNameField.isFocused(ctx)) {
                 saveBranchDisplayNameField.handleKey(e, ctx.clipboard());
-                if (e.isPressOrRepeat() && e.key() == InputConstants) {
+                if (e.isPressOrRepeat() && e.key() == InputConstants.KEY_ENTER) {
                     commitSaveBranch();
                 }
                 return;
@@ -104,7 +128,7 @@ public final class ScenePanel extends Panel {
             return;
         }
         if (treeView != null && treeView.isFocused(ctx) && e.isPressOrRepeat()) {
-            if (e.key() == InputConstants) {
+            if (e.key() == InputConstants.KEY_F2) {
                 EditorState state = runtime.state();
                 SceneSnapshot.NodeSnapshot selected = state != null ? state.scene.getNode(state.selectedId) : null;
                 if (selected != null) {
@@ -112,7 +136,7 @@ public final class ScenePanel extends Panel {
                 }
                 return;
             }
-            if (e.key() == InputConstants) {
+            if (e.key() == InputConstants.KEY_DELETE) {
                 EditorState state = runtime.state();
                 SceneSnapshot.NodeSnapshot selected = state != null ? state.scene.getNode(state.selectedId) : null;
                 if (selected != null && selected.parentId() != 0L) {
@@ -650,7 +674,9 @@ public final class ScenePanel extends Panel {
         }
         int col = hovered ? Theme.toArgb(theme.text) : Theme.toArgb(theme.textMuted);
         String text = label == null ? "" : label;
-        r.drawText(text, x + 4, r.baselineForBox(y, h), col);
+        float textW = r.measureText(text);
+        float tx = x + Math.max(0f, (w - textW) / 2f);
+        r.drawText(text, tx, r.baselineForBox(y, h), col);
         if (hovered && click && action != null) {
             action.run();
         }

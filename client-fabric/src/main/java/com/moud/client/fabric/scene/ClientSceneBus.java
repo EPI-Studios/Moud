@@ -5,6 +5,7 @@ import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneSnapshot;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 public final class ClientSceneBus {
     private static final SceneState SCENE = new SceneState();

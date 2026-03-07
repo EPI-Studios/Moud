@@ -1,10 +1,25 @@
 package com.moud.client.fabric.editor.dialogs;
 
 
+import com.miry.platform.InputConstants;
+import com.miry.ui.Ui;
+import com.miry.ui.UiContext;
+import com.miry.ui.event.KeyEvent;
+import com.miry.ui.event.TextInputEvent;
+import com.miry.ui.render.UiRenderer;
+import com.miry.ui.theme.Icon;
+import com.miry.ui.theme.Theme;
+import com.miry.ui.widgets.CodeEditor;
+import com.miry.ui.widgets.TextField;
+import com.moud.client.fabric.editor.net.EditorNet;
+import com.moud.client.fabric.editor.state.EditorRuntime;
+import com.moud.client.fabric.editor.state.EditorState;
+import com.moud.client.fabric.util.ClientDebugLog;
 import com.moud.net.protocol.ScriptFileReadResponse;
 import com.moud.net.protocol.ScriptFileWriteAck;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
+import java.util.Objects;
 
 public final class ScriptEditorDialog {
     private static final int DIALOG_W = 980;
@@ -35,7 +50,6 @@ public final class ScriptEditorDialog {
 
     public ScriptEditorDialog(EditorRuntime runtime) {
         this.runtime = runtime;
-        editor.setLanguage(CodeEditor.Language.NONE);
     }
 
     public void open(long nodeId, String scriptPath) {
@@ -79,7 +93,7 @@ public final class ScriptEditorDialog {
         if (!response.success()) {
             error = response.error() == null ? "Read failed" : response.error();
             lastLoadedText = "";
-            if (editor.getText() == null || editor.getText().isEmpty()) {
+            if (editor.text().isEmpty()) {
                 editor.setText("");
             }
             ClientDebugLog.error("Script read failed path=" + response.path() + " error=" + error);
@@ -106,7 +120,7 @@ public final class ScriptEditorDialog {
             ClientDebugLog.error("Script save failed path=" + ack.path() + " error=" + error);
             return;
         }
-        lastLoadedText = editor.getText();
+        lastLoadedText = editor.text();
         error = null;
     }
 
@@ -127,11 +141,6 @@ public final class ScriptEditorDialog {
             save();
             return true;
         }
-
-        if (editor.isFocused()) {
-            editor.handleKey(event, ctx.clipboard());
-            return true;
-        }
         return false;
     }
 
@@ -139,9 +148,7 @@ public final class ScriptEditorDialog {
         if (!open || ctx == null) {
             return;
         }
-        if (editor.isFocused()) {
-            editor.handleTextInput(ctx, new TextInputEvent(codepoint));
-        }
+        // CodeEditor is currently a placeholder widget (no text editing yet).
     }
 
     public void render(UiRenderer r, UiContext ctx, Ui ui, Theme theme, int screenW, int screenH) {
@@ -198,7 +205,7 @@ public final class ScriptEditorDialog {
         int saveX = closeX - theme.design.space_sm - btnW;
         int reloadX = saveX - theme.design.space_sm - btnW;
 
-        String currentText = editor.getText() == null ? "" : editor.getText();
+        String currentText = editor.text();
         boolean dirty = !currentText.equals(lastLoadedText == null ? "" : lastLoadedText);
         boolean canInteract = ui.input() != null;
         boolean canSave = dirty && !saving && !loading && hasSession();
@@ -240,7 +247,7 @@ public final class ScriptEditorDialog {
         float iconSize = Math.min(theme.design.icon_sm, 18);
         theme.icons.draw(r, Icon.CODE, editorX, editorY - 26, iconSize, Theme.toArgb(theme.textMuted));
 
-        editor.render(r, ctx, ui.input(), theme, editorX, editorY, editorW, editorH, true);
+        editor.render(ctx, ui.input(), r, theme, editorX, editorY, editorW, editorH);
 
         if (!canInteract || !pressed) {
             return;
@@ -287,7 +294,7 @@ public final class ScriptEditorDialog {
     }
 
     private void requestReloadWithConfirm() {
-        String current = editor.getText() == null ? "" : editor.getText();
+        String current = editor.text();
         boolean dirty = !current.equals(lastLoadedText == null ? "" : lastLoadedText);
         if (!dirty) {
             confirmAction = null;
@@ -306,7 +313,7 @@ public final class ScriptEditorDialog {
     }
 
     private void requestClose() {
-        String current = editor.getText() == null ? "" : editor.getText();
+        String current = editor.text();
         boolean dirty = !current.equals(lastLoadedText == null ? "" : lastLoadedText);
         if (!dirty) {
             close();
@@ -337,7 +344,7 @@ public final class ScriptEditorDialog {
         saving = true;
         loading = false;
         error = null;
-        pendingWriteId = net.writeScriptFile(session, state, scriptPath, editor.getText());
+        pendingWriteId = net.writeScriptFile(session, state, scriptPath, editor.text());
     }
 
     private boolean hasSession() {

@@ -1,5 +1,7 @@
 package com.moud.server.minestom.physics;
 
+import com.github.stephengold.joltjni.Jolt;
+import com.moud.server.minestom.util.DebugLog;
 
 public final class JoltBootstrap {
     private static final Object LOCK = new Object();
@@ -36,7 +38,8 @@ public final class JoltBootstrap {
                 if (!JoltNativeLoader.loadOnce()) {
                     throw new UnsatisfiedLinkError("joltjni native library not found");
                 }
-                JoltPhysicsObject.startCleaner();
+                // TODO: JoltPhysicsObject.startCleaner(); - class not found
+                // JoltPhysicsObject.startCleaner();
                 Jolt.registerDefaultAllocator();
                 if (!Jolt.newFactory()) {
                     throw new IllegalStateException("Jolt.newFactory() failed");

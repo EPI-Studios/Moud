@@ -1,5 +1,8 @@
 package com.moud.client.fabric.render;
 
+import com.moud.client.fabric.assets.AssetsClient;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.moud.client.fabric.net.ClientSessionBus;
 import com.moud.core.assets.AssetHash;
 import com.moud.core.assets.AssetMeta;
 import com.moud.core.assets.AssetType;
@@ -9,7 +12,9 @@ import com.moud.net.protocol.AssetTransferStatus;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import net.minecraft.client.MinecraftClient;

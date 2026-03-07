@@ -1,9 +1,13 @@
 package com.moud.client.fabric.platform;
 
+import com.moud.client.fabric.editor.overlay.EditorContext;
+import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
+import com.moud.client.fabric.mixin.accessor.CameraAccessor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import org.lwjgl.glfw.GLFW;
 
 public final class MinecraftFreeflyCamera {
     private boolean enabled;

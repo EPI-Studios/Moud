@@ -3,6 +3,10 @@ package com.moud.client.fabric.platform;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Matrix4f;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+import org.joml.Vector4f;
 
 public final class MinecraftRenderBridge {
     private MinecraftRenderBridge() {
@@ -99,4 +103,3 @@ public final class MinecraftRenderBridge {
         return score;
     }
 }
-

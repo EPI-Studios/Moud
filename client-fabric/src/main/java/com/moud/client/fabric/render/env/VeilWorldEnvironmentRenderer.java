@@ -1,5 +1,12 @@
 package com.moud.client.fabric.render.env;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.moud.client.fabric.env.WorldEnvironmentClient;
+import com.moud.client.fabric.env.WorldEnvironmentClient.EnvSettings;
+import com.moud.client.fabric.env.WorldEnvironmentClient.Mode;
+import com.moud.client.fabric.render.veil.VeilDynamicShaders;
+import com.moud.client.fabric.render.veil.VeilMaterialBinding;
+import com.moud.client.fabric.mixin.accessor.GameRendererAccessor;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
 import foundry.veil.api.event.VeilRenderLevelStageEvent;
@@ -12,6 +19,7 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Matrix4fc;
 
 public final class VeilWorldEnvironmentRenderer {
     private static boolean initialized;

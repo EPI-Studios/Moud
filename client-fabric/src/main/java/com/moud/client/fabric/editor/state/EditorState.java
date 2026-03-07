@@ -1,5 +1,6 @@
 package com.moud.client.fabric.editor.state;
 
+import com.moud.client.fabric.scene.SceneState;
 import com.moud.core.NodeTypeDef;
 import com.moud.core.scene.Node;
 import com.moud.net.protocol.ProjectInfo;

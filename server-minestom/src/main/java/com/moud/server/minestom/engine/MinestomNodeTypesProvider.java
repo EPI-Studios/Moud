@@ -6,6 +6,8 @@ import com.moud.core.PropertyDef;
 import com.moud.core.PropertyType;
 import java.util.Map;
 import com.moud.core.*;
+import com.moud.server.minestom.engine.nodes.RootNode;
+import com.moud.server.minestom.engine.nodes.TickerNode;
 
 public final class MinestomNodeTypesProvider implements NodeTypeProvider {
     @Override

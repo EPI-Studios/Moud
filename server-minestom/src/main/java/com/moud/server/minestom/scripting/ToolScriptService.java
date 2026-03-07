@@ -10,16 +10,23 @@ import com.moud.net.protocol.ScriptActionInvoke;
 import com.moud.net.protocol.ScriptActionInvokeAck;
 import com.moud.net.protocol.ScriptActionListRequest;
 import com.moud.net.protocol.ScriptActionListResponse;
-import com.moud.server.minestom.engine.Engine;
 import com.moud.server.minestom.engine.ServerScene;
+import org.graalvm.polyglot.Engine;
+import com.moud.server.minestom.engine.SceneBatchIds;
 import com.moud.server.minestom.project.ProjectService;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.HostAccess;
+import org.graalvm.polyglot.PolyglotException;
+import org.graalvm.polyglot.Source;
 import org.graalvm.polyglot.Value;
+import com.moud.server.minestom.util.DebugLog;
 
 final class ToolScriptService {
     private final ProjectService project;

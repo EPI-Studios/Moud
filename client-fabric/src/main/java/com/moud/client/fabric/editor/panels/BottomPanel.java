@@ -1,6 +1,16 @@
 package com.moud.client.fabric.editor.panels;
 
 
+import com.miry.ui.PanelContext;
+import com.miry.ui.Ui;
+import com.miry.ui.panels.Panel;
+import com.miry.ui.render.UiRenderer;
+import com.miry.ui.theme.Theme;
+import com.miry.ui.widgets.ConsoleLog;
+import com.miry.ui.widgets.StripTabs;
+import com.moud.client.fabric.editor.state.EditorRuntime;
+import com.moud.client.fabric.editor.state.EditorState;
+
 public final class BottomPanel extends Panel {
     private final EditorRuntime runtime;
     private final StripTabs tabs = new StripTabs();

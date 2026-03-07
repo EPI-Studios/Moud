@@ -1,6 +1,7 @@
 package com.moud.server.minestom.assets;
 
 import com.moud.core.assets.AssetHash;
+import com.moud.core.assets.AssetManifest;
 import com.moud.core.assets.AssetMeta;
 import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
@@ -19,6 +20,7 @@ import com.moud.net.protocol.Message;
 import com.moud.net.session.Session;
 import com.moud.net.transport.Lane;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;

@@ -1,6 +1,7 @@
 package com.moud.server.minestom.engine;
 
 import com.moud.core.scene.Node;
+import com.moud.core.scene.PlainNode;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpBatch;
@@ -14,6 +15,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.Locale;
+import java.util.Deque;
 
 public final class SceneInstancer {
     public static final String TYPE_SCENE_INSTANCE = "SceneInstance3D";
@@ -67,7 +70,7 @@ public final class SceneInstancer {
 
     private boolean syncScenePass(ServerScenes scenes, ServerScene scene, SceneCache cache) {
         Engine engine = scene.engine();
-        long graphRev = engine.graphRevision();
+        long graphRev = engine.sceneRevision();
         if (graphRev != cache.lastGraphRevision) {
             cache.lastGraphRevision = graphRev;
             rescanInstances(scenes, scene, cache);
@@ -214,7 +217,7 @@ public final class SceneInstancer {
             }
         }
 
-        targetScene.engine().bumpGraphRevision();
+        targetScene.engine().bumpSceneRevision();
         boolean hasCsgAfter = subtreeContainsCsg(instanceNode, targetScene.engine().nodeTypes());
         if (hadCsgBefore || hasCsgAfter) {
             targetScene.engine().bumpCsgRevision();
@@ -233,7 +236,7 @@ public final class SceneInstancer {
         for (Node child : List.copyOf(instanceNode.children())) {
             instanceNode.removeChild(child);
         }
-        scene.engine().bumpGraphRevision();
+        scene.engine().bumpSceneRevision();
         if (hadCsgBefore) {
             scene.engine().bumpCsgRevision();
         }
