@@ -11,6 +11,8 @@ import com.moud.net.protocol.AssetManifestResponse;
 import com.moud.net.protocol.AssetTransferStatus;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
+
+import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -110,7 +112,20 @@ public final class MoudTextures implements AssetsClient.Listener {
             return resolveResTexture(ref);
         }
         Identifier id = Identifier.tryParse(ref);
-        return id != null ? id : TextureManager.MISSING_IDENTIFIER;
+        if (id == null) {
+            return TextureManager.MISSING_IDENTIFIER;
+        }
+        if ("moud".equals(id.getNamespace())) {
+            return id;
+        }
+        String path = id.getPath();
+        if (!path.startsWith("textures/")) {
+            path = "textures/" + path;
+        }
+        if (!path.endsWith(".png") && !path.endsWith(".jpg") && !path.endsWith(".jpeg")) {
+            path = path + ".png";
+        }
+        return Identifier.of(id.getNamespace(), path);
     }
 
     private static Identifier resolveResTexture(String resPathRaw) {
@@ -269,9 +284,14 @@ public final class MoudTextures implements AssetsClient.Listener {
             return;
         }
 
+        TextureEntry finalEntry = entry;
+        Thread.ofVirtual().name("moud-tex-decode").start(() -> decodeAndUpload(finalEntry, bytes));
+    }
+
+    private static void decodeAndUpload(TextureEntry entry, byte[] bytes) {
         NativeImage image;
         try {
-            image = NativeImage.read(bytes);
+            image = NativeImage.read(new ByteArrayInputStream(bytes));
         } catch (Exception e) {
             synchronized (LOCK) {
                 entry.state = TextureState.FAILED;
@@ -280,7 +300,6 @@ public final class MoudTextures implements AssetsClient.Listener {
             return;
         }
 
-        // Downscale large textures to prevent LWJGL OOM
         int imgW = image.getWidth();
         int imgH = image.getHeight();
         if (imgW > MAX_TEXTURE_SIZE || imgH > MAX_TEXTURE_SIZE) {
@@ -291,7 +310,7 @@ public final class MoudTextures implements AssetsClient.Listener {
             try {
                 scaled = new NativeImage(newW, newH, false);
                 image.resizeSubRectTo(0, 0, imgW, imgH, scaled);
-            } catch (Exception scaleEx) {
+            } catch (Exception e) {
                 image.close();
                 synchronized (LOCK) {
                     entry.state = TextureState.FAILED;
@@ -303,33 +322,26 @@ public final class MoudTextures implements AssetsClient.Listener {
             image = scaled;
         }
 
-        TextureEntry finalEntry = entry;
         NativeImage finalImage = image;
-        Runnable register = () -> {
+        RenderSystem.recordRenderCall(() -> {
             MinecraftClient client = MinecraftClient.getInstance();
             TextureManager tm = client == null ? null : client.getTextureManager();
             if (tm == null) {
                 finalImage.close();
                 synchronized (LOCK) {
-                    finalEntry.state = TextureState.FAILED;
-                    finalEntry.error = "no texture manager";
+                    entry.state = TextureState.FAILED;
+                    entry.error = "no texture manager";
                 }
                 return;
             }
             NativeImageBackedTexture tex = new NativeImageBackedTexture(finalImage);
-            tm.registerTexture(finalEntry.id, tex);
+            tm.registerTexture(entry.id, tex);
             tex.upload();
             synchronized (LOCK) {
-                finalEntry.state = TextureState.READY;
-                finalEntry.error = "";
+                entry.state = TextureState.READY;
+                entry.error = "";
             }
-        };
-
-        if (!RenderSystem.isOnRenderThread()) {
-            RenderSystem.recordRenderCall(register::run);
-        } else {
-            register.run();
-        }
+        });
     }
 
     private enum TextureState {
