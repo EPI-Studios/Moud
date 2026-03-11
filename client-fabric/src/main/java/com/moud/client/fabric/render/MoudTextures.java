@@ -26,6 +26,7 @@ import net.minecraft.util.Identifier;
 public final class MoudTextures implements AssetsClient.Listener {
     public static final Identifier WHITE_ID = Identifier.of("moud", "dynamic/white");
 
+    private static final int MAX_TEXTURE_SIZE = 2048;
     private static final Object LOCK = new Object();
     private static MoudTextures instance;
 
@@ -277,6 +278,29 @@ public final class MoudTextures implements AssetsClient.Listener {
                 entry.error = e.getMessage() == null ? "decode failed" : e.getMessage();
             }
             return;
+        }
+
+        // Downscale large textures to prevent LWJGL OOM
+        int imgW = image.getWidth();
+        int imgH = image.getHeight();
+        if (imgW > MAX_TEXTURE_SIZE || imgH > MAX_TEXTURE_SIZE) {
+            float scale = (float) MAX_TEXTURE_SIZE / Math.max(imgW, imgH);
+            int newW = Math.max(1, Math.round(imgW * scale));
+            int newH = Math.max(1, Math.round(imgH * scale));
+            NativeImage scaled;
+            try {
+                scaled = new NativeImage(newW, newH, false);
+                image.resizeSubRectTo(0, 0, imgW, imgH, scaled);
+            } catch (Exception scaleEx) {
+                image.close();
+                synchronized (LOCK) {
+                    entry.state = TextureState.FAILED;
+                    entry.error = "texture too large (" + imgW + "x" + imgH + ")";
+                }
+                return;
+            }
+            image.close();
+            image = scaled;
         }
 
         TextureEntry finalEntry = entry;
