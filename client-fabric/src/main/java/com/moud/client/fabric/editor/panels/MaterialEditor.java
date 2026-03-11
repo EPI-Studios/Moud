@@ -30,6 +30,11 @@ import com.moud.core.PropertyDef;
 import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
 import com.moud.net.session.Session;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.texture.AbstractTexture;
+import net.minecraft.util.Identifier;
+import org.lwjgl.util.tinyfd.TinyFileDialogs;
+
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Locale;
