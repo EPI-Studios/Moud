@@ -186,9 +186,6 @@ public final class SceneOpApplier {
                 if (node == null) {
                     yield SceneOpResult.fail(setProperty.nodeId(), SceneOpError.NOT_FOUND, "node not found");
                 }
-                if (isPrefabGenerated(node) && !runtimeBatch) {
-                    yield SceneOpResult.fail(setProperty.nodeId(), SceneOpError.INVALID, "prefab-generated nodes are read-only");
-                }
                 if (setProperty.key() == null || setProperty.key().isBlank()) {
                     yield SceneOpResult.fail(setProperty.nodeId(), SceneOpError.INVALID, "key empty");
                 }
@@ -203,9 +200,6 @@ public final class SceneOpApplier {
                 Node node = engine.sceneTree().getNode(removeProperty.nodeId());
                 if (node == null) {
                     yield SceneOpResult.fail(removeProperty.nodeId(), SceneOpError.NOT_FOUND, "node not found");
-                }
-                if (isPrefabGenerated(node) && !runtimeBatch) {
-                    yield SceneOpResult.fail(removeProperty.nodeId(), SceneOpError.INVALID, "prefab-generated nodes are read-only");
                 }
                 if (removeProperty.key() == null || removeProperty.key().isBlank()) {
                     yield SceneOpResult.fail(removeProperty.nodeId(), SceneOpError.INVALID, "key empty");
@@ -301,9 +295,6 @@ public final class SceneOpApplier {
                 if (node == null) {
                     yield new ApplyOutcome(SceneOpResult.fail(setProperty.nodeId(), SceneOpError.NOT_FOUND, "node not found"), false);
                 }
-                if (isPrefabGenerated(node) && !runtimeBatch) {
-                    yield new ApplyOutcome(SceneOpResult.fail(setProperty.nodeId(), SceneOpError.INVALID, "prefab-generated nodes are read-only"), false);
-                }
                 if (setProperty.key() == null || setProperty.key().isBlank()) {
                     yield new ApplyOutcome(SceneOpResult.fail(setProperty.nodeId(), SceneOpError.INVALID, "key empty"), false);
                 }
@@ -327,9 +318,6 @@ public final class SceneOpApplier {
                 Node node = engine.sceneTree().getNode(removeProperty.nodeId());
                 if (node == null) {
                     yield new ApplyOutcome(SceneOpResult.fail(removeProperty.nodeId(), SceneOpError.NOT_FOUND, "node not found"), false);
-                }
-                if (isPrefabGenerated(node) && !runtimeBatch) {
-                    yield new ApplyOutcome(SceneOpResult.fail(removeProperty.nodeId(), SceneOpError.INVALID, "prefab-generated nodes are read-only"), false);
                 }
                 if (removeProperty.key() == null || removeProperty.key().isBlank()) {
                     yield new ApplyOutcome(SceneOpResult.fail(removeProperty.nodeId(), SceneOpError.INVALID, "key empty"), false);
