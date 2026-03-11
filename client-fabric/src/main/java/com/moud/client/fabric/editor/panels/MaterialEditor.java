@@ -642,6 +642,12 @@ final class MaterialEditor {
         materialTextureMenu.clear();
         materialTextureMenu.addItem("Default", () -> commitMaterialTexture(materialPath, null, uniform, null));
         materialTextureMenu.addItem("Clear", () -> commitMaterialTexture(materialPath, null, uniform, ""));
+        materialTextureMenu.addItem("Browse file...", () -> {
+            String result = TinyFileDialogs.tinyfd_openFileDialog("Select Texture", "", null, "Image Files", false);
+            if (result != null && !result.isBlank()) {
+                commitMaterialTexture(materialPath, null, uniform, result.trim());
+            }
+        });
         materialTextureMenu.addSeparator();
         materialTextureMenu.addItem(MoudTextures.WHITE_ID.toString(), () -> commitMaterialTexture(materialPath, null, uniform, MoudTextures.WHITE_ID.toString()));
 
