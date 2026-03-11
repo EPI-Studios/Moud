@@ -102,7 +102,6 @@ public final class PlayRuntimeClient {
         if (mc == null || mc.player == null) return false;
 
         float t = MathUtils.clamp(partialTick, 0.0f, 1.0f);
-        // interpolated player position using client-side prediction — zero lag
         double px = lerp(mc.player.prevX, mc.player.getX(), t);
         double py = lerp(mc.player.prevY, mc.player.getY(), t);
         double pz = lerp(mc.player.prevZ, mc.player.getZ(), t);
