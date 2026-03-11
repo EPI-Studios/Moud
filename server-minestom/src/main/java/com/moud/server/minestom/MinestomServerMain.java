@@ -215,6 +215,14 @@ public final class MinestomServerMain {
 
     private void tick() {
         scenes.tickAll(TICK_DT_SECONDS);
+
+        Map<UUID, float[]> playerPositions = new java.util.HashMap<>();
+        for (Player p : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
+            Pos pos = p.getPosition();
+            playerPositions.put(p.getUuid(), new float[]{(float) pos.x(), (float) pos.y(), (float) pos.z(), pos.yaw()});
+        }
+        scripts.updatePlayerPositions(playerPositions);
+
         for (ServerScene scene : scenes.allScenes()) {
             playRuntime.applyEditorWorldEnvironment(scene);
             String pendingTransition = scripts.tickRuntime(scene, TICK_DT_SECONDS);
@@ -244,7 +252,11 @@ public final class MinestomServerMain {
                     scene = mainScene;
                 }
                 if (scene != null) {
-                    playRuntime.tick(enginePlayer.getUuid(), session, scene);
+                    float[] followCam = scripts.getFollowCameraForPlayer(scene.sceneId(), enginePlayer.getUuid());
+                    Long playerCamId = followCam == null
+                            ? scripts.getActiveCameraForPlayer(scene.sceneId(), enginePlayer.getUuid())
+                            : null;
+                    playRuntime.tick(enginePlayer.getUuid(), session, scene, playerCamId, followCam);
                 }
             }
 

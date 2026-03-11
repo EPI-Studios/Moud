@@ -63,7 +63,8 @@ public final class PlayRuntime {
         worldEnvironment.applyWorldEnvironment(scene, worldEnvironment.readWorldEnvironment(scene));
     }
 
-    public void tick(UUID uuid, Session session, ServerScene scene) {
+    public void tick(UUID uuid, Session session, ServerScene scene,
+                     Long playerCameraNodeId, float[] followCamera) {
         if (uuid == null || session == null || scene == null) {
             return;
         }
@@ -77,44 +78,51 @@ public final class PlayRuntime {
         RuntimeWorldEnvironmentSystem.WorldEnvironment env = worldEnvironment.readWorldEnvironment(scene);
         worldEnvironment.applyWorldEnvironment(scene, env);
 
-        RuntimeCameraSystem.SelectedCamera selectedCamera = cameraSystem.selectSceneCamera(scene);
-        RuntimeCameraSystem.SceneCamera cameraPose = selectedCamera != null
-                ? selectedCamera.pose()
-                : null;
-
         int timeTicks = (int) (scene.instance().getTime() % 24_000L);
+
+        if (followCamera != null && followCamera.length >= 5) {
+            // client-side follow camera: send local offset, client adds player pos each frame
+            session.send(Lane.STATE, new RuntimeState(
+                    scene.engine().ticks(), scene.sceneId(),
+                    env.fogEnabled(), env.fogColorR(), env.fogColorG(), env.fogColorB(), env.fogDensity(),
+                    timeTicks, env.weather(), env.ambientLight(),
+                    false, 0f, 0f, 0f, 0f, 0f, 0f,
+                    true, followCamera[0], followCamera[1], followCamera[2], followCamera[3], followCamera[4]
+            ));
+            return;
+        }
+
+        RuntimeCameraSystem.SceneCamera cameraPose;
+        if (playerCameraNodeId != null && playerCameraNodeId > 0L) {
+            Node camNode = scene.engine().sceneTree().getNode(playerCameraNodeId);
+            cameraPose = camNode != null ? cameraSystem.createSceneCameraFromNode(camNode) : null;
+        } else {
+            RuntimeCameraSystem.SelectedCamera selectedCamera = cameraSystem.selectSceneCamera(scene);
+            cameraPose = selectedCamera != null ? selectedCamera.pose() : null;
+        }
+
         session.send(Lane.STATE, new RuntimeState(
-                scene.engine().ticks(),
-                scene.sceneId(),
-                env.fogEnabled(),
-                env.fogColorR(), env.fogColorG(), env.fogColorB(),
-                env.fogDensity(),
-                timeTicks,
-                env.weather(),
-                env.ambientLight(),
+                scene.engine().ticks(), scene.sceneId(),
+                env.fogEnabled(), env.fogColorR(), env.fogColorG(), env.fogColorB(), env.fogDensity(),
+                timeTicks, env.weather(), env.ambientLight(),
                 cameraPose != null,
-                cameraPose == null ? 0.0f : cameraPose.x(),
-                cameraPose == null ? 0.0f : cameraPose.y(),
-                cameraPose == null ? 0.0f : cameraPose.z(),
-                cameraPose == null ? 0.0f : cameraPose.yawDeg(),
-                cameraPose == null ? 0.0f : cameraPose.pitchDeg(),
-                cameraPose == null ? 0.0f : cameraPose.rollDeg()
+                cameraPose == null ? 0f : cameraPose.x(),
+                cameraPose == null ? 0f : cameraPose.y(),
+                cameraPose == null ? 0f : cameraPose.z(),
+                cameraPose == null ? 0f : cameraPose.yawDeg(),
+                cameraPose == null ? 0f : cameraPose.pitchDeg(),
+                cameraPose == null ? 0f : cameraPose.rollDeg(),
+                false, 0f, 0f, 0f, 0f, 0f
         ));
 
-        // Teleport the Minestom entity to the scene camera position so the server
-        // loads the correct chunks around the camera, not the player's spawn point.
-        if (cameraPose != null) {
+        // for static scene cameras, teleport to load chunks around the camera position
+        if (playerCameraNodeId == null && cameraPose != null) {
             Pos cur = player.getPosition();
             player.teleport(new Pos(cameraPose.x(), cameraPose.y(), cameraPose.z(),
                     cur.yaw(), cur.pitch()));
         }
     }
 
-    // -----------------------------------------------------------------------
-    // PlayerStart
-    // -----------------------------------------------------------------------
-
-    /** Returns the world Pos of the first PlayerStart in the scene, or null if none. */
     public static Pos findPlayerStartPos(ServerScene scene) {
         Node start = findPlayerStart(scene);
         if (start == null) {
