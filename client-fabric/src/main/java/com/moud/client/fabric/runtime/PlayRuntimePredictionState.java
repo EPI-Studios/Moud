@@ -1,6 +1,5 @@
 package com.moud.client.fabric.runtime;
 
-import com.moud.core.physics.CharacterPhysics;
 import com.moud.net.protocol.RuntimeState;
 
 final class PlayRuntimePredictionState {
@@ -83,32 +82,7 @@ final class PlayRuntimePredictionState {
                           boolean jump,
                           boolean sprint,
                           float speed) {
-        long now = System.nanoTime();
-        if (lastFrameNs == 0L) {
-            lastFrameNs = now;
-            return;
-        }
-        float dt = (float) ((now - lastFrameNs) / 1_000_000_000.0);
-        lastFrameNs = now;
-        dt = Math.min(dt, 0.1f);
-
-        CharacterPhysics.State current = new CharacterPhysics.State(
-                predX, predY, predZ, predVelX, predVelY, predVelZ, predOnFloor);
-        CharacterPhysics.State next = CharacterPhysics.simulate(
-                current, moveX, moveZ, yawDeg, speed, jump, sprint, dt);
-
-        predX = next.x();
-        predY = next.y();
-        predZ = next.z();
-        predVelX = next.velX();
-        predVelY = next.velY();
-        predVelZ = next.velZ();
-        predOnFloor = next.onFloor();
-
-        float decay = (float) Math.exp(-CORRECTION_DECAY * dt);
-        corrX *= decay;
-        corrY *= decay;
-        corrZ *= decay;
+        // prediction driven by Minecraft player movement
     }
 
     float baseX() {

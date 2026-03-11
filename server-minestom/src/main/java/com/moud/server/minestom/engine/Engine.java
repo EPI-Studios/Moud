@@ -52,6 +52,10 @@ public final class Engine {
         return sceneRevision.get();
     }
 
+    public long graphRevision() {
+        return sceneRevision.get();
+    }
+
     public void bumpSceneRevision() {
         sceneRevision.incrementAndGet();
     }
