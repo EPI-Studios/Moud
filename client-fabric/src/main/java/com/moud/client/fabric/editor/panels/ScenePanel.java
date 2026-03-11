@@ -245,6 +245,7 @@ public final class ScenePanel extends Panel {
             updateSelectionFromTree(state);
 
             renderRowToggles(ui, r, theme, input, state, treeX, treeY, treeW, treeH, itemH, scrollOffset, interactive);
+            renderNodeTypeBadges(r, theme, treeX, treeY, treeW, treeH, itemH, scrollOffset);
 
             if (renamingNodeId >= 0) {
                 renderInlineRename(r, uiContext, theme, input, treeX, treeY, treeW, itemH, scrollOffset);
@@ -539,31 +540,39 @@ public final class ScenePanel extends Panel {
     }
 
     private String formatNodeLabel(SceneSnapshot.NodeSnapshot snapshot) {
-        if (snapshot == null) {
-            return "";
-        }
-        String name = snapshot.name() == null ? "" : snapshot.name();
-        String prefix = nodeTypePrefix(snapshot.type());
-        return prefix.isEmpty() ? name : prefix + " " + name;
+        if (snapshot == null) return "";
+        return snapshot.name() == null ? "" : snapshot.name();
     }
 
-    private static String nodeTypePrefix(String type) {
-        if (type == null) {
-            return "";
-        }
+    private static String nodeTypeBadgeText(String type) {
+        if (type == null) return "";
         return switch (type) {
-            case "Camera3D"           -> "[Cam]";
-            case "PlayerStart"        -> "[PS]";
-            case "WorldEnvironment"   -> "[Env]";
-            case "CSGBlock"           -> "[Block]";
-            case "CSGBox"             -> "[Box]";
-            case "MeshInstance3D"     -> "[Mesh]";
-            case "SceneInstance3D"    -> "[SI]";
-            case "OmniLight3D"        -> "[OL]";
-            case "DirectionalLight3D" -> "[DL]";
-            case "SpotLight3D"        -> "[SL]";
-            case "Node3D"             -> "[3D]";
-            default -> "";
+            case "Camera3D"           -> "CAM";
+            case "PlayerStart"        -> "PS";
+            case "WorldEnvironment"   -> "ENV";
+            case "CSGBlock"           -> "BLK";
+            case "CSGBox"             -> "BOX";
+            case "MeshInstance3D"     -> "MSH";
+            case "SceneInstance3D"    -> "SI";
+            case "OmniLight3D"        -> "OL";
+            case "DirectionalLight3D" -> "DL";
+            case "SpotLight3D"        -> "SL";
+            case "Node3D"             -> "3D";
+            default                   -> "";
+        };
+    }
+
+    private static int nodeTypeBadgeColor(String type) {
+        if (type == null) return 0xFF607080;
+        return switch (type) {
+            case "Camera3D"                                         -> 0xFF4A9EE0;
+            case "PlayerStart"                                      -> 0xFF5CB85C;
+            case "WorldEnvironment"                                 -> 0xFF9B6EC8;
+            case "CSGBlock", "CSGBox"                               -> 0xFF8A9BA8;
+            case "MeshInstance3D"                                   -> 0xFF6EA8D4;
+            case "SceneInstance3D"                                  -> 0xFF5BA0A0;
+            case "OmniLight3D", "DirectionalLight3D", "SpotLight3D" -> 0xFFD4A017;
+            default                                                 -> 0xFF607080;
         };
     }
 
@@ -577,6 +586,51 @@ public final class ScenePanel extends Panel {
             TreeNode<SceneSnapshot.NodeSnapshot> node = selected.iterator().next();
             if (node.data() != null) {
                 state.selectedId = node.data().nodeId();
+            }
+        }
+    }
+
+    private void renderNodeTypeBadges(UiRenderer r, Theme theme,
+                                      int treeX, int treeY, int treeW, int treeH,
+                                      int itemH, int scrollOffset) {
+        if (rootNode == null || r == null || theme == null) return;
+        int btnSize = Math.min(16, Math.max(12, itemH - 6));
+        int gap = 4;
+        int margin = 6;
+        int lockX = treeX + treeW - margin - btnSize;
+        int visX = lockX - gap - btnSize;
+        int badgeW = 28;
+        int badgeX = visX - gap - badgeW;
+        renderNodeTypeBadgesRecursive(rootNode, new int[]{0}, treeY, treeY + treeH,
+                itemH, scrollOffset, badgeX, badgeW, r, theme);
+    }
+
+    private void renderNodeTypeBadgesRecursive(TreeNode<SceneSnapshot.NodeSnapshot> node, int[] counter,
+                                               int treeY, int treeMaxY, int itemH, int scrollOffset,
+                                               int badgeX, int badgeW, UiRenderer r, Theme theme) {
+        if (node == null || counter == null || counter.length == 0) return;
+        int rowIndex = counter[0];
+        SceneSnapshot.NodeSnapshot snap = node.data();
+        if (snap != null && snap.nodeId() > 0L) {
+            int rowY = treeY + rowIndex * itemH - scrollOffset;
+            if (rowY + itemH >= treeY && rowY <= treeMaxY) {
+                String badge = nodeTypeBadgeText(snap.type());
+                if (!badge.isEmpty()) {
+                    int badgeH = Math.max(13, itemH - 8);
+                    int badgeY = rowY + (itemH - badgeH) / 2;
+                    int col = nodeTypeBadgeColor(snap.type());
+                    r.drawRoundedRect(badgeX, badgeY, badgeW, badgeH, theme.design.radius_sm,
+                            Theme.mulAlpha(col, 0.20f));
+                    float textW = r.measureText(badge);
+                    r.drawText(badge, badgeX + (badgeW - textW) / 2f, r.baselineForBox(badgeY, badgeH), col);
+                }
+            }
+        }
+        counter[0]++;
+        if (node.expanded()) {
+            for (TreeNode<SceneSnapshot.NodeSnapshot> child : node.children()) {
+                renderNodeTypeBadgesRecursive(child, counter, treeY, treeMaxY, itemH, scrollOffset,
+                        badgeX, badgeW, r, theme);
             }
         }
     }
