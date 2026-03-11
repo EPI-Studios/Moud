@@ -290,8 +290,8 @@ public final class InspectorPanel extends Panel {
                 .thenComparing(PropertyDef::uiLabel)
                 .thenComparing(PropertyDef::key));
 
-        int rowH = 22;
-        int labelW = 100;
+        int rowH = 24;
+        int labelW = 110;
 
         String scriptPath = values.get("script");
         if (scriptPath != null) {
