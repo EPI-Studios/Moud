@@ -24,8 +24,9 @@ public final class ScriptService {
         this.runtime = new RuntimeScriptService(project, runtimeEngine);
     }
 
-    public void tickRuntime(ServerScene scene, double dtSeconds) {
-        runtime.tick(scene, dtSeconds);
+    /** @return a pending scene-transition ID, or {@code null} if none was requested. */
+    public String tickRuntime(ServerScene scene, double dtSeconds) {
+        return runtime.tick(scene, dtSeconds);
     }
 
     public void onPlayerInput(UUID uuid, PlayerInput input) {
