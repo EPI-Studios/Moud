@@ -39,9 +39,10 @@ final class RuntimeScriptService {
         }
     }
 
-    void tick(ServerScene scene, double dtSeconds) {
+    /** @return a pending scene-transition ID, or {@code null} if none was requested. */
+    String tick(ServerScene scene, double dtSeconds) {
         if (scene == null) {
-            return;
+            return null;
         }
         if (!(Double.isFinite(dtSeconds)) || dtSeconds <= 0.0) {
             dtSeconds = 1.0 / 20.0;
@@ -52,5 +53,6 @@ final class RuntimeScriptService {
                 ignored -> new SceneRuntime(project, engine, inputsByPlayer)
         );
         rt.tick(scene, dtSeconds);
+        return rt.drainPendingSceneTransition();
     }
 }
