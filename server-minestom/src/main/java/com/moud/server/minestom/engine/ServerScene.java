@@ -5,6 +5,7 @@ import com.moud.net.protocol.SceneOpBatch;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.server.minestom.engine.csg.CsgBlockWriter;
 import com.moud.server.minestom.engine.nodes.RootNode;
+import com.moud.server.minestom.physics.JoltPhysicsWorld;
 import net.minestom.server.instance.InstanceContainer;
 import com.moud.server.minestom.engine.EngineSchema;
 
@@ -17,6 +18,7 @@ public final class ServerScene {
     private final Engine engine;
     private final SceneOpApplier applier;
     private final CsgBlockWriter csgWriter;
+    private final JoltPhysicsWorld physics;
 
     public ServerScene(String sceneId, String displayName, InstanceContainer instance) {
         this.sceneId = Objects.requireNonNull(sceneId, "sceneId");
@@ -25,6 +27,7 @@ public final class ServerScene {
         this.engine = new Engine(new RootNode("root"), EngineSchema.createDefault());
         this.applier = new SceneOpApplier(engine);
         this.csgWriter = new CsgBlockWriter(instance, engine);
+        this.physics = JoltPhysicsWorld.tryCreate();
     }
 
     public String sceneId() {
@@ -46,6 +49,10 @@ public final class ServerScene {
     public void tick(double dtSeconds) {
         engine.tick(dtSeconds);
         csgWriter.tick();
+        if (physics != null) {
+            physics.syncStaticColliders(engine);
+            physics.step((float) dtSeconds);
+        }
     }
 
     public SceneSnapshot snapshot(long requestId) {
