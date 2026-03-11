@@ -34,6 +34,7 @@ final class SceneRuntime {
     private final ArrayList<Target> cachedTargets = new ArrayList<>();
     private volatile ServerScene lastScene;
     private final ArrayList<PendingTimer> pendingTimers = new ArrayList<>();
+    private String pendingSceneTransition = null;
 
     SceneRuntime(ProjectService project, Engine engine, ConcurrentHashMap<String, PlayerInputState> inputsByPlayer) {
         this.project = Objects.requireNonNull(project, "project");
@@ -470,6 +471,18 @@ final class SceneRuntime {
                 DebugLog.error(LOG_TAG, "scene=" + scene.sceneId() + " SceneOp failed: " + msg);
             }
         }
+    }
+
+    void queueSceneTransition(String sceneId) {
+        if (sceneId != null && !sceneId.isBlank()) {
+            pendingSceneTransition = sceneId.trim();
+        }
+    }
+
+    String drainPendingSceneTransition() {
+        String s = pendingSceneTransition;
+        pendingSceneTransition = null;
+        return s;
     }
 
     void scheduleTimer(double seconds, Value callback) {
