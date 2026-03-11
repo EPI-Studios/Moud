@@ -240,6 +240,7 @@ public final class ScenePanel extends Panel {
             Ui.ScrollArea area = ui.beginScrollArea(r, "sceneTreeScroll", treeX, treeY, treeW, treeH, contentHeight);
             int scrollOffset = (int) area.scrollY();
 
+            updateTreeStyle(theme);
             treeView.render(r, uiContext, input, theme, treeX, treeY, treeW, treeH, scrollOffset, true);
             updateSelectionFromTree(state);
 
@@ -477,13 +478,16 @@ public final class ScenePanel extends Panel {
         treeStyle.drawContainer = false;
         treeStyle.drawFocusRing = false;
         treeStyle.stripedRows = false;
-        treeStyle.rowBgEven = 0xFF212529;
-        treeStyle.rowBgOdd = 0xFF212529;
-        treeStyle.rowBgHover = 0xFF404553;
-        treeStyle.rowBgSelected = 0xFF3D5E89;
-        treeStyle.textColor = 0xFFE0E0E0;
-        treeStyle.mutedColor = 0xFFB3B3B3;
         treeView.setStyle(treeStyle);
+    }
+
+    private void updateTreeStyle(Theme theme) {
+        treeStyle.rowBgEven = Theme.toArgb(theme.panelBg);
+        treeStyle.rowBgOdd = Theme.toArgb(theme.panelBg);
+        treeStyle.rowBgHover = Theme.toArgb(theme.widgetHover);
+        treeStyle.rowBgSelected = 0xFF2E4A72;
+        treeStyle.textColor = Theme.toArgb(theme.text);
+        treeStyle.mutedColor = Theme.toArgb(theme.textMuted);
     }
 
     private TreeNode<SceneSnapshot.NodeSnapshot> buildTreeNode(EditorState state, SceneSnapshot.NodeSnapshot snapshot, String filterLower) {
