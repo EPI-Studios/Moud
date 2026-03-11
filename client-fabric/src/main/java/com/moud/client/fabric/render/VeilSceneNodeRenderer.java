@@ -183,8 +183,14 @@ public final class VeilSceneNodeRenderer {
             int tintGi = Math.round(tintG * 255.0f);
             int tintBi = Math.round(tintB * 255.0f);
 
+            float opacity = clamp01(parseFloat(stringProp(node, "opacity"), 1.0f));
+            int alphaI = Math.round(opacity * 255.0f);
+
             Identifier textureId = resolveNodeTexture(node);
-            VertexConsumer vc = consumers.getBuffer(RenderLayer.getEntityCutout(textureId));
+            RenderLayer layer = alphaI < 255
+                    ? RenderLayer.getEntityTranslucentCull(textureId)
+                    : RenderLayer.getEntityCutout(textureId);
+            VertexConsumer vc = consumers.getBuffer(layer);
             int light = WorldRenderer.getLightmapCoordinates(client.world, BlockPos.ofFloored(world.pos.x, world.pos.y, world.pos.z));
 
             matrices.push();
@@ -192,7 +198,7 @@ public final class VeilSceneNodeRenderer {
             matrices.multiply(world.rot);
             matrices.scale(world.scale.x, world.scale.y, world.scale.z);
             matrices.translate(-0.5, -0.5, -0.5);
-            renderUnitCube(vc, matrices.peek(), light, OverlayTexture.DEFAULT_UV, tintRi, tintGi, tintBi, 255);
+            renderUnitCube(vc, matrices.peek(), light, OverlayTexture.DEFAULT_UV, tintRi, tintGi, tintBi, alphaI);
             matrices.pop();
         }
     }
