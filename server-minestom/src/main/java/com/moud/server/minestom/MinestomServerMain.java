@@ -217,7 +217,10 @@ public final class MinestomServerMain {
         scenes.tickAll(TICK_DT_SECONDS);
         for (ServerScene scene : scenes.allScenes()) {
             playRuntime.applyEditorWorldEnvironment(scene);
-            scripts.tickRuntime(scene, TICK_DT_SECONDS);
+            String pendingTransition = scripts.tickRuntime(scene, TICK_DT_SECONDS);
+            if (pendingTransition != null) {
+                applyScriptSceneTransition(scene.sceneId(), pendingTransition);
+            }
         }
         for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
             if (!(player instanceof EnginePlayer enginePlayer)) {
@@ -918,6 +921,29 @@ public final class MinestomServerMain {
             scene = mainScene;
         }
         return scene;
+    }
+
+    private void applyScriptSceneTransition(String fromSceneId, String toSceneId) {
+        if (fromSceneId == null || toSceneId == null || toSceneId.isBlank()) {
+            return;
+        }
+        ServerScene target = scenes.get(toSceneId);
+        if (target == null) {
+            DebugLog.warn("scene", "script requested unknown scene '" + toSceneId + "'");
+            return;
+        }
+        for (Player p : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
+            if (!(p instanceof EnginePlayer ep)) {
+                continue;
+            }
+            if (!fromSceneId.equals(ep.activeSceneId())) {
+                continue;
+            }
+            Session s = ep.session();
+            if (s != null) {
+                switchPlayerToScene(ep, s, target);
+            }
+        }
     }
 
     private void switchPlayerToScene(EnginePlayer player, Session session, ServerScene target) {
