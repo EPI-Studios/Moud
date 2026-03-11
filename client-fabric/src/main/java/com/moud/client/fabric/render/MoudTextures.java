@@ -304,18 +304,19 @@ public final class MoudTextures implements AssetsClient.Listener {
         }
 
         TextureEntry finalEntry = entry;
+        NativeImage finalImage = image;
         Runnable register = () -> {
             MinecraftClient client = MinecraftClient.getInstance();
             TextureManager tm = client == null ? null : client.getTextureManager();
             if (tm == null) {
-                image.close();
+                finalImage.close();
                 synchronized (LOCK) {
                     finalEntry.state = TextureState.FAILED;
                     finalEntry.error = "no texture manager";
                 }
                 return;
             }
-            NativeImageBackedTexture tex = new NativeImageBackedTexture(image);
+            NativeImageBackedTexture tex = new NativeImageBackedTexture(finalImage);
             tm.registerTexture(finalEntry.id, tex);
             tex.upload();
             synchronized (LOCK) {
