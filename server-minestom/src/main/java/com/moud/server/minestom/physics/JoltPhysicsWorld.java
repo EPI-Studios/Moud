@@ -1,5 +1,6 @@
 package com.moud.server.minestom.physics;
 
+import com.github.stephengold.joltjni.AllHitCollideShapeBodyCollector;
 import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.BodyFilter;
 import com.github.stephengold.joltjni.BodyInterface;
@@ -12,11 +13,13 @@ import com.github.stephengold.joltjni.MassProperties;
 import com.github.stephengold.joltjni.ObjectLayerPairFilterTable;
 import com.github.stephengold.joltjni.ObjectVsBroadPhaseLayerFilterTable;
 import com.github.stephengold.joltjni.PhysicsSystem;
+import com.github.stephengold.joltjni.RRayCast;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Shape;
 import com.github.stephengold.joltjni.ShapeFilter;
 import com.github.stephengold.joltjni.SphereShape;
 import com.github.stephengold.joltjni.TempAllocatorImpl;
+import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
@@ -159,14 +162,55 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
     public Optional<RaycastResult> raycast(double ox, double oy, double oz,
                                            double dx, double dy, double dz,
                                            double maxDist) {
-        // TODO: implement using PhysicsSystem.getNarrowPhaseQuery().castRay()
-        return Optional.empty();
+        if (maxDist <= 0.0) {
+            return Optional.empty();
+        }
+        try {
+            RRayCast ray = new RRayCast(
+                    new RVec3(ox, oy, oz),
+                    new Vec3((float) (dx * maxDist), (float) (dy * maxDist), (float) (dz * maxDist))
+            );
+            com.github.stephengold.joltjni.RayCastResult joltResult = new com.github.stephengold.joltjni.RayCastResult();
+            boolean hit = system.getNarrowPhaseQuery().castRay(ray, joltResult);
+            if (!hit) {
+                return Optional.empty();
+            }
+            float fraction = joltResult.getFraction();
+            double hx = ox + dx * maxDist * fraction;
+            double hy = oy + dy * maxDist * fraction;
+            double hz = oz + dz * maxDist * fraction;
+            double dist = maxDist * fraction;
+            int bodyId = joltResult.getBodyId();
+            return Optional.of(new RaycastResult(hx, hy, hz, 0.0, 0.0, 0.0, dist, new BodyHandle(bodyId)));
+        } catch (Throwable ignored) {
+            return Optional.empty();
+        }
     }
 
     @Override
     public List<BodyHandle> overlapSphere(double x, double y, double z, double radius) {
-        // TODO: implement using PhysicsSystem.getNarrowPhaseQuery().collideSphere()
-        return List.of();
+        if (radius <= 0.0) {
+            return List.of();
+        }
+        try {
+            AllHitCollideShapeBodyCollector collector = new AllHitCollideShapeBodyCollector();
+            system.getBroadPhaseQuery().collideSphere(
+                    new Vec3((float) x, (float) y, (float) z),
+                    (float) radius,
+                    collector
+            );
+            int count = collector.countHits();
+            if (count == 0) {
+                return List.of();
+            }
+            ArrayList<BodyHandle> result = new ArrayList<>(count);
+            for (int i = 0; i < count; i++) {
+                result.add(new BodyHandle(collector.get(i)));
+            }
+            return List.copyOf(result);
+        } catch (Throwable ignored) {
+            return List.of();
+        }
     }
 
     @Override
