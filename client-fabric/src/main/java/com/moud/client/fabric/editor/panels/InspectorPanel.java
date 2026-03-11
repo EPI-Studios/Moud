@@ -591,9 +591,9 @@ public final class InspectorPanel extends Panel {
     }
 
     int renderGroupHeader(Ui ui, UiRenderer r, Theme theme, int x, int y, int w, String title) {
-        int h = 22;
+        int h = 26;
         int bg = Theme.toArgb(theme.headerBg);
-        int hover = Theme.toArgb(theme.widgetHover);
+        int hover = Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.7f);
         boolean expanded = isExpanded(title);
 
         boolean canInteract = (runtime == null || !runtime.uiBlocked()) && ui.input() != null;
@@ -602,10 +602,16 @@ public final class InspectorPanel extends Panel {
         boolean hovered = canInteract && mx >= x && my >= y && mx < x + w && my < y + h;
         r.drawRect(x, y, w, h, hovered ? hover : bg);
 
-        r.drawText(title, x + 18, r.baselineForBox(y, h), Theme.toArgb(theme.text));
-        float iconSize = Math.min(theme.design.icon_sm, h - 6);
+        // Left accent bar
+        r.drawRect(x, y, 3, h, Theme.toArgb(theme.accent));
+
+        float iconSize = Math.min(theme.design.icon_sm, h - 8);
         Icon icon = expanded ? Icon.CHEVRON_DOWN : Icon.CHEVRON_RIGHT;
-        theme.icons.draw(r, icon, x + 4, y + (h - iconSize) * 0.5f, iconSize, Theme.toArgb(theme.textMuted));
+        theme.icons.draw(r, icon, x + 6, y + (h - iconSize) * 0.5f, iconSize, Theme.toArgb(theme.textMuted));
+        r.drawText(title, x + 22, r.baselineForBox(y, h), Theme.toArgb(theme.text));
+
+        // Bottom separator
+        r.drawRect(x, y + h - 1, w, 1, Theme.toArgb(theme.headerLine));
 
         if (hovered && canInteract && ui.input().mousePressed()) {
             groupExpanded.put(title, !expanded);
