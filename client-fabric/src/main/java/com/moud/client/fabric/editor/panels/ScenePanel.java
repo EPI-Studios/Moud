@@ -565,14 +565,14 @@ public final class ScenePanel extends Panel {
     private static int nodeTypeBadgeColor(String type) {
         if (type == null) return 0xFF607080;
         return switch (type) {
-            case "Camera3D"                                         -> 0xFF4A9EE0;
-            case "PlayerStart"                                      -> 0xFF5CB85C;
-            case "WorldEnvironment"                                 -> 0xFF9B6EC8;
-            case "CSGBlock", "CSGBox"                               -> 0xFF8A9BA8;
-            case "MeshInstance3D"                                   -> 0xFF6EA8D4;
-            case "SceneInstance3D"                                  -> 0xFF5BA0A0;
+            case "Camera3D"                                      -> 0xFF4A9EE0;
+            case "PlayerStart"                                   -> 0xFF5CB85C;
+            case "WorldEnvironment"                              -> 0xFF9B6EC8;
+            case "CSGBlock", "CSGBox"                            -> 0xFF8A9BA8;
+            case "MeshInstance3D"                                -> 0xFF6EA8D4;
+            case "SceneInstance3D"                               -> 0xFF5BA0A0;
             case "OmniLight3D", "DirectionalLight3D", "SpotLight3D" -> 0xFFD4A017;
-            default                                                 -> 0xFF607080;
+            default                                              -> 0xFF607080;
         };
     }
 
@@ -586,51 +586,6 @@ public final class ScenePanel extends Panel {
             TreeNode<SceneSnapshot.NodeSnapshot> node = selected.iterator().next();
             if (node.data() != null) {
                 state.selectedId = node.data().nodeId();
-            }
-        }
-    }
-
-    private void renderNodeTypeBadges(UiRenderer r, Theme theme,
-                                      int treeX, int treeY, int treeW, int treeH,
-                                      int itemH, int scrollOffset) {
-        if (rootNode == null || r == null || theme == null) return;
-        int btnSize = Math.min(16, Math.max(12, itemH - 6));
-        int gap = 4;
-        int margin = 6;
-        int lockX = treeX + treeW - margin - btnSize;
-        int visX = lockX - gap - btnSize;
-        int badgeW = 28;
-        int badgeX = visX - gap - badgeW;
-        renderNodeTypeBadgesRecursive(rootNode, new int[]{0}, treeY, treeY + treeH,
-                itemH, scrollOffset, badgeX, badgeW, r, theme);
-    }
-
-    private void renderNodeTypeBadgesRecursive(TreeNode<SceneSnapshot.NodeSnapshot> node, int[] counter,
-                                               int treeY, int treeMaxY, int itemH, int scrollOffset,
-                                               int badgeX, int badgeW, UiRenderer r, Theme theme) {
-        if (node == null || counter == null || counter.length == 0) return;
-        int rowIndex = counter[0];
-        SceneSnapshot.NodeSnapshot snap = node.data();
-        if (snap != null && snap.nodeId() > 0L) {
-            int rowY = treeY + rowIndex * itemH - scrollOffset;
-            if (rowY + itemH >= treeY && rowY <= treeMaxY) {
-                String badge = nodeTypeBadgeText(snap.type());
-                if (!badge.isEmpty()) {
-                    int badgeH = Math.max(13, itemH - 8);
-                    int badgeY = rowY + (itemH - badgeH) / 2;
-                    int col = nodeTypeBadgeColor(snap.type());
-                    r.drawRoundedRect(badgeX, badgeY, badgeW, badgeH, theme.design.radius_sm,
-                            Theme.mulAlpha(col, 0.20f));
-                    float textW = r.measureText(badge);
-                    r.drawText(badge, badgeX + (badgeW - textW) / 2f, r.baselineForBox(badgeY, badgeH), col);
-                }
-            }
-        }
-        counter[0]++;
-        if (node.expanded()) {
-            for (TreeNode<SceneSnapshot.NodeSnapshot> child : node.children()) {
-                renderNodeTypeBadgesRecursive(child, counter, treeY, treeMaxY, itemH, scrollOffset,
-                        badgeX, badgeW, r, theme);
             }
         }
     }
@@ -693,9 +648,11 @@ public final class ScenePanel extends Panel {
                 boolean visible = isVisible(snap);
                 boolean locked = isLocked(snap);
 
-                renderToggleButton(r, theme, visX, btnY, btnSize, btnSize, visible ? "V" : "H", mx, my, click,
+                renderToggleButton(r, theme, visX, btnY, btnSize, btnSize,
+                        visible ? Icon.VISIBLE : Icon.INVISIBLE, !visible, mx, my, click,
                         () -> toggleVisible(snap.nodeId(), visible));
-                renderToggleButton(r, theme, lockX, btnY, btnSize, btnSize, locked ? "L" : "U", mx, my, click,
+                renderToggleButton(r, theme, lockX, btnY, btnSize, btnSize,
+                        locked ? Icon.LOCK : Icon.UNLOCK, locked, mx, my, click,
                         () -> toggleLocked(snap.nodeId(), locked));
             }
         }
@@ -708,36 +665,71 @@ public final class ScenePanel extends Panel {
         }
     }
 
-    private void renderToggleButton(UiRenderer r,
-                                    Theme theme,
-                                    int x,
-                                    int y,
-                                    int w,
-                                    int h,
-                                    String label,
-                                    float mx,
-                                    float my,
-                                    boolean click,
-                                    Runnable action) {
-        if (r == null || theme == null) {
-            return;
+    private void renderNodeTypeBadges(UiRenderer r, Theme theme,
+                                      int treeX, int treeY, int treeW, int treeH,
+                                      int itemH, int scrollOffset) {
+        if (rootNode == null || r == null || theme == null) return;
+        int btnSize = Math.min(16, Math.max(12, itemH - 6));
+        int gap = 4;
+        int margin = 6;
+        int lockX = treeX + treeW - margin - btnSize;
+        int visX = lockX - gap - btnSize;
+        int badgeW = 28;
+        int badgeX = visX - gap - badgeW;
+        renderNodeTypeBadgesRecursive(rootNode, new int[]{0}, treeY, treeY + treeH,
+                itemH, scrollOffset, badgeX, badgeW, r, theme);
+    }
+
+    private void renderNodeTypeBadgesRecursive(TreeNode<SceneSnapshot.NodeSnapshot> node, int[] counter,
+                                               int treeY, int treeMaxY, int itemH, int scrollOffset,
+                                               int badgeX, int badgeW, UiRenderer r, Theme theme) {
+        if (node == null || counter == null || counter.length == 0) return;
+        int rowIndex = counter[0];
+        SceneSnapshot.NodeSnapshot snap = node.data();
+        if (snap != null && snap.nodeId() > 0L) {
+            int rowY = treeY + rowIndex * itemH - scrollOffset;
+            if (rowY + itemH >= treeY && rowY <= treeMaxY) {
+                String badge = nodeTypeBadgeText(snap.type());
+                if (!badge.isEmpty()) {
+                    int badgeH = Math.max(13, itemH - 8);
+                    int badgeY = rowY + (itemH - badgeH) / 2;
+                    int col = nodeTypeBadgeColor(snap.type());
+                    r.drawRoundedRect(badgeX, badgeY, badgeW, badgeH, theme.design.radius_sm,
+                            Theme.mulAlpha(col, 0.20f));
+                    float textW = r.measureText(badge);
+                    r.drawText(badge, badgeX + (badgeW - textW) / 2f, r.baselineForBox(badgeY, badgeH), col);
+                }
+            }
         }
+        counter[0]++;
+        if (node.expanded()) {
+            for (TreeNode<SceneSnapshot.NodeSnapshot> child : node.children()) {
+                renderNodeTypeBadgesRecursive(child, counter, treeY, treeMaxY, itemH, scrollOffset,
+                        badgeX, badgeW, r, theme);
+            }
+        }
+    }
+
+    private void renderToggleButton(UiRenderer r, Theme theme, int x, int y, int w, int h,
+                                    Icon icon, boolean active,
+                                    float mx, float my, boolean click, Runnable action) {
+        if (r == null || theme == null) return;
         boolean hovered = mx >= x && my >= y && mx < x + w && my < y + h;
-        int fill = 0;
         if (hovered) {
-            fill = Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.65f);
+            r.drawRoundedRect(x, y, w, h, theme.design.radius_sm,
+                    Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.65f));
         }
-        if (fill != 0) {
-            r.drawRoundedRect(x, y, w, h, theme.design.radius_sm, fill);
+        int col;
+        if (active) {
+            col = Theme.toArgb(theme.accent);
+        } else if (hovered) {
+            col = Theme.toArgb(theme.text);
+        } else {
+            col = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.5f);
         }
-        int col = hovered ? Theme.toArgb(theme.text) : Theme.toArgb(theme.textMuted);
-        String text = label == null ? "" : label;
-        float textW = r.measureText(text);
-        float tx = x + Math.max(0f, (w - textW) / 2f);
-        r.drawText(text, tx, r.baselineForBox(y, h), col);
-        if (hovered && click && action != null) {
-            action.run();
-        }
+        float iconSize = w - 4;
+        theme.icons.draw(r, icon, x + (w - iconSize) * 0.5f, y + (h - iconSize) * 0.5f, iconSize, col);
+        if (hovered && click && action != null) action.run();
     }
 
     private static boolean isVisible(SceneSnapshot.NodeSnapshot node) {
