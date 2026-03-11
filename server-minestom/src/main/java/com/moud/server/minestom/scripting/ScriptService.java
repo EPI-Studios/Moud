@@ -9,6 +9,7 @@ import com.moud.net.protocol.ScriptActionListResponse;
 import com.moud.server.minestom.engine.ServerScene;
 import org.graalvm.polyglot.Engine;
 import com.moud.server.minestom.project.ProjectService;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -27,6 +28,20 @@ public final class ScriptService {
     /** @return a pending scene-transition ID, or {@code null} if none was requested. */
     public String tickRuntime(ServerScene scene, double dtSeconds) {
         return runtime.tick(scene, dtSeconds);
+    }
+
+    public void updatePlayerPositions(Map<UUID, float[]> positions) {
+        runtime.updatePlayerPositions(positions);
+    }
+
+    public Long getActiveCameraForPlayer(String sceneId, UUID uuid) {
+        if (sceneId == null || uuid == null) return null;
+        return runtime.getActiveCameraForPlayer(sceneId, uuid.toString());
+    }
+
+    public float[] getFollowCameraForPlayer(String sceneId, UUID uuid) {
+        if (sceneId == null || uuid == null) return null;
+        return runtime.getFollowCameraForPlayer(sceneId, uuid.toString());
     }
 
     public void onPlayerInput(UUID uuid, PlayerInput input) {

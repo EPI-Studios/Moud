@@ -27,6 +27,10 @@ final class SceneRuntime {
 
     private final ProjectService project;
     private final ConcurrentHashMap<String, PlayerInputState> inputsByPlayer;
+    private final ConcurrentHashMap<String, float[]> playerPositions = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Long> activeCameraByPlayer = new ConcurrentHashMap<>();
+    // [localX, localY, localZ, pitchDeg, rollDeg] in player-local space
+    private final ConcurrentHashMap<String, float[]> followCameraByPlayer = new ConcurrentHashMap<>();
     private final Context ctx;
     private final Value createInstanceFn;
     private final Map<Path, Program> programs = new HashMap<>();
@@ -476,6 +480,23 @@ final class SceneRuntime {
         }
     }
 
+    void updatePlayerPositions(Map<String, float[]> positions) {
+        playerPositions.clear();
+        if (positions != null) {
+            playerPositions.putAll(positions);
+        }
+    }
+
+    Long getActiveCameraForPlayer(String playerUuid) {
+        if (playerUuid == null) return null;
+        return activeCameraByPlayer.get(playerUuid);
+    }
+
+    float[] getFollowCameraForPlayer(String playerUuid) {
+        if (playerUuid == null) return null;
+        return followCameraByPlayer.get(playerUuid);
+    }
+
     void queueSceneTransition(String sceneId) {
         if (sceneId != null && !sceneId.isBlank()) {
             pendingSceneTransition = sceneId.trim();
@@ -749,6 +770,56 @@ final class SceneRuntime {
         @HostAccess.Export
         public void after(double seconds, Value callback) {
             SceneRuntime.this.scheduleTimer(seconds, callback);
+        }
+
+        @HostAccess.Export
+        public double playerX() { return playerCoord(0); }
+
+        @HostAccess.Export
+        public double playerY() { return playerCoord(1); }
+
+        @HostAccess.Export
+        public double playerZ() { return playerCoord(2); }
+
+        @HostAccess.Export
+        public double playerYaw() { return playerCoord(3); }
+
+        @HostAccess.Export
+        public void setActiveCamera(long nodeId) {
+            String uuid = resolveOwnerUuid();
+            if (uuid == null) return;
+            followCameraByPlayer.remove(uuid);
+            if (nodeId <= 0L) {
+                activeCameraByPlayer.remove(uuid);
+            } else {
+                activeCameraByPlayer.put(uuid, nodeId);
+            }
+        }
+
+        @HostAccess.Export
+        public void setFollowCamera(double localX, double localY, double localZ, double pitchDeg, double rollDeg) {
+            String uuid = resolveOwnerUuid();
+            if (uuid == null) return;
+            activeCameraByPlayer.remove(uuid);
+            followCameraByPlayer.put(uuid, new float[]{
+                    (float) localX, (float) localY, (float) localZ,
+                    (float) pitchDeg, (float) rollDeg
+            });
+        }
+
+        private double playerCoord(int idx) {
+            String uuid = resolveOwnerUuid();
+            if (uuid == null && inputsByPlayer.size() == 1) {
+                uuid = inputsByPlayer.keys().nextElement();
+            }
+            if (uuid == null) return 0.0;
+            float[] pos = playerPositions.get(uuid);
+            return pos != null && idx < pos.length ? pos[idx] : 0.0;
+        }
+
+        private String resolveOwnerUuid() {
+            Node n = scene.engine().sceneTree().getNode(selfId);
+            return n == null ? null : RuntimeScriptUtil.resolveOwnerUuid(n);
         }
     }
 }

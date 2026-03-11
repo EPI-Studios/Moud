@@ -4,22 +4,42 @@ package com.moud.server.minestom.scripting;
 import com.moud.net.protocol.PlayerInput;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.project.ProjectService;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.graalvm.polyglot.Engine;
-import org.graalvm.polyglot.HostAccess;
 
 final class RuntimeScriptService {
     private final ProjectService project;
     private final Engine engine;
     private final ConcurrentHashMap<String, SceneRuntime> runtimeByScene = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, PlayerInputState> inputsByPlayer = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, float[]> playerPositions = new ConcurrentHashMap<>();
 
     RuntimeScriptService(ProjectService project, Engine engine) {
         this.project = Objects.requireNonNull(project, "project");
         this.engine = Objects.requireNonNull(engine, "engine");
+    }
+
+    void updatePlayerPositions(Map<UUID, float[]> positions) {
+        playerPositions.clear();
+        if (positions != null) {
+            for (Map.Entry<UUID, float[]> e : positions.entrySet()) {
+                playerPositions.put(e.getKey().toString(), e.getValue());
+            }
+        }
+    }
+
+    Long getActiveCameraForPlayer(String sceneId, String playerUuid) {
+        SceneRuntime rt = runtimeByScene.get(sceneId);
+        return rt == null ? null : rt.getActiveCameraForPlayer(playerUuid);
+    }
+
+    float[] getFollowCameraForPlayer(String sceneId, String playerUuid) {
+        SceneRuntime rt = runtimeByScene.get(sceneId);
+        return rt == null ? null : rt.getFollowCameraForPlayer(playerUuid);
     }
 
     void onPlayerInput(UUID uuid, PlayerInput input) {
@@ -52,6 +72,7 @@ final class RuntimeScriptService {
                 scene.sceneId(),
                 ignored -> new SceneRuntime(project, engine, inputsByPlayer)
         );
+        rt.updatePlayerPositions(playerPositions);
         rt.tick(scene, dtSeconds);
         return rt.drainPendingSceneTransition();
     }
