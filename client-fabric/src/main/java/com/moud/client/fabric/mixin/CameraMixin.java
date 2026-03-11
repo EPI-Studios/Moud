@@ -29,7 +29,7 @@ public final class CameraMixin {
 
         PlayRuntimeClient runtime = PlayRuntimeBus.get();
         if (runtime != null && runtime.isActive()) {
-            runtime.applyCameraOverride((Camera) (Object) this);
+            runtime.applyCameraOverride((Camera) (Object) this, tickDelta);
         }
     }
 }
