@@ -130,6 +130,10 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("sz", new PropertyDef("sz", PropertyType.FLOAT, "1", "Size Z", "Size", 12, Map.of("min", "1", "step", "1"))),
                 Map.entry("texture", new PropertyDef("texture", PropertyType.STRING, "moud:dynamic/white", "Texture", "Material", 20, Map.of("asset", "image"))),
                 Map.entry("material", new PropertyDef("material", PropertyType.STRING, "", "Material", "Material", 21, Map.of("asset", "material"))),
+                Map.entry("opacity", new PropertyDef("opacity", PropertyType.FLOAT, "1", "Opacity", "Material", 22, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("color_tint_r", new PropertyDef("color_tint_r", PropertyType.FLOAT, "1", "R", "Color Tint", 0, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("color_tint_g", new PropertyDef("color_tint_g", PropertyType.FLOAT, "1", "G", "Color Tint", 1, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("color_tint_b", new PropertyDef("color_tint_b", PropertyType.FLOAT, "1", "B", "Color Tint", 2, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
 
@@ -146,6 +150,10 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("mesh", new PropertyDef("mesh", PropertyType.STRING, "box", "Mesh", "Mesh", 30, Map.of())),
                 Map.entry("texture", new PropertyDef("texture", PropertyType.STRING, "moud:dynamic/white", "Texture", "Material", 31, Map.of("asset", "image"))),
                 Map.entry("material", new PropertyDef("material", PropertyType.STRING, "", "Material", "Material", 32, Map.of("asset", "material"))),
+                Map.entry("opacity", new PropertyDef("opacity", PropertyType.FLOAT, "1", "Opacity", "Material", 33, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("color_tint_r", new PropertyDef("color_tint_r", PropertyType.FLOAT, "1", "R", "Color Tint", 0, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("color_tint_g", new PropertyDef("color_tint_g", PropertyType.FLOAT, "1", "G", "Color Tint", 1, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("color_tint_b", new PropertyDef("color_tint_b", PropertyType.FLOAT, "1", "B", "Color Tint", 2, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
 
