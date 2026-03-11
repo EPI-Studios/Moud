@@ -1,0 +1,12 @@
+{
+  "shader": "res://shaders/mat_textured.moudshader",
+  "params": {
+    "albedo": "res://textures/dcb11464e8f354084c52d97b5c5cdb9e.jpg",
+    "tint": [
+      0.9,
+      0.9,
+      0.9
+    ],
+    "opacity": 1.0
+  }
+}
