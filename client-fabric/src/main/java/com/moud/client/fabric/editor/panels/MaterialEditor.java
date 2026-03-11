@@ -407,10 +407,30 @@ final class MaterialEditor {
             }
             tex = tex == null ? "" : tex;
 
+            int previewSize = rowH - 4;
             int iconBtnW = Math.max(18, rowH - 4);
             int iconBtnH = rowH - 4;
             int iconGap = theme.design.space_xs;
-            int fieldW = Math.max(1, valueW - iconBtnW - iconGap);
+
+            int previewX = valueX;
+            int previewY = y + 2;
+            int fieldX = previewX + previewSize + iconGap;
+            int fieldW = Math.max(1, valueW - previewSize - iconGap - iconBtnW - iconGap);
+
+            int previewBg = Theme.toArgb(theme.widgetBg);
+            int previewOutline = Theme.toArgb(theme.widgetOutline);
+            r.drawRoundedRect(previewX, previewY, previewSize, previewSize, theme.design.radius_sm, previewBg, theme.design.border_thin, previewOutline);
+            if (!tex.isBlank()) {
+                Identifier texId = MoudTextures.resolve(tex);
+                MinecraftClient mc = MinecraftClient.getInstance();
+                if (mc != null && mc.getTextureManager() != null) {
+                    AbstractTexture mcTex = mc.getTextureManager().getOrDefault(texId, null);
+                    if (mcTex != null) {
+                        Texture mTex = Texture.wrapExternal(mcTex.getGlId(), previewSize, previewSize, false);
+                        r.drawTexturedRect(mTex, previewX, previewY, previewSize, previewSize, 0f, 0f, 1f, 1f, 0xFFFFFFFF);
+                    }
+                }
+            }
 
             String fieldKey = "mat:" + materialPath + ":" + name;
             materialStringBindings.putIfAbsent(fieldKey, new MaterialStringBinding(materialPath, name));
@@ -421,9 +441,9 @@ final class MaterialEditor {
                 tf.setCursorPos(tf.text().length());
             }
             var input = (runtime != null && !runtime.uiBlocked()) ? ui.input() : null;
-            tf.render(r, uiContext, input, theme, valueX, y + 2, fieldW, rowH - 4, true);
+            tf.render(r, uiContext, input, theme, fieldX, y + 2, fieldW, rowH - 4, true);
 
-            int btnX = valueX + fieldW + iconGap;
+            int btnX = fieldX + fieldW + iconGap;
             int btnY = y + 2;
             int menuX = btnX;
             int menuY = btnY + iconBtnH;
