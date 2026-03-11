@@ -13,6 +13,7 @@
     "SectionBuilderMixin",
     "WorldRendererMixin",
     "WorldRendererSkyCloudOverrideMixin",
+    "EntityObbCollisionMixin",
     "accessor.CameraAccessor",
     "accessor.GameRendererAccessor"
   ],
