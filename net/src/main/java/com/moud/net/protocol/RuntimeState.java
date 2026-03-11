@@ -18,7 +18,14 @@ public record RuntimeState(
         float sceneCamZ,
         float sceneCamYawDeg,
         float sceneCamPitchDeg,
-        float sceneCamRollDeg
+        float sceneCamRollDeg,
+        // client-side follow camera: client adds local player pos each frame
+        boolean useFollowCamera,
+        float followCamLocalX,
+        float followCamLocalY,
+        float followCamLocalZ,
+        float followCamPitchDeg,
+        float followCamRollDeg
 ) implements Message {
     @Override
     public MessageType type() {

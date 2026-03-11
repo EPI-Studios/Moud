@@ -49,6 +49,12 @@ public final class RuntimeCodec {
         out.putFloat(state.sceneCamYawDeg());
         out.putFloat(state.sceneCamPitchDeg());
         out.putFloat(state.sceneCamRollDeg());
+        WireIo.writeVarInt(out, state.useFollowCamera() ? 1 : 0);
+        out.putFloat(state.followCamLocalX());
+        out.putFloat(state.followCamLocalY());
+        out.putFloat(state.followCamLocalZ());
+        out.putFloat(state.followCamPitchDeg());
+        out.putFloat(state.followCamRollDeg());
     }
 
     public static RuntimeState readRuntimeState(ByteBuffer in) {
@@ -69,11 +75,19 @@ public final class RuntimeCodec {
         float sceneCamYawDeg = in.getFloat();
         float sceneCamPitchDeg = in.getFloat();
         float sceneCamRollDeg = in.getFloat();
+        boolean useFollowCamera = WireIo.readVarInt(in) != 0;
+        float followCamLocalX = in.getFloat();
+        float followCamLocalY = in.getFloat();
+        float followCamLocalZ = in.getFloat();
+        float followCamPitchDeg = in.getFloat();
+        float followCamRollDeg = in.getFloat();
         return new RuntimeState(tick, sceneId,
                 fogEnabled, fogColorR, fogColorG, fogColorB, fogDensity,
                 timeTicks, weather, ambientLight,
                 useSceneCamera, sceneCamX, sceneCamY, sceneCamZ,
-                sceneCamYawDeg, sceneCamPitchDeg, sceneCamRollDeg);
+                sceneCamYawDeg, sceneCamPitchDeg, sceneCamRollDeg,
+                useFollowCamera, followCamLocalX, followCamLocalY, followCamLocalZ,
+                followCamPitchDeg, followCamRollDeg);
     }
 
     public static int playerInputSize(PlayerInput input) {
@@ -91,6 +105,8 @@ public final class RuntimeCodec {
         size += 4;     // ambientLight
         size += WireIo.varIntSize(state.useSceneCamera() ? 1 : 0);
         size += 6 * 4; // sceneCam x/y/z/yaw/pitch/roll
+        size += WireIo.varIntSize(state.useFollowCamera() ? 1 : 0);
+        size += 5 * 4; // followCam localX/Y/Z/pitch/roll
         return size;
     }
 }
