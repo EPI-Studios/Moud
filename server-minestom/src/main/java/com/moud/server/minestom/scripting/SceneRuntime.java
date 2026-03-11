@@ -33,6 +33,7 @@ final class SceneRuntime {
     private long cachedTargetsGraphRevision = Long.MIN_VALUE;
     private final ArrayList<Target> cachedTargets = new ArrayList<>();
     private volatile ServerScene lastScene;
+    private final ArrayList<PendingTimer> pendingTimers = new ArrayList<>();
 
     SceneRuntime(ProjectService project, Engine engine, ConcurrentHashMap<String, PlayerInputState> inputsByPlayer) {
         this.project = Objects.requireNonNull(project, "project");
@@ -56,6 +57,8 @@ final class SceneRuntime {
     void tick(ServerScene scene, double dtSeconds) {
         Objects.requireNonNull(scene, "scene");
         lastScene = scene;
+
+        tickTimers(dtSeconds);
 
         ArrayList<Target> targets = targetsFor(scene);
         HashSet<Long> alive = new HashSet<>(targets.size());
@@ -469,11 +472,44 @@ final class SceneRuntime {
         }
     }
 
+    void scheduleTimer(double seconds, Value callback) {
+        if (callback == null || !callback.canExecute()) return;
+        pendingTimers.add(new PendingTimer(Math.max(0.0, seconds), callback));
+    }
+
+    private void tickTimers(double dtSeconds) {
+        if (pendingTimers.isEmpty()) return;
+        Iterator<PendingTimer> it = pendingTimers.iterator();
+        while (it.hasNext()) {
+            PendingTimer t = it.next();
+            t.timeLeft -= dtSeconds;
+            if (t.timeLeft <= 0.0) {
+                it.remove();
+                try {
+                    t.callback.execute();
+                } catch (PolyglotException e) {
+                    DebugLog.error(LOG_TAG, "timer callback error: " + e.getMessage(), e);
+                } catch (Exception e) {
+                    DebugLog.error(LOG_TAG, "timer callback error: " + e.getMessage(), e);
+                }
+            }
+        }
+    }
+
     private static String propKey(long nodeId, String key) {
         return nodeId + "\u0000" + key;
     }
 
     private record Target(long nodeId, String scriptPath) {
+    }
+
+    private static final class PendingTimer {
+        double timeLeft;
+        final Value callback;
+        PendingTimer(double timeLeft, Value callback) {
+            this.timeLeft = timeLeft;
+            this.callback = callback;
+        }
     }
 
     private record Program(Path file, long modifiedMs, Value exports) {
