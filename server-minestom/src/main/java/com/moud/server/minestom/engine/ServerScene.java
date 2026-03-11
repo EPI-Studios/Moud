@@ -66,5 +66,9 @@ public final class ServerScene {
     public SceneOpApplier applier() {
         return applier;
     }
+
+    public JoltPhysicsWorld physics() {
+        return physics;
+    }
 }
 
