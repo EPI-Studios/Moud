@@ -1,10 +1,13 @@
 package com.moud.server.minestom.scripting;
 
+import com.moud.core.physics.BodyHandle;
+import com.moud.core.physics.RaycastResult;
 import com.moud.core.scene.Node;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpBatch;
 import com.moud.net.protocol.SceneOpResult;
+import com.moud.server.minestom.physics.JoltPhysicsWorld;
 import org.graalvm.polyglot.Engine;
 import com.moud.server.minestom.engine.SceneBatchIds;
 import com.moud.server.minestom.engine.ServerScene;
@@ -714,6 +717,38 @@ final class SceneRuntime {
             }
             Node found = self.getNode(path.trim());
             return found == null ? 0L : found.nodeId();
+        }
+
+        @HostAccess.Export
+        public PhysicsHit raycast(double ox, double oy, double oz,
+                                  double dx, double dy, double dz,
+                                  double maxDist) {
+            JoltPhysicsWorld physics = scene.physics();
+            if (physics == null) return null;
+            return physics.raycast(ox, oy, oz, dx, dy, dz, maxDist)
+                    .map(PhysicsHit::new)
+                    .orElse(null);
+        }
+
+        @HostAccess.Export
+        public int[] overlapSphere(double x, double y, double z, double radius) {
+            JoltPhysicsWorld physics = scene.physics();
+            if (physics == null) return new int[0];
+            List<BodyHandle> handles = physics.overlapSphere(x, y, z, radius);
+            int[] ids = new int[handles.size()];
+            for (int i = 0; i < handles.size(); i++) ids[i] = handles.get(i).id();
+            return ids;
+        }
+
+        @HostAccess.Export
+        public void loadScene(String sceneId) {
+            if (sceneId == null || sceneId.isBlank()) return;
+            SceneRuntime.this.queueSceneTransition(sceneId);
+        }
+
+        @HostAccess.Export
+        public void after(double seconds, Value callback) {
+            SceneRuntime.this.scheduleTimer(seconds, callback);
         }
     }
 }
