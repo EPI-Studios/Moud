@@ -47,8 +47,8 @@ public final class EditorTheme {
         theme.design.space_xs = 2;
         theme.design.space_sm = 4;
         theme.design.space_md = 8;
-        theme.design.radius_sm = 2;   // flat — only on interactive widgets
-        theme.design.radius_md = 2;
+        theme.design.radius_sm = 4;   // rounded widgets (buttons, inputs)
+        theme.design.radius_md = 6;   // panels, larger elements
         theme.design.border_thin = 1;
         theme.design.widget_height_sm = 20;
         theme.design.widget_height_md = 24;
