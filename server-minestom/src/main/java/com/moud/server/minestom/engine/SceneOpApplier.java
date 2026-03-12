@@ -259,7 +259,8 @@ public final class SceneOpApplier {
                 PlainNode child = new PlainNode(createNode.name());
                 engine.nodeTypes().applyDefaults(child, createNode.typeId());
                 parent.addChild(child);
-                yield new ApplyOutcome(SceneOpResult.created(parent.nodeId(), child.nodeId()), true, "CSGBlock".equals(createNode.typeId()));
+                yield new ApplyOutcome(SceneOpResult.created(parent.nodeId(), child.nodeId()), true,
+                        "CSGBlock".equals(createNode.typeId()) || "CSGBox".equals(createNode.typeId()));
             }
             case SceneOp.QueueFree queueFree -> {
                 Node node = engine.sceneTree().getNode(queueFree.nodeId());
@@ -376,14 +377,16 @@ public final class SceneOpApplier {
         if ("@type".equals(key)) {
             return true;
         }
-        return "CSGBlock".equals(engine.nodeTypes().typeIdFor(node));
+        String typeId = engine.nodeTypes().typeIdFor(node);
+        return "CSGBlock".equals(typeId) || "CSGBox".equals(typeId);
     }
 
     private boolean subtreeContainsCsg(Node node) {
         if (node == null) {
             return false;
         }
-        if ("CSGBlock".equals(engine.nodeTypes().typeIdFor(node))) {
+        String typeId = engine.nodeTypes().typeIdFor(node);
+        if ("CSGBlock".equals(typeId) || "CSGBox".equals(typeId)) {
             return true;
         }
         for (Node child : node.children()) {
@@ -398,7 +401,8 @@ public final class SceneOpApplier {
         if (node == null) {
             return false;
         }
-        if ("CSGBlock".equals(engine.nodeTypes().typeIdFor(node))) {
+        String typeId = engine.nodeTypes().typeIdFor(node);
+        if ("CSGBlock".equals(typeId) || "CSGBox".equals(typeId)) {
             return true;
         }
         for (Node child : node.children()) {
