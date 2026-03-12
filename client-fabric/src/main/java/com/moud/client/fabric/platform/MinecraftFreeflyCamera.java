@@ -12,6 +12,7 @@ import org.lwjgl.glfw.GLFW;
 public final class MinecraftFreeflyCamera {
     private boolean enabled;
     private boolean capturing;
+    private boolean bootstrappedFromPlayer;
 
     private Vec3d pos = new Vec3d(0.0, 70.0, 0.0);
     private double yaw = 180.0;
@@ -48,7 +49,10 @@ public final class MinecraftFreeflyCamera {
         }
         this.enabled = enabled;
         if (enabled) {
-            bootstrapFromPlayer();
+            if (!bootstrappedFromPlayer) {
+                bootstrapFromPlayer();
+                bootstrappedFromPlayer = true;
+            }
             lastUpdateNs = 0L;
             firstMouseMove = true;
             capturing = false;
@@ -57,6 +61,10 @@ public final class MinecraftFreeflyCamera {
             lastUpdateNs = 0L;
             firstMouseMove = true;
         }
+    }
+
+    public void resetBootstrap() {
+        bootstrappedFromPlayer = false;
     }
 
     private void bootstrapFromPlayer() {
