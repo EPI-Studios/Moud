@@ -96,6 +96,43 @@ public final class MoudTextures implements AssetsClient.Listener {
         }
     }
 
+    public static void registerRaw(Identifier id, byte[] pngBytes) {
+        if (id == null || pngBytes == null || pngBytes.length == 0) return;
+        Thread.ofVirtual().name("moud-tex-decode").start(() -> decodeAndUploadRaw(id, pngBytes));
+    }
+
+    private static void decodeAndUploadRaw(Identifier id, byte[] pngBytes) {
+        NativeImage image;
+        try {
+            image = NativeImage.read(new ByteArrayInputStream(pngBytes));
+        } catch (Exception e) {
+            return;
+        }
+        int imgW = image.getWidth(), imgH = image.getHeight();
+        if (imgW > MAX_TEXTURE_SIZE || imgH > MAX_TEXTURE_SIZE) {
+            float scale = (float) MAX_TEXTURE_SIZE / Math.max(imgW, imgH);
+            int newW = Math.max(1, Math.round(imgW * scale)), newH = Math.max(1, Math.round(imgH * scale));
+            try {
+                NativeImage scaled = new NativeImage(newW, newH, false);
+                image.resizeSubRectTo(0, 0, imgW, imgH, scaled);
+                image.close();
+                image = scaled;
+            } catch (Exception e) {
+                image.close();
+                return;
+            }
+        }
+        NativeImage finalImage = image;
+        RenderSystem.recordRenderCall(() -> {
+            MinecraftClient client = MinecraftClient.getInstance();
+            TextureManager tm = client == null ? null : client.getTextureManager();
+            if (tm == null) { finalImage.close(); return; }
+            NativeImageBackedTexture tex = new NativeImageBackedTexture(finalImage);
+            tm.registerTexture(id, tex);
+            tex.upload();
+        });
+    }
+
     public static List<String> imageAssetPaths() {
         synchronized (LOCK) {
             return imagePaths;

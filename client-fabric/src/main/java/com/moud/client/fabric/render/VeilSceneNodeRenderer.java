@@ -2,6 +2,7 @@ package com.moud.client.fabric.render;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.moud.client.fabric.assets.MoudTextAssets;
+import com.moud.client.fabric.model.ModelCache;
 import com.moud.core.assets.ResPath;
 import com.moud.client.fabric.render.material.MoudMaterial;
 import com.moud.client.fabric.render.material.MoudMaterialParser;
@@ -167,6 +168,20 @@ public final class VeilSceneNodeRenderer {
                 continue;
             }
             String type = node.type();
+
+            if ("Model3D".equals(type)) {
+                Pose world = worldPose(node.nodeId());
+                if (world == null) continue;
+                int light = WorldRenderer.getLightmapCoordinates(client.world, BlockPos.ofFloored(world.pos.x, world.pos.y, world.pos.z));
+                matrices.push();
+                matrices.translate(world.pos.x - camPos.x, world.pos.y - camPos.y, world.pos.z - camPos.z);
+                matrices.multiply(world.rot);
+                matrices.scale(world.scale.x, world.scale.y, world.scale.z);
+                Model3DRenderer.render(consumers, matrices, node, light);
+                matrices.pop();
+                continue;
+            }
+
             if (!"MeshInstance3D".equals(type) && !"CSGBox".equals(type)) {
                 continue;
             }
