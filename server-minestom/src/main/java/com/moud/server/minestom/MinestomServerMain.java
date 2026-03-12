@@ -351,15 +351,30 @@ public final class MinestomServerMain {
             scene.engine().bumpSceneRevision();
             scene.engine().bumpCsgRevision();
             DebugLog.info("scene", "imported '" + sceneId + "' from " + path.path());
-            // TODO: persistToDisk() not yet implemented
-            // try {
-            //     scene.persistToDisk();
-            // } catch (Exception e) {
-            //     DebugLog.error("scene", "failed to persist imported scene '" + sceneId + "': " + e.getMessage());
-            // }
+            try {
+                persistSceneToDisk(scene);
+            } catch (Exception e) {
+                DebugLog.error("scene", "failed to persist imported scene '" + sceneId + "': " + e.getMessage());
+            }
             instancer.syncAll(scenes);
         } catch (Exception e) {
             DebugLog.error("scene", "failed to import '" + sceneId + "': " + e.getMessage());
+        }
+    }
+
+    private void persistSceneToDisk(ServerScene scene) throws Exception {
+        if (scene == null) {
+            throw new IllegalArgumentException("scene null");
+        }
+        Path out = sceneFilePath(scene.sceneId());
+        Files.createDirectories(out.getParent());
+        String json = SceneFileIO.toJson(scene.sceneId(), scene.displayName(), scene.snapshot(0L));
+        Path tmp = out.resolveSibling(out.getFileName().toString() + ".tmp");
+        Files.writeString(tmp, json, StandardCharsets.UTF_8);
+        try {
+            Files.move(tmp, out, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } catch (Exception ignored) {
+            Files.move(tmp, out, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
@@ -737,13 +752,13 @@ public final class MinestomServerMain {
                 return;
             }
 
-            // TODO: persistToDisk() not yet implemented
-            // try {
-            //     scene.persistToDisk();
+            try {
+                persistSceneToDisk(scene);
                 session.send(Lane.EVENTS, new SceneSaveAck(scene.sceneId(), true, null));
-            // } catch (Exception e) {
-            //     session.send(Lane.EVENTS, new SceneSaveAck(scene.sceneId(), false, e.getMessage()));
-            // }
+            } catch (Exception e) {
+                String msg = e.getMessage() == null || e.getMessage().isBlank() ? "Save failed" : e.getMessage();
+                session.send(Lane.EVENTS, new SceneSaveAck(scene.sceneId(), false, msg));
+            }
             return;
         }
 
@@ -773,8 +788,7 @@ public final class MinestomServerMain {
             ServerScene scene;
             try {
                 scene = scenes.create(sid, displayName);
-                // TODO: persistToDisk() not yet implemented
-                // scene.persistToDisk();
+                persistSceneToDisk(scene);
             } catch (Exception e) {
                 scenes.delete(sid);
                 session.send(Lane.EVENTS, new SceneCreateAck(sid, false, e.getMessage()));
