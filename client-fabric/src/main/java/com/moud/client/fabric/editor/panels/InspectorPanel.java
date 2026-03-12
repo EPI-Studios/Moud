@@ -21,6 +21,8 @@ import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
 import com.moud.client.fabric.editor.util.EditorUiUtil;
 import com.moud.client.fabric.assets.MoudTextAssets;
+import com.moud.client.fabric.model.ModelAsset;
+import com.moud.client.fabric.model.ModelCache;
 import com.moud.client.fabric.render.MoudTextures;
 import com.moud.client.fabric.util.ParseUtils;
 import com.moud.core.NodeTypeDef;
@@ -28,6 +30,7 @@ import com.moud.core.PropertyDef;
 import com.moud.core.PropertyType;
 import com.moud.core.assets.ResPath;
 import com.moud.core.math.Transform;
+import com.moud.core.scene.Model3D;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.session.Session;
@@ -70,6 +73,10 @@ public final class InspectorPanel extends Panel {
     private final ContextMenu assetMenu = new ContextMenu();
     private long assetMenuNodeId;
     private String assetMenuKey;
+
+    private final ContextMenu selectMenu = new ContextMenu();
+    private long selectMenuNodeId;
+    private String selectMenuKey;
 
     private boolean syncingNumbers;
     private long lastSelectedId;
@@ -167,7 +174,7 @@ public final class InspectorPanel extends Panel {
 
         ui.beginPanel(x, y, w, h);
 
-        int tabH = 26;
+        int tabH = theme.design.tab_height_md;
         int headerH = 70;
         int cursorY = y;
 
@@ -380,6 +387,17 @@ public final class InspectorPanel extends Panel {
             if (value == null) {
                 value = prop.defaultValue() != null ? prop.defaultValue() : "";
             }
+
+            if ("Model3D".equals(sel.type())) {
+                if (Model3D.PROP_ANIMATION.equals(prop.key())) {
+                    cursorY = renderModel3DAnimationRow(ui, r, uiContext, theme, sel.nodeId(), prop, values, innerX, cursorY, innerW, rowH, labelW, value, interactive);
+                    continue;
+                }
+                if (Model3D.PROP_ANIMATION_LOOP.equals(prop.key())) {
+                    cursorY = renderModel3DAnimationLoopRow(ui, r, uiContext, theme, sel.nodeId(), prop, innerX, cursorY, innerW, rowH, labelW, value, interactive);
+                    continue;
+                }
+            }
             cursorY = renderPropertyRow(ui, r, uiContext, theme, sel.nodeId(), prop, innerX, cursorY, innerW, rowH, labelW, value);
         }
 
@@ -389,7 +407,183 @@ public final class InspectorPanel extends Panel {
         ui.endScrollArea(area);
 
         renderAssetMenu(ui, r, theme, interactive);
+        renderSelectMenu(ui, r, theme, interactive);
         materialEditor.renderMaterialTextureMenu(ui, r, theme, interactive);
+    }
+
+    private int renderModel3DAnimationRow(Ui ui,
+                                         UiRenderer r,
+                                         UiContext uiContext,
+                                         Theme theme,
+                                         long nodeId,
+                                         PropertyDef prop,
+                                         Map<String, String> values,
+                                         int x,
+                                         int y,
+                                         int w,
+                                         int rowH,
+                                         int labelW,
+                                         String value,
+                                         boolean interactive) {
+        if (ui == null || r == null || theme == null || prop == null) {
+            return y + rowH;
+        }
+        String modelPath = values == null ? null : values.get(Model3D.PROP_MODEL_PATH);
+        if (modelPath != null) {
+            modelPath = modelPath.trim();
+        }
+        if (modelPath == null || modelPath.isBlank()) {
+            return renderPropertyRow(ui, r, uiContext, theme, nodeId, prop, x, y, w, rowH, labelW, value);
+        }
+
+        ModelAsset asset = ModelCache.get(modelPath);
+        if (asset == null || asset.animations() == null || asset.animations().isEmpty()) {
+            return renderPropertyRow(ui, r, uiContext, theme, nodeId, prop, x, y, w, rowH, labelW, value);
+        }
+
+        ArrayList<String> options = new ArrayList<>(asset.animations().keySet().size() + 1);
+        options.add("");
+        options.addAll(asset.animations().keySet());
+        options.sort(String::compareToIgnoreCase);
+
+        String current = value == null ? "" : value.trim();
+        String display = current.isEmpty() ? "(none)" : current;
+        renderSelectRow(ui, r, theme, x, y, w, rowH, labelW, prop.uiLabel(), display, interactive, () -> {
+            ArrayList<SelectOption> items = new ArrayList<>(options.size());
+            for (String opt : options) {
+                if (opt == null) {
+                    continue;
+                }
+                String v = opt.trim();
+                items.add(new SelectOption(v.isEmpty() ? "(none)" : v, v));
+            }
+            toggleSelectMenu(x + labelW + theme.design.space_sm, y + rowH, nodeId, prop.key(), items);
+        });
+        return y + rowH;
+    }
+
+    private int renderModel3DAnimationLoopRow(Ui ui,
+                                             UiRenderer r,
+                                             UiContext uiContext,
+                                             Theme theme,
+                                             long nodeId,
+                                             PropertyDef prop,
+                                             int x,
+                                             int y,
+                                             int w,
+                                             int rowH,
+                                             int labelW,
+                                             String value,
+                                             boolean interactive) {
+        String current = value == null ? "" : value.trim();
+        if (current.isEmpty()) {
+            current = "once";
+        }
+        String display = current;
+        renderSelectRow(ui, r, theme, x, y, w, rowH, labelW, prop.uiLabel(), display, interactive, () -> {
+            ArrayList<SelectOption> items = new ArrayList<>(3);
+            items.add(new SelectOption("once", "once"));
+            items.add(new SelectOption("loop", "loop"));
+            items.add(new SelectOption("hold", "hold"));
+            toggleSelectMenu(x + labelW + theme.design.space_sm, y + rowH, nodeId, prop.key(), items);
+        });
+        return y + rowH;
+    }
+
+    private record SelectOption(String label, String value) {
+    }
+
+    private void renderSelectRow(Ui ui,
+                                 UiRenderer r,
+                                 Theme theme,
+                                 int x,
+                                 int y,
+                                 int w,
+                                 int rowH,
+                                 int labelW,
+                                 String label,
+                                 String displayValue,
+                                 boolean interactive,
+                                 Runnable onOpenMenu) {
+        int valueX = x + labelW + theme.design.space_sm;
+        int valueW = Math.max(1, w - (valueX - x));
+
+        r.drawText(label == null ? "" : label, x, r.baselineForBox(y, rowH), Theme.toArgb(theme.textMuted));
+
+        int fieldX = valueX;
+        int fieldY = y + 2;
+        int fieldW = valueW;
+        int fieldH = rowH - 4;
+
+        var input = interactive ? ui.input() : null;
+        boolean canInteract = input != null;
+        float mx = canInteract ? input.mousePos().x : -1;
+        float my = canInteract ? input.mousePos().y : -1;
+        boolean hovered = canInteract && mx >= fieldX && my >= fieldY && mx < fieldX + fieldW && my < fieldY + fieldH;
+
+        int bg = hovered ? Theme.toArgb(theme.widgetHover) : Theme.toArgb(theme.widgetBg);
+        int outline = Theme.toArgb(theme.widgetOutline);
+        r.drawRoundedRect(fieldX, fieldY, fieldW, fieldH, theme.design.radius_sm, bg, theme.design.border_thin, outline);
+
+        String text = displayValue == null ? "" : displayValue;
+        int textX = fieldX + theme.design.space_sm;
+        int textY = (int) r.baselineForBox(y, rowH);
+        r.drawText(text, textX, textY, Theme.toArgb(theme.text));
+
+        float iconSize = Math.min(theme.design.icon_sm, fieldH - 6);
+        int iconCol = Theme.toArgb(theme.textMuted);
+        theme.icons.draw(r, Icon.CHEVRON_DOWN, fieldX + fieldW - theme.design.space_sm - iconSize, fieldY + (fieldH - iconSize) * 0.5f, iconSize, iconCol);
+
+        if (hovered && canInteract && input.mouseReleased() && onOpenMenu != null) {
+            onOpenMenu.run();
+        }
+    }
+
+    private void toggleSelectMenu(int x, int y, long nodeId, String key, List<SelectOption> options) {
+        if (key == null || key.isBlank()) {
+            return;
+        }
+        if (selectMenu.isOpen() && nodeId == selectMenuNodeId && Objects.equals(selectMenuKey, key)) {
+            selectMenu.close();
+            return;
+        }
+        selectMenuNodeId = nodeId;
+        selectMenuKey = key;
+        selectMenu.clear();
+        if (options != null) {
+            for (SelectOption opt : options) {
+                if (opt == null || opt.label == null) {
+                    continue;
+                }
+                String v = opt.value == null ? "" : opt.value;
+                selectMenu.addItem(opt.label, () -> commitStringProperty(key, v));
+            }
+        }
+        EditorUiUtil.openMenuClamped(selectMenu, runtime, x, y);
+    }
+
+    private void renderSelectMenu(Ui ui, UiRenderer r, Theme theme, boolean interactive) {
+        if (ui == null || r == null || theme == null) {
+            return;
+        }
+        if (!selectMenu.isOpen()) {
+            return;
+        }
+        var input = interactive ? ui.input() : null;
+        int itemH = 22;
+        if (input != null) {
+            selectMenu.updateFromInput(input, theme, itemH);
+            EditorUiUtil.clampOpenMenuToScreen(selectMenu, runtime);
+        }
+        selectMenu.render(r, theme, itemH,
+                Theme.toArgb(theme.panelBg),
+                Theme.toArgb(theme.widgetHover),
+                Theme.toArgb(theme.text),
+                selectMenu.hoverIndex());
+        if (!interactive || input == null || !input.mousePressed()) {
+            return;
+        }
+        selectMenu.handleClick((int) ui.mouse().x, (int) ui.mouse().y, itemH);
     }
 
     private static void addBuiltInEditorProperties(NodeTypeDef typeDef, List<PropertyDef> props) {
@@ -1263,6 +1457,9 @@ public final class InspectorPanel extends Panel {
         assetMenu.close();
         assetMenuNodeId = 0L;
         assetMenuKey = null;
+        selectMenu.close();
+        selectMenuNodeId = 0L;
+        selectMenuKey = null;
     }
 
     private void commitRename() {

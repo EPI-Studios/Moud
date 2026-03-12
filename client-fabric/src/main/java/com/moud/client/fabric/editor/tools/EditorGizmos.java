@@ -13,6 +13,9 @@ import com.moud.client.fabric.platform.MinecraftRenderBridge;
 import com.moud.client.fabric.render.DebugRenderer;
 import com.moud.client.fabric.render.VeilDebugRenderer;
 import com.moud.client.fabric.scene.ClientSceneBus;
+import com.moud.client.fabric.model.BoneNode;
+import com.moud.client.fabric.model.ModelAsset;
+import com.moud.client.fabric.model.ModelCache;
 import com.moud.core.NodeTypeDef;
 import com.moud.core.PropertyDef;
 import com.moud.net.protocol.SceneOp;
@@ -135,6 +138,56 @@ public final class EditorGizmos implements AutoCloseable {
             float arrowLen = active ? 1.2f : 0.8f;
             focusWorld.set(tmpWorld).add(fwd.x * arrowLen, fwd.y * arrowLen, fwd.z * arrowLen);
             debug.line(tmpWorld, focusWorld, color, r);
+        }
+
+        SceneSnapshot.NodeSnapshot selected = state.scene.getNode(state.selectedId);
+        if (selected != null && "Model3D".equals(selected.type())) {
+            Map<String, String> props = toPropertyMap(selected.properties());
+            String modelPath = props.get("model_path");
+            if (modelPath != null) {
+                modelPath = modelPath.trim();
+            }
+            if (modelPath != null && !modelPath.isBlank()) {
+                ModelAsset asset = ModelCache.get(modelPath);
+                if (asset != null) {
+                    Pose world = worldPose(state, selected.nodeId(), poseCache);
+                    int color = 0xFFFFFF00;
+                    renderModelBones(debug, world, asset, 0.07f, color);
+                }
+            }
+        }
+    }
+
+    private void renderModelBones(DebugRenderer debug, Pose world, ModelAsset asset, float radius, int color) {
+        if (debug == null || world == null || asset == null) {
+            return;
+        }
+        for (var root : asset.rootBones()) {
+            renderBoneRecursive(debug, world, root, null, radius, color);
+        }
+    }
+
+    private void renderBoneRecursive(DebugRenderer debug,
+                                     Pose world,
+                                     BoneNode bone,
+                                     Vector3f parentWorld,
+                                     float radius,
+                                     int color) {
+        if (bone == null) {
+            return;
+        }
+        Vector3f pivotLocal = new Vector3f(bone.pivotX() / 16f, bone.pivotY() / 16f, bone.pivotZ() / 16f);
+        pivotLocal.mul(world.scale);
+        world.rot.transform(pivotLocal);
+        pivotLocal.add(world.pos);
+        debug.sphere(pivotLocal, radius, color, 10);
+        if (parentWorld != null) {
+            debug.line(parentWorld, pivotLocal, color, 1.5f);
+        }
+        if (bone.children() != null) {
+            for (var child : bone.children()) {
+                renderBoneRecursive(debug, world, child, pivotLocal, radius, color);
+            }
         }
     }
 
