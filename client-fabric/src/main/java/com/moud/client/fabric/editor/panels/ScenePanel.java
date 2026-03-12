@@ -189,8 +189,8 @@ public final class ScenePanel extends Panel {
 
         ui.beginPanel(x, y, w, h);
 
-        int tabH = 26;
-        int toolbarH = 30;
+        int tabH = theme.design.tab_height_md;
+        int toolbarH = Math.max(24, theme.design.toolbar_height);
         int pad = theme.design.space_sm;
 
         int cursorY = y;
@@ -486,7 +486,7 @@ public final class ScenePanel extends Panel {
         treeStyle.rowBgEven = Theme.toArgb(theme.panelBg);
         treeStyle.rowBgOdd = Theme.toArgb(theme.panelBg);
         treeStyle.rowBgHover = Theme.toArgb(theme.widgetHover);
-        treeStyle.rowBgSelected = 0xFF2E4A72;
+        treeStyle.rowBgSelected = Theme.mulAlpha(Theme.toArgb(theme.widgetActive), 0.22f);
         treeStyle.textColor = Theme.toArgb(theme.text);
         treeStyle.mutedColor = Theme.toArgb(theme.textMuted);
     }

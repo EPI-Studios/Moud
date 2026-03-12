@@ -45,8 +45,8 @@ public final class ViewportPanel extends Panel {
         int w = ctx.width();
         int h = ctx.height();
 
-        int tabsH = 28;
-        int toolbarH = 30;
+        int tabsH = theme.design.tab_height_md;
+        int toolbarH = Math.max(24, theme.design.widget_height_md + 2);
         int renderY = y + tabsH + toolbarH;
         int renderH = Math.max(0, y + h - renderY);
 
@@ -79,7 +79,7 @@ public final class ViewportPanel extends Panel {
 
         renderViewportToolbar(ctx, r, uiContext, theme, x, y + tabsH, w, toolbarH, interactive);
 
-        int viewBg = 0xFF15171B;
+        int viewBg = Theme.toArgb(theme.windowBg);
         r.drawRect(x, renderY, w, renderH, viewBg);
 
         Texture tex = runtime.viewportTexture();
@@ -119,7 +119,7 @@ public final class ViewportPanel extends Panel {
         int badgeW = 94;
         int bx = viewX + 10;
         int by = viewY + 10;
-        int badgeBg = Theme.mulAlpha(0xFF000000, 0.25f);
+        int badgeBg = Theme.mulAlpha(Theme.toArgb(theme.widgetBg), 0.55f);
         r.drawRoundedRect(bx, by, badgeW, badgeH, theme.design.radius_sm, badgeBg);
         r.drawText("Perspective", bx + 10, r.baselineForBox(by, badgeH), Theme.toArgb(theme.textMuted));
 

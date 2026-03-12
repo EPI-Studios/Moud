@@ -64,10 +64,6 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         }
         browser.setViewMode(AssetBrowser.ViewMode.LIST);
         browserStyle.drawContainer = false;
-        browserStyle.textColor = 0xFFE0E0E0;
-        browserStyle.mutedColor = 0xFFB3B3B3;
-        browserStyle.rowHoverBg = 0xFF404553;
-        browserStyle.rowSelectedBg = 0xFF3D5E89;
         browser.setStyle(browserStyle);
     }
 
@@ -115,6 +111,11 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         boolean interactive = runtime != null && !runtime.uiBlocked();
         var input = interactive ? ui.input() : null;
 
+        browserStyle.textColor = Theme.toArgb(theme.text);
+        browserStyle.mutedColor = Theme.toArgb(theme.textMuted);
+        browserStyle.rowHoverBg = Theme.toArgb(theme.widgetHover);
+        browserStyle.rowSelectedBg = Theme.mulAlpha(Theme.toArgb(theme.widgetActive), 0.22f);
+
         int x = ctx.x();
         int y = ctx.y();
         int w = ctx.width();
@@ -122,8 +123,8 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
 
         ui.beginPanel(x, y, w, h);
 
-        int tabH = 26;
-        int toolbarH = 30;
+        int tabH = theme.design.tab_height_md;
+        int toolbarH = Math.max(24, theme.design.toolbar_height);
         int pathH = 24;
         int cursorY = y;
 

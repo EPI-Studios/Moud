@@ -2,68 +2,62 @@ package com.moud.client.fabric.editor.theme;
 
 import com.miry.ui.theme.Theme;
 
-/**
- * Flat dark theme inspired by Godot 4's editor aesthetic.
- *
- * Three-level background hierarchy:
- *   Level 0 (darkest) : windowBg / headerBg  — outer chrome, toolbars
- *   Level 1 (mid)     : panelBg              — panel content areas
- *   Level 2 (lighter) : widgetBg             — interactive inputs, fields
- *
- * Border radius: 0 for structural containers, 2px for interactive widgets only.
- */
 public final class EditorTheme {
     private EditorTheme() {}
 
     public static void apply(Theme theme) {
-        // === Backgrounds (strict 3-level hierarchy) ===
-        theme.windowBg.set(Theme.rgba(26, 29, 35, 255));      // #1A1D23 – darkest, window chrome
-        theme.panelBg.set(Theme.rgba(37, 41, 51, 255));       // #252933 – panel content areas
-        theme.headerBg.set(Theme.rgba(22, 25, 30, 255));      // #16191E – toolbars, slightly darker
-        theme.headerLine.set(Theme.rgba(15, 17, 21, 255));    // #0F1115 – separator lines
+        theme.windowBg.set(Theme.rgba(15, 17, 20, 255));
+        theme.panelBg.set(Theme.rgba(22, 25, 30, 255));
+        theme.headerBg.set(Theme.rgba(18, 20, 24, 255));
+        theme.headerLine.set(Theme.rgba(35, 40, 48, 255));
 
-        // === Widgets (inputs / interactive) ===
-        theme.widgetBg.set(Theme.rgba(44, 49, 62, 255));      // #2C313E – input field background
-        theme.widgetHover.set(Theme.rgba(60, 67, 86, 255));   // #3C4356 – hover state
-        theme.widgetActive.set(Theme.rgba(66, 133, 244, 255)); // #4285F4 – active / selection
-        theme.widgetOutline.set(Theme.rgba(55, 61, 78, 255)); // #373D4E – subtle border
+        theme.widgetBg.set(Theme.rgba(28, 32, 40, 255));
+        theme.widgetHover.set(Theme.rgba(36, 42, 54, 255));
+        theme.widgetActive.set(Theme.rgba(71, 114, 179, 255));
+        theme.widgetOutline.set(Theme.rgba(48, 56, 70, 255));
 
-        // === Text ===
-        theme.text.set(Theme.rgba(220, 224, 235, 255));        // #DCE0EB – primary text
-        theme.textMuted.set(Theme.rgba(130, 140, 160, 255));   // #828CA0 – secondary / hints
+        theme.text.set(Theme.rgba(232, 236, 245, 255));
+        theme.textMuted.set(Theme.rgba(150, 160, 178, 255));
 
-        // === States ===
-        theme.shadow.set(Theme.rgba(0, 0, 0, 130));
-        theme.focusRing.set(Theme.rgba(66, 133, 244, 200));    // blue focus ring with alpha
-        theme.accent.set(Theme.rgba(66, 133, 244, 255));       // #4285F4
-        theme.danger.set(Theme.rgba(220, 80, 80, 255));        // #DC5050
+        theme.shadow.set(Theme.rgba(0, 0, 0, 70));
+        theme.focusRing.set(Theme.rgba(71, 114, 179, 210));
+        theme.accent.set(Theme.rgba(71, 114, 179, 255));
+        theme.danger.set(Theme.rgba(239, 68, 68, 255));
 
-        theme.disabledFg.set(Theme.rgba(95, 102, 118, 255));  // #5F6676
-        theme.disabledBg.set(Theme.rgba(32, 36, 44, 255));    // #20242C
+        theme.disabledFg.set(Theme.rgba(112, 118, 132, 255));
+        theme.disabledBg.set(Theme.rgba(18, 20, 24, 255));
 
-        // === Design tokens ===
         theme.design.font_sm = 12;
         theme.design.font_base = 13;
         theme.design.space_xs = 2;
-        theme.design.space_sm = 4;
+        theme.design.space_sm = 5;
         theme.design.space_md = 8;
-        theme.design.radius_sm = 4;   // rounded widgets (buttons, inputs)
-        theme.design.radius_md = 6;   // panels, larger elements
+        theme.design.radius_sm = 6;
+        theme.design.radius_md = 8;
+        theme.design.radius_input = 4;
+        theme.design.radius_tab = 4;
         theme.design.border_thin = 1;
         theme.design.widget_height_sm = 20;
         theme.design.widget_height_md = 24;
+        theme.design.tab_height_sm = 20;
+        theme.design.tab_height_md = 24;
+        theme.design.tab_underline_thickness = 2;
+        theme.design.input_padding_x = 7;
+        theme.design.input_padding_y = 2;
+        theme.design.flat_inputs = true;
+        theme.design.flat_surfaces = true;
+        theme.design.radius_popup = 8;
+        theme.design.menu_item_height = 24;
         theme.design.icon_sm = 16;
         theme.design.icon_md = 20;
         theme.design.icon_lg = 24;
 
         theme.tokens.padding = 8;
         theme.tokens.itemHeight = 24;
-        theme.tokens.itemSpacing = 2;
-        theme.tokens.cornerRadius = 2;
-        theme.tokens.animSpeed = 16.0f;
+        theme.tokens.itemSpacing = 3;
+        theme.tokens.cornerRadius = 6;
+        theme.tokens.animSpeed = 14.0f;
     }
-
-    // ── Convenience accessors ─────────────────────────────────────────
 
     public static int separator(Theme theme) {
         return Theme.toArgb(theme.headerLine);

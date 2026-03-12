@@ -39,7 +39,7 @@ public final class BottomPanel extends Panel {
 
         ui.beginPanel(x, y, w, h);
 
-        int barH = 32;
+        int barH = Math.max(18, theme.design.tab_height_md);
         barH = Math.min(barH, Math.max(18, h));
         int barY = y + h - barH;
 
