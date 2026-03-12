@@ -20,9 +20,11 @@ import com.moud.net.protocol.ScriptFileWriteAck;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.LongConsumer;
 
 public final class EditorRuntime {
     private static final float SCENE_DRAG_THRESHOLD_PX = 6.0f;
@@ -59,6 +61,7 @@ public final class EditorRuntime {
     private boolean rightReleased;
     private boolean uiBlocked;
     private ToastRequest pendingToast;
+    private final HashMap<Long, LongConsumer> afterCreateByBatchId = new HashMap<>();
 
     // Deferred rendering: panels register menus here; EditorOverlay renders them after dockspace
     // so they appear on top of all panels and are not scissored to the panel bounds.
@@ -193,6 +196,29 @@ public final class EditorRuntime {
             return;
         }
         pendingToast = new ToastRequest(message, error, durationMs);
+    }
+
+    public void afterCreateNode(long batchId, LongConsumer callback) {
+        if (batchId <= 0L || callback == null) {
+            return;
+        }
+        afterCreateByBatchId.put(batchId, callback);
+    }
+
+    public void onSceneOpAck(SceneOpAck ack) {
+        if (ack == null || ack.batchId() <= 0L) {
+            return;
+        }
+        LongConsumer cb = afterCreateByBatchId.remove(ack.batchId());
+        if (cb == null || ack.results() == null) {
+            return;
+        }
+        for (var r : ack.results()) {
+            if (r != null && r.createdId() > 0L) {
+                cb.accept(r.createdId());
+                return;
+            }
+        }
     }
 
     public ToastRequest consumeToastRequest() {

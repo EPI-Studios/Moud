@@ -648,10 +648,19 @@ final class MaterialEditor {
         materialTextureMenu.addItem("Default", () -> commitMaterialTexture(materialPath, null, uniform, null));
         materialTextureMenu.addItem("Clear", () -> commitMaterialTexture(materialPath, null, uniform, ""));
         materialTextureMenu.addItem("Browse file...", () -> {
-            String result = TinyFileDialogs.tinyfd_openFileDialog("Select Texture", "", null, "Image Files", false);
-            if (result != null && !result.isBlank()) {
-                commitMaterialTexture(materialPath, null, uniform, result.trim());
-            }
+            Thread.ofVirtual().start(() -> {
+                String result = TinyFileDialogs.tinyfd_openFileDialog("Select Texture", "", null, "Image Files", false);
+                if (result == null || result.isBlank()) {
+                    return;
+                }
+                String trimmed = result.trim();
+                MinecraftClient mc = MinecraftClient.getInstance();
+                if (mc != null) {
+                    mc.execute(() -> commitMaterialTexture(materialPath, null, uniform, trimmed));
+                } else {
+                    commitMaterialTexture(materialPath, null, uniform, trimmed);
+                }
+            });
         });
         materialTextureMenu.addSeparator();
         materialTextureMenu.addItem(MoudTextures.WHITE_ID.toString(), () -> commitMaterialTexture(materialPath, null, uniform, MoudTextures.WHITE_ID.toString()));

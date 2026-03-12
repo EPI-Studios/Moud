@@ -7,10 +7,12 @@ import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
+import net.minecraft.client.MinecraftClient;
 import org.lwjgl.util.tinyfd.TinyFileDialogs;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.util.List;
 import java.util.Locale;
 
 public final class AssetImportUtil {
@@ -21,61 +23,110 @@ public final class AssetImportUtil {
         if (runtime == null) {
             return;
         }
-        String path = TinyFileDialogs.tinyfd_openFileDialog(
-                "Import Scene File",
-                "",
-                null,
-                "Scene Files",
-                false
-        );
-        if (path == null || path.isBlank()) {
-            return;
-        }
-        File file = new File(path);
-        if (!file.exists() || !file.isFile()) {
-            runtime.requestToast("Scene file not found", true, 4500);
-            return;
-        }
-        if (!file.getName().endsWith(".moud.scene")) {
-            runtime.requestToast("File must end with .moud.scene", true, 4500);
-            return;
-        }
+        Thread.ofVirtual().start(() -> {
+            String path = TinyFileDialogs.tinyfd_openFileDialog(
+                    "Import Scene File",
+                    "",
+                    null,
+                    "Scene Files",
+                    false
+            );
+            if (path == null || path.isBlank()) {
+                return;
+            }
+            File file = new File(path);
+            if (!file.exists() || !file.isFile()) {
+                toast(runtime, "Scene file not found", true, 4500);
+                return;
+            }
+            if (!file.getName().endsWith(".moud.scene")) {
+                toast(runtime, "File must end with .moud.scene", true, 4500);
+                return;
+            }
 
-        upload(runtime, file, inferTarget(file.getName(), true));
+            upload(runtime, file, inferTarget(file.getName(), true));
+        });
     }
 
     public static void importAssetFile(EditorRuntime runtime) {
         if (runtime == null) {
             return;
         }
-        String path = TinyFileDialogs.tinyfd_openFileDialog(
-                "Import Asset File",
-                "",
-                null,
-                "All Files",
-                false
-        );
+        Thread.ofVirtual().start(() -> {
+            String path = TinyFileDialogs.tinyfd_openFileDialog(
+                    "Import Asset File",
+                    "",
+                    null,
+                    "All Files",
+                    false
+            );
+            if (path == null || path.isBlank()) {
+                return;
+            }
+            File file = new File(path);
+            if (!file.exists() || !file.isFile()) {
+                toast(runtime, "Asset file not found", true, 4500);
+                return;
+            }
+
+            upload(runtime, file, inferTarget(file.getName(), false));
+        });
+    }
+
+    public static void importDroppedFile(EditorRuntime runtime, String path) {
+        if (runtime == null) {
+            return;
+        }
         if (path == null || path.isBlank()) {
             return;
         }
         File file = new File(path);
         if (!file.exists() || !file.isFile()) {
-            runtime.requestToast("Asset file not found", true, 4500);
+            toast(runtime, "File not found", true, 4500);
             return;
         }
-
-        upload(runtime, file, inferTarget(file.getName(), false));
+        ImportTarget target = inferTarget(file.getName(), false);
+        String filename = file.getName();
+        if (filename == null || filename.isBlank()) {
+            toast(runtime, "Invalid filename", true, 4500);
+            return;
+        }
+        ResPath dest = safeResPath(target.destDir, filename);
+        if (dest == null) {
+            toast(runtime, "Import failed: invalid destination path", true, 6000);
+            return;
+        }
+        upload(runtime, file, target, dest);
+        EditorDropActions.afterImport(runtime, file, dest, target.type);
     }
 
     private static void upload(EditorRuntime runtime, File file, ImportTarget target) {
+        if (runtime == null || file == null || target == null) {
+            toast(runtime, "Import failed: invalid file", true, 4500);
+            return;
+        }
+        String filename = file.getName();
+        if (filename == null || filename.isBlank()) {
+            toast(runtime, "Invalid filename", true, 4500);
+            return;
+        }
+        ResPath dest = safeResPath(target.destDir, filename);
+        if (dest == null) {
+            toast(runtime, "Import failed: invalid destination path", true, 6000);
+            return;
+        }
+        upload(runtime, file, target, dest);
+    }
+
+    private static void upload(EditorRuntime runtime, File file, ImportTarget target, ResPath dest) {
         AssetsClient assets = runtime.assets();
         Session session = runtime.session();
         if (assets == null || session == null || session.state() != SessionState.CONNECTED) {
-            runtime.requestToast("Import failed: not connected", true, 4500);
+            toast(runtime, "Import failed: not connected", true, 4500);
             return;
         }
         if (file == null || target == null) {
-            runtime.requestToast("Import failed: invalid file", true, 4500);
+            toast(runtime, "Import failed: invalid file", true, 4500);
             return;
         }
 
@@ -84,29 +135,40 @@ public final class AssetImportUtil {
             bytes = Files.readAllBytes(file.toPath());
         } catch (Exception e) {
             String msg = e.getMessage();
-            runtime.requestToast("Import failed" + (msg == null || msg.isBlank() ? "" : ": " + msg), true, 6000);
+            toast(runtime, "Import failed" + (msg == null || msg.isBlank() ? "" : ": " + msg), true, 6000);
             return;
         }
 
-        String filename = file.getName();
-        if (filename == null || filename.isBlank()) {
-            runtime.requestToast("Invalid filename", true, 4500);
-            return;
-        }
-
-        ResPath dest = safeResPath(target.destDir, filename);
         if (dest == null) {
-            runtime.requestToast("Import failed: invalid destination path", true, 6000);
+            toast(runtime, "Import failed: invalid destination path", true, 6000);
             return;
         }
 
         try {
-            assets.upload(session, dest, bytes, target.type);
-            runtime.requestToast("Uploading: " + dest.value(), false, 2500);
+            MinecraftClient mc = MinecraftClient.getInstance();
+            if (mc != null && !mc.isOnThread()) {
+                byte[] finalBytes = bytes;
+                mc.execute(() -> assets.upload(session, dest, finalBytes, target.type));
+            } else {
+                assets.upload(session, dest, bytes, target.type);
+            }
+            toast(runtime, "Uploading: " + dest.value(), false, 2500);
         } catch (Exception e) {
             String msg = e.getMessage();
-            runtime.requestToast("Import failed" + (msg == null || msg.isBlank() ? "" : ": " + msg), true, 6000);
+            toast(runtime, "Import failed" + (msg == null || msg.isBlank() ? "" : ": " + msg), true, 6000);
         }
+    }
+
+    private static void toast(EditorRuntime runtime, String message, boolean error, int durationMs) {
+        if (runtime == null || message == null || message.isBlank()) {
+            return;
+        }
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc != null && !mc.isOnThread()) {
+            mc.execute(() -> runtime.requestToast(message, error, durationMs));
+            return;
+        }
+        runtime.requestToast(message, error, durationMs);
     }
 
     private static ResPath safeResPath(String destDir, String filename) {
@@ -154,7 +216,7 @@ public final class AssetImportUtil {
         if (lower.endsWith(".ogg") || lower.endsWith(".wav") || lower.endsWith(".mp3")) {
             return new ImportTarget("res://audio/", AssetType.AUDIO);
         }
-        if (lower.endsWith(".obj") || lower.endsWith(".gltf") || lower.endsWith(".glb")) {
+        if (lower.endsWith(".bbmodel") || lower.endsWith(".obj") || lower.endsWith(".gltf") || lower.endsWith(".glb")) {
             return new ImportTarget("res://models/", AssetType.MODEL);
         }
         if (lower.endsWith(".txt") || lower.endsWith(".json")) {

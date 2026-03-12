@@ -105,6 +105,10 @@ public final class EditorOverlay {
         runtime.setAssets(assets);
     }
 
+    public EditorRuntime getRuntime() {
+        return runtime;
+    }
+
     public void setOpen(boolean open) {
         this.open = open;
         MinecraftClient client = MinecraftClient.getInstance();
@@ -137,6 +141,7 @@ public final class EditorOverlay {
 
     public void onAck(SceneOpAck ack) {
         state.onAck(ack);
+        runtime.onSceneOpAck(ack);
         MinecraftGhostBlocks.get().onAck(ack);
         if (ack != null && ack.results() != null) {
             int failed = 0;
@@ -698,7 +703,7 @@ public final class EditorOverlay {
         filesystem.setBackgroundArgb(panelBg);
         right.setBackgroundArgb(panelBg);
         bottom.setBackgroundArgb(panelBg);
-        viewport.setBackgroundArgb(0xFF15171B);
+        viewport.setBackgroundArgb(Theme.toArgb(theme.windowBg));
         top.setBackgroundArgb(Theme.toArgb(theme.windowBg));
 
         viewportAndRight = new SplitNode(viewport, right, false, 0.72f);

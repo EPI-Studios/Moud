@@ -5,11 +5,14 @@ import com.moud.client.fabric.assets.MoudTextAssets;
 import com.moud.client.fabric.editor.overlay.EditorContext;
 import com.moud.client.fabric.editor.overlay.EditorOverlay;
 import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
+import com.moud.client.fabric.editor.state.EditorRuntime;
+import com.moud.client.fabric.editor.util.AssetImportUtil;
 import com.moud.client.fabric.net.ClientSessionBus;
 import com.moud.client.fabric.net.EnginePayload;
 import com.moud.client.fabric.net.FabricEngineTransport;
 import com.moud.client.fabric.platform.MinecraftFreeflyCamera;
 import com.moud.client.fabric.platform.MinecraftGhostBlocks;
+import com.moud.client.fabric.model.ModelCache;
 import com.moud.client.fabric.render.MoudIcons;
 import com.moud.client.fabric.render.MoudTextures;
 import com.moud.client.fabric.render.VeilSceneNodeRenderer;
@@ -51,6 +54,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWDropCallback;
 
 public final class FabricClientEntrypoint implements ClientModInitializer {
     private static FabricClientEntrypoint instance;
@@ -66,6 +70,7 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
     private boolean pendingOverlayDispose;
     private boolean autoOpenedEditor;
     private KeyBinding toggleKey;
+    private boolean dropCallbackRegistered;
 
     public static EditorOverlay editorOverlay() {
         return instance != null ? instance.overlay : null;
@@ -89,6 +94,37 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
                 "category.moud"
         ));
 
+        ClientTickEvents.END_WORLD_TICK.register(world -> {
+            if (dropCallbackRegistered) {
+                return;
+            }
+            MinecraftClient mc = MinecraftClient.getInstance();
+            if (mc == null || mc.getWindow() == null) {
+                return;
+            }
+            dropCallbackRegistered = true;
+            long handle = mc.getWindow().getHandle();
+            GLFW.glfwSetDropCallback(handle, (window, count, names) -> {
+                for (int i = 0; i < count; i++) {
+                    String path = GLFWDropCallback.getName(names, i);
+                    if (path == null || path.isBlank()) {
+                        continue;
+                    }
+                    EditorContext ctx = EditorOverlayBus.get();
+                    if (ctx == null || !ctx.isActive()) {
+                        continue;
+                    }
+                    EditorOverlay ov = ctx.overlay();
+                    EditorRuntime rt = ov != null ? ov.getRuntime() : null;
+                    if (rt == null) {
+                        continue;
+                    }
+                    String finalPath = path;
+                    Thread.ofVirtual().start(() -> AssetImportUtil.importDroppedFile(rt, finalPath));
+                }
+            });
+        });
+
         ClientPlayNetworking.registerGlobalReceiver(EnginePayload.ID, (payload, context) -> {
             FabricEngineTransport t = transport;
             if (t == null) {
@@ -103,10 +139,11 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
         VeilWorldEnvironmentRenderer.init();
         MoudTextures.init(assets);
         MoudTextAssets.init(assets);
+        ModelCache.init(assets);
         initIcons();
 
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> onJoin());
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> onDisconnect());
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(this::onJoin));
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(this::onDisconnect));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
@@ -147,11 +184,13 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
         VeilWorldEnvironmentRenderer.clear();
         MoudTextures.clear();
         MoudTextAssets.clear();
+        ModelCache.clear();
         nextSceneSnapshotRequestId = 1L;
         initialSnapshotRequested = false;
         initialManifestRequested = false;
         autoOpenedEditor = false;
         camera.setEnabled(false);
+        camera.resetBootstrap();
         MinecraftGhostBlocks.get().cancel();
         playRuntime.onDisconnect();
         if (overlay != null) {
@@ -173,11 +212,13 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
         VeilWorldEnvironmentRenderer.clear();
         MoudTextures.clear();
         MoudTextAssets.clear();
+        ModelCache.clear();
         nextSceneSnapshotRequestId = 1L;
         initialSnapshotRequested = false;
         initialManifestRequested = false;
         autoOpenedEditor = false;
         camera.setEnabled(false);
+        camera.resetBootstrap();
         MinecraftGhostBlocks.get().cancel();
         playRuntime.onDisconnect();
         if (overlay != null) {
@@ -336,6 +377,13 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
     }
 
     private void onMessage(Lane lane, Message message) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc != null && !mc.isOnThread()) {
+            Lane ln = lane;
+            Message msg = message;
+            mc.execute(() -> onMessage(ln, msg));
+            return;
+        }
         if (ClientDebugLog.enabled() && message != null) {
             ClientDebugLog.debug("recv lane=" + lane + " type=" + message.type());
         }

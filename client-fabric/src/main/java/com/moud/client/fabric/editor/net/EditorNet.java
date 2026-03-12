@@ -29,17 +29,23 @@ public final class EditorNet {
     }
 
     public void sendOps(Session session, EditorState state, List<SceneOp> ops) {
+        sendOpsWithBatchId(session, state, ops);
+    }
+
+    public long sendOpsWithBatchId(Session session, EditorState state, List<SceneOp> ops) {
         if (session == null) {
-            return;
+            return 0L;
         }
         if (state != null && state.scene != null) {
             state.scene.applyOps(ops);
             ClientSceneBus.applyOps(ops);
         }
-        session.send(Lane.EVENTS, new SceneOpBatch(state.nextBatchId++, false, List.copyOf(ops)));
+        long batchId = state.nextBatchId++;
+        session.send(Lane.EVENTS, new SceneOpBatch(batchId, false, List.copyOf(ops)));
         if (needsSnapshotAfterOps(ops)) {
             state.pendingSnapshot = true;
         }
+        return batchId;
     }
 
     public void selectScene(Session session, EditorState state, String sceneId) {
