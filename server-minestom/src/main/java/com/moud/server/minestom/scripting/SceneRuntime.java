@@ -28,9 +28,9 @@ final class SceneRuntime {
     private final ProjectService project;
     private final ConcurrentHashMap<String, PlayerInputState> inputsByPlayer;
     private final ConcurrentHashMap<String, float[]> playerPositions = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Long> activeCameraByPlayer = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, OwnedValue<Long>> activeCameraByPlayer = new ConcurrentHashMap<>();
     // [localX, localY, localZ, pitchDeg, rollDeg] in player-local space
-    private final ConcurrentHashMap<String, float[]> followCameraByPlayer = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, OwnedValue<float[]>> followCameraByPlayer = new ConcurrentHashMap<>();
     private final Context ctx;
     private final Value createInstanceFn;
     private final Map<Path, Program> programs = new HashMap<>();
@@ -42,6 +42,9 @@ final class SceneRuntime {
     private volatile ServerScene lastScene;
     private final ArrayList<PendingTimer> pendingTimers = new ArrayList<>();
     private String pendingSceneTransition = null;
+
+    private record OwnedValue<T>(long ownerNodeId, T value) {
+    }
 
     SceneRuntime(ProjectService project, Engine engine, ConcurrentHashMap<String, PlayerInputState> inputsByPlayer) {
         this.project = Objects.requireNonNull(project, "project");
@@ -101,6 +104,7 @@ final class SceneRuntime {
             if (inst == null || !scriptFile.equals(inst.scriptFile) || inst.programModifiedMs != program.modifiedMs) {
                 if (inst != null) {
                     invokeLifecycle(scene, inst, "_exit_tree", "_exitTree");
+                    clearCameraOverridesOwnedBy(nodeId);
                 }
                 Value jsInstance;
                 try {
@@ -182,8 +186,23 @@ final class SceneRuntime {
             if (inst != null) {
                 invokeLifecycle(scene, inst, "_exit_tree", "_exitTree");
             }
+            clearCameraOverridesOwnedBy(nodeId);
             it.remove();
         }
+    }
+
+    private void clearCameraOverridesOwnedBy(long ownerNodeId) {
+        if (ownerNodeId <= 0L) {
+            return;
+        }
+        activeCameraByPlayer.entrySet().removeIf(e -> {
+            OwnedValue<Long> ov = e.getValue();
+            return ov != null && ov.ownerNodeId() == ownerNodeId;
+        });
+        followCameraByPlayer.entrySet().removeIf(e -> {
+            OwnedValue<float[]> ov = e.getValue();
+            return ov != null && ov.ownerNodeId() == ownerNodeId;
+        });
     }
 
     private Program programFor(Path scriptFile) {
@@ -355,6 +374,7 @@ final class SceneRuntime {
         if (existing != null) {
             existing.disabled = true;
         }
+        clearCameraOverridesOwnedBy(nodeId);
         String sceneId = scene == null ? "?" : scene.sceneId();
         String file = scriptFile == null ? "?" : scriptFile.toString();
         String msg = (t == null || t.getMessage() == null || t.getMessage().isBlank()) ? "Script error" : t.getMessage();
@@ -489,12 +509,31 @@ final class SceneRuntime {
 
     Long getActiveCameraForPlayer(String playerUuid) {
         if (playerUuid == null) return null;
-        return activeCameraByPlayer.get(playerUuid);
+        OwnedValue<Long> ov = activeCameraByPlayer.get(playerUuid);
+        if (ov == null) {
+            return null;
+        }
+        Long nodeId = ov.value();
+        if (nodeId == null || nodeId <= 0L) {
+            activeCameraByPlayer.remove(playerUuid, ov);
+            return null;
+        }
+        ServerScene scene = lastScene;
+        if (scene == null) {
+            return nodeId;
+        }
+        Node node = scene.engine().sceneTree().getNode(nodeId);
+        if (node == null || !"Camera3D".equals(scene.engine().nodeTypes().typeIdFor(node))) {
+            activeCameraByPlayer.remove(playerUuid, ov);
+            return null;
+        }
+        return nodeId;
     }
 
     float[] getFollowCameraForPlayer(String playerUuid) {
         if (playerUuid == null) return null;
-        return followCameraByPlayer.get(playerUuid);
+        OwnedValue<float[]> ov = followCameraByPlayer.get(playerUuid);
+        return ov == null ? null : ov.value();
     }
 
     void queueSceneTransition(String sceneId) {
@@ -786,25 +825,74 @@ final class SceneRuntime {
 
         @HostAccess.Export
         public void setActiveCamera(long nodeId) {
-            String uuid = resolveOwnerUuid();
+            String uuid = resolveOwnerUuidOrSinglePlayer();
             if (uuid == null) return;
             followCameraByPlayer.remove(uuid);
             if (nodeId <= 0L) {
                 activeCameraByPlayer.remove(uuid);
             } else {
-                activeCameraByPlayer.put(uuid, nodeId);
+                activeCameraByPlayer.put(uuid, new OwnedValue<>(selfId, nodeId));
             }
         }
 
         @HostAccess.Export
         public void setFollowCamera(double localX, double localY, double localZ, double pitchDeg, double rollDeg) {
-            String uuid = resolveOwnerUuid();
+            String uuid = resolveOwnerUuidOrSinglePlayer();
             if (uuid == null) return;
             activeCameraByPlayer.remove(uuid);
-            followCameraByPlayer.put(uuid, new float[]{
+            followCameraByPlayer.put(uuid, new OwnedValue<>(selfId, new float[]{
                     (float) localX, (float) localY, (float) localZ,
                     (float) pitchDeg, (float) rollDeg
-            });
+            }));
+        }
+
+        @HostAccess.Export
+        public void setSceneCurrentCamera(long cameraNodeId) {
+            if (cameraNodeId <= 0L) {
+                clearAllSceneCurrentCameras();
+                return;
+            }
+            Node chosen = scene.engine().sceneTree().getNode(cameraNodeId);
+            if (chosen == null || !"Camera3D".equals(scene.engine().nodeTypes().typeIdFor(chosen))) {
+                return;
+            }
+
+            ArrayList<Node> stack = new ArrayList<>();
+            stack.add(scene.engine().sceneTree().root());
+            while (!stack.isEmpty()) {
+                Node node = stack.remove(stack.size() - 1);
+                if (node == null) continue;
+
+                if ("Camera3D".equals(scene.engine().nodeTypes().typeIdFor(node))) {
+                    if (node.nodeId() == cameraNodeId) {
+                        SceneRuntime.this.queueSet(node.nodeId(), "current", "true");
+                    } else {
+                        SceneRuntime.this.queueRemove(node.nodeId(), "current");
+                    }
+                }
+
+                List<Node> children = node.children();
+                for (int i = children.size() - 1; i >= 0; i--) {
+                    stack.add(children.get(i));
+                }
+            }
+        }
+
+        @HostAccess.Export
+        public void clearAllSceneCurrentCameras() {
+            ArrayList<Node> stack = new ArrayList<>();
+            stack.add(scene.engine().sceneTree().root());
+            while (!stack.isEmpty()) {
+                Node node = stack.remove(stack.size() - 1);
+                if (node == null) continue;
+                if ("Camera3D".equals(scene.engine().nodeTypes().typeIdFor(node))) {
+                    SceneRuntime.this.queueRemove(node.nodeId(), "current");
+                }
+                List<Node> children = node.children();
+                for (int i = children.size() - 1; i >= 0; i--) {
+                    stack.add(children.get(i));
+                }
+            }
         }
 
         private double playerCoord(int idx) {
@@ -820,6 +908,18 @@ final class SceneRuntime {
         private String resolveOwnerUuid() {
             Node n = scene.engine().sceneTree().getNode(selfId);
             return n == null ? null : RuntimeScriptUtil.resolveOwnerUuid(n);
+        }
+
+        private String resolveOwnerUuidOrSinglePlayer() {
+            String uuid = resolveOwnerUuid();
+            if (uuid != null) {
+                return uuid;
+            }
+            if (inputsByPlayer.size() == 1) {
+                PlayerInputState st = inputsByPlayer.values().iterator().next();
+                return st == null ? null : st.playerUuid();
+            }
+            return null;
         }
     }
 }
