@@ -134,6 +134,7 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("color_tint_r", new PropertyDef("color_tint_r", PropertyType.FLOAT, "1", "R", "Color Tint", 0, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("color_tint_g", new PropertyDef("color_tint_g", PropertyType.FLOAT, "1", "G", "Color Tint", 1, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("color_tint_b", new PropertyDef("color_tint_b", PropertyType.FLOAT, "1", "B", "Color Tint", 2, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("collision", new PropertyDef("collision", PropertyType.BOOL, "true", "Collision", "Physics", 30, Map.of())),
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
 

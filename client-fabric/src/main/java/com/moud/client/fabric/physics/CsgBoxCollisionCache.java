@@ -42,10 +42,10 @@ public final class CsgBoxCollisionCache {
             parentInfo.put(node.nodeId(), new long[]{node.parentId(), parseInherit(node) ? 1L : 0L});
         }
 
-        // Collect CSGBox node IDs
+        // Collect CSGBox node IDs (skip nodes with collision disabled)
         List<Long> csgBoxIds = new ArrayList<>();
         for (SceneSnapshot.NodeSnapshot node : nodes) {
-            if (node != null && "CSGBox".equals(node.type()) && node.nodeId() > 0) {
+            if (node != null && "CSGBox".equals(node.type()) && node.nodeId() > 0 && collisionEnabled(node)) {
                 csgBoxIds.add(node.nodeId());
             }
         }
@@ -196,6 +196,20 @@ public final class CsgBoxCollisionCache {
                 .normalize();
 
         return new float[]{x, y, z, q.x, q.y, q.z, q.w, sx, sy, sz};
+    }
+
+    private static boolean collisionEnabled(SceneSnapshot.NodeSnapshot node) {
+        List<SceneSnapshot.Property> props = node.properties();
+        if (props == null) return true;
+        for (SceneSnapshot.Property p : props) {
+            if (p != null && "collision".equals(p.key())) {
+                String v = p.value();
+                if (v == null) return true;
+                v = v.trim().toLowerCase();
+                return !("false".equals(v) || "0".equals(v));
+            }
+        }
+        return true;
     }
 
     private static boolean parseInherit(SceneSnapshot.NodeSnapshot node) {
