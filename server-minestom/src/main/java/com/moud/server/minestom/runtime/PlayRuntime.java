@@ -95,7 +95,11 @@ public final class PlayRuntime {
         RuntimeCameraSystem.SceneCamera cameraPose;
         if (playerCameraNodeId != null && playerCameraNodeId > 0L) {
             Node camNode = scene.engine().sceneTree().getNode(playerCameraNodeId);
-            cameraPose = camNode != null ? cameraSystem.createSceneCameraFromNode(camNode) : null;
+            if (camNode != null && "Camera3D".equals(scene.engine().nodeTypes().typeIdFor(camNode))) {
+                cameraPose = cameraSystem.createSceneCameraFromNode(camNode);
+            } else {
+                cameraPose = null;
+            }
         } else {
             RuntimeCameraSystem.SelectedCamera selectedCamera = cameraSystem.selectSceneCamera(scene);
             cameraPose = selectedCamera != null ? selectedCamera.pose() : null;
