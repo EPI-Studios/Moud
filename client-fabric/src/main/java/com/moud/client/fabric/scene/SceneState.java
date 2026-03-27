@@ -1,6 +1,5 @@
 package com.moud.client.fabric.scene;
 
-
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneSnapshot;
 import java.util.ArrayDeque;
@@ -52,6 +51,26 @@ public final class SceneState {
 
     public List<SceneSnapshot.NodeSnapshot> childrenOf(long parentId) {
         return childrenByParent.getOrDefault(parentId, List.of());
+    }
+
+    public String getPropertyValue(long nodeId, String key) {
+        SceneSnapshot.NodeSnapshot node = nodesById.get(nodeId);
+        if (node == null || key == null) return null;
+        List<SceneSnapshot.Property> props = node.properties();
+        if (props == null) return null;
+        for (SceneSnapshot.Property p : props) {
+            if (p != null && key.equals(p.key())) return p.value();
+        }
+        return null;
+    }
+
+    public int indexOfChild(long parentId, long nodeId) {
+        List<SceneSnapshot.NodeSnapshot> children = childrenOf(parentId);
+        for (int i = 0; i < children.size(); i++) {
+            SceneSnapshot.NodeSnapshot c = children.get(i);
+            if (c != null && c.nodeId() == nodeId) return i;
+        }
+        return -1;
     }
 
     public void applyOps(List<SceneOp> ops) {

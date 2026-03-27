@@ -75,6 +75,38 @@ public final class ModelCache implements AssetsClient.Listener {
         a.download(s, hash);
     }
 
+    public static void retry(String resPathStr) {
+        if (resPathStr == null || resPathStr.isBlank()) return;
+        ResPath resPath;
+        try { resPath = new ResPath(resPathStr); } catch (Exception e) { return; }
+        AssetMeta meta;
+        synchronized (LOCK) { meta = manifest.get(resPath); }
+        if (meta == null) return;
+        AssetHash hash = meta.hash();
+        if (hash == null) return;
+        synchronized (LOCK) {
+            ModelEntry entry = entriesByHash.get(hash);
+            if (entry != null && entry.state == ModelState.FAILED) {
+                entry.state = ModelState.NEW;
+            }
+        }
+    }
+
+    public static boolean isFailed(String resPathStr) {
+        if (resPathStr == null || resPathStr.isBlank()) return false;
+        ResPath resPath;
+        try { resPath = new ResPath(resPathStr); } catch (Exception e) { return false; }
+        AssetMeta meta;
+        synchronized (LOCK) { meta = manifest.get(resPath); }
+        if (meta == null) return false;
+        AssetHash hash = meta.hash();
+        if (hash == null) return false;
+        synchronized (LOCK) {
+            ModelEntry entry = entriesByHash.get(hash);
+            return entry != null && entry.state == ModelState.FAILED;
+        }
+    }
+
     @Override
     public void onManifest(AssetManifestResponse response) {
         if (response == null || response.entries() == null) return;
@@ -96,6 +128,7 @@ public final class ModelCache implements AssetsClient.Listener {
 
         if (status != AssetTransferStatus.OK || bytes == null || bytes.length == 0) {
             synchronized (LOCK) { entry.state = ModelState.FAILED; }
+            System.err.println("[ModelCache] download failed for " + entry.path + ": " + (message != null ? message : status));
             return;
         }
 
@@ -114,6 +147,7 @@ public final class ModelCache implements AssetsClient.Listener {
                 }
             } catch (Exception e) {
                 synchronized (LOCK) { entry.state = ModelState.FAILED; }
+                System.err.println("[ModelCache] parse failed for " + path + ": " + e.getMessage());
             }
         });
     }

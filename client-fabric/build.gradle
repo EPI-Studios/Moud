@@ -30,7 +30,7 @@ dependencies {
     modImplementation("foundry.veil:veil-fabric-1.21.1:2.5.1")
     include "foundry.veil:veil-fabric-1.21.1:2.5.1"
 
-    implementation "fr.mrqsdf:bbmodelreader:1.0-SNAPSHOT"
+    implementation "fr.mrqsdf:BbModelReader:1.0-SNAPSHOT"
 
     include implementation(project(':core'))
     include implementation(project(':net'))

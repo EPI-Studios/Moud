@@ -384,6 +384,13 @@ public final class WireMessages {
         out.putFloat(state.followCamLocalZ());
         out.putFloat(state.followCamPitchDeg());
         out.putFloat(state.followCamRollDeg());
+        WireIo.writeVarInt(out, state.useScriptCamera() ? 1 : 0);
+        out.putFloat(state.scriptCamX());
+        out.putFloat(state.scriptCamY());
+        out.putFloat(state.scriptCamZ());
+        out.putFloat(state.scriptCamYawDeg());
+        out.putFloat(state.scriptCamPitchDeg());
+        out.putFloat(state.scriptCamRollDeg());
     }
 
     private static RuntimeState readRuntimeState(ByteBuffer in) {
@@ -410,13 +417,22 @@ public final class WireMessages {
         float followCamLocalZ = in.getFloat();
         float followCamPitchDeg = in.getFloat();
         float followCamRollDeg = in.getFloat();
+        boolean useScriptCamera = WireIo.readVarInt(in) != 0;
+        float scriptCamX = in.getFloat();
+        float scriptCamY = in.getFloat();
+        float scriptCamZ = in.getFloat();
+        float scriptCamYawDeg = in.getFloat();
+        float scriptCamPitchDeg = in.getFloat();
+        float scriptCamRollDeg = in.getFloat();
         return new RuntimeState(serverTick, sceneId, fogEnabled,
                 fogColorR, fogColorG, fogColorB, fogDensity,
                 timeTicks, weather, ambientLight,
                 useSceneCamera, sceneCamX, sceneCamY, sceneCamZ,
                 sceneCamYawDeg, sceneCamPitchDeg, sceneCamRollDeg,
                 useFollowCamera, followCamLocalX, followCamLocalY, followCamLocalZ,
-                followCamPitchDeg, followCamRollDeg);
+                followCamPitchDeg, followCamRollDeg,
+                useScriptCamera, scriptCamX, scriptCamY, scriptCamZ,
+                scriptCamYawDeg, scriptCamPitchDeg, scriptCamRollDeg);
     }
 
     private static void writeScriptActionListResponse(ByteBuffer out, ScriptActionListResponse msg) {

@@ -9,6 +9,7 @@ import com.moud.net.session.SessionState;
 import com.moud.net.transport.Lane;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -40,13 +41,31 @@ public final class PlayRuntimeClient {
     }
 
     public void onRuntimeState(RuntimeState state) {
-        if (state != null && state.useSceneCamera()) {
+        boolean useExternal = state != null && (state.useSceneCamera() || state.useScriptCamera());
+        if (useExternal) {
+            float nextX, nextY, nextZ, nextYaw, nextPitch, nextRoll;
+            if (state.useScriptCamera()) {
+                nextX = state.scriptCamX();
+                nextY = state.scriptCamY();
+                nextZ = state.scriptCamZ();
+                nextYaw = state.scriptCamYawDeg();
+                nextPitch = state.scriptCamPitchDeg();
+                nextRoll = state.scriptCamRollDeg();
+            } else {
+                nextX = state.sceneCamX();
+                nextY = state.sceneCamY();
+                nextZ = state.sceneCamZ();
+                nextYaw = state.sceneCamYawDeg();
+                nextPitch = state.sceneCamPitchDeg();
+                nextRoll = state.sceneCamRollDeg();
+            }
+
             prevX = currX; prevY = currY; prevZ = currZ;
             prevYaw = currYaw; prevPitch = currPitch; prevRoll = currRoll;
-            currX = state.sceneCamX(); currY = state.sceneCamY(); currZ = state.sceneCamZ();
-            currYaw = normalizeYawDeg(state.sceneCamYawDeg());
-            currPitch = clampPitchDeg(state.sceneCamPitchDeg(), -89.0f, 89.0f);
-            currRoll = Float.isFinite(state.sceneCamRollDeg()) ? state.sceneCamRollDeg() : 0.0f;
+            currX = nextX; currY = nextY; currZ = nextZ;
+            currYaw = normalizeYawDeg(-nextYaw);
+            currPitch = clampPitchDeg(nextPitch, -89.0f, 89.0f);
+            currRoll = Float.isFinite(nextRoll) ? nextRoll : 0.0f;
             if (!hasPrev) {
                 prevX = currX; prevY = currY; prevZ = currZ;
                 prevYaw = currYaw; prevPitch = currPitch; prevRoll = currRoll;
@@ -91,10 +110,16 @@ public final class PlayRuntimeClient {
         if (st.useFollowCamera()) {
             return applyFollowCamera(accessor, st, partialTick);
         }
-        if (st.useSceneCamera()) {
+        if (st.useScriptCamera() || st.useSceneCamera()) {
             return applySceneCamera(accessor, partialTick);
         }
         return false;
+    }
+
+    public boolean shouldHideVanillaHand() {
+        if (!active) return false;
+        RuntimeState st = lastServerState;
+        return st != null && (st.useFollowCamera() || st.useSceneCamera() || st.useScriptCamera());
     }
 
     private boolean applyFollowCamera(CameraAccessor accessor, RuntimeState st, float partialTick) {
@@ -105,13 +130,20 @@ public final class PlayRuntimeClient {
         double px = lerp(mc.player.prevX, mc.player.getX(), t);
         double py = lerp(mc.player.prevY, mc.player.getY(), t);
         double pz = lerp(mc.player.prevZ, mc.player.getZ(), t);
-        float yawRad = (float) Math.toRadians(mc.player.getYaw(t));
-
-        // forward = (sin(yaw), 0, cos(yaw)), right = (cos(yaw), 0, -sin(yaw))
-        float fwdX = (float) Math.sin(yawRad);
-        float fwdZ = (float) Math.cos(yawRad);
-        float rightX = (float) Math.cos(yawRad);
-        float rightZ = -(float) Math.sin(yawRad);
+        Vec3d fwd = mc.player.getRotationVec(t);
+        double fwdX = fwd.x;
+        double fwdZ = fwd.z;
+        double lenSq = fwdX * fwdX + fwdZ * fwdZ;
+        if (lenSq < 1e-8) {
+            fwdX = 0.0;
+            fwdZ = 1.0;
+            lenSq = 1.0;
+        }
+        double invLen = 1.0 / Math.sqrt(lenSq);
+        fwdX *= invLen;
+        fwdZ *= invLen;
+        double rightX = -fwdZ;
+        double rightZ = fwdX;
 
         float lx = st.followCamLocalX();
         float ly = st.followCamLocalY();

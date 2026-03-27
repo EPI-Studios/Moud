@@ -16,7 +16,7 @@ include 'net'
 include 'server-minestom'
 include 'client-fabric'
 
-def bbModelReaderDir = file("../BbModelReader")
+def bbModelReaderDir = file("../../../BbModelReader")
 if (bbModelReaderDir.exists()) {
     includeBuild(bbModelReaderDir)
     println("moud: using local BbModelReader checkout at ${bbModelReaderDir}")
@@ -26,5 +26,8 @@ def miryDir = file("../../../fliffel")
 if (miryDir.exists()) {
     includeBuild(miryDir)
     println("moud: using local Miry checkout at ${miryDir}")
-    include 'editor-client'
+    def editorClientDir = file("editor-client")
+    if (editorClientDir.exists()) {
+        include 'editor-client'
+    }
 }
