@@ -20,7 +20,10 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
+import com.moud.client.fabric.editor.theme.EditorTheme;
+import com.moud.client.fabric.util.ParseUtils;
 import com.moud.client.fabric.editor.util.EditorUiUtil;
+import com.moud.client.fabric.render.MoudIcons;
 import com.moud.client.fabric.assets.AssetsClient;
 import com.moud.core.NodeTypeDef;
 import com.moud.core.assets.AssetType;
@@ -32,6 +35,7 @@ import com.moud.net.protocol.AssetUploadAck;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.session.Session;
+import com.moud.client.fabric.editor.state.EditorHistory;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -44,7 +48,12 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.HashMap;
 import java.util.Locale;
+import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import com.miry.ui.clipboard.Clipboard;
+import com.moud.client.fabric.editor.net.EditorNet;
+import org.lwjgl.util.tinyfd.TinyFileDialogs;
 
 public final class ScenePanel extends Panel {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -83,6 +92,18 @@ public final class ScenePanel extends Panel {
     private long lastRev = Long.MIN_VALUE;
     private String lastSceneId = "";
 
+    private record ClipboardEntry(String name, String type, List<SceneSnapshot.Property> properties) {}
+    private final List<ClipboardEntry> clipboard = new ArrayList<>();
+    private long cutNodeId = -1;
+
+    private boolean suppressHistory;
+
+    private long filterChangedAtMs;
+    private boolean renameJustCancelled;
+    private final Set<Long> expandedNodeIds = new HashSet<>();
+
+    private UiContext lastUiContext;
+
     public ScenePanel(EditorRuntime runtime) {
         super("");
         this.runtime = runtime;
@@ -91,6 +112,12 @@ public final class ScenePanel extends Panel {
 
     public void handleKey(UiContext ctx, KeyEvent e) {
         if (ctx == null || e == null) {
+            return;
+        }
+        lastUiContext = ctx;
+        if (e.isPressOrRepeat() && (e.hasCtrl() || e.hasSuper()) && e.key() == InputConstants.KEY_F) {
+            filterField.focus(ctx);
+            filterChangedAtMs = System.currentTimeMillis();
             return;
         }
         if (renamingNodeId >= 0) {
@@ -125,9 +152,28 @@ public final class ScenePanel extends Panel {
         }
         if (filterField.isFocused(ctx)) {
             filterField.handleKey(e, ctx.clipboard());
+            filterChangedAtMs = System.currentTimeMillis();
             return;
         }
         if (treeView != null && treeView.isFocused(ctx) && e.isPressOrRepeat()) {
+            if (e.key() == InputConstants.KEY_ESCAPE) {
+                EditorState state = runtime.state();
+                if (state != null) state.selectedId = 0L;
+                clearTreeSelection();
+                return;
+            }
+            if (e.key() == InputConstants.KEY_UP || e.key() == InputConstants.KEY_DOWN) {
+                navigateTree(e.key() == InputConstants.KEY_DOWN);
+                return;
+            }
+            if (e.key() == InputConstants.KEY_LEFT) {
+                navigateTreeLeft();
+                return;
+            }
+            if (e.key() == InputConstants.KEY_RIGHT) {
+                navigateTreeRight();
+                return;
+            }
             if (e.key() == InputConstants.KEY_F2) {
                 EditorState state = runtime.state();
                 SceneSnapshot.NodeSnapshot selected = state != null ? state.scene.getNode(state.selectedId) : null;
@@ -142,6 +188,63 @@ public final class ScenePanel extends Panel {
                 if (selected != null && selected.parentId() != 0L) {
                     queueFree(selected.nodeId());
                 }
+                return;
+            }
+            boolean ctrl = e.hasCtrl() || e.hasSuper();
+            if (ctrl && e.key() == InputConstants.KEY_Z) {
+                performUndo();
+                return;
+            }
+            if (ctrl && (e.key() == InputConstants.KEY_Y || (e.hasShift() && e.key() == InputConstants.KEY_Z))) {
+                performRedo();
+                return;
+            }
+            if (ctrl && e.key() == InputConstants.KEY_C) {
+                copySelectedNode();
+                return;
+            }
+            if (ctrl && e.key() == InputConstants.KEY_X) {
+                cutSelectedNode();
+                return;
+            }
+            if (ctrl && e.key() == InputConstants.KEY_V) {
+                if (e.hasShift()) {
+                    pasteAsSibling();
+                } else {
+                    pasteNodes();
+                }
+                return;
+            }
+            if (ctrl && e.hasShift() && e.key() == InputConstants.KEY_D) {
+                EditorState state = runtime.state();
+                SceneSnapshot.NodeSnapshot selected = state != null ? state.scene.getNode(state.selectedId) : null;
+                if (selected != null) {
+                    duplicateNodeWithOffset(selected);
+                }
+                return;
+            }
+            if (ctrl && !e.hasShift() && e.key() == InputConstants.KEY_D) {
+                EditorState state = runtime.state();
+                SceneSnapshot.NodeSnapshot selected = state != null ? state.scene.getNode(state.selectedId) : null;
+                if (selected != null) {
+                    duplicateNode(selected);
+                }
+                return;
+            }
+            if (ctrl && e.key() == InputConstants.KEY_A) {
+                selectAll();
+                return;
+            }
+            if (ctrl && e.key() == InputConstants.KEY_UP) {
+                EditorState s = runtime.state();
+                SceneSnapshot.NodeSnapshot sel = s != null ? s.scene.getNode(s.selectedId) : null;
+                if (sel != null && sel.parentId() != 0L) moveNode(sel, -1);
+                return;
+            }
+            if (ctrl && e.key() == InputConstants.KEY_DOWN) {
+                EditorState s = runtime.state();
+                SceneSnapshot.NodeSnapshot sel = s != null ? s.scene.getNode(s.selectedId) : null;
+                if (sel != null && sel.parentId() != 0L) moveNode(sel, 1);
                 return;
             }
         }
@@ -166,6 +269,7 @@ public final class ScenePanel extends Panel {
         }
         if (filterField.isFocused(ctx)) {
             filterField.handleTextInput(e);
+            filterChangedAtMs = System.currentTimeMillis();
             return;
         }
         if (renamingNodeId >= 0) {
@@ -223,8 +327,10 @@ public final class ScenePanel extends Panel {
 
         String filter = filterField.text() == null ? "" : filterField.text().trim();
         String currentSceneId = state.activeSceneId == null ? "" : state.activeSceneId;
+        boolean filterChanged = !filter.equals(lastFilter);
+        boolean filterReady = !filterChanged || System.currentTimeMillis() - filterChangedAtMs > 150;
         boolean needsRebuild = treeView == null || rootNode == null
-                || !filter.equals(lastFilter)
+                || (filterChanged && filterReady)
                 || state.scene.revision() != lastRev
                 || !Objects.equals(lastSceneId, currentSceneId);
         if (needsRebuild) {
@@ -232,6 +338,16 @@ public final class ScenePanel extends Panel {
             lastFilter = filter;
             lastRev = state.scene.revision();
             lastSceneId = currentSceneId;
+        }
+
+        // Player start warning banner
+        if (state.scene.revision() >= 0 && !sceneHasPlayerStart(state)) {
+            int warnH = 22;
+            int warnPad = theme.design.space_sm;
+            r.drawRect(treeX, treeY, treeW, warnH, EditorTheme.WARNING_BG);
+            r.drawText("No PlayerStart in scene", treeX + warnPad, r.baselineForBox(treeY, warnH), EditorTheme.WARNING_TEXT);
+            treeY += warnH;
+            treeH = Math.max(0, treeH - warnH);
         }
 
         if (treeView != null && treeH > 0) {
@@ -244,9 +360,6 @@ public final class ScenePanel extends Panel {
             treeView.render(r, uiContext, input, theme, treeX, treeY, treeW, treeH, scrollOffset, true);
             updateSelectionFromTree(state);
 
-            renderRowToggles(ui, r, theme, input, state, treeX, treeY, treeW, treeH, itemH, scrollOffset, interactive);
-            renderNodeTypeBadges(r, theme, treeX, treeY, treeW, treeH, itemH, scrollOffset);
-
             if (renamingNodeId >= 0) {
                 renderInlineRename(r, uiContext, theme, input, treeX, treeY, treeW, itemH, scrollOffset);
             }
@@ -258,11 +371,25 @@ public final class ScenePanel extends Panel {
                 boolean hit = mx >= renameFieldX && my >= renameFieldY && mx < renameFieldX + renameFieldW && my < renameFieldY + renameFieldH;
                 if (!hit) {
                     renamingNodeId = -1;
+                    renameJustCancelled = true;
                 }
             }
 
+            if (renamingNodeId < 0 && input != null && input.mousePressed()
+                    && mx >= treeX && mx < treeX + treeW && my >= treeY && my < treeY + treeH) {
+                int clickRow = (int) ((my - treeY + scrollOffset) / itemH);
+                List<TreeView.VisibleNode<SceneSnapshot.NodeSnapshot>> vis = treeView.getVisibleNodes();
+                if (clickRow < 0 || clickRow >= vis.size()) {
+                    state.selectedId = 0L;
+                    clearTreeSelection();
+                }
+            }
+
+            boolean skipClick = renameJustCancelled;
+            renameJustCancelled = false;
+
             boolean rightPressed = interactive && runtime.rightPressed();
-            if (rightPressed && !nodeMenu.isOpen()) {
+            if (!skipClick && rightPressed && !nodeMenu.isOpen()) {
                 if (mx >= treeX && mx < treeX + treeW && my >= treeY && my < treeY + treeH) {
                     treeView.handleClick(input, (int) mx, (int) my, treeX, treeY, treeW, treeH, scrollOffset);
                     updateSelectionFromTree(state);
@@ -342,8 +469,8 @@ public final class ScenePanel extends Panel {
             r.drawText("Display name (optional)", nameX + 6, r.baselineForBox(fieldY, fieldH), Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.65f));
         }
 
-        renderTextButton(ui, r, theme, saveX, fieldY, btnW, fieldH, "Save", true, this::commitSaveBranch);
-        renderTextButton(ui, r, theme, cancelX, fieldY, cancelW, fieldH, "Cancel", true, () -> {
+        EditorUiUtil.textButton(ui, r, theme, saveX, fieldY, btnW, fieldH, "Save", true, this::commitSaveBranch);
+        EditorUiUtil.textButton(ui, r, theme, cancelX, fieldY, cancelW, fieldH, "Cancel", true, () -> {
             saveBranchOpen = false;
             saveBranchError = null;
         });
@@ -386,22 +513,31 @@ public final class ScenePanel extends Panel {
         r.drawRect(x, y + h - 1, w, 1, Theme.toArgb(theme.headerLine));
 
         int pad = theme.design.space_sm;
-        int searchH = 22;
-        int searchW = Math.max(120, w - pad * 3 - 24);
+        int btnSize = theme.design.widget_height_md;
+        int gap = theme.design.space_xs;
+        int rightButtons = btnSize * 3 + gap * 2 + pad;
+        int searchH = theme.design.widget_height_sm;
+        int searchW = Math.max(120, w - pad * 2 - rightButtons);
         int searchX = x + pad;
         int searchY = y + (h - searchH) / 2;
 
         filterField.render(r, uiContext, input, theme, searchX, searchY, searchW, searchH, true);
         if ((filterField.text() == null || filterField.text().isEmpty()) && (uiContext == null || !filterField.isFocused(uiContext))) {
             int hint = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.70f);
-            float iconSize = Math.min(theme.design.icon_sm, searchH - 6);
-            theme.icons.draw(r, Icon.SEARCH, searchX + 6, searchY + (searchH - iconSize) * 0.5f, iconSize, hint);
-            r.drawText("Filter Nodes", searchX + 6 + iconSize + 6, r.baselineForBox(searchY, searchH), hint);
+            int sp = theme.design.space_sm;
+            float iconSize = Math.min(theme.design.icon_sm, searchH - sp * 2);
+            MoudIcons.drawOrFallback(r, theme, Icon.SEARCH, searchX + sp, searchY + (searchH - iconSize) * 0.5f, iconSize, hint);
+            r.drawText("Filter Nodes", searchX + sp + iconSize + sp, r.baselineForBox(searchY, searchH), hint);
         }
 
-        int btnX = x + w - pad - 24;
-        int btnY = y + (h - 24) / 2;
-        renderIconButton(ui, r, theme, btnX, btnY, 24, 24, Icon.ADD, interactive, () -> {
+        int btnY = y + (h - btnSize) / 2;
+        int addX = x + w - pad - btnSize;
+        int collapseX = addX - gap - btnSize;
+        int expandX = collapseX - gap - btnSize;
+
+        EditorUiUtil.iconButton(ui, r, theme, expandX, btnY, btnSize, btnSize, Icon.CHEVRON_DOWN, interactive, this::expandAll);
+        EditorUiUtil.iconButton(ui, r, theme, collapseX, btnY, btnSize, btnSize, Icon.CHEVRON_RIGHT, interactive, this::collapseAll);
+        EditorUiUtil.iconButton(ui, r, theme, addX, btnY, btnSize, btnSize, Icon.ADD, interactive, () -> {
             if (runtime.getCreateNodeDialog() == null) {
                 return;
             }
@@ -416,7 +552,12 @@ public final class ScenePanel extends Panel {
         if (treeView == null || renamingNodeId < 0) {
             return;
         }
-        int rowIndex = findVisibleRowIndex(rootNode, renamingNodeId, new int[]{0});
+        int rowIndex = -1;
+        List<TreeView.VisibleNode<SceneSnapshot.NodeSnapshot>> visNodes = treeView.getVisibleNodes();
+        for (int i = 0; i < visNodes.size(); i++) {
+            SceneSnapshot.NodeSnapshot sn = visNodes.get(i).node().data();
+            if (sn != null && sn.nodeId() == renamingNodeId) { rowIndex = i; break; }
+        }
         if (rowIndex < 0) {
             renamingNodeId = -1;
             return;
@@ -433,29 +574,28 @@ public final class ScenePanel extends Panel {
         renameTreeField.render(r, uiContext, input, theme, fieldX, rowY, fieldW, fieldH, true);
     }
 
-    private int findVisibleRowIndex(TreeNode<SceneSnapshot.NodeSnapshot> node, long targetId, int[] counter) {
-        if (node == null) {
-            return -1;
+    private void saveExpandedState() {
+        if (rootNode == null) return;
+        expandedNodeIds.clear();
+        collectExpandedIds(rootNode);
+    }
+
+    private void collectExpandedIds(TreeNode<SceneSnapshot.NodeSnapshot> node) {
+        if (node == null) return;
+        SceneSnapshot.NodeSnapshot snap = node.data();
+        if (snap != null && node.expanded()) {
+            expandedNodeIds.add(snap.nodeId());
         }
-        if (node.data() != null && node.data().nodeId() == targetId) {
-            return counter[0];
+        for (TreeNode<SceneSnapshot.NodeSnapshot> child : node.children()) {
+            collectExpandedIds(child);
         }
-        counter[0]++;
-        if (node.expanded()) {
-            for (TreeNode<SceneSnapshot.NodeSnapshot> child : node.children()) {
-                int result = findVisibleRowIndex(child, targetId, counter);
-                if (result >= 0) {
-                    return result;
-                }
-            }
-        }
-        return -1;
     }
 
     private void rebuildTree(EditorState state, String filter) {
+        saveExpandedState();
         rootNode = new TreeNode<>(null);
         if (state == null || state.scene == null) {
-            treeView = new TreeView<>(rootNode, 20);
+            treeView = new TreeView<>(rootNode, 24);
             treeView.setLabelFunction(this::formatNodeLabel);
             return;
         }
@@ -472,14 +612,122 @@ public final class ScenePanel extends Panel {
         }
 
         rootNode.setExpanded(true);
-        treeView = new TreeView<>(rootNode, 20);
+        treeView = new TreeView<>(rootNode, 24);
         treeView.setLabelFunction(this::formatNodeLabel);
         treeView.setIndentStepPx(16);
 
         treeStyle.drawContainer = false;
         treeStyle.drawFocusRing = false;
         treeStyle.stripedRows = false;
+        treeStyle.showRootNode = false;
+        treeStyle.accentBarWidth = 3;
         treeView.setStyle(treeStyle);
+
+        treeView.setMultiSelect(true);
+        treeView.setOnDoubleClick(snap -> {
+            if (snap != null) beginInlineRename(snap);
+        });
+        treeView.setCustomIconFunction(snap -> snap != null ? MoudIcons.get(snap.type()) : null);
+        treeView.setCustomIconColorFunction(snap -> snap != null ? nodeTypeBadgeColor(snap.type()) : null);
+        treeView.setChevronRenderer((r2, theme2, expanded, x2, y2, sz, col) ->
+                MoudIcons.drawOrFallback(r2, theme2, expanded ? Icon.CHEVRON_DOWN : Icon.CHEVRON_RIGHT, x2, y2, sz, col));
+
+        treeView.setRowSuffix((r2, theme2, node2, rowX, rowY, rowW, rowH, sel2, rowHovered2, mouseX2, suffixClicked2) -> {
+            SceneSnapshot.NodeSnapshot snap = node2.data();
+            if (snap == null || snap.nodeId() <= 0L) return 0;
+
+            int btnSize  = Math.min(16, Math.max(12, rowH - 6));
+            int gap      = 4;
+            int margin   = 6;
+            int lockX    = rowX + rowW - margin - btnSize;
+            int visX     = lockX - gap - btnSize;
+            int btnY     = rowY + (rowH - btnSize) / 2;
+
+            int childCountW = 0;
+            if (!node2.expanded() && !node2.children().isEmpty()) {
+                String countLabel = "(" + node2.children().size() + ")";
+                int countCol = Theme.toArgb(theme2.textMuted);
+                float countX = visX - gap - r2.measureText(countLabel);
+                r2.drawText(countLabel, countX, r2.baselineForBox(rowY, rowH), countCol);
+                childCountW = (int) Math.ceil(r2.measureText(countLabel)) + gap;
+            }
+
+            boolean visible = isVisible(snap);
+            boolean locked  = isLocked(snap);
+
+            boolean visHovered  = rowHovered2 && mouseX2 >= visX  && mouseX2 < visX  + btnSize;
+            boolean lockHovered = rowHovered2 && mouseX2 >= lockX && mouseX2 < lockX + btnSize;
+
+            if (visHovered)  r2.drawRoundedRect(visX,  btnY, btnSize, btnSize, theme2.design.radius_sm, Theme.mulAlpha(Theme.toArgb(theme2.widgetHover), 0.65f));
+            if (lockHovered) r2.drawRoundedRect(lockX, btnY, btnSize, btnSize, theme2.design.radius_sm, Theme.mulAlpha(Theme.toArgb(theme2.widgetHover), 0.65f));
+
+            float iconSize  = btnSize - 4;
+            float iconY2    = btnY + (btnSize - iconSize) * 0.5f;
+            float visIconX  = visX  + (btnSize - iconSize) * 0.5f;
+            float lockIconX = lockX + (btnSize - iconSize) * 0.5f;
+
+            int visCol  = !visible ? Theme.toArgb(theme2.accent) : (visHovered  ? Theme.toArgb(theme2.text) : Theme.mulAlpha(Theme.toArgb(theme2.textMuted), 0.5f));
+            int lockCol = locked   ? Theme.toArgb(theme2.accent) : (lockHovered ? Theme.toArgb(theme2.text) : Theme.mulAlpha(Theme.toArgb(theme2.textMuted), 0.5f));
+
+            MoudIcons.drawOrFallback(r2, theme2, visible ? Icon.VISIBLE : Icon.INVISIBLE, visIconX, iconY2, iconSize, visCol);
+            MoudIcons.drawOrFallback(r2, theme2, locked  ? Icon.LOCK    : Icon.UNLOCK,    lockIconX, iconY2, iconSize, lockCol);
+
+            if (suffixClicked2) {
+                if (mouseX2 >= visX && mouseX2 < visX + btnSize) {
+                    toggleVisible(snap.nodeId(), visible);
+                } else if (mouseX2 >= lockX && mouseX2 < lockX + btnSize) {
+                    toggleLocked(snap.nodeId(), locked);
+                }
+            }
+
+            return btnSize * 2 + gap + margin + childCountW;
+        });
+
+        treeView.setDragReorderListener((dragged, target, zone) -> {
+            if (dragged == null || target == null || dragged.nodeId() == target.nodeId()) return;
+            EditorState dragState = runtime.state();
+            if (dragState == null || runtime.net() == null) return;
+
+            // Prevent dropping a parent into its own descendant
+            long check = target.parentId();
+            while (check != 0L) {
+                if (check == dragged.nodeId()) return;
+                SceneSnapshot.NodeSnapshot p = dragState.scene.getNode(check);
+                check = p != null ? p.parentId() : 0L;
+            }
+
+            long newParentId;
+            int newIndex;
+
+            if (zone == TreeView.DropZone.INTO) {
+                newParentId = target.nodeId();
+                newIndex = dragState.scene.childrenOf(newParentId).size();
+            } else {
+                newParentId = target.parentId();
+                List<SceneSnapshot.NodeSnapshot> siblings = dragState.scene.childrenOf(newParentId);
+                newIndex = 0;
+                for (int i = 0; i < siblings.size(); i++) {
+                    if (siblings.get(i).nodeId() == target.nodeId()) {
+                        newIndex = (zone == TreeView.DropZone.BEFORE) ? i : i + 1;
+                        break;
+                    }
+                }
+            }
+
+            long currentParentId = dragged.parentId();
+            if (currentParentId == newParentId) {
+                List<SceneSnapshot.NodeSnapshot> siblings = dragState.scene.childrenOf(currentParentId);
+                int currentIndex = -1;
+                for (int i = 0; i < siblings.size(); i++) {
+                    if (siblings.get(i).nodeId() == dragged.nodeId()) { currentIndex = i; break; }
+                }
+                if (currentIndex >= 0) {
+                    if (newIndex > currentIndex) newIndex--;
+                    if (newIndex == currentIndex) return;
+                }
+            }
+            sendOpsRecorded(List.of(new SceneOp.Reparent(dragged.nodeId(), newParentId, newIndex)));
+        });
     }
 
     private void updateTreeStyle(Theme theme) {
@@ -489,18 +737,38 @@ public final class ScenePanel extends Panel {
         treeStyle.rowBgSelected = Theme.mulAlpha(Theme.toArgb(theme.widgetActive), 0.22f);
         treeStyle.textColor = Theme.toArgb(theme.text);
         treeStyle.mutedColor = Theme.toArgb(theme.textMuted);
+        treeStyle.indentOverride = theme.design.icon_sm;
     }
 
     private TreeNode<SceneSnapshot.NodeSnapshot> buildTreeNode(EditorState state, SceneSnapshot.NodeSnapshot snapshot, String filterLower) {
-        if (snapshot == null) {
-            return null;
+        return buildTreeNode(state, snapshot, filterLower, new HashSet<>());
+    }
+
+    private TreeNode<SceneSnapshot.NodeSnapshot> buildTreeNode(EditorState state,
+                                                               SceneSnapshot.NodeSnapshot snapshot,
+                                                               String filterLower,
+                                                               Set<Long> path) {
+        if (snapshot == null) return null;
+        long nodeId = snapshot.nodeId();
+        if (nodeId <= 0L) return null;
+
+        // Defensive: corrupt snapshots (e.g. self-parenting or cycles) should not crash the editor.
+        if (!path.add(nodeId)) {
+            TreeNode<SceneSnapshot.NodeSnapshot> node = new TreeNode<>(snapshot);
+            node.setExpanded(false);
+            node.setIcon(hasScript(snapshot) ? Icon.CODE : Icon.FILE);
+            node.setAccentColor(nodeTypeBadgeColor(snapshot.type()));
+            return node;
         }
 
         List<TreeNode<SceneSnapshot.NodeSnapshot>> childNodes = new ArrayList<>();
         List<SceneSnapshot.NodeSnapshot> children = new ArrayList<>(state.scene.childrenOf(snapshot.nodeId()));
         children.sort(Comparator.comparing(SceneSnapshot.NodeSnapshot::name));
         for (SceneSnapshot.NodeSnapshot child : children) {
-            TreeNode<SceneSnapshot.NodeSnapshot> cn = buildTreeNode(state, child, filterLower);
+            if (child == null || child.nodeId() == nodeId) {
+                continue;
+            }
+            TreeNode<SceneSnapshot.NodeSnapshot> cn = buildTreeNode(state, child, filterLower, path);
             if (cn != null) {
                 childNodes.add(cn);
             }
@@ -510,6 +778,7 @@ public final class ScenePanel extends Panel {
                 || (snapshot.name() != null && snapshot.name().toLowerCase(Locale.ROOT).contains(filterLower))
                 || (snapshot.type() != null && snapshot.type().toLowerCase(Locale.ROOT).contains(filterLower));
         if (!matches && childNodes.isEmpty()) {
+            path.remove(nodeId);
             return null;
         }
 
@@ -517,8 +786,11 @@ public final class ScenePanel extends Panel {
         for (TreeNode<SceneSnapshot.NodeSnapshot> cn : childNodes) {
             node.addChild(cn);
         }
-        node.setExpanded(true);
+        boolean shouldExpand = expandedNodeIds.isEmpty() || expandedNodeIds.contains(snapshot.nodeId());
+        node.setExpanded(shouldExpand);
         node.setIcon(hasScript(snapshot) ? Icon.CODE : Icon.FILE);
+        node.setAccentColor(nodeTypeBadgeColor(snapshot.type()));
+        path.remove(nodeId);
         return node;
     }
 
@@ -544,35 +816,17 @@ public final class ScenePanel extends Panel {
         return snapshot.name() == null ? "" : snapshot.name();
     }
 
-    private static String nodeTypeBadgeText(String type) {
-        if (type == null) return "";
-        return switch (type) {
-            case "Camera3D"           -> "CAM";
-            case "PlayerStart"        -> "PS";
-            case "WorldEnvironment"   -> "ENV";
-            case "CSGBlock"           -> "BLK";
-            case "CSGBox"             -> "BOX";
-            case "MeshInstance3D"     -> "MSH";
-            case "SceneInstance3D"    -> "SI";
-            case "OmniLight3D"        -> "OL";
-            case "DirectionalLight3D" -> "DL";
-            case "SpotLight3D"        -> "SL";
-            case "Node3D"             -> "3D";
-            default                   -> "";
-        };
-    }
-
     private static int nodeTypeBadgeColor(String type) {
-        if (type == null) return 0xFF607080;
+        if (type == null) return EditorTheme.NODE_COLOR_DEFAULT;
         return switch (type) {
-            case "Camera3D"                                      -> 0xFF4A9EE0;
-            case "PlayerStart"                                   -> 0xFF5CB85C;
-            case "WorldEnvironment"                              -> 0xFF9B6EC8;
-            case "CSGBlock", "CSGBox"                            -> 0xFF8A9BA8;
-            case "MeshInstance3D"                                -> 0xFF6EA8D4;
-            case "SceneInstance3D"                               -> 0xFF5BA0A0;
-            case "OmniLight3D", "DirectionalLight3D", "SpotLight3D" -> 0xFFD4A017;
-            default                                              -> 0xFF607080;
+            case "Camera3D"                                      -> EditorTheme.NODE_COLOR_CAMERA;
+            case "PlayerStart"                                   -> EditorTheme.NODE_COLOR_PLAYER;
+            case "WorldEnvironment"                              -> EditorTheme.NODE_COLOR_ENVIRONMENT;
+            case "CSGBlock", "CSGBox"                            -> EditorTheme.NODE_COLOR_CSG;
+            case "MeshInstance3D"                                -> EditorTheme.NODE_COLOR_MESH;
+            case "SceneInstance3D"                               -> EditorTheme.NODE_COLOR_SCENE_INSTANCE;
+            case "OmniLight3D", "DirectionalLight3D", "SpotLight3D" -> EditorTheme.NODE_COLOR_LIGHT;
+            default                                              -> EditorTheme.NODE_COLOR_DEFAULT;
         };
     }
 
@@ -588,148 +842,6 @@ public final class ScenePanel extends Panel {
                 state.selectedId = node.data().nodeId();
             }
         }
-    }
-
-    private void renderRowToggles(Ui ui,
-                                  UiRenderer r,
-                                  Theme theme,
-                                  UiInput input,
-                                  EditorState state,
-                                  int treeX,
-                                  int treeY,
-                                  int treeW,
-                                  int treeH,
-                                  int itemH,
-                                  int scrollOffset,
-                                  boolean interactive) {
-        if (ui == null || r == null || theme == null || input == null || state == null) {
-            return;
-        }
-        if (rootNode == null) {
-            return;
-        }
-
-        int btnSize = Math.min(16, Math.max(12, itemH - 6));
-        int gap = 4;
-        int margin = 6;
-        int lockX = treeX + treeW - margin - btnSize;
-        int visX = lockX - gap - btnSize;
-
-        float mx = ui.mouse().x;
-        float my = ui.mouse().y;
-        boolean click = interactive && input.mouseReleased();
-
-        renderRowTogglesRecursive(rootNode, new int[]{0}, treeY, treeY + treeH, itemH, scrollOffset, visX, lockX, btnSize, mx, my, click, theme, r);
-    }
-
-    private void renderRowTogglesRecursive(TreeNode<SceneSnapshot.NodeSnapshot> node,
-                                          int[] counter,
-                                          int treeY,
-                                          int treeMaxY,
-                                          int itemH,
-                                          int scrollOffset,
-                                          int visX,
-                                          int lockX,
-                                          int btnSize,
-                                          float mx,
-                                          float my,
-                                          boolean click,
-                                          Theme theme,
-                                          UiRenderer r) {
-        if (node == null || counter == null || counter.length == 0) {
-            return;
-        }
-        int rowIndex = counter[0];
-        SceneSnapshot.NodeSnapshot snap = node.data();
-        if (snap != null && snap.nodeId() > 0L) {
-            int rowY = treeY + rowIndex * itemH - scrollOffset;
-            if (rowY + itemH >= treeY && rowY <= treeMaxY) {
-                int btnY = rowY + (itemH - btnSize) / 2;
-                boolean visible = isVisible(snap);
-                boolean locked = isLocked(snap);
-
-                renderToggleButton(r, theme, visX, btnY, btnSize, btnSize,
-                        visible ? Icon.VISIBLE : Icon.INVISIBLE, !visible, mx, my, click,
-                        () -> toggleVisible(snap.nodeId(), visible));
-                renderToggleButton(r, theme, lockX, btnY, btnSize, btnSize,
-                        locked ? Icon.LOCK : Icon.UNLOCK, locked, mx, my, click,
-                        () -> toggleLocked(snap.nodeId(), locked));
-            }
-        }
-
-        counter[0]++;
-        if (node.expanded()) {
-            for (TreeNode<SceneSnapshot.NodeSnapshot> child : node.children()) {
-                renderRowTogglesRecursive(child, counter, treeY, treeMaxY, itemH, scrollOffset, visX, lockX, btnSize, mx, my, click, theme, r);
-            }
-        }
-    }
-
-    private void renderNodeTypeBadges(UiRenderer r, Theme theme,
-                                      int treeX, int treeY, int treeW, int treeH,
-                                      int itemH, int scrollOffset) {
-        if (rootNode == null || r == null || theme == null) return;
-        int btnSize = Math.min(16, Math.max(12, itemH - 6));
-        int gap = 4;
-        int margin = 6;
-        int lockX = treeX + treeW - margin - btnSize;
-        int visX = lockX - gap - btnSize;
-        int badgeW = 28;
-        int badgeX = visX - gap - badgeW;
-        renderNodeTypeBadgesRecursive(rootNode, new int[]{0}, treeY, treeY + treeH,
-                itemH, scrollOffset, badgeX, badgeW, r, theme);
-    }
-
-    private void renderNodeTypeBadgesRecursive(TreeNode<SceneSnapshot.NodeSnapshot> node, int[] counter,
-                                               int treeY, int treeMaxY, int itemH, int scrollOffset,
-                                               int badgeX, int badgeW, UiRenderer r, Theme theme) {
-        if (node == null || counter == null || counter.length == 0) return;
-        int rowIndex = counter[0];
-        SceneSnapshot.NodeSnapshot snap = node.data();
-        if (snap != null && snap.nodeId() > 0L) {
-            int rowY = treeY + rowIndex * itemH - scrollOffset;
-            if (rowY + itemH >= treeY && rowY <= treeMaxY) {
-                String badge = nodeTypeBadgeText(snap.type());
-                if (!badge.isEmpty()) {
-                    int badgeH = Math.max(13, itemH - 8);
-                    int badgeY = rowY + (itemH - badgeH) / 2;
-                    int col = nodeTypeBadgeColor(snap.type());
-                    r.drawRoundedRect(badgeX, badgeY, badgeW, badgeH, theme.design.radius_sm,
-                            Theme.mulAlpha(col, 0.20f));
-                    float textW = r.measureText(badge);
-                    r.drawText(badge, badgeX + (badgeW - textW) / 2f, r.baselineForBox(badgeY, badgeH), col);
-                }
-            }
-        }
-        counter[0]++;
-        if (node.expanded()) {
-            for (TreeNode<SceneSnapshot.NodeSnapshot> child : node.children()) {
-                renderNodeTypeBadgesRecursive(child, counter, treeY, treeMaxY, itemH, scrollOffset,
-                        badgeX, badgeW, r, theme);
-            }
-        }
-    }
-
-    private void renderToggleButton(UiRenderer r, Theme theme, int x, int y, int w, int h,
-                                    Icon icon, boolean active,
-                                    float mx, float my, boolean click, Runnable action) {
-        if (r == null || theme == null) return;
-        boolean hovered = mx >= x && my >= y && mx < x + w && my < y + h;
-        if (hovered) {
-            r.drawRoundedRect(x, y, w, h, theme.design.radius_sm,
-                    Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.65f));
-        }
-        int col;
-        if (active) {
-            col = Theme.toArgb(theme.accent);
-        } else if (hovered) {
-            col = Theme.toArgb(theme.text);
-        } else {
-            col = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.5f);
-        }
-        float iconSize = w - 4;
-        theme.icons.draw(r, icon, x + (w - iconSize) * 0.5f, y + (h - iconSize) * 0.5f, iconSize, col);
-        if (hovered && click && action != null) action.run();
     }
 
     private static boolean isVisible(SceneSnapshot.NodeSnapshot node) {
@@ -775,33 +887,23 @@ public final class ScenePanel extends Panel {
     }
 
     private void toggleVisible(long nodeId, boolean currentlyVisible) {
-        EditorState state = runtime.state();
-        var net = runtime.net();
-        Session session = runtime.session();
-        if (state == null || net == null || session == null || nodeId <= 0L) {
-            return;
-        }
+        if (nodeId <= 0L || runtime.state() == null || runtime.session() == null || runtime.net() == null) return;
         if (currentlyVisible) {
-            net.sendOps(session, state, List.of(new SceneOp.SetProperty(nodeId, PROP_VISIBLE, "false")));
+            sendOpsRecorded(List.of(new SceneOp.SetProperty(nodeId, PROP_VISIBLE, "false")));
         } else {
-            net.sendOps(session, state, List.of(new SceneOp.RemoveProperty(nodeId, PROP_VISIBLE)));
+            sendOpsRecorded(List.of(new SceneOp.RemoveProperty(nodeId, PROP_VISIBLE)));
         }
     }
 
     private void toggleLocked(long nodeId, boolean currentlyLocked) {
-        EditorState state = runtime.state();
-        var net = runtime.net();
-        Session session = runtime.session();
-        if (state == null || net == null || session == null || nodeId <= 0L) {
-            return;
-        }
+        if (nodeId <= 0L || runtime.state() == null || runtime.session() == null || runtime.net() == null) return;
         if (currentlyLocked) {
-            net.sendOps(session, state, List.of(
+            sendOpsRecorded(List.of(
                     new SceneOp.RemoveProperty(nodeId, PROP_EDITOR_LOCKED),
                     new SceneOp.RemoveProperty(nodeId, PROP_LOCKED)
             ));
         } else {
-            net.sendOps(session, state, List.of(
+            sendOpsRecorded(List.of(
                     new SceneOp.SetProperty(nodeId, PROP_EDITOR_LOCKED, "true"),
                     new SceneOp.SetProperty(nodeId, PROP_LOCKED, "true")
             ));
@@ -810,11 +912,16 @@ public final class ScenePanel extends Panel {
 
     private void openNodeMenu(SceneSnapshot.NodeSnapshot node) {
         nodeMenu.clear();
-        buildAddChildMenu(node);
-        nodeMenu.addSubmenu("Add Child", addChildMenu);
+        nodeMenu.addItem("Add Child…", () -> openCreateDialog(node.nodeId()));
         nodeMenu.addSeparator();
         nodeMenu.addItem("Rename", () -> beginInlineRename(node));
-        nodeMenu.addItem("Duplicate", () -> duplicateNode(node));
+        Set<TreeNode<SceneSnapshot.NodeSnapshot>> multiSel = treeView != null ? treeView.selectedNodes() : Set.of();
+        if (multiSel.size() > 1) {
+            nodeMenu.addItem("Duplicate (" + multiSel.size() + ")", () -> duplicateSelectedNodes());
+        } else {
+            nodeMenu.addItem("Duplicate", () -> duplicateNode(node));
+        }
+        nodeMenu.addItem("Change Type…", () -> openChangeTypeDialog(node));
         nodeMenu.addSeparator();
         boolean visible = isVisible(node);
         boolean locked = isLocked(node);
@@ -824,11 +931,64 @@ public final class ScenePanel extends Panel {
             nodeMenu.addSeparator();
             nodeMenu.addItem("Move Up", () -> moveNode(node, -1));
             nodeMenu.addItem("Move Down", () -> moveNode(node, 1));
+            nodeMenu.addItem("Move to Root", () -> moveToRoot(node));
             nodeMenu.addSeparator();
             nodeMenu.addItem("Queue free", () -> queueFree(node.nodeId()));
         }
+        Set<TreeNode<SceneSnapshot.NodeSnapshot>> selectedNodes = treeView != null ? treeView.selectedNodes() : Set.of();
+        if (selectedNodes.size() > 1) {
+            nodeMenu.addSeparator();
+            nodeMenu.addItem("Group Selection", () -> groupSelectedNodes());
+        }
+        nodeMenu.addSeparator();
+        nodeMenu.addItem("Attach Script…", () -> attachScriptFromFile(node.nodeId()));
+        nodeMenu.addItem("Copy Path", () -> copyNodePath(node));
         nodeMenu.addSeparator();
         nodeMenu.addItem("Save Branch as Scene…", () -> openSaveBranch(node));
+    }
+
+    private void groupSelectedNodes() {
+        if (treeView == null) return;
+        EditorState state = runtime.state();
+        Session session = runtime.session();
+        if (state == null || session == null) return;
+
+        Set<TreeNode<SceneSnapshot.NodeSnapshot>> selectedNodes = treeView.selectedNodes();
+        if (selectedNodes.size() < 2) return;
+        ArrayList<SceneSnapshot.NodeSnapshot> selected = new ArrayList<>();
+        long commonParentId = -1L;
+        for (TreeNode<SceneSnapshot.NodeSnapshot> tn : selectedNodes) {
+            SceneSnapshot.NodeSnapshot snap = tn != null ? tn.data() : null;
+            if (snap == null || snap.parentId() == 0L) continue;
+            if (commonParentId < 0L) {
+                commonParentId = snap.parentId();
+            } else if (snap.parentId() != commonParentId) {
+                runtime.requestToast("Group Selection requires nodes with the same parent", true, 3000);
+                return;
+            }
+            selected.add(snap);
+        }
+        if (commonParentId <= 0L || selected.size() < 2) {
+            return;
+        }
+
+        List<SceneSnapshot.NodeSnapshot> siblings = state.scene.childrenOf(commonParentId);
+        HashMap<Long, Integer> indexById = new HashMap<>();
+        for (int i = 0; i < siblings.size(); i++) {
+            SceneSnapshot.NodeSnapshot s = siblings.get(i);
+            if (s != null) indexById.put(s.nodeId(), i);
+        }
+
+        ArrayList<EditorHistory.NodeAtIndex> nodes = new ArrayList<>();
+        for (SceneSnapshot.NodeSnapshot s : selected) {
+            int idx = indexById.getOrDefault(s.nodeId(), 0);
+            nodes.add(new EditorHistory.NodeAtIndex(s.nodeId(), idx));
+        }
+        nodes.sort(Comparator.comparingInt(n -> n.index()));
+
+        EditorHistory.GroupSelectionEntry entry = new EditorHistory.GroupSelectionEntry(commonParentId, "Group", nodes);
+        runtime.history().pushEntry(entry);
+        entry.redo(runtime);
     }
 
     private void buildAddChildMenu(SceneSnapshot.NodeSnapshot parent) {
@@ -925,7 +1085,23 @@ public final class ScenePanel extends Panel {
         if (existing == null || next.equals(existing.name())) {
             return;
         }
-        runtime.net().sendOps(runtime.session(), state, List.of(new SceneOp.Rename(nodeId, next)));
+        next = uniqueSiblingName(state, existing.parentId(), nodeId, next);
+        EditorNet net = runtime.net();
+        Session session = runtime.session();
+        if (net == null || session == null) return;
+        sendOpsRecorded(List.of(new SceneOp.Rename(nodeId, next)));
+    }
+
+    private static String uniqueSiblingName(EditorState state, long parentId, long selfId, String desired) {
+        if (state == null || state.scene == null) return desired;
+        Set<String> existing = new HashSet<>();
+        for (SceneSnapshot.NodeSnapshot s : state.scene.childrenOf(parentId)) {
+            if (s != null && s.name() != null && s.nodeId() != selfId) existing.add(s.name());
+        }
+        if (!existing.contains(desired)) return desired;
+        int n = 2;
+        while (existing.contains(desired + " (" + n + ")")) n++;
+        return desired + " (" + n + ")";
     }
 
     private void openSaveBranch(SceneSnapshot.NodeSnapshot node) {
@@ -1156,8 +1332,9 @@ public final class ScenePanel extends Panel {
             runtime.requestToast("A PlayerStart already exists. Only one is used (first found in scene).", true, 4000);
             return;
         }
-        String name = typeId + "_" + (int) (System.nanoTime() % 10_000);
-        runtime.net().sendOps(session, state, List.of(new SceneOp.CreateNode(parentId, name, typeId)));
+        EditorHistory.CreateNodeEntry entry = new EditorHistory.CreateNodeEntry(parentId, typeId, typeId, List.of(), true);
+        runtime.history().pushEntry(entry);
+        entry.redo(runtime);
     }
 
     private static boolean sceneHasPlayerStart(EditorState state) {
@@ -1172,19 +1349,98 @@ public final class ScenePanel extends Panel {
         return false;
     }
 
+    private static String uniqueChildName(EditorState state, long parentId, String typeId) {
+        if (state == null || state.scene == null) return typeId;
+        Set<String> existing = new HashSet<>();
+        for (SceneSnapshot.NodeSnapshot s : state.scene.childrenOf(parentId)) {
+            if (s != null && s.name() != null) existing.add(s.name());
+        }
+        if (!existing.contains(typeId)) return typeId;
+        int n = 2;
+        while (existing.contains(typeId + n)) n++;
+        return typeId + n;
+    }
+
     private void duplicateNode(SceneSnapshot.NodeSnapshot node) {
         if (node == null) {
             return;
         }
         nodeMenu.close();
         EditorState state = runtime.state();
-        if (state == null) {
+        Session session = runtime.session();
+        if (state == null || session == null) {
             return;
         }
-        String name = (node.name() == null ? "node" : node.name()) + "_copy";
+        String baseName = node.name() == null ? "node" : node.name();
+        String nameHint = baseName + "_copy";
         String type = node.type() == null ? "Node" : node.type();
-        runtime.net().sendOps(runtime.session(), state,
-                List.of(new SceneOp.CreateNode(node.parentId(), name, type)));
+
+        ArrayList<Map.Entry<String, String>> props = new ArrayList<>();
+        if (node.properties() != null) {
+            for (SceneSnapshot.Property p : node.properties()) {
+                if (p == null || p.key() == null || p.value() == null) continue;
+                if ("@type".equals(p.key())) continue;
+                props.add(Map.entry(p.key(), p.value()));
+            }
+        }
+
+        EditorHistory.CreateNodeEntry entry = new EditorHistory.CreateNodeEntry(node.parentId(), nameHint, type, props, true);
+        runtime.history().pushEntry(entry);
+        entry.redo(runtime);
+    }
+
+    private void duplicateSelectedNodes() {
+        if (treeView == null) return;
+        nodeMenu.close();
+        EditorState state = runtime.state();
+        Session session = runtime.session();
+        if (state == null || session == null) return;
+        for (TreeNode<SceneSnapshot.NodeSnapshot> tn : treeView.selectedNodes()) {
+            SceneSnapshot.NodeSnapshot snap = tn != null ? tn.data() : null;
+            if (snap != null) duplicateNode(snap);
+        }
+    }
+
+    private void duplicateNodeWithOffset(SceneSnapshot.NodeSnapshot node) {
+        if (node == null) {
+            return;
+        }
+        nodeMenu.close();
+        EditorState state = runtime.state();
+        Session session = runtime.session();
+        if (state == null || session == null) {
+            return;
+        }
+
+        float offset = runtime != null ? runtime.gridSnapStep() : 0.5f;
+        if ("CSGBlock".equals(node.type())) {
+            offset = Math.max(1.0f, Math.round(offset));
+        } else {
+            offset = Math.max(0.25f, offset);
+        }
+
+        String baseName = node.name() == null ? "node" : node.name();
+        String nameHint = baseName + "_copy";
+        String type = node.type() == null ? "Node" : node.type();
+
+        ArrayList<Map.Entry<String, String>> props = new ArrayList<>();
+        if (node.properties() != null) {
+            for (SceneSnapshot.Property p : node.properties()) {
+                if (p == null || p.key() == null || p.value() == null) continue;
+                if ("@type".equals(p.key())) continue;
+                String key = p.key();
+                String value = p.value();
+                if ("x".equals(key) || "z".equals(key)) {
+                    float v = ParseUtils.parseFloat(value, 0.0f);
+                    value = ParseUtils.trimFloat(v + offset);
+                }
+                props.add(Map.entry(key, value));
+            }
+        }
+
+        EditorHistory.CreateNodeEntry entry = new EditorHistory.CreateNodeEntry(node.parentId(), nameHint, type, props, true);
+        runtime.history().pushEntry(entry);
+        entry.redo(runtime);
     }
 
     private void moveNode(SceneSnapshot.NodeSnapshot node, int direction) {
@@ -1211,8 +1467,7 @@ public final class ScenePanel extends Panel {
         if (newIndex < 0 || newIndex >= siblings.size()) {
             return;
         }
-        runtime.net().sendOps(runtime.session(), state,
-                List.of(new SceneOp.Reparent(node.nodeId(), node.parentId(), newIndex)));
+        sendOpsRecorded(List.of(new SceneOp.Reparent(node.nodeId(), node.parentId(), newIndex)));
     }
 
     private static String normalizeSceneId(String raw) {
@@ -1384,12 +1639,257 @@ public final class ScenePanel extends Panel {
     private void queueFree(long nodeId) {
         EditorState state = runtime.state();
         Session session = runtime.session();
-        runtime.net().sendOps(session, state, List.of(new SceneOp.QueueFree(nodeId)));
-        if (state != null && state.selectedId == nodeId) {
+        EditorNet net = runtime.net();
+        if (state == null || session == null || net == null) return;
+        runtime.history().clearRedo();
+        net.sendOps(session, state, List.of(new SceneOp.QueueFree(nodeId)));
+        if (state.selectedId == nodeId) {
             state.selectedId = 0L;
         }
-        if (state != null) {
-            rebuildTree(state, filterField.text());
+    }
+
+    /** Sends ops, records undo/redo history, and returns the batch ID. */
+    private long sendOpsRecorded(List<SceneOp> ops) {
+        EditorState state = runtime.state();
+        Session session = runtime.session();
+        EditorNet net = runtime.net();
+        if (state == null || session == null || net == null) return 0L;
+        List<SceneOp> inverseOps = suppressHistory ? List.of()
+                : EditorHistory.buildInverseOps(state.scene, ops);
+        long batchId = net.sendOpsWithBatchId(session, state, ops);
+        if (!suppressHistory && !inverseOps.isEmpty()) {
+            runtime.history().push(inverseOps, ops);
+        }
+        return batchId;
+    }
+
+    public void performUndo() {
+        runtime.history().undo(runtime);
+    }
+
+    public void performRedo() {
+        runtime.history().redo(runtime);
+    }
+
+    private void selectAll() {
+        var visible = treeView.getVisibleNodes();
+        if (visible.isEmpty()) return;
+        treeView.selectedNodes().clear();
+        for (var vn : visible) {
+            if (vn.node().data() != null) {
+                vn.node().setSelected(true);
+                treeView.selectedNodes().add(vn.node());
+            }
+        }
+        EditorState state = runtime.state();
+        if (state != null && !visible.isEmpty() && visible.get(0).node().data() != null) {
+            state.selectedId = visible.get(0).node().data().nodeId();
+        }
+    }
+
+    private void copySelectedNode() {
+        EditorState state = runtime.state();
+        if (state == null) return;
+        SceneSnapshot.NodeSnapshot selected = state.scene.getNode(state.selectedId);
+        if (selected == null) return;
+        clipboard.clear();
+        clipboard.add(new ClipboardEntry(
+                selected.name() == null ? "Node" : selected.name(),
+                selected.type() == null ? "Node" : selected.type(),
+                selected.properties() != null ? List.copyOf(selected.properties()) : List.of()));
+        runtime.requestToast("Copied: " + selected.name(), false, 1500);
+    }
+
+    private void pasteNodes() {
+        pasteNodesInternal(false);
+    }
+
+    private void pasteAsSibling() {
+        pasteNodesInternal(true);
+    }
+
+    private void pasteNodesInternal(boolean asSibling) {
+        if (clipboard.isEmpty()) return;
+        EditorState state = runtime.state();
+        Session session = runtime.session();
+        if (state == null || session == null) return;
+        long parentId;
+        SceneSnapshot.NodeSnapshot sel = state.scene.getNode(state.selectedId);
+        if (asSibling && sel != null && sel.parentId() != 0L) {
+            parentId = sel.parentId();
+        } else if (sel != null) {
+            parentId = sel.nodeId();
+        } else {
+            parentId = 0L;
+        }
+        long finalParentId = parentId;
+        long pendingCut = cutNodeId;
+        cutNodeId = -1;
+        for (ClipboardEntry entry : clipboard) {
+            ArrayList<Map.Entry<String, String>> props = new ArrayList<>();
+            if (entry.properties() != null) {
+                for (SceneSnapshot.Property p : entry.properties()) {
+                    if (p == null || p.key() == null || p.value() == null) continue;
+                    if ("@type".equals(p.key())) continue;
+                    props.add(Map.entry(p.key(), p.value()));
+                }
+            }
+
+            EditorHistory.CreateNodeEntry hist = new EditorHistory.CreateNodeEntry(finalParentId, entry.name(), entry.type(), props, true);
+            runtime.history().pushEntry(hist);
+            hist.redo(runtime);
+        }
+        if (pendingCut > 0L) {
+            queueFree(pendingCut);
+        }
+    }
+
+    private void cutSelectedNode() {
+        EditorState state = runtime.state();
+        if (state == null) return;
+        SceneSnapshot.NodeSnapshot selected = state.scene.getNode(state.selectedId);
+        if (selected == null || selected.parentId() == 0L) return;
+        copySelectedNode();
+        cutNodeId = selected.nodeId();
+        runtime.requestToast("Cut: " + selected.name(), false, 1500);
+    }
+
+    private void copyNodePath(SceneSnapshot.NodeSnapshot node) {
+        if (node == null) return;
+        nodeMenu.close();
+        String path = buildNodePath(node);
+        if (lastUiContext != null) {
+            lastUiContext.clipboard().setText(path);
+        }
+        runtime.requestToast("Copied path: " + path, false, 1500);
+    }
+
+    private String buildNodePath(SceneSnapshot.NodeSnapshot node) {
+        EditorState state = runtime.state();
+        if (state == null || node == null) return "";
+        ArrayList<String> parts = new ArrayList<>();
+        SceneSnapshot.NodeSnapshot current = node;
+        while (current != null && current.parentId() != 0L) {
+            parts.add(current.name() != null ? current.name() : "?");
+            current = state.scene.getNode(current.parentId());
+        }
+        if (current != null) {
+            parts.add(current.name() != null ? current.name() : "?");
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = parts.size() - 1; i >= 0; i--) {
+            if (sb.length() > 0) sb.append('/');
+            sb.append(parts.get(i));
+        }
+        return sb.toString();
+    }
+
+    private void navigateTree(boolean down) {
+        if (treeView == null) return;
+        List<TreeView.VisibleNode<SceneSnapshot.NodeSnapshot>> visible = treeView.getVisibleNodes();
+        if (visible.isEmpty()) return;
+        EditorState state = runtime.state();
+        if (state == null) return;
+        int selectedIdx = -1;
+        for (int i = 0; i < visible.size(); i++) {
+            SceneSnapshot.NodeSnapshot sn = visible.get(i).node().data();
+            if (sn != null && sn.nodeId() == state.selectedId) { selectedIdx = i; break; }
+        }
+        int nextIdx = down
+                ? Math.min(visible.size() - 1, selectedIdx + 1)
+                : Math.max(0, selectedIdx < 0 ? 0 : selectedIdx - 1);
+        SceneSnapshot.NodeSnapshot target = visible.get(nextIdx).node().data();
+        if (target != null) {
+            clearTreeSelection();
+            visible.get(nextIdx).node().setSelected(true);
+            treeView.selectedNodes().add(visible.get(nextIdx).node());
+            state.selectedId = target.nodeId();
+        }
+    }
+
+    private void navigateTreeLeft() {
+        if (treeView == null) return;
+        List<TreeView.VisibleNode<SceneSnapshot.NodeSnapshot>> visible = treeView.getVisibleNodes();
+        if (visible.isEmpty()) return;
+        EditorState state = runtime.state();
+        if (state == null) return;
+        for (int i = 0; i < visible.size(); i++) {
+            var vn = visible.get(i);
+            SceneSnapshot.NodeSnapshot sn = vn.node().data();
+            if (sn == null || sn.nodeId() != state.selectedId) continue;
+            if (!vn.node().children().isEmpty() && vn.node().expanded()) {
+                vn.node().setExpanded(false);
+            } else if (sn.parentId() != 0L) {
+                SceneSnapshot.NodeSnapshot parent = state.scene.getNode(sn.parentId());
+                if (parent != null) {
+                    clearTreeSelection();
+                    state.selectedId = parent.nodeId();
+                    selectNodeInTree(parent.nodeId(), visible);
+                }
+            }
+            return;
+        }
+    }
+
+    private void navigateTreeRight() {
+        if (treeView == null) return;
+        List<TreeView.VisibleNode<SceneSnapshot.NodeSnapshot>> visible = treeView.getVisibleNodes();
+        if (visible.isEmpty()) return;
+        EditorState state = runtime.state();
+        if (state == null) return;
+        for (int i = 0; i < visible.size(); i++) {
+            var vn = visible.get(i);
+            SceneSnapshot.NodeSnapshot sn = vn.node().data();
+            if (sn == null || sn.nodeId() != state.selectedId) continue;
+            if (!vn.node().children().isEmpty() && !vn.node().expanded()) {
+                vn.node().setExpanded(true);
+            } else if (i + 1 < visible.size()) {
+                SceneSnapshot.NodeSnapshot next = visible.get(i + 1).node().data();
+                if (next != null) {
+                    clearTreeSelection();
+                    visible.get(i + 1).node().setSelected(true);
+                    treeView.selectedNodes().add(visible.get(i + 1).node());
+                    state.selectedId = next.nodeId();
+                }
+            }
+            return;
+        }
+    }
+
+    private void selectNodeInTree(long nodeId, List<TreeView.VisibleNode<SceneSnapshot.NodeSnapshot>> visible) {
+        for (var vn : visible) {
+            SceneSnapshot.NodeSnapshot sn = vn.node().data();
+            if (sn != null && sn.nodeId() == nodeId) {
+                vn.node().setSelected(true);
+                treeView.selectedNodes().add(vn.node());
+                return;
+            }
+        }
+    }
+
+    private void clearTreeSelection() {
+        if (treeView == null) return;
+        for (TreeNode<SceneSnapshot.NodeSnapshot> tn : treeView.selectedNodes()) {
+            tn.setSelected(false);
+        }
+        treeView.selectedNodes().clear();
+    }
+
+    private void expandAll() {
+        if (rootNode == null) return;
+        setExpandedRecursive(rootNode, true);
+    }
+
+    private void collapseAll() {
+        if (rootNode == null) return;
+        setExpandedRecursive(rootNode, false);
+        rootNode.setExpanded(true);
+    }
+
+    private static void setExpandedRecursive(TreeNode<?> node, boolean expanded) {
+        node.setExpanded(expanded);
+        for (TreeNode<?> child : node.children()) {
+            setExpandedRecursive(child, expanded);
         }
     }
 
@@ -1398,64 +1898,76 @@ public final class ScenePanel extends Panel {
             return;
         }
         nodeMenu.close();
+        closeAddChildCategoryMenus();
+        addChildMenu.close();
         runtime.getCreateNodeDialog().open(parentNodeId);
     }
 
-    private static void renderIconButton(Ui ui,
-                                         UiRenderer r,
-                                         Theme theme,
-                                         int x,
-                                         int y,
-                                         int w,
-                                         int h,
-                                         Icon icon,
-                                         boolean interactive,
-                                         Runnable action) {
-        var input = ui.input();
-        boolean canInteract = interactive && input != null;
-        float mx = canInteract ? input.mousePos().x : -1;
-        float my = canInteract ? input.mousePos().y : -1;
-        boolean hovered = canInteract && mx >= x && my >= y && mx < x + w && my < y + h;
+    private void moveToRoot(SceneSnapshot.NodeSnapshot node) {
+        if (node == null || node.parentId() == 0L) return;
+        nodeMenu.close();
+        EditorState state = runtime.state();
+        if (state == null) return;
+        int index = state.scene.childrenOf(0L).size();
+        sendOpsRecorded(List.of(new SceneOp.Reparent(node.nodeId(), 0L, index)));
+    }
 
-        if (hovered) {
-            int fill = Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.65f);
-            r.drawRoundedRect(x, y, w, h, theme.design.radius_sm, fill);
+    private void attachScriptFromFile(long nodeId) {
+        nodeMenu.close();
+        EditorState state = runtime.state();
+        EditorNet net = runtime.net();
+        Session session = runtime.session();
+        if (state == null || net == null || session == null) {
+            runtime.requestToast("Cannot attach: not connected", true, 3500);
+            return;
         }
-        float iconSize = Math.min(theme.design.icon_sm, h - 6);
-        theme.icons.draw(r, icon, x + (w - iconSize) * 0.5f, y + (h - iconSize) * 0.5f, iconSize, Theme.toArgb(theme.text));
-
-        if (hovered && canInteract && input.mouseReleased() && action != null) {
-            action.run();
+        try {
+            String osPath = TinyFileDialogs.tinyfd_openFileDialog(
+                    "Attach Script (.js)", "", null, "JavaScript (.js)", false);
+            if (osPath == null || osPath.isBlank()) return;
+            File file = new File(osPath);
+            if (!file.exists() || !file.isFile()) {
+                runtime.requestToast("Script file not found", true, 4500);
+                return;
+            }
+            String filename = file.getName();
+            if (filename == null || filename.isBlank()) {
+                runtime.requestToast("Invalid filename", true, 4500);
+                return;
+            }
+            if (!filename.toLowerCase(Locale.ROOT).endsWith(".js")) {
+                filename = filename + ".js";
+            }
+            String scriptPath = "res://scripts/" + filename;
+            try {
+                new ResPath(scriptPath);
+            } catch (Exception ignored) {
+                scriptPath = "res://scripts/node_" + nodeId + ".js";
+            }
+            String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+            net.writeScriptFile(session, state, scriptPath, content);
+            sendOpsRecorded(List.of(new SceneOp.SetProperty(nodeId, "script", scriptPath)));
+            runtime.requestToast("Attached script: " + scriptPath, false, 2500);
+        } catch (Exception e) {
+            String msg = e.getMessage();
+            runtime.requestToast("Attach failed" + (msg == null || msg.isBlank() ? "" : ": " + msg), true, 6000);
         }
     }
 
-    private static void renderTextButton(Ui ui,
-                                         UiRenderer r,
-                                         Theme theme,
-                                         int x,
-                                         int y,
-                                         int w,
-                                         int h,
-                                         String label,
-                                         boolean interactive,
-                                         Runnable action) {
-        var input = ui.input();
-        boolean canInteract = interactive && input != null;
-        float mx = canInteract ? input.mousePos().x : -1;
-        float my = canInteract ? input.mousePos().y : -1;
-        boolean hovered = canInteract && mx >= x && my >= y && mx < x + w && my < y + h;
-
-        int fill = Theme.mulAlpha(Theme.toArgb(theme.headerBg), 0.90f);
-        if (hovered) {
-            fill = Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.75f);
-        }
-        r.drawRoundedRect(x, y, w, h, theme.design.radius_sm, fill);
-        int text = interactive ? Theme.toArgb(theme.text) : Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.60f);
-        r.drawText(label == null ? "" : label, x + theme.design.space_sm, r.baselineForBox(y, h), text);
-
-        if (hovered && canInteract && input.mouseReleased() && action != null) {
-            action.run();
-        }
+    private void openChangeTypeDialog(SceneSnapshot.NodeSnapshot node) {
+        if (node == null) return;
+        nodeMenu.close();
+        EditorState state = runtime.state();
+        Session session = runtime.session();
+        if (state == null || session == null) return;
+        if (runtime.getCreateNodeDialog() == null) return;
+        long nodeId = node.nodeId();
+        runtime.getCreateNodeDialog().open(node.parentId());
+        runtime.getCreateNodeDialog().setOnTypeSelected(typeId -> {
+            if (typeId != null && !typeId.isBlank()) {
+                sendOpsRecorded(List.of(new SceneOp.SetProperty(nodeId, "@type", typeId)));
+            }
+        });
     }
 
     private static boolean isRuntimePlayerNode(SceneSnapshot.NodeSnapshot node) {
