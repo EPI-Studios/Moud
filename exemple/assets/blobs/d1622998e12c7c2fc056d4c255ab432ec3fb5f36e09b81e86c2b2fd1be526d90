@@ -1,7 +1,0 @@
-{
-  "shader": "res://shaders/sky_gradient.moudshader",
-  "params": {
-    "sky_gamma": 1.2,
-    "sun_strength": 0.8
-  }
-}
