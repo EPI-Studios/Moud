@@ -1,21 +1,6 @@
 package com.moud.server.minestom.physics;
 
-import com.github.stephengold.joltjni.BodyCreationSettings;
-import com.github.stephengold.joltjni.BodyFilter;
-import com.github.stephengold.joltjni.BodyInterface;
-import com.github.stephengold.joltjni.BroadPhaseLayerInterfaceTable;
-import com.github.stephengold.joltjni.ExtendedUpdateSettings;
-import com.github.stephengold.joltjni.ObjectLayerPairFilterTable;
-import com.github.stephengold.joltjni.ObjectVsBroadPhaseLayerFilterTable;
-import com.github.stephengold.joltjni.PhysicsSystem;
-import com.github.stephengold.joltjni.Quat;
-import com.github.stephengold.joltjni.RVec3;
-import com.github.stephengold.joltjni.ShapeFilter;
-import com.github.stephengold.joltjni.TempAllocatorImpl;
-import com.github.stephengold.joltjni.Vec3;
-import com.github.stephengold.joltjni.CapsuleShape;
-import com.github.stephengold.joltjni.CharacterVirtual;
-import com.github.stephengold.joltjni.CharacterVirtualSettings;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EGroundState;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
@@ -44,7 +29,7 @@ public final class JoltScenePhysics implements AutoCloseable {
     private final PhysicsSystem system = new PhysicsSystem();
     private final BodyInterface bodies;
     private final TempAllocatorImpl tempAllocator = new TempAllocatorImpl(16 * 1024 * 1024);
-    private final com.github.stephengold.joltjni.JobSystemSingleThreaded jobs = new com.github.stephengold.joltjni.JobSystemSingleThreaded(1024);
+    private final JobSystemSingleThreaded jobs = new JobSystemSingleThreaded(1024);
 
     private final ExtendedUpdateSettings updateSettings = new ExtendedUpdateSettings();
     private final BodyFilter bodyFilter = new BodyFilter();
@@ -194,15 +179,18 @@ public final class JoltScenePhysics implements AutoCloseable {
     }
 
     private void collectStatic(Node node, Transform parentWorld, Engine engine, ArrayList<Integer> outBodyIds) {
-        if (node == null || engine == null) {
-            return;
-        }
+        if (node == null || engine == null) return;
         String typeId = engine.nodeTypes().typeIdFor(node);
         Transform local = localTransform(node, typeId);
         Transform world = shouldInheritTransform(node) ? parentWorld.compose(local) : local;
 
         if (isStaticColliderNode(typeId, node)) {
-            int bodyId = createStaticBox(world);
+            int bodyId;
+            if ("StaticBody3D".equals(typeId)) {
+                bodyId = createStaticFromShape(node, world);
+            } else {
+                bodyId = createStaticBox(world);
+            }
             if (bodyId != 0 && bodyId != com.github.stephengold.joltjni.Jolt.cInvalidBodyId) {
                 outBodyIds.add(bodyId);
             }
@@ -212,19 +200,71 @@ public final class JoltScenePhysics implements AutoCloseable {
         }
     }
 
+    private int createStaticFromShape(Node node, Transform world) {
+        if (world == null) return 0;
+        String shapeType = node.getProperty("shape");
+        if (shapeType == null) shapeType = "box";
+        shapeType = shapeType.trim().toLowerCase();
+
+        Shape shape;
+        if ("sphere".equals(shapeType)) {
+            float r = propFloat(node, "radius", 0.5f);
+            shape = new SphereShape(Math.max(0.01f, r));
+        } else {
+            float hx = propFloat(node, "sx", 1f) * 0.5f;
+            float hy = propFloat(node, "sy", 1f) * 0.5f;
+            float hz = propFloat(node, "sz", 1f) * 0.5f;
+            shape = new BoxShape(Math.max(0.01f, hx), Math.max(0.01f, hy), Math.max(0.01f, hz));
+        }
+
+        try {
+            BodyCreationSettings settings = new BodyCreationSettings(
+                    shape,
+                    new RVec3(world.pos.x, world.pos.y, world.pos.z),
+                    new Quat((float) world.rot.x, (float) world.rot.y, (float) world.rot.z, (float) world.rot.w),
+                    EMotionType.Static,
+                    OBJECT_LAYER_STATIC
+            );
+            try {
+                return bodies.createAndAddBody(settings, EActivation.DontActivate);
+            } finally {
+                settings.close();
+            }
+        } finally {
+            shape.close();
+        }
+    }
+
     private static boolean isStaticColliderNode(String typeId, Node node) {
-        if (typeId == null || node == null) {
-            return false;
+        if (typeId == null || node == null) return false;
+
+        if ("CSGBlock".equals(typeId) || "CSGBox".equals(typeId)) {
+            String solid = node.getProperty("solid");
+            if (solid == null || solid.isBlank()) return true;
+            String s = solid.trim().toLowerCase();
+            return !("false".equals(s) || "0".equals(s));
         }
-        if (!("CSGBlock".equals(typeId) || "CSGBox".equals(typeId))) {
-            return false;
+
+        if ("StaticBody3D".equals(typeId)) {
+            return propBool(node, "enabled", true);
         }
-        String solid = node.getProperty("solid");
-        if (solid == null || solid.isBlank()) {
-            return true;
-        }
-        String s = solid.trim().toLowerCase();
-        return !("false".equals(s) || "0".equals(s));
+
+        return false;
+    }
+
+    private static boolean propBool(Node node, String key, boolean fallback) {
+        String v = node.getProperty(key);
+        if (v == null || v.isBlank()) return fallback;
+        String s = v.trim().toLowerCase();
+        if ("false".equals(s) || "0".equals(s)) return false;
+        if ("true".equals(s) || "1".equals(s)) return true;
+        return fallback;
+    }
+
+    private static float propFloat(Node node, String key, float fallback) {
+        String v = node.getProperty(key);
+        if (v == null || v.isBlank()) return fallback;
+        try { return Float.parseFloat(v.trim()); } catch (NumberFormatException e) { return fallback; }
     }
 
     private int createStaticBox(Transform world) {
@@ -235,7 +275,7 @@ public final class JoltScenePhysics implements AutoCloseable {
         float sy = (float) Math.max(1e-6, world.scale.y);
         float sz = (float) Math.max(1e-6, world.scale.z);
 
-        com.github.stephengold.joltjni.BoxShape shape = new com.github.stephengold.joltjni.BoxShape(sx * 0.5f, sy * 0.5f, sz * 0.5f);
+        BoxShape shape = new BoxShape(sx * 0.5f, sy * 0.5f, sz * 0.5f);
         try {
             BodyCreationSettings settings = new BodyCreationSettings(
                     shape,

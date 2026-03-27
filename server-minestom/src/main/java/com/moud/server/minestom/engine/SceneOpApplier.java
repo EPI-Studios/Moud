@@ -1,23 +1,31 @@
 package com.moud.server.minestom.engine;
 
-
 import com.moud.core.NodeTypeDef;
 import com.moud.core.math.Quat;
 import com.moud.core.math.Vec3;
 import com.moud.core.scene.Node;
+import com.moud.core.scene.PlainNode;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpBatch;
 import com.moud.net.protocol.SceneOpError;
 import com.moud.net.protocol.SceneOpResult;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
-import com.moud.core.scene.PlainNode;
-
 
 public final class SceneOpApplier {
-    private static final Set<String> CSG_KEYS = Set.of("x", "y", "z", "rx", "ry", "rz", "sx", "sy", "sz", "block", "solid", "@type");
+    private static final Set<String> CSG_KEYS = Set.of(
+            "x", "y", "z", "rx", "ry", "rz", "sx", "sy", "sz",
+            "block", "solid", "@type",
+            "shape", "radius", "height", "enabled", "mass", "freeze"
+    );
     private static final Set<String> POSITION_KEYS = Set.of("x", "y", "z");
     private static final Set<String> ROTATION_KEYS = Set.of("rx", "ry", "rz");
     private static final Set<String> SCALE_KEYS = Set.of("sx", "sy", "sz");
@@ -378,7 +386,8 @@ public final class SceneOpApplier {
             return true;
         }
         String typeId = engine.nodeTypes().typeIdFor(node);
-        return "CSGBlock".equals(typeId) || "CSGBox".equals(typeId);
+        return "CSGBlock".equals(typeId) || "CSGBox".equals(typeId)
+                || "StaticBody3D".equals(typeId) || "RigidBody3D".equals(typeId);
     }
 
     private boolean subtreeContainsCsg(Node node) {

@@ -52,6 +52,7 @@ public final class ServerScene {
         if (physics != null) {
             physics.syncStaticColliders(engine);
             physics.step((float) dtSeconds);
+            physics.writeDynamicBodiesBack(engine);
         }
     }
 
