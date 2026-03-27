@@ -1,7 +1,0 @@
-{
-  "shader": "res://shaders/clouds_simple.moudshader",
-  "params": {
-    "cloud_opacity": 0.55,
-    "cloud_detail": 2.2
-  }
-}
