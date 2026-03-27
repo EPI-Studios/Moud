@@ -5,6 +5,7 @@ import com.moud.client.fabric.editor.dialogs.CreateNodeDialog;
 import com.moud.client.fabric.editor.dialogs.CreateProjectDialog;
 import com.moud.client.fabric.editor.dialogs.ScriptEditorDialog;
 import com.moud.client.fabric.editor.tools.EditorGizmos;
+import com.moud.client.fabric.editor.tools.EditorTool;
 import com.moud.client.fabric.editor.net.EditorNet;
 import com.moud.client.fabric.editor.panels.AssetsPanel;
 import com.moud.client.fabric.editor.panels.InspectorPanel;
@@ -54,6 +55,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.Window;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL30;
 import com.miry.ui.event.KeyEvent;
 import com.moud.client.fabric.editor.panels.BottomPanel;
 import com.moud.client.fabric.editor.panels.ToolbarPanel;
@@ -75,6 +77,7 @@ public final class EditorOverlay {
     private Framebuffer uiFramebuffer;
     private GaussianBlur blur;
     private WindowManager windowManager;
+    private int fallbackVao;
     private CreateNodeDialog createNodeDialog;
     private CreateProjectDialog createProjectDialog;
     private ScriptEditorDialog scriptEditorDialog;
@@ -332,6 +335,13 @@ public final class EditorOverlay {
             batch.close();
             batch = null;
         }
+        if (fallbackVao != 0) {
+            try {
+                GL30.glDeleteVertexArrays(fallbackVao);
+            } catch (Exception ignored) {
+            }
+            fallbackVao = 0;
+        }
         MaterialPreviewRenderer.clear();
     }
 
@@ -377,7 +387,11 @@ public final class EditorOverlay {
         boolean sup = GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SUPER) == GLFW.GLFW_PRESS
                 || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_SUPER) == GLFW.GLFW_PRESS;
 
-        ensureInitialized(window, handle);
+        int prevVao = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
+        ensureInitialized(window, handle, prevVao);
+        if (prevVao == 0 && fallbackVao != 0) {
+            GL30.glBindVertexArray(fallbackVao);
+        }
         syncProjectDialogState();
         viewportCapture.capture(window);
         runtime.setSession(session);
@@ -421,103 +435,97 @@ public final class EditorOverlay {
         boolean depthWasEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
         if (depthWasEnabled) GL11.glDisable(GL11.GL_DEPTH_TEST);
 
-        if (dockSpace == null || windowManager == null || uiContext == null) {
-            batch.begin(w, h, framebufferScale);
-            batch.drawRect(0, 0, w, h, 0xAA000000);
-            batch.drawText("MOUD editor overlay: init failed", 12, batch.baselineForBox(8, 24), 0xFFFFFFFF);
-            batch.end();
-            if (depthWasEnabled) GL11.glEnable(GL11.GL_DEPTH_TEST);
-            if (cullWasEnabled) GL11.glEnable(GL11.GL_CULL_FACE);
-            return;
-        }
-
-        applyBarRatios(w, h);
-        dockSpace.resize(w, h);
-        windowManager.update(uiContext, input, w, h);
-        boolean modalOpen = (createNodeDialog != null && createNodeDialog.isOpen())
-                || (createProjectDialog != null && createProjectDialog.isOpen())
-                || (scriptEditorDialog != null && scriptEditorDialog.isOpen());
-        boolean blockedByWindows = windowManager.blocksInput();
-        boolean blocked = modalOpen || blockedByWindows;
-
-        runtime.setUiBlocked(blocked);
-        processUiEvents(cameraCapturing, blocked);
-        if (!blocked) {
-            dockSpace.update(input);
-        }
-
-        boolean needsBackdropBlur = false;
-        for (UiWindow uiWindow : windowManager.windows()) {
-            if (uiWindow.backdropBlur()) {
-                needsBackdropBlur = true;
-                break;
+        try {
+            if (dockSpace == null || windowManager == null || uiContext == null) {
+                batch.begin(w, h, framebufferScale);
+                batch.drawRect(0, 0, w, h, 0xAA000000);
+                batch.drawText("MOUD editor overlay: init failed", 12, batch.baselineForBox(8, 24), 0xFFFFFFFF);
+                batch.end();
+                return;
             }
-        }
 
-        MaterialPreviewRenderer.renderRequested();
+            applyBarRatios(w, h);
+            dockSpace.resize(w, h);
+            windowManager.update(uiContext, input, w, h);
+            boolean modalOpen = (createNodeDialog != null && createNodeDialog.isOpen())
+                    || (createProjectDialog != null && createProjectDialog.isOpen())
+                    || (scriptEditorDialog != null && scriptEditorDialog.isOpen());
+            boolean blockedByWindows = windowManager.blocksInput();
+            boolean blocked = modalOpen || blockedByWindows;
 
-        if (!needsBackdropBlur) {
-            batch.begin(w, h, framebufferScale);
-            dockSpace.render(batch);
-            // Context menus deferred by panels render here — after all panels, no scissor.
-            Runnable overlayMenus = runtime.consumeOverlayMenuRender();
-            if (overlayMenus != null) {
-                overlayMenus.run();
+            runtime.setUiBlocked(blocked);
+            processUiEvents(cameraCapturing, blocked);
+            if (!blocked) {
+                dockSpace.update(input);
             }
-            uiContext.overlay().render(batch);
-            windowManager.render(batch, uiContext, input, theme, w, h, null);
+
+            boolean needsBackdropBlur = false;
+            for (UiWindow uiWindow : windowManager.windows()) {
+                if (uiWindow.backdropBlur()) {
+                    needsBackdropBlur = true;
+                    break;
+                }
+            }
+
+            MaterialPreviewRenderer.renderRequested();
+
+            if (!needsBackdropBlur) {
+                batch.begin(w, h, framebufferScale);
+                dockSpace.render(batch);
+                Runnable overlayMenus = runtime.consumeOverlayMenuRender();
+                if (overlayMenus != null) {
+                    overlayMenus.run();
+                }
+                uiContext.overlay().render(batch);
+                windowManager.render(batch, uiContext, input, theme, w, h, null);
+
+                if (createNodeDialog != null && createNodeDialog.isOpen()) {
+                    createNodeDialog.render(batch, uiContext, ui, theme, w, h);
+                }
+                if (createProjectDialog != null && createProjectDialog.isOpen()) {
+                    createProjectDialog.render(batch, uiContext, ui, theme, w, h);
+                }
+                if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
+                    scriptEditorDialog.render(batch, uiContext, ui, theme, w, h);
+                }
+
+                renderToast(w, h);
+                batch.end();
+                if (input.mouseReleased() && runtime.sceneDragId() != null) {
+                    runtime.clearSceneDrag();
+                }
+                return;
+            }
+
+            if (uiFramebuffer == null) {
+                uiFramebuffer = new Framebuffer();
+            }
+            if (blur == null) {
+                blur = new GaussianBlur();
+            }
+
+            int fbW = window.getFramebufferWidth();
+            int fbH = window.getFramebufferHeight();
+            uiFramebuffer.ensureSize(Math.max(1, fbW), Math.max(1, fbH));
+
+            try (Framebuffer.Binding ignored = uiFramebuffer.bindScoped()) {
+                GL11.glClearColor(theme.windowBg.getR(), theme.windowBg.getG(), theme.windowBg.getB(), theme.windowBg.getA());
+                GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
+                batch.begin(w, h, framebufferScale);
+                dockSpace.render(batch);
+                uiContext.overlay().render(batch);
+                batch.end();
+            }
+
+            Texture blurred = blur.blur(uiFramebuffer.colorTexture(), fbW, fbH, 1);
+
+            batch.begin(w, h, framebufferScale);
+            batch.drawTexturedRect(uiFramebuffer.colorTexture(), 0, 0, w, h, 0.0f, 1.0f, 1.0f, 0.0f, 0xFFFFFFFF);
+            windowManager.render(batch, uiContext, input, theme, w, h, blurred);
 
             if (createNodeDialog != null && createNodeDialog.isOpen()) {
                 createNodeDialog.render(batch, uiContext, ui, theme, w, h);
             }
-            if (createProjectDialog != null && createProjectDialog.isOpen()) {
-                createProjectDialog.render(batch, uiContext, ui, theme, w, h);
-            }
-            if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
-                scriptEditorDialog.render(batch, uiContext, ui, theme, w, h);
-            }
-
-            renderToast(w, h);
-            batch.end();
-            if (input.mouseReleased() && runtime.sceneDragId() != null) {
-                runtime.clearSceneDrag();
-            }
-
-            if (depthWasEnabled) GL11.glEnable(GL11.GL_DEPTH_TEST);
-            if (cullWasEnabled) GL11.glEnable(GL11.GL_CULL_FACE);
-            return;
-        }
-
-        if (uiFramebuffer == null) {
-            uiFramebuffer = new Framebuffer();
-        }
-        if (blur == null) {
-            blur = new GaussianBlur();
-        }
-
-        int fbW = window.getFramebufferWidth();
-        int fbH = window.getFramebufferHeight();
-        uiFramebuffer.ensureSize(Math.max(1, fbW), Math.max(1, fbH));
-
-        try (Framebuffer.Binding ignored = uiFramebuffer.bindScoped()) {
-            GL11.glClearColor(theme.windowBg.getR(), theme.windowBg.getG(), theme.windowBg.getB(), theme.windowBg.getA());
-            GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
-            batch.begin(w, h, framebufferScale);
-            dockSpace.render(batch);
-            uiContext.overlay().render(batch);
-            batch.end();
-        }
-
-        Texture blurred = null;
-        blurred = blur.blur(uiFramebuffer.colorTexture(), fbW, fbH, 1);
-
-        batch.begin(w, h, framebufferScale);
-        batch.drawTexturedRect(uiFramebuffer.colorTexture(), 0, 0, w, h, 0.0f, 1.0f, 1.0f, 0.0f, 0xFFFFFFFF);
-        windowManager.render(batch, uiContext, input, theme, w, h, blurred);
-
-        if (createNodeDialog != null && createNodeDialog.isOpen()) {
-            createNodeDialog.render(batch, uiContext, ui, theme, w, h);
-        }
         if (createProjectDialog != null && createProjectDialog.isOpen()) {
             createProjectDialog.render(batch, uiContext, ui, theme, w, h);
         }
@@ -525,14 +533,19 @@ public final class EditorOverlay {
             scriptEditorDialog.render(batch, uiContext, ui, theme, w, h);
         }
 
-        renderToast(w, h);
-        batch.end();
-        if (input.mouseReleased() && runtime.sceneDragId() != null) {
-            runtime.clearSceneDrag();
+            renderToast(w, h);
+            batch.end();
+            if (input.mouseReleased() && runtime.sceneDragId() != null) {
+                runtime.clearSceneDrag();
+            }
+        } finally {
+            int restoreVao = prevVao != 0 ? prevVao : fallbackVao;
+            if (restoreVao != 0) {
+                GL30.glBindVertexArray(restoreVao);
+            }
+            if (depthWasEnabled) GL11.glEnable(GL11.GL_DEPTH_TEST);
+            if (cullWasEnabled) GL11.glEnable(GL11.GL_CULL_FACE);
         }
-
-        if (depthWasEnabled) GL11.glEnable(GL11.GL_DEPTH_TEST);
-        if (cullWasEnabled) GL11.glEnable(GL11.GL_CULL_FACE);
     }
 
     private void syncProjectDialogState() {
@@ -547,11 +560,20 @@ public final class EditorOverlay {
         }
     }
 
-    private void ensureInitialized(Window window, long handle) {
+    private void ensureInitialized(Window window, long handle, int prevVao) {
         if (batch != null) {
             return;
         }
+        if (GLFW.glfwGetCurrentContext() == 0L) {
+            return;
+        }
         applyEngineEditorTheme();
+        if (fallbackVao == 0) {
+            fallbackVao = GL30.glGenVertexArrays();
+        }
+        if (prevVao == 0 && fallbackVao != 0) {
+            GL30.glBindVertexArray(fallbackVao);
+        }
         batch = new BatchRenderer(50_000);
         installFont(window);
         viewportCapture.ensureInitialized();
@@ -565,6 +587,10 @@ public final class EditorOverlay {
         dockSpace = createDockSpace();
         dockSpace.setSplitterSize(5);
         dockSpace.setSplitterDrawSize(2);
+
+        if (prevVao != 0) {
+            GL30.glBindVertexArray(prevVao);
+        }
     }
 
     private void applyEngineEditorTheme() {
@@ -636,6 +662,22 @@ public final class EditorOverlay {
                     showToast("Save failed: not connected", true, 3500);
                 }
                 return;
+            }
+        }
+        if (act == KeyEvent.Action.PRESS
+                && ((mods & GLFW.GLFW_MOD_CONTROL) != 0 || (mods & GLFW.GLFW_MOD_SUPER) != 0)) {
+            boolean modalOpen = (createNodeDialog != null && createNodeDialog.isOpen())
+                    || (createProjectDialog != null && createProjectDialog.isOpen())
+                    || (scriptEditorDialog != null && scriptEditorDialog.isOpen());
+            if (!modalOpen && scenePanel != null) {
+                if (key == GLFW.GLFW_KEY_Z && (mods & GLFW.GLFW_MOD_SHIFT) == 0) {
+                    scenePanel.performUndo();
+                    return;
+                }
+                if (key == GLFW.GLFW_KEY_Y || (key == GLFW.GLFW_KEY_Z && (mods & GLFW.GLFW_MOD_SHIFT) != 0)) {
+                    scenePanel.performRedo();
+                    return;
+                }
             }
         }
         uiContext.keyboard().pushKeyEvent(key, scancode, act, mods);
@@ -753,6 +795,20 @@ public final class EditorOverlay {
                     EditorContext editorCtx = EditorOverlayBus.get();
                     if (editorCtx != null && editorCtx.isMouseOverViewport(input.mousePos().x, input.mousePos().y)) {
                         frameSelected(editorCtx);
+                        continue;
+                    }
+                }
+                if (!cameraCapturing && keyEvent.isPress() && keyEvent.mods() == 0
+                        && !uiContext.focus().hasAnyFocus()) {
+                    EditorTool toolSwitch = switch (keyEvent.key()) {
+                        case GLFW.GLFW_KEY_Q -> EditorTool.SELECT;
+                        case GLFW.GLFW_KEY_W -> EditorTool.MOVE;
+                        case GLFW.GLFW_KEY_E -> EditorTool.ROTATE;
+                        case GLFW.GLFW_KEY_R -> EditorTool.SCALE;
+                        default -> null;
+                    };
+                    if (toolSwitch != null) {
+                        runtime.setTool(toolSwitch);
                         continue;
                     }
                 }
