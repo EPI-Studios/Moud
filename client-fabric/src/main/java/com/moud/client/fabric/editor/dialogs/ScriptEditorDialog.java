@@ -1,25 +1,22 @@
 package com.moud.client.fabric.editor.dialogs;
 
-
 import com.miry.platform.InputConstants;
 import com.miry.ui.Ui;
 import com.miry.ui.UiContext;
 import com.miry.ui.event.KeyEvent;
-import com.miry.ui.event.TextInputEvent;
 import com.miry.ui.render.UiRenderer;
 import com.miry.ui.theme.Icon;
+import com.moud.client.fabric.render.MoudIcons;
 import com.miry.ui.theme.Theme;
-import com.miry.ui.widgets.CodeEditor;
-import com.miry.ui.widgets.TextField;
 import com.moud.client.fabric.editor.net.EditorNet;
 import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
 import com.moud.client.fabric.util.ClientDebugLog;
+import com.miry.ui.widgets.CodeEditor;
 import com.moud.net.protocol.ScriptFileReadResponse;
 import com.moud.net.protocol.ScriptFileWriteAck;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
-import java.util.Objects;
 
 public final class ScriptEditorDialog {
     private static final int DIALOG_W = 980;
@@ -33,6 +30,7 @@ public final class ScriptEditorDialog {
 
     private final EditorRuntime runtime;
     private final CodeEditor editor = new CodeEditor();
+    private UiContext lastUiContext;
 
     private boolean open;
     private boolean justOpened;
@@ -62,10 +60,17 @@ public final class ScriptEditorDialog {
         this.open = true;
         this.lastLoadedText = "";
         editor.setText("");
+        editor.clearHistory();
         requestReload();
     }
 
     public void close() {
+        if (lastUiContext != null) {
+            editor.cancelInteractions(lastUiContext);
+            if (lastUiContext.focus().isFocused(editor.id())) {
+                lastUiContext.focus().clearFocus();
+            }
+        }
         open = false;
         loading = false;
         saving = false;
@@ -103,6 +108,7 @@ public final class ScriptEditorDialog {
         String content = response.content() == null ? "" : response.content();
         lastLoadedText = content;
         editor.setText(content);
+        editor.clearHistory();
         error = null;
     }
 
@@ -128,6 +134,7 @@ public final class ScriptEditorDialog {
         if (!open || ctx == null || event == null) {
             return false;
         }
+        lastUiContext = ctx;
 
         if (event.isPress() && event.key() == InputConstants.KEY_ESCAPE) {
             requestClose();
@@ -141,20 +148,22 @@ public final class ScriptEditorDialog {
             save();
             return true;
         }
-        return false;
+        return editor.handleKey(ctx, event);
     }
 
     public void handleTextInput(UiContext ctx, int codepoint) {
         if (!open || ctx == null) {
             return;
         }
-        // CodeEditor is currently a placeholder widget (no text editing yet).
+        lastUiContext = ctx;
+        editor.handleTextInput(ctx, codepoint);
     }
 
     public void render(UiRenderer r, UiContext ctx, Ui ui, Theme theme, int screenW, int screenH) {
         if (!open) {
             return;
         }
+        lastUiContext = ctx;
 
         long now = System.currentTimeMillis();
         if (confirmAction != null && now >= confirmUntilMs) {
@@ -245,9 +254,10 @@ public final class ScriptEditorDialog {
 
         // Small code icon in the gutter to reinforce "this is a script".
         float iconSize = Math.min(theme.design.icon_sm, 18);
-        theme.icons.draw(r, Icon.CODE, editorX, editorY - 26, iconSize, Theme.toArgb(theme.textMuted));
+        MoudIcons.drawOrFallback(r, theme, Icon.CODE, editorX, editorY - 26, iconSize, Theme.toArgb(theme.textMuted));
 
-        editor.render(ctx, ui.input(), r, theme, editorX, editorY, editorW, editorH);
+        editor.setReadOnly(loading);
+        editor.render(r, ctx, ui.input(), theme, editorX, editorY, editorW, editorH, true);
 
         if (!canInteract || !pressed) {
             return;
