@@ -8,6 +8,7 @@ import com.miry.ui.event.KeyEvent;
 import com.miry.ui.event.TextInputEvent;
 import com.miry.ui.render.UiRenderer;
 import com.miry.ui.theme.Icon;
+import com.moud.client.fabric.render.MoudIcons;
 import com.miry.ui.theme.Theme;
 import com.miry.ui.widgets.ContextMenu;
 import com.miry.ui.widgets.DraggableNumberField;
@@ -256,7 +257,7 @@ final class MaterialEditor {
             return;
         }
         var input = interactive ? ui.input() : null;
-        int itemH = 22;
+        int itemH = theme.design.menu_item_height;
         if (input != null) {
             materialTextureMenu.updateFromInput(input, theme, itemH);
             EditorUiUtil.clampOpenMenuToScreen(materialTextureMenu, runtime);
@@ -452,7 +453,7 @@ final class MaterialEditor {
             int btnY = y + 2;
             int menuX = btnX;
             int menuY = btnY + iconBtnH;
-            InspectorPanel.renderIconButton(ui, r, theme, btnX, btnY, iconBtnW, iconBtnH, Icon.IMAGE, input != null, () -> toggleMaterialTextureMenu(menuX, menuY, materialPath, name));
+            EditorUiUtil.iconButtonOutlined(ui, r, theme, btnX, btnY, iconBtnW, iconBtnH, Icon.IMAGE, input != null, () -> toggleMaterialTextureMenu(menuX, menuY, materialPath, name));
             return y + rowH;
         }
 

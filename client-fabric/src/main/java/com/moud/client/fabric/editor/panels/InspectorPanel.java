@@ -1,53 +1,60 @@
 package com.moud.client.fabric.editor.panels;
 
 import com.miry.platform.InputConstants;
-import com.miry.ui.clipboard.Clipboard;
 import com.miry.ui.PanelContext;
 import com.miry.ui.Ui;
 import com.miry.ui.UiContext;
+import com.miry.ui.clipboard.Clipboard;
 import com.miry.ui.event.KeyEvent;
 import com.miry.ui.event.TextInputEvent;
 import com.miry.ui.panels.Panel;
 import com.miry.ui.render.UiRenderer;
+import com.miry.ui.theme.Icon;
 import com.miry.ui.theme.Theme;
+import com.miry.ui.util.MathUtils;
 import com.miry.ui.widgets.ColorPicker;
 import com.miry.ui.widgets.ContextMenu;
 import com.miry.ui.widgets.DraggableNumberField;
 import com.miry.ui.widgets.StripTabs;
 import com.miry.ui.widgets.TextField;
-import com.miry.ui.theme.Icon;
+import com.moud.client.fabric.assets.MoudTextAssets;
 import com.moud.client.fabric.editor.net.EditorNet;
+import com.moud.client.fabric.editor.state.EditorHistory;
 import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
+import com.moud.client.fabric.editor.theme.EditorTheme;
 import com.moud.client.fabric.editor.util.EditorUiUtil;
-import com.moud.client.fabric.assets.MoudTextAssets;
 import com.moud.client.fabric.model.ModelAsset;
 import com.moud.client.fabric.model.ModelCache;
+import com.moud.client.fabric.render.MoudIcons;
 import com.moud.client.fabric.render.MoudTextures;
+import com.moud.client.fabric.render.preview.MaterialPreviewRenderer;
 import com.moud.client.fabric.util.ParseUtils;
 import com.moud.core.NodeTypeDef;
 import com.moud.core.PropertyDef;
 import com.moud.core.PropertyType;
 import com.moud.core.assets.ResPath;
-import com.moud.core.math.Transform;
 import com.moud.core.scene.Model3D;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.session.Session;
-import com.miry.ui.util.MathUtils;
+import org.lwjgl.util.tinyfd.TinyFileDialogs;
+
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.*;
-import org.lwjgl.util.tinyfd.TinyFileDialogs;
 
 public final class InspectorPanel extends Panel {
+    private static final long DRAG_NUMBER_SEND_INTERVAL_MS = 50;
+
     private final EditorRuntime runtime;
     private final MaterialEditor materialEditor;
 
@@ -63,12 +70,14 @@ public final class InspectorPanel extends Panel {
     private final Map<String, Float> pendingNumbers = new HashMap<>();
     private final Map<String, Float> lastSentNumbers = new HashMap<>();
     private final Map<String, Long> lastSentNumberAtMs = new HashMap<>();
+    private final Map<String, String> preDragNumbers = new HashMap<>();
 
     private final Map<String, Boolean> groupExpanded = new HashMap<>();
     private final ColorPicker fogColorPicker = new ColorPicker();
     private final ColorPicker tintColorPicker = new ColorPicker();
-    private boolean fogColorPickerOpen = false;
-    private boolean tintColorPickerOpen = false;
+
+    private boolean fogColorPickerOpen;
+    private boolean tintColorPickerOpen;
 
     private final ContextMenu assetMenu = new ContextMenu();
     private long assetMenuNodeId;
@@ -82,8 +91,6 @@ public final class InspectorPanel extends Panel {
     private long lastSelectedId;
     private String lastSelectedTypeId = "";
 
-    private static final long DRAG_NUMBER_SEND_INTERVAL_MS = 50;
-
     public InspectorPanel(EditorRuntime runtime) {
         super("");
         this.runtime = runtime;
@@ -91,124 +98,117 @@ public final class InspectorPanel extends Panel {
         groupExpanded.put("Transform", true);
     }
 
-    public void handleKey(UiContext ctx, KeyEvent e) {
-        if (ctx == null || e == null) {
+    public void handleKey(UiContext context, KeyEvent event) {
+        if (context == null || event == null) return;
+
+        Clipboard clipboard = context.clipboard();
+
+        if (propertyFilter.isFocused(context)) {
+            propertyFilter.handleKey(event, clipboard);
             return;
         }
 
-        Clipboard clipboard = ctx.clipboard();
-        if (propertyFilter.isFocused(ctx)) {
-            propertyFilter.handleKey(e, clipboard);
-            return;
-        }
-
-        if (renameField.isFocused(ctx)) {
-            renameField.handleKey(e, clipboard);
-            if (e.isPressOrRepeat() && e.key() == InputConstants.KEY_ENTER) {
+        if (renameField.isFocused(context)) {
+            renameField.handleKey(event, clipboard);
+            if (event.isPressOrRepeat() && event.key() == InputConstants.KEY_ENTER) {
                 commitRename();
             }
             return;
         }
 
         for (var entry : stringFields.entrySet()) {
-            TextField tf = entry.getValue();
-            if (tf != null && tf.isFocused(ctx)) {
-                tf.handleKey(e, clipboard);
-                if (e.isPressOrRepeat() && e.key() == InputConstants.KEY_ENTER) {
-                    commitStringProperty(entry.getKey(), tf.text());
+            TextField field = entry.getValue();
+            if (field != null && field.isFocused(context)) {
+                field.handleKey(event, clipboard);
+                if (event.isPressOrRepeat() && event.key() == InputConstants.KEY_ENTER) {
+                    commitStringProperty(entry.getKey(), field.text());
                 }
                 return;
             }
         }
-        if (materialEditor.handleKey(ctx, e, clipboard)) {
-            return;
-        }
 
-        for (DraggableNumberField nf : numberFields.values()) {
-            if (nf != null && nf.handleKey(ctx, e, clipboard)) {
-                return;
-            }
+        if (materialEditor.handleKey(context, event, clipboard)) return;
+
+        for (DraggableNumberField field : numberFields.values()) {
+            if (field != null && field.handleKey(context, event, clipboard)) return;
         }
     }
 
-    public void handleTextInput(UiContext ctx, TextInputEvent e) {
-        if (ctx == null || e == null) {
+    public void handleTextInput(UiContext context, TextInputEvent event) {
+        if (context == null || event == null) return;
+
+        if (propertyFilter.isFocused(context)) {
+            propertyFilter.handleTextInput(event);
             return;
         }
-        if (propertyFilter.isFocused(ctx)) {
-            propertyFilter.handleTextInput(e);
+
+        if (renameField.isFocused(context)) {
+            renameField.handleTextInput(event);
             return;
         }
-        if (renameField.isFocused(ctx)) {
-            renameField.handleTextInput(e);
-            return;
-        }
-        for (TextField tf : stringFields.values()) {
-            if (tf != null && tf.isFocused(ctx)) {
-                tf.handleTextInput(e);
+
+        for (TextField field : stringFields.values()) {
+            if (field != null && field.isFocused(context)) {
+                field.handleTextInput(event);
                 return;
             }
         }
-        if (materialEditor.handleTextInput(ctx, e)) {
-            return;
-        }
-        for (DraggableNumberField nf : numberFields.values()) {
-            if (nf != null && nf.handleTextInput(ctx, e)) {
-                return;
-            }
+
+        if (materialEditor.handleTextInput(context, event)) return;
+
+        for (DraggableNumberField field : numberFields.values()) {
+            if (field != null && field.handleTextInput(context, event)) return;
         }
     }
 
     @Override
-    public void render(PanelContext ctx) {
-        Ui ui = ctx.ui();
-        UiRenderer r = ctx.renderer();
+    public void render(PanelContext context) {
+        Ui ui = context.ui();
+        UiRenderer renderer = context.renderer();
         Theme theme = ui.theme();
-        UiContext uiContext = ctx.uiContext();
+        UiContext uiContext = context.uiContext();
         boolean interactive = runtime != null && !runtime.uiBlocked();
 
-        int x = ctx.x();
-        int y = ctx.y();
-        int w = ctx.width();
-        int h = ctx.height();
+        int x = context.x();
+        int y = context.y();
+        int width = context.width();
+        int height = context.height();
 
-        ui.beginPanel(x, y, w, h);
+        ui.beginPanel(x, y, width, height);
 
-        int tabH = theme.design.tab_height_md;
-        int headerH = 70;
+        int tabHeight = theme.design.tab_height_md;
+        int headerHeight = 70;
         int cursorY = y;
 
-        renderDockTabs(ui, r, uiContext, theme, x, cursorY, w, tabH, interactive);
-        cursorY += tabH;
+        renderDockTabs(ui, renderer, uiContext, theme, x, cursorY, width, tabHeight, interactive);
+        cursorY += tabHeight;
 
         EditorState state = runtime.state();
-        SceneSnapshot.NodeSnapshot sel = (state == null || state.scene == null) ? null : state.scene.getNode(state.selectedId);
-        if (sel == null) {
-            int pad = theme.design.space_md;
-            r.drawText("No selection", x + pad, r.baselineForBox(cursorY + pad, 22), Theme.toArgb(theme.textMuted));
+        SceneSnapshot.NodeSnapshot selection = (state == null || state.scene == null) ? null : state.scene.getNode(state.selectedId);
+
+        if (selection == null) {
+            int padding = theme.design.space_md;
+            renderer.drawText("No selection", x + padding, renderer.baselineForBox(cursorY + padding, 22), Theme.toArgb(theme.textMuted));
             ui.endPanel();
             return;
         }
 
-        onSelectionMaybeChanged(sel);
-        renderHeader(ui, r, uiContext, theme, x, cursorY, w, headerH, sel, interactive);
-        cursorY += headerH;
+        onSelectionMaybeChanged(selection);
+        renderHeader(ui, renderer, uiContext, theme, x, cursorY, width, headerHeight, selection, interactive);
+        cursorY += headerHeight;
 
-        int contentX = x;
-        int contentY = cursorY;
-        int contentW = w;
-        int contentH = Math.max(0, y + h - contentY);
+        int contentHeight = Math.max(0, y + height - cursorY);
+        renderProperties(ui, renderer, uiContext, selection, x, cursorY, width, contentHeight, interactive);
 
-        renderProperties(ui, r, uiContext, sel, contentX, contentY, contentW, contentH, interactive);
-
-        flushPendingNumberOps(uiContext, sel.nodeId());
+        flushPendingNumberOps(uiContext, selection.nodeId());
         materialEditor.flushPendingMaterialUploads(uiContext);
 
         ui.endPanel();
     }
 
-    private void renderDockTabs(Ui ui, UiRenderer r, UiContext uiContext, Theme theme, int x, int y, int w, int h, boolean interactive) {
+    private void renderDockTabs(Ui ui, UiRenderer renderer, UiContext uiContext, Theme theme, int x, int y, int width, int height, boolean interactive) {
         var input = interactive ? ui.input() : null;
+
         dockTabStyle.containerBg = Theme.toArgb(theme.headerLine);
         dockTabStyle.tabActiveBg = Theme.toArgb(theme.windowBg);
         dockTabStyle.tabInactiveBg = Theme.toArgb(theme.headerBg);
@@ -221,224 +221,230 @@ public final class InspectorPanel extends Panel {
         dockTabStyle.highlightTop = true;
         dockTabStyle.highlightThickness = 2;
 
-        String[] labels = new String[]{"Inspector"};
-        dockTabs.render(r, uiContext, input, theme, x, y, w, h, labels, 0, true, dockTabStyle);
+        String[] labels = {"Inspector"};
+        dockTabs.render(renderer, uiContext, input, theme, x, y, width, height, labels, 0, true, dockTabStyle);
     }
 
-    private void renderHeader(Ui ui,
-                              UiRenderer r,
-                              UiContext uiContext,
-                              Theme theme,
-                              int x,
-                              int y,
-                              int w,
-                              int h,
-                              SceneSnapshot.NodeSnapshot sel,
-                              boolean interactive) {
+    private void renderHeader(Ui ui, UiRenderer renderer, UiContext uiContext, Theme theme, int x, int y, int width, int height, SceneSnapshot.NodeSnapshot selection, boolean interactive) {
         var input = interactive ? ui.input() : null;
-        int bg = Theme.toArgb(theme.windowBg);
-        r.drawRect(x, y, w, h, bg);
-        r.drawRect(x, y + h - 1, w, 1, Theme.toArgb(theme.headerLine));
+        int backgroundColor = Theme.toArgb(theme.windowBg);
 
-        int pad = theme.design.space_md;
-        int leftX = x + pad;
-        int nameH = 18;
-        int typeH = 16;
+        renderer.drawRect(x, y, width, height, backgroundColor);
+        renderer.drawRect(x, y + height - 1, width, 1, Theme.toArgb(theme.headerLine));
 
-        r.drawText(sel.name(), leftX, r.baselineForBox(y + pad, nameH), Theme.toArgb(theme.text));
-        r.drawText(sel.type(), leftX, r.baselineForBox(y + pad + nameH, typeH), Theme.toArgb(theme.disabledFg));
+        int padding = theme.design.space_md;
+        int leftX = x + padding;
+        int nameHeight = 18;
+        int typeHeight = 16;
 
-        int renameW = Math.min(220, Math.max(120, w - pad * 2));
-        int renameH = 22;
-        int renameX = x + w - pad - renameW;
-        int renameY = y + pad;
-        renameField.render(r, uiContext, input, theme, renameX, renameY, renameW, renameH, true);
+        renderer.drawText(selection.name(), leftX, renderer.baselineForBox(y + padding, nameHeight), Theme.toArgb(theme.text));
+        renderer.drawText(selection.type(), leftX, renderer.baselineForBox(y + padding + nameHeight, typeHeight), Theme.toArgb(theme.disabledFg));
 
-        int searchH = 22;
-        int searchX = x + pad;
-        int searchY = y + h - pad - searchH;
-        int searchW = Math.max(1, w - pad * 2);
-        propertyFilter.render(r, uiContext, input, theme, searchX, searchY, searchW, searchH, true);
+        int renameWidth = Math.min(220, Math.max(120, width - padding * 2));
+        int renameHeight = 22;
+        int renameX = x + width - padding - renameWidth;
+        int renameY = y + padding;
+        renameField.render(renderer, uiContext, input, theme, renameX, renameY, renameWidth, renameHeight, true);
+
+        int searchHeight = 22;
+        int searchX = x + padding;
+        int searchY = y + height - padding - searchHeight;
+        int searchWidth = Math.max(1, width - padding * 2);
+        propertyFilter.render(renderer, uiContext, input, theme, searchX, searchY, searchWidth, searchHeight, true);
+
         if ((propertyFilter.text() == null || propertyFilter.text().isEmpty()) && (uiContext == null || !propertyFilter.isFocused(uiContext))) {
-            int hint = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.70f);
-            float iconSize = Math.min(theme.design.icon_sm, searchH - 6);
-            theme.icons.draw(r, Icon.SEARCH, searchX + 6, searchY + (searchH - iconSize) * 0.5f, iconSize, hint);
-            r.drawText("Filter Properties", searchX + 6 + iconSize + 6, r.baselineForBox(searchY, searchH), hint);
+            int hintColor = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.70f);
+            int spacing = theme.design.space_sm;
+            float iconSize = Math.min(theme.design.icon_sm, searchHeight - spacing * 2);
+            MoudIcons.drawOrFallback(renderer, theme, Icon.SEARCH, searchX + spacing, searchY + (searchHeight - iconSize) * 0.5f, iconSize, hintColor);
+            renderer.drawText("Filter Properties", searchX + spacing + iconSize + spacing, renderer.baselineForBox(searchY, searchHeight), hintColor);
         }
     }
 
-    private void renderProperties(Ui ui,
-                                  UiRenderer r,
-                                  UiContext uiContext,
-                                  SceneSnapshot.NodeSnapshot sel,
-                                  int x,
-                                  int y,
-                                  int w,
-                                  int h,
-                                  boolean interactive) {
+    private void renderProperties(Ui ui, UiRenderer renderer, UiContext uiContext, SceneSnapshot.NodeSnapshot selection, int x, int y, int width, int height, boolean interactive) {
         Theme theme = ui.theme();
-        int pad = theme.design.space_md;
-        int innerX = x + pad;
-        int innerW = Math.max(1, w - pad * 2);
+        int padding = theme.design.space_md;
+        int innerX = x + padding;
+        int innerWidth = Math.max(1, width - padding * 2);
 
         EditorState state = runtime.state();
-        NodeTypeDef typeDef = state != null ? state.typesById.get(sel.type()) : null;
+        NodeTypeDef typeDef = state != null ? state.typesById.get(selection.type()) : null;
         if (typeDef == null) {
-            r.drawText("(missing schema)", innerX, r.baselineForBox(y + pad, 18), Theme.toArgb(theme.textMuted));
+            renderer.drawText("(missing schema)", innerX, renderer.baselineForBox(y + padding, 18), Theme.toArgb(theme.textMuted));
             return;
         }
 
-        Map<String, String> values = toPropertyMap(sel.properties());
-        ArrayList<PropertyDef> props = new ArrayList<>(typeDef.properties().values());
-        addBuiltInEditorProperties(typeDef, props);
-        props.sort(Comparator
+        Map<String, String> values = toPropertyMap(selection.properties());
+        ArrayList<PropertyDef> properties = new ArrayList<>(typeDef.properties().values());
+        addBuiltInEditorProperties(typeDef, properties);
+
+        properties.sort(Comparator
                 .comparing(PropertyDef::category)
                 .thenComparingInt(PropertyDef::order)
                 .thenComparing(PropertyDef::uiLabel)
                 .thenComparing(PropertyDef::key));
 
-        int rowH = 24;
-        int labelW = 110;
+        int rowHeight = 24;
+        int labelWidth = 110;
 
         String scriptPath = values.get("script");
         if (scriptPath != null) {
             scriptPath = scriptPath.trim();
         }
-        if (state != null) {
-            maybeRequestScriptActions(state, sel.nodeId(), scriptPath);
-        }
-        int scriptActionRows = estimateScriptActionRows(state, sel.nodeId(), scriptPath);
-        int materialParamRows = materialEditor.estimateMaterialParamRows(props, values);
 
-        int contentHeight = estimateContentHeight(props, rowH, scriptActionRows + materialParamRows);
-        Ui.ScrollArea area = ui.beginScrollArea(r, "inspectorScroll", x, y, w, h, contentHeight);
+        if (state != null) {
+            maybeRequestScriptActions(state, selection.nodeId(), scriptPath);
+        }
+
+        int scriptActionRows = estimateScriptActionRows(state, selection.nodeId(), scriptPath);
+        int materialParamRows = materialEditor.estimateMaterialParamRows(properties, values);
+        int contentHeight = estimateContentHeight(properties, rowHeight, scriptActionRows + materialParamRows);
+
+        Ui.ScrollArea area = ui.beginScrollArea(renderer, "inspectorScroll", x, y, width, height, contentHeight);
         int scrollY = (int) area.scrollY();
 
-        int cursorY = y + pad - scrollY;
-        int maxY = y + h + scrollY;
-
+        int cursorY = y + padding - scrollY;
+        int maxY = y + height + scrollY;
         String filterLower = propertyFilter.text() == null ? "" : propertyFilter.text().trim().toLowerCase(Locale.ROOT);
 
-        cursorY = renderGroupHeader(ui, r, theme, innerX, cursorY, innerW, "Transform");
-        boolean transformExpanded = isExpanded("Transform");
-        if (transformExpanded) {
-            cursorY = renderVec3Row(ui, r, uiContext, theme, sel.nodeId(), typeDef, values, innerX, cursorY, innerW, rowH, labelW, "Position", "x", "y", "z", filterLower);
-            cursorY = renderVec3Row(ui, r, uiContext, theme, sel.nodeId(), typeDef, values, innerX, cursorY, innerW, rowH, labelW, "Rotation", "rx", "ry", "rz", filterLower);
+        cursorY = renderGroupHeader(ui, renderer, theme, innerX, cursorY, innerWidth, "Transform");
+        boolean isTransformExpanded = isExpanded("Transform");
+
+        if (isTransformExpanded) {
+            cursorY = renderVec3Row(ui, renderer, uiContext, theme, selection.nodeId(), typeDef, values, innerX, cursorY, innerWidth, rowHeight, labelWidth, "Position", "x", "y", "z", filterLower);
+            cursorY = renderVec3Row(ui, renderer, uiContext, theme, selection.nodeId(), typeDef, values, innerX, cursorY, innerWidth, rowHeight, labelWidth, "Rotation", "rx", "ry", "rz", filterLower);
+
             String sizeLabel = "Scale";
-            PropertyDef sxDef = typeDef.properties().get("sx");
-            if (sxDef != null && "Size".equalsIgnoreCase(sxDef.category())) {
+            PropertyDef scaleXDef = typeDef.properties().get("sx");
+            if (scaleXDef != null && "Size".equalsIgnoreCase(scaleXDef.category())) {
                 sizeLabel = "Size";
             }
-            cursorY = renderVec3Row(ui, r, uiContext, theme, sel.nodeId(), typeDef, values, innerX, cursorY, innerW, rowH, labelW, sizeLabel, "sx", "sy", "sz", filterLower);
+            cursorY = renderVec3Row(ui, renderer, uiContext, theme, selection.nodeId(), typeDef, values, innerX, cursorY, innerWidth, rowHeight, labelWidth, sizeLabel, "sx", "sy", "sz", filterLower);
         }
 
         String lastCategory = null;
         boolean fogColorRendered = false;
         boolean tintColorRendered = false;
-        for (PropertyDef prop : props) {
-            if (cursorY > maxY) {
-                break;
-            }
-            if (prop == null || prop.key() == null || prop.key().isBlank() || "@type".equals(prop.key())) {
+
+        for (PropertyDef property : properties) {
+            if (cursorY > maxY) break;
+
+            if (property == null || property.key() == null || property.key().isBlank() || "@type".equals(property.key())) {
                 continue;
             }
-            if (transformExpanded && ("sx".equals(prop.key()) || "sy".equals(prop.key()) || "sz".equals(prop.key()))) {
+
+            if (isTransformExpanded && ("sx".equals(property.key()) || "sy".equals(property.key()) || "sz".equals(property.key()))) {
                 continue;
             }
-            if ("Transform".equals(prop.category())) {
+
+            if ("Transform".equals(property.category())) {
                 continue;
             }
 
             if (!filterLower.isEmpty()) {
-                String hay = (prop.uiLabel() + " " + prop.key()).toLowerCase(Locale.ROOT);
-                if (!hay.contains(filterLower)) {
-                    continue;
+                String target = (property.uiLabel() + " " + property.key()).toLowerCase(Locale.ROOT);
+                if (!target.contains(filterLower)) continue;
+            }
+
+            String category = property.category() == null ? "" : property.category();
+            if (!category.equals(lastCategory)) {
+                lastCategory = category;
+                cursorY = renderGroupHeader(ui, renderer, theme, innerX, cursorY, innerWidth, category);
+            }
+
+            if (!isExpanded(category)) continue;
+
+            if ("Fog Color".equals(category) && isFogColorKey(property.key())) {
+                if (!fogColorRendered) {
+                    fogColorRendered = true;
+                    cursorY = renderFogColorPicker(ui, renderer, uiContext, theme, selection.nodeId(), values, innerX, cursorY, innerWidth, rowHeight, labelWidth);
                 }
-            }
-
-            String cat = prop.category() == null ? "" : prop.category();
-            if (!cat.equals(lastCategory)) {
-                lastCategory = cat;
-                cursorY = renderGroupHeader(ui, r, theme, innerX, cursorY, innerW, cat);
-            }
-            if (!isExpanded(cat)) {
                 continue;
             }
 
-            if ("Fog Color".equals(cat) && isFogColorKey(prop.key()) && !fogColorRendered) {
-                fogColorRendered = true;
-                cursorY = renderFogColorPicker(ui, r, uiContext, theme, sel.nodeId(), values, innerX, cursorY, innerW, rowH, labelW);
-                continue;
-            }
-            if ("Fog Color".equals(cat) && isFogColorKey(prop.key())) {
-                continue;
-            }
-
-            if ("Color Tint".equals(cat) && isColorTintKey(prop.key()) && !tintColorRendered) {
-                tintColorRendered = true;
-                cursorY = renderTintColorPicker(ui, r, uiContext, theme, sel.nodeId(), values, innerX, cursorY, innerW, rowH, labelW);
-                continue;
-            }
-            if ("Color Tint".equals(cat) && isColorTintKey(prop.key())) {
+            if ("Color Tint".equals(category) && isColorTintKey(property.key())) {
+                if (!tintColorRendered) {
+                    tintColorRendered = true;
+                    cursorY = renderTintColorPicker(ui, renderer, uiContext, theme, selection.nodeId(), values, innerX, cursorY, innerWidth, rowHeight, labelWidth);
+                }
                 continue;
             }
 
-            String value = values.get(prop.key());
+            String value = values.get(property.key());
             if (value == null) {
-                value = prop.defaultValue() != null ? prop.defaultValue() : "";
+                value = property.defaultValue() != null ? property.defaultValue() : "";
             }
 
-            if ("Model3D".equals(sel.type())) {
-                if (Model3D.PROP_ANIMATION.equals(prop.key())) {
-                    cursorY = renderModel3DAnimationRow(ui, r, uiContext, theme, sel.nodeId(), prop, values, innerX, cursorY, innerW, rowH, labelW, value, interactive);
+            if ("Model3D".equals(selection.type())) {
+                if (Model3D.PROP_MODEL_PATH.equals(property.key())) {
+                    cursorY = renderModel3DModelPathRow(ui, renderer, uiContext, theme, selection.nodeId(), property, innerX, cursorY, innerWidth, rowHeight, labelWidth, value, interactive);
                     continue;
                 }
-                if (Model3D.PROP_ANIMATION_LOOP.equals(prop.key())) {
-                    cursorY = renderModel3DAnimationLoopRow(ui, r, uiContext, theme, sel.nodeId(), prop, innerX, cursorY, innerW, rowH, labelW, value, interactive);
+                if (Model3D.PROP_ANIMATION.equals(property.key())) {
+                    cursorY = renderModel3DAnimationRow(ui, renderer, uiContext, theme, selection.nodeId(), property, values, innerX, cursorY, innerWidth, rowHeight, labelWidth, value, interactive);
+                    continue;
+                }
+                if (Model3D.PROP_ANIMATION_LOOP.equals(property.key())) {
+                    cursorY = renderModel3DAnimationLoopRow(ui, renderer, uiContext, theme, selection.nodeId(), property, innerX, cursorY, innerWidth, rowHeight, labelWidth, value, interactive);
                     continue;
                 }
             }
-            cursorY = renderPropertyRow(ui, r, uiContext, theme, sel.nodeId(), prop, innerX, cursorY, innerW, rowH, labelW, value);
+
+            cursorY = renderPropertyRow(ui, renderer, uiContext, theme, selection.nodeId(), property, innerX, cursorY, innerWidth, rowHeight, labelWidth, value);
         }
 
-        cursorY = materialEditor.renderMaterialShaderParams(this, ui, r, uiContext, theme, props, values, filterLower, innerX, cursorY, innerW, rowH, labelW, interactive);
-        cursorY = renderScriptActions(ui, r, uiContext, theme, state, sel.nodeId(), scriptPath, filterLower, innerX, cursorY, innerW, rowH, interactive);
+        cursorY = materialEditor.renderMaterialShaderParams(this, ui, renderer, uiContext, theme, properties, values, filterLower, innerX, cursorY, innerWidth, rowHeight, labelWidth, interactive);
+        cursorY = renderScriptActions(ui, renderer, uiContext, theme, state, selection.nodeId(), scriptPath, filterLower, innerX, cursorY, innerWidth, rowHeight, interactive);
 
         ui.endScrollArea(area);
 
-        renderAssetMenu(ui, r, theme, interactive);
-        renderSelectMenu(ui, r, theme, interactive);
-        materialEditor.renderMaterialTextureMenu(ui, r, theme, interactive);
+        renderAssetMenu(ui, renderer, theme, interactive);
+        renderSelectMenu(ui, renderer, theme, interactive);
+        materialEditor.renderMaterialTextureMenu(ui, renderer, theme, interactive);
     }
 
-    private int renderModel3DAnimationRow(Ui ui,
-                                         UiRenderer r,
-                                         UiContext uiContext,
-                                         Theme theme,
-                                         long nodeId,
-                                         PropertyDef prop,
-                                         Map<String, String> values,
-                                         int x,
-                                         int y,
-                                         int w,
-                                         int rowH,
-                                         int labelW,
-                                         String value,
-                                         boolean interactive) {
-        if (ui == null || r == null || theme == null || prop == null) {
-            return y + rowH;
+    private int renderModel3DModelPathRow(Ui ui, UiRenderer renderer, UiContext uiContext, Theme theme, long nodeId, PropertyDef property, int x, int y, int width, int rowHeight, int labelWidth, String value, boolean interactive) {
+        y = renderPropertyRow(ui, renderer, uiContext, theme, nodeId, property, x, y, width, rowHeight, labelWidth, value);
+
+        String path = value == null ? "" : value.trim();
+        if (path.isEmpty()) {
+            int warningHeight = rowHeight - 4;
+            renderer.drawText("\u26a0 No model path set", x, renderer.baselineForBox(y, warningHeight), EditorTheme.WARNING_TEXT);
+            return y + warningHeight;
         }
+
+        if (ModelCache.isFailed(path)) {
+            int warningHeight = rowHeight - 4;
+            int retryWidth = 52;
+            int retryX = x + width - retryWidth;
+
+            renderer.drawText("\u2717 Model load failed", x, renderer.baselineForBox(y, warningHeight), EditorTheme.ERROR_TEXT);
+            boolean clicked = EditorUiUtil.buttonOutlined(ui, renderer, theme, retryX, y, retryWidth, warningHeight, "Retry", interactive);
+
+            if (clicked) {
+                ModelCache.retry(path);
+            }
+            return y + warningHeight;
+        }
+
+        return y;
+    }
+
+    private int renderModel3DAnimationRow(Ui ui, UiRenderer renderer, UiContext uiContext, Theme theme, long nodeId, PropertyDef property, Map<String, String> values, int x, int y, int width, int rowHeight, int labelWidth, String value, boolean interactive) {
+        if (ui == null || renderer == null || theme == null || property == null) return y + rowHeight;
+
         String modelPath = values == null ? null : values.get(Model3D.PROP_MODEL_PATH);
         if (modelPath != null) {
             modelPath = modelPath.trim();
         }
+
         if (modelPath == null || modelPath.isBlank()) {
-            return renderPropertyRow(ui, r, uiContext, theme, nodeId, prop, x, y, w, rowH, labelW, value);
+            return renderPropertyRow(ui, renderer, uiContext, theme, nodeId, property, x, y, width, rowHeight, labelWidth, value);
         }
 
         ModelAsset asset = ModelCache.get(modelPath);
         if (asset == null || asset.animations() == null || asset.animations().isEmpty()) {
-            return renderPropertyRow(ui, r, uiContext, theme, nodeId, prop, x, y, w, rowH, labelW, value);
+            return renderPropertyRow(ui, renderer, uiContext, theme, nodeId, property, x, y, width, rowHeight, labelWidth, value);
         }
 
         ArrayList<String> options = new ArrayList<>(asset.animations().keySet().size() + 1);
@@ -448,91 +454,67 @@ public final class InspectorPanel extends Panel {
 
         String current = value == null ? "" : value.trim();
         String display = current.isEmpty() ? "(none)" : current;
-        renderSelectRow(ui, r, theme, x, y, w, rowH, labelW, prop.uiLabel(), display, interactive, () -> {
+
+        renderSelectRow(ui, renderer, theme, x, y, width, rowHeight, labelWidth, property.uiLabel(), display, interactive, () -> {
             ArrayList<SelectOption> items = new ArrayList<>(options.size());
-            for (String opt : options) {
-                if (opt == null) {
-                    continue;
-                }
-                String v = opt.trim();
-                items.add(new SelectOption(v.isEmpty() ? "(none)" : v, v));
+            for (String option : options) {
+                if (option == null) continue;
+                String trimmedValue = option.trim();
+                items.add(new SelectOption(trimmedValue.isEmpty() ? "(none)" : trimmedValue, trimmedValue));
             }
-            toggleSelectMenu(x + labelW + theme.design.space_sm, y + rowH, nodeId, prop.key(), items);
+            toggleSelectMenu(x + labelWidth + theme.design.space_sm, y + rowHeight, nodeId, property.key(), items);
         });
-        return y + rowH;
+
+        return y + rowHeight;
     }
 
-    private int renderModel3DAnimationLoopRow(Ui ui,
-                                             UiRenderer r,
-                                             UiContext uiContext,
-                                             Theme theme,
-                                             long nodeId,
-                                             PropertyDef prop,
-                                             int x,
-                                             int y,
-                                             int w,
-                                             int rowH,
-                                             int labelW,
-                                             String value,
-                                             boolean interactive) {
+    private int renderModel3DAnimationLoopRow(Ui ui, UiRenderer renderer, UiContext uiContext, Theme theme, long nodeId, PropertyDef property, int x, int y, int width, int rowHeight, int labelWidth, String value, boolean interactive) {
         String current = value == null ? "" : value.trim();
         if (current.isEmpty()) {
             current = "once";
         }
-        String display = current;
-        renderSelectRow(ui, r, theme, x, y, w, rowH, labelW, prop.uiLabel(), display, interactive, () -> {
+
+        renderSelectRow(ui, renderer, theme, x, y, width, rowHeight, labelWidth, property.uiLabel(), current, interactive, () -> {
             ArrayList<SelectOption> items = new ArrayList<>(3);
             items.add(new SelectOption("once", "once"));
             items.add(new SelectOption("loop", "loop"));
             items.add(new SelectOption("hold", "hold"));
-            toggleSelectMenu(x + labelW + theme.design.space_sm, y + rowH, nodeId, prop.key(), items);
+            toggleSelectMenu(x + labelWidth + theme.design.space_sm, y + rowHeight, nodeId, property.key(), items);
         });
-        return y + rowH;
+
+        return y + rowHeight;
     }
 
-    private record SelectOption(String label, String value) {
-    }
+    private record SelectOption(String label, String value) {}
 
-    private void renderSelectRow(Ui ui,
-                                 UiRenderer r,
-                                 Theme theme,
-                                 int x,
-                                 int y,
-                                 int w,
-                                 int rowH,
-                                 int labelW,
-                                 String label,
-                                 String displayValue,
-                                 boolean interactive,
-                                 Runnable onOpenMenu) {
-        int valueX = x + labelW + theme.design.space_sm;
-        int valueW = Math.max(1, w - (valueX - x));
+    private void renderSelectRow(Ui ui, UiRenderer renderer, Theme theme, int x, int y, int width, int rowHeight, int labelWidth, String label, String displayValue, boolean interactive, Runnable onOpenMenu) {
+        int valueX = x + labelWidth + theme.design.space_sm;
+        int valueWidth = Math.max(1, width - (valueX - x));
 
-        r.drawText(label == null ? "" : label, x, r.baselineForBox(y, rowH), Theme.toArgb(theme.textMuted));
+        renderer.drawText(label == null ? "" : label, x, renderer.baselineForBox(y, rowHeight), Theme.toArgb(theme.textMuted));
 
-        int fieldX = valueX;
         int fieldY = y + 2;
-        int fieldW = valueW;
-        int fieldH = rowH - 4;
+        int fieldHeight = rowHeight - 4;
 
         var input = interactive ? ui.input() : null;
         boolean canInteract = input != null;
-        float mx = canInteract ? input.mousePos().x : -1;
-        float my = canInteract ? input.mousePos().y : -1;
-        boolean hovered = canInteract && mx >= fieldX && my >= fieldY && mx < fieldX + fieldW && my < fieldY + fieldH;
+        float mouseX = canInteract ? input.mousePos().x : -1;
+        float mouseY = canInteract ? input.mousePos().y : -1;
+        boolean hovered = canInteract && mouseX >= valueX && mouseY >= fieldY && mouseX < valueX + valueWidth && mouseY < fieldY + fieldHeight;
 
-        int bg = hovered ? Theme.toArgb(theme.widgetHover) : Theme.toArgb(theme.widgetBg);
-        int outline = Theme.toArgb(theme.widgetOutline);
-        r.drawRoundedRect(fieldX, fieldY, fieldW, fieldH, theme.design.radius_sm, bg, theme.design.border_thin, outline);
+        int backgroundColor = hovered ? Theme.toArgb(theme.widgetHover) : Theme.toArgb(theme.widgetBg);
+        int outlineColor = Theme.toArgb(theme.widgetOutline);
+
+        renderer.drawRoundedRect(valueX, fieldY, valueWidth, fieldHeight, theme.design.radius_sm, backgroundColor, theme.design.border_thin, outlineColor);
 
         String text = displayValue == null ? "" : displayValue;
-        int textX = fieldX + theme.design.space_sm;
-        int textY = (int) r.baselineForBox(y, rowH);
-        r.drawText(text, textX, textY, Theme.toArgb(theme.text));
+        int textX = valueX + theme.design.space_sm;
+        int textY = (int) renderer.baselineForBox(y, rowHeight);
+        renderer.drawText(text, textX, textY, Theme.toArgb(theme.text));
 
-        float iconSize = Math.min(theme.design.icon_sm, fieldH - 6);
-        int iconCol = Theme.toArgb(theme.textMuted);
-        theme.icons.draw(r, Icon.CHEVRON_DOWN, fieldX + fieldW - theme.design.space_sm - iconSize, fieldY + (fieldH - iconSize) * 0.5f, iconSize, iconCol);
+        float iconSize = Math.min(theme.design.icon_sm, fieldHeight - 6);
+        int iconColor = Theme.toArgb(theme.textMuted);
+        MoudIcons.drawOrFallback(renderer, theme, Icon.CHEVRON_DOWN, valueX + valueWidth - theme.design.space_sm - iconSize, fieldY + (fieldHeight - iconSize) * 0.5f, iconSize, iconColor);
 
         if (hovered && canInteract && input.mouseReleased() && onOpenMenu != null) {
             onOpenMenu.run();
@@ -540,108 +522,91 @@ public final class InspectorPanel extends Panel {
     }
 
     private void toggleSelectMenu(int x, int y, long nodeId, String key, List<SelectOption> options) {
-        if (key == null || key.isBlank()) {
-            return;
-        }
+        if (key == null || key.isBlank()) return;
+
         if (selectMenu.isOpen() && nodeId == selectMenuNodeId && Objects.equals(selectMenuKey, key)) {
             selectMenu.close();
             return;
         }
+
         selectMenuNodeId = nodeId;
         selectMenuKey = key;
         selectMenu.clear();
+
         if (options != null) {
-            for (SelectOption opt : options) {
-                if (opt == null || opt.label == null) {
-                    continue;
-                }
-                String v = opt.value == null ? "" : opt.value;
-                selectMenu.addItem(opt.label, () -> commitStringProperty(key, v));
+            for (SelectOption option : options) {
+                if (option == null || option.label == null) continue;
+                String value = option.value == null ? "" : option.value;
+                selectMenu.addItem(option.label, () -> commitStringProperty(key, value));
             }
         }
+
         EditorUiUtil.openMenuClamped(selectMenu, runtime, x, y);
     }
 
-    private void renderSelectMenu(Ui ui, UiRenderer r, Theme theme, boolean interactive) {
-        if (ui == null || r == null || theme == null) {
-            return;
-        }
-        if (!selectMenu.isOpen()) {
-            return;
-        }
+    private void renderSelectMenu(Ui ui, UiRenderer renderer, Theme theme, boolean interactive) {
+        if (ui == null || renderer == null || theme == null || !selectMenu.isOpen()) return;
+
         var input = interactive ? ui.input() : null;
-        int itemH = 22;
+        int itemHeight = theme.design.menu_item_height;
+
         if (input != null) {
-            selectMenu.updateFromInput(input, theme, itemH);
+            selectMenu.updateFromInput(input, theme, itemHeight);
             EditorUiUtil.clampOpenMenuToScreen(selectMenu, runtime);
         }
-        selectMenu.render(r, theme, itemH,
-                Theme.toArgb(theme.panelBg),
-                Theme.toArgb(theme.widgetHover),
-                Theme.toArgb(theme.text),
-                selectMenu.hoverIndex());
-        if (!interactive || input == null || !input.mousePressed()) {
-            return;
+
+        selectMenu.render(renderer, theme, itemHeight, Theme.toArgb(theme.panelBg), Theme.toArgb(theme.widgetHover), Theme.toArgb(theme.text), selectMenu.hoverIndex());
+
+        if (interactive && input != null && input.mousePressed()) {
+            selectMenu.handleClick((int) ui.mouse().x, (int) ui.mouse().y, itemHeight);
         }
-        selectMenu.handleClick((int) ui.mouse().x, (int) ui.mouse().y, itemH);
     }
 
-    private static void addBuiltInEditorProperties(NodeTypeDef typeDef, List<PropertyDef> props) {
-        if (typeDef == null || props == null) {
-            return;
-        }
+    private static void addBuiltInEditorProperties(NodeTypeDef typeDef, List<PropertyDef> properties) {
+        if (typeDef == null || properties == null) return;
+
         Map<String, PropertyDef> existing = typeDef.properties();
         if (!existing.containsKey("visible")) {
-            props.add(new PropertyDef("visible", PropertyType.BOOL, "true", "Visible", "Editor", -1000, Map.of()));
+            properties.add(new PropertyDef("visible", PropertyType.BOOL, "true", "Visible", "Editor", -1000, Map.of()));
         }
         if (!existing.containsKey("editor_locked")) {
-            props.add(new PropertyDef("editor_locked", PropertyType.BOOL, "false", "Locked", "Editor", -999, Map.of()));
+            properties.add(new PropertyDef("editor_locked", PropertyType.BOOL, "false", "Locked", "Editor", -999, Map.of()));
         }
         if (!existing.containsKey("solid")) {
-            props.add(new PropertyDef("solid", PropertyType.BOOL, "true", "Solid", "Collision", 0, Map.of()));
+            properties.add(new PropertyDef("solid", PropertyType.BOOL, "true", "Solid", "Collision", 0, Map.of()));
         }
         if (!existing.containsKey("color_tint_r")) {
-            props.add(new PropertyDef("color_tint_r", PropertyType.FLOAT, "1", "R", "Color Tint", 0, Map.of("min", "0", "max", "1", "step", "0.01")));
+            properties.add(new PropertyDef("color_tint_r", PropertyType.FLOAT, "1", "R", "Color Tint", 0, Map.of("min", "0", "max", "1", "step", "0.01")));
         }
         if (!existing.containsKey("color_tint_g")) {
-            props.add(new PropertyDef("color_tint_g", PropertyType.FLOAT, "1", "G", "Color Tint", 1, Map.of("min", "0", "max", "1", "step", "0.01")));
+            properties.add(new PropertyDef("color_tint_g", PropertyType.FLOAT, "1", "G", "Color Tint", 1, Map.of("min", "0", "max", "1", "step", "0.01")));
         }
         if (!existing.containsKey("color_tint_b")) {
-            props.add(new PropertyDef("color_tint_b", PropertyType.FLOAT, "1", "B", "Color Tint", 2, Map.of("min", "0", "max", "1", "step", "0.01")));
+            properties.add(new PropertyDef("color_tint_b", PropertyType.FLOAT, "1", "B", "Color Tint", 2, Map.of("min", "0", "max", "1", "step", "0.01")));
         }
     }
 
-    private int estimateContentHeight(List<PropertyDef> props, int rowH, int extraRows) {
-        int groups = 3;
-        int rows = props != null ? Math.max(0, props.size()) : 0;
-        int extra = (fogColorPickerOpen || tintColorPickerOpen) ? 180 : 0;
-        return 100 + (groups + rows + Math.max(0, extraRows)) * rowH + extra;
+    private int estimateContentHeight(List<PropertyDef> properties, int rowHeight, int extraRows) {
+        int groupsCount = 3;
+        int rowsCount = properties != null ? Math.max(0, properties.size()) : 0;
+        int extraHeight = (fogColorPickerOpen || tintColorPickerOpen) ? 180 : 0;
+        return 100 + (groupsCount + rowsCount + Math.max(0, extraRows)) * rowHeight + extraHeight;
     }
 
     private static int estimateScriptActionRows(EditorState state, long nodeId, String scriptPath) {
-        if (state == null || nodeId <= 0L) {
-            return 0;
-        }
-        if (scriptPath == null || scriptPath.isBlank()) {
-            return 0;
-        }
+        if (state == null || nodeId <= 0L || scriptPath == null || scriptPath.isBlank()) return 0;
+
         EditorState.ScriptActions actions = state.scriptActionsByNode.get(nodeId);
         int actionCount = actions == null || actions.actions == null ? 0 : actions.actions.size();
         return 2 + Math.max(1, actionCount);
     }
 
     private void maybeRequestScriptActions(EditorState state, long nodeId, String scriptPath) {
-        if (state == null || nodeId <= 0L) {
-            return;
-        }
-        if (scriptPath == null || scriptPath.isBlank()) {
-            return;
-        }
+        if (state == null || nodeId <= 0L || scriptPath == null || scriptPath.isBlank()) return;
 
         EditorState.ScriptActions cache = state.scriptActions(nodeId);
-        if (cache == null) {
-            return;
-        }
+        if (cache == null) return;
+
         String script = scriptPath.trim();
         if (!Objects.equals(cache.scriptPath, script)) {
             cache.scriptPath = script;
@@ -650,98 +615,70 @@ public final class InspectorPanel extends Panel {
             cache.error = null;
             cache.actions = List.of();
         }
-        if (cache.pending || cache.loaded) {
-            return;
-        }
+
+        if (cache.pending || cache.loaded) return;
 
         Session session = runtime.session();
         EditorNet net = runtime.net();
-        if (session == null || net == null) {
-            return;
-        }
+        if (session == null || net == null) return;
 
         cache.pending = true;
         net.requestScriptActions(session, state, nodeId);
     }
 
-    private int renderScriptActions(Ui ui,
-                                   UiRenderer r,
-                                   UiContext uiContext,
-                                   Theme theme,
-                                   EditorState state,
-                                   long nodeId,
-                                   String scriptPath,
-                                   String filterLower,
-                                   int x,
-                                   int y,
-                                   int w,
-                                   int rowH,
-                                   boolean interactive) {
-        if (state == null || nodeId <= 0L) {
-            return y;
-        }
-        if (scriptPath == null || scriptPath.isBlank()) {
-            return y;
-        }
-        if (!filterLower.isEmpty() && !filterLower.contains("script") && !filterLower.contains("action")) {
-            return y;
-        }
+    private int renderScriptActions(Ui ui, UiRenderer renderer, UiContext uiContext, Theme theme, EditorState state, long nodeId, String scriptPath, String filterLower, int x, int y, int width, int rowHeight, boolean interactive) {
+        if (state == null || nodeId <= 0L || scriptPath == null || scriptPath.isBlank()) return y;
+        if (!filterLower.isEmpty() && !filterLower.contains("script") && !filterLower.contains("action")) return y;
 
         EditorState.ScriptActions cache = state.scriptActions(nodeId);
-        if (cache == null) {
-            return y;
-        }
+        if (cache == null) return y;
 
-        y = renderGroupHeader(ui, r, theme, x, y, w, "Script Actions");
-        if (!isExpanded("Script Actions")) {
-            return y;
-        }
+        y = renderGroupHeader(ui, renderer, theme, x, y, width, "Script Actions");
+        if (!isExpanded("Script Actions")) return y;
 
-        int btnH = rowH;
-        int outline = Theme.toArgb(theme.widgetOutline);
-        int text = Theme.toArgb(theme.text);
-        int muted = Theme.toArgb(theme.textMuted);
+        int buttonHeight = rowHeight;
+        int mutedColor = Theme.toArgb(theme.textMuted);
 
-        int refreshW = 90;
-        int statusW = Math.max(1, w - refreshW - theme.design.space_sm);
-        String status;
-        int statusColor = muted;
+        int refreshWidth = 90;
+        int statusWidth = Math.max(1, width - refreshWidth - theme.design.space_sm);
+        String statusText;
+        int statusColor = mutedColor;
+
         if (cache.pending) {
-            status = "Loading…";
+            statusText = "Loading…";
         } else if (cache.error != null && !cache.error.isBlank()) {
-            status = cache.error;
+            statusText = cache.error;
             statusColor = Theme.toArgb(theme.danger);
         } else if (cache.actions == null || cache.actions.isEmpty()) {
-            status = "No actions";
+            statusText = "No actions";
         } else {
-            status = "Actions: " + cache.actions.size();
+            statusText = "Actions: " + cache.actions.size();
         }
 
-        r.drawText(status, x, r.baselineForBox(y, btnH), statusColor);
-        boolean refresh = renderButton(ui, r, theme, x + statusW + theme.design.space_sm, y, refreshW, btnH, "Refresh", interactive);
-        if (refresh) {
+        renderer.drawText(statusText, x, renderer.baselineForBox(y, buttonHeight), statusColor);
+
+        boolean refreshClicked = EditorUiUtil.buttonOutlined(ui, renderer, theme, x + statusWidth + theme.design.space_sm, y, refreshWidth, buttonHeight, "Refresh", interactive);
+        if (refreshClicked) {
             cache.pending = true;
             cache.loaded = false;
             cache.error = null;
             cache.actions = List.of();
+
             Session session = runtime.session();
             EditorNet net = runtime.net();
             if (session != null && net != null) {
                 net.requestScriptActions(session, state, nodeId);
             }
         }
-        y += btnH;
+        y += buttonHeight;
 
-        if (cache.pending) {
-            return y;
-        }
+        if (cache.pending) return y;
 
         List<String> actions = cache.actions == null ? List.of() : cache.actions;
         for (String action : actions) {
-            if (action == null || action.isBlank()) {
-                continue;
-            }
-            boolean clicked = renderButton(ui, r, theme, x, y, w, btnH, action, interactive);
+            if (action == null || action.isBlank()) continue;
+
+            boolean clicked = EditorUiUtil.buttonOutlined(ui, renderer, theme, x, y, width, buttonHeight, action, interactive);
             if (clicked) {
                 Session session = runtime.session();
                 EditorNet net = runtime.net();
@@ -749,170 +686,131 @@ public final class InspectorPanel extends Panel {
                     net.invokeScriptAction(session, state, nodeId, action);
                 }
             }
-            y += btnH;
+            y += buttonHeight;
         }
 
         if (actions.isEmpty() && cache.error == null) {
-            r.drawText("(tool=true + actions={...})", x, r.baselineForBox(y, btnH), muted);
-            y += btnH;
+            renderer.drawText("(tool=true + actions={...})", x, renderer.baselineForBox(y, buttonHeight), mutedColor);
+            y += buttonHeight;
         }
 
         return y;
     }
 
-    private static boolean renderButton(Ui ui,
-                                        UiRenderer r,
-                                        Theme theme,
-                                        int x,
-                                        int y,
-                                        int w,
-                                        int h,
-                                        String label,
-                                        boolean interactive) {
-        var input = interactive ? ui.input() : null;
-        boolean canInteract = input != null;
-        float mx = canInteract ? input.mousePos().x : -1;
-        float my = canInteract ? input.mousePos().y : -1;
-        boolean hovered = canInteract && mx >= x && my >= y && mx < x + w && my < y + h;
-
-        int bg = hovered ? Theme.toArgb(theme.widgetHover) : Theme.toArgb(theme.widgetBg);
-        int outline = Theme.toArgb(theme.widgetOutline);
-        int text = Theme.toArgb(theme.text);
-        r.drawRoundedRect(x, y + 2, w, h - 4, theme.design.radius_sm, bg, theme.design.border_thin, outline);
-        r.drawText(label, x + theme.design.space_sm, r.baselineForBox(y, h), text);
-
-        return hovered && canInteract && input.mousePressed();
-    }
-
-    int renderGroupHeader(Ui ui, UiRenderer r, Theme theme, int x, int y, int w, String title) {
-        int h = 26;
-        int bg = Theme.toArgb(theme.headerBg);
-        int hover = Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.7f);
-        boolean expanded = isExpanded(title);
+    int renderGroupHeader(Ui ui, UiRenderer renderer, Theme theme, int x, int y, int width, String title) {
+        int height = 26;
+        int backgroundColor = Theme.toArgb(theme.headerBg);
+        int hoverColor = Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.7f);
+        boolean isExpanded = isExpanded(title);
 
         boolean canInteract = (runtime == null || !runtime.uiBlocked()) && ui.input() != null;
-        float mx = canInteract ? ui.mouse().x : -1;
-        float my = canInteract ? ui.mouse().y : -1;
-        boolean hovered = canInteract && mx >= x && my >= y && mx < x + w && my < y + h;
-        r.drawRect(x, y, w, h, hovered ? hover : bg);
+        float mouseX = canInteract ? ui.mouse().x : -1;
+        float mouseY = canInteract ? ui.mouse().y : -1;
+        boolean isHovered = canInteract && mouseX >= x && mouseY >= y && mouseX < x + width && mouseY < y + height;
 
-        // Left accent bar
-        r.drawRect(x, y, 3, h, Theme.toArgb(theme.accent));
+        renderer.drawRect(x, y, width, height, isHovered ? hoverColor : backgroundColor);
+        renderer.drawRect(x, y, 3, height, Theme.toArgb(theme.accent));
 
-        float iconSize = Math.min(theme.design.icon_sm, h - 8);
-        Icon icon = expanded ? Icon.CHEVRON_DOWN : Icon.CHEVRON_RIGHT;
-        theme.icons.draw(r, icon, x + 6, y + (h - iconSize) * 0.5f, iconSize, Theme.toArgb(theme.textMuted));
-        r.drawText(title, x + 22, r.baselineForBox(y, h), Theme.toArgb(theme.text));
+        float iconSize = Math.min(theme.design.icon_sm, height - 8);
+        Icon icon = isExpanded ? Icon.CHEVRON_DOWN : Icon.CHEVRON_RIGHT;
+        MoudIcons.drawOrFallback(renderer, theme, icon, x + 6, y + (height - iconSize) * 0.5f, iconSize, Theme.toArgb(theme.textMuted));
+        renderer.drawText(title, x + 22, renderer.baselineForBox(y, height), Theme.toArgb(theme.text));
 
-        // Bottom separator
-        r.drawRect(x, y + h - 1, w, 1, Theme.toArgb(theme.headerLine));
+        renderer.drawRect(x, y + height - 1, width, 1, Theme.toArgb(theme.headerLine));
 
-        if (hovered && canInteract && ui.input().mousePressed()) {
-            groupExpanded.put(title, !expanded);
+        if (isHovered && canInteract && ui.input().mousePressed()) {
+            groupExpanded.put(title, !isExpanded);
         }
-        return y + h;
+
+        return y + height;
     }
 
-    private int renderPropertyRow(Ui ui,
-                                  UiRenderer r,
-                                  UiContext uiContext,
-                                  Theme theme,
-                                  long nodeId,
-                                  PropertyDef prop,
-                                  int x,
-                                  int y,
-                                  int w,
-                                  int rowH,
-                                  int labelW,
-                                  String value) {
-        int valueX = x + labelW + theme.design.space_sm;
-        int valueW = Math.max(1, w - (valueX - x));
+    private int renderPropertyRow(Ui ui, UiRenderer renderer, UiContext uiContext, Theme theme, long nodeId, PropertyDef property, int x, int y, int width, int rowHeight, int labelWidth, String value) {
+        int valueX = x + labelWidth + theme.design.space_sm;
+        int valueWidth = Math.max(1, width - (valueX - x));
 
-        r.drawText(prop.uiLabel(), x, r.baselineForBox(y, rowH), Theme.toArgb(theme.textMuted));
+        renderer.drawText(property.uiLabel(), x, renderer.baselineForBox(y, rowHeight), Theme.toArgb(theme.textMuted));
 
-        if (prop.type() == PropertyType.BOOL) {
+        if (property.type() == PropertyType.BOOL) {
             boolean interactive = runtime != null && !runtime.uiBlocked();
-            boolean b = ParseUtils.parseBool(value, ParseUtils.parseBool(prop.defaultValue(), false));
-            renderBool(ui, r, theme, valueX, y, valueW, rowH, b, interactive, next -> commitBoolProperty(nodeId, prop.key(), next));
-            return y + rowH;
+            boolean parsedBool = ParseUtils.parseBool(value, ParseUtils.parseBool(property.defaultValue(), false));
+            renderBool(ui, renderer, theme, valueX, y, valueWidth, rowHeight, parsedBool, interactive, next -> commitBoolProperty(nodeId, property.key(), next));
+            return y + rowHeight;
         }
 
-        if (prop.type() == PropertyType.INT || prop.type() == PropertyType.FLOAT) {
-            DraggableNumberField nf = numberField(prop.key(), prop, ParseUtils.parseFloat(value, 0.0f));
-            syncNumberValue(uiContext, nf, ParseUtils.parseFloat(value, nf.value()));
+        if (property.type() == PropertyType.INT || property.type() == PropertyType.FLOAT) {
+            DraggableNumberField numberField = numberField(property.key(), property, ParseUtils.parseFloat(value, 0.0f));
+            syncNumberValue(uiContext, numberField, ParseUtils.parseFloat(value, numberField.value()));
             var input = (runtime != null && !runtime.uiBlocked()) ? ui.input() : null;
-            nf.render(r, uiContext, input, theme, valueX, y + 2, valueW, rowH - 4, true);
-            return y + rowH;
+            numberField.render(renderer, uiContext, input, theme, valueX, y + 2, valueWidth, rowHeight - 4, true);
+            return y + rowHeight;
         }
 
-        boolean isScriptPath = "script".equals(prop.key());
-        boolean showAttachScript = isScriptPath;
+        boolean isScriptPath = "script".equals(property.key());
         boolean hasScript = isScriptPath && value != null && !value.trim().isEmpty();
-        boolean isImageAsset = isAssetKind(prop, "image");
-        boolean isShaderAsset = isAssetKind(prop, "shader");
-        boolean isMaterialAsset = isAssetKind(prop, "material");
-        boolean isTextAsset = isAssetKind(prop, "text");
+        boolean isImageAsset = isAssetKind(property, "image");
+        boolean isShaderAsset = isAssetKind(property, "shader");
+        boolean isMaterialAsset = isAssetKind(property, "material");
+        boolean isTextAsset = isAssetKind(property, "text");
         boolean isAnyAsset = isImageAsset || isShaderAsset || isMaterialAsset || isTextAsset;
 
-        int iconBtnW = Math.max(18, rowH - 4);
-        int iconBtnH = rowH - 4;
+        int iconButtonWidth = Math.max(18, rowHeight - 4);
+        int iconButtonHeight = rowHeight - 4;
         int iconGap = theme.design.space_xs;
-        int iconCount = (isAnyAsset ? 1 : 0) + (showAttachScript ? 1 : 0) + (hasScript ? 1 : 0);
-        int iconsW = iconCount == 0 ? 0 : (iconCount * iconBtnW + (iconCount - 1) * iconGap);
+        int iconCount = (isAnyAsset ? 1 : 0) + (isScriptPath ? 1 : 0) + (hasScript ? 1 : 0);
+        int iconsTotalWidth = iconCount == 0 ? 0 : (iconCount * iconButtonWidth + (iconCount - 1) * iconGap);
         int fieldToIconsGap = iconCount == 0 ? 0 : iconGap;
 
-        int fieldW = Math.max(1, valueW - iconsW - fieldToIconsGap);
-        TextField tf = stringFields.computeIfAbsent(prop.key(), k -> new TextField());
-        if (uiContext == null || !tf.isFocused(uiContext)) {
-            tf.setText(value == null ? "" : value);
-            tf.setCursorPos(tf.text().length());
-        }
-        var input = (runtime != null && !runtime.uiBlocked()) ? ui.input() : null;
-        tf.render(r, uiContext, input, theme, valueX, y + 2, fieldW, rowH - 4, true);
+        int fieldWidth = Math.max(1, valueWidth - iconsTotalWidth - fieldToIconsGap);
+        TextField textField = stringFields.computeIfAbsent(property.key(), k -> new TextField());
 
-        int btnY = y + 2;
-        int btnX = valueX + fieldW + fieldToIconsGap;
+        if (uiContext == null || !textField.isFocused(uiContext)) {
+            textField.setText(value == null ? "" : value);
+            textField.setCursorPos(textField.text().length());
+        }
+
+        var input = (runtime != null && !runtime.uiBlocked()) ? ui.input() : null;
+        textField.render(renderer, uiContext, input, theme, valueX, y + 2, fieldWidth, rowHeight - 4, true);
+
+        int buttonY = y + 2;
+        int buttonX = valueX + fieldWidth + fieldToIconsGap;
 
         if (isAnyAsset) {
             Icon icon = isImageAsset ? Icon.IMAGE : (isShaderAsset ? Icon.CODE : Icon.TEXT);
-            int menuX = btnX;
-            int menuY = btnY + iconBtnH;
-            renderIconButton(ui, r, theme, menuX, btnY, iconBtnW, iconBtnH, icon, input != null, () -> toggleAssetMenu(menuX, menuY, nodeId, prop));
-            btnX += iconBtnW + iconGap;
+            int menuX = buttonX;
+            int menuY = buttonY + iconButtonHeight;
+            EditorUiUtil.iconButtonOutlined(ui, renderer, theme, menuX, buttonY, iconButtonWidth, iconButtonHeight, icon, input != null, () -> toggleAssetMenu(menuX, menuY, nodeId, property));
+            buttonX += iconButtonWidth + iconGap;
         }
-        if (showAttachScript) {
-            renderIconButton(ui, r, theme, btnX, btnY, iconBtnW, iconBtnH, Icon.ADD, input != null, () -> attachScriptFromFile(nodeId));
-            btnX += iconBtnW + iconGap;
+
+        if (isScriptPath) {
+            EditorUiUtil.iconButtonOutlined(ui, renderer, theme, buttonX, buttonY, iconButtonWidth, iconButtonHeight, Icon.ADD, input != null, () -> attachScriptFromFile(nodeId));
+            buttonX += iconButtonWidth + iconGap;
         }
+
         if (hasScript) {
             String script = value == null ? "" : value;
-            renderIconButton(ui, r, theme, btnX, btnY, iconBtnW, iconBtnH, Icon.CODE, input != null, () -> runtime.openScriptEditor(nodeId, script));
+            EditorUiUtil.iconButtonOutlined(ui, renderer, theme, buttonX, buttonY, iconButtonWidth, iconButtonHeight, Icon.CODE, input != null, () -> runtime.openScriptEditor(nodeId, script));
         }
-        return y + rowH;
+
+        return y + rowHeight;
     }
 
     private void attachScriptFromFile(long nodeId) {
         EditorState state = runtime.state();
         EditorNet net = runtime.net();
         Session session = runtime.session();
+
         if (state == null || net == null || session == null) {
             runtime.requestToast("Attach failed: not connected", true, 3500);
             return;
         }
 
         try {
-            String osPath = TinyFileDialogs.tinyfd_openFileDialog(
-                    "Attach Script (.js)",
-                    "",
-                    null,
-                    "JavaScript (.js)",
-                    false
-            );
-            if (osPath == null || osPath.isBlank()) {
-                return;
-            }
+            String selectedPath = TinyFileDialogs.tinyfd_openFileDialog("Attach Script (.js)", "", null, "JavaScript (.js)", false);
+            if (selectedPath == null || selectedPath.isBlank()) return;
 
-            File file = new File(osPath);
+            File file = new File(selectedPath);
             if (!file.exists() || !file.isFile()) {
                 runtime.requestToast("Script file not found", true, 4500);
                 return;
@@ -923,6 +821,7 @@ public final class InspectorPanel extends Panel {
                 runtime.requestToast("Invalid filename", true, 4500);
                 return;
             }
+
             if (!filename.toLowerCase(Locale.ROOT).endsWith(".js")) {
                 filename = filename + ".js";
             }
@@ -937,74 +836,69 @@ public final class InspectorPanel extends Panel {
             String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
             net.writeScriptFile(session, state, scriptPath, content);
 
-            net.sendOps(session, state, List.of(new SceneOp.SetProperty(nodeId, "script", scriptPath)));
+            sendOpsRecorded(List.of(new SceneOp.SetProperty(nodeId, "script", scriptPath)));
             runtime.requestToast("Attached script: " + scriptPath, false, 2500);
             runtime.openScriptEditor(nodeId, scriptPath);
-        } catch (Exception e) {
-            String msg = e.getMessage();
-            runtime.requestToast("Attach failed" + (msg == null || msg.isBlank() ? "" : ": " + msg), true, 6000);
+
+        } catch (Exception exception) {
+            String message = exception.getMessage();
+            runtime.requestToast("Attach failed" + (message == null || message.isBlank() ? "" : ": " + message), true, 6000);
         }
     }
 
-    static boolean isAssetKind(PropertyDef prop, String kind) {
-        if (prop == null || prop.editorHints() == null || kind == null) {
-            return false;
-        }
-        String asset = prop.editorHints().get("asset");
-        return asset != null && asset.equalsIgnoreCase(kind);
+    static boolean isAssetKind(PropertyDef property, String targetKind) {
+        if (property == null || property.editorHints() == null || targetKind == null) return false;
+        String assetKind = property.editorHints().get("asset");
+        return assetKind != null && assetKind.equalsIgnoreCase(targetKind);
     }
 
-    private void toggleAssetMenu(int x, int y, long nodeId, PropertyDef prop) {
-        if (prop == null || prop.key() == null || prop.key().isBlank()) {
-            return;
-        }
-        if (assetMenu.isOpen() && nodeId == assetMenuNodeId && Objects.equals(assetMenuKey, prop.key())) {
+    private void toggleAssetMenu(int x, int y, long nodeId, PropertyDef property) {
+        if (property == null || property.key() == null || property.key().isBlank()) return;
+
+        if (assetMenu.isOpen() && nodeId == assetMenuNodeId && Objects.equals(assetMenuKey, property.key())) {
             assetMenu.close();
             return;
         }
+
         assetMenuNodeId = nodeId;
-        assetMenuKey = prop.key();
-        buildAssetMenu(prop);
+        assetMenuKey = property.key();
+        buildAssetMenu(property);
         EditorUiUtil.openMenuClamped(assetMenu, runtime, x, y);
     }
 
-    private void buildAssetMenu(PropertyDef prop) {
+    private void buildAssetMenu(PropertyDef property) {
         assetMenu.clear();
-        String key = prop.key();
-        String dv = prop.defaultValue() == null ? "" : prop.defaultValue();
-        String kind = prop.editorHints() == null ? "" : prop.editorHints().getOrDefault("asset", "");
+        String propertyKey = property.key();
+        String defaultValue = property.defaultValue() == null ? "" : property.defaultValue();
+        String kind = property.editorHints() == null ? "" : property.editorHints().getOrDefault("asset", "");
         String kindLower = kind == null ? "" : kind.trim().toLowerCase(Locale.ROOT);
 
-        assetMenu.addItem("Default", () -> commitStringProperty(key, dv));
-        assetMenu.addItem("Clear", () -> commitStringProperty(key, ""));
+        assetMenu.addItem("Default", () -> commitStringProperty(propertyKey, defaultValue));
+        assetMenu.addItem("Clear", () -> commitStringProperty(propertyKey, ""));
 
         if ("image".equals(kindLower)) {
             assetMenu.addSeparator();
-            assetMenu.addItem(MoudTextures.WHITE_ID.toString(), () -> commitStringProperty(key, MoudTextures.WHITE_ID.toString()));
+            assetMenu.addItem(MoudTextures.WHITE_ID.toString(), () -> commitStringProperty(propertyKey, MoudTextures.WHITE_ID.toString()));
 
             List<String> images = MoudTextures.imageAssetPaths();
             if (images.isEmpty()) {
                 assetMenu.addSeparator();
-                assetMenu.addItem("(No res:// images)", () -> {
-                });
+                assetMenu.addItem("(No res:// images)", () -> {});
                 return;
             }
 
             assetMenu.addSeparator();
             for (String path : images) {
-                if (path == null || path.isBlank()) {
-                    continue;
-                }
-                assetMenu.addItem(path, () -> commitStringProperty(key, path));
+                if (path == null || path.isBlank()) continue;
+                assetMenu.addItem(path, () -> commitStringProperty(propertyKey, path));
             }
             return;
         }
 
-        List<String> texts = MoudTextAssets.textAssetPaths();
-        if (texts.isEmpty()) {
+        List<String> textAssets = MoudTextAssets.textAssetPaths();
+        if (textAssets.isEmpty()) {
             assetMenu.addSeparator();
-            assetMenu.addItem("(No res:// text assets)", () -> {
-            });
+            assetMenu.addItem("(No res:// text assets)", () -> {});
             return;
         }
 
@@ -1015,238 +909,204 @@ public final class InspectorPanel extends Panel {
             suffixFilter = ".moudmat";
         }
 
-        boolean any = false;
+        boolean isMaterial = "material".equals(kindLower);
+        boolean foundAny = false;
+
         assetMenu.addSeparator();
-        for (String path : texts) {
-            if (path == null || path.isBlank()) {
-                continue;
+        for (String path : textAssets) {
+            if (path == null || path.isBlank()) continue;
+            if (suffixFilter != null && !path.toLowerCase(Locale.ROOT).endsWith(suffixFilter)) continue;
+
+            foundAny = true;
+            String label = path;
+            if (isMaterial) {
+                label = path.replace("res://materials/", "").replace(".moudmat", "");
+                MaterialPreviewRenderer.request(path);
             }
-            if (suffixFilter != null && !path.toLowerCase(Locale.ROOT).endsWith(suffixFilter)) {
-                continue;
-            }
-            any = true;
-            assetMenu.addItem(path, () -> commitStringProperty(key, path));
+            String finalPath = path;
+            assetMenu.addItem(label, () -> commitStringProperty(propertyKey, finalPath));
         }
-        if (!any && suffixFilter != null) {
-            assetMenu.addItem("(No res:// " + suffixFilter + ")", () -> {
-            });
+
+        if (!foundAny && suffixFilter != null) {
+            assetMenu.addItem("(No " + suffixFilter + " files)", () -> {});
         }
     }
 
-    private void renderAssetMenu(Ui ui, UiRenderer r, Theme theme, boolean interactive) {
-        if (ui == null || r == null || theme == null) {
-            return;
-        }
-        if (!assetMenu.isOpen()) {
-            return;
-        }
+    private void renderAssetMenu(Ui ui, UiRenderer renderer, Theme theme, boolean interactive) {
+        if (ui == null || renderer == null || theme == null || !assetMenu.isOpen()) return;
+
         var input = interactive ? ui.input() : null;
-        int itemH = 22;
+        int itemHeight = theme.design.menu_item_height;
+
         if (input != null) {
-            assetMenu.updateFromInput(input, theme, itemH);
+            assetMenu.updateFromInput(input, theme, itemHeight);
             EditorUiUtil.clampOpenMenuToScreen(assetMenu, runtime);
         }
-        assetMenu.render(r, theme, itemH,
-                Theme.toArgb(theme.panelBg),
-                Theme.toArgb(theme.widgetHover),
-                Theme.toArgb(theme.text),
-                assetMenu.hoverIndex());
 
-        if (!interactive || input == null || !input.mousePressed()) {
-            return;
-        }
-        assetMenu.handleClick((int) ui.mouse().x, (int) ui.mouse().y, itemH);
-    }
+        assetMenu.render(renderer, theme, itemHeight, Theme.toArgb(theme.panelBg), Theme.toArgb(theme.widgetHover), Theme.toArgb(theme.text), assetMenu.hoverIndex());
 
-    static void renderIconButton(Ui ui,
-                                         UiRenderer r,
-                                         Theme theme,
-                                         int x,
-                                         int y,
-                                         int w,
-                                         int h,
-                                         Icon icon,
-                                         boolean interactive,
-                                         Runnable action) {
-        var input = ui != null ? ui.input() : null;
-        boolean canInteract = interactive && input != null;
-        float mx = canInteract ? input.mousePos().x : -1;
-        float my = canInteract ? input.mousePos().y : -1;
-        boolean hovered = canInteract && mx >= x && my >= y && mx < x + w && my < y + h;
-
-        int bg = hovered ? Theme.toArgb(theme.widgetHover) : Theme.toArgb(theme.widgetBg);
-        int outline = Theme.toArgb(theme.widgetOutline);
-        r.drawRoundedRect(x, y, w, h, theme.design.radius_sm, bg, theme.design.border_thin, outline);
-        float iconSize = Math.min(theme.design.icon_sm, h - 6);
-        int iconCol = Theme.toArgb(theme.textMuted);
-        theme.icons.draw(r, icon, x + (w - iconSize) * 0.5f, y + (h - iconSize) * 0.5f, iconSize, iconCol);
-
-        if (hovered && canInteract && input.mouseReleased() && action != null) {
-            action.run();
+        if (interactive && input != null && input.mousePressed()) {
+            assetMenu.handleClick((int) ui.mouse().x, (int) ui.mouse().y, itemHeight);
         }
     }
 
-    private int renderVec3Row(Ui ui,
-                              UiRenderer r,
-                              UiContext uiContext,
-                              Theme theme,
-                              long nodeId,
-                              NodeTypeDef typeDef,
-                              Map<String, String> values,
-                              int x,
-                              int y,
-                              int w,
-                              int rowH,
-                              int labelW,
-                              String label,
-                              String kx,
-                              String ky,
-                              String kz,
-                              String filterLower) {
-        boolean hasAny = values.containsKey(kx) || values.containsKey(ky) || values.containsKey(kz);
-        if (!hasAny) {
-            return y;
-        }
+    private int renderVec3Row(Ui ui, UiRenderer renderer, UiContext uiContext, Theme theme, long nodeId, NodeTypeDef typeDef, Map<String, String> values, int x, int y, int width, int rowHeight, int labelWidth, String label, String keyX, String keyY, String keyZ, String filterLower) {
+        boolean hasAnyValues = values.containsKey(keyX) || values.containsKey(keyY) || values.containsKey(keyZ);
+        if (!hasAnyValues) return y;
+
         if (!filterLower.isEmpty()) {
-            StringBuilder sb = new StringBuilder(64);
-            sb.append(label).append(' ').append(kx).append(' ').append(ky).append(' ').append(kz);
+            StringBuilder searchBuilder = new StringBuilder(64);
+            searchBuilder.append(label).append(' ').append(keyX).append(' ').append(keyY).append(' ').append(keyZ);
             if (typeDef != null) {
-                PropertyDef dx = typeDef.properties().get(kx);
-                PropertyDef dy = typeDef.properties().get(ky);
-                PropertyDef dz = typeDef.properties().get(kz);
-                if (dx != null && dx.uiLabel() != null) sb.append(' ').append(dx.uiLabel());
-                if (dy != null && dy.uiLabel() != null) sb.append(' ').append(dy.uiLabel());
-                if (dz != null && dz.uiLabel() != null) sb.append(' ').append(dz.uiLabel());
+                PropertyDef propX = typeDef.properties().get(keyX);
+                PropertyDef propY = typeDef.properties().get(keyY);
+                PropertyDef propZ = typeDef.properties().get(keyZ);
+                if (propX != null && propX.uiLabel() != null) searchBuilder.append(' ').append(propX.uiLabel());
+                if (propY != null && propY.uiLabel() != null) searchBuilder.append(' ').append(propY.uiLabel());
+                if (propZ != null && propZ.uiLabel() != null) searchBuilder.append(' ').append(propZ.uiLabel());
             }
-            String hay = sb.toString().toLowerCase(Locale.ROOT);
-            if (!hay.contains(filterLower)) {
-                return y;
-            }
+            String searchTarget = searchBuilder.toString().toLowerCase(Locale.ROOT);
+            if (!searchTarget.contains(filterLower)) return y;
         }
 
-        r.drawText(label, x, r.baselineForBox(y, rowH), Theme.toArgb(theme.textMuted));
+        renderer.drawText(label, x, renderer.baselineForBox(y, rowHeight), Theme.toArgb(theme.textMuted));
 
-        int valueX = x + labelW + theme.design.space_sm;
-        int valueW = Math.max(1, w - (valueX - x));
+        int valueX = x + labelWidth + theme.design.space_sm;
+        int valueWidth = Math.max(1, width - (valueX - x));
         int gap = theme.design.space_xs;
-        int eachW = Math.max(1, (valueW - gap * 2) / 3);
-        int fieldH = rowH - 4;
-        int fy = y + 2;
+        int componentWidth = Math.max(1, (valueWidth - gap * 2) / 3);
+        int fieldHeight = rowHeight - 4;
+        int fieldY = y + 2;
 
-        PropertyDef dx = typeDef != null ? typeDef.properties().get(kx) : null;
-        PropertyDef dy = typeDef != null ? typeDef.properties().get(ky) : null;
-        PropertyDef dz = typeDef != null ? typeDef.properties().get(kz) : null;
+        PropertyDef propX = typeDef != null ? typeDef.properties().get(keyX) : null;
+        PropertyDef propY = typeDef != null ? typeDef.properties().get(keyY) : null;
+        PropertyDef propZ = typeDef != null ? typeDef.properties().get(keyZ) : null;
 
-        renderPrefixedNumber(ui, r, uiContext, theme, nodeId, dx, kx, valueX, fy, eachW, fieldH, "x", values.get(kx));
-        renderPrefixedNumber(ui, r, uiContext, theme, nodeId, dy, ky, valueX + eachW + gap, fy, eachW, fieldH, "y", values.get(ky));
-        int lastX = valueX + (eachW + gap) * 2;
-        renderPrefixedNumber(ui, r, uiContext, theme, nodeId, dz, kz, lastX, fy, valueX + valueW - lastX, fieldH, "z", values.get(kz));
+        renderPrefixedNumber(ui, renderer, uiContext, theme, nodeId, propX, keyX, valueX, fieldY, componentWidth, fieldHeight, "x", values.get(keyX));
+        renderPrefixedNumber(ui, renderer, uiContext, theme, nodeId, propY, keyY, valueX + componentWidth + gap, fieldY, componentWidth, fieldHeight, "y", values.get(keyY));
+        int lastX = valueX + (componentWidth + gap) * 2;
+        renderPrefixedNumber(ui, renderer, uiContext, theme, nodeId, propZ, keyZ, lastX, fieldY, valueX + valueWidth - lastX, fieldHeight, "z", values.get(keyZ));
 
-        return y + rowH;
+        return y + rowHeight;
     }
 
-    private void renderPrefixedNumber(Ui ui,
-                                      UiRenderer r,
-                                      UiContext uiContext,
-                                      Theme theme,
-                                      long nodeId,
-                                      PropertyDef def,
-                                      String key,
-                                      int x,
-                                      int y,
-                                      int w,
-                                      int h,
-                                      String prefix,
-                                      String rawValue) {
-        DraggableNumberField nf = numberField(key, def, ParseUtils.parseFloat(rawValue, 0.0f));
-        syncNumberValue(uiContext, nf, ParseUtils.parseFloat(rawValue, nf.value()));
+    private void renderPrefixedNumber(Ui ui, UiRenderer renderer, UiContext uiContext, Theme theme, long nodeId, PropertyDef propertyDef, String key, int x, int y, int width, int height, String prefix, String rawValue) {
+        DraggableNumberField numberField = numberField(key, propertyDef, ParseUtils.parseFloat(rawValue, 0.0f));
+        syncNumberValue(uiContext, numberField, ParseUtils.parseFloat(rawValue, numberField.value()));
+
         var input = (runtime != null && !runtime.uiBlocked()) ? ui.input() : null;
-        nf.render(r, uiContext, input, theme, x, y, w, h, true);
+        numberField.render(renderer, uiContext, input, theme, x, y, width, height, true);
 
-        int muted = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.70f);
-        r.drawText(prefix, x + 4, r.baselineForBox(y, h), muted);
+        int mutedColor = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.70f);
+        renderer.drawText(prefix, x + 4, renderer.baselineForBox(y, height), mutedColor);
     }
 
-    private DraggableNumberField numberField(String key, PropertyDef def, float initial) {
+    private DraggableNumberField numberField(String key, PropertyDef propertyDef, float initialValue) {
         return numberFields.computeIfAbsent(key, k -> {
-            float min = -1_000_000.0f;
-            float max = 1_000_000.0f;
-            DraggableNumberField nf = new DraggableNumberField(initial, min, max);
-            if (def != null) {
-                numberFieldTypes.put(key, def.type());
+            float minBoundary = -1_000_000.0f;
+            float maxBoundary = 1_000_000.0f;
+            DraggableNumberField field = new DraggableNumberField(initialValue, minBoundary, maxBoundary);
+
+            if (propertyDef != null) {
+                numberFieldTypes.put(key, propertyDef.type());
+
+                if (propertyDef.editorHints() != null) {
+                    String stepSize = propertyDef.editorHints().get("step");
+                    if (stepSize != null) {
+                        field.setSnapStep(ParseUtils.parseFloat(stepSize, 1.0f));
+                    }
+
+                    float rangeMin = minBoundary;
+                    float rangeMax = maxBoundary;
+
+                    String minString = propertyDef.editorHints().get("min");
+                    if (minString != null) {
+                        rangeMin = ParseUtils.parseFloat(minString, rangeMin);
+                    }
+
+                    String maxString = propertyDef.editorHints().get("max");
+                    if (maxString != null) {
+                        rangeMax = ParseUtils.parseFloat(maxString, rangeMax);
+                    }
+
+                    field.setRange(rangeMin, rangeMax);
+                }
             }
-            if (def != null && def.editorHints() != null) {
-                String step = def.editorHints().get("step");
-                if (step != null) {
-                    nf.setSnapStep(ParseUtils.parseFloat(step, 1.0f));
-                }
-                float rangeMin = min;
-                float rangeMax = max;
-                String minS = def.editorHints().get("min");
-                if (minS != null) {
-                    rangeMin = ParseUtils.parseFloat(minS, rangeMin);
-                }
-                String maxS = def.editorHints().get("max");
-                if (maxS != null) {
-                    rangeMax = ParseUtils.parseFloat(maxS, rangeMax);
-                }
-                nf.setRange(rangeMin, rangeMax);
-            }
-            nf.setListener(v -> {
+
+            field.setListener(value -> {
                 if (!syncingNumbers) {
-                    pendingNumbers.put(key, v);
+                    pendingNumbers.put(key, value);
                 }
             });
-            return nf;
+
+            return field;
         });
     }
 
-    private void syncNumberValue(UiContext uiContext, DraggableNumberField nf, float value) {
-        if (nf == null) {
-            return;
-        }
-        if (nf.isEditing()) {
-            return;
-        }
-        if (uiContext != null && uiContext.pointer().isCaptured(nf.id())) {
-            return;
-        }
+    private void syncNumberValue(UiContext uiContext, DraggableNumberField numberField, float value) {
+        if (numberField == null || numberField.isEditing()) return;
+        if (uiContext != null && uiContext.pointer().isCaptured(numberField.id())) return;
+
         syncingNumbers = true;
         try {
-            nf.setValue(value);
+            numberField.setValue(value);
         } finally {
             syncingNumbers = false;
         }
     }
 
     private void flushPendingNumberOps(UiContext uiContext, long nodeId) {
-        if (pendingNumbers.isEmpty()) {
-            return;
-        }
-        long now = System.currentTimeMillis();
-        ArrayList<String> keys = new ArrayList<>(pendingNumbers.keySet());
-        for (String key : keys) {
-            DraggableNumberField nf = numberFields.get(key);
-            boolean captured = nf != null && uiContext != null && uiContext.pointer().isCaptured(nf.id());
-            if (captured) {
-                long last = lastSentNumberAtMs.getOrDefault(key, 0L);
-                if ((now - last) < DRAG_NUMBER_SEND_INTERVAL_MS) {
-                    continue;
-                }
+        if (pendingNumbers.isEmpty()) return;
+
+        EditorState state = runtime.state();
+        Session session = runtime.session();
+        EditorNet net = runtime.net();
+
+        if (state == null || session == null || net == null) return;
+
+        long currentTime = System.currentTimeMillis();
+        ArrayList<String> keysToProcess = new ArrayList<>(pendingNumbers.keySet());
+
+        for (String key : keysToProcess) {
+            DraggableNumberField numberField = numberFields.get(key);
+            boolean isCaptured = numberField != null && uiContext != null && uiContext.pointer().isCaptured(numberField.id());
+
+            if (!preDragNumbers.containsKey(key)) {
+                String sceneValue = state.scene != null ? state.scene.getPropertyValue(nodeId, key) : null;
+                preDragNumbers.put(key, sceneValue);
             }
 
-            float v = pendingNumbers.get(key);
+            if (isCaptured) {
+                long lastSentTime = lastSentNumberAtMs.getOrDefault(key, 0L);
+                if ((currentTime - lastSentTime) < DRAG_NUMBER_SEND_INTERVAL_MS) continue;
+            }
+
+            float value = pendingNumbers.get(key);
             PropertyType type = numberFieldTypes.get(key);
-            float cmp = type == PropertyType.INT ? Math.round(v) : v;
-            Float last = lastSentNumbers.get(key);
-            if (last != null && Math.abs(last - cmp) < 1e-6f) {
+            float comparisonValue = type == PropertyType.INT ? Math.round(value) : value;
+            Float lastSentValue = lastSentNumbers.get(key);
+
+            if (lastSentValue != null && Math.abs(lastSentValue - comparisonValue) < 1e-6f) {
                 pendingNumbers.remove(key);
+                if (!isCaptured) preDragNumbers.remove(key);
                 continue;
             }
-            lastSentNumbers.put(key, cmp);
-            lastSentNumberAtMs.put(key, now);
+
+            lastSentNumbers.put(key, comparisonValue);
+            lastSentNumberAtMs.put(key, currentTime);
             pendingNumbers.remove(key);
-            commitNumberProperty(nodeId, key, v);
+
+            String encodedValue = type == PropertyType.INT ? Integer.toString(Math.round(value)) : ParseUtils.trimFloat(value);
+            List<SceneOp> operations = List.of(new SceneOp.SetProperty(nodeId, key, encodedValue));
+            net.sendOps(session, state, operations);
+
+            if (!isCaptured) {
+                String oldValue = preDragNumbers.remove(key);
+                if (oldValue != null && !oldValue.equals(encodedValue)) {
+                    List<SceneOp> undoOperations = List.of(new SceneOp.SetProperty(nodeId, key, oldValue));
+                    runtime.history().push(undoOperations, operations);
+                }
+            }
         }
     }
 
@@ -1258,336 +1118,277 @@ public final class InspectorPanel extends Panel {
         return "color_tint_r".equals(key) || "color_tint_g".equals(key) || "color_tint_b".equals(key);
     }
 
-    private int renderFogColorPicker(Ui ui,
-                                     UiRenderer r,
-                                     UiContext uiContext,
-                                     Theme theme,
-                                     long nodeId,
-                                     Map<String, String> values,
-                                     int x,
-                                     int y,
-                                     int w,
-                                     int rowH,
-                                     int labelW) {
-        float fogR = ParseUtils.parseFloat(values.get("fog_color_r"), 0.5f);
-        float fogG = ParseUtils.parseFloat(values.get("fog_color_g"), 0.5f);
-        float fogB = ParseUtils.parseFloat(values.get("fog_color_b"), 0.5f);
+    private int renderFogColorPicker(Ui ui, UiRenderer renderer, UiContext uiContext, Theme theme, long nodeId, Map<String, String> values, int x, int y, int width, int rowHeight, int labelWidth) {
+        float red = ParseUtils.parseFloat(values.get("fog_color_r"), 0.5f);
+        float green = ParseUtils.parseFloat(values.get("fog_color_g"), 0.5f);
+        float blue = ParseUtils.parseFloat(values.get("fog_color_b"), 0.5f);
 
-        int valueX = x + labelW + theme.design.space_sm;
-        int swatchW = Math.max(1, w - (valueX - x));
+        int valueX = x + labelWidth + theme.design.space_sm;
+        int swatchWidth = Math.max(1, width - (valueX - x));
 
-        r.drawText("Fog Color", x, r.baselineForBox(y, rowH), Theme.toArgb(theme.textMuted));
+        renderer.drawText("Fog Color", x, renderer.baselineForBox(y, rowHeight), Theme.toArgb(theme.textMuted));
 
-        int swatchH = rowH - 4;
+        int swatchHeight = rowHeight - 4;
         int swatchY = y + 2;
-        int swatchColor = 0xFF000000
-                | (Math.round(MathUtils.clamp01(fogR) * 255) << 16)
-                | (Math.round(MathUtils.clamp01(fogG) * 255) << 8)
-                | Math.round(MathUtils.clamp01(fogB) * 255);
-        r.drawRoundedRect(valueX, swatchY, swatchW, swatchH, theme.design.radius_sm, swatchColor,
-                theme.design.border_thin, Theme.toArgb(theme.widgetOutline));
+        int swatchColor = 0xFF000000 | (Math.round(MathUtils.clamp01(red) * 255) << 16) | (Math.round(MathUtils.clamp01(green) * 255) << 8) | Math.round(MathUtils.clamp01(blue) * 255);
+
+        renderer.drawRoundedRect(valueX, swatchY, swatchWidth, swatchHeight, theme.design.radius_sm, swatchColor, theme.design.border_thin, Theme.toArgb(theme.widgetOutline));
 
         var input = (runtime != null && !runtime.uiBlocked()) ? ui.input() : null;
         boolean canInteract = input != null;
-        float mx = canInteract ? input.mousePos().x : -1;
-        float my = canInteract ? input.mousePos().y : -1;
-        boolean hovered = canInteract && mx >= valueX && my >= swatchY && mx < valueX + swatchW && my < swatchY + swatchH;
-        if (hovered && canInteract && input.mousePressed()) {
+        float mouseX = canInteract ? input.mousePos().x : -1;
+        float mouseY = canInteract ? input.mousePos().y : -1;
+        boolean isHovered = canInteract && mouseX >= valueX && mouseY >= swatchY && mouseX < valueX + swatchWidth && mouseY < swatchY + swatchHeight;
+
+        if (isHovered && canInteract && input.mousePressed()) {
             fogColorPickerOpen = !fogColorPickerOpen;
             if (fogColorPickerOpen) {
                 tintColorPickerOpen = false;
-                float[] hsv = rgbToHsv(fogR, fogG, fogB);
+                float[] hsv = rgbToHsv(red, green, blue);
                 fogColorPicker.setHsva(hsv[0], hsv[1], hsv[2], 1.0f);
             }
         }
 
-        int cursorY = y + rowH;
+        int cursorY = y + rowHeight;
 
         if (fogColorPickerOpen) {
-            int pickerH = 160;
-            int pickerW = Math.max(200, w);
-            boolean changed = fogColorPicker.render(r, input, theme, x, cursorY, pickerW, pickerH, true);
+            int pickerHeight = 160;
+            int pickerWidth = Math.max(200, width);
+            boolean changed = fogColorPicker.render(renderer, input, theme, x, cursorY, pickerWidth, pickerHeight, true);
+
             if (changed) {
                 int argb = fogColorPicker.toArgb();
-                float newR = ((argb >> 16) & 0xFF) / 255.0f;
-                float newG = ((argb >> 8) & 0xFF) / 255.0f;
-                float newB = (argb & 0xFF) / 255.0f;
-                commitFogColor(nodeId, newR, newG, newB);
+                float newRed = ((argb >> 16) & 0xFF) / 255.0f;
+                float newGreen = ((argb >> 8) & 0xFF) / 255.0f;
+                float newBlue = (argb & 0xFF) / 255.0f;
+                commitFogColor(nodeId, newRed, newGreen, newBlue);
             }
-            cursorY += pickerH + theme.design.space_sm;
+            cursorY += pickerHeight + theme.design.space_sm;
         }
 
         return cursorY;
     }
 
-    private int renderTintColorPicker(Ui ui,
-                                      UiRenderer r,
-                                      UiContext uiContext,
-                                      Theme theme,
-                                      long nodeId,
-                                      Map<String, String> values,
-                                      int x,
-                                      int y,
-                                      int w,
-                                      int rowH,
-                                      int labelW) {
-        float tintR = ParseUtils.parseFloat(values.get("color_tint_r"), 1.0f);
-        float tintG = ParseUtils.parseFloat(values.get("color_tint_g"), 1.0f);
-        float tintB = ParseUtils.parseFloat(values.get("color_tint_b"), 1.0f);
+    private int renderTintColorPicker(Ui ui, UiRenderer renderer, UiContext uiContext, Theme theme, long nodeId, Map<String, String> values, int x, int y, int width, int rowHeight, int labelWidth) {
+        float red = ParseUtils.parseFloat(values.get("color_tint_r"), 1.0f);
+        float green = ParseUtils.parseFloat(values.get("color_tint_g"), 1.0f);
+        float blue = ParseUtils.parseFloat(values.get("color_tint_b"), 1.0f);
 
-        int valueX = x + labelW + theme.design.space_sm;
-        int swatchW = Math.max(1, w - (valueX - x));
+        int valueX = x + labelWidth + theme.design.space_sm;
+        int swatchWidth = Math.max(1, width - (valueX - x));
 
-        r.drawText("Color Tint", x, r.baselineForBox(y, rowH), Theme.toArgb(theme.textMuted));
+        renderer.drawText("Color Tint", x, renderer.baselineForBox(y, rowHeight), Theme.toArgb(theme.textMuted));
 
-        int swatchH = rowH - 4;
+        int swatchHeight = rowHeight - 4;
         int swatchY = y + 2;
-        int swatchColor = 0xFF000000
-                | (Math.round(MathUtils.clamp01(tintR) * 255) << 16)
-                | (Math.round(MathUtils.clamp01(tintG) * 255) << 8)
-                | Math.round(MathUtils.clamp01(tintB) * 255);
-        r.drawRoundedRect(valueX, swatchY, swatchW, swatchH, theme.design.radius_sm, swatchColor,
-                theme.design.border_thin, Theme.toArgb(theme.widgetOutline));
+        int swatchColor = 0xFF000000 | (Math.round(MathUtils.clamp01(red) * 255) << 16) | (Math.round(MathUtils.clamp01(green) * 255) << 8) | Math.round(MathUtils.clamp01(blue) * 255);
+
+        renderer.drawRoundedRect(valueX, swatchY, swatchWidth, swatchHeight, theme.design.radius_sm, swatchColor, theme.design.border_thin, Theme.toArgb(theme.widgetOutline));
 
         var input = (runtime != null && !runtime.uiBlocked()) ? ui.input() : null;
         boolean canInteract = input != null;
-        float mx = canInteract ? input.mousePos().x : -1;
-        float my = canInteract ? input.mousePos().y : -1;
-        boolean hovered = canInteract && mx >= valueX && my >= swatchY && mx < valueX + swatchW && my < swatchY + swatchH;
-        if (hovered && canInteract && input.mousePressed()) {
+        float mouseX = canInteract ? input.mousePos().x : -1;
+        float mouseY = canInteract ? input.mousePos().y : -1;
+        boolean isHovered = canInteract && mouseX >= valueX && mouseY >= swatchY && mouseX < valueX + swatchWidth && mouseY < swatchY + swatchHeight;
+
+        if (isHovered && canInteract && input.mousePressed()) {
             tintColorPickerOpen = !tintColorPickerOpen;
             if (tintColorPickerOpen) {
                 fogColorPickerOpen = false;
-                float[] hsv = rgbToHsv(tintR, tintG, tintB);
+                float[] hsv = rgbToHsv(red, green, blue);
                 tintColorPicker.setHsva(hsv[0], hsv[1], hsv[2], 1.0f);
             }
         }
 
-        int cursorY = y + rowH;
+        int cursorY = y + rowHeight;
 
         if (tintColorPickerOpen) {
-            int pickerH = 160;
-            int pickerW = Math.max(200, w);
-            boolean changed = tintColorPicker.render(r, input, theme, x, cursorY, pickerW, pickerH, true);
+            int pickerHeight = 160;
+            int pickerWidth = Math.max(200, width);
+            boolean changed = tintColorPicker.render(renderer, input, theme, x, cursorY, pickerWidth, pickerHeight, true);
+
             if (changed) {
                 int argb = tintColorPicker.toArgb();
-                float newR = ((argb >> 16) & 0xFF) / 255.0f;
-                float newG = ((argb >> 8) & 0xFF) / 255.0f;
-                float newB = (argb & 0xFF) / 255.0f;
-                commitTintColor(nodeId, newR, newG, newB);
+                float newRed = ((argb >> 16) & 0xFF) / 255.0f;
+                float newGreen = ((argb >> 8) & 0xFF) / 255.0f;
+                float newBlue = (argb & 0xFF) / 255.0f;
+                commitTintColor(nodeId, newRed, newGreen, newBlue);
             }
-            cursorY += pickerH + theme.design.space_sm;
+            cursorY += pickerHeight + theme.design.space_sm;
         }
 
         return cursorY;
     }
 
-    private void commitFogColor(long nodeId, float r, float g, float b) {
-        EditorState state = runtime.state();
-        EditorNet net = runtime.net();
-        Session session = runtime.session();
-        if (net == null || session == null || state == null) {
-            return;
-        }
-        net.sendOps(session, state, List.of(
-                new SceneOp.SetProperty(nodeId, "fog_color_r", ParseUtils.trimFloat(r)),
-                new SceneOp.SetProperty(nodeId, "fog_color_g", ParseUtils.trimFloat(g)),
-                new SceneOp.SetProperty(nodeId, "fog_color_b", ParseUtils.trimFloat(b))
+    private void commitFogColor(long nodeId, float red, float green, float blue) {
+        sendOpsRecorded(List.of(
+                new SceneOp.SetProperty(nodeId, "fog_color_r", ParseUtils.trimFloat(red)),
+                new SceneOp.SetProperty(nodeId, "fog_color_g", ParseUtils.trimFloat(green)),
+                new SceneOp.SetProperty(nodeId, "fog_color_b", ParseUtils.trimFloat(blue))
         ));
     }
 
-    private void commitTintColor(long nodeId, float r, float g, float b) {
-        EditorState state = runtime.state();
-        EditorNet net = runtime.net();
-        Session session = runtime.session();
-        if (net == null || session == null || state == null) {
-            return;
-        }
-        net.sendOps(session, state, List.of(
-                new SceneOp.SetProperty(nodeId, "color_tint_r", ParseUtils.trimFloat(r)),
-                new SceneOp.SetProperty(nodeId, "color_tint_g", ParseUtils.trimFloat(g)),
-                new SceneOp.SetProperty(nodeId, "color_tint_b", ParseUtils.trimFloat(b))
+    private void commitTintColor(long nodeId, float red, float green, float blue) {
+        sendOpsRecorded(List.of(
+                new SceneOp.SetProperty(nodeId, "color_tint_r", ParseUtils.trimFloat(red)),
+                new SceneOp.SetProperty(nodeId, "color_tint_g", ParseUtils.trimFloat(green)),
+                new SceneOp.SetProperty(nodeId, "color_tint_b", ParseUtils.trimFloat(blue))
         ));
     }
 
-    private static float[] rgbToHsv(float r, float g, float b) {
-        float max = Math.max(r, Math.max(g, b));
-        float min = Math.min(r, Math.min(g, b));
+    private static float[] rgbToHsv(float red, float green, float blue) {
+        float max = Math.max(red, Math.max(green, blue));
+        float min = Math.min(red, Math.min(green, blue));
         float delta = max - min;
-        float h = 0.0f;
+        float hue = 0.0f;
+
         if (delta > 0.0f) {
-            if (max == r) {
-                h = ((g - b) / delta) % 6.0f;
-            } else if (max == g) {
-                h = ((b - r) / delta) + 2.0f;
+            if (max == red) {
+                hue = ((green - blue) / delta) % 6.0f;
+            } else if (max == green) {
+                hue = ((blue - red) / delta) + 2.0f;
             } else {
-                h = ((r - g) / delta) + 4.0f;
+                hue = ((red - green) / delta) + 4.0f;
             }
-            h /= 6.0f;
-            if (h < 0.0f) h += 1.0f;
+            hue /= 6.0f;
+            if (hue < 0.0f) hue += 1.0f;
         }
-        float s = max > 0.0f ? delta / max : 0.0f;
-        return new float[]{h, s, max};
+
+        float saturation = max > 0.0f ? delta / max : 0.0f;
+        return new float[]{hue, saturation, max};
     }
 
     boolean isExpanded(String group) {
         return groupExpanded.getOrDefault(group == null ? "" : group, true);
     }
 
-    private void onSelectionMaybeChanged(SceneSnapshot.NodeSnapshot sel) {
-        if (sel == null) {
+    private void onSelectionMaybeChanged(SceneSnapshot.NodeSnapshot selection) {
+        if (selection == null) return;
+
+        if (lastSelectedId == selection.nodeId() && Objects.equals(lastSelectedTypeId, selection.type())) {
             return;
         }
-        if (lastSelectedId == sel.nodeId() && Objects.equals(lastSelectedTypeId, sel.type())) {
-            return;
-        }
-        lastSelectedId = sel.nodeId();
-        lastSelectedTypeId = sel.type();
-        renameField.setText(sel.name() == null ? "" : sel.name());
+
+        lastSelectedId = selection.nodeId();
+        lastSelectedTypeId = selection.type();
+
+        renameField.setText(selection.name() == null ? "" : selection.name());
         renameField.setCursorPos(renameField.text().length());
+
         stringFields.clear();
         numberFields.clear();
         numberFieldTypes.clear();
         pendingNumbers.clear();
         lastSentNumbers.clear();
         lastSentNumberAtMs.clear();
+        preDragNumbers.clear();
+
         materialEditor.onSelectionChanged();
+
         fogColorPickerOpen = false;
         tintColorPickerOpen = false;
+
         assetMenu.close();
         assetMenuNodeId = 0L;
         assetMenuKey = null;
+
         selectMenu.close();
         selectMenuNodeId = 0L;
         selectMenuKey = null;
     }
 
+    private void sendOpsRecorded(List<SceneOp> operations) {
+        EditorState state = runtime.state();
+        Session session = runtime.session();
+        EditorNet net = runtime.net();
+
+        if (state == null || session == null || net == null) return;
+
+        List<SceneOp> inverseOperations = EditorHistory.buildInverseOps(state.scene, operations);
+        net.sendOps(session, state, operations);
+
+        if (!inverseOperations.isEmpty()) {
+            runtime.history().push(inverseOperations, operations);
+        }
+    }
+
     private void commitRename() {
         EditorState state = runtime.state();
-        SceneSnapshot.NodeSnapshot sel = (state == null || state.scene == null) ? null : state.scene.getNode(state.selectedId);
-        if (sel == null) {
-            return;
-        }
-        String next = renameField.text();
-        if (next == null) {
-            next = "";
-        }
-        next = next.trim();
-        if (next.isEmpty() || next.equals(sel.name())) {
-            return;
-        }
+        SceneSnapshot.NodeSnapshot selection = (state == null || state.scene == null) ? null : state.scene.getNode(state.selectedId);
+        if (selection == null) return;
 
-        EditorNet net = runtime.net();
-        Session session = runtime.session();
-        if (net == null || session == null || state == null) {
-            return;
-        }
-        net.sendOps(session, state, List.of(new SceneOp.Rename(sel.nodeId(), next)));
+        String nextName = renameField.text();
+        if (nextName == null) nextName = "";
+        nextName = nextName.trim();
+
+        if (nextName.isEmpty() || nextName.equals(selection.name())) return;
+
+        sendOpsRecorded(List.of(new SceneOp.Rename(selection.nodeId(), nextName)));
     }
 
     private void commitBoolProperty(long nodeId, String key, boolean value) {
-        EditorState state = runtime.state();
-        EditorNet net = runtime.net();
-        Session session = runtime.session();
-        if (net == null || session == null || state == null) {
-            return;
-        }
         if ("editor_locked".equals(key) || "@locked".equals(key)) {
-            String encoded = value ? "true" : "false";
-            net.sendOps(session, state, List.of(
-                    new SceneOp.SetProperty(nodeId, "editor_locked", encoded),
-                    new SceneOp.SetProperty(nodeId, "@locked", encoded)
+            String encodedValue = value ? "true" : "false";
+            sendOpsRecorded(List.of(
+                    new SceneOp.SetProperty(nodeId, "editor_locked", encodedValue),
+                    new SceneOp.SetProperty(nodeId, "@locked", encodedValue)
             ));
             return;
         }
-        net.sendOps(session, state, List.of(new SceneOp.SetProperty(nodeId, key, value ? "true" : "false")));
-    }
-
-    private void commitNumberProperty(long nodeId, String key, float value) {
-        EditorState state = runtime.state();
-        EditorNet net = runtime.net();
-        Session session = runtime.session();
-        if (net == null || session == null || state == null) {
-            return;
-        }
-        if (!Float.isFinite(value)) {
-            return;
-        }
-        PropertyType type = numberFieldTypes.get(key);
-        String encoded = type == PropertyType.INT ? Integer.toString(Math.round(value)) : ParseUtils.trimFloat(value);
-        net.sendOps(session, state, List.of(new SceneOp.SetProperty(nodeId, key, encoded)));
+        sendOpsRecorded(List.of(new SceneOp.SetProperty(nodeId, key, value ? "true" : "false")));
     }
 
     private void commitStringProperty(String key, String value) {
         EditorState state = runtime.state();
-        SceneSnapshot.NodeSnapshot sel = (state == null || state.scene == null) ? null : state.scene.getNode(state.selectedId);
-        if (sel == null) {
-            return;
-        }
-        EditorState st = runtime.state();
-        EditorNet net = runtime.net();
-        Session session = runtime.session();
-        if (net == null || session == null || st == null) {
-            return;
-        }
-        String next = value == null ? "" : value;
-        net.sendOps(session, st, List.of(new SceneOp.SetProperty(sel.nodeId(), key, next)));
+        SceneSnapshot.NodeSnapshot selection = (state == null || state.scene == null) ? null : state.scene.getNode(state.selectedId);
+        if (selection == null) return;
+
+        String nextValue = value == null ? "" : value;
+        sendOpsRecorded(List.of(new SceneOp.SetProperty(selection.nodeId(), key, nextValue)));
     }
 
-    private static Map<String, String> toPropertyMap(List<SceneSnapshot.Property> props) {
+    private static Map<String, String> toPropertyMap(List<SceneSnapshot.Property> properties) {
         HashMap<String, String> map = new HashMap<>();
-        if (props == null) {
-            return map;
+        if (properties == null) return map;
+
+        for (SceneSnapshot.Property property : properties) {
+            if (property == null || property.key() == null || "@type".equals(property.key())) continue;
+            map.put(property.key(), property.value());
         }
-        for (SceneSnapshot.Property prop : props) {
-            if (prop == null || prop.key() == null) {
-                continue;
-            }
-            if ("@type".equals(prop.key())) {
-                continue;
-            }
-            map.put(prop.key(), prop.value());
-        }
+
         if (map.containsKey("@locked") && !map.containsKey("editor_locked")) {
             map.put("editor_locked", map.get("@locked"));
         }
+
         return map;
     }
 
-    static void renderBool(Ui ui,
-                                   UiRenderer r,
-                                   Theme theme,
-                                   int x,
-                                   int y,
-                                   int w,
-                                   int h,
-                                   boolean value,
-                                   boolean interactive,
-                                   Consumer<Boolean> onToggle) {
+    static void renderBool(Ui ui, UiRenderer renderer, Theme theme, int x, int y, int width, int height, boolean value, boolean interactive, Consumer<Boolean> onToggle) {
         var input = interactive ? ui.input() : null;
         boolean canInteract = input != null;
-        float mx = canInteract ? input.mousePos().x : -1;
-        float my = canInteract ? input.mousePos().y : -1;
-        boolean hovered = canInteract && mx >= x && my >= y && mx < x + w && my < y + h;
+        float mouseX = canInteract ? input.mousePos().x : -1;
+        float mouseY = canInteract ? input.mousePos().y : -1;
+        boolean isHovered = canInteract && mouseX >= x && mouseY >= y && mouseX < x + width && mouseY < y + height;
 
-        int box = Math.min(16, h);
-        int boxY = y + (h - box) / 2;
-        int boxX = x;
-        int outline = Theme.mulAlpha(Theme.toArgb(theme.widgetOutline), 0.85f);
-        int fill = value
-                ? Theme.mulAlpha(Theme.toArgb(theme.widgetActive), 0.85f)
-                : Theme.mulAlpha(Theme.toArgb(theme.widgetBg), 0.65f);
-        if (hovered) {
-            fill = Theme.lerpArgbInt(fill, Theme.toArgb(theme.widgetHover), 0.35f);
+        int boxSize = Math.min(16, height);
+        int boxY = y + (height - boxSize) / 2;
+        int outlineColor = Theme.mulAlpha(Theme.toArgb(theme.widgetOutline), 0.85f);
+        int fillColor = value ? Theme.mulAlpha(Theme.toArgb(theme.widgetActive), 0.85f) : Theme.mulAlpha(Theme.toArgb(theme.widgetBg), 0.65f);
+
+        if (isHovered) {
+            fillColor = Theme.lerpArgbInt(fillColor, Theme.toArgb(theme.widgetHover), 0.35f);
         }
-        r.drawRoundedRect(boxX, boxY, box, box, Math.min(theme.design.radius_sm, 3.0f), fill, theme.design.border_thin, outline);
+
+        renderer.drawRoundedRect(x, boxY, boxSize, boxSize, Math.min(theme.design.radius_sm, 3.0f), fillColor, theme.design.border_thin, outlineColor);
+
         if (value) {
-            float iconSize = Math.min(theme.design.icon_sm, box - 4);
-            theme.icons.draw(r, Icon.CHECK, boxX + (box - iconSize) * 0.5f, boxY + (box - iconSize) * 0.5f, iconSize, Theme.toArgb(theme.text));
+            float iconSize = Math.min(theme.design.icon_sm, boxSize - 4);
+            MoudIcons.drawOrFallback(renderer, theme, Icon.CHECK, x + (boxSize - iconSize) * 0.5f, boxY + (boxSize - iconSize) * 0.5f, iconSize, Theme.toArgb(theme.text));
         }
-        r.drawText(value ? "true" : "false", boxX + box + 10, r.baselineForBox(y, h), Theme.toArgb(theme.textMuted));
 
-        if (hovered && canInteract && input.mousePressed() && onToggle != null) {
+        renderer.drawText(value ? "true" : "false", x + boxSize + 10, renderer.baselineForBox(y, height), Theme.toArgb(theme.textMuted));
+
+        if (isHovered && canInteract && input.mousePressed() && onToggle != null) {
             onToggle.accept(!value);
         }
     }

@@ -2,6 +2,7 @@ package com.moud.client.fabric.editor.panels;
 
 
 import com.moud.net.protocol.SceneInfo;
+import com.moud.net.protocol.SceneSnapshot;
 import com.miry.ui.PanelContext;
 import com.miry.ui.UiContext;
 import com.miry.ui.panels.Panel;
@@ -17,6 +18,7 @@ import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
 import com.moud.client.fabric.editor.tools.EditorGizmos;
 import com.moud.client.fabric.editor.tools.EditorTool;
+import com.moud.client.fabric.editor.util.EditorUiUtil;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -104,7 +106,7 @@ public final class ViewportPanel extends Panel {
 
             r.drawTexturedRect(tex, viewX, viewY, viewW, viewH, u0, vMax, u1, vMin, 0xFFFFFFFF);
         } else if (viewW > 0 && viewH > 0) {
-            r.drawText("(no viewport yet)", viewX + 12, r.baselineForBox(viewY + 8, 24), Theme.toArgb(theme.textMuted));
+            r.drawText("(no viewport yet)", viewX + theme.design.space_md, r.baselineForBox(viewY + 8, 24), Theme.toArgb(theme.textMuted));
         }
 
         if (gizmos != null && viewW > 0 && viewH > 0) {
@@ -115,13 +117,32 @@ public final class ViewportPanel extends Panel {
             gizmos.render(ctx.ui(), r, viewX, viewY, viewW, viewH);
         }
 
-        int badgeH = 20;
+        int badgeH = theme.design.widget_height_sm;
         int badgeW = 94;
-        int bx = viewX + 10;
-        int by = viewY + 10;
+        int bx = viewX + theme.design.space_md;
+        int by = viewY + theme.design.space_md;
         int badgeBg = Theme.mulAlpha(Theme.toArgb(theme.widgetBg), 0.55f);
         r.drawRoundedRect(bx, by, badgeW, badgeH, theme.design.radius_sm, badgeBg);
-        r.drawText("Perspective", bx + 10, r.baselineForBox(by, badgeH), Theme.toArgb(theme.textMuted));
+        r.drawText("Perspective", bx + theme.design.space_md, r.baselineForBox(by, badgeH), Theme.toArgb(theme.textMuted));
+
+        EditorState statsState = runtime.state();
+        if (statsState != null && statsState.scene != null && viewW > 0 && viewH > 0) {
+            int nodeCount = statsState.scene.nodes().size();
+            String selectedName = "";
+            if (statsState.selectedId > 0L) {
+                SceneSnapshot.NodeSnapshot sel = statsState.scene.getNode(statsState.selectedId);
+                if (sel != null) {
+                    selectedName = "  |  " + sel.name() + " [" + sel.type() + "]";
+                }
+            }
+            String statsText = nodeCount + " node" + (nodeCount != 1 ? "s" : "") + selectedName;
+            float statsW = r.measureText(statsText) + 20;
+            int statsBadgeH = theme.design.widget_height_sm;
+            int statsX = viewX + viewW - (int) statsW - theme.design.space_md;
+            int statsY = viewY + viewH - statsBadgeH - theme.design.space_md;
+            r.drawRoundedRect(statsX, statsY, (int) statsW, statsBadgeH, theme.design.radius_sm, badgeBg);
+            r.drawText(statsText, statsX + theme.design.space_md, r.baselineForBox(statsY, statsBadgeH), Theme.toArgb(theme.textMuted));
+        }
 
     }
 
@@ -205,6 +226,7 @@ public final class ViewportPanel extends Panel {
             TabBar.Tab tab = new TabBar.Tab(label);
             tab.userData = sceneId;
             tab.closable = !"main".equals(sceneId);
+            tab.pinned = "main".equals(sceneId);
             tabs.add(tab);
         }
 
@@ -313,6 +335,7 @@ public final class ViewportPanel extends Panel {
         r.drawRect(x, y, w, h, bg);
         r.drawRect(x, y + h - 1, w, 1, Theme.toArgb(theme.headerLine));
 
+        var ui = ctx.ui();
         int pad = theme.design.space_sm;
         int cursorX = x + pad;
         int btn = 22;
@@ -327,10 +350,10 @@ public final class ViewportPanel extends Panel {
         int bx = cursorX + groupPad;
         int by = groupY + groupPad;
         EditorTool tool = runtime.tool();
-        bx = renderToolToggle(ctx, r, theme, bx, by, btn, btn, Icon.SELECT, tool == EditorTool.SELECT, interactive, () -> runtime.setTool(EditorTool.SELECT)) + pad;
-        bx = renderToolToggle(ctx, r, theme, bx, by, btn, btn, Icon.MOVE, tool == EditorTool.MOVE, interactive, () -> runtime.setTool(EditorTool.MOVE)) + pad;
-        bx = renderToolToggle(ctx, r, theme, bx, by, btn, btn, Icon.ROTATE, tool == EditorTool.ROTATE, interactive, () -> runtime.setTool(EditorTool.ROTATE)) + pad;
-        renderToolToggle(ctx, r, theme, bx, by, btn, btn, Icon.SCALE, tool == EditorTool.SCALE, interactive, () -> runtime.setTool(EditorTool.SCALE));
+        bx = EditorUiUtil.toggleButton(ui, r, theme, bx, by, btn, btn, Icon.SELECT, tool == EditorTool.SELECT, interactive, () -> runtime.setTool(EditorTool.SELECT)) + pad;
+        bx = EditorUiUtil.toggleButton(ui, r, theme, bx, by, btn, btn, Icon.MOVE, tool == EditorTool.MOVE, interactive, () -> runtime.setTool(EditorTool.MOVE)) + pad;
+        bx = EditorUiUtil.toggleButton(ui, r, theme, bx, by, btn, btn, Icon.ROTATE, tool == EditorTool.ROTATE, interactive, () -> runtime.setTool(EditorTool.ROTATE)) + pad;
+        EditorUiUtil.toggleButton(ui, r, theme, bx, by, btn, btn, Icon.SCALE, tool == EditorTool.SCALE, interactive, () -> runtime.setTool(EditorTool.SCALE));
 
         cursorX += groupW + pad * 2;
 
@@ -339,7 +362,7 @@ public final class ViewportPanel extends Panel {
         r.drawRoundedRect(cursorX, groupY, snapGroupW, groupH, theme.design.radius_sm, groupBg);
         int sx = cursorX + groupPad;
         boolean snapEnabled = runtime != null && runtime.gridSnapEnabled();
-        sx = renderToolToggle(ctx, r, theme, sx, by, btn, btn, Icon.SNAP, snapEnabled, interactive, () -> {
+        sx = EditorUiUtil.toggleButton(ui, r, theme, sx, by, btn, btn, Icon.SNAP, snapEnabled, interactive, () -> {
             if (runtime != null) {
                 runtime.setGridSnapEnabled(!runtime.gridSnapEnabled());
             }
@@ -347,13 +370,34 @@ public final class ViewportPanel extends Panel {
 
         float step = runtime == null ? 1.0f : runtime.gridSnapStep();
         String stepLabel = formatSnapStep(step);
-        renderStepButton(ctx, r, theme, sx, by, snapStepW, btn, stepLabel, interactive, () -> {
+        EditorUiUtil.stepButton(ui, r, theme, sx, by, snapStepW, btn, stepLabel, interactive, () -> {
             if (runtime != null) {
                 runtime.cycleGridSnapStep();
             }
         });
 
         cursorX += snapGroupW + pad * 2;
+
+        int rotStepW = 40;
+        int rotGroupW = groupPad * 2 + btn + pad + rotStepW;
+        r.drawRoundedRect(cursorX, groupY, rotGroupW, groupH, theme.design.radius_sm, groupBg);
+        int rx = cursorX + groupPad;
+        boolean rotSnapEnabled = runtime != null && runtime.rotationSnapEnabled();
+        rx = EditorUiUtil.toggleButton(ui, r, theme, rx, by, btn, btn, Icon.ROTATE, rotSnapEnabled, interactive, () -> {
+            if (runtime != null) {
+                runtime.setRotationSnapEnabled(!runtime.rotationSnapEnabled());
+            }
+        }) + pad;
+        float rotStep = runtime == null ? 15.0f : runtime.rotationSnapDeg();
+        String rotStepLabel = Math.abs(rotStep - 15.0f) < 1e-3f ? "15°"
+                : Math.abs(rotStep - 45.0f) < 1e-3f ? "45°" : "90°";
+        EditorUiUtil.stepButton(ui, r, theme, rx, by, rotStepW, btn, rotStepLabel, interactive, () -> {
+            if (runtime != null) {
+                runtime.cycleRotationSnapDeg();
+            }
+        });
+
+        cursorX += rotGroupW + pad * 2;
     }
 
     private void selectScene(String sceneId) {
@@ -366,45 +410,6 @@ public final class ViewportPanel extends Panel {
             return;
         }
         net.selectScene(runtime.session(), state, sceneId);
-    }
-
-    private static int renderToolToggle(PanelContext ctx,
-                                        UiRenderer r,
-                                        Theme theme,
-                                        int x,
-                                        int y,
-                                        int w,
-                                        int h,
-                                        Icon icon,
-                                        boolean active,
-                                        boolean interactive,
-                                        Runnable action) {
-        var input = interactive ? ctx.ui().input() : null;
-        boolean canInteract = input != null;
-        float mx = canInteract ? input.mousePos().x : -1;
-        float my = canInteract ? input.mousePos().y : -1;
-        boolean hovered = canInteract && mx >= x && my >= y && mx < x + w && my < y + h;
-
-        int fill = 0;
-        if (active) {
-            fill = Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.95f);
-        } else if (hovered) {
-            fill = Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.60f);
-        }
-        if (fill != 0) {
-            r.drawRoundedRect(x, y, w, h, theme.design.radius_sm, fill);
-        }
-
-        int col = active
-                ? Theme.toArgb(theme.accent)
-                : (hovered ? Theme.toArgb(theme.text) : Theme.toArgb(theme.textMuted));
-        float iconSize = Math.min(theme.design.icon_sm, h - 6);
-        theme.icons.draw(r, icon, x + (w - iconSize) * 0.5f, y + (h - iconSize) * 0.5f, iconSize, col);
-
-        if (hovered && canInteract && input.mouseReleased() && action != null) {
-            action.run();
-        }
-        return x + w;
     }
 
     private static String formatSnapStep(float step) {
@@ -425,41 +430,6 @@ public final class ViewportPanel extends Panel {
             s = s.substring(0, s.length() - 2);
         }
         return s + "m";
-    }
-
-    private static void renderStepButton(PanelContext ctx,
-                                         UiRenderer r,
-                                         Theme theme,
-                                         int x,
-                                         int y,
-                                         int w,
-                                         int h,
-                                         String label,
-                                         boolean interactive,
-                                         Runnable action) {
-        var input = interactive ? ctx.ui().input() : null;
-        boolean canInteract = input != null;
-        float mx = canInteract ? input.mousePos().x : -1;
-        float my = canInteract ? input.mousePos().y : -1;
-        boolean hovered = canInteract && mx >= x && my >= y && mx < x + w && my < y + h;
-
-        int fill = 0;
-        if (hovered) {
-            fill = Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.60f);
-        }
-        if (fill != 0) {
-            r.drawRoundedRect(x, y, w, h, theme.design.radius_sm, fill);
-        }
-
-        String text = label == null ? "" : label;
-        int col = hovered ? Theme.toArgb(theme.text) : Theme.toArgb(theme.textMuted);
-        int textW = Math.round(r.measureText(text));
-        int tx = x + Math.max(0, (w - textW) / 2);
-        r.drawText(text, tx, r.baselineForBox(y, h), col);
-
-        if (hovered && canInteract && input.mouseReleased() && action != null) {
-            action.run();
-        }
     }
 
 }

@@ -30,11 +30,13 @@ public final class NodeGraphPanel extends Panel {
 
         ui.beginPanel(x, y, w, h);
         int pad = theme.tokens.padding;
-        r.drawText("Node Graph", x + pad, r.baselineForBox(y + pad, 22), Theme.toArgb(theme.textMuted));
-        ui.spacer(26);
+        int rowH = theme.design.widget_height_md;
+        int rowStep = theme.design.widget_height_md + theme.design.space_xs;
+        r.drawText("Node Graph", x + pad, r.baselineForBox(y + pad, rowH), Theme.toArgb(theme.textMuted));
+        ui.spacer(rowStep);
 
         int col = Theme.toArgb(theme.textMuted);
-        r.drawText("(coming soon)", x + pad, r.baselineForBox(y + pad + 26, 22), col);
+        r.drawText("(coming soon)", x + pad, r.baselineForBox(y + pad + rowStep, rowH), col);
         ui.endPanel();
     }
 }

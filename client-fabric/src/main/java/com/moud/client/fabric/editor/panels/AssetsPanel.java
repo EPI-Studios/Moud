@@ -11,7 +11,8 @@ import com.miry.ui.panels.Panel;
 import com.miry.ui.render.UiRenderer;
 import com.miry.ui.theme.Theme;
 import com.miry.ui.theme.Icon;
-import com.miry.ui.widgets.AssetBrowser;
+import com.moud.client.fabric.render.MoudIcons;
+import com.miry.ui.input.UiInput;
 import com.miry.ui.widgets.ContextMenu;
 import com.miry.ui.widgets.StripTabs;
 import com.miry.ui.widgets.TextField;
@@ -27,7 +28,12 @@ import com.moud.net.protocol.AssetUploadAck;
 import com.moud.net.protocol.SceneInfo;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 public final class AssetsPanel extends Panel implements AssetsClient.Listener {
     private final EditorRuntime runtime;
@@ -38,11 +44,16 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
     private final TextField filterField = new TextField();
     private final TextField createSceneIdField = new TextField();
     private final TextField createSceneNameField = new TextField();
-    private final AssetBrowser<AssetManifestResponse.Entry> browser = new AssetBrowser<>();
-    private final AssetBrowser.Style browserStyle = new AssetBrowser.Style();
     private final ArrayList<AssetManifestResponse.Entry> entries = new ArrayList<>();
     private final ContextMenu sceneMenu = new ContextMenu();
     private final ContextMenu assetContextMenu = new ContextMenu();
+
+    private FolderNode fsRoot;
+    private final Set<String> expandedFolders = new HashSet<>();
+    private AssetManifestResponse.Entry selectedFsEntry;
+    private AssetManifestResponse.Entry lastFsClickEntry;
+    private long lastFsClickTime;
+
     private boolean requestedOnce;
     private String lastFilter = "";
     private int activeDockTab;
@@ -52,8 +63,6 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
     private String deleteConfirmSceneId;
     private long deleteConfirmUntilMs;
     private String sceneMenuSceneId;
-    private AssetManifestResponse.Entry lastSelectedAsset;
-    private long lastAssetClickTime;
 
     public AssetsPanel(EditorRuntime runtime) {
         super("");
@@ -62,9 +71,6 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         if (assets != null) {
             assets.addListener(this);
         }
-        browser.setViewMode(AssetBrowser.ViewMode.LIST);
-        browserStyle.drawContainer = false;
-        browser.setStyle(browserStyle);
     }
 
     public void openCreateScene() {
@@ -83,7 +89,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
             entries.addAll(response.entries());
         }
         entries.sort(Comparator.comparing(e -> e.path() == null ? "" : e.path().value()));
-        rebuildBrowser(filterField.text());
+        rebuildFolderTree(filterField.text());
     }
 
     @Override
@@ -110,11 +116,6 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         UiContext uiContext = ctx.uiContext();
         boolean interactive = runtime != null && !runtime.uiBlocked();
         var input = interactive ? ui.input() : null;
-
-        browserStyle.textColor = Theme.toArgb(theme.text);
-        browserStyle.mutedColor = Theme.toArgb(theme.textMuted);
-        browserStyle.rowHoverBg = Theme.toArgb(theme.widgetHover);
-        browserStyle.rowSelectedBg = Theme.mulAlpha(Theme.toArgb(theme.widgetActive), 0.22f);
 
         int x = ctx.x();
         int y = ctx.y();
@@ -147,16 +148,14 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
             String filter = filterField.text() == null ? "" : filterField.text();
             if (!filter.equals(lastFilter)) {
                 lastFilter = filter;
-                rebuildBrowser(filter);
+                rebuildFolderTree(filter);
             }
 
-            int browserX = x;
-            int browserY = cursorY;
-            int browserW = w;
-            int browserH = Math.max(0, y + h - browserY);
-            browser.render(r, input, theme, browserX, browserY, browserW, browserH);
-
-            handleAssetInteraction(ui, r);
+            int fsX = x;
+            int fsY = cursorY;
+            int fsW = w;
+            int fsH = Math.max(0, y + h - fsY);
+            renderFileSystemTree(ui, r, uiContext, theme, input, fsX, fsY, fsW, fsH, interactive);
         } else {
             int listX = x;
             int listY = cursorY;
@@ -186,6 +185,250 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
             createSceneNameField.handleKey(e, clipboard);
         } else if (filterField.isFocused(ctx)) {
             filterField.handleKey(e, clipboard);
+        }
+    }
+
+    private void renderFileSystemTree(Ui ui, UiRenderer r, UiContext uiContext, Theme theme,
+                                      UiInput input, int x, int y, int w, int h, boolean interactive) {
+        r.drawRect(x, y, w, h, Theme.toArgb(theme.panelBg));
+        if (fsRoot == null) {
+            r.drawText("(no assets)", x + 12, r.baselineForBox(y, 24), Theme.toArgb(theme.textMuted));
+            return;
+        }
+
+        boolean hasFilter = lastFilter != null && !lastFilter.isEmpty();
+
+        int rowH = Math.max(20, theme.design.widget_height_md);
+        int contentH;
+        if (hasFilter) {
+            contentH = countFlatFiles(fsRoot) * rowH;
+        } else {
+            contentH = countVisibleRows(fsRoot, true) * rowH;
+        }
+
+        Ui.ScrollArea area = ui.beginScrollArea(r, "assetsFsScroll", x, y, w, h, contentH);
+        int scrollY = (int) area.scrollY();
+
+        float mx = input != null ? input.mousePos().x : -1;
+        float my = input != null ? input.mousePos().y : -1;
+        boolean click = input != null && interactive && input.mouseReleased();
+        boolean pressed = input != null && interactive && input.mousePressed();
+        boolean rightPressed = interactive && runtime.rightPressed();
+
+        int[] rowIndex = {0};
+        if (hasFilter) {
+            renderFlatFiltered(fsRoot, rowIndex, scrollY, x, y, w, h, rowH,
+                    mx, my, click, pressed, rightPressed, r, theme, ui);
+        } else {
+            renderFolderNode(fsRoot, true, 0, rowIndex, scrollY, x, y, w, h, rowH,
+                    mx, my, click, pressed, rightPressed, r, theme, ui);
+        }
+
+        ui.endScrollArea(area);
+
+        if (assetContextMenu.isOpen()) {
+            int itemH = Math.max(18, theme.tokens.itemHeight);
+            if (input != null) {
+                assetContextMenu.updateFromInput(input, theme, itemH);
+                EditorUiUtil.clampOpenMenuToScreen(assetContextMenu, runtime);
+            }
+            assetContextMenu.render(r, theme, itemH,
+                    Theme.toArgb(theme.panelBg),
+                    Theme.toArgb(theme.widgetHover),
+                    Theme.toArgb(theme.text),
+                    assetContextMenu.hoverIndex());
+            if (input != null && pressed) {
+                assetContextMenu.handleClick((int) mx, (int) my, itemH);
+            }
+        }
+    }
+
+    private void renderFolderNode(FolderNode node, boolean isRoot, int indent, int[] rowIndex,
+                                  int scrollY, int panelX, int panelY, int panelW, int panelH,
+                                  int rowH, float mx, float my, boolean click, boolean pressed,
+                                  boolean rightPressed, UiRenderer r, Theme theme, Ui ui) {
+        int pad = theme.design.space_sm;
+        int indentPx = indent * 14;
+
+        if (!isRoot) {
+            int rowY = panelY + rowIndex[0] * rowH - scrollY;
+            rowIndex[0]++;
+
+            boolean expanded = expandedFolders.contains(node.fullPath);
+
+            if (rowY + rowH > panelY && rowY < panelY + panelH) {
+                boolean hovered = mx >= panelX && my >= rowY && mx < panelX + panelW && my < rowY + rowH;
+                if (hovered) {
+                    r.drawRect(panelX, rowY, panelW, rowH, Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.45f));
+                }
+
+                int textX = panelX + pad + indentPx;
+                float arrowSize = Math.min(10f, rowH - 6f);
+                float arrowX = textX;
+                float arrowY = rowY + (rowH - arrowSize) * 0.5f;
+                int arrowCol = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.80f);
+                drawIcon(r, theme, "chevron_right", expanded ? Icon.CHEVRON_DOWN : Icon.CHEVRON_RIGHT, arrowX, arrowY, arrowSize, arrowCol);
+
+                float folderIconSize = Math.min(14f, rowH - 4f);
+                float folderX = textX + arrowSize + 3;
+                int folderCol = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.90f);
+                drawIcon(r, theme, expanded ? "folder_open" : "folder", Icon.FOLDER, folderX, rowY + (rowH - folderIconSize) * 0.5f, folderIconSize, folderCol);
+
+                int labelX = (int) (folderX + folderIconSize + 4);
+                int maxW = Math.max(0, panelX + panelW - pad - labelX);
+                String label = ellipsize(r, node.name + "/", maxW);
+                r.drawText(label, labelX, r.baselineForBox(rowY, rowH), Theme.toArgb(theme.text));
+
+                if (hovered && click) {
+                    if (expanded) expandedFolders.remove(node.fullPath);
+                    else expandedFolders.add(node.fullPath);
+                }
+            }
+
+            if (!expanded) return;
+        }
+
+        for (FolderNode sub : node.subdirs.values()) {
+            renderFolderNode(sub, false, indent + (isRoot ? 0 : 1), rowIndex,
+                    scrollY, panelX, panelY, panelW, panelH, rowH,
+                    mx, my, click, pressed, rightPressed, r, theme, ui);
+        }
+
+        int fileIndent = (isRoot ? 0 : indent + 1) * 14;
+        for (AssetManifestResponse.Entry entry : node.files) {
+            renderFileRow(entry, fileIndent, rowIndex, scrollY, panelX, panelY, panelW, panelH, rowH,
+                    mx, my, click, pressed, rightPressed, r, theme, pad);
+        }
+    }
+
+    private void renderFlatFiltered(FolderNode node, int[] rowIndex,
+                                    int scrollY, int panelX, int panelY, int panelW, int panelH,
+                                    int rowH, float mx, float my, boolean click, boolean pressed,
+                                    boolean rightPressed, UiRenderer r, Theme theme, Ui ui) {
+        int pad = theme.design.space_sm;
+        for (AssetManifestResponse.Entry entry : node.files) {
+            renderFileRow(entry, 0, rowIndex, scrollY, panelX, panelY, panelW, panelH, rowH,
+                    mx, my, click, pressed, rightPressed, r, theme, pad);
+        }
+        for (FolderNode sub : node.subdirs.values()) {
+            renderFlatFiltered(sub, rowIndex, scrollY, panelX, panelY, panelW, panelH, rowH,
+                    mx, my, click, pressed, rightPressed, r, theme, ui);
+        }
+    }
+
+    private void renderFileRow(AssetManifestResponse.Entry entry, int indentPx, int[] rowIndex,
+                               int scrollY, int panelX, int panelY, int panelW, int panelH,
+                               int rowH, float mx, float my, boolean click, boolean pressed,
+                               boolean rightPressed, UiRenderer r, Theme theme, int pad) {
+        int rowY = panelY + rowIndex[0] * rowH - scrollY;
+        rowIndex[0]++;
+
+        if (rowY + rowH <= panelY || rowY >= panelY + panelH) return;
+
+        String path = entry.path() != null ? entry.path().value() : "";
+        boolean selected = entry.equals(selectedFsEntry);
+        boolean hovered = mx >= panelX && my >= rowY && mx < panelX + panelW && my < rowY + rowH;
+
+        if (selected) {
+            r.drawRect(panelX, rowY, panelW, rowH, Theme.mulAlpha(Theme.toArgb(theme.widgetActive), 0.22f));
+        } else if (hovered) {
+            r.drawRect(panelX, rowY, panelW, rowH, Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.45f));
+        }
+
+        int textX = panelX + pad + indentPx;
+        float iconSize = Math.min(14f, rowH - 4f);
+        AssetType assetType = entry.meta() != null ? entry.meta().type() : null;
+        String iconKey = assetType != null ? assetType.name().toLowerCase(Locale.ROOT) : "file";
+        Icon fileIcon = iconFor(assetType);
+        int iconCol = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.85f);
+        drawIcon(r, theme, iconKey, fileIcon, textX, rowY + (rowH - iconSize) * 0.5f, iconSize, iconCol);
+
+        int labelX = textX + (int) Math.ceil(iconSize) + 4;
+        String filename = path.contains("/") ? path.substring(path.lastIndexOf('/') + 1) : path;
+        int maxW = Math.max(0, panelX + panelW - pad - labelX);
+        String label = ellipsize(r, filename, maxW);
+        r.drawText(label, labelX, r.baselineForBox(rowY, rowH), Theme.toArgb(theme.text));
+
+        if (hovered && click) {
+            long now = System.currentTimeMillis();
+            boolean doubleClick = entry.equals(lastFsClickEntry) && (now - lastFsClickTime) < 300;
+            lastFsClickEntry = entry;
+            lastFsClickTime = now;
+            selectedFsEntry = entry;
+            if (doubleClick && path.endsWith(".moud.scene")) {
+                openSceneFromPath(path);
+            }
+        }
+
+        if (hovered && pressed && runtime.sceneDragId() == null && path.endsWith(".moud.scene")) {
+            String sid = sceneIdFromPath(path);
+            if (sid != null && !sid.isBlank()) {
+                runtime.beginSceneDrag(sid, mx, my);
+            }
+        }
+
+        if (hovered && rightPressed && !assetContextMenu.isOpen()) {
+            selectedFsEntry = entry;
+            openAssetContextMenu(path);
+            EditorUiUtil.openMenuClamped(assetContextMenu, runtime, (int) mx, (int) my);
+        }
+    }
+
+    private int countVisibleRows(FolderNode node, boolean isRoot) {
+        int count = isRoot ? 0 : 1;
+        if (isRoot || expandedFolders.contains(node.fullPath)) {
+            for (FolderNode sub : node.subdirs.values()) count += countVisibleRows(sub, false);
+            count += node.files.size();
+        }
+        return count;
+    }
+
+    private int countFlatFiles(FolderNode node) {
+        int count = node.files.size();
+        for (FolderNode sub : node.subdirs.values()) count += countFlatFiles(sub);
+        return count;
+    }
+
+    private void rebuildFolderTree(String filter) {
+        FolderNode root = new FolderNode("res://", "res://");
+        String f = filter == null ? "" : filter.trim().toLowerCase(Locale.ROOT);
+        for (AssetManifestResponse.Entry entry : entries) {
+            if (entry == null || entry.path() == null || entry.meta() == null) continue;
+            String path = entry.path().value();
+            if (path == null) continue;
+            if (!f.isEmpty() && !path.toLowerCase(Locale.ROOT).contains(f)) continue;
+            String remaining = path.startsWith("res://") ? path.substring(6) : path;
+            insertEntry(root, entry, remaining);
+        }
+        fsRoot = root;
+    }
+
+    private static void insertEntry(FolderNode node, AssetManifestResponse.Entry entry, String remaining) {
+        int slash = remaining.indexOf('/');
+        if (slash < 0) {
+            node.files.add(entry);
+            return;
+        }
+        String segment = remaining.substring(0, slash);
+        String rest = remaining.substring(slash + 1);
+        if (segment.isEmpty()) {
+            insertEntry(node, entry, rest);
+            return;
+        }
+        String subPath = node.fullPath.equals("res://") ? "res://" + segment : node.fullPath + "/" + segment;
+        FolderNode sub = node.subdirs.computeIfAbsent(segment, k -> new FolderNode(k, subPath));
+        insertEntry(sub, entry, rest);
+    }
+
+    private static final class FolderNode {
+        final String name;
+        final String fullPath;
+        final Map<String, FolderNode> subdirs = new LinkedHashMap<>();
+        final List<AssetManifestResponse.Entry> files = new ArrayList<>();
+
+        FolderNode(String name, String fullPath) {
+            this.name = name;
+            this.fullPath = fullPath;
         }
     }
 
@@ -223,18 +466,20 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         filterField.render(r, uiContext, input, theme, searchX, searchY, searchW, searchH, true);
         if ((filterField.text() == null || filterField.text().isEmpty()) && (uiContext == null || !filterField.isFocused(uiContext))) {
             int hint = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.70f);
-            float iconSize = Math.min(theme.design.icon_sm, searchH - 6);
-            theme.icons.draw(r, Icon.SEARCH, searchX + 6, searchY + (searchH - iconSize) * 0.5f, iconSize, hint);
+            int sp = theme.design.space_sm;
+            float iconSize = Math.min(theme.design.icon_sm, searchH - sp * 2);
+            MoudIcons.drawOrFallback(r, theme, Icon.SEARCH, searchX + sp, searchY + (searchH - iconSize) * 0.5f, iconSize, hint);
             r.drawText(activeDockTab == 0 ? "Filter Files" : "Filter Scenes",
-                    searchX + 6 + iconSize + 6, r.baselineForBox(searchY, searchH), hint);
+                    searchX + sp + iconSize + sp, r.baselineForBox(searchY, searchH), hint);
         }
 
-        int btnY = y + (h - 24) / 2;
+        int btnSize = theme.design.widget_height_md;
+        int btnY = y + (h - btnSize) / 2;
         if (activeDockTab == 0) {
-            int refreshX = x + w - pad - 24;
-            int uploadX = refreshX - pad - 24;
-            renderIconButton(ui, r, theme, uploadX, btnY, 24, 24, Icon.ADD, interactive, () -> AssetImportUtil.importAssetFile(runtime));
-            renderIconButton(ui, r, theme, refreshX, btnY, 24, 24, Icon.SNAP, interactive, () -> {
+            int refreshX = x + w - pad - btnSize;
+            int uploadX = refreshX - pad - btnSize;
+            EditorUiUtil.iconButton(ui, r, theme, uploadX, btnY, btnSize, btnSize, Icon.ADD, interactive, () -> AssetImportUtil.importAssetFile(runtime));
+            EditorUiUtil.iconButton(ui, r, theme, refreshX, btnY, btnSize, btnSize, Icon.SNAP, interactive, () -> {
                 AssetsClient assets = runtime.assets();
                 if (assets != null) {
                     assets.requestManifest(runtime.session());
@@ -259,7 +504,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         int impX = delX - pad - impW;
         int newX = impX - pad - newW;
 
-        renderTextButton(ui, r, theme, newX, btnY, newW, 24, "New", interactive, () -> {
+        EditorUiUtil.textButton(ui, r, theme, newX, btnY, newW, btnSize, "New", interactive, () -> {
             createSceneOpen = !createSceneOpen;
             createSceneError = null;
             if (createSceneOpen) {
@@ -267,11 +512,11 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
             }
         });
 
-        renderTextButton(ui, r, theme, impX, btnY, impW, 24, "Import", interactive, () -> {
+        EditorUiUtil.textButton(ui, r, theme, impX, btnY, impW, btnSize, "Import", interactive, () -> {
             AssetImportUtil.importSceneFile(runtime);
         });
 
-        renderTextButton(ui, r, theme, delX, btnY, delW, 24, delLabel, interactive && canDelete, () -> {
+        EditorUiUtil.textButton(ui, r, theme, delX, btnY, delW, btnSize, delLabel, interactive && canDelete, () -> {
             if (!canDelete) {
                 return;
             }
@@ -339,7 +584,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
                 r.drawText("Display name (optional)", nameX + 6, r.baselineForBox(fieldY, fieldH), Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.65f));
             }
 
-            renderTextButton(ui, r, theme, createX, fieldY, btnW, fieldH, "Create", interactive, () -> {
+            EditorUiUtil.textButton(ui, r, theme, createX, fieldY, btnW, fieldH, "Create", interactive, () -> {
                 String sid = normalizeSceneId(createSceneIdField.text());
                 if (!isValidSceneId(sid)) {
                     createSceneError = "Invalid id (use [a-z0-9_-], max 64 chars)";
@@ -356,7 +601,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
                 createSceneNameField.setText("");
             });
 
-            renderTextButton(ui, r, theme, cancelX, fieldY, cancelW, fieldH, "Cancel", interactive, () -> {
+            EditorUiUtil.textButton(ui, r, theme, cancelX, fieldY, cancelW, fieldH, "Cancel", interactive, () -> {
                 createSceneOpen = false;
                 createSceneError = null;
             });
@@ -444,9 +689,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
 
             int textX = x + pad;
             float iconSize = Math.min(theme.design.icon_sm, rowH - 6);
-            if (theme.icons != null) {
-                theme.icons.draw(r, Icon.FILE, textX, rowY + (rowH - iconSize) * 0.5f, iconSize, Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.85f));
-            }
+            drawIcon(r, theme, "scene", Icon.FILE, textX, rowY + (rowH - iconSize) * 0.5f, iconSize, Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.85f));
             int fileX = textX + (int) Math.ceil(iconSize) + 8;
             int innerRight = x + w - pad;
             int idealSplit = x + Math.round(w * 0.60f);
@@ -528,22 +771,40 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         }
     }
 
-    private void rebuildBrowser(String filter) {
-        browser.clear();
-        String f = filter == null ? "" : filter.trim().toLowerCase(Locale.ROOT);
-        for (AssetManifestResponse.Entry entry : entries) {
-            if (entry == null || entry.path() == null || entry.meta() == null) {
-                continue;
-            }
-            String name = entry.path().value();
-            if (!f.isEmpty() && (name == null || !name.toLowerCase(Locale.ROOT).contains(f))) {
-                continue;
-            }
-            boolean isScene = name != null && name.endsWith(".moud.scene");
-            var item = new AssetBrowser.AssetItem<>(entry, name);
-            item.icon = isScene ? Icon.FILE : iconFor(entry.meta().type());
-            item.type = isScene ? "Scene" : entry.meta().type().name();
-            browser.addItem(item);
+    private void openSceneFromPath(String path) {
+        String filename = path.substring(path.lastIndexOf('/') + 1);
+        if (!filename.endsWith(".moud.scene")) {
+            return;
+        }
+        String sceneId = sceneIdFromPath(path);
+        if (sceneId == null || sceneId.isBlank()) return;
+        EditorState state = runtime.state();
+        if (state != null) {
+            state.ensureSceneOpen(sceneId);
+            runtime.net().selectScene(runtime.session(), state, sceneId);
+        }
+    }
+
+    private static String sceneIdFromPath(String path) {
+        if (path == null) return null;
+        String filename = path.substring(path.lastIndexOf('/') + 1);
+        if (!filename.endsWith(".moud.scene")) return null;
+        return filename.substring(0, filename.length() - ".moud.scene".length());
+    }
+
+    private void openAssetContextMenu(String path) {
+        assetContextMenu.clear();
+        if (path != null && path.endsWith(".moud.scene")) {
+            assetContextMenu.addItem("Open Scene", () -> openSceneFromPath(path));
+        }
+    }
+
+    private static void drawIcon(UiRenderer r, Theme theme, String moudKey, Icon fallback,
+                                 float x, float y, float size, int tintArgb) {
+        if (MoudIcons.has(moudKey)) {
+            MoudIcons.draw(r, moudKey, x, y, size, tintArgb);
+        } else {
+            MoudIcons.drawOrFallback(r, theme, fallback, x, y, size, tintArgb);
         }
     }
 
@@ -558,63 +819,6 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
             case AUDIO -> Icon.FILE;
             case BINARY -> Icon.FILE;
         };
-    }
-
-    private static void renderIconButton(Ui ui,
-                                         UiRenderer r,
-                                         Theme theme,
-                                         int x,
-                                         int y,
-                                         int w,
-                                         int h,
-                                         Icon icon,
-                                         boolean interactive,
-                                         Runnable action) {
-        var input = ui.input();
-        boolean canInteract = interactive && input != null;
-        float mx = canInteract ? input.mousePos().x : -1;
-        float my = canInteract ? input.mousePos().y : -1;
-        boolean hovered = canInteract && mx >= x && my >= y && mx < x + w && my < y + h;
-
-        if (hovered) {
-            int fill = Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.65f);
-            r.drawRoundedRect(x, y, w, h, theme.design.radius_sm, fill);
-        }
-        float iconSize = Math.min(theme.design.icon_sm, h - 6);
-        theme.icons.draw(r, icon, x + (w - iconSize) * 0.5f, y + (h - iconSize) * 0.5f, iconSize, Theme.toArgb(theme.text));
-
-        if (hovered && canInteract && input.mouseReleased() && action != null) {
-            action.run();
-        }
-    }
-
-    private static void renderTextButton(Ui ui,
-                                         UiRenderer r,
-                                         Theme theme,
-                                         int x,
-                                         int y,
-                                         int w,
-                                         int h,
-                                         String label,
-                                         boolean interactive,
-                                         Runnable action) {
-        var input = ui.input();
-        boolean canInteract = interactive && input != null;
-        float mx = canInteract ? input.mousePos().x : -1;
-        float my = canInteract ? input.mousePos().y : -1;
-        boolean hovered = canInteract && mx >= x && my >= y && mx < x + w && my < y + h;
-
-        int fill = Theme.mulAlpha(Theme.toArgb(theme.headerBg), 0.90f);
-        if (hovered) {
-            fill = Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.75f);
-        }
-        r.drawRoundedRect(x, y, w, h, theme.design.radius_sm, fill);
-        int text = interactive ? Theme.toArgb(theme.text) : Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.60f);
-        r.drawText(label == null ? "" : label, x + theme.design.space_sm, r.baselineForBox(y, h), text);
-
-        if (hovered && canInteract && input.mouseReleased() && action != null) {
-            action.run();
-        }
     }
 
     private static String normalizeSceneId(String raw) {
@@ -677,86 +881,4 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         }
         return true;
     }
-
-    private void handleAssetInteraction(Ui ui, UiRenderer r) {
-        if (runtime != null && runtime.uiBlocked()) {
-            return;
-        }
-        var selected = browser.selectedItem();
-        if (selected == null || selected.data == null) {
-            return;
-        }
-
-        var input = ui.input();
-        if (input == null) {
-            return;
-        }
-
-        String path = selected.data.path() != null ? selected.data.path().value() : null;
-        if (path == null || !path.endsWith(".moud.scene")) {
-            return;
-        }
-
-        if (input.mousePressed() && runtime.sceneDragId() == null) {
-            String filename = path.substring(path.lastIndexOf('/') + 1);
-            String sceneId = filename.substring(0, filename.length() - ".moud.scene".length());
-            if (!sceneId.isBlank()) {
-                runtime.beginSceneDrag(sceneId, input.mousePos().x, input.mousePos().y);
-            }
-        }
-
-        boolean clicked = input.mouseReleased();
-        if (clicked) {
-            long now = System.currentTimeMillis();
-            boolean isDoubleClick = selected.data.equals(lastSelectedAsset) && (now - lastAssetClickTime) < 300;
-            lastSelectedAsset = selected.data;
-            lastAssetClickTime = now;
-
-            if (isDoubleClick) {
-                openSceneFromAsset(path);
-            }
-        }
-
-        boolean rightPressed = runtime.rightPressed();
-        if (rightPressed && !assetContextMenu.isOpen()) {
-            float mx = input.mousePos().x;
-            float my = input.mousePos().y;
-            openAssetContextMenu(path);
-            EditorUiUtil.openMenuClamped(assetContextMenu, runtime, (int) mx, (int) my);
-        }
-
-        if (assetContextMenu.isOpen()) {
-            int itemH = Math.max(18, ui.theme().tokens.itemHeight);
-            assetContextMenu.updateFromInput(input, ui.theme(), itemH);
-            EditorUiUtil.clampOpenMenuToScreen(assetContextMenu, runtime);
-            assetContextMenu.render(r, ui.theme(), itemH,
-                    Theme.toArgb(ui.theme().panelBg),
-                    Theme.toArgb(ui.theme().widgetHover),
-                    Theme.toArgb(ui.theme().text),
-                    assetContextMenu.hoverIndex());
-            if (input.mousePressed()) {
-                assetContextMenu.handleClick((int) input.mousePos().x, (int) input.mousePos().y, itemH);
-            }
-        }
-    }
-
-    private void openSceneFromAsset(String path) {
-        String filename = path.substring(path.lastIndexOf('/') + 1);
-        if (!filename.endsWith(".moud.scene")) {
-            return;
-        }
-        String sceneId = filename.substring(0, filename.length() - ".moud.scene".length());
-        EditorState state = runtime.state();
-        if (state != null) {
-            state.ensureSceneOpen(sceneId);
-            runtime.net().selectScene(runtime.session(), state, sceneId);
-        }
-    }
-
-    private void openAssetContextMenu(String path) {
-        assetContextMenu.clear();
-        assetContextMenu.addItem("Open Scene", () -> openSceneFromAsset(path));
-    }
-
-    // Imports handled by AssetImportUtil.
 }

@@ -74,4 +74,18 @@ public final class EditorTheme {
     public static int textMuted(Theme theme) {
         return Theme.toArgb(theme.textMuted);
     }
+
+    public static final int WARNING_BG = 0xFF704020;
+    public static final int WARNING_TEXT = 0xFFFFCC66;
+    public static final int ERROR_TEXT = 0xFFEF4444;
+    public static final int SUCCESS_TEXT = 0xFF5CB85C;
+
+    public static final int NODE_COLOR_DEFAULT = 0xFF607080;
+    public static final int NODE_COLOR_CAMERA = 0xFF4A9EE0;
+    public static final int NODE_COLOR_PLAYER = 0xFF5CB85C;
+    public static final int NODE_COLOR_ENVIRONMENT = 0xFF9B6EC8;
+    public static final int NODE_COLOR_CSG = 0xFF8A9BA8;
+    public static final int NODE_COLOR_MESH = 0xFF6EA8D4;
+    public static final int NODE_COLOR_SCENE_INSTANCE = 0xFF5BA0A0;
+    public static final int NODE_COLOR_LIGHT = 0xFFD4A017;
 }

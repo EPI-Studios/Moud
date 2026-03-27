@@ -39,8 +39,9 @@ public final class BottomPanel extends Panel {
 
         ui.beginPanel(x, y, w, h);
 
-        int barH = Math.max(18, theme.design.tab_height_md);
-        barH = Math.min(barH, Math.max(18, h));
+        int minBarH = theme.design.widget_height_sm - theme.design.space_xs;
+        int barH = Math.max(minBarH, theme.design.tab_height_md);
+        barH = Math.min(barH, Math.max(minBarH, h));
         int barY = y + h - barH;
 
         int contentH = Math.max(0, barY - y);
@@ -80,7 +81,7 @@ public final class BottomPanel extends Panel {
 
         EditorState state = runtime.state();
         if (state == null || state.lastAck == null) {
-            r.drawText("(no output yet)", cx, r.baselineForBox(cy, 18), Theme.toArgb(theme.textMuted));
+            r.drawText("(no output yet)", cx, r.baselineForBox(cy, theme.design.widget_height_sm - theme.design.space_xs), Theme.toArgb(theme.textMuted));
             return;
         }
 
