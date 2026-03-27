@@ -334,6 +334,9 @@ public final class ScenePanel extends Panel {
                 || state.scene.revision() != lastRev
                 || !Objects.equals(lastSceneId, currentSceneId);
         if (needsRebuild) {
+            nodeMenu.close();
+            addChildMenu.close();
+            closeAddChildCategoryMenus();
             rebuildTree(state, filter);
             lastFilter = filter;
             lastRev = state.scene.revision();
@@ -412,10 +415,28 @@ public final class ScenePanel extends Panel {
                     syncSubmenus(ui, theme, itemH);
                 }
                 if (input != null && input.mousePressed()) {
-                    if (!handleSubmenuClick(ui, itemH)) {
-                        nodeMenu.handleClick((int) ui.mouse().x, (int) ui.mouse().y, itemH);
-                        closeAddChildCategoryMenus();
+                    int cmx = (int) ui.mouse().x;
+                    int cmy = (int) ui.mouse().y;
+                    boolean insideAny = inside(nodeMenu, cmx, cmy, itemH)
+                            || (addChildMenu.isOpen() && inside(addChildMenu, cmx, cmy, itemH));
+                    if (!insideAny) {
+                        for (ContextMenu menu : addChildCategoryMenus) {
+                            if (menu != null && menu.isOpen() && inside(menu, cmx, cmy, itemH)) {
+                                insideAny = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!insideAny) {
+                        nodeMenu.close();
                         addChildMenu.close();
+                        closeAddChildCategoryMenus();
+                    } else {
+                        if (!handleSubmenuClick(ui, itemH)) {
+                            nodeMenu.handleClick((int) ui.mouse().x, (int) ui.mouse().y, itemH);
+                            closeAddChildCategoryMenus();
+                            addChildMenu.close();
+                        }
                     }
                 }
                 // Defer rendering to EditorOverlay so the menu is drawn on top of all panels
@@ -836,10 +857,16 @@ public final class ScenePanel extends Panel {
         }
 
         Set<TreeNode<SceneSnapshot.NodeSnapshot>> selected = treeView.selectedNodes();
+        state.selectedIds.clear();
         if (!selected.isEmpty()) {
             TreeNode<SceneSnapshot.NodeSnapshot> node = selected.iterator().next();
             if (node.data() != null) {
                 state.selectedId = node.data().nodeId();
+            }
+            for (TreeNode<SceneSnapshot.NodeSnapshot> tn : selected) {
+                if (tn.data() != null) {
+                    state.selectedIds.add(tn.data().nodeId());
+                }
             }
         }
     }
@@ -1366,38 +1393,36 @@ public final class ScenePanel extends Panel {
             return;
         }
         nodeMenu.close();
+        addChildMenu.close();
+        closeAddChildCategoryMenus();
         EditorState state = runtime.state();
         Session session = runtime.session();
         if (state == null || session == null) {
             return;
         }
-        String baseName = node.name() == null ? "node" : node.name();
-        String nameHint = baseName + "_copy";
-        String type = node.type() == null ? "Node" : node.type();
-
-        ArrayList<Map.Entry<String, String>> props = new ArrayList<>();
-        if (node.properties() != null) {
-            for (SceneSnapshot.Property p : node.properties()) {
-                if (p == null || p.key() == null || p.value() == null) continue;
-                if ("@type".equals(p.key())) continue;
-                props.add(Map.entry(p.key(), p.value()));
-            }
-        }
-
-        EditorHistory.CreateNodeEntry entry = new EditorHistory.CreateNodeEntry(node.parentId(), nameHint, type, props, true);
-        runtime.history().pushEntry(entry);
-        entry.redo(runtime);
+        duplicateSubtree(state, node, 0.0f);
     }
 
     private void duplicateSelectedNodes() {
         if (treeView == null) return;
         nodeMenu.close();
+        addChildMenu.close();
+        closeAddChildCategoryMenus();
         EditorState state = runtime.state();
         Session session = runtime.session();
         if (state == null || session == null) return;
+        Set<Long> selectedIds = new HashSet<>();
         for (TreeNode<SceneSnapshot.NodeSnapshot> tn : treeView.selectedNodes()) {
             SceneSnapshot.NodeSnapshot snap = tn != null ? tn.data() : null;
-            if (snap != null) duplicateNode(snap);
+            if (snap != null) {
+                selectedIds.add(snap.nodeId());
+            }
+        }
+        for (long nodeId : topLevelSelection(state, selectedIds)) {
+            SceneSnapshot.NodeSnapshot snap = state.scene.getNode(nodeId);
+            if (snap != null) {
+                duplicateSubtree(state, snap, 0.0f);
+            }
         }
     }
 
@@ -1406,6 +1431,8 @@ public final class ScenePanel extends Panel {
             return;
         }
         nodeMenu.close();
+        addChildMenu.close();
+        closeAddChildCategoryMenus();
         EditorState state = runtime.state();
         Session session = runtime.session();
         if (state == null || session == null) {
@@ -1418,29 +1445,120 @@ public final class ScenePanel extends Panel {
         } else {
             offset = Math.max(0.25f, offset);
         }
+        duplicateSubtree(state, node, offset);
+    }
 
-        String baseName = node.name() == null ? "node" : node.name();
-        String nameHint = baseName + "_copy";
-        String type = node.type() == null ? "Node" : node.type();
-
-        ArrayList<Map.Entry<String, String>> props = new ArrayList<>();
-        if (node.properties() != null) {
-            for (SceneSnapshot.Property p : node.properties()) {
-                if (p == null || p.key() == null || p.value() == null) continue;
-                if ("@type".equals(p.key())) continue;
-                String key = p.key();
-                String value = p.value();
-                if ("x".equals(key) || "z".equals(key)) {
-                    float v = ParseUtils.parseFloat(value, 0.0f);
-                    value = ParseUtils.trimFloat(v + offset);
-                }
-                props.add(Map.entry(key, value));
-            }
+    private void duplicateSubtree(EditorState state, SceneSnapshot.NodeSnapshot node, float offset) {
+        if (state == null || node == null) {
+            return;
         }
 
-        EditorHistory.CreateNodeEntry entry = new EditorHistory.CreateNodeEntry(node.parentId(), nameHint, type, props, true);
+        String baseName = node.name() == null ? "Node" : node.name();
+        String nameHint = baseName + "_copy";
+        var spec = buildCloneSpec(state, node.nodeId(), true, offset);
+        if (spec == null) {
+            return;
+        }
+        var entry = new EditorHistory.DuplicateSubtreeEntry(node.parentId(), nameHint, spec, true);
         runtime.history().pushEntry(entry);
         entry.redo(runtime);
+    }
+
+    private EditorHistory.DuplicateSubtreeEntry.CloneSpec buildCloneSpec(EditorState state,
+                                                                         long nodeId,
+                                                                         boolean isRoot,
+                                                                         float rootOffset) {
+        if (state == null || state.scene == null || nodeId <= 0L) {
+            return null;
+        }
+        return buildCloneSpec(state, nodeId, isRoot, rootOffset, new HashSet<>());
+    }
+
+    private EditorHistory.DuplicateSubtreeEntry.CloneSpec buildCloneSpec(EditorState state,
+                                                                         long nodeId,
+                                                                         boolean isRoot,
+                                                                         float rootOffset,
+                                                                         Set<Long> visiting) {
+        if (state == null || state.scene == null || nodeId <= 0L) {
+            return null;
+        }
+        if (!visiting.add(nodeId)) {
+            return null;
+        }
+        try {
+            SceneSnapshot.NodeSnapshot node = state.scene.getNode(nodeId);
+            if (node == null) {
+                return null;
+            }
+
+            String name = node.name();
+            String typeId = node.type();
+
+            ArrayList<Map.Entry<String, String>> props = new ArrayList<>();
+            if (node.properties() != null) {
+                for (SceneSnapshot.Property p : node.properties()) {
+                    if (p == null || p.key() == null || p.value() == null) {
+                        continue;
+                    }
+                    String key = p.key();
+                    if ("@type".equals(key)) {
+                        continue;
+                    }
+                    String value = p.value();
+                    if (isRoot && rootOffset != 0.0f && ("x".equals(key) || "z".equals(key))) {
+                        float v = ParseUtils.parseFloat(value, 0.0f);
+                        value = ParseUtils.trimFloat(v + rootOffset);
+                    }
+                    props.add(Map.entry(key, value));
+                }
+            }
+
+            ArrayList<EditorHistory.DuplicateSubtreeEntry.CloneSpec> children = new ArrayList<>();
+            for (SceneSnapshot.NodeSnapshot child : state.scene.childrenOf(nodeId)) {
+                if (child == null || child.nodeId() <= 0L) {
+                    continue;
+                }
+                var childSpec = buildCloneSpec(state, child.nodeId(), false, 0.0f, visiting);
+                if (childSpec != null) {
+                    children.add(childSpec);
+                }
+            }
+
+            return new EditorHistory.DuplicateSubtreeEntry.CloneSpec(name, typeId, props, children);
+        } finally {
+            visiting.remove(nodeId);
+        }
+    }
+
+    private static List<Long> topLevelSelection(EditorState state, Set<Long> selectedIds) {
+        if (state == null || state.scene == null || selectedIds == null || selectedIds.isEmpty()) {
+            return List.of();
+        }
+
+        ArrayList<Long> out = new ArrayList<>(selectedIds.size());
+        for (long id : selectedIds) {
+            if (id <= 0L) {
+                continue;
+            }
+            SceneSnapshot.NodeSnapshot node = state.scene.getNode(id);
+            if (node == null) {
+                continue;
+            }
+            boolean hasSelectedAncestor = false;
+            long parent = node.parentId();
+            while (parent > 0L) {
+                if (selectedIds.contains(parent)) {
+                    hasSelectedAncestor = true;
+                    break;
+                }
+                SceneSnapshot.NodeSnapshot p = state.scene.getNode(parent);
+                parent = p != null ? p.parentId() : 0L;
+            }
+            if (!hasSelectedAncestor) {
+                out.add(id);
+            }
+        }
+        return out.isEmpty() ? List.of() : List.copyOf(out);
     }
 
     private void moveNode(SceneSnapshot.NodeSnapshot node, int direction) {
@@ -1637,6 +1755,9 @@ public final class ScenePanel extends Panel {
     }
 
     private void queueFree(long nodeId) {
+        nodeMenu.close();
+        addChildMenu.close();
+        closeAddChildCategoryMenus();
         EditorState state = runtime.state();
         Session session = runtime.session();
         EditorNet net = runtime.net();

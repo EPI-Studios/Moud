@@ -15,6 +15,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -27,6 +28,7 @@ public final class EditorState {
     public String activeSceneId = "main";
     public final ArrayList<String> openSceneIds = new ArrayList<>(List.of("main"));
     public long selectedId;
+    public final LinkedHashSet<Long> selectedIds = new LinkedHashSet<>();
     public long nextSnapshotRequestId = 1;
     public long nextBatchId = 1;
     public long nextProjectRequestId = 1;

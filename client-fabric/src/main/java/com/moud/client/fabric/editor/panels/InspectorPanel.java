@@ -44,6 +44,7 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -184,7 +185,15 @@ public final class InspectorPanel extends Panel {
         cursorY += tabHeight;
 
         EditorState state = runtime.state();
+        boolean isMulti = state != null && state.selectedIds.size() >= 2;
         SceneSnapshot.NodeSnapshot selection = (state == null || state.scene == null) ? null : state.scene.getNode(state.selectedId);
+
+        if (selection == null && isMulti) {
+            for (long id : state.selectedIds) {
+                selection = state.scene.getNode(id);
+                if (selection != null) break;
+            }
+        }
 
         if (selection == null) {
             int padding = theme.design.space_md;
@@ -194,7 +203,11 @@ public final class InspectorPanel extends Panel {
         }
 
         onSelectionMaybeChanged(selection);
-        renderHeader(ui, renderer, uiContext, theme, x, cursorY, width, headerHeight, selection, interactive);
+        if (isMulti) {
+            renderMultiHeader(renderer, theme, x, cursorY, width, headerHeight, state.selectedIds.size());
+        } else {
+            renderHeader(ui, renderer, uiContext, theme, x, cursorY, width, headerHeight, selection, interactive);
+        }
         cursorY += headerHeight;
 
         int contentHeight = Math.max(0, y + height - cursorY);
@@ -261,6 +274,13 @@ public final class InspectorPanel extends Panel {
         }
     }
 
+    private void renderMultiHeader(UiRenderer renderer, Theme theme, int x, int y, int width, int height, int count) {
+        renderer.drawRect(x, y, width, height, Theme.toArgb(theme.windowBg));
+        renderer.drawRect(x, y + height - 1, width, 1, Theme.toArgb(theme.headerLine));
+        int padding = theme.design.space_md;
+        renderer.drawText(count + " nodes selected", x + padding, renderer.baselineForBox(y + padding, 22), Theme.toArgb(theme.text));
+    }
+
     private void renderProperties(Ui ui, UiRenderer renderer, UiContext uiContext, SceneSnapshot.NodeSnapshot selection, int x, int y, int width, int height, boolean interactive) {
         Theme theme = ui.theme();
         int padding = theme.design.space_md;
@@ -275,6 +295,9 @@ public final class InspectorPanel extends Panel {
         }
 
         Map<String, String> values = toPropertyMap(selection.properties());
+        if (state != null && state.selectedIds.size() >= 2) {
+            values = mergePropertyValues(state, values);
+        }
         ArrayList<PropertyDef> properties = new ArrayList<>(typeDef.properties().values());
         addBuiltInEditorProperties(typeDef, properties);
 
@@ -1055,6 +1078,28 @@ public final class InspectorPanel extends Panel {
         }
     }
 
+    private static Collection<Long> effectiveSelectedIds(EditorState state) {
+        if (state.selectedIds.size() >= 2) return state.selectedIds;
+        if (state.selectedId > 0L) return List.of(state.selectedId);
+        return List.of();
+    }
+
+    private Map<String, String> mergePropertyValues(EditorState state, Map<String, String> primaryValues) {
+        HashMap<String, String> merged = new HashMap<>(primaryValues);
+        for (long id : state.selectedIds) {
+            if (id == state.selectedId) continue;
+            SceneSnapshot.NodeSnapshot node = state.scene != null ? state.scene.getNode(id) : null;
+            if (node == null) continue;
+            Map<String, String> nodeValues = toPropertyMap(node.properties());
+            for (String key : new ArrayList<>(merged.keySet())) {
+                if (!Objects.equals(merged.get(key), nodeValues.get(key))) {
+                    merged.put(key, "\u2014");
+                }
+            }
+        }
+        return merged;
+    }
+
     private void flushPendingNumberOps(UiContext uiContext, long nodeId) {
         if (pendingNumbers.isEmpty()) return;
 
@@ -1097,14 +1142,21 @@ public final class InspectorPanel extends Panel {
             pendingNumbers.remove(key);
 
             String encodedValue = type == PropertyType.INT ? Integer.toString(Math.round(value)) : ParseUtils.trimFloat(value);
-            List<SceneOp> operations = List.of(new SceneOp.SetProperty(nodeId, key, encodedValue));
+            Collection<Long> ids = effectiveSelectedIds(state);
+            ArrayList<SceneOp> operations = new ArrayList<>(ids.size());
+            for (long id : ids) {
+                operations.add(new SceneOp.SetProperty(id, key, encodedValue));
+            }
             net.sendOps(session, state, operations);
 
             if (!isCaptured) {
                 String oldValue = preDragNumbers.remove(key);
                 if (oldValue != null && !oldValue.equals(encodedValue)) {
-                    List<SceneOp> undoOperations = List.of(new SceneOp.SetProperty(nodeId, key, oldValue));
-                    runtime.history().push(undoOperations, operations);
+                    ArrayList<SceneOp> undoOperations = new ArrayList<>(ids.size());
+                    for (long id : ids) {
+                        undoOperations.add(new SceneOp.SetProperty(id, key, oldValue));
+                    }
+                    runtime.history().push(undoOperations, new ArrayList<>(operations));
                 }
             }
         }
@@ -1327,24 +1379,34 @@ public final class InspectorPanel extends Panel {
     }
 
     private void commitBoolProperty(long nodeId, String key, boolean value) {
+        EditorState state = runtime.state();
+        if (state == null || state.scene == null) return;
+        String encodedValue = value ? "true" : "false";
+        Collection<Long> ids = effectiveSelectedIds(state);
+        ArrayList<SceneOp> ops = new ArrayList<>();
         if ("editor_locked".equals(key) || "@locked".equals(key)) {
-            String encodedValue = value ? "true" : "false";
-            sendOpsRecorded(List.of(
-                    new SceneOp.SetProperty(nodeId, "editor_locked", encodedValue),
-                    new SceneOp.SetProperty(nodeId, "@locked", encodedValue)
-            ));
-            return;
+            for (long id : ids) {
+                ops.add(new SceneOp.SetProperty(id, "editor_locked", encodedValue));
+                ops.add(new SceneOp.SetProperty(id, "@locked", encodedValue));
+            }
+        } else {
+            for (long id : ids) {
+                ops.add(new SceneOp.SetProperty(id, key, encodedValue));
+            }
         }
-        sendOpsRecorded(List.of(new SceneOp.SetProperty(nodeId, key, value ? "true" : "false")));
+        if (!ops.isEmpty()) sendOpsRecorded(ops);
     }
 
     private void commitStringProperty(String key, String value) {
         EditorState state = runtime.state();
-        SceneSnapshot.NodeSnapshot selection = (state == null || state.scene == null) ? null : state.scene.getNode(state.selectedId);
-        if (selection == null) return;
-
+        if (state == null || state.scene == null) return;
         String nextValue = value == null ? "" : value;
-        sendOpsRecorded(List.of(new SceneOp.SetProperty(selection.nodeId(), key, nextValue)));
+        Collection<Long> ids = effectiveSelectedIds(state);
+        ArrayList<SceneOp> ops = new ArrayList<>(ids.size());
+        for (long id : ids) {
+            ops.add(new SceneOp.SetProperty(id, key, nextValue));
+        }
+        if (!ops.isEmpty()) sendOpsRecorded(ops);
     }
 
     private static Map<String, String> toPropertyMap(List<SceneSnapshot.Property> properties) {
