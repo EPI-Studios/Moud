@@ -8,23 +8,31 @@ import com.miry.ui.event.KeyEvent;
 import com.miry.ui.event.TextInputEvent;
 import com.miry.ui.render.UiRenderer;
 import com.miry.ui.theme.Icon;
+import com.moud.client.fabric.render.MoudIcons;
 import com.miry.ui.theme.Theme;
 import com.miry.ui.widgets.TextField;
+import com.moud.client.fabric.editor.state.EditorHistory;
 import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
 import com.moud.core.NodeTypeDef;
 import com.moud.core.scene.Node;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.session.Session;
+import com.moud.net.protocol.SceneSnapshot;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Locale;
+import java.util.Set;
+import java.util.function.Consumer;
 
 public final class CreateNodeDialog {
     private static final int DIALOG_W = 600;
     private static final int DIALOG_H = 500;
+    private static final int MAX_RECENT = 5;
+    private static final List<String> recentTypes = new ArrayList<>();
 
     private final EditorRuntime runtime;
     private final TextField searchField = new TextField();
@@ -34,6 +42,7 @@ public final class CreateNodeDialog {
     private boolean justOpened;
     private boolean open;
     private int typeListScrollY;
+    private Consumer<String> onTypeSelected;
 
     public CreateNodeDialog(EditorRuntime runtime) {
         this.runtime = runtime;
@@ -54,6 +63,11 @@ public final class CreateNodeDialog {
         typeListScrollY = 0;
         justOpened = true;
         open = true;
+        onTypeSelected = null;
+    }
+
+    public void setOnTypeSelected(Consumer<String> callback) {
+        onTypeSelected = callback;
     }
 
     public void close() {
@@ -119,7 +133,7 @@ public final class CreateNodeDialog {
         int headerH = 44;
         r.drawText("Create New Node", dialogX + pad, r.baselineForBox(dialogY, headerH), text);
 
-        int buttonW = 120;
+        int buttonW = 140;
         int buttonH = theme.design.widget_height_md + theme.design.border_thin * 2;
         int buttonY = dialogY + dialogH - pad - buttonH;
         int createX = dialogX + dialogW - pad - buttonW;
@@ -179,7 +193,7 @@ public final class CreateNodeDialog {
             int hint = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.70f);
             float iconSize = Math.min(theme.design.icon_sm, searchH - 6);
             if (theme.icons != null) {
-                theme.icons.draw(r, Icon.SEARCH, x + 6, cursorY + (searchH - iconSize) * 0.5f, iconSize, hint);
+                MoudIcons.drawOrFallback(r, theme, Icon.SEARCH, x + 6, cursorY + (searchH - iconSize) * 0.5f, iconSize, hint);
             }
             int hintX = x + 6 + (int) Math.ceil(iconSize) + 6;
             r.drawText("Search...", hintX, r.baselineForBox(cursorY, searchH), hint);
@@ -243,27 +257,58 @@ public final class CreateNodeDialog {
         String query = searchField.text() == null ? "" : searchField.text().toLowerCase(Locale.ROOT);
         filteredTypes.clear();
 
+        Set<String> added = new HashSet<>();
+        if (query.isEmpty() && !recentTypes.isEmpty()) {
+            for (String recent : recentTypes) {
+                if (recent == null || !state.typesById.containsKey(recent)) continue;
+                filteredTypes.add(recent);
+                added.add(recent);
+            }
+        }
+
+        List<String> sorted = new ArrayList<>();
         for (String typeId : state.typeIds) {
-            if (typeId == null || typeId.isBlank() || "Root".equals(typeId)) {
+            if (typeId == null || typeId.isBlank() || "Root".equals(typeId) || added.contains(typeId)) {
                 continue;
             }
             NodeTypeDef def = state.typesById.get(typeId);
             String label = def == null ? typeId : def.uiLabel();
             if (query.isEmpty() || typeId.toLowerCase(Locale.ROOT).contains(query) || label.toLowerCase(Locale.ROOT).contains(query)) {
-                filteredTypes.add(typeId);
+                sorted.add(typeId);
             }
         }
-
-        filteredTypes.sort(Comparator.naturalOrder());
+        sorted.sort(Comparator.naturalOrder());
+        filteredTypes.addAll(sorted);
     }
 
     private void createNode(EditorState state, String typeId) {
-        Session session = runtime.session();
-        if (session == null) {
+        addRecentType(typeId);
+        if (onTypeSelected != null) {
+            onTypeSelected.accept(typeId);
             return;
         }
-        String name = typeId + "_" + (int) (System.nanoTime() % 10_000);
-        runtime.net().sendOps(session, state, List.of(new SceneOp.CreateNode(parentNodeId, name, typeId)));
+        EditorHistory.CreateNodeEntry entry = new EditorHistory.CreateNodeEntry(parentNodeId, typeId, typeId, List.of(), true);
+        runtime.history().pushEntry(entry);
+        entry.redo(runtime);
+    }
+
+    private static void addRecentType(String typeId) {
+        if (typeId == null || typeId.isBlank()) return;
+        recentTypes.remove(typeId);
+        recentTypes.add(0, typeId);
+        while (recentTypes.size() > MAX_RECENT) recentTypes.remove(recentTypes.size() - 1);
+    }
+
+    private static String uniqueChildName(EditorState state, long parentId, String typeId) {
+        if (state == null || state.scene == null) return typeId;
+        Set<String> existing = new HashSet<>();
+        for (SceneSnapshot.NodeSnapshot s : state.scene.childrenOf(parentId)) {
+            if (s != null && s.name() != null) existing.add(s.name());
+        }
+        if (!existing.contains(typeId)) return typeId;
+        int n = 2;
+        while (existing.contains(typeId + n)) n++;
+        return typeId + n;
     }
 
     private void createFirstMatch() {
