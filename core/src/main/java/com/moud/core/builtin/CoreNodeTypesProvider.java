@@ -130,11 +130,12 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("sz", new PropertyDef("sz", PropertyType.FLOAT, "1", "Size Z", "Size", 12, Map.of("min", "1", "step", "1"))),
                 Map.entry("texture", new PropertyDef("texture", PropertyType.STRING, "moud:dynamic/white", "Texture", "Material", 20, Map.of("asset", "image"))),
                 Map.entry("material", new PropertyDef("material", PropertyType.STRING, "", "Material", "Material", 21, Map.of("asset", "material"))),
+                Map.entry("mesh", new PropertyDef("mesh", PropertyType.STRING, "cube", "Mesh", "Material", 21, Map.of())),
                 Map.entry("opacity", new PropertyDef("opacity", PropertyType.FLOAT, "1", "Opacity", "Material", 22, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("color_tint_r", new PropertyDef("color_tint_r", PropertyType.FLOAT, "1", "R", "Color Tint", 0, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("color_tint_g", new PropertyDef("color_tint_g", PropertyType.FLOAT, "1", "G", "Color Tint", 1, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("color_tint_b", new PropertyDef("color_tint_b", PropertyType.FLOAT, "1", "B", "Color Tint", 2, Map.of("min", "0", "max", "1", "step", "0.01"))),
-                Map.entry("collision", new PropertyDef("collision", PropertyType.BOOL, "true", "Collision", "Physics", 30, Map.of())),
+                Map.entry("solid", new PropertyDef("solid", PropertyType.BOOL, "true", "Collision", "Physics", 30, Map.of())),
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
 
@@ -197,6 +198,103 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("angle", new PropertyDef("angle", PropertyType.FLOAT, "45", "Angle", "Light", 21, Map.of("min", "0", "max", "180", "step", "1"))),
                 Map.entry("distance", new PropertyDef("distance", PropertyType.FLOAT, "10", "Distance", "Light", 22, Map.of("min", "0", "step", "0.1"))),
                 Map.entry("enabled", new PropertyDef("enabled", PropertyType.BOOL, "true", "Enabled", "Light", 23, Map.of())),
+                Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
+        )));
+
+        registry.registerType(new NodeTypeDef("StaticBody3D", "StaticBody3D", "Physics", 40, Map.ofEntries(
+                Map.entry("x", new PropertyDef("x", PropertyType.FLOAT, "0", "X", "Transform", 0, Map.of("step", "0.1"))),
+                Map.entry("y", new PropertyDef("y", PropertyType.FLOAT, "0", "Y", "Transform", 1, Map.of("step", "0.1"))),
+                Map.entry("z", new PropertyDef("z", PropertyType.FLOAT, "0", "Z", "Transform", 2, Map.of("step", "0.1"))),
+                Map.entry("rx", new PropertyDef("rx", PropertyType.FLOAT, "0", "Rot X", "Transform", 10, Map.of("step", "1"))),
+                Map.entry("ry", new PropertyDef("ry", PropertyType.FLOAT, "0", "Rot Y", "Transform", 11, Map.of("step", "1"))),
+                Map.entry("rz", new PropertyDef("rz", PropertyType.FLOAT, "0", "Rot Z", "Transform", 12, Map.of("step", "1"))),
+                Map.entry("shape", new PropertyDef("shape", PropertyType.STRING, "box", "Shape", "Collision", 0, Map.of())),
+                Map.entry("sx", new PropertyDef("sx", PropertyType.FLOAT, "1", "Size X", "Collision", 1, Map.of("min", "0.01", "step", "0.1"))),
+                Map.entry("sy", new PropertyDef("sy", PropertyType.FLOAT, "1", "Size Y", "Collision", 2, Map.of("min", "0.01", "step", "0.1"))),
+                Map.entry("sz", new PropertyDef("sz", PropertyType.FLOAT, "1", "Size Z", "Collision", 3, Map.of("min", "0.01", "step", "0.1"))),
+                Map.entry("radius", new PropertyDef("radius", PropertyType.FLOAT, "0.5", "Radius", "Collision", 4, Map.of("min", "0.01", "step", "0.05"))),
+                Map.entry("enabled", new PropertyDef("enabled", PropertyType.BOOL, "true", "Enabled", "Collision", 10, Map.of())),
+                Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
+        )));
+
+        registry.registerType(new NodeTypeDef("RigidBody3D", "RigidBody3D", "Physics", 41, Map.ofEntries(
+                Map.entry("x", new PropertyDef("x", PropertyType.FLOAT, "0", "X", "Transform", 0, Map.of("step", "0.1"))),
+                Map.entry("y", new PropertyDef("y", PropertyType.FLOAT, "0", "Y", "Transform", 1, Map.of("step", "0.1"))),
+                Map.entry("z", new PropertyDef("z", PropertyType.FLOAT, "0", "Z", "Transform", 2, Map.of("step", "0.1"))),
+                Map.entry("rx", new PropertyDef("rx", PropertyType.FLOAT, "0", "Rot X", "Transform", 10, Map.of("step", "1"))),
+                Map.entry("ry", new PropertyDef("ry", PropertyType.FLOAT, "0", "Rot Y", "Transform", 11, Map.of("step", "1"))),
+                Map.entry("rz", new PropertyDef("rz", PropertyType.FLOAT, "0", "Rot Z", "Transform", 12, Map.of("step", "1"))),
+                Map.entry("shape", new PropertyDef("shape", PropertyType.STRING, "box", "Shape", "Collision", 0, Map.of())),
+                Map.entry("sx", new PropertyDef("sx", PropertyType.FLOAT, "1", "Size X", "Collision", 1, Map.of("min", "0.01", "step", "0.1"))),
+                Map.entry("sy", new PropertyDef("sy", PropertyType.FLOAT, "1", "Size Y", "Collision", 2, Map.of("min", "0.01", "step", "0.1"))),
+                Map.entry("sz", new PropertyDef("sz", PropertyType.FLOAT, "1", "Size Z", "Collision", 3, Map.of("min", "0.01", "step", "0.1"))),
+                Map.entry("radius", new PropertyDef("radius", PropertyType.FLOAT, "0.5", "Radius", "Collision", 4, Map.of("min", "0.01", "step", "0.05"))),
+                Map.entry("mass", new PropertyDef("mass", PropertyType.FLOAT, "1", "Mass", "Physics", 0, Map.of("min", "0.01", "step", "0.1"))),
+                Map.entry("gravity_scale", new PropertyDef("gravity_scale", PropertyType.FLOAT, "1", "Gravity Scale", "Physics", 1, Map.of("step", "0.1"))),
+                Map.entry("linear_damping", new PropertyDef("linear_damping", PropertyType.FLOAT, "0.1", "Linear Damping", "Physics", 2, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("angular_damping", new PropertyDef("angular_damping", PropertyType.FLOAT, "0.1", "Angular Damping", "Physics", 3, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("freeze", new PropertyDef("freeze", PropertyType.BOOL, "false", "Freeze", "Physics", 10, Map.of())),
+                Map.entry("enabled", new PropertyDef("enabled", PropertyType.BOOL, "true", "Enabled", "Collision", 10, Map.of())),
+                Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
+        )));
+
+        registry.registerType(new NodeTypeDef("CharacterBody3D", "CharacterBody3D", "Physics", 42, Map.ofEntries(
+                Map.entry("x", new PropertyDef("x", PropertyType.FLOAT, "0", "X", "Transform", 0, Map.of("step", "0.1"))),
+                Map.entry("y", new PropertyDef("y", PropertyType.FLOAT, "0", "Y", "Transform", 1, Map.of("step", "0.1"))),
+                Map.entry("z", new PropertyDef("z", PropertyType.FLOAT, "0", "Z", "Transform", 2, Map.of("step", "0.1"))),
+                Map.entry("rx", new PropertyDef("rx", PropertyType.FLOAT, "0", "Rot X", "Transform", 10, Map.of("step", "1"))),
+                Map.entry("ry", new PropertyDef("ry", PropertyType.FLOAT, "0", "Rot Y", "Transform", 11, Map.of("step", "1"))),
+                Map.entry("rz", new PropertyDef("rz", PropertyType.FLOAT, "0", "Rot Z", "Transform", 12, Map.of("step", "1"))),
+                Map.entry("shape", new PropertyDef("shape", PropertyType.STRING, "capsule", "Shape", "Collision", 0, Map.of())),
+                Map.entry("radius", new PropertyDef("radius", PropertyType.FLOAT, "0.3", "Radius", "Collision", 1, Map.of("min", "0.01", "step", "0.05"))),
+                Map.entry("height", new PropertyDef("height", PropertyType.FLOAT, "1.8", "Height", "Collision", 2, Map.of("min", "0.01", "step", "0.1"))),
+                Map.entry("speed", new PropertyDef("speed", PropertyType.FLOAT, "5", "Speed", "Movement", 0, Map.of("min", "0", "step", "0.5"))),
+                Map.entry("jump_velocity", new PropertyDef("jump_velocity", PropertyType.FLOAT, "10", "Jump Velocity", "Movement", 1, Map.of("min", "0", "step", "0.5"))),
+                Map.entry("gravity_scale", new PropertyDef("gravity_scale", PropertyType.FLOAT, "1", "Gravity Scale", "Movement", 2, Map.of("step", "0.1"))),
+                Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
+        )));
+
+        registry.registerType(new NodeTypeDef("Area3D", "Area3D", "Physics", 43, Map.ofEntries(
+                Map.entry("x", new PropertyDef("x", PropertyType.FLOAT, "0", "X", "Transform", 0, Map.of("step", "0.1"))),
+                Map.entry("y", new PropertyDef("y", PropertyType.FLOAT, "0", "Y", "Transform", 1, Map.of("step", "0.1"))),
+                Map.entry("z", new PropertyDef("z", PropertyType.FLOAT, "0", "Z", "Transform", 2, Map.of("step", "0.1"))),
+                Map.entry("rx", new PropertyDef("rx", PropertyType.FLOAT, "0", "Rot X", "Transform", 10, Map.of("step", "1"))),
+                Map.entry("ry", new PropertyDef("ry", PropertyType.FLOAT, "0", "Rot Y", "Transform", 11, Map.of("step", "1"))),
+                Map.entry("rz", new PropertyDef("rz", PropertyType.FLOAT, "0", "Rot Z", "Transform", 12, Map.of("step", "1"))),
+                Map.entry("shape", new PropertyDef("shape", PropertyType.STRING, "box", "Shape", "Area", 0, Map.of())),
+                Map.entry("sx", new PropertyDef("sx", PropertyType.FLOAT, "1", "Size X", "Area", 1, Map.of("min", "0.01", "step", "0.1"))),
+                Map.entry("sy", new PropertyDef("sy", PropertyType.FLOAT, "1", "Size Y", "Area", 2, Map.of("min", "0.01", "step", "0.1"))),
+                Map.entry("sz", new PropertyDef("sz", PropertyType.FLOAT, "1", "Size Z", "Area", 3, Map.of("min", "0.01", "step", "0.1"))),
+                Map.entry("radius", new PropertyDef("radius", PropertyType.FLOAT, "1", "Radius", "Area", 4, Map.of("min", "0.01", "step", "0.1"))),
+                Map.entry("monitoring", new PropertyDef("monitoring", PropertyType.BOOL, "true", "Monitoring", "Area", 10, Map.of())),
+                Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
+        )));
+
+        registry.registerType(new NodeTypeDef("Raycast3D", "Raycast3D", "Physics", 44, Map.ofEntries(
+                Map.entry("x", new PropertyDef("x", PropertyType.FLOAT, "0", "X", "Transform", 0, Map.of("step", "0.1"))),
+                Map.entry("y", new PropertyDef("y", PropertyType.FLOAT, "0", "Y", "Transform", 1, Map.of("step", "0.1"))),
+                Map.entry("z", new PropertyDef("z", PropertyType.FLOAT, "0", "Z", "Transform", 2, Map.of("step", "0.1"))),
+                Map.entry("rx", new PropertyDef("rx", PropertyType.FLOAT, "0", "Rot X", "Transform", 10, Map.of("step", "1"))),
+                Map.entry("ry", new PropertyDef("ry", PropertyType.FLOAT, "0", "Rot Y", "Transform", 11, Map.of("step", "1"))),
+                Map.entry("rz", new PropertyDef("rz", PropertyType.FLOAT, "0", "Rot Z", "Transform", 12, Map.of("step", "1"))),
+                Map.entry("target_x", new PropertyDef("target_x", PropertyType.FLOAT, "0", "Target X", "Ray", 0, Map.of("step", "0.1"))),
+                Map.entry("target_y", new PropertyDef("target_y", PropertyType.FLOAT, "-1", "Target Y", "Ray", 1, Map.of("step", "0.1"))),
+                Map.entry("target_z", new PropertyDef("target_z", PropertyType.FLOAT, "0", "Target Z", "Ray", 2, Map.of("step", "0.1"))),
+                Map.entry("max_distance", new PropertyDef("max_distance", PropertyType.FLOAT, "100", "Max Distance", "Ray", 3, Map.of("min", "0", "step", "1"))),
+                Map.entry("enabled", new PropertyDef("enabled", PropertyType.BOOL, "true", "Enabled", "Ray", 10, Map.of())),
+                Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
+        )));
+
+        // --- Markers ---
+
+        registry.registerType(new NodeTypeDef("Marker3D", "Marker3D", "Markers", 50, Map.ofEntries(
+                Map.entry("x", new PropertyDef("x", PropertyType.FLOAT, "0", "X", "Transform", 0, Map.of("step", "0.1"))),
+                Map.entry("y", new PropertyDef("y", PropertyType.FLOAT, "0", "Y", "Transform", 1, Map.of("step", "0.1"))),
+                Map.entry("z", new PropertyDef("z", PropertyType.FLOAT, "0", "Z", "Transform", 2, Map.of("step", "0.1"))),
+                Map.entry("rx", new PropertyDef("rx", PropertyType.FLOAT, "0", "Rot X", "Transform", 10, Map.of("step", "1"))),
+                Map.entry("ry", new PropertyDef("ry", PropertyType.FLOAT, "0", "Rot Y", "Transform", 11, Map.of("step", "1"))),
+                Map.entry("rz", new PropertyDef("rz", PropertyType.FLOAT, "0", "Rot Z", "Transform", 12, Map.of("step", "1"))),
+                Map.entry("gizmo_size", new PropertyDef("gizmo_size", PropertyType.FLOAT, "0.5", "Gizmo Size", "Display", 0, Map.of("min", "0.1", "step", "0.1"))),
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
 
