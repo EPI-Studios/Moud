@@ -1,11 +1,7 @@
 package com.moud.client.fabric.render;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.moud.client.fabric.assets.MoudTextAssets;
-import com.moud.client.fabric.model.ModelCache;
-import com.moud.core.assets.ResPath;
-import com.moud.client.fabric.render.material.MoudMaterial;
-import com.moud.client.fabric.render.material.MoudMaterialParser;
+import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
 import com.moud.client.fabric.scene.ClientSceneBus;
 import com.moud.net.protocol.SceneSnapshot;
 import foundry.veil.api.client.render.VeilRenderSystem;
@@ -21,7 +17,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
@@ -66,8 +61,8 @@ public final class VeilSceneNodeRenderer {
     private static volatile float runtimeBodyZ;
     private static volatile float runtimeBodyYawDeg;
 
-    private static final Object MATERIAL_TEX_LOCK = new Object();
-    private static final HashMap<String, MaterialTexCache> textureByMaterialPath = new HashMap<>();
+    private static final MeshShaderRenderer meshShader = new MeshShaderRenderer();
+    private static final InstancedBatchRenderer batchRenderer = new InstancedBatchRenderer(meshShader.sceneLights());
 
     private VeilSceneNodeRenderer() {
     }
@@ -160,6 +155,9 @@ public final class VeilSceneNodeRenderer {
         Vec3d camPos = camera.getPos();
         MatrixStack matrices = new MatrixStack();
 
+        meshShader.collectLights(cachedNodes, VeilSceneNodeRenderer::worldPose);
+        batchRenderer.renderBatched(cachedNodes, VeilSceneNodeRenderer::worldPose, camPos, camera, client, tickDelta);
+
         for (SceneSnapshot.NodeSnapshot node : cachedNodes) {
             if (node == null) {
                 continue;
@@ -186,8 +184,15 @@ public final class VeilSceneNodeRenderer {
                 continue;
             }
 
+            String materialPath = stringProp(node, "material");
+            if (materialPath == null || materialPath.isBlank()) continue;
+
             Pose world = worldPose(node.nodeId());
             if (world == null) {
+                continue;
+            }
+
+            if (meshShader.renderNode(node, world, camPos, camera, client, tickDelta)) {
                 continue;
             }
 
@@ -201,7 +206,7 @@ public final class VeilSceneNodeRenderer {
             float opacity = clamp01(parseFloat(stringProp(node, "opacity"), 1.0f));
             int alphaI = Math.round(opacity * 255.0f);
 
-            Identifier textureId = resolveNodeTexture(node);
+            Identifier textureId = meshShader.resolveNodeTexture(node);
             RenderLayer layer = alphaI < 255
                     ? RenderLayer.getEntityTranslucentCull(textureId)
                     : RenderLayer.getEntityCutout(textureId);
@@ -216,63 +221,6 @@ public final class VeilSceneNodeRenderer {
             renderUnitCube(vc, matrices.peek(), light, OverlayTexture.DEFAULT_UV, tintRi, tintGi, tintBi, alphaI);
             matrices.pop();
         }
-    }
-
-    private static Identifier resolveNodeTexture(SceneSnapshot.NodeSnapshot node) {
-        if (node == null) {
-            return MoudTextures.WHITE_ID;
-        }
-        String materialPath = stringProp(node, "material");
-        Identifier fromMaterial = resolveMaterialTexture(materialPath);
-        if (fromMaterial != null) {
-            return fromMaterial;
-        }
-        String textureRef = stringProp(node, "texture");
-        return MoudTextures.resolve(textureRef);
-    }
-
-    private static Identifier resolveMaterialTexture(String materialPathRaw) {
-        if (materialPathRaw == null || materialPathRaw.isBlank()) {
-            return null;
-        }
-        String materialPath = materialPathRaw.trim();
-        if (!materialPath.startsWith(ResPath.SCHEME)) {
-            return null;
-        }
-
-        String txt = MoudTextAssets.readText(materialPath);
-        if (txt == null) {
-            return null;
-        }
-
-        synchronized (MATERIAL_TEX_LOCK) {
-            MaterialTexCache cached = textureByMaterialPath.get(materialPath);
-            if (cached != null && Objects.equals(cached.materialText, txt)) {
-                return cached.textureId;
-            }
-        }
-
-        Identifier textureId = null;
-        try {
-            MoudMaterial mat = MoudMaterialParser.parse(txt);
-            if (mat != null && mat.params() != null) {
-                for (MoudMaterial.Param p : mat.params().values()) {
-                    if (p instanceof MoudMaterial.Param.Texture t) {
-                        textureId = MoudTextures.resolve(t.textureRef());
-                        break;
-                    }
-                }
-            }
-        } catch (Exception ignored) {
-        }
-
-        synchronized (MATERIAL_TEX_LOCK) {
-            textureByMaterialPath.put(materialPath, new MaterialTexCache(txt, textureId));
-        }
-        return textureId;
-    }
-
-    private record MaterialTexCache(String materialText, Identifier textureId) {
     }
 
     private static void renderUnitCube(VertexConsumer vc, MatrixStack.Entry entry, int light, int overlay, int r, int g, int b, int a) {
@@ -357,6 +305,13 @@ public final class VeilSceneNodeRenderer {
                 .overlay(overlay)
                 .light(light)
                 .normal(entry, nx, ny, nz);
+    }
+
+    public static void clearMaterialTextureCache() {
+        meshShader.clear();
+        batchRenderer.clear();
+        MoudMeshBuffer.cleanup();
+        cachedVersion = Long.MIN_VALUE;
     }
 
     public static void clearLights() {
@@ -759,7 +714,7 @@ public final class VeilSceneNodeRenderer {
         return new Quaternionf().rotationZ(rz).mul(new Quaternionf().rotationY(ry)).mul(new Quaternionf().rotationX(rx)).normalize();
     }
 
-    private static float parseFloat(String value, float fallback) {
+    static float parseFloat(String value, float fallback) {
         try {
             if (value == null) {
                 return fallback;
@@ -779,7 +734,7 @@ public final class VeilSceneNodeRenderer {
         return Math.max(1e-6f, v);
     }
 
-    private static boolean parseBool(String value, boolean fallback) {
+    static boolean parseBool(String value, boolean fallback) {
         if (value == null) {
             return fallback;
         }
@@ -793,7 +748,7 @@ public final class VeilSceneNodeRenderer {
         return fallback;
     }
 
-    private static float clamp01(float v) {
+    static float clamp01(float v) {
         if (!Float.isFinite(v)) {
             return 0.0f;
         }
@@ -811,7 +766,7 @@ public final class VeilSceneNodeRenderer {
         }
     }
 
-    private static String stringProp(SceneSnapshot.NodeSnapshot node, String key) {
+    static String stringProp(SceneSnapshot.NodeSnapshot node, String key) {
         if (node == null || key == null) {
             return null;
         }
@@ -853,7 +808,7 @@ public final class VeilSceneNodeRenderer {
         long frame = Long.MIN_VALUE;
     }
 
-    private static final class Pose {
+    static final class Pose {
         static final Pose IDENTITY = new Pose(true);
 
         final Vector3f pos = new Vector3f();
