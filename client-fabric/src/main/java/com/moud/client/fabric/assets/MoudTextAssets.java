@@ -1,6 +1,7 @@
 package com.moud.client.fabric.assets;
 
 
+import com.moud.client.fabric.render.VeilSceneNodeRenderer;
 import com.moud.core.assets.AssetHash;
 import com.moud.core.assets.AssetMeta;
 import com.moud.core.assets.AssetType;
@@ -185,9 +186,17 @@ public final class MoudTextAssets implements AssetsClient.Listener {
         }
         texts.sort(String::compareTo);
         synchronized (LOCK) {
+            Map<ResPath, AssetMeta> oldMeta = metaByPath;
+            for (Map.Entry<ResPath, AssetMeta> e : nextMeta.entrySet()) {
+                AssetMeta prev = oldMeta.get(e.getKey());
+                if (prev != null && !prev.hash().equals(e.getValue().hash())) {
+                    blobsByHash.remove(prev.hash());
+                }
+            }
             metaByPath = Map.copyOf(nextMeta);
             textPaths = List.copyOf(texts);
         }
+        VeilSceneNodeRenderer.clearMaterialTextureCache();
     }
 
     @Override

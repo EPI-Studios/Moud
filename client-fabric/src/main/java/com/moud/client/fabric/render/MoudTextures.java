@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
@@ -34,6 +36,7 @@ public final class MoudTextures implements AssetsClient.Listener {
 
     private static AssetsClient assets;
     private static boolean whiteRegistered;
+    private static final Set<Identifier> rawReadyIds = ConcurrentHashMap.newKeySet();
 
     private static long lastManifestRequestMs;
     private static Map<ResPath, AssetMeta> metaByPath = Map.of();
@@ -93,12 +96,18 @@ public final class MoudTextures implements AssetsClient.Listener {
                 }
             }
             texturesByHash.clear();
+            rawReadyIds.clear();
         }
     }
 
     public static void registerRaw(Identifier id, byte[] pngBytes) {
         if (id == null || pngBytes == null || pngBytes.length == 0) return;
+        rawReadyIds.remove(id);
         Thread.ofVirtual().name("moud-tex-decode").start(() -> decodeAndUploadRaw(id, pngBytes));
+    }
+
+    public static boolean isRawReady(Identifier id) {
+        return id != null && rawReadyIds.contains(id);
     }
 
     private static void decodeAndUploadRaw(Identifier id, byte[] pngBytes) {
@@ -130,6 +139,7 @@ public final class MoudTextures implements AssetsClient.Listener {
             NativeImageBackedTexture tex = new NativeImageBackedTexture(finalImage);
             tm.registerTexture(id, tex);
             tex.upload();
+            rawReadyIds.add(id);
         });
     }
 
@@ -294,6 +304,25 @@ public final class MoudTextures implements AssetsClient.Listener {
         images.sort(String::compareTo);
 
         synchronized (LOCK) {
+            // Invalidate texture entries whose hash changed (asset was re-uploaded or modified)
+            Map<ResPath, AssetMeta> oldMeta = metaByPath;
+            for (Map.Entry<ResPath, AssetMeta> e : nextMeta.entrySet()) {
+                AssetMeta prev = oldMeta.get(e.getKey());
+                if (prev != null && !prev.hash().equals(e.getValue().hash())) {
+                    // Hash changed — remove the old texture entry so it gets re-downloaded
+                    TextureEntry stale = texturesByHash.remove(prev.hash());
+                    if (stale != null && stale.id != null) {
+                        // Schedule GL texture deletion on render thread
+                        Identifier idToDestroy = stale.id;
+                        RenderSystem.recordRenderCall(() -> {
+                            MinecraftClient mc = MinecraftClient.getInstance();
+                            if (mc != null && mc.getTextureManager() != null) {
+                                mc.getTextureManager().destroyTexture(idToDestroy);
+                            }
+                        });
+                    }
+                }
+            }
             metaByPath = Map.copyOf(nextMeta);
             imagePaths = List.copyOf(images);
         }
