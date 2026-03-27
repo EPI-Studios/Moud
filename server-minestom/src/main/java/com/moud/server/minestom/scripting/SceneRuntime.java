@@ -1,26 +1,36 @@
 package com.moud.server.minestom.scripting;
 
 import com.moud.core.physics.BodyHandle;
-import com.moud.core.physics.RaycastResult;
 import com.moud.core.scene.Node;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpBatch;
 import com.moud.net.protocol.SceneOpResult;
+import com.moud.server.minestom.physics.CollisionEvent;
 import com.moud.server.minestom.physics.JoltPhysicsWorld;
-import org.graalvm.polyglot.Engine;
 import com.moud.server.minestom.engine.SceneBatchIds;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.project.ProjectService;
 import com.moud.server.minestom.util.DebugLog;
+import net.minestom.server.coordinate.Pos;
+import net.minestom.server.entity.Player;
+import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.Engine;
+import org.graalvm.polyglot.HostAccess;
+import org.graalvm.polyglot.PolyglotException;
+import org.graalvm.polyglot.Value;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-
-import org.graalvm.polyglot.*;
 
 final class SceneRuntime {
     private static final String LOG_TAG = "script-runtime";
@@ -29,11 +39,11 @@ final class SceneRuntime {
     private final ConcurrentHashMap<String, PlayerInputState> inputsByPlayer;
     private final ConcurrentHashMap<String, float[]> playerPositions = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, OwnedValue<Long>> activeCameraByPlayer = new ConcurrentHashMap<>();
-    // [localX, localY, localZ, pitchDeg, rollDeg] in player-local space
     private final ConcurrentHashMap<String, OwnedValue<float[]>> followCameraByPlayer = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, OwnedValue<float[]>> scriptCameraByPlayer = new ConcurrentHashMap<>();
     private final Context ctx;
-    private final Value createInstanceFn;
-    private final Map<Path, Program> programs = new HashMap<>();
+    private final ScriptLoader scriptLoader;
+    private final CollisionSignalEmitter collisionEmitter = new CollisionSignalEmitter();
     private final Map<Long, NodeInstance> instances = new HashMap<>();
     private final ArrayList<SceneOp> pendingOps = new ArrayList<>();
     private final HashMap<String, String> pendingProps = new HashMap<>();
@@ -42,11 +52,14 @@ final class SceneRuntime {
     private volatile ServerScene lastScene;
     private final ArrayList<PendingTimer> pendingTimers = new ArrayList<>();
     private String pendingSceneTransition = null;
+    private final InputMap inputMap = new InputMap();
+    private final SignalBus signalBus = new SignalBus();
+    private final ConcurrentHashMap<String, ScriptInputApi> inputApiByPlayer = new ConcurrentHashMap<>();
 
-    private record OwnedValue<T>(long ownerNodeId, T value) {
-    }
+    private record OwnedValue<T>(long ownerNodeId, T value) {}
 
-    SceneRuntime(ProjectService project, Engine engine, ConcurrentHashMap<String, PlayerInputState> inputsByPlayer) {
+    SceneRuntime(ProjectService project, Engine engine,
+                 ConcurrentHashMap<String, PlayerInputState> inputsByPlayer) {
         this.project = Objects.requireNonNull(project, "project");
         Objects.requireNonNull(engine, "engine");
         this.inputsByPlayer = Objects.requireNonNull(inputsByPlayer, "inputsByPlayer");
@@ -55,14 +68,11 @@ final class SceneRuntime {
                 .allowHostAccess(HostAccess.EXPLICIT)
                 .allowHostClassLookup(ignored -> false)
                 .build();
-        this.createInstanceFn = ctx.eval("js", "(proto) => Object.create(proto)");
+        this.scriptLoader = new ScriptLoader(ctx);
     }
 
     void close() {
-        try {
-            ctx.close(true);
-        } catch (Exception ignored) {
-        }
+        try { ctx.close(true); } catch (Exception ignored) {}
     }
 
     void tick(ServerScene scene, double dtSeconds) {
@@ -75,16 +85,12 @@ final class SceneRuntime {
         HashSet<Long> alive = new HashSet<>(targets.size());
 
         for (Target target : targets) {
-            if (target == null || target.nodeId <= 0L || target.scriptPath == null) {
-                continue;
-            }
+            if (target == null || target.nodeId <= 0L || target.scriptPath == null) continue;
             long nodeId = target.nodeId;
             alive.add(nodeId);
 
             Node node = scene.engine().sceneTree().getNode(nodeId);
-            if (node == null) {
-                continue;
-            }
+            if (node == null) continue;
 
             Path scriptFile;
             try {
@@ -94,31 +100,33 @@ final class SceneRuntime {
                 continue;
             }
 
-            Program program = programFor(scriptFile);
+            ScriptLoader.Program program = scriptLoader.programFor(scriptFile);
             if (program == null) {
-                disableInstance(scene, nodeId, scriptFile, "loadProgram", new IllegalStateException("Script load failed: " + scriptFile.toAbsolutePath()));
+                disableInstance(scene, nodeId, scriptFile, "loadProgram",
+                        new IllegalStateException("Script load failed: " + scriptFile.toAbsolutePath()));
                 continue;
             }
 
             NodeInstance inst = instances.get(nodeId);
-            if (inst == null || !scriptFile.equals(inst.scriptFile) || inst.programModifiedMs != program.modifiedMs) {
+            if (inst == null || !scriptFile.equals(inst.scriptFile) || inst.programModifiedMs != program.modifiedMs()) {
                 if (inst != null) {
                     invokeLifecycle(scene, inst, "_exit_tree", "_exitTree");
                     clearCameraOverridesOwnedBy(nodeId);
                 }
                 Value jsInstance;
                 try {
-                    jsInstance = createNodeInstance(program.exports);
+                    jsInstance = scriptLoader.createNodeInstance(program.exports());
                 } catch (Exception e) {
                     disableInstance(scene, nodeId, scriptFile, "createInstance", e);
                     continue;
                 }
                 if (jsInstance == null) {
-                    disableInstance(scene, nodeId, scriptFile, "createInstance", new IllegalStateException("Script did not return an instance"));
+                    disableInstance(scene, nodeId, scriptFile, "createInstance",
+                            new IllegalStateException("Script did not return an instance"));
                     continue;
                 }
 
-                inst = new NodeInstance(nodeId, scriptFile, program.modifiedMs, jsInstance, new RuntimeApi(scene, nodeId));
+                inst = new NodeInstance(nodeId, scriptFile, program.modifiedMs(), jsInstance, new RuntimeApi(scene, nodeId));
                 instances.put(nodeId, inst);
                 invokeLifecycle(scene, inst, "_enter_tree", "_enterTree");
                 inst.readyCalled = false;
@@ -126,9 +134,7 @@ final class SceneRuntime {
                 inst.lastInputClientTick = -1L;
             }
 
-            if (inst.disabled) {
-                continue;
-            }
+            if (inst.disabled) continue;
 
             if (!inst.readyCalled) {
                 invokeLifecycle(scene, inst, "_ready", null);
@@ -136,20 +142,20 @@ final class SceneRuntime {
             }
 
             maybeDispatchInput(scene, node, inst);
+            updateInputApi(node, inst);
 
             invokeProcess(scene, inst, "_physics_process", "_physicsProcess", dtSeconds);
             invokeProcess(scene, inst, "_process", null, dtSeconds);
         }
 
+        collisionEmitter.emit(scene, instances, signalBus, this::instanceValueMap);
         cleanupDead(scene, alive);
         flush(scene);
     }
 
     private ArrayList<Target> targetsFor(ServerScene scene) {
         long graphRev = scene.engine().sceneRevision();
-        if (cachedTargetsGraphRevision == graphRev) {
-            return cachedTargets;
-        }
+        if (cachedTargetsGraphRevision == graphRev) return cachedTargets;
         cachedTargetsGraphRevision = graphRev;
         cachedTargets.clear();
 
@@ -157,21 +163,40 @@ final class SceneRuntime {
         stack.add(scene.engine().sceneTree().root());
         while (!stack.isEmpty()) {
             Node node = stack.remove(stack.size() - 1);
-            if (node == null) {
-                continue;
-            }
+            if (node == null) continue;
 
             String scriptPath = ScriptPaths.normalizeScriptPath(node.getProperty(RuntimeScriptKeys.SCRIPT_KEY));
-            if (scriptPath != null) {
-                cachedTargets.add(new Target(node.nodeId(), scriptPath));
-            }
+            if (scriptPath != null) cachedTargets.add(new Target(node.nodeId(), scriptPath));
 
             List<Node> children = node.children();
-            for (int i = children.size() - 1; i >= 0; i--) {
-                stack.add(children.get(i));
-            }
+            for (int i = children.size() - 1; i >= 0; i--) stack.add(children.get(i));
         }
         return cachedTargets;
+    }
+
+    private void updateInputApi(Node node, NodeInstance inst) {
+        if (node == null || inst == null) return;
+        PlayerInputState state = null;
+        String ownerUuid = RuntimeScriptUtil.resolveOwnerUuid(node);
+        if (ownerUuid != null) {
+            state = inputsByPlayer.get(ownerUuid);
+        } else if (inputsByPlayer.size() == 1) {
+            state = inputsByPlayer.values().iterator().next();
+            ownerUuid = state.playerUuid();
+        }
+        if (state == null) return;
+        ScriptInputApi api = inputApiByPlayer.computeIfAbsent(ownerUuid, k -> new ScriptInputApi(inputMap));
+        api.update(state);
+        inst.inputApi = api;
+    }
+
+    Map<Long, Value> instanceValueMap() {
+        HashMap<Long, Value> map = new HashMap<>(instances.size());
+        for (Map.Entry<Long, NodeInstance> e : instances.entrySet()) {
+            NodeInstance ni = e.getValue();
+            if (ni != null && !ni.disabled && ni.instance != null) map.put(e.getKey(), ni.instance);
+        }
+        return map;
     }
 
     private void cleanupDead(ServerScene scene, Set<Long> alive) {
@@ -179,22 +204,17 @@ final class SceneRuntime {
         while (it.hasNext()) {
             Map.Entry<Long, NodeInstance> entry = it.next();
             long nodeId = entry.getKey();
-            if (alive.contains(nodeId)) {
-                continue;
-            }
+            if (alive.contains(nodeId)) continue;
             NodeInstance inst = entry.getValue();
-            if (inst != null) {
-                invokeLifecycle(scene, inst, "_exit_tree", "_exitTree");
-            }
+            if (inst != null) invokeLifecycle(scene, inst, "_exit_tree", "_exitTree");
             clearCameraOverridesOwnedBy(nodeId);
+            signalBus.removeNode(nodeId);
             it.remove();
         }
     }
 
     private void clearCameraOverridesOwnedBy(long ownerNodeId) {
-        if (ownerNodeId <= 0L) {
-            return;
-        }
+        if (ownerNodeId <= 0L) return;
         activeCameraByPlayer.entrySet().removeIf(e -> {
             OwnedValue<Long> ov = e.getValue();
             return ov != null && ov.ownerNodeId() == ownerNodeId;
@@ -203,79 +223,14 @@ final class SceneRuntime {
             OwnedValue<float[]> ov = e.getValue();
             return ov != null && ov.ownerNodeId() == ownerNodeId;
         });
-    }
-
-    private Program programFor(Path scriptFile) {
-        if (scriptFile == null) {
-            return null;
-        }
-        long modified;
-        try {
-            modified = Files.getLastModifiedTime(scriptFile).toMillis();
-        } catch (Exception e) {
-            return null;
-        }
-        Program cached = programs.get(scriptFile);
-        if (cached != null && cached.modifiedMs == modified) {
-            return cached;
-        }
-        Program loaded = loadProgram(scriptFile, modified);
-        if (loaded != null) {
-            programs.put(scriptFile, loaded);
-        }
-        return loaded;
-    }
-
-    private Program loadProgram(Path scriptFile, long modifiedMs) {
-        try {
-            if (!Files.isRegularFile(scriptFile)) {
-                return null;
-            }
-            String code = Files.readString(scriptFile, StandardCharsets.UTF_8);
-            Source source = Source.newBuilder("js", code, scriptFile.toString()).build();
-            Value exports = ctx.eval(source);
-            if (exports == null) {
-                return null;
-            }
-            return new Program(scriptFile, modifiedMs, exports);
-        } catch (PolyglotException e) {
-            DebugLog.error(LOG_TAG, "load failed: " + scriptFile + ": " + e.getMessage(), e);
-            return null;
-        } catch (Exception e) {
-            DebugLog.error(LOG_TAG, "load failed: " + scriptFile + ": " + e.getMessage(), e);
-            return null;
-        }
-    }
-
-    private Value createNodeInstance(Value exports) {
-        if (exports == null) {
-            return null;
-        }
-        try {
-            if (exports.canInstantiate()) {
-                return exports.newInstance();
-            }
-            if (exports.canExecute()) {
-                Value v = exports.execute();
-                if (v != null) {
-                    return v;
-                }
-            }
-            if (exports.hasMembers()) {
-                return createInstanceFn.execute(exports);
-            }
-        } catch (PolyglotException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new IllegalStateException(e.getMessage(), e);
-        }
-        throw new IllegalStateException("Script must evaluate to an object or a class/constructor");
+        scriptCameraByPlayer.entrySet().removeIf(e -> {
+            OwnedValue<float[]> ov = e.getValue();
+            return ov != null && ov.ownerNodeId() == ownerNodeId;
+        });
     }
 
     private void maybeDispatchInput(ServerScene scene, Node node, NodeInstance inst) {
-        if (scene == null || node == null || inst == null) {
-            return;
-        }
+        if (scene == null || node == null || inst == null) return;
         PlayerInputState state = null;
         String ownerUuid = RuntimeScriptUtil.resolveOwnerUuid(node);
         if (ownerUuid != null) {
@@ -283,15 +238,9 @@ final class SceneRuntime {
         } else if (inputsByPlayer.size() == 1) {
             state = inputsByPlayer.values().iterator().next();
         }
-        if (state == null) {
-            return;
-        }
-        if (!hasMemberCallable(inst.instance, "_input")) {
-            return;
-        }
-        if (state.clientTick() == inst.lastInputClientTick) {
-            return;
-        }
+        if (state == null) return;
+        if (!hasMemberCallable(inst.instance, "_input")) return;
+        if (state.clientTick() == inst.lastInputClientTick) return;
         inst.lastInputClientTick = state.clientTick();
         try {
             inst.instance.invokeMember("_input", inst.api, new InputEvent(state));
@@ -301,13 +250,9 @@ final class SceneRuntime {
     }
 
     private void invokeLifecycle(ServerScene scene, NodeInstance inst, String primary, String fallback) {
-        if (scene == null || inst == null || primary == null) {
-            return;
-        }
+        if (scene == null || inst == null || primary == null) return;
         String member = resolveMember(inst.instance, primary, fallback);
-        if (member == null) {
-            return;
-        }
+        if (member == null) return;
         try {
             inst.instance.invokeMember(member, inst.api);
         } catch (PolyglotException e) {
@@ -316,14 +261,11 @@ final class SceneRuntime {
     }
 
     private void invokeProcess(ServerScene scene, NodeInstance inst, String primary, String fallback, double dtSeconds) {
-        if (scene == null || inst == null || primary == null) {
-            return;
-        }
+        if (scene == null || inst == null || primary == null) return;
         String member = resolveMember(inst.instance, primary, fallback);
-        if (member == null) {
-            return;
-        }
+        if (member == null) return;
         try {
+            ctx.getBindings("js").putMember("Input", inst.inputApi);
             inst.instance.invokeMember(member, inst.api, dtSeconds);
         } catch (PolyglotException e) {
             disableInstance(scene, inst, member, e);
@@ -331,26 +273,16 @@ final class SceneRuntime {
     }
 
     private static String resolveMember(Value obj, String primary, String fallback) {
-        if (obj == null || primary == null) {
-            return null;
-        }
-        if (hasMemberCallable(obj, primary)) {
-            return primary;
-        }
-        if (fallback != null && hasMemberCallable(obj, fallback)) {
-            return fallback;
-        }
+        if (obj == null || primary == null) return null;
+        if (hasMemberCallable(obj, primary)) return primary;
+        if (fallback != null && hasMemberCallable(obj, fallback)) return fallback;
         return null;
     }
 
     private static boolean hasMemberCallable(Value obj, String member) {
-        if (obj == null || member == null) {
-            return false;
-        }
+        if (obj == null || member == null) return false;
         try {
-            if (!obj.hasMember(member)) {
-                return false;
-            }
+            if (!obj.hasMember(member)) return false;
             Value fn = obj.getMember(member);
             return fn != null && fn.canExecute();
         } catch (Exception ignored) {
@@ -365,15 +297,13 @@ final class SceneRuntime {
     }
 
     private void disableInstance(long nodeId, String message) {
-        ServerScene scene = lastScene;
-        disableInstance(scene, nodeId, null, "error", new IllegalStateException(message == null ? "Script error" : message));
+        disableInstance(lastScene, nodeId, null, "error",
+                new IllegalStateException(message == null ? "Script error" : message));
     }
 
     private void disableInstance(ServerScene scene, long nodeId, Path scriptFile, String stage, Throwable t) {
         NodeInstance existing = nodeId > 0L ? instances.get(nodeId) : null;
-        if (existing != null) {
-            existing.disabled = true;
-        }
+        if (existing != null) existing.disabled = true;
         clearCameraOverridesOwnedBy(nodeId);
         String sceneId = scene == null ? "?" : scene.sceneId();
         String file = scriptFile == null ? "?" : scriptFile.toString();
@@ -389,43 +319,34 @@ final class SceneRuntime {
                 nodeInfo = " name='" + name + "' type=" + type;
             }
         }
-        DebugLog.error(LOG_TAG, "scene=" + sceneId + " nodeId=" + nodeId + nodeInfo + " stage=" + st + " file=" + file + " error=" + msg, t);
+        DebugLog.error(LOG_TAG, "scene=" + sceneId + " nodeId=" + nodeId + nodeInfo
+                + " stage=" + st + " file=" + file + " error=" + msg, t);
     }
 
     void queueSet(long nodeId, String key, String value) {
-        if (nodeId <= 0L || key == null || key.isBlank() || value == null) {
-            return;
-        }
+        if (nodeId <= 0L || key == null || key.isBlank() || value == null) return;
         pendingOps.add(new SceneOp.SetProperty(nodeId, key, value));
         pendingProps.put(propKey(nodeId, key), value);
     }
 
     void queueRemove(long nodeId, String key) {
-        if (nodeId <= 0L || key == null || key.isBlank()) {
-            return;
-        }
+        if (nodeId <= 0L || key == null || key.isBlank()) return;
         pendingOps.add(new SceneOp.RemoveProperty(nodeId, key));
         pendingProps.remove(propKey(nodeId, key));
     }
 
     void queueRename(long nodeId, String name) {
-        if (nodeId <= 0L || name == null || name.isBlank()) {
-            return;
-        }
+        if (nodeId <= 0L || name == null || name.isBlank()) return;
         pendingOps.add(new SceneOp.Rename(nodeId, name));
     }
 
     void queueReparent(long nodeId, long newParentId) {
-        if (nodeId <= 0L || newParentId < 0L) {
-            return;
-        }
+        if (nodeId <= 0L || newParentId < 0L) return;
         pendingOps.add(new SceneOp.Reparent(nodeId, newParentId, Integer.MAX_VALUE));
     }
 
     void queueFree(long nodeId) {
-        if (nodeId <= 0L) {
-            return;
-        }
+        if (nodeId <= 0L) return;
         pendingOps.add(new SceneOp.QueueFree(nodeId));
     }
 
@@ -437,23 +358,18 @@ final class SceneRuntime {
         flush(scene);
 
         long batchId = SceneBatchIds.markRuntime((scene.engine().ticks() << 32) ^ System.nanoTime());
-        SceneOpAck ack = scene.applier().apply(new SceneOpBatch(batchId, true, List.of(new SceneOp.CreateNode(parentId, name, typeId))));
-        if (ack == null || ack.results() == null || ack.results().isEmpty()) {
-            return 0L;
-        }
+        SceneOpAck ack = scene.applier().apply(
+                new SceneOpBatch(batchId, true, List.of(new SceneOp.CreateNode(parentId, name, typeId))));
+        if (ack == null || ack.results() == null || ack.results().isEmpty()) return 0L;
         SceneOpResult r = ack.results().getFirst();
-        if (r == null || !r.ok() || r.createdId() <= 0L) {
-            return 0L;
-        }
+        if (r == null || !r.ok() || r.createdId() <= 0L) return 0L;
 
         queueSet(r.createdId(), RuntimeScriptKeys.PROP_RUNTIME, "true");
         return r.createdId();
     }
 
     String getPending(long nodeId, String key) {
-        if (nodeId <= 0L || key == null || key.isBlank()) {
-            return null;
-        }
+        if (nodeId <= 0L || key == null || key.isBlank()) return null;
         return pendingProps.get(propKey(nodeId, key));
     }
 
@@ -477,7 +393,7 @@ final class SceneRuntime {
                 if (i > 0) sb.append(", ");
                 sb.append(op == null ? "null" : op.getClass().getSimpleName());
             }
-            if (show < n) sb.append(", …");
+            if (show < n) sb.append(", ...");
             sb.append(']');
             DebugLog.debug(LOG_TAG, "scene=" + scene.sceneId() + " " + sb);
         }
@@ -492,9 +408,7 @@ final class SceneRuntime {
         for (SceneOpResult r : ack.results()) {
             if (r != null && !r.ok()) {
                 String msg = r.message();
-                if (msg == null || msg.isBlank()) {
-                    msg = r.error() == null ? "SceneOp failed" : r.error().name();
-                }
+                if (msg == null || msg.isBlank()) msg = r.error() == null ? "SceneOp failed" : r.error().name();
                 DebugLog.error(LOG_TAG, "scene=" + scene.sceneId() + " SceneOp failed: " + msg);
             }
         }
@@ -502,26 +416,20 @@ final class SceneRuntime {
 
     void updatePlayerPositions(Map<String, float[]> positions) {
         playerPositions.clear();
-        if (positions != null) {
-            playerPositions.putAll(positions);
-        }
+        if (positions != null) playerPositions.putAll(positions);
     }
 
     Long getActiveCameraForPlayer(String playerUuid) {
         if (playerUuid == null) return null;
         OwnedValue<Long> ov = activeCameraByPlayer.get(playerUuid);
-        if (ov == null) {
-            return null;
-        }
+        if (ov == null) return null;
         Long nodeId = ov.value();
         if (nodeId == null || nodeId <= 0L) {
             activeCameraByPlayer.remove(playerUuid, ov);
             return null;
         }
         ServerScene scene = lastScene;
-        if (scene == null) {
-            return nodeId;
-        }
+        if (scene == null) return nodeId;
         Node node = scene.engine().sceneTree().getNode(nodeId);
         if (node == null || !"Camera3D".equals(scene.engine().nodeTypes().typeIdFor(node))) {
             activeCameraByPlayer.remove(playerUuid, ov);
@@ -536,10 +444,26 @@ final class SceneRuntime {
         return ov == null ? null : ov.value();
     }
 
-    void queueSceneTransition(String sceneId) {
-        if (sceneId != null && !sceneId.isBlank()) {
-            pendingSceneTransition = sceneId.trim();
+    float[] getScriptCameraForPlayer(String playerUuid) {
+        if (playerUuid == null) return null;
+        OwnedValue<float[]> ov = scriptCameraByPlayer.get(playerUuid);
+        if (ov == null) return null;
+        float[] pose = ov.value();
+        if (pose == null || pose.length < 6) {
+            scriptCameraByPlayer.remove(playerUuid, ov);
+            return null;
         }
+        for (int i = 0; i < 6; i++) {
+            if (!Float.isFinite(pose[i])) {
+                scriptCameraByPlayer.remove(playerUuid, ov);
+                return null;
+            }
+        }
+        return pose;
+    }
+
+    void queueSceneTransition(String sceneId) {
+        if (sceneId != null && !sceneId.isBlank()) pendingSceneTransition = sceneId.trim();
     }
 
     String drainPendingSceneTransition() {
@@ -576,8 +500,7 @@ final class SceneRuntime {
         return nodeId + "\u0000" + key;
     }
 
-    private record Target(long nodeId, String scriptPath) {
-    }
+    private record Target(long nodeId, String scriptPath) {}
 
     private static final class PendingTimer {
         double timeLeft;
@@ -588,10 +511,7 @@ final class SceneRuntime {
         }
     }
 
-    private record Program(Path file, long modifiedMs, Value exports) {
-    }
-
-    private final class NodeInstance {
+    static final class NodeInstance {
         final long nodeId;
         final Path scriptFile;
         final long programModifiedMs;
@@ -600,6 +520,7 @@ final class SceneRuntime {
         boolean readyCalled;
         boolean disabled;
         long lastInputClientTick;
+        ScriptInputApi inputApi;
 
         NodeInstance(long nodeId, Path scriptFile, long programModifiedMs, Value instance, RuntimeApi api) {
             this.nodeId = nodeId;
@@ -626,9 +547,7 @@ final class SceneRuntime {
         }
 
         @HostAccess.Export
-        public long id() {
-            return selfId;
-        }
+        public long id() { return selfId; }
 
         @HostAccess.Export
         public String name() {
@@ -643,27 +562,19 @@ final class SceneRuntime {
         }
 
         @HostAccess.Export
-        public String get(String key) {
-            return get(selfId, key);
-        }
+        public String get(String key) { return get(selfId, key); }
 
         @HostAccess.Export
         public String get(long nodeId, String key) {
-            if (nodeId <= 0L || key == null || key.isBlank()) {
-                return null;
-            }
+            if (nodeId <= 0L || key == null || key.isBlank()) return null;
             String pending = SceneRuntime.this.getPending(nodeId, key);
-            if (pending != null) {
-                return pending;
-            }
+            if (pending != null) return pending;
             Node n = scene.engine().sceneTree().getNode(nodeId);
             return n == null ? null : n.getProperty(key);
         }
 
         @HostAccess.Export
-        public void set(String key, String value) {
-            set(selfId, key, value);
-        }
+        public void set(String key, String value) { set(selfId, key, value); }
 
         @HostAccess.Export
         public void set(long nodeId, String key, String value) {
@@ -672,48 +583,36 @@ final class SceneRuntime {
 
         @HostAccess.Export
         public void setNumber(String key, double value) {
-            float v = (float) value;
-            set(key, RuntimeScriptUtil.trimFloat(v));
+            set(key, RuntimeScriptUtil.trimFloat((float) value));
         }
 
         @HostAccess.Export
         public void setNumber(long nodeId, String key, double value) {
-            float v = (float) value;
-            set(nodeId, key, RuntimeScriptUtil.trimFloat(v));
+            set(nodeId, key, RuntimeScriptUtil.trimFloat((float) value));
         }
 
         @HostAccess.Export
         public double getNumber(String key, double fallback) {
             String v = get(key);
-            if (v == null || v.isBlank()) {
-                return fallback;
-            }
+            if (v == null || v.isBlank()) return fallback;
             try {
                 double n = Double.parseDouble(v.trim());
                 return Double.isFinite(n) ? n : fallback;
-            } catch (Exception ignored) {
-                return fallback;
-            }
+            } catch (Exception ignored) { return fallback; }
         }
 
         @HostAccess.Export
         public double getNumber(long nodeId, String key, double fallback) {
             String v = get(nodeId, key);
-            if (v == null || v.isBlank()) {
-                return fallback;
-            }
+            if (v == null || v.isBlank()) return fallback;
             try {
                 double n = Double.parseDouble(v.trim());
                 return Double.isFinite(n) ? n : fallback;
-            } catch (Exception ignored) {
-                return fallback;
-            }
+            } catch (Exception ignored) { return fallback; }
         }
 
         @HostAccess.Export
-        public void remove(String key) {
-            remove(selfId, key);
-        }
+        public void remove(String key) { remove(selfId, key); }
 
         @HostAccess.Export
         public void remove(long nodeId, String key) {
@@ -721,9 +620,7 @@ final class SceneRuntime {
         }
 
         @HostAccess.Export
-        public void rename(String name) {
-            rename(selfId, name);
-        }
+        public void rename(String name) { rename(selfId, name); }
 
         @HostAccess.Export
         public void rename(long nodeId, String name) {
@@ -753,9 +650,7 @@ final class SceneRuntime {
         @HostAccess.Export
         public InputEvent input() {
             Node n = scene.engine().sceneTree().getNode(selfId);
-            if (n == null) {
-                return null;
-            }
+            if (n == null) return null;
             PlayerInputState state = null;
             String ownerUuid = RuntimeScriptUtil.resolveOwnerUuid(n);
             if (ownerUuid != null) {
@@ -768,21 +663,16 @@ final class SceneRuntime {
 
         @HostAccess.Export
         public long find(String path) {
-            if (path == null || path.isBlank()) {
-                return 0L;
-            }
+            if (path == null || path.isBlank()) return 0L;
             Node self = scene.engine().sceneTree().getNode(selfId);
-            if (self == null) {
-                return 0L;
-            }
+            if (self == null) return 0L;
             Node found = self.getNode(path.trim());
             return found == null ? 0L : found.nodeId();
         }
 
         @HostAccess.Export
         public PhysicsHit raycast(double ox, double oy, double oz,
-                                  double dx, double dy, double dz,
-                                  double maxDist) {
+                                  double dx, double dy, double dz, double maxDist) {
             JoltPhysicsWorld physics = scene.physics();
             if (physics == null) return null;
             return physics.raycast(ox, oy, oz, dx, dy, dz, maxDist)
@@ -812,6 +702,42 @@ final class SceneRuntime {
         }
 
         @HostAccess.Export
+        public void emit_signal(String signal) {
+            signalBus.emit(selfId, signal, instanceValueMap());
+        }
+
+        @HostAccess.Export
+        public void emit_signal(String signal, Value arg1) {
+            signalBus.emit(selfId, signal, instanceValueMap(), arg1);
+        }
+
+        @HostAccess.Export
+        public void emit_signal(String signal, Value arg1, Value arg2) {
+            signalBus.emit(selfId, signal, instanceValueMap(), arg1, arg2);
+        }
+
+        @HostAccess.Export
+        public void emit_signal(String signal, Value arg1, Value arg2, Value arg3) {
+            signalBus.emit(selfId, signal, instanceValueMap(), arg1, arg2, arg3);
+        }
+
+        @HostAccess.Export
+        public void connect(long sourceId, String signal, long targetId, String method) {
+            signalBus.connect(sourceId, signal, targetId, method);
+        }
+
+        @HostAccess.Export
+        public void disconnect(long sourceId, String signal, long targetId, String method) {
+            signalBus.disconnect(sourceId, signal, targetId, method);
+        }
+
+        @HostAccess.Export
+        public ScriptInputApi getInput() {
+            NodeInstance inst = instances.get(selfId);
+            return inst == null ? null : inst.inputApi;
+        }
+
+        @HostAccess.Export
         public double playerX() { return playerCoord(0); }
 
         @HostAccess.Export
@@ -824,10 +750,36 @@ final class SceneRuntime {
         public double playerYaw() { return playerCoord(3); }
 
         @HostAccess.Export
+        public boolean teleportPlayer(String playerUuid, double x, double y, double z) {
+            return teleportPlayer(playerUuid, x, y, z, Double.NaN, Double.NaN);
+        }
+
+        @HostAccess.Export
+        public boolean teleportPlayer(String playerUuid, double x, double y, double z,
+                                      double yawDeg, double pitchDeg) {
+            if (playerUuid == null || playerUuid.isBlank()) return false;
+            UUID uuid;
+            try {
+                uuid = UUID.fromString(playerUuid.trim());
+            } catch (Exception ignored) { return false; }
+
+            for (Player p : scene.instance().getPlayers()) {
+                if (p == null || !uuid.equals(p.getUuid())) continue;
+                Pos cur = p.getPosition();
+                float yaw = Double.isFinite(yawDeg) ? (float) yawDeg : cur.yaw();
+                float pitch = Double.isFinite(pitchDeg) ? (float) pitchDeg : cur.pitch();
+                p.teleport(new Pos(x, y, z, yaw, pitch));
+                return true;
+            }
+            return false;
+        }
+
+        @HostAccess.Export
         public void setActiveCamera(long nodeId) {
             String uuid = resolveOwnerUuidOrSinglePlayer();
             if (uuid == null) return;
             followCameraByPlayer.remove(uuid);
+            scriptCameraByPlayer.remove(uuid);
             if (nodeId <= 0L) {
                 activeCameraByPlayer.remove(uuid);
             } else {
@@ -836,14 +788,61 @@ final class SceneRuntime {
         }
 
         @HostAccess.Export
-        public void setFollowCamera(double localX, double localY, double localZ, double pitchDeg, double rollDeg) {
+        public void setFollowCamera(double localX, double localY, double localZ,
+                                    double pitchDeg, double rollDeg) {
             String uuid = resolveOwnerUuidOrSinglePlayer();
             if (uuid == null) return;
             activeCameraByPlayer.remove(uuid);
+            scriptCameraByPlayer.remove(uuid);
             followCameraByPlayer.put(uuid, new OwnedValue<>(selfId, new float[]{
                     (float) localX, (float) localY, (float) localZ,
                     (float) pitchDeg, (float) rollDeg
             }));
+        }
+
+        @HostAccess.Export
+        public void setScriptCamera(double x, double y, double z,
+                                    double yawDeg, double pitchDeg, double rollDeg) {
+            String uuid = resolveOwnerUuidOrSinglePlayer();
+            if (uuid == null) return;
+            activeCameraByPlayer.remove(uuid);
+            followCameraByPlayer.remove(uuid);
+            scriptCameraByPlayer.put(uuid, new OwnedValue<>(selfId, new float[]{
+                    (float) x, (float) y, (float) z,
+                    (float) yawDeg, (float) pitchDeg, (float) rollDeg
+            }));
+        }
+
+        @HostAccess.Export
+        public void resetCamera() {
+            String uuid = resolveOwnerUuidOrSinglePlayer();
+            if (uuid == null) return;
+            activeCameraByPlayer.remove(uuid);
+            followCameraByPlayer.remove(uuid);
+            scriptCameraByPlayer.remove(uuid);
+        }
+
+        @HostAccess.Export
+        public CameraApi camera() { return new CameraApi(); }
+
+        public final class CameraApi {
+            @HostAccess.Export
+            public void follow(double localX, double localY, double localZ,
+                               double pitchDeg, double rollDeg) {
+                setFollowCamera(localX, localY, localZ, pitchDeg, rollDeg);
+            }
+
+            @HostAccess.Export
+            public void scene(long cameraNodeId) { setActiveCamera(cameraNodeId); }
+
+            @HostAccess.Export
+            public void scriptable(double x, double y, double z,
+                                   double yawDeg, double pitchDeg, double rollDeg) {
+                setScriptCamera(x, y, z, yawDeg, pitchDeg, rollDeg);
+            }
+
+            @HostAccess.Export
+            public void reset() { resetCamera(); }
         }
 
         @HostAccess.Export
@@ -853,16 +852,13 @@ final class SceneRuntime {
                 return;
             }
             Node chosen = scene.engine().sceneTree().getNode(cameraNodeId);
-            if (chosen == null || !"Camera3D".equals(scene.engine().nodeTypes().typeIdFor(chosen))) {
-                return;
-            }
+            if (chosen == null || !"Camera3D".equals(scene.engine().nodeTypes().typeIdFor(chosen))) return;
 
             ArrayList<Node> stack = new ArrayList<>();
             stack.add(scene.engine().sceneTree().root());
             while (!stack.isEmpty()) {
                 Node node = stack.remove(stack.size() - 1);
                 if (node == null) continue;
-
                 if ("Camera3D".equals(scene.engine().nodeTypes().typeIdFor(node))) {
                     if (node.nodeId() == cameraNodeId) {
                         SceneRuntime.this.queueSet(node.nodeId(), "current", "true");
@@ -870,11 +866,8 @@ final class SceneRuntime {
                         SceneRuntime.this.queueRemove(node.nodeId(), "current");
                     }
                 }
-
                 List<Node> children = node.children();
-                for (int i = children.size() - 1; i >= 0; i--) {
-                    stack.add(children.get(i));
-                }
+                for (int i = children.size() - 1; i >= 0; i--) stack.add(children.get(i));
             }
         }
 
@@ -889,17 +882,50 @@ final class SceneRuntime {
                     SceneRuntime.this.queueRemove(node.nodeId(), "current");
                 }
                 List<Node> children = node.children();
-                for (int i = children.size() - 1; i >= 0; i--) {
-                    stack.add(children.get(i));
-                }
+                for (int i = children.size() - 1; i >= 0; i--) stack.add(children.get(i));
             }
+        }
+
+        @HostAccess.Export
+        public CollisionEvent[] getCollisionEvents() {
+            JoltPhysicsWorld physics = scene.physics();
+            if (physics == null) return new CollisionEvent[0];
+            List<CollisionEvent> events = physics.consumeCollisionEvents();
+            return events.toArray(new CollisionEvent[0]);
+        }
+
+        @HostAccess.Export
+        public double[] getBodyVelocity(long nodeId) {
+            JoltPhysicsWorld physics = scene.physics();
+            if (physics == null) return new double[]{0, 0, 0};
+            float[] v = physics.getLinearVelocity(nodeId);
+            return new double[]{v[0], v[1], v[2]};
+        }
+
+        @HostAccess.Export
+        public void applyForce(long nodeId, double fx, double fy, double fz) {
+            JoltPhysicsWorld physics = scene.physics();
+            if (physics == null) return;
+            physics.applyForce(nodeId, (float) fx, (float) fy, (float) fz);
+        }
+
+        @HostAccess.Export
+        public void applyImpulse(long nodeId, double fx, double fy, double fz) {
+            JoltPhysicsWorld physics = scene.physics();
+            if (physics == null) return;
+            physics.applyImpulse(nodeId, (float) fx, (float) fy, (float) fz);
+        }
+
+        @HostAccess.Export
+        public void setLinearVelocity(long nodeId, double vx, double vy, double vz) {
+            JoltPhysicsWorld physics = scene.physics();
+            if (physics == null) return;
+            physics.setLinearVelocity(nodeId, (float) vx, (float) vy, (float) vz);
         }
 
         private double playerCoord(int idx) {
             String uuid = resolveOwnerUuid();
-            if (uuid == null && inputsByPlayer.size() == 1) {
-                uuid = inputsByPlayer.keys().nextElement();
-            }
+            if (uuid == null && inputsByPlayer.size() == 1) uuid = inputsByPlayer.keys().nextElement();
             if (uuid == null) return 0.0;
             float[] pos = playerPositions.get(uuid);
             return pos != null && idx < pos.length ? pos[idx] : 0.0;
@@ -912,9 +938,7 @@ final class SceneRuntime {
 
         private String resolveOwnerUuidOrSinglePlayer() {
             String uuid = resolveOwnerUuid();
-            if (uuid != null) {
-                return uuid;
-            }
+            if (uuid != null) return uuid;
             if (inputsByPlayer.size() == 1) {
                 PlayerInputState st = inputsByPlayer.values().iterator().next();
                 return st == null ? null : st.playerUuid();

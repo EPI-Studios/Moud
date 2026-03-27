@@ -44,6 +44,11 @@ public final class ScriptService {
         return runtime.getFollowCameraForPlayer(sceneId, uuid.toString());
     }
 
+    public float[] getScriptCameraForPlayer(String sceneId, UUID uuid) {
+        if (sceneId == null || uuid == null) return null;
+        return runtime.getScriptCameraForPlayer(sceneId, uuid.toString());
+    }
+
     public void onPlayerInput(UUID uuid, PlayerInput input) {
         runtime.onPlayerInput(uuid, input);
     }

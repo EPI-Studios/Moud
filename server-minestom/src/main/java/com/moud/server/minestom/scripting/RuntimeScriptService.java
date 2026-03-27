@@ -42,6 +42,11 @@ final class RuntimeScriptService {
         return rt == null ? null : rt.getFollowCameraForPlayer(playerUuid);
     }
 
+    float[] getScriptCameraForPlayer(String sceneId, String playerUuid) {
+        SceneRuntime rt = runtimeByScene.get(sceneId);
+        return rt == null ? null : rt.getScriptCameraForPlayer(playerUuid);
+    }
+
     void onPlayerInput(UUID uuid, PlayerInput input) {
         if (uuid == null || input == null) {
             return;
