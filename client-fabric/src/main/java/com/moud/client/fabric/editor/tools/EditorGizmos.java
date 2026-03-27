@@ -62,6 +62,8 @@ public final class EditorGizmos implements AutoCloseable {
     private long lastDragSendAtMs;
     private long lastDragSendNodeId;
     private boolean dragHasUnsentOps;
+    private Map<String, String> dragStartProps;
+    private long dragStartNodeId;
 
     public EditorGizmos(EditorRuntime runtime) {
         this.runtime = runtime;
@@ -115,7 +117,6 @@ public final class EditorGizmos implements AutoCloseable {
             }
         }
 
-        // Render PlayerStart gizmos
         for (SceneSnapshot.NodeSnapshot node : state.scene.nodes()) {
             if (node == null || !"PlayerStart".equals(node.type())) {
                 continue;
@@ -127,17 +128,140 @@ public final class EditorGizmos implements AutoCloseable {
             int color = active ? 0xFFFFFF00 : 0xFFFF8800;
             float r = active ? 2.0f : 1.5f;
 
-            // Vertical marker
             focusWorld.set(tmpWorld).add(0, 0.6f, 0);
             debug.line(tmpWorld, focusWorld, color, r);
 
-            // Facing arrow along world forward (+Z rotated by ry)
             Pose psWorld = worldPose(state, node.nodeId(), poseCache);
             Vector3f fwd = new Vector3f(0, 0, 1);
             psWorld.rot.transform(fwd);
             float arrowLen = active ? 1.2f : 0.8f;
             focusWorld.set(tmpWorld).add(fwd.x * arrowLen, fwd.y * arrowLen, fwd.z * arrowLen);
             debug.line(tmpWorld, focusWorld, color, r);
+        }
+
+        for (SceneSnapshot.NodeSnapshot node : state.scene.nodes()) {
+            if (node == null) continue;
+            String type = node.type();
+            boolean isLight = "OmniLight3D".equals(type) || "DirectionalLight3D".equals(type) || "SpotLight3D".equals(type);
+            if (!isLight) continue;
+
+            Pose lp = worldPose(state, node.nodeId(), poseCache);
+            if (lp == null) continue;
+            tmpWorld.set(lp.pos);
+
+            boolean active = node.nodeId() == state.selectedId;
+            Map<String, String> lProps = toPropertyMap(node.properties());
+            float cr = parseFloat(lProps.get("color_r"), "1");
+            float cg = parseFloat(lProps.get("color_g"), "1");
+            float cb = parseFloat(lProps.get("color_b"), "1");
+            int lightColor = 0xFF000000
+                    | (Math.min(255, (int) (cr * 255)) << 16)
+                    | (Math.min(255, (int) (cg * 255)) << 8)
+                    | Math.min(255, (int) (cb * 255));
+            if (!active) lightColor = (lightColor & 0x00FFFFFF) | 0x99000000;
+
+            if ("OmniLight3D".equals(type)) {
+                float radius = parseFloat(lProps.get("radius"), "8");
+                debug.sphere(tmpWorld, radius, lightColor, active ? 24 : 12);
+                debug.sphere(tmpWorld, 0.15f, lightColor, 8);
+            } else if ("DirectionalLight3D".equals(type)) {
+                Vector3f dir = new Vector3f(0, 0, 1);
+                lp.rot.transform(dir);
+                if (dir.lengthSquared() > 1e-12f) dir.normalize();
+                float arrowLen = active ? 2.0f : 1.2f;
+                focusWorld.set(tmpWorld).add(dir.x * arrowLen, dir.y * arrowLen, dir.z * arrowLen);
+                debug.line(tmpWorld, focusWorld, lightColor, active ? 3f : 2f);
+                Vector3f perp = new Vector3f(dir.y, -dir.x, 0);
+                if (perp.lengthSquared() < 1e-6f) perp.set(0, 0, 1);
+                perp.normalize().mul(0.3f);
+                Vector3f tipA = new Vector3f(focusWorld).add(perp);
+                Vector3f tipB = new Vector3f(focusWorld).sub(perp);
+                debug.line(tipA, tipB, lightColor, 1.5f);
+            } else {
+                float angleDeg = parseFloat(lProps.get("angle"), "45");
+                float distance = parseFloat(lProps.get("distance"), "10");
+                Vector3f dir = new Vector3f(0, 0, 1);
+                lp.rot.transform(dir);
+                if (dir.lengthSquared() > 1e-12f) dir.normalize();
+
+                focusWorld.set(tmpWorld).add(dir.x * distance, dir.y * distance, dir.z * distance);
+                debug.line(tmpWorld, focusWorld, lightColor, active ? 2.5f : 1.5f);
+
+                float coneRadius = distance * (float) Math.tan(Math.toRadians(angleDeg));
+                Vector3f up = new Vector3f(0, 1, 0);
+                if (Math.abs(dir.dot(up)) > 0.99f) up.set(1, 0, 0);
+                Vector3f right = new Vector3f(dir).cross(up).normalize();
+                Vector3f upVec = new Vector3f(right).cross(dir).normalize();
+                for (int i = 0; i < 8; i++) {
+                    float a = (float) (i * Math.PI * 2.0 / 8.0);
+                    float rx = (float) Math.cos(a) * coneRadius;
+                    float ry = (float) Math.sin(a) * coneRadius;
+                    Vector3f edge = new Vector3f(focusWorld)
+                            .add(right.x * rx + upVec.x * ry, right.y * rx + upVec.y * ry, right.z * rx + upVec.z * ry);
+                    debug.line(tmpWorld, edge, lightColor, 1.0f);
+                }
+            }
+        }
+
+        for (SceneSnapshot.NodeSnapshot node : state.scene.nodes()) {
+            if (node == null) continue;
+            String type = node.type();
+            boolean isPhys = "StaticBody3D".equals(type) || "RigidBody3D".equals(type)
+                    || "CharacterBody3D".equals(type) || "Area3D".equals(type);
+            boolean isRay = "Raycast3D".equals(type);
+            boolean isMarker = "Marker3D".equals(type);
+            if (!isPhys && !isRay && !isMarker) continue;
+
+            Pose pp = worldPose(state, node.nodeId(), poseCache);
+            if (pp == null) continue;
+            tmpWorld.set(pp.pos);
+            boolean active = node.nodeId() == state.selectedId;
+            Map<String, String> pProps = toPropertyMap(node.properties());
+
+            if (isMarker) {
+                float gs = parseFloat(pProps.get("gizmo_size"), "0.5");
+                int mc = active ? 0xFFFF44FF : 0xFF9944CC;
+                focusWorld.set(tmpWorld).add(gs, 0, 0); debug.line(tmpWorld, focusWorld, 0xFFFF4444, 1.5f);
+                focusWorld.set(tmpWorld).add(0, gs, 0); debug.line(tmpWorld, focusWorld, 0xFF44FF44, 1.5f);
+                focusWorld.set(tmpWorld).add(0, 0, gs); debug.line(tmpWorld, focusWorld, 0xFF4444FF, 1.5f);
+                debug.sphere(tmpWorld, 0.08f, mc, 6);
+            } else if (isRay) {
+                float tx = parseFloat(pProps.get("target_x"), "0");
+                float ty = parseFloat(pProps.get("target_y"), "-1");
+                float tz = parseFloat(pProps.get("target_z"), "0");
+                float maxDist = parseFloat(pProps.get("max_distance"), "100");
+                Vector3f dir = new Vector3f(tx, ty, tz);
+                pp.rot.transform(dir);
+                if (dir.lengthSquared() > 1e-12f) dir.normalize();
+                focusWorld.set(tmpWorld).add(dir.x * maxDist, dir.y * maxDist, dir.z * maxDist);
+                int rc = active ? 0xFFFF4444 : 0xFFAA2222;
+                debug.line(tmpWorld, focusWorld, rc, active ? 2f : 1f);
+            } else {
+                String shape = pProps.getOrDefault("shape", "box");
+                int pc = active ? 0xFF44FF44 : 0xFF228822;
+                if ("sphere".equals(shape)) {
+                    float r = parseFloat(pProps.get("radius"), "0.5");
+                    debug.sphere(tmpWorld, r, pc, active ? 16 : 8);
+                } else if ("capsule".equals(shape)) {
+                    float r = parseFloat(pProps.get("radius"), "0.3");
+                    float h = parseFloat(pProps.get("height"), "1.8");
+                    debug.sphere(tmpWorld, r, pc, active ? 12 : 6);
+                    focusWorld.set(tmpWorld).add(0, h, 0);
+                    debug.sphere(focusWorld, r, pc, active ? 12 : 6);
+                    Vector3f top = new Vector3f(tmpWorld).add(0, h, 0);
+                    debug.line(new Vector3f(tmpWorld.x + r, tmpWorld.y, tmpWorld.z), new Vector3f(top.x + r, top.y, top.z), pc, 1f);
+                    debug.line(new Vector3f(tmpWorld.x - r, tmpWorld.y, tmpWorld.z), new Vector3f(top.x - r, top.y, top.z), pc, 1f);
+                    debug.line(new Vector3f(tmpWorld.x, tmpWorld.y, tmpWorld.z + r), new Vector3f(top.x, top.y, top.z + r), pc, 1f);
+                    debug.line(new Vector3f(tmpWorld.x, tmpWorld.y, tmpWorld.z - r), new Vector3f(top.x, top.y, top.z - r), pc, 1f);
+                } else {
+                    float hx = parseFloat(pProps.get("sx"), "1") * 0.5f;
+                    float hy = parseFloat(pProps.get("sy"), "1") * 0.5f;
+                    float hz = parseFloat(pProps.get("sz"), "1") * 0.5f;
+                    Vector3f mn = new Vector3f(tmpWorld.x - hx, tmpWorld.y - hy, tmpWorld.z - hz);
+                    Vector3f mx = new Vector3f(tmpWorld.x + hx, tmpWorld.y + hy, tmpWorld.z + hz);
+                    debug.box(mn, mx, pc, active ? 2f : 1f);
+                }
+            }
         }
 
         SceneSnapshot.NodeSnapshot selected = state.scene.getNode(state.selectedId);
@@ -396,12 +520,13 @@ public final class EditorGizmos implements AutoCloseable {
 
         boolean dragging = overlay.dragging();
         boolean released = wasDragging && !dragging && input.mouseReleased();
-        boolean freeRotation = input.shiftDown();
+        boolean freeRotation = input.shiftDown() || (runtime != null && !runtime.rotationSnapEnabled());
         boolean snapMove = runtime != null
                 && runtime.gridSnapEnabled()
                 && runtime.tool() == EditorTool.MOVE
-                && !freeRotation;
+                && !input.shiftDown();
         float snapStep = runtime == null ? 1.0f : runtime.gridSnapStep();
+        float rotSnapDeg = runtime == null ? ROTATION_SNAP_DEG : runtime.rotationSnapDeg();
 
         if (isCsgBlock && !wasDragging && dragging) {
             int snappedX = Math.round(x);
@@ -418,6 +543,8 @@ public final class EditorGizmos implements AutoCloseable {
                 lastDragSendNodeId = sel.nodeId();
                 lastDragSendAtMs = 0L;
                 dragHasUnsentOps = false;
+                dragStartNodeId = sel.nodeId();
+                dragStartProps = new HashMap<>(props);
             }
 
             if (isCsgBlock) {
@@ -427,24 +554,24 @@ public final class EditorGizmos implements AutoCloseable {
                 int psx = Math.max(1, Math.round(sx));
                 int psy = Math.max(1, Math.round(sy));
                 int psz = Math.max(1, Math.round(sz));
-                float outRx = freeRotation ? rotDeg.x : snapDeg(rotDeg.x, ROTATION_SNAP_DEG);
-                float outRy = freeRotation ? rotDeg.y : snapDeg(rotDeg.y, ROTATION_SNAP_DEG);
-                float outRz = freeRotation ? rotDeg.z : snapDeg(rotDeg.z, ROTATION_SNAP_DEG);
+                float outRx = freeRotation ? rotDeg.x : snapDeg(rotDeg.x, rotSnapDeg);
+                float outRy = freeRotation ? rotDeg.y : snapDeg(rotDeg.y, rotSnapDeg);
+                float outRz = freeRotation ? rotDeg.z : snapDeg(rotDeg.z, rotSnapDeg);
                 ghosts.setRenderTransform(new Vector3d(px, py, pz), new Vector3d(psx, psy, psz), new Vector3d(outRx, outRy, outRz));
                 return;
             }
 
-            float outRx = canRotate ? (freeRotation ? rotDeg.x : snapDeg(rotDeg.x, ROTATION_SNAP_DEG)) : 0.0f;
-            float outRy = canRotate ? (freeRotation ? rotDeg.y : snapDeg(rotDeg.y, ROTATION_SNAP_DEG)) : 0.0f;
-            float outRz = canRotate ? (freeRotation ? rotDeg.z : snapDeg(rotDeg.z, ROTATION_SNAP_DEG)) : 0.0f;
+            float outRx = canRotate ? (freeRotation ? rotDeg.x : snapDeg(rotDeg.x, rotSnapDeg)) : 0.0f;
+            float outRy = canRotate ? (freeRotation ? rotDeg.y : snapDeg(rotDeg.y, rotSnapDeg)) : 0.0f;
+            float outRz = canRotate ? (freeRotation ? rotDeg.z : snapDeg(rotDeg.z, rotSnapDeg)) : 0.0f;
 
             float refRx = canRotate ? parseFloat(props.get("rx"), defaultFor(def, "rx", "0")) : 0.0f;
             float refRy = canRotate ? parseFloat(props.get("ry"), defaultFor(def, "ry", "0")) : 0.0f;
             float refRz = canRotate ? parseFloat(props.get("rz"), defaultFor(def, "rz", "0")) : 0.0f;
             if (!freeRotation) {
-                refRx = snapDeg(refRx, ROTATION_SNAP_DEG);
-                refRy = snapDeg(refRy, ROTATION_SNAP_DEG);
-                refRz = snapDeg(refRz, ROTATION_SNAP_DEG);
+                refRx = snapDeg(refRx, rotSnapDeg);
+                refRy = snapDeg(refRy, rotSnapDeg);
+                refRz = snapDeg(refRz, rotSnapDeg);
             }
 
             ArrayList<SceneOp> ops;
@@ -574,13 +701,13 @@ public final class EditorGizmos implements AutoCloseable {
             boolean forceSend = dragHasUnsentOps && lastDragSendNodeId == sel.nodeId();
             dragHasUnsentOps = false;
 
-            float outRx = canRotate ? (freeRotation ? rotDeg.x : snapDeg(rotDeg.x, ROTATION_SNAP_DEG)) : 0.0f;
-            float outRy = canRotate ? (freeRotation ? rotDeg.y : snapDeg(rotDeg.y, ROTATION_SNAP_DEG)) : 0.0f;
-            float outRz = canRotate ? (freeRotation ? rotDeg.z : snapDeg(rotDeg.z, ROTATION_SNAP_DEG)) : 0.0f;
+            float outRx = canRotate ? (freeRotation ? rotDeg.x : snapDeg(rotDeg.x, rotSnapDeg)) : 0.0f;
+            float outRy = canRotate ? (freeRotation ? rotDeg.y : snapDeg(rotDeg.y, rotSnapDeg)) : 0.0f;
+            float outRz = canRotate ? (freeRotation ? rotDeg.z : snapDeg(rotDeg.z, rotSnapDeg)) : 0.0f;
 
-            float startCmpRx = canRotate ? (freeRotation ? startRx : snapDeg(startRx, ROTATION_SNAP_DEG)) : 0.0f;
-            float startCmpRy = canRotate ? (freeRotation ? startRy : snapDeg(startRy, ROTATION_SNAP_DEG)) : 0.0f;
-            float startCmpRz = canRotate ? (freeRotation ? startRz : snapDeg(startRz, ROTATION_SNAP_DEG)) : 0.0f;
+            float startCmpRx = canRotate ? (freeRotation ? startRx : snapDeg(startRx, rotSnapDeg)) : 0.0f;
+            float startCmpRy = canRotate ? (freeRotation ? startRy : snapDeg(startRy, rotSnapDeg)) : 0.0f;
+            float startCmpRz = canRotate ? (freeRotation ? startRz : snapDeg(startRz, rotSnapDeg)) : 0.0f;
 
             if (pivotIsMinCorner) {
                 float outWorldSx = size.x;
@@ -747,7 +874,28 @@ public final class EditorGizmos implements AutoCloseable {
 
                 sendNodeTransform(sel.nodeId(), session, state, def, props, outLocalX, outLocalY, outLocalZ, outLocalRx, outLocalRy, outLocalRz);
             }
+            recordDragUndoOnRelease(sel.nodeId());
         }
+    }
+
+    private void recordDragUndoOnRelease(long nodeId) {
+        if (dragStartProps == null || dragStartNodeId != nodeId) {
+            dragStartProps = null;
+            dragStartNodeId = 0L;
+            return;
+        }
+        List<SceneOp> undoOps = new ArrayList<>();
+        for (String k : new String[]{"x", "y", "z", "rx", "ry", "rz", "sx", "sy", "sz"}) {
+            String oldVal = dragStartProps.get(k);
+            if (oldVal != null) {
+                undoOps.add(new SceneOp.SetProperty(nodeId, k, oldVal));
+            }
+        }
+        if (!undoOps.isEmpty()) {
+            runtime.history().push(undoOps, List.of());
+        }
+        dragStartProps = null;
+        dragStartNodeId = 0L;
     }
 
     private boolean sendOpsThrottled(Session session, EditorState state, long nodeId, List<SceneOp> ops) {
