@@ -64,7 +64,7 @@ public final class PlayRuntime {
     }
 
     public void tick(UUID uuid, Session session, ServerScene scene,
-                     Long playerCameraNodeId, float[] followCamera) {
+                     Long playerCameraNodeId, float[] followCamera, float[] scriptCamera) {
         if (uuid == null || session == null || scene == null) {
             return;
         }
@@ -87,7 +87,21 @@ public final class PlayRuntime {
                     env.fogEnabled(), env.fogColorR(), env.fogColorG(), env.fogColorB(), env.fogDensity(),
                     timeTicks, env.weather(), env.ambientLight(),
                     false, 0f, 0f, 0f, 0f, 0f, 0f,
-                    true, followCamera[0], followCamera[1], followCamera[2], followCamera[3], followCamera[4]
+                    true, followCamera[0], followCamera[1], followCamera[2], followCamera[3], followCamera[4],
+                    false, 0f, 0f, 0f, 0f, 0f, 0f
+            ));
+            return;
+        }
+        if (scriptCamera != null && scriptCamera.length >= 6) {
+            session.send(Lane.STATE, new RuntimeState(
+                    scene.engine().ticks(), scene.sceneId(),
+                    env.fogEnabled(), env.fogColorR(), env.fogColorG(), env.fogColorB(), env.fogDensity(),
+                    timeTicks, env.weather(), env.ambientLight(),
+                    false, 0f, 0f, 0f, 0f, 0f, 0f,
+                    false, 0f, 0f, 0f, 0f, 0f,
+                    true,
+                    scriptCamera[0], scriptCamera[1], scriptCamera[2],
+                    scriptCamera[3], scriptCamera[4], scriptCamera[5]
             ));
             return;
         }
@@ -116,7 +130,8 @@ public final class PlayRuntime {
                 cameraPose == null ? 0f : cameraPose.yawDeg(),
                 cameraPose == null ? 0f : cameraPose.pitchDeg(),
                 cameraPose == null ? 0f : cameraPose.rollDeg(),
-                false, 0f, 0f, 0f, 0f, 0f
+                false, 0f, 0f, 0f, 0f, 0f,
+                false, 0f, 0f, 0f, 0f, 0f, 0f
         ));
 
         // for static scene cameras, teleport to load chunks around the camera position
