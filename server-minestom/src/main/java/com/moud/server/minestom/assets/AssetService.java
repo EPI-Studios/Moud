@@ -79,6 +79,9 @@ public final class AssetService {
     }
 
     private void handleManifestRequest(Session session, AssetManifestRequest request) {
+        if (store instanceof FileSystemAssetStore fs) {
+            fs.reloadManifest();
+        }
         AssetManifest manifest = store.manifest();
         ArrayList<AssetManifestResponse.Entry> entries = new ArrayList<>(manifest.entries().size());
         for (Map.Entry<ResPath, AssetMeta> entry : manifest.entries().entrySet()) {

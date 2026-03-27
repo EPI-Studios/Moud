@@ -1,22 +1,11 @@
 package com.moud.server.minestom.assets;
 
-
-import com.moud.core.assets.AssetHash;
-import com.moud.core.assets.AssetMeta;
-import com.moud.core.assets.AssetType;
-import com.moud.core.assets.ResPath;
-import com.moud.core.assets.AssetManifest;
+import com.moud.core.assets.*;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.nio.file.*;
+import java.util.*;
+import java.util.stream.Stream;
 
 public final class FileSystemAssetStore implements AssetStore {
     private final Path root;
@@ -44,12 +33,10 @@ public final class FileSystemAssetStore implements AssetStore {
 
     @Override
     public synchronized AssetMeta metaByHash(AssetHash hash) {
-        for (AssetMeta meta : manifest.values()) {
-            if (meta.hash().equals(hash)) {
-                return meta;
-            }
-        }
-        return null;
+        return manifest.values().stream()
+                .filter(m -> m.hash().equals(hash))
+                .findFirst()
+                .orElse(null);
     }
 
     @Override
@@ -70,9 +57,7 @@ public final class FileSystemAssetStore implements AssetStore {
 
         Path blob = blobPath(meta.hash());
         if (!Files.exists(blob)) {
-            Path tmp = blob.resolveSibling(blob.getFileName() + ".tmp");
-            Files.write(tmp, bytes);
-            Files.move(tmp, blob, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            atomicWrite(blob, bytes);
         }
         manifest.put(path, meta);
         persistManifest();
@@ -86,55 +71,136 @@ public final class FileSystemAssetStore implements AssetStore {
         persistManifest();
     }
 
-    private Path blobPath(AssetHash hash) {
-        return blobsDir.resolve(hash.hex());
+    public synchronized void reloadManifest() {
+        try {
+            loadManifest();
+            scanForNewAssets();
+        } catch (IOException e) {
+            System.err.println("[moud-server] Failed to reload manifest: " + e.getMessage());
+        }
+    }
+
+    private static final Map<String, Map<String, AssetType>> SCAN_DIRS = Map.of(
+            "materials", Map.of(".moudmat", AssetType.TEXT),
+            "shaders",   Map.of(".moudshader", AssetType.TEXT),
+            "textures",  Map.of(".png", AssetType.IMAGE, ".jpg", AssetType.IMAGE, ".jpeg", AssetType.IMAGE),
+            "models",    Map.of(".bbmodel", AssetType.MODEL),
+            "scripts",   Map.of(".js", AssetType.TEXT)
+    );
+
+    private void scanForNewAssets() throws IOException {
+        for (String dir : SCAN_DIRS.keySet()) {
+            Files.createDirectories(root.resolve(dir));
+        }
+
+        boolean changed = false;
+
+        Set<String> knownHashes = new HashSet<>();
+        for (AssetMeta meta : manifest.values()) {
+            knownHashes.add(meta.hash().hex());
+        }
+
+        try (Stream<Path> blobFiles = Files.list(blobsDir)) {
+            for (Path blobFile : (Iterable<Path>) blobFiles::iterator) {
+                if (Files.isDirectory(blobFile)) continue;
+                String fileName = blobFile.getFileName().toString();
+                if (fileName.endsWith(".tmp")) continue;
+                if (AssetHash.validate(fileName).ok() && !knownHashes.contains(fileName)) {
+                    byte[] bytes = Files.readAllBytes(blobFile);
+                    AssetHash hash = new AssetHash(fileName);
+                    ResPath path = new ResPath("res://blobs/" + fileName);
+                    manifest.put(path, new AssetMeta(hash, bytes.length, AssetType.BINARY));
+                    changed = true;
+                }
+            }
+        }
+
+        for (var dirEntry : SCAN_DIRS.entrySet()) {
+            Path dir = root.resolve(dirEntry.getKey());
+            if (!Files.isDirectory(dir)) continue;
+            var extensions = dirEntry.getValue();
+
+            try (Stream<Path> walk = Files.walk(dir)) {
+                for (Path file : (Iterable<Path>) walk::iterator) {
+                    if (!Files.isRegularFile(file)) continue;
+
+                    String name = file.getFileName().toString().toLowerCase();
+                    AssetType type = extensions.entrySet().stream()
+                            .filter(e -> name.endsWith(e.getKey()))
+                            .map(Map.Entry::getValue)
+                            .findFirst()
+                            .orElse(null);
+                    if (type == null) continue;
+
+                    ResPath resPath = new ResPath("res://" + root.relativize(file).toString().replace('\\', '/'));
+                    if (manifest.containsKey(resPath)) continue;
+
+                    byte[] bytes = Files.readAllBytes(file);
+                    AssetHash hash = AssetHash.sha256(bytes);
+
+                    Path blob = blobPath(hash);
+                    if (!Files.exists(blob)) {
+                        atomicWrite(blob, bytes);
+                    }
+
+                    manifest.put(resPath, new AssetMeta(hash, bytes.length, type));
+                    changed = true;
+                }
+            }
+        }
+
+        if (changed) persistManifest();
     }
 
     private void loadManifest() throws IOException {
         manifest.clear();
-        if (!Files.exists(manifestFile)) {
-            return;
-        }
-        List<String> lines = Files.readAllLines(manifestFile, StandardCharsets.UTF_8);
-        for (String line : lines) {
-            if (line == null || line.isBlank()) {
-                continue;
-            }
+        if (!Files.exists(manifestFile)) return;
+
+        for (String line : Files.readAllLines(manifestFile, StandardCharsets.UTF_8)) {
+            if (line == null || line.isBlank()) continue;
             String[] parts = line.split("\t");
-            if (parts.length < 4) {
-                continue;
-            }
+            if (parts.length < 4) continue;
             try {
-                ResPath path = new ResPath(parts[0]);
-                AssetHash hash = new AssetHash(parts[1]);
-                long size = Long.parseLong(parts[2]);
-                AssetType type = AssetType.valueOf(parts[3]);
-                manifest.put(path, new AssetMeta(hash, size, type));
-            } catch (Exception ignored) {
-            }
+                manifest.put(
+                        new ResPath(parts[0]),
+                        new AssetMeta(new AssetHash(parts[1]), Long.parseLong(parts[2]), AssetType.valueOf(parts[3]))
+                );
+            } catch (Exception ignored) {}
         }
     }
 
     private void persistManifest() throws IOException {
-        ArrayList<Map.Entry<ResPath, AssetMeta>> entries = new ArrayList<>(manifest.entrySet());
+        var entries = new ArrayList<>(manifest.entrySet());
         entries.sort(Comparator.comparing(e -> e.getKey().value()));
 
-        StringBuilder sb = new StringBuilder(entries.size() * 64);
-        for (Map.Entry<ResPath, AssetMeta> entry : entries) {
+        var sb = new StringBuilder(entries.size() * 64);
+        for (var entry : entries) {
             ResPath path = entry.getKey();
             AssetMeta meta = entry.getValue();
-            if (path == null || meta == null) {
-                continue;
-            }
+            if (path == null || meta == null) continue;
             sb.append(path.value()).append('\t')
                     .append(meta.hash().hex()).append('\t')
                     .append(meta.sizeBytes()).append('\t')
-                    .append(meta.type().name())
-                    .append('\n');
+                    .append(meta.type().name()).append('\n');
         }
+
         Files.createDirectories(root);
-        Path tmp = manifestFile.resolveSibling(manifestFile.getFileName() + ".tmp");
-        Files.writeString(tmp, sb.toString(), StandardCharsets.UTF_8);
-        Files.move(tmp, manifestFile, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        atomicWriteString(manifestFile, sb.toString());
+    }
+
+    private Path blobPath(AssetHash hash) {
+        return blobsDir.resolve(hash.hex());
+    }
+
+    private void atomicWrite(Path target, byte[] bytes) throws IOException {
+        Path tmp = target.resolveSibling(target.getFileName() + ".tmp");
+        Files.write(tmp, bytes);
+        Files.move(tmp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    private void atomicWriteString(Path target, String content) throws IOException {
+        Path tmp = target.resolveSibling(target.getFileName() + ".tmp");
+        Files.writeString(tmp, content, StandardCharsets.UTF_8);
+        Files.move(tmp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
     }
 }
