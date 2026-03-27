@@ -52,6 +52,8 @@ public final class EditorRuntime {
     private EditorTool tool = EditorTool.SELECT;
     private boolean gridSnapEnabled;
     private float gridSnapStep = 1.0f;
+    private boolean rotationSnapEnabled = true;
+    private float rotationSnapDeg = 15.0f;
     private float framebufferScaleX = 1.0f;
     private float framebufferScaleY = 1.0f;
     private int uiWidth;
@@ -62,9 +64,8 @@ public final class EditorRuntime {
     private boolean uiBlocked;
     private ToastRequest pendingToast;
     private final HashMap<Long, LongConsumer> afterCreateByBatchId = new HashMap<>();
+    private final EditorHistory history = new EditorHistory();
 
-    // Deferred rendering: panels register menus here; EditorOverlay renders them after dockspace
-    // so they appear on top of all panels and are not scissored to the panel bounds.
     private Runnable overlayMenuRender;
 
     private String sceneDragId;
@@ -139,6 +140,19 @@ public final class EditorRuntime {
         }
     }
 
+    public boolean rotationSnapEnabled() { return rotationSnapEnabled; }
+    public void setRotationSnapEnabled(boolean v) { rotationSnapEnabled = v; }
+    public float rotationSnapDeg() { return rotationSnapDeg; }
+    public void cycleRotationSnapDeg() {
+        if (Math.abs(rotationSnapDeg - 15.0f) < 1e-3f) {
+            rotationSnapDeg = 45.0f;
+        } else if (Math.abs(rotationSnapDeg - 45.0f) < 1e-3f) {
+            rotationSnapDeg = 90.0f;
+        } else {
+            rotationSnapDeg = 15.0f;
+        }
+    }
+
     public float framebufferScaleX() {
         return framebufferScaleX;
     }
@@ -196,6 +210,10 @@ public final class EditorRuntime {
             return;
         }
         pendingToast = new ToastRequest(message, error, durationMs);
+    }
+
+    public EditorHistory history() {
+        return history;
     }
 
     public void afterCreateNode(long batchId, LongConsumer callback) {

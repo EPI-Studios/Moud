@@ -2,6 +2,7 @@ package com.moud.client.fabric.editor.util;
 
 import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
+import com.moud.client.fabric.editor.state.EditorHistory;
 import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
 import com.moud.core.scene.Model3D;
@@ -56,15 +57,15 @@ public final class EditorDropActions {
                 name = nodeTypeId;
             }
 
-            long batchId = runtime.net().sendOpsWithBatchId(session, state, List.of(new SceneOp.CreateNode(parentId, name, nodeTypeId)));
-            if (batchId <= 0L) {
-                return;
-            }
-            runtime.afterCreateNode(batchId, createdId -> {
-                state.selectedId = createdId;
-                runtime.net().sendOps(session, state, List.of(new SceneOp.SetProperty(createdId, propertyKey, propertyValue)));
-            });
+            EditorHistory.CreateNodeEntry entry = new EditorHistory.CreateNodeEntry(
+                    parentId,
+                    name,
+                    nodeTypeId,
+                    List.of(java.util.Map.entry(propertyKey, propertyValue)),
+                    true
+            );
+            runtime.history().pushEntry(entry);
+            entry.redo(runtime);
         });
     }
 }
-
