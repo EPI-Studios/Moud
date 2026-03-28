@@ -77,6 +77,7 @@ public final class SceneState {
         if (ops == null || ops.isEmpty()) {
             return;
         }
+        boolean graphChanged = false;
         for (SceneOp op : ops) {
             if (op instanceof SceneOp.SetProperty sp) {
                 applySetProperty(sp.nodeId(), sp.key(), sp.value());
@@ -84,11 +85,17 @@ public final class SceneState {
                 applyRemoveProperty(rp.nodeId(), rp.key());
             } else if (op instanceof SceneOp.Rename rn) {
                 applyRename(rn.nodeId(), rn.newName());
+                graphChanged = true;
             } else if (op instanceof SceneOp.Reparent re) {
                 applyReparent(re.nodeId(), re.newParentId(), re.index());
+                graphChanged = true;
             } else if (op instanceof SceneOp.QueueFree qf) {
                 applyQueueFree(qf.nodeId());
+                graphChanged = true;
             }
+        }
+        if (graphChanged && revision >= 0) {
+            revision++;
         }
     }
 
@@ -183,15 +190,20 @@ public final class SceneState {
         if (nodeId <= 0L) {
             return;
         }
+        SceneSnapshot.NodeSnapshot root = nodesById.get(nodeId);
+        if (root == null) {
+            return;
+        }
+        removeFromParentList(root.parentId(), nodeId);
+
         ArrayDeque<Long> stack = new ArrayDeque<>();
         stack.push(nodeId);
         while (!stack.isEmpty()) {
             long id = stack.pop();
-            SceneSnapshot.NodeSnapshot node = nodesById.get(id);
-            if (node == null) {
+            if (!nodesById.containsKey(id)) {
                 continue;
             }
-            List<SceneSnapshot.NodeSnapshot> children = childrenByParent.get(id);
+            List<SceneSnapshot.NodeSnapshot> children = childrenByParent.remove(id);
             if (children != null && !children.isEmpty()) {
                 for (int i = children.size() - 1; i >= 0; i--) {
                     SceneSnapshot.NodeSnapshot child = children.get(i);
@@ -201,8 +213,6 @@ public final class SceneState {
                 }
             }
             nodesById.remove(id);
-            childrenByParent.remove(id);
-            removeFromParentList(node.parentId(), id);
         }
     }
 
