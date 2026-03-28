@@ -3,6 +3,7 @@ package com.moud.client.fabric.editor.state;
 import com.moud.client.fabric.scene.SceneState;
 import com.moud.core.NodeTypeDef;
 import com.moud.core.scene.Node;
+import com.moud.net.protocol.AssetManifestResponse;
 import com.moud.net.protocol.ProjectInfo;
 import com.moud.net.protocol.SceneInfo;
 import com.moud.net.protocol.SceneList;
@@ -40,6 +41,8 @@ public final class EditorState {
     public boolean projectInfoKnown;
     public String projectName = "";
     public String projectAuthor = "";
+
+    public final ArrayList<AssetManifestResponse.Entry> manifestEntries = new ArrayList<>();
 
     public final Map<Long, ScriptActions> scriptActionsByNode = new HashMap<>();
 

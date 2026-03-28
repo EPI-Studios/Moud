@@ -151,6 +151,13 @@ public final class ScenePanel extends Panel {
             }
         }
         if (filterField.isFocused(ctx)) {
+            if (e.isPressOrRepeat() && e.key() == InputConstants.KEY_ENTER) {
+                String filterText = filterField.text();
+                if (filterText != null && !filterText.isBlank()) {
+                    jumpToFirstFilterMatch(filterText.trim().toLowerCase(java.util.Locale.ROOT));
+                }
+                return;
+            }
             filterField.handleKey(e, ctx.clipboard());
             filterChangedAtMs = System.currentTimeMillis();
             return;
@@ -402,6 +409,23 @@ public final class ScenePanel extends Panel {
                         EditorUiUtil.openMenuClamped(nodeMenu, runtime, (int) mx, (int) my);
                     }
                 }
+            }
+
+            if (runtime.assetDragActive() && input != null && input.mouseReleased()
+                    && mx >= treeX && mx < treeX + treeW && my >= treeY && my < treeY + treeH) {
+                String dragPath = runtime.assetDragPath();
+                if (dragPath != null && dragPath.endsWith(".js")) {
+                    int dropRow = (int) ((my - treeY + scrollOffset) / itemH);
+                    List<TreeView.VisibleNode<SceneSnapshot.NodeSnapshot>> vis = treeView.getVisibleNodes();
+                    if (dropRow >= 0 && dropRow < vis.size()) {
+                        SceneSnapshot.NodeSnapshot dropTarget = vis.get(dropRow).node().data();
+                        if (dropTarget != null) {
+                            sendOpsRecorded(List.of(new SceneOp.SetProperty(dropTarget.nodeId(), "script", dragPath)));
+                            runtime.requestToast("Attached: " + dragPath, false, 1500);
+                        }
+                    }
+                }
+                runtime.clearAssetDrag();
             }
 
             ui.endScrollArea(area);
@@ -1117,6 +1141,7 @@ public final class ScenePanel extends Panel {
         Session session = runtime.session();
         if (net == null || session == null) return;
         sendOpsRecorded(List.of(new SceneOp.Rename(nodeId, next)));
+        runtime.requestToast("Renamed to: " + next, false, 1500);
     }
 
     private static String uniqueSiblingName(EditorState state, long parentId, long selfId, String desired) {
@@ -1762,10 +1787,14 @@ public final class ScenePanel extends Panel {
         Session session = runtime.session();
         EditorNet net = runtime.net();
         if (state == null || session == null || net == null) return;
+        SceneSnapshot.NodeSnapshot delNode = state.scene.getNode(nodeId);
         runtime.history().clearRedo();
         net.sendOps(session, state, List.of(new SceneOp.QueueFree(nodeId)));
         if (state.selectedId == nodeId) {
             state.selectedId = 0L;
+        }
+        if (delNode != null) {
+            runtime.requestToast("Deleted: " + delNode.name(), false, 1500);
         }
     }
 
@@ -1863,6 +1892,8 @@ public final class ScenePanel extends Panel {
         if (pendingCut > 0L) {
             queueFree(pendingCut);
         }
+        int count = clipboard.size();
+        runtime.requestToast("Pasted " + count + " node" + (count == 1 ? "" : "s"), false, 1500);
     }
 
     private void cutSelectedNode() {
@@ -1903,6 +1934,21 @@ public final class ScenePanel extends Panel {
             sb.append(parts.get(i));
         }
         return sb.toString();
+    }
+
+    private void jumpToFirstFilterMatch(String filterLower) {
+        EditorState state = runtime.state();
+        if (state == null || state.scene == null || filterLower == null || filterLower.isBlank()) return;
+        for (SceneSnapshot.NodeSnapshot node : state.scene.nodes()) {
+            if (node == null) continue;
+            String name = node.name() == null ? "" : node.name().toLowerCase(java.util.Locale.ROOT);
+            String type = node.type() == null ? "" : node.type().toLowerCase(java.util.Locale.ROOT);
+            if (name.contains(filterLower) || type.contains(filterLower)) {
+                state.selectedId = node.nodeId();
+                runtime.requestFrameSelected();
+                return;
+            }
+        }
     }
 
     private void navigateTree(boolean down) {

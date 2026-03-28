@@ -1,9 +1,12 @@
 package com.moud.client.fabric.editor.overlay;
 
 import com.moud.client.fabric.assets.AssetsClient;
+import com.moud.client.fabric.editor.dialogs.CreateAssetDialog;
 import com.moud.client.fabric.editor.dialogs.CreateNodeDialog;
 import com.moud.client.fabric.editor.dialogs.CreateProjectDialog;
+import com.moud.client.fabric.editor.dialogs.QuickSearchDialog;
 import com.moud.client.fabric.editor.dialogs.ScriptEditorDialog;
+import com.moud.client.fabric.editor.dialogs.TextAssetEditorDialog;
 import com.moud.client.fabric.editor.tools.EditorGizmos;
 import com.moud.client.fabric.editor.tools.EditorTool;
 import com.moud.client.fabric.editor.net.EditorNet;
@@ -80,7 +83,10 @@ public final class EditorOverlay {
     private int fallbackVao;
     private CreateNodeDialog createNodeDialog;
     private CreateProjectDialog createProjectDialog;
+    private CreateAssetDialog createAssetDialog;
+    private QuickSearchDialog quickSearchDialog;
     private ScriptEditorDialog scriptEditorDialog;
+    private TextAssetEditorDialog textAssetEditorDialog;
 
     private boolean open;
     private boolean prevLeft;
@@ -405,6 +411,7 @@ public final class EditorOverlay {
                 .setModifiers(ctrl, shift, alt, sup)
                 .setScrollY(scrollY);
         runtime.updateSceneDrag(input);
+        runtime.updateAssetDrag(input);
 
         ui.beginFrame(input, 1.0f / 60.0f);
         if (uiContext != null) {
@@ -430,6 +437,13 @@ public final class EditorOverlay {
             showToast(toast.message, toast.error, toast.durationMs);
         }
 
+        if (runtime.consumeFrameSelectedRequest()) {
+            EditorContext editorCtx = EditorOverlayBus.get();
+            if (editorCtx != null) {
+                frameSelected(editorCtx);
+            }
+        }
+
         boolean cullWasEnabled = GL11.glIsEnabled(GL11.GL_CULL_FACE);
         if (cullWasEnabled) GL11.glDisable(GL11.GL_CULL_FACE);
         boolean depthWasEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
@@ -449,7 +463,10 @@ public final class EditorOverlay {
             windowManager.update(uiContext, input, w, h);
             boolean modalOpen = (createNodeDialog != null && createNodeDialog.isOpen())
                     || (createProjectDialog != null && createProjectDialog.isOpen())
-                    || (scriptEditorDialog != null && scriptEditorDialog.isOpen());
+                    || (createAssetDialog != null && createAssetDialog.isOpen())
+                    || (quickSearchDialog != null && quickSearchDialog.isOpen())
+                    || (scriptEditorDialog != null && scriptEditorDialog.isOpen())
+                    || (textAssetEditorDialog != null && textAssetEditorDialog.isOpen());
             boolean blockedByWindows = windowManager.blocksInput();
             boolean blocked = modalOpen || blockedByWindows;
 
@@ -485,14 +502,26 @@ public final class EditorOverlay {
                 if (createProjectDialog != null && createProjectDialog.isOpen()) {
                     createProjectDialog.render(batch, uiContext, ui, theme, w, h);
                 }
+                if (createAssetDialog != null && createAssetDialog.isOpen()) {
+                    createAssetDialog.render(batch, uiContext, ui, theme, w, h);
+                }
+                if (quickSearchDialog != null && quickSearchDialog.isOpen()) {
+                    quickSearchDialog.render(batch, uiContext, ui, theme, w, h);
+                }
                 if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
                     scriptEditorDialog.render(batch, uiContext, ui, theme, w, h);
+                }
+                if (textAssetEditorDialog != null && textAssetEditorDialog.isOpen()) {
+                    textAssetEditorDialog.render(batch, uiContext, ui, theme, w, h);
                 }
 
                 renderToast(w, h);
                 batch.end();
                 if (input.mouseReleased() && runtime.sceneDragId() != null) {
                     runtime.clearSceneDrag();
+                }
+                if (input.mouseReleased() && runtime.assetDragPath() != null) {
+                    runtime.clearAssetDrag();
                 }
                 return;
             }
@@ -526,12 +555,18 @@ public final class EditorOverlay {
             if (createNodeDialog != null && createNodeDialog.isOpen()) {
                 createNodeDialog.render(batch, uiContext, ui, theme, w, h);
             }
-        if (createProjectDialog != null && createProjectDialog.isOpen()) {
-            createProjectDialog.render(batch, uiContext, ui, theme, w, h);
-        }
-        if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
-            scriptEditorDialog.render(batch, uiContext, ui, theme, w, h);
-        }
+            if (createProjectDialog != null && createProjectDialog.isOpen()) {
+                createProjectDialog.render(batch, uiContext, ui, theme, w, h);
+            }
+            if (createAssetDialog != null && createAssetDialog.isOpen()) {
+                createAssetDialog.render(batch, uiContext, ui, theme, w, h);
+            }
+            if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
+                scriptEditorDialog.render(batch, uiContext, ui, theme, w, h);
+            }
+            if (textAssetEditorDialog != null && textAssetEditorDialog.isOpen()) {
+                textAssetEditorDialog.render(batch, uiContext, ui, theme, w, h);
+            }
 
             renderToast(w, h);
             batch.end();
@@ -582,8 +617,14 @@ public final class EditorOverlay {
         createNodeDialog = new CreateNodeDialog(runtime);
         runtime.setCreateNodeDialog(createNodeDialog);
         createProjectDialog = new CreateProjectDialog(runtime);
+        createAssetDialog = new CreateAssetDialog(runtime);
+        runtime.setCreateAssetDialog(createAssetDialog);
+        quickSearchDialog = new QuickSearchDialog(runtime);
+        runtime.setQuickSearchDialog(quickSearchDialog);
         scriptEditorDialog = new ScriptEditorDialog(runtime);
         runtime.setScriptEditorDialog(scriptEditorDialog);
+        textAssetEditorDialog = new TextAssetEditorDialog(runtime);
+        runtime.setTextAssetEditorDialog(textAssetEditorDialog);
         dockSpace = createDockSpace();
         dockSpace.setSplitterSize(5);
         dockSpace.setSplitterDrawSize(2);
@@ -649,11 +690,31 @@ public final class EditorOverlay {
             return;
         }
         if (act == KeyEvent.Action.PRESS
+                && key == GLFW.GLFW_KEY_P
+                && ((mods & GLFW.GLFW_MOD_CONTROL) != 0 || (mods & GLFW.GLFW_MOD_SUPER) != 0)) {
+            boolean noModal = (createNodeDialog == null || !createNodeDialog.isOpen())
+                    && (createProjectDialog == null || !createProjectDialog.isOpen())
+                    && (createAssetDialog == null || !createAssetDialog.isOpen())
+                    && (scriptEditorDialog == null || !scriptEditorDialog.isOpen())
+                    && (textAssetEditorDialog == null || !textAssetEditorDialog.isOpen());
+            if (noModal) {
+                if (quickSearchDialog != null && quickSearchDialog.isOpen()) {
+                    quickSearchDialog.close();
+                } else if (quickSearchDialog != null) {
+                    quickSearchDialog.open();
+                }
+                return;
+            }
+        }
+        if (act == KeyEvent.Action.PRESS
                 && key == GLFW.GLFW_KEY_S
                 && ((mods & GLFW.GLFW_MOD_CONTROL) != 0 || (mods & GLFW.GLFW_MOD_SUPER) != 0)) {
             boolean modalOpen = (createNodeDialog != null && createNodeDialog.isOpen())
                     || (createProjectDialog != null && createProjectDialog.isOpen())
-                    || (scriptEditorDialog != null && scriptEditorDialog.isOpen());
+                    || (createAssetDialog != null && createAssetDialog.isOpen())
+                    || (quickSearchDialog != null && quickSearchDialog.isOpen())
+                    || (scriptEditorDialog != null && scriptEditorDialog.isOpen())
+                    || (textAssetEditorDialog != null && textAssetEditorDialog.isOpen());
             if (!modalOpen) {
                 boolean sent = runtime.saveCurrentScene();
                 if (sent) {
@@ -668,7 +729,10 @@ public final class EditorOverlay {
                 && ((mods & GLFW.GLFW_MOD_CONTROL) != 0 || (mods & GLFW.GLFW_MOD_SUPER) != 0)) {
             boolean modalOpen = (createNodeDialog != null && createNodeDialog.isOpen())
                     || (createProjectDialog != null && createProjectDialog.isOpen())
-                    || (scriptEditorDialog != null && scriptEditorDialog.isOpen());
+                    || (createAssetDialog != null && createAssetDialog.isOpen())
+                    || (quickSearchDialog != null && quickSearchDialog.isOpen())
+                    || (scriptEditorDialog != null && scriptEditorDialog.isOpen())
+                    || (textAssetEditorDialog != null && textAssetEditorDialog.isOpen());
             if (!modalOpen && scenePanel != null) {
                 if (key == GLFW.GLFW_KEY_Z && (mods & GLFW.GLFW_MOD_SHIFT) == 0) {
                     scenePanel.performUndo();
@@ -687,6 +751,10 @@ public final class EditorOverlay {
         if (!open || uiContext == null) {
             return;
         }
+        if (quickSearchDialog != null && quickSearchDialog.isOpen()) {
+            quickSearchDialog.handleTextInput(codepoint);
+            return;
+        }
         if (createProjectDialog != null && createProjectDialog.isOpen()) {
             createProjectDialog.handleTextInput(uiContext, codepoint);
             return;
@@ -695,8 +763,16 @@ public final class EditorOverlay {
             createNodeDialog.handleTextInput(codepoint);
             return;
         }
+        if (createAssetDialog != null && createAssetDialog.isOpen()) {
+            createAssetDialog.handleTextInput(uiContext, new TextInputEvent(codepoint));
+            return;
+        }
         if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
             scriptEditorDialog.handleTextInput(uiContext, codepoint);
+            return;
+        }
+        if (textAssetEditorDialog != null && textAssetEditorDialog.isOpen()) {
+            textAssetEditorDialog.handleTextInput(uiContext, codepoint);
             return;
         }
         uiContext.keyboard().pushCharEvent(codepoint);
@@ -764,6 +840,11 @@ public final class EditorOverlay {
         UiEvent event;
         while ((event = uiContext.pollEvent()) != null) {
             if (event instanceof KeyEvent keyEvent) {
+                if (quickSearchDialog != null && quickSearchDialog.isOpen()) {
+                    if (quickSearchDialog.handleKey(uiContext, keyEvent)) {
+                        continue;
+                    }
+                }
                 if (createProjectDialog != null && createProjectDialog.isOpen()) {
                     if (createProjectDialog.handleKey(uiContext, keyEvent)) {
                         continue;
@@ -780,8 +861,24 @@ public final class EditorOverlay {
                         continue;
                     }
                 }
+                if (createAssetDialog != null && createAssetDialog.isOpen()) {
+                    if (createAssetDialog.handleKey(uiContext, keyEvent)) {
+                        continue;
+                    }
+                    if (blocked) {
+                        continue;
+                    }
+                }
                 if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
                     if (scriptEditorDialog.handleKey(uiContext, keyEvent)) {
+                        continue;
+                    }
+                    if (blocked) {
+                        continue;
+                    }
+                }
+                if (textAssetEditorDialog != null && textAssetEditorDialog.isOpen()) {
+                    if (textAssetEditorDialog.handleKey(uiContext, keyEvent)) {
                         continue;
                     }
                     if (blocked) {
@@ -822,8 +919,16 @@ public final class EditorOverlay {
                     assetsPanel.handleKey(uiContext, keyEvent);
                 }
             } else if (event instanceof TextInputEvent textEvent) {
+                if (quickSearchDialog != null && quickSearchDialog.isOpen()) {
+                    quickSearchDialog.handleTextInput(textEvent.codepoint());
+                    continue;
+                }
                 if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
                     scriptEditorDialog.handleTextInput(uiContext, textEvent.codepoint());
+                    continue;
+                }
+                if (textAssetEditorDialog != null && textAssetEditorDialog.isOpen()) {
+                    textAssetEditorDialog.handleTextInput(uiContext, textEvent.codepoint());
                     continue;
                 }
                 if (blocked) {

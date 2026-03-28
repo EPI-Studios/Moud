@@ -356,7 +356,8 @@ public final class EditorGizmos implements AutoCloseable {
             overlay = new GizmoOverlay3D();
         }
 
-        overlay.setGizmoSpace(input.altDown() ? GizmoSpace.LOCAL : GizmoSpace.WORLD);
+        boolean localPref = runtime != null && runtime.gizmoLocalSpace();
+        overlay.setGizmoSpace((localPref ^ input.altDown()) ? GizmoSpace.LOCAL : GizmoSpace.WORLD);
 
         NodeTypeDef def = state.typesById.get(typeId);
         Map<String, String> props = toPropertyMap(sel.properties());
@@ -650,6 +651,26 @@ public final class EditorGizmos implements AutoCloseable {
                     outWorldX = snapToStep(outWorldX, snapStep);
                     outWorldY = snapToStep(outWorldY, snapStep);
                     outWorldZ = snapToStep(outWorldZ, snapStep);
+                }
+                if (input.shiftDown() && runtime != null && runtime.tool() == EditorTool.MOVE) {
+                    float bestY = Float.NEGATIVE_INFINITY;
+                    boolean foundSurface = false;
+                    for (SceneSnapshot.NodeSnapshot other : state.scene.nodes()) {
+                        if (other == null || other.nodeId() == sel.nodeId()) continue;
+                        Map<String, String> op = toPropertyMap(other.properties());
+                        float ox = parseFloat(op.get("x"), "0");
+                        float oz = parseFloat(op.get("z"), "0");
+                        if (Math.abs(ox - outWorldX) <= 2.0f && Math.abs(oz - outWorldZ) <= 2.0f) {
+                            float oy = parseFloat(op.get("y"), "0");
+                            if (!foundSurface || oy > bestY) {
+                                bestY = oy;
+                                foundSurface = true;
+                            }
+                        }
+                    }
+                    if (foundSurface) {
+                        outWorldY = bestY;
+                    }
                 }
 
                 float outLocalX = outWorldX;

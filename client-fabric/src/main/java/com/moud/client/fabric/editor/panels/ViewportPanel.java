@@ -398,6 +398,15 @@ public final class ViewportPanel extends Panel {
         });
 
         cursorX += rotGroupW + pad * 2;
+
+        int spaceGroupW = groupPad * 2 + btn;
+        r.drawRoundedRect(cursorX, groupY, spaceGroupW, groupH, theme.design.radius_sm, groupBg);
+        boolean localSpace = runtime != null && runtime.gizmoLocalSpace();
+        EditorUiUtil.toggleButton(ui, r, theme, cursorX + groupPad, by, btn, btn, Icon.ROTATE, localSpace, interactive, () -> {
+            if (runtime != null) runtime.setGizmoLocalSpace(!runtime.gizmoLocalSpace());
+        });
+        int lx = cursorX + groupPad + btn + theme.design.space_sm;
+        r.drawText(localSpace ? "Local" : "World", lx, r.baselineForBox(groupY, groupH), Theme.toArgb(localSpace ? theme.text : theme.textMuted));
     }
 
     private void selectScene(String sceneId) {
