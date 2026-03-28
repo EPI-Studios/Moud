@@ -144,12 +144,28 @@ public final class CsgBlockWriter {
         Transform local = localTransform(node, typeId);
         Transform world = shouldInheritTransform(node) ? parentWorld.compose(local) : local;
 
-        if ("CSGBlock".equals(typeId)) {
+        if ("CSGBlock".equals(typeId) && !hasPhysicsAncestor(node)) {
             emitCsgBlock(node, world, out);
         }
         for (Node child : node.children()) {
             collect(child, world, out);
         }
+    }
+
+    private boolean hasPhysicsAncestor(Node node) {
+        Node cur = node == null ? null : node.parent();
+        while (cur != null) {
+            String typeId = engine.nodeTypes().typeIdFor(cur);
+            if ("RigidBody3D".equals(typeId)
+                    || "StaticBody3D".equals(typeId)
+                    || "CharacterBody3D".equals(typeId)
+                    || "Area3D".equals(typeId)
+                    || "Raycast3D".equals(typeId)) {
+                return true;
+            }
+            cur = cur.parent();
+        }
+        return false;
     }
 
     private void emitCsgBlock(Node node, Transform world, Map<Long, Block> out) {
