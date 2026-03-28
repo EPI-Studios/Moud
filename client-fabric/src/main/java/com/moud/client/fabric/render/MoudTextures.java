@@ -175,6 +175,11 @@ public final class MoudTextures implements AssetsClient.Listener {
         return Identifier.of(id.getNamespace(), path);
     }
 
+    public static Identifier white() {
+        ensureWhiteRegistered();
+        return WHITE_ID;
+    }
+
     private static Identifier resolveResTexture(String resPathRaw) {
         ResPath resPath;
         try {

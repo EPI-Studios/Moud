@@ -1,5 +1,6 @@
 package com.moud.client.fabric.render.mesh;
 
+import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.system.MemoryUtil;
 
@@ -210,6 +211,9 @@ public final class MoudMeshBuffer {
     }
 
     private static int[] upload(FloatBuffer verts, IntBuffer indices) {
+        int prevArrayBuffer = GL11.glGetInteger(GL15.GL_ARRAY_BUFFER_BINDING);
+        int prevElementBuffer = GL11.glGetInteger(GL15.GL_ELEMENT_ARRAY_BUFFER_BINDING);
+
         int genVbo = GL15.glGenBuffers();
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, genVbo);
         GL15.glBufferData(GL15.GL_ARRAY_BUFFER, verts, GL15.GL_STATIC_DRAW);
@@ -218,8 +222,8 @@ public final class MoudMeshBuffer {
         GL15.glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, genEbo);
         GL15.glBufferData(GL15.GL_ELEMENT_ARRAY_BUFFER, indices, GL15.GL_STATIC_DRAW);
 
-        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
-        GL15.glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, 0);
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, prevArrayBuffer);
+        GL15.glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, prevElementBuffer);
 
         return new int[]{ genVbo, genEbo };
     }

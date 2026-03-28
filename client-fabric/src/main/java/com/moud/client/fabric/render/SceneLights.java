@@ -7,6 +7,7 @@ import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 final class SceneLights {
 
@@ -24,7 +25,7 @@ final class SceneLights {
                      float r, float g, float b, float brightness, float angleDeg, float distance) {}
 
     void collect(List<SceneSnapshot.NodeSnapshot> nodes,
-                 java.util.function.Function<Long, VeilSceneNodeRenderer.Pose> poseResolver) {
+                 Function<Long, VeilSceneNodeRenderer.Pose> poseResolver) {
         pointLights.clear();
         dirLights.clear();
         spotLights.clear();
