@@ -90,6 +90,11 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         }
         entries.sort(Comparator.comparing(e -> e.path() == null ? "" : e.path().value()));
         rebuildFolderTree(filterField.text());
+        EditorState state = runtime.state();
+        if (state != null) {
+            state.manifestEntries.clear();
+            state.manifestEntries.addAll(entries);
+        }
     }
 
     @Override
@@ -355,8 +360,16 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
             lastFsClickEntry = entry;
             lastFsClickTime = now;
             selectedFsEntry = entry;
-            if (doubleClick && path.endsWith(".moud.scene")) {
-                openSceneFromPath(path);
+            if (doubleClick) {
+                if (path.endsWith(".moud.scene")) {
+                    openSceneFromPath(path);
+                } else if (assetType == AssetType.TEXT) {
+                    if (path.endsWith(".js") && path.startsWith("res://scripts/")) {
+                        runtime.openScriptEditor(0L, path);
+                    } else {
+                        runtime.openTextAssetEditor(path, entry.meta() == null ? null : entry.meta().hash());
+                    }
+                }
             }
         }
 
@@ -367,9 +380,13 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
             }
         }
 
+        if (hovered && pressed && runtime.assetDragPath() == null && path.endsWith(".js")) {
+            runtime.beginAssetDrag(path, mx, my);
+        }
+
         if (hovered && rightPressed && !assetContextMenu.isOpen()) {
             selectedFsEntry = entry;
-            openAssetContextMenu(path);
+            openAssetContextMenu(entry);
             EditorUiUtil.openMenuClamped(assetContextMenu, runtime, (int) mx, (int) my);
         }
     }
@@ -458,7 +475,8 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
 
         int pad = theme.design.space_sm;
         int searchH = 22;
-        int rightW = activeDockTab == 0 ? (24 * 2 + pad) : (52 * 3 + pad * 2);
+        int btnSize = theme.design.widget_height_md;
+        int rightW = activeDockTab == 0 ? (btnSize * 3 + pad * 2) : (52 * 3 + pad * 2);
         int searchW = Math.max(120, w - pad * 3 - rightW);
         int searchX = x + pad;
         int searchY = y + (h - searchH) / 2;
@@ -473,11 +491,12 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
                     searchX + sp + iconSize + sp, r.baselineForBox(searchY, searchH), hint);
         }
 
-        int btnSize = theme.design.widget_height_md;
         int btnY = y + (h - btnSize) / 2;
         if (activeDockTab == 0) {
             int refreshX = x + w - pad - btnSize;
             int uploadX = refreshX - pad - btnSize;
+            int newX = uploadX - pad - btnSize;
+            EditorUiUtil.iconButton(ui, r, theme, newX, btnY, btnSize, btnSize, Icon.FILE, interactive, () -> runtime.openCreateAsset());
             EditorUiUtil.iconButton(ui, r, theme, uploadX, btnY, btnSize, btnSize, Icon.ADD, interactive, () -> AssetImportUtil.importAssetFile(runtime));
             EditorUiUtil.iconButton(ui, r, theme, refreshX, btnY, btnSize, btnSize, Icon.SNAP, interactive, () -> {
                 AssetsClient assets = runtime.assets();
@@ -792,10 +811,28 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         return filename.substring(0, filename.length() - ".moud.scene".length());
     }
 
-    private void openAssetContextMenu(String path) {
+    private void openAssetContextMenu(AssetManifestResponse.Entry entry) {
         assetContextMenu.clear();
-        if (path != null && path.endsWith(".moud.scene")) {
+        if (entry == null || entry.path() == null) {
+            return;
+        }
+        String path = entry.path().value();
+        if (path == null || path.isBlank()) {
+            return;
+        }
+
+        if (path.endsWith(".moud.scene")) {
             assetContextMenu.addItem("Open Scene", () -> openSceneFromPath(path));
+            return;
+        }
+
+        AssetType type = entry.meta() != null ? entry.meta().type() : null;
+        if (type == AssetType.TEXT) {
+            if (path.endsWith(".js") && path.startsWith("res://scripts/")) {
+                assetContextMenu.addItem("Edit Script", () -> runtime.openScriptEditor(0L, path));
+                return;
+            }
+            assetContextMenu.addItem("Edit", () -> runtime.openTextAssetEditor(path, entry.meta() == null ? null : entry.meta().hash()));
         }
     }
 

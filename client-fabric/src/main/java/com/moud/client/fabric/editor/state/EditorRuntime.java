@@ -4,10 +4,14 @@ package com.moud.client.fabric.editor.state;
 import com.miry.graphics.Texture;
 import com.miry.ui.input.UiInput;
 import com.moud.client.fabric.assets.AssetsClient;
+import com.moud.client.fabric.editor.dialogs.CreateAssetDialog;
 import com.moud.client.fabric.editor.dialogs.CreateNodeDialog;
+import com.moud.client.fabric.editor.dialogs.QuickSearchDialog;
 import com.moud.client.fabric.editor.dialogs.ScriptEditorDialog;
+import com.moud.client.fabric.editor.dialogs.TextAssetEditorDialog;
 import com.moud.client.fabric.editor.net.EditorNet;
 import com.moud.client.fabric.editor.tools.EditorTool;
+import com.moud.core.assets.AssetHash;
 import com.moud.core.assets.ResPath;
 import com.moud.net.protocol.AssetManifestResponse;
 import com.moud.net.protocol.SceneList;
@@ -44,7 +48,10 @@ public final class EditorRuntime {
     private final EditorState state;
     private final EditorNet net;
     private CreateNodeDialog createNodeDialog;
+    private CreateAssetDialog createAssetDialog;
     private ScriptEditorDialog scriptEditorDialog;
+    private TextAssetEditorDialog textAssetEditorDialog;
+    private QuickSearchDialog quickSearchDialog;
     private Runnable openCreateSceneAction;
     private AssetsClient assets;
     private Session session;
@@ -54,6 +61,12 @@ public final class EditorRuntime {
     private float gridSnapStep = 1.0f;
     private boolean rotationSnapEnabled = true;
     private float rotationSnapDeg = 15.0f;
+    private boolean gizmoLocalSpace;
+    private boolean frameSelectedRequested;
+    private String assetDragPath;
+    private float assetDragStartX;
+    private float assetDragStartY;
+    private boolean assetDragActive;
     private float framebufferScaleX = 1.0f;
     private float framebufferScaleY = 1.0f;
     private int uiWidth;
@@ -143,6 +156,37 @@ public final class EditorRuntime {
     public boolean rotationSnapEnabled() { return rotationSnapEnabled; }
     public void setRotationSnapEnabled(boolean v) { rotationSnapEnabled = v; }
     public float rotationSnapDeg() { return rotationSnapDeg; }
+    public boolean gizmoLocalSpace() { return gizmoLocalSpace; }
+    public void setGizmoLocalSpace(boolean v) { gizmoLocalSpace = v; }
+
+    public void requestFrameSelected() { frameSelectedRequested = true; }
+    public boolean consumeFrameSelectedRequest() {
+        boolean v = frameSelectedRequested;
+        frameSelectedRequested = false;
+        return v;
+    }
+
+    public void beginAssetDrag(String path, float mouseX, float mouseY) {
+        if (path == null || path.isBlank()) return;
+        assetDragPath = path;
+        assetDragStartX = mouseX;
+        assetDragStartY = mouseY;
+        assetDragActive = false;
+    }
+
+    public void updateAssetDrag(UiInput input) {
+        if (assetDragPath == null || assetDragActive || input == null || !input.mouseDown()) return;
+        float dx = input.mousePos().x - assetDragStartX;
+        float dy = input.mousePos().y - assetDragStartY;
+        if (dx * dx + dy * dy >= SCENE_DRAG_THRESHOLD_PX * SCENE_DRAG_THRESHOLD_PX) {
+            assetDragActive = true;
+        }
+    }
+
+    public String assetDragPath() { return assetDragPath; }
+    public boolean assetDragActive() { return assetDragActive; }
+    public void clearAssetDrag() { assetDragPath = null; assetDragActive = false; }
+
     public void cycleRotationSnapDeg() {
         if (Math.abs(rotationSnapDeg - 15.0f) < 1e-3f) {
             rotationSnapDeg = 45.0f;
@@ -253,6 +297,14 @@ public final class EditorRuntime {
         this.createNodeDialog = dialog;
     }
 
+    public void setCreateAssetDialog(CreateAssetDialog dialog) {
+        this.createAssetDialog = dialog;
+    }
+
+    public CreateAssetDialog createAssetDialog() {
+        return createAssetDialog;
+    }
+
     public void setScriptEditorDialog(ScriptEditorDialog dialog) {
         this.scriptEditorDialog = dialog;
     }
@@ -261,12 +313,58 @@ public final class EditorRuntime {
         return scriptEditorDialog;
     }
 
+    public void setTextAssetEditorDialog(TextAssetEditorDialog dialog) {
+        this.textAssetEditorDialog = dialog;
+    }
+
+    public TextAssetEditorDialog textAssetEditorDialog() {
+        return textAssetEditorDialog;
+    }
+
     public void openScriptEditor(long nodeId, String scriptPath) {
         ScriptEditorDialog dialog = scriptEditorDialog;
         if (dialog == null) {
             return;
         }
         dialog.open(nodeId, scriptPath);
+    }
+
+    public void openTextAssetEditor(String resPath, AssetHash hash) {
+        TextAssetEditorDialog dialog = textAssetEditorDialog;
+        if (dialog == null) {
+            return;
+        }
+        dialog.open(resPath, hash);
+    }
+
+    public void openTextAssetEditor(String resPath, AssetHash hash, String initialText) {
+        TextAssetEditorDialog dialog = textAssetEditorDialog;
+        if (dialog == null) {
+            return;
+        }
+        dialog.open(resPath, hash, initialText);
+    }
+
+    public void openCreateAsset() {
+        CreateAssetDialog dialog = createAssetDialog;
+        if (dialog != null) {
+            dialog.open();
+        }
+    }
+
+    public void setQuickSearchDialog(QuickSearchDialog dialog) {
+        this.quickSearchDialog = dialog;
+    }
+
+    public QuickSearchDialog quickSearchDialog() {
+        return quickSearchDialog;
+    }
+
+    public void openQuickSearch() {
+        QuickSearchDialog dialog = quickSearchDialog;
+        if (dialog != null) {
+            dialog.open();
+        }
     }
 
     public void setOpenCreateSceneAction(Runnable action) {
