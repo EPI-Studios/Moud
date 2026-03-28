@@ -17,6 +17,7 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
+import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL20C;
 import org.lwjgl.system.MemoryUtil;
@@ -83,7 +84,7 @@ final class InstancedBatchRenderer {
             uploadFrameUniforms(pid, viewMat, projMat, camPos, client, tickDelta);
 
             program.clearSamplers();
-            program.setSampler("Texture0", MoudTextures.WHITE_ID);
+            program.setSampler("Texture0", MoudTextures.white());
             program.bindSamplers(0);
 
             for (var entry : batches.entrySet()) {
@@ -196,9 +197,10 @@ final class InstancedBatchRenderer {
     }
 
     private void uploadInstanceData() {
+        int prevArrayBuffer = GL11.glGetInteger(GL15.GL_ARRAY_BUFFER_BINDING);
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, instanceVbo);
         GL15.glBufferData(GL15.GL_ARRAY_BUFFER, instanceBuffer, GL15.GL_STREAM_DRAW);
-        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, prevArrayBuffer);
     }
 
     private ShaderProgram getOrCompileProgram() {

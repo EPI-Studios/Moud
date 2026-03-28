@@ -132,11 +132,11 @@ public final class Model3DRenderer {
         if (face == null) return;
         int idx = face.textureIndex();
         List<Identifier> ids = asset.textureIds();
-        Identifier texId = (idx >= 0 && idx < ids.size()) ? ids.get(idx) : MoudTextures.WHITE_ID;
+        Identifier texId = (idx >= 0 && idx < ids.size()) ? ids.get(idx) : MoudTextures.white();
         if ("moud".equals(texId.getNamespace())
                 && texId.getPath().startsWith("bbmodel/")
                 && !MoudTextures.isRawReady(texId)) {
-            texId = MoudTextures.WHITE_ID;
+            texId = MoudTextures.white();
         }
 
         VertexConsumer vc = consumers.getBuffer(RenderLayer.getEntityCutoutNoCull(texId));

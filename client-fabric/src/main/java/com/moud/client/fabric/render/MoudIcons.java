@@ -69,7 +69,7 @@ public final class MoudIcons {
                 return;
             }
 
-            String safeName = name.replace('/', '_').replace(' ', '_').toLowerCase(java.util.Locale.ROOT);
+            String safeName = name.replace('/', '_').replace(' ', '_').toLowerCase(Locale.ROOT);
             Identifier id = Identifier.of("moud", "icons/" + safeName);
             NativeImageBackedTexture mcTex = new NativeImageBackedTexture(img);
             tm.registerTexture(id, mcTex);

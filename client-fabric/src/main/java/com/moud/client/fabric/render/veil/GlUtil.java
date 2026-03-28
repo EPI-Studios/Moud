@@ -51,6 +51,7 @@ public final class GlUtil {
         int locTex  = GL20.glGetAttribLocation(program, "aTexCoord");
         int locNorm = GL20.glGetAttribLocation(program, "aNormal");
 
+        int prevArrayBuffer = GL11.glGetInteger(GL15.GL_ARRAY_BUFFER_BINDING);
         int prevVao = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
         int vao = GL30.glGenVertexArrays();
         GL30.glBindVertexArray(vao);
@@ -61,6 +62,7 @@ public final class GlUtil {
         bindMeshAttribs(locPos, locTex, locNorm);
 
         GL30.glBindVertexArray(prevVao);
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, prevArrayBuffer);
         return vao;
     }
 
@@ -69,6 +71,7 @@ public final class GlUtil {
         int locTex  = GL20.glGetAttribLocation(program, "aTexCoord");
         int locNorm = GL20.glGetAttribLocation(program, "aNormal");
 
+        int prevArrayBuffer = GL11.glGetInteger(GL15.GL_ARRAY_BUFFER_BINDING);
         int prevVao = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
         int vao = GL30.glGenVertexArrays();
         GL30.glBindVertexArray(vao);
@@ -92,6 +95,7 @@ public final class GlUtil {
         }
 
         GL30.glBindVertexArray(prevVao);
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, prevArrayBuffer);
         return vao;
     }
 

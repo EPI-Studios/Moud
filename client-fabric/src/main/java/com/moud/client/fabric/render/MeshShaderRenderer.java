@@ -201,14 +201,14 @@ final class MeshShaderRenderer {
     }
 
     Identifier resolveNodeTexture(SceneSnapshot.NodeSnapshot node) {
-        if (node == null) return MoudTextures.WHITE_ID;
+        if (node == null) return MoudTextures.white();
         Identifier fromMaterial = resolveMaterialTexture(VeilSceneNodeRenderer.stringProp(node, "material"));
         if (fromMaterial != null) return fromMaterial;
         Identifier id = MoudTextures.resolve(VeilSceneNodeRenderer.stringProp(node, "texture"));
         if (id != null && "moud".equals(id.getNamespace())
                 && id.getPath() != null && id.getPath().startsWith("bbmodel/")
                 && !MoudTextures.isRawReady(id)) {
-            return MoudTextures.WHITE_ID;
+            return MoudTextures.white();
         }
         return id;
     }

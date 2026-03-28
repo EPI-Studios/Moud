@@ -7,6 +7,7 @@ import com.moud.client.fabric.env.WorldEnvironmentClient.Mode;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
 import com.moud.client.fabric.render.veil.VeilMaterialBinding;
 import com.moud.client.fabric.mixin.accessor.GameRendererAccessor;
+import foundry.veil.api.client.render.MatrixStack;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
 import foundry.veil.api.event.VeilRenderLevelStageEvent;
@@ -47,7 +48,7 @@ public final class VeilWorldEnvironmentRenderer {
     private static void onRenderLevelStage(VeilRenderLevelStageEvent.Stage stage,
                                            WorldRenderer levelRenderer,
                                            VertexConsumerProvider.Immediate bufferSource,
-                                           foundry.veil.api.client.render.MatrixStack matrixStack,
+                                           MatrixStack matrixStack,
                                            Matrix4fc frustumMatrix,
                                            Matrix4fc projectionMatrix,
                                            int renderTick,
@@ -57,7 +58,6 @@ public final class VeilWorldEnvironmentRenderer {
         EnvSettings env = WorldEnvironmentClient.current();
         if (stage == VeilRenderLevelStageEvent.Stage.AFTER_SKY) {
             renderSky(env, deltaTracker, camera, frustumMatrix);
-            // Clouds at AFTER_SKY so 3D geometry renders over them (correct occlusion).
             renderClouds(env, deltaTracker, camera, frustumMatrix);
         }
     }
@@ -105,8 +105,6 @@ public final class VeilWorldEnvironmentRenderer {
             return;
         }
 
-        // Render before geometry (called at AFTER_SKY) so depth testing is not needed:
-        // the subsequent opaque geometry pass will naturally overdraw cloud pixels.
         RenderSystem.disableDepthTest();
         RenderSystem.depthMask(false);
         RenderSystem.enableBlend();
@@ -147,9 +145,6 @@ public final class VeilWorldEnvironmentRenderer {
             setFloatIfPresent(program, "moud_camPitch", camera.getPitch());
         }
         if (frustumMatrix != null) {
-            // Extract world-space camera basis vectors directly from the view matrix.
-            // The view matrix columns encode: col0=right, col1=up, col2=-forward (OpenGL: camera looks toward -Z).
-            // This is the ground-truth orientation used by Minecraft's renderer, with no angle-convention ambiguity.
             float rgtX = frustumMatrix.m00();
             float rgtY = frustumMatrix.m01();
             float rgtZ = frustumMatrix.m02();
@@ -158,7 +153,6 @@ public final class VeilWorldEnvironmentRenderer {
             float upY  = frustumMatrix.m11();
             float upZ  = frustumMatrix.m12();
 
-            // Column 2 points toward +Z in camera space = away from viewer; negate to get world-space forward.
             float fwdX = -frustumMatrix.m20();
             float fwdY = -frustumMatrix.m21();
             float fwdZ = -frustumMatrix.m22();
@@ -245,5 +239,4 @@ public final class VeilWorldEnvironmentRenderer {
         program.getUniformSafe(uniform).setVector(x, y, z);
     }
 
-    // Uses VeilMaterialBinding for dynamic shader compilation + param binding.
 }
