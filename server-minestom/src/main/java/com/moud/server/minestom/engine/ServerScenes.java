@@ -87,9 +87,21 @@ public final class ServerScenes {
     }
 
     public void tickAll(double dtSeconds) {
+        tickAllPlay(dtSeconds);
+    }
+
+    public void tickAllPlay(double dtSeconds) {
         for (ServerScene scene : scenes.values()) {
             if (scene != null) {
-                scene.tick(dtSeconds);
+                scene.tickPlay(dtSeconds);
+            }
+        }
+    }
+
+    public void tickAllEditor() {
+        for (ServerScene scene : scenes.values()) {
+            if (scene != null) {
+                scene.tickEditor();
             }
         }
     }

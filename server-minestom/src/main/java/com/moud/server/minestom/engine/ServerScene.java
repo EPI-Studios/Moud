@@ -46,13 +46,25 @@ public final class ServerScene {
         return engine;
     }
 
-    public void tick(double dtSeconds) {
-        engine.tick(dtSeconds);
+    public void tickPlay(double dtSeconds) {
+        tick(dtSeconds, true);
+    }
+
+    public void tickEditor() {
+        tick(0.0, false);
+    }
+
+    private void tick(double dtSeconds, boolean simulate) {
+        engine.tick(simulate ? dtSeconds : 0.0);
         csgWriter.tick();
         if (physics != null) {
             physics.syncStaticColliders(engine);
-            physics.step((float) dtSeconds);
-            physics.writeDynamicBodiesBack(engine);
+            physics.syncCollisionFilters(engine);
+            if (simulate) {
+                physics.step((float) dtSeconds);
+                physics.writeDynamicBodiesBack(engine);
+                physics.tickRaycasts(engine);
+            }
         }
     }
 
@@ -72,4 +84,3 @@ public final class ServerScene {
         return physics;
     }
 }
-
