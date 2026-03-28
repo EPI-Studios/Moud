@@ -23,9 +23,16 @@ import java.util.function.Consumer;
 public final class SceneOpApplier {
     private static final Set<String> CSG_KEYS = Set.of(
             "x", "y", "z", "rx", "ry", "rz", "sx", "sy", "sz",
-            "block", "solid", "@type",
-            "shape", "radius", "height", "enabled", "mass", "freeze"
+            "block", "solid", "@type"
     );
+    private static final Set<String> PHYSICS_KEYS = Set.of(
+            "x", "y", "z", "rx", "ry", "rz", "sx", "sy", "sz",
+            "solid", "@type",
+            "shape", "radius", "height", "enabled",
+            "mass", "freeze",
+            "linear_damping", "angular_damping", "gravity_scale"
+    );
+    private static final Set<String> FILTER_KEYS = Set.of("collision_layer", "collision_mask");
     private static final Set<String> POSITION_KEYS = Set.of("x", "y", "z");
     private static final Set<String> ROTATION_KEYS = Set.of("rx", "ry", "rz");
     private static final Set<String> SCALE_KEYS = Set.of("sx", "sy", "sz");
@@ -58,6 +65,8 @@ public final class SceneOpApplier {
         List<SceneOpResult> results = new ArrayList<>(batch.ops().size());
         boolean anySceneChanged = false;
         boolean anyCsgChanged = false;
+        boolean anyPhysicsChanged = false;
+        boolean anyFilterChanged = false;
         boolean anyGraphChanged = false;
         boolean runtimeBatch = SceneBatchIds.isRuntime(batch.batchId());
 
@@ -77,6 +86,8 @@ public final class SceneOpApplier {
             results.add(out.result);
             anySceneChanged |= out.sceneChanged;
             anyCsgChanged |= out.csgChanged;
+            anyPhysicsChanged |= out.physicsChanged;
+            anyFilterChanged |= out.filterChanged;
             anyGraphChanged |= out.sceneChanged && isGraphOp(op);
         }
 
@@ -89,6 +100,12 @@ public final class SceneOpApplier {
         if (anyCsgChanged) {
             engine.bumpCsgRevision();
             logSink.accept("SceneOp: CSG changed; csgRevision=" + engine.csgRevision());
+        }
+        if (anyPhysicsChanged) {
+            engine.bumpPhysicsRevision();
+        }
+        if (anyFilterChanged) {
+            engine.bumpCollisionFilterRevision();
         }
         return new SceneOpAck(batch.batchId(), engine.sceneRevision(), List.copyOf(results));
     }
@@ -267,8 +284,11 @@ public final class SceneOpApplier {
                 PlainNode child = new PlainNode(createNode.name());
                 engine.nodeTypes().applyDefaults(child, createNode.typeId());
                 parent.addChild(child);
+                String typeId = createNode.typeId();
+                boolean csgChanged = isCsgTypeId(typeId);
+                boolean physicsChanged = csgChanged || isPhysicsBodyTypeId(typeId);
                 yield new ApplyOutcome(SceneOpResult.created(parent.nodeId(), child.nodeId()), true,
-                        "CSGBlock".equals(createNode.typeId()) || "CSGBox".equals(createNode.typeId()));
+                        csgChanged, physicsChanged, false);
             }
             case SceneOp.QueueFree queueFree -> {
                 Node node = engine.sceneTree().getNode(queueFree.nodeId());
@@ -282,8 +302,9 @@ public final class SceneOpApplier {
                     yield new ApplyOutcome(SceneOpResult.fail(queueFree.nodeId(), SceneOpError.INVALID, "cannot free root"), false);
                 }
                 boolean affectsCsg = subtreeContainsCsg(node);
+                boolean affectsPhysics = subtreeContainsPhysics(node);
                 node.queueFree();
-                yield new ApplyOutcome(SceneOpResult.ok(queueFree.nodeId()), true, affectsCsg);
+                yield new ApplyOutcome(SceneOpResult.ok(queueFree.nodeId()), true, affectsCsg, affectsPhysics, false);
             }
             case SceneOp.Rename rename -> {
                 Node node = engine.sceneTree().getNode(rename.nodeId());
@@ -316,12 +337,15 @@ public final class SceneOpApplier {
                 String value = setProperty.value();
 
                 boolean affectsCsg = affectsCsg(node, key);
+                boolean affectsPhysics = affectsPhysics(node, key);
+                boolean affectsFilter = affectsCollisionFilter(node, key);
                 if (isTransformKey(key) || "@inherit_transform".equals(key)) {
                     affectsCsg |= subtreeContainsCsgInheriting(node);
+                    affectsPhysics |= subtreeContainsPhysicsInheriting(node);
                 }
 
                 node.setProperty(key, value);
-                yield new ApplyOutcome(SceneOpResult.ok(setProperty.nodeId()), true, affectsCsg);
+                yield new ApplyOutcome(SceneOpResult.ok(setProperty.nodeId()), true, affectsCsg, affectsPhysics, affectsFilter);
             }
             case SceneOp.RemoveProperty removeProperty -> {
                 Node node = engine.sceneTree().getNode(removeProperty.nodeId());
@@ -338,11 +362,14 @@ public final class SceneOpApplier {
                 }
                 String key = removeProperty.key();
                 boolean affectsCsg = affectsCsg(node, key);
+                boolean affectsPhysics = affectsPhysics(node, key);
+                boolean affectsFilter = affectsCollisionFilter(node, key);
                 if (isTransformKey(key) || "@inherit_transform".equals(key)) {
                     affectsCsg |= subtreeContainsCsgInheriting(node);
+                    affectsPhysics |= subtreeContainsPhysicsInheriting(node);
                 }
                 node.removeProperty(key);
-                yield new ApplyOutcome(SceneOpResult.ok(removeProperty.nodeId()), true, affectsCsg);
+                yield new ApplyOutcome(SceneOpResult.ok(removeProperty.nodeId()), true, affectsCsg, affectsPhysics, affectsFilter);
             }
             case SceneOp.Reparent reparent -> {
                 Node node = engine.sceneTree().getNode(reparent.nodeId());
@@ -370,7 +397,8 @@ public final class SceneOpApplier {
                     yield new ApplyOutcome(SceneOpResult.fail(reparent.nodeId(), SceneOpError.INVALID, "reparent failed"), false);
                 }
                 boolean affectsCsg = shouldInheritTransform(node) && subtreeContainsCsgInheriting(node);
-                yield new ApplyOutcome(SceneOpResult.ok(reparent.nodeId()), true, affectsCsg);
+                boolean affectsPhysics = shouldInheritTransform(node) && subtreeContainsPhysicsInheriting(node);
+                yield new ApplyOutcome(SceneOpResult.ok(reparent.nodeId()), true, affectsCsg, affectsPhysics, false);
             }
         };
     }
@@ -386,8 +414,32 @@ public final class SceneOpApplier {
             return true;
         }
         String typeId = engine.nodeTypes().typeIdFor(node);
-        return "CSGBlock".equals(typeId) || "CSGBox".equals(typeId)
-                || "StaticBody3D".equals(typeId) || "RigidBody3D".equals(typeId);
+        return isCsgTypeId(typeId);
+    }
+
+    private boolean affectsPhysics(Node node, String key) {
+        if (node == null || key == null) {
+            return false;
+        }
+        if ("@type".equals(key)) {
+            return true;
+        }
+        if (!PHYSICS_KEYS.contains(key)) {
+            return false;
+        }
+        String typeId = engine.nodeTypes().typeIdFor(node);
+        return isCsgTypeId(typeId) || isPhysicsBodyTypeId(typeId);
+    }
+
+    private boolean affectsCollisionFilter(Node node, String key) {
+        if (node == null || key == null) {
+            return false;
+        }
+        if (!FILTER_KEYS.contains(key)) {
+            return false;
+        }
+        String typeId = engine.nodeTypes().typeIdFor(node);
+        return isCsgTypeId(typeId) || isPhysicsBodyTypeId(typeId);
     }
 
     private boolean subtreeContainsCsg(Node node) {
@@ -400,6 +452,22 @@ public final class SceneOpApplier {
         }
         for (Node child : node.children()) {
             if (subtreeContainsCsg(child)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean subtreeContainsPhysics(Node node) {
+        if (node == null) {
+            return false;
+        }
+        String typeId = engine.nodeTypes().typeIdFor(node);
+        if (isCsgTypeId(typeId) || isPhysicsBodyTypeId(typeId)) {
+            return true;
+        }
+        for (Node child : node.children()) {
+            if (subtreeContainsPhysics(child)) {
                 return true;
             }
         }
@@ -426,6 +494,36 @@ public final class SceneOpApplier {
             }
         }
         return false;
+    }
+
+    private boolean subtreeContainsPhysicsInheriting(Node node) {
+        if (node == null) {
+            return false;
+        }
+        String typeId = engine.nodeTypes().typeIdFor(node);
+        if (isCsgTypeId(typeId) || isPhysicsBodyTypeId(typeId)) {
+            return true;
+        }
+        for (Node child : node.children()) {
+            if (child == null) {
+                continue;
+            }
+            if (!shouldInheritTransform(child)) {
+                continue;
+            }
+            if (subtreeContainsPhysicsInheriting(child)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isCsgTypeId(String typeId) {
+        return "CSGBlock".equals(typeId) || "CSGBox".equals(typeId);
+    }
+
+    private static boolean isPhysicsBodyTypeId(String typeId) {
+        return "StaticBody3D".equals(typeId) || "RigidBody3D".equals(typeId);
     }
 
     private static boolean shouldInheritTransform(Node node) {
@@ -793,9 +891,14 @@ public final class SceneOpApplier {
         return "1".equals(s) || "true".equalsIgnoreCase(s);
     }
 
-    private record ApplyOutcome(SceneOpResult result, boolean sceneChanged, boolean csgChanged) {
+    private record ApplyOutcome(SceneOpResult result, boolean sceneChanged, boolean csgChanged,
+                                boolean physicsChanged, boolean filterChanged) {
         private ApplyOutcome(SceneOpResult result, boolean sceneChanged) {
-            this(result, sceneChanged, false);
+            this(result, sceneChanged, false, false, false);
+        }
+
+        private ApplyOutcome(SceneOpResult result, boolean sceneChanged, boolean csgChanged) {
+            this(result, sceneChanged, csgChanged, false, false);
         }
     }
 
