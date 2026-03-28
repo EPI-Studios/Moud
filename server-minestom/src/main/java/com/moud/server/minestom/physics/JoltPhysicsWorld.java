@@ -2,6 +2,7 @@ package com.moud.server.minestom.physics;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.*;
+import com.moud.core.math.Quat;
 import com.moud.core.physics.*;
 import com.moud.core.scene.Node;
 import com.moud.core.scene.SceneTree;
@@ -12,15 +13,17 @@ import java.util.*;
 public final class JoltPhysicsWorld implements PhysicsWorld {
 
     private static final float GRAVITY = 30f;
+    private static final int TEMP_ALLOCATOR_BYTES = 64 * 1024 * 1024;
 
     private final PhysicsSystem system = new PhysicsSystem();
     private final BodyInterface bodies;
-    private final TempAllocatorImpl tempAllocator = new TempAllocatorImpl(16 * 1024 * 1024);
+    private final TempAllocatorImpl tempAllocator = new TempAllocatorImpl(TEMP_ALLOCATOR_BYTES);
     private final JobSystemSingleThreaded jobs    = new JobSystemSingleThreaded(1024);
     private final BodyFilter bodyFilter           = new BodyFilter();
     private final ShapeFilter shapeFilter         = new ShapeFilter();
 
-    private long lastCsgRevision = Long.MIN_VALUE;
+    private long lastPhysicsRevision = Long.MIN_VALUE;
+    private long lastFilterRevision = Long.MIN_VALUE;
     private final List<Integer> staticBodyIds  = new ArrayList<>();
     private final List<Integer> dynamicBodyIds = new ArrayList<>();
     private final Map<Integer, Long> bodyToNode = new HashMap<>();
@@ -82,7 +85,8 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
     public BodyHandle addStaticBody(CollisionShape shape, double x, double y, double z,
                                     float rxDeg, float ryDeg, float rzDeg) {
         int id = JoltBodyFactory.createFromCollisionShape(bodies, shape, x, y, z, rxDeg, ryDeg, rzDeg,
-                EMotionType.Static, JoltBodyFactory.LAYER_STATIC, 0f, 0f, 0f, 1f);
+                EMotionType.Static, JoltBodyFactory.LAYER_STATIC, 0f, 0f, 0f, 1f,
+                CollisionLayerMask.DEFAULT_LAYER, CollisionLayerMask.DEFAULT_MASK);
         return id == Jolt.cInvalidBodyId ? BodyHandle.INVALID : new BodyHandle(id);
     }
 
@@ -90,7 +94,8 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
     public BodyHandle addDynamicBody(CollisionShape shape, double x, double y, double z,
                                      float rxDeg, float ryDeg, float rzDeg, float mass) {
         int id = JoltBodyFactory.createFromCollisionShape(bodies, shape, x, y, z, rxDeg, ryDeg, rzDeg,
-                EMotionType.Dynamic, JoltBodyFactory.LAYER_MOVING, mass, 0.1f, 0.1f, 1f);
+                EMotionType.Dynamic, JoltBodyFactory.LAYER_MOVING, mass, 0.1f, 0.1f, 1f,
+                CollisionLayerMask.DEFAULT_LAYER, CollisionLayerMask.DEFAULT_MASK);
         return id == Jolt.cInvalidBodyId ? BodyHandle.INVALID : new BodyHandle(id);
     }
 
@@ -106,14 +111,55 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
                                            double dx, double dy, double dz, double maxDist) {
         if (maxDist <= 0.0) return Optional.empty();
         try {
-            var ray = new RRayCast(new RVec3(ox, oy, oz),
-                    new Vec3((float)(dx * maxDist), (float)(dy * maxDist), (float)(dz * maxDist)));
-            var hit = new RayCastResult();
-            if (!system.getNarrowPhaseQuery().castRay(ray, hit)) return Optional.empty();
-            float f = hit.getFraction();
-            return Optional.of(new RaycastResult(
-                    ox + dx * maxDist * f, oy + dy * maxDist * f, oz + dz * maxDist * f,
-                    0.0, 0.0, 0.0, maxDist * f, new BodyHandle(hit.getBodyId())));
+            try (var ray = new RRayCast(new RVec3(ox, oy, oz),
+                    new Vec3((float) (dx * maxDist), (float) (dy * maxDist), (float) (dz * maxDist)));
+                 var hit = new RayCastResult()) {
+                if (!system.getNarrowPhaseQuery().castRay(ray, hit)) return Optional.empty();
+                float f = hit.getFraction();
+                return Optional.of(new RaycastResult(
+                        ox + dx * maxDist * f, oy + dy * maxDist * f, oz + dz * maxDist * f,
+                        0.0, 0.0, 0.0, maxDist * f, new BodyHandle(hit.getBodyId())));
+            }
+        } catch (Throwable ignored) {
+            return Optional.empty();
+        }
+    }
+
+    private Optional<RaycastResult> raycastFiltered(double ox, double oy, double oz,
+                                                    double dx, double dy, double dz, double maxDist,
+                                                    int rayLayerBits, int rayMaskBits) {
+        if (maxDist <= 0.0) return Optional.empty();
+        int layerBits = CollisionLayerMask.clampBits(rayLayerBits);
+        int maskBits = CollisionLayerMask.clampBits(rayMaskBits);
+        if (layerBits == 0 || maskBits == 0) {
+            return Optional.empty();
+        }
+        try {
+            try (var ray = new RRayCast(new RVec3(ox, oy, oz),
+                    new Vec3((float) (dx * maxDist), (float) (dy * maxDist), (float) (dz * maxDist)));
+                 var settings = new RayCastSettings();
+                 var collector = new AllHitCastRayCollector()) {
+                system.getNarrowPhaseQuery().castRay(ray, settings, collector);
+                collector.sort();
+
+                int hits = collector.countHits();
+                for (int i = 0; i < hits; i++) {
+                    RayCastResult hit = collector.get(i);
+                    int bodyId = hit.getBodyId();
+                    long userData = bodies.getUserData(bodyId);
+                    int otherLayer = CollisionLayerMask.clampBits(CollisionLayerMask.unpackLayer(userData));
+                    int otherMask = CollisionLayerMask.clampBits(CollisionLayerMask.unpackMask(userData));
+                    if (!CollisionLayerMask.canCollide(layerBits, maskBits, otherLayer, otherMask)) {
+                        continue;
+                    }
+                    float f = hit.getFraction();
+                    return Optional.of(new RaycastResult(
+                            ox + dx * maxDist * f, oy + dy * maxDist * f, oz + dz * maxDist * f,
+                            0.0, 0.0, 0.0, maxDist * f, new BodyHandle(bodyId)));
+                }
+
+                return Optional.empty();
+            }
         } catch (Throwable ignored) {
             return Optional.empty();
         }
@@ -123,14 +169,15 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
     public List<BodyHandle> overlapSphere(double x, double y, double z, double radius) {
         if (radius <= 0.0) return List.of();
         try {
-            var collector = new AllHitCollideShapeBodyCollector();
-            system.getBroadPhaseQuery().collideSphere(
-                    new Vec3((float) x, (float) y, (float) z), (float) radius, collector);
-            int count = collector.countHits();
-            if (count == 0) return List.of();
-            var result = new ArrayList<BodyHandle>(count);
-            for (int i = 0; i < count; i++) result.add(new BodyHandle(collector.get(i)));
-            return List.copyOf(result);
+            try (var collector = new AllHitCollideShapeBodyCollector()) {
+                system.getBroadPhaseQuery().collideSphere(
+                        new Vec3((float) x, (float) y, (float) z), (float) radius, collector);
+                int count = collector.countHits();
+                if (count == 0) return List.of();
+                var result = new ArrayList<BodyHandle>(count);
+                for (int i = 0; i < count; i++) result.add(new BodyHandle(collector.get(i)));
+                return List.copyOf(result);
+            }
         } catch (Throwable ignored) {
             return List.of();
         }
@@ -151,16 +198,28 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
 
     public void syncStaticColliders(Engine engine) {
         if (engine == null) return;
-        long rev = engine.csgRevision();
-        if (rev == lastCsgRevision) return;
-        lastCsgRevision = rev;
+        long rev = engine.physicsRevision();
+        if (rev == lastPhysicsRevision) return;
+        lastPhysicsRevision = rev;
 
         destroyStaticBodies();
         destroyDynamicBodies();
         SceneTree tree = engine.sceneTree();
         if (tree == null || tree.root() == null) return;
-        collectBodies(tree.root(), Transform.IDENTITY, engine);
+        collectBodies(tree.root(), Transform.IDENTITY, engine, false);
         system.optimizeBroadPhase();
+    }
+
+    public void syncCollisionFilters(Engine engine) {
+        if (engine == null) return;
+        long rev = engine.collisionFilterRevision();
+        if (rev == lastFilterRevision) return;
+        lastFilterRevision = rev;
+
+        SceneTree tree = engine.sceneTree();
+        if (tree == null) return;
+        syncCollisionFilters(tree, staticBodyIds);
+        syncCollisionFilters(tree, dynamicBodyIds);
     }
 
     public void writeDynamicBodiesBack(Engine engine) {
@@ -179,13 +238,23 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
                 node.setProperty("x", trimFloat((float) pos.x()));
                 node.setProperty("y", trimFloat((float) pos.y()));
                 node.setProperty("z", trimFloat((float) pos.z()));
-                var euler = new com.moud.core.math.Quat(
-                        rot.getX(), rot.getY(), rot.getZ(), rot.getW()).toEulerDeg();
+                var euler = new Quat(rot.getX(), rot.getY(), rot.getZ(), rot.getW()).toEulerDeg();
                 node.setProperty("rx", trimFloat((float) euler.x()));
                 node.setProperty("ry", trimFloat((float) euler.y()));
                 node.setProperty("rz", trimFloat((float) euler.z()));
             } catch (Throwable ignored) {}
         }
+    }
+
+    public void tickRaycasts(Engine engine) {
+        if (engine == null) {
+            return;
+        }
+        SceneTree tree = engine.sceneTree();
+        if (tree == null || tree.root() == null) {
+            return;
+        }
+        tickRaycasts(tree.root(), Transform.IDENTITY, engine);
     }
 
     public List<CollisionEvent> consumeCollisionEvents() {
@@ -202,6 +271,40 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
 
     public Long  nodeIdForBody(int bodyId)  { return bodyToNode.get(bodyId); }
     public Integer bodyIdForNode(long nodeId) { return nodeToBody.get(nodeId); }
+
+    public List<Long> activeDynamicNodeIds() {
+        if (dynamicBodyIds.isEmpty()) {
+            return List.of();
+        }
+        ArrayList<Long> out = new ArrayList<>(dynamicBodyIds.size());
+        for (int bodyId : dynamicBodyIds) {
+            try {
+                if (!bodies.isActive(bodyId)) {
+                    continue;
+                }
+            } catch (Throwable ignored) {
+            }
+            Long nodeId = bodyToNode.get(bodyId);
+            if (nodeId != null && nodeId > 0L) {
+                out.add(nodeId);
+            }
+        }
+        return out.isEmpty() ? List.of() : List.copyOf(out);
+    }
+
+    public List<Long> dynamicNodeIds() {
+        if (dynamicBodyIds.isEmpty()) {
+            return List.of();
+        }
+        ArrayList<Long> out = new ArrayList<>(dynamicBodyIds.size());
+        for (int bodyId : dynamicBodyIds) {
+            Long nodeId = bodyToNode.get(bodyId);
+            if (nodeId != null && nodeId > 0L) {
+                out.add(nodeId);
+            }
+        }
+        return out.isEmpty() ? List.of() : List.copyOf(out);
+    }
 
     public void applyForce(long nodeId, float fx, float fy, float fz) {
         Integer id = nodeToBody.get(nodeId);
@@ -232,15 +335,20 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
         }
     }
 
-    private void collectBodies(Node node, Transform parentWorld, Engine engine) {
+    private void collectBodies(Node node, Transform parentWorld, Engine engine, boolean physicsAncestor) {
         if (node == null || engine == null) return;
         String typeId = engine.nodeTypes().typeIdFor(node);
         Transform local = localTransform(node, typeId);
         Transform world = shouldInheritTransform(node) ? parentWorld.compose(local) : local;
 
-        if (isStaticColliderNode(typeId, node)) {
-            int id = JoltBodyFactory.createStaticBox(bodies, world);
-            if (id != 0 && id != Jolt.cInvalidBodyId) staticBodyIds.add(id);
+        boolean isPhysicsNode = isPhysicsNode(typeId);
+
+        if (!physicsAncestor && isStaticColliderNode(typeId, node)) {
+            int id = JoltBodyFactory.createStaticBox(bodies, node, world);
+            if (id != 0 && id != Jolt.cInvalidBodyId) {
+                staticBodyIds.add(id);
+                bodyToNode.put(id, node.nodeId());
+            }
 
         } else if ("RigidBody3D".equals(typeId) && propBool(node, "enabled", true)) {
             int id = JoltBodyFactory.createRigidBody(bodies, node, world);
@@ -257,7 +365,80 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
                 bodyToNode.put(id, node.nodeId());
             }
         }
-        for (Node child : node.children()) collectBodies(child, world, engine);
+        boolean nextPhysicsAncestor = physicsAncestor || isPhysicsNode;
+        for (Node child : node.children()) collectBodies(child, world, engine, nextPhysicsAncestor);
+    }
+
+    private void tickRaycasts(Node node, Transform parentWorld, Engine engine) {
+        if (node == null || engine == null) {
+            return;
+        }
+        String typeId = engine.nodeTypes().typeIdFor(node);
+        Transform local = localTransform(node, typeId);
+        Transform world = shouldInheritTransform(node) ? parentWorld.compose(local) : local;
+
+        if ("Raycast3D".equals(typeId) && propBool(node, "enabled", true)) {
+            float tx = parseFloat(node.getProperty("target_x"), 0f);
+            float ty = parseFloat(node.getProperty("target_y"), -1f);
+            float tz = parseFloat(node.getProperty("target_z"), 0f);
+            float maxDistance = parseFloat(node.getProperty("max_distance"), 100f);
+
+            Vec3d localDir = new Vec3d(tx, ty, tz);
+            double lx = localDir.x();
+            double ly = localDir.y();
+            double lz = localDir.z();
+            double len = Math.sqrt(lx * lx + ly * ly + lz * lz);
+            if (!(Double.isFinite(len)) || len < 1e-8) {
+                localDir = new Vec3d(0.0, -1.0, 0.0);
+                len = 1.0;
+            }
+            double invLen = 1.0 / len;
+            Vec3d unitLocal = new Vec3d(localDir.x() * invLen, localDir.y() * invLen, localDir.z() * invLen);
+            Vec3d dir = world.rot().rotate(unitLocal);
+
+            int layerBits = CollisionLayerMask.layer(node);
+            int maskBits = CollisionLayerMask.mask(node);
+
+            var hit = raycastFiltered(
+                    world.pos().x(), world.pos().y(), world.pos().z(),
+                    dir.x(), dir.y(), dir.z(),
+                    Math.max(0.0, maxDistance),
+                    layerBits, maskBits)
+                    .orElse(null);
+            if (hit != null) {
+                long hitNode = 0L;
+                BodyHandle body = hit.body();
+                if (body != null && body.isValid()) {
+                    Long mapped = bodyToNode.get(body.id());
+                    hitNode = mapped == null ? 0L : mapped;
+                }
+                setPropIfChanged(node, "is_colliding", "true");
+                setPropIfChanged(node, "hit_x", trimFloat((float) hit.hitX()));
+                setPropIfChanged(node, "hit_y", trimFloat((float) hit.hitY()));
+                setPropIfChanged(node, "hit_z", trimFloat((float) hit.hitZ()));
+                setPropIfChanged(node, "hit_node_id", Long.toString(hitNode));
+            } else {
+                setPropIfChanged(node, "is_colliding", "false");
+                setPropIfChanged(node, "hit_x", "0");
+                setPropIfChanged(node, "hit_y", "0");
+                setPropIfChanged(node, "hit_z", "0");
+                setPropIfChanged(node, "hit_node_id", "0");
+            }
+        }
+
+        for (Node child : node.children()) {
+            tickRaycasts(child, world, engine);
+        }
+    }
+
+    private static void setPropIfChanged(Node node, String key, String value) {
+        if (node == null || key == null || value == null) {
+            return;
+        }
+        if (Objects.equals(node.getProperty(key), value)) {
+            return;
+        }
+        node.setProperty(key, value);
     }
 
     private void destroyBodies(List<Integer> ids, boolean clearNodeMaps) {
@@ -288,6 +469,24 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
         }
     }
 
+    private void syncCollisionFilters(SceneTree tree, List<Integer> bodyIds) {
+        if (tree == null || bodyIds == null || bodyIds.isEmpty()) return;
+        for (int bodyId : bodyIds) {
+            Long nodeId = bodyToNode.get(bodyId);
+            if (nodeId == null) continue;
+            Node node = tree.getNode(nodeId);
+            if (node == null) continue;
+            long packed = CollisionLayerMask.packUserData(
+                    CollisionLayerMask.layer(node),
+                    CollisionLayerMask.mask(node));
+            try {
+                if (bodies.getUserData(bodyId) == packed) continue;
+                bodies.setUserData(bodyId, packed);
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
     private static boolean isStaticColliderNode(String typeId, Node node) {
         if (typeId == null || node == null) return false;
         if (!"CSGBlock".equals(typeId) && !"CSGBox".equals(typeId)) return false;
@@ -295,6 +494,17 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
         if (solid == null || solid.isBlank()) return true;
         String s = solid.trim().toLowerCase();
         return !"false".equals(s) && !"0".equals(s);
+    }
+
+    private static boolean isPhysicsNode(String typeId) {
+        if (typeId == null) {
+            return false;
+        }
+        return "RigidBody3D".equals(typeId)
+                || "StaticBody3D".equals(typeId)
+                || "CharacterBody3D".equals(typeId)
+                || "Area3D".equals(typeId)
+                || "Raycast3D".equals(typeId);
     }
 
     private static boolean shouldInheritTransform(Node node) {
