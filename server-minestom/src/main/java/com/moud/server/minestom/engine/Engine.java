@@ -17,6 +17,8 @@ public final class Engine {
     private final AtomicLong ticks = new AtomicLong();
     private final AtomicLong sceneRevision = new AtomicLong();
     private final AtomicLong csgRevision = new AtomicLong();
+    private final AtomicLong physicsRevision = new AtomicLong();
+    private final AtomicLong collisionFilterRevision = new AtomicLong();
     private volatile long lastDumpTick = -1;
 
     public Engine(Node root) {
@@ -66,6 +68,22 @@ public final class Engine {
 
     public void bumpCsgRevision() {
         csgRevision.incrementAndGet();
+    }
+
+    public long physicsRevision() {
+        return physicsRevision.get();
+    }
+
+    public void bumpPhysicsRevision() {
+        physicsRevision.incrementAndGet();
+    }
+
+    public long collisionFilterRevision() {
+        return collisionFilterRevision.get();
+    }
+
+    public void bumpCollisionFilterRevision() {
+        collisionFilterRevision.incrementAndGet();
     }
 
     public void tick(double dtSeconds) {
