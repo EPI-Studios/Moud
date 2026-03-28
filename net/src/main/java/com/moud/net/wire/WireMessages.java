@@ -41,6 +41,7 @@ import com.moud.net.protocol.ServerHello;
 import com.moud.net.protocol.PlayerInput;
 import com.moud.net.protocol.RuntimeState;
 import com.moud.net.protocol.RequestRespawn;
+import com.moud.net.protocol.EditorModeChanged;
 import com.moud.net.protocol.SceneCreate;
 import com.moud.net.protocol.SceneCreateAck;
 import com.moud.net.protocol.SceneDelete;
@@ -61,12 +62,15 @@ import com.moud.net.protocol.ScriptFileWriteAck;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public final class WireMessages {
     private static final int MIN_ALLOC_BYTES = 256;
-    // Keep aligned with TransportFrames MAX payload (1 MiB).
+    // TransportFrames MAX payload (1 MiB).
     private static final int MAX_ALLOC_BYTES = 1_048_576 + 64;
 
     private WireMessages() {
@@ -109,6 +113,7 @@ public final class WireMessages {
                     case PlayerInput input -> writePlayerInput(out, input);
                     case RuntimeState state -> writeRuntimeState(out, state);
                     case RequestRespawn ignored -> {}
+                    case EditorModeChanged msg -> WireIo.writeVarInt(out, msg.editorOpen() ? 1 : 0);
                     case SceneCreate msg -> {
                         WireIo.writeString(out, msg.sceneId());
                         WireIo.writeString(out, msg.displayName());
@@ -231,6 +236,7 @@ public final class WireMessages {
             case PLAYER_INPUT -> readPlayerInput(in);
             case RUNTIME_STATE -> readRuntimeState(in);
             case REQUEST_RESPAWN -> new RequestRespawn();
+            case EDITOR_MODE_CHANGED -> new EditorModeChanged(WireIo.readVarInt(in) != 0);
             case SCENE_CREATE -> new SceneCreate(WireIo.readString(in), WireIo.readString(in));
             case SCENE_CREATE_ACK -> {
                 String sceneId = WireIo.readString(in);
@@ -862,7 +868,7 @@ public final class WireMessages {
 
             var props = type.properties();
             ArrayList<PropertyDef> propList = new ArrayList<>(props.values());
-            propList.sort(java.util.Comparator
+            propList.sort(Comparator
                     .comparing(PropertyDef::category)
                     .thenComparingInt(PropertyDef::order)
                     .thenComparing(PropertyDef::uiLabel)
@@ -909,7 +915,7 @@ public final class WireMessages {
             if (propCount < 0 || propCount > 1_000_000) {
                 throw new IllegalArgumentException("Invalid property count: " + propCount);
             }
-            java.util.Map<String, PropertyDef> props = new java.util.LinkedHashMap<>();
+            Map<String, PropertyDef> props = new LinkedHashMap<>();
             for (int p = 0; p < propCount; p++) {
                 String key = WireIo.readString(in);
                 String typeName = WireIo.readString(in);
@@ -930,7 +936,7 @@ public final class WireMessages {
                 if (hintCount < 0 || hintCount > 1_000_000) {
                     throw new IllegalArgumentException("Invalid hint count: " + hintCount);
                 }
-                java.util.Map<String, String> hints = new java.util.LinkedHashMap<>();
+                Map<String, String> hints = new LinkedHashMap<>();
                 for (int h = 0; h < hintCount; h++) {
                     hints.put(WireIo.readString(in), WireIo.readString(in));
                 }
@@ -972,6 +978,7 @@ public final class WireMessages {
             case SceneSaveAck ack -> size += estimateSceneSaveAckSize(ack);
             case RuntimeState state -> size += estimateRuntimeStateSize(state);
             case RequestRespawn ignored -> {}
+            case EditorModeChanged ignored -> size += varIntSize(1);
             case SceneCreate msg -> size += stringSize(msg.sceneId()) + stringSize(msg.displayName());
             case SceneCreateAck msg -> size += stringSize(msg.sceneId()) + varIntSize(1) + stringSize(msg.error());
             case SceneDelete msg -> size += stringSize(msg.sceneId());

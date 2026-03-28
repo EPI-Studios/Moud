@@ -33,6 +33,7 @@ public sealed interface Message permits
         PlayerInput,
         RuntimeState,
         RequestRespawn,
+        EditorModeChanged,
         ProjectInfoRequest,
         ProjectInfo,
         ProjectCreate,
