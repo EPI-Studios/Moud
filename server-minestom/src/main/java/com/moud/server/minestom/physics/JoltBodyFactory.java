@@ -12,15 +12,17 @@ final class JoltBodyFactory {
 
     private JoltBodyFactory() {}
 
-    static int createStaticBox(BodyInterface bodies, JoltPhysicsWorld.Transform world) {
+    static int createStaticBox(BodyInterface bodies, Node node, JoltPhysicsWorld.Transform world) {
         if (world == null) return 0;
         float sx = (float) Math.max(1e-6, world.scale().x());
         float sy = (float) Math.max(1e-6, world.scale().y());
         float sz = (float) Math.max(1e-6, world.scale().z());
         var shape = new BoxShape(sx * 0.5f, sy * 0.5f, sz * 0.5f);
         try {
+            int layerBits = CollisionLayerMask.layer(node);
+            int maskBits = CollisionLayerMask.mask(node);
             return addBody(bodies, shape, world, EMotionType.Static, LAYER_STATIC,
-                    0f, 0f, 0f, 1f, EActivation.DontActivate);
+                    0f, 0f, 0f, 1f, EActivation.DontActivate, layerBits, maskBits);
         } finally { shape.close(); }
     }
 
@@ -34,8 +36,10 @@ final class JoltBodyFactory {
         float angularDamp = propFloat(node, "angular_damping", 0.1f);
         float gravityScale = propFloat(node, "gravity_scale", 1f);
         try {
+            int layerBits = CollisionLayerMask.layer(node);
+            int maskBits = CollisionLayerMask.mask(node);
             return addBody(bodies, shape, world, motionType, LAYER_MOVING,
-                    mass, linearDamp, angularDamp, gravityScale, EActivation.Activate);
+                    mass, linearDamp, angularDamp, gravityScale, EActivation.Activate, layerBits, maskBits);
         } finally { shape.close(); }
     }
 
@@ -43,8 +47,10 @@ final class JoltBodyFactory {
         if (world == null) return 0;
         Shape shape = resolveShape(node);
         try {
+            int layerBits = CollisionLayerMask.layer(node);
+            int maskBits = CollisionLayerMask.mask(node);
             return addBody(bodies, shape, world, EMotionType.Static, LAYER_STATIC,
-                    0f, 0f, 0f, 1f, EActivation.DontActivate);
+                    0f, 0f, 0f, 1f, EActivation.DontActivate, layerBits, maskBits);
         } finally { shape.close(); }
     }
 
@@ -53,7 +59,9 @@ final class JoltBodyFactory {
                                         float rxDeg, float ryDeg, float rzDeg,
                                         EMotionType motionType, int layer,
                                         float mass, float linearDamp, float angularDamp,
-                                        float gravityScale) {
+                                        float gravityScale,
+                                        int layerBits,
+                                        int maskBits) {
         Shape jolt = toJoltShape(shape);
         if (jolt == null) return Jolt.cInvalidBodyId;
         try {
@@ -61,6 +69,7 @@ final class JoltBodyFactory {
             var settings = new BodyCreationSettings(jolt, new RVec3(x, y, z),
                     new Quat((float) rot.x(), (float) rot.y(), (float) rot.z(), (float) rot.w()),
                     motionType, layer);
+            settings.setUserData(CollisionLayerMask.packUserData(layerBits, maskBits));
             applyMassAndDamping(settings, motionType, mass, linearDamp, angularDamp, gravityScale);
             EActivation activation = motionType == EMotionType.Static
                     ? EActivation.DontActivate : EActivation.Activate;
@@ -89,12 +98,15 @@ final class JoltBodyFactory {
     private static int addBody(BodyInterface bodies, Shape shape, JoltPhysicsWorld.Transform world,
                                EMotionType motionType, int layer,
                                float mass, float linearDamp, float angularDamp, float gravityScale,
-                               EActivation activation) {
+                               EActivation activation,
+                               int layerBits,
+                               int maskBits) {
         JoltPhysicsWorld.QuatD rot = world.rot();
         var settings = new BodyCreationSettings(shape,
                 new RVec3(world.pos().x(), world.pos().y(), world.pos().z()),
                 new Quat((float) rot.x(), (float) rot.y(), (float) rot.z(), (float) rot.w()),
                 motionType, layer);
+        settings.setUserData(CollisionLayerMask.packUserData(layerBits, maskBits));
         applyMassAndDamping(settings, motionType, mass, linearDamp, angularDamp, gravityScale);
         try { return bodies.createAndAddBody(settings, activation); }
         finally { settings.close(); }

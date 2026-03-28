@@ -1,6 +1,7 @@
 package com.moud.server.minestom.physics;
 
 import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.enumerate.ValidateResult;
 
 import java.util.*;
 
@@ -14,6 +15,27 @@ final class ContactCollector extends CustomContactListener {
         this.bodyToNode = bodyToNode;
         this.pendingAdded = pendingAdded;
         this.activeContacts = activeContacts;
+    }
+
+    @Override
+    public int onContactValidate(long body1Va, long body2Va,
+                                 double ignoredBaseX, double ignoredBaseY, double ignoredBaseZ,
+                                 long ignoredBody2ShapeVa) {
+        try {
+            long dataA = new Body(body1Va).getUserData();
+            long dataB = new Body(body2Va).getUserData();
+
+            int layerA = CollisionLayerMask.clampBits(CollisionLayerMask.unpackLayer(dataA));
+            int maskA = CollisionLayerMask.clampBits(CollisionLayerMask.unpackMask(dataA));
+            int layerB = CollisionLayerMask.clampBits(CollisionLayerMask.unpackLayer(dataB));
+            int maskB = CollisionLayerMask.clampBits(CollisionLayerMask.unpackMask(dataB));
+
+            return CollisionLayerMask.canCollide(layerA, maskA, layerB, maskB)
+                    ? ValidateResult.AcceptContact.ordinal()
+                    : ValidateResult.RejectAllContactsForThisBodyPair.ordinal();
+        } catch (Throwable ignored) {
+            return ValidateResult.AcceptContact.ordinal();
+        }
     }
 
     @Override

@@ -5,12 +5,14 @@ import com.moud.core.scene.Node;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.physics.CollisionEvent;
 import com.moud.server.minestom.physics.JoltPhysicsWorld;
+import com.moud.server.minestom.physics.CollisionLayerMask;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
 import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Value;
 
 import java.util.*;
+import java.util.function.Supplier;
 
 final class CollisionSignalEmitter {
 
@@ -21,7 +23,7 @@ final class CollisionSignalEmitter {
     HashSet<Long> currentPairs()  { return currentPairs; }
 
     void emit(ServerScene scene, Map<Long, SceneRuntime.NodeInstance> instances,
-              SignalBus signalBus, java.util.function.Supplier<Map<Long, Value>> valueMapSupplier) {
+              SignalBus signalBus, Supplier<Map<Long, Value>> valueMapSupplier) {
         if (scene == null) return;
         JoltPhysicsWorld physics = scene.physics();
         Map<Long, Value> valueMap = null;
@@ -61,6 +63,8 @@ final class CollisionSignalEmitter {
             float z = parseFloatSafe(node.getProperty("z"), 0f);
 
             if (physics != null) {
+                int areaLayer = CollisionLayerMask.layer(node);
+                int areaMask = CollisionLayerMask.mask(node);
                 String shape = node.getProperty("shape");
                 float radius = 1.0f;
                 if ("sphere".equalsIgnoreCase(shape)) {
@@ -76,6 +80,14 @@ final class CollisionSignalEmitter {
                 for (BodyHandle bh : overlaps) {
                     Long otherNodeId = physics.nodeIdForBody(bh.id());
                     if (otherNodeId == null || otherNodeId == inst.nodeId) continue;
+                    Node other = scene.engine().sceneTree().getNode(otherNodeId);
+                    if (other != null) {
+                        int otherLayer = CollisionLayerMask.layer(other);
+                        int otherMask = CollisionLayerMask.mask(other);
+                        if ((areaLayer & otherMask) == 0 || (otherLayer & areaMask) == 0) {
+                            continue;
+                        }
+                    }
                     long pairKey = pairKey(inst.nodeId, otherNodeId);
                     currentPairs.add(pairKey);
                     if (!previousPairs.contains(pairKey)) {

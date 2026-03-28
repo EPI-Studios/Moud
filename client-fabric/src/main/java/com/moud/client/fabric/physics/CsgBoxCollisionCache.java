@@ -15,6 +15,8 @@ import java.util.Set;
 public final class CsgBoxCollisionCache {
     private static volatile ObbCollisionShape[] shapes = new ObbCollisionShape[0];
     private static long cachedVersion = Long.MIN_VALUE;
+    private static final int DEFAULT_LAYER = 1;
+    private static final int DEFAULT_MASK = 1;
 
     private CsgBoxCollisionCache() {
     }
@@ -35,14 +37,15 @@ public final class CsgBoxCollisionCache {
         Map<Long, float[]> locals = new HashMap<>(nodes.size() * 2);
         // [parentId as bits, inherit flag] stored as long[2]
         Map<Long, long[]> parentInfo = new HashMap<>(nodes.size() * 2);
+        Map<Long, SceneSnapshot.NodeSnapshot> nodesById = new HashMap<>(nodes.size() * 2);
 
         for (SceneSnapshot.NodeSnapshot node : nodes) {
             if (node == null || node.nodeId() <= 0) continue;
             locals.put(node.nodeId(), parseLocalTransform(node));
             parentInfo.put(node.nodeId(), new long[]{node.parentId(), parseInherit(node) ? 1L : 0L});
+            nodesById.put(node.nodeId(), node);
         }
 
-        // Collect CSGBox node IDs (skip nodes with collision disabled)
         List<Long> csgBoxIds = new ArrayList<>();
         for (SceneSnapshot.NodeSnapshot node : nodes) {
             if (node != null && "CSGBox".equals(node.type()) && node.nodeId() > 0 && collisionEnabled(node)) {
@@ -51,7 +54,6 @@ public final class CsgBoxCollisionCache {
         }
         if (csgBoxIds.isEmpty()) return new ObbCollisionShape[0];
 
-        // Compute world transforms (with cycle guard)
         Map<Long, float[]> worldCache = new HashMap<>(nodes.size() * 2);
         Set<Long> visiting = new HashSet<>();
         Quaternionf tempQ = new Quaternionf();
@@ -61,7 +63,6 @@ public final class CsgBoxCollisionCache {
             computeWorld(id, locals, parentInfo, worldCache, visiting, tempQ, tempV);
         }
 
-        // Build OBBs
         List<ObbCollisionShape> result = new ArrayList<>(csgBoxIds.size());
         for (long id : csgBoxIds) {
             float[] w = worldCache.get(id);
@@ -73,8 +74,10 @@ public final class CsgBoxCollisionCache {
             float qx = w[3], qy = w[4], qz = w[5], qw = w[6];
             double hx = wsx * 0.5, hy = wsy * 0.5, hz = wsz * 0.5;
 
-            // Quaternion → column-major rotation matrix
-            // Column i = OBB local axis i in world space
+            SceneSnapshot.NodeSnapshot node = nodesById.get(id);
+            int layerBits = layer(node);
+            int maskBits = mask(node);
+
             double m00 = 1.0 - 2.0 * (qy * qy + qz * qz);
             double m10 = 2.0 * (qx * qy + qz * qw);
             double m20 = 2.0 * (qx * qz - qy * qw);
@@ -86,13 +89,13 @@ public final class CsgBoxCollisionCache {
             double m22 = 1.0 - 2.0 * (qx * qx + qy * qy);
 
             result.add(new ObbCollisionShape(w[0], w[1], w[2], hx, hy, hz,
+                    layerBits, maskBits,
                     m00, m01, m02, m10, m11, m12, m20, m21, m22));
         }
 
         return result.toArray(new ObbCollisionShape[0]);
     }
 
-    // float[10] = [px, py, pz, qx, qy, qz, qw, sx, sy, sz] in world space
     private static void computeWorld(long nodeId, Map<Long, float[]> locals, Map<Long, long[]> parentInfo,
                                      Map<Long, float[]> cache, Set<Long> visiting,
                                      Quaternionf tempQ, Vector3f tempV) {
@@ -114,7 +117,6 @@ public final class CsgBoxCollisionCache {
 
         if (inherit && parentId > 0L) {
             if (!visiting.add(nodeId)) {
-                // Cycle: use local transform directly
                 cache.put(nodeId, new float[]{px, py, pz, qx, qy, qz, qw, sx, sy, sz});
                 return;
             }
@@ -127,19 +129,15 @@ public final class CsgBoxCollisionCache {
                 float pqx = pw[3], pqy = pw[4], pqz = pw[5], pqw = pw[6];
                 float psx = pw[7], psy = pw[8], psz = pw[9];
 
-                // Scale child position by parent scale, then rotate by parent quat, then add parent pos
-                // Matches Pose.compose: out.pos = parent.rot.transform(child.pos * parent.scale) + parent.pos
                 tempV.set(px * psx, py * psy, pz * psz);
                 tempQ.set(pqx, pqy, pqz, pqw).transform(tempV);
                 px = ppx + tempV.x;
                 py = ppy + tempV.y;
                 pz = ppz + tempV.z;
 
-                // Compose rotations: parent * child
                 tempQ.set(pqx, pqy, pqz, pqw).mul(qx, qy, qz, qw).normalize();
                 qx = tempQ.x; qy = tempQ.y; qz = tempQ.z; qw = tempQ.w;
 
-                // Compose scales (component-wise)
                 sx = psx * sx;
                 sy = psy * sy;
                 sz = psz * sz;
@@ -178,7 +176,6 @@ public final class CsgBoxCollisionCache {
         sy = safeScale(sy);
         sz = safeScale(sz);
 
-        // CSGBox/CSGBlock store position at min-corner; shift to center
         boolean minCornerPivot = "CSGBox".equals(node.type()) || "CSGBlock".equals(node.type());
         if (minCornerPivot && hasScale) {
             x += sx * 0.5f;
@@ -186,7 +183,6 @@ public final class CsgBoxCollisionCache {
             z += sz * 0.5f;
         }
 
-        // Build quaternion from Euler angles — ZYX order, matching VeilSceneNodeRenderer.quatFromEulerDeg
         float rxRad = (float) Math.toRadians(rxDeg);
         float ryRad = (float) Math.toRadians(ryDeg);
         float rzRad = (float) Math.toRadians(rzDeg);
@@ -202,7 +198,10 @@ public final class CsgBoxCollisionCache {
         List<SceneSnapshot.Property> props = node.properties();
         if (props == null) return true;
         for (SceneSnapshot.Property p : props) {
-            if (p != null && "collision".equals(p.key())) {
+            if (p == null || p.key() == null) {
+                continue;
+            }
+            if ("solid".equals(p.key()) || "collision".equals(p.key())) {
                 String v = p.value();
                 if (v == null) return true;
                 v = v.trim().toLowerCase();
@@ -224,6 +223,39 @@ public final class CsgBoxCollisionCache {
             }
         }
         return true;
+    }
+
+    private static int layer(SceneSnapshot.NodeSnapshot node) {
+        return parseBits(node, "collision_layer", DEFAULT_LAYER);
+    }
+
+    private static int mask(SceneSnapshot.NodeSnapshot node) {
+        return parseBits(node, "collision_mask", DEFAULT_MASK);
+    }
+
+    private static int parseBits(SceneSnapshot.NodeSnapshot node, String key, int fallback) {
+        if (node == null || key == null) return fallback;
+        List<SceneSnapshot.Property> props = node.properties();
+        if (props == null) return fallback;
+
+        for (SceneSnapshot.Property p : props) {
+            if (p == null || !key.equals(p.key())) {
+                continue;
+            }
+            String v = p.value();
+            if (v == null || v.isBlank()) {
+                return fallback;
+            }
+            try {
+                int bits = Integer.parseInt(v.trim());
+                if (bits <= 0) return 0;
+                return bits == Integer.MIN_VALUE ? 0 : Math.abs(bits);
+            } catch (Exception ignored) {
+                return fallback;
+            }
+        }
+
+        return fallback;
     }
 
     private static float parseFloat(String v, float fallback) {
