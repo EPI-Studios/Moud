@@ -115,6 +115,9 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("sy", new PropertyDef("sy", PropertyType.FLOAT, "1", "Size Y", "Size", 11, Map.of("min", "1", "step", "1"))),
                 Map.entry("sz", new PropertyDef("sz", PropertyType.FLOAT, "1", "Size Z", "Size", 12, Map.of("min", "1", "step", "1"))),
                 Map.entry("block", new PropertyDef("block", PropertyType.STRING, "minecraft:stone", "Block", "Render", 20, Map.of())),
+                Map.entry("solid", new PropertyDef("solid", PropertyType.BOOL, "true", "Collision", "Physics", 30, Map.of())),
+                Map.entry("collision_layer", new PropertyDef("collision_layer", PropertyType.INT, "1", "Layer", "Physics", 31, Map.of("min", "0", "step", "1"))),
+                Map.entry("collision_mask", new PropertyDef("collision_mask", PropertyType.INT, "1", "Mask", "Physics", 32, Map.of("min", "0", "step", "1"))),
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
 
@@ -136,6 +139,8 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("color_tint_g", new PropertyDef("color_tint_g", PropertyType.FLOAT, "1", "G", "Color Tint", 1, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("color_tint_b", new PropertyDef("color_tint_b", PropertyType.FLOAT, "1", "B", "Color Tint", 2, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("solid", new PropertyDef("solid", PropertyType.BOOL, "true", "Collision", "Physics", 30, Map.of())),
+                Map.entry("collision_layer", new PropertyDef("collision_layer", PropertyType.INT, "1", "Layer", "Physics", 31, Map.of("min", "0", "step", "1"))),
+                Map.entry("collision_mask", new PropertyDef("collision_mask", PropertyType.INT, "1", "Mask", "Physics", 32, Map.of("min", "0", "step", "1"))),
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
 
@@ -214,6 +219,8 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("sz", new PropertyDef("sz", PropertyType.FLOAT, "1", "Size Z", "Collision", 3, Map.of("min", "0.01", "step", "0.1"))),
                 Map.entry("radius", new PropertyDef("radius", PropertyType.FLOAT, "0.5", "Radius", "Collision", 4, Map.of("min", "0.01", "step", "0.05"))),
                 Map.entry("enabled", new PropertyDef("enabled", PropertyType.BOOL, "true", "Enabled", "Collision", 10, Map.of())),
+                Map.entry("collision_layer", new PropertyDef("collision_layer", PropertyType.INT, "1", "Layer", "Collision", 11, Map.of("min", "0", "step", "1"))),
+                Map.entry("collision_mask", new PropertyDef("collision_mask", PropertyType.INT, "1", "Mask", "Collision", 12, Map.of("min", "0", "step", "1"))),
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
 
@@ -235,6 +242,8 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("angular_damping", new PropertyDef("angular_damping", PropertyType.FLOAT, "0.1", "Angular Damping", "Physics", 3, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("freeze", new PropertyDef("freeze", PropertyType.BOOL, "false", "Freeze", "Physics", 10, Map.of())),
                 Map.entry("enabled", new PropertyDef("enabled", PropertyType.BOOL, "true", "Enabled", "Collision", 10, Map.of())),
+                Map.entry("collision_layer", new PropertyDef("collision_layer", PropertyType.INT, "1", "Layer", "Collision", 11, Map.of("min", "0", "step", "1"))),
+                Map.entry("collision_mask", new PropertyDef("collision_mask", PropertyType.INT, "1", "Mask", "Collision", 12, Map.of("min", "0", "step", "1"))),
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
 
@@ -248,6 +257,8 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("shape", new PropertyDef("shape", PropertyType.STRING, "capsule", "Shape", "Collision", 0, Map.of())),
                 Map.entry("radius", new PropertyDef("radius", PropertyType.FLOAT, "0.3", "Radius", "Collision", 1, Map.of("min", "0.01", "step", "0.05"))),
                 Map.entry("height", new PropertyDef("height", PropertyType.FLOAT, "1.8", "Height", "Collision", 2, Map.of("min", "0.01", "step", "0.1"))),
+                Map.entry("collision_layer", new PropertyDef("collision_layer", PropertyType.INT, "1", "Layer", "Collision", 11, Map.of("min", "0", "step", "1"))),
+                Map.entry("collision_mask", new PropertyDef("collision_mask", PropertyType.INT, "1", "Mask", "Collision", 12, Map.of("min", "0", "step", "1"))),
                 Map.entry("speed", new PropertyDef("speed", PropertyType.FLOAT, "5", "Speed", "Movement", 0, Map.of("min", "0", "step", "0.5"))),
                 Map.entry("jump_velocity", new PropertyDef("jump_velocity", PropertyType.FLOAT, "10", "Jump Velocity", "Movement", 1, Map.of("min", "0", "step", "0.5"))),
                 Map.entry("gravity_scale", new PropertyDef("gravity_scale", PropertyType.FLOAT, "1", "Gravity Scale", "Movement", 2, Map.of("step", "0.1"))),
@@ -267,6 +278,8 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("sz", new PropertyDef("sz", PropertyType.FLOAT, "1", "Size Z", "Area", 3, Map.of("min", "0.01", "step", "0.1"))),
                 Map.entry("radius", new PropertyDef("radius", PropertyType.FLOAT, "1", "Radius", "Area", 4, Map.of("min", "0.01", "step", "0.1"))),
                 Map.entry("monitoring", new PropertyDef("monitoring", PropertyType.BOOL, "true", "Monitoring", "Area", 10, Map.of())),
+                Map.entry("collision_layer", new PropertyDef("collision_layer", PropertyType.INT, "1", "Layer", "Area", 11, Map.of("min", "0", "step", "1"))),
+                Map.entry("collision_mask", new PropertyDef("collision_mask", PropertyType.INT, "1", "Mask", "Area", 12, Map.of("min", "0", "step", "1"))),
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
 
@@ -282,10 +295,10 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("target_z", new PropertyDef("target_z", PropertyType.FLOAT, "0", "Target Z", "Ray", 2, Map.of("step", "0.1"))),
                 Map.entry("max_distance", new PropertyDef("max_distance", PropertyType.FLOAT, "100", "Max Distance", "Ray", 3, Map.of("min", "0", "step", "1"))),
                 Map.entry("enabled", new PropertyDef("enabled", PropertyType.BOOL, "true", "Enabled", "Ray", 10, Map.of())),
+                Map.entry("collision_layer", new PropertyDef("collision_layer", PropertyType.INT, "1", "Layer", "Ray", 11, Map.of("min", "0", "step", "1"))),
+                Map.entry("collision_mask", new PropertyDef("collision_mask", PropertyType.INT, "1", "Mask", "Ray", 12, Map.of("min", "0", "step", "1"))),
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
-
-        // --- Markers ---
 
         registry.registerType(new NodeTypeDef("Marker3D", "Marker3D", "Markers", 50, Map.ofEntries(
                 Map.entry("x", new PropertyDef("x", PropertyType.FLOAT, "0", "X", "Transform", 0, Map.of("step", "0.1"))),
