@@ -88,6 +88,15 @@ public final class ProjectService {
         String normalized = normalizeProjectPath(raw);
         if (normalized.startsWith(ResPath.SCHEME)) {
             ResPath resPath = new ResPath(normalized);
+            String inner = resPath.path();
+            if (inner.startsWith("scripts/")) {
+                Path legacy = projectRoot.resolve(inner);
+                if (Files.isRegularFile(legacy)) {
+                    return resolveSafe(legacy);
+                }
+                Path assets = projectRoot.resolve("assets").resolve(inner);
+                return resolveSafe(assets);
+            }
             return resolveSafe(projectRoot.resolve(resPath.path()));
         }
         return resolveSafe(projectRoot.resolve(normalized));
