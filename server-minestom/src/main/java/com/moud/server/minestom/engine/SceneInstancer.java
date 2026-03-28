@@ -172,6 +172,7 @@ public final class SceneInstancer {
         String desiredRz = defaulted(instanceNode.getProperty("rz"), "0");
 
         boolean hadCsgBefore = subtreeContainsCsg(instanceNode, targetScene.engine().nodeTypes());
+        boolean hadPhysicsBefore = subtreeContainsPhysics(instanceNode, targetScene.engine().nodeTypes());
 
         for (Node child : List.copyOf(instanceNode.children())) {
             instanceNode.removeChild(child);
@@ -219,8 +220,12 @@ public final class SceneInstancer {
 
         targetScene.engine().bumpSceneRevision();
         boolean hasCsgAfter = subtreeContainsCsg(instanceNode, targetScene.engine().nodeTypes());
+        boolean hasPhysicsAfter = subtreeContainsPhysics(instanceNode, targetScene.engine().nodeTypes());
         if (hadCsgBefore || hasCsgAfter) {
             targetScene.engine().bumpCsgRevision();
+        }
+        if (hadPhysicsBefore || hasPhysicsAfter) {
+            targetScene.engine().bumpPhysicsRevision();
         }
         return true;
     }
@@ -233,12 +238,16 @@ public final class SceneInstancer {
             return false;
         }
         boolean hadCsgBefore = subtreeContainsCsg(instanceNode, scene.engine().nodeTypes());
+        boolean hadPhysicsBefore = subtreeContainsPhysics(instanceNode, scene.engine().nodeTypes());
         for (Node child : List.copyOf(instanceNode.children())) {
             instanceNode.removeChild(child);
         }
         scene.engine().bumpSceneRevision();
         if (hadCsgBefore) {
             scene.engine().bumpCsgRevision();
+        }
+        if (hadPhysicsBefore) {
+            scene.engine().bumpPhysicsRevision();
         }
         scene.engine().bumpSceneRevision();
         return true;
@@ -325,6 +334,23 @@ public final class SceneInstancer {
         }
         for (Node child : node.children()) {
             if (subtreeContainsCsg(child, types)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean subtreeContainsPhysics(Node node, NodeTypeRegistry types) {
+        if (node == null) {
+            return false;
+        }
+        String typeId = types.typeIdFor(node);
+        if ("CSGBlock".equals(typeId) || "CSGBox".equals(typeId)
+                || "StaticBody3D".equals(typeId) || "RigidBody3D".equals(typeId)) {
+            return true;
+        }
+        for (Node child : node.children()) {
+            if (subtreeContainsPhysics(child, types)) {
                 return true;
             }
         }
