@@ -26,13 +26,16 @@ import com.moud.net.protocol.ProjectCreateAck;
 import com.moud.net.protocol.ProjectInfo;
 import com.moud.net.protocol.RequestRespawn;
 import com.moud.net.protocol.RuntimeState;
+import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneCreateAck;
 import com.moud.net.protocol.SceneDeleteAck;
 import com.moud.net.protocol.SceneList;
+import com.moud.net.protocol.SceneOpBatch;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneSaveAck;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.protocol.SceneSnapshotRequest;
+import com.moud.net.protocol.EditorModeChanged;
 import com.moud.net.protocol.SchemaSnapshot;
 import com.moud.net.protocol.ScriptActionInvokeAck;
 import com.moud.net.protocol.ScriptActionListResponse;
@@ -43,6 +46,8 @@ import com.moud.net.session.Session;
 import com.moud.net.session.SessionRole;
 import com.moud.net.session.SessionState;
 import com.moud.net.transport.Lane;
+import java.util.ArrayList;
+import java.util.List;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -68,6 +73,7 @@ final class MoudClient {
     private EditorOverlay overlay;
 
     private boolean overlayOpen;
+    private Boolean lastEditorModeSent;
     private boolean pendingOverlayDispose;
     private boolean autoOpenedEditor;
     private KeyBinding toggleKey;
@@ -76,6 +82,8 @@ final class MoudClient {
     private volatile SchemaSnapshot lastSchema;
     private volatile SceneList lastSceneList;
     private volatile SceneSnapshot lastSnapshot;
+    private final ArrayList<SceneOp> pendingRuntimeOps = new ArrayList<>();
+    private static final int MAX_PENDING_RUNTIME_OPS = 10_000;
 
     private long nextSceneSnapshotRequestId = 1L;
     private boolean initialSnapshotRequested;
@@ -218,6 +226,7 @@ final class MoudClient {
         camera.resetBootstrap();
         MinecraftGhostBlocks.get().cancel();
         playRuntime.onDisconnect();
+        pendingRuntimeOps.clear();
 
         if (overlay != null) {
             overlay.setOpen(false);
@@ -295,6 +304,12 @@ final class MoudClient {
             }
         }
 
+        if (isConnected) {
+            syncEditorModeToServer();
+        } else {
+            lastEditorModeSent = null;
+        }
+
         playRuntime.setActive(isConnected && !overlayOpen);
 
         if (transport == null && session == null && ClientPlayNetworking.canSend(EnginePayload.ID)) {
@@ -305,6 +320,18 @@ final class MoudClient {
             session.setMessageHandler(this::onMessage);
             session.start();
         }
+    }
+
+    private void syncEditorModeToServer() {
+        if (session == null || session.state() != SessionState.CONNECTED) {
+            return;
+        }
+        boolean open = overlayOpen;
+        if (lastEditorModeSent != null && lastEditorModeSent == open) {
+            return;
+        }
+        session.send(Lane.STATE, new EditorModeChanged(open));
+        lastEditorModeSent = open;
     }
 
     private void handleEditorToggle(MinecraftClient client) {
@@ -395,6 +422,11 @@ final class MoudClient {
             client.mouse.unlockCursor();
         }
 
+        if (session != null && session.state() == SessionState.CONNECTED) {
+            session.send(Lane.STATE, new EditorModeChanged(true));
+            lastEditorModeSent = true;
+        }
+
         if (overlay != null && session != null && session.state() == SessionState.CONNECTED) {
             overlay.setOpen(true);
             overlay.requestSnapshot(session);
@@ -419,7 +451,10 @@ final class MoudClient {
         editorContext.setOverlay(overlay);
 
         if (session != null && session.state() == SessionState.CONNECTED) {
+            session.send(Lane.STATE, new EditorModeChanged(false));
+            lastEditorModeSent = false;
             session.send(Lane.EVENTS, new RequestRespawn());
+            session.send(Lane.STATE, new SceneSnapshotRequest(nextSceneSnapshotRequestId++));
         }
     }
 
@@ -489,8 +524,27 @@ final class MoudClient {
         } else if (message instanceof SceneSnapshot snapshot) {
             lastSnapshot = snapshot;
             ClientSceneBus.applySnapshot(snapshot);
+            if (!overlayOpen && playRuntime.isActive() && !pendingRuntimeOps.isEmpty()) {
+                ClientSceneBus.applyOps(List.copyOf(pendingRuntimeOps));
+                pendingRuntimeOps.clear();
+            }
             if (overlay != null) {
                 overlay.onSnapshot(snapshot);
+            }
+        } else if (message instanceof SceneOpBatch batch) {
+            if (batch.ops() == null || batch.ops().isEmpty()) {
+                return;
+            }
+            if (lastSnapshot == null) {
+                pendingRuntimeOps.addAll(batch.ops());
+                if (pendingRuntimeOps.size() > MAX_PENDING_RUNTIME_OPS) {
+                    int keepFrom = Math.max(0, pendingRuntimeOps.size() - MAX_PENDING_RUNTIME_OPS);
+                    pendingRuntimeOps.subList(0, keepFrom).clear();
+                }
+                return;
+            }
+            if (playRuntime.isActive() && !overlayOpen) {
+                ClientSceneBus.applyOps(batch.ops());
             }
         } else if (message instanceof SchemaSnapshot schema) {
             lastSchema = schema;
@@ -558,4 +612,3 @@ final class MoudClient {
         }
     }
 }
-
