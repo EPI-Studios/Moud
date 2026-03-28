@@ -4,6 +4,7 @@ package com.moud.client.fabric.physics;
 public record ObbCollisionShape(
         double cx, double cy, double cz,
         double hx, double hy, double hz,
+        int layerBits, int maskBits,
         double m00, double m01, double m02,
         double m10, double m11, double m12,
         double m20, double m21, double m22

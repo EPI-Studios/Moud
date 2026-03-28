@@ -16,6 +16,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(Entity.class)
 public abstract class EntityObbCollisionMixin {
 
+    private static final int PLAYER_COLLISION_LAYER = 1;
+    private static final int PLAYER_COLLISION_MASK = 0x7FFF_FFFF;
+
     @Inject(method = "adjustMovementForCollisions", at = @At("RETURN"), cancellable = true)
     private void moud$applyObbCollisions(Vec3d movement, CallbackInfoReturnable<Vec3d> cir) {
         MinecraftClient client = MinecraftClient.getInstance();
@@ -45,6 +48,9 @@ public abstract class EntityObbCollisionMixin {
 
         boolean modified = false;
         for (ObbCollisionShape obb : obbs) {
+            if (!canCollide(PLAYER_COLLISION_LAYER, PLAYER_COLLISION_MASK, obb.layerBits(), obb.maskBits())) {
+                continue;
+            }
             double[] mtv = obb.computeMtv(newCx, newCy, newCz, bbHw, bbHh, bbHd);
             if (mtv != null) {
                 newCx += mtv[0];
@@ -58,5 +64,9 @@ public abstract class EntityObbCollisionMixin {
             // Convert back to movement delta
             cir.setReturnValue(new Vec3d(newCx - bbCx, newCy - bbCy, newCz - bbCz));
         }
+    }
+
+    private static boolean canCollide(int layerA, int maskA, int layerB, int maskB) {
+        return (layerA & maskB) != 0 && (layerB & maskA) != 0;
     }
 }

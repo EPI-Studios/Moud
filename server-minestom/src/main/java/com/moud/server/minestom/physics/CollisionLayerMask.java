@@ -1,7 +1,5 @@
 package com.moud.server.minestom.physics;
 
-import com.github.stephengold.joltjni.GroupFilter;
-import com.github.stephengold.joltjni.readonly.ConstCollisionGroup;
 import com.moud.core.scene.Node;
 
 public final class CollisionLayerMask {
@@ -43,17 +41,21 @@ public final class CollisionLayerMask {
         }
     }
 
-    public static final class LayerMaskGroupFilter extends GroupFilter {
-        @Override
-        public boolean canCollide(ConstCollisionGroup a, ConstCollisionGroup b) {
-            if (a == null || b == null) {
-                return true;
-            }
-            int layerA = clampBits(a.getGroupId());
-            int maskA = clampBits(a.getSubGroupId());
-            int layerB = clampBits(b.getGroupId());
-            int maskB = clampBits(b.getSubGroupId());
-            return (layerA & maskB) != 0 && (layerB & maskA) != 0;
-        }
+    public static boolean canCollide(int layerA, int maskA, int layerB, int maskB) {
+        return (layerA & maskB) != 0 && (layerB & maskA) != 0;
+    }
+
+    public static long packUserData(int layerBits, int maskBits) {
+        long layer = clampBits(layerBits) & 0xFFFF_FFFFL;
+        long mask = clampBits(maskBits) & 0xFFFF_FFFFL;
+        return layer | (mask << 32);
+    }
+
+    public static int unpackLayer(long userData) {
+        return (int) userData;
+    }
+
+    public static int unpackMask(long userData) {
+        return (int) (userData >>> 32);
     }
 }
