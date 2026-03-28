@@ -88,7 +88,7 @@ public final class CsgBoxCollisionCache {
             double m12 = 2.0 * (qy * qz - qx * qw);
             double m22 = 1.0 - 2.0 * (qx * qx + qy * qy);
 
-            result.add(new ObbCollisionShape(w[0], w[1], w[2], hx, hy, hz,
+            result.add(ObbCollisionShape.of(w[0], w[1], w[2], hx, hy, hz,
                     layerBits, maskBits,
                     m00, m01, m02, m10, m11, m12, m20, m21, m22));
         }
