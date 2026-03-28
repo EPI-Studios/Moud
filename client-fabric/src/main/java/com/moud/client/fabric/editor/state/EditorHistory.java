@@ -134,6 +134,167 @@ public final class EditorHistory {
         }
     }
 
+    public static final class DuplicateSubtreeEntry implements Entry {
+        public record CloneSpec(
+                String name,
+                String typeId,
+                List<Map.Entry<String, String>> properties,
+                List<CloneSpec> children
+        ) {
+            public CloneSpec {
+                name = (name == null || name.isBlank()) ? "Node" : name.trim();
+                typeId = (typeId == null || typeId.isBlank()) ? "Node" : typeId.trim();
+                properties = properties != null ? List.copyOf(properties) : List.of();
+                children = children != null ? List.copyOf(children) : List.of();
+            }
+        }
+
+        private final long parentId;
+        private final String rootNameHint;
+        private final CloneSpec rootSpec;
+        private final boolean selectAfterCreate;
+
+        private long createdRootId;
+        private boolean isExecuting;
+
+        public DuplicateSubtreeEntry(long parentId, String rootNameHint, CloneSpec rootSpec, boolean selectAfterCreate) {
+            this.parentId = parentId;
+            this.rootNameHint = (rootNameHint == null || rootNameHint.isBlank()) ? "Node_copy" : rootNameHint.trim();
+            this.rootSpec = rootSpec;
+            this.selectAfterCreate = selectAfterCreate;
+        }
+
+        @Override
+        public boolean canUndo(EditorRuntime runtime) {
+            return !isExecuting && createdRootId > 0L;
+        }
+
+        @Override
+        public boolean canRedo(EditorRuntime runtime) {
+            return !isExecuting && rootSpec != null;
+        }
+
+        @Override
+        public void undo(EditorRuntime runtime) {
+            if (!canUndo(runtime) || runtime == null) {
+                return;
+            }
+
+            long idToRemove = createdRootId;
+            createdRootId = 0L;
+            sendOps(runtime, List.of(new SceneOp.QueueFree(idToRemove)));
+
+            EditorState state = runtime.state();
+            if (state != null && state.selectedId == idToRemove) {
+                state.selectedId = 0L;
+            }
+        }
+
+        @Override
+        public void redo(EditorRuntime runtime) {
+            if (!canRedo(runtime) || !isValidRuntime(runtime)) {
+                return;
+            }
+
+            EditorState state = runtime.state();
+            Session session = runtime.session();
+            EditorNet net = runtime.net();
+
+            String uniqueRootName = generateUniqueName(state, parentId, rootNameHint);
+            List<SceneOp> createOperation = List.of(new SceneOp.CreateNode(parentId, uniqueRootName, rootSpec.typeId()));
+
+            isExecuting = true;
+            long batchId = net.sendOpsWithBatchId(session, state, createOperation);
+
+            runtime.afterCreateNode(batchId, newRootId -> {
+                createdRootId = newRootId;
+
+                applyProperties(net, session, state, newRootId, rootSpec.properties());
+                createChildren(net, session, state, runtime, newRootId, rootSpec.children(), () -> {
+                    if (selectAfterCreate) {
+                        state.selectedId = newRootId;
+                    }
+                    isExecuting = false;
+                });
+            });
+        }
+
+        private static void createChildren(EditorNet net,
+                                           Session session,
+                                           EditorState state,
+                                           EditorRuntime runtime,
+                                           long parentNewId,
+                                           List<CloneSpec> children,
+                                           Runnable onComplete) {
+            if (children == null || children.isEmpty()) {
+                if (onComplete != null) {
+                    onComplete.run();
+                }
+                return;
+            }
+            createChildAt(net, session, state, runtime, parentNewId, children, 0, onComplete);
+        }
+
+        private static void createChildAt(EditorNet net,
+                                          Session session,
+                                          EditorState state,
+                                          EditorRuntime runtime,
+                                          long parentNewId,
+                                          List<CloneSpec> children,
+                                          int index,
+                                          Runnable onComplete) {
+            if (children == null || index >= children.size()) {
+                if (onComplete != null) {
+                    onComplete.run();
+                }
+                return;
+            }
+
+            CloneSpec spec = children.get(index);
+            if (spec == null) {
+                createChildAt(net, session, state, runtime, parentNewId, children, index + 1, onComplete);
+                return;
+            }
+
+            String childName = spec.name();
+            List<SceneOp> createOperation = List.of(new SceneOp.CreateNode(parentNewId, childName, spec.typeId()));
+            long batchId = net.sendOpsWithBatchId(session, state, createOperation);
+
+            runtime.afterCreateNode(batchId, newChildId -> {
+                applyProperties(net, session, state, newChildId, spec.properties());
+                createChildren(net, session, state, runtime, newChildId, spec.children(),
+                        () -> createChildAt(net, session, state, runtime, parentNewId, children, index + 1, onComplete));
+            });
+        }
+
+        private static void applyProperties(EditorNet net,
+                                            Session session,
+                                            EditorState state,
+                                            long nodeId,
+                                            List<Map.Entry<String, String>> properties) {
+            if (properties == null || properties.isEmpty()) {
+                return;
+            }
+
+            ArrayList<SceneOp> ops = new ArrayList<>(properties.size());
+            for (Map.Entry<String, String> property : properties) {
+                if (property == null) {
+                    continue;
+                }
+                String key = property.getKey();
+                String value = property.getValue();
+                if (key == null || key.isBlank() || value == null || "@type".equals(key)) {
+                    continue;
+                }
+                ops.add(new SceneOp.SetProperty(nodeId, key, value));
+            }
+
+            if (!ops.isEmpty()) {
+                net.sendOps(session, state, ops);
+            }
+        }
+    }
+
     public static final class GroupSelectionEntry implements Entry {
         private final long parentId;
         private final String nameHint;
@@ -227,7 +388,7 @@ public final class EditorHistory {
 
         private int calculateGroupIndex() {
             int minIndex = nodes.stream()
-                    .filter(java.util.Objects::nonNull)
+                    .filter(node -> node != null)
                     .mapToInt(NodeAtIndex::index)
                     .min()
                     .orElse(0);

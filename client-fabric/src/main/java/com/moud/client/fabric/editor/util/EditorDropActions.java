@@ -6,11 +6,11 @@ import com.moud.client.fabric.editor.state.EditorHistory;
 import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
 import com.moud.core.scene.Model3D;
-import com.moud.net.protocol.SceneOp;
 import com.moud.net.session.Session;
 import java.io.File;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import net.minecraft.client.MinecraftClient;
 
 public final class EditorDropActions {
@@ -61,7 +61,7 @@ public final class EditorDropActions {
                     parentId,
                     name,
                     nodeTypeId,
-                    List.of(java.util.Map.entry(propertyKey, propertyValue)),
+                    List.of(Map.entry(propertyKey, propertyValue)),
                     true
             );
             runtime.history().pushEntry(entry);
