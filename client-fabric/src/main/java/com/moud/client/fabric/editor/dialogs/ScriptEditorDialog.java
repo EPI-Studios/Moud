@@ -12,16 +12,29 @@ import com.moud.client.fabric.editor.net.EditorNet;
 import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
 import com.moud.client.fabric.util.ClientDebugLog;
-import com.miry.ui.widgets.CodeEditor;
+import com.miry.ui.widgets.editor.language.LanguageProvider;
+import com.miry.ui.widgets.editor.language.impl.GLSLLanguageProvider;
+import com.miry.ui.widgets.editor.language.impl.JSLanguageProvider;
+import com.miry.ui.widgets.editor.language.impl.JavaLanguageProvider;
+import com.miry.ui.widgets.editor.language.impl.TypeScriptLanguageProvider;
+import com.miry.ui.widgets.editor.view.CodeEditor;
+import com.miry.ui.widgets.editor.view.FindBarWidget;
 import com.moud.net.protocol.ScriptFileReadResponse;
 import com.moud.net.protocol.ScriptFileWriteAck;
+import com.miry.ui.widgets.ContextMenu;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
+import java.util.ArrayList;
 
 public final class ScriptEditorDialog {
     private static final int DIALOG_W = 980;
     private static final int DIALOG_H = 680;
     private static final long CONFIRM_TIMEOUT_MS = 3500L;
+
+    private static final LanguageProvider JS = new JSLanguageProvider();
+    private static final LanguageProvider TS = new TypeScriptLanguageProvider();
+    private static final LanguageProvider JAVA = new JavaLanguageProvider();
+    private static final LanguageProvider GLSL = new GLSLLanguageProvider();
 
     private enum ConfirmAction {
         CLOSE,
@@ -30,12 +43,14 @@ public final class ScriptEditorDialog {
 
     private final EditorRuntime runtime;
     private final CodeEditor editor = new CodeEditor();
+    private final FindBarWidget findBar = new FindBarWidget();
     private UiContext lastUiContext;
 
     private boolean open;
     private boolean justOpened;
     private long nodeId;
     private String scriptPath = "";
+    private boolean findBarVisible;
 
     private long pendingReadId;
     private long pendingWriteId;
@@ -45,31 +60,38 @@ public final class ScriptEditorDialog {
     private String error;
     private ConfirmAction confirmAction;
     private long confirmUntilMs;
+    private final ArrayList<String> recentScripts = new ArrayList<>();
+    private final ContextMenu recentMenu = new ContextMenu();
 
     public ScriptEditorDialog(EditorRuntime runtime) {
         this.runtime = runtime;
+        findBar.setEditor(editor);
     }
 
     public void open(long nodeId, String scriptPath) {
         this.nodeId = nodeId;
         this.scriptPath = scriptPath == null ? "" : scriptPath.trim();
+        if (!this.scriptPath.isBlank()) {
+            recentScripts.remove(this.scriptPath);
+            recentScripts.add(0, this.scriptPath);
+            if (recentScripts.size() > 10) recentScripts.remove(recentScripts.size() - 1);
+        }
         this.error = null;
         this.confirmAction = null;
         this.confirmUntilMs = 0L;
         this.justOpened = true;
         this.open = true;
+        this.findBarVisible = false;
         this.lastLoadedText = "";
+        editor.setLanguage(languageFor(scriptPath));
         editor.setText("");
-        editor.clearHistory();
+        findBar.clear();
         requestReload();
     }
 
     public void close() {
         if (lastUiContext != null) {
             editor.cancelInteractions(lastUiContext);
-            if (lastUiContext.focus().isFocused(editor.id())) {
-                lastUiContext.focus().clearFocus();
-            }
         }
         open = false;
         loading = false;
@@ -108,7 +130,6 @@ public final class ScriptEditorDialog {
         String content = response.content() == null ? "" : response.content();
         lastLoadedText = content;
         editor.setText(content);
-        editor.clearHistory();
         error = null;
     }
 
@@ -136,19 +157,37 @@ public final class ScriptEditorDialog {
         }
         lastUiContext = ctx;
 
-        if (event.isPress() && event.key() == InputConstants.KEY_ESCAPE) {
-            requestClose();
+        boolean ctrl = event.hasCtrl() || event.hasSuper();
+        if (ctrl && event.isPressOrRepeat() && event.key() == InputConstants.KEY_F) {
+            findBarVisible = !findBarVisible;
+            if (!findBarVisible) {
+                findBar.clear();
+            }
             return true;
         }
 
-        boolean ctrl = event.hasCtrl() || event.hasSuper();
+        if (event.isPress() && event.key() == InputConstants.KEY_ESCAPE) {
+            if (findBarVisible) {
+                findBarVisible = false;
+                findBar.clear();
+            } else {
+                requestClose();
+            }
+            return true;
+        }
+
         if (ctrl && event.isPressOrRepeat() && event.key() == InputConstants.KEY_S) {
             confirmAction = null;
             confirmUntilMs = 0L;
             save();
             return true;
         }
-        return editor.handleKey(ctx, event);
+        if (findBarVisible) {
+            findBar.handleKey(ctx, event);
+            return true;
+        }
+        editor.handleKey(ctx, event);
+        return true;
     }
 
     public void handleTextInput(UiContext ctx, int codepoint) {
@@ -156,7 +195,11 @@ public final class ScriptEditorDialog {
             return;
         }
         lastUiContext = ctx;
-        editor.handleTextInput(ctx, codepoint);
+        if (findBarVisible) {
+            findBar.handleTextInput(codepoint);
+        } else {
+            editor.handleTextInput(ctx, codepoint);
+        }
     }
 
     public void render(UiRenderer r, UiContext ctx, Ui ui, Theme theme, int screenW, int screenH) {
@@ -171,14 +214,14 @@ public final class ScriptEditorDialog {
             confirmUntilMs = 0L;
         }
 
-        if (justOpened && ctx != null) {
+        if (justOpened) {
             justOpened = false;
-            editor.focus(ctx);
         }
 
         int mx = (int) ui.mouse().x;
         int my = (int) ui.mouse().y;
-        boolean pressed = ui.input() != null && ui.input().mousePressed();
+        boolean canInteract = ui.input() != null;
+        boolean pressed = canInteract && ui.input().mousePressed();
 
         r.drawRect(0, 0, screenW, screenH, 0x80000000);
 
@@ -206,6 +249,30 @@ public final class ScriptEditorDialog {
         String subtitle = (scriptPath == null || scriptPath.isBlank()) ? "(no script)" : scriptPath;
         r.drawText(subtitle, headerX, r.baselineForBox(headerY + 22, headerH), muted);
 
+        int recentBtnW = 90;
+        int recentBtnH = 26;
+        int recentBtnX = dialogX + dialogW - pad - recentBtnW;
+        int recentBtnY = dialogY + (headerH - recentBtnH) / 2;
+        boolean recentEnabled = !recentScripts.isEmpty();
+        boolean recentHovered = recentEnabled && hit(mx, my, recentBtnX, recentBtnY, recentBtnW, recentBtnH);
+        int recentBg = recentHovered ? Theme.toArgb(theme.widgetHover) : Theme.toArgb(theme.widgetBg);
+        r.drawRoundedRect(recentBtnX, recentBtnY, recentBtnW, recentBtnH, theme.design.radius_sm, recentBg, theme.design.border_thin, outline);
+        r.drawText("Recent \u25be", recentBtnX + theme.design.space_md, r.baselineForBox(recentBtnY, recentBtnH), recentEnabled ? text : muted);
+
+        if (recentMenu.isOpen()) {
+            int menuItemH = Math.max(18, theme.design.widget_height_sm);
+            var uiInput = ui.input();
+            if (uiInput != null) recentMenu.updateFromInput(uiInput, theme, menuItemH);
+            recentMenu.render(r, theme, menuItemH,
+                    Theme.toArgb(theme.panelBg),
+                    Theme.toArgb(theme.widgetHover),
+                    Theme.toArgb(theme.text),
+                    recentMenu.hoverIndex());
+            if (canInteract && pressed && uiInput != null) {
+                recentMenu.handleClick(mx, my, menuItemH);
+            }
+        }
+
         int btnH = theme.design.widget_height_md + theme.design.border_thin * 2;
         int btnW = 120;
         int btnY = dialogY + dialogH - pad - btnH;
@@ -216,7 +283,6 @@ public final class ScriptEditorDialog {
 
         String currentText = editor.text();
         boolean dirty = !currentText.equals(lastLoadedText == null ? "" : lastLoadedText);
-        boolean canInteract = ui.input() != null;
         boolean canSave = dirty && !saving && !loading && hasSession();
         boolean canReload = !loading && !saving && hasSession();
 
@@ -252,6 +318,13 @@ public final class ScriptEditorDialog {
         int editorW = Math.max(1, dialogW - pad * 2);
         int editorH = Math.max(1, btnY - editorY - pad);
 
+        if (findBarVisible) {
+            int fbH = findBar.preferredHeight(r, theme);
+            findBar.render(r, ctx, ui.input(), theme, editorX, editorY, editorW, fbH, true);
+            editorY += fbH;
+            editorH = Math.max(1, editorH - fbH);
+        }
+
         // Small code icon in the gutter to reinforce "this is a script".
         float iconSize = Math.min(theme.design.icon_sm, 18);
         MoudIcons.drawOrFallback(r, theme, Icon.CODE, editorX, editorY - 26, iconSize, Theme.toArgb(theme.textMuted));
@@ -264,7 +337,22 @@ public final class ScriptEditorDialog {
         }
 
         if (mx < dialogX || my < dialogY || mx >= dialogX + dialogW || my >= dialogY + dialogH) {
+            recentMenu.close();
             requestClose();
+            return;
+        }
+
+        if (recentEnabled && hit(mx, my, recentBtnX, recentBtnY, recentBtnW, recentBtnH)) {
+            if (!recentMenu.isOpen()) {
+                recentMenu.clear();
+                for (String p : recentScripts) {
+                    String captured = p;
+                    recentMenu.addItem(p, () -> open(nodeId, captured));
+                }
+                recentMenu.open(recentBtnX, recentBtnY + recentBtnH);
+            } else {
+                recentMenu.close();
+            }
             return;
         }
 
@@ -360,6 +448,26 @@ public final class ScriptEditorDialog {
     private boolean hasSession() {
         Session session = runtime.session();
         return session != null && session.state() == SessionState.CONNECTED;
+    }
+
+    private static LanguageProvider languageFor(String path) {
+        if (path == null) {
+            return LanguageProvider.PLAIN_TEXT;
+        }
+        String p = path.trim().toLowerCase();
+        if (p.endsWith(".ts") || p.endsWith(".tsx")) {
+            return TS;
+        }
+        if (p.endsWith(".js") || p.endsWith(".mjs") || p.endsWith(".cjs")) {
+            return JS;
+        }
+        if (p.endsWith(".java")) {
+            return JAVA;
+        }
+        if (p.endsWith(".glsl") || p.endsWith(".vert") || p.endsWith(".frag")) {
+            return GLSL;
+        }
+        return LanguageProvider.PLAIN_TEXT;
     }
 
     private static void drawButton(UiRenderer r,
