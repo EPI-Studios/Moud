@@ -1,0 +1,7 @@
+{
+  "shader": "{{shader}}",
+  "params": {
+    "Tint": [1, 1, 1, 1],
+    "Texture0": "moud:dynamic/white"
+  }
+}
