@@ -39,11 +39,14 @@ final class ServerTickLoop {
 
         if (!pausedForEditor) {
             Map<UUID, float[]> playerPositions = new HashMap<>();
+            Map<UUID, String> playerNames = new HashMap<>();
             for (Player p : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
                 Pos pos = p.getPosition();
                 playerPositions.put(p.getUuid(), new float[]{(float) pos.x(), (float) pos.y(), (float) pos.z(), pos.yaw()});
+                playerNames.put(p.getUuid(), p.getUsername());
             }
             scripts.updatePlayerPositions(playerPositions);
+            scripts.updatePlayerNames(playerNames);
         }
 
         playModeManager.tickScenes(dtSeconds, connections.states());

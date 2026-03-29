@@ -27,6 +27,7 @@ import com.moud.net.protocol.ScriptActionListRequest;
 import com.moud.net.protocol.ScriptActionListResponse;
 import com.moud.net.protocol.ScriptFileReadRequest;
 import com.moud.net.protocol.ScriptFileWriteRequest;
+import com.moud.net.protocol.UiNodeEvent;
 import com.moud.net.session.Session;
 import com.moud.net.transport.Lane;
 import com.moud.server.minestom.assets.AssetService;
@@ -143,6 +144,13 @@ final class MessageRouter {
 
         if (lane == Lane.INPUT && message instanceof PlayerInput input) {
             scripts.onPlayerInput(player.getUuid(), input);
+            return;
+        }
+
+        if (lane == Lane.INPUT && message instanceof UiNodeEvent event) {
+            ServerScene scene = playModeManager.resolvePlayerScene(ps);
+            if (scene == null) scene = mainScene;
+            scripts.onUiEvent(scene, event.nodeId(), event.event(), event.value());
             return;
         }
 

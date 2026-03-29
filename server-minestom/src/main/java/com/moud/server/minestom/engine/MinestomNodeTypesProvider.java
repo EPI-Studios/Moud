@@ -11,6 +11,8 @@ import com.moud.server.minestom.engine.nodes.RootNode;
 import com.moud.server.minestom.engine.nodes.TickerNode;
 
 public final class MinestomNodeTypesProvider implements NodeTypeProvider {
+    public static final String PROP_SCENE_MODE = "scene_mode";
+
     @Override
     public int order() {
         return 100;
@@ -18,7 +20,9 @@ public final class MinestomNodeTypesProvider implements NodeTypeProvider {
 
     @Override
     public void register(NodeTypeRegistry registry) {
-        registry.registerType(new NodeTypeDef("Root", "Root", "Minestom", 100, Map.of()));
+        registry.registerType(new NodeTypeDef("Root", "Root", "Minestom", 100, Map.of(
+                PROP_SCENE_MODE, new PropertyDef(PROP_SCENE_MODE, PropertyType.STRING, "3d", "Mode", "Scene", 0, Map.of())
+        )));
         registry.registerType(new NodeTypeDef("Ticker", "Ticker", "Minestom", 110, Map.of(
                 "ticks", new PropertyDef("ticks", PropertyType.INT, "0", "Ticks", "Runtime", 0, Map.of())
         )));

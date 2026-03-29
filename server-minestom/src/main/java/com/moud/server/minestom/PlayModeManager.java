@@ -2,6 +2,7 @@ package com.moud.server.minestom;
 
 import com.moud.core.NodeTypeDef;
 import com.moud.core.scene.SceneTreeMutator;
+import com.moud.net.protocol.MultiMeshData;
 import com.moud.net.protocol.SceneList;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.protocol.SchemaSnapshot;
@@ -23,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.Collections;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
@@ -37,6 +39,7 @@ final class PlayModeManager {
     private final Map<String, SceneBaseline> baselineBySceneId = new HashMap<>();
 
     private volatile SchemaSnapshot cachedSchema;
+    private final Map<String, List<MultiMeshData>> pendingMultiMeshByScene = new HashMap<>();
 
     boolean isPausedForEditor(Map<UUID, PlayerState> playerStates) {
         if (playerStates == null || playerStates.isEmpty()) {
@@ -99,6 +102,7 @@ final class PlayModeManager {
             if (ns.nodeId() == rootId) {
                 continue;
             }
+
             LinkedHashMap<String, String> props = new LinkedHashMap<>();
             if (ns.properties() != null) {
                 for (SceneSnapshot.Property p : ns.properties()) {
@@ -150,11 +154,16 @@ final class PlayModeManager {
             return;
         }
 
+        pendingMultiMeshByScene.clear();
         for (ServerScene scene : scenes.allScenes()) {
             playRuntime.applyEditorWorldEnvironment(scene);
             String pendingTransition = scripts.tickRuntime(scene, dtSeconds);
             if (pendingTransition != null) {
                 applyScriptSceneTransition(scene.sceneId(), pendingTransition, playerStates);
+            }
+            List<MultiMeshData> mmData = scripts.drainMultiMesh(scene.sceneId());
+            if (!mmData.isEmpty()) {
+                pendingMultiMeshByScene.put(scene.sceneId(), mmData);
             }
         }
     }
@@ -195,6 +204,9 @@ final class PlayModeManager {
                 : null;
         playRuntime.tick(player.getUuid(), session, scene, playerCamId, followCam, scriptCam);
         rigidBodyReplicator.send(scene, session);
+        for (MultiMeshData msg : pendingMultiMeshByScene.getOrDefault(scene.sceneId(), Collections.emptyList())) {
+            session.send(Lane.STATE, msg);
+        }
     }
 
     void onPlayerSpawn(Player player, PlayerState ps, ServerScene spawnScene) {
@@ -203,6 +215,7 @@ final class PlayModeManager {
         }
         playRuntime.onPlayerSpawn(player, spawnScene);
     }
+
 
     void onDisconnect(UUID uuid) {
         playRuntime.onDisconnect(uuid);
@@ -244,6 +257,9 @@ final class PlayModeManager {
                     session.send(Lane.STATE, new SceneList(scenes.snapshotInfo(), targetId));
                     instancer.syncScene(scenes, target);
                     session.send(Lane.STATE, target.snapshot(0L));
+                    for (MultiMeshData mm : scripts.getLatestMultiMesh(targetId)) {
+                        session.send(Lane.STATE, mm);
+                    }
                 }).schedule())
                 .exceptionally(ex -> {
                     DebugLog.error("scene", "failed to switch to '" + targetId + "': " + ex.getMessage());
