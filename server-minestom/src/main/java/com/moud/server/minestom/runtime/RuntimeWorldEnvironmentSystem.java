@@ -3,13 +3,30 @@ package com.moud.server.minestom.runtime;
 import com.moud.core.scene.Node;
 import com.moud.core.scene.PlainNode;
 import com.moud.core.util.ParseUtils;
+import com.moud.server.minestom.engine.MinestomNodeTypesProvider;
 import com.moud.server.minestom.engine.ServerScene;
 import net.minestom.server.instance.Weather;
 
 final class RuntimeWorldEnvironmentSystem {
     void ensureWorldEnvironment(ServerScene scene) {
+        if (scene == null || scene.engine() == null || scene.engine().sceneTree() == null) {
+            return;
+        }
         Node root = scene.engine().sceneTree().root();
+        if (root == null) {
+            return;
+        }
+        String mode = root.getProperty(MinestomNodeTypesProvider.PROP_SCENE_MODE);
+        boolean is2d = mode != null && mode.equalsIgnoreCase("2d");
+
         Node existing = root.findChild("WorldEnvironment");
+        if (is2d) {
+            if (existing != null) {
+                existing.queueFree();
+                scene.engine().bumpSceneRevision();
+            }
+            return;
+        }
         if (existing != null) {
             return;
         }
@@ -111,4 +128,3 @@ final class RuntimeWorldEnvironmentSystem {
     ) {
     }
 }
-
