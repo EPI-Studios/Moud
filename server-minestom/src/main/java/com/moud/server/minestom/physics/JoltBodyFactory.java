@@ -1,6 +1,7 @@
 package com.moud.server.minestom.physics;
 
 import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.enumerate.EAllowedDofs;
 import com.github.stephengold.joltjni.enumerate.*;
 import com.moud.core.physics.CollisionShape;
 import com.moud.core.scene.Node;
@@ -22,7 +23,7 @@ final class JoltBodyFactory {
             int layerBits = CollisionLayerMask.layer(node);
             int maskBits = CollisionLayerMask.mask(node);
             return addBody(bodies, shape, world, EMotionType.Static, LAYER_STATIC,
-                    0f, 0f, 0f, 1f, EActivation.DontActivate, layerBits, maskBits);
+                    0f, 0f, 0f, 1f, EAllowedDofs.All, EActivation.DontActivate, layerBits, maskBits);
         } finally { shape.close(); }
     }
 
@@ -35,11 +36,19 @@ final class JoltBodyFactory {
         float linearDamp = propFloat(node, "linear_damping", 0.1f);
         float angularDamp = propFloat(node, "angular_damping", 0.1f);
         float gravityScale = propFloat(node, "gravity_scale", 1f);
+        boolean lockRotX = propBool(node, "lock_rotation_x", false);
+        boolean lockRotY = propBool(node, "lock_rotation_y", false);
+        boolean lockRotZ = propBool(node, "lock_rotation_z", false);
+        int allowedDofs = EAllowedDofs.All;
+        if (lockRotX) allowedDofs &= ~EAllowedDofs.RotationX;
+        if (lockRotY) allowedDofs &= ~EAllowedDofs.RotationY;
+        if (lockRotZ) allowedDofs &= ~EAllowedDofs.RotationZ;
         try {
             int layerBits = CollisionLayerMask.layer(node);
             int maskBits = CollisionLayerMask.mask(node);
             return addBody(bodies, shape, world, motionType, LAYER_MOVING,
-                    mass, linearDamp, angularDamp, gravityScale, EActivation.Activate, layerBits, maskBits);
+                    mass, linearDamp, angularDamp, gravityScale, allowedDofs,
+                    EActivation.Activate, layerBits, maskBits);
         } finally { shape.close(); }
     }
 
@@ -50,7 +59,7 @@ final class JoltBodyFactory {
             int layerBits = CollisionLayerMask.layer(node);
             int maskBits = CollisionLayerMask.mask(node);
             return addBody(bodies, shape, world, EMotionType.Static, LAYER_STATIC,
-                    0f, 0f, 0f, 1f, EActivation.DontActivate, layerBits, maskBits);
+                    0f, 0f, 0f, 1f, EAllowedDofs.All, EActivation.DontActivate, layerBits, maskBits);
         } finally { shape.close(); }
     }
 
@@ -70,7 +79,7 @@ final class JoltBodyFactory {
                     new Quat((float) rot.x(), (float) rot.y(), (float) rot.z(), (float) rot.w()),
                     motionType, layer);
             settings.setUserData(CollisionLayerMask.packUserData(layerBits, maskBits));
-            applyMassAndDamping(settings, motionType, mass, linearDamp, angularDamp, gravityScale);
+            applyMassAndDamping(settings, motionType, mass, linearDamp, angularDamp, gravityScale, EAllowedDofs.All);
             EActivation activation = motionType == EMotionType.Static
                     ? EActivation.DontActivate : EActivation.Activate;
             try { return bodies.createAndAddBody(settings, activation); }
@@ -98,6 +107,7 @@ final class JoltBodyFactory {
     private static int addBody(BodyInterface bodies, Shape shape, JoltPhysicsWorld.Transform world,
                                EMotionType motionType, int layer,
                                float mass, float linearDamp, float angularDamp, float gravityScale,
+                               int allowedDofs,
                                EActivation activation,
                                int layerBits,
                                int maskBits) {
@@ -107,14 +117,14 @@ final class JoltBodyFactory {
                 new Quat((float) rot.x(), (float) rot.y(), (float) rot.z(), (float) rot.w()),
                 motionType, layer);
         settings.setUserData(CollisionLayerMask.packUserData(layerBits, maskBits));
-        applyMassAndDamping(settings, motionType, mass, linearDamp, angularDamp, gravityScale);
+        applyMassAndDamping(settings, motionType, mass, linearDamp, angularDamp, gravityScale, allowedDofs);
         try { return bodies.createAndAddBody(settings, activation); }
         finally { settings.close(); }
     }
 
     private static void applyMassAndDamping(BodyCreationSettings settings, EMotionType motionType,
                                             float mass, float linearDamp, float angularDamp,
-                                            float gravityScale) {
+                                            float gravityScale, int allowedDofs) {
         if (motionType == EMotionType.Dynamic && mass > 0f) {
             settings.setMassPropertiesOverride(new MassProperties().setMass(mass));
             settings.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
@@ -122,6 +132,9 @@ final class JoltBodyFactory {
         settings.setLinearDamping(linearDamp);
         settings.setAngularDamping(angularDamp);
         settings.setGravityFactor(gravityScale);
+        if (allowedDofs != EAllowedDofs.All) {
+            settings.setAllowedDofs(allowedDofs);
+        }
     }
 
     private static Shape resolveShape(Node node) {

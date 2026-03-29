@@ -25,6 +25,7 @@ public final class ServerScene {
         this.displayName = displayName == null ? "" : displayName;
         this.instance = Objects.requireNonNull(instance, "instance");
         this.engine = new Engine(new RootNode("root"), EngineSchema.createDefault());
+        this.engine.nodeTypes().applyDefaults(this.engine.sceneTree().root(), "Root");
         this.applier = new SceneOpApplier(engine);
         this.csgWriter = new CsgBlockWriter(instance, engine);
         this.physics = JoltPhysicsWorld.tryCreate();
