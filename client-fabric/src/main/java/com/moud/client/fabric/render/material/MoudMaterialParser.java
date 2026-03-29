@@ -65,6 +65,13 @@ public final class MoudMaterialParser {
             if (val.isJsonNull()) {
                 continue;
             }
+            if (val.isJsonObject()) {
+                MoudMaterial.Param p = parseTypedParam(val.getAsJsonObject());
+                if (p != null) {
+                    out.put(key, p);
+                }
+                continue;
+            }
             if (val.isJsonPrimitive()) {
                 var prim = val.getAsJsonPrimitive();
                 if (prim.isNumber()) {
@@ -72,7 +79,7 @@ public final class MoudMaterialParser {
                 } else if (prim.isBoolean()) {
                     out.put(key, new MoudMaterial.Param.Bool(prim.getAsBoolean()));
                 } else if (prim.isString()) {
-                    out.put(key, new MoudMaterial.Param.Texture(prim.getAsString()));
+                    out.put(key, new MoudMaterial.Param.StringParam(prim.getAsString()));
                 }
                 continue;
             }
@@ -83,6 +90,88 @@ public final class MoudMaterialParser {
                 }
             }
         }
+    }
+
+    private static MoudMaterial.Param parseTypedParam(JsonObject obj) {
+        if (obj == null || obj.isEmpty()) {
+            return null;
+        }
+
+        JsonElement typeEl = obj.get("type");
+        JsonElement valueEl = obj.get("value");
+        if (typeEl != null && typeEl.isJsonPrimitive() && typeEl.getAsJsonPrimitive().isString() && valueEl != null) {
+            String type = typeEl.getAsString() == null ? "" : typeEl.getAsString().trim().toLowerCase();
+            return switch (type) {
+                case "texture" -> valueEl.isJsonPrimitive() && valueEl.getAsJsonPrimitive().isString()
+                        ? new MoudMaterial.Param.Texture(valueEl.getAsString())
+                        : null;
+                case "string" -> valueEl.isJsonPrimitive() && valueEl.getAsJsonPrimitive().isString()
+                        ? new MoudMaterial.Param.StringParam(valueEl.getAsString())
+                        : null;
+                case "bool" -> valueEl.isJsonPrimitive() && valueEl.getAsJsonPrimitive().isBoolean()
+                        ? new MoudMaterial.Param.Bool(valueEl.getAsBoolean())
+                        : null;
+                case "int" -> valueEl.isJsonPrimitive() && valueEl.getAsJsonPrimitive().isNumber()
+                        ? new MoudMaterial.Param.Number(Math.round(valueEl.getAsFloat()))
+                        : null;
+                case "float", "number" -> valueEl.isJsonPrimitive() && valueEl.getAsJsonPrimitive().isNumber()
+                        ? new MoudMaterial.Param.Number(valueEl.getAsFloat())
+                        : null;
+                case "vec2", "vec3", "vec4", "vec" -> valueEl.isJsonArray()
+                        ? vecParam(valueEl.getAsJsonArray())
+                        : null;
+                default -> null;
+            };
+        }
+
+        JsonElement tex = obj.get("texture");
+        if (tex != null && tex.isJsonPrimitive() && tex.getAsJsonPrimitive().isString()) {
+            return new MoudMaterial.Param.Texture(tex.getAsString());
+        }
+        JsonElement str = obj.get("string");
+        if (str != null && str.isJsonPrimitive() && str.getAsJsonPrimitive().isString()) {
+            return new MoudMaterial.Param.StringParam(str.getAsString());
+        }
+        JsonElement bool = obj.get("bool");
+        if (bool != null && bool.isJsonPrimitive() && bool.getAsJsonPrimitive().isBoolean()) {
+            return new MoudMaterial.Param.Bool(bool.getAsBoolean());
+        }
+        JsonElement integer = obj.get("int");
+        if (integer != null && integer.isJsonPrimitive() && integer.getAsJsonPrimitive().isNumber()) {
+            return new MoudMaterial.Param.Number(Math.round(integer.getAsFloat()));
+        }
+        JsonElement flt = obj.get("float");
+        if (flt != null && flt.isJsonPrimitive() && flt.getAsJsonPrimitive().isNumber()) {
+            return new MoudMaterial.Param.Number(flt.getAsFloat());
+        }
+        JsonElement num = obj.get("number");
+        if (num != null && num.isJsonPrimitive() && num.getAsJsonPrimitive().isNumber()) {
+            return new MoudMaterial.Param.Number(num.getAsFloat());
+        }
+
+        JsonElement v2 = obj.get("vec2");
+        if (v2 != null && v2.isJsonArray()) {
+            return vecParam(v2.getAsJsonArray());
+        }
+        JsonElement v3 = obj.get("vec3");
+        if (v3 != null && v3.isJsonArray()) {
+            return vecParam(v3.getAsJsonArray());
+        }
+        JsonElement v4 = obj.get("vec4");
+        if (v4 != null && v4.isJsonArray()) {
+            return vecParam(v4.getAsJsonArray());
+        }
+        JsonElement vec = obj.get("vec");
+        if (vec != null && vec.isJsonArray()) {
+            return vecParam(vec.getAsJsonArray());
+        }
+
+        return null;
+    }
+
+    private static MoudMaterial.Param vecParam(JsonArray arr) {
+        float[] vec = parseFloatArray(arr);
+        return vec != null ? new MoudMaterial.Param.Vec(vec) : null;
     }
 
     private static float[] parseFloatArray(JsonArray arr) {
