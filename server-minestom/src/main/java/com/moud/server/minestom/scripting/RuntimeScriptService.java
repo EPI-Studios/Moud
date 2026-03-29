@@ -1,9 +1,11 @@
 package com.moud.server.minestom.scripting;
 
 
+import com.moud.net.protocol.MultiMeshData;
 import com.moud.net.protocol.PlayerInput;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.project.ProjectService;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -17,6 +19,7 @@ final class RuntimeScriptService {
     private final ConcurrentHashMap<String, SceneRuntime> runtimeByScene = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, PlayerInputState> inputsByPlayer = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, float[]> playerPositions = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, String> playerNames = new ConcurrentHashMap<>();
 
     RuntimeScriptService(ProjectService project, Engine engine) {
         this.project = Objects.requireNonNull(project, "project");
@@ -28,6 +31,15 @@ final class RuntimeScriptService {
         if (positions != null) {
             for (Map.Entry<UUID, float[]> e : positions.entrySet()) {
                 playerPositions.put(e.getKey().toString(), e.getValue());
+            }
+        }
+    }
+
+    void updatePlayerNames(Map<UUID, String> names) {
+        playerNames.clear();
+        if (names != null) {
+            for (Map.Entry<UUID, String> e : names.entrySet()) {
+                playerNames.put(e.getKey().toString(), e.getValue());
             }
         }
     }
@@ -54,6 +66,24 @@ final class RuntimeScriptService {
         inputsByPlayer.put(uuid.toString(), new PlayerInputState(uuid.toString(), input));
     }
 
+    List<MultiMeshData> getLatestMultiMesh(String sceneId) {
+        if (sceneId == null) return List.of();
+        SceneRuntime rt = runtimeByScene.get(sceneId);
+        return rt == null ? List.of() : rt.getLatestMultiMesh();
+    }
+
+    List<MultiMeshData> drainMultiMesh(String sceneId) {
+        if (sceneId == null) return List.of();
+        SceneRuntime rt = runtimeByScene.get(sceneId);
+        return rt == null ? List.of() : rt.drainMultiMesh();
+    }
+
+    void onUiEvent(ServerScene scene, long nodeId, String event, float value) {
+        if (scene == null || nodeId <= 0 || event == null || event.isBlank()) return;
+        SceneRuntime rt = runtimeByScene.get(scene.sceneId());
+        if (rt != null) rt.onUiEvent(nodeId, event, value);
+    }
+
     void onSceneDeleted(String sceneId) {
         if (sceneId == null || sceneId.isBlank()) {
             return;
@@ -78,6 +108,7 @@ final class RuntimeScriptService {
                 ignored -> new SceneRuntime(project, engine, inputsByPlayer)
         );
         rt.updatePlayerPositions(playerPositions);
+        rt.updatePlayerNames(playerNames);
         rt.tick(scene, dtSeconds);
         return rt.drainPendingSceneTransition();
     }
