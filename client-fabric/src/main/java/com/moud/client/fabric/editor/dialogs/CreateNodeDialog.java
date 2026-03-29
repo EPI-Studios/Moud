@@ -36,13 +36,24 @@ public final class CreateNodeDialog {
 
     private final EditorRuntime runtime;
     private final TextField searchField = new TextField();
-    private final List<String> filteredTypes = new ArrayList<>();
+    private final List<ListItem> filteredItems = new ArrayList<>();
     private long parentNodeId;
     private String parentName = "";
     private boolean justOpened;
     private boolean open;
     private int typeListScrollY;
+    private int highlightedIndex = -1;
     private Consumer<String> onTypeSelected;
+
+    private record ListItem(boolean header, String label, String typeId, String category) {
+        static ListItem header(String label) {
+            return new ListItem(true, label == null ? "" : label, null, null);
+        }
+
+        static ListItem type(String label, String typeId, String category) {
+            return new ListItem(false, label == null ? "" : label, typeId, category == null ? "" : category);
+        }
+    }
 
     public CreateNodeDialog(EditorRuntime runtime) {
         this.runtime = runtime;
@@ -61,6 +72,7 @@ public final class CreateNodeDialog {
         searchField.setText("");
         updateFilter();
         typeListScrollY = 0;
+        highlightedIndex = firstSelectableIndex();
         justOpened = true;
         open = true;
         onTypeSelected = null;
@@ -87,8 +99,16 @@ public final class CreateNodeDialog {
             close();
             return true;
         }
+        if (event.isPressOrRepeat() && event.key() == InputConstants.KEY_UP) {
+            moveHighlight(-1);
+            return true;
+        }
+        if (event.isPressOrRepeat() && event.key() == InputConstants.KEY_DOWN) {
+            moveHighlight(1);
+            return true;
+        }
         if (event.isPress() && event.key() == InputConstants.KEY_ENTER) {
-            createFirstMatch();
+            createHighlightedOrFirst();
             return true;
         }
 
@@ -204,7 +224,7 @@ public final class CreateNodeDialog {
         int listOutline = Theme.toArgb(theme.widgetOutline);
         r.drawRoundedRect(x, cursorY, width, listH, theme.design.radius_sm, listBg, theme.design.border_thin, listOutline);
 
-        if (filteredTypes.isEmpty()) {
+        if (filteredItems.isEmpty()) {
             r.drawText("No matches", x + theme.design.space_sm, r.baselineForBox(cursorY + theme.design.space_sm, 18), Theme.toArgb(theme.textMuted));
             return;
         }
@@ -213,7 +233,7 @@ public final class CreateNodeDialog {
         int listX = x;
         int listY = cursorY;
         int listW = width;
-        int contentHeight = filteredTypes.size() * itemH + theme.design.space_xs * 2;
+        int contentHeight = filteredItems.size() * itemH + theme.design.space_xs * 2;
 
         Ui.ScrollArea area = ui.beginScrollArea(r, "createNodeTypesScroll", listX, listY, listW, listH, contentHeight);
         int scrollY = (int) area.scrollY();
@@ -221,23 +241,53 @@ public final class CreateNodeDialog {
 
         int first = Math.max(0, scrollY / Math.max(1, itemH));
         int visible = Math.max(1, (listH / Math.max(1, itemH)) + 2);
-        int last = Math.min(filteredTypes.size(), first + visible);
+        int last = Math.min(filteredItems.size(), first + visible);
 
         int itemY = listY + theme.design.space_xs - scrollY;
         for (int i = first; i < last; i++) {
-            String typeId = filteredTypes.get(i);
-            NodeTypeDef def = state.typesById.get(typeId);
-            String label = def == null ? typeId : def.uiLabel();
-
             int rowY = itemY + i * itemH;
             boolean hovered = canInteract && mx >= listX && my >= rowY && mx < listX + listW && my < rowY + itemH;
-            if (hovered) {
-                int fill = Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.35f);
+            boolean highlighted = i == highlightedIndex;
+
+            if (hovered || highlighted) {
+                int fill = Theme.mulAlpha(Theme.toArgb(hovered ? theme.widgetHover : theme.widgetActive), 0.30f);
                 r.drawRect(listX + 1, rowY, Math.max(0, listW - 2), itemH, fill);
             }
-            r.drawText(label, listX + theme.design.space_sm, r.baselineForBox(rowY, itemH), Theme.toArgb(theme.text));
+
+            ListItem item = filteredItems.get(i);
+            if (item.header) {
+                int col = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.90f);
+                String label = item.label == null ? "" : item.label;
+                r.drawText(label, listX + theme.design.space_sm, r.baselineForBox(rowY, itemH), col);
+                int lineY = rowY + itemH - 1;
+                r.drawRect(listX + theme.design.space_sm, lineY, Math.max(0, listW - theme.design.space_sm * 2), 1, Theme.mulAlpha(col, 0.45f));
+                continue;
+            }
+
+            String label = item.label == null ? "" : item.label;
+            int iconBox = itemH;
+            float iconSize = Math.min(theme.design.icon_sm, iconBox - 6);
+            float iconX = listX + theme.design.space_sm;
+            float iconY = rowY + (iconBox - iconSize) * 0.5f;
+            drawTypeIcon(r, theme, item.typeId, iconX, iconY, iconSize, Theme.toArgb(theme.textMuted));
+
+            int textX = listX + theme.design.space_sm + iconBox;
+            r.drawText(label, textX, r.baselineForBox(rowY, itemH), Theme.toArgb(theme.text));
+
+            String typeId = item.typeId == null ? "" : item.typeId;
+            int muted = Theme.toArgb(theme.textMuted);
+            float typeW = r.measureText(typeId);
+            int rightPad = theme.design.space_sm;
+            int typeX = (int) (listX + listW - rightPad - typeW);
+            r.drawText(typeId, typeX, r.baselineForBox(rowY, itemH), Theme.mulAlpha(muted, 0.90f));
         }
         ui.endScrollArea(area);
+
+        int hintY = listY + listH + theme.design.space_xs;
+        if (hintY + 18 < y + height) {
+            int col = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.80f);
+            r.drawText("↑/↓ navigate   Enter create   Esc close", x, r.baselineForBox(hintY, 18), col);
+        }
     }
 
     public void handleTextInput(int codepoint) {
@@ -255,30 +305,71 @@ public final class CreateNodeDialog {
         }
 
         String query = searchField.text() == null ? "" : searchField.text().toLowerCase(Locale.ROOT);
-        filteredTypes.clear();
+        filteredItems.clear();
 
         Set<String> added = new HashSet<>();
-        if (query.isEmpty() && !recentTypes.isEmpty()) {
-            for (String recent : recentTypes) {
-                if (recent == null || !state.typesById.containsKey(recent)) continue;
-                filteredTypes.add(recent);
-                added.add(recent);
-            }
-        }
 
-        List<String> sorted = new ArrayList<>();
+        record TypeRow(String typeId, String label, String category, int order) {}
+
+        ArrayList<TypeRow> matches = new ArrayList<>();
         for (String typeId : state.typeIds) {
-            if (typeId == null || typeId.isBlank() || "Root".equals(typeId) || added.contains(typeId)) {
+            if (typeId == null || typeId.isBlank() || "Root".equals(typeId)) {
                 continue;
             }
             NodeTypeDef def = state.typesById.get(typeId);
             String label = def == null ? typeId : def.uiLabel();
-            if (query.isEmpty() || typeId.toLowerCase(Locale.ROOT).contains(query) || label.toLowerCase(Locale.ROOT).contains(query)) {
-                sorted.add(typeId);
+            String cat = def == null ? "" : def.category();
+            int order = def == null ? 0 : def.order();
+
+            if (query.isEmpty()
+                    || typeId.toLowerCase(Locale.ROOT).contains(query)
+                    || label.toLowerCase(Locale.ROOT).contains(query)
+                    || (!cat.isBlank() && cat.toLowerCase(Locale.ROOT).contains(query))) {
+                matches.add(new TypeRow(typeId, label, cat, order));
             }
         }
-        sorted.sort(Comparator.naturalOrder());
-        filteredTypes.addAll(sorted);
+
+        if (query.isEmpty() && !recentTypes.isEmpty()) {
+            ArrayList<TypeRow> recents = new ArrayList<>();
+            for (String recent : recentTypes) {
+                if (recent == null || !state.typesById.containsKey(recent)) {
+                    continue;
+                }
+                NodeTypeDef def = state.typesById.get(recent);
+                recents.add(new TypeRow(recent, def == null ? recent : def.uiLabel(), def == null ? "" : def.category(), def == null ? 0 : def.order()));
+                added.add(recent);
+            }
+            if (!recents.isEmpty()) {
+                filteredItems.add(ListItem.header("Recent"));
+                recents.sort(Comparator.comparing(TypeRow::label, String.CASE_INSENSITIVE_ORDER));
+                for (TypeRow row : recents) {
+                    filteredItems.add(ListItem.type(row.label, row.typeId, row.category));
+                }
+                filteredItems.add(ListItem.header("All Nodes"));
+            }
+        }
+
+        matches.removeIf(r -> added.contains(r.typeId));
+        matches.sort(Comparator
+                .comparingInt(TypeRow::order)
+                .thenComparing(TypeRow::category, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(TypeRow::label, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(TypeRow::typeId, String.CASE_INSENSITIVE_ORDER));
+
+        String lastCat = null;
+        for (TypeRow row : matches) {
+            String cat = row.category == null ? "" : row.category.trim();
+            if (cat.isBlank()) {
+                cat = "Uncategorized";
+            }
+            if (!cat.equals(lastCat)) {
+                filteredItems.add(ListItem.header(cat));
+                lastCat = cat;
+            }
+            filteredItems.add(ListItem.type(row.label, row.typeId, row.category));
+        }
+
+        highlightedIndex = firstSelectableIndex();
     }
 
     private void createNode(EditorState state, String typeId) {
@@ -313,11 +404,76 @@ public final class CreateNodeDialog {
 
     private void createFirstMatch() {
         EditorState state = runtime.state();
-        if (state == null || filteredTypes.isEmpty()) {
+        if (state == null) {
             return;
         }
-        createNode(state, filteredTypes.get(0));
+        int idx = firstSelectableIndex();
+        if (idx < 0) {
+            return;
+        }
+        String typeId = filteredItems.get(idx).typeId;
+        if (typeId == null || typeId.isBlank()) {
+            return;
+        }
+        createNode(state, typeId);
         close();
+    }
+
+    private void createHighlightedOrFirst() {
+        EditorState state = runtime.state();
+        if (state == null) {
+            return;
+        }
+        int idx = highlightedIndex;
+        if (idx < 0 || idx >= filteredItems.size() || filteredItems.get(idx).header) {
+            idx = firstSelectableIndex();
+        }
+        if (idx < 0) {
+            return;
+        }
+        String typeId = filteredItems.get(idx).typeId;
+        if (typeId == null || typeId.isBlank()) {
+            return;
+        }
+        createNode(state, typeId);
+        close();
+    }
+
+    private int firstSelectableIndex() {
+        for (int i = 0; i < filteredItems.size(); i++) {
+            ListItem item = filteredItems.get(i);
+            if (item != null && !item.header && item.typeId != null && !item.typeId.isBlank()) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private void moveHighlight(int dir) {
+        if (filteredItems.isEmpty()) {
+            highlightedIndex = -1;
+            return;
+        }
+        int i = highlightedIndex;
+        if (i < 0 || i >= filteredItems.size()) {
+            i = firstSelectableIndex();
+        }
+        if (i < 0) {
+            highlightedIndex = -1;
+            return;
+        }
+        int next = i;
+        while (true) {
+            next += dir;
+            if (next < 0 || next >= filteredItems.size()) {
+                break;
+            }
+            ListItem item = filteredItems.get(next);
+            if (item != null && !item.header) {
+                highlightedIndex = next;
+                break;
+            }
+        }
     }
 
     private void handleContentClick(UiContext ctx, Ui ui, Theme theme, int x, int y, int width, int height) {
@@ -348,13 +504,32 @@ public final class CreateNodeDialog {
             return;
         }
         int idx = contentY / Math.max(1, itemH);
-        if (idx < 0 || idx >= filteredTypes.size()) {
+        if (idx < 0 || idx >= filteredItems.size()) {
             return;
         }
 
-        String typeId = filteredTypes.get(idx);
-        createNode(state, typeId);
-        close();
+        ListItem item = filteredItems.get(idx);
+        if (item == null) {
+            return;
+        }
+        highlightedIndex = idx;
+        if (!item.header && item.typeId != null && !item.typeId.isBlank()) {
+            createNode(state, item.typeId);
+            close();
+        }
+    }
+
+    private static void drawTypeIcon(UiRenderer r, Theme theme, String typeId, float x, float y, float size, int color) {
+        if (r == null) {
+            return;
+        }
+        if (typeId != null && MoudIcons.has(typeId)) {
+            MoudIcons.draw(r, typeId, x, y, size, color);
+            return;
+        }
+        if (theme != null && theme.icons != null) {
+            theme.icons.draw(r, Icon.FILE, x, y, size, color);
+        }
     }
 
     private static void drawButton(UiRenderer r,

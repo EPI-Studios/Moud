@@ -89,6 +89,10 @@ public final class ScriptEditorDialog {
         requestReload();
     }
 
+    public void cancelInteractions(UiContext ctx) {
+        editor.cancelInteractions(ctx);
+    }
+
     public void close() {
         if (lastUiContext != null) {
             editor.cancelInteractions(lastUiContext);
@@ -105,6 +109,10 @@ public final class ScriptEditorDialog {
 
     public boolean isOpen() {
         return open;
+    }
+
+    public String scriptPath() {
+        return scriptPath;
     }
 
     public void onReadResponse(ScriptFileReadResponse response) {
@@ -371,6 +379,108 @@ public final class ScriptEditorDialog {
         }
     }
 
+    public void renderInline(UiRenderer r, UiContext ctx, Ui ui, Theme theme, int x, int y, int w, int h) {
+        if (!open) {
+            return;
+        }
+        lastUiContext = ctx;
+
+        long now = System.currentTimeMillis();
+        if (confirmAction != null && now >= confirmUntilMs) {
+            confirmAction = null;
+            confirmUntilMs = 0L;
+        }
+        if (justOpened) {
+            justOpened = false;
+        }
+
+        int mx = (int) ui.mouse().x;
+        int my = (int) ui.mouse().y;
+        boolean canInteract = ui.input() != null;
+        boolean pressed = canInteract && ui.input().mousePressed();
+
+        int textColor = Theme.toArgb(theme.text);
+        int muted = Theme.toArgb(theme.textMuted);
+        int danger = Theme.toArgb(theme.danger);
+        int outline = Theme.toArgb(theme.widgetOutline);
+        int pad = theme.design.space_md;
+
+        String currentText = editor.text();
+        boolean dirty = !currentText.equals(lastLoadedText == null ? "" : lastLoadedText);
+        boolean canSave = dirty && !saving && !loading && hasSession();
+        boolean canReload = !loading && !saving && hasSession();
+
+        int btnH = theme.design.widget_height_md + theme.design.border_thin * 2;
+        int barY = y + (pad >> 1);
+        int closeW = 70, btnW = 80;
+        int closeX = x + w - pad - closeW;
+        int saveX = closeX - theme.design.space_sm - btnW;
+        int reloadX = saveX - theme.design.space_sm - btnW;
+
+        int reloadTextColor = (dirty && confirmAction == ConfirmAction.RELOAD) ? danger : textColor;
+        int closeTextColor = (dirty && confirmAction == ConfirmAction.CLOSE) ? danger : textColor;
+        drawButton(r, theme, "Reload", reloadX, barY, btnW, btnH, mx, my, canReload, reloadTextColor);
+        drawButton(r, theme, "Save", saveX, barY, btnW, btnH, mx, my, canSave, textColor);
+        drawButton(r, theme, "Close", closeX, barY, closeW, btnH, mx, my, true, closeTextColor);
+
+        String statusText;
+        int statusColor;
+        if (dirty && confirmAction != null) {
+            statusColor = danger;
+            statusText = confirmAction == ConfirmAction.CLOSE
+                    ? "Unsaved — close again to discard"
+                    : "Unsaved — reload again to discard";
+        } else if (loading) {
+            statusText = "Loading…";
+            statusColor = muted;
+        } else if (saving) {
+            statusText = "Saving…";
+            statusColor = muted;
+        } else if (error != null && !error.isBlank()) {
+            statusText = error;
+            statusColor = danger;
+        } else if (dirty) {
+            statusText = "● " + (scriptPath.isBlank() ? "(no script)" : scriptPath);
+            statusColor = textColor;
+        } else {
+            statusText = scriptPath.isBlank() ? "(no script)" : scriptPath;
+            statusColor = muted;
+        }
+        r.drawText(statusText, x + pad, r.baselineForBox(barY, btnH), statusColor);
+
+        int editorY = barY + btnH + (pad >> 1);
+        int editorW = Math.max(1, w - pad * 2);
+        int editorH = Math.max(1, y + h - editorY - (pad >> 1));
+        int editorX = x + pad;
+
+        if (findBarVisible) {
+            int fbH = findBar.preferredHeight(r, theme);
+            findBar.render(r, ctx, ui.input(), theme, editorX, editorY, editorW, fbH, true);
+            editorY += fbH;
+            editorH = Math.max(1, editorH - fbH);
+        }
+
+        editor.setReadOnly(loading);
+        editor.render(r, ctx, ui.input(), theme, editorX, editorY, editorW, editorH, true);
+
+        if (!canInteract || !pressed) {
+            return;
+        }
+        if (hit(mx, my, closeX, barY, closeW, btnH)) {
+            requestClose();
+            return;
+        }
+        if (hit(mx, my, reloadX, barY, btnW, btnH) && canReload) {
+            requestReloadWithConfirm();
+            return;
+        }
+        if (hit(mx, my, saveX, barY, btnW, btnH) && canSave) {
+            confirmAction = null;
+            confirmUntilMs = 0L;
+            save();
+        }
+    }
+
     private void requestReload() {
         if (!hasSession()) {
             return;
@@ -423,6 +533,14 @@ public final class ScriptEditorDialog {
         }
         confirmAction = ConfirmAction.CLOSE;
         confirmUntilMs = System.currentTimeMillis() + CONFIRM_TIMEOUT_MS;
+    }
+
+    public void saveIfDirty() {
+        String current = editor.text();
+        boolean dirty = !current.equals(lastLoadedText == null ? "" : lastLoadedText);
+        if (dirty && !saving && !loading) {
+            save();
+        }
     }
 
     private void save() {
