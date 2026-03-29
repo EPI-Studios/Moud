@@ -5,7 +5,7 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 
 public final class TransportFrames {
-    private static final int MAX_PAYLOAD_BYTES = 1_048_576;
+    public static final int MAX_PAYLOAD_BYTES = 1_048_576;
 
     private TransportFrames() {
     }

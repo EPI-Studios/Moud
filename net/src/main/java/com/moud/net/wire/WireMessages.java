@@ -58,6 +58,8 @@ import com.moud.net.protocol.ScriptFileReadRequest;
 import com.moud.net.protocol.ScriptFileReadResponse;
 import com.moud.net.protocol.ScriptFileWriteRequest;
 import com.moud.net.protocol.ScriptFileWriteAck;
+import com.moud.net.protocol.UiNodeEvent;
+import com.moud.net.protocol.MultiMeshData;
 
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
@@ -70,7 +72,6 @@ import java.util.Objects;
 
 public final class WireMessages {
     private static final int MIN_ALLOC_BYTES = 256;
-    // TransportFrames MAX payload (1 MiB).
     private static final int MAX_ALLOC_BYTES = 1_048_576 + 64;
 
     private WireMessages() {
@@ -186,6 +187,22 @@ public final class WireMessages {
                         WireIo.writeString(out, msg.path());
                         WireIo.writeString(out, msg.error());
                     }
+                    case UiNodeEvent msg -> {
+                        writeLong(out, msg.nodeId());
+                        WireIo.writeString(out, msg.event());
+                        out.putFloat(msg.value());
+                    }
+                    case MultiMeshData msg -> {
+                        writeLong(out, msg.nodeId());
+                        WireIo.writeVarInt(out, msg.offset());
+                        WireIo.writeVarInt(out, msg.total());
+                        float[] data = msg.data();
+                        int len = data == null ? 0 : data.length;
+                        WireIo.writeVarInt(out, len);
+                        if (data != null) {
+                            for (float f : data) out.putFloat(f);
+                        }
+                    }
                 }
                 out.flip();
                 byte[] bytes = new byte[out.remaining()];
@@ -237,6 +254,16 @@ public final class WireMessages {
             case RUNTIME_STATE -> readRuntimeState(in);
             case REQUEST_RESPAWN -> new RequestRespawn();
             case EDITOR_MODE_CHANGED -> new EditorModeChanged(WireIo.readVarInt(in) != 0);
+            case UI_NODE_EVENT -> new UiNodeEvent(readLong(in), WireIo.readString(in), in.getFloat());
+            case MULTIMESH_DATA -> {
+                long nodeId = readLong(in);
+                int offset = WireIo.readVarInt(in);
+                int total = WireIo.readVarInt(in);
+                int len = WireIo.readVarInt(in);
+                float[] data = new float[Math.max(0, len)];
+                for (int i = 0; i < data.length; i++) data[i] = in.getFloat();
+                yield new MultiMeshData(nodeId, offset, total, data);
+            }
             case SCENE_CREATE -> new SceneCreate(WireIo.readString(in), WireIo.readString(in));
             case SCENE_CREATE_ACK -> {
                 String sceneId = WireIo.readString(in);
@@ -794,6 +821,14 @@ public final class WireMessages {
                 WireIo.writeString(out, prop.key());
                 WireIo.writeString(out, prop.value());
             }
+            List<SceneSnapshot.Uniform> uniforms = node.uniforms();
+            WireIo.writeVarInt(out, uniforms.size());
+            for (SceneSnapshot.Uniform u : uniforms) {
+                WireIo.writeString(out, u.key());
+                List<Float> vals = u.values();
+                WireIo.writeVarInt(out, vals.size());
+                for (float v : vals) out.putFloat(v);
+            }
         }
     }
 
@@ -851,7 +886,16 @@ public final class WireMessages {
             for (int p = 0; p < propCount; p++) {
                 props.add(new SceneSnapshot.Property(WireIo.readString(in), WireIo.readString(in)));
             }
-            nodes.add(new SceneSnapshot.NodeSnapshot(nodeId, parentId, name, type, List.copyOf(props)));
+            int uniCount = WireIo.readVarInt(in);
+            List<SceneSnapshot.Uniform> uniforms = new ArrayList<>(uniCount);
+            for (int u = 0; u < uniCount; u++) {
+                String key = WireIo.readString(in);
+                int valCount = WireIo.readVarInt(in);
+                List<Float> vals = new ArrayList<>(valCount);
+                for (int v = 0; v < valCount; v++) vals.add(in.getFloat());
+                uniforms.add(new SceneSnapshot.Uniform(key, List.copyOf(vals)));
+            }
+            nodes.add(new SceneSnapshot.NodeSnapshot(nodeId, parentId, name, type, List.copyOf(props), List.copyOf(uniforms)));
         }
         return new SceneSnapshot(requestId, revision, List.copyOf(nodes));
     }
@@ -1000,6 +1044,8 @@ public final class WireMessages {
             case ScriptFileReadResponse msg -> size += longSize(msg.requestId()) + varIntSize(1) + stringSize(msg.path()) + stringSize(msg.content()) + stringSize(msg.error());
             case ScriptFileWriteRequest msg -> size += longSize(msg.requestId()) + stringSize(msg.path()) + stringSize(msg.content());
             case ScriptFileWriteAck msg -> size += longSize(msg.requestId()) + varIntSize(1) + stringSize(msg.path()) + stringSize(msg.error());
+            case UiNodeEvent msg -> size += longSize(msg.nodeId()) + stringSize(msg.event()) + Float.BYTES;
+            case MultiMeshData msg -> size += longSize(msg.nodeId()) + varIntSize(msg.offset()) + varIntSize(msg.total()) + varIntSize(msg.data() == null ? 0 : msg.data().length) + (msg.data() == null ? 0 : msg.data().length * Float.BYTES);
         }
         return size + 16;
     }
@@ -1229,6 +1275,13 @@ public final class WireMessages {
             for (SceneSnapshot.Property prop : props) {
                 size += stringSize(prop.key());
                 size += stringSize(prop.value());
+            }
+            List<SceneSnapshot.Uniform> uniforms = node.uniforms();
+            size += varIntSize(uniforms.size());
+            for (SceneSnapshot.Uniform u : uniforms) {
+                size += stringSize(u.key());
+                size += varIntSize(u.values().size());
+                size += u.values().size() * Float.BYTES;
             }
         }
         return size;

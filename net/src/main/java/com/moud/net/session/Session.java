@@ -1,11 +1,13 @@
 package com.moud.net.session;
 
 import com.moud.core.ProtocolVersions;
+import com.moud.net.protocol.Chunkable;
 import com.moud.net.protocol.Hello;
 import com.moud.net.protocol.Message;
 import com.moud.net.protocol.ServerHello;
 import com.moud.net.transport.Lane;
 import com.moud.net.transport.Transport;
+import com.moud.net.transport.TransportFrames;
 import com.moud.net.wire.WireMessages;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -68,8 +70,17 @@ public final class Session {
         transport.tick();
     }
 
+    @SuppressWarnings("unchecked")
     public void send(Lane lane, Message message) {
-        transport.send(Objects.requireNonNull(lane), WireMessages.encode(Objects.requireNonNull(message)));
+        Objects.requireNonNull(lane);
+        Objects.requireNonNull(message);
+        if (message instanceof Chunkable<?> chunkable) {
+            for (Message chunk : ((Chunkable<Message>) chunkable).chunk(TransportFrames.MAX_PAYLOAD_BYTES)) {
+                transport.send(lane, WireMessages.encode(chunk));
+            }
+        } else {
+            transport.send(lane, WireMessages.encode(message));
+        }
     }
 
     private void onReceive(Lane lane, byte[] payload) {
