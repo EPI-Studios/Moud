@@ -2,6 +2,7 @@ package com.moud.client.fabric.render;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
+import com.moud.client.fabric.render.MoudTextures;
 import com.moud.client.fabric.scene.ClientSceneBus;
 import com.moud.net.protocol.SceneSnapshot;
 import foundry.veil.api.client.render.VeilRenderSystem;
@@ -41,6 +42,8 @@ public final class VeilSceneNodeRenderer {
     private static long cachedVersion = Long.MIN_VALUE;
     private static long cachedSnapshotVersion = Long.MIN_VALUE;
     private static long cachedOverrideVersion = Long.MIN_VALUE;
+    private static long cachedPhysicsVersion = Long.MIN_VALUE;
+    private static long cachedResetVersion = Long.MIN_VALUE;
     private static List<SceneSnapshot.NodeSnapshot> cachedNodes = List.of();
     private static Map<Long, SceneSnapshot.NodeSnapshot> cachedNodesById = Map.of();
     private static final Map<Long, NodePoseState> poseStatesById = new HashMap<>();
@@ -63,6 +66,8 @@ public final class VeilSceneNodeRenderer {
 
     private static final MeshShaderRenderer meshShader = new MeshShaderRenderer();
     private static final InstancedBatchRenderer batchRenderer = new InstancedBatchRenderer(meshShader.sceneLights());
+    private static final MultiMeshRenderer multiMeshRenderer = new MultiMeshRenderer(meshShader.sceneLights());
+    private static final DecalRenderer decalRenderer = new DecalRenderer(meshShader);
 
     private VeilSceneNodeRenderer() {
     }
@@ -136,6 +141,7 @@ public final class VeilSceneNodeRenderer {
             if (bufferSource == null || camera == null) {
                 return;
             }
+            bufferSource.draw();
             renderMeshes(bufferSource, camera, tickDelta);
         }
     }
@@ -157,6 +163,7 @@ public final class VeilSceneNodeRenderer {
 
         meshShader.collectLights(cachedNodes, VeilSceneNodeRenderer::worldPose);
         batchRenderer.renderBatched(cachedNodes, VeilSceneNodeRenderer::worldPose, camPos, camera, client, tickDelta);
+        multiMeshRenderer.renderAll(cachedNodes, VeilSceneNodeRenderer::worldPose, camPos, camera, client, tickDelta);
 
         for (SceneSnapshot.NodeSnapshot node : cachedNodes) {
             if (node == null) {
@@ -180,12 +187,18 @@ public final class VeilSceneNodeRenderer {
                 continue;
             }
 
-            if (!"MeshInstance3D".equals(type) && !"CSGBox".equals(type)) {
+            if (!"MeshInstance3D".equals(type) && !"CSGBox".equals(type) && !"Sprite3D".equals(type)) {
                 continue;
             }
 
             String materialPath = stringProp(node, "material");
-            if (materialPath == null || materialPath.isBlank()) continue;
+            if (!"Sprite3D".equals(type) && (materialPath == null || materialPath.isBlank())) {
+                String texProp = stringProp(node, "texture");
+                boolean hasCustomTexture = texProp != null && !texProp.isBlank()
+                        && !MoudTextures.WHITE_ID.toString().equals(texProp)
+                        && !"moud:dynamic/white".equals(texProp);
+                if (!hasCustomTexture) continue;
+            }
 
             Pose world = worldPose(node.nodeId());
             if (world == null) {
@@ -193,6 +206,10 @@ public final class VeilSceneNodeRenderer {
             }
 
             if (meshShader.renderNode(node, world, camPos, camera, client, tickDelta)) {
+                continue;
+            }
+
+            if ("Sprite3D".equals(type)) {
                 continue;
             }
 
@@ -221,6 +238,8 @@ public final class VeilSceneNodeRenderer {
             renderUnitCube(vc, matrices.peek(), light, OverlayTexture.DEFAULT_UV, tintRi, tintGi, tintBi, alphaI);
             matrices.pop();
         }
+
+        decalRenderer.renderAll(cachedNodes, VeilSceneNodeRenderer::worldPose, camPos, camera, client, tickDelta);
     }
 
     private static void renderUnitCube(VertexConsumer vc, MatrixStack.Entry entry, int light, int overlay, int r, int g, int b, int a) {
@@ -310,6 +329,8 @@ public final class VeilSceneNodeRenderer {
     public static void clearMaterialTextureCache() {
         meshShader.clear();
         batchRenderer.clear();
+        multiMeshRenderer.clear();
+        decalRenderer.clear();
         MoudMeshBuffer.cleanup();
         cachedVersion = Long.MIN_VALUE;
     }
@@ -504,16 +525,21 @@ public final class VeilSceneNodeRenderer {
     private static void refreshSceneCache() {
         long version = ClientSceneBus.version();
         long snapshotVersion = ClientSceneBus.snapshotVersion();
+        long physicsVersion = ClientSceneBus.physicsVersion();
+        long resetVersion = ClientSceneBus.resetVersion();
         long overrideVersion = runtimeOverrideVersion.get();
         boolean sceneChanged = version != cachedVersion;
-        boolean snapshotChanged = snapshotVersion != cachedSnapshotVersion;
         boolean overrideChanged = overrideVersion != cachedOverrideVersion;
         if (!sceneChanged && !overrideChanged) {
             return;
         }
         cachedOverrideVersion = overrideVersion;
         if (sceneChanged) {
+            boolean physicsChanged = physicsVersion != cachedPhysicsVersion;
+            boolean isReset = resetVersion != cachedResetVersion;
             cachedVersion = version;
+            cachedPhysicsVersion = physicsVersion;
+            cachedResetVersion = resetVersion;
             cachedNodes = ClientSceneBus.copyNodes();
             HashMap<Long, SceneSnapshot.NodeSnapshot> next = new HashMap<>(Math.max(16, cachedNodes.size() * 2));
             for (SceneSnapshot.NodeSnapshot node : cachedNodes) {
@@ -523,7 +549,7 @@ public final class VeilSceneNodeRenderer {
                 next.put(node.nodeId(), node);
             }
             cachedNodesById = next;
-            updatePoseStates(snapshotChanged);
+            updatePoseStates(physicsChanged && !isReset);
             cachedSnapshotVersion = snapshotVersion;
         }
     }
@@ -548,7 +574,7 @@ public final class VeilSceneNodeRenderer {
                 if (!st.initialized) {
                     Pose.copy(scratch, st.prevLocal);
                 } else {
-                    Pose.copy(st.currLocal, st.prevLocal);
+                    Pose.interpolate(st.prevLocal, st.currLocal, poseFrameTickDelta, st.prevLocal);
                 }
                 Pose.copy(scratch, st.currLocal);
                 st.parentId = parentId;

@@ -20,6 +20,7 @@ import net.minecraft.client.texture.TextureManager;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.lwjgl.opengl.GL20C;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,24 +101,45 @@ final class MeshShaderRenderer {
         float tintB  = clampedProp(node, "color_tint_b", 1f);
         float opacity = clampedProp(node, "opacity", 1f);
 
-        Matrix4f worldMat = new Matrix4f()
-                .translate(world.pos.x, world.pos.y, world.pos.z)
-                .rotate(world.rot)
-                .scale(world.scale.x, world.scale.y, world.scale.z)
-                .translate(-0.5f, -0.5f, -0.5f);
-
-        Matrix4f modelMat = new Matrix4f()
-                .translate((float)(world.pos.x - camPos.x),
-                        (float)(world.pos.y - camPos.y),
-                        (float)(world.pos.z - camPos.z))
-                .rotate(world.rot)
-                .scale(world.scale.x, world.scale.y, world.scale.z)
-                .translate(-0.5f, -0.5f, -0.5f);
-
         ShaderBlock<CameraMatrices> camBlock = VeilRenderSystem.getBlock(VeilShaderBufferRegistry.CAMERA.get());
         CameraMatrices veilCam = camBlock != null ? camBlock.getValue() : null;
         Matrix4f viewMat = veilCam != null ? new Matrix4f(veilCam.getViewMatrix()) : new Matrix4f();
         Matrix4f projMat = veilCam != null ? new Matrix4f(veilCam.getProjectionMatrix()) : new Matrix4f(RenderSystem.getProjectionMatrix());
+
+        boolean isSprite3D = "Sprite3D".equals(node.type());
+        boolean billboard = isSprite3D || VeilSceneNodeRenderer.parseBool(
+                VeilSceneNodeRenderer.stringProp(node, "billboard"), false);
+
+        final Matrix4f worldMat;
+        final Matrix4f modelMat;
+        if (billboard) {
+            Quaternionf camRot = viewMat.getNormalizedRotation(new Quaternionf()).conjugate();
+            worldMat = new Matrix4f()
+                    .translate(world.pos.x, world.pos.y, world.pos.z)
+                    .rotate(camRot)
+                    .scale(world.scale.x, world.scale.y, world.scale.z)
+                    .translate(-0.5f, -0.5f, -0.5f);
+            modelMat = new Matrix4f()
+                    .translate((float)(world.pos.x - camPos.x),
+                            (float)(world.pos.y - camPos.y),
+                            (float)(world.pos.z - camPos.z))
+                    .rotate(camRot)
+                    .scale(world.scale.x, world.scale.y, world.scale.z)
+                    .translate(-0.5f, -0.5f, -0.5f);
+        } else {
+            worldMat = new Matrix4f()
+                    .translate(world.pos.x, world.pos.y, world.pos.z)
+                    .rotate(world.rot)
+                    .scale(world.scale.x, world.scale.y, world.scale.z)
+                    .translate(-0.5f, -0.5f, -0.5f);
+            modelMat = new Matrix4f()
+                    .translate((float)(world.pos.x - camPos.x),
+                            (float)(world.pos.y - camPos.y),
+                            (float)(world.pos.z - camPos.z))
+                    .rotate(world.rot)
+                    .scale(world.scale.x, world.scale.y, world.scale.z)
+                    .translate(-0.5f, -0.5f, -0.5f);
+        }
 
         boolean translucent = opacity < 1f;
         if (translucent) { RenderSystem.enableBlend(); RenderSystem.defaultBlendFunc(); }
@@ -143,7 +165,24 @@ final class MeshShaderRenderer {
             }
             GlUtil.uniform1f(pid, "DeltaTime", tickDelta);
             GlUtil.uniform3f(pid, "CameraPos", (float) camPos.x, (float) camPos.y, (float) camPos.z);
+            float uvScaleX = VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "uv_scale_x"), 1f);
+            float uvScaleY = VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "uv_scale_y"), 1f);
+            float uvOffX   = VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "uv_offset_x"), 0f);
+            float uvOffY   = VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "uv_offset_y"), 0f);
+            GlUtil.uniform2f(pid, "UvScale", uvScaleX, uvScaleY);
+            GlUtil.uniform2f(pid, "UvOffset", uvOffX, uvOffY);
             sceneLights.applyUniforms(pid);
+
+            // param_* node properties as shader uniforms
+            List<SceneSnapshot.Property> props = node.properties();
+            if (props != null) {
+                for (SceneSnapshot.Property p : props) {
+                    if (p == null || p.key() == null || !p.key().startsWith("param_")) continue;
+                    try {
+                        GlUtil.uniform1f(pid, p.key().substring(6), Float.parseFloat(p.value()));
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
 
             if (binding != null) binding.applyMaterial(program);
             else program.clearSamplers();
@@ -152,6 +191,7 @@ final class MeshShaderRenderer {
             program.bindSamplers(0);
 
             String meshType = VeilSceneNodeRenderer.stringProp(node, "mesh");
+            if (isSprite3D && (meshType == null || meshType.isBlank())) meshType = "plane";
             if ("plane".equals(meshType)) {
                 MoudMeshBuffer.ensurePlaneInitialized();
                 drawMesh(MoudMeshBuffer.planeVbo(), MoudMeshBuffer.planeEbo(), MoudMeshBuffer.planeIndexCount());
@@ -233,6 +273,10 @@ final class MeshShaderRenderer {
                 for (MoudMaterial.Param p : mat.params().values()) {
                     if (p instanceof MoudMaterial.Param.Texture t) {
                         textureId = MoudTextures.resolve(t.textureRef());
+                        break;
+                    }
+                    if (p instanceof MoudMaterial.Param.StringParam s) {
+                        textureId = MoudTextures.resolve(s.value());
                         break;
                     }
                 }
