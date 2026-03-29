@@ -41,6 +41,11 @@ public final class GlUtil {
         if (loc >= 0) GL20.glUniform1f(loc, v);
     }
 
+    public static void uniform2f(int program, String name, float x, float y) {
+        int loc = GL20.glGetUniformLocation(program, name);
+        if (loc >= 0) GL20.glUniform2f(loc, x, y);
+    }
+
     public static void uniform1i(int program, String name, int v) {
         int loc = GL20.glGetUniformLocation(program, name);
         if (loc >= 0) GL20.glUniform1i(loc, v);
@@ -82,15 +87,14 @@ public final class GlUtil {
         bindMeshAttribs(locPos, locTex, locNorm);
 
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, instanceVbo);
-        int instanceStride = 36 * Float.BYTES;
+        int instanceStride = 20 * Float.BYTES;
 
-        bindInstancedMat4(program, "aModelMat0", instanceStride, 0);
-        bindInstancedMat4(program, "aWorldMat0", instanceStride, 16);
+        bindInstancedMat4(program, "aWorldMat0", instanceStride, 0);
 
         int locTint = GL20.glGetAttribLocation(program, "aTint");
         if (locTint >= 0) {
             GL20.glEnableVertexAttribArray(locTint);
-            GL20.glVertexAttribPointer(locTint, 4, GL11.GL_FLOAT, false, instanceStride, 32 * Float.BYTES);
+            GL20.glVertexAttribPointer(locTint, 4, GL11.GL_FLOAT, false, instanceStride, 16 * Float.BYTES);
             GL33.glVertexAttribDivisor(locTint, 1);
         }
 
