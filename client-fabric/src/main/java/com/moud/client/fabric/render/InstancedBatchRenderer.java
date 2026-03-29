@@ -2,6 +2,7 @@ package com.moud.client.fabric.render;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
+import com.moud.client.fabric.render.MoudTextures;
 import com.moud.client.fabric.render.veil.GlUtil;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
 import com.moud.net.protocol.SceneSnapshot;
@@ -30,7 +31,7 @@ import java.util.function.Function;
 
 final class InstancedBatchRenderer {
 
-    private static final int FLOATS_PER_INSTANCE = 36;
+    private static final int FLOATS_PER_INSTANCE = 20;
     private static final int INITIAL_CAPACITY    = 64;
 
     private final String instancedVert;
@@ -123,6 +124,12 @@ final class InstancedBatchRenderer {
             String materialPath = VeilSceneNodeRenderer.stringProp(node, "material");
             if (materialPath != null && !materialPath.isBlank()) continue;
 
+            String texProp = VeilSceneNodeRenderer.stringProp(node, "texture");
+            boolean hasCustomTexture = texProp != null && !texProp.isBlank()
+                    && !MoudTextures.WHITE_ID.toString().equals(texProp)
+                    && !"moud:dynamic/white".equals(texProp);
+            if (hasCustomTexture) continue;
+
             VeilSceneNodeRenderer.Pose world = poseResolver.apply(node.nodeId());
             if (world == null) continue;
 
@@ -135,7 +142,7 @@ final class InstancedBatchRenderer {
             if (mesh == null || mesh.isBlank()) mesh = "cube";
 
             batches.computeIfAbsent(mesh, k -> new ArrayList<>())
-                    .add(new NodeInstance(world, camPos, tintR, tintG, tintB, opacity));
+                    .add(new NodeInstance(world, tintR, tintG, tintB, opacity));
         }
         return batches;
     }
@@ -187,8 +194,6 @@ final class InstancedBatchRenderer {
     private void fillInstanceData(List<NodeInstance> instances) {
         instanceBuffer.clear();
         for (var inst : instances) {
-            inst.modelMat.get(instanceBuffer);
-            instanceBuffer.position(instanceBuffer.position() + 16);
             inst.worldMat.get(instanceBuffer);
             instanceBuffer.position(instanceBuffer.position() + 16);
             instanceBuffer.put(inst.tintR).put(inst.tintG).put(inst.tintB).put(inst.opacity);
@@ -234,18 +239,11 @@ final class InstancedBatchRenderer {
         return "";
     }
 
-    private record NodeInstance(Matrix4f modelMat, Matrix4f worldMat,
+    private record NodeInstance(Matrix4f worldMat,
                                 float tintR, float tintG, float tintB, float opacity) {
-        NodeInstance(VeilSceneNodeRenderer.Pose world, Vec3d camPos,
+        NodeInstance(VeilSceneNodeRenderer.Pose world,
                      float tintR, float tintG, float tintB, float opacity) {
             this(
-                    new Matrix4f()
-                            .translate((float)(world.pos.x - camPos.x),
-                                    (float)(world.pos.y - camPos.y),
-                                    (float)(world.pos.z - camPos.z))
-                            .rotate(world.rot)
-                            .scale(world.scale.x, world.scale.y, world.scale.z)
-                            .translate(-0.5f, -0.5f, -0.5f),
                     new Matrix4f()
                             .translate(world.pos.x, world.pos.y, world.pos.z)
                             .rotate(world.rot)
