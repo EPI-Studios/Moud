@@ -5,6 +5,7 @@ import com.miry.ui.PanelContext;
 import com.miry.ui.Ui;
 import com.miry.ui.UiContext;
 import com.miry.ui.clipboard.Clipboard;
+import com.miry.ui.dnd.DragDropManager;
 import com.miry.ui.event.KeyEvent;
 import com.miry.ui.event.TextInputEvent;
 import com.miry.ui.panels.Panel;
@@ -18,6 +19,7 @@ import com.miry.ui.widgets.StripTabs;
 import com.miry.ui.widgets.TextField;
 import com.moud.client.fabric.assets.AssetsClient;
 import com.moud.client.fabric.editor.util.AssetImportUtil;
+import com.moud.client.fabric.editor.util.EditorDnD;
 import com.moud.client.fabric.editor.util.EditorUiUtil;
 import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
@@ -60,6 +62,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
     private boolean createSceneOpen;
     private boolean createSceneFocusRequested;
     private String createSceneError;
+    private boolean createScene2D;
     private String deleteConfirmSceneId;
     private long deleteConfirmUntilMs;
     private String sceneMenuSceneId;
@@ -78,6 +81,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         createSceneOpen = true;
         createSceneFocusRequested = true;
         createSceneError = null;
+        createScene2D = false;
         sceneMenu.close();
         assetContextMenu.close();
     }
@@ -219,13 +223,14 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         boolean click = input != null && interactive && input.mouseReleased();
         boolean pressed = input != null && interactive && input.mousePressed();
         boolean rightPressed = interactive && runtime.rightPressed();
+        DragDropManager dnd = uiContext != null ? uiContext.dragDrop() : null;
 
         int[] rowIndex = {0};
         if (hasFilter) {
-            renderFlatFiltered(fsRoot, rowIndex, scrollY, x, y, w, h, rowH,
+            renderFlatFiltered(dnd, fsRoot, rowIndex, scrollY, x, y, w, h, rowH,
                     mx, my, click, pressed, rightPressed, r, theme, ui);
         } else {
-            renderFolderNode(fsRoot, true, 0, rowIndex, scrollY, x, y, w, h, rowH,
+            renderFolderNode(dnd, fsRoot, true, 0, rowIndex, scrollY, x, y, w, h, rowH,
                     mx, my, click, pressed, rightPressed, r, theme, ui);
         }
 
@@ -248,7 +253,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         }
     }
 
-    private void renderFolderNode(FolderNode node, boolean isRoot, int indent, int[] rowIndex,
+    private void renderFolderNode(DragDropManager dnd, FolderNode node, boolean isRoot, int indent, int[] rowIndex,
                                   int scrollY, int panelX, int panelY, int panelW, int panelH,
                                   int rowH, float mx, float my, boolean click, boolean pressed,
                                   boolean rightPressed, UiRenderer r, Theme theme, Ui ui) {
@@ -294,34 +299,34 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         }
 
         for (FolderNode sub : node.subdirs.values()) {
-            renderFolderNode(sub, false, indent + (isRoot ? 0 : 1), rowIndex,
+            renderFolderNode(dnd, sub, false, indent + (isRoot ? 0 : 1), rowIndex,
                     scrollY, panelX, panelY, panelW, panelH, rowH,
                     mx, my, click, pressed, rightPressed, r, theme, ui);
         }
 
         int fileIndent = (isRoot ? 0 : indent + 1) * 14;
         for (AssetManifestResponse.Entry entry : node.files) {
-            renderFileRow(entry, fileIndent, rowIndex, scrollY, panelX, panelY, panelW, panelH, rowH,
+            renderFileRow(dnd, entry, fileIndent, rowIndex, scrollY, panelX, panelY, panelW, panelH, rowH,
                     mx, my, click, pressed, rightPressed, r, theme, pad);
         }
     }
 
-    private void renderFlatFiltered(FolderNode node, int[] rowIndex,
+    private void renderFlatFiltered(DragDropManager dnd, FolderNode node, int[] rowIndex,
                                     int scrollY, int panelX, int panelY, int panelW, int panelH,
                                     int rowH, float mx, float my, boolean click, boolean pressed,
                                     boolean rightPressed, UiRenderer r, Theme theme, Ui ui) {
         int pad = theme.design.space_sm;
         for (AssetManifestResponse.Entry entry : node.files) {
-            renderFileRow(entry, 0, rowIndex, scrollY, panelX, panelY, panelW, panelH, rowH,
+            renderFileRow(dnd, entry, 0, rowIndex, scrollY, panelX, panelY, panelW, panelH, rowH,
                     mx, my, click, pressed, rightPressed, r, theme, pad);
         }
         for (FolderNode sub : node.subdirs.values()) {
-            renderFlatFiltered(sub, rowIndex, scrollY, panelX, panelY, panelW, panelH, rowH,
+            renderFlatFiltered(dnd, sub, rowIndex, scrollY, panelX, panelY, panelW, panelH, rowH,
                     mx, my, click, pressed, rightPressed, r, theme, ui);
         }
     }
 
-    private void renderFileRow(AssetManifestResponse.Entry entry, int indentPx, int[] rowIndex,
+    private void renderFileRow(DragDropManager dnd, AssetManifestResponse.Entry entry, int indentPx, int[] rowIndex,
                                int scrollY, int panelX, int panelY, int panelW, int panelH,
                                int rowH, float mx, float my, boolean click, boolean pressed,
                                boolean rightPressed, UiRenderer r, Theme theme, int pad) {
@@ -373,15 +378,19 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
             }
         }
 
-        if (hovered && pressed && runtime.sceneDragId() == null && path.endsWith(".moud.scene")) {
-            String sid = sceneIdFromPath(path);
-            if (sid != null && !sid.isBlank()) {
-                runtime.beginSceneDrag(sid, mx, my);
+        if (hovered && pressed && path.endsWith(".moud.scene")) {
+            if (dnd != null && !dnd.isBusy()) {
+                String sid = sceneIdFromPath(path);
+                if (sid != null && !sid.isBlank()) {
+                    dnd.armDrag(EditorDnD.sceneId(sid), "Open: " + label, mx, my);
+                }
             }
         }
 
-        if (hovered && pressed && runtime.assetDragPath() == null && path.endsWith(".js")) {
-            runtime.beginAssetDrag(path, mx, my);
+        if (hovered && pressed && path.endsWith(".js")) {
+            if (dnd != null && !dnd.isBusy()) {
+                dnd.armDrag(EditorDnD.assetPath(path), "Attach: " + label, mx, my);
+            }
         }
 
         if (hovered && rightPressed && !assetContextMenu.isOpen()) {
@@ -577,50 +586,70 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         float mx = canInteract ? input.mousePos().x : -1;
         float my = canInteract ? input.mousePos().y : -1;
         boolean click = canInteract && input.mouseReleased();
+        DragDropManager dnd = uiContext != null ? uiContext.dragDrop() : null;
 
         String filter = filterField.text() == null ? "" : filterField.text().trim().toLowerCase(Locale.ROOT);
 
         if (createSceneOpen) {
-            int rowH = 30;
+            int rowH  = 28;
             int fieldH = 22;
-            int fieldY = cursorY + (rowH - fieldH) / 2;
-            int btnW = 70;
+            int btnW   = 70;
             int cancelW = 70;
+            int modeW  = 44;
+
+            int row1Y   = cursorY + (rowH - fieldH) / 2;
+            int modeX   = x + w - pad - modeW;
+            int idX     = x + pad;
+            int idW     = modeX - pad - idX;
+
+            createSceneIdField.render(r, uiContext, input, theme, idX, row1Y, idW, fieldH, true);
+            if ((createSceneIdField.text() == null || createSceneIdField.text().isEmpty())
+                    && (uiContext == null || !createSceneIdField.isFocused(uiContext))) {
+                r.drawText("scene_id", idX + 6, r.baselineForBox(row1Y, fieldH),
+                        Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.65f));
+            }
+
+            String modeLabel = createScene2D ? "2D" : "3D";
+            EditorUiUtil.stepButton(ui, r, theme, modeX, row1Y, modeW, fieldH, modeLabel,
+                    interactive, () -> createScene2D = !createScene2D);
+
+            cursorY += rowH + pad;
+
+            int row2Y   = cursorY + (rowH - fieldH) / 2;
             int cancelX = x + w - pad - cancelW;
             int createX = cancelX - pad - btnW;
+            int nameX   = x + pad;
+            int nameW   = createX - pad - nameX;
 
-            int idW = 120;
-            int idX = x + pad;
-            int nameX = idX + idW + pad;
-            int nameW = Math.max(60, createX - pad - nameX);
-
-            createSceneIdField.render(r, uiContext, input, theme, idX, fieldY, idW, fieldH, true);
-            if ((createSceneIdField.text() == null || createSceneIdField.text().isEmpty()) && (uiContext == null || !createSceneIdField.isFocused(uiContext))) {
-                r.drawText("scene_id", idX + 6, r.baselineForBox(fieldY, fieldH), Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.65f));
-            }
-            createSceneNameField.render(r, uiContext, input, theme, nameX, fieldY, nameW, fieldH, true);
-            if ((createSceneNameField.text() == null || createSceneNameField.text().isEmpty()) && (uiContext == null || !createSceneNameField.isFocused(uiContext))) {
-                r.drawText("Display name (optional)", nameX + 6, r.baselineForBox(fieldY, fieldH), Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.65f));
+            createSceneNameField.render(r, uiContext, input, theme, nameX, row2Y, nameW, fieldH, true);
+            if ((createSceneNameField.text() == null || createSceneNameField.text().isEmpty())
+                    && (uiContext == null || !createSceneNameField.isFocused(uiContext))) {
+                r.drawText("Display name (optional)", nameX + 6, r.baselineForBox(row2Y, fieldH),
+                        Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.65f));
             }
 
-            EditorUiUtil.textButton(ui, r, theme, createX, fieldY, btnW, fieldH, "Create", interactive, () -> {
+            EditorUiUtil.textButton(ui, r, theme, createX, row2Y, btnW, fieldH, "Create", interactive, () -> {
                 String sid = normalizeSceneId(createSceneIdField.text());
                 if (!isValidSceneId(sid)) {
                     createSceneError = "Invalid id (use [a-z0-9_-], max 64 chars)";
                     return;
                 }
                 String dn = createSceneNameField.text();
+                if (createScene2D) {
+                    runtime.markSceneMode(sid, EditorRuntime.ViewportMode.TWO_D);
+                }
                 runtime.net().createScene(runtime.session(), sid, dn);
                 if (state != null) {
                     state.pendingSnapshot = true;
                 }
                 createSceneOpen = false;
                 createSceneError = null;
+                createScene2D = false;
                 createSceneIdField.setText("");
                 createSceneNameField.setText("");
             });
 
-            EditorUiUtil.textButton(ui, r, theme, cancelX, fieldY, cancelW, fieldH, "Cancel", interactive, () -> {
+            EditorUiUtil.textButton(ui, r, theme, cancelX, row2Y, cancelW, fieldH, "Cancel", interactive, () -> {
                 createSceneOpen = false;
                 createSceneError = null;
             });
@@ -632,7 +661,8 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
 
             cursorY += rowH + pad;
             if (createSceneError != null && !createSceneError.isBlank()) {
-                r.drawText(createSceneError, x + pad, r.baselineForBox(cursorY, 18), Theme.toArgb(theme.danger));
+                r.drawText(createSceneError, x + pad, r.baselineForBox(cursorY, 18),
+                        Theme.toArgb(theme.danger));
                 cursorY += 18 + pad;
             }
         }
@@ -732,11 +762,17 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
             }
 
             if (hovered && canInteract && input.mousePressed()) {
-                runtime.beginSceneDrag(sceneId, mx, my);
+                if (dnd != null && !dnd.isBusy()) {
+                    dnd.armDrag(EditorDnD.sceneId(sceneId), "Open: " + filename, mx, my);
+                }
             }
 
             if (hovered && click) {
-                if (!runtime.sceneDragActive()) {
+                boolean draggingScene = dnd != null
+                        && dnd.isDragging()
+                        && dnd.dragPayload() != null
+                        && EditorDnD.TYPE_SCENE_ID.equals(dnd.dragPayload().type());
+                if (!draggingScene) {
                     state.ensureSceneOpen(sceneId);
                     runtime.net().selectScene(runtime.session(), state, sceneId);
                 }

@@ -25,8 +25,11 @@ import com.miry.ui.font.FontAtlas;
 import com.miry.ui.font.FontData;
 import com.miry.ui.font.TextRenderer;
 import com.miry.ui.layout.DockSpace;
+import com.miry.ui.render.UiRenderer;
 import com.miry.ui.layout.LeafNode;
 import com.miry.ui.layout.SplitNode;
+import com.miry.ui.PanelContext;
+import com.miry.ui.panels.Panel;
 import com.miry.ui.theme.Theme;
 import com.miry.ui.util.MathUtils;
 import com.miry.ui.window.WindowManager;
@@ -65,6 +68,10 @@ import com.moud.client.fabric.editor.panels.ToolbarPanel;
 import com.moud.client.fabric.editor.panels.ViewportPanel;
 import com.miry.graphics.Texture;
 import org.joml.Vector3f;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public final class EditorOverlay {
     private final Theme theme = new Theme();
@@ -96,6 +103,7 @@ public final class EditorOverlay {
     private EditorGizmos gizmos;
     private ScenePanel scenePanel;
     private AssetsPanel assetsPanel;
+    private ViewportPanel viewportPanel;
     private SplitNode rootWithTop;
     private SplitNode mainWithBottom;
     private SplitNode mainRow;
@@ -105,6 +113,9 @@ public final class EditorOverlay {
     private boolean layoutSeeded;
     private int layoutSeedW;
     private int layoutSeedH;
+
+    private final Map<UiWindow, Panel> floatingPanels = new HashMap<>();
+    private final List<LeafNode> dockableLeaves = new ArrayList<>();
 
     private String toastMessage;
     private boolean toastError;
@@ -116,6 +127,11 @@ public final class EditorOverlay {
 
     public EditorRuntime getRuntime() {
         return runtime;
+    }
+
+    public void saveAllOpenEditors() {
+        if (scriptEditorDialog != null) scriptEditorDialog.saveIfDirty();
+        if (textAssetEditorDialog != null) textAssetEditorDialog.saveIfDirty();
     }
 
     public void setOpen(boolean open) {
@@ -146,6 +162,7 @@ public final class EditorOverlay {
 
     public void onSnapshot(SceneSnapshot snapshot) {
         state.onSnapshot(snapshot);
+        runtime.onSnapshot(snapshot);
     }
 
     public void onAck(SceneOpAck ack) {
@@ -410,11 +427,16 @@ public final class EditorOverlay {
                 .setMouseButtons(left, leftPressed, leftReleased)
                 .setModifiers(ctrl, shift, alt, sup)
                 .setScrollY(scrollY);
-        runtime.updateSceneDrag(input);
-        runtime.updateAssetDrag(input);
 
         ui.beginFrame(input, 1.0f / 60.0f);
         if (uiContext != null) {
+            uiContext.dragDrop().updatePointer(
+                    input.mousePos().x,
+                    input.mousePos().y,
+                    input.mouseDown(),
+                    input.mousePressed(),
+                    input.mouseReleased()
+            );
             uiContext.update(1.0f / 60.0f);
         }
 
@@ -465,7 +487,6 @@ public final class EditorOverlay {
                     || (createProjectDialog != null && createProjectDialog.isOpen())
                     || (createAssetDialog != null && createAssetDialog.isOpen())
                     || (quickSearchDialog != null && quickSearchDialog.isOpen())
-                    || (scriptEditorDialog != null && scriptEditorDialog.isOpen())
                     || (textAssetEditorDialog != null && textAssetEditorDialog.isOpen());
             boolean blockedByWindows = windowManager.blocksInput();
             boolean blocked = modalOpen || blockedByWindows;
@@ -489,6 +510,8 @@ public final class EditorOverlay {
             if (!needsBackdropBlur) {
                 batch.begin(w, h, framebufferScale);
                 dockSpace.render(batch);
+                renderDockDropZones(batch);
+                uiContext.dragDrop().enqueueOverlay(uiContext.overlay(), theme, w, h);
                 Runnable overlayMenus = runtime.consumeOverlayMenuRender();
                 if (overlayMenus != null) {
                     overlayMenus.run();
@@ -508,21 +531,13 @@ public final class EditorOverlay {
                 if (quickSearchDialog != null && quickSearchDialog.isOpen()) {
                     quickSearchDialog.render(batch, uiContext, ui, theme, w, h);
                 }
-                if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
-                    scriptEditorDialog.render(batch, uiContext, ui, theme, w, h);
-                }
                 if (textAssetEditorDialog != null && textAssetEditorDialog.isOpen()) {
                     textAssetEditorDialog.render(batch, uiContext, ui, theme, w, h);
                 }
 
+                uiContext.dragDrop().endFrame();
                 renderToast(w, h);
                 batch.end();
-                if (input.mouseReleased() && runtime.sceneDragId() != null) {
-                    runtime.clearSceneDrag();
-                }
-                if (input.mouseReleased() && runtime.assetDragPath() != null) {
-                    runtime.clearAssetDrag();
-                }
                 return;
             }
 
@@ -542,6 +557,7 @@ public final class EditorOverlay {
                 GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
                 batch.begin(w, h, framebufferScale);
                 dockSpace.render(batch);
+                uiContext.dragDrop().enqueueOverlay(uiContext.overlay(), theme, w, h);
                 uiContext.overlay().render(batch);
                 batch.end();
             }
@@ -561,18 +577,13 @@ public final class EditorOverlay {
             if (createAssetDialog != null && createAssetDialog.isOpen()) {
                 createAssetDialog.render(batch, uiContext, ui, theme, w, h);
             }
-            if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
-                scriptEditorDialog.render(batch, uiContext, ui, theme, w, h);
-            }
             if (textAssetEditorDialog != null && textAssetEditorDialog.isOpen()) {
                 textAssetEditorDialog.render(batch, uiContext, ui, theme, w, h);
             }
 
+            uiContext.dragDrop().endFrame();
             renderToast(w, h);
             batch.end();
-            if (input.mouseReleased() && runtime.sceneDragId() != null) {
-                runtime.clearSceneDrag();
-            }
         } finally {
             int restoreVao = prevVao != 0 ? prevVao : fallbackVao;
             if (restoreVao != 0) {
@@ -628,6 +639,10 @@ public final class EditorOverlay {
         dockSpace = createDockSpace();
         dockSpace.setSplitterSize(5);
         dockSpace.setSplitterDrawSize(2);
+        windowManager.setOnWindowDrop(win -> dockWindow(win, input.mousePos().x, input.mousePos().y));
+        if (viewportPanel != null) {
+            viewportPanel.setOnScriptTabTearOff(this::undockScriptTab);
+        }
 
         if (prevVao != 0) {
             GL30.glBindVertexArray(prevVao);
@@ -695,7 +710,6 @@ public final class EditorOverlay {
             boolean noModal = (createNodeDialog == null || !createNodeDialog.isOpen())
                     && (createProjectDialog == null || !createProjectDialog.isOpen())
                     && (createAssetDialog == null || !createAssetDialog.isOpen())
-                    && (scriptEditorDialog == null || !scriptEditorDialog.isOpen())
                     && (textAssetEditorDialog == null || !textAssetEditorDialog.isOpen());
             if (noModal) {
                 if (quickSearchDialog != null && quickSearchDialog.isOpen()) {
@@ -713,7 +727,6 @@ public final class EditorOverlay {
                     || (createProjectDialog != null && createProjectDialog.isOpen())
                     || (createAssetDialog != null && createAssetDialog.isOpen())
                     || (quickSearchDialog != null && quickSearchDialog.isOpen())
-                    || (scriptEditorDialog != null && scriptEditorDialog.isOpen())
                     || (textAssetEditorDialog != null && textAssetEditorDialog.isOpen());
             if (!modalOpen) {
                 boolean sent = runtime.saveCurrentScene();
@@ -731,7 +744,6 @@ public final class EditorOverlay {
                     || (createProjectDialog != null && createProjectDialog.isOpen())
                     || (createAssetDialog != null && createAssetDialog.isOpen())
                     || (quickSearchDialog != null && quickSearchDialog.isOpen())
-                    || (scriptEditorDialog != null && scriptEditorDialog.isOpen())
                     || (textAssetEditorDialog != null && textAssetEditorDialog.isOpen());
             if (!modalOpen && scenePanel != null) {
                 if (key == GLFW.GLFW_KEY_Z && (mods & GLFW.GLFW_MOD_SHIFT) == 0) {
@@ -767,7 +779,7 @@ public final class EditorOverlay {
             createAssetDialog.handleTextInput(uiContext, new TextInputEvent(codepoint));
             return;
         }
-        if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
+        if (scriptEditorDialog != null && scriptEditorDialog.isOpen() && state != null && !state.activeScriptPath.isBlank()) {
             scriptEditorDialog.handleTextInput(uiContext, codepoint);
             return;
         }
@@ -804,7 +816,8 @@ public final class EditorOverlay {
         leftColumn = new SplitNode(scene, filesystem, true, 0.50f);
 
         gizmos = new EditorGizmos(runtime);
-        LeafNode viewport = new LeafNode(new ViewportPanel(runtime, gizmos));
+        viewportPanel = new ViewportPanel(runtime, gizmos);
+        LeafNode viewport = new LeafNode(viewportPanel);
 
         inspectorPanel = new InspectorPanel(runtime);
         LeafNode right = new LeafNode(inspectorPanel);
@@ -814,6 +827,13 @@ public final class EditorOverlay {
         for (LeafNode leaf : new LeafNode[]{top, scene, filesystem, viewport, right, bottom}) {
             leaf.setHeaderHeight(0);
             leaf.setHeaderButtons(LeafNode.HeaderButtons.NONE);
+        }
+
+        dockableLeaves.clear();
+        for (LeafNode leaf : new LeafNode[]{scene, filesystem, right, bottom}) {
+            leaf.setHeaderHeight(26);
+            leaf.setOnUndock(this::undockPanel);
+            dockableLeaves.add(leaf);
         }
 
         int panelBg = Theme.toArgb(theme.panelBg);
@@ -833,6 +853,85 @@ public final class EditorOverlay {
         ds.setUi(ui);
         ds.setUiContext(uiContext);
         return ds;
+    }
+
+    private void undockPanel(LeafNode source, Panel panel) {
+        if (windowManager == null) return;
+        int wx = Math.max(0, source.x() + 20);
+        int wy = Math.max(0, source.y() + 20);
+        int ww = Math.max(200, source.width() - 40);
+        int wh = Math.max(150, source.height() - 40);
+        UiWindow win = windowManager.create(panel.title(), wx, wy, ww, wh);
+        win.setBackdropBlur(false);
+        PanelContext pc = new PanelContext();
+        win.setContent((r, ctx, inp, theme, cx, cy, cw, ch) -> {
+            pc.set(r, ui, ctx, cx, cy, cw, ch);
+            panel.render(pc);
+        });
+        floatingPanels.put(win, panel);
+    }
+
+    private void undockScriptTab(String path) {
+        if (windowManager == null || path == null || path.isBlank()) return;
+        float mx = input.mousePos().x;
+        float my = input.mousePos().y;
+        int wx = Math.max(0, (int) mx - 300);
+        int wy = Math.max(0, (int) my - 15);
+        String title = scriptTabLabel(path);
+        UiWindow win = windowManager.create(title, wx, wy, 600, 400);
+        win.setBackdropBlur(false);
+        ScriptEditorDialog dialog = runtime.scriptEditorDialog();
+        if (dialog != null) {
+            dialog.open(0, path);
+        }
+        win.setContent((r, ctx, inp, theme, cx, cy, cw, ch) -> {
+            ScriptEditorDialog d = runtime.scriptEditorDialog();
+            if (d != null) {
+                if (!path.equals(d.scriptPath())) {
+                    d.open(0, path);
+                }
+                d.renderInline(r, ctx, ui, theme, cx, cy, cw, ch);
+            }
+        });
+    }
+
+    private static String scriptTabLabel(String path) {
+        if (path == null || path.isBlank()) return "Script";
+        int slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+        return slash >= 0 ? path.substring(slash + 1) : path;
+    }
+
+    private void dockWindow(UiWindow win, float mx, float my) {
+        Panel panel = floatingPanels.get(win);
+        if (panel == null) return;
+        for (LeafNode leaf : dockableLeaves) {
+            int hh = leaf.headerHeight();
+            if (hh <= 0) hh = 26;
+            if (mx >= leaf.x() && mx < leaf.x() + leaf.width()
+                    && my >= leaf.y() && my < leaf.y() + hh) {
+                floatingPanels.remove(win);
+                windowManager.windows().remove(win);
+                leaf.addTab(panel);
+                leaf.setActiveTabIndex(leaf.tabCount() - 1);
+                return;
+            }
+        }
+    }
+
+    private void renderDockDropZones(UiRenderer r) {
+        if (windowManager == null || dockableLeaves.isEmpty()) return;
+        UiWindow moving = windowManager.movingWindow();
+        if (moving == null || !floatingPanels.containsKey(moving)) return;
+        int accent = Theme.toArgb(theme.accent);
+        int fill = Theme.mulAlpha(accent, 0.18f);
+        int border = Theme.mulAlpha(accent, 0.70f);
+        for (LeafNode leaf : dockableLeaves) {
+            int hh = leaf.headerHeight();
+            if (hh <= 0) hh = 26;
+            r.drawRect(leaf.x(), leaf.y(), leaf.width(), hh, fill);
+            r.drawRect(leaf.x(), leaf.y(), leaf.width(), 2, border);
+            r.drawRect(leaf.x(), leaf.y() + hh - 2, leaf.width(), 2, border);
+        }
     }
 
     private void processUiEvents(boolean cameraCapturing, boolean blocked) {
@@ -869,7 +968,7 @@ public final class EditorOverlay {
                         continue;
                     }
                 }
-                if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
+                if (scriptEditorDialog != null && scriptEditorDialog.isOpen() && state != null && !state.activeScriptPath.isBlank()) {
                     if (scriptEditorDialog.handleKey(uiContext, keyEvent)) {
                         continue;
                     }
@@ -891,7 +990,11 @@ public final class EditorOverlay {
                 if (!cameraCapturing && keyEvent.isPress() && keyEvent.key() == GLFW.GLFW_KEY_F) {
                     EditorContext editorCtx = EditorOverlayBus.get();
                     if (editorCtx != null && editorCtx.isMouseOverViewport(input.mousePos().x, input.mousePos().y)) {
-                        frameSelected(editorCtx);
+                        if (runtime != null && runtime.viewportMode() == EditorRuntime.ViewportMode.TWO_D) {
+                            runtime.requestFrameSelected2D();
+                        } else {
+                            frameSelected(editorCtx);
+                        }
                         continue;
                     }
                 }
@@ -923,7 +1026,7 @@ public final class EditorOverlay {
                     quickSearchDialog.handleTextInput(textEvent.codepoint());
                     continue;
                 }
-                if (scriptEditorDialog != null && scriptEditorDialog.isOpen()) {
+                if (scriptEditorDialog != null && scriptEditorDialog.isOpen() && state != null && !state.activeScriptPath.isBlank()) {
                     scriptEditorDialog.handleTextInput(uiContext, textEvent.codepoint());
                     continue;
                 }
