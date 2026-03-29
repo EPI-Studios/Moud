@@ -1,6 +1,7 @@
 package com.moud.server.minestom.scripting;
 
 
+import com.moud.net.protocol.MultiMeshData;
 import com.moud.net.protocol.PlayerInput;
 import com.moud.net.protocol.ScriptActionInvoke;
 import com.moud.net.protocol.ScriptActionInvokeAck;
@@ -9,6 +10,7 @@ import com.moud.net.protocol.ScriptActionListResponse;
 import com.moud.server.minestom.engine.ServerScene;
 import org.graalvm.polyglot.Engine;
 import com.moud.server.minestom.project.ProjectService;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -34,6 +36,10 @@ public final class ScriptService {
         runtime.updatePlayerPositions(positions);
     }
 
+    public void updatePlayerNames(Map<UUID, String> names) {
+        runtime.updatePlayerNames(names);
+    }
+
     public Long getActiveCameraForPlayer(String sceneId, UUID uuid) {
         if (sceneId == null || uuid == null) return null;
         return runtime.getActiveCameraForPlayer(sceneId, uuid.toString());
@@ -51,6 +57,18 @@ public final class ScriptService {
 
     public void onPlayerInput(UUID uuid, PlayerInput input) {
         runtime.onPlayerInput(uuid, input);
+    }
+
+    public void onUiEvent(ServerScene scene, long nodeId, String event, float value) {
+        runtime.onUiEvent(scene, nodeId, event, value);
+    }
+
+    public List<MultiMeshData> getLatestMultiMesh(String sceneId) {
+        return runtime.getLatestMultiMesh(sceneId);
+    }
+
+    public List<MultiMeshData> drainMultiMesh(String sceneId) {
+        return runtime.drainMultiMesh(sceneId);
     }
 
     public void onSceneDeleted(String sceneId) {

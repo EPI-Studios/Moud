@@ -2,6 +2,10 @@ package com.moud.server.minestom.scripting;
 
 import com.moud.core.physics.BodyHandle;
 import com.moud.core.scene.Node;
+import com.moud.core.scene.SceneFile;
+import com.moud.core.scene.SceneTreeMutator;
+import com.moud.server.minestom.scene.SceneFileIO;
+import com.moud.net.protocol.MultiMeshData;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpBatch;
@@ -20,8 +24,12 @@ import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Value;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -38,6 +46,7 @@ final class SceneRuntime {
     private final ProjectService project;
     private final ConcurrentHashMap<String, PlayerInputState> inputsByPlayer;
     private final ConcurrentHashMap<String, float[]> playerPositions = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, String> playerNames = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, OwnedValue<Long>> activeCameraByPlayer = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, OwnedValue<float[]>> followCameraByPlayer = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, OwnedValue<float[]>> scriptCameraByPlayer = new ConcurrentHashMap<>();
@@ -47,10 +56,13 @@ final class SceneRuntime {
     private final Map<Long, NodeInstance> instances = new HashMap<>();
     private final ArrayList<SceneOp> pendingOps = new ArrayList<>();
     private final HashMap<String, String> pendingProps = new HashMap<>();
+    private final HashMap<Long, float[]> pendingMultiMesh = new HashMap<>();
+    private final HashMap<Long, float[]> latestMultiMesh  = new HashMap<>();
     private long cachedTargetsGraphRevision = Long.MIN_VALUE;
     private final ArrayList<Target> cachedTargets = new ArrayList<>();
     private volatile ServerScene lastScene;
     private final ArrayList<PendingTimer> pendingTimers = new ArrayList<>();
+    private final ArrayList<PendingTween> pendingTweens = new ArrayList<>();
     private String pendingSceneTransition = null;
     private final InputMap inputMap = new InputMap();
     private final SignalBus signalBus = new SignalBus();
@@ -75,11 +87,26 @@ final class SceneRuntime {
         try { ctx.close(true); } catch (Exception ignored) {}
     }
 
+    void onUiEvent(long nodeId, String signal, float value) {
+        signalBus.emit(nodeId, signal, instanceValueMap(), (double) value);
+        NodeInstance inst = instances.get(nodeId);
+        if (inst == null || inst.disabled) return;
+        String method = "_on_" + signal;
+        if (hasMemberCallable(inst.instance, method)) {
+            try {
+                inst.instance.invokeMember(method, inst.api, (double) value);
+            } catch (PolyglotException e) {
+                inst.disabled = true;
+            }
+        }
+    }
+
     void tick(ServerScene scene, double dtSeconds) {
         Objects.requireNonNull(scene, "scene");
         lastScene = scene;
 
         tickTimers(dtSeconds);
+        tickTweens(dtSeconds);
 
         ArrayList<Target> targets = targetsFor(scene);
         HashSet<Long> alive = new HashSet<>(targets.size());
@@ -414,9 +441,35 @@ final class SceneRuntime {
         }
     }
 
+    List<MultiMeshData> getLatestMultiMesh() {
+        if (latestMultiMesh.isEmpty()) return List.of();
+        List<MultiMeshData> out = new ArrayList<>(latestMultiMesh.size());
+        for (Map.Entry<Long, float[]> e : latestMultiMesh.entrySet()) {
+            float[] v = e.getValue();
+            out.add(new MultiMeshData(e.getKey(), 0, v == null ? 0 : v.length, v));
+        }
+        return out;
+    }
+
+    List<MultiMeshData> drainMultiMesh() {
+        if (pendingMultiMesh.isEmpty()) return List.of();
+        List<MultiMeshData> out = new ArrayList<>(pendingMultiMesh.size());
+        for (Map.Entry<Long, float[]> e : pendingMultiMesh.entrySet()) {
+            float[] v = e.getValue();
+            out.add(new MultiMeshData(e.getKey(), 0, v == null ? 0 : v.length, v));
+        }
+        pendingMultiMesh.clear();
+        return out;
+    }
+
     void updatePlayerPositions(Map<String, float[]> positions) {
         playerPositions.clear();
         if (positions != null) playerPositions.putAll(positions);
+    }
+
+    void updatePlayerNames(Map<String, String> names) {
+        playerNames.clear();
+        if (names != null) playerNames.putAll(names);
     }
 
     Long getActiveCameraForPlayer(String playerUuid) {
@@ -496,6 +549,109 @@ final class SceneRuntime {
         }
     }
 
+    private void tickTweens(double dtSeconds) {
+        if (pendingTweens.isEmpty()) return;
+        Iterator<PendingTween> it = pendingTweens.iterator();
+        while (it.hasNext()) {
+            PendingTween t = it.next();
+            t.elapsed += dtSeconds;
+            float factor = (float) Math.min(1.0, t.elapsed / t.duration);
+            float value = t.fromValue + (t.toValue - t.fromValue) * factor;
+            queueSet(t.nodeId, t.prop, RuntimeScriptUtil.trimFloat(value));
+            if (factor >= 1.0f) {
+                it.remove();
+            }
+        }
+    }
+
+    long instantiateScene(ServerScene scene, String scenePath, long parentId) {
+        if (scene == null || scenePath == null || scenePath.isBlank() || parentId < 0) return 0L;
+        flush(scene);
+
+        Path file;
+        try {
+            file = project.resolveProjectPath(scenePath);
+        } catch (Exception e) {
+            DebugLog.error(LOG_TAG, "instantiate: cannot resolve path '" + scenePath + "': " + e.getMessage());
+            return 0L;
+        }
+
+        String json;
+        try {
+            json = Files.readString(file, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            DebugLog.error(LOG_TAG, "instantiate: cannot read file '" + file + "': " + e.getMessage());
+            return 0L;
+        }
+
+        SceneFile sceneFile;
+        try {
+            sceneFile = SceneFileIO.parse(json);
+        } catch (Exception e) {
+            DebugLog.error(LOG_TAG, "instantiate: parse error: " + e.getMessage());
+            return 0L;
+        }
+
+        List<SceneTreeMutator.NodeSpec> specs = SceneFileIO.toNodeSpecs(sceneFile);
+        if (specs.isEmpty()) return 0L;
+
+        HashMap<Long, SceneTreeMutator.NodeSpec> specById = new HashMap<>(specs.size());
+        for (SceneTreeMutator.NodeSpec s : specs) {
+            if (s != null && s.nodeId() > 0) specById.put(s.nodeId(), s);
+        }
+
+        HashMap<Long, Long> idMap = new HashMap<>(specs.size());
+        Deque<Long> queue = new ArrayDeque<>();
+        long firstRootId = 0L;
+
+        for (SceneTreeMutator.NodeSpec s : specs) {
+            if (s != null && (s.parentId() <= 0 || !specById.containsKey(s.parentId()))) {
+                queue.add(s.nodeId());
+            }
+        }
+
+        while (!queue.isEmpty()) {
+            long fileId = queue.poll();
+            SceneTreeMutator.NodeSpec spec = specById.get(fileId);
+            if (spec == null) continue;
+
+            long targetParent;
+            if (spec.parentId() <= 0 || !specById.containsKey(spec.parentId())) {
+                targetParent = parentId;
+            } else {
+                Long mapped = idMap.get(spec.parentId());
+                if (mapped == null) continue;
+                targetParent = mapped;
+            }
+
+            long batchId = SceneBatchIds.markRuntime((scene.engine().ticks() << 32) ^ System.nanoTime());
+            SceneOpAck ack = scene.applier().apply(
+                    new SceneOpBatch(batchId, true, List.of(new SceneOp.CreateNode(targetParent, spec.name(), spec.typeId()))));
+            if (ack == null || ack.results() == null || ack.results().isEmpty()) continue;
+            SceneOpResult r = ack.results().getFirst();
+            if (r == null || !r.ok() || r.createdId() <= 0L) continue;
+
+            long newId = r.createdId();
+            idMap.put(fileId, newId);
+            if (firstRootId == 0L && targetParent == parentId) firstRootId = newId;
+
+            queueSet(newId, RuntimeScriptKeys.PROP_RUNTIME, "true");
+            for (Map.Entry<String, String> entry : spec.properties().entrySet()) {
+                String k = entry.getKey();
+                if (k == null || k.startsWith("@")) continue;
+                queueSet(newId, k, entry.getValue());
+            }
+
+            for (SceneTreeMutator.NodeSpec child : specs) {
+                if (child != null && child.parentId() == fileId) {
+                    queue.add(child.nodeId());
+                }
+            }
+        }
+
+        return firstRootId;
+    }
+
     private static String propKey(long nodeId, String key) {
         return nodeId + "\u0000" + key;
     }
@@ -508,6 +664,23 @@ final class SceneRuntime {
         PendingTimer(double timeLeft, Value callback) {
             this.timeLeft = timeLeft;
             this.callback = callback;
+        }
+    }
+
+    private static final class PendingTween {
+        final long nodeId;
+        final String prop;
+        final float fromValue;
+        final float toValue;
+        final double duration;
+        double elapsed;
+        PendingTween(long nodeId, String prop, float fromValue, float toValue, double duration) {
+            this.nodeId = nodeId;
+            this.prop = prop;
+            this.fromValue = fromValue;
+            this.toValue = toValue;
+            this.duration = duration;
+            this.elapsed = 0.0;
         }
     }
 
@@ -645,6 +818,67 @@ final class SceneRuntime {
         @HostAccess.Export
         public void flush() {
             SceneRuntime.this.flush(scene);
+        }
+
+        @HostAccess.Export
+        public String getString(String key, String fallback) {
+            String v = get(key);
+            return v != null ? v : (fallback != null ? fallback : "");
+        }
+
+        @HostAccess.Export
+        public String getString(long nodeId, String key, String fallback) {
+            String v = get(nodeId, key);
+            return v != null ? v : (fallback != null ? fallback : "");
+        }
+
+        @HostAccess.Export
+        public void setUniform(long nodeId, String name, double... values) {
+            if (nodeId <= 0L || name == null || name.isBlank() || values == null) return;
+            List<Float> floats = new ArrayList<>(values.length);
+            for (double v : values) floats.add((float) v);
+            scene.engine().setUniform(nodeId, name, List.copyOf(floats));
+        }
+
+        @HostAccess.Export
+        public long[] findNodesByType(String type) {
+            if (type == null || type.isBlank()) return new long[0];
+            List<Long> result = new ArrayList<>();
+            Deque<Node> queue = new ArrayDeque<>();
+            queue.add(scene.engine().sceneTree().root());
+            while (!queue.isEmpty()) {
+                Node n = queue.poll();
+                if (type.equals(scene.engine().nodeTypes().typeIdFor(n))) {
+                    result.add(n.nodeId());
+                }
+                queue.addAll(n.children());
+            }
+            long[] arr = new long[result.size()];
+            for (int i = 0; i < result.size(); i++) arr[i] = result.get(i);
+            return arr;
+        }
+
+        @HostAccess.Export
+        public long getRootId() {
+            return scene.engine().sceneTree().root().nodeId();
+        }
+
+        /**
+         * Upload per-frame instance transforms for a MultiMeshInstance3D node.
+         * {@code data} must be a JS array of 13*N floats:
+         *   [px, py, pz,  qx, qy, qz, qw,  sx, sy, sz,  cr, cg, cb]  per instance.
+         */
+        @HostAccess.Export
+        public void setInstances(long nodeId, Value data) {
+            if (nodeId <= 0L || data == null || !data.hasArrayElements()) return;
+            int len = (int) data.getArraySize();
+            if (len <= 0) return;
+            float[] arr = new float[len];
+            for (int i = 0; i < len; i++) {
+                arr[i] = (float) data.getArrayElement(i).asDouble();
+            }
+            SceneRuntime.this.pendingMultiMesh.put(nodeId, arr);
+            SceneRuntime.this.latestMultiMesh.put(nodeId, arr);
         }
 
         @HostAccess.Export
@@ -921,6 +1155,49 @@ final class SceneRuntime {
             JoltPhysicsWorld physics = scene.physics();
             if (physics == null) return;
             physics.setLinearVelocity(nodeId, (float) vx, (float) vy, (float) vz);
+        }
+
+        @HostAccess.Export
+        public long[] getChildren(long nodeId) {
+            Node n = scene.engine().sceneTree().getNode(nodeId);
+            if (n == null) return new long[0];
+            List<Node> children = n.children();
+            long[] ids = new long[children.size()];
+            for (int i = 0; i < children.size(); i++) ids[i] = children.get(i).nodeId();
+            return ids;
+        }
+
+        @HostAccess.Export
+        public boolean exists(long nodeId) {
+            return nodeId > 0L && scene.engine().sceneTree().getNode(nodeId) != null;
+        }
+
+        @HostAccess.Export
+        public PlayerInfo[] getPlayers() {
+            String[] uuids = inputsByPlayer.keySet().toArray(new String[0]);
+            PlayerInfo[] result = new PlayerInfo[uuids.length];
+            for (int i = 0; i < uuids.length; i++) {
+                String uuid = uuids[i];
+                result[i] = new PlayerInfo(uuid, playerNames.get(uuid), playerPositions.get(uuid));
+            }
+            return result;
+        }
+
+        @HostAccess.Export
+        public void tween(long nodeId, String prop, double targetValue, double duration) {
+            if (nodeId <= 0L || prop == null || prop.isBlank()) return;
+            if (duration <= 0.0) {
+                SceneRuntime.this.queueSet(nodeId, prop, RuntimeScriptUtil.trimFloat((float) targetValue));
+                return;
+            }
+            float from = (float) getNumber(nodeId, prop, targetValue);
+            pendingTweens.removeIf(t -> t.nodeId == nodeId && prop.equals(t.prop));
+            pendingTweens.add(new PendingTween(nodeId, prop, from, (float) targetValue, duration));
+        }
+
+        @HostAccess.Export
+        public long instantiate(String scenePath, long parentId) {
+            return SceneRuntime.this.instantiateScene(scene, scenePath, parentId);
         }
 
         private double playerCoord(int idx) {
