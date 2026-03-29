@@ -124,7 +124,7 @@ public final class SceneState {
         if (!found) {
             out.add(new SceneSnapshot.Property(key, value));
         }
-        replaceNode(new SceneSnapshot.NodeSnapshot(node.nodeId(), node.parentId(), node.name(), node.type(), List.copyOf(out)));
+        replaceNode(new SceneSnapshot.NodeSnapshot(node.nodeId(), node.parentId(), node.name(), node.type(), List.copyOf(out), node.uniforms()));
     }
 
     private void applyRemoveProperty(long nodeId, String key) {
@@ -145,7 +145,7 @@ public final class SceneState {
                 out.add(p);
             }
         }
-        replaceNode(new SceneSnapshot.NodeSnapshot(node.nodeId(), node.parentId(), node.name(), node.type(), List.copyOf(out)));
+        replaceNode(new SceneSnapshot.NodeSnapshot(node.nodeId(), node.parentId(), node.name(), node.type(), List.copyOf(out), node.uniforms()));
     }
 
     private void applyRename(long nodeId, String newName) {
@@ -153,7 +153,7 @@ public final class SceneState {
         if (node == null) {
             return;
         }
-        replaceNode(new SceneSnapshot.NodeSnapshot(node.nodeId(), node.parentId(), newName, node.type(), node.properties()));
+        replaceNode(new SceneSnapshot.NodeSnapshot(node.nodeId(), node.parentId(), newName, node.type(), node.properties(), node.uniforms()));
     }
 
     private void applyReparent(long nodeId, long newParentId, int index) {
@@ -171,7 +171,7 @@ public final class SceneState {
             childrenByParent.put(oldParentId, copy);
         }
 
-        SceneSnapshot.NodeSnapshot moved = new SceneSnapshot.NodeSnapshot(node.nodeId(), newParentId, node.name(), node.type(), node.properties());
+        SceneSnapshot.NodeSnapshot moved = new SceneSnapshot.NodeSnapshot(node.nodeId(), newParentId, node.name(), node.type(), node.properties(), node.uniforms());
         nodesById.put(nodeId, moved);
 
         List<SceneSnapshot.NodeSnapshot> newList = childrenByParent.get(newParentId);
