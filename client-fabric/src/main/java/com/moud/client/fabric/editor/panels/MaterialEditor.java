@@ -317,7 +317,7 @@ final class MaterialEditor {
             return y + rowH;
         }
 
-        MoudShaderFile shaderFile = MoudShaderParser.parse(shaderText);
+        MoudShaderFile shaderFile = MoudShaderParser.parse(shaderText, shaderPath);
         if (shaderFile == null) {
             r.drawText("(invalid .moudshader)", x, r.baselineForBox(y, rowH), Theme.toArgb(theme.danger));
             return y + rowH;
