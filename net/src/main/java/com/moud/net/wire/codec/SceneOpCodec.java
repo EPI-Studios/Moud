@@ -201,6 +201,14 @@ public final class SceneOpCodec {
                 WireIo.writeString(out, prop.key());
                 WireIo.writeString(out, prop.value());
             }
+            List<SceneSnapshot.Uniform> uniforms = node.uniforms();
+            WireIo.writeVarInt(out, uniforms.size());
+            for (SceneSnapshot.Uniform u : uniforms) {
+                WireIo.writeString(out, u.key());
+                List<Float> vals = u.values();
+                WireIo.writeVarInt(out, vals.size());
+                for (float v : vals) out.putFloat(v);
+            }
         }
     }
 
@@ -225,12 +233,19 @@ public final class SceneOpCodec {
             for (int p = 0; p < propCount; p++) {
                 props.add(new SceneSnapshot.Property(WireIo.readString(in), WireIo.readString(in)));
             }
-            nodes.add(new SceneSnapshot.NodeSnapshot(nodeId, parentId, name, type, List.copyOf(props)));
+            int uniCount = WireIo.readVarInt(in);
+            List<SceneSnapshot.Uniform> uniforms = new ArrayList<>(uniCount);
+            for (int u = 0; u < uniCount; u++) {
+                String key = WireIo.readString(in);
+                int valCount = WireIo.readVarInt(in);
+                List<Float> vals = new ArrayList<>(valCount);
+                for (int v = 0; v < valCount; v++) vals.add(in.getFloat());
+                uniforms.add(new SceneSnapshot.Uniform(key, List.copyOf(vals)));
+            }
+            nodes.add(new SceneSnapshot.NodeSnapshot(nodeId, parentId, name, type, List.copyOf(props), List.copyOf(uniforms)));
         }
         return new SceneSnapshot(requestId, revision, List.copyOf(nodes));
     }
-
-    // --- Size estimations ---
 
     public static int sceneSaveSize(SceneSave save) {
         return WireIo.stringSize(save.sceneId());
