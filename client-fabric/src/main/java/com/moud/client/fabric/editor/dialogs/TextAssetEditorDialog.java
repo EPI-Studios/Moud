@@ -420,6 +420,14 @@ public final class TextAssetEditorDialog implements AssetsClient.Listener {
         confirmUntilMs = System.currentTimeMillis() + CONFIRM_TIMEOUT_MS;
     }
 
+    public void saveIfDirty() {
+        String current = editor.text();
+        boolean dirty = !current.equals(lastLoadedText == null ? "" : lastLoadedText);
+        if (dirty && !saving && !loading) {
+            save();
+        }
+    }
+
     private void save() {
         if (!hasSession()) {
             return;
