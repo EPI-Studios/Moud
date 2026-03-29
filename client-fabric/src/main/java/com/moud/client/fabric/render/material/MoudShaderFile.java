@@ -1,5 +1,6 @@
 package com.moud.client.fabric.render.material;
 
+import com.moud.core.assets.AssetHash;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import java.util.ArrayList;
@@ -14,13 +15,24 @@ public final class MoudShaderFile {
     private final Map<String, MoudShaderUniform> uniformsByName;
     private final List<MoudShaderUniform> uniforms;
     private final List<MoudShaderUniform> exposedUniforms;
+    private final AssetHash programHash;
+    private final List<String> dependencies;
 
     public MoudShaderFile(Int2ObjectMap<String> stageSources, List<MoudShaderUniform> uniforms) {
+        this(stageSources, uniforms, null, List.of());
+    }
+
+    public MoudShaderFile(Int2ObjectMap<String> stageSources,
+                          List<MoudShaderUniform> uniforms,
+                          AssetHash programHash,
+                          List<String> dependencies) {
         Objects.requireNonNull(stageSources, "stageSources");
         Objects.requireNonNull(uniforms, "uniforms");
 
         this.stageSources = new Int2ObjectArrayMap<>(stageSources);
         this.uniforms = List.copyOf(uniforms);
+        this.programHash = programHash;
+        this.dependencies = dependencies == null ? List.of() : List.copyOf(dependencies);
 
         HashMap<String, MoudShaderUniform> byName = new HashMap<>();
         ArrayList<MoudShaderUniform> exposed = new ArrayList<>();
@@ -54,5 +66,13 @@ public final class MoudShaderFile {
             return null;
         }
         return uniformsByName.get(name);
+    }
+
+    public AssetHash programHash() {
+        return programHash;
+    }
+
+    public List<String> dependencies() {
+        return dependencies;
     }
 }

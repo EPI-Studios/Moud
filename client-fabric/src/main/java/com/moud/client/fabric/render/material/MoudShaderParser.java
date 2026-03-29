@@ -1,11 +1,14 @@
 package com.moud.client.fabric.render.material;
 
 import com.moud.client.fabric.assets.MoudTextAssets;
+import com.moud.core.assets.AssetHash;
+import com.moud.core.assets.ResPath;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -24,25 +27,32 @@ public final class MoudShaderParser {
     private static final int MAX_INCLUDE_DEPTH = 8;
     private static final String BUILTIN_SHADER_PREFIX = "assets/moud/shaders/builtin/";
 
-    private static final String DEFAULT_BLIT_VERTEX = """
-            out vec2 texCoord;
-
-            void main() {
-                vec2 uv = vec2(gl_VertexID & 1, gl_VertexID & 2);
-                gl_Position = vec4(uv * vec2(3.0) - vec2(1.0), 0.0, 1.0);
-                texCoord = uv * vec2(1.5);
-            }
-            """;
+    private static final String DEFAULT_BLIT_VERTEX =
+            loadBuiltin("default_blit.vert");
 
     private MoudShaderParser() {
     }
 
+    private static String loadBuiltin(String name) {
+        try (InputStream is = MoudShaderParser.class.getClassLoader()
+                .getResourceAsStream(BUILTIN_SHADER_PREFIX + name)) {
+            if (is != null) return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (Exception ignored) {}
+        return "";
+    }
+
     public static MoudShaderFile parse(String text) {
+        return parse(text, null);
+    }
+
+    public static MoudShaderFile parse(String text, String sourcePath) {
         if (text == null || text.isBlank()) {
             return null;
         }
 
-        text = preprocessIncludes(text);
+        String baseDir = baseDirFor(sourcePath);
+        PreprocessResult pre = preprocessIncludes(text, 0, baseDir, new LinkedHashSet<>());
+        text = pre.text;
 
         String[] lines = text.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1);
         String currentStage = null;
@@ -102,28 +112,48 @@ public final class MoudShaderParser {
             stageSources.put(GL32C.GL_GEOMETRY_SHADER, geometry);
         }
 
-        return new MoudShaderFile(stageSources, List.copyOf(uniforms.values()));
+        AssetHash hash = hashProgramSources(stageSources);
+        return new MoudShaderFile(stageSources, List.copyOf(uniforms.values()), hash, pre.dependencies);
     }
 
-    static String preprocessIncludes(String source) {
-        return preprocessIncludes(source, 0);
+    private static AssetHash hashProgramSources(Int2ObjectMap<String> stageSources) {
+        String v = stageSources.get(GL20C.GL_VERTEX_SHADER);
+        String f = stageSources.get(GL20C.GL_FRAGMENT_SHADER);
+        String g = stageSources.get(GL32C.GL_GEOMETRY_SHADER);
+        StringBuilder b = new StringBuilder();
+        if (v != null) b.append("#stage vertex\n").append(v).append('\n');
+        if (f != null) b.append("#stage fragment\n").append(f).append('\n');
+        if (g != null) b.append("#stage geometry\n").append(g).append('\n');
+        return AssetHash.sha256(b.toString().getBytes(StandardCharsets.UTF_8));
     }
 
-    private static String preprocessIncludes(String source, int depth) {
+    private static PreprocessResult preprocessIncludes(String source,
+                                                      int depth,
+                                                      String baseDir,
+                                                      LinkedHashSet<String> deps) {
         if (source == null || depth >= MAX_INCLUDE_DEPTH) {
-            return source;
+            return new PreprocessResult(source == null ? "" : source, List.copyOf(deps));
         }
         String[] lines = source.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1);
         StringBuilder result = new StringBuilder();
         for (int i = 0; i < lines.length; i++) {
             Matcher m = INCLUDE_LINE.matcher(lines[i]);
             if (m.matches()) {
-                String path = m.group(1);
-                String included = resolveInclude(path);
-                if (included != null) {
-                    result.append(preprocessIncludes(included, depth + 1));
+                String includeRaw = m.group(1);
+                ResolvedInclude inc = resolveInclude(includeRaw, baseDir);
+                if (inc != null && inc.resolvedPath != null && inc.resolvedPath.startsWith(ResPath.SCHEME)) {
+                    deps.add(inc.resolvedPath);
+                }
+                if (inc != null && inc.text != null) {
+                    PreprocessResult inner = preprocessIncludes(
+                            inc.text,
+                            depth + 1,
+                            baseDirFor(inc.resolvedPath),
+                            deps
+                    );
+                    result.append(inner.text);
                 } else {
-                    result.append("// #include failed: ").append(path).append('\n');
+                    result.append("// #include failed: ").append(includeRaw).append('\n');
                 }
             } else {
                 result.append(lines[i]);
@@ -132,21 +162,50 @@ public final class MoudShaderParser {
                 }
             }
         }
-        return result.toString();
+        return new PreprocessResult(result.toString(), List.copyOf(deps));
     }
 
-    private static String resolveInclude(String path) {
-        if (path.startsWith("res://")) {
-            return MoudTextAssets.readText(path);
+    private static ResolvedInclude resolveInclude(String raw, String baseDir) {
+        String path = raw == null ? "" : raw.trim();
+        if (path.isEmpty()) {
+            return null;
         }
+
+        if (path.startsWith(ResPath.SCHEME)) {
+            return new ResolvedInclude(path, MoudTextAssets.readText(path));
+        }
+
+        if (baseDir != null && !baseDir.isBlank()) {
+            String rel = path.startsWith("/") ? path.substring(1) : path;
+            String candidate = baseDir.endsWith("/") ? (baseDir + rel) : (baseDir + "/" + rel);
+            if (candidate.startsWith(ResPath.SCHEME) && MoudTextAssets.exists(candidate)) {
+                return new ResolvedInclude(candidate, MoudTextAssets.readText(candidate));
+            }
+        }
+
         try (InputStream is = MoudShaderParser.class.getClassLoader()
                 .getResourceAsStream(BUILTIN_SHADER_PREFIX + path)) {
             if (is != null) {
-                return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                return new ResolvedInclude(null, new String(is.readAllBytes(), StandardCharsets.UTF_8));
             }
         } catch (Exception ignored) {
         }
         return null;
+    }
+
+    private static String baseDirFor(String sourcePath) {
+        if (sourcePath == null) {
+            return null;
+        }
+        String sp = sourcePath.trim();
+        if (!sp.startsWith(ResPath.SCHEME)) {
+            return null;
+        }
+        int slash = sp.lastIndexOf('/');
+        if (slash < 0) {
+            return sp;
+        }
+        return sp.substring(0, slash + 1);
     }
 
     private static String stageString(Map<String, StringBuilder> stageBuilders, String stage) {
@@ -244,5 +303,11 @@ public final class MoudShaderParser {
     }
 
     private record ExposeInfo(Map<String, String> hints) {
+    }
+
+    private record ResolvedInclude(String resolvedPath, String text) {
+    }
+
+    private record PreprocessResult(String text, List<String> dependencies) {
     }
 }
