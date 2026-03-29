@@ -469,6 +469,7 @@ public final class EditorGizmos implements AutoCloseable {
             case ROTATE -> GizmoOverlay3D.Mode.ROTATE;
             default -> GizmoOverlay3D.Mode.NONE;
         });
+        overlay.setFaceHandlesEnabled(canScale);
 
         Matrix4f viewProj = MinecraftRenderBridge.viewProjection(DEFAULT_FOV_DEG, viewportW / (float) Math.max(1, viewportH), centerPos);
         Vector3f cameraPos = MinecraftRenderBridge.cameraPos();
