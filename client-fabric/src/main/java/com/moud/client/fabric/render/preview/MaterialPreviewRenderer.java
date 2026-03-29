@@ -140,12 +140,18 @@ public final class MaterialPreviewRenderer {
             e.dirty = true;
         }
 
-        if (!e.dirty) return;
         if (!e.binding.configure(e.materialPath, null)) return;
 
         ShaderProgram program = resolveMeshProgram(e.binding);
         if (program == null) return;
 
+        Identifier pid = e.binding.programId();
+        if (!Objects.equals(pid, e.cachedProgramId)) {
+            e.cachedProgramId = pid;
+            e.dirty = true;
+        }
+
+        if (!e.dirty) return;
         renderSphere(e, program);
         e.dirty = false;
     }
@@ -280,6 +286,7 @@ public final class MaterialPreviewRenderer {
         Framebuffer framebuffer;
         String cachedMaterialText;
         String cachedShaderText;
+        Identifier cachedProgramId;
         boolean dirty = true;
         long lastUsedAtMs;
 

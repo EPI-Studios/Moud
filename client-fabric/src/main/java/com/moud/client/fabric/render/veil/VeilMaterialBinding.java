@@ -11,6 +11,7 @@ import com.moud.core.assets.AssetHash;
 import com.moud.core.assets.ResPath;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
 import foundry.veil.api.client.render.shader.uniform.ShaderUniformAccess;
+import java.util.List;
 import java.util.Map;
 import java.util.Locale;
 import java.util.Objects;
@@ -24,6 +25,8 @@ public final class VeilMaterialBinding {
 
     private String cachedMaterialText;
     private String cachedShaderText;
+    private String[] cachedShaderDeps = new String[0];
+    private long[] cachedShaderDepVersions = new long[0];
 
     private MoudMaterial material;
     private MoudShaderFile shaderFile;
@@ -73,6 +76,13 @@ public final class VeilMaterialBinding {
             if (param instanceof MoudMaterial.Param.Texture tex) {
                 if (u != null && u.isSampler()) {
                     Identifier id = MoudTextures.resolve(tex.textureRef());
+                    program.setSampler(name, id);
+                }
+                continue;
+            }
+            if (param instanceof MoudMaterial.Param.StringParam s) {
+                if (u != null && u.isSampler()) {
+                    Identifier id = MoudTextures.resolve(s.value());
                     program.setSampler(name, id);
                 }
                 continue;
@@ -172,19 +182,63 @@ public final class VeilMaterialBinding {
         if (txt == null) {
             return;
         }
-        if (Objects.equals(cachedShaderText, txt) && shaderFile != null && programId != null) {
+        boolean sameRoot = Objects.equals(cachedShaderText, txt);
+        if (sameRoot && shaderFile != null && programId != null && !dependenciesChanged()) {
             return;
         }
         cachedShaderText = txt;
-        shaderFile = MoudShaderParser.parse(txt);
+        shaderFile = MoudShaderParser.parse(txt, sp);
         programId = null;
         if (shaderFile != null) {
-            AssetHash hash = AssetHash.sha256(txt.getBytes(StandardCharsets.UTF_8));
+            AssetHash hash = shaderFile.programHash();
+            if (hash == null) {
+                hash = AssetHash.sha256(txt.getBytes(StandardCharsets.UTF_8));
+            }
             programId = Identifier.of("moud", "dyn/" + hash.hex());
+            snapshotDependencyVersions(shaderFile);
         }
     }
 
     private static String norm(String v) {
         return v == null ? "" : v.trim();
+    }
+
+    private boolean dependenciesChanged() {
+        MoudShaderFile sf = shaderFile;
+        if (sf == null) {
+            return false;
+        }
+        List<String> deps = sf.dependencies();
+        if (deps == null || deps.isEmpty()) {
+            return false;
+        }
+        if (cachedShaderDeps.length != deps.size() || cachedShaderDepVersions.length != deps.size()) {
+            return true;
+        }
+        for (int i = 0; i < deps.size(); i++) {
+            String path = deps.get(i);
+            if (!Objects.equals(path, cachedShaderDeps[i])) {
+                return true;
+            }
+            long v = MoudTextAssets.versionOf(path);
+            if (v != cachedShaderDepVersions[i]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void snapshotDependencyVersions(MoudShaderFile sf) {
+        List<String> deps = sf == null ? null : sf.dependencies();
+        if (deps == null || deps.isEmpty()) {
+            cachedShaderDeps = new String[0];
+            cachedShaderDepVersions = new long[0];
+            return;
+        }
+        cachedShaderDeps = deps.toArray(String[]::new);
+        cachedShaderDepVersions = new long[deps.size()];
+        for (int i = 0; i < deps.size(); i++) {
+            cachedShaderDepVersions[i] = MoudTextAssets.versionOf(deps.get(i));
+        }
     }
 }
