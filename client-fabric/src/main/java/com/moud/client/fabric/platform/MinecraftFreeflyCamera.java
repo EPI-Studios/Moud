@@ -35,6 +35,26 @@ public final class MinecraftFreeflyCamera {
     public MinecraftFreeflyCamera() {
     }
 
+    public Vec3d getPos() {
+        return pos;
+    }
+
+    public double getYaw() {
+        return yaw;
+    }
+
+    public double getPitch() {
+        return pitch;
+    }
+
+    public void setCamera(Vec3d newPos, double newYaw, double newPitch) {
+        pos = newPos;
+        yaw = newYaw;
+        pitch = MathHelper.clamp(newPitch, -89.0, 89.0);
+        targetYaw = newYaw;
+        targetPitch = pitch;
+    }
+
     public boolean isEnabled() {
         return enabled;
     }
