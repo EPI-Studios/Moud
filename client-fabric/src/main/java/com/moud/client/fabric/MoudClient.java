@@ -13,9 +13,12 @@ import com.moud.client.fabric.net.FabricEngineTransport;
 import com.moud.client.fabric.platform.MinecraftFreeflyCamera;
 import com.moud.client.fabric.platform.MinecraftGhostBlocks;
 import com.moud.client.fabric.model.ModelCache;
+import com.moud.client.fabric.render.InstanceDataStore;
 import com.moud.client.fabric.render.MoudIcons;
 import com.moud.client.fabric.render.MoudTextures;
 import com.moud.client.fabric.render.VeilSceneNodeRenderer;
+import com.moud.client.fabric.render.hud.HudCanvasRenderer;
+import com.moud.client.fabric.render.hud.UiInputTracker;
 import com.moud.client.fabric.render.env.VeilWorldEnvironmentRenderer;
 import com.moud.client.fabric.runtime.PlayRuntimeBus;
 import com.moud.client.fabric.runtime.PlayRuntimeClient;
@@ -40,6 +43,7 @@ import com.moud.net.protocol.SchemaSnapshot;
 import com.moud.net.protocol.ScriptActionInvokeAck;
 import com.moud.net.protocol.ScriptActionListResponse;
 import com.moud.net.protocol.ScriptFileReadResponse;
+import com.moud.net.protocol.MultiMeshData;
 import com.moud.net.protocol.ScriptFileWriteAck;
 import com.moud.net.protocol.ServerHello;
 import com.moud.net.session.Session;
@@ -56,6 +60,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.text.Text;
@@ -67,6 +72,7 @@ final class MoudClient {
     private final EditorContext editorContext = new EditorContext(camera);
     private final AssetsClient assets = new AssetsClient();
     private final PlayRuntimeClient playRuntime = new PlayRuntimeClient();
+    private final UiInputTracker uiInputTracker = new UiInputTracker();
 
     private FabricEngineTransport transport;
     private Session session;
@@ -75,6 +81,7 @@ final class MoudClient {
     private boolean overlayOpen;
     private Boolean lastEditorModeSent;
     private boolean pendingOverlayDispose;
+    private boolean pendingRestoreSnapshot;
     private boolean autoOpenedEditor;
     private KeyBinding toggleKey;
     private boolean dropCallbackRegistered;
@@ -121,7 +128,7 @@ final class MoudClient {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(this::onJoin));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(this::onDisconnect));
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
-        HudRenderCallback.EVENT.register((drawContext, tickDelta) -> renderOverlays());
+        HudRenderCallback.EVENT.register((drawContext, tickDelta) -> renderOverlays(drawContext));
     }
 
     private void initializeSubsystems() {
@@ -251,7 +258,7 @@ final class MoudClient {
         }
     }
 
-    private void renderOverlays() {
+    private void renderOverlays(DrawContext drawContext) {
         boolean isConnected = session != null && session.state() == SessionState.CONNECTED;
 
         if (isConnected && overlayOpen && overlay != null) {
@@ -263,7 +270,7 @@ final class MoudClient {
         }
 
         if (isConnected && playRuntime.isActive()) {
-            playRuntime.tick(session);
+            HudCanvasRenderer.render(drawContext, MinecraftClient.getInstance());
         }
     }
 
@@ -397,6 +404,7 @@ final class MoudClient {
         }
         if (playRuntime.isActive() && session != null) {
             playRuntime.tick(session);
+            uiInputTracker.tick(session);
         }
         if (session != null) {
             session.tick();
@@ -416,6 +424,7 @@ final class MoudClient {
         }
 
         overlayOpen = true;
+        pendingRestoreSnapshot = true;
         camera.setEnabled(true);
 
         if (client != null && client.mouse != null) {
@@ -449,6 +458,10 @@ final class MoudClient {
         }
 
         editorContext.setOverlay(overlay);
+
+        if (overlay != null) {
+            overlay.saveAllOpenEditors();
+        }
 
         if (session != null && session.state() == SessionState.CONNECTED) {
             session.send(Lane.STATE, new EditorModeChanged(false));
@@ -523,6 +536,10 @@ final class MoudClient {
             handleSceneDelete(ack, overlayReady);
         } else if (message instanceof SceneSnapshot snapshot) {
             lastSnapshot = snapshot;
+            if (pendingRestoreSnapshot) {
+                pendingRestoreSnapshot = false;
+                ClientSceneBus.markRestorePending();
+            }
             ClientSceneBus.applySnapshot(snapshot);
             if (!overlayOpen && playRuntime.isActive() && !pendingRuntimeOps.isEmpty()) {
                 ClientSceneBus.applyOps(List.copyOf(pendingRuntimeOps));
@@ -544,7 +561,12 @@ final class MoudClient {
                 return;
             }
             if (playRuntime.isActive() && !overlayOpen) {
-                ClientSceneBus.applyOps(batch.ops());
+                boolean isPhysics = (batch.batchId() & (1L << 62)) != 0L;
+                if (isPhysics) {
+                    ClientSceneBus.applyPhysicsOps(batch.ops());
+                } else {
+                    ClientSceneBus.applyOps(batch.ops());
+                }
             }
         } else if (message instanceof SchemaSnapshot schema) {
             lastSchema = schema;
@@ -561,6 +583,8 @@ final class MoudClient {
                 overlay.onAck(ack);
             }
             MinecraftGhostBlocks.get().onAck(ack);
+        } else if (message instanceof MultiMeshData mmData) {
+            InstanceDataStore.accumulate(mmData.nodeId(), mmData.offset(), mmData.total(), mmData.data());
         }
     }
 
