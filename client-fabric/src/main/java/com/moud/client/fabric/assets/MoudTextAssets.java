@@ -30,6 +30,7 @@ public final class MoudTextAssets implements AssetsClient.Listener {
     private static List<String> textPaths = List.of();
     private static final Map<AssetHash, BlobEntry> blobsByHash = new HashMap<>();
     private static final Map<ResPath, String> overrideTextByPath = new HashMap<>();
+    private static final Map<ResPath, Long> versionByPath = new HashMap<>();
 
     private MoudTextAssets() {
     }
@@ -53,6 +54,7 @@ public final class MoudTextAssets implements AssetsClient.Listener {
             textPaths = List.of();
             blobsByHash.clear();
             overrideTextByPath.clear();
+            versionByPath.clear();
             lastManifestRequestMs = 0L;
         }
     }
@@ -60,6 +62,36 @@ public final class MoudTextAssets implements AssetsClient.Listener {
     public static List<String> textAssetPaths() {
         synchronized (LOCK) {
             return textPaths;
+        }
+    }
+
+    public static long versionOf(String resPathRaw) {
+        if (resPathRaw == null || resPathRaw.isBlank()) {
+            return 0L;
+        }
+        ResPath resPath;
+        try {
+            resPath = new ResPath(resPathRaw.trim());
+        } catch (Exception ignored) {
+            return 0L;
+        }
+        synchronized (LOCK) {
+            return versionByPath.getOrDefault(resPath, 0L);
+        }
+    }
+
+    public static boolean exists(String resPathRaw) {
+        if (resPathRaw == null || resPathRaw.isBlank()) {
+            return false;
+        }
+        ResPath resPath;
+        try {
+            resPath = new ResPath(resPathRaw.trim());
+        } catch (Exception ignored) {
+            return false;
+        }
+        synchronized (LOCK) {
+            return overrideTextByPath.containsKey(resPath) || metaByPath.containsKey(resPath);
         }
     }
 
@@ -129,6 +161,7 @@ public final class MoudTextAssets implements AssetsClient.Listener {
         String next = text == null ? "" : text;
         synchronized (LOCK) {
             overrideTextByPath.put(path, next);
+            versionByPath.merge(path, 1L, Long::sum);
         }
     }
 
@@ -191,6 +224,7 @@ public final class MoudTextAssets implements AssetsClient.Listener {
                 AssetMeta prev = oldMeta.get(e.getKey());
                 if (prev != null && !prev.hash().equals(e.getValue().hash())) {
                     blobsByHash.remove(prev.hash());
+                    versionByPath.merge(e.getKey(), 1L, Long::sum);
                 }
             }
             metaByPath = Map.copyOf(nextMeta);
@@ -236,6 +270,14 @@ public final class MoudTextAssets implements AssetsClient.Listener {
             entry.text = text;
             entry.error = "";
             entry.state = BlobState.READY;
+            for (Map.Entry<ResPath, AssetMeta> e : metaByPath.entrySet()) {
+                if (e == null || e.getKey() == null || e.getValue() == null || e.getValue().hash() == null) {
+                    continue;
+                }
+                if (hash.equals(e.getValue().hash())) {
+                    versionByPath.merge(e.getKey(), 1L, Long::sum);
+                }
+            }
         }
     }
 

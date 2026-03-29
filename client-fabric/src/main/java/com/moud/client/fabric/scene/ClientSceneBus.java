@@ -11,6 +11,8 @@ public final class ClientSceneBus {
     private static final SceneState SCENE = new SceneState();
     private static final AtomicLong VERSION = new AtomicLong();
     private static final AtomicLong SNAPSHOT_VERSION = new AtomicLong();
+    private static final AtomicLong PHYSICS_VERSION = new AtomicLong();
+    private static final AtomicLong RESET_VERSION = new AtomicLong();
 
     private ClientSceneBus() {
     }
@@ -21,6 +23,14 @@ public final class ClientSceneBus {
 
     public static long snapshotVersion() {
         return SNAPSHOT_VERSION.get();
+    }
+
+    public static long physicsVersion() {
+        return PHYSICS_VERSION.get();
+    }
+
+    public static long resetVersion() {
+        return RESET_VERSION.get();
     }
 
     public static List<SceneSnapshot.NodeSnapshot> copyNodes() {
@@ -48,6 +58,18 @@ public final class ClientSceneBus {
             SCENE.applyOps(ops);
         }
         VERSION.incrementAndGet();
+    }
+
+    public static void applyPhysicsOps(List<SceneOp> ops) {
+        synchronized (SCENE) {
+            SCENE.applyOps(ops);
+        }
+        VERSION.incrementAndGet();
+        PHYSICS_VERSION.incrementAndGet();
+    }
+
+    public static void markRestorePending() {
+        RESET_VERSION.incrementAndGet();
     }
 
     public static void clear() {
