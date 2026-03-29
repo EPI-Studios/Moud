@@ -14,8 +14,10 @@
     "WorldRendererMixin",
     "WorldRendererSkyCloudOverrideMixin",
     "EntityObbCollisionMixin",
+    "LivingEntityObbGroundMixin",
     "MinecraftClientMixin",
     "accessor.CameraAccessor",
+    "accessor.EntityGroundAccessor",
     "accessor.GameRendererAccessor"
   ],
   "injectors": {
