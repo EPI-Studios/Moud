@@ -21,6 +21,8 @@ repositories {
     }
 }
 
+
+
 dependencies {
     minecraft "com.mojang:minecraft:1.21.1"
     mappings "net.fabricmc:yarn:1.21.1+build.1:v2"
@@ -30,13 +32,10 @@ dependencies {
     modImplementation("foundry.veil:veil-fabric-1.21.1:2.5.1")
     include "foundry.veil:veil-fabric-1.21.1:2.5.1"
 
-    implementation "fr.mrqsdf:BbModelReader:1.0-SNAPSHOT"
-
     include implementation(project(':core'))
     include implementation(project(':net'))
-    include(implementation("com.miry:miry:1.0-SNAPSHOT") {
-        exclude group: "org.lwjgl"
-    })
+    include implementation(files("${rootProject.projectDir}/libs/BbModelReader-1.0-SNAPSHOT.jar"))
+    include(implementation(files("${rootProject.projectDir}/libs/miry-1.0-SNAPSHOT.jar")))
 }
 
 loom {
