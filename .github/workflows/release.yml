@@ -31,6 +31,7 @@ permissions:
 jobs:
   build-release:
     runs-on: ubuntu-latest
+    environment: Production
 
     steps:
       - name: Checkout
