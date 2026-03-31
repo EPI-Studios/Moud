@@ -21,6 +21,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -81,10 +82,14 @@ final class PlayModeManager {
             restoreBaseline(scene);
             if (session != null && session.state() == SessionState.CONNECTED) {
                 instancer.syncScene(scenes, scene);
-                session.send(Lane.STATE, scene.snapshot(0L));
+                SceneSnapshot snapshot = scene.snapshot(0L);
+                session.send(Lane.STATE, snapshot);
+                scripts.refreshEditorRuntime(scene);
+                sendLatestMultiMesh(session, snapshot, scene.sceneId());
             }
         } else if (wasOpen && !editorOpen) {
             captureBaseline(scene);
+            ps.multiMeshSent = false;
         }
     }
 
@@ -204,9 +209,16 @@ final class PlayModeManager {
                 : null;
         playRuntime.tick(player.getUuid(), session, scene, playerCamId, followCam, scriptCam);
         rigidBodyReplicator.send(scene, session);
+        if (!ps.multiMeshSent) {
+            for (MultiMeshData mm : scripts.getLatestMultiMesh(scene.sceneId())) {
+                session.send(Lane.STATE, mm);
+            }
+            ps.multiMeshSent = true;
+        }
         for (MultiMeshData msg : pendingMultiMeshByScene.getOrDefault(scene.sceneId(), Collections.emptyList())) {
             session.send(Lane.STATE, msg);
         }
+        session.send(Lane.STATE, scene.snapshot(0L));
     }
 
     void onPlayerSpawn(Player player, PlayerState ps, ServerScene spawnScene) {
@@ -223,6 +235,19 @@ final class PlayModeManager {
 
     void onSceneChanged(UUID uuid, String sceneId) {
         playRuntime.onSceneChanged(uuid, sceneId);
+    }
+
+    void refreshEditorScene(Session session, ServerScene scene) {
+        if (session == null || scene == null) {
+            return;
+        }
+        if (session.state() != SessionState.CONNECTED) {
+            return;
+        }
+        scripts.refreshEditorRuntime(scene);
+        for (MultiMeshData mm : scripts.drainMultiMesh(scene.sceneId())) {
+            session.send(Lane.STATE, mm);
+        }
     }
 
     void requestRespawn(Player player, PlayerState ps) {
@@ -316,6 +341,27 @@ final class PlayModeManager {
             ps.activeSceneId = active;
         }
         session.send(Lane.STATE, new SceneList(scenes.snapshotInfo(), active));
+    }
+
+    private void sendLatestMultiMesh(Session session, SceneSnapshot snapshot, String sceneId) {
+        if (session == null || snapshot == null || sceneId == null || sceneId.isBlank()) {
+            return;
+        }
+        List<MultiMeshData> latest = scripts.getLatestMultiMesh(sceneId);
+        if (latest == null || latest.isEmpty() || snapshot.nodes() == null || snapshot.nodes().isEmpty()) {
+            return;
+        }
+        HashSet<Long> nodeIds = new HashSet<>(Math.max(16, snapshot.nodes().size() * 2));
+        for (SceneSnapshot.NodeSnapshot ns : snapshot.nodes()) {
+            if (ns != null && ns.nodeId() > 0L) {
+                nodeIds.add(ns.nodeId());
+            }
+        }
+        for (MultiMeshData mm : latest) {
+            if (mm != null && nodeIds.contains(mm.nodeId())) {
+                session.send(Lane.STATE, mm);
+            }
+        }
     }
 
     private SchemaSnapshot schemaSnapshot() {
