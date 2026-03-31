@@ -36,20 +36,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Client needs Java 21, server with Luau needs Java 25
-      - name: Set up Java 21
+      # Install Java 25 first (for server Luau toolchain), then Java 21
+      # so that JAVA_HOME ends up pointing at 21 (which Gradle supports).
+      - name: Set up Java 25 (server toolchain)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25-ea"
+
+      - name: Set up Java 21 (Gradle + client)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
           cache: gradle
-
-      - name: Set up Java 25
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "25-ea"
-          # Don't overwrite JAVA_HOME — Gradle toolchain auto-detects
 
       - name: Make Gradle executable
         run: chmod +x ./gradlew
