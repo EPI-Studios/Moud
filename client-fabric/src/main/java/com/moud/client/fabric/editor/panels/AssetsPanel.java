@@ -369,7 +369,8 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
                 if (path.endsWith(".moud.scene")) {
                     openSceneFromPath(path);
                 } else if (assetType == AssetType.TEXT) {
-                    if (path.endsWith(".js") && path.startsWith("res://scripts/")) {
+                    if (path.startsWith("res://scripts/")
+                            && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs") || path.endsWith(".luau"))) {
                         runtime.openScriptEditor(0L, path);
                     } else {
                         runtime.openTextAssetEditor(path, entry.meta() == null ? null : entry.meta().hash());
@@ -387,7 +388,8 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
             }
         }
 
-        if (hovered && pressed && path.endsWith(".js")) {
+        if (hovered && pressed
+                && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs") || path.endsWith(".luau"))) {
             if (dnd != null && !dnd.isBusy()) {
                 dnd.armDrag(EditorDnD.assetPath(path), "Attach: " + label, mx, my);
             }
@@ -864,7 +866,8 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
 
         AssetType type = entry.meta() != null ? entry.meta().type() : null;
         if (type == AssetType.TEXT) {
-            if (path.endsWith(".js") && path.startsWith("res://scripts/")) {
+            if (path.startsWith("res://scripts/")
+                    && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs") || path.endsWith(".luau"))) {
                 assetContextMenu.addItem("Edit Script", () -> runtime.openScriptEditor(0L, path));
                 return;
             }

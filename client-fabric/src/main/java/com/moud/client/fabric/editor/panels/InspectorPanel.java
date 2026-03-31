@@ -830,7 +830,7 @@ public final class InspectorPanel extends Panel {
         }
 
         try {
-            String selectedPath = TinyFileDialogs.tinyfd_openFileDialog("Attach Script (.js)", "", null, "JavaScript (.js)", false);
+            String selectedPath = TinyFileDialogs.tinyfd_openFileDialog("Attach Script (.js, .luau)", "", null, "Script (.js, .luau)", false);
             if (selectedPath == null || selectedPath.isBlank()) return;
 
             File file = new File(selectedPath);
@@ -845,15 +845,19 @@ public final class InspectorPanel extends Panel {
                 return;
             }
 
-            if (!filename.toLowerCase(Locale.ROOT).endsWith(".js")) {
+            String lower = filename.toLowerCase(Locale.ROOT);
+            boolean isLuau = lower.endsWith(".luau");
+            if (!(lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs") || isLuau)) {
                 filename = filename + ".js";
+                lower = filename.toLowerCase(Locale.ROOT);
+                isLuau = false;
             }
 
             String scriptPath = "res://scripts/" + filename;
             try {
                 new ResPath(scriptPath);
             } catch (Exception ignored) {
-                scriptPath = "res://scripts/node_" + nodeId + ".js";
+                scriptPath = "res://scripts/node_" + nodeId + (isLuau ? ".luau" : ".js");
             }
 
             String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
