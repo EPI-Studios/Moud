@@ -1,5 +1,6 @@
 package com.moud.client.fabric.editor.panels;
 
+import com.miry.ui.Ui;
 import com.miry.ui.UiContext;
 import com.miry.ui.render.UiRenderer;
 import com.miry.ui.theme.Theme;
@@ -12,7 +13,9 @@ import org.joml.Vector2f;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -45,7 +48,7 @@ class Canvas2DSync {
         this.canvasObjectsById = canvasObjectsById;
     }
 
-    void render2DCanvas(com.miry.ui.Ui ui,
+    void render2DCanvas(Ui ui,
                         UiRenderer r,
                         UiContext uiContext,
                         Theme theme,
@@ -215,7 +218,7 @@ class Canvas2DSync {
         if (state == null) {
             return;
         }
-        java.util.HashSet<CanvasEditor2D.CanvasObject> next = new java.util.HashSet<>();
+        HashSet<CanvasEditor2D.CanvasObject> next = new HashSet<>();
         if (state.selectedIds != null && !state.selectedIds.isEmpty()) {
             for (long id : state.selectedIds) {
                 SceneCanvasObject obj = canvasObjectsById.get(id);
@@ -243,7 +246,7 @@ class Canvas2DSync {
             return;
         }
 
-        java.util.LinkedHashSet<Long> nextIds = new java.util.LinkedHashSet<>();
+        LinkedHashSet<Long> nextIds = new LinkedHashSet<>();
         long primary = 0L;
         for (CanvasEditor2D.CanvasObject obj : sel) {
             if (obj instanceof SceneCanvasObject sco) {
