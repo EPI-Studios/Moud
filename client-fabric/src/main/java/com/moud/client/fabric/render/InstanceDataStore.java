@@ -1,5 +1,6 @@
 package com.moud.client.fabric.render;
 
+import com.moud.client.fabric.util.ClientDebugLog;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class InstanceDataStore {
@@ -30,8 +31,10 @@ public final class InstanceDataStore {
     public static void put(long nodeId, float[] data) {
         if (data == null || data.length == 0) {
             store.remove(nodeId);
+            ClientDebugLog.debug("MultiMeshData cleared nodeId=" + nodeId);
         } else {
             store.put(nodeId, data);
+            ClientDebugLog.debug("MultiMeshData ready nodeId=" + nodeId + " floats=" + data.length + " instances=" + (data.length / 13));
         }
     }
 

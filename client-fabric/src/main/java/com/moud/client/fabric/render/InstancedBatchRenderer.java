@@ -18,6 +18,7 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL20C;
@@ -51,7 +52,8 @@ final class InstancedBatchRenderer {
 
     int renderBatched(List<SceneSnapshot.NodeSnapshot> nodes,
                       Function<Long, VeilSceneNodeRenderer.Pose> poseResolver,
-                      Vec3d camPos, Camera camera, MinecraftClient client, float tickDelta) {
+                      Vec3d camPos, Camera camera, Matrix4fc viewMatrix, Matrix4fc projectionMatrix,
+                      MinecraftClient client, float tickDelta) {
 
         ShaderProgram program = getOrCompileProgram();
         if (program == null || !program.isValid()) return 0;
@@ -61,16 +63,12 @@ final class InstancedBatchRenderer {
         Map<String, List<NodeInstance>> batches = buildBatches(nodes, poseResolver, camPos);
         if (batches.isEmpty()) return 0;
 
-        Matrix4f viewMat, projMat;
         ShaderBlock<CameraMatrices> camBlock = VeilRenderSystem.getBlock(VeilShaderBufferRegistry.CAMERA.get());
         CameraMatrices veilCam = camBlock != null ? camBlock.getValue() : null;
-        if (veilCam != null) {
-            viewMat = new Matrix4f(veilCam.getViewMatrix());
-            projMat = new Matrix4f(veilCam.getProjectionMatrix());
-        } else {
-            viewMat = new Matrix4f();
-            projMat = new Matrix4f(RenderSystem.getProjectionMatrix());
-        }
+        Matrix4f viewMat = veilCam != null ? new Matrix4f(veilCam.getViewMatrix())
+                : (viewMatrix != null ? new Matrix4f(viewMatrix) : new Matrix4f());
+        Matrix4f projMat = veilCam != null ? new Matrix4f(veilCam.getProjectionMatrix())
+                : (projectionMatrix != null ? new Matrix4f(projectionMatrix) : new Matrix4f(RenderSystem.getProjectionMatrix()));
 
         RenderSystem.enableDepthTest();
         RenderSystem.depthMask(true);
@@ -92,7 +90,11 @@ final class InstancedBatchRenderer {
                 List<NodeInstance> instances = entry.getValue();
                 if (instances.isEmpty()) continue;
 
-                var mesh = resolveMesh(entry.getKey());
+                String batchKey = entry.getKey();
+                boolean doubleSided = batchKey.endsWith(":ds");
+                String meshKey = doubleSided ? batchKey.substring(0, batchKey.length() - 3) : batchKey;
+
+                var mesh = resolveMesh(meshKey);
                 ensureInstanceVbo(instances.size());
                 fillInstanceData(instances);
                 uploadInstanceData();
@@ -101,7 +103,9 @@ final class InstancedBatchRenderer {
                 int vao = vaoCache.computeIfAbsent(key,
                         k -> GlUtil.createInstancedMeshVao(pid, mesh.vbo, mesh.ebo, instanceVbo));
 
+                if (doubleSided) RenderSystem.disableCull();
                 GlUtil.drawElementsInstanced(vao, mesh.indexCount, instances.size());
+                if (doubleSided) RenderSystem.enableCull();
                 rendered += instances.size();
             }
         } finally {
@@ -141,7 +145,11 @@ final class InstancedBatchRenderer {
             String mesh = VeilSceneNodeRenderer.stringProp(node, "mesh");
             if (mesh == null || mesh.isBlank()) mesh = "cube";
 
-            batches.computeIfAbsent(mesh, k -> new ArrayList<>())
+            boolean doubleSided = VeilSceneNodeRenderer.parseBool(
+                    VeilSceneNodeRenderer.stringProp(node, "double_sided"), false);
+            String batchKey = doubleSided ? mesh + ":ds" : mesh;
+
+            batches.computeIfAbsent(batchKey, k -> new ArrayList<>())
                     .add(new NodeInstance(world, tintR, tintG, tintB, opacity));
         }
         return batches;
