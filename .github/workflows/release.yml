@@ -159,9 +159,9 @@ jobs:
             --server-archive "dist/${{ steps.package.outputs.server_archive }}" \
             --output "dist/release.json"
 
-          echo "${RELEASE_SIGNING_PRIVATE_KEY}" > dist/release-key.pem
+          echo "${RELEASE_SIGNING_PRIVATE_KEY}" | base64 -d > dist/release-key.pem
           openssl pkey -in dist/release-key.pem -noout 2>/dev/null || {
-            echo "Invalid private key format" >&2
+            echo "Invalid private key — store the PEM file as base64 in the secret" >&2
             exit 1
           }
           openssl pkeyutl -sign -rawin -inkey dist/release-key.pem -in dist/release.json -out dist/release.sig.bin
