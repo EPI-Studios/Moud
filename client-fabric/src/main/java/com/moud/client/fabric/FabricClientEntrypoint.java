@@ -7,6 +7,7 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        System.out.println("[MOUD] Engine initialized — auto-update pipeline working!");
         client.init();
     }
 }
