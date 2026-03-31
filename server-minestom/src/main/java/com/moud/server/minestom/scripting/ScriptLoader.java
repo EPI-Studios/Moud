@@ -37,7 +37,11 @@ final class ScriptLoader {
         Program cached = programs.get(scriptFile);
         if (cached != null && cached.modifiedMs() == modified) return cached;
         Program loaded = loadProgram(scriptFile, modified);
-        if (loaded != null) programs.put(scriptFile, loaded);
+        if (loaded != null) {
+            programs.put(scriptFile, loaded);
+            DebugLog.info(LOG_TAG, (cached == null ? "loaded" : "reloaded")
+                    + " language=javascript file=" + scriptFile.toAbsolutePath().normalize());
+        }
         return loaded;
     }
 

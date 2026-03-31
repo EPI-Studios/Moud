@@ -7,6 +7,7 @@ import com.moud.net.protocol.ScriptActionInvoke;
 import com.moud.net.protocol.ScriptActionInvokeAck;
 import com.moud.net.protocol.ScriptActionListRequest;
 import com.moud.net.protocol.ScriptActionListResponse;
+import com.moud.core.scene.Node;
 import com.moud.server.minestom.engine.ServerScene;
 import org.graalvm.polyglot.Engine;
 import com.moud.server.minestom.project.ProjectService;
@@ -16,15 +17,19 @@ import java.util.Objects;
 import java.util.UUID;
 
 public final class ScriptService {
-    private final ToolScriptService tools;
+    private final ScriptLanguageRegistry languages;
+    private final ToolScriptService jsTools;
+    private final LuauToolScriptService luauTools;
     private final RuntimeScriptService runtime;
 
     public ScriptService(ProjectService project) {
         Objects.requireNonNull(project, "project");
+        this.languages = new ScriptLanguageRegistry();
         Engine toolsEngine = Engine.create();
         Engine runtimeEngine = Engine.create();
-        this.tools = new ToolScriptService(project, toolsEngine);
-        this.runtime = new RuntimeScriptService(project, runtimeEngine);
+        this.jsTools = new ToolScriptService(project, toolsEngine);
+        this.luauTools = languages.supportFor(ScriptLanguage.LUAU).available() ? new LuauToolScriptService(project) : null;
+        this.runtime = new RuntimeScriptService(project, runtimeEngine, languages);
     }
 
     /** @return a pending scene-transition ID, or {@code null} if none was requested. */
@@ -71,15 +76,87 @@ public final class ScriptService {
         return runtime.drainMultiMesh(sceneId);
     }
 
+    public void refreshEditorRuntime(ServerScene scene) {
+        runtime.refreshEditor(scene);
+    }
+
     public void onSceneDeleted(String sceneId) {
         runtime.onSceneDeleted(sceneId);
     }
 
     public ScriptActionListResponse onListActions(ServerScene scene, ScriptActionListRequest request) {
-        return tools.onListActions(scene, request);
+        ScriptActionListResponse unsupported = unsupportedListResponse(scene, request);
+        if (unsupported != null) {
+            return unsupported;
+        }
+        ScriptReference script = scriptForNode(scene, request == null ? 0L : request.nodeId());
+        if (script != null && script.language() == ScriptLanguage.LUAU && luauTools != null) {
+            return luauTools.onListActions(scene, request);
+        }
+        return jsTools.onListActions(scene, request);
     }
 
     public ScriptActionInvokeAck onInvokeAction(ServerScene scene, ScriptActionInvoke request) {
-        return tools.onInvokeAction(scene, request);
+        ScriptActionInvokeAck unsupported = unsupportedInvokeAck(scene, request);
+        if (unsupported != null) {
+            return unsupported;
+        }
+        ScriptReference script = scriptForNode(scene, request == null ? 0L : request.nodeId());
+        if (script != null && script.language() == ScriptLanguage.LUAU && luauTools != null) {
+            return luauTools.onInvokeAction(scene, request);
+        }
+        return jsTools.onInvokeAction(scene, request);
+    }
+
+    private ScriptActionListResponse unsupportedListResponse(ServerScene scene, ScriptActionListRequest request) {
+        if (scene == null || request == null) {
+            return null;
+        }
+        ScriptReference script = scriptForNode(scene, request.nodeId());
+        if (script == null) {
+            return null;
+        }
+        ScriptLanguageSupport support = languages.supportFor(script.language());
+        if (support.available()) {
+            return null;
+        }
+        return new ScriptActionListResponse(
+                request.requestId(),
+                request.nodeId(),
+                false,
+                support.messageForPath(script.path()),
+                List.of()
+        );
+    }
+
+    private ScriptActionInvokeAck unsupportedInvokeAck(ServerScene scene, ScriptActionInvoke request) {
+        if (scene == null || request == null) {
+            return null;
+        }
+        ScriptReference script = scriptForNode(scene, request.nodeId());
+        if (script == null) {
+            return null;
+        }
+        ScriptLanguageSupport support = languages.supportFor(script.language());
+        if (support.available()) {
+            return null;
+        }
+        return new ScriptActionInvokeAck(
+                request.requestId(),
+                request.nodeId(),
+                false,
+                support.messageForPath(script.path())
+        );
+    }
+
+    private static ScriptReference scriptForNode(ServerScene scene, long nodeId) {
+        if (scene == null || nodeId <= 0L) {
+            return null;
+        }
+        Node node = scene.engine().sceneTree().getNode(nodeId);
+        if (node == null) {
+            return null;
+        }
+        return ScriptPaths.parseScript(node.getProperty("script"));
     }
 }
