@@ -13,16 +13,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Server supervisor — standalone jar that:
- * <ol>
- *   <li>Checks for updates via GitHub Releases</li>
- *   <li>Downloads + verifies + extracts the server engine</li>
- *   <li>Launches the engine as a child JVM</li>
- *   <li>Monitors the child — rollback on rapid crash</li>
- *   <li>Loops: when child exits, check for updates, relaunch</li>
- * </ol>
- */
 public final class ServerSupervisor {
 
     private static final String GITHUB_OWNER = "moudproject";
@@ -44,7 +34,6 @@ public final class ServerSupervisor {
         int rapidCrashes = 0;
 
         while (true) {
-            // Check for updates
             try {
                 var check = orchestrator.check(false);
                 if (check.updateAvailable()) {
@@ -69,7 +58,6 @@ public final class ServerSupervisor {
                 log("Update check failed: " + e.getMessage());
             }
 
-            // Find engine to launch
             Path engineDir = orchestrator.currentEngineDir();
             if (engineDir == null) {
                 log("No engine version installed. Waiting 30s before retry...");
@@ -77,7 +65,6 @@ public final class ServerSupervisor {
                 continue;
             }
 
-            // Launch child JVM
             log("Launching engine from: " + engineDir);
             Instant launchTime = Instant.now();
             int exitCode = launchEngine(engineDir);
@@ -104,13 +91,11 @@ public final class ServerSupervisor {
                 rapidCrashes = 0;
             }
 
-            // Brief pause before restarting
             Thread.sleep(2_000);
         }
     }
 
     private static int launchEngine(Path engineDir) throws IOException, InterruptedException {
-        // Find the server jar in the engine directory
         Path serverJar = findServerJar(engineDir);
         if (serverJar == null) {
             log("No server jar found in " + engineDir);
@@ -122,11 +107,10 @@ public final class ServerSupervisor {
         command.add("-jar");
         command.add(serverJar.toAbsolutePath().toString());
 
-        // Inherit JVM args from supervisor for engine-specific flags
         String engineJvmArgs = System.getenv("MOUD_ENGINE_JVM_ARGS");
         if (engineJvmArgs != null && !engineJvmArgs.isBlank()) {
             for (String arg : engineJvmArgs.split("\\s+")) {
-                if (!arg.isBlank()) command.add(2, arg); // insert before -jar
+                if (!arg.isBlank()) command.add(2, arg);
             }
         }
 
@@ -134,7 +118,6 @@ public final class ServerSupervisor {
                 .directory(engineDir.toFile())
                 .inheritIO();
 
-        // Forward relevant env vars
         pb.environment().put("MOUD_ENGINE_DIR", engineDir.toAbsolutePath().toString());
 
         Process process = pb.start();
@@ -142,15 +125,12 @@ public final class ServerSupervisor {
     }
 
     private static Path findServerJar(Path engineDir) throws IOException {
-        // Look for engine/moud-server.jar or any jar in engine/
         Path direct = engineDir.resolve("engine").resolve("moud-server.jar");
         if (Files.isRegularFile(direct)) return direct;
 
-        // Also check directly in engineDir
         Path flat = engineDir.resolve("moud-server.jar");
         if (Files.isRegularFile(flat)) return flat;
 
-        // Search for any jar
         Path engineSubDir = engineDir.resolve("engine");
         Path searchDir = Files.isDirectory(engineSubDir) ? engineSubDir : engineDir;
         try (var stream = Files.list(searchDir)) {

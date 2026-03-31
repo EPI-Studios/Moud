@@ -14,20 +14,10 @@ rootProject.name = 'moud'
 include 'core'
 include 'net'
 include 'server-minestom'
+include 'server-supervisor'
 include 'client-fabric'
 
-def bbModelReaderDir = file("../../../BbModelReader")
-if (bbModelReaderDir.exists()) {
-    includeBuild(bbModelReaderDir)
-    println("moud: using local BbModelReader checkout at ${bbModelReaderDir}")
-}
-
-def miryDir = file("../../../fliffel")
-if (miryDir.exists()) {
-    includeBuild(miryDir)
-    println("moud: using local Miry checkout at ${miryDir}")
-    def editorClientDir = file("editor-client")
-    if (editorClientDir.exists()) {
-        include 'editor-client'
-    }
+def editorClientDir = file("editor-client")
+if (editorClientDir.exists()) {
+    include 'editor-client'
 }
