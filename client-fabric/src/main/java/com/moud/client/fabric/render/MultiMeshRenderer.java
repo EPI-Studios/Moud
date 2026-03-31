@@ -18,6 +18,7 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL15;
@@ -28,10 +29,17 @@ import java.io.InputStream;
 import java.nio.FloatBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class MultiMeshRenderer {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(MultiMeshRenderer.class);
 
     // WorldMat(16) + Tint(4), camera offset applied in shader
     private static final int FLOATS_PER_GPU_INSTANCE = 20;
@@ -42,9 +50,13 @@ final class MultiMeshRenderer {
     private final String defaultFrag;
     private ShaderProgram defaultProgram;
 
+    private static final float UNIFORM_LERP_SPEED = 25.0f;
+
     private final Map<Long, VeilMaterialBinding> materialBindings = new HashMap<>();
     private final Map<Long, NodeGpuState> nodeStates = new HashMap<>();
+    private final Map<Long, Map<String, float[]>> smoothedUniforms = new HashMap<>();
     private final SceneLights sceneLights;
+    private final Set<String> loggedShaderErrors = new HashSet<>();
 
     private static final class NodeGpuState {
         int vbo = 0;
@@ -72,27 +84,27 @@ final class MultiMeshRenderer {
     }
 
     void renderAll(List<SceneSnapshot.NodeSnapshot> nodes,
-                   java.util.function.Function<Long, VeilSceneNodeRenderer.Pose> poseResolver,
-                   Vec3d camPos, Camera camera, MinecraftClient client, float tickDelta) {
+                   Function<Long, VeilSceneNodeRenderer.Pose> poseResolver,
+                   Vec3d camPos, Camera camera, Matrix4fc viewMatrix, Matrix4fc projectionMatrix,
+                   MinecraftClient client, float tickDelta) {
 
         MoudMeshBuffer.ensureInitialized();
 
-        Matrix4f viewMat, projMat;
         ShaderBlock<CameraMatrices> camBlock = VeilRenderSystem.getBlock(VeilShaderBufferRegistry.CAMERA.get());
         CameraMatrices veilCam = camBlock != null ? camBlock.getValue() : null;
-        if (veilCam != null) {
-            viewMat = new Matrix4f(veilCam.getViewMatrix());
-            projMat = new Matrix4f(veilCam.getProjectionMatrix());
-        } else {
-            viewMat = new Matrix4f();
-            projMat = new Matrix4f(RenderSystem.getProjectionMatrix());
-        }
+        Matrix4f viewMat = veilCam != null ? new Matrix4f(veilCam.getViewMatrix())
+                : (viewMatrix != null ? new Matrix4f(viewMatrix) : new Matrix4f());
+        Matrix4f projMat = veilCam != null ? new Matrix4f(veilCam.getProjectionMatrix())
+                : (projectionMatrix != null ? new Matrix4f(projectionMatrix) : new Matrix4f(RenderSystem.getProjectionMatrix()));
 
         RenderSystem.enableDepthTest();
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
 
         ShaderProgram currentProgram = null;
         int currentPid = 0;
 
+        try {
         for (SceneSnapshot.NodeSnapshot node : nodes) {
             if (node == null || !"MultiMeshInstance3D".equals(node.type())) continue;
             if (!VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "visible"), true)) continue;
@@ -114,7 +126,9 @@ final class MultiMeshRenderer {
                 program = getOrCompileDefaultProgram();
             }
 
-            if (program == null || !program.isValid()) continue;
+            if (program == null || !program.isValid()) {
+                continue;
+            }
 
             if (program != currentProgram) {
                 if (currentProgram != null) ShaderProgram.unbind();
@@ -146,16 +160,32 @@ final class MultiMeshRenderer {
 
             List<SceneSnapshot.Uniform> uniforms = node.uniforms();
             if (uniforms != null) {
+                Map<String, float[]> nodeSmoothed = smoothedUniforms.computeIfAbsent(node.nodeId(), k -> new HashMap<>());
+                float dt = tickDelta / 20.0f;
+                float alpha = Math.min(1.0f, UNIFORM_LERP_SPEED * dt);
                 for (SceneSnapshot.Uniform u : uniforms) {
                     if (u == null || u.key() == null) continue;
                     List<Float> vals = u.values();
                     if (vals == null) continue;
-                    switch (vals.size()) {
-                        case 1 -> GlUtil.uniform1f(currentPid, u.key(), vals.get(0));
-                        case 2 -> GlUtil.uniform2f(currentPid, u.key(), vals.get(0), vals.get(1));
-                        case 3 -> GlUtil.uniform3f(currentPid, u.key(), vals.get(0), vals.get(1), vals.get(2));
-                        case 4 -> GlUtil.uniform4f(currentPid, u.key(), vals.get(0), vals.get(1), vals.get(2), vals.get(3));
-                        default -> {}
+                    if (vals.size() == 3) {
+                        float[] target = {vals.get(0), vals.get(1), vals.get(2)};
+                        float[] current = nodeSmoothed.get(u.key());
+                        if (current == null) {
+                            current = target.clone();
+                            nodeSmoothed.put(u.key(), current);
+                        } else {
+                            current[0] += (target[0] - current[0]) * alpha;
+                            current[1] += (target[1] - current[1]) * alpha;
+                            current[2] += (target[2] - current[2]) * alpha;
+                        }
+                        GlUtil.uniform3f(currentPid, u.key(), current[0], current[1], current[2]);
+                    } else {
+                        switch (vals.size()) {
+                            case 1 -> GlUtil.uniform1f(currentPid, u.key(), vals.get(0));
+                            case 2 -> GlUtil.uniform2f(currentPid, u.key(), vals.get(0), vals.get(1));
+                            case 4 -> GlUtil.uniform4f(currentPid, u.key(), vals.get(0), vals.get(1), vals.get(2), vals.get(3));
+                            default -> {}
+                        }
                     }
                 }
             }
@@ -191,7 +221,10 @@ final class MultiMeshRenderer {
             if (isCross) GL11.glEnable(GL11.GL_CULL_FACE);
         }
 
-        if (currentProgram != null) ShaderProgram.unbind();
+        } finally {
+            if (currentProgram != null) ShaderProgram.unbind();
+            RenderSystem.disableBlend();
+        }
     }
 
     // if the material only has a fragment shader, splice in the default instanced vertex shader
@@ -205,24 +238,45 @@ final class MultiMeshRenderer {
         String vertSrc = stages.get(GL20C.GL_VERTEX_SHADER);
         boolean isBlit = vertSrc == null || vertSrc.contains("gl_VertexID");
 
+        Identifier compileId;
+        Int2ObjectMap<String> compileStages;
         if (isBlit) {
-            Identifier instId = Identifier.of(baseId.getNamespace(), "inst/" + baseId.getPath());
-            Int2ObjectMap<String> instStages = new Int2ObjectArrayMap<>(stages);
-            instStages.put(GL20C.GL_VERTEX_SHADER, defaultVert);
-            return VeilDynamicShaders.getOrCompile(instId, instStages);
+            compileId = Identifier.of(baseId.getNamespace(), "inst/" + baseId.getPath());
+            compileStages = new Int2ObjectArrayMap<>(stages);
+            compileStages.put(GL20C.GL_VERTEX_SHADER, defaultVert);
+        } else {
+            compileId = baseId;
+            compileStages = stages;
         }
 
-        return VeilDynamicShaders.getOrCompile(baseId, stages);
+        ShaderProgram program = VeilDynamicShaders.getOrCompile(compileId, compileStages);
+        if (program == null) {
+            String err = VeilDynamicShaders.getLastError(compileId);
+            if (err != null && loggedShaderErrors.add(compileId + ":" + err)) {
+                LOGGER.error("[Moud] MultiMesh shader compilation failed material={} shader={} program={} error={}",
+                        binding.materialPath(),
+                        binding.shaderPath(),
+                        compileId,
+                        err);
+            }
+        }
+        return program;
     }
 
     private ShaderProgram getOrCompileDefaultProgram() {
         if (defaultProgram != null && defaultProgram.isValid()) return defaultProgram;
         if (defaultVert.isEmpty() || defaultFrag.isEmpty()) return null;
+        Identifier id = Identifier.of("moud", "builtin/default_mesh_instanced");
         Int2ObjectMap<String> stages = new Int2ObjectArrayMap<>();
         stages.put(GL20C.GL_VERTEX_SHADER, defaultVert);
         stages.put(GL20C.GL_FRAGMENT_SHADER, defaultFrag);
-        defaultProgram = VeilDynamicShaders.getOrCompile(
-                Identifier.of("moud", "builtin/default_mesh_instanced"), stages);
+        defaultProgram = VeilDynamicShaders.getOrCompile(id, stages);
+        if (defaultProgram == null) {
+            String err = VeilDynamicShaders.getLastError(id);
+            if (err != null && loggedShaderErrors.add(id + ":" + err)) {
+                LOGGER.error("[Moud] MultiMesh default shader compilation failed program={} error={}", id, err);
+            }
+        }
         return defaultProgram;
     }
 
@@ -304,6 +358,7 @@ final class MultiMeshRenderer {
         }
         nodeStates.clear();
         materialBindings.clear();
+        smoothedUniforms.clear();
         defaultProgram = null;
     }
 
