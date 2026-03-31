@@ -96,7 +96,7 @@ jobs:
           VERSION="${{ steps.meta.outputs.version }}"
           TAG="${{ steps.meta.outputs.tag }}"
 
-          CLIENT_JAR="$(find client-fabric/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-dev.jar' ! -name '*-sources.jar' | sort | head -n1)"
+          CLIENT_JAR="$(find client-fabric/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' | sort | head -n1)"
           SERVER_JAR="$(find server-minestom/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' ! -name '*-sources.jar' | sort | head -n1)"
           SUPERVISOR_JAR="$(find server-supervisor/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' ! -name '*-sources.jar' | sort | head -n1)"
 
