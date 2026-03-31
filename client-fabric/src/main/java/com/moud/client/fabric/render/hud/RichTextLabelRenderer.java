@@ -1,6 +1,7 @@
 package com.moud.client.fabric.render.hud;
 
 import com.moud.net.protocol.SceneSnapshot;
+import net.minecraft.text.Text;
 
 public final class RichTextLabelRenderer implements ControlRenderer {
 
@@ -17,9 +18,9 @@ public final class RichTextLabelRenderer implements ControlRenderer {
         ctx.border(x, y, w, h, ControlRenderContext.BORDER);
 
         if (!raw.isEmpty()) {
-            net.minecraft.text.Text text = bbcode
+            Text text = bbcode
                     ? BbCodeParser.parse(raw)
-                    : net.minecraft.text.Text.literal(raw);
+                    : Text.literal(raw);
             ctx.richText(text, x + 3, y + (h - ctx.fontHeight()) / 2, false);
         }
     }
