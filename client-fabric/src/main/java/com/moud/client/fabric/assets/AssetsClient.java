@@ -1,6 +1,7 @@
 package com.moud.client.fabric.assets;
 
 
+import com.moud.client.fabric.util.ClientDebugLog;
 import com.moud.core.assets.AssetHash;
 import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
@@ -67,6 +68,7 @@ public final class AssetsClient {
         if (session == null) {
             return;
         }
+        ClientDebugLog.debug("Assets request manifest requestId=" + nextRequestId);
         session.send(Lane.ASSETS, new AssetManifestRequest(nextRequestId++));
     }
 
@@ -88,6 +90,7 @@ public final class AssetsClient {
         if (session == null) {
             return;
         }
+        ClientDebugLog.debug("Assets request download hash=" + hash.hex());
         downloads.put(hash, new DownloadTask(hash));
         session.send(Lane.ASSETS, new AssetDownloadRequest(hash));
     }
@@ -117,6 +120,7 @@ public final class AssetsClient {
 
     public void onMessage(Message message) {
         if (message instanceof AssetManifestResponse response) {
+            ClientDebugLog.debug("Assets recv manifest entries=" + (response.entries() == null ? 0 : response.entries().size()));
             for (Listener listener : listeners) {
                 listener.onManifest(response);
             }
@@ -175,6 +179,9 @@ public final class AssetsClient {
         if (begin.hash() == null) {
             return;
         }
+        ClientDebugLog.debug("Assets recv download-begin hash=" + begin.hash().hex()
+                + " status=" + begin.status()
+                + " size=" + begin.sizeBytes());
         DownloadTask task = downloads.get(begin.hash());
         if (task == null) {
             return;
@@ -203,6 +210,9 @@ public final class AssetsClient {
         if (hash == null) {
             return;
         }
+        ClientDebugLog.debug("Assets recv download-complete hash=" + hash.hex()
+                + " status=" + complete.status()
+                + " message=" + complete.message());
         DownloadTask task = downloads.remove(hash);
         if (task == null) {
             return;

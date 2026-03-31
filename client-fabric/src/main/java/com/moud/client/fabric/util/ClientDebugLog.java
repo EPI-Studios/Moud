@@ -1,6 +1,11 @@
 package com.moud.client.fabric.util;
 
+import java.util.Locale;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public final class ClientDebugLog {
+    private static final Logger LOGGER = LoggerFactory.getLogger("MoudClient");
     private static final boolean DEBUG = parseBool(System.getenv("MOUD_DEBUG_CLIENT"))
             || parseBool(System.getenv("MOUD_DEBUG"))
             || parseBool(System.getProperty("moud.client.debug"))
@@ -17,26 +22,23 @@ public final class ClientDebugLog {
         if (!DEBUG) {
             return;
         }
-        System.out.println("[moud-client][debug] " + safe(message));
+        LOGGER.debug(safe(message));
     }
 
     public static void info(String message) {
-        System.out.println("[moud-client][info] " + safe(message));
+        LOGGER.info(safe(message));
     }
 
     public static void warn(String message) {
-        System.err.println("[moud-client][warn] " + safe(message));
+        LOGGER.warn(safe(message));
     }
 
     public static void error(String message) {
-        System.err.println("[moud-client][error] " + safe(message));
+        LOGGER.error(safe(message));
     }
 
     public static void error(String message, Throwable t) {
-        System.err.println("[moud-client][error] " + safe(message));
-        if (t != null) {
-            t.printStackTrace(System.err);
-        }
+        LOGGER.error(safe(message), t);
     }
 
     private static String safe(String message) {
@@ -47,8 +49,7 @@ public final class ClientDebugLog {
         if (v == null) {
             return false;
         }
-        String s = v.trim().toLowerCase();
+        String s = v.trim().toLowerCase(Locale.ROOT);
         return "1".equals(s) || "true".equals(s) || "yes".equals(s) || "y".equals(s) || "on".equals(s);
     }
 }
-
