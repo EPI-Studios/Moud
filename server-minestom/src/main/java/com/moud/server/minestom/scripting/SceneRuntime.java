@@ -336,17 +336,60 @@ final class SceneRuntime {
         }
     }
 
+    private static final double EMA_ALPHA    = 0.2;
+    private static final double WARN_MS      = 80.0;
+    private static final double KILL_MS      = 100.0;
+    private static final int    STRIKE_LIMIT = 3;
+    private static final int    RECOVERY_RUNS = 10;
+
+    static final class TimingBudget {
+        double emaMs;
+        int strikes;
+        int cleanStreak;
+
+        boolean record(double elapsedMs) {
+            emaMs = EMA_ALPHA * elapsedMs + (1 - EMA_ALPHA) * emaMs;
+
+            if (emaMs > KILL_MS) {
+                strikes++;
+                cleanStreak = 0;
+                return strikes >= STRIKE_LIMIT;
+            }
+
+            if (emaMs < WARN_MS) {
+                cleanStreak++;
+                if (cleanStreak >= RECOVERY_RUNS) {
+                    strikes = Math.max(0, strikes - 1);
+                    cleanStreak = 0;
+                }
+            }
+            return false;
+        }
+    }
+
     private void invokeProcess(ServerScene scene, NodeInstance inst, String primary, String fallback, double dtSeconds) {
         if (scene == null || inst == null || primary == null) return;
         String member = resolveMember(inst.instance, primary, fallback);
         if (member == null) return;
+
+        if (inst.language == ScriptLanguage.JAVASCRIPT) {
+            ctx.getBindings("js").putMember("Input", inst.inputApi);
+        }
+
+        long start = System.nanoTime();
         try {
-            if (inst.language == ScriptLanguage.JAVASCRIPT) {
-                ctx.getBindings("js").putMember("Input", inst.inputApi);
-            }
             inst.instance.invokeMethod(member, inst.api, dtSeconds);
         } catch (ScriptInvocationException e) {
             disableInstance(scene, inst, member, e);
+            return;
+        }
+
+        double elapsedMs = (System.nanoTime() - start) / 1_000_000.0;
+        if (inst.budget.record(elapsedMs)) {
+            disableInstance(scene, inst.nodeId, inst.scriptFile, member,
+                    new IllegalStateException(
+                            "Script disabled: %s averaged %.1fms over threshold (%dms) %d times"
+                                    .formatted(member, inst.budget.emaMs, (long) KILL_MS, STRIKE_LIMIT)));
         }
     }
 
@@ -801,6 +844,7 @@ final class SceneRuntime {
         final RuntimeApi api;
         boolean readyCalled;
         boolean disabled;
+        final TimingBudget budget = new TimingBudget();
         long lastInputClientTick;
         ScriptInputApi inputApi;
 
