@@ -349,6 +349,9 @@ final class MessageRouter {
                 }
             }
             session.send(Lane.EVENTS, ack);
+            if (ps.editorOpen) {
+                playModeManager.refreshEditorScene(session, scene);
+            }
             return;
         }
 
