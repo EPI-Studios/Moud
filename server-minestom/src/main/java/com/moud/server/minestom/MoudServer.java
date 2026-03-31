@@ -1,6 +1,7 @@
 package com.moud.server.minestom;
 
 import com.moud.core.assets.AssetHash;
+import com.moud.core.assets.AssetManifest;
 import com.moud.core.assets.AssetMeta;
 import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
@@ -20,6 +21,7 @@ import com.moud.server.minestom.runtime.PlayRuntime;
 import com.moud.server.minestom.scripting.ScriptFileService;
 import com.moud.server.minestom.scripting.ScriptService;
 import com.moud.server.minestom.util.DebugLog;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -109,13 +111,9 @@ public final class MoudServer {
         return builder().devMode(dev).projectRoot(root);
     }
 
-    /**
-     * Initialises all Moud services and registers event listeners.
-     * Call after {@code MinecraftServer.init()} but before {@code minecraftServer.start()}.
-     * No {@code PlayerProvider} is set — Moud works with any existing Player subclass.
-     */
     public void register(GlobalEventHandler events, InstanceManager instanceManager) {
         System.setProperty("polyglot.engine.WarnInterpreterOnly", "false");
+        logResolvedPaths();
 
         scenes = new ServerScenes(instanceManager);
         mainScene = scenes.ensureDefault("main", "Main");
@@ -130,6 +128,7 @@ public final class MoudServer {
         try {
             assets = new AssetService(new FileSystemAssetStore(projectRoot.resolve("assets")), devMode);
             assets.setUploadCompleteCallback(sceneStorage::onAssetUploaded);
+            logAssetStoreState();
         } catch (Exception e) {
             throw new IllegalStateException("Failed to init asset store", e);
         }
@@ -173,11 +172,30 @@ public final class MoudServer {
         registerCommands();
     }
 
-    /**
-     * Registers a 50 ms repeating tick task with Minestom's scheduler.
-     * Call after {@link #register} if you want Moud to manage its own tick.
-     * Alternatively call {@link #tick()} manually from your own scheduler at 20 Hz.
-     */
+    private void logResolvedPaths() {
+        Path cwd = Path.of(System.getProperty("user.dir", ".")).toAbsolutePath().normalize();
+        Path assetRoot = projectRoot.resolve("assets").toAbsolutePath().normalize();
+        Path scenesRoot = projectRoot.resolve("scenes").toAbsolutePath().normalize();
+        Path scriptsRoot = projectRoot.resolve("scripts").toAbsolutePath().normalize();
+        DebugLog.info("moud", "cwd=" + cwd);
+        DebugLog.info("moud", "projectRoot=" + projectRoot);
+        DebugLog.debug("moud", "javaVersion=" + Runtime.version().feature()
+                + " vm=" + System.getProperty("java.vm.name", ""));
+        DebugLog.info("moud", "assetRoot=" + assetRoot + " exists=" + Files.isDirectory(assetRoot));
+        DebugLog.info("moud", "scenesRoot=" + scenesRoot + " exists=" + Files.isDirectory(scenesRoot));
+        DebugLog.info("moud", "scriptsRoot=" + scriptsRoot + " exists=" + Files.isDirectory(scriptsRoot));
+    }
+
+    private void logAssetStoreState() {
+        AssetService assetService = assets;
+        if (assetService == null) {
+            return;
+        }
+        AssetManifest manifest = assetService.store().manifest();
+        int count = manifest == null || manifest.entries() == null ? 0 : manifest.entries().size();
+        DebugLog.info("assets", "manifestEntries=" + count);
+    }
+
     public void registerTickTask() {
         MinecraftServer.getSchedulerManager()
                 .buildTask(this::tick)
@@ -185,10 +203,6 @@ public final class MoudServer {
                 .schedule();
     }
 
-    /**
-     * Runs one Moud tick (20 Hz). Called automatically when using
-     * {@link #registerTickTask()}, or can be driven by your own scheduler.
-     */
     public void tick() {
         ServerTickLoop loop = tickLoop;
         if (loop != null) {
