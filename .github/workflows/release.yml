@@ -37,15 +37,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Install Java 25 first (for server Luau toolchain), then Java 21
-      # so that JAVA_HOME ends up pointing at 21 (which Gradle supports).
-      - name: Set up Java 25 (server toolchain)
+      - name: Set up Java 25
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "25-ea"
 
-      - name: Set up Java 21 (Gradle + client)
+      - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -131,7 +129,6 @@ jobs:
           echo "client_archive=${CLIENT_ARCHIVE}" >> "$GITHUB_OUTPUT"
           echo "server_archive=${SERVER_ARCHIVE}" >> "$GITHUB_OUTPUT"
 
-          # Supervisor jar is uploaded directly (no tar wrapping)
           if [[ -n "${SUPERVISOR_JAR}" && -f "${SUPERVISOR_JAR}" ]]; then
             cp "${SUPERVISOR_JAR}" "dist/moud-supervisor-${VERSION}.jar"
             echo "supervisor_jar=moud-supervisor-${VERSION}.jar" >> "$GITHUB_OUTPUT"
@@ -162,12 +159,9 @@ jobs:
             --server-archive "dist/${{ steps.package.outputs.server_archive }}" \
             --output "dist/release.json"
 
-          # Write the PEM key — GitHub secrets may strip trailing newlines
           echo "${RELEASE_SIGNING_PRIVATE_KEY}" > dist/release-key.pem
-          # Verify the key is valid before signing
           openssl pkey -in dist/release-key.pem -noout 2>/dev/null || {
-            echo "Invalid private key — check the MOUD_RELEASE_SIGNING_PRIVATE_KEY secret format" >&2
-            echo "Expected full PEM including -----BEGIN PRIVATE KEY----- and -----END PRIVATE KEY-----" >&2
+            echo "Invalid private key format" >&2
             exit 1
           }
           openssl pkeyutl -sign -rawin -inkey dist/release-key.pem -in dist/release.json -out dist/release.sig.bin
