@@ -173,7 +173,8 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("sz", new PropertyDef("sz", PropertyType.FLOAT, "1", "Scale Z", "Transform", 22, Map.of("min", "0.001", "step", "0.1"))),
                 Map.entry("mesh", new PropertyDef("mesh", PropertyType.STRING, "box", "Mesh", "Mesh", 30, Map.of())),
                 Map.entry("billboard", new PropertyDef("billboard", PropertyType.BOOL, "false", "Billboard", "Mesh", 31, Map.of())),
-                Map.entry("texture", new PropertyDef("texture", PropertyType.STRING, "moud:dynamic/white", "Texture", "Material", 32, Map.of("asset", "image"))),
+                Map.entry("double_sided", new PropertyDef("double_sided", PropertyType.BOOL, "false", "Double Sided", "Mesh", 32, Map.of())),
+                Map.entry("texture", new PropertyDef("texture", PropertyType.STRING, "moud:dynamic/white", "Texture", "Material", 33, Map.of("asset", "image"))),
                 Map.entry("material", new PropertyDef("material", PropertyType.STRING, "", "Material", "Material", 33, Map.of("asset", "material"))),
                 Map.entry("opacity", new PropertyDef("opacity", PropertyType.FLOAT, "1", "Opacity", "Material", 34, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("uv_scale_x", new PropertyDef("uv_scale_x", PropertyType.FLOAT, "1", "UV Scale X", "Material", 40, Map.of("min", "0.001", "step", "0.1"))),
@@ -208,9 +209,17 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("rz", new PropertyDef("rz", PropertyType.FLOAT, "0", "Rot Z", "Transform", 12, Map.of("step", "1"))),
                 Map.entry("sx", new PropertyDef("sx", PropertyType.FLOAT, "1", "Width", "Transform", 20, Map.of("min", "0.001", "step", "0.1"))),
                 Map.entry("sy", new PropertyDef("sy", PropertyType.FLOAT, "1", "Height", "Transform", 21, Map.of("min", "0.001", "step", "0.1"))),
+                Map.entry("sz", new PropertyDef("sz", PropertyType.FLOAT, "1", "Depth", "Transform", 22, Map.of("min", "0.001", "step", "0.1"))),
+                Map.entry("mesh", new PropertyDef("mesh", PropertyType.STRING, "plane", "Mesh", "Mesh", 25, Map.of())),
+                Map.entry("billboard", new PropertyDef("billboard", PropertyType.BOOL, "true", "Billboard", "Mesh", 26, Map.of())),
+                Map.entry("double_sided", new PropertyDef("double_sided", PropertyType.BOOL, "true", "Double Sided", "Mesh", 27, Map.of())),
                 Map.entry("texture", new PropertyDef("texture", PropertyType.STRING, "moud:dynamic/white", "Texture", "Material", 30, Map.of("asset", "image"))),
                 Map.entry("material", new PropertyDef("material", PropertyType.STRING, "", "Material", "Material", 31, Map.of("asset", "material"))),
                 Map.entry("opacity", new PropertyDef("opacity", PropertyType.FLOAT, "1", "Opacity", "Material", 32, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("uv_scale_x", new PropertyDef("uv_scale_x", PropertyType.FLOAT, "1", "UV Scale X", "Material", 40, Map.of("min", "0.001", "step", "0.1"))),
+                Map.entry("uv_scale_y", new PropertyDef("uv_scale_y", PropertyType.FLOAT, "1", "UV Scale Y", "Material", 41, Map.of("min", "0.001", "step", "0.1"))),
+                Map.entry("uv_offset_x", new PropertyDef("uv_offset_x", PropertyType.FLOAT, "0", "UV Offset X", "Material", 42, Map.of("step", "0.05"))),
+                Map.entry("uv_offset_y", new PropertyDef("uv_offset_y", PropertyType.FLOAT, "0", "UV Offset Y", "Material", 43, Map.of("step", "0.05"))),
                 Map.entry("color_tint_r", new PropertyDef("color_tint_r", PropertyType.FLOAT, "1", "R", "Color Tint", 0, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("color_tint_g", new PropertyDef("color_tint_g", PropertyType.FLOAT, "1", "G", "Color Tint", 1, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("color_tint_b", new PropertyDef("color_tint_b", PropertyType.FLOAT, "1", "B", "Color Tint", 2, Map.of("min", "0", "max", "1", "step", "0.01"))),
@@ -240,6 +249,35 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("z", new PropertyDef("z", PropertyType.FLOAT, "0", "Z", "Transform", 2, Map.of())),
                 Map.entry("rx", new PropertyDef("rx", PropertyType.FLOAT, "0", "Pitch", "Transform", 10, Map.of())),
                 Map.entry("ry", new PropertyDef("ry", PropertyType.FLOAT, "0", "Yaw", "Transform", 11, Map.of())),
+                Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
+        )));
+
+        registry.registerType(new NodeTypeDef("AudioPlayer2D", "Audio Player 2D", "Audio", 27, Map.ofEntries(
+                Map.entry("sound_id", new PropertyDef("sound_id", PropertyType.STRING, "", "Sound Id", "Audio", 0, Map.of("asset", "audio"))),
+                Map.entry("playing", new PropertyDef("playing", PropertyType.BOOL, "true", "Playing", "Playback", 10, Map.of())),
+                Map.entry("loop", new PropertyDef("loop", PropertyType.BOOL, "true", "Loop", "Playback", 11, Map.of())),
+                Map.entry("volume_db", new PropertyDef("volume_db", PropertyType.FLOAT, "0", "Volume dB", "Playback", 12, Map.of("step", "0.5"))),
+                Map.entry("pitch_scale", new PropertyDef("pitch_scale", PropertyType.FLOAT, "1", "Pitch", "Playback", 13, Map.of("min", "0.01", "step", "0.01"))),
+                Map.entry("category", new PropertyDef("category", PropertyType.STRING, "master", "Category", "Playback", 14, Map.of())),
+                Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
+        )));
+
+        registry.registerType(new NodeTypeDef("AudioPlayer3D", "Audio Player 3D", "Audio", 28, Map.ofEntries(
+                Map.entry("x", new PropertyDef("x", PropertyType.FLOAT, "0", "X", "Transform", 0, Map.of("step", "0.1"))),
+                Map.entry("y", new PropertyDef("y", PropertyType.FLOAT, "0", "Y", "Transform", 1, Map.of("step", "0.1"))),
+                Map.entry("z", new PropertyDef("z", PropertyType.FLOAT, "0", "Z", "Transform", 2, Map.of("step", "0.1"))),
+                Map.entry("rx", new PropertyDef("rx", PropertyType.FLOAT, "0", "Rot X", "Transform", 10, Map.of("step", "1"))),
+                Map.entry("ry", new PropertyDef("ry", PropertyType.FLOAT, "0", "Rot Y", "Transform", 11, Map.of("step", "1"))),
+                Map.entry("rz", new PropertyDef("rz", PropertyType.FLOAT, "0", "Rot Z", "Transform", 12, Map.of("step", "1"))),
+                Map.entry("sx", new PropertyDef("sx", PropertyType.FLOAT, "1", "Scale X", "Transform", 20, Map.of("min", "0.001", "step", "0.1"))),
+                Map.entry("sy", new PropertyDef("sy", PropertyType.FLOAT, "1", "Scale Y", "Transform", 21, Map.of("min", "0.001", "step", "0.1"))),
+                Map.entry("sz", new PropertyDef("sz", PropertyType.FLOAT, "1", "Scale Z", "Transform", 22, Map.of("min", "0.001", "step", "0.1"))),
+                Map.entry("sound_id", new PropertyDef("sound_id", PropertyType.STRING, "", "Sound Id", "Audio", 30, Map.of("asset", "audio"))),
+                Map.entry("playing", new PropertyDef("playing", PropertyType.BOOL, "true", "Playing", "Playback", 31, Map.of())),
+                Map.entry("loop", new PropertyDef("loop", PropertyType.BOOL, "true", "Loop", "Playback", 32, Map.of())),
+                Map.entry("volume_db", new PropertyDef("volume_db", PropertyType.FLOAT, "0", "Volume dB", "Playback", 33, Map.of("step", "0.5"))),
+                Map.entry("pitch_scale", new PropertyDef("pitch_scale", PropertyType.FLOAT, "1", "Pitch", "Playback", 34, Map.of("min", "0.01", "step", "0.01"))),
+                Map.entry("category", new PropertyDef("category", PropertyType.STRING, "ambient", "Category", "Playback", 35, Map.of())),
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
 
