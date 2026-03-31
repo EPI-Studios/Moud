@@ -97,6 +97,7 @@ public final class EditorOverlay {
 
     private boolean open;
     private boolean prevLeft;
+    private boolean pendingViewportClick;
     private boolean prevHudHidden;
     private DockSpace dockSpace;
     private InspectorPanel inspectorPanel;
@@ -473,10 +474,17 @@ public final class EditorOverlay {
 
         try {
             if (dockSpace == null || windowManager == null || uiContext == null) {
-                batch.begin(w, h, framebufferScale);
-                batch.drawRect(0, 0, w, h, 0xAA000000);
-                batch.drawText("MOUD editor overlay: init failed", 12, batch.baselineForBox(8, 24), 0xFFFFFFFF);
-                batch.end();
+                boolean batchBegun = false;
+                try {
+                    batch.begin(w, h, framebufferScale);
+                    batchBegun = true;
+                    batch.drawRect(0, 0, w, h, 0xAA000000);
+                    batch.drawText("MOUD editor overlay: init failed", 12, batch.baselineForBox(8, 24), 0xFFFFFFFF);
+                } finally {
+                    if (batchBegun) {
+                        batch.end();
+                    }
+                }
                 return;
             }
 
@@ -492,6 +500,25 @@ public final class EditorOverlay {
             boolean blocked = modalOpen || blockedByWindows;
 
             runtime.setUiBlocked(blocked);
+
+            if (ctx != null && runtime.viewportMode() == EditorRuntime.ViewportMode.THREE_D) {
+                boolean overVp = ctx.isMouseOverViewport(mx, my);
+                if (overVp) {
+                    float ndcX = ((mx - ctx.viewportX()) / (float) ctx.viewportW()) * 2.0f - 1.0f;
+                    float ndcY = ((my - ctx.viewportY()) / (float) ctx.viewportH()) * 2.0f - 1.0f;
+                    ndcY = -ndcY;
+                    ctx.setMouseViewportNdc(ndcX, ndcY, true);
+                } else {
+                    ctx.setMouseViewportNdc(0, 0, false);
+                }
+
+                pendingViewportClick = state != null && leftPressed && overVp && !blocked && !cameraCapturing;
+
+                if (state != null) {
+                    ctx.setSelectedNodeId(state.selectedId);
+                }
+            }
+
             processUiEvents(cameraCapturing, blocked);
             if (!blocked) {
                 dockSpace.update(input);
@@ -508,36 +535,44 @@ public final class EditorOverlay {
             MaterialPreviewRenderer.renderRequested();
 
             if (!needsBackdropBlur) {
-                batch.begin(w, h, framebufferScale);
-                dockSpace.render(batch);
-                renderDockDropZones(batch);
-                uiContext.dragDrop().enqueueOverlay(uiContext.overlay(), theme, w, h);
-                Runnable overlayMenus = runtime.consumeOverlayMenuRender();
-                if (overlayMenus != null) {
-                    overlayMenus.run();
-                }
-                uiContext.overlay().render(batch);
-                windowManager.render(batch, uiContext, input, theme, w, h, null);
+                boolean batchBegun = false;
+                try {
+                    batch.begin(w, h, framebufferScale);
+                    batchBegun = true;
+                    dockSpace.render(batch);
+                    renderDockDropZones(batch);
+                    uiContext.dragDrop().enqueueOverlay(uiContext.overlay(), theme, w, h);
+                    Runnable overlayMenus = runtime.consumeOverlayMenuRender();
+                    if (overlayMenus != null) {
+                        overlayMenus.run();
+                    }
+                    uiContext.overlay().render(batch);
+                    windowManager.render(batch, uiContext, input, theme, w, h, null);
 
-                if (createNodeDialog != null && createNodeDialog.isOpen()) {
-                    createNodeDialog.render(batch, uiContext, ui, theme, w, h);
-                }
-                if (createProjectDialog != null && createProjectDialog.isOpen()) {
-                    createProjectDialog.render(batch, uiContext, ui, theme, w, h);
-                }
-                if (createAssetDialog != null && createAssetDialog.isOpen()) {
-                    createAssetDialog.render(batch, uiContext, ui, theme, w, h);
-                }
-                if (quickSearchDialog != null && quickSearchDialog.isOpen()) {
-                    quickSearchDialog.render(batch, uiContext, ui, theme, w, h);
-                }
-                if (textAssetEditorDialog != null && textAssetEditorDialog.isOpen()) {
-                    textAssetEditorDialog.render(batch, uiContext, ui, theme, w, h);
-                }
+                    if (createNodeDialog != null && createNodeDialog.isOpen()) {
+                        createNodeDialog.render(batch, uiContext, ui, theme, w, h);
+                    }
+                    if (createProjectDialog != null && createProjectDialog.isOpen()) {
+                        createProjectDialog.render(batch, uiContext, ui, theme, w, h);
+                    }
+                    if (createAssetDialog != null && createAssetDialog.isOpen()) {
+                        createAssetDialog.render(batch, uiContext, ui, theme, w, h);
+                    }
+                    if (quickSearchDialog != null && quickSearchDialog.isOpen()) {
+                        quickSearchDialog.render(batch, uiContext, ui, theme, w, h);
+                    }
+                    if (textAssetEditorDialog != null && textAssetEditorDialog.isOpen()) {
+                        textAssetEditorDialog.render(batch, uiContext, ui, theme, w, h);
+                    }
 
-                uiContext.dragDrop().endFrame();
-                renderToast(w, h);
-                batch.end();
+                    uiContext.dragDrop().endFrame();
+                    renderToast(w, h);
+                } finally {
+                    if (batchBegun) {
+                        batch.end();
+                    }
+                }
+                applyDeferredViewportClick(ctx);
                 return;
             }
 
@@ -555,36 +590,51 @@ public final class EditorOverlay {
             try (Framebuffer.Binding ignored = uiFramebuffer.bindScoped()) {
                 GL11.glClearColor(theme.windowBg.getR(), theme.windowBg.getG(), theme.windowBg.getB(), theme.windowBg.getA());
                 GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
-                batch.begin(w, h, framebufferScale);
-                dockSpace.render(batch);
-                uiContext.dragDrop().enqueueOverlay(uiContext.overlay(), theme, w, h);
-                uiContext.overlay().render(batch);
-                batch.end();
+                boolean batchBegun = false;
+                try {
+                    batch.begin(w, h, framebufferScale);
+                    batchBegun = true;
+                    dockSpace.render(batch);
+                    uiContext.dragDrop().enqueueOverlay(uiContext.overlay(), theme, w, h);
+                    uiContext.overlay().render(batch);
+                } finally {
+                    if (batchBegun) {
+                        batch.end();
+                    }
+                }
             }
 
             Texture blurred = blur.blur(uiFramebuffer.colorTexture(), fbW, fbH, 1);
 
-            batch.begin(w, h, framebufferScale);
-            batch.drawTexturedRect(uiFramebuffer.colorTexture(), 0, 0, w, h, 0.0f, 1.0f, 1.0f, 0.0f, 0xFFFFFFFF);
-            windowManager.render(batch, uiContext, input, theme, w, h, blurred);
+            boolean batchBegun = false;
+            try {
+                batch.begin(w, h, framebufferScale);
+                batchBegun = true;
+                batch.drawTexturedRect(uiFramebuffer.colorTexture(), 0, 0, w, h, 0.0f, 1.0f, 1.0f, 0.0f, 0xFFFFFFFF);
+                windowManager.render(batch, uiContext, input, theme, w, h, blurred);
 
-            if (createNodeDialog != null && createNodeDialog.isOpen()) {
-                createNodeDialog.render(batch, uiContext, ui, theme, w, h);
-            }
-            if (createProjectDialog != null && createProjectDialog.isOpen()) {
-                createProjectDialog.render(batch, uiContext, ui, theme, w, h);
-            }
-            if (createAssetDialog != null && createAssetDialog.isOpen()) {
-                createAssetDialog.render(batch, uiContext, ui, theme, w, h);
-            }
-            if (textAssetEditorDialog != null && textAssetEditorDialog.isOpen()) {
-                textAssetEditorDialog.render(batch, uiContext, ui, theme, w, h);
-            }
+                if (createNodeDialog != null && createNodeDialog.isOpen()) {
+                    createNodeDialog.render(batch, uiContext, ui, theme, w, h);
+                }
+                if (createProjectDialog != null && createProjectDialog.isOpen()) {
+                    createProjectDialog.render(batch, uiContext, ui, theme, w, h);
+                }
+                if (createAssetDialog != null && createAssetDialog.isOpen()) {
+                    createAssetDialog.render(batch, uiContext, ui, theme, w, h);
+                }
+                if (textAssetEditorDialog != null && textAssetEditorDialog.isOpen()) {
+                    textAssetEditorDialog.render(batch, uiContext, ui, theme, w, h);
+                }
 
-            uiContext.dragDrop().endFrame();
-            renderToast(w, h);
-            batch.end();
+                uiContext.dragDrop().endFrame();
+                renderToast(w, h);
+            } finally {
+                if (batchBegun) {
+                    batch.end();
+                }
+            }
         } finally {
+            applyDeferredViewportClick(ctx);
             int restoreVao = prevVao != 0 ? prevVao : fallbackVao;
             if (restoreVao != 0) {
                 GL30.glBindVertexArray(restoreVao);
@@ -592,6 +642,25 @@ public final class EditorOverlay {
             if (depthWasEnabled) GL11.glEnable(GL11.GL_DEPTH_TEST);
             if (cullWasEnabled) GL11.glEnable(GL11.GL_CULL_FACE);
         }
+    }
+
+    private void applyDeferredViewportClick(EditorContext ctx) {
+        if (!pendingViewportClick) return;
+        pendingViewportClick = false;
+
+        if (gizmos != null && gizmos.isDragging()) return;
+
+        if (state == null || ctx == null) return;
+        long hovered = ctx.hoveredNodeId();
+        if (hovered > 0) {
+            state.selectedId = hovered;
+            state.selectedIds.clear();
+            state.selectedIds.add(hovered);
+        } else {
+            state.selectedId = 0L;
+            state.selectedIds.clear();
+        }
+        ctx.setSelectedNodeId(state.selectedId);
     }
 
     private void syncProjectDialogState() {

@@ -9,6 +9,12 @@ public final class EditorContext {
     private final AtomicLong pendingScrollBits = new AtomicLong();
     private volatile int viewportX, viewportY, viewportW, viewportH;
 
+    private volatile long selectedNodeId;
+    private volatile long hoveredNodeId;
+    private volatile float mouseViewportNdcX;
+    private volatile float mouseViewportNdcY;
+    private volatile boolean mouseInViewport;
+
     public EditorContext(MinecraftFreeflyCamera camera) {
         this.camera = camera;
     }
@@ -43,11 +49,50 @@ public final class EditorContext {
         return (float) Double.longBitsToDouble(bits);
     }
 
+    public int viewportX() { return viewportX; }
+    public int viewportY() { return viewportY; }
+    public int viewportW() { return viewportW; }
+    public int viewportH() { return viewportH; }
+
     public void setViewportBounds(int x, int y, int w, int h) {
         viewportX = x;
         viewportY = y;
         viewportW = Math.max(0, w);
         viewportH = Math.max(0, h);
+    }
+
+    public void setSelectedNodeId(long id) {
+        selectedNodeId = id;
+    }
+
+    public long selectedNodeId() {
+        return selectedNodeId;
+    }
+
+    public void setHoveredNodeId(long id) {
+        hoveredNodeId = id;
+    }
+
+    public long hoveredNodeId() {
+        return hoveredNodeId;
+    }
+
+    public void setMouseViewportNdc(float ndcX, float ndcY, boolean inViewport) {
+        mouseViewportNdcX = ndcX;
+        mouseViewportNdcY = ndcY;
+        mouseInViewport = inViewport;
+    }
+
+    public float mouseViewportNdcX() {
+        return mouseViewportNdcX;
+    }
+
+    public float mouseViewportNdcY() {
+        return mouseViewportNdcY;
+    }
+
+    public boolean isMouseInViewport() {
+        return mouseInViewport;
     }
 
     public boolean isMouseOverViewport(double mx, double my) {
