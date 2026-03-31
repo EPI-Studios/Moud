@@ -1,10 +1,39 @@
+import java.util.Locale
+
 plugins {
     id 'application'
+    id 'com.gradleup.shadow' version '8.3.0'
 }
+
+def luauEnabled = providers.gradleProperty("moud.server.enableLuau")
+        .map { it.toBoolean() }
+        .orElse(false)
+def luauVersion = providers.gradleProperty("moud.server.luauVersion")
+        .orElse("1.0.0")
+def serverJavaVersion = providers.gradleProperty("moud.server.java")
+        .map { Integer.parseInt(it) }
+        .orElse(luauEnabled.get() ? 25 : 21)
 
 repositories {
     maven {
         url = 'https://repo.minestom.com/'
+    }
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(serverJavaVersion.get())
+    }
+}
+
+def serverJavaLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(serverJavaVersion.get())
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = serverJavaVersion.get()
+    if (luauEnabled.get()) {
+        options.compilerArgs += ["--enable-preview"]
     }
 }
 
@@ -26,16 +55,72 @@ dependencies {
 
     implementation 'org.graalvm.polyglot:polyglot:24.1.0'
     implementation 'org.graalvm.polyglot:js:24.1.0'
+
+    if (luauEnabled.get()) {
+        implementation "dev.hollowcube:luau:${luauVersion.get()}"
+        String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT)
+        String osArch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT)
+        String luauNative = null
+        if ((osArch == "amd64" || osArch == "x86_64") && osName.contains("linux")) {
+            luauNative = "linux-x64"
+        } else if ((osArch == "amd64" || osArch == "x86_64") && osName.contains("win")) {
+            luauNative = "windows-x64"
+        } else if ((osArch == "amd64" || osArch == "x86_64") && osName.contains("mac")) {
+            luauNative = "macos-x64"
+        } else if ((osArch == "aarch64" || osArch == "arm64") && osName.contains("mac")) {
+            luauNative = "macos-arm64"
+        }
+        if (luauNative != null) {
+            runtimeOnly "dev.hollowcube:luau-natives-${luauNative}:${luauVersion.get()}"
+        }
+    }
 }
 
 application {
     mainClass = 'com.moud.server.minestom.MinestomServerMain'
+    applicationDefaultJvmArgs = luauEnabled.get()
+            ? ['-Dmoud.server.enableLuau=true', '--enable-preview', '--enable-native-access=ALL-UNNAMED',
+               '-XX:ReservedCodeCacheSize=512m', '-XX:NonNMethodCodeHeapSize=16m']
+            : ['-XX:ReservedCodeCacheSize=512m']
+}
+
+tasks.named('jar', Jar).configure {
+    manifest {
+        attributes(
+                'Main-Class': application.mainClass.get()
+        )
+    }
+}
+
+tasks.named('build').configure {
+    dependsOn tasks.named('shadowJar')
+}
+
+tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).configure {
+    archiveClassifier.set('')
+    mergeServiceFiles()
+    manifest {
+        attributes(
+                'Main-Class': application.mainClass.get()
+        )
+    }
 }
 
 // IntelliJ sometimes runs main classes via ad-hoc JavaExec tasks; ensure our project deps
 // are always present on the runtime classpath (classes dirs, not just jars).
 tasks.withType(JavaExec).configureEach {
+    javaLauncher = serverJavaLauncher
     dependsOn(':core:classes', ':net:classes')
     classpath += project(':core').sourceSets.main.output
     classpath += project(':net').sourceSets.main.output
+    if (luauEnabled.get()) {
+        jvmArgs '-Dmoud.server.enableLuau=true', '--enable-preview', '--enable-native-access=ALL-UNNAMED'
+    }
+}
+
+tasks.withType(Test).configureEach {
+    javaLauncher = serverJavaLauncher
+    if (luauEnabled.get()) {
+        jvmArgs '-Dmoud.server.enableLuau=true', '--enable-preview', '--enable-native-access=ALL-UNNAMED'
+    }
 }
