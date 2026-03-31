@@ -13,19 +13,6 @@ import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Fabric preLaunch entrypoint that checks for engine updates before the game starts.
- * <p>
- * The update check runs with a timeout — if the network is slow or unreachable,
- * the game continues with whatever version is already installed.
- * <p>
- * Flow:
- * <ol>
- *   <li>Check GitHub Releases for a new version (with timeout)</li>
- *   <li>Download + verify + extract if update available</li>
- *   <li>Inject the engine jar into Knot's classloader</li>
- * </ol>
- */
 public final class ClientBootstrap implements PreLaunchEntrypoint {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("moud-bootstrap");
@@ -34,9 +21,7 @@ public final class ClientBootstrap implements PreLaunchEntrypoint {
     private static final String GITHUB_REPO = "Moud";
     private static final String TARGET = "client";
 
-    /** Max time to spend on the update check before giving up. */
     private static final long UPDATE_CHECK_TIMEOUT_SECONDS = 10;
-    /** Max time to spend downloading + applying an update. */
     private static final long UPDATE_APPLY_TIMEOUT_SECONDS = 120;
 
     @Override
@@ -57,7 +42,6 @@ public final class ClientBootstrap implements PreLaunchEntrypoint {
             return;
         }
 
-        // Run the update check with a timeout so a dead network doesn't block the game
         try {
             var checkFuture = CompletableFuture.supplyAsync(() -> {
                 try {
@@ -101,7 +85,6 @@ public final class ClientBootstrap implements PreLaunchEntrypoint {
                     e.getMessage());
         }
 
-        // Always try to inject whatever engine version is installed
         try {
             Path engineDir = orchestrator.currentEngineDir();
             if (engineDir != null) {
