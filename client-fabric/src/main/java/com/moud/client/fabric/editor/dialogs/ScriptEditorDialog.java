@@ -16,6 +16,7 @@ import com.miry.ui.widgets.editor.language.LanguageProvider;
 import com.miry.ui.widgets.editor.language.impl.GLSLLanguageProvider;
 import com.miry.ui.widgets.editor.language.impl.JSLanguageProvider;
 import com.miry.ui.widgets.editor.language.impl.JavaLanguageProvider;
+import com.miry.ui.widgets.editor.language.impl.LuauLanguageProvider;
 import com.miry.ui.widgets.editor.language.impl.TypeScriptLanguageProvider;
 import com.miry.ui.widgets.editor.view.CodeEditor;
 import com.miry.ui.widgets.editor.view.FindBarWidget;
@@ -35,6 +36,7 @@ public final class ScriptEditorDialog {
     private static final LanguageProvider TS = new TypeScriptLanguageProvider();
     private static final LanguageProvider JAVA = new JavaLanguageProvider();
     private static final LanguageProvider GLSL = new GLSLLanguageProvider();
+    private static final LanguageProvider LUAU = new LuauLanguageProvider();
 
     private enum ConfirmAction {
         CLOSE,
@@ -578,6 +580,9 @@ public final class ScriptEditorDialog {
         }
         if (p.endsWith(".js") || p.endsWith(".mjs") || p.endsWith(".cjs")) {
             return JS;
+        }
+        if (p.endsWith(".luau")) {
+            return LUAU;
         }
         if (p.endsWith(".java")) {
             return JAVA;
