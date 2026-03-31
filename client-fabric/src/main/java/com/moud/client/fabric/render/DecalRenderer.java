@@ -5,11 +5,8 @@ import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
 import com.moud.client.fabric.render.veil.GlUtil;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
 import com.moud.net.protocol.SceneSnapshot;
-import foundry.veil.api.client.render.CameraMatrices;
 import foundry.veil.api.client.render.VeilRenderSystem;
-import foundry.veil.api.client.render.shader.block.ShaderBlock;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
-import foundry.veil.api.client.registry.VeilShaderBufferRegistry;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.Framebuffer;
@@ -18,11 +15,13 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.lwjgl.opengl.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -71,7 +70,8 @@ final class DecalRenderer {
 
     void renderAll(List<SceneSnapshot.NodeSnapshot> nodes,
                    Function<Long, VeilSceneNodeRenderer.Pose> poseResolver,
-                   Vec3d camPos, Camera camera, MinecraftClient client, float tickDelta) {
+                   Vec3d camPos, Camera camera, Matrix4fc viewMatrix, Matrix4fc projectionMatrix,
+                   MinecraftClient client, float tickDelta) {
         List<SceneSnapshot.NodeSnapshot> decals = null;
         for (SceneSnapshot.NodeSnapshot node : nodes) {
             if (node == null || !"Decal".equals(node.type())) continue;
@@ -84,20 +84,33 @@ final class DecalRenderer {
         ShaderProgram prog = getProgram();
         if (prog == null || !prog.isValid()) return;
 
-        ShaderBlock<CameraMatrices> camBlock = VeilRenderSystem.getBlock(VeilShaderBufferRegistry.CAMERA.get());
-        CameraMatrices veilCam = camBlock != null ? camBlock.getValue() : null;
-        if (veilCam == null) return;
-
-        Matrix4f viewMat = new Matrix4f(veilCam.getViewMatrix());
-        Matrix4f projMat = new Matrix4f(veilCam.getProjectionMatrix());
+        Matrix4f viewMat = viewMatrix != null ? new Matrix4f(viewMatrix) : new Matrix4f();
+        Matrix4f projMat = projectionMatrix != null ? new Matrix4f(projectionMatrix) : new Matrix4f(RenderSystem.getProjectionMatrix());
         Matrix4f invViewProjMat = new Matrix4f(projMat).mul(viewMat).invert();
 
         Framebuffer mainFb = client.getFramebuffer();
-        int fbW = mainFb.textureWidth;
-        int fbH = mainFb.textureHeight;
+        int sourceFbo = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
+        if (sourceFbo == 0 && mainFb != null) {
+            sourceFbo = mainFb.fbo;
+        }
+
+        int fbW = 0;
+        int fbH = 0;
+        int[] viewport = new int[4];
+        GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
+        if (viewport[2] > 0 && viewport[3] > 0) {
+            fbW = viewport[2];
+            fbH = viewport[3];
+        } else if (mainFb != null) {
+            fbW = mainFb.textureWidth;
+            fbH = mainFb.textureHeight;
+        }
+        if (sourceFbo == 0 || fbW <= 0 || fbH <= 0) {
+            return;
+        }
         ensureDepthCopy(fbW, fbH);
         if (depthCopyTex == 0) return;
-        blitDepth(mainFb.fbo, fbW, fbH);
+        blitDepth(sourceFbo, fbW, fbH);
 
         MoudMeshBuffer.ensureInitialized();
 
@@ -115,6 +128,7 @@ final class DecalRenderer {
             GlUtil.uniformMat4(pid, "ProjMat", projMat);
             GlUtil.uniformMat4(pid, "InvViewProjMat", invViewProjMat);
             GlUtil.uniform3f(pid, "CameraPos", (float) camPos.x, (float) camPos.y, (float) camPos.z);
+            meshShader.sceneLights().applyUniforms(pid);
             GL13.glActiveTexture(GL13.GL_TEXTURE1);
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, depthCopyTex);
             GlUtil.uniform1i(pid, "DepthSampler", 1);
@@ -193,8 +207,8 @@ final class DecalRenderer {
         depthCopyTex = GL11.glGenTextures();
         int prevTex = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, depthCopyTex);
-        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL30.GL_DEPTH24_STENCIL8, w, h, 0,
-                GL30.GL_DEPTH_STENCIL, GL30.GL_UNSIGNED_INT_24_8, (java.nio.ByteBuffer) null);
+        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL30.GL_DEPTH_COMPONENT24, w, h, 0,
+                GL11.GL_DEPTH_COMPONENT, GL11.GL_UNSIGNED_INT, (ByteBuffer) null);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
@@ -202,13 +216,17 @@ final class DecalRenderer {
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, prevTex);
 
         int prevFb = GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING);
+        int prevReadFb = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
+        int prevDrawFb = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
         depthCopyFbo = GL30.glGenFramebuffers();
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, depthCopyFbo);
-        GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_DEPTH_STENCIL_ATTACHMENT,
+        GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT,
                 GL11.GL_TEXTURE_2D, depthCopyTex, 0);
         GL11.glDrawBuffer(GL11.GL_NONE);
         GL11.glReadBuffer(GL11.GL_NONE);
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, prevFb);
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, prevReadFb);
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, prevDrawFb);
 
         depthCopyW = w;
         depthCopyH = h;
@@ -221,7 +239,7 @@ final class DecalRenderer {
         GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, sourceFbo);
         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, depthCopyFbo);
         GL30.glBlitFramebuffer(0, 0, w, h, 0, 0, w, h,
-                GL11.GL_DEPTH_BUFFER_BIT | GL11.GL_STENCIL_BUFFER_BIT, GL11.GL_NEAREST);
+                GL11.GL_DEPTH_BUFFER_BIT, GL11.GL_NEAREST);
 
         GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, prevRead);
         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, prevDraw);
