@@ -21,7 +21,6 @@ import net.minestom.server.entity.Player;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Engine;
 import org.graalvm.polyglot.HostAccess;
-import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Value;
 
 import java.nio.charset.StandardCharsets;
@@ -29,6 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -52,6 +52,7 @@ final class SceneRuntime {
     private final ConcurrentHashMap<String, OwnedValue<float[]>> scriptCameraByPlayer = new ConcurrentHashMap<>();
     private final Context ctx;
     private final ScriptLoader scriptLoader;
+    private final LuauRuntimeBridge luau;
     private final CollisionSignalEmitter collisionEmitter = new CollisionSignalEmitter();
     private final Map<Long, NodeInstance> instances = new HashMap<>();
     private final ArrayList<SceneOp> pendingOps = new ArrayList<>();
@@ -81,10 +82,12 @@ final class SceneRuntime {
                 .allowHostClassLookup(ignored -> false)
                 .build();
         this.scriptLoader = new ScriptLoader(ctx);
+        this.luau = LuauRuntimeBridge.isRuntimeLinked() ? new LuauRuntimeBridge() : null;
     }
 
     void close() {
         try { ctx.close(true); } catch (Exception ignored) {}
+        try { if (luau != null) luau.close(); } catch (Exception ignored) {}
     }
 
     void onUiEvent(long nodeId, String signal, float value) {
@@ -92,10 +95,10 @@ final class SceneRuntime {
         NodeInstance inst = instances.get(nodeId);
         if (inst == null || inst.disabled) return;
         String method = "_on_" + signal;
-        if (hasMemberCallable(inst.instance, method)) {
+        if (inst.instance.hasMethod(method)) {
             try {
-                inst.instance.invokeMember(method, inst.api, (double) value);
-            } catch (PolyglotException e) {
+                inst.instance.invokeMethod(method, inst.api, (double) value);
+            } catch (ScriptInvocationException e) {
                 inst.disabled = true;
             }
         }
@@ -112,7 +115,7 @@ final class SceneRuntime {
         HashSet<Long> alive = new HashSet<>(targets.size());
 
         for (Target target : targets) {
-            if (target == null || target.nodeId <= 0L || target.scriptPath == null) continue;
+            if (target == null || target.nodeId <= 0L || target.scriptPath == null || target.language == null) continue;
             long nodeId = target.nodeId;
             alive.add(nodeId);
 
@@ -127,33 +130,58 @@ final class SceneRuntime {
                 continue;
             }
 
-            ScriptLoader.Program program = scriptLoader.programFor(scriptFile);
-            if (program == null) {
-                disableInstance(scene, nodeId, scriptFile, "loadProgram",
-                        new IllegalStateException("Script load failed: " + scriptFile.toAbsolutePath()));
+            NodeInstance inst = instances.get(nodeId);
+            long programModifiedMs;
+            if (target.language == ScriptLanguage.JAVASCRIPT) {
+                ScriptLoader.Program program = scriptLoader.programFor(scriptFile);
+                if (program == null) {
+                    disableInstance(scene, nodeId, scriptFile, "loadProgram",
+                            new IllegalStateException("Script load failed: " + scriptFile.toAbsolutePath()));
+                    continue;
+                }
+                programModifiedMs = program.modifiedMs();
+            } else if (target.language == ScriptLanguage.LUAU) {
+                LuauRuntimeBridge.Program program = luau == null ? null : luau.programFor(scriptFile);
+                if (program == null) {
+                    disableInstance(scene, nodeId, scriptFile, "loadProgram",
+                            new IllegalStateException("Script load failed: " + scriptFile.toAbsolutePath()));
+                    continue;
+                }
+                programModifiedMs = program.modifiedMs();
+            } else {
                 continue;
             }
 
-            NodeInstance inst = instances.get(nodeId);
-            if (inst == null || !scriptFile.equals(inst.scriptFile) || inst.programModifiedMs != program.modifiedMs()) {
+            if (inst == null || inst.language != target.language || !scriptFile.equals(inst.scriptFile) || inst.programModifiedMs != programModifiedMs) {
                 if (inst != null) {
                     invokeLifecycle(scene, inst, "_exit_tree", "_exitTree");
                     clearCameraOverridesOwnedBy(nodeId);
+                    try {
+                        inst.instance.close();
+                    } catch (Exception ignored) {
+                    }
                 }
-                Value jsInstance;
                 try {
-                    jsInstance = scriptLoader.createNodeInstance(program.exports());
+                    RuntimeApi api = new RuntimeApi(scene, nodeId);
+                    ScriptObject scriptInstance;
+                    if (target.language == ScriptLanguage.JAVASCRIPT) {
+                        ScriptLoader.Program program = scriptLoader.programFor(scriptFile);
+                        Value jsInstance = program == null ? null : scriptLoader.createNodeInstance(program.exports());
+                        scriptInstance = jsInstance == null ? null : JsScriptAdapters.object(jsInstance);
+                    } else {
+                        LuauRuntimeBridge.Program program = luau == null ? null : luau.programFor(scriptFile);
+                        scriptInstance = program == null ? null : luau.createNodeInstance(program, api);
+                    }
+                    if (scriptInstance == null) {
+                        disableInstance(scene, nodeId, scriptFile, "createInstance",
+                                new IllegalStateException("Script did not return an instance"));
+                        continue;
+                    }
+                    inst = new NodeInstance(nodeId, scriptFile, target.language, programModifiedMs, scriptInstance, api);
                 } catch (Exception e) {
                     disableInstance(scene, nodeId, scriptFile, "createInstance", e);
                     continue;
                 }
-                if (jsInstance == null) {
-                    disableInstance(scene, nodeId, scriptFile, "createInstance",
-                            new IllegalStateException("Script did not return an instance"));
-                    continue;
-                }
-
-                inst = new NodeInstance(nodeId, scriptFile, program.modifiedMs(), jsInstance, new RuntimeApi(scene, nodeId));
                 instances.put(nodeId, inst);
                 invokeLifecycle(scene, inst, "_enter_tree", "_enterTree");
                 inst.readyCalled = false;
@@ -180,6 +208,13 @@ final class SceneRuntime {
         flush(scene);
     }
 
+    void refreshEditor(ServerScene scene) {
+        if (scene == null) {
+            return;
+        }
+        tick(scene, 0.0);
+    }
+
     private ArrayList<Target> targetsFor(ServerScene scene) {
         long graphRev = scene.engine().sceneRevision();
         if (cachedTargetsGraphRevision == graphRev) return cachedTargets;
@@ -192,8 +227,11 @@ final class SceneRuntime {
             Node node = stack.remove(stack.size() - 1);
             if (node == null) continue;
 
-            String scriptPath = ScriptPaths.normalizeScriptPath(node.getProperty(RuntimeScriptKeys.SCRIPT_KEY));
-            if (scriptPath != null) cachedTargets.add(new Target(node.nodeId(), scriptPath));
+            ScriptReference script = ScriptPaths.parseScript(node.getProperty(RuntimeScriptKeys.SCRIPT_KEY));
+            if (script != null && (script.language() == ScriptLanguage.JAVASCRIPT
+                    || (script.language() == ScriptLanguage.LUAU && luau != null))) {
+                cachedTargets.add(new Target(node.nodeId(), script.path(), script.language()));
+            }
 
             List<Node> children = node.children();
             for (int i = children.size() - 1; i >= 0; i--) stack.add(children.get(i));
@@ -217,8 +255,8 @@ final class SceneRuntime {
         inst.inputApi = api;
     }
 
-    Map<Long, Value> instanceValueMap() {
-        HashMap<Long, Value> map = new HashMap<>(instances.size());
+    Map<Long, ScriptObject> instanceValueMap() {
+        HashMap<Long, ScriptObject> map = new HashMap<>(instances.size());
         for (Map.Entry<Long, NodeInstance> e : instances.entrySet()) {
             NodeInstance ni = e.getValue();
             if (ni != null && !ni.disabled && ni.instance != null) map.put(e.getKey(), ni.instance);
@@ -236,6 +274,17 @@ final class SceneRuntime {
             if (inst != null) invokeLifecycle(scene, inst, "_exit_tree", "_exitTree");
             clearCameraOverridesOwnedBy(nodeId);
             signalBus.removeNode(nodeId);
+            if (inst != null && inst.instance != null) {
+                try {
+                    inst.instance.close();
+                } catch (Exception ignored) {
+                }
+            }
+            boolean hadMultiMesh = pendingMultiMesh.remove(nodeId) != null;
+            hadMultiMesh |= latestMultiMesh.remove(nodeId) != null;
+            if (hadMultiMesh) {
+                pendingMultiMesh.put(nodeId, new float[0]);
+            }
             it.remove();
         }
     }
@@ -266,12 +315,12 @@ final class SceneRuntime {
             state = inputsByPlayer.values().iterator().next();
         }
         if (state == null) return;
-        if (!hasMemberCallable(inst.instance, "_input")) return;
+        if (!inst.instance.hasMethod("_input")) return;
         if (state.clientTick() == inst.lastInputClientTick) return;
         inst.lastInputClientTick = state.clientTick();
         try {
-            inst.instance.invokeMember("_input", inst.api, new InputEvent(state));
-        } catch (PolyglotException e) {
+            inst.instance.invokeMethod("_input", inst.api, new InputEvent(state));
+        } catch (ScriptInvocationException e) {
             disableInstance(scene, inst, "_input", e);
         }
     }
@@ -281,8 +330,8 @@ final class SceneRuntime {
         String member = resolveMember(inst.instance, primary, fallback);
         if (member == null) return;
         try {
-            inst.instance.invokeMember(member, inst.api);
-        } catch (PolyglotException e) {
+            inst.instance.invokeMethod(member, inst.api);
+        } catch (ScriptInvocationException e) {
             disableInstance(scene, inst, member, e);
         }
     }
@@ -292,29 +341,20 @@ final class SceneRuntime {
         String member = resolveMember(inst.instance, primary, fallback);
         if (member == null) return;
         try {
-            ctx.getBindings("js").putMember("Input", inst.inputApi);
-            inst.instance.invokeMember(member, inst.api, dtSeconds);
-        } catch (PolyglotException e) {
+            if (inst.language == ScriptLanguage.JAVASCRIPT) {
+                ctx.getBindings("js").putMember("Input", inst.inputApi);
+            }
+            inst.instance.invokeMethod(member, inst.api, dtSeconds);
+        } catch (ScriptInvocationException e) {
             disableInstance(scene, inst, member, e);
         }
     }
 
-    private static String resolveMember(Value obj, String primary, String fallback) {
+    private static String resolveMember(ScriptObject obj, String primary, String fallback) {
         if (obj == null || primary == null) return null;
-        if (hasMemberCallable(obj, primary)) return primary;
-        if (fallback != null && hasMemberCallable(obj, fallback)) return fallback;
+        if (obj.hasMethod(primary)) return primary;
+        if (fallback != null && obj.hasMethod(fallback)) return fallback;
         return null;
-    }
-
-    private static boolean hasMemberCallable(Value obj, String member) {
-        if (obj == null || member == null) return false;
-        try {
-            if (!obj.hasMember(member)) return false;
-            Value fn = obj.getMember(member);
-            return fn != null && fn.canExecute();
-        } catch (Exception ignored) {
-            return false;
-        }
     }
 
     private void disableInstance(ServerScene scene, NodeInstance inst, String stage, Throwable t) {
@@ -525,8 +565,8 @@ final class SceneRuntime {
         return s;
     }
 
-    void scheduleTimer(double seconds, Value callback) {
-        if (callback == null || !callback.canExecute()) return;
+    void scheduleTimer(double seconds, ScriptCallable callback) {
+        if (callback == null) return;
         pendingTimers.add(new PendingTimer(Math.max(0.0, seconds), callback));
     }
 
@@ -539,10 +579,8 @@ final class SceneRuntime {
             if (t.timeLeft <= 0.0) {
                 it.remove();
                 try {
-                    t.callback.execute();
-                } catch (PolyglotException e) {
-                    DebugLog.error(LOG_TAG, "timer callback error: " + e.getMessage(), e);
-                } catch (Exception e) {
+                    t.callback.invoke();
+                } catch (ScriptInvocationException e) {
                     DebugLog.error(LOG_TAG, "timer callback error: " + e.getMessage(), e);
                 }
             }
@@ -652,16 +690,86 @@ final class SceneRuntime {
         return firstRootId;
     }
 
+    private ScriptCallable toScriptCallable(Object callback) {
+        if (callback == null) {
+            return null;
+        }
+        if (callback instanceof ScriptCallable callable) {
+            return callable;
+        }
+        if (callback instanceof Value value && value.canExecute()) {
+            return JsScriptAdapters.callable(value);
+        }
+        return null;
+    }
+
+    private static float[] toFloatArray(Object data) {
+        if (data == null) {
+            return null;
+        }
+        if (data instanceof float[] floats) {
+            return Arrays.copyOf(floats, floats.length);
+        }
+        if (data instanceof double[] doubles) {
+            float[] out = new float[doubles.length];
+            for (int i = 0; i < doubles.length; i++) out[i] = (float) doubles[i];
+            return out;
+        }
+        if (data instanceof int[] ints) {
+            float[] out = new float[ints.length];
+            for (int i = 0; i < ints.length; i++) out[i] = ints[i];
+            return out;
+        }
+        if (data instanceof long[] longs) {
+            float[] out = new float[longs.length];
+            for (int i = 0; i < longs.length; i++) out[i] = longs[i];
+            return out;
+        }
+        if (data instanceof Object[] objects) {
+            float[] out = new float[objects.length];
+            for (int i = 0; i < objects.length; i++) {
+                if (!(objects[i] instanceof Number number)) {
+                    return null;
+                }
+                out[i] = number.floatValue();
+            }
+            return out;
+        }
+        if (data instanceof List<?> list) {
+            float[] out = new float[list.size()];
+            for (int i = 0; i < list.size(); i++) {
+                Object item = list.get(i);
+                if (!(item instanceof Number number)) {
+                    return null;
+                }
+                out[i] = number.floatValue();
+            }
+            return out;
+        }
+        if (data instanceof Value value) {
+            if (!value.hasArrayElements()) {
+                return null;
+            }
+            int len = (int) value.getArraySize();
+            float[] out = new float[len];
+            for (int i = 0; i < len; i++) {
+                out[i] = (float) value.getArrayElement(i).asDouble();
+            }
+            return out;
+        }
+        return null;
+    }
+
     private static String propKey(long nodeId, String key) {
         return nodeId + "\u0000" + key;
     }
 
-    private record Target(long nodeId, String scriptPath) {}
+    private record Target(long nodeId, String scriptPath, ScriptLanguage language) {}
 
     private static final class PendingTimer {
         double timeLeft;
-        final Value callback;
-        PendingTimer(double timeLeft, Value callback) {
+        final ScriptCallable callback;
+        PendingTimer(double timeLeft, ScriptCallable callback) {
             this.timeLeft = timeLeft;
             this.callback = callback;
         }
@@ -687,17 +795,19 @@ final class SceneRuntime {
     static final class NodeInstance {
         final long nodeId;
         final Path scriptFile;
+        final ScriptLanguage language;
         final long programModifiedMs;
-        final Value instance;
+        final ScriptObject instance;
         final RuntimeApi api;
         boolean readyCalled;
         boolean disabled;
         long lastInputClientTick;
         ScriptInputApi inputApi;
 
-        NodeInstance(long nodeId, Path scriptFile, long programModifiedMs, Value instance, RuntimeApi api) {
+        NodeInstance(long nodeId, Path scriptFile, ScriptLanguage language, long programModifiedMs, ScriptObject instance, RuntimeApi api) {
             this.nodeId = nodeId;
             this.scriptFile = scriptFile;
+            this.language = language;
             this.programModifiedMs = programModifiedMs;
             this.instance = instance;
             this.api = api;
@@ -716,7 +826,7 @@ final class SceneRuntime {
         @HostAccess.Export
         public void log(String message) {
             String msg = message == null ? "" : message;
-            System.out.println("[moud][script][" + scene.sceneId() + "][#" + selfId + "] " + msg);
+            DebugLog.info(LOG_TAG, "scene=" + scene.sceneId() + " nodeId=" + selfId + " " + msg);
         }
 
         @HostAccess.Export
@@ -869,13 +979,17 @@ final class SceneRuntime {
          *   [px, py, pz,  qx, qy, qz, qw,  sx, sy, sz,  cr, cg, cb]  per instance.
          */
         @HostAccess.Export
-        public void setInstances(long nodeId, Value data) {
-            if (nodeId <= 0L || data == null || !data.hasArrayElements()) return;
-            int len = (int) data.getArraySize();
-            if (len <= 0) return;
-            float[] arr = new float[len];
-            for (int i = 0; i < len; i++) {
-                arr[i] = (float) data.getArrayElement(i).asDouble();
+        public void setInstances(long nodeId, Object data) {
+            if (nodeId <= 0L || data == null) return;
+            float[] arr = SceneRuntime.toFloatArray(data);
+            if (arr == null || arr.length == 0) {
+                DebugLog.warn(LOG_TAG, "scene=" + scene.sceneId()
+                        + " nodeId=" + selfId
+                        + " stage=setInstances"
+                        + " targetNodeId=" + nodeId
+                        + " error=invalid instance array"
+                        + " dataType=" + data.getClass().getSimpleName());
+                return;
             }
             SceneRuntime.this.pendingMultiMesh.put(nodeId, arr);
             SceneRuntime.this.latestMultiMesh.put(nodeId, arr);
@@ -931,8 +1045,8 @@ final class SceneRuntime {
         }
 
         @HostAccess.Export
-        public void after(double seconds, Value callback) {
-            SceneRuntime.this.scheduleTimer(seconds, callback);
+        public void after(double seconds, Object callback) {
+            SceneRuntime.this.scheduleTimer(seconds, SceneRuntime.this.toScriptCallable(callback));
         }
 
         @HostAccess.Export
@@ -941,17 +1055,17 @@ final class SceneRuntime {
         }
 
         @HostAccess.Export
-        public void emit_signal(String signal, Value arg1) {
+        public void emit_signal(String signal, Object arg1) {
             signalBus.emit(selfId, signal, instanceValueMap(), arg1);
         }
 
         @HostAccess.Export
-        public void emit_signal(String signal, Value arg1, Value arg2) {
+        public void emit_signal(String signal, Object arg1, Object arg2) {
             signalBus.emit(selfId, signal, instanceValueMap(), arg1, arg2);
         }
 
         @HostAccess.Export
-        public void emit_signal(String signal, Value arg1, Value arg2, Value arg3) {
+        public void emit_signal(String signal, Object arg1, Object arg2, Object arg3) {
             signalBus.emit(selfId, signal, instanceValueMap(), arg1, arg2, arg3);
         }
 
