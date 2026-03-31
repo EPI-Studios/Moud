@@ -43,6 +43,11 @@ public final class EditorGizmos implements AutoCloseable {
 
     private final EditorRuntime runtime;
     private GizmoOverlay3D overlay;
+
+    public boolean isDragging() {
+        return overlay != null && overlay.dragging();
+    }
+
     private final Matrix3f localAxes = new Matrix3f();
     private final Matrix3f cameraRot = new Matrix3f();
     private final Vector4f clip = new Vector4f();
@@ -367,7 +372,7 @@ public final class EditorGizmos implements AutoCloseable {
 
         boolean canMove = hasProp(def, props, "x") || hasProp(def, props, "y") || hasProp(def, props, "z");
         boolean canRotate = hasProp(def, props, "rx") || hasProp(def, props, "ry") || hasProp(def, props, "rz");
-        boolean canScale = pivotIsMinCorner && (hasProp(def, props, "sx") || hasProp(def, props, "sy") || hasProp(def, props, "sz"));
+        boolean canScale = hasProp(def, props, "sx") || hasProp(def, props, "sy") || hasProp(def, props, "sz");
 
         if (runtime.tool() == EditorTool.MOVE && !canMove) {
             return;
@@ -383,9 +388,10 @@ public final class EditorGizmos implements AutoCloseable {
         float y = parseFloat(props.get("y"), defaultFor(def, "y", isCsgBlock ? "41" : "0"));
         float z = parseFloat(props.get("z"), defaultFor(def, "z", "0"));
 
-        float sx = canScale ? Math.max(1.0f, parseFloat(props.get("sx"), defaultFor(def, "sx", "1"))) : 1.0f;
-        float sy = canScale ? Math.max(1.0f, parseFloat(props.get("sy"), defaultFor(def, "sy", "1"))) : 1.0f;
-        float sz = canScale ? Math.max(1.0f, parseFloat(props.get("sz"), defaultFor(def, "sz", "1"))) : 1.0f;
+        float scaleMin = pivotIsMinCorner ? 1.0f : SCALE_EPS;
+        float sx = canScale ? Math.max(scaleMin, parseFloat(props.get("sx"), defaultFor(def, "sx", "1"))) : 1.0f;
+        float sy = canScale ? Math.max(scaleMin, parseFloat(props.get("sy"), defaultFor(def, "sy", "1"))) : 1.0f;
+        float sz = canScale ? Math.max(scaleMin, parseFloat(props.get("sz"), defaultFor(def, "sz", "1"))) : 1.0f;
 
         float rx = parseFloat(props.get("rx"), defaultFor(def, "rx", "0"));
         float ry = parseFloat(props.get("ry"), defaultFor(def, "ry", "0"));
@@ -884,9 +890,22 @@ public final class EditorGizmos implements AutoCloseable {
                 float startCmpY = startY;
                 float startCmpZ = startZ;
 
+                float outLocalSx = canScale ? size.x : startSx;
+                float outLocalSy = canScale ? size.y : startSy;
+                float outLocalSz = canScale ? size.z : startSz;
+                if (inherit && parentId > 0L) {
+                    Pose parent = worldPose(state, parentId, poseCache);
+                    outLocalSx = outLocalSx / (parent.scale.x == 0.0f ? 1.0f : parent.scale.x);
+                    outLocalSy = outLocalSy / (parent.scale.y == 0.0f ? 1.0f : parent.scale.y);
+                    outLocalSz = outLocalSz / (parent.scale.z == 0.0f ? 1.0f : parent.scale.z);
+                }
+
                 boolean unchanged = (!canMove || (Math.abs(outLocalX - startCmpX) < 1e-6f
                         && Math.abs(outLocalY - startCmpY) < 1e-6f
                         && Math.abs(outLocalZ - startCmpZ) < 1e-6f))
+                        && (!canScale || (Math.abs(outLocalSx - startSx) < SCALE_EPS
+                        && Math.abs(outLocalSy - startSy) < SCALE_EPS
+                        && Math.abs(outLocalSz - startSz) < SCALE_EPS))
                         && (!hasProp(def, props, "rx") || Math.abs(outLocalRx - startCmpRx) < DEG_EPS)
                         && (!hasProp(def, props, "ry") || Math.abs(outLocalRy - startCmpRy) < DEG_EPS)
                         && (!hasProp(def, props, "rz") || Math.abs(outLocalRz - startCmpRz) < DEG_EPS);
@@ -894,7 +913,10 @@ public final class EditorGizmos implements AutoCloseable {
                     return;
                 }
 
-                sendNodeTransform(sel.nodeId(), session, state, def, props, outLocalX, outLocalY, outLocalZ, outLocalRx, outLocalRy, outLocalRz);
+                sendNodeTransformWithScale(sel.nodeId(), session, state, def, props,
+                        outLocalX, outLocalY, outLocalZ,
+                        outLocalRx, outLocalRy, outLocalRz,
+                        outLocalSx, outLocalSy, outLocalSz, canScale);
             }
             recordDragUndoOnRelease(sel.nodeId());
         }
@@ -1035,6 +1057,31 @@ public final class EditorGizmos implements AutoCloseable {
         if (ops.isEmpty()) {
             return;
         }
+        runtime.net().sendOps(session, state, List.copyOf(ops));
+    }
+
+    private void sendNodeTransformWithScale(long nodeId,
+                                            Session session,
+                                            EditorState state,
+                                            NodeTypeDef def,
+                                            Map<String, String> props,
+                                            float x, float y, float z,
+                                            float rxDeg, float ryDeg, float rzDeg,
+                                            float sx, float sy, float sz,
+                                            boolean includeScale) {
+        ArrayList<SceneOp> ops = new ArrayList<>(9);
+        if (hasProp(def, props, "x")) ops.add(new SceneOp.SetProperty(nodeId, "x", formatFloat(x)));
+        if (hasProp(def, props, "y")) ops.add(new SceneOp.SetProperty(nodeId, "y", formatFloat(y)));
+        if (hasProp(def, props, "z")) ops.add(new SceneOp.SetProperty(nodeId, "z", formatFloat(z)));
+        if (hasProp(def, props, "rx")) ops.add(new SceneOp.SetProperty(nodeId, "rx", formatFloat(rxDeg)));
+        if (hasProp(def, props, "ry")) ops.add(new SceneOp.SetProperty(nodeId, "ry", formatFloat(ryDeg)));
+        if (hasProp(def, props, "rz")) ops.add(new SceneOp.SetProperty(nodeId, "rz", formatFloat(rzDeg)));
+        if (includeScale) {
+            if (hasProp(def, props, "sx")) ops.add(new SceneOp.SetProperty(nodeId, "sx", formatFloat(sx)));
+            if (hasProp(def, props, "sy")) ops.add(new SceneOp.SetProperty(nodeId, "sy", formatFloat(sy)));
+            if (hasProp(def, props, "sz")) ops.add(new SceneOp.SetProperty(nodeId, "sz", formatFloat(sz)));
+        }
+        if (ops.isEmpty()) return;
         runtime.net().sendOps(session, state, List.copyOf(ops));
     }
 

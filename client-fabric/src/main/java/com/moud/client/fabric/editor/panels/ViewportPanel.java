@@ -33,7 +33,7 @@ public final class ViewportPanel extends Panel {
     private final EditorGizmos gizmos;
 
     private final TabBar sceneTabs = new TabBar();
-    private java.util.function.Consumer<String> onScriptTabTearOff;
+    private Consumer<String> onScriptTabTearOff;
 
     private final CanvasEditor2D canvas2d = new CanvasEditor2D();
     private final HashMap<Long, SceneCanvasObject> canvasObjectsById = new HashMap<>();
