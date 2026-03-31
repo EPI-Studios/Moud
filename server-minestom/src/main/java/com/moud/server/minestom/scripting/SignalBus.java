@@ -1,8 +1,6 @@
 package com.moud.server.minestom.scripting;
 
 import com.moud.server.minestom.util.DebugLog;
-import org.graalvm.polyglot.PolyglotException;
-import org.graalvm.polyglot.Value;
 
 import java.util.*;
 
@@ -54,7 +52,7 @@ final class SignalBus {
         }
     }
 
-    public void emit(long sourceNodeId, String signal, Map<Long, Value> scriptInstances, Object... args) {
+    public void emit(long sourceNodeId, String signal, Map<Long, ScriptObject> scriptInstances, Object... args) {
         if (isInvalidString(signal)) return;
 
         Map<String, List<SignalConnection>> nodeSignals = connections.get(sourceNodeId);
@@ -64,7 +62,7 @@ final class SignalBus {
         if (targetConnections == null || targetConnections.isEmpty()) return;
 
         for (SignalConnection connection : targetConnections) {
-            Value targetInstance = scriptInstances.get(connection.targetNodeId());
+            ScriptObject targetInstance = scriptInstances.get(connection.targetNodeId());
             if (targetInstance == null) continue;
 
             invokeMethodSafely(targetInstance, connection, signal, args);
@@ -95,15 +93,12 @@ final class SignalBus {
         connections.clear();
     }
 
-    private void invokeMethodSafely(Value targetInstance, SignalConnection connection, String signalName, Object[] args) {
+    private void invokeMethodSafely(ScriptObject targetInstance, SignalConnection connection, String signalName, Object[] args) {
         try {
-            if (!targetInstance.hasMember(connection.method())) return;
-
-            Value function = targetInstance.getMember(connection.method());
-            if (function != null && function.canExecute()) {
-                function.execute(args);
+            if (targetInstance.hasMethod(connection.method())) {
+                targetInstance.invokeMethod(connection.method(), args);
             }
-        } catch (PolyglotException e) {
+        } catch (ScriptInvocationException e) {
             String errorMessage = String.format(
                     "signal='%s' target=%d method='%s' error='%s'",
                     signalName, connection.targetNodeId(), connection.method(), e.getMessage()
