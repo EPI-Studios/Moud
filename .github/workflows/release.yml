@@ -1,0 +1,182 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, e.g. 0.1.0"
+        required: true
+        type: string
+      channel:
+        description: "Update channel"
+        required: true
+        default: "stable"
+        type: choice
+        options:
+          - stable
+          - beta
+          - alpha
+      prerelease:
+        description: "Publish as prerelease"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Client needs Java 21, server with Luau needs Java 25
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25-ea"
+          # Don't overwrite JAVA_HOME — Gradle toolchain auto-detects
+
+      - name: Make Gradle executable
+        run: chmod +x ./gradlew
+
+      - name: Resolve release metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+            VERSION="${TAG#v}"
+            CHANNEL="stable"
+            PRERELEASE="false"
+          else
+            VERSION="${{ inputs.version }}"
+            VERSION="${VERSION#v}"
+            TAG="v${VERSION}"
+            CHANNEL="${{ inputs.channel }}"
+            PRERELEASE="${{ inputs.prerelease }}"
+          fi
+
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "channel=${CHANNEL}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
+
+      - name: Build artifacts
+        run: |
+          ./gradlew \
+            :client-fabric:remapJar \
+            :server-minestom:shadowJar \
+            :server-supervisor:shadowJar \
+            -Pmoud.server.enableLuau=true \
+            -Pmoud.server.java=25
+
+      - name: Package release archives
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ steps.meta.outputs.version }}"
+          TAG="${{ steps.meta.outputs.tag }}"
+
+          CLIENT_JAR="$(find client-fabric/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-dev.jar' ! -name '*-sources.jar' | sort | head -n1)"
+          SERVER_JAR="$(find server-minestom/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' ! -name '*-sources.jar' | sort | head -n1)"
+          SUPERVISOR_JAR="$(find server-supervisor/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' ! -name '*-sources.jar' | sort | head -n1)"
+
+          if [[ -z "${CLIENT_JAR}" || ! -f "${CLIENT_JAR}" ]]; then
+            echo "Client jar not found" >&2; exit 1
+          fi
+          if [[ -z "${SERVER_JAR}" || ! -f "${SERVER_JAR}" ]]; then
+            echo "Server jar not found" >&2; exit 1
+          fi
+
+          rm -rf dist
+          mkdir -p dist/stage/client/engine/mods
+          mkdir -p dist/stage/server/engine
+
+          cp "${CLIENT_JAR}" "dist/stage/client/engine/mods/moud-client.jar"
+          cp "${SERVER_JAR}" "dist/stage/server/engine/moud-server.jar"
+
+          printf '%s\n' "${VERSION}" > dist/stage/client/engine/VERSION
+          printf '%s\n' "${VERSION}" > dist/stage/server/engine/VERSION
+          printf '%s\n' "${TAG}" > dist/stage/client/engine/RELEASE_TAG
+          printf '%s\n' "${TAG}" > dist/stage/server/engine/RELEASE_TAG
+
+          CLIENT_ARCHIVE="moud-client-${VERSION}.tar.gz"
+          SERVER_ARCHIVE="moud-server-${VERSION}.tar.gz"
+
+          tar --sort=name --mtime='UTC 2024-01-01' --owner=0 --group=0 --numeric-owner \
+            -C dist/stage/client -czf "dist/${CLIENT_ARCHIVE}" engine
+          tar --sort=name --mtime='UTC 2024-01-01' --owner=0 --group=0 --numeric-owner \
+            -C dist/stage/server -czf "dist/${SERVER_ARCHIVE}" engine
+
+          echo "client_archive=${CLIENT_ARCHIVE}" >> "$GITHUB_OUTPUT"
+          echo "server_archive=${SERVER_ARCHIVE}" >> "$GITHUB_OUTPUT"
+
+          # Supervisor jar is uploaded directly (no tar wrapping)
+          if [[ -n "${SUPERVISOR_JAR}" && -f "${SUPERVISOR_JAR}" ]]; then
+            cp "${SUPERVISOR_JAR}" "dist/moud-supervisor-${VERSION}.jar"
+            echo "supervisor_jar=moud-supervisor-${VERSION}.jar" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate signed release metadata
+        shell: bash
+        env:
+          RELEASE_SIGNING_PRIVATE_KEY: ${{ secrets.MOUD_RELEASE_SIGNING_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${RELEASE_SIGNING_PRIVATE_KEY:-}" ]]; then
+            echo "Missing secret MOUD_RELEASE_SIGNING_PRIVATE_KEY" >&2
+            exit 1
+          fi
+
+          VERSION="${{ steps.meta.outputs.version }}"
+          CHANNEL="${{ steps.meta.outputs.channel }}"
+          TAG="${{ steps.meta.outputs.tag }}"
+          BASE_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}"
+
+          python3 tools/release_manifest.py \
+            --version "${VERSION}" \
+            --channel "${CHANNEL}" \
+            --base-download-url "${BASE_URL}" \
+            --client-archive "dist/${{ steps.package.outputs.client_archive }}" \
+            --server-archive "dist/${{ steps.package.outputs.server_archive }}" \
+            --output "dist/release.json"
+
+          printf '%s\n' "${RELEASE_SIGNING_PRIVATE_KEY}" > dist/release-key.pem
+          openssl pkeyutl -sign -rawin -inkey dist/release-key.pem -in dist/release.json -out dist/release.sig.bin
+          base64 -w0 dist/release.sig.bin > dist/release.sig
+          rm -f dist/release-key.pem dist/release.sig.bin
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: Moud ${{ steps.meta.outputs.version }}
+          draft: false
+          prerelease: ${{ steps.meta.outputs.prerelease == 'true' }}
+          generate_release_notes: true
+          files: |
+            dist/${{ steps.package.outputs.client_archive }}
+            dist/${{ steps.package.outputs.server_archive }}
+            dist/${{ steps.package.outputs.supervisor_jar }}
+            dist/release.json
+            dist/release.sig
