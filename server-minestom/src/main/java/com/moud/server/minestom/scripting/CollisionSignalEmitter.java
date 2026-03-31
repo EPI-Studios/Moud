@@ -8,8 +8,6 @@ import com.moud.server.minestom.physics.JoltPhysicsWorld;
 import com.moud.server.minestom.physics.CollisionLayerMask;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
-import org.graalvm.polyglot.PolyglotException;
-import org.graalvm.polyglot.Value;
 
 import java.util.*;
 import java.util.function.Supplier;
@@ -23,10 +21,10 @@ final class CollisionSignalEmitter {
     HashSet<Long> currentPairs()  { return currentPairs; }
 
     void emit(ServerScene scene, Map<Long, SceneRuntime.NodeInstance> instances,
-              SignalBus signalBus, Supplier<Map<Long, Value>> valueMapSupplier) {
+              SignalBus signalBus, Supplier<Map<Long, ScriptObject>> valueMapSupplier) {
         if (scene == null) return;
         JoltPhysicsWorld physics = scene.physics();
-        Map<Long, Value> valueMap = null;
+        Map<Long, ScriptObject> valueMap = null;
 
         currentPairs.clear();
 
@@ -160,7 +158,7 @@ final class CollisionSignalEmitter {
 
     private void emitBodyEntered(ServerScene scene, Map<Long, SceneRuntime.NodeInstance> instances,
                                  SignalBus signalBus, long nodeId, long otherNodeId,
-                                 float cx, float cy, float cz, Map<Long, Value> valueMap) {
+                                 float cx, float cy, float cz, Map<Long, ScriptObject> valueMap) {
         SceneRuntime.NodeInstance inst = instances.get(nodeId);
         if (inst == null || inst.disabled) return;
         Node node = scene.engine().sceneTree().getNode(nodeId);
@@ -168,17 +166,17 @@ final class CollisionSignalEmitter {
         String typeId = scene.engine().nodeTypes().typeIdFor(node);
         String signal = isAreaNode(typeId) ? "area_entered" : "body_entered";
         signalBus.emit(nodeId, signal, valueMap, otherNodeId);
-        if (hasMemberCallable(inst.instance, "_on_body_entered")) {
+        if (inst.instance.hasMethod("_on_body_entered")) {
             try {
-                inst.instance.invokeMember("_on_body_entered", inst.api, otherNodeId, cx, cy, cz);
-            } catch (PolyglotException e) {
+                inst.instance.invokeMethod("_on_body_entered", inst.api, otherNodeId, cx, cy, cz);
+            } catch (ScriptInvocationException e) {
                 inst.disabled = true;
             }
         }
     }
 
     private void emitBodyExited(ServerScene scene, Map<Long, SceneRuntime.NodeInstance> instances,
-                                SignalBus signalBus, long nodeId, long otherNodeId, Map<Long, Value> valueMap) {
+                                SignalBus signalBus, long nodeId, long otherNodeId, Map<Long, ScriptObject> valueMap) {
         SceneRuntime.NodeInstance inst = instances.get(nodeId);
         if (inst == null || inst.disabled) return;
         Node node = scene.engine().sceneTree().getNode(nodeId);
@@ -186,10 +184,10 @@ final class CollisionSignalEmitter {
         String typeId = scene.engine().nodeTypes().typeIdFor(node);
         String signal = isAreaNode(typeId) ? "area_exited" : "body_exited";
         signalBus.emit(nodeId, signal, valueMap, otherNodeId);
-        if (hasMemberCallable(inst.instance, "_on_body_exited")) {
+        if (inst.instance.hasMethod("_on_body_exited")) {
             try {
-                inst.instance.invokeMember("_on_body_exited", inst.api, otherNodeId);
-            } catch (PolyglotException e) {
+                inst.instance.invokeMethod("_on_body_exited", inst.api, otherNodeId);
+            } catch (ScriptInvocationException e) {
                 inst.disabled = true;
             }
         }
@@ -215,17 +213,6 @@ final class CollisionSignalEmitter {
 
     private static int pairBodyId(long pairKey) {
         return (int) pairKey;
-    }
-
-    private static boolean hasMemberCallable(Value obj, String member) {
-        if (obj == null || member == null) return false;
-        try {
-            if (!obj.hasMember(member)) return false;
-            Value fn = obj.getMember(member);
-            return fn != null && fn.canExecute();
-        } catch (Exception ignored) {
-            return false;
-        }
     }
 
     private static float parseFloatSafe(String v, float fallback) {

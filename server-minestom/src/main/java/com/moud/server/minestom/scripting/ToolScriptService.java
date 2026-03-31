@@ -188,7 +188,7 @@ final class ToolScriptService {
         @HostAccess.Export
         public void log(String message) {
             String msg = message == null ? "" : message;
-            System.out.println("[moud][tool][" + scene.sceneId() + "][#" + selectedNodeId + "] " + msg);
+            DebugLog.info("script-tools", "scene=" + scene.sceneId() + " nodeId=" + selectedNodeId + " " + msg);
         }
 
         @HostAccess.Export
@@ -301,6 +301,21 @@ final class ToolScriptService {
             this.id = id;
             this.name = name;
             this.type = type;
+        }
+
+        @HostAccess.Export
+        public long id() {
+            return id;
+        }
+
+        @HostAccess.Export
+        public String name() {
+            return name;
+        }
+
+        @HostAccess.Export
+        public String type() {
+            return type;
         }
     }
 }
