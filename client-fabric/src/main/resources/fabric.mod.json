@@ -9,6 +9,7 @@
   "license": "All-Rights-Reserved",
   "environment": "client",
   "entrypoints": {
+    "preLaunch": ["com.moud.client.fabric.bootstrap.ClientBootstrap"],
     "client": ["com.moud.client.fabric.FabricClientEntrypoint"]
   },
   "mixins": [

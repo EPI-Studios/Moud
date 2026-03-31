@@ -1,0 +1,178 @@
+package com.moud.supervisor;
+
+import com.moud.core.update.ArtifactDownloader;
+import com.moud.core.update.GitHubReleaseResolver;
+import com.moud.core.update.ReleaseKeys;
+import com.moud.core.update.UpdateOrchestrator;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Server supervisor — standalone jar that:
+ * <ol>
+ *   <li>Checks for updates via GitHub Releases</li>
+ *   <li>Downloads + verifies + extracts the server engine</li>
+ *   <li>Launches the engine as a child JVM</li>
+ *   <li>Monitors the child — rollback on rapid crash</li>
+ *   <li>Loops: when child exits, check for updates, relaunch</li>
+ * </ol>
+ */
+public final class ServerSupervisor {
+
+    private static final String GITHUB_OWNER = "moudproject";
+    private static final String GITHUB_REPO = "Moud";
+    private static final String TARGET = "server";
+
+    private static final Duration ROLLBACK_WINDOW = Duration.ofSeconds(30);
+    private static final int MAX_RAPID_CRASHES = 3;
+
+    public static void main(String[] args) throws Exception {
+        Path baseDir = resolveBaseDir(args);
+        log("Server supervisor starting, base dir: " + baseDir);
+
+        String publicKey = ReleaseKeys.loadDefaultPublicKeyPem();
+        GitHubReleaseResolver resolver = new GitHubReleaseResolver(GITHUB_OWNER, GITHUB_REPO, publicKey);
+        ArtifactDownloader downloader = new ArtifactDownloader();
+        UpdateOrchestrator orchestrator = new UpdateOrchestrator(TARGET, baseDir, resolver, downloader);
+
+        int rapidCrashes = 0;
+
+        while (true) {
+            // Check for updates
+            try {
+                var check = orchestrator.check(false);
+                if (check.updateAvailable()) {
+                    log("Update available: " + check.currentVersion() + " -> " + check.latestVersion());
+                    var result = orchestrator.apply(check.manifest(), (downloaded, total) -> {
+                        if (total > 0) {
+                            int pct = (int) (downloaded * 100 / total);
+                            System.out.printf("\r  downloading... %d%%", pct);
+                        }
+                    });
+                    System.out.println();
+                    if (result.success()) {
+                        log("Update applied: " + result.version());
+                        rapidCrashes = 0;
+                    } else {
+                        log("Update failed: " + result.error());
+                    }
+                } else {
+                    log("No update available (current: " + check.currentVersion() + ")");
+                }
+            } catch (Exception e) {
+                log("Update check failed: " + e.getMessage());
+            }
+
+            // Find engine to launch
+            Path engineDir = orchestrator.currentEngineDir();
+            if (engineDir == null) {
+                log("No engine version installed. Waiting 30s before retry...");
+                Thread.sleep(30_000);
+                continue;
+            }
+
+            // Launch child JVM
+            log("Launching engine from: " + engineDir);
+            Instant launchTime = Instant.now();
+            int exitCode = launchEngine(engineDir);
+            Duration runTime = Duration.between(launchTime, Instant.now());
+
+            log("Engine exited with code " + exitCode + " after " + runTime.toSeconds() + "s");
+
+            if (exitCode != 0 && runTime.compareTo(ROLLBACK_WINDOW) < 0) {
+                rapidCrashes++;
+                log("Rapid crash detected (" + rapidCrashes + "/" + MAX_RAPID_CRASHES + ")");
+
+                if (rapidCrashes >= MAX_RAPID_CRASHES) {
+                    log("Too many rapid crashes, attempting rollback...");
+                    if (orchestrator.rollback()) {
+                        log("Rollback successful");
+                        rapidCrashes = 0;
+                    } else {
+                        log("Rollback failed — no previous version available");
+                        log("Waiting 60s before retry...");
+                        Thread.sleep(60_000);
+                    }
+                }
+            } else {
+                rapidCrashes = 0;
+            }
+
+            // Brief pause before restarting
+            Thread.sleep(2_000);
+        }
+    }
+
+    private static int launchEngine(Path engineDir) throws IOException, InterruptedException {
+        // Find the server jar in the engine directory
+        Path serverJar = findServerJar(engineDir);
+        if (serverJar == null) {
+            log("No server jar found in " + engineDir);
+            return 1;
+        }
+
+        List<String> command = new ArrayList<>();
+        command.add(ProcessHandle.current().info().command().orElse("java"));
+        command.add("-jar");
+        command.add(serverJar.toAbsolutePath().toString());
+
+        // Inherit JVM args from supervisor for engine-specific flags
+        String engineJvmArgs = System.getenv("MOUD_ENGINE_JVM_ARGS");
+        if (engineJvmArgs != null && !engineJvmArgs.isBlank()) {
+            for (String arg : engineJvmArgs.split("\\s+")) {
+                if (!arg.isBlank()) command.add(2, arg); // insert before -jar
+            }
+        }
+
+        ProcessBuilder pb = new ProcessBuilder(command)
+                .directory(engineDir.toFile())
+                .inheritIO();
+
+        // Forward relevant env vars
+        pb.environment().put("MOUD_ENGINE_DIR", engineDir.toAbsolutePath().toString());
+
+        Process process = pb.start();
+        return process.waitFor();
+    }
+
+    private static Path findServerJar(Path engineDir) throws IOException {
+        // Look for engine/moud-server.jar or any jar in engine/
+        Path direct = engineDir.resolve("engine").resolve("moud-server.jar");
+        if (Files.isRegularFile(direct)) return direct;
+
+        // Also check directly in engineDir
+        Path flat = engineDir.resolve("moud-server.jar");
+        if (Files.isRegularFile(flat)) return flat;
+
+        // Search for any jar
+        Path engineSubDir = engineDir.resolve("engine");
+        Path searchDir = Files.isDirectory(engineSubDir) ? engineSubDir : engineDir;
+        try (var stream = Files.list(searchDir)) {
+            return stream
+                    .filter(p -> p.getFileName().toString().endsWith(".jar"))
+                    .findFirst()
+                    .orElse(null);
+        }
+    }
+
+    private static Path resolveBaseDir(String[] args) {
+        if (args.length > 0 && !args[0].isBlank()) {
+            return Path.of(args[0]).toAbsolutePath();
+        }
+        String env = System.getenv("MOUD_SERVER_DIR");
+        if (env != null && !env.isBlank()) {
+            return Path.of(env).toAbsolutePath();
+        }
+        return Path.of(".").toAbsolutePath().resolve("moud-server");
+    }
+
+    private static void log(String message) {
+        System.out.println("[supervisor] " + message);
+    }
+}
