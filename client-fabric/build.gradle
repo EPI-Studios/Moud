@@ -34,8 +34,8 @@ dependencies {
 
     include implementation(project(':core'))
     include implementation(project(':net'))
-    include implementation(files("${rootProject.projectDir}/libs/BbModelReader-1.0-SNAPSHOT.jar"))
-    include(implementation(files("${rootProject.projectDir}/libs/miry-1.0-SNAPSHOT.jar")))
+    implementation files("${rootProject.projectDir}/libs/BbModelReader-1.0-SNAPSHOT.jar")
+    implementation files("${rootProject.projectDir}/libs/miry-1.0-SNAPSHOT.jar")
 }
 
 loom {
