@@ -1,8 +1,12 @@
 package com.moud.client.fabric.render;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.moud.client.fabric.editor.overlay.EditorContext;
+import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
 import com.moud.client.fabric.render.MoudTextures;
+import com.moud.client.fabric.render.picking.NodePickingPass;
+import com.moud.client.fabric.render.picking.OutlineRenderer;
 import com.moud.client.fabric.scene.ClientSceneBus;
 import com.moud.net.protocol.SceneSnapshot;
 import foundry.veil.api.client.render.VeilRenderSystem;
@@ -68,6 +72,8 @@ public final class VeilSceneNodeRenderer {
     private static final InstancedBatchRenderer batchRenderer = new InstancedBatchRenderer(meshShader.sceneLights());
     private static final MultiMeshRenderer multiMeshRenderer = new MultiMeshRenderer(meshShader.sceneLights());
     private static final DecalRenderer decalRenderer = new DecalRenderer(meshShader);
+    private static final NodePickingPass pickingPass = new NodePickingPass();
+    private static final OutlineRenderer outlineRenderer = new OutlineRenderer();
 
     private VeilSceneNodeRenderer() {
     }
@@ -142,11 +148,15 @@ public final class VeilSceneNodeRenderer {
                 return;
             }
             bufferSource.draw();
-            renderMeshes(bufferSource, camera, tickDelta);
+            renderMeshes(bufferSource, camera, frustumMatrix, projectionMatrix, tickDelta);
         }
     }
 
-    private static void renderMeshes(VertexConsumerProvider.Immediate consumers, Camera camera, float tickDelta) {
+    private static void renderMeshes(VertexConsumerProvider.Immediate consumers,
+                                     Camera camera,
+                                     Matrix4fc frustumMatrix,
+                                     Matrix4fc projectionMatrix,
+                                     float tickDelta) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.world == null) {
             return;
@@ -162,8 +172,8 @@ public final class VeilSceneNodeRenderer {
         MatrixStack matrices = new MatrixStack();
 
         meshShader.collectLights(cachedNodes, VeilSceneNodeRenderer::worldPose);
-        batchRenderer.renderBatched(cachedNodes, VeilSceneNodeRenderer::worldPose, camPos, camera, client, tickDelta);
-        multiMeshRenderer.renderAll(cachedNodes, VeilSceneNodeRenderer::worldPose, camPos, camera, client, tickDelta);
+        batchRenderer.renderBatched(cachedNodes, VeilSceneNodeRenderer::worldPose, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta);
+        multiMeshRenderer.renderAll(cachedNodes, VeilSceneNodeRenderer::worldPose, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta);
 
         for (SceneSnapshot.NodeSnapshot node : cachedNodes) {
             if (node == null) {
@@ -205,7 +215,7 @@ public final class VeilSceneNodeRenderer {
                 continue;
             }
 
-            if (meshShader.renderNode(node, world, camPos, camera, client, tickDelta)) {
+            if (meshShader.renderNode(node, world, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta)) {
                 continue;
             }
 
@@ -239,7 +249,36 @@ public final class VeilSceneNodeRenderer {
             matrices.pop();
         }
 
-        decalRenderer.renderAll(cachedNodes, VeilSceneNodeRenderer::worldPose, camPos, camera, client, tickDelta);
+        // Flush queued CSGBox/MeshInstance3D vertices to the GPU so their depth is in the
+        // main framebuffer before the decal renderer blits it for depth-based projection.
+        consumers.draw();
+        decalRenderer.renderAll(cachedNodes, VeilSceneNodeRenderer::worldPose, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta);
+
+        // Picking + outline passes (editor only)
+        EditorContext editorCtx = EditorOverlayBus.get();
+        if (editorCtx != null && editorCtx.isActive()) {
+            int[] viewport = new int[4];
+            org.lwjgl.opengl.GL11.glGetIntegerv(org.lwjgl.opengl.GL11.GL_VIEWPORT, viewport);
+            int vpW = viewport[2];
+            int vpH = viewport[3];
+
+            if (vpW > 0 && vpH > 0 && editorCtx.isMouseInViewport()) {
+                pickingPass.render(cachedNodes, VeilSceneNodeRenderer::worldPose,
+                        camPos, frustumMatrix, projectionMatrix,
+                        vpW, vpH,
+                        editorCtx.mouseViewportNdcX(), editorCtx.mouseViewportNdcY());
+                editorCtx.setHoveredNodeId(pickingPass.hoveredNodeId());
+            }
+
+            long hoveredId = editorCtx.hoveredNodeId();
+            long selectedId = editorCtx.selectedNodeId();
+            if (hoveredId > 0 || selectedId > 0) {
+                outlineRenderer.render(cachedNodes, cachedNodesById,
+                        VeilSceneNodeRenderer::worldPose,
+                        camPos, frustumMatrix, projectionMatrix,
+                        hoveredId, selectedId, client);
+            }
+        }
     }
 
     private static void renderUnitCube(VertexConsumer vc, MatrixStack.Entry entry, int light, int overlay, int r, int g, int b, int a) {
@@ -331,6 +370,8 @@ public final class VeilSceneNodeRenderer {
         batchRenderer.clear();
         multiMeshRenderer.clear();
         decalRenderer.clear();
+        pickingPass.clear();
+        outlineRenderer.clear();
         MoudMeshBuffer.cleanup();
         cachedVersion = Long.MIN_VALUE;
     }
@@ -740,7 +781,7 @@ public final class VeilSceneNodeRenderer {
         return new Quaternionf().rotationZ(rz).mul(new Quaternionf().rotationY(ry)).mul(new Quaternionf().rotationX(rx)).normalize();
     }
 
-    static float parseFloat(String value, float fallback) {
+    public static float parseFloat(String value, float fallback) {
         try {
             if (value == null) {
                 return fallback;
@@ -760,7 +801,7 @@ public final class VeilSceneNodeRenderer {
         return Math.max(1e-6f, v);
     }
 
-    static boolean parseBool(String value, boolean fallback) {
+    public static boolean parseBool(String value, boolean fallback) {
         if (value == null) {
             return fallback;
         }
@@ -774,7 +815,7 @@ public final class VeilSceneNodeRenderer {
         return fallback;
     }
 
-    static float clamp01(float v) {
+    public static float clamp01(float v) {
         if (!Float.isFinite(v)) {
             return 0.0f;
         }
@@ -792,7 +833,7 @@ public final class VeilSceneNodeRenderer {
         }
     }
 
-    static String stringProp(SceneSnapshot.NodeSnapshot node, String key) {
+    public static String stringProp(SceneSnapshot.NodeSnapshot node, String key) {
         if (node == null || key == null) {
             return null;
         }
@@ -834,13 +875,13 @@ public final class VeilSceneNodeRenderer {
         long frame = Long.MIN_VALUE;
     }
 
-    static final class Pose {
+    public static final class Pose {
         static final Pose IDENTITY = new Pose(true);
 
-        final Vector3f pos = new Vector3f();
-        final Quaternionf rot = new Quaternionf();
-        final Vector3f scale = new Vector3f(1, 1, 1);
-        boolean inherit = true;
+        public final Vector3f pos = new Vector3f();
+        public final Quaternionf rot = new Quaternionf();
+        public final Vector3f scale = new Vector3f(1, 1, 1);
+        public boolean inherit = true;
 
         Pose() {
         }
