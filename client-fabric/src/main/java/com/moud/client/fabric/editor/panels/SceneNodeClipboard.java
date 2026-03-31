@@ -9,6 +9,7 @@ import com.moud.net.session.Session;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.LongConsumer;
 
 class SceneNodeClipboard {
     private record ClipboardEntry(String name, String type, List<SceneSnapshot.Property> properties) {}
@@ -18,13 +19,13 @@ class SceneNodeClipboard {
     private final List<ClipboardEntry> clipboard = new ArrayList<>();
     private long cutNodeId = -1;
 
-    private java.util.function.LongConsumer queueFree = ignored -> {};
+    private LongConsumer queueFree = ignored -> {};
 
     SceneNodeClipboard(EditorRuntime runtime) {
         this.runtime = runtime;
     }
 
-    void setQueueFree(java.util.function.LongConsumer queueFree) {
+    void setQueueFree(LongConsumer queueFree) {
         this.queueFree = queueFree != null ? queueFree : ignored -> {};
     }
 
@@ -101,4 +102,3 @@ class SceneNodeClipboard {
         queueFree.accept(nodeId);
     }
 }
-

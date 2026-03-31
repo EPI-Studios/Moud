@@ -24,6 +24,7 @@ import com.moud.client.fabric.render.MoudIcons;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneSnapshot;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 public final class ScenePanel extends Panel {
@@ -112,7 +113,7 @@ public final class ScenePanel extends Panel {
             if (e.isPressOrRepeat() && e.key() == InputConstants.KEY_ENTER) {
                 String filterText = filterField.text();
                 if (filterText != null && !filterText.isBlank()) {
-                    sceneTreeController.jumpToFirstFilterMatch(filterText.trim().toLowerCase(java.util.Locale.ROOT));
+                    sceneTreeController.jumpToFirstFilterMatch(filterText.trim().toLowerCase(Locale.ROOT));
                 }
                 return;
             }
@@ -388,7 +389,11 @@ public final class ScenePanel extends Panel {
                         dropTreeW,
                         dropTreeH,
                         (String dragPath, float dropX, float dropY) -> {
-                            if (dragPath == null || !dragPath.endsWith(".js")) {
+                            if (dragPath == null
+                                    || !(dragPath.endsWith(".js")
+                                    || dragPath.endsWith(".mjs")
+                                    || dragPath.endsWith(".cjs")
+                                    || dragPath.endsWith(".luau"))) {
                                 return;
                             }
                             int dropRow = (int) ((dropY - dropTreeY + dropScrollOffset) / dropItemH);
