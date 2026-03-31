@@ -10,6 +10,7 @@ import com.miry.ui.theme.Theme;
 import com.miry.ui.widgets.editor.language.LanguageProvider;
 import com.miry.ui.widgets.editor.language.impl.GLSLLanguageProvider;
 import com.miry.ui.widgets.editor.language.impl.JSLanguageProvider;
+import com.miry.ui.widgets.editor.language.impl.LuauLanguageProvider;
 import com.miry.ui.widgets.editor.language.impl.TypeScriptLanguageProvider;
 import com.miry.ui.widgets.editor.view.CodeEditor;
 import com.miry.ui.widgets.editor.view.FindBarWidget;
@@ -35,6 +36,7 @@ public final class TextAssetEditorDialog implements AssetsClient.Listener {
     private static final LanguageProvider JS = new JSLanguageProvider();
     private static final LanguageProvider TS = new TypeScriptLanguageProvider();
     private static final LanguageProvider GLSL = new GLSLLanguageProvider();
+    private static final LanguageProvider LUAU = new LuauLanguageProvider();
 
     private enum ConfirmAction {
         CLOSE,
@@ -474,8 +476,11 @@ public final class TextAssetEditorDialog implements AssetsClient.Listener {
         if (p.endsWith(".moudmat") || p.endsWith(".json")) {
             return TS;
         }
-        if (p.endsWith(".js")) {
+        if (p.endsWith(".js") || p.endsWith(".mjs") || p.endsWith(".cjs")) {
             return JS;
+        }
+        if (p.endsWith(".luau")) {
+            return LUAU;
         }
         return LanguageProvider.PLAIN_TEXT;
     }

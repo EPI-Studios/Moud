@@ -205,12 +205,13 @@ public final class CreateAssetDialog {
 
         String raw = nameField.text() == null ? "" : nameField.text().trim();
         String base = normalizeBaseName(raw);
+        boolean luauScript = isLuauScriptName(raw);
         if (base == null || base.isBlank()) {
             error = "Invalid name";
             return;
         }
 
-        String primaryPath = primaryPathFor(activeTab, base);
+        String primaryPath = primaryPathFor(activeTab, base, luauScript);
         if (primaryPath == null) {
             error = "Unsupported type";
             return;
@@ -230,7 +231,7 @@ public final class CreateAssetDialog {
         }
 
         if (activeTab == 0) {
-            String script = scriptTemplate(base);
+            String script = scriptTemplate(base, luauScript);
             net.writeScriptFile(session, state, primaryPath, script);
             runtime.openScriptEditor(0L, primaryPath);
             requestManifest();
@@ -290,9 +291,9 @@ public final class CreateAssetDialog {
         }
     }
 
-    private static String primaryPathFor(int tab, String base) {
+    private static String primaryPathFor(int tab, String base, boolean luauScript) {
         return switch (tab) {
-            case 0 -> "res://scripts/" + base + ".js";
+            case 0 -> "res://scripts/" + base + (luauScript ? ".luau" : ".js");
             case 1 -> shaderPathFor(base);
             case 2 -> "res://materials/" + base + ".moudmat";
             case 3 -> "res://text/" + base + ".txt";
@@ -367,16 +368,24 @@ public final class CreateAssetDialog {
 
     private static String hintFor(int tab) {
         return switch (tab) {
-            case 0 -> "Creates res://scripts/<name>.js";
+            case 0 -> "Creates res://scripts/<name>.js or .luau";
             case 1 -> "Creates res://shaders/<name>.moudshader";
             case 2 -> "Creates res://materials/<name>.moudmat (+ matching shader)";
             default -> "Creates res://text/<name>.txt";
         };
     }
 
-    private static String scriptTemplate(String name) {
+    private static String scriptTemplate(String name, boolean luauScript) {
         String n = name == null ? "Script" : name;
-        return loadTemplate("new_script.js").replace("{{name}}", n);
+        String template = luauScript ? "new_script.luau" : "new_script.js";
+        return loadTemplate(template).replace("{{name}}", n);
+    }
+
+    private static boolean isLuauScriptName(String raw) {
+        if (raw == null) {
+            return false;
+        }
+        return raw.trim().toLowerCase().endsWith(".luau");
     }
 
     private static String shaderTemplate() {

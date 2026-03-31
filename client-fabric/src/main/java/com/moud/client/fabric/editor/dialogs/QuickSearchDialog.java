@@ -157,7 +157,9 @@ public final class QuickSearchDialog {
         String path = entry.path().value();
         if (path == null || path.isBlank()) return;
         AssetType type = entry.meta() != null ? entry.meta().type() : null;
-        if (type == AssetType.TEXT && path.endsWith(".js") && path.startsWith("res://scripts/")) {
+        if (type == AssetType.TEXT
+                && path.startsWith("res://scripts/")
+                && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs") || path.endsWith(".luau"))) {
             runtime.openScriptEditor(0L, path);
         } else if (type == AssetType.TEXT) {
             runtime.openTextAssetEditor(path, entry.meta() == null ? null : entry.meta().hash());
