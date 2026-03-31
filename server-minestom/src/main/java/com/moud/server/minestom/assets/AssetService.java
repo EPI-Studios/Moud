@@ -19,6 +19,7 @@ import com.moud.net.protocol.AssetUploadComplete;
 import com.moud.net.protocol.Message;
 import com.moud.net.session.Session;
 import com.moud.net.transport.Lane;
+import com.moud.server.minestom.util.DebugLog;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -90,6 +91,8 @@ public final class AssetService {
             }
             entries.add(new AssetManifestResponse.Entry(entry.getKey(), entry.getValue()));
         }
+        DebugLog.info("assets", "send manifest requestId=" + request.requestId()
+                + " entries=" + entries.size());
         session.send(Lane.ASSETS, new AssetManifestResponse(request.requestId(), List.copyOf(entries)));
     }
 
@@ -215,6 +218,9 @@ public final class AssetService {
             return;
         }
 
+        DebugLog.info("assets", "send download hash=" + hash.hex()
+                + " type=" + type
+                + " size=" + bytes.length);
         session.send(Lane.ASSETS, new AssetDownloadBegin(hash, bytes.length, type, AssetTransferStatus.OK, ""));
         int index = 0;
         for (int off = 0; off < bytes.length; off += CHUNK_BYTES_MAX) {

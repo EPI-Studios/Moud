@@ -9,12 +9,14 @@ import java.util.stream.Stream;
 
 public final class FileSystemAssetStore implements AssetStore {
     private final Path root;
+    private final Path projectRoot;
     private final Path blobsDir;
     private final Path manifestFile;
     private final Map<ResPath, AssetMeta> manifest = new HashMap<>();
 
     public FileSystemAssetStore(Path root) throws IOException {
         this.root = Objects.requireNonNull(root);
+        this.projectRoot = this.root.getParent() == null ? this.root : this.root.getParent();
         this.blobsDir = root.resolve("blobs");
         this.manifestFile = root.resolve("manifest.tsv");
         Files.createDirectories(blobsDir);
@@ -85,7 +87,7 @@ public final class FileSystemAssetStore implements AssetStore {
             "shaders",   Map.of(".moudshader", AssetType.TEXT),
             "textures",  Map.of(".png", AssetType.IMAGE, ".jpg", AssetType.IMAGE, ".jpeg", AssetType.IMAGE),
             "models",    Map.of(".bbmodel", AssetType.MODEL),
-            "scripts",   Map.of(".js", AssetType.TEXT)
+            "scripts",   Map.of(".js", AssetType.TEXT, ".mjs", AssetType.TEXT, ".cjs", AssetType.TEXT, ".luau", AssetType.TEXT)
     );
 
     private void scanForNewAssets() throws IOException {
@@ -116,40 +118,60 @@ public final class FileSystemAssetStore implements AssetStore {
         }
 
         for (var dirEntry : SCAN_DIRS.entrySet()) {
-            Path dir = root.resolve(dirEntry.getKey());
-            if (!Files.isDirectory(dir)) continue;
+            String dirName = dirEntry.getKey();
             var extensions = dirEntry.getValue();
-
-            try (Stream<Path> walk = Files.walk(dir)) {
-                for (Path file : (Iterable<Path>) walk::iterator) {
-                    if (!Files.isRegularFile(file)) continue;
-
-                    String name = file.getFileName().toString().toLowerCase();
-                    AssetType type = extensions.entrySet().stream()
-                            .filter(e -> name.endsWith(e.getKey()))
-                            .map(Map.Entry::getValue)
-                            .findFirst()
-                            .orElse(null);
-                    if (type == null) continue;
-
-                    ResPath resPath = new ResPath("res://" + root.relativize(file).toString().replace('\\', '/'));
-                    if (manifest.containsKey(resPath)) continue;
-
-                    byte[] bytes = Files.readAllBytes(file);
-                    AssetHash hash = AssetHash.sha256(bytes);
-
-                    Path blob = blobPath(hash);
-                    if (!Files.exists(blob)) {
-                        atomicWrite(blob, bytes);
-                    }
-
-                    manifest.put(resPath, new AssetMeta(hash, bytes.length, type));
-                    changed = true;
-                }
+            if ("scripts".equals(dirName)) {
+                changed |= scanDir(root.resolve("scripts"), "scripts", extensions);
+                changed |= scanDir(projectRoot.resolve("scripts"), "scripts", extensions);
+            } else {
+                changed |= scanDir(root.resolve(dirName), dirName, extensions);
             }
         }
 
         if (changed) persistManifest();
+    }
+
+    private boolean scanDir(Path dir, String resPrefix, Map<String, AssetType> extensions) throws IOException {
+        if (!Files.isDirectory(dir)) {
+            return false;
+        }
+
+        boolean changed = false;
+        try (Stream<Path> walk = Files.walk(dir)) {
+            for (Path file : (Iterable<Path>) walk::iterator) {
+                if (!Files.isRegularFile(file)) continue;
+
+                String name = file.getFileName().toString().toLowerCase();
+                AssetType type = extensions.entrySet().stream()
+                        .filter(e -> name.endsWith(e.getKey()))
+                        .map(Map.Entry::getValue)
+                        .findFirst()
+                        .orElse(null);
+                if (type == null) continue;
+
+                String relative = dir.relativize(file).toString().replace('\\', '/');
+                ResPath resPath = new ResPath("res://" + resPrefix + "/" + relative);
+                byte[] bytes = Files.readAllBytes(file);
+                AssetHash hash = AssetHash.sha256(bytes);
+                AssetMeta meta = new AssetMeta(hash, bytes.length, type);
+                AssetMeta existing = manifest.get(resPath);
+                if (existing != null
+                        && existing.hash().equals(meta.hash())
+                        && existing.sizeBytes() == meta.sizeBytes()
+                        && existing.type() == meta.type()) {
+                    continue;
+                }
+
+                Path blob = blobPath(hash);
+                if (!Files.exists(blob)) {
+                    atomicWrite(blob, bytes);
+                }
+
+                manifest.put(resPath, meta);
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     private void loadManifest() throws IOException {
