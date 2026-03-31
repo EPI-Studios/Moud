@@ -15,10 +15,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.util.Identifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class VeilMaterialBinding {
+    private static final Logger LOGGER = LoggerFactory.getLogger(VeilMaterialBinding.class);
+    private static final Set<String> LOGGED_WARNINGS = ConcurrentHashMap.newKeySet();
+
     private String activeKey;
     private String materialPath;
     private String shaderPath;
@@ -132,6 +139,14 @@ public final class VeilMaterialBinding {
         return shaderFile;
     }
 
+    public String materialPath() {
+        return materialPath;
+    }
+
+    public String shaderPath() {
+        return shaderPath;
+    }
+
     public void clear() {
         activeKey = null;
         materialPath = null;
@@ -141,6 +156,15 @@ public final class VeilMaterialBinding {
         material = null;
         shaderFile = null;
         programId = null;
+    }
+
+    private static void warnOnce(String key, String message) {
+        if (key == null || message == null) {
+            return;
+        }
+        if (LOGGED_WARNINGS.add(key)) {
+            LOGGER.warn(message);
+        }
     }
 
     private void ensureMaterialLoaded() {
@@ -153,6 +177,7 @@ public final class VeilMaterialBinding {
 
         String txt = MoudTextAssets.readText(materialPath);
         if (txt == null) {
+            warnOnce("material-missing:" + materialPath, "[Moud] Material asset unavailable path=" + materialPath);
             return;
         }
         if (Objects.equals(cachedMaterialText, txt) && material != null) {
@@ -163,6 +188,7 @@ public final class VeilMaterialBinding {
         if (material != null) {
             shaderPath = norm(material.shader());
         } else {
+            warnOnce("material-parse:" + materialPath, "[Moud] Material parse failed path=" + materialPath);
             shaderPath = null;
         }
         cachedShaderText = null;
@@ -180,6 +206,8 @@ public final class VeilMaterialBinding {
         }
         String txt = MoudTextAssets.readText(sp);
         if (txt == null) {
+            warnOnce("shader-missing:" + sp, "[Moud] Shader asset unavailable path=" + sp
+                    + (materialPath != null && !materialPath.isBlank() ? " material=" + materialPath : ""));
             return;
         }
         boolean sameRoot = Objects.equals(cachedShaderText, txt);
@@ -189,6 +217,10 @@ public final class VeilMaterialBinding {
         cachedShaderText = txt;
         shaderFile = MoudShaderParser.parse(txt, sp);
         programId = null;
+        if (shaderFile == null) {
+            warnOnce("shader-parse:" + sp, "[Moud] Shader parse failed path=" + sp
+                    + (materialPath != null && !materialPath.isBlank() ? " material=" + materialPath : ""));
+        }
         if (shaderFile != null) {
             AssetHash hash = shaderFile.programHash();
             if (hash == null) {
