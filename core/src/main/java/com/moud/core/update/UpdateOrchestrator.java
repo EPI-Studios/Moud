@@ -193,7 +193,8 @@ public final class UpdateOrchestrator {
         }
     }
 
-    private static void extractTar(InputStream in, Path destDir) throws IOException {
+    private static void extractTar(InputStream in, Path rawDestDir) throws IOException {
+        Path destDir = rawDestDir.toAbsolutePath().normalize();
         byte[] header = new byte[TAR_BLOCK];
         byte[] buf = new byte[8192];
 
@@ -210,13 +211,15 @@ public final class UpdateOrchestrator {
 
             long size = readTarOctal(header, 124, 12);
             byte typeflag = header[156];
+            boolean isDir = typeflag == '5' || name.endsWith("/");
 
-            Path entryPath = destDir.resolve(name).normalize();
+            String cleanName = name.endsWith("/") ? name.substring(0, name.length() - 1) : name;
+            if (cleanName.isEmpty()) continue;
+
+            Path entryPath = destDir.resolve(cleanName).normalize();
             if (!entryPath.startsWith(destDir)) {
                 throw new IOException("Tar entry escapes target directory: " + name);
             }
-
-            boolean isDir = typeflag == '5' || name.endsWith("/");
 
             if (isDir) {
                 Files.createDirectories(entryPath);
