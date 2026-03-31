@@ -20,6 +20,7 @@ import net.minecraft.client.texture.TextureManager;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
 import org.lwjgl.opengl.GL20C;
 import org.slf4j.Logger;
@@ -68,7 +69,8 @@ final class MeshShaderRenderer {
     }
 
     boolean renderNode(SceneSnapshot.NodeSnapshot node, VeilSceneNodeRenderer.Pose world,
-                       Vec3d camPos, Camera camera, MinecraftClient client, float tickDelta) {
+                       Vec3d camPos, Camera camera, Matrix4fc viewMatrix, Matrix4fc projectionMatrix,
+                       MinecraftClient client, float tickDelta) {
         String materialPath = VeilSceneNodeRenderer.stringProp(node, "material");
         VeilMaterialBinding binding = null;
         ShaderProgram program;
@@ -88,7 +90,12 @@ final class MeshShaderRenderer {
             if (shaderErrorId != null) {
                 String error = VeilDynamicShaders.getLastError(shaderErrorId);
                 if (error != null && loggedShaderErrors.add(shaderErrorId + ":" + error)) {
-                    LOGGER.error("[Moud] Shader compilation failed for '{}': {}", shaderErrorId, error);
+                    LOGGER.error("[Moud] Shader compilation failed nodeId={} material={} shader={} program={} error={}",
+                            node.nodeId(),
+                            materialPath,
+                            binding == null ? null : binding.shaderPath(),
+                            shaderErrorId,
+                            error);
                 }
             }
             return false;
@@ -103,48 +110,94 @@ final class MeshShaderRenderer {
 
         ShaderBlock<CameraMatrices> camBlock = VeilRenderSystem.getBlock(VeilShaderBufferRegistry.CAMERA.get());
         CameraMatrices veilCam = camBlock != null ? camBlock.getValue() : null;
-        Matrix4f viewMat = veilCam != null ? new Matrix4f(veilCam.getViewMatrix()) : new Matrix4f();
-        Matrix4f projMat = veilCam != null ? new Matrix4f(veilCam.getProjectionMatrix()) : new Matrix4f(RenderSystem.getProjectionMatrix());
+        Matrix4f viewMat = veilCam != null ? new Matrix4f(veilCam.getViewMatrix())
+                : (viewMatrix != null ? new Matrix4f(viewMatrix) : new Matrix4f());
+        Matrix4f projMat = veilCam != null ? new Matrix4f(veilCam.getProjectionMatrix())
+                : (projectionMatrix != null ? new Matrix4f(projectionMatrix) : new Matrix4f(RenderSystem.getProjectionMatrix()));
 
         boolean isSprite3D = "Sprite3D".equals(node.type());
-        boolean billboard = isSprite3D || VeilSceneNodeRenderer.parseBool(
-                VeilSceneNodeRenderer.stringProp(node, "billboard"), false);
+        boolean billboard = VeilSceneNodeRenderer.parseBool(
+                VeilSceneNodeRenderer.stringProp(node, "billboard"), isSprite3D);
+
+        String meshType = VeilSceneNodeRenderer.stringProp(node, "mesh");
+        if (isSprite3D && (meshType == null || meshType.isBlank())) meshType = "plane";
+        boolean isPlane = "plane".equals(meshType);
+
+        float HALF_PI = (float) (Math.PI / 2.0);
 
         final Matrix4f worldMat;
         final Matrix4f modelMat;
         if (billboard) {
             Quaternionf camRot = viewMat.getNormalizedRotation(new Quaternionf()).conjugate();
-            worldMat = new Matrix4f()
-                    .translate(world.pos.x, world.pos.y, world.pos.z)
-                    .rotate(camRot)
-                    .scale(world.scale.x, world.scale.y, world.scale.z)
-                    .translate(-0.5f, -0.5f, -0.5f);
-            modelMat = new Matrix4f()
-                    .translate((float)(world.pos.x - camPos.x),
-                            (float)(world.pos.y - camPos.y),
-                            (float)(world.pos.z - camPos.z))
-                    .rotate(camRot)
-                    .scale(world.scale.x, world.scale.y, world.scale.z)
-                    .translate(-0.5f, -0.5f, -0.5f);
+            if (isPlane) {
+                worldMat = new Matrix4f()
+                        .translate(world.pos.x, world.pos.y, world.pos.z)
+                        .rotate(camRot)
+                        .scale(world.scale.x, world.scale.y, world.scale.z)
+                        .rotateX(-HALF_PI)
+                        .translate(-0.5f, 0.0f, -0.5f);
+                modelMat = new Matrix4f()
+                        .translate((float)(world.pos.x - camPos.x),
+                                (float)(world.pos.y - camPos.y),
+                                (float)(world.pos.z - camPos.z))
+                        .rotate(camRot)
+                        .scale(world.scale.x, world.scale.y, world.scale.z)
+                        .rotateX(-HALF_PI)
+                        .translate(-0.5f, 0.0f, -0.5f);
+            } else {
+                worldMat = new Matrix4f()
+                        .translate(world.pos.x, world.pos.y, world.pos.z)
+                        .rotate(camRot)
+                        .scale(world.scale.x, world.scale.y, world.scale.z)
+                        .translate(-0.5f, -0.5f, -0.5f);
+                modelMat = new Matrix4f()
+                        .translate((float)(world.pos.x - camPos.x),
+                                (float)(world.pos.y - camPos.y),
+                                (float)(world.pos.z - camPos.z))
+                        .rotate(camRot)
+                        .scale(world.scale.x, world.scale.y, world.scale.z)
+                        .translate(-0.5f, -0.5f, -0.5f);
+            }
         } else {
-            worldMat = new Matrix4f()
-                    .translate(world.pos.x, world.pos.y, world.pos.z)
-                    .rotate(world.rot)
-                    .scale(world.scale.x, world.scale.y, world.scale.z)
-                    .translate(-0.5f, -0.5f, -0.5f);
-            modelMat = new Matrix4f()
-                    .translate((float)(world.pos.x - camPos.x),
-                            (float)(world.pos.y - camPos.y),
-                            (float)(world.pos.z - camPos.z))
-                    .rotate(world.rot)
-                    .scale(world.scale.x, world.scale.y, world.scale.z)
-                    .translate(-0.5f, -0.5f, -0.5f);
+            if (isPlane) {
+                worldMat = new Matrix4f()
+                        .translate(world.pos.x, world.pos.y, world.pos.z)
+                        .rotate(world.rot)
+                        .scale(world.scale.x, world.scale.y, world.scale.z)
+                        .rotateX(-HALF_PI)
+                        .translate(-0.5f, 0.0f, -0.5f);
+                modelMat = new Matrix4f()
+                        .translate((float)(world.pos.x - camPos.x),
+                                (float)(world.pos.y - camPos.y),
+                                (float)(world.pos.z - camPos.z))
+                        .rotate(world.rot)
+                        .scale(world.scale.x, world.scale.y, world.scale.z)
+                        .rotateX(-HALF_PI)
+                        .translate(-0.5f, 0.0f, -0.5f);
+            } else {
+                worldMat = new Matrix4f()
+                        .translate(world.pos.x, world.pos.y, world.pos.z)
+                        .rotate(world.rot)
+                        .scale(world.scale.x, world.scale.y, world.scale.z)
+                        .translate(-0.5f, -0.5f, -0.5f);
+                modelMat = new Matrix4f()
+                        .translate((float)(world.pos.x - camPos.x),
+                                (float)(world.pos.y - camPos.y),
+                                (float)(world.pos.z - camPos.z))
+                        .rotate(world.rot)
+                        .scale(world.scale.x, world.scale.y, world.scale.z)
+                        .translate(-0.5f, -0.5f, -0.5f);
+            }
         }
+
+        boolean doubleSided = VeilSceneNodeRenderer.parseBool(
+                VeilSceneNodeRenderer.stringProp(node, "double_sided"), false);
 
         boolean translucent = opacity < 1f;
         if (translucent) { RenderSystem.enableBlend(); RenderSystem.defaultBlendFunc(); }
         RenderSystem.enableDepthTest();
         RenderSystem.depthMask(!translucent);
+        if (doubleSided) RenderSystem.disableCull();
 
         try {
             VeilRenderSystem.setShader(program);
@@ -190,9 +243,7 @@ final class MeshShaderRenderer {
             program.setSampler("Texture0", resolveNodeTexture(node));
             program.bindSamplers(0);
 
-            String meshType = VeilSceneNodeRenderer.stringProp(node, "mesh");
-            if (isSprite3D && (meshType == null || meshType.isBlank())) meshType = "plane";
-            if ("plane".equals(meshType)) {
+            if (isPlane) {
                 MoudMeshBuffer.ensurePlaneInitialized();
                 drawMesh(MoudMeshBuffer.planeVbo(), MoudMeshBuffer.planeEbo(), MoudMeshBuffer.planeIndexCount());
             } else {
@@ -201,6 +252,7 @@ final class MeshShaderRenderer {
         } finally {
             ShaderProgram.unbind();
             if (translucent) { RenderSystem.disableBlend(); RenderSystem.depthMask(true); }
+            if (doubleSided) RenderSystem.enableCull();
         }
         return true;
     }
