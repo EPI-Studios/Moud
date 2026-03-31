@@ -10,4 +10,5 @@ final class PlayerState {
     boolean schemaSent;
     long scenesSentRevision = Long.MIN_VALUE;
     boolean editorOpen;
+    boolean multiMeshSent;
 }
