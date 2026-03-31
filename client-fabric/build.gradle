@@ -19,6 +19,7 @@ repositories {
         name = 'BlameJared Maven (Veil)'
         url = 'https://maven.blamejared.com'
     }
+
 }
 
 
@@ -34,8 +35,10 @@ dependencies {
 
     include implementation(project(':core'))
     include implementation(project(':net'))
-    implementation files("${rootProject.projectDir}/libs/BbModelReader-1.0-SNAPSHOT.jar")
-    implementation files("${rootProject.projectDir}/libs/miry-1.0-SNAPSHOT.jar")
+    include implementation("fr.mrqsdf:BbModelReader:1.0-SNAPSHOT")
+    include(implementation("com.miry:miry:1.0-SNAPSHOT") {
+        exclude group: "org.lwjgl"
+    })
 }
 
 loom {

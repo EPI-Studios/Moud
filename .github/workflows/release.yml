@@ -53,6 +53,24 @@ jobs:
       - name: Make Gradle executable
         run: chmod +x ./gradlew
 
+      - name: Install vendored libs to mavenLocal
+        shell: bash
+        run: |
+          for spec in "com/miry/miry:libs/miry-1.0-SNAPSHOT.jar" "fr/mrqsdf/BbModelReader:libs/BbModelReader-1.0-SNAPSHOT.jar"; do
+            IFS=: read -r coords jar <<< "$spec"
+            group="${coords%/*}"
+            artifact="${coords##*/}"
+            dest="$HOME/.m2/repository/${coords}/1.0-SNAPSHOT"
+            mkdir -p "$dest"
+            cp "$jar" "$dest/${artifact}-1.0-SNAPSHOT.jar"
+            cat > "$dest/${artifact}-1.0-SNAPSHOT.pom" <<POMEOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>
+            <groupId>${group//\//.}</groupId><artifactId>${artifact}</artifactId><version>1.0-SNAPSHOT</version>
+          </project>
+          POMEOF
+          done
+
       - name: Resolve release metadata
         id: meta
         shell: bash
