@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
 class SceneNodeMenu {
     final ContextMenu nodeMenu = new ContextMenu();
@@ -28,7 +29,7 @@ class SceneNodeMenu {
     private final SceneBranchExporter sceneBranchExporter;
 
     private TreeView<SceneSnapshot.NodeSnapshot> treeView;
-    private java.util.function.Consumer<SceneSnapshot.NodeSnapshot> beginInlineRename;
+    private Consumer<SceneSnapshot.NodeSnapshot> beginInlineRename;
 
     SceneNodeMenu(EditorRuntime runtime, SceneNodeOps sceneNodeOps, SceneNodeClipboard sceneNodeClipboard, SceneBranchExporter sceneBranchExporter) {
         this.runtime = runtime;
@@ -41,7 +42,7 @@ class SceneNodeMenu {
         this.treeView = treeView;
     }
 
-    void setBeginInlineRename(java.util.function.Consumer<SceneSnapshot.NodeSnapshot> beginInlineRename) {
+    void setBeginInlineRename(Consumer<SceneSnapshot.NodeSnapshot> beginInlineRename) {
         this.beginInlineRename = beginInlineRename;
     }
 
@@ -283,4 +284,3 @@ class SceneNodeMenu {
         return handled;
     }
 }
-

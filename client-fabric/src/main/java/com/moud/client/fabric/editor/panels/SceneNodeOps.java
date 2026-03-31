@@ -568,7 +568,7 @@ class SceneNodeOps {
         }
         try {
             String osPath = TinyFileDialogs.tinyfd_openFileDialog(
-                    "Attach Script (.js)", "", null, "JavaScript (.js)", false);
+                    "Attach Script (.js, .luau)", "", null, "Script (.js, .luau)", false);
             if (osPath == null || osPath.isBlank()) return;
             File file = new File(osPath);
             if (!file.exists() || !file.isFile()) {
@@ -580,14 +580,18 @@ class SceneNodeOps {
                 runtime.requestToast("Invalid filename", true, 4500);
                 return;
             }
-            if (!filename.toLowerCase(Locale.ROOT).endsWith(".js")) {
+            String lower = filename.toLowerCase(Locale.ROOT);
+            boolean isLuau = lower.endsWith(".luau");
+            if (!(lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs") || isLuau)) {
                 filename = filename + ".js";
+                lower = filename.toLowerCase(Locale.ROOT);
+                isLuau = false;
             }
             String scriptPath = "res://scripts/" + filename;
             try {
                 new ResPath(scriptPath);
             } catch (Exception ignored) {
-                scriptPath = "res://scripts/node_" + nodeId + ".js";
+                scriptPath = "res://scripts/node_" + nodeId + (isLuau ? ".luau" : ".js");
             }
             String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
             net.writeScriptFile(session, state, scriptPath, content);
@@ -622,4 +626,3 @@ class SceneNodeOps {
         return "PlayerStart".equals(node.type());
     }
 }
-
