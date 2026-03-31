@@ -137,10 +137,10 @@ public final class GlUtil {
     }
 
     private static void bindInstancedMat4(int program, String attrib, int stride, int floatOffset) {
-        int base = GL20.glGetAttribLocation(program, attrib);
-        if (base < 0) return;
+        String prefix = attrib.substring(0, attrib.length() - 1);
         for (int col = 0; col < 4; col++) {
-            int loc = base + col;
+            int loc = GL20.glGetAttribLocation(program, prefix + col);
+            if (loc < 0) continue;
             GL20.glEnableVertexAttribArray(loc);
             GL20.glVertexAttribPointer(loc, 4, GL11.GL_FLOAT, false, stride, (floatOffset + col * 4) * Float.BYTES);
             GL33.glVertexAttribDivisor(loc, 1);
