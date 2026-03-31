@@ -1,6 +1,8 @@
 package com.moud.client.fabric;
 
+import com.moud.client.fabric.audio.SceneAudioManager;
 import com.moud.client.fabric.assets.AssetsClient;
+import com.moud.client.fabric.assets.MoudAudioAssets;
 import com.moud.client.fabric.assets.MoudTextAssets;
 import com.moud.client.fabric.editor.overlay.EditorContext;
 import com.moud.client.fabric.editor.overlay.EditorOverlay;
@@ -73,6 +75,7 @@ final class MoudClient {
     private final AssetsClient assets = new AssetsClient();
     private final PlayRuntimeClient playRuntime = new PlayRuntimeClient();
     private final UiInputTracker uiInputTracker = new UiInputTracker();
+    private final SceneAudioManager sceneAudio = new SceneAudioManager();
 
     private FabricEngineTransport transport;
     private Session session;
@@ -138,6 +141,7 @@ final class MoudClient {
         VeilWorldEnvironmentRenderer.init();
         MoudTextures.init(assets);
         MoudTextAssets.init(assets);
+        MoudAudioAssets.init(assets);
         ModelCache.init(assets);
     }
 
@@ -227,7 +231,9 @@ final class MoudClient {
         VeilWorldEnvironmentRenderer.clear();
         MoudTextures.clear();
         MoudTextAssets.clear();
+        MoudAudioAssets.clear();
         ModelCache.clear();
+        sceneAudio.clear(MinecraftClient.getInstance());
 
         camera.setEnabled(false);
         camera.resetBootstrap();
@@ -402,6 +408,7 @@ final class MoudClient {
         if (overlayOpen && session != null && session.state() == SessionState.CONNECTED) {
             assets.tick(session);
         }
+        sceneAudio.tick(MinecraftClient.getInstance(), session != null && session.state() == SessionState.CONNECTED);
         if (playRuntime.isActive() && session != null) {
             playRuntime.tick(session);
             uiInputTracker.tick(session);
