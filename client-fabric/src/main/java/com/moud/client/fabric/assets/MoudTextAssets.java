@@ -2,6 +2,7 @@ package com.moud.client.fabric.assets;
 
 
 import com.moud.client.fabric.render.VeilSceneNodeRenderer;
+import com.moud.client.fabric.util.ClientDebugLog;
 import com.moud.core.assets.AssetHash;
 import com.moud.core.assets.AssetMeta;
 import com.moud.core.assets.AssetType;
@@ -230,6 +231,7 @@ public final class MoudTextAssets implements AssetsClient.Listener {
             metaByPath = Map.copyOf(nextMeta);
             textPaths = List.copyOf(texts);
         }
+        ClientDebugLog.debug("TextAssets manifest applied entries=" + nextMeta.size());
         VeilSceneNodeRenderer.clearMaterialTextureCache();
     }
 
@@ -279,6 +281,7 @@ public final class MoudTextAssets implements AssetsClient.Listener {
                 }
             }
         }
+        ClientDebugLog.debug("TextAssets blob ready hash=" + hash.hex());
     }
 
     private enum BlobState {
