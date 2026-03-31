@@ -15,7 +15,7 @@ import java.util.List;
 
 public final class ServerSupervisor {
 
-    private static final String GITHUB_OWNER = "moudproject";
+    private static final String GITHUB_OWNER = "EPI-Studios";
     private static final String GITHUB_REPO = "Moud";
     private static final String TARGET = "server";
 

@@ -17,7 +17,7 @@ public final class ClientBootstrap implements PreLaunchEntrypoint {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("moud-bootstrap");
 
-    private static final String GITHUB_OWNER = "moudproject";
+    private static final String GITHUB_OWNER = "EPI-Studios";
     private static final String GITHUB_REPO = "Moud";
     private static final String TARGET = "client";
 
