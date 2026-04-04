@@ -11,6 +11,8 @@ public record ReleaseManifest(
         String publishedAt,
         Map<String, ReleaseChannelArtifacts> artifacts
 ) {
+    public static final int SUPPORTED_SCHEMA_VERSION = 1;
+
     public ReleaseManifest {
         version = normalize(version);
         channel = normalize(channel).toLowerCase(Locale.ROOT);
@@ -19,8 +21,10 @@ public record ReleaseManifest(
     }
 
     public void validate() {
-        if (schemaVersion <= 0) {
-            throw new IllegalArgumentException("schemaVersion must be > 0");
+        if (schemaVersion != SUPPORTED_SCHEMA_VERSION) {
+            throw new IllegalArgumentException(
+                    "unsupported manifest schema version " + schemaVersion
+                            + " (supported: " + SUPPORTED_SCHEMA_VERSION + ")");
         }
         if (version.isBlank()) {
             throw new IllegalArgumentException("version is required");

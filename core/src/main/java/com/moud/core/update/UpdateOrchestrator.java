@@ -39,6 +39,7 @@ public final class UpdateOrchestrator {
     public Path stagingDir() { return baseDir.resolve("staging"); }
     public Path statePath() { return baseDir.resolve("update-state.json"); }
     public Path currentLink() { return baseDir.resolve("current"); }
+    public Path lockPath() { return baseDir.resolve("update.lock"); }
 
     public record CheckResult(boolean updateAvailable, String currentVersion,
                               String latestVersion, ReleaseManifest manifest) {}
@@ -60,7 +61,7 @@ public final class UpdateOrchestrator {
         if (manifest == null) return new ApplyResult(false, "", "manifest is null");
 
         String version = manifest.version();
-        try {
+        try (UpdateLock lock = UpdateLock.acquire(lockPath())) {
             ReleaseSelection selection = ReleaseSelector.select(manifest, target,
                     UpdateStateStore.load(statePath(), "stable").currentVersion());
 
@@ -73,6 +74,14 @@ public final class UpdateOrchestrator {
             Path staging = stagingDir().resolve(version);
             deleteRecursive(staging);
             Files.createDirectories(staging);
+
+            if (selection.patch()) {
+                Path fromDir = versionsDir().resolve(selection.fromVersion());
+                if (!Files.isDirectory(fromDir)) {
+                    throw new IOException("Patch base version directory missing: " + selection.fromVersion());
+                }
+                copyRecursive(fromDir, staging);
+            }
 
             extractTarGz(archivePath, staging);
 
@@ -95,9 +104,15 @@ public final class UpdateOrchestrator {
                     version, installed, oldState.failedVersions());
             UpdateStateStore.save(statePath(), newState);
 
-            pruneOldVersions(newState);
+            try {
+                pruneOldVersions(newState);
+            } catch (IOException pruneError) {
+                System.err.println("[updater] Warning: version cleanup failed: " + pruneError.getMessage());
+            }
 
             return new ApplyResult(true, version, null);
+        } catch (IOException e) {
+            return new ApplyResult(false, version, "could not acquire update lock: " + e.getMessage());
         } catch (Exception e) {
             markFailed(version);
             return new ApplyResult(false, version, e.getMessage());
@@ -105,7 +120,7 @@ public final class UpdateOrchestrator {
     }
 
     public boolean rollback() {
-        try {
+        try (UpdateLock lock = UpdateLock.acquire(lockPath())) {
             UpdateState state = UpdateStateStore.load(statePath(), "stable");
             String lkg = state.lastKnownGoodVersion();
             if (lkg.isBlank() || lkg.equals(state.currentVersion())) return false;
@@ -162,26 +177,34 @@ public final class UpdateOrchestrator {
         } catch (IOException ignored) {}
     }
 
-    private void pruneOldVersions(UpdateState state) {
-        try {
-            if (!Files.isDirectory(versionsDir())) return;
-            List<String> keep = new ArrayList<>();
-            if (!state.currentVersion().isBlank()) keep.add(state.currentVersion());
-            if (!state.lastKnownGoodVersion().isBlank()) keep.add(state.lastKnownGoodVersion());
+    private void pruneOldVersions(UpdateState state) throws IOException {
+        if (!Files.isDirectory(versionsDir())) return;
+        List<String> keep = new ArrayList<>();
+        if (!state.currentVersion().isBlank()) keep.add(state.currentVersion());
+        if (!state.lastKnownGoodVersion().isBlank()) keep.add(state.lastKnownGoodVersion());
 
-            List<Path> dirs;
-            try (var stream = Files.list(versionsDir())) {
-                dirs = stream.filter(Files::isDirectory).toList();
-            }
-            if (dirs.size() <= MAX_KEPT_VERSIONS) return;
+        List<Path> dirs;
+        try (var stream = Files.list(versionsDir())) {
+            dirs = stream.filter(Files::isDirectory).toList();
+        }
+        if (dirs.size() <= MAX_KEPT_VERSIONS) return;
 
-            for (Path dir : dirs) {
-                String name = dir.getFileName().toString();
-                if (keep.contains(name)) continue;
-                if (dirs.size() - 1 < MAX_KEPT_VERSIONS) break;
+        IOException firstError = null;
+        int deleted = 0;
+        for (Path dir : dirs) {
+            String name = dir.getFileName().toString();
+            if (keep.contains(name)) continue;
+            if (dirs.size() - deleted - 1 < MAX_KEPT_VERSIONS) break;
+            try {
                 deleteRecursive(dir);
+                deleted++;
+            } catch (IOException e) {
+                if (firstError == null) firstError = e;
             }
-        } catch (IOException ignored) {}
+        }
+        if (firstError != null) {
+            throw new IOException("Failed to prune at least one old version directory", firstError);
+        }
     }
 
     private static final int TAR_BLOCK = 512;
@@ -212,6 +235,10 @@ public final class UpdateOrchestrator {
             long size = readTarOctal(header, 124, 12);
             byte typeflag = header[156];
             boolean isDir = typeflag == '5' || name.endsWith("/");
+
+            if (typeflag == '1' || typeflag == '2') {
+                throw new IOException("Tar entry contains a symlink or hardlink (rejected): " + name);
+            }
 
             String cleanName = name.endsWith("/") ? name.substring(0, name.length() - 1) : name;
             if (cleanName.isEmpty()) continue;
@@ -291,6 +318,23 @@ public final class UpdateOrchestrator {
         } catch (NumberFormatException e) {
             return 0;
         }
+    }
+
+    private static void copyRecursive(Path source, Path target) throws IOException {
+        Files.walkFileTree(source, new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                Path dest = target.resolve(source.relativize(dir));
+                Files.createDirectories(dest);
+                return FileVisitResult.CONTINUE;
+            }
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                Path dest = target.resolve(source.relativize(file));
+                Files.copy(file, dest, StandardCopyOption.REPLACE_EXISTING);
+                return FileVisitResult.CONTINUE;
+            }
+        });
     }
 
     private static void deleteRecursive(Path dir) throws IOException {
