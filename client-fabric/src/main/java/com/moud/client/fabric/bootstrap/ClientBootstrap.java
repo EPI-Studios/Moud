@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class ClientBootstrap implements PreLaunchEntrypoint {
 
@@ -26,10 +27,17 @@ public final class ClientBootstrap implements PreLaunchEntrypoint {
 
     @Override
     public void onPreLaunch() {
+        if (Boolean.getBoolean("moud.client.wrapper")) {
+            LOGGER.info("[moud-bootstrap] External client launcher detected; skipping in-mod updater");
+            return;
+        }
+
         LOGGER.info("[moud-bootstrap] Starting update check...");
 
         Path baseDir = resolveBaseDir();
         UpdateOrchestrator orchestrator;
+        boolean updateAppliedThisLaunch = false;
+        String syncedVersion = "";
 
         try {
             Files.createDirectories(baseDir);
@@ -57,13 +65,15 @@ public final class ClientBootstrap implements PreLaunchEntrypoint {
             if (check != null && check.updateAvailable()) {
                 LOGGER.info("[moud-bootstrap] Update available: {} -> {}",
                         check.currentVersion(), check.latestVersion());
+                AtomicInteger lastLoggedMilestone = new AtomicInteger(-1);
 
                 var applyFuture = CompletableFuture.supplyAsync(() ->
                         orchestrator.apply(check.manifest(), (downloaded, total) -> {
                             if (total > 0) {
                                 int pct = (int) (downloaded * 100 / total);
-                                if (pct % 25 == 0) {
-                                    LOGGER.info("[moud-bootstrap] Downloading... {}%", pct);
+                                int milestone = Math.min(100, (pct / 25) * 25);
+                                if (milestone >= 0 && lastLoggedMilestone.getAndSet(milestone) != milestone) {
+                                    LOGGER.info("[moud-bootstrap] Downloading... {}%", milestone);
                                 }
                             }
                         }));
@@ -72,11 +82,14 @@ public final class ClientBootstrap implements PreLaunchEntrypoint {
 
                 if (result.success()) {
                     LOGGER.info("[moud-bootstrap] Update applied: {}", result.version());
+                    updateAppliedThisLaunch = true;
+                    syncedVersion = result.version();
                 } else {
                     LOGGER.warn("[moud-bootstrap] Update failed: {}", result.error());
                 }
             } else if (check != null) {
                 LOGGER.info("[moud-bootstrap] Up to date (version: {})", check.currentVersion());
+                syncedVersion = check.currentVersion();
             }
         } catch (java.util.concurrent.TimeoutException e) {
             LOGGER.warn("[moud-bootstrap] Update check timed out, continuing with existing version");
@@ -88,12 +101,31 @@ public final class ClientBootstrap implements PreLaunchEntrypoint {
         try {
             Path engineDir = orchestrator.currentEngineDir();
             if (engineDir != null) {
-                KnotClassLoaderAccess.injectEngine(engineDir);
+                ClientModSync.SyncResult sync = ClientModSync.syncInstalledVersion(engineDir);
+                switch (sync.status()) {
+                    case SYNCED -> {
+                        LOGGER.info("[moud-bootstrap] Synced installed client jar to {} for the next launch",
+                                sync.targetJar());
+                        if (updateAppliedThisLaunch) {
+                            LOGGER.info("[moud-bootstrap] Version {} will load after you restart Minecraft", syncedVersion);
+                        }
+                    }
+                    case FAILED -> LOGGER.warn("[moud-bootstrap] Failed to sync installed client jar: {}",
+                            sync.message());
+                    case SKIPPED -> LOGGER.info("[moud-bootstrap] Installed client jar not synced: {}",
+                            sync.message());
+                    case UP_TO_DATE -> {
+                        if (!syncedVersion.isBlank()) {
+                            LOGGER.info("[moud-bootstrap] Bootstrap jar already matches installed version {}",
+                                    syncedVersion);
+                        }
+                    }
+                }
             } else {
                 LOGGER.info("[moud-bootstrap] No engine version installed yet");
             }
         } catch (Exception e) {
-            LOGGER.error("[moud-bootstrap] Engine injection failed", e);
+            LOGGER.error("[moud-bootstrap] Client jar sync failed", e);
         }
     }
 

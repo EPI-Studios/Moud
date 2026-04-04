@@ -335,7 +335,6 @@ public final class ScriptEditorDialog {
             editorH = Math.max(1, editorH - fbH);
         }
 
-        // Small code icon in the gutter to reinforce "this is a script".
         float iconSize = Math.min(theme.design.icon_sm, 18);
         MoudIcons.drawOrFallback(r, theme, Icon.CODE, editorX, editorY - 26, iconSize, Theme.toArgb(theme.textMuted));
 

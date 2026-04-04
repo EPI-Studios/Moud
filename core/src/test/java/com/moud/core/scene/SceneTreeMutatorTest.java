@@ -1,10 +1,16 @@
 package com.moud.core.scene;
 
-import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
-import static Assertions.assertEquals;
-import static Assertions.assertNotNull;
-import static Assertions.assertNull;
+import org.junit.jupiter.api.Test;
+
+import com.moud.core.NodeTypeRegistry;
+import com.moud.core.builtin.CoreNodeTypesProvider;
+
+import java.util.List;
+import java.util.Map;
 
 final class SceneTreeMutatorTest {
     @Test

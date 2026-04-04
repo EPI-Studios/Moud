@@ -6,6 +6,12 @@ public final class EditorTheme {
     private EditorTheme() {}
 
     public static void apply(Theme theme) {
+        apply(theme, 1.0f);
+    }
+
+    public static void apply(Theme theme, float uiScale) {
+        float scale = Math.max(0.75f, Math.min(1.75f, uiScale));
+
         theme.windowBg.set(Theme.rgba(15, 17, 20, 255));
         theme.panelBg.set(Theme.rgba(22, 25, 30, 255));
         theme.headerBg.set(Theme.rgba(18, 20, 24, 255));
@@ -27,36 +33,62 @@ public final class EditorTheme {
         theme.disabledFg.set(Theme.rgba(112, 118, 132, 255));
         theme.disabledBg.set(Theme.rgba(18, 20, 24, 255));
 
-        theme.design.font_sm = 12;
-        theme.design.font_base = 13;
-        theme.design.space_xs = 2;
-        theme.design.space_sm = 5;
-        theme.design.space_md = 8;
-        theme.design.radius_sm = 6;
-        theme.design.radius_md = 8;
-        theme.design.radius_input = 4;
-        theme.design.radius_tab = 4;
-        theme.design.border_thin = 1;
-        theme.design.widget_height_sm = 20;
-        theme.design.widget_height_md = 24;
-        theme.design.tab_height_sm = 20;
-        theme.design.tab_height_md = 24;
-        theme.design.tab_underline_thickness = 2;
-        theme.design.input_padding_x = 7;
-        theme.design.input_padding_y = 2;
+        theme.design.font_xs = scaledInt(11, scale);
+        theme.design.font_sm = scaledInt(12, scale);
+        theme.design.font_base = scaledInt(13, scale);
+        theme.design.font_md = scaledInt(16, scale);
+        theme.design.font_lg = scaledInt(20, scale);
+        theme.design.font_xl = scaledInt(24, scale);
+
+        theme.design.space_xs = scaledInt(2, scale);
+        theme.design.space_sm = scaledInt(5, scale);
+        theme.design.space_md = scaledInt(8, scale);
+        theme.design.space_lg = scaledInt(12, scale);
+        theme.design.space_xl = scaledInt(18, scale);
+        theme.design.space_2xl = scaledInt(24, scale);
+
+        theme.design.radius_sm = scaledInt(6, scale);
+        theme.design.radius_md = scaledInt(8, scale);
+        theme.design.radius_lg = scaledInt(10, scale);
+        theme.design.radius_xl = scaledInt(12, scale);
+        theme.design.radius_input = scaledFloat(4.0f, scale);
+        theme.design.radius_tab = scaledFloat(4.0f, scale);
+        theme.design.radius_popup = scaledFloat(8.0f, scale);
+        theme.design.border_thin = Math.max(1, scaledInt(1, scale));
+        theme.design.border_medium = Math.max(theme.design.border_thin, scaledInt(2, scale));
+        theme.design.border_thick = Math.max(theme.design.border_medium, scaledInt(3, scale));
+        theme.design.widget_height_sm = scaledInt(20, scale);
+        theme.design.widget_height_md = scaledInt(24, scale);
+        theme.design.widget_height_lg = scaledInt(28, scale);
+        theme.design.widget_height_xl = scaledInt(36, scale);
+        theme.design.tab_height_sm = scaledInt(20, scale);
+        theme.design.tab_height_md = scaledInt(24, scale);
+        theme.design.toolbar_height = scaledInt(28, scale);
+        theme.design.menu_item_height = scaledInt(24, scale);
+        theme.design.tab_underline_thickness = Math.max(1, scaledInt(2, scale));
+        theme.design.input_padding_x = scaledInt(7, scale);
+        theme.design.input_padding_y = scaledInt(2, scale);
         theme.design.flat_inputs = true;
         theme.design.flat_surfaces = true;
-        theme.design.radius_popup = 8;
-        theme.design.menu_item_height = 24;
-        theme.design.icon_sm = 16;
-        theme.design.icon_md = 20;
-        theme.design.icon_lg = 24;
+        theme.design.icon_xs = scaledInt(12, scale);
+        theme.design.icon_sm = scaledInt(16, scale);
+        theme.design.icon_md = scaledInt(20, scale);
+        theme.design.icon_lg = scaledInt(24, scale);
+        theme.design.icon_xl = scaledInt(28, scale);
 
-        theme.tokens.padding = 8;
-        theme.tokens.itemHeight = 24;
-        theme.tokens.itemSpacing = 3;
-        theme.tokens.cornerRadius = 6;
+        theme.tokens.padding = scaledInt(8, scale);
+        theme.tokens.itemHeight = scaledInt(24, scale);
+        theme.tokens.itemSpacing = scaledInt(3, scale);
+        theme.tokens.cornerRadius = scaledInt(6, scale);
         theme.tokens.animSpeed = 14.0f;
+    }
+
+    private static int scaledInt(int base, float scale) {
+        return Math.max(1, Math.round(base * scale));
+    }
+
+    private static float scaledFloat(float base, float scale) {
+        return Math.max(1.0f, base * scale);
     }
 
     public static int separator(Theme theme) {

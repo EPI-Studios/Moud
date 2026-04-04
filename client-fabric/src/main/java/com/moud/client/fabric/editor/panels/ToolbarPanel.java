@@ -14,6 +14,7 @@ public final class ToolbarPanel extends Panel {
 
     private final MenuBar menuBar = new MenuBar();
     private final ContextMenu sceneMenu = new ContextMenu();
+    private final ContextMenu editorMenu = new ContextMenu();
 
     private boolean initialized;
 
@@ -21,6 +22,7 @@ public final class ToolbarPanel extends Panel {
         super("");
         this.runtime = runtime;
         menuBar.addMenu("Scene", sceneMenu);
+        menuBar.addMenu("Editor", editorMenu);
     }
 
     @Override
@@ -57,5 +59,8 @@ public final class ToolbarPanel extends Panel {
         });
         sceneMenu.addSeparator();
         sceneMenu.addItem("Request Snapshot", () -> runtime.net().requestSnapshot(runtime.session(), runtime.state()));
+
+        editorMenu.clear();
+        editorMenu.addItem("Settings…", runtime::openEditorSettings);
     }
 }

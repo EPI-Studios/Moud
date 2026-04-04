@@ -94,6 +94,8 @@ public final class EditorOverlay {
     private QuickSearchDialog quickSearchDialog;
     private ScriptEditorDialog scriptEditorDialog;
     private TextAssetEditorDialog textAssetEditorDialog;
+    private UiWindow settingsWindow;
+    private float appliedEditorUiScale = Float.NaN;
 
     private boolean open;
     private boolean prevLeft;
@@ -381,8 +383,8 @@ public final class EditorOverlay {
             return;
         }
         Window window = client.getWindow();
-        int w = window.getScaledWidth();
-        int h = window.getScaledHeight();
+        int w = window.getWidth();
+        int h = window.getHeight();
         if (w <= 0 || h <= 0) {
             return;
         }
@@ -393,8 +395,8 @@ public final class EditorOverlay {
         EditorContext ctx = EditorOverlayBus.get();
         float scrollY = ctx != null ? ctx.consumeScrollY() : 0.0f;
 
-        float mx = (float) (client.mouse.getX() * w / (double) Math.max(1, window.getWidth()));
-        float my = (float) (client.mouse.getY() * h / (double) Math.max(1, window.getHeight()));
+        float mx = (float) client.mouse.getX();
+        float my = (float) client.mouse.getY();
         boolean left = GLFW.glfwGetMouseButton(handle, GLFW.GLFW_MOUSE_BUTTON_1) == GLFW.GLFW_PRESS;
         boolean leftPressed = left && !prevLeft;
         boolean leftReleased = !left && prevLeft;
@@ -413,6 +415,7 @@ public final class EditorOverlay {
 
         int prevVao = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
         ensureInitialized(window, handle, prevVao);
+        applyEditorUiScale(window);
         if (prevVao == 0 && fallbackVao != 0) {
             GL30.glBindVertexArray(fallbackVao);
         }
@@ -524,6 +527,11 @@ public final class EditorOverlay {
                 dockSpace.update(input);
             }
 
+            Runnable overlayMenus = runtime.consumeOverlayMenuRender();
+            if (overlayMenus != null) {
+                overlayMenus.run();
+            }
+
             boolean needsBackdropBlur = false;
             for (UiWindow uiWindow : windowManager.windows()) {
                 if (uiWindow.backdropBlur()) {
@@ -542,10 +550,6 @@ public final class EditorOverlay {
                     dockSpace.render(batch);
                     renderDockDropZones(batch);
                     uiContext.dragDrop().enqueueOverlay(uiContext.overlay(), theme, w, h);
-                    Runnable overlayMenus = runtime.consumeOverlayMenuRender();
-                    if (overlayMenus != null) {
-                        overlayMenus.run();
-                    }
                     uiContext.overlay().render(batch);
                     windowManager.render(batch, uiContext, input, theme, w, h, null);
 
@@ -705,6 +709,7 @@ public final class EditorOverlay {
         runtime.setScriptEditorDialog(scriptEditorDialog);
         textAssetEditorDialog = new TextAssetEditorDialog(runtime);
         runtime.setTextAssetEditorDialog(textAssetEditorDialog);
+        runtime.setOpenEditorSettingsAction(this::openSettingsWindow);
         dockSpace = createDockSpace();
         dockSpace.setSplitterSize(5);
         dockSpace.setSplitterDrawSize(2);
@@ -719,14 +724,28 @@ public final class EditorOverlay {
     }
 
     private void applyEngineEditorTheme() {
-        EditorTheme.apply(theme);
+        EditorTheme.apply(theme, runtime.editorUiScale());
+    }
+
+    private void applyEditorUiScale(Window window) {
+        float scale = runtime.editorUiScale();
+        if (Math.abs(scale - appliedEditorUiScale) < 0.0001f) {
+            return;
+        }
+        appliedEditorUiScale = scale;
+        applyEngineEditorTheme();
+        if (batch != null && window != null) {
+            installFont(window);
+        }
+        layoutSeeded = false;
     }
 
     private void applyBarRatios(int w, int h) {
         if (rootWithTop == null || mainWithBottom == null || mainRow == null || viewportAndRight == null || leftColumn == null) {
             return;
         }
-        int topPx = 30;
+        float uiScale = runtime.editorUiScale();
+        int topPx = Math.round(30.0f * uiScale);
 
         float topRatio = topPx / (float) Math.max(1, h);
         rootWithTop.splitRatio = MathUtils.clamp(topRatio, 0.03f, 0.20f);
@@ -740,14 +759,14 @@ public final class EditorOverlay {
         layoutSeedH = h;
 
         // Default split sizing (user can still resize via splitters).
-        int bottomPx = 32;
+        int bottomPx = Math.round(32.0f * uiScale);
         int remaining = Math.max(1, h - topPx);
         float mainRatio = (remaining - bottomPx) / (float) remaining;
         mainWithBottom.splitRatio = MathUtils.clamp(mainRatio, 0.55f, 0.98f);
 
         // Left column sizing: approximate Godot dock widths in pixels.
-        int leftPx = 280;
-        int rightPx = 320;
+        int leftPx = Math.round(280.0f * uiScale);
+        int rightPx = Math.round(320.0f * uiScale);
         int mainW = Math.max(1, w);
         float leftRatio = leftPx / (float) mainW;
         mainRow.splitRatio = MathUtils.clamp(leftRatio, 0.18f, 0.45f);
@@ -867,9 +886,110 @@ public final class EditorOverlay {
         int w = Math.max(1, window.getWidth());
         float scale = window.getFramebufferWidth() / (float) w;
         scale = Math.max(0.1f, scale);
-        int atlasSize = Math.min(2048, Math.max(1024, Math.round(768.0f * scale)));
-        fontAtlas = new FontAtlas(FontData.loadDefault(), 16.0f, atlasSize, scale, FontAtlas.Mode.COVERAGE);
+        if (fontAtlas != null) {
+            fontAtlas.close();
+        }
+        float uiScale = runtime.editorUiScale();
+        int atlasSize = Math.min(4096, Math.max(1024, Math.round(768.0f * scale * uiScale)));
+        fontAtlas = new FontAtlas(FontData.loadDefault(), 16.0f * uiScale, atlasSize, scale, FontAtlas.Mode.COVERAGE);
         batch.setTextRenderer(new TextRenderer(fontAtlas));
+    }
+
+    private void openSettingsWindow() {
+        if (windowManager == null) {
+            return;
+        }
+        if (settingsWindow != null && windowManager.windows().contains(settingsWindow)) {
+            windowManager.bringToFront(settingsWindow);
+            return;
+        }
+        int ww = Math.round(420.0f * runtime.editorUiScale());
+        int wh = Math.round(220.0f * runtime.editorUiScale());
+        settingsWindow = windowManager.create("Editor Settings", 72, 72, ww, wh);
+        settingsWindow.setBackdropBlur(true);
+        settingsWindow.setResizable(false);
+        settingsWindow.setContent(this::renderSettingsWindow);
+        windowManager.bringToFront(settingsWindow);
+    }
+
+    private void renderSettingsWindow(UiRenderer r, UiContext ctx, UiInput input, Theme theme, int x, int y, int w, int h) {
+        int text = Theme.toArgb(theme.text);
+        int muted = Theme.toArgb(theme.textMuted);
+        int outline = Theme.toArgb(theme.widgetOutline);
+        int buttonBg = Theme.toArgb(theme.widgetBg);
+        int buttonHover = Theme.toArgb(theme.widgetHover);
+        int accent = Theme.toArgb(theme.widgetActive);
+
+        int cursorY = y;
+        r.drawText("Editor UI Scale", x, r.baselineForBox(cursorY, theme.design.widget_height_md), text);
+        cursorY += theme.design.widget_height_md;
+
+        String valueLabel = Math.round(runtime.editorUiScale() * 100.0f) + "%";
+        r.drawText(valueLabel, x, r.baselineForBox(cursorY, theme.design.widget_height_md), accent);
+        cursorY += theme.design.widget_height_md;
+
+        r.drawText("Independent from Minecraft GUI Scale.", x, r.baselineForBox(cursorY, theme.design.widget_height_sm), muted);
+        cursorY += theme.design.widget_height_sm + theme.design.space_md;
+
+        int buttonH = theme.design.widget_height_md + theme.design.border_thin * 2;
+        int minusW = Math.max(36, Math.round(40.0f * runtime.editorUiScale()));
+        int plusW = minusW;
+        int gap = theme.design.space_sm;
+        int presetW = Math.max(52, Math.round(56.0f * runtime.editorUiScale()));
+        int rowX = x;
+
+        drawSettingsButton(r, input, theme, "-", rowX, cursorY, minusW, buttonH, buttonBg, buttonHover, outline, text, () ->
+                runtime.setEditorUiScale(runtime.editorUiScale() - 0.05f));
+        rowX += minusW + gap;
+
+        drawSettingsButton(r, input, theme, "+", rowX, cursorY, plusW, buttonH, buttonBg, buttonHover, outline, text, () ->
+                runtime.setEditorUiScale(runtime.editorUiScale() + 0.05f));
+        rowX += plusW + gap * 2;
+
+        for (float preset : new float[]{0.85f, 1.0f, 1.15f, 1.30f}) {
+            String label = Math.round(preset * 100.0f) + "%";
+            int fill = Math.abs(runtime.editorUiScale() - preset) < 0.01f ? accent : buttonBg;
+            int hover = Math.abs(runtime.editorUiScale() - preset) < 0.01f ? Theme.lightenArgb(accent, 0.10f) : buttonHover;
+            drawSettingsButton(r, input, theme, label, rowX, cursorY, presetW, buttonH, fill, hover, outline, text, () ->
+                    runtime.setEditorUiScale(preset));
+            rowX += presetW + gap;
+        }
+        cursorY += buttonH + theme.design.space_lg;
+
+        int previewBg = Theme.toArgb(theme.panelBg);
+        int previewH = Math.max(72, h - (cursorY - y));
+        r.drawRoundedRect(x, cursorY, w, previewH, theme.design.radius_md, previewBg, theme.design.border_thin, outline);
+        int previewPad = theme.design.space_md;
+        int previewX = x + previewPad;
+        int previewY = cursorY + previewPad;
+        int pillW = Math.max(110, Math.round(120.0f * runtime.editorUiScale()));
+        int pillH = theme.design.widget_height_md;
+        r.drawRoundedRect(previewX, previewY, pillW, pillH, theme.design.radius_sm, buttonBg, theme.design.border_thin, outline);
+        r.drawText("Preview Widget", previewX + theme.design.space_md, r.baselineForBox(previewY, pillH), text);
+    }
+
+    private static void drawSettingsButton(UiRenderer r,
+                                           UiInput input,
+                                           Theme theme,
+                                           String label,
+                                           int x,
+                                           int y,
+                                           int w,
+                                           int h,
+                                           int bg,
+                                           int hover,
+                                           int outline,
+                                           int text,
+                                           Runnable action) {
+        boolean hovered = input != null && input.mousePos().x >= x && input.mousePos().y >= y
+                && input.mousePos().x < x + w && input.mousePos().y < y + h;
+        r.drawRoundedRect(x, y, w, h, theme.design.radius_sm, hovered ? hover : bg, theme.design.border_thin, outline);
+        float baseline = r.baselineForBox(y, h);
+        float textW = r.measureText(label);
+        r.drawText(label, x + Math.round((w - textW) * 0.5f), baseline, text);
+        if (hovered && input != null && input.mousePressed() && action != null) {
+            action.run();
+        }
     }
 
     private DockSpace createDockSpace() {
