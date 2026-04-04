@@ -1,8 +1,10 @@
 package com.moud.core.assets;
 
-import static Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import java.nio.charset.StandardCharsets;
 
 public final class AssetHashTest {
     @Test
@@ -11,4 +13,3 @@ public final class AssetHashTest {
         assertEquals("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824", hash.hex());
     }
 }
-

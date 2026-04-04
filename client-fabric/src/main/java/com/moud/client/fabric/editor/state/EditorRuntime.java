@@ -58,6 +58,7 @@ public final class EditorRuntime {
     private TextAssetEditorDialog textAssetEditorDialog;
     private QuickSearchDialog quickSearchDialog;
     private Runnable openCreateSceneAction;
+    private Runnable openEditorSettingsAction;
     private AssetsClient assets;
     private Session session;
     private Texture viewportTexture;
@@ -78,6 +79,7 @@ public final class EditorRuntime {
     private boolean rightPressed;
     private boolean rightReleased;
     private boolean uiBlocked;
+    private float editorUiScale = 1.0f;
     private ToastRequest pendingToast;
     private final HashMap<Long, LongConsumer> afterCreateByBatchId = new HashMap<>();
     private final EditorHistory history = new EditorHistory();
@@ -333,6 +335,17 @@ public final class EditorRuntime {
         this.uiBlocked = uiBlocked;
     }
 
+    public float editorUiScale() {
+        return editorUiScale;
+    }
+
+    public void setEditorUiScale(float scale) {
+        if (!Float.isFinite(scale)) {
+            return;
+        }
+        editorUiScale = Math.max(0.75f, Math.min(1.75f, scale));
+    }
+
     public void requestToast(String message, boolean error, int durationMs) {
         if (message == null || message.isBlank()) {
             return;
@@ -460,6 +473,17 @@ public final class EditorRuntime {
 
     public void openCreateScene() {
         Runnable action = openCreateSceneAction;
+        if (action != null) {
+            action.run();
+        }
+    }
+
+    public void setOpenEditorSettingsAction(Runnable action) {
+        this.openEditorSettingsAction = action;
+    }
+
+    public void openEditorSettings() {
+        Runnable action = openEditorSettingsAction;
         if (action != null) {
             action.run();
         }

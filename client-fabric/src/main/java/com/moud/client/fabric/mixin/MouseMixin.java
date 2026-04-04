@@ -41,7 +41,7 @@ public abstract class MouseMixin {
         }
 
         if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
-            ctx.camera().consumeMouseButton(button, action, scaledMouseX(), scaledMouseY());
+            ctx.camera().consumeMouseButton(button, action, client.mouse.getX(), client.mouse.getY());
         }
         ci.cancel();
     }
@@ -86,15 +86,4 @@ public abstract class MouseMixin {
         }
     }
 
-    private double scaledMouseX() {
-        Window window = client.getWindow();
-        int w = window.getScaledWidth();
-        return client.mouse.getX() * w / (double) Math.max(1, window.getWidth());
-    }
-
-    private double scaledMouseY() {
-        Window window = client.getWindow();
-        int h = window.getScaledHeight();
-        return client.mouse.getY() * h / (double) Math.max(1, window.getHeight());
-    }
 }

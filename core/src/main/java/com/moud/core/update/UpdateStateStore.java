@@ -9,6 +9,7 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 public final class UpdateStateStore {
     private static final Gson GSON = new GsonBuilder()
@@ -49,8 +50,14 @@ public final class UpdateStateStore {
         if (parent != null) {
             Files.createDirectories(parent);
         }
-        try (Writer writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
+        Path tmpFile = path.resolveSibling(path.getFileName() + ".tmp");
+        try (Writer writer = Files.newBufferedWriter(tmpFile, StandardCharsets.UTF_8)) {
             GSON.toJson(state, writer);
+        }
+        try {
+            Files.move(tmpFile, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+            Files.move(tmpFile, path, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 }
