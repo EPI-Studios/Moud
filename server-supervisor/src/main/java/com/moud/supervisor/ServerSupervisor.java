@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public final class ServerSupervisor {
 
@@ -21,6 +22,7 @@ public final class ServerSupervisor {
 
     private static final Duration ROLLBACK_WINDOW = Duration.ofSeconds(30);
     private static final int MAX_RAPID_CRASHES = 3;
+    private static final long UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
     public static void main(String[] args) throws Exception {
         Path baseDir = resolveBaseDir(args);
@@ -32,35 +34,41 @@ public final class ServerSupervisor {
         UpdateOrchestrator orchestrator = new UpdateOrchestrator(TARGET, baseDir, resolver, downloader);
 
         int rapidCrashes = 0;
+        long lastUpdateCheckMs = 0;
 
         while (true) {
-            try {
-                var check = orchestrator.check(false);
-                if (check.updateAvailable()) {
-                    log("Update available: " + check.currentVersion() + " -> " + check.latestVersion());
-                    var result = orchestrator.apply(check.manifest(), (downloaded, total) -> {
-                        if (total > 0) {
-                            int pct = (int) (downloaded * 100 / total);
-                            System.out.printf("\r  downloading... %d%%", pct);
+            long now = System.currentTimeMillis();
+            if (now - lastUpdateCheckMs >= UPDATE_CHECK_INTERVAL_MS) {
+                lastUpdateCheckMs = now;
+                try {
+                    var check = orchestrator.check(false);
+                    if (check.updateAvailable()) {
+                        log("Update available: " + check.currentVersion() + " -> " + check.latestVersion());
+                        var result = orchestrator.apply(check.manifest(), (downloaded, total) -> {
+                            if (total > 0) {
+                                int pct = (int) (downloaded * 100 / total);
+                                System.out.printf("\r  downloading... %d%%", pct);
+                            }
+                        });
+                        System.out.println();
+                        if (result.success()) {
+                            log("Update applied: " + result.version());
+                            rapidCrashes = 0;
+                        } else {
+                            log("Update failed: " + result.error());
                         }
-                    });
-                    System.out.println();
-                    if (result.success()) {
-                        log("Update applied: " + result.version());
-                        rapidCrashes = 0;
                     } else {
-                        log("Update failed: " + result.error());
+                        log("No update available (current: " + check.currentVersion() + ")");
                     }
-                } else {
-                    log("No update available (current: " + check.currentVersion() + ")");
+                } catch (Exception e) {
+                    log("Update check failed: " + e.getMessage());
                 }
-            } catch (Exception e) {
-                log("Update check failed: " + e.getMessage());
             }
 
             Path engineDir = orchestrator.currentEngineDir();
             if (engineDir == null) {
                 log("No engine version installed. Waiting 30s before retry...");
+                lastUpdateCheckMs = 0;
                 Thread.sleep(30_000);
                 continue;
             }
@@ -91,6 +99,7 @@ public final class ServerSupervisor {
                 rapidCrashes = 0;
             }
 
+            lastUpdateCheckMs = 0;
             Thread.sleep(2_000);
         }
     }
@@ -121,7 +130,12 @@ public final class ServerSupervisor {
         pb.environment().put("MOUD_ENGINE_DIR", engineDir.toAbsolutePath().toString());
 
         Process process = pb.start();
-        return process.waitFor();
+        int exitCode = process.waitFor();
+        if (process.isAlive()) {
+            process.destroyForcibly();
+            process.waitFor(10, TimeUnit.SECONDS);
+        }
+        return exitCode;
     }
 
     private static Path findServerJar(Path engineDir) throws IOException {
