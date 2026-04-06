@@ -79,7 +79,12 @@ public final class MoudMaterialParser {
                 } else if (prim.isBoolean()) {
                     out.put(key, new MoudMaterial.Param.Bool(prim.getAsBoolean()));
                 } else if (prim.isString()) {
-                    out.put(key, new MoudMaterial.Param.StringParam(prim.getAsString()));
+                    String s = prim.getAsString();
+                    if (key.endsWith("_texture") || key.endsWith("_map") || key.equals("orm_texture")) {
+                        out.put(key, new MoudMaterial.Param.Texture(s));
+                    } else {
+                        out.put(key, new MoudMaterial.Param.StringParam(s));
+                    }
                 }
                 continue;
             }

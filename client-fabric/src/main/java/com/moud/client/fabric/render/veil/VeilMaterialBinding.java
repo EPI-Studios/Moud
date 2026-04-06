@@ -19,12 +19,24 @@ import java.util.Set;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.util.Identifier;
+import net.minecraft.client.texture.TextureManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class VeilMaterialBinding {
     private static final Logger LOGGER = LoggerFactory.getLogger(VeilMaterialBinding.class);
     private static final Set<String> LOGGED_WARNINGS = ConcurrentHashMap.newKeySet();
+    private static final String[] BUILTIN_PBR_SAMPLERS = {
+            "albedo_texture",
+            "normal_texture",
+            "roughness_texture",
+            "metallic_texture",
+            "emission_texture",
+            "ao_texture",
+            "orm_texture",
+            "heightmap_texture"
+    };
+    private static final float[] DEFAULT_ALBEDO_COLOR = {1.0f, 1.0f, 1.0f, 1.0f};
 
     private String activeKey;
     private String materialPath;
@@ -69,27 +81,48 @@ public final class VeilMaterialBinding {
     }
 
     public void applyMaterial(ShaderProgram program) {
-        if (program == null || material == null || shaderFile == null) {
+        if (program == null || material == null) {
             return;
         }
         program.clearSamplers();
+        for (String sampler : BUILTIN_PBR_SAMPLERS) {
+            program.setSampler(sampler, MoudTextures.defaultSamplerFor(sampler));
+        }
+        setDefaultUniform(program, "albedo_color", DEFAULT_ALBEDO_COLOR);
+        setDefaultUniform(program, "metallic", 0.0f);
+        setDefaultUniform(program, "roughness", 1.0f);
+        setDefaultUniform(program, "specular", 0.5f);
+        setDefaultUniform(program, "ambient_light", 1.0f);
+        setDefaultUniform(program, "heightmap_scale", 0.0f);
+        setDefaultUniform(program, "normal_scale", 1.0f);
+        setDefaultUniform(program, "roughness_texture_channel", 0);
+        setDefaultUniform(program, "normal_enabled", 0);
+        setDefaultUniform(program, "emission_enabled", 0);
+        setDefaultUniform(program, "ao_enabled", 0);
+        setDefaultUniform(program, "heightmap_enabled", 0);
+        setDefaultUniform(program, "heightmap_deep_parallax", 0);
+        setDefaultUniform(program, "heightmap_min_layers", 8);
+        setDefaultUniform(program, "heightmap_max_layers", 32);
+        setDefaultUniform(program, "orm_enabled", 0);
+        setDefaultUniform(program, "UvScale", new float[]{1.0f, 1.0f});
+        setDefaultUniform(program, "UvOffset", new float[]{0.0f, 0.0f});
         for (Map.Entry<String, MoudMaterial.Param> e : material.params().entrySet()) {
             String name = e.getKey();
             MoudMaterial.Param param = e.getValue();
             if (name == null || name.isBlank() || param == null) {
                 continue;
             }
-            MoudShaderUniform u = shaderFile.uniform(name);
+            MoudShaderUniform u = shaderFile != null ? shaderFile.uniform(name) : null;
             if (param instanceof MoudMaterial.Param.Texture tex) {
-                if (u != null && u.isSampler()) {
-                    Identifier id = MoudTextures.resolve(tex.textureRef());
+                if (u == null || u.isSampler()) {
+                    Identifier id = resolveSampler(name, tex.textureRef());
                     program.setSampler(name, id);
                 }
                 continue;
             }
             if (param instanceof MoudMaterial.Param.StringParam s) {
-                if (u != null && u.isSampler()) {
-                    Identifier id = MoudTextures.resolve(s.value());
+                if (u == null || u.isSampler()) {
+                    Identifier id = resolveSampler(name, s.value());
                     program.setSampler(name, id);
                 }
                 continue;
@@ -104,7 +137,7 @@ public final class VeilMaterialBinding {
             if (param instanceof MoudMaterial.Param.Bool b) {
                 ua.setInt(b.value() ? 1 : 0);
             } else if (param instanceof MoudMaterial.Param.Number num) {
-                if (type.startsWith("int") || type.startsWith("uint") || type.startsWith("ivec")) {
+                if (isIntegerUniform(name, type, num.value())) {
                     ua.setInt(Math.round(num.value()));
                 } else {
                     ua.setFloat(num.value());
@@ -125,6 +158,35 @@ public final class VeilMaterialBinding {
                 }
             }
         }
+
+        if (hasParam("uv_scale")) {
+            MoudMaterial.Param p = material.params().get("uv_scale");
+            if (p instanceof MoudMaterial.Param.Vec v && v.values().length >= 2) {
+                setDefaultUniform(program, "UvScale", new float[]{v.values()[0], v.values()[1]});
+            }
+        }
+        if (hasParam("uv_offset")) {
+            MoudMaterial.Param p = material.params().get("uv_offset");
+            if (p instanceof MoudMaterial.Param.Vec v && v.values().length >= 2) {
+                setDefaultUniform(program, "UvOffset", new float[]{v.values()[0], v.values()[1]});
+            }
+        }
+
+        if (!hasParam("normal_enabled") && hasTextureParam("normal_texture")) {
+            setDefaultUniform(program, "normal_enabled", 1);
+        }
+        if (!hasParam("emission_enabled") && hasTextureParam("emission_texture")) {
+            setDefaultUniform(program, "emission_enabled", 1);
+        }
+        if (!hasParam("ao_enabled") && hasTextureParam("ao_texture")) {
+            setDefaultUniform(program, "ao_enabled", 1);
+        }
+        if (!hasParam("heightmap_enabled") && hasTextureParam("heightmap_texture")) {
+            setDefaultUniform(program, "heightmap_enabled", 1);
+        }
+        if (!hasParam("orm_enabled") && shouldInferOrmEnabled()) {
+            setDefaultUniform(program, "orm_enabled", 1);
+        }
     }
 
     public Identifier programId() {
@@ -137,6 +199,26 @@ public final class VeilMaterialBinding {
 
     public MoudShaderFile shaderFile() {
         return shaderFile;
+    }
+
+    public boolean hasTextureParam(String name) {
+        if (name == null || name.isBlank()) {
+            return false;
+        }
+        ensureMaterialLoaded();
+        if (material == null || material.params() == null) {
+            return false;
+        }
+        MoudMaterial.Param param = material.params().get(name);
+        return param instanceof MoudMaterial.Param.Texture || param instanceof MoudMaterial.Param.StringParam;
+    }
+
+    public boolean hasParam(String name) {
+        if (name == null || name.isBlank()) {
+            return false;
+        }
+        ensureMaterialLoaded();
+        return material != null && material.params() != null && material.params().containsKey(name);
     }
 
     public String materialPath() {
@@ -177,7 +259,9 @@ public final class VeilMaterialBinding {
 
         String txt = MoudTextAssets.readText(materialPath);
         if (txt == null) {
-            warnOnce("material-missing:" + materialPath, "[Moud] Material asset unavailable path=" + materialPath);
+            if (!MoudTextAssets.exists(materialPath) && MoudTextAssets.textAssetPaths().size() > 0) {
+                warnOnce("material-missing:" + materialPath, "[Moud] Material asset unavailable path=" + materialPath);
+            }
             return;
         }
         if (Objects.equals(cachedMaterialText, txt) && material != null) {
@@ -206,8 +290,10 @@ public final class VeilMaterialBinding {
         }
         String txt = MoudTextAssets.readText(sp);
         if (txt == null) {
-            warnOnce("shader-missing:" + sp, "[Moud] Shader asset unavailable path=" + sp
-                    + (materialPath != null && !materialPath.isBlank() ? " material=" + materialPath : ""));
+            if (!MoudTextAssets.exists(sp)) {
+                warnOnce("shader-missing:" + sp, "[Moud] Shader asset unavailable path=" + sp
+                        + (materialPath != null && !materialPath.isBlank() ? " material=" + materialPath : ""));
+            }
             return;
         }
         boolean sameRoot = Objects.equals(cachedShaderText, txt);
@@ -272,5 +358,65 @@ public final class VeilMaterialBinding {
         for (int i = 0; i < deps.size(); i++) {
             cachedShaderDepVersions[i] = MoudTextAssets.versionOf(deps.get(i));
         }
+    }
+
+    private static void setDefaultUniform(ShaderProgram program, String name, float value) {
+        ShaderUniformAccess ua = program.getUniformSafe(name);
+        if (ua != null && ua.isValid()) {
+            ua.setFloat(value);
+        }
+    }
+
+    private static void setDefaultUniform(ShaderProgram program, String name, int value) {
+        ShaderUniformAccess ua = program.getUniformSafe(name);
+        if (ua != null && ua.isValid()) {
+            ua.setInt(value);
+        }
+    }
+
+    private static void setDefaultUniform(ShaderProgram program, String name, float[] value) {
+        if (value == null || value.length == 0) {
+            return;
+        }
+        ShaderUniformAccess ua = program.getUniformSafe(name);
+        if (ua != null && ua.isValid()) {
+            ua.setVector(value);
+        }
+    }
+
+    private Identifier resolveSampler(String samplerName, String textureRef) {
+        Identifier resolved = MoudTextures.resolve(textureRef);
+        if (resolved == null || TextureManager.MISSING_IDENTIFIER.equals(resolved)) {
+            return MoudTextures.defaultSamplerFor(samplerName);
+        }
+        return resolved;
+    }
+
+    private boolean shouldInferOrmEnabled() {
+        return hasTextureParam("orm_texture")
+                && !hasTextureParam("roughness_texture")
+                && !hasTextureParam("metallic_texture")
+                && !hasTextureParam("ao_texture");
+    }
+
+    private static boolean isIntegerUniform(String name, String type, float value) {
+        if (type.startsWith("int") || type.startsWith("uint") || type.startsWith("ivec")) {
+            return true;
+        }
+        if (name == null || name.isBlank()) {
+            return false;
+        }
+        return switch (name) {
+            case "roughness_texture_channel",
+                    "heightmap_min_layers",
+                    "heightmap_max_layers",
+                    "heightmap_deep_parallax",
+                    "heightmap_enabled",
+                    "normal_enabled",
+                    "emission_enabled",
+                    "ao_enabled",
+                    "orm_enabled" -> true;
+            default -> Math.abs(value - Math.round(value)) <= 1.0e-6f && name.endsWith("_enabled");
+        };
     }
 }
