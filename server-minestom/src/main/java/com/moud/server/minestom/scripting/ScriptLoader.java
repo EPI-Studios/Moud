@@ -1,5 +1,6 @@
 package com.moud.server.minestom.scripting;
 
+import com.moud.server.minestom.scripting.typescript.TypeScriptContext;
 import com.moud.server.minestom.util.DebugLog;
 import org.graalvm.polyglot.*;
 
@@ -15,18 +16,25 @@ final class ScriptLoader {
 
     private final Context ctx;
     private final Value createInstanceFn;
+    private final TypeScriptContext tsContext;
     private final Map<Path, Program> programs = new HashMap<>();
 
-    ScriptLoader(Context ctx) {
+    ScriptLoader(Context ctx, TypeScriptContext tsContext) {
         this.ctx = ctx;
+        this.tsContext = tsContext;
         this.createInstanceFn = ctx.eval("js", "(proto) => Object.create(proto)");
+
+        if (tsContext != null) {
+            ctx.getBindings("js").putMember("__moudTypes", tsContext.typeSchema());
+            ctx.eval("js", tsContext.shimSource());
+        }
     }
 
     Value createInstanceFn() {
         return createInstanceFn;
     }
 
-    Program programFor(Path scriptFile) {
+    Program programFor(Path scriptFile, ScriptLanguage language) {
         if (scriptFile == null) return null;
         long modified;
         try {
@@ -36,11 +44,12 @@ final class ScriptLoader {
         }
         Program cached = programs.get(scriptFile);
         if (cached != null && cached.modifiedMs() == modified) return cached;
-        Program loaded = loadProgram(scriptFile, modified);
+        Program loaded = loadProgram(scriptFile, language, modified);
         if (loaded != null) {
             programs.put(scriptFile, loaded);
             DebugLog.info(LOG_TAG, (cached == null ? "loaded" : "reloaded")
-                    + " language=javascript file=" + scriptFile.toAbsolutePath().normalize());
+                    + " language=" + language.displayName().toLowerCase()
+                    + " file=" + scriptFile.toAbsolutePath().normalize());
         }
         return loaded;
     }
@@ -62,10 +71,21 @@ final class ScriptLoader {
         throw new IllegalStateException("Script must evaluate to an object or a class/constructor");
     }
 
-    private Program loadProgram(Path scriptFile, long modifiedMs) {
+    private Program loadProgram(Path scriptFile, ScriptLanguage language, long modifiedMs) {
         try {
             if (!Files.isRegularFile(scriptFile)) return null;
-            String code = Files.readString(scriptFile, StandardCharsets.UTF_8);
+
+            String code;
+            if (language == ScriptLanguage.TYPESCRIPT) {
+                if (tsContext == null) {
+                    DebugLog.error(LOG_TAG, "TypeScript support not initialized for: " + scriptFile, null);
+                    return null;
+                }
+                code = tsContext.pipeline().prepareScript(scriptFile);
+            } else {
+                code = Files.readString(scriptFile, StandardCharsets.UTF_8);
+            }
+
             Source source = Source.newBuilder("js", code, scriptFile.toString()).build();
             Value exports = ctx.eval(source);
             if (exports == null) return null;

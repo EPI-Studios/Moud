@@ -1,10 +1,15 @@
 package com.moud.server.minestom.scripting;
 
 
+import com.moud.core.NodeTypeProviders;
+import com.moud.core.NodeTypeRegistry;
 import com.moud.net.protocol.MultiMeshData;
+import com.moud.server.minestom.scripting.typescript.ScriptTypeGenerator;
 import com.moud.net.protocol.PlayerInput;
 import com.moud.server.minestom.engine.ServerScene;
+import com.moud.server.minestom.net.PlayerMessageSink;
 import com.moud.server.minestom.project.ProjectService;
+import com.moud.server.minestom.scripting.typescript.TypeScriptContext;
 import com.moud.server.minestom.util.DebugLog;
 import java.util.ArrayDeque;
 import java.util.List;
@@ -20,25 +25,85 @@ final class RuntimeScriptService {
     private final ProjectService project;
     private final Engine engine;
     private final ScriptLanguageRegistry languages;
+    private final TypeScriptContext tsContext;
+    private final PlayerMessageSink playerMessageSink;
     private final ConcurrentHashMap<String, SceneRuntime> runtimeByScene = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, PlayerInputState> inputsByPlayer = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, float[]> playerVelocities = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, float[]> playerPositions = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, float[]> previousPlayerPositions = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> playerNames = new ConcurrentHashMap<>();
     private final Set<String> loggedUnsupportedScripts = ConcurrentHashMap.newKeySet();
 
-    RuntimeScriptService(ProjectService project, Engine engine, ScriptLanguageRegistry languages) {
+    RuntimeScriptService(ProjectService project, Engine engine, ScriptLanguageRegistry languages,
+                         PlayerMessageSink playerMessageSink) {
         this.project = Objects.requireNonNull(project, "project");
         this.engine = Objects.requireNonNull(engine, "engine");
         this.languages = Objects.requireNonNull(languages, "languages");
+        this.playerMessageSink = Objects.requireNonNull(playerMessageSink, "playerMessageSink");
+        NodeTypeRegistry registry = buildRegistry();
+        this.tsContext = buildTypeScriptContext(registry, engine);
+        generateTypeDeclarations(registry, project);
     }
 
-    void updatePlayerPositions(Map<UUID, float[]> positions) {
+    private static NodeTypeRegistry buildRegistry() {
+        NodeTypeRegistry registry = new NodeTypeRegistry()
+                .setAllowUnknownTypes(true)
+                .setAllowUnknownProperties(true);
+        NodeTypeProviders.loadInto(registry);
+        return registry;
+    }
+
+    private static TypeScriptContext buildTypeScriptContext(NodeTypeRegistry registry, Engine engine) {
+        try {
+            return new TypeScriptContext(registry, engine);
+        } catch (Exception e) {
+            DebugLog.error("script-runtime", "Failed to initialize TypeScript support: " + e.getMessage(), e);
+            return null;
+        }
+    }
+
+    private static void generateTypeDeclarations(NodeTypeRegistry registry, ProjectService project) {
+        try {
+            java.nio.file.Path outputPath = project.projectRoot().resolve("scripts/types/moud.d.ts");
+            new ScriptTypeGenerator(registry).generate(outputPath);
+        } catch (Exception e) {
+            DebugLog.error("script-runtime", "Failed to generate moud.d.ts: " + e.getMessage(), e);
+        }
+    }
+
+    void updatePlayerPositions(Map<UUID, float[]> positions, double dtSeconds) {
+        double safeDt = Double.isFinite(dtSeconds) && dtSeconds > 0.0 ? dtSeconds : 1.0 / 20.0;
         playerPositions.clear();
+        Set<String> seenPlayers = ConcurrentHashMap.newKeySet();
         if (positions != null) {
             for (Map.Entry<UUID, float[]> e : positions.entrySet()) {
-                playerPositions.put(e.getKey().toString(), e.getValue());
+                if (e.getKey() == null) {
+                    continue;
+                }
+                String uuid = e.getKey().toString();
+                float[] pos = e.getValue();
+                if (pos == null || pos.length < 3) {
+                    continue;
+                }
+                float[] current = pos.clone();
+                playerPositions.put(uuid, current);
+                seenPlayers.add(uuid);
+
+                float[] previous = previousPlayerPositions.put(uuid, current.clone());
+                if (previous == null || previous.length < 3) {
+                    playerVelocities.put(uuid, new float[]{0f, 0f, 0f});
+                    continue;
+                }
+
+                float vx = (float) ((current[0] - previous[0]) / safeDt);
+                float vy = (float) ((current[1] - previous[1]) / safeDt);
+                float vz = (float) ((current[2] - previous[2]) / safeDt);
+                playerVelocities.put(uuid, new float[]{vx, vy, vz});
             }
         }
+        previousPlayerPositions.keySet().removeIf(uuid -> !seenPlayers.contains(uuid));
+        playerVelocities.keySet().removeIf(uuid -> !seenPlayers.contains(uuid));
     }
 
     void updatePlayerNames(Map<UUID, String> names) {
@@ -91,7 +156,7 @@ final class RuntimeScriptService {
         warnUnsupportedScripts(scene);
         SceneRuntime rt = runtimeByScene.computeIfAbsent(
                 scene.sceneId(),
-                ignored -> new SceneRuntime(project, engine, inputsByPlayer)
+                ignored -> new SceneRuntime(project, engine, inputsByPlayer, playerVelocities, tsContext, playerMessageSink)
         );
         rt.updatePlayerPositions(playerPositions);
         rt.updatePlayerNames(playerNames);
@@ -126,7 +191,7 @@ final class RuntimeScriptService {
 
         SceneRuntime rt = runtimeByScene.computeIfAbsent(
                 scene.sceneId(),
-                ignored -> new SceneRuntime(project, engine, inputsByPlayer)
+                ignored -> new SceneRuntime(project, engine, inputsByPlayer, playerVelocities, tsContext, playerMessageSink)
         );
         rt.updatePlayerPositions(playerPositions);
         rt.updatePlayerNames(playerNames);
@@ -147,7 +212,9 @@ final class RuntimeScriptService {
             }
             queue.addAll(node.children());
             ScriptReference script = ScriptPaths.parseScript(node.getProperty(RuntimeScriptKeys.SCRIPT_KEY));
-            if (script == null || script.language() == ScriptLanguage.JAVASCRIPT) {
+            if (script == null
+                    || script.language() == ScriptLanguage.JAVASCRIPT
+                    || script.language() == ScriptLanguage.TYPESCRIPT) {
                 continue;
             }
             ScriptLanguageSupport support = languages.supportFor(script.language());

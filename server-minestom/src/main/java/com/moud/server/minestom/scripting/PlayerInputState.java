@@ -10,6 +10,8 @@ record PlayerInputState(
         float moveZ,
         float yawDeg,
         float pitchDeg,
+        float cursorX,
+        float cursorY,
         boolean jump,
         boolean sprint
 ) {
@@ -21,6 +23,8 @@ record PlayerInputState(
                 input.moveZ(),
                 input.yawDeg(),
                 input.pitchDeg(),
+                input.cursorX(),
+                input.cursorY(),
                 input.jump(),
                 input.sprint()
         );

@@ -9,6 +9,7 @@ import com.moud.net.protocol.ScriptActionListRequest;
 import com.moud.net.protocol.ScriptActionListResponse;
 import com.moud.core.scene.Node;
 import com.moud.server.minestom.engine.ServerScene;
+import com.moud.server.minestom.net.PlayerMessageSink;
 import org.graalvm.polyglot.Engine;
 import com.moud.server.minestom.project.ProjectService;
 import java.util.List;
@@ -23,13 +24,18 @@ public final class ScriptService {
     private final RuntimeScriptService runtime;
 
     public ScriptService(ProjectService project) {
+        this(project, PlayerMessageSink.NOOP);
+    }
+
+    public ScriptService(ProjectService project, PlayerMessageSink playerMessageSink) {
         Objects.requireNonNull(project, "project");
+        Objects.requireNonNull(playerMessageSink, "playerMessageSink");
         this.languages = new ScriptLanguageRegistry();
         Engine toolsEngine = Engine.create();
         Engine runtimeEngine = Engine.create();
         this.jsTools = new ToolScriptService(project, toolsEngine);
         this.luauTools = languages.supportFor(ScriptLanguage.LUAU).available() ? new LuauToolScriptService(project) : null;
-        this.runtime = new RuntimeScriptService(project, runtimeEngine, languages);
+        this.runtime = new RuntimeScriptService(project, runtimeEngine, languages, playerMessageSink);
     }
 
     /** @return a pending scene-transition ID, or {@code null} if none was requested. */
@@ -37,8 +43,8 @@ public final class ScriptService {
         return runtime.tick(scene, dtSeconds);
     }
 
-    public void updatePlayerPositions(Map<UUID, float[]> positions) {
-        runtime.updatePlayerPositions(positions);
+    public void updatePlayerPositions(Map<UUID, float[]> positions, double dtSeconds) {
+        runtime.updatePlayerPositions(positions, dtSeconds);
     }
 
     public void updatePlayerNames(Map<UUID, String> names) {

@@ -4,6 +4,7 @@ import java.util.Locale;
 
 enum ScriptLanguage {
     JAVASCRIPT("JavaScript"),
+    TYPESCRIPT("TypeScript"),
     LUAU("Luau"),
     UNKNOWN("Unknown");
 
@@ -27,6 +28,9 @@ enum ScriptLanguage {
         }
         if (value.endsWith(".luau")) {
             return LUAU;
+        }
+        if (value.endsWith(".ts") || value.endsWith(".mts")) {
+            return TYPESCRIPT;
         }
         if (value.endsWith(".js") || value.endsWith(".mjs") || value.endsWith(".cjs")) {
             return JAVASCRIPT;
