@@ -45,7 +45,7 @@ final class ServerTickLoop {
                 playerPositions.put(p.getUuid(), new float[]{(float) pos.x(), (float) pos.y(), (float) pos.z(), pos.yaw()});
                 playerNames.put(p.getUuid(), p.getUsername());
             }
-            scripts.updatePlayerPositions(playerPositions);
+            scripts.updatePlayerPositions(playerPositions, dtSeconds);
             scripts.updatePlayerNames(playerNames);
         }
 

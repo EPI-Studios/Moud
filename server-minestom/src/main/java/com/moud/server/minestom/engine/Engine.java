@@ -103,7 +103,9 @@ public final class Engine {
 
     public SceneSnapshot snapshot(long requestId) {
         List<SceneSnapshot.NodeSnapshot> nodes = new ArrayList<>();
-        snapshotNode(sceneTree.root(), nodes);
+        for (Node child : sceneTree.root().children()) {
+            snapshotNode(child, nodes);
+        }
         return new SceneSnapshot(requestId, sceneRevision(), List.copyOf(nodes));
     }
 

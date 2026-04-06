@@ -10,7 +10,10 @@ import com.moud.core.scene.PlainNode;
 import com.moud.core.scene.SceneTreeMutator;
 import com.moud.net.protocol.Message;
 import com.moud.net.protocol.SceneSnapshot;
+import com.moud.net.session.Session;
+import com.moud.net.session.SessionState;
 import com.moud.net.wire.WireMessages;
+import com.moud.server.minestom.net.PlayerMessageSink;
 import com.moud.server.minestom.assets.AssetService;
 import com.moud.server.minestom.assets.FileSystemAssetStore;
 import com.moud.server.minestom.engine.SceneInstancer;
@@ -118,12 +121,21 @@ public final class MoudServer {
         scenes = new ServerScenes(instanceManager);
         mainScene = scenes.ensureDefault("main", "Main");
         project = new ProjectService(projectRoot);
-        scripts = new ScriptService(project);
-        scriptFiles = new ScriptFileService(project);
-        sceneStorage = new SceneStorage(projectRoot, scenes, instancer, scripts);
-        playModeManager = new PlayModeManager(scenes, mainScene, scripts, instancer, playRuntime);
 
         Map<UUID, PlayerState> playerStates = new ConcurrentHashMap<>();
+        PlayerMessageSink playerMessageSink = (uuid, lane, message) -> {
+            if (uuid == null || message == null) return;
+            PlayerState ps = playerStates.get(uuid);
+            if (ps == null) return;
+            Session session = ps.session;
+            if (session == null || session.state() != SessionState.CONNECTED) return;
+            session.send(lane, message);
+        };
+
+        scripts = new ScriptService(project, playerMessageSink);
+        scriptFiles = new ScriptFileService(project);
+        sceneStorage = new SceneStorage(projectRoot, scenes, instancer, scripts);
+        playModeManager = new PlayModeManager(scenes, mainScene, scripts, instancer, playRuntime, playerMessageSink);
 
         try {
             assets = new AssetService(new FileSystemAssetStore(projectRoot.resolve("assets")), devMode);

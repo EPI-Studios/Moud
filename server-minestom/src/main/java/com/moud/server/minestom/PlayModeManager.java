@@ -12,6 +12,8 @@ import com.moud.net.transport.Lane;
 import com.moud.server.minestom.engine.SceneInstancer;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.engine.ServerScenes;
+import com.moud.server.minestom.net.PlayerMessageSink;
+import com.moud.server.minestom.runtime.PlayerBodyManager;
 import com.moud.server.minestom.runtime.PlayRuntime;
 import com.moud.server.minestom.runtime.RuntimeRigidBodyReplicator;
 import com.moud.server.minestom.scripting.ScriptService;
@@ -37,6 +39,7 @@ final class PlayModeManager {
     private final SceneInstancer instancer;
     private final PlayRuntime playRuntime;
     private final RuntimeRigidBodyReplicator rigidBodyReplicator = new RuntimeRigidBodyReplicator();
+    private final PlayerBodyManager playerBodyManager;
     private final Map<String, SceneBaseline> baselineBySceneId = new HashMap<>();
 
     private volatile SchemaSnapshot cachedSchema;
@@ -58,12 +61,15 @@ final class PlayModeManager {
                     ServerScene mainScene,
                     ScriptService scripts,
                     SceneInstancer instancer,
-                    PlayRuntime playRuntime) {
+                    PlayRuntime playRuntime,
+                    PlayerMessageSink playerMessageSink) {
         this.scenes = Objects.requireNonNull(scenes, "scenes");
         this.mainScene = Objects.requireNonNull(mainScene, "mainScene");
         this.scripts = Objects.requireNonNull(scripts, "scripts");
         this.instancer = Objects.requireNonNull(instancer, "instancer");
         this.playRuntime = Objects.requireNonNull(playRuntime, "playRuntime");
+        this.playerBodyManager = new PlayerBodyManager(
+                Objects.requireNonNull(playerMessageSink, "playerMessageSink"));
     }
 
     void onEditorModeChanged(Player player, PlayerState ps, Session session, boolean editorOpen) {
@@ -209,6 +215,7 @@ final class PlayModeManager {
                 : null;
         playRuntime.tick(player.getUuid(), session, scene, playerCamId, followCam, scriptCam);
         rigidBodyReplicator.send(scene, session);
+        playerBodyManager.tick(player);
         if (!ps.multiMeshSent) {
             for (MultiMeshData mm : scripts.getLatestMultiMesh(scene.sceneId())) {
                 session.send(Lane.STATE, mm);
@@ -226,11 +233,13 @@ final class PlayModeManager {
             return;
         }
         playRuntime.onPlayerSpawn(player, spawnScene);
+        playerBodyManager.onPlayerSpawn(player, spawnScene);
     }
 
 
     void onDisconnect(UUID uuid) {
         playRuntime.onDisconnect(uuid);
+        playerBodyManager.onPlayerLeave(uuid);
     }
 
     void onSceneChanged(UUID uuid, String sceneId) {
@@ -272,6 +281,9 @@ final class PlayModeManager {
         ps.activeSceneId = targetId;
         playRuntime.onSceneChanged(player.getUuid(), targetId);
 
+        // Tear down PlayerBody in the old scene and create one in the new scene.
+        playerBodyManager.onPlayerLeave(player.getUuid());
+
         Pos targetStartPos = PlayRuntime.findPlayerStartPos(target);
         Pos spawnPos = targetStartPos != null ? targetStartPos : new Pos(0, 64, 0);
         player.setInstance(target.instance(), spawnPos)
@@ -279,6 +291,7 @@ final class PlayModeManager {
                     if (session.state() != SessionState.CONNECTED) {
                         return;
                     }
+                    playerBodyManager.onPlayerSpawn(player, target);
                     session.send(Lane.STATE, new SceneList(scenes.snapshotInfo(), targetId));
                     instancer.syncScene(scenes, target);
                     session.send(Lane.STATE, target.snapshot(0L));
