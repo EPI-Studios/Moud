@@ -141,6 +141,10 @@ public final class SceneTree {
     void registerNode(Node node) {
         long id = node.nodeId();
         if (id == 0L) {
+            if (node == root) {
+                nodesById.put(0L, root);
+                return;
+            }
             id = nextNodeId.getAndIncrement();
             node.setNodeId(id);
         } else {
