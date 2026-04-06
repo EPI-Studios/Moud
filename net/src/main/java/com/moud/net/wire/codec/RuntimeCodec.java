@@ -15,6 +15,8 @@ public final class RuntimeCodec {
         out.putFloat(input.moveZ());
         out.putFloat(input.yawDeg());
         out.putFloat(input.pitchDeg());
+        out.putFloat(input.cursorX());
+        out.putFloat(input.cursorY());
         int flags = 0;
         if (input.jump()) flags |= 1;
         if (input.sprint()) flags |= 2;
@@ -27,8 +29,10 @@ public final class RuntimeCodec {
         float moveZ = in.getFloat();
         float yaw = in.getFloat();
         float pitch = in.getFloat();
+        float cursorX = in.getFloat();
+        float cursorY = in.getFloat();
         int flags = WireIo.readVarInt(in);
-        return new PlayerInput(tick, moveX, moveZ, yaw, pitch, (flags & 1) != 0, (flags & 2) != 0);
+        return new PlayerInput(tick, moveX, moveZ, yaw, pitch, cursorX, cursorY, (flags & 1) != 0, (flags & 2) != 0);
     }
 
     public static void writeRuntimeState(ByteBuffer out, RuntimeState state) {
@@ -107,7 +111,7 @@ public final class RuntimeCodec {
     }
 
     public static int playerInputSize(PlayerInput input) {
-        return WireIo.longSize(input.clientTick()) + 4 * 4 + WireIo.varIntSize(0);
+        return WireIo.longSize(input.clientTick()) + 6 * 4 + WireIo.varIntSize(0);
     }
 
     public static int runtimeStateSize(RuntimeState state) {

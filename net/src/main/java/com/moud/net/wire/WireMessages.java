@@ -39,9 +39,11 @@ import com.moud.net.protocol.SceneSaveAck;
 import com.moud.net.protocol.SchemaSnapshot;
 import com.moud.net.protocol.ServerHello;
 import com.moud.net.protocol.PlayerInput;
+import com.moud.net.protocol.PlayerMotion;
 import com.moud.net.protocol.RuntimeState;
 import com.moud.net.protocol.RequestRespawn;
 import com.moud.net.protocol.EditorModeChanged;
+import com.moud.net.protocol.CursorState;
 import com.moud.net.protocol.SceneCreate;
 import com.moud.net.protocol.SceneCreateAck;
 import com.moud.net.protocol.SceneDelete;
@@ -113,6 +115,12 @@ public final class WireMessages {
                     case AssetDownloadComplete complete -> writeAssetDownloadComplete(out, complete);
                     case PlayerInput input -> writePlayerInput(out, input);
                     case RuntimeState state -> writeRuntimeState(out, state);
+                    case CursorState state -> {
+                        int flags = 0;
+                        if (state.cursorModeEnabled()) flags |= 1;
+                        if (state.osCursorVisible()) flags |= 2;
+                        WireIo.writeVarInt(out, flags);
+                    }
                     case RequestRespawn ignored -> {}
                     case EditorModeChanged msg -> WireIo.writeVarInt(out, msg.editorOpen() ? 1 : 0);
                     case SceneCreate msg -> {
@@ -203,6 +211,13 @@ public final class WireMessages {
                             for (float f : data) out.putFloat(f);
                         }
                     }
+                    case PlayerMotion msg -> {
+                        WireIo.writeVarInt(out, msg.mode());
+                        out.putFloat(msg.x());
+                        out.putFloat(msg.y());
+                        out.putFloat(msg.z());
+                        out.putFloat(msg.yawDeg());
+                    }
                 }
                 out.flip();
                 byte[] bytes = new byte[out.remaining()];
@@ -252,6 +267,10 @@ public final class WireMessages {
             case ASSET_DOWNLOAD_COMPLETE -> readAssetDownloadComplete(in);
             case PLAYER_INPUT -> readPlayerInput(in);
             case RUNTIME_STATE -> readRuntimeState(in);
+            case CURSOR_STATE -> {
+                int flags = WireIo.readVarInt(in);
+                yield new CursorState((flags & 1) != 0, (flags & 2) != 0);
+            }
             case REQUEST_RESPAWN -> new RequestRespawn();
             case EDITOR_MODE_CHANGED -> new EditorModeChanged(WireIo.readVarInt(in) != 0);
             case UI_NODE_EVENT -> new UiNodeEvent(readLong(in), WireIo.readString(in), in.getFloat());
@@ -337,6 +356,14 @@ public final class WireMessages {
                 String error = WireIo.readString(in);
                 yield new ScriptFileWriteAck(requestId, success, path, error);
             }
+            case PLAYER_MOTION -> {
+                int mode = WireIo.readVarInt(in);
+                float x = in.getFloat();
+                float y = in.getFloat();
+                float z = in.getFloat();
+                float yawDeg = in.getFloat();
+                yield new PlayerMotion(mode, x, y, z, yawDeg);
+            }
         };
     }
 
@@ -355,6 +382,8 @@ public final class WireMessages {
         out.putFloat(input.moveZ());
         out.putFloat(input.yawDeg());
         out.putFloat(input.pitchDeg());
+        out.putFloat(input.cursorX());
+        out.putFloat(input.cursorY());
         int flags = 0;
         if (input.jump()) {
             flags |= 1;
@@ -371,10 +400,12 @@ public final class WireMessages {
         float moveZ = in.getFloat();
         float yaw = in.getFloat();
         float pitch = in.getFloat();
+        float cursorX = in.getFloat();
+        float cursorY = in.getFloat();
         int flags = WireIo.readVarInt(in);
         boolean jump = (flags & 1) != 0;
         boolean sprint = (flags & 2) != 0;
-        return new PlayerInput(tick, moveX, moveZ, yaw, pitch, jump, sprint);
+        return new PlayerInput(tick, moveX, moveZ, yaw, pitch, cursorX, cursorY, jump, sprint);
     }
 
     private static void writeSceneSaveAck(ByteBuffer out, SceneSaveAck ack) {
@@ -1046,6 +1077,8 @@ public final class WireMessages {
             case ScriptFileWriteAck msg -> size += longSize(msg.requestId()) + varIntSize(1) + stringSize(msg.path()) + stringSize(msg.error());
             case UiNodeEvent msg -> size += longSize(msg.nodeId()) + stringSize(msg.event()) + Float.BYTES;
             case MultiMeshData msg -> size += longSize(msg.nodeId()) + varIntSize(msg.offset()) + varIntSize(msg.total()) + varIntSize(msg.data() == null ? 0 : msg.data().length) + (msg.data() == null ? 0 : msg.data().length * Float.BYTES);
+            case PlayerMotion ignored -> size += varIntSize(2) + 4 * Float.BYTES;
+            case CursorState ignored -> size += varIntSize(3);
         }
         return size + 16;
     }

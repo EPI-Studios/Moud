@@ -7,6 +7,8 @@ public record PlayerInput(
         float moveZ,
         float yawDeg,
         float pitchDeg,
+        float cursorX,
+        float cursorY,
         boolean jump,
         boolean sprint
 ) implements Message {
@@ -15,4 +17,3 @@ public record PlayerInput(
         return MessageType.PLAYER_INPUT;
     }
 }
-
