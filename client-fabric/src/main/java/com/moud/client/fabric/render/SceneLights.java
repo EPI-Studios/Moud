@@ -29,13 +29,19 @@ final class SceneLights {
         pointLights.clear();
         dirLights.clear();
         spotLights.clear();
+        collectAdd(nodes, poseResolver);
+    }
 
+    void collectAdd(List<SceneSnapshot.NodeSnapshot> nodes,
+                    Function<Long, VeilSceneNodeRenderer.Pose> poseResolver) {
         for (SceneSnapshot.NodeSnapshot node : nodes) {
             if (node == null) continue;
             String type = node.type();
             if (!"OmniLight3D".equals(type) && !"DirectionalLight3D".equals(type) && !"SpotLight3D".equals(type))
                 continue;
 
+            if (!VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "visible"), true))
+                continue;
             if (!VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "enabled"), true))
                 continue;
 

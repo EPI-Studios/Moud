@@ -3,13 +3,16 @@ package com.moud.client.fabric.render;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.moud.client.fabric.editor.overlay.EditorContext;
 import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
+import com.moud.client.fabric.player.PlayerBodyAttachmentCache;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
 import com.moud.client.fabric.render.MoudTextures;
 import com.moud.client.fabric.render.picking.NodePickingPass;
 import com.moud.client.fabric.render.picking.OutlineRenderer;
 import com.moud.client.fabric.scene.ClientSceneBus;
 import com.moud.net.protocol.SceneSnapshot;
+import com.moud.client.fabric.render.veil.VeilDynamicShaders;
 import foundry.veil.api.client.render.VeilRenderSystem;
+import foundry.veil.api.client.render.dynamicbuffer.DynamicBufferType;
 import foundry.veil.api.client.render.light.data.AreaLightData;
 import foundry.veil.api.client.render.light.data.DirectionalLightData;
 import foundry.veil.api.client.render.light.data.PointLightData;
@@ -17,11 +20,15 @@ import foundry.veil.api.client.render.light.renderer.LightRenderHandle;
 import foundry.veil.api.client.render.light.renderer.LightRenderer;
 import foundry.veil.api.event.VeilRenderLevelStageEvent;
 import foundry.veil.fabric.event.FabricVeilRenderLevelStageEvent;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
@@ -42,6 +49,7 @@ import org.joml.Vector3f;
 
 public final class VeilSceneNodeRenderer {
     private static boolean initialized;
+    private static boolean gBuffersEnabled;
 
     private static long cachedVersion = Long.MIN_VALUE;
     private static long cachedSnapshotVersion = Long.MIN_VALUE;
@@ -59,6 +67,7 @@ public final class VeilSceneNodeRenderer {
     private static long cachedLightsVersion = Long.MIN_VALUE;
     private static long cachedLightsOverrideVersion = Long.MIN_VALUE;
     private static final Map<Long, LightRenderHandle<?>> lightHandlesByNodeId = new HashMap<>();
+    private static final Map<String, LightRenderHandle<?>> playerAttachLightHandles = new HashMap<>();
 
     private static final AtomicLong runtimeOverrideVersion = new AtomicLong();
     private static volatile long runtimeBodyNodeId;
@@ -74,6 +83,14 @@ public final class VeilSceneNodeRenderer {
     private static final DecalRenderer decalRenderer = new DecalRenderer(meshShader);
     private static final NodePickingPass pickingPass = new NodePickingPass();
     private static final OutlineRenderer outlineRenderer = new OutlineRenderer();
+
+    private static String activeAttachmentPlayerUuid = null;
+    private static long activeAttachmentRootNodeId = 0L;
+    private static Map<Long, Long> nodeToAttachAncestor = Map.of();
+    private static List<SceneSnapshot.NodeSnapshot> playerAttachmentAllNodes = List.of();
+    private static Map<Long, List<SceneSnapshot.NodeSnapshot>> attachmentDescendants = Map.of();
+    private static List<SceneSnapshot.NodeSnapshot> filteredCachedNodes = List.of();
+    private static final HashMap<Long, Pose> playerAttachPoseScratch = new HashMap<>();
 
     private VeilSceneNodeRenderer() {
     }
@@ -126,6 +143,7 @@ public final class VeilSceneNodeRenderer {
             return;
         }
         initialized = true;
+
         FabricVeilRenderLevelStageEvent.EVENT.register(VeilSceneNodeRenderer::onRenderLevelStage);
     }
 
@@ -139,6 +157,21 @@ public final class VeilSceneNodeRenderer {
                                            RenderTickCounter deltaTracker,
                                            Camera camera,
                                            Frustum frustum) {
+        if (!gBuffersEnabled) {
+            gBuffersEnabled = true;
+            try {
+                VeilRenderSystem.renderer().enableBuffers(
+                        Identifier.of("moud", "pbr"),
+                        DynamicBufferType.ALBEDO,
+                        DynamicBufferType.NORMAL,
+                        DynamicBufferType.DEBUG
+                );
+                VeilDynamicShaders.clear();
+                int active = VeilRenderSystem.renderer().getActiveBuffers();
+            } catch (Exception ignored) {
+            }
+        }
+
         float tickDelta = tickDelta(deltaTracker);
         if (stage == VeilRenderLevelStageEvent.Stage.AFTER_SKY) {
             syncLights(tickDelta);
@@ -171,11 +204,145 @@ public final class VeilSceneNodeRenderer {
         Vec3d camPos = camera.getPos();
         MatrixStack matrices = new MatrixStack();
 
-        meshShader.collectLights(cachedNodes, VeilSceneNodeRenderer::worldPose);
-        batchRenderer.renderBatched(cachedNodes, VeilSceneNodeRenderer::worldPose, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta);
-        multiMeshRenderer.renderAll(cachedNodes, VeilSceneNodeRenderer::worldPose, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta);
+        meshShader.collectLights(filteredCachedNodes, VeilSceneNodeRenderer::worldPose);
+        if (!playerAttachmentAllNodes.isEmpty()) {
+            Set<String> pbrLightUuids = PlayerBodyAttachmentCache.getActiveUuids();
+            if (!pbrLightUuids.isEmpty()) {
+                for (SceneSnapshot.NodeSnapshot attachNode : playerAttachmentAllNodes) {
+                    List<SceneSnapshot.NodeSnapshot> desc = attachmentDescendants.get(attachNode.nodeId());
+                    if (desc == null || desc.isEmpty()) continue;
+                    for (String uuid : pbrLightUuids) {
+                        activeAttachmentPlayerUuid = uuid;
+                        activeAttachmentRootNodeId = attachNode.nodeId();
+                        playerAttachPoseScratch.clear();
+                        computePlayerAttachRootPose(attachNode.nodeId(), attachNode, uuid);
+                        meshShader.collectLightsAdd(desc, VeilSceneNodeRenderer::worldPose);
+                    }
+                    activeAttachmentPlayerUuid = null;
+                    activeAttachmentRootNodeId = 0L;
+                }
+            }
+        }
+        batchRenderer.renderBatched(filteredCachedNodes, VeilSceneNodeRenderer::worldPose, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta);
+        multiMeshRenderer.renderAll(filteredCachedNodes, VeilSceneNodeRenderer::worldPose, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta);
 
-        for (SceneSnapshot.NodeSnapshot node : cachedNodes) {
+        renderNodeListManual(filteredCachedNodes, consumers, matrices, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta);
+
+        consumers.draw();
+        decalRenderer.renderAll(filteredCachedNodes, VeilSceneNodeRenderer::worldPose, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta);
+
+        if (!playerAttachmentAllNodes.isEmpty()) {
+            Set<String> activeUuids = PlayerBodyAttachmentCache.getActiveUuids();
+            if (!activeUuids.isEmpty()) {
+                for (SceneSnapshot.NodeSnapshot attachNode : playerAttachmentAllNodes) {
+                    List<SceneSnapshot.NodeSnapshot> descendants = attachmentDescendants.get(attachNode.nodeId());
+                    if (descendants == null || descendants.isEmpty()) {
+                        continue;
+                    }
+                    for (String uuid : activeUuids) {
+                        activeAttachmentPlayerUuid = uuid;
+                        activeAttachmentRootNodeId = attachNode.nodeId();
+                        playerAttachPoseScratch.clear();
+                        computePlayerAttachRootPose(attachNode.nodeId(), attachNode, uuid);
+
+                        batchRenderer.renderBatched(descendants, VeilSceneNodeRenderer::worldPose, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta);
+                        multiMeshRenderer.renderAll(descendants, VeilSceneNodeRenderer::worldPose, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta);
+                        renderNodeListManual(descendants, consumers, matrices, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta);
+                        consumers.draw();
+                        decalRenderer.renderAll(descendants, VeilSceneNodeRenderer::worldPose, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta);
+                        consumers.draw();
+                    }
+                    activeAttachmentPlayerUuid = null;
+                    activeAttachmentRootNodeId = 0L;
+                }
+            }
+        }
+
+        EditorContext editorCtx = EditorOverlayBus.get();
+        if (editorCtx != null && editorCtx.isActive()) {
+            int[] viewport = new int[4];
+            org.lwjgl.opengl.GL11.glGetIntegerv(org.lwjgl.opengl.GL11.GL_VIEWPORT, viewport);
+            int vpW = viewport[2];
+            int vpH = viewport[3];
+
+            if (vpW > 0 && vpH > 0 && editorCtx.isMouseInViewport()) {
+                pickingPass.render(cachedNodes, VeilSceneNodeRenderer::worldPose,
+                        camPos, frustumMatrix, projectionMatrix,
+                        vpW, vpH,
+                        editorCtx.mouseViewportNdcX(), editorCtx.mouseViewportNdcY());
+                editorCtx.setHoveredNodeId(pickingPass.hoveredNodeId());
+            }
+
+            long hoveredId = editorCtx.hoveredNodeId();
+            long selectedId = editorCtx.selectedNodeId();
+            if (hoveredId > 0 || selectedId > 0) {
+                outlineRenderer.render(cachedNodes, cachedNodesById,
+                        VeilSceneNodeRenderer::worldPose,
+                        camPos, frustumMatrix, projectionMatrix,
+                        hoveredId, selectedId, client);
+            }
+        }
+    }
+
+    private static void renderUnitCube(VertexConsumer vc, MatrixStack.Entry entry, int light, int overlay, int r, int g, int b, int a) {
+        if (vc == null || entry == null) {
+            return;
+        }
+        quad(vc, entry,
+                0, 0, 0, 0, 1,
+                0, 1, 0, 0, 0,
+                1, 1, 0, 1, 0,
+                1, 0, 0, 1, 1,
+                light, overlay,
+                0, 0, -1, r, g, b, a);
+        quad(vc, entry,
+                0, 0, 1, 1, 1,
+                1, 0, 1, 0, 1,
+                1, 1, 1, 0, 0,
+                0, 1, 1, 1, 0,
+                light, overlay,
+                0, 0, 1, r, g, b, a);
+        quad(vc, entry,
+                0, 0, 0, 1, 1,
+                0, 0, 1, 0, 1,
+                0, 1, 1, 0, 0,
+                0, 1, 0, 1, 0,
+                light, overlay,
+                -1, 0, 0, r, g, b, a);
+        quad(vc, entry,
+                1, 0, 0, 0, 1,
+                1, 1, 0, 0, 0,
+                1, 1, 1, 1, 0,
+                1, 0, 1, 1, 1,
+                light, overlay,
+                1, 0, 0, r, g, b, a);
+        quad(vc, entry,
+                0, 0, 0, 0, 0,
+                1, 0, 0, 1, 0,
+                1, 0, 1, 1, 1,
+                0, 0, 1, 0, 1,
+                light, overlay,
+                0, -1, 0, r, g, b, a);
+        quad(vc, entry,
+                0, 1, 0, 0, 1,
+                0, 1, 1, 0, 0,
+                1, 1, 1, 1, 0,
+                1, 1, 0, 1, 1,
+                light, overlay,
+                0, 1, 0, r, g, b, a);
+    }
+
+    private static void renderNodeListManual(
+            List<SceneSnapshot.NodeSnapshot> nodes,
+            VertexConsumerProvider.Immediate consumers,
+            MatrixStack matrices,
+            Vec3d camPos,
+            Camera camera,
+            Matrix4fc frustumMatrix,
+            Matrix4fc projectionMatrix,
+            MinecraftClient client,
+            float tickDelta) {
+        for (SceneSnapshot.NodeSnapshot node : nodes) {
             if (node == null) {
                 continue;
             }
@@ -248,92 +415,8 @@ public final class VeilSceneNodeRenderer {
             renderUnitCube(vc, matrices.peek(), light, OverlayTexture.DEFAULT_UV, tintRi, tintGi, tintBi, alphaI);
             matrices.pop();
         }
-
-        // Flush queued CSGBox/MeshInstance3D vertices to the GPU so their depth is in the
-        // main framebuffer before the decal renderer blits it for depth-based projection.
-        consumers.draw();
-        decalRenderer.renderAll(cachedNodes, VeilSceneNodeRenderer::worldPose, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta);
-
-        // Picking + outline passes (editor only)
-        EditorContext editorCtx = EditorOverlayBus.get();
-        if (editorCtx != null && editorCtx.isActive()) {
-            int[] viewport = new int[4];
-            org.lwjgl.opengl.GL11.glGetIntegerv(org.lwjgl.opengl.GL11.GL_VIEWPORT, viewport);
-            int vpW = viewport[2];
-            int vpH = viewport[3];
-
-            if (vpW > 0 && vpH > 0 && editorCtx.isMouseInViewport()) {
-                pickingPass.render(cachedNodes, VeilSceneNodeRenderer::worldPose,
-                        camPos, frustumMatrix, projectionMatrix,
-                        vpW, vpH,
-                        editorCtx.mouseViewportNdcX(), editorCtx.mouseViewportNdcY());
-                editorCtx.setHoveredNodeId(pickingPass.hoveredNodeId());
-            }
-
-            long hoveredId = editorCtx.hoveredNodeId();
-            long selectedId = editorCtx.selectedNodeId();
-            if (hoveredId > 0 || selectedId > 0) {
-                outlineRenderer.render(cachedNodes, cachedNodesById,
-                        VeilSceneNodeRenderer::worldPose,
-                        camPos, frustumMatrix, projectionMatrix,
-                        hoveredId, selectedId, client);
-            }
-        }
     }
 
-    private static void renderUnitCube(VertexConsumer vc, MatrixStack.Entry entry, int light, int overlay, int r, int g, int b, int a) {
-        if (vc == null || entry == null) {
-            return;
-        }
-        // North (-Z)
-        quad(vc, entry,
-                0, 0, 0, 0, 1,
-                0, 1, 0, 0, 0,
-                1, 1, 0, 1, 0,
-                1, 0, 0, 1, 1,
-                light, overlay,
-                0, 0, -1, r, g, b, a);
-        // South (+Z)
-        quad(vc, entry,
-                0, 0, 1, 1, 1,
-                1, 0, 1, 0, 1,
-                1, 1, 1, 0, 0,
-                0, 1, 1, 1, 0,
-                light, overlay,
-                0, 0, 1, r, g, b, a);
-        // West (-X)
-        quad(vc, entry,
-                0, 0, 0, 1, 1,
-                0, 0, 1, 0, 1,
-                0, 1, 1, 0, 0,
-                0, 1, 0, 1, 0,
-                light, overlay,
-                -1, 0, 0, r, g, b, a);
-        // East (+X)
-        quad(vc, entry,
-                1, 0, 0, 0, 1,
-                1, 1, 0, 0, 0,
-                1, 1, 1, 1, 0,
-                1, 0, 1, 1, 1,
-                light, overlay,
-                1, 0, 0, r, g, b, a);
-        // Bottom (-Y)
-        quad(vc, entry,
-                0, 0, 0, 0, 0,
-                1, 0, 0, 1, 0,
-                1, 0, 1, 1, 1,
-                0, 0, 1, 0, 1,
-                light, overlay,
-                0, -1, 0, r, g, b, a);
-        // Top (+Y)
-        quad(vc, entry,
-                0, 1, 0, 0, 1,
-                0, 1, 1, 0, 0,
-                1, 1, 1, 1, 0,
-                1, 1, 0, 1, 1,
-                light, overlay,
-                0, 1, 0, r, g, b, a);
-    }
 
     private static void quad(VertexConsumer vc,
                              MatrixStack.Entry entry,
@@ -377,7 +460,7 @@ public final class VeilSceneNodeRenderer {
     }
 
     public static void clearLights() {
-        if (lightHandlesByNodeId.isEmpty()) {
+        if (lightHandlesByNodeId.isEmpty() && playerAttachLightHandles.isEmpty()) {
             cachedLightsVersion = Long.MIN_VALUE;
             cachedLightsOverrideVersion = Long.MIN_VALUE;
             return;
@@ -395,6 +478,15 @@ public final class VeilSceneNodeRenderer {
             }
         }
         lightHandlesByNodeId.clear();
+        for (LightRenderHandle<?> handle : playerAttachLightHandles.values()) {
+            if (handle != null) {
+                try {
+                    handle.free();
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        playerAttachLightHandles.clear();
         cachedLightsVersion = Long.MIN_VALUE;
         cachedLightsOverrideVersion = Long.MIN_VALUE;
     }
@@ -418,99 +510,130 @@ public final class VeilSceneNodeRenderer {
             return;
         }
 
-        HashSet<Long> alive = new HashSet<>();
+        HashSet<Long> aliveNormal = new HashSet<>();
+        HashSet<String> alivePlayerAttach = new HashSet<>();
 
-        for (SceneSnapshot.NodeSnapshot node : cachedNodes) {
-            if (node == null) {
-                continue;
-            }
+        for (SceneSnapshot.NodeSnapshot node : filteredCachedNodes) {
+            if (node == null) continue;
             String type = node.type();
-            if (!"OmniLight3D".equals(type) && !"DirectionalLight3D".equals(type) && !"SpotLight3D".equals(type)) {
-                continue;
-            }
-
-            boolean enabled = parseBool(stringProp(node, "enabled"), true);
-            if (!enabled) {
-                continue;
-            }
+            if (!"OmniLight3D".equals(type) && !"DirectionalLight3D".equals(type) && !"SpotLight3D".equals(type)) continue;
+            if (!parseBool(stringProp(node, "visible"), true)) continue;
+            if (!parseBool(stringProp(node, "enabled"), true)) continue;
 
             Pose world = worldPose(node.nodeId());
-            if (world == null) {
-                continue;
-            }
-
-            float colorR = clamp01(parseFloat(stringProp(node, "color_r"), 1.0f));
-            float colorG = clamp01(parseFloat(stringProp(node, "color_g"), 1.0f));
-            float colorB = clamp01(parseFloat(stringProp(node, "color_b"), 1.0f));
-            float brightness = Math.max(0.0f, parseFloat(stringProp(node, "brightness"), 1.0f));
+            if (world == null) continue;
 
             long nodeId = node.nodeId();
-            alive.add(nodeId);
-
+            aliveNormal.add(nodeId);
             LightRenderHandle<?> handle = lightHandlesByNodeId.get(nodeId);
-            if ("OmniLight3D".equals(type)) {
-                handle = ensurePointLight(renderer, nodeId, handle);
-                if (handle == null) {
-                    continue;
-                }
-                PointLightData data = (PointLightData) handle.getLightData();
-                float radius = Math.max(0.0f, parseFloat(stringProp(node, "radius"), 8.0f));
-                data.setPosition(world.pos.x, world.pos.y, world.pos.z)
-                        .setColor(colorR, colorG, colorB)
-                        .setBrightness(brightness)
-                        .setRadius(radius);
-                handle.markDirty();
-            } else if ("DirectionalLight3D".equals(type)) {
-                handle = ensureDirectionalLight(renderer, nodeId, handle);
-                if (handle == null) {
-                    continue;
-                }
-                DirectionalLightData data = (DirectionalLightData) handle.getLightData();
-                Vector3f dir = new Vector3f(0.0f, 0.0f, 1.0f);
-                world.rot.transform(dir);
-                if (dir.lengthSquared() > 1e-12f) {
-                    dir.normalize();
-                }
-                data.setDirection(dir)
-                        .setColor(colorR, colorG, colorB)
-                        .setBrightness(brightness);
-                handle.markDirty();
-            } else {
-                handle = ensureSpotLight(renderer, nodeId, handle);
-                if (handle == null) {
-                    continue;
-                }
-                AreaLightData data = (AreaLightData) handle.getLightData();
-                float angleDeg = parseFloat(stringProp(node, "angle"), 45.0f);
-                float distance = Math.max(0.0f, parseFloat(stringProp(node, "distance"), 10.0f));
+            handle = applyLightData(renderer, type, node, world, handle);
+            if (handle != null) lightHandlesByNodeId.put(nodeId, handle);
+        }
 
-                data.getPosition().set(world.pos.x, world.pos.y, world.pos.z);
-                data.getOrientation().set(world.rot);
-                data.setSize(0.1, 0.1)
-                        .setAngle((float) Math.toRadians(angleDeg))
-                        .setDistance(distance)
-                        .setColor(colorR, colorG, colorB)
-                        .setBrightness(brightness);
-                handle.markDirty();
+        if (!playerAttachmentAllNodes.isEmpty()) {
+            Set<String> activeUuids = PlayerBodyAttachmentCache.getActiveUuids();
+            if (!activeUuids.isEmpty()) {
+                for (SceneSnapshot.NodeSnapshot attachNode : playerAttachmentAllNodes) {
+                    List<SceneSnapshot.NodeSnapshot> descendants = attachmentDescendants.get(attachNode.nodeId());
+                    if (descendants == null) continue;
+                    for (SceneSnapshot.NodeSnapshot node : descendants) {
+                        if (node == null) continue;
+                        String type = node.type();
+                        if (!"OmniLight3D".equals(type) && !"DirectionalLight3D".equals(type) && !"SpotLight3D".equals(type)) continue;
+                        if (!parseBool(stringProp(node, "visible"), true)) continue;
+                        if (!parseBool(stringProp(node, "enabled"), true)) continue;
+
+                        for (String uuid : activeUuids) {
+                            String key = node.nodeId() + ":" + uuid;
+                            alivePlayerAttach.add(key);
+
+                            activeAttachmentPlayerUuid = uuid;
+                            activeAttachmentRootNodeId = attachNode.nodeId();
+                            playerAttachPoseScratch.clear();
+                            computePlayerAttachRootPose(attachNode.nodeId(), attachNode, uuid);
+                            Pose world = worldPoseForPlayerAttach(node.nodeId(), uuid);
+                            activeAttachmentPlayerUuid = null;
+                            activeAttachmentRootNodeId = 0L;
+
+                            LightRenderHandle<?> handle = playerAttachLightHandles.get(key);
+                            handle = applyLightData(renderer, type, node, world, handle);
+                            if (handle != null) playerAttachLightHandles.put(key, handle);
+                        }
+                    }
+                }
             }
-
-            lightHandlesByNodeId.put(nodeId, handle);
         }
 
         if (!lightHandlesByNodeId.isEmpty()) {
             Iterator<Map.Entry<Long, LightRenderHandle<?>>> it = lightHandlesByNodeId.entrySet().iterator();
             while (it.hasNext()) {
                 Map.Entry<Long, LightRenderHandle<?>> e = it.next();
-                if (!alive.contains(e.getKey())) {
-                    LightRenderHandle<?> h = e.getValue();
-                    if (h != null) {
-                        try {
-                            h.free();
-                        } catch (Exception ignored) {
-                        }
-                    }
+                if (!aliveNormal.contains(e.getKey())) {
+                    freeHandle(e.getValue());
                     it.remove();
                 }
+            }
+        }
+        if (!playerAttachLightHandles.isEmpty()) {
+            Iterator<Map.Entry<String, LightRenderHandle<?>>> it = playerAttachLightHandles.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<String, LightRenderHandle<?>> e = it.next();
+                if (!alivePlayerAttach.contains(e.getKey())) {
+                    freeHandle(e.getValue());
+                    it.remove();
+                }
+            }
+        }
+    }
+
+    private static LightRenderHandle<?> applyLightData(LightRenderer renderer, String type, SceneSnapshot.NodeSnapshot node, Pose world, LightRenderHandle<?> handle) {
+        float colorR = clamp01(parseFloat(stringProp(node, "color_r"), 1.0f));
+        float colorG = clamp01(parseFloat(stringProp(node, "color_g"), 1.0f));
+        float colorB = clamp01(parseFloat(stringProp(node, "color_b"), 1.0f));
+        float brightness = Math.max(0.0f, parseFloat(stringProp(node, "brightness"), 1.0f));
+
+        if ("OmniLight3D".equals(type)) {
+            handle = ensurePointLight(renderer, 0L, handle);
+            if (handle == null) return null;
+            float radius = Math.max(0.0f, parseFloat(stringProp(node, "radius"), 8.0f));
+            ((PointLightData) handle.getLightData())
+                    .setPosition(world.pos.x, world.pos.y, world.pos.z)
+                    .setColor(colorR, colorG, colorB)
+                    .setBrightness(brightness)
+                    .setRadius(radius);
+        } else if ("DirectionalLight3D".equals(type)) {
+            handle = ensureDirectionalLight(renderer, 0L, handle);
+            if (handle == null) return null;
+            Vector3f dir = new Vector3f(0.0f, 0.0f, 1.0f);
+            world.rot.transform(dir);
+            if (dir.lengthSquared() > 1e-12f) dir.normalize();
+            ((DirectionalLightData) handle.getLightData())
+                    .setDirection(dir)
+                    .setColor(colorR, colorG, colorB)
+                    .setBrightness(brightness);
+        } else {
+            handle = ensureSpotLight(renderer, 0L, handle);
+            if (handle == null) return null;
+            float angleDeg = parseFloat(stringProp(node, "angle"), 45.0f);
+            float distance = Math.max(0.0f, parseFloat(stringProp(node, "distance"), 10.0f));
+            AreaLightData data = (AreaLightData) handle.getLightData();
+            data.getPosition().set(world.pos.x, world.pos.y, world.pos.z);
+            data.getOrientation().set(world.rot);
+            data.setSize(0.1, 0.1)
+                    .setAngle((float) Math.toRadians(angleDeg * 0.5f))
+                    .setDistance(distance)
+                    .setColor(colorR, colorG, colorB)
+                    .setBrightness(brightness);
+        }
+        handle.markDirty();
+        return handle;
+    }
+
+    private static void freeHandle(LightRenderHandle<?> handle) {
+        if (handle != null) {
+            try {
+                handle.free();
+            } catch (Exception ignored) {
             }
         }
     }
@@ -590,8 +713,67 @@ public final class VeilSceneNodeRenderer {
                 next.put(node.nodeId(), node);
             }
             cachedNodesById = next;
+            buildPlayerAttachmentMaps(next);
             updatePoseStates(physicsChanged && !isReset);
+            if (snapshotVersion != cachedSnapshotVersion) {
+                meshShader.onSnapshotUpdate(cachedNodes);
+                multiMeshRenderer.onSnapshotUpdate(cachedNodes);
+            }
             cachedSnapshotVersion = snapshotVersion;
+        }
+    }
+
+    private static void buildPlayerAttachmentMaps(Map<Long, SceneSnapshot.NodeSnapshot> nodesById) {
+        HashMap<Long, List<Long>> children = new HashMap<>();
+        for (SceneSnapshot.NodeSnapshot node : cachedNodes) {
+            if (node == null) continue;
+            long pid = node.parentId();
+            if (pid > 0L) children.computeIfAbsent(pid, k -> new ArrayList<>()).add(node.nodeId());
+        }
+
+        List<SceneSnapshot.NodeSnapshot> attachAllList = new ArrayList<>();
+        Map<Long, List<SceneSnapshot.NodeSnapshot>> descMap = new HashMap<>();
+        Map<Long, Long> nodeToAttach = new HashMap<>();
+        Set<Long> excludeIds = new HashSet<>();
+
+        for (SceneSnapshot.NodeSnapshot node : cachedNodes) {
+            if (node == null || !"PlayerAttachment".equals(node.type())) continue;
+            String target = stringProp(node, "target");
+            if (target != null && !target.isBlank() && !"all".equals(target)) continue;
+
+            attachAllList.add(node);
+            excludeIds.add(node.nodeId());
+
+            List<SceneSnapshot.NodeSnapshot> descendants = new ArrayList<>();
+            Queue<Long> queue = new ArrayDeque<>();
+            List<Long> childIds = children.get(node.nodeId());
+            if (childIds != null) queue.addAll(childIds);
+            while (!queue.isEmpty()) {
+                long cid = queue.poll();
+                SceneSnapshot.NodeSnapshot cn = nodesById.get(cid);
+                if (cn != null) {
+                    descendants.add(cn);
+                    nodeToAttach.put(cid, node.nodeId());
+                    excludeIds.add(cid);
+                }
+                List<Long> gc = children.get(cid);
+                if (gc != null) queue.addAll(gc);
+            }
+            descMap.put(node.nodeId(), descendants);
+        }
+
+        playerAttachmentAllNodes = attachAllList;
+        attachmentDescendants = descMap;
+        nodeToAttachAncestor = nodeToAttach;
+
+        if (excludeIds.isEmpty()) {
+            filteredCachedNodes = cachedNodes;
+        } else {
+            List<SceneSnapshot.NodeSnapshot> filtered = new ArrayList<>(cachedNodes.size());
+            for (SceneSnapshot.NodeSnapshot node : cachedNodes) {
+                if (node != null && !excludeIds.contains(node.nodeId())) filtered.add(node);
+            }
+            filteredCachedNodes = filtered;
         }
     }
 
@@ -628,7 +810,14 @@ public final class VeilSceneNodeRenderer {
                     || st.parentId != parentId
                     || !Pose.approxEquals(st.currLocal, scratch);
             if (changed) {
-                Pose.copy(scratch, st.prevLocal);
+                if (!st.initialized || st.parentId != parentId) {
+                    Pose.copy(scratch, st.prevLocal);
+                } else {
+                    // Preserve the last authoritative pose as the interpolation start.
+                    // This smooths replicated physics/snapshot updates without changing
+                    // the actual simulated state.
+                    Pose.copy(st.currLocal, st.prevLocal);
+                }
                 Pose.copy(scratch, st.currLocal);
                 st.parentId = parentId;
                 st.initialized = true;
@@ -665,9 +854,23 @@ public final class VeilSceneNodeRenderer {
             return runtimeBody;
         }
 
+        if (activeAttachmentPlayerUuid != null && nodeToAttachAncestor.containsKey(nodeId)) {
+            return worldPoseForPlayerAttach(nodeId, activeAttachmentPlayerUuid);
+        }
+
         CachedPose cached = worldPoseCacheById.get(nodeId);
         if (cached != null && cached.frame == poseFrameId) {
             return cached.pose;
+        }
+
+        SceneSnapshot.NodeSnapshot nodeSn = cachedNodesById.get(nodeId);
+
+        if (nodeSn != null && "PlayerAttachment".equals(nodeSn.type())) {
+            String target = stringProp(nodeSn, "target");
+            if (target != null && !target.isBlank() && !"all".equals(target)) {
+                return playerAttachmentPose(nodeId, nodeSn, target);
+            }
+            return Pose.IDENTITY;
         }
 
         NodePoseState st = poseStatesById.get(nodeId);
@@ -684,6 +887,26 @@ public final class VeilSceneNodeRenderer {
         Pose out = cached.pose;
 
         if (local.inherit && st.parentId > 0L) {
+            SceneSnapshot.NodeSnapshot parentSn = cachedNodesById.get(st.parentId);
+            if (parentSn != null && "PlayerAttachment".equals(parentSn.type())) {
+                String uuid = stringProp(parentSn, "target");
+                if (uuid != null && !uuid.isBlank() && !"all".equals(uuid)) {
+                    String attachPoint = nodeSn != null ? stringProp(nodeSn, "attachment_point") : null;
+                    float[] attachPos = PlayerBodyAttachmentCache.getAttachPoint(uuid, attachPoint);
+                    if (attachPos != null) {
+                        float[] root = PlayerBodyAttachmentCache.getRoot(uuid);
+                        out.pos.set(attachPos[0] + local.pos.x, attachPos[1] + local.pos.y, attachPos[2] + local.pos.z);
+                        if (root != null) {
+                            out.rot.set(quatFromEulerDeg(0f, -root[3], 0f)).mul(local.rot).normalize();
+                        } else {
+                            out.rot.set(local.rot);
+                        }
+                        out.scale.set(local.scale);
+                        out.inherit = false;
+                        return out;
+                    }
+                }
+            }
             Pose parent = worldPose(st.parentId);
             Pose.compose(parent, local, out);
         } else {
@@ -691,6 +914,145 @@ public final class VeilSceneNodeRenderer {
         }
         return out;
     }
+
+    private static Pose playerAttachmentPose(long nodeId, SceneSnapshot.NodeSnapshot nodeSn, String playerUuid) {
+        CachedPose cached = worldPoseCacheById.computeIfAbsent(nodeId, k -> new CachedPose());
+        cached.frame = poseFrameId;
+        Pose out = cached.pose;
+
+        String attachPoint = stringProp(nodeSn, "attachment_point");
+        boolean followRot = parseBool(stringProp(nodeSn, "follow_rotation"), false);
+        float[] pos = PlayerBodyAttachmentCache.getAttachPoint(playerUuid, attachPoint);
+        float[] root = PlayerBodyAttachmentCache.getRoot(playerUuid);
+
+        if (pos != null) {
+            out.pos.set(pos[0], pos[1], pos[2]);
+            if (followRot && root != null) {
+                out.rot.set(quatFromEulerDeg(0f, -root[3], 0f));
+            } else {
+                out.rot.identity();
+            }
+            out.scale.set(1f, 1f, 1f);
+            out.inherit = false;
+            return out;
+        }
+
+        NodePoseState st = poseStatesById.get(nodeId);
+        if (st != null && st.initialized) {
+            Pose.copy(st.interpolatedLocal(poseFrameId, poseFrameTickDelta), out);
+        } else {
+            Pose.copy(Pose.IDENTITY, out);
+        }
+        return out;
+    }
+
+    private static Pose worldPoseForPlayerAttach(long nodeId, String playerUuid) {
+        Pose cached = playerAttachPoseScratch.get(nodeId);
+        if (cached != null) return cached;
+
+        SceneSnapshot.NodeSnapshot nodeSn = cachedNodesById.get(nodeId);
+
+        if (nodeSn != null && "PlayerAttachment".equals(nodeSn.type())) {
+            return computePlayerAttachRootPose(nodeId, nodeSn, playerUuid);
+        }
+
+        NodePoseState st = poseStatesById.get(nodeId);
+        if (st == null || !st.initialized) return Pose.IDENTITY;
+        Pose local = st.interpolatedLocal(poseFrameId, poseFrameTickDelta);
+
+        SceneSnapshot.NodeSnapshot rootSn = activeAttachmentRootNodeId > 0L
+                ? cachedNodesById.get(activeAttachmentRootNodeId) : null;
+        boolean followRot = rootSn != null && parseBool(stringProp(rootSn, "follow_rotation"), false);
+        boolean followAnim = nodeSn != null && parseBool(stringProp(nodeSn, "follow_animation"), false);
+
+        String childAttachPoint = nodeSn != null ? stringProp(nodeSn, "attachment_point") : null;
+        if (childAttachPoint != null && !childAttachPoint.isBlank()) {
+            float[] pos = PlayerBodyAttachmentCache.getAttachPoint(playerUuid, childAttachPoint);
+            float[] root = PlayerBodyAttachmentCache.getRoot(playerUuid);
+            Pose out = new Pose();
+            if (pos != null) {
+                out.pos.set(pos[0] + local.pos.x, pos[1] + local.pos.y, pos[2] + local.pos.z);
+                out.rot.set(boneWorldRot(playerUuid, childAttachPoint, local.rot, root, followRot, followAnim));
+                out.scale.set(local.scale);
+                out.inherit = false;
+            } else {
+                Pose.copy(local, out);
+            }
+            playerAttachPoseScratch.put(nodeId, out);
+            return out;
+        }
+
+        Pose out = new Pose();
+        if (local.inherit && st.parentId > 0L) {
+            Pose parentPose = worldPoseForPlayerAttach(st.parentId, playerUuid);
+            if (followAnim) {
+                String rootAttachPoint = rootSn != null ? stringProp(rootSn, "attachment_point") : null;
+                float[] root = PlayerBodyAttachmentCache.getRoot(playerUuid);
+                Quaternionf animRot = boneWorldRot(playerUuid, rootAttachPoint, local.rot, root, true, true);
+                out.pos.set(local.pos).mul(parentPose.scale);
+                parentPose.rot.transform(out.pos);
+                out.pos.add(parentPose.pos);
+                out.rot.set(animRot);
+                out.scale.set(parentPose.scale).mul(local.scale);
+                out.inherit = local.inherit;
+            } else {
+                Pose.compose(parentPose, local, out);
+            }
+        } else {
+            Pose.copy(local, out);
+        }
+        playerAttachPoseScratch.put(nodeId, out);
+        return out;
+    }
+
+    private static Pose computePlayerAttachRootPose(long nodeId, SceneSnapshot.NodeSnapshot nodeSn, String playerUuid) {
+        String attachPoint = stringProp(nodeSn, "attachment_point");
+        boolean followRot = parseBool(stringProp(nodeSn, "follow_rotation"), false);
+        float[] pos = PlayerBodyAttachmentCache.getAttachPoint(playerUuid, attachPoint);
+        float[] root = PlayerBodyAttachmentCache.getRoot(playerUuid);
+
+        Pose out = new Pose();
+        if (pos != null) {
+            out.pos.set(pos[0], pos[1], pos[2]);
+            if (followRot && root != null) {
+                out.rot.set(quatFromEulerDeg(0f, -root[3], 0f));
+            } else {
+                out.rot.identity();
+            }
+        } else {
+            NodePoseState st = poseStatesById.get(nodeId);
+            if (st != null && st.initialized) {
+                Pose.copy(st.interpolatedLocal(poseFrameId, poseFrameTickDelta), out);
+            } else {
+                out.rot.identity();
+            }
+        }
+        out.scale.set(1f, 1f, 1f);
+        out.inherit = false;
+        playerAttachPoseScratch.put(nodeId, out);
+        return out;
+    }
+
+    private static Quaternionf boneWorldRot(String playerUuid, String attachPoint,
+                                            Quaternionf localRot, float[] root,
+                                            boolean followRot, boolean followAnim) {
+        Quaternionf result = new Quaternionf();
+
+        if (followAnim) {
+            if (root != null) {
+                result.set(quatFromEulerDeg(0f, -root[3], 0f));
+            }
+            float[] boneRot = PlayerBodyAttachmentCache.getRotation(playerUuid, attachPoint);
+            if (boneRot != null) {
+                result.mul(quatFromEulerDeg(boneRot[0], boneRot[1], boneRot[2]));
+            }
+        } else if (followRot && root != null) {
+            result.set(quatFromEulerDeg(0f, -root[3], 0f));
+        }
+
+        return result.mul(localRot).normalize();
+    }
+
 
     private static void parseLocalPoseInto(SceneSnapshot.NodeSnapshot node, Pose out) {
         float x = 0.0f;

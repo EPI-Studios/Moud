@@ -28,11 +28,8 @@ import org.lwjgl.system.MemoryUtil;
 import java.io.InputStream;
 import java.nio.FloatBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,11 +47,10 @@ final class MultiMeshRenderer {
     private final String defaultFrag;
     private ShaderProgram defaultProgram;
 
-    private static final float UNIFORM_LERP_SPEED = 25.0f;
-
-    private final Map<Long, VeilMaterialBinding> materialBindings = new HashMap<>();
-    private final Map<Long, NodeGpuState> nodeStates = new HashMap<>();
-    private final Map<Long, Map<String, float[]>> smoothedUniforms = new HashMap<>();
+    private final Map<Long, VeilMaterialBinding> materialBindings = new ConcurrentHashMap<>();
+    private final Map<Long, NodeGpuState> nodeStates = new ConcurrentHashMap<>();
+    private final Map<Long, Map<String, float[]>> prevUniforms = new ConcurrentHashMap<>();
+    private final Map<Long, Map<String, float[]>> currUniforms = new ConcurrentHashMap<>();
     private final SceneLights sceneLights;
     private final Set<String> loggedShaderErrors = new HashSet<>();
 
@@ -87,6 +83,7 @@ final class MultiMeshRenderer {
                    Function<Long, VeilSceneNodeRenderer.Pose> poseResolver,
                    Vec3d camPos, Camera camera, Matrix4fc viewMatrix, Matrix4fc projectionMatrix,
                    MinecraftClient client, float tickDelta) {
+        if (!RenderSystem.isOnRenderThread()) return;
 
         MoudMeshBuffer.ensureInitialized();
 
@@ -159,35 +156,8 @@ final class MultiMeshRenderer {
             program.bindSamplers(0);
 
             List<SceneSnapshot.Uniform> uniforms = node.uniforms();
-            if (uniforms != null) {
-                Map<String, float[]> nodeSmoothed = smoothedUniforms.computeIfAbsent(node.nodeId(), k -> new HashMap<>());
-                float dt = tickDelta / 20.0f;
-                float alpha = Math.min(1.0f, UNIFORM_LERP_SPEED * dt);
-                for (SceneSnapshot.Uniform u : uniforms) {
-                    if (u == null || u.key() == null) continue;
-                    List<Float> vals = u.values();
-                    if (vals == null) continue;
-                    if (vals.size() == 3) {
-                        float[] target = {vals.get(0), vals.get(1), vals.get(2)};
-                        float[] current = nodeSmoothed.get(u.key());
-                        if (current == null) {
-                            current = target.clone();
-                            nodeSmoothed.put(u.key(), current);
-                        } else {
-                            current[0] += (target[0] - current[0]) * alpha;
-                            current[1] += (target[1] - current[1]) * alpha;
-                            current[2] += (target[2] - current[2]) * alpha;
-                        }
-                        GlUtil.uniform3f(currentPid, u.key(), current[0], current[1], current[2]);
-                    } else {
-                        switch (vals.size()) {
-                            case 1 -> GlUtil.uniform1f(currentPid, u.key(), vals.get(0));
-                            case 2 -> GlUtil.uniform2f(currentPid, u.key(), vals.get(0), vals.get(1));
-                            case 4 -> GlUtil.uniform4f(currentPid, u.key(), vals.get(0), vals.get(1), vals.get(2), vals.get(3));
-                            default -> {}
-                        }
-                    }
-                }
+            if (uniforms != null && !uniforms.isEmpty()) {
+                applyInterpolatedUniforms(currentPid, node.nodeId(), uniforms, tickDelta);
             }
 
             String meshType = VeilSceneNodeRenderer.stringProp(node, "mesh");
@@ -358,8 +328,77 @@ final class MultiMeshRenderer {
         }
         nodeStates.clear();
         materialBindings.clear();
-        smoothedUniforms.clear();
+        prevUniforms.clear();
+        currUniforms.clear();
         defaultProgram = null;
+    }
+
+    void onSnapshotUpdate(List<SceneSnapshot.NodeSnapshot> nodes) {
+        for (SceneSnapshot.NodeSnapshot node : nodes) {
+            if (node == null) continue;
+            List<SceneSnapshot.Uniform> uniforms = node.uniforms();
+            if (uniforms == null || uniforms.isEmpty()) continue;
+            long id = node.nodeId();
+
+            Map<String, float[]> curr = currUniforms.get(id);
+            if (curr != null && !curr.isEmpty()) {
+                Map<String, float[]> prev = prevUniforms.computeIfAbsent(id, k -> new HashMap<>());
+                for (Map.Entry<String, float[]> e : curr.entrySet()) {
+                    prev.put(e.getKey(), e.getValue().clone());
+                }
+            }
+
+            Map<String, float[]> next = currUniforms.computeIfAbsent(id, k -> new HashMap<>());
+            for (SceneSnapshot.Uniform u : uniforms) {
+                if (u == null || u.key() == null || u.values() == null) continue;
+                List<Float> vals = u.values();
+                float[] arr = new float[vals.size()];
+                for (int i = 0; i < vals.size(); i++) arr[i] = vals.get(i);
+                next.put(u.key(), arr);
+            }
+        }
+    }
+
+    private void applyInterpolatedUniforms(int pid, long nodeId, List<SceneSnapshot.Uniform> uniforms, float tickDelta) {
+        Map<String, float[]> prev = prevUniforms.get(nodeId);
+        Map<String, float[]> curr = currUniforms.get(nodeId);
+
+        for (SceneSnapshot.Uniform u : uniforms) {
+            if (u == null || u.key() == null || u.values() == null) continue;
+            String key = u.key();
+            List<Float> vals = u.values();
+            int size = vals.size();
+            if (size < 1 || size > 4) continue;
+
+            float[] c = curr != null ? curr.get(key) : null;
+            float[] p = prev != null ? prev.get(key) : null;
+
+            if (c != null && p != null && c.length == p.length) {
+                float t = tickDelta;
+                switch (size) {
+                    case 1 -> GlUtil.uniform1f(pid, key, p[0] + (c[0] - p[0]) * t);
+                    case 2 -> GlUtil.uniform2f(pid, key,
+                            p[0] + (c[0] - p[0]) * t,
+                            p[1] + (c[1] - p[1]) * t);
+                    case 3 -> GlUtil.uniform3f(pid, key,
+                            p[0] + (c[0] - p[0]) * t,
+                            p[1] + (c[1] - p[1]) * t,
+                            p[2] + (c[2] - p[2]) * t);
+                    case 4 -> GlUtil.uniform4f(pid, key,
+                            p[0] + (c[0] - p[0]) * t,
+                            p[1] + (c[1] - p[1]) * t,
+                            p[2] + (c[2] - p[2]) * t,
+                            p[3] + (c[3] - p[3]) * t);
+                }
+            } else {
+                switch (size) {
+                    case 1 -> GlUtil.uniform1f(pid, key, vals.get(0));
+                    case 2 -> GlUtil.uniform2f(pid, key, vals.get(0), vals.get(1));
+                    case 3 -> GlUtil.uniform3f(pid, key, vals.get(0), vals.get(1), vals.get(2));
+                    case 4 -> GlUtil.uniform4f(pid, key, vals.get(0), vals.get(1), vals.get(2), vals.get(3));
+                }
+            }
+        }
     }
 
     private static String loadResource(String path) {
