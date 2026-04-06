@@ -76,12 +76,6 @@ class Canvas2DSync {
         String sceneId = state.activeSceneId == null ? "" : state.activeSceneId;
         double[] saved = state.sceneCanvasStates.computeIfAbsent(sceneId, ignored -> new double[]{0.0, 0.0, defaultZoom});
 
-        if (hasUiLayers && saved[2] > 2.0) {
-            saved[0] = 0.0;
-            saved[1] = 0.0;
-            saved[2] = uiFitZoom;
-        }
-
         float savedPanX = (float) saved[0];
         float savedPanY = (float) saved[1];
         float savedZoom = (float) saved[2];

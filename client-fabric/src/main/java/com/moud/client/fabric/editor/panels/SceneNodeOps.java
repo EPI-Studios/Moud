@@ -201,7 +201,7 @@ class SceneNodeOps {
         for (SceneSnapshot.NodeSnapshot n : roots) {
             if (n != null && "Root".equals(n.type())) return n.nodeId();
         }
-        return roots.get(0) != null ? roots.get(0).nodeId() : 0L;
+        return 0L;
     }
 
     static boolean sceneHasPlayerStart(EditorState state) {

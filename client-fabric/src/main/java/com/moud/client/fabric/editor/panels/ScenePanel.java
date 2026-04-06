@@ -323,6 +323,24 @@ public final class ScenePanel extends Panel {
         if (sceneTreeController.treeView != null && treeH > 0) {
             int itemH = Math.max(18, theme.tokens.itemHeight);
             int contentHeight = sceneTreeController.treeView.computeContentHeight();
+
+            long treeSelectedId = 0L;
+            {
+                var sel = sceneTreeController.treeView.selectedNodes();
+                if (!sel.isEmpty()) {
+                    var tn = sel.iterator().next();
+                    if (tn.data() != null) treeSelectedId = tn.data().nodeId();
+                }
+            }
+            if (state.selectedId != treeSelectedId) {
+                sceneTreeController.expandAndSelectNode(state.selectedId, state);
+                contentHeight = sceneTreeController.treeView.computeContentHeight();
+                int revealScrollY = sceneTreeController.computeRevealScrollY(state.selectedId, itemH, treeH);
+                if (revealScrollY >= 0) {
+                    ui.setScrollY("sceneTreeScroll", revealScrollY);
+                }
+            }
+
             Ui.ScrollArea area = ui.beginScrollArea(r, "sceneTreeScroll", treeX, treeY, treeW, treeH, contentHeight);
             int scrollOffset = (int) area.scrollY();
 

@@ -431,18 +431,24 @@ public final class EditorRuntime {
 
     public void openTextAssetEditor(String resPath, AssetHash hash) {
         TextAssetEditorDialog dialog = textAssetEditorDialog;
-        if (dialog == null) {
-            return;
-        }
+        if (dialog == null) return;
         dialog.open(resPath, hash);
+        EditorState st = state;
+        if (st != null) {
+            st.activeScriptPath = "";
+            st.ensureTextAssetOpen(resPath);
+        }
     }
 
     public void openTextAssetEditor(String resPath, AssetHash hash, String initialText) {
         TextAssetEditorDialog dialog = textAssetEditorDialog;
-        if (dialog == null) {
-            return;
-        }
+        if (dialog == null) return;
         dialog.open(resPath, hash, initialText);
+        EditorState st = state;
+        if (st != null) {
+            st.activeScriptPath = "";
+            st.ensureTextAssetOpen(resPath);
+        }
     }
 
     public void openCreateAsset() {

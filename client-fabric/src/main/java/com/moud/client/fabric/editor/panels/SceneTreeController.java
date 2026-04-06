@@ -23,6 +23,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.ArrayDeque;
+import java.util.Deque;
 
 class SceneTreeController {
     private final EditorRuntime runtime;
@@ -462,6 +464,51 @@ class SceneTreeController {
                 return;
             }
         }
+    }
+
+    void expandAndSelectNode(long nodeId, EditorState state) {
+        if (treeView == null || rootNode == null || state == null || state.scene == null) return;
+
+        Set<Long> ancestors = new HashSet<>();
+        SceneSnapshot.NodeSnapshot n = state.scene.getNode(nodeId);
+        if (n == null) return;
+        long pid = n.parentId();
+        while (pid != 0L) {
+            ancestors.add(pid);
+            SceneSnapshot.NodeSnapshot p = state.scene.getNode(pid);
+            if (p == null) break;
+            pid = p.parentId();
+        }
+
+        if (!ancestors.isEmpty()) {
+            Deque<TreeNode<SceneSnapshot.NodeSnapshot>> stack = new ArrayDeque<>();
+            stack.push(rootNode);
+            while (!stack.isEmpty()) {
+                TreeNode<SceneSnapshot.NodeSnapshot> cur = stack.pop();
+                SceneSnapshot.NodeSnapshot data = cur.data();
+                if (data != null && ancestors.contains(data.nodeId())) {
+                    cur.setExpanded(true);
+                }
+                for (TreeNode<SceneSnapshot.NodeSnapshot> child : cur.children()) {
+                    stack.push(child);
+                }
+            }
+        }
+
+        clearTreeSelection();
+        selectNodeInTree(nodeId, treeView.getVisibleNodes());
+    }
+
+    int computeRevealScrollY(long nodeId, int itemH, int viewHeight) {
+        if (treeView == null) return -1;
+        List<TreeView.VisibleNode<SceneSnapshot.NodeSnapshot>> visible = treeView.getVisibleNodes();
+        for (int i = 0; i < visible.size(); i++) {
+            SceneSnapshot.NodeSnapshot sn = visible.get(i).node().data();
+            if (sn != null && sn.nodeId() == nodeId) {
+                return Math.max(0, i * itemH - viewHeight / 2 + itemH / 2);
+            }
+        }
+        return -1;
     }
 
     void expandAll() {
