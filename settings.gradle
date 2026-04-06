@@ -13,6 +13,7 @@ rootProject.name = 'moud'
 
 include 'core'
 include 'net'
+include 'client-launcher'
 include 'server-minestom'
 include 'server-supervisor'
 include 'client-fabric'
