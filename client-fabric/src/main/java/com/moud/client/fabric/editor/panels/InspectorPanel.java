@@ -31,6 +31,7 @@ import com.moud.client.fabric.render.MoudTextures;
 import com.moud.client.fabric.render.preview.MaterialPreviewRenderer;
 import com.moud.client.fabric.util.ParseUtils;
 import com.moud.core.NodeTypeDef;
+import com.moud.core.player.AttachPoint;
 import com.moud.core.PropertyDef;
 import com.moud.core.PropertyType;
 import com.moud.core.assets.ResPath;
@@ -91,6 +92,16 @@ public final class InspectorPanel extends Panel {
     private boolean syncingNumbers;
     private long lastSelectedId;
     private String lastSelectedTypeId = "";
+
+    private static final AttachPoint[] ATTACH_POINTS = AttachPoint.values();
+
+    private static final String GROUP_LABEL = "Player Attachment";
+    private static final String PROP_ATTACH = "attachment_point";
+    private static final String PROP_FOLLOW = "follow_animation";
+    private static final String DEFAULT_ATTACH = "root";
+    private static final String INHERIT_VALUE = "";
+    private static final String INHERIT_LABEL = "(inherit)";
+
 
     public InspectorPanel(EditorRuntime runtime) {
         super("");
@@ -398,6 +409,10 @@ public final class InspectorPanel extends Panel {
                 value = property.defaultValue() != null ? property.defaultValue() : "";
             }
 
+            if ("attachment_point".equals(property.key()) && "PlayerAttachment".equals(selection.type())) {
+                continue;
+            }
+
             if ("Model3D".equals(selection.type())) {
                 if (Model3D.PROP_MODEL_PATH.equals(property.key())) {
                     cursorY = renderModel3DModelPathRow(ui, renderer, uiContext, theme, selection.nodeId(), property, innerX, cursorY, innerWidth, rowHeight, labelWidth, value, interactive);
@@ -415,6 +430,8 @@ public final class InspectorPanel extends Panel {
 
             cursorY = renderPropertyRow(ui, renderer, uiContext, theme, selection.nodeId(), property, innerX, cursorY, innerWidth, rowHeight, labelWidth, value);
         }
+
+        cursorY = renderPlayerBodyAttachRow(ui, renderer, theme, state, selection, values, innerX, cursorY, innerWidth, rowHeight, labelWidth, interactive);
 
         cursorY = materialEditor.renderMaterialShaderParams(this, ui, renderer, uiContext, theme, properties, values, filterLower, innerX, cursorY, innerWidth, rowHeight, labelWidth, interactive);
         cursorY = renderScriptActions(ui, renderer, uiContext, theme, state, selection.nodeId(), scriptPath, filterLower, innerX, cursorY, innerWidth, rowHeight, interactive);
@@ -506,6 +523,86 @@ public final class InspectorPanel extends Panel {
         });
 
         return y + rowHeight;
+    }
+
+
+    private int renderPlayerBodyAttachRow(
+            Ui ui, UiRenderer renderer, Theme theme,
+            EditorState state, SceneSnapshot.NodeSnapshot selection,
+            Map<String, String> values,
+            int x, int y, int width, int rowHeight, int labelWidth,
+            boolean interactive) {
+
+        if (state == null) return y;
+
+        if ("PlayerAttachment".equals(selection.type())) {
+            y = renderGroupHeader(ui, renderer, theme, x, y, width, GROUP_LABEL);
+            if (!isExpanded(GROUP_LABEL)) return y;
+
+            String current = values.getOrDefault(PROP_ATTACH, DEFAULT_ATTACH);
+            if (current == null || current.isBlank()) current = DEFAULT_ATTACH;
+
+            final String attachDisplay = current;
+            final int rowY = y;
+
+            renderSelectRow(ui, renderer, theme, x, y, width, rowHeight, labelWidth,
+                    "Attach Point", attachDisplay, interactive, () -> {
+                        List<SelectOption> items = buildAttachPointOptions(false);
+                        toggleSelectMenu(
+                                x + labelWidth + theme.design.space_sm,
+                                rowY + rowHeight,
+                                selection.nodeId(), PROP_ATTACH, items);
+                    });
+
+            return y + rowHeight;
+        }
+
+        long parentId = selection.parentId();
+        if (parentId <= 0L) return y;
+
+        SceneSnapshot.NodeSnapshot parent = state.scene.getNode(parentId);
+        if (parent == null) return y;
+
+        boolean parentIsAttachment = "PlayerAttachment".equals(parent.type());
+        if (!parentIsAttachment) return y;
+
+        y = renderGroupHeader(ui, renderer, theme, x, y, width, GROUP_LABEL);
+        if (!isExpanded(GROUP_LABEL)) return y;
+
+        String current = values.getOrDefault(PROP_ATTACH, INHERIT_VALUE);
+        String displayAp = current.isBlank() ? INHERIT_LABEL : current;
+        final int rowY = y;
+
+        renderSelectRow(ui, renderer, theme, x, y, width, rowHeight, labelWidth,
+                "Attach Point", displayAp, interactive, () -> {
+                    List<SelectOption> items = buildAttachPointOptions(true);
+                    toggleSelectMenu(
+                            x + labelWidth + theme.design.space_sm,
+                            rowY + rowHeight,
+                            selection.nodeId(), PROP_ATTACH, items);
+                });
+        y += rowHeight;
+
+        boolean followAnim = ParseUtils.parseBool(values.get(PROP_FOLLOW), false);
+        int baseline = renderer.baselineForBox(y, rowHeight);
+
+        renderer.drawText("Follow Anim", x, baseline, Theme.toArgb(theme.textMuted));
+        renderBool(ui, renderer, theme,
+                x + labelWidth + theme.design.space_sm, y,
+                width - labelWidth - theme.design.space_sm, rowHeight,
+                followAnim, interactive,
+                next -> commitBoolProperty(selection.nodeId(), PROP_FOLLOW, next));
+        y += rowHeight;
+
+        return y;
+    }
+
+    private List<SelectOption> buildAttachPointOptions(boolean includeInherit) {
+        int capacity = ATTACH_POINTS.length + (includeInherit ? 1 : 0);
+        List<SelectOption> items = new ArrayList<>(capacity);
+        if (includeInherit) items.add(new SelectOption(INHERIT_LABEL, INHERIT_VALUE));
+        for (AttachPoint pt : ATTACH_POINTS) items.add(new SelectOption(pt.id(), pt.id()));
+        return items;
     }
 
     private record SelectOption(String label, String value) {}
