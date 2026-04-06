@@ -528,9 +528,6 @@ public final class EditorOverlay {
             }
 
             Runnable overlayMenus = runtime.consumeOverlayMenuRender();
-            if (overlayMenus != null) {
-                overlayMenus.run();
-            }
 
             boolean needsBackdropBlur = false;
             for (UiWindow uiWindow : windowManager.windows()) {
@@ -566,7 +563,16 @@ public final class EditorOverlay {
                         quickSearchDialog.render(batch, uiContext, ui, theme, w, h);
                     }
                     if (textAssetEditorDialog != null && textAssetEditorDialog.isOpen()) {
-                        textAssetEditorDialog.render(batch, uiContext, ui, theme, w, h);
+                        EditorState textAssetCheckState = runtime != null ? runtime.state() : null;
+                        String activeTextAsset = textAssetCheckState != null ? textAssetCheckState.activeTextAssetPath : "";
+                        boolean inlineInTab = activeTextAsset != null && !activeTextAsset.isBlank();
+                        if (!inlineInTab) {
+                            textAssetEditorDialog.render(batch, uiContext, ui, theme, w, h);
+                        }
+                    }
+
+                    if (overlayMenus != null) {
+                        overlayMenus.run();
                     }
 
                     uiContext.dragDrop().endFrame();
@@ -627,7 +633,15 @@ public final class EditorOverlay {
                     createAssetDialog.render(batch, uiContext, ui, theme, w, h);
                 }
                 if (textAssetEditorDialog != null && textAssetEditorDialog.isOpen()) {
-                    textAssetEditorDialog.render(batch, uiContext, ui, theme, w, h);
+                    EditorState textCheckState2 = runtime != null ? runtime.state() : null;
+                    String activeTA2 = textCheckState2 != null ? textCheckState2.activeTextAssetPath : "";
+                    if (activeTA2 == null || activeTA2.isBlank()) {
+                        textAssetEditorDialog.render(batch, uiContext, ui, theme, w, h);
+                    }
+                }
+
+                if (overlayMenus != null) {
+                    overlayMenus.run();
                 }
 
                 uiContext.dragDrop().endFrame();
@@ -815,6 +829,7 @@ public final class EditorOverlay {
                     || (createProjectDialog != null && createProjectDialog.isOpen())
                     || (createAssetDialog != null && createAssetDialog.isOpen())
                     || (quickSearchDialog != null && quickSearchDialog.isOpen())
+                    || (scriptEditorDialog != null && scriptEditorDialog.isOpen())
                     || (textAssetEditorDialog != null && textAssetEditorDialog.isOpen());
             if (!modalOpen) {
                 boolean sent = runtime.saveCurrentScene();
