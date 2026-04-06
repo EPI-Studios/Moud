@@ -109,8 +109,10 @@ public final class SceneAudioManager {
 
             seen.add(node.nodeId());
             AudioNodeConfig cfg = readConfig(node, positional);
-            String soundRef = stringProp(node, "sound_id");
-            boolean customAudio = soundRef != null && soundRef.trim().startsWith("res://");
+            if (cfg == null) {
+            }
+            String soundRef = cfg == null ? null : cfg.soundRef();
+            boolean customAudio = soundRef != null && soundRef.startsWith("res://");
             SceneAudioInstance existing = activeByNodeId.get(node.nodeId());
             CustomAudioSource customExisting = customByNodeId.get(node.nodeId());
 
@@ -127,7 +129,7 @@ public final class SceneAudioManager {
                 continue;
             }
 
-            if (customAudio) {
+            if (customAudio || positional) {
                 if (existing != null) {
                     soundManager.stop(existing);
                     activeByNodeId.remove(node.nodeId());
@@ -142,6 +144,7 @@ public final class SceneAudioManager {
             }
 
             if (existing != null && existing.matches(cfg)) {
+                existing.updateConfig(cfg);
                 continue;
             }
 
@@ -154,9 +157,7 @@ public final class SceneAudioManager {
                 continue;
             }
 
-            SceneAudioInstance next = cfg.positional()
-                    ? new SceneAudio3DInstance(cfg)
-                    : new SceneAudio2DInstance(cfg);
+            SceneAudioInstance next = new SceneAudio2DInstance(cfg);
             activeByNodeId.put(node.nodeId(), next);
             soundManager.play(next);
             if (!cfg.loop()) {
@@ -188,6 +189,7 @@ public final class SceneAudioManager {
 
     private void reconcileCustom(MinecraftClient client, AudioNodeConfig cfg, CustomAudioSource existing) {
         if (existing != null && existing.matches(cfg)) {
+            existing.updateConfig(cfg);
             existing.tick();
             return;
         }
@@ -203,6 +205,12 @@ public final class SceneAudioManager {
 
         DecodedAudio decoded = resolveDecoded(cfg.soundRef());
         if (decoded == null) {
+            if (cfg.positional() && client != null && client.getSoundManager() != null) {
+                SceneAudioInstance fallback = new SceneAudio3DInstance(cfg);
+                activeByNodeId.put(cfg.nodeId(), fallback);
+                client.getSoundManager().play(fallback);
+                if (!cfg.loop()) consumedOneShots.add(cfg.nodeId());
+            }
             return;
         }
 
@@ -252,6 +260,11 @@ public final class SceneAudioManager {
             return null;
         }
         String trimmed = soundIdRaw.trim();
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        if (!trimmed.contains("://") && (lower.endsWith(".ogg") || lower.endsWith(".wav") || lower.endsWith(".mp3"))) {
+            trimmed = "res://audio/" + trimmed;
+        }
+
         Identifier soundId = trimmed.startsWith("res://") ? Identifier.of("moud", "dynamic/audio") : Identifier.tryParse(trimmed);
         if (soundId == null) {
             return null;

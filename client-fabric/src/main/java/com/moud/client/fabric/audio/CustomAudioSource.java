@@ -15,7 +15,7 @@ import org.joml.Vector3f;
 
 final class CustomAudioSource {
     private final MinecraftClient client;
-    private final AudioNodeConfig config;
+    private AudioNodeConfig config;
     private final DecodedAudio decoded;
     private final Vector3f worldPos = new Vector3f();
     private CompletableFuture<Channel.SourceManager> future;
@@ -43,10 +43,15 @@ final class CustomAudioSource {
                 return;
             }
             if (stopped) {
-                manager.close();
+                tryClose(manager);
                 return;
             }
             sourceManager = manager;
+            if (stopped) {
+                sourceManager = null;
+                tryClose(manager);
+                return;
+            }
             manager.run(source -> {
                 source.setBuffer(decoded.staticSound);
                 source.setVolume(config.volume());
@@ -56,7 +61,7 @@ final class CustomAudioSource {
                     updateWorldPos();
                     source.setRelative(false);
                     source.setPosition(new Vec3d(worldPos.x, worldPos.y, worldPos.z));
-                    source.setAttenuation(16.0f);
+                    source.setAttenuation(1.0f);
                 } else {
                     source.setRelative(true);
                     source.disableAttenuation();
@@ -94,12 +99,23 @@ final class CustomAudioSource {
         Channel.SourceManager manager = sourceManager;
         sourceManager = null;
         if (manager != null) {
+            tryClose(manager);
+        }
+    }
+
+    private static void tryClose(Channel.SourceManager manager) {
+        try {
             manager.close();
+        } catch (Exception ignored) {
         }
     }
 
     boolean matches(AudioNodeConfig other) {
-        return config.equals(other) && decoded.version == MoudAudioAssets.versionOf(config.soundRef());
+        return config.matchesIdentity(other) && decoded.version == MoudAudioAssets.versionOf(config.soundRef());
+    }
+
+    void updateConfig(AudioNodeConfig cfg) {
+        this.config = cfg;
     }
 
     boolean isDone() {
