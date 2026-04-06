@@ -7,6 +7,7 @@ import com.moud.core.PropertyType;
 import java.util.Map;
 import com.moud.core.*;
 import com.moud.core.scene.Model3D;
+import com.moud.server.minestom.engine.anvil.AnvilWorldLoader;
 import com.moud.server.minestom.engine.nodes.RootNode;
 import com.moud.server.minestom.engine.nodes.TickerNode;
 
@@ -41,6 +42,19 @@ public final class MinestomNodeTypesProvider implements NodeTypeProvider {
                 Map.entry(Model3D.PROP_ANIMATION_LOOP,  new PropertyDef(Model3D.PROP_ANIMATION_LOOP,  PropertyType.STRING, "loop", "Loop Mode", "Model",  2,  Map.of())),
                 Map.entry(Model3D.PROP_ANIMATION_SPEED, new PropertyDef(Model3D.PROP_ANIMATION_SPEED, PropertyType.FLOAT,  "1.0",  "Anim Speed", "Model", 3,  Map.of("min", "0.01", "step", "0.1"))),
                 Map.entry("script",                  new PropertyDef("script",                  PropertyType.STRING, null,   "Script",        "Script",    100, Map.of()))
+        )));
+
+        registry.registerType(new NodeTypeDef("PlayerAttachment", "Player Attachment", "Player", 149, Map.ofEntries(
+                Map.entry("target",           new PropertyDef("target",           PropertyType.STRING, "all",   "Target",         "Player", 0, Map.of())),
+                Map.entry("player_name",      new PropertyDef("player_name",      PropertyType.STRING, "",      "Name",           "Player", 1, Map.of())),
+                Map.entry("attachment_point", new PropertyDef("attachment_point", PropertyType.STRING, "root",  "Attach Point",   "Player", 2, Map.of())),
+                Map.entry("follow_rotation",  new PropertyDef("follow_rotation",  PropertyType.BOOL,   "false", "Follow Rotation","Player", 3, Map.of())),
+                Map.entry("anchor_node_id",   new PropertyDef("anchor_node_id",   PropertyType.STRING, "",      "Anchor Node",    "Player", 10, Map.of())),
+                Map.entry("script",           new PropertyDef("script",           PropertyType.STRING, null,    "Script",         "Script", 100, Map.of()))
+        )));
+
+        registry.registerType(new NodeTypeDef(AnvilWorldLoader.TYPE_ID, "Anvil World", "World", 120, Map.of(
+                AnvilWorldLoader.PROP_WORLD_PATH, new PropertyDef(AnvilWorldLoader.PROP_WORLD_PATH, PropertyType.STRING, "", "World Path", "World", 0, Map.of())
         )));
 
         registry.registerClass(RootNode.class, "Root");
