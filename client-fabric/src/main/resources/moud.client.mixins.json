@@ -16,6 +16,7 @@
     "WorldRendererSkyCloudOverrideMixin",
     "EntityObbCollisionMixin",
     "LivingEntityObbGroundMixin",
+    "LivingEntityRendererPlayerAttachMixin",
     "MinecraftClientMixin",
     "accessor.CameraAccessor",
     "accessor.EntityGroundAccessor",
