@@ -29,13 +29,16 @@ import net.minecraft.util.Identifier;
 
 public final class MoudTextures implements AssetsClient.Listener {
     public static final Identifier WHITE_ID = Identifier.of("moud", "dynamic/white");
+    public static final Identifier BLACK_ID = Identifier.of("moud", "dynamic/black");
+    public static final Identifier FLAT_NORMAL_ID = Identifier.of("moud", "dynamic/flat_normal");
+    public static final Identifier ORM_DEFAULT_ID = Identifier.of("moud", "dynamic/orm_default");
 
     private static final int MAX_TEXTURE_SIZE = 2048;
     private static final Object LOCK = new Object();
     private static MoudTextures instance;
 
     private static AssetsClient assets;
-    private static boolean whiteRegistered;
+    private static boolean defaultsRegistered;
     private static final Set<Identifier> rawReadyIds = ConcurrentHashMap.newKeySet();
 
     private static long lastManifestRequestMs;
@@ -57,7 +60,7 @@ public final class MoudTextures implements AssetsClient.Listener {
                 assetsClient.addListener(instance);
             }
         }
-        ensureWhiteRegistered();
+        ensureDefaultsRegistered();
     }
 
     public static void clear() {
@@ -80,12 +83,24 @@ public final class MoudTextures implements AssetsClient.Listener {
             return;
         }
         synchronized (LOCK) {
-            if (whiteRegistered) {
+            if (defaultsRegistered) {
                 try {
                     tm.destroyTexture(WHITE_ID);
                 } catch (Exception ignored) {
                 }
-                whiteRegistered = false;
+                try {
+                    tm.destroyTexture(BLACK_ID);
+                } catch (Exception ignored) {
+                }
+                try {
+                    tm.destroyTexture(FLAT_NORMAL_ID);
+                } catch (Exception ignored) {
+                }
+                try {
+                    tm.destroyTexture(ORM_DEFAULT_ID);
+                } catch (Exception ignored) {
+                }
+                defaultsRegistered = false;
             }
             for (TextureEntry entry : texturesByHash.values()) {
                 if (entry != null && entry.id != null) {
@@ -150,7 +165,7 @@ public final class MoudTextures implements AssetsClient.Listener {
     }
 
     public static Identifier resolve(String textureRef) {
-        ensureWhiteRegistered();
+        ensureDefaultsRegistered();
         if (textureRef == null || textureRef.isBlank()) {
             return WHITE_ID;
         }
@@ -176,8 +191,37 @@ public final class MoudTextures implements AssetsClient.Listener {
     }
 
     public static Identifier white() {
-        ensureWhiteRegistered();
+        ensureDefaultsRegistered();
         return WHITE_ID;
+    }
+
+    public static Identifier black() {
+        ensureDefaultsRegistered();
+        return BLACK_ID;
+    }
+
+    public static Identifier flatNormal() {
+        ensureDefaultsRegistered();
+        return FLAT_NORMAL_ID;
+    }
+
+    public static Identifier ormDefault() {
+        ensureDefaultsRegistered();
+        return ORM_DEFAULT_ID;
+    }
+
+    public static Identifier defaultSamplerFor(String samplerName) {
+        ensureDefaultsRegistered();
+        if (samplerName == null || samplerName.isBlank()) {
+            return WHITE_ID;
+        }
+        return switch (samplerName) {
+            case "normal_texture" -> FLAT_NORMAL_ID;
+            case "orm_texture" -> ORM_DEFAULT_ID;
+            case "emission_texture" -> BLACK_ID;
+            case "albedo_texture", "metallic_texture", "roughness_texture", "ao_texture", "heightmap_texture" -> WHITE_ID;
+            default -> WHITE_ID;
+        };
     }
 
     private static Identifier resolveResTexture(String resPathRaw) {
@@ -261,33 +305,40 @@ public final class MoudTextures implements AssetsClient.Listener {
         a.download(s, hash);
     }
 
-    private static void ensureWhiteRegistered() {
+    private static void ensureDefaultsRegistered() {
         MinecraftClient client = MinecraftClient.getInstance();
         TextureManager tm = client == null ? null : client.getTextureManager();
         if (tm == null) {
             return;
         }
         synchronized (LOCK) {
-            if (whiteRegistered) {
+            if (defaultsRegistered) {
                 return;
             }
-            whiteRegistered = true;
+            defaultsRegistered = true;
         }
 
         Runnable register = () -> {
-            NativeImageBackedTexture tex = new NativeImageBackedTexture(1, 1, false);
-            NativeImage img = tex.getImage();
-            if (img != null) {
-                img.setColor(0, 0, 0xFFFFFFFF);
-            }
-            tm.registerTexture(WHITE_ID, tex);
-            tex.upload();
+            registerSolidTexture(tm, WHITE_ID, 0xFFFFFFFF);
+            registerSolidTexture(tm, BLACK_ID, 0xFF000000);
+            registerSolidTexture(tm, FLAT_NORMAL_ID, 0xFFFF8080);
+            registerSolidTexture(tm, ORM_DEFAULT_ID, 0xFF00FFFF);
         };
         if (!RenderSystem.isOnRenderThread()) {
             RenderSystem.recordRenderCall(register::run);
         } else {
             register.run();
         }
+    }
+
+    private static void registerSolidTexture(TextureManager tm, Identifier id, int color) {
+        NativeImageBackedTexture tex = new NativeImageBackedTexture(1, 1, false);
+        NativeImage img = tex.getImage();
+        if (img != null) {
+            img.setColor(0, 0, color);
+        }
+        tm.registerTexture(id, tex);
+        tex.upload();
     }
 
     @Override
@@ -309,15 +360,12 @@ public final class MoudTextures implements AssetsClient.Listener {
         images.sort(String::compareTo);
 
         synchronized (LOCK) {
-            // Invalidate texture entries whose hash changed (asset was re-uploaded or modified)
             Map<ResPath, AssetMeta> oldMeta = metaByPath;
             for (Map.Entry<ResPath, AssetMeta> e : nextMeta.entrySet()) {
                 AssetMeta prev = oldMeta.get(e.getKey());
                 if (prev != null && !prev.hash().equals(e.getValue().hash())) {
-                    // Hash changed — remove the old texture entry so it gets re-downloaded
                     TextureEntry stale = texturesByHash.remove(prev.hash());
                     if (stale != null && stale.id != null) {
-                        // Schedule GL texture deletion on render thread
                         Identifier idToDestroy = stale.id;
                         RenderSystem.recordRenderCall(() -> {
                             MinecraftClient mc = MinecraftClient.getInstance();

@@ -36,7 +36,6 @@ public final class MaterialPreviewRenderer {
     private static final HashMap<String, Entry> entries = new HashMap<>();
 
     private static String previewVert;
-    private static String previewFrag;
     private static ShaderProgram previewProgram;
 
     private MaterialPreviewRenderer() {}
@@ -211,7 +210,7 @@ public final class MaterialPreviewRenderer {
                 int pid = GlUtil.currentProgram();
 
                 Matrix4f projMat = new Matrix4f().perspective((float) Math.toRadians(40), 1.0f, 0.1f, 50.0f);
-                Matrix4f viewMat = new Matrix4f().lookAt(0, 0, 2.8f, 0, 0, 0, 0, 1, 0);
+                Matrix4f viewMat = new Matrix4f().lookAt(0, 0, 1.4f, 0, 0, 0, 0, 1, 0);
                 Matrix4f worldMat = new Matrix4f().translate(-0.5f, -0.5f, -0.5f);
                 Matrix4f modelMat = new Matrix4f(worldMat);
 
@@ -220,7 +219,7 @@ public final class MaterialPreviewRenderer {
                 GlUtil.uniformMat4(pid, "ViewMat", viewMat);
                 GlUtil.uniformMat4(pid, "ProjMat", projMat);
                 GlUtil.uniform4f(pid, "Tint", 1, 1, 1, 1);
-                GlUtil.uniform3f(pid, "CameraPos", 0, 0, 2.8f);
+                GlUtil.uniform3f(pid, "CameraPos", 0, 0, 1.4f);
 
                 MinecraftClient client = MinecraftClient.getInstance();
                 if (client != null && client.world != null) {
@@ -259,12 +258,8 @@ public final class MaterialPreviewRenderer {
 
     private static String getMeshVert() {
         if (previewVert == null) {
-            previewVert = loadResource("assets/moud/shaders/builtin/mesh_material.vert",
-                    "in vec3 aPos; in vec2 aTexCoord; in vec3 aNormal; " +
-                    "uniform mat4 ModelMat; uniform mat4 ViewMat; uniform mat4 ProjMat; uniform mat4 WorldMat; " +
-                    "out vec2 texCoord; out vec3 vNormal; out vec3 vWorldPos; " +
-                    "void main() { vWorldPos = (WorldMat * vec4(aPos,1)).xyz; texCoord = aTexCoord; " +
-                    "vNormal = mat3(WorldMat) * aNormal; gl_Position = ProjMat * ViewMat * ModelMat * vec4(aPos,1); }");
+            String fallback = loadResource("assets/moud/shaders/builtin/preview_mesh.vert", "");
+            previewVert = loadResource("assets/moud/shaders/builtin/mesh_material.vert", fallback);
         }
         return previewVert;
     }
