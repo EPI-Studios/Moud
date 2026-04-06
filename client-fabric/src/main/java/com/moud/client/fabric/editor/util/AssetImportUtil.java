@@ -5,12 +5,14 @@ import com.moud.client.fabric.assets.AssetsClient;
 import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
+import com.moud.core.material.TresMaterialConverter;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
 import net.minecraft.client.MinecraftClient;
 import org.lwjgl.util.tinyfd.TinyFileDialogs;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Locale;
@@ -139,6 +141,70 @@ public final class AssetImportUtil {
             return;
         }
 
+        String fileName = file.getName().toLowerCase(Locale.ROOT);
+        if (fileName.endsWith(".tres")) {
+            String baseName = file.getName();
+            if (baseName.toLowerCase(Locale.ROOT).endsWith(".tres")) {
+                baseName = baseName.substring(0, baseName.length() - 5);
+            }
+            String shaderResPath = "res://shaders/" + baseName + ".moudshader";
+
+            String tresContent = new String(bytes, StandardCharsets.UTF_8);
+            TresMaterialConverter.ConvertResult result = TresMaterialConverter.convert(tresContent, shaderResPath);
+            if (result == null) {
+                toast(runtime, "Not a supported material type", true, 4500);
+                return;
+            }
+            bytes = result.moudmatJson().getBytes(StandardCharsets.UTF_8);
+            String destStr = dest.value();
+            if (destStr.endsWith(".tres")) {
+                destStr = destStr.substring(0, destStr.length() - 5) + ".moudmat";
+                dest = new ResPath(destStr);
+            }
+
+            String shaderContent = loadTemplate("pbr_shader.moudshader");
+            byte[] shaderBytes = shaderContent.getBytes(StandardCharsets.UTF_8);
+            ResPath shaderDest = new ResPath(shaderResPath);
+            MinecraftClient shaderMc = MinecraftClient.getInstance();
+            Runnable shaderUpload = () -> {
+                try {
+                    assets.upload(session, shaderDest, shaderBytes, AssetType.TEXT);
+                } catch (Exception e) {
+                    System.err.println("[Moud] Shader upload failed: " + e.getMessage());
+                }
+            };
+            if (shaderMc != null && !shaderMc.isOnThread()) {
+                shaderMc.execute(shaderUpload);
+            } else {
+                shaderUpload.run();
+            }
+
+            File tresDir = file.getParentFile();
+            if (tresDir != null && !result.referencedTextures().isEmpty()) {
+                int imported = 0;
+                for (String texPath : result.referencedTextures()) {
+                    String texFilename = texPath;
+                    int slash = texFilename.lastIndexOf('/');
+                    if (slash >= 0) texFilename = texFilename.substring(slash + 1);
+                    File texFile = new File(tresDir, texFilename);
+                    if (texFile.isFile()) {
+                        ImportTarget texTarget = new ImportTarget("res://textures/", AssetType.IMAGE);
+                        upload(runtime, texFile, texTarget);
+                        imported++;
+                    }
+                }
+                if (imported > 0) {
+                    toast(runtime, "Auto-imported " + imported + " texture(s)", false, 2500);
+                }
+            }
+
+            if (!result.warnings().isEmpty()) {
+                toast(runtime, "Material converted with warnings", false, 3000);
+            } else {
+                toast(runtime, "MaterialMaker .tres converted to .moudmat", false, 2500);
+            }
+        }
+
         if (dest == null) {
             toast(runtime, "Import failed: invalid destination path", true, 6000);
             return;
@@ -146,13 +212,14 @@ public final class AssetImportUtil {
 
         try {
             MinecraftClient mc = MinecraftClient.getInstance();
+            ResPath finalDest = dest;
             if (mc != null && !mc.isOnThread()) {
                 byte[] finalBytes = bytes;
-                mc.execute(() -> assets.upload(session, dest, finalBytes, target.type));
+                mc.execute(() -> assets.upload(session, finalDest, finalBytes, target.type));
             } else {
-                assets.upload(session, dest, bytes, target.type);
+                assets.upload(session, finalDest, bytes, target.type);
             }
-            toast(runtime, "Uploading: " + dest.value(), false, 2500);
+            toast(runtime, "Uploading: " + finalDest.value(), false, 2500);
         } catch (Exception e) {
             String msg = e.getMessage();
             toast(runtime, "Import failed" + (msg == null || msg.isBlank() ? "" : ": " + msg), true, 6000);
@@ -210,6 +277,9 @@ public final class AssetImportUtil {
         if (lower.endsWith(".moudmat")) {
             return new ImportTarget("res://materials/", AssetType.TEXT);
         }
+        if (lower.endsWith(".tres")) {
+            return new ImportTarget("res://materials/", AssetType.TEXT);
+        }
         if (lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".webp")) {
             return new ImportTarget("res://textures/", AssetType.IMAGE);
         }
@@ -223,6 +293,16 @@ public final class AssetImportUtil {
             return new ImportTarget("res://text/", AssetType.TEXT);
         }
         return new ImportTarget("res://imports/", AssetType.BINARY);
+    }
+
+    private static String loadTemplate(String fileName) {
+        String path = "/assets/moud/templates/" + fileName;
+        try (var in = AssetImportUtil.class.getResourceAsStream(path)) {
+            if (in == null) return "";
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private record ImportTarget(String destDir, AssetType type) {

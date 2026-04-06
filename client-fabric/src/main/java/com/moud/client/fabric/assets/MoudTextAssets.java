@@ -122,7 +122,17 @@ public final class MoudTextAssets implements AssetsClient.Listener {
         if (meta.hash() == null) {
             return null;
         }
-        if (meta.type() != AssetType.TEXT) {
+        String path = resPath.value().toLowerCase();
+        boolean isTextType = meta.type() == AssetType.TEXT
+                || path.endsWith(".moudmat")
+                || path.endsWith(".moudshader")
+                || path.endsWith(".json")
+                || path.endsWith(".tres")
+                || path.endsWith(".glsl")
+                || path.contains("/materials/")
+                || path.contains("/shaders/");
+
+        if (!isTextType) {
             return null;
         }
 

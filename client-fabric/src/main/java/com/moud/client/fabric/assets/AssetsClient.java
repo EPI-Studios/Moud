@@ -44,6 +44,7 @@ public final class AssetsClient {
 
     private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
     private long nextRequestId = 1;
+    private volatile Session lastSession;
 
     private final Queue<UploadTask> uploadQueue = new ArrayDeque<>();
     private UploadTask activeUpload;
@@ -68,6 +69,7 @@ public final class AssetsClient {
         if (session == null) {
             return;
         }
+        lastSession = session;
         ClientDebugLog.debug("Assets request manifest requestId=" + nextRequestId);
         session.send(Lane.ASSETS, new AssetManifestRequest(nextRequestId++));
     }
@@ -78,6 +80,7 @@ public final class AssetsClient {
         if (session == null) {
             return;
         }
+        lastSession = session;
         AssetHash hash = AssetHash.sha256(bytes);
         AssetType t = type == null ? AssetType.BINARY : type;
         uploadQueue.removeIf(task -> task != null && path.equals(task.path));
@@ -90,6 +93,7 @@ public final class AssetsClient {
         if (session == null) {
             return;
         }
+        lastSession = session;
         ClientDebugLog.debug("Assets request download hash=" + hash.hex());
         downloads.put(hash, new DownloadTask(hash));
         session.send(Lane.ASSETS, new AssetDownloadRequest(hash));
@@ -99,6 +103,7 @@ public final class AssetsClient {
         if (session == null) {
             return;
         }
+        lastSession = session;
         ensureUploadStarted(session);
         UploadTask task = activeUpload;
         if (task == null || task.state != UploadState.SENDING_CHUNKS) {
@@ -165,10 +170,14 @@ public final class AssetsClient {
         }
         if (ack.status() == AssetTransferStatus.ALREADY_PRESENT && task.state == UploadState.AWAITING_BEGIN_ACK) {
             activeUpload = null;
+            requestManifest(lastSession);
             return;
         }
         if (task.state == UploadState.AWAITING_COMPLETE_ACK) {
             activeUpload = null;
+            if (ack.status() == AssetTransferStatus.OK) {
+                requestManifest(lastSession);
+            }
         }
         if (ack.status() != AssetTransferStatus.OK) {
             activeUpload = null;
