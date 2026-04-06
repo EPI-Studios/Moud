@@ -15,6 +15,13 @@ uniform DirLight DirLights[4];
 
 out vec4 fragColor;
 
+vec3 linearToSrgb(vec3 c) {
+    vec3 lo = c * 12.92;
+    vec3 hi = pow(c, vec3(1.0 / 2.4)) * 1.055 - vec3(0.055);
+    bvec3 cutoff = lessThanEqual(c, vec3(0.0031308));
+    return vec3(cutoff.x ? lo.x : hi.x, cutoff.y ? lo.y : hi.y, cutoff.z ? lo.z : hi.z);
+}
+
 void main() {
     vec4 texColor = texture(Texture0, vTexCoord);
     vec3 baseColor = texColor.rgb * Tint.rgb;
@@ -37,6 +44,7 @@ void main() {
         lighting += DirLights[i].color * DirLights[i].brightness * NdotL;
     }
 
-    fragColor = vec4(baseColor * lighting, texColor.a * Tint.a);
+    vec3 finalColor = linearToSrgb(baseColor * lighting);
+    fragColor = vec4(finalColor, texColor.a * Tint.a);
     if (fragColor.a < 0.01) discard;
 }

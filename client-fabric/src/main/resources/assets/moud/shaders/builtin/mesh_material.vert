@@ -6,6 +6,7 @@ uniform mat4 ModelMat;
 uniform mat4 WorldMat;
 uniform mat4 ViewMat;
 uniform mat4 ProjMat;
+uniform vec3 CameraPos;
 uniform vec2 UvScale;
 uniform vec2 UvOffset;
 
@@ -14,8 +15,10 @@ out vec3 vNormal;
 out vec3 vWorldPos;
 
 void main() {
-    vWorldPos = (WorldMat * vec4(aPos, 1.0)).xyz;
+    vec4 worldPos = WorldMat * vec4(aPos, 1.0);
+    mat3 worldNormalMat = transpose(inverse(mat3(WorldMat)));
+    vWorldPos = worldPos.xyz;
     texCoord = aTexCoord * UvScale + UvOffset;
-    vNormal = mat3(WorldMat) * aNormal;
-    gl_Position = ProjMat * ViewMat * ModelMat * vec4(aPos, 1.0);
+    vNormal = normalize(worldNormalMat * aNormal);
+    gl_Position = ProjMat * ViewMat * vec4(worldPos.xyz - CameraPos, 1.0);
 }

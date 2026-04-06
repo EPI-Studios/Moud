@@ -21,7 +21,7 @@ import org.lwjgl.opengl.GL32C;
 
 public final class MoudShaderParser {
     private static final Pattern STAGE_LINE = Pattern.compile("^\\s*#stage\\s+([a-zA-Z_]+)\\s*$");
-    private static final Pattern UNIFORM_LINE = Pattern.compile("\\buniform\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s+([a-zA-Z_][a-zA-Z0-9_]*)(\\s*\\[\\s*(\\d+)\\s*\\])?\\s*;");
+    private static final Pattern UNIFORM_LINE = Pattern.compile("\\buniform\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s+([a-zA-Z_][a-zA-Z0-9_]*)(\\s*\\[\\s*(\\d+)\\s*\\])?\\s*");
     private static final Pattern LAYOUT_PREFIX = Pattern.compile("^\\s*layout\\s*\\([^)]*\\)\\s*");
     private static final Pattern INCLUDE_LINE = Pattern.compile("^\\s*#include\\s+\"([^\"]+)\"\\s*$");
     private static final int MAX_INCLUDE_DEPTH = 8;
