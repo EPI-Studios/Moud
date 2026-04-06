@@ -47,6 +47,8 @@ public sealed interface Message permits
         ScriptFileWriteRequest,
         ScriptFileWriteAck,
         UiNodeEvent,
-        MultiMeshData {
+        MultiMeshData,
+        PlayerMotion,
+        CursorState {
     MessageType type();
 }
