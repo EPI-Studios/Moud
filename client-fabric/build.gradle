@@ -1,11 +1,16 @@
 plugins {
-    id 'fabric-loom' version '1.11-SNAPSHOT'
+    id 'fabric-loom' version '1.15-SNAPSHOT'
 }
 
 repositories {
     mavenLocal()
     mavenCentral()
     maven { url = 'https://maven.fabricmc.net/' }
+
+    maven {
+        name = "RedlanceMinecraft"
+        url = "https://repo.redlance.org/public"
+    }
 
     maven {
         url = 'https://repo.minestom.com/'
@@ -26,12 +31,12 @@ repositories {
 
 dependencies {
     minecraft "com.mojang:minecraft:1.21.1"
-    mappings "net.fabricmc:yarn:1.21.1+build.1:v2"
-    modImplementation "net.fabricmc:fabric-loader:0.17.2"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:0.116.6+1.21.1"
+    mappings "net.fabricmc:yarn:1.21.1+build.3:v2"
+    modImplementation "net.fabricmc:fabric-loader:0.18.6"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:0.116.10+1.21.1"
 
-    modImplementation("foundry.veil:veil-fabric-1.21.1:2.5.1")
-    include "foundry.veil:veil-fabric-1.21.1:2.5.1"
+    include(modImplementation("foundry.veil:veil-fabric-1.21.1:3.3.3"))
+    modImplementation "com.zigythebird.playeranim:PlayerAnimationLibFabric:1.1.4+mc.1.21.1"
 
     include implementation(project(':core'))
     include implementation(project(':net'))
