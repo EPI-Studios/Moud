@@ -27,7 +27,11 @@ import org.lwjgl.system.MemoryUtil;
 import java.io.InputStream;
 import java.nio.FloatBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 final class InstancedBatchRenderer {
@@ -41,7 +45,7 @@ final class InstancedBatchRenderer {
     private int instanceVbo;
     private int instanceVboCapacity;
     private FloatBuffer instanceBuffer;
-    private final Map<Long, Integer> vaoCache = new HashMap<>();
+    private final Map<Long, Integer> vaoCache = new ConcurrentHashMap<>();
     private final SceneLights sceneLights;
 
     InstancedBatchRenderer(SceneLights sceneLights) {
@@ -54,6 +58,7 @@ final class InstancedBatchRenderer {
                       Function<Long, VeilSceneNodeRenderer.Pose> poseResolver,
                       Vec3d camPos, Camera camera, Matrix4fc viewMatrix, Matrix4fc projectionMatrix,
                       MinecraftClient client, float tickDelta) {
+        if (!RenderSystem.isOnRenderThread()) return 0;
 
         ShaderProgram program = getOrCompileProgram();
         if (program == null || !program.isValid()) return 0;

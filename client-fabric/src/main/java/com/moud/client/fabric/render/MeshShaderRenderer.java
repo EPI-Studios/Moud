@@ -22,13 +22,16 @@ import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
+import foundry.veil.api.client.render.dynamicbuffer.DynamicBufferType;
 import org.lwjgl.opengl.GL20C;
+import org.lwjgl.opengl.GL30C;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 final class MeshShaderRenderer {
@@ -37,15 +40,20 @@ final class MeshShaderRenderer {
 
     private final String defaultVert;
     private final String defaultFrag;
+    private final String pbrVert;
+    private final String pbrFrag;
     private final String meshVertForMaterial;
 
-    private final Map<Long, VeilMaterialBinding> materialBindings = new HashMap<>();
+    private final Map<Long, VeilMaterialBinding> materialBindings = new ConcurrentHashMap<>();
     private ShaderProgram defaultShaderProgram;
-    private final Map<Long, Integer> meshVaoCache = new HashMap<>();
+    private ShaderProgram pbrShaderProgram;
+    private final Map<Long, Integer> meshVaoCache = new ConcurrentHashMap<>();
 
     private final Object MATERIAL_TEX_LOCK = new Object();
-    private final Map<String, MaterialTexCache> textureByMaterialPath = new HashMap<>();
+    private final Map<String, MaterialTexCache> textureByMaterialPath = new ConcurrentHashMap<>();
     private final SceneLights sceneLights = new SceneLights();
+    private final Map<Long, Map<String, float[]>> prevUniforms = new ConcurrentHashMap<>();
+    private final Map<Long, Map<String, float[]>> currUniforms = new ConcurrentHashMap<>();
     private final Set<String> loggedShaderErrors = new HashSet<>();
 
     SceneLights sceneLights() { return sceneLights; }
@@ -53,6 +61,8 @@ final class MeshShaderRenderer {
     MeshShaderRenderer() {
         defaultVert = loadResource("assets/moud/shaders/builtin/default_mesh.vert");
         defaultFrag = loadResource("assets/moud/shaders/builtin/default_mesh.frag");
+        pbrVert = loadResource("assets/moud/shaders/builtin/pbr_mesh.vert");
+        pbrFrag = loadResource("assets/moud/shaders/builtin/pbr_mesh.frag");
         meshVertForMaterial = loadResource("assets/moud/shaders/builtin/mesh_material.vert");
     }
 
@@ -63,14 +73,91 @@ final class MeshShaderRenderer {
         return "";
     }
 
+    void onSnapshotUpdate(List<SceneSnapshot.NodeSnapshot> nodes) {
+        for (SceneSnapshot.NodeSnapshot node : nodes) {
+            if (node == null) continue;
+            List<SceneSnapshot.Uniform> uniforms = node.uniforms();
+            if (uniforms == null || uniforms.isEmpty()) continue;
+            long id = node.nodeId();
+
+            Map<String, float[]> curr = currUniforms.get(id);
+            if (curr != null && !curr.isEmpty()) {
+                Map<String, float[]> prev = prevUniforms.computeIfAbsent(id, k -> new HashMap<>());
+                for (Map.Entry<String, float[]> e : curr.entrySet()) {
+                    prev.put(e.getKey(), e.getValue().clone());
+                }
+            }
+
+            Map<String, float[]> next = currUniforms.computeIfAbsent(id, k -> new HashMap<>());
+            for (SceneSnapshot.Uniform u : uniforms) {
+                if (u == null || u.key() == null || u.values() == null) continue;
+                List<Float> vals = u.values();
+                float[] arr = new float[vals.size()];
+                for (int i = 0; i < vals.size(); i++) arr[i] = vals.get(i);
+                next.put(u.key(), arr);
+            }
+        }
+    }
+
+    private void applyInterpolatedUniforms(int pid, long nodeId, SceneSnapshot.NodeSnapshot node, float tickDelta) {
+        List<SceneSnapshot.Uniform> uniforms = node.uniforms();
+        if (uniforms == null || uniforms.isEmpty()) return;
+
+        Map<String, float[]> prev = prevUniforms.get(nodeId);
+        Map<String, float[]> curr = currUniforms.get(nodeId);
+
+        for (SceneSnapshot.Uniform u : uniforms) {
+            if (u == null || u.key() == null || u.values() == null) continue;
+            String key = u.key();
+            List<Float> vals = u.values();
+            int size = vals.size();
+            if (size < 1 || size > 4) continue;
+
+            float[] c = curr != null ? curr.get(key) : null;
+            float[] p = prev != null ? prev.get(key) : null;
+
+            if (c != null && p != null && c.length == p.length) {
+                float t = tickDelta;
+                switch (size) {
+                    case 1 -> GlUtil.uniform1f(pid, key, p[0] + (c[0] - p[0]) * t);
+                    case 2 -> GlUtil.uniform2f(pid, key,
+                            p[0] + (c[0] - p[0]) * t,
+                            p[1] + (c[1] - p[1]) * t);
+                    case 3 -> GlUtil.uniform3f(pid, key,
+                            p[0] + (c[0] - p[0]) * t,
+                            p[1] + (c[1] - p[1]) * t,
+                            p[2] + (c[2] - p[2]) * t);
+                    case 4 -> GlUtil.uniform4f(pid, key,
+                            p[0] + (c[0] - p[0]) * t,
+                            p[1] + (c[1] - p[1]) * t,
+                            p[2] + (c[2] - p[2]) * t,
+                            p[3] + (c[3] - p[3]) * t);
+                }
+            } else {
+                switch (size) {
+                    case 1 -> GlUtil.uniform1f(pid, key, vals.get(0));
+                    case 2 -> GlUtil.uniform2f(pid, key, vals.get(0), vals.get(1));
+                    case 3 -> GlUtil.uniform3f(pid, key, vals.get(0), vals.get(1), vals.get(2));
+                    case 4 -> GlUtil.uniform4f(pid, key, vals.get(0), vals.get(1), vals.get(2), vals.get(3));
+                }
+            }
+        }
+    }
+
     void collectLights(List<SceneSnapshot.NodeSnapshot> nodes,
                        Function<Long, VeilSceneNodeRenderer.Pose> poseResolver) {
         sceneLights.collect(nodes, poseResolver);
     }
 
+    void collectLightsAdd(List<SceneSnapshot.NodeSnapshot> nodes,
+                          Function<Long, VeilSceneNodeRenderer.Pose> poseResolver) {
+        sceneLights.collectAdd(nodes, poseResolver);
+    }
+
     boolean renderNode(SceneSnapshot.NodeSnapshot node, VeilSceneNodeRenderer.Pose world,
                        Vec3d camPos, Camera camera, Matrix4fc viewMatrix, Matrix4fc projectionMatrix,
                        MinecraftClient client, float tickDelta) {
+        if (!RenderSystem.isOnRenderThread()) return false;
         String materialPath = VeilSceneNodeRenderer.stringProp(node, "material");
         VeilMaterialBinding binding = null;
         ShaderProgram program;
@@ -80,10 +167,20 @@ final class MeshShaderRenderer {
             binding = materialBindings.computeIfAbsent(node.nodeId(), id -> new VeilMaterialBinding());
             binding.configure(materialPath, null);
             program = resolveMeshProgram(binding);
-            if (program == null && binding.programId() != null) shaderErrorId = binding.programId();
+            if (program == null) {
+                program = getPbrShaderProgram();
+                if (program == null) program = getDefaultShaderProgram();
+            }
         } else {
-            program = getDefaultShaderProgram();
-            if (program == null) shaderErrorId = Identifier.of("moud", "builtin/default_mesh");
+            program = getPbrShaderProgram();
+            if (program == null) {
+                String pbrError = VeilDynamicShaders.getLastError(Identifier.of("moud", "builtin/pbr_mesh"));
+                if (pbrError != null && loggedShaderErrors.add("pbr_fallback:" + pbrError)) {
+                    LOGGER.warn("[Moud] PBR shader unavailable ({}), falling back to default", pbrError);
+                }
+                program = getDefaultShaderProgram();
+            }
+            if (program == null) shaderErrorId = Identifier.of("moud", "builtin/pbr_mesh");
         }
 
         if (program == null || !program.isValid()) {
@@ -204,6 +301,7 @@ final class MeshShaderRenderer {
             program.bind();
 
             int pid = GlUtil.currentProgram();
+
             GlUtil.uniformMat4(pid, "ModelMat", modelMat);
             GlUtil.uniformMat4(pid, "WorldMat", worldMat);
             GlUtil.uniformMat4(pid, "ViewMat", viewMat);
@@ -237,11 +335,31 @@ final class MeshShaderRenderer {
                 }
             }
 
+            applyInterpolatedUniforms(pid, node.nodeId(), node, tickDelta);
+
             if (binding != null) binding.applyMaterial(program);
             else program.clearSamplers();
 
-            program.setSampler("Texture0", resolveNodeTexture(node));
+            Identifier nodeTexture = resolveNodeTexture(node);
+            program.setSampler("Texture0", nodeTexture);
+            if (binding == null || !binding.hasTextureParam("albedo_texture")) {
+                program.setSampler("albedo_texture", nodeTexture);
+            }
             program.bindSamplers(0);
+
+            var dbm = VeilRenderSystem.renderer().getDynamicBufferManger();
+            int activeBufferMask = VeilRenderSystem.renderer().getActiveBuffers();
+            DynamicBufferType[] activeTypes = DynamicBufferType.decode(activeBufferMask);
+            for (int i = 0; i < activeTypes.length; i++) {
+                int tex = dbm.getBufferTexture(activeTypes[i]);
+                GL30C.glFramebufferTexture2D(GL30C.GL_FRAMEBUFFER,
+                        GL30C.GL_COLOR_ATTACHMENT0 + 1 + i, GL30C.GL_TEXTURE_2D, tex, 0);
+            }
+            int[] drawBuffers = new int[1 + activeTypes.length];
+            for (int i = 0; i < drawBuffers.length; i++) {
+                drawBuffers[i] = GL30C.GL_COLOR_ATTACHMENT0 + i;
+            }
+            GL30C.glDrawBuffers(drawBuffers);
 
             if (isPlane) {
                 MoudMeshBuffer.ensurePlaneInitialized();
@@ -249,6 +367,12 @@ final class MeshShaderRenderer {
             } else {
                 drawMesh(MoudMeshBuffer.vbo(), MoudMeshBuffer.ebo(), MoudMeshBuffer.indexCount());
             }
+
+            for (int i = 0; i < activeTypes.length; i++) {
+                GL30C.glFramebufferTexture2D(GL30C.GL_FRAMEBUFFER,
+                        GL30C.GL_COLOR_ATTACHMENT0 + 1 + i, GL30C.GL_TEXTURE_2D, 0, 0);
+            }
+            GL30C.glDrawBuffers(new int[]{ GL30C.GL_COLOR_ATTACHMENT0 });
         } finally {
             ShaderProgram.unbind();
             if (translucent) { RenderSystem.disableBlend(); RenderSystem.depthMask(true); }
@@ -282,6 +406,16 @@ final class MeshShaderRenderer {
         stages.put(GL20C.GL_FRAGMENT_SHADER, defaultFrag);
         defaultShaderProgram = VeilDynamicShaders.getOrCompile(Identifier.of("moud", "builtin/default_mesh"), stages);
         return defaultShaderProgram;
+    }
+
+    ShaderProgram getPbrShaderProgram() {
+        if (pbrShaderProgram != null && pbrShaderProgram.isValid()) return pbrShaderProgram;
+        if (pbrVert.isEmpty() || pbrFrag.isEmpty()) return null;
+        Int2ObjectMap<String> stages = new Int2ObjectArrayMap<>();
+        stages.put(GL20C.GL_VERTEX_SHADER, pbrVert);
+        stages.put(GL20C.GL_FRAGMENT_SHADER, pbrFrag);
+        pbrShaderProgram = VeilDynamicShaders.getOrCompile(Identifier.of("moud", "builtin/pbr_mesh"), stages);
+        return pbrShaderProgram;
     }
 
     void drawMesh(int vbo, int ebo, int indexCount) {
@@ -322,14 +456,14 @@ final class MeshShaderRenderer {
         try {
             MoudMaterial mat = MoudMaterialParser.parse(txt);
             if (mat != null && mat.params() != null) {
-                for (MoudMaterial.Param p : mat.params().values()) {
-                    if (p instanceof MoudMaterial.Param.Texture t) {
-                        textureId = MoudTextures.resolve(t.textureRef());
-                        break;
-                    }
-                    if (p instanceof MoudMaterial.Param.StringParam s) {
-                        textureId = MoudTextures.resolve(s.value());
-                        break;
+                textureId = resolveMaterialTextureParam(mat, "albedo_texture");
+                if (textureId == null) {
+                    for (Map.Entry<String, MoudMaterial.Param> entry : mat.params().entrySet()) {
+                        Identifier resolved = resolveTextureParam(entry.getValue());
+                        if (resolved != null) {
+                            textureId = resolved;
+                            break;
+                        }
                     }
                 }
             }
@@ -358,6 +492,23 @@ final class MeshShaderRenderer {
     private static float clampedProp(SceneSnapshot.NodeSnapshot node, String key, float def) {
         return VeilSceneNodeRenderer.clamp01(
                 VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, key), def));
+    }
+
+    private static Identifier resolveMaterialTextureParam(MoudMaterial mat, String key) {
+        if (mat == null || mat.params() == null || key == null || key.isBlank()) {
+            return null;
+        }
+        return resolveTextureParam(mat.params().get(key));
+    }
+
+    private static Identifier resolveTextureParam(MoudMaterial.Param param) {
+        if (param instanceof MoudMaterial.Param.Texture t) {
+            return MoudTextures.resolve(t.textureRef());
+        }
+        if (param instanceof MoudMaterial.Param.StringParam s) {
+            return MoudTextures.resolve(s.value());
+        }
+        return null;
     }
 
     private record MaterialTexCache(String materialText, Identifier textureId) {}

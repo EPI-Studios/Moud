@@ -1,210 +1,216 @@
 package com.moud.client.fabric.render;
 
-import java.util.ArrayList;
-import java.util.List;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
+import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
+import java.util.ArrayList;
+import java.util.List;
+
 
 public class VeilDebugRenderer implements DebugRenderer {
+
     private static VeilDebugRenderer instance;
 
-    private final List<Shape> shapes = new ArrayList<>();
-
     public static VeilDebugRenderer instance() {
-        if (instance == null) {
-            instance = new VeilDebugRenderer();
-        }
+        if (instance == null) instance = new VeilDebugRenderer();
         return instance;
     }
 
+    private static final float DEFAULT_WIDTH = 2.0f;
+    private final List<Line> lines = new ArrayList<>();
+
     @Override
     public void line(Vector3f from, Vector3f to, int colorARGB, float thickness) {
-        if (from == null || to == null) {
-            return;
-        }
-        synchronized (shapes) {
-            shapes.add(new LineShape(from.x, from.y, from.z, to.x, to.y, to.z, colorARGB, thickness));
-        }
+        if (from == null || to == null) return;
+        addLine(from.x, from.y, from.z, to.x, to.y, to.z, colorARGB, resolveWidth(thickness));
     }
 
     @Override
     public void box(Vector3f min, Vector3f max, int colorARGB, float thickness) {
-        if (min == null || max == null) {
-            return;
-        }
-        synchronized (shapes) {
-            shapes.add(new BoxShape(min.x, min.y, min.z, max.x, max.y, max.z, colorARGB, thickness));
+        if (min == null || max == null) return;
+
+        float x0 = min.x, y0 = min.y, z0 = min.z;
+        float x1 = max.x, y1 = max.y, z1 = max.z;
+        float w = resolveWidth(thickness);
+
+        synchronized (lines) {
+            // bottom ring
+            addLine(x0, y0, z0,  x1, y0, z0,  colorARGB, w);
+            addLine(x1, y0, z0,  x1, y0, z1,  colorARGB, w);
+            addLine(x1, y0, z1,  x0, y0, z1,  colorARGB, w);
+            addLine(x0, y0, z1,  x0, y0, z0,  colorARGB, w);
+
+            // top ring
+            addLine(x0, y1, z0,  x1, y1, z0,  colorARGB, w);
+            addLine(x1, y1, z0,  x1, y1, z1,  colorARGB, w);
+            addLine(x1, y1, z1,  x0, y1, z1,  colorARGB, w);
+            addLine(x0, y1, z1,  x0, y1, z0,  colorARGB, w);
+
+            // vertical pillars
+            addLine(x0, y0, z0,  x0, y1, z0,  colorARGB, w);
+            addLine(x1, y0, z0,  x1, y1, z0,  colorARGB, w);
+            addLine(x1, y0, z1,  x1, y1, z1,  colorARGB, w);
+            addLine(x0, y0, z1,  x0, y1, z1,  colorARGB, w);
         }
     }
 
     @Override
     public void frustum(Vector3f[] points, int colorARGB, float thickness) {
-        if (points == null || points.length != 8) {
-            throw new IllegalArgumentException("Frustum requires 8 points");
-        }
-        float[] xyz = new float[8 * 3];
-        for (int i = 0; i < 8; i++) {
-            Vector3f p = points[i];
-            if (p == null) {
-                return;
+        if (points == null || points.length != 8) return;
+        float w = resolveWidth(thickness);
+
+        // near face: 0-3, far face: 4-7, connecting edges
+        int[][] edges = {
+                {0,1}, {1,2}, {2,3}, {3,0},   // near
+                {4,5}, {5,6}, {6,7}, {7,4},   // far
+                {0,4}, {1,5}, {2,6}, {3,7}    // sides
+        };
+
+        synchronized (lines) {
+            for (int[] e : edges) {
+                Vector3f a = points[e[0]], b = points[e[1]];
+                if (a != null && b != null)
+                    addLine(a.x, a.y, a.z, b.x, b.y, b.z, colorARGB, w);
             }
-            int o = i * 3;
-            xyz[o] = p.x;
-            xyz[o + 1] = p.y;
-            xyz[o + 2] = p.z;
-        }
-        synchronized (shapes) {
-            shapes.add(new FrustumShape(xyz, colorARGB, thickness));
         }
     }
 
     @Override
     public void sphere(Vector3f center, float radius, int colorARGB, int segments) {
-        if (center == null) {
-            return;
+        if (center == null) return;
+        int segs = resolveSegments(segments, radius);
+        circle(center, radius, new Vector3f(1, 0, 0), colorARGB, segs);
+        circle(center, radius, new Vector3f(0, 1, 0), colorARGB, segs);
+        circle(center, radius, new Vector3f(0, 0, 1), colorARGB, segs);
+    }
+
+    @Override
+    public void circle(Vector3f center, float radius, Vector3f normal, int colorARGB, int segments) {
+        if (center == null || normal == null) return;
+
+        Vector3f n = new Vector3f(normal);
+        if (n.lengthSquared() < 1e-12f) return;
+        n.normalize();
+
+        Vector3f up  = Math.abs(n.y) < 0.99f ? new Vector3f(0, 1, 0) : new Vector3f(1, 0, 0);
+        Vector3f axA = new Vector3f(n).cross(up).normalize();
+        Vector3f axB = new Vector3f(n).cross(axA).normalize();
+
+        int segs = resolveSegments(segments, radius);
+        double step = 2.0 * Math.PI / segs;
+
+        synchronized (lines) {
+            for (int i = 0; i < segs; i++) {
+                float a1 = (float) (i * step),       c1 = (float) Math.cos(a1) * radius, s1 = (float) Math.sin(a1) * radius;
+                float a2 = (float) ((i + 1) * step), c2 = (float) Math.cos(a2) * radius, s2 = (float) Math.sin(a2) * radius;
+
+                addLine(
+                        center.x + axA.x*c1 + axB.x*s1,
+                        center.y + axA.y*c1 + axB.y*s1,
+                        center.z + axA.z*c1 + axB.z*s1,
+                        center.x + axA.x*c2 + axB.x*s2,
+                        center.y + axA.y*c2 + axB.y*s2,
+                        center.z + axA.z*c2 + axB.z*s2,
+                        colorARGB, DEFAULT_WIDTH
+                );
+            }
         }
-        synchronized (shapes) {
-            shapes.add(new SphereShape(center.x, center.y, center.z, radius, colorARGB, segments));
+    }
+
+    @Override
+    public void arc(Vector3f center, float radius, Vector3f normal, Vector3f startDir, float angleDeg, int colorARGB, int segments) {
+        if (center == null || normal == null || startDir == null) return;
+
+        Vector3f n    = new Vector3f(normal).normalize();
+        Vector3f sd   = new Vector3f(startDir).normalize();
+        Vector3f perp = new Vector3f(n).cross(sd).normalize();
+
+        int segs = Math.max(4, segments);
+        float totalRad = (float) Math.toRadians(angleDeg);
+
+        synchronized (lines) {
+            for (int i = 0; i < segs; i++) {
+                float a1 = totalRad * i / segs,       c1 = (float) Math.cos(a1) * radius, s1 = (float) Math.sin(a1) * radius;
+                float a2 = totalRad * (i + 1) / segs, c2 = (float) Math.cos(a2) * radius, s2 = (float) Math.sin(a2) * radius;
+
+                addLine(
+                        center.x + sd.x*c1 + perp.x*s1,
+                        center.y + sd.y*c1 + perp.y*s1,
+                        center.z + sd.z*c1 + perp.z*s1,
+                        center.x + sd.x*c2 + perp.x*s2,
+                        center.y + sd.y*c2 + perp.y*s2,
+                        center.z + sd.z*c2 + perp.z*s2,
+                        colorARGB, DEFAULT_WIDTH
+                );
+            }
         }
     }
 
     @Override
     public void clear() {
-        synchronized (shapes) {
-            shapes.clear();
+        synchronized (lines) {
+            lines.clear();
         }
     }
 
     public void render(MatrixStack matrices, VertexConsumerProvider.Immediate consumers, Camera camera) {
-        if (matrices == null || consumers == null || camera == null) {
-            return;
-        }
-        List<Shape> toRender;
-        synchronized (shapes) {
-            if (shapes.isEmpty()) {
-                return;
-            }
-            toRender = new ArrayList<>(shapes);
+        if (matrices == null || consumers == null || camera == null) return;
+
+        List<Line> snapshot;
+        synchronized (lines) {
+            if (lines.isEmpty()) return;
+            snapshot = new ArrayList<>(lines);
         }
 
-        VertexConsumer lines = consumers.getBuffer(RenderLayer.getLines());
+        Vec3d camPos = camera.getPos();
+        VertexConsumer vc = consumers.getBuffer(RenderLayer.getLines());
 
-        Vec3d pos = camera.getPos();
         matrices.push();
-        matrices.translate(-pos.x, -pos.y, -pos.z);
-        try {
-            for (Shape shape : toRender) {
-                shape.render(matrices, lines);
-            }
-        } finally {
-            matrices.pop();
-        }
-    }
+        matrices.translate(-camPos.x, -camPos.y, -camPos.z);
+        Matrix4f mat = matrices.peek().getPositionMatrix();
 
-    private sealed interface Shape {
-        void render(MatrixStack matrices, VertexConsumer consumer);
-    }
+        for (Line l : snapshot) {
+            float r = ((l.color >> 16) & 0xFF) / 255f;
+            float g = ((l.color >>  8) & 0xFF) / 255f;
+            float b = ( l.color        & 0xFF) / 255f;
+            float a = ((l.color >> 24) & 0xFF) / 255f;
 
-    private record LineShape(float fromX, float fromY, float fromZ,
-                             float toX, float toY, float toZ,
-                             int color, float thickness) implements Shape {
-        @Override
-        public void render(MatrixStack matrices, VertexConsumer consumer) {
-            Matrix4f mat = matrices.peek().getPositionMatrix();
-            float r = ((color >> 16) & 0xFF) / 255f;
-            float g = ((color >> 8) & 0xFF) / 255f;
-            float b = (color & 0xFF) / 255f;
-            float a = ((color >> 24) & 0xFF) / 255f;
+            float dx = l.toX - l.fromX;
+            float dy = l.toY - l.fromY;
+            float dz = l.toZ - l.fromZ;
+            float len = (float) Math.sqrt(dx*dx + dy*dy + dz*dz);
 
-            consumer.vertex(mat, fromX, fromY, fromZ).color(r, g, b, a).normal(matrices.peek(), 0f, 1f, 0f);
-            consumer.vertex(mat, toX, toY, toZ).color(r, g, b, a).normal(matrices.peek(), 0f, 1f, 0f);
-        }
-    }
+            float nx, ny, nz;
+            if (len > 1e-8f) { nx = dx/len; ny = dy/len; nz = dz/len; }
+            else              { nx = 0;      ny = 1;      nz = 0;      }
 
-    private record BoxShape(float minX, float minY, float minZ,
-                            float maxX, float maxY, float maxZ,
-                            int color, float thickness) implements Shape {
-        @Override
-        public void render(MatrixStack matrices, VertexConsumer consumer) {
-            Vector3f[] corners = {
-                    new Vector3f(minX, minY, minZ),
-                    new Vector3f(maxX, minY, minZ),
-                    new Vector3f(maxX, maxY, minZ),
-                    new Vector3f(minX, maxY, minZ),
-                    new Vector3f(minX, minY, maxZ),
-                    new Vector3f(maxX, minY, maxZ),
-                    new Vector3f(maxX, maxY, maxZ),
-                    new Vector3f(minX, maxY, maxZ)
-            };
-
-            int[][] edges = {
-                    {0,1}, {1,2}, {2,3}, {3,0},
-                    {4,5}, {5,6}, {6,7}, {7,4},
-                    {0,4}, {1,5}, {2,6}, {3,7}
-            };
-
-            for (int[] edge : edges) {
-                Vector3f a = corners[edge[0]];
-                Vector3f b = corners[edge[1]];
-                new LineShape(a.x, a.y, a.z, b.x, b.y, b.z, color, thickness).render(matrices, consumer);
-            }
-        }
-    }
-
-    private record FrustumShape(float[] pointsXyz, int color, float thickness) implements Shape {
-        @Override
-        public void render(MatrixStack matrices, VertexConsumer consumer) {
-            int[][] edges = {
-                    {0,1}, {1,2}, {2,3}, {3,0},
-                    {4,5}, {5,6}, {6,7}, {7,4},
-                    {0,4}, {1,5}, {2,6}, {3,7}
-            };
-
-            for (int[] edge : edges) {
-                int a = edge[0] * 3;
-                int b = edge[1] * 3;
-                new LineShape(
-                        pointsXyz[a], pointsXyz[a + 1], pointsXyz[a + 2],
-                        pointsXyz[b], pointsXyz[b + 1], pointsXyz[b + 2],
-                        color,
-                        thickness
-                ).render(matrices, consumer);
-            }
-        }
-    }
-
-    private record SphereShape(float cx, float cy, float cz, float radius, int color, int segments) implements Shape {
-        @Override
-        public void render(MatrixStack matrices, VertexConsumer consumer) {
-            for (int axis = 0; axis < 3; axis++) {
-                for (int i = 0; i < segments; i++) {
-                    float angle1 = (float) (i * 2 * Math.PI / segments);
-                    float angle2 = (float) ((i + 1) * 2 * Math.PI / segments);
-
-                    Vector3f p1 = pointOnCircle(angle1, axis);
-                    Vector3f p2 = pointOnCircle(angle2, axis);
-
-                    new LineShape(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z, color, 1f).render(matrices, consumer);
-                }
-            }
+            vc.vertex(mat, l.fromX, l.fromY, l.fromZ).color(r, g, b, a).normal(matrices.peek(), nx, ny, nz);
+            vc.vertex(mat, l.toX,   l.toY,   l.toZ  ).color(r, g, b, a).normal(matrices.peek(), nx, ny, nz);
         }
 
-        private Vector3f pointOnCircle(float angle, int axis) {
-            float x = (float) Math.cos(angle) * radius;
-            float y = (float) Math.sin(angle) * radius;
-
-            return switch (axis) {
-                case 0 -> new Vector3f(cx, cy + y, cz + x);
-                case 1 -> new Vector3f(cx + x, cy, cz + y);
-                default -> new Vector3f(cx + x, cy + y, cz);
-            };
-        }
+        matrices.pop();
     }
+
+    private void addLine(float x0, float y0, float z0, float x1, float y1, float z1, int color, float width) {
+        lines.add(new Line(x0, y0, z0, x1, y1, z1, color, width));
+    }
+
+    private static float resolveWidth(float thickness) {
+        return thickness > 0 ? thickness : DEFAULT_WIDTH;
+    }
+
+    private static int resolveSegments(int requested, float radius) {
+        if (requested > 0) return Math.max(requested, 8);
+        return Math.max(32, (int) (radius * 10));
+    }
+
+    private record Line(
+            float fromX, float fromY, float fromZ,
+            float toX,   float toY,   float toZ,
+            int   color, float width
+    ) {}
 }
