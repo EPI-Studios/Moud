@@ -1,12 +1,18 @@
 package com.moud.client.fabric.editor.panels;
 
+import com.miry.graphics.Texture;
 import com.miry.ui.render.UiRenderer;
 import com.miry.ui.theme.Theme;
 import com.miry.ui.widgets.CanvasEditor2D;
 import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
+import com.moud.client.fabric.render.MoudTextures;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneSnapshot;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.texture.AbstractTexture;
+import net.minecraft.client.texture.TextureManager;
+import net.minecraft.util.Identifier;
 import org.joml.Vector2f;
 
 import java.util.ArrayList;
@@ -30,6 +36,9 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
     private float cachedFillR = 1, cachedFillG = 1, cachedFillB = 1, cachedFillA = 1;
     private float cachedValue = 50, cachedMinValue = 0, cachedMaxValue = 100;
     private boolean cachedChecked = false;
+
+    private String cachedTexRef = "";
+    private Texture cachedTexture = null;
 
     private float pendingLocalX;
     private float pendingLocalY;
@@ -88,7 +97,13 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
             }
         } else {
             if (world != null) pos.set(world);
-            size.set(1, 1);
+            if ("Sprite2D".equals(typeId)) {
+                float w = parseFloat(getProp(node, "w"), 64.0f);
+                float h = parseFloat(getProp(node, "h"), 64.0f);
+                size.set(Math.max(1, w), Math.max(1, h));
+            } else {
+                size.set(1, 1);
+            }
         }
         cachedText = nvl(getProp(node, "text"), "");
         String fillR = nvl(getProp(node, "fill_color_r"), getProp(node, "color_r"));
@@ -103,6 +118,31 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
         cachedMinValue = parseFloat(getProp(node, "min_value"),  0.0f);
         cachedMaxValue = parseFloat(getProp(node, "max_value"), 100.0f);
         cachedChecked  = "true".equalsIgnoreCase(getProp(node, "checked"));
+
+        String newTexRef = switch (typeId) {
+            case "TextureRect", "Sprite2D" -> nvl(getProp(node, "texture"), "");
+            case "TextureButton" -> nvl(nvl(getProp(node, "texture_normal"), getProp(node, "texture_hover")), "");
+            default -> "";
+        };
+        if (!newTexRef.equals(cachedTexRef)) {
+            cachedTexRef = newTexRef;
+            cachedTexture = null;
+        }
+    }
+
+    private Texture resolveTexture() {
+        if (cachedTexRef == null || cachedTexRef.isBlank()) return null;
+        if (cachedTexture != null) return cachedTexture;
+        Identifier id = MoudTextures.resolve(cachedTexRef);
+        if (id == null || TextureManager.MISSING_IDENTIFIER.equals(id)) return null;
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc == null || mc.getTextureManager() == null) return null;
+        AbstractTexture mcTex = mc.getTextureManager().getOrDefault(id, null);
+        if (mcTex == null) return null;
+        int glId = mcTex.getGlId();
+        if (glId <= 0) return null;
+        cachedTexture = Texture.wrapExternal(glId, 1, 1, false);
+        return cachedTexture;
     }
 
     private static String nvl(String a, String b) {
@@ -225,6 +265,22 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
 
     @Override
     public void render(UiRenderer r, Theme theme, int px, int py) {
+        if ("Sprite2D".equals(typeId)) {
+            float z = canvas2d.zoom();
+            int sw = Math.max(4, (int) (size.x * scale.x * z));
+            int sh = Math.max(4, (int) (size.y * scale.y * z));
+            int rx = px - sw / 2;
+            int ry = py - sh / 2;
+            Texture tex = resolveTexture();
+            if (tex != null) {
+                r.drawTexturedRect(tex, rx, ry, sw, sh, 0xFFFFFFFF);
+            } else {
+                int c = Theme.mulAlpha(Theme.toArgb(theme.accent), 0.25f);
+                r.drawRect(rx, ry, sw, sh, c);
+                r.drawRectOutline(rx, ry, sw, sh, 1, Theme.mulAlpha(Theme.toArgb(theme.accent), 0.8f));
+            }
+            return;
+        }
         if (!CONTROL_TYPES.contains(typeId)) {
             int c = Theme.mulAlpha(Theme.toArgb(theme.accent), 0.8f);
             r.drawRect(px - 4, py - 4, 8, 8, c);
@@ -268,10 +324,15 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
                     r.drawText(label, rx + 3, r.baselineForBox(ry, sh), TEXT);
             }
             case "TextureButton", "TextureRect" -> {
-                r.drawRect(rx, ry, sw, sh, BG);
+                Texture tex = resolveTexture();
+                if (tex != null) {
+                    r.drawTexturedRect(tex, rx, ry, sw, sh, 0xFFFFFFFF);
+                } else {
+                    r.drawRect(rx, ry, sw, sh, BG);
+                    r.drawLine(rx + 4, ry + 4, rx + sw - 4, ry + sh - 4, 1, BORDER);
+                    r.drawLine(rx + sw - 4, ry + 4, rx + 4, ry + sh - 4, 1, BORDER);
+                }
                 r.drawRectOutline(rx, ry, sw, sh, 1, BORDER);
-                r.drawLine(rx + 4, ry + 4, rx + sw - 4, ry + sh - 4, 1, BORDER);
-                r.drawLine(rx + sw - 4, ry + 4, rx + 4, ry + sh - 4, 1, BORDER);
             }
             case "CheckBox" -> {
                 int boxSz = Math.min(sh - 4, 12);

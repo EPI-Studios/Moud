@@ -167,44 +167,84 @@ public final class EditorGizmos implements AutoCloseable {
 
             if ("OmniLight3D".equals(type)) {
                 float radius = parseFloat(lProps.get("radius"), "8");
-                debug.sphere(tmpWorld, radius, lightColor, active ? 24 : 12);
-                debug.sphere(tmpWorld, 0.15f, lightColor, 8);
+                int segs = active ? 48 : 24;
+                debug.sphere(tmpWorld, 0.1f, lightColor, 8);
+                debug.circle(tmpWorld, radius, new Vector3f(1, 0, 0), lightColor, segs);
+                debug.circle(tmpWorld, radius, new Vector3f(0, 1, 0), lightColor, segs);
+                debug.circle(tmpWorld, radius, new Vector3f(0, 0, 1), lightColor, segs);
             } else if ("DirectionalLight3D".equals(type)) {
                 Vector3f dir = new Vector3f(0, 0, 1);
                 lp.rot.transform(dir);
                 if (dir.lengthSquared() > 1e-12f) dir.normalize();
-                float arrowLen = active ? 2.0f : 1.2f;
+
+                float diskR = 0.25f;
+                debug.circle(tmpWorld, diskR, dir, lightColor, 16);
+
+                Vector3f up = new Vector3f(0, 1, 0);
+                if (Math.abs(dir.dot(up)) > 0.99f) up.set(1, 0, 0);
+                Vector3f right = new Vector3f(dir).cross(up).normalize();
+                Vector3f upVec = new Vector3f(right).cross(dir).normalize();
+
+                float arrowLen = active ? 2.5f : 1.5f;
                 focusWorld.set(tmpWorld).add(dir.x * arrowLen, dir.y * arrowLen, dir.z * arrowLen);
-                debug.line(tmpWorld, focusWorld, lightColor, active ? 3f : 2f);
-                Vector3f perp = new Vector3f(dir.y, -dir.x, 0);
-                if (perp.lengthSquared() < 1e-6f) perp.set(0, 0, 1);
-                perp.normalize().mul(0.3f);
-                Vector3f tipA = new Vector3f(focusWorld).add(perp);
-                Vector3f tipB = new Vector3f(focusWorld).sub(perp);
-                debug.line(tipA, tipB, lightColor, 1.5f);
+                debug.line(tmpWorld, focusWorld, lightColor, active ? 2f : 1.2f);
+                for (int i = 0; i < 4; i++) {
+                    float a = (float) (i * Math.PI * 2.0 / 4.0);
+                    float ox = (float) Math.cos(a) * diskR;
+                    float oy = (float) Math.sin(a) * diskR;
+                    Vector3f rayStart = new Vector3f(tmpWorld).add(right.x * ox + upVec.x * oy, right.y * ox + upVec.y * oy, right.z * ox + upVec.z * oy);
+                    Vector3f rayEnd = new Vector3f(rayStart).add(dir.x * arrowLen, dir.y * arrowLen, dir.z * arrowLen);
+                    debug.line(rayStart, rayEnd, lightColor, active ? 1.5f : 1.0f);
+                }
+                float headLen = 0.3f;
+                float headR = 0.12f;
+                Vector3f headBase = new Vector3f(focusWorld).sub(dir.x * headLen, dir.y * headLen, dir.z * headLen);
+                for (int i = 0; i < 4; i++) {
+                    float a = (float) (i * Math.PI * 2.0 / 4.0);
+                    float ox = (float) Math.cos(a) * headR;
+                    float oy = (float) Math.sin(a) * headR;
+                    Vector3f headEdge = new Vector3f(headBase).add(right.x * ox + upVec.x * oy, right.y * ox + upVec.y * oy, right.z * ox + upVec.z * oy);
+                    debug.line(focusWorld, headEdge, lightColor, active ? 1.5f : 1.0f);
+                }
             } else {
+                // SpotLight3D
                 float angleDeg = parseFloat(lProps.get("angle"), "45");
                 float distance = parseFloat(lProps.get("distance"), "10");
                 Vector3f dir = new Vector3f(0, 0, 1);
                 lp.rot.transform(dir);
                 if (dir.lengthSquared() > 1e-12f) dir.normalize();
 
-                focusWorld.set(tmpWorld).add(dir.x * distance, dir.y * distance, dir.z * distance);
-                debug.line(tmpWorld, focusWorld, lightColor, active ? 2.5f : 1.5f);
+                debug.sphere(tmpWorld, 0.08f, lightColor, 8);
 
-                float coneRadius = distance * (float) Math.tan(Math.toRadians(angleDeg));
+                float halfAngleRad = (float) Math.toRadians(angleDeg * 0.5f);
+                float coneRadius = distance * (float) Math.tan(halfAngleRad);
+                focusWorld.set(tmpWorld).add(dir.x * distance, dir.y * distance, dir.z * distance);
+
                 Vector3f up = new Vector3f(0, 1, 0);
                 if (Math.abs(dir.dot(up)) > 0.99f) up.set(1, 0, 0);
                 Vector3f right = new Vector3f(dir).cross(up).normalize();
                 Vector3f upVec = new Vector3f(right).cross(dir).normalize();
-                for (int i = 0; i < 8; i++) {
-                    float a = (float) (i * Math.PI * 2.0 / 8.0);
-                    float rx = (float) Math.cos(a) * coneRadius;
-                    float ry = (float) Math.sin(a) * coneRadius;
+
+                for (int i = 0; i < 4; i++) {
+                    float a = (float) (i * Math.PI * 2.0 / 4.0);
+                    float ox = (float) Math.cos(a) * coneRadius;
+                    float oy = (float) Math.sin(a) * coneRadius;
                     Vector3f edge = new Vector3f(focusWorld)
-                            .add(right.x * rx + upVec.x * ry, right.y * rx + upVec.y * ry, right.z * rx + upVec.z * ry);
-                    debug.line(tmpWorld, edge, lightColor, 1.0f);
+                            .add(right.x * ox + upVec.x * oy, right.y * ox + upVec.y * oy, right.z * ox + upVec.z * oy);
+                    debug.line(tmpWorld, edge, lightColor, active ? 1.5f : 1.0f);
                 }
+
+                debug.circle(focusWorld, coneRadius, dir, lightColor, active ? 48 : 24);
+
+                if (active) {
+                    float midDist = distance * 0.5f;
+                    float midRadius = midDist * (float) Math.tan(halfAngleRad);
+                    Vector3f midCenter = new Vector3f(tmpWorld).add(dir.x * midDist, dir.y * midDist, dir.z * midDist);
+                    int dimColor = (lightColor & 0x00FFFFFF) | 0x66000000;
+                    debug.circle(midCenter, midRadius, dir, dimColor, 24);
+                }
+
+                debug.line(tmpWorld, focusWorld, lightColor, active ? 1.2f : 0.8f);
             }
         }
 

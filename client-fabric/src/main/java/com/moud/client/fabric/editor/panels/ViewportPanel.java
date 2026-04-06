@@ -28,6 +28,7 @@ import java.util.function.Consumer;
 public final class ViewportPanel extends Panel {
     private record SceneTabData(String sceneId) {}
     private record ScriptTabData(String path) {}
+    private record TextAssetTabData(String path) {}
 
     private final EditorRuntime runtime;
     private final EditorGizmos gizmos;
@@ -85,6 +86,19 @@ public final class ViewportPanel extends Panel {
         if (scriptTabActive) {
             ScriptEditorDialog dialog = runtime.scriptEditorDialog();
             if (dialog != null) {
+                int contentY = y + tabsH;
+                int contentH = Math.max(0, h - tabsH);
+                dialog.renderInline(r, uiContext, ctx.ui(), theme, x, contentY, w, contentH);
+            }
+            return;
+        }
+
+        String activeTextAsset = state != null ? state.activeTextAssetPath : "";
+        boolean textAssetTabActive = activeTextAsset != null && !activeTextAsset.isBlank();
+
+        if (textAssetTabActive) {
+            var dialog = runtime.textAssetEditorDialog();
+            if (dialog != null && dialog.isOpen()) {
                 int contentY = y + tabsH;
                 int contentH = Math.max(0, h - tabsH);
                 dialog.renderInline(r, uiContext, ctx.ui(), theme, x, contentY, w, contentH);
@@ -296,12 +310,21 @@ public final class ViewportPanel extends Panel {
                         }
                     }
                     state.activeScriptPath = "";
+                    state.activeTextAssetPath = "";
                     selectScene(sd.sceneId());
                 } else if (data instanceof ScriptTabData sd) {
                     state.activeScriptPath = sd.path();
+                    state.activeTextAssetPath = "";
                     ScriptEditorDialog dialog = runtime.scriptEditorDialog();
                     if (dialog != null && (!dialog.isOpen() || !sd.path().equals(dialog.scriptPath()))) {
                         dialog.open(0, sd.path());
+                    }
+                } else if (data instanceof TextAssetTabData td) {
+                    state.activeTextAssetPath = td.path();
+                    state.activeScriptPath = "";
+                    var dialog = runtime.textAssetEditorDialog();
+                    if (dialog != null && (!dialog.isOpen() || !td.path().equals(dialog.resPath()))) {
+                        dialog.open(td.path(), null);
                     }
                 }
             }
@@ -359,7 +382,26 @@ public final class ViewportPanel extends Panel {
             tabs.add(tab);
         }
 
+        for (String path : state.openTextAssetPaths) {
+            if (path == null || path.isBlank()) continue;
+            TabBar.Tab tab = new TabBar.Tab(textAssetTabLabel(path));
+            tab.userData = new TextAssetTabData(path);
+            tab.closable = true;
+            tabs.add(tab);
+        }
+
         int activeIndex = -1;
+
+        String activeTextAsset = state.activeTextAssetPath;
+        if (activeTextAsset != null && !activeTextAsset.isBlank()) {
+            for (int i = 0; i < tabs.size(); i++) {
+                if (tabs.get(i).userData instanceof TextAssetTabData td && activeTextAsset.equals(td.path())) {
+                    activeIndex = i;
+                    break;
+                }
+            }
+        }
+
         String activeScript = state.activeScriptPath;
         if (activeScript != null && !activeScript.isBlank()) {
             for (int i = 0; i < tabs.size(); i++) {
@@ -397,18 +439,15 @@ public final class ViewportPanel extends Panel {
 
         ArrayList<String> nextScenes = new ArrayList<>();
         ArrayList<String> nextScripts = new ArrayList<>();
+        ArrayList<String> nextTextAssets = new ArrayList<>();
         for (TabBar.Tab tab : tabs) {
-            if (tab == null) {
-                continue;
-            }
+            if (tab == null) continue;
             if (tab.userData instanceof SceneTabData sd && !sd.sceneId().isBlank()) {
-                if (!nextScenes.contains(sd.sceneId())) {
-                    nextScenes.add(sd.sceneId());
-                }
+                if (!nextScenes.contains(sd.sceneId())) nextScenes.add(sd.sceneId());
             } else if (tab.userData instanceof ScriptTabData sd && !sd.path().isBlank()) {
-                if (!nextScripts.contains(sd.path())) {
-                    nextScripts.add(sd.path());
-                }
+                if (!nextScripts.contains(sd.path())) nextScripts.add(sd.path());
+            } else if (tab.userData instanceof TextAssetTabData td && !td.path().isBlank()) {
+                if (!nextTextAssets.contains(td.path())) nextTextAssets.add(td.path());
             }
         }
         if (!nextScenes.contains("main")) {
@@ -421,6 +460,10 @@ public final class ViewportPanel extends Panel {
         if (!nextScripts.equals(state.openScriptPaths)) {
             state.openScriptPaths.clear();
             state.openScriptPaths.addAll(nextScripts);
+        }
+        if (!nextTextAssets.equals(state.openTextAssetPaths)) {
+            state.openTextAssetPaths.clear();
+            state.openTextAssetPaths.addAll(nextTextAssets);
         }
     }
 
@@ -436,6 +479,15 @@ public final class ViewportPanel extends Panel {
                 state.closeScriptTab(sd.path());
                 ScriptEditorDialog dialog = runtime.scriptEditorDialog();
                 if (dialog != null && state.openScriptPaths.isEmpty()) {
+                    dialog.close();
+                }
+            }
+        } else if (tab.userData instanceof TextAssetTabData td) {
+            EditorState state = runtime.state();
+            if (state != null) {
+                state.closeTextAssetTab(td.path());
+                var dialog = runtime.textAssetEditorDialog();
+                if (dialog != null && state.openTextAssetPaths.isEmpty()) {
                     dialog.close();
                 }
             }
@@ -475,6 +527,12 @@ public final class ViewportPanel extends Panel {
         if (path == null || path.isBlank()) {
             return "Script";
         }
+        int slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+        return slash >= 0 ? path.substring(slash + 1) : path;
+    }
+
+    private static String textAssetTabLabel(String path) {
+        if (path == null || path.isBlank()) return "Text";
         int slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
         return slash >= 0 ? path.substring(slash + 1) : path;
     }

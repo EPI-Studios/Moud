@@ -30,6 +30,8 @@ public final class EditorState {
     public final ArrayList<String> openSceneIds = new ArrayList<>(List.of("main"));
     public final ArrayList<String> openScriptPaths = new ArrayList<>();
     public String activeScriptPath = "";
+    public final ArrayList<String> openTextAssetPaths = new ArrayList<>();
+    public String activeTextAssetPath = "";
     public long selectedId;
     public final LinkedHashSet<Long> selectedIds = new LinkedHashSet<>();
     public long nextSnapshotRequestId = 1;
@@ -208,6 +210,22 @@ public final class EditorState {
         openScriptPaths.remove(path);
         if (path.equals(activeScriptPath)) {
             activeScriptPath = openScriptPaths.isEmpty() ? "" : openScriptPaths.getLast();
+        }
+    }
+
+    public void ensureTextAssetOpen(String path) {
+        if (path == null || path.isBlank()) return;
+        if (!openTextAssetPaths.contains(path)) {
+            openTextAssetPaths.add(path);
+        }
+        activeTextAssetPath = path;
+    }
+
+    public void closeTextAssetTab(String path) {
+        if (path == null) return;
+        openTextAssetPaths.remove(path);
+        if (path.equals(activeTextAssetPath)) {
+            activeTextAssetPath = openTextAssetPaths.isEmpty() ? "" : openTextAssetPaths.getLast();
         }
     }
 
