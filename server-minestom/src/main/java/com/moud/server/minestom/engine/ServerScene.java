@@ -3,6 +3,7 @@ package com.moud.server.minestom.engine;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpBatch;
 import com.moud.net.protocol.SceneSnapshot;
+import com.moud.server.minestom.engine.anvil.AnvilWorldLoader;
 import com.moud.server.minestom.engine.csg.CsgBlockWriter;
 import com.moud.server.minestom.engine.nodes.RootNode;
 import com.moud.server.minestom.physics.JoltPhysicsWorld;
@@ -18,6 +19,7 @@ public final class ServerScene {
     private final Engine engine;
     private final SceneOpApplier applier;
     private final CsgBlockWriter csgWriter;
+    private final AnvilWorldLoader anvilLoader;
     private final JoltPhysicsWorld physics;
 
     public ServerScene(String sceneId, String displayName, InstanceContainer instance) {
@@ -28,6 +30,7 @@ public final class ServerScene {
         this.engine.nodeTypes().applyDefaults(this.engine.sceneTree().root(), "Root");
         this.applier = new SceneOpApplier(engine);
         this.csgWriter = new CsgBlockWriter(instance, engine);
+        this.anvilLoader = new AnvilWorldLoader(instance, engine);
         this.physics = JoltPhysicsWorld.tryCreate();
     }
 
@@ -57,6 +60,7 @@ public final class ServerScene {
 
     private void tick(double dtSeconds, boolean simulate) {
         engine.tick(simulate ? dtSeconds : 0.0);
+        anvilLoader.tick();
         csgWriter.tick();
         if (physics != null) {
             physics.syncStaticColliders(engine);
