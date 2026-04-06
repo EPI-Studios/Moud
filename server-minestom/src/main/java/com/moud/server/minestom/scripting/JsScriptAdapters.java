@@ -28,11 +28,8 @@ final class JsScriptAdapters {
                 return false;
             }
             try {
-                if (!value.hasMember(member)) {
-                    return false;
-                }
                 Value fn = value.getMember(member);
-                return fn != null && fn.canExecute();
+                return fn != null && !fn.isNull() && fn.canExecute();
             } catch (Exception ignored) {
                 return false;
             }

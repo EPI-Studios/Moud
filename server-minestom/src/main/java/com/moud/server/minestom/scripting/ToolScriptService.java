@@ -138,7 +138,7 @@ final class ToolScriptService {
     private Context createContext() {
         return Context.newBuilder("js")
                 .engine(engine)
-                .allowHostAccess(HostAccess.EXPLICIT)
+                .allowHostAccess(HostAccess.newBuilder(HostAccess.EXPLICIT).allowArrayAccess(true).build())
                 .allowHostClassLookup(ignored -> false)
                 .build();
     }
@@ -152,6 +152,9 @@ final class ToolScriptService {
         }
         if (!Files.isRegularFile(file)) {
             throw new IllegalArgumentException("Script not found: " + file.toAbsolutePath());
+        }
+        if (ScriptLanguage.fromPath(file.toString()) == ScriptLanguage.TYPESCRIPT) {
+            return new ScriptExports(false, null);
         }
         String code = Files.readString(file, StandardCharsets.UTF_8);
         Source source = Source.newBuilder("js", code, file.toString()).build();

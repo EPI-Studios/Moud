@@ -3,7 +3,7 @@ package com.moud.server.minestom.scripting;
 import org.graalvm.polyglot.HostAccess;
 
 public final class ScriptInputApi {
-    private static final PlayerInputState EMPTY = new PlayerInputState("", 0L, 0f, 0f, 0f, 0f, false, false);
+    private static final PlayerInputState EMPTY = new PlayerInputState("", 0L, 0f, 0f, 0f, 0f, 0f, 0f, false, false);
     private final InputMap inputMap;
     private PlayerInputState current;
     private PlayerInputState previous;
@@ -59,6 +59,21 @@ public final class ScriptInputApi {
     @HostAccess.Export
     public float get_pitch() {
         return current().pitchDeg();
+    }
+
+    @HostAccess.Export
+    public float get_cursor_x() {
+        return current().cursorX();
+    }
+
+    @HostAccess.Export
+    public float get_cursor_y() {
+        return current().cursorY();
+    }
+
+    @HostAccess.Export
+    public Vec2 get_cursor_position() {
+        return new Vec2(current().cursorX(), current().cursorY());
     }
 
     @HostAccess.Export

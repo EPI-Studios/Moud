@@ -6,10 +6,14 @@ import com.moud.core.scene.SceneFile;
 import com.moud.core.scene.SceneTreeMutator;
 import com.moud.server.minestom.scene.SceneFileIO;
 import com.moud.net.protocol.MultiMeshData;
+import com.moud.net.protocol.CursorState;
+import com.moud.net.protocol.PlayerMotion;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpBatch;
 import com.moud.net.protocol.SceneOpResult;
+import com.moud.net.transport.Lane;
+import com.moud.server.minestom.net.PlayerMessageSink;
 import com.moud.server.minestom.physics.CollisionEvent;
 import com.moud.server.minestom.physics.JoltPhysicsWorld;
 import com.moud.server.minestom.engine.SceneBatchIds;
@@ -44,12 +48,15 @@ final class SceneRuntime {
     private static final String LOG_TAG = "script-runtime";
 
     private final ProjectService project;
+    private final PlayerMessageSink playerMessageSink;
     private final ConcurrentHashMap<String, PlayerInputState> inputsByPlayer;
+    private final ConcurrentHashMap<String, float[]> playerVelocities;
     private final ConcurrentHashMap<String, float[]> playerPositions = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> playerNames = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, OwnedValue<Long>> activeCameraByPlayer = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, OwnedValue<float[]>> followCameraByPlayer = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, OwnedValue<float[]>> scriptCameraByPlayer = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, OwnedValue<boolean[]>> cursorStateByPlayer = new ConcurrentHashMap<>();
     private final Context ctx;
     private final ScriptLoader scriptLoader;
     private final LuauRuntimeBridge luau;
@@ -72,16 +79,21 @@ final class SceneRuntime {
     private record OwnedValue<T>(long ownerNodeId, T value) {}
 
     SceneRuntime(ProjectService project, Engine engine,
-                 ConcurrentHashMap<String, PlayerInputState> inputsByPlayer) {
+                 ConcurrentHashMap<String, PlayerInputState> inputsByPlayer,
+                 ConcurrentHashMap<String, float[]> playerVelocities,
+                 com.moud.server.minestom.scripting.typescript.TypeScriptContext tsContext,
+                 PlayerMessageSink playerMessageSink) {
         this.project = Objects.requireNonNull(project, "project");
+        this.playerMessageSink = Objects.requireNonNull(playerMessageSink, "playerMessageSink");
         Objects.requireNonNull(engine, "engine");
         this.inputsByPlayer = Objects.requireNonNull(inputsByPlayer, "inputsByPlayer");
+        this.playerVelocities = Objects.requireNonNull(playerVelocities, "playerVelocities");
         this.ctx = Context.newBuilder("js")
                 .engine(engine)
-                .allowHostAccess(HostAccess.EXPLICIT)
+                .allowHostAccess(HostAccess.newBuilder(HostAccess.EXPLICIT).allowArrayAccess(true).build())
                 .allowHostClassLookup(ignored -> false)
                 .build();
-        this.scriptLoader = new ScriptLoader(ctx);
+        this.scriptLoader = new ScriptLoader(ctx, tsContext);
         this.luau = LuauRuntimeBridge.isRuntimeLinked() ? new LuauRuntimeBridge() : null;
     }
 
@@ -132,8 +144,8 @@ final class SceneRuntime {
 
             NodeInstance inst = instances.get(nodeId);
             long programModifiedMs;
-            if (target.language == ScriptLanguage.JAVASCRIPT) {
-                ScriptLoader.Program program = scriptLoader.programFor(scriptFile);
+            if (target.language == ScriptLanguage.JAVASCRIPT || target.language == ScriptLanguage.TYPESCRIPT) {
+                ScriptLoader.Program program = scriptLoader.programFor(scriptFile, target.language);
                 if (program == null) {
                     disableInstance(scene, nodeId, scriptFile, "loadProgram",
                             new IllegalStateException("Script load failed: " + scriptFile.toAbsolutePath()));
@@ -164,8 +176,8 @@ final class SceneRuntime {
                 try {
                     RuntimeApi api = new RuntimeApi(scene, nodeId);
                     ScriptObject scriptInstance;
-                    if (target.language == ScriptLanguage.JAVASCRIPT) {
-                        ScriptLoader.Program program = scriptLoader.programFor(scriptFile);
+                    if (target.language == ScriptLanguage.JAVASCRIPT || target.language == ScriptLanguage.TYPESCRIPT) {
+                        ScriptLoader.Program program = scriptLoader.programFor(scriptFile, target.language);
                         Value jsInstance = program == null ? null : scriptLoader.createNodeInstance(program.exports());
                         scriptInstance = jsInstance == null ? null : JsScriptAdapters.object(jsInstance);
                     } else {
@@ -229,6 +241,7 @@ final class SceneRuntime {
 
             ScriptReference script = ScriptPaths.parseScript(node.getProperty(RuntimeScriptKeys.SCRIPT_KEY));
             if (script != null && (script.language() == ScriptLanguage.JAVASCRIPT
+                    || script.language() == ScriptLanguage.TYPESCRIPT
                     || (script.language() == ScriptLanguage.LUAU && luau != null))) {
                 cachedTargets.add(new Target(node.nodeId(), script.path(), script.language()));
             }
@@ -303,6 +316,21 @@ final class SceneRuntime {
             OwnedValue<float[]> ov = e.getValue();
             return ov != null && ov.ownerNodeId() == ownerNodeId;
         });
+        ArrayList<String> clearedCursorPlayers = new ArrayList<>();
+        cursorStateByPlayer.entrySet().removeIf(e -> {
+            OwnedValue<boolean[]> ov = e.getValue();
+            boolean owned = ov != null && ov.ownerNodeId() == ownerNodeId;
+            if (owned && e.getKey() != null) {
+                clearedCursorPlayers.add(e.getKey());
+            }
+            return owned;
+        });
+        for (String playerUuid : clearedCursorPlayers) {
+            try {
+                playerMessageSink.send(UUID.fromString(playerUuid), Lane.EVENTS, new CursorState(false, true));
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     private void maybeDispatchInput(ServerScene scene, Node node, NodeInstance inst) {
@@ -889,6 +917,12 @@ final class SceneRuntime {
         }
 
         @HostAccess.Export
+        public String typeOf(long nodeId) {
+            Node n = scene.engine().sceneTree().getNode(nodeId);
+            return n == null ? "" : scene.engine().nodeTypes().typeIdFor(n);
+        }
+
+        @HostAccess.Export
         public String get(String key) { return get(selfId, key); }
 
         @HostAccess.Export
@@ -1167,6 +1201,42 @@ final class SceneRuntime {
         }
 
         @HostAccess.Export
+        public void playerSetVelocity(String playerUuid, double vx, double vy, double vz) {
+            Player p = findPlayer(playerUuid);
+            if (p == null) return;
+            playerMessageSink.send(p.getUuid(), Lane.EVENTS,
+                    PlayerMotion.velocity((float) vx, (float) vy, (float) vz));
+        }
+
+        @HostAccess.Export
+        public void playerAddVelocity(String playerUuid, double vx, double vy, double vz) {
+            Player p = findPlayer(playerUuid);
+            if (p == null) return;
+            playerMessageSink.send(p.getUuid(), Lane.EVENTS,
+                    PlayerMotion.velocity((float) vx, (float) vy, (float) vz));
+        }
+
+        @HostAccess.Export
+        public double[] playerGetVelocity(String playerUuid) {
+            if (playerUuid == null || playerUuid.isBlank()) return new double[]{0, 0, 0};
+            float[] v = playerVelocities.get(playerUuid.trim());
+            if (v == null || v.length < 3) return new double[]{0, 0, 0};
+            return new double[]{v[0], v[1], v[2]};
+        }
+
+        private Player findPlayer(String playerUuid) {
+            if (playerUuid == null || playerUuid.isBlank()) return null;
+            UUID uuid;
+            try {
+                uuid = UUID.fromString(playerUuid.trim());
+            } catch (Exception ignored) { return null; }
+            for (Player p : scene.instance().getPlayers()) {
+                if (p != null && uuid.equals(p.getUuid())) return p;
+            }
+            return null;
+        }
+
+        @HostAccess.Export
         public void setActiveCamera(long nodeId) {
             String uuid = resolveOwnerUuidOrSinglePlayer();
             if (uuid == null) return;
@@ -1215,7 +1285,47 @@ final class SceneRuntime {
         }
 
         @HostAccess.Export
+        public void setCursorMode(boolean enabled) {
+            String uuid = resolveOwnerUuidOrSinglePlayer();
+            if (uuid == null) return;
+            boolean osVisible = isOsCursorVisibleFor(uuid);
+            setCursorState(uuid, enabled, osVisible);
+        }
+
+        @HostAccess.Export
+        public boolean isCursorModeEnabled() {
+            String uuid = resolveOwnerUuidOrSinglePlayer();
+            return uuid != null && isCursorModeEnabledFor(uuid);
+        }
+
+        @HostAccess.Export
+        public void setOsCursorVisible(boolean visible) {
+            String uuid = resolveOwnerUuidOrSinglePlayer();
+            if (uuid == null) return;
+            boolean enabled = isCursorModeEnabledFor(uuid);
+            setCursorState(uuid, enabled, visible);
+        }
+
+        @HostAccess.Export
+        public boolean isOsCursorVisible() {
+            String uuid = resolveOwnerUuidOrSinglePlayer();
+            return uuid != null && isOsCursorVisibleFor(uuid);
+        }
+
+        @HostAccess.Export
+        public double[] getCursorPosition() {
+            String uuid = resolveOwnerUuidOrSinglePlayer();
+            if (uuid == null) return new double[]{0.0, 0.0};
+            PlayerInputState input = inputsByPlayer.get(uuid);
+            if (input == null) return new double[]{0.0, 0.0};
+            return new double[]{input.cursorX(), input.cursorY()};
+        }
+
+        @HostAccess.Export
         public CameraApi camera() { return new CameraApi(); }
+
+        @HostAccess.Export
+        public CursorApi cursor() { return new CursorApi(); }
 
         public final class CameraApi {
             @HostAccess.Export
@@ -1235,6 +1345,26 @@ final class SceneRuntime {
 
             @HostAccess.Export
             public void reset() { resetCamera(); }
+        }
+
+        public final class CursorApi {
+            @HostAccess.Export
+            public void enable() { setCursorMode(true); }
+
+            @HostAccess.Export
+            public void disable() { setCursorMode(false); }
+
+            @HostAccess.Export
+            public void setVisible(boolean visible) { setOsCursorVisible(visible); }
+
+            @HostAccess.Export
+            public boolean enabled() { return isCursorModeEnabled(); }
+
+            @HostAccess.Export
+            public boolean visible() { return isOsCursorVisible(); }
+
+            @HostAccess.Export
+            public double[] position() { return getCursorPosition(); }
         }
 
         @HostAccess.Export
@@ -1379,6 +1509,31 @@ final class SceneRuntime {
                 return st == null ? null : st.playerUuid();
             }
             return null;
+        }
+
+        private void setCursorState(String playerUuid, boolean enabled, boolean osVisible) {
+            cursorStateByPlayer.put(playerUuid, new OwnedValue<>(selfId, new boolean[]{enabled, osVisible}));
+            sendCursorState(playerUuid, enabled, osVisible);
+        }
+
+        private boolean isCursorModeEnabledFor(String playerUuid) {
+            OwnedValue<boolean[]> ov = cursorStateByPlayer.get(playerUuid);
+            boolean[] state = ov == null ? null : ov.value();
+            return state != null && state.length > 0 && state[0];
+        }
+
+        private boolean isOsCursorVisibleFor(String playerUuid) {
+            OwnedValue<boolean[]> ov = cursorStateByPlayer.get(playerUuid);
+            boolean[] state = ov == null ? null : ov.value();
+            return state == null || state.length < 2 || state[1];
+        }
+
+        private void sendCursorState(String playerUuid, boolean enabled, boolean osVisible) {
+            if (playerUuid == null || playerUuid.isBlank()) return;
+            try {
+                playerMessageSink.send(UUID.fromString(playerUuid), Lane.EVENTS, new CursorState(enabled, osVisible));
+            } catch (Exception ignored) {
+            }
         }
     }
 }

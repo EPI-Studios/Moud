@@ -13,6 +13,11 @@ final class ScriptLanguageRegistry {
                 true,
                 ""
         ));
+        map.put(ScriptLanguage.TYPESCRIPT, new ScriptLanguageSupport(
+                ScriptLanguage.TYPESCRIPT,
+                true,
+                ""
+        ));
         map.put(ScriptLanguage.LUAU, buildLuauSupport());
         map.put(ScriptLanguage.UNKNOWN, new ScriptLanguageSupport(
                 ScriptLanguage.UNKNOWN,
