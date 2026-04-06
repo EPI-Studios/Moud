@@ -9,7 +9,7 @@ import net.minecraft.client.sound.SoundInstance;
 import net.minecraft.client.sound.TickableSoundInstance;
 
 abstract class SceneAudioInstance extends AbstractSoundInstance implements TickableSoundInstance {
-    protected final AudioNodeConfig config;
+    protected AudioNodeConfig config;
     protected boolean done;
 
     protected SceneAudioInstance(AudioNodeConfig config) {
@@ -27,7 +27,13 @@ abstract class SceneAudioInstance extends AbstractSoundInstance implements Ticka
     }
 
     boolean matches(AudioNodeConfig other) {
-        return config.equals(other);
+        return config.matchesIdentity(other);
+    }
+
+    void updateConfig(AudioNodeConfig cfg) {
+        this.config = cfg;
+        this.volume = cfg.volume();
+        this.pitch = cfg.pitch();
     }
 
     @Override
