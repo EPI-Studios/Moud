@@ -2,6 +2,8 @@ package com.moud.client.fabric.mixin;
 
 import com.moud.client.fabric.editor.overlay.EditorContext;
 import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
+import com.moud.client.fabric.runtime.PlayRuntimeBus;
+import com.moud.client.fabric.runtime.PlayRuntimeClient;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
 import net.minecraft.client.util.Window;
@@ -34,7 +36,12 @@ public abstract class MouseMixin {
     private void moud$onMouseButton(long window, int button, int action, int mods, CallbackInfo ci) {
         EditorContext ctx = EditorOverlayBus.get();
         if (ctx == null || !ctx.isActive()) {
-            return; // in play mode, let vanilla handle clicks
+            PlayRuntimeClient runtime = PlayRuntimeBus.get();
+            if (runtime == null || !runtime.isActive() || !runtime.isCursorModeEnabled() || client == null || client.currentScreen != null) {
+                return; // in play mode, let vanilla handle clicks unless cursor mode is active
+            }
+            ci.cancel();
+            return;
         }
         if (client == null || client.currentScreen != null) {
             return;
@@ -73,6 +80,13 @@ public abstract class MouseMixin {
             return;
         }
         // dans le playmode on laisse la souris
+        PlayRuntimeClient runtime = PlayRuntimeBus.get();
+        if (runtime != null && runtime.isActive() && runtime.isCursorModeEnabled()) {
+            if (client == null || client.currentScreen != null) {
+                return;
+            }
+            ci.cancel();
+        }
     }
 
     @Inject(method = "onCursorPos", at = @At("HEAD"))

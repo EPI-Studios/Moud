@@ -1,5 +1,6 @@
 package com.moud.client.fabric.render.hud;
 
+import com.moud.client.fabric.runtime.PlayRuntimeClient;
 import com.moud.net.protocol.UiNodeEvent;
 import com.moud.net.session.Session;
 import com.moud.net.transport.Lane;
@@ -22,8 +23,12 @@ public final class UiInputTracker {
         return INTERACTIVE_TYPES.contains(type);
     }
 
-    public void tick(Session session) {
+    public void tick(Session session, PlayRuntimeClient runtime) {
         if (session == null) return;
+        if (runtime == null || !runtime.isCursorModeEnabled()) {
+            prevLeftDown = false;
+            return;
+        }
 
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.getWindow() == null) return;

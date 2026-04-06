@@ -4,18 +4,24 @@ import com.miry.ui.util.MathUtils;
 import com.moud.client.fabric.mixin.accessor.CameraAccessor;
 import com.moud.net.protocol.PlayerInput;
 import com.moud.net.protocol.RuntimeState;
+import com.moud.net.protocol.CursorState;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
 import com.moud.net.transport.Lane;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
 import net.minecraft.util.math.Vec3d;
+import org.lwjgl.glfw.GLFW;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 public final class PlayRuntimeClient {
     private boolean active;
     private volatile RuntimeState lastServerState;
+    private boolean cursorModeEnabled;
+    private boolean osCursorVisible = true;
+    private float cursorX;
+    private float cursorY;
 
     // previous and current camera poses for per-frame interpolation
     private float prevX, prevY, prevZ, prevYaw, prevPitch, prevRoll;
@@ -38,6 +44,18 @@ public final class PlayRuntimeClient {
         active = false;
         lastServerState = null;
         hasPrev = false;
+        cursorModeEnabled = false;
+        osCursorVisible = true;
+        cursorX = 0.0f;
+        cursorY = 0.0f;
+    }
+
+    public void onCursorState(CursorState state) {
+        if (state == null) {
+            return;
+        }
+        cursorModeEnabled = state.cursorModeEnabled();
+        osCursorVisible = state.osCursorVisible();
     }
 
     public void onRuntimeState(RuntimeState state) {
@@ -88,10 +106,11 @@ public final class PlayRuntimeClient {
         if (client == null || client.player == null || client.currentScreen != null) {
             return;
         }
+        updateCursorPosition(client);
         float yaw = client.player.getYaw();
         float pitch = client.player.getPitch();
         session.send(Lane.INPUT,
-                new PlayerInput(0L, 0.0f, 0.0f, yaw, pitch, false, false));
+                new PlayerInput(0L, 0.0f, 0.0f, yaw, pitch, cursorX, cursorY, false, false));
     }
 
     public boolean applyCameraOverride(Camera camera, float partialTick) {
@@ -222,6 +241,44 @@ public final class PlayRuntimeClient {
     }
 
     public boolean shouldBlockVanillaInput(MinecraftClient client) {
-        return false;
+        return cursorModeEnabled;
+    }
+
+    public boolean isCursorModeEnabled() {
+        return cursorModeEnabled;
+    }
+
+    public boolean isOsCursorVisible() {
+        return osCursorVisible;
+    }
+
+    public void applyCursorMode(MinecraftClient client) {
+        if (client == null || client.mouse == null || client.currentScreen != null) {
+            return;
+        }
+        long windowHandle = client.getWindow().getHandle();
+        if (cursorModeEnabled) {
+            if (client.mouse.isCursorLocked()) {
+                client.mouse.unlockCursor();
+            }
+            GLFW.glfwSetInputMode(windowHandle, GLFW.GLFW_CURSOR,
+                    osCursorVisible ? GLFW.GLFW_CURSOR_NORMAL : GLFW.GLFW_CURSOR_HIDDEN);
+        } else if (!client.mouse.isCursorLocked()) {
+            client.mouse.lockCursor();
+        }
+    }
+
+    private void updateCursorPosition(MinecraftClient client) {
+        if (client == null || client.getWindow() == null) {
+            cursorX = 0.0f;
+            cursorY = 0.0f;
+            return;
+        }
+        long handle = client.getWindow().getHandle();
+        double[] mx = new double[1];
+        double[] my = new double[1];
+        GLFW.glfwGetCursorPos(handle, mx, my);
+        cursorX = (float) mx[0];
+        cursorY = (float) my[0];
     }
 }
