@@ -8,6 +8,14 @@ public final class MathUtils {
         return Math.max(min, Math.min(max, v));
     }
 
+    public static int clamp(int v, int min, int max) {
+        return Math.max(min, Math.min(max, v));
+    }
+
+    public static double clamp(double v, double min, double max) {
+        return Math.max(min, Math.min(max, v));
+    }
+
     public static float clamp01(float v) {
         return clamp(v, 0.0f, 1.0f);
     }
@@ -30,5 +38,27 @@ public final class MathUtils {
             return 0.0f;
         }
         return clamp(pitch, min, max);
+    }
+
+    public static double approach(double current, double target, double maxDelta) {
+        if (current < target) return Math.min(current + maxDelta, target);
+        return Math.max(current - maxDelta, target);
+    }
+    public static double[] yawInputToDirection(float yawDeg, float moveX, float moveZ) {
+        double lenSq = moveX * moveX + moveZ * moveZ;
+        if (lenSq <= 1.0e-8) {
+            return new double[]{0.0, 0.0};
+        }
+        double invLen = lenSq > 1.0 ? 1.0 / Math.sqrt(lenSq) : 1.0;
+        double nx = moveX * invLen;
+        double nz = moveZ * invLen;
+
+        double yaw      = Math.toRadians(yawDeg);
+        double forwardX = -Math.sin(yaw);
+        double forwardZ =  Math.cos(yaw);
+        double rightX   = -Math.cos(yaw);
+        double rightZ   = -Math.sin(yaw);
+
+        return new double[]{rightX * nx + forwardX * nz, rightZ * nx + forwardZ * nz};
     }
 }
