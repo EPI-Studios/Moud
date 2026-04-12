@@ -231,14 +231,6 @@ final class JoltNativeLoader {
         return Optional.empty();
     }
 
-    private static boolean parseBool(String v) {
-        if (v == null) {
-            return false;
-        }
-        String s = v.trim().toLowerCase(Locale.ROOT);
-        return "1".equals(s) || "true".equals(s) || "yes".equals(s) || "y".equals(s) || "on".equals(s);
-    }
-
     private enum PlatformVariant {
         LINUX_X64("linux-x86_64", "jolt-jni-Linux64", "libjoltjni.so"),
         LINUX_ARM64("linux-aarch64", "jolt-jni-Linux_ARM64", "libjoltjni.so"),

@@ -5,6 +5,9 @@ import com.github.stephengold.joltjni.enumerate.EAllowedDofs;
 import com.github.stephengold.joltjni.enumerate.*;
 import com.moud.core.physics.CollisionShape;
 import com.moud.core.scene.Node;
+import com.moud.server.minestom.collision.CollisionBakeService;
+import com.moud.server.minestom.collision.CollisionUsage;
+import com.moud.server.minestom.engine.Engine;
 
 final class JoltBodyFactory {
 
@@ -18,20 +21,19 @@ final class JoltBodyFactory {
         float sx = (float) Math.max(1e-6, world.scale().x());
         float sy = (float) Math.max(1e-6, world.scale().y());
         float sz = (float) Math.max(1e-6, world.scale().z());
-        var shape = new BoxShape(sx * 0.5f, sy * 0.5f, sz * 0.5f);
-        try {
-            int layerBits = CollisionLayerMask.layer(node);
-            int maskBits = CollisionLayerMask.mask(node);
-            return addBody(bodies, shape, world, EMotionType.Static, LAYER_STATIC,
-                    0f, 0f, 0f, 1f, EAllowedDofs.All, EActivation.DontActivate, layerBits, maskBits);
-        } finally { shape.close(); }
+        var settings = new BoxShapeSettings(sx * 0.5f, sy * 0.5f, sz * 0.5f);
+        int layerBits = CollisionLayerMask.layer(node);
+        int maskBits = CollisionLayerMask.mask(node);
+        return addBody(bodies, settings, world, EMotionType.Static, LAYER_STATIC,
+                0f, 0f, 0f, 1f, EAllowedDofs.All, EActivation.DontActivate, layerBits, maskBits);
     }
 
-    static int createRigidBody(BodyInterface bodies, Node node, JoltPhysicsWorld.Transform world) {
+    static int createRigidBody(BodyInterface bodies, Node node, String typeId, JoltPhysicsWorld.Transform world,
+                               Engine engine, CollisionBakeService bakeService) {
         if (world == null) return 0;
         EMotionType motionType = propBool(node, "freeze", false)
                 ? EMotionType.Kinematic : EMotionType.Dynamic;
-        Shape shape = resolveShape(node);
+        ShapeSettings settings = resolveShapeSettings(node, typeId, engine, bakeService, CollisionUsage.DYNAMIC);
         float mass = propFloat(node, "mass", 1f);
         float linearDamp = propFloat(node, "linear_damping", 0.1f);
         float angularDamp = propFloat(node, "angular_damping", 0.1f);
@@ -43,24 +45,32 @@ final class JoltBodyFactory {
         if (lockRotX) allowedDofs &= ~EAllowedDofs.RotationX;
         if (lockRotY) allowedDofs &= ~EAllowedDofs.RotationY;
         if (lockRotZ) allowedDofs &= ~EAllowedDofs.RotationZ;
-        try {
-            int layerBits = CollisionLayerMask.layer(node);
-            int maskBits = CollisionLayerMask.mask(node);
-            return addBody(bodies, shape, world, motionType, LAYER_MOVING,
-                    mass, linearDamp, angularDamp, gravityScale, allowedDofs,
-                    EActivation.Activate, layerBits, maskBits);
-        } finally { shape.close(); }
+        int layerBits = CollisionLayerMask.layer(node);
+        int maskBits = CollisionLayerMask.mask(node);
+        return addBody(bodies, settings, world, motionType, LAYER_MOVING,
+                mass, linearDamp, angularDamp, gravityScale, allowedDofs,
+                EActivation.Activate, layerBits, maskBits);
     }
 
-    static int createStaticFromShape(BodyInterface bodies, Node node, JoltPhysicsWorld.Transform world) {
+    static int createStaticFromShape(BodyInterface bodies, Node node, String typeId, JoltPhysicsWorld.Transform world,
+                                     Engine engine, CollisionBakeService bakeService) {
         if (world == null) return 0;
-        Shape shape = resolveShape(node);
-        try {
-            int layerBits = CollisionLayerMask.layer(node);
-            int maskBits = CollisionLayerMask.mask(node);
-            return addBody(bodies, shape, world, EMotionType.Static, LAYER_STATIC,
-                    0f, 0f, 0f, 1f, EAllowedDofs.All, EActivation.DontActivate, layerBits, maskBits);
-        } finally { shape.close(); }
+        ShapeSettings settings = resolveShapeSettings(node, typeId, engine, bakeService, CollisionUsage.STATIC);
+        int layerBits = CollisionLayerMask.layer(node);
+        int maskBits = CollisionLayerMask.mask(node);
+        return addBody(bodies, settings, world, EMotionType.Static, LAYER_STATIC,
+                0f, 0f, 0f, 1f, EAllowedDofs.All, EActivation.DontActivate, layerBits, maskBits);
+    }
+
+    static int createStaticGeometryBody(BodyInterface bodies, Node node, String typeId, JoltPhysicsWorld.Transform world,
+                                        Engine engine, CollisionBakeService bakeService) {
+        if (world == null || bakeService == null) return 0;
+        ShapeSettings settings = bakeService.createShapeSettings(node, typeId, engine, CollisionUsage.STATIC);
+        if (settings == null) return 0;
+        int layerBits = CollisionLayerMask.layer(node);
+        int maskBits = CollisionLayerMask.mask(node);
+        return addBody(bodies, settings, world, EMotionType.Static, LAYER_STATIC,
+                0f, 0f, 0f, 1f, EAllowedDofs.All, EActivation.DontActivate, layerBits, maskBits);
     }
 
     static int createFromCollisionShape(BodyInterface bodies, CollisionShape shape,
@@ -104,7 +114,7 @@ final class JoltBodyFactory {
         } catch (Throwable ignored) { return null; }
     }
 
-    private static int addBody(BodyInterface bodies, Shape shape, JoltPhysicsWorld.Transform world,
+    private static int addBody(BodyInterface bodies, ShapeSettings shapeSettings, JoltPhysicsWorld.Transform world,
                                EMotionType motionType, int layer,
                                float mass, float linearDamp, float angularDamp, float gravityScale,
                                int allowedDofs,
@@ -112,14 +122,18 @@ final class JoltBodyFactory {
                                int layerBits,
                                int maskBits) {
         JoltPhysicsWorld.QuatD rot = world.rot();
-        var settings = new BodyCreationSettings(shape,
+        if (shapeSettings == null) return 0;
+        var settings = new BodyCreationSettings(shapeSettings,
                 new RVec3(world.pos().x(), world.pos().y(), world.pos().z()),
                 new Quat((float) rot.x(), (float) rot.y(), (float) rot.z(), (float) rot.w()),
                 motionType, layer);
         settings.setUserData(CollisionLayerMask.packUserData(layerBits, maskBits));
         applyMassAndDamping(settings, motionType, mass, linearDamp, angularDamp, gravityScale, allowedDofs);
         try { return bodies.createAndAddBody(settings, activation); }
-        finally { settings.close(); }
+        finally {
+            settings.close();
+            shapeSettings.close();
+        }
     }
 
     private static void applyMassAndDamping(BodyCreationSettings settings, EMotionType motionType,
@@ -137,17 +151,29 @@ final class JoltBodyFactory {
         }
     }
 
-    private static Shape resolveShape(Node node) {
+    private static ShapeSettings resolveShapeSettings(Node node, String typeId, Engine engine,
+                                                      CollisionBakeService bakeService, CollisionUsage usage) {
+        if (bakeService != null) {
+            ShapeSettings baked = bakeService.createShapeSettings(node, typeId, engine, usage);
+            if (baked != null) {
+                return baked;
+            }
+        }
         String type = node.getProperty("shape");
         if (type == null) type = "box";
         type = type.trim().toLowerCase();
         if ("sphere".equals(type)) {
-            return new SphereShape(Math.max(0.01f, propFloat(node, "radius", 0.5f)));
+            return new SphereShapeSettings(Math.max(0.01f, propFloat(node, "radius", 0.5f)));
+        }
+        if ("capsule".equals(type)) {
+            float radius = Math.max(0.01f, propFloat(node, "radius", 0.3f));
+            float height = Math.max(radius * 2.0f, propFloat(node, "height", 1.8f));
+            return new CapsuleShapeSettings(Math.max(0.0f, height * 0.5f - radius), radius);
         }
         float hx = propFloat(node, "sx", 1f) * 0.5f;
         float hy = propFloat(node, "sy", 1f) * 0.5f;
         float hz = propFloat(node, "sz", 1f) * 0.5f;
-        return new BoxShape(Math.max(0.01f, hx), Math.max(0.01f, hy), Math.max(0.01f, hz));
+        return new BoxShapeSettings(Math.max(0.01f, hx), Math.max(0.01f, hy), Math.max(0.01f, hz));
     }
 
     private static boolean propBool(Node node, String key, boolean fallback) {
