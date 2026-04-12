@@ -9,6 +9,8 @@ import com.moud.net.protocol.AssetDownloadBegin;
 import com.moud.net.protocol.AssetDownloadChunk;
 import com.moud.net.protocol.AssetDownloadComplete;
 import com.moud.net.protocol.AssetDownloadRequest;
+import com.moud.net.protocol.AssetDeleteAck;
+import com.moud.net.protocol.AssetDeleteRequest;
 import com.moud.net.protocol.AssetManifestRequest;
 import com.moud.net.protocol.AssetManifestResponse;
 import com.moud.net.protocol.AssetTransferStatus;
@@ -18,10 +20,18 @@ import com.moud.net.protocol.AssetUploadChunk;
 import com.moud.net.protocol.AssetUploadComplete;
 import com.moud.net.protocol.Message;
 import com.moud.net.session.Session;
+import com.moud.net.session.SessionState;
 import com.moud.net.transport.Lane;
 import com.moud.server.minestom.util.DebugLog;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardWatchEventKinds;
+import java.nio.file.WatchEvent;
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -30,6 +40,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public final class AssetService {
     public interface UploadCompleteCallback {
@@ -76,6 +87,8 @@ public final class AssetService {
             handleUploadComplete(playerId, session, complete);
         } else if (message instanceof AssetDownloadRequest request) {
             handleDownloadRequest(session, request);
+        } else if (message instanceof AssetDeleteRequest request) {
+            handleDeleteRequest(session, request);
         }
     }
 
@@ -229,6 +242,160 @@ public final class AssetService {
             session.send(Lane.ASSETS, new AssetDownloadChunk(hash, index++, chunk));
         }
         session.send(Lane.ASSETS, new AssetDownloadComplete(hash, AssetTransferStatus.OK, ""));
+    }
+
+    private void handleDeleteRequest(Session session, AssetDeleteRequest request) {
+        if (!uploadsEnabled) {
+            session.send(Lane.ASSETS, new AssetDeleteAck(request.requestId(), request.path(), AssetTransferStatus.REJECTED, "delete disabled"));
+            return;
+        }
+        ResPath path = request.path();
+        if (path == null) {
+            session.send(Lane.ASSETS, new AssetDeleteAck(request.requestId(), null, AssetTransferStatus.REJECTED, "missing path"));
+            return;
+        }
+        try {
+            boolean deleted = store.delete(path);
+            session.send(Lane.ASSETS, new AssetDeleteAck(request.requestId(), path,
+                    deleted ? AssetTransferStatus.OK : AssetTransferStatus.NOT_FOUND,
+                    deleted ? "deleted" : "not found"));
+        } catch (Exception e) {
+            session.send(Lane.ASSETS, new AssetDeleteAck(request.requestId(), path, AssetTransferStatus.ERROR, e.getMessage()));
+        }
+    }
+
+    public void startHotReloadWatcher(List<Path> watchDirs, Supplier<List<Session>> sessions) {
+        if (!(store instanceof FileSystemAssetStore)) {
+            return;
+        }
+        FileSystemAssetStore fs = (FileSystemAssetStore) store;
+        Thread thread = Thread.ofVirtual()
+                .name("moud-asset-watcher")
+                .unstarted(() -> runWatcher(watchDirs, fs, sessions));
+        thread.setDaemon(true);
+        thread.start();
+        DebugLog.info("assets", "hot-reload watcher started for " + watchDirs.size() + " dir(s)");
+    }
+
+    private static void runWatcher(List<Path> watchDirs,
+                                   FileSystemAssetStore store,
+                                   Supplier<List<Session>> sessions) {
+        try (WatchService watcher = FileSystems.getDefault().newWatchService()) {
+            int registered = 0;
+            for (Path dir : watchDirs) {
+                registered += registerTree(dir, watcher);
+            }
+            if (registered == 0) {
+                DebugLog.info("assets", "hot-reload watcher: no directories to watch, exiting");
+                return;
+            }
+
+            final long DEBOUNCE_MS = 300L;
+            long pendingSince = Long.MAX_VALUE;
+
+            for (;;) {
+                long waitMs = pendingSince == Long.MAX_VALUE
+                        ? Long.MAX_VALUE
+                        : Math.max(1L, DEBOUNCE_MS - (System.currentTimeMillis() - pendingSince));
+
+                WatchKey key;
+                try {
+                    key = waitMs == Long.MAX_VALUE
+                            ? watcher.take()
+                            : watcher.poll(waitMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+
+                if (key != null) {
+                    for (WatchEvent<?> event : key.pollEvents()) {
+                        if (event.kind() == StandardWatchEventKinds.OVERFLOW) continue;
+                        @SuppressWarnings("unchecked")
+                        Path changed = ((WatchEvent<Path>) event).context();
+                        if (isAssetFileName(changed.getFileName().toString())) {
+                            if (pendingSince == Long.MAX_VALUE) {
+                                pendingSince = System.currentTimeMillis();
+                            }
+                        }
+                    }
+                    key.reset();
+                }
+
+                if (pendingSince != Long.MAX_VALUE
+                        && System.currentTimeMillis() - pendingSince >= DEBOUNCE_MS) {
+                    pendingSince = Long.MAX_VALUE;
+                    reloadAndBroadcast(store, sessions.get());
+                }
+            }
+        } catch (IOException e) {
+            DebugLog.info("assets", "hot-reload watcher stopped: " + e.getMessage());
+        }
+    }
+
+    private static int registerTree(Path dir, WatchService watcher) {
+        if (!Files.isDirectory(dir)) return 0;
+        int count = 0;
+        try {
+            dir.register(watcher,
+                    StandardWatchEventKinds.ENTRY_CREATE,
+                    StandardWatchEventKinds.ENTRY_MODIFY);
+            count++;
+        } catch (IOException e) {
+            DebugLog.info("assets", "hot-reload: cannot watch " + dir + ": " + e.getMessage());
+        }
+        try (var sub = Files.list(dir)) {
+            for (Path child : (Iterable<Path>) sub::iterator) {
+                if (Files.isDirectory(child)) {
+                    try {
+                        child.register(watcher,
+                                StandardWatchEventKinds.ENTRY_CREATE,
+                                StandardWatchEventKinds.ENTRY_MODIFY);
+                        count++;
+                    } catch (IOException e) {
+                        DebugLog.info("assets", "hot-reload: cannot watch " + child + ": " + e.getMessage());
+                    }
+                }
+            }
+        } catch (IOException ignored) {
+        }
+        return count;
+    }
+
+    private static boolean isAssetFileName(String name) {
+        if (name == null) return false;
+        String lower = name.toLowerCase(java.util.Locale.ROOT);
+        return lower.endsWith(".luau")
+                || lower.endsWith(".moudshader")
+                || lower.endsWith(".moudmat")
+                || lower.endsWith(".png")
+                || lower.endsWith(".jpg")
+                || lower.endsWith(".jpeg")
+                || lower.endsWith(".bbmodel")
+                || lower.endsWith(".json")
+                || lower.endsWith(".glb")
+                || lower.endsWith(".gltf");
+    }
+
+    private static void reloadAndBroadcast(FileSystemAssetStore store, List<Session> connectedSessions) {
+        if (connectedSessions == null || connectedSessions.isEmpty()) return;
+        store.reloadManifest();
+        AssetManifest manifest = store.manifest();
+        ArrayList<AssetManifestResponse.Entry> entries = new ArrayList<>(manifest.entries().size());
+        for (Map.Entry<ResPath, AssetMeta> e : manifest.entries().entrySet()) {
+            if (e.getKey() == null || e.getValue() == null) continue;
+            entries.add(new AssetManifestResponse.Entry(e.getKey(), e.getValue()));
+        }
+        AssetManifestResponse response = new AssetManifestResponse(0L, List.copyOf(entries));
+        DebugLog.info("assets", "hot-reload: broadcasting manifest ("
+                + entries.size() + " entries) to " + connectedSessions.size() + " client(s)");
+        for (Session session : connectedSessions) {
+            try {
+                session.send(Lane.ASSETS, response);
+            } catch (Exception ex) {
+                DebugLog.info("assets", "hot-reload: send failed: " + ex.getMessage());
+            }
+        }
     }
 
     private static final class UploadContext {

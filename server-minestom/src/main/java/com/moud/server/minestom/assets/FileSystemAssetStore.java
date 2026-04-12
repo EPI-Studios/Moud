@@ -73,6 +73,18 @@ public final class FileSystemAssetStore implements AssetStore {
         persistManifest();
     }
 
+    @Override
+    public synchronized boolean delete(ResPath path) throws IOException {
+        Objects.requireNonNull(path, "path");
+        AssetMeta removed = manifest.remove(path);
+        boolean deleted = deleteSourceFile(path);
+        if (removed != null || deleted) {
+            persistManifest();
+            return true;
+        }
+        return false;
+    }
+
     public synchronized void reloadManifest() {
         try {
             loadManifest();
@@ -83,11 +95,13 @@ public final class FileSystemAssetStore implements AssetStore {
     }
 
     private static final Map<String, Map<String, AssetType>> SCAN_DIRS = Map.of(
-            "materials", Map.of(".moudmat", AssetType.TEXT),
-            "shaders",   Map.of(".moudshader", AssetType.TEXT),
-            "textures",  Map.of(".png", AssetType.IMAGE, ".jpg", AssetType.IMAGE, ".jpeg", AssetType.IMAGE),
-            "models",    Map.of(".bbmodel", AssetType.MODEL),
-            "scripts",   Map.of(".js", AssetType.TEXT, ".mjs", AssetType.TEXT, ".cjs", AssetType.TEXT, ".luau", AssetType.TEXT)
+            "materials",     Map.of(".moudmat", AssetType.TEXT),
+            "shaders",       Map.of(".moudshader", AssetType.TEXT),
+            "textures",      Map.of(".png", AssetType.IMAGE, ".jpg", AssetType.IMAGE, ".jpeg", AssetType.IMAGE),
+            "models",        Map.of(".bbmodel", AssetType.MODEL),
+            "scripts",       Map.of(".js", AssetType.TEXT, ".mjs", AssetType.TEXT, ".cjs", AssetType.TEXT, ".ts", AssetType.TEXT, ".mts", AssetType.TEXT, ".luau", AssetType.TEXT),
+            "local_scripts", Map.of(".luau", AssetType.TEXT),
+            "animations",    Map.of(".json", AssetType.TEXT)
     );
 
     private void scanForNewAssets() throws IOException {
@@ -123,6 +137,11 @@ public final class FileSystemAssetStore implements AssetStore {
             if ("scripts".equals(dirName)) {
                 changed |= scanDir(root.resolve("scripts"), "scripts", extensions);
                 changed |= scanDir(projectRoot.resolve("scripts"), "scripts", extensions);
+            } else if ("local_scripts".equals(dirName)) {
+                changed |= scanDir(root.resolve("local_scripts"), "local_scripts", extensions);
+                changed |= scanDir(projectRoot.resolve("local_scripts"), "local_scripts", extensions);
+            } else if ("animations".equals(dirName)) {
+                changed |= scanDir(root.resolve("animations"), "animations", extensions);
             } else {
                 changed |= scanDir(root.resolve(dirName), dirName, extensions);
             }
@@ -212,6 +231,38 @@ public final class FileSystemAssetStore implements AssetStore {
 
     private Path blobPath(AssetHash hash) {
         return blobsDir.resolve(hash.hex());
+    }
+
+    private boolean deleteSourceFile(ResPath path) throws IOException {
+        Path source = sourcePath(path);
+        return source != null && Files.deleteIfExists(source);
+    }
+
+    private Path sourcePath(ResPath path) throws IOException {
+        if (path == null) {
+            return null;
+        }
+        String p = path.path();
+        if (p == null || p.isBlank() || p.startsWith("blobs/") || p.equals("blobs")) {
+            return null;
+        }
+
+        Path candidate;
+        if (p.startsWith("scripts/")) {
+            candidate = projectRoot.resolve(p);
+            if (!Files.exists(candidate)) {
+                candidate = root.resolve(p);
+            }
+        } else {
+            candidate = root.resolve(p);
+        }
+        Path normalized = candidate.toAbsolutePath().normalize();
+        Path project = projectRoot.toAbsolutePath().normalize();
+        Path assets = root.toAbsolutePath().normalize();
+        if (!normalized.startsWith(project) && !normalized.startsWith(assets)) {
+            throw new IOException("Refusing to delete outside project: " + path.value());
+        }
+        return normalized;
     }
 
     private void atomicWrite(Path target, byte[] bytes) throws IOException {

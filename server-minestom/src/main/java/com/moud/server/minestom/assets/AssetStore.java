@@ -21,5 +21,6 @@ public interface AssetStore {
     void put(ResPath path, AssetMeta meta, byte[] bytes) throws IOException;
 
     void putMapping(ResPath path, AssetMeta meta) throws IOException;
-}
 
+    boolean delete(ResPath path) throws IOException;
+}
