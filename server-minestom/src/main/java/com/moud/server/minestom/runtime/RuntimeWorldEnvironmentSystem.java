@@ -8,6 +8,22 @@ import com.moud.server.minestom.engine.ServerScene;
 import net.minestom.server.instance.Weather;
 
 final class RuntimeWorldEnvironmentSystem {
+    private Node findWorldEnvironment(Node root) {
+        if (root == null) {
+            return null;
+        }
+        for (Node child : root.children()) {
+            if (child == null) {
+                continue;
+            }
+            String type = child.getProperty("@type");
+            if ("WorldEnvironment".equals(type) || "WorldEnvironment".equals(child.name())) {
+                return child;
+            }
+        }
+        return null;
+    }
+
     void ensureWorldEnvironment(ServerScene scene) {
         if (scene == null || scene.engine() == null || scene.engine().sceneTree() == null) {
             return;
@@ -19,7 +35,7 @@ final class RuntimeWorldEnvironmentSystem {
         String mode = root.getProperty(MinestomNodeTypesProvider.PROP_SCENE_MODE);
         boolean is2d = mode != null && mode.equalsIgnoreCase("2d");
 
-        Node existing = root.findChild("WorldEnvironment");
+        Node existing = findWorldEnvironment(root);
         if (is2d) {
             if (existing != null) {
                 existing.queueFree();
@@ -39,7 +55,7 @@ final class RuntimeWorldEnvironmentSystem {
 
     WorldEnvironment readWorldEnvironment(ServerScene scene) {
         Node root = scene.engine().sceneTree().root();
-        Node node = root.findChild("WorldEnvironment");
+        Node node = findWorldEnvironment(root);
         if (node == null) {
             return new WorldEnvironment(
                     false,

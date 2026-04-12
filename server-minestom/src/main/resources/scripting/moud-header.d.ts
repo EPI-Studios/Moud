@@ -114,16 +114,27 @@ declare module "moud" {
   // --- Input API ---
   export interface ScriptInputApi {
     isActionPressed(action: string): boolean;
+    is_action_pressed(action: string): boolean;
     isActionJustPressed(action: string): boolean;
+    is_action_just_pressed(action: string): boolean;
     isActionJustReleased(action: string): boolean;
+    is_action_just_released(action: string): boolean;
     getActionStrength(action: string): number;
+    get_action_strength(action: string): number;
     getAxis(negative: string, positive: string): number;
+    get_axis(negative: string, positive: string): number;
     getYaw(): number;
+    get_yaw(): number;
     getPitch(): number;
+    get_pitch(): number;
     getCursorX(): number;
+    get_cursor_x(): number;
     getCursorY(): number;
+    get_cursor_y(): number;
     getCursorPosition(): Vector2;
-    getVector(axes: { negX: string; posX: string; negY: string; posY: string }): Vector2;
+    get_cursor_position(): Vector2;
+    getVector(negX: string, posX: string, negY: string, posY: string): Vector2;
+    get_vector(negX: string, posX: string, negY: string, posY: string): Vector2;
   }
 }
 
@@ -220,6 +231,26 @@ declare module "moud/scene" {
 // PLAYER ATTACHMENT AUGMENTATION — runtime helpers for player-bound nodes
 // =============================================================================
 declare module "moud" {
+  export interface CharacterBody3D {
+    velocity: Vector3;
+    move_and_slide(deltaSeconds?: number): Vector3;
+    moveAndSlide(deltaSeconds?: number): Vector3;
+    use_script_controller(): void;
+    useScriptController(): void;
+    use_default_controller(): void;
+    useDefaultController(): void;
+    is_on_floor(): boolean;
+    isOnFloor(): boolean;
+    is_on_wall(): boolean;
+    isOnWall(): boolean;
+    is_on_ceiling(): boolean;
+    isOnCeiling(): boolean;
+    get_wall_normal(): Vector3;
+    getWallNormal(): Vector3;
+    get_input_direction(): Vector3;
+    getInputDirection(): Vector3;
+  }
+
   export interface PlayerAttachment {
     /** Display name of the player this node represents (runtime-created nodes). */
     readonly playerName: string;

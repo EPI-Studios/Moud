@@ -116,14 +116,6 @@ public final class SceneFileIO {
             return new SceneFile(SceneFile.FORMAT_V1, sceneId, displayName, List.of());
         }
 
-        long rootId = 0L;
-        for (SceneSnapshot.NodeSnapshot node : snapshot.nodes()) {
-            if (node != null && node.parentId() == 0L) {
-                rootId = node.nodeId();
-                break;
-            }
-        }
-
         HashMap<Long, ArrayList<Long>> childrenByParent = new HashMap<>();
         for (SceneSnapshot.NodeSnapshot node : snapshot.nodes()) {
             if (node == null || node.nodeId() <= 0L) {
@@ -163,16 +155,10 @@ public final class SceneFileIO {
             if (node == null || node.nodeId() <= 0L) {
                 continue;
             }
-            if (node.nodeId() == rootId) {
-                continue;
-            }
             if (excluded.contains(node.nodeId())) {
                 continue;
             }
             long parent = node.parentId();
-            if (parent == rootId) {
-                parent = 0L;
-            }
 
             LinkedHashMap<String, String> props = new LinkedHashMap<>();
             if (node.properties() != null) {
@@ -195,6 +181,9 @@ public final class SceneFileIO {
     private static boolean isRuntimeOnly(SceneSnapshot.NodeSnapshot node) {
         if (node == null) {
             return false;
+        }
+        if ("Ticker".equals(node.type()) || "PlayerAttachment".equals(node.type())) {
+            return true;
         }
         if (isRuntimeOnly(node.name(), null)) {
             return true;

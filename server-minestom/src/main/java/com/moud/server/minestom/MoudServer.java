@@ -4,18 +4,22 @@ import com.moud.core.assets.AssetHash;
 import com.moud.core.assets.AssetManifest;
 import com.moud.core.assets.AssetMeta;
 import com.moud.core.assets.AssetType;
+import com.moud.core.physics.CollisionGeometry;
 import com.moud.core.assets.ResPath;
 import com.moud.core.scene.Node;
 import com.moud.core.scene.PlainNode;
 import com.moud.core.scene.SceneTreeMutator;
+import com.moud.net.protocol.CollisionGeometrySnapshot;
 import com.moud.net.protocol.Message;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
+import com.moud.net.transport.Lane;
 import com.moud.net.wire.WireMessages;
 import com.moud.server.minestom.net.PlayerMessageSink;
 import com.moud.server.minestom.assets.AssetService;
 import com.moud.server.minestom.assets.FileSystemAssetStore;
+import com.moud.server.minestom.collision.CollisionBakeService;
 import com.moud.server.minestom.engine.SceneInstancer;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.engine.ServerScenes;
@@ -26,6 +30,7 @@ import com.moud.server.minestom.scripting.ScriptService;
 import com.moud.server.minestom.util.DebugLog;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.stream.Collectors;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -67,6 +72,7 @@ public final class MoudServer {
     private MessageRouter messageRouter;
     private PlayerConnectionHandler connections;
     private ServerTickLoop tickLoop;
+    private final Map<Long, List<CollisionGeometry>> latestCollisionGeometryByNode = new ConcurrentHashMap<>();
 
     private MoudServer(Builder builder) {
         this.devMode = builder.devMode;
@@ -118,9 +124,16 @@ public final class MoudServer {
         System.setProperty("polyglot.engine.WarnInterpreterOnly", "false");
         logResolvedPaths();
 
-        scenes = new ServerScenes(instanceManager);
-        mainScene = scenes.ensureDefault("main", "Main");
         project = new ProjectService(projectRoot);
+        try {
+            assets = new AssetService(new FileSystemAssetStore(projectRoot.resolve("assets")), devMode);
+            logAssetStoreState();
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to init asset store", e);
+        }
+        CollisionBakeService collisionBakeService = new CollisionBakeService(project, assets.store());
+        scenes = new ServerScenes(instanceManager, collisionBakeService);
+        mainScene = scenes.ensureDefault("main", "Main");
 
         Map<UUID, PlayerState> playerStates = new ConcurrentHashMap<>();
         PlayerMessageSink playerMessageSink = (uuid, lane, message) -> {
@@ -132,17 +145,43 @@ public final class MoudServer {
             session.send(lane, message);
         };
 
+        collisionBakeService.setBakeListener((nodeId, result) -> {
+            if (result == null || result.hulls() == null || result.hulls().isEmpty()) return;
+            latestCollisionGeometryByNode.put(nodeId, List.copyOf(result.hulls()));
+            CollisionGeometrySnapshot msg = new CollisionGeometrySnapshot(nodeId, result.hulls());
+            for (Map.Entry<UUID, PlayerState> entry : playerStates.entrySet()) {
+                playerMessageSink.send(entry.getKey(), Lane.STATE, msg);
+            }
+        });
+
         scripts = new ScriptService(project, playerMessageSink);
         scriptFiles = new ScriptFileService(project);
         sceneStorage = new SceneStorage(projectRoot, scenes, instancer, scripts);
-        playModeManager = new PlayModeManager(scenes, mainScene, scripts, instancer, playRuntime, playerMessageSink);
+        playModeManager = new PlayModeManager(
+                scenes,
+                mainScene,
+                scripts,
+                instancer,
+                playRuntime,
+                playerMessageSink,
+                this::sendLatestCollisionGeometry
+        );
 
-        try {
-            assets = new AssetService(new FileSystemAssetStore(projectRoot.resolve("assets")), devMode);
-            assets.setUploadCompleteCallback(sceneStorage::onAssetUploaded);
-            logAssetStoreState();
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to init asset store", e);
+        assets.setUploadCompleteCallback(sceneStorage::onAssetUploaded);
+
+        if (devMode) {
+            Path assetsDir = projectRoot.resolve("assets");
+            List<Path> watchDirs = new java.util.ArrayList<>();
+            watchDirs.add(assetsDir);
+            watchDirs.add(projectRoot.resolve("local_scripts"));
+            watchDirs.add(projectRoot.resolve("scripts"));
+            final Map<UUID, PlayerState> capturedStates = playerStates;
+            assets.startHotReloadWatcher(watchDirs, () ->
+                capturedStates.values().stream()
+                    .map(ps -> ps.session)
+                    .filter(s -> s != null && s.state() == SessionState.CONNECTED)
+                    .collect(Collectors.toList())
+            );
         }
 
         sceneStorage.loadScenesFromDisk();
@@ -219,6 +258,26 @@ public final class MoudServer {
         ServerTickLoop loop = tickLoop;
         if (loop != null) {
             loop.tick();
+        }
+    }
+
+    private void sendLatestCollisionGeometry(Session session, ServerScene scene) {
+        if (session == null || scene == null) {
+            return;
+        }
+        SceneSnapshot snapshot = scene.snapshot(0L);
+        if (snapshot.nodes() == null || snapshot.nodes().isEmpty()) {
+            return;
+        }
+        for (SceneSnapshot.NodeSnapshot ns : snapshot.nodes()) {
+            if (ns == null || ns.nodeId() <= 0L) {
+                continue;
+            }
+            List<CollisionGeometry> hulls = latestCollisionGeometryByNode.get(ns.nodeId());
+            if (hulls == null || hulls.isEmpty()) {
+                continue;
+            }
+            session.send(Lane.STATE, new CollisionGeometrySnapshot(ns.nodeId(), hulls));
         }
     }
 

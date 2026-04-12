@@ -24,6 +24,7 @@ public final class PlayRuntime {
     private final Map<UUID, String> activeScenes = new ConcurrentHashMap<>();
     private final RuntimeWorldEnvironmentSystem worldEnvironment = new RuntimeWorldEnvironmentSystem();
     private final RuntimeCameraSystem cameraSystem = new RuntimeCameraSystem(MIN_PITCH, MAX_PITCH);
+    private final RuntimeBodySystem bodySystem = new RuntimeBodySystem();
 
     public void onPlayerSpawn(Player player, ServerScene scene) {
         if (player == null) {
@@ -33,6 +34,7 @@ public final class PlayRuntime {
         if (scene != null) {
             activeScenes.put(player.getUuid(), scene.sceneId());
             teleportToPlayerStart(player, scene);
+            syncControllableBodyToPlayer(player, scene, player.getPosition());
         }
     }
 
@@ -42,6 +44,7 @@ public final class PlayRuntime {
         }
         players.remove(uuid);
         activeScenes.remove(uuid);
+        bodySystem.onDisconnect(uuid);
     }
 
     public void onSceneChanged(UUID uuid, String sceneId) {
@@ -53,6 +56,28 @@ public final class PlayRuntime {
         } else {
             activeScenes.put(uuid, sceneId);
         }
+        bodySystem.onSceneChanged(uuid);
+    }
+
+    public void syncControllableBodyToPlayer(Player player, ServerScene scene, Pos pos) {
+        if (player == null || scene == null || pos == null) {
+            return;
+        }
+        Node body = bodySystem.findControllableBody(scene, player.getUuid());
+        if (body == null) {
+            return;
+        }
+        body.setProperty("x", ParseUtils.trimFloat((float) pos.x()));
+        body.setProperty("y", ParseUtils.trimFloat((float) pos.y()));
+        body.setProperty("z", ParseUtils.trimFloat((float) pos.z()));
+        body.setProperty("ry", ParseUtils.trimFloat(pos.yaw()));
+        body.setProperty("owner_uuid", player.getUuid().toString());
+        body.setProperty("velocity_x", "0");
+        body.setProperty("velocity_y", "0");
+        body.setProperty("velocity_z", "0");
+        body.setProperty("on_floor", "false");
+        body.setProperty("on_wall", "false");
+        body.setProperty("on_ceiling", "false");
     }
 
     public void applyEditorWorldEnvironment(ServerScene scene) {
@@ -185,4 +210,5 @@ public final class PlayRuntime {
         }
         return null;
     }
+
 }

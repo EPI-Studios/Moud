@@ -1,12 +1,13 @@
 package com.moud.server.minestom.util;
 
+import com.moud.core.util.ParseUtils;
 import java.io.PrintStream;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
 public final class DebugLog {
-    private static final boolean DEBUG = parseBool(System.getenv("MOUD_DEBUG"))
-            || parseBool(System.getProperty("moud.debug"));
+    private static final boolean DEBUG = ParseUtils.parseBool(System.getenv("MOUD_DEBUG"))
+            || ParseUtils.parseBool(System.getProperty("moud.debug"));
     private static final boolean COLOR = detectColor();
 
     private static final String RESET  = "\u001B[0m";
@@ -76,9 +77,4 @@ public final class DebugLog {
         return true;
     }
 
-    private static boolean parseBool(String v) {
-        if (v == null) return false;
-        String s = v.trim().toLowerCase();
-        return "1".equals(s) || "true".equals(s) || "yes".equals(s) || "y".equals(s) || "on".equals(s);
-    }
 }
