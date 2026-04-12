@@ -26,12 +26,14 @@ public final class PlayerBodyAttachmentCache {
         float py = (float) MathHelper.lerp(tickDelta, player.lastRenderY, player.getY());
         float pz = (float) MathHelper.lerp(tickDelta, player.lastRenderZ, player.getZ());
         float bodyYaw = MathHelper.lerpAngleDegrees(tickDelta, player.prevBodyYaw, player.getBodyYaw());
+        float headYaw = MathHelper.lerpAngleDegrees(tickDelta, player.prevYaw, player.getYaw());
 
-        float[] root = rootByUuid.computeIfAbsent(uuid, k -> new float[4]);
+        float[] root = rootByUuid.computeIfAbsent(uuid, k -> new float[5]);
         root[0] = px;
         root[1] = py;
         root[2] = pz;
         root[3] = bodyYaw;
+        root[4] = headYaw;
 
         storePoint(uuid, "root",       px, py,        pz);
         storePoint(uuid, "center",     px, py + 0.9f, pz);

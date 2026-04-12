@@ -2,6 +2,7 @@ package com.moud.client.fabric.platform;
 
 import com.moud.client.fabric.editor.overlay.EditorContext;
 import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
+import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.mixin.accessor.CameraAccessor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
@@ -27,8 +28,8 @@ public final class MinecraftFreeflyCamera {
     private long lastUpdateNs;
 
     private float lookSensitivity = 0.15f;
-    private double smoothing = 0.35; // 0..1
-    private double speed = 10.0; // blocks/sec
+    private double smoothing = 0.35;
+    private double speed = 10.0;
     private double fastMultiplier = 4.0;
     private double slowMultiplier = 0.25;
 
@@ -132,6 +133,11 @@ public final class MinecraftFreeflyCamera {
             EditorContext ctx = EditorOverlayBus.get();
             if (ctx == null || !ctx.isMouseOverViewport(mouseX, mouseY)) {
                 return true;
+            }
+            if (ctx.overlay() != null
+                    && ctx.overlay().getRuntime() != null
+                    && ctx.overlay().getRuntime().viewportMode() != EditorRuntime.ViewportMode.THREE_D) {
+                return false;
             }
             capturing = true;
             firstMouseMove = true;
