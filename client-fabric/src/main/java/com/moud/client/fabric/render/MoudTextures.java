@@ -13,6 +13,8 @@ import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,6 +34,9 @@ public final class MoudTextures implements AssetsClient.Listener {
     public static final Identifier BLACK_ID = Identifier.of("moud", "dynamic/black");
     public static final Identifier FLAT_NORMAL_ID = Identifier.of("moud", "dynamic/flat_normal");
     public static final Identifier ORM_DEFAULT_ID = Identifier.of("moud", "dynamic/orm_default");
+    private static final TextureSize DEFAULT_SIZE = new TextureSize(1, 1);
+    private static final TextureSize DEFAULT_WHITE_SIZE = new TextureSize(64, 64);
+    private static final String DEFAULT_WHITE_RESOURCE = "/assets/moud/textures/dynamic/white.png";
 
     private static final int MAX_TEXTURE_SIZE = 2048;
     private static final Object LOCK = new Object();
@@ -224,6 +229,26 @@ public final class MoudTextures implements AssetsClient.Listener {
         };
     }
 
+    public static TextureSize sizeOf(Identifier id) {
+        if (id == null) {
+            return DEFAULT_SIZE;
+        }
+        synchronized (LOCK) {
+            if (WHITE_ID.equals(id)) {
+                return DEFAULT_WHITE_SIZE;
+            }
+            if (BLACK_ID.equals(id) || FLAT_NORMAL_ID.equals(id) || ORM_DEFAULT_ID.equals(id)) {
+                return DEFAULT_SIZE;
+            }
+            for (TextureEntry entry : texturesByHash.values()) {
+                if (entry != null && id.equals(entry.id)) {
+                    return entry.size;
+                }
+            }
+        }
+        return DEFAULT_SIZE;
+    }
+
     private static Identifier resolveResTexture(String resPathRaw) {
         ResPath resPath;
         try {
@@ -319,7 +344,7 @@ public final class MoudTextures implements AssetsClient.Listener {
         }
 
         Runnable register = () -> {
-            registerSolidTexture(tm, WHITE_ID, 0xFFFFFFFF);
+            registerBundledTexture(tm, WHITE_ID, DEFAULT_WHITE_RESOURCE);
             registerSolidTexture(tm, BLACK_ID, 0xFF000000);
             registerSolidTexture(tm, FLAT_NORMAL_ID, 0xFFFF8080);
             registerSolidTexture(tm, ORM_DEFAULT_ID, 0xFF00FFFF);
@@ -339,6 +364,21 @@ public final class MoudTextures implements AssetsClient.Listener {
         }
         tm.registerTexture(id, tex);
         tex.upload();
+    }
+
+    private static void registerBundledTexture(TextureManager tm, Identifier id, String resourcePath) {
+        try (InputStream stream = MoudTextures.class.getResourceAsStream(resourcePath)) {
+            if (stream == null) {
+                registerSolidTexture(tm, id, 0xFFFFFFFF);
+                return;
+            }
+            NativeImage image = NativeImage.read(stream);
+            NativeImageBackedTexture tex = new NativeImageBackedTexture(image);
+            tm.registerTexture(id, tex);
+            tex.upload();
+        } catch (IOException e) {
+            registerSolidTexture(tm, id, 0xFFFFFFFF);
+        }
     }
 
     @Override
@@ -459,6 +499,7 @@ public final class MoudTextures implements AssetsClient.Listener {
             synchronized (LOCK) {
                 entry.state = TextureState.READY;
                 entry.error = "";
+                entry.size = new TextureSize(finalImage.getWidth(), finalImage.getHeight());
             }
         });
     }
@@ -475,6 +516,7 @@ public final class MoudTextures implements AssetsClient.Listener {
         private final Identifier id;
         private TextureState state = TextureState.NEW;
         private String error = "";
+        private TextureSize size = DEFAULT_SIZE;
 
         private TextureEntry(AssetHash hash, Identifier id) {
             this.hash = Objects.requireNonNull(hash, "hash");
@@ -486,4 +528,6 @@ public final class MoudTextures implements AssetsClient.Listener {
             return "TextureEntry{hash=" + hash.hex().substring(0, 8) + ", state=" + state.name().toLowerCase(Locale.ROOT) + "}";
         }
     }
+
+    public record TextureSize(int width, int height) {}
 }

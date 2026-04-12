@@ -5,8 +5,8 @@ import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
 import com.moud.client.fabric.render.veil.GlUtil;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
 import com.moud.client.fabric.render.veil.VeilMaterialBinding;
+import com.moud.client.fabric.util.ClientDebugLog;
 import com.moud.net.protocol.SceneSnapshot;
-import foundry.veil.api.client.render.CameraMatrices;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.shader.block.ShaderBlock;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
@@ -38,7 +38,6 @@ final class MultiMeshRenderer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MultiMeshRenderer.class);
 
-    // WorldMat(16) + Tint(4), camera offset applied in shader
     private static final int FLOATS_PER_GPU_INSTANCE = 20;
     private static final int FLOATS_PER_INSTANCE = 13;
     private static final int INITIAL_CAPACITY = 64;
@@ -87,12 +86,8 @@ final class MultiMeshRenderer {
 
         MoudMeshBuffer.ensureInitialized();
 
-        ShaderBlock<CameraMatrices> camBlock = VeilRenderSystem.getBlock(VeilShaderBufferRegistry.CAMERA.get());
-        CameraMatrices veilCam = camBlock != null ? camBlock.getValue() : null;
-        Matrix4f viewMat = veilCam != null ? new Matrix4f(veilCam.getViewMatrix())
-                : (viewMatrix != null ? new Matrix4f(viewMatrix) : new Matrix4f());
-        Matrix4f projMat = veilCam != null ? new Matrix4f(veilCam.getProjectionMatrix())
-                : (projectionMatrix != null ? new Matrix4f(projectionMatrix) : new Matrix4f(RenderSystem.getProjectionMatrix()));
+        Matrix4f viewMat = viewMatrix != null ? new Matrix4f(viewMatrix) : new Matrix4f();
+        Matrix4f projMat = projectionMatrix != null ? new Matrix4f(projectionMatrix) : new Matrix4f(RenderSystem.getProjectionMatrix());
 
         RenderSystem.enableDepthTest();
         RenderSystem.enableBlend();
@@ -197,7 +192,6 @@ final class MultiMeshRenderer {
         }
     }
 
-    // if the material only has a fragment shader, splice in the default instanced vertex shader
     private ShaderProgram resolveInstancingProgram(VeilMaterialBinding binding) {
         binding.resolveProgram();
         var sf = binding.shaderFile();
@@ -228,6 +222,10 @@ final class MultiMeshRenderer {
                         binding.shaderPath(),
                         compileId,
                         err);
+                ClientDebugLog.error("Shaders", "MultiMesh shader compilation failed material=" + binding.materialPath()
+                        + " shader=" + binding.shaderPath()
+                        + " program=" + compileId
+                        + " error=" + err);
             }
         }
         return program;
@@ -245,6 +243,7 @@ final class MultiMeshRenderer {
             String err = VeilDynamicShaders.getLastError(id);
             if (err != null && loggedShaderErrors.add(id + ":" + err)) {
                 LOGGER.error("[Moud] MultiMesh default shader compilation failed program={} error={}", id, err);
+                ClientDebugLog.error("Shaders", "MultiMesh default shader compilation failed program=" + id + " error=" + err);
             }
         }
         return defaultProgram;
@@ -262,7 +261,6 @@ final class MultiMeshRenderer {
             Quaternionf quat = new Quaternionf();
             Matrix4f localMat = new Matrix4f();
             Matrix4f worldMat = new Matrix4f();
-            // no scale on the node because sx/sz are instance field dimensions (remember that)
             Matrix4f nodeWorldBase = new Matrix4f()
                     .translate(nodePose.pos.x, nodePose.pos.y, nodePose.pos.z)
                     .rotate(nodePose.rot);
