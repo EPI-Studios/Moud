@@ -1,4 +1,10 @@
-package com.moud.server.minestom.scripting;
+package com.moud.server.minestom.scripting.luau;
+
+
+import com.moud.server.minestom.scripting.ScriptCallable;
+import com.moud.server.minestom.scripting.ScriptInvocationException;
+import com.moud.server.minestom.scripting.ScriptObject;
+import com.moud.server.minestom.scripting.signal.*;
 
 import com.moud.server.minestom.util.DebugLog;
 import org.graalvm.polyglot.HostAccess;
@@ -23,7 +29,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.ToIntFunction;
 
-final class LuauRuntimeBridge implements AutoCloseable {
+public final class LuauRuntimeBridge implements AutoCloseable {
     private static final String LUA_STATE_CLASS = "net.hollowcube.luau.LuaState";
     private static final String LUA_FUNC_CLASS = "net.hollowcube.luau.LuaFunc";
     private static final String LUA_COMPILER_CLASS = "net.hollowcube.luau.compiler.LuauCompiler";
@@ -36,15 +42,15 @@ final class LuauRuntimeBridge implements AutoCloseable {
     private final HashMap<Path, Program> programs = new HashMap<>();
     private final ConcurrentHashMap<Class<?>, BoundType> boundTypes = new ConcurrentHashMap<>();
 
-    LuauRuntimeBridge() {
+    public LuauRuntimeBridge() {
         this.reflection = new LuauReflection();
     }
 
-    static boolean isRuntimeLinked() {
+    public static boolean isRuntimeLinked() {
         return runtimeLinkProblem() == null;
     }
 
-    static String runtimeLinkProblem() {
+    public static String runtimeLinkProblem() {
         if (runtimeLinkChecked) {
             return runtimeLinkProblem;
         }
@@ -92,7 +98,7 @@ final class LuauRuntimeBridge implements AutoCloseable {
         return sb.toString();
     }
 
-    Program programFor(Path scriptFile) {
+    public Program programFor(Path scriptFile) {
         if (scriptFile == null) {
             return null;
         }
@@ -115,11 +121,11 @@ final class LuauRuntimeBridge implements AutoCloseable {
         return loaded;
     }
 
-    ScriptObject createNodeInstance(Program program) throws ScriptInvocationException {
+    public ScriptObject createNodeInstance(Program program) throws ScriptInvocationException {
         return createNodeInstance(program, null);
     }
 
-    ScriptObject createNodeInstance(Program program, Object cachedApiTarget) throws ScriptInvocationException {
+    public ScriptObject createNodeInstance(Program program, Object cachedApiTarget) throws ScriptInvocationException {
         if (program == null) {
             throw new ScriptInvocationException("Missing Luau program");
         }
@@ -445,7 +451,7 @@ final class LuauRuntimeBridge implements AutoCloseable {
         }
     }
 
-    record Program(Path file, long modifiedMs, byte[] bytecode) {
+    public record Program(Path file, long modifiedMs, byte[] bytecode) {
     }
 
     private record LuauVm(Object state, Object thread) {
@@ -466,11 +472,11 @@ final class LuauRuntimeBridge implements AutoCloseable {
             this.tool = tool;
         }
 
-        boolean tool() {
+        public boolean tool() {
             return tool;
         }
 
-        List<String> listActions() {
+        public List<String> listActions() {
             return LuauRuntimeBridge.this.listActions(thread, actionsRef);
         }
 
