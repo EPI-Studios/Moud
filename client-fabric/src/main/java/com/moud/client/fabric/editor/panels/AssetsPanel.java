@@ -1,6 +1,7 @@
 package com.moud.client.fabric.editor.panels;
 
 
+import com.miry.platform.InputConstants;
 import com.miry.ui.PanelContext;
 import com.miry.ui.Ui;
 import com.miry.ui.UiContext;
@@ -25,11 +26,14 @@ import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
 import com.miry.graphics.Texture;
 import com.moud.core.assets.AssetType;
+import com.moud.core.assets.ResPath;
+import com.moud.net.protocol.AssetDeleteAck;
 import com.moud.net.protocol.AssetManifestResponse;
 import com.moud.net.protocol.AssetTransferStatus;
 import com.moud.net.protocol.AssetUploadAck;
 import com.moud.net.protocol.SceneInfo;
 import net.minecraft.client.MinecraftClient;
+import org.lwjgl.util.tinyfd.TinyFileDialogs;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -38,6 +42,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 public final class AssetsPanel extends Panel implements AssetsClient.Listener {
     private final EditorRuntime runtime;
@@ -78,6 +85,8 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
     private String deleteConfirmSceneId;
     private long deleteConfirmUntilMs;
     private String sceneMenuSceneId;
+    private String deleteConfirmAssetPath;
+    private long deleteConfirmAssetUntilMs;
 
     public AssetsPanel(EditorRuntime runtime) {
         super("");
@@ -126,6 +135,23 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         AssetsClient assets = runtime.assets();
         if (assets != null) {
             assets.requestManifest(runtime.session());
+        }
+    }
+
+    @Override
+    public void onDeleteAck(AssetDeleteAck ack) {
+        if (ack == null || runtime == null) {
+            return;
+        }
+        String path = ack.path() == null ? "" : ack.path().value();
+        if (ack.status() == AssetTransferStatus.OK || ack.status() == AssetTransferStatus.NOT_FOUND) {
+            selectedEntries.removeIf(e -> e != null && e.path() != null && path.equals(e.path().value()));
+            if (selectedFsEntry != null && selectedFsEntry.path() != null && path.equals(selectedFsEntry.path().value())) {
+                selectedFsEntry = selectedEntries.isEmpty() ? null : selectedEntries.iterator().next();
+            }
+            runtime.requestToast("Deleted " + path, false, 2500);
+        } else {
+            runtime.requestToast("Delete failed: " + (ack.message() == null ? path : ack.message()), true, 5000);
         }
     }
 
@@ -217,7 +243,77 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
             createSceneNameField.handleKey(e, clipboard);
         } else if (filterField.isFocused(ctx)) {
             filterField.handleKey(e, clipboard);
+        } else if (e.isPressOrRepeat() && activeDockTab == 0 && e.key() == InputConstants.KEY_F2) {
+            renameSelectedScript();
         }
+    }
+
+    private void renameSelectedScript() {
+        AssetManifestResponse.Entry entry = selectedFsEntry;
+        if (entry == null || entry.path() == null) {
+            return;
+        }
+        String path = entry.path().value();
+        if (!isScriptPath(path)) {
+            return;
+        }
+
+        String filename = path.substring(path.lastIndexOf('/') + 1);
+        String suggested = TinyFileDialogs.tinyfd_inputBox("Rename Script", "New filename", filename);
+        if (suggested == null) {
+            return;
+        }
+        String nextName = suggested.trim();
+        if (nextName.isBlank() || nextName.equals(filename)) {
+            return;
+        }
+
+        String lower = nextName.toLowerCase(Locale.ROOT);
+        if (!(lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs")
+                || lower.endsWith(".ts") || lower.endsWith(".mts") || lower.endsWith(".luau"))) {
+            nextName = nextName + ".ts";
+        }
+
+        String relative = path.substring("res://".length());
+        Path current = resolveLocalScriptFile(relative);
+        if (current == null) {
+            runtime.requestToast("Script file not found locally", true, 4000);
+            return;
+        }
+
+        try {
+            Path target = current.resolveSibling(nextName);
+            Files.move(current, target, StandardCopyOption.REPLACE_EXISTING);
+            AssetsClient assets = runtime.assets();
+            if (assets != null && runtime.session() != null) {
+                assets.requestManifest(runtime.session());
+            }
+            runtime.requestToast("Renamed to " + nextName, false, 2500);
+        } catch (Exception ex) {
+            runtime.requestToast("Rename failed: " + ex.getMessage(), true, 5000);
+        }
+    }
+
+    private static Path resolveLocalScriptFile(String relative) {
+        if (relative == null || relative.isBlank()) {
+            return null;
+        }
+        Path direct = Path.of(relative);
+        if (Files.isRegularFile(direct)) {
+            return direct;
+        }
+        Path underAssets = Path.of("assets").resolve(relative);
+        if (Files.isRegularFile(underAssets)) {
+            return underAssets;
+        }
+        return null;
+    }
+
+    private static boolean isScriptPath(String path) {
+        return path != null
+                && path.startsWith("res://scripts/")
+                && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs")
+                || path.endsWith(".ts") || path.endsWith(".mts") || path.endsWith(".luau"));
     }
 
     private void renderFileSystemTree(Ui ui, UiRenderer r, UiContext uiContext, Theme theme,
@@ -420,7 +516,8 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
                         openSceneFromPath(path);
                     } else if (assetType == AssetType.TEXT) {
                         if (path.startsWith("res://scripts/")
-                                && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs") || path.endsWith(".luau"))) {
+                                && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs")
+                                || path.endsWith(".ts") || path.endsWith(".mts") || path.endsWith(".luau"))) {
                             runtime.openScriptEditor(0L, path);
                         } else {
                             runtime.openTextAssetEditor(path, entry.meta() == null ? null : entry.meta().hash());
@@ -519,7 +616,8 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
                     openSceneFromPath(path);
                 } else if (assetType == AssetType.TEXT) {
                     if (path.startsWith("res://scripts/")
-                            && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs") || path.endsWith(".luau"))) {
+                            && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs")
+                            || path.endsWith(".ts") || path.endsWith(".mts") || path.endsWith(".luau"))) {
                         runtime.openScriptEditor(0L, path);
                     } else {
                         runtime.openTextAssetEditor(path, entry.meta() == null ? null : entry.meta().hash());
@@ -645,7 +743,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         int pad = theme.design.space_sm;
         int searchH = 22;
         int btnSize = theme.design.widget_height_md;
-        int rightW = activeDockTab == 0 ? (btnSize * 3 + pad * 2) : (52 * 3 + pad * 2);
+        int rightW = activeDockTab == 0 ? (btnSize * 3 + 64 + pad * 3) : (52 * 3 + pad * 2);
         int searchW = Math.max(120, w - pad * 3 - rightW);
         int searchX = x + pad;
         int searchY = y + (h - searchH) / 2;
@@ -664,8 +762,18 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         if (activeDockTab == 0) {
             int iconBtnW = btnSize;
             int gap = pad;
+            boolean canDelete = hasDeletableSelection();
+            long now = System.currentTimeMillis();
+            String selectedPath = selectedFsEntry != null && selectedFsEntry.path() != null ? selectedFsEntry.path().value() : "";
+            boolean deleteConfirm = canDelete
+                    && selectedPath != null
+                    && selectedPath.equals(deleteConfirmAssetPath)
+                    && now < deleteConfirmAssetUntilMs;
+            String delLabel = deleteConfirm ? "Confirm" : "Del";
 
-            int refreshX = x + w - gap - iconBtnW;
+            int delW = 64;
+            int delX = x + w - gap - delW;
+            int refreshX = delX - gap - iconBtnW;
             int uploadX = refreshX - gap - iconBtnW;
             int newX = uploadX - gap - iconBtnW;
 
@@ -677,6 +785,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
                     assets.requestManifest(runtime.session());
                 }
             });
+            EditorUiUtil.textButton(ui, r, theme, delX, btnY, delW, btnSize, delLabel, interactive && canDelete, () -> deleteSelectedAssets(false));
             return;
         }
 
@@ -1124,7 +1233,8 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
             assetContextMenu.addItem("Open Scene", Icon.PLAY, () -> openSceneFromPath(path));
         } else if (type == AssetType.TEXT) {
             if (path.startsWith("res://scripts/")
-                    && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs") || path.endsWith(".luau"))) {
+                    && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs")
+                    || path.endsWith(".ts") || path.endsWith(".mts") || path.endsWith(".luau"))) {
                 assetContextMenu.addItem("Edit Script", Icon.CODE, () -> runtime.openScriptEditor(0L, path));
             } else {
                 assetContextMenu.addItem("Edit", Icon.TEXT, () -> runtime.openTextAssetEditor(path, entry.meta() == null ? null : entry.meta().hash()));
@@ -1148,6 +1258,15 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         });
 
         assetContextMenu.addSeparator();
+
+        if (isDeletableAssetPath(path)) {
+            boolean confirming = path.equals(deleteConfirmAssetPath) && System.currentTimeMillis() < deleteConfirmAssetUntilMs;
+            assetContextMenu.addItem(confirming ? "Confirm Delete" : "Delete", () -> {
+                selectSingle(entry);
+                deleteSelectedAssets(true);
+            });
+            assetContextMenu.addSeparator();
+        }
 
         if (entry.meta() != null) {
             String sizeStr = formatSize(entry.meta().sizeBytes());
@@ -1266,6 +1385,49 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         node.files.sort(currentSortComparator());
         for (FolderNode sub : node.subdirs.values()) {
             sortFolderNode(sub);
+        }
+    }
+
+    private boolean hasDeletableSelection() {
+        if (selectedEntries.isEmpty()) {
+            return selectedFsEntry != null && selectedFsEntry.path() != null && isDeletableAssetPath(selectedFsEntry.path().value());
+        }
+        for (AssetManifestResponse.Entry entry : selectedEntries) {
+            if (entry != null && entry.path() != null && isDeletableAssetPath(entry.path().value())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isDeletableAssetPath(String path) {
+        return path != null && path.startsWith("res://") && !path.startsWith("res://blobs/");
+    }
+
+    private void deleteSelectedAssets(boolean fromContextMenu) {
+        AssetManifestResponse.Entry entry = selectedFsEntry;
+        if (entry == null || entry.path() == null) {
+            return;
+        }
+        String path = entry.path().value();
+        if (!isDeletableAssetPath(path)) {
+            runtime.requestToast("This asset cannot be deleted", true, 2500);
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        if (!path.equals(deleteConfirmAssetPath) || now >= deleteConfirmAssetUntilMs) {
+            deleteConfirmAssetPath = path;
+            deleteConfirmAssetUntilMs = now + 3000L;
+            runtime.requestToast((fromContextMenu ? "Click Delete again" : "Click Confirm") + " to delete " + path, false, 2500);
+            return;
+        }
+
+        deleteConfirmAssetPath = null;
+        deleteConfirmAssetUntilMs = 0L;
+        AssetsClient assets = runtime.assets();
+        if (assets != null && runtime.session() != null) {
+            assets.delete(runtime.session(), new ResPath(path));
         }
     }
 
