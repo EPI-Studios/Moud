@@ -1,6 +1,5 @@
 package com.moud.server.minestom.scripting;
 
-
 import com.moud.core.scene.Node;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneOpAck;
@@ -11,6 +10,7 @@ import com.moud.net.protocol.ScriptActionInvokeAck;
 import com.moud.net.protocol.ScriptActionListRequest;
 import com.moud.net.protocol.ScriptActionListResponse;
 import com.moud.server.minestom.engine.ServerScene;
+import com.moud.server.minestom.scripting.lang.ScriptPaths;
 import org.graalvm.polyglot.Engine;
 import com.moud.server.minestom.engine.SceneBatchIds;
 import com.moud.server.minestom.project.ProjectService;
@@ -28,16 +28,16 @@ import org.graalvm.polyglot.Source;
 import org.graalvm.polyglot.Value;
 import com.moud.server.minestom.util.DebugLog;
 
-final class ToolScriptService {
+public final class ToolScriptService {
     private final ProjectService project;
     private final Engine engine;
 
-    ToolScriptService(ProjectService project, Engine engine) {
+    public ToolScriptService(ProjectService project, Engine engine) {
         this.project = Objects.requireNonNull(project, "project");
         this.engine = Objects.requireNonNull(engine, "engine");
     }
 
-    ScriptActionListResponse onListActions(ServerScene scene, ScriptActionListRequest request) {
+    public ScriptActionListResponse onListActions(ServerScene scene, ScriptActionListRequest request) {
         Objects.requireNonNull(scene, "scene");
         Objects.requireNonNull(request, "request");
 
@@ -79,7 +79,7 @@ final class ToolScriptService {
         }
     }
 
-    ScriptActionInvokeAck onInvokeAction(ServerScene scene, ScriptActionInvoke request) {
+    public ScriptActionInvokeAck onInvokeAction(ServerScene scene, ScriptActionInvoke request) {
         Objects.requireNonNull(scene, "scene");
         Objects.requireNonNull(request, "request");
 
@@ -178,12 +178,12 @@ final class ToolScriptService {
     private record ScriptExports(boolean tool, Value actions) {
     }
 
-    static final class ToolApi {
+    public static final class ToolApi {
         private final ServerScene scene;
         private final long selectedNodeId;
         private final ArrayList<SceneOp> pendingOps = new ArrayList<>();
 
-        ToolApi(ServerScene scene, long selectedNodeId) {
+        public ToolApi(ServerScene scene, long selectedNodeId) {
             this.scene = Objects.requireNonNull(scene, "scene");
             this.selectedNodeId = selectedNodeId;
         }
@@ -270,7 +270,7 @@ final class ToolScriptService {
             return r != null && r.ok() ? r.createdId() : 0L;
         }
 
-        void flushOps(long requestId) {
+        public void flushOps(long requestId) {
             if (pendingOps.isEmpty()) {
                 return;
             }
@@ -300,7 +300,7 @@ final class ToolScriptService {
         @HostAccess.Export
         public final String type;
 
-        ScriptNode(long id, String name, String type) {
+        public ScriptNode(long id, String name, String type) {
             this.id = id;
             this.name = name;
             this.type = type;

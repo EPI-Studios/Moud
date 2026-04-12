@@ -1,6 +1,6 @@
 package com.moud.server.minestom.scripting;
 
-interface ScriptObject extends AutoCloseable {
+public interface ScriptObject extends AutoCloseable {
     boolean hasMethod(String member);
 
     void invokeMethod(String member, Object... args) throws ScriptInvocationException;

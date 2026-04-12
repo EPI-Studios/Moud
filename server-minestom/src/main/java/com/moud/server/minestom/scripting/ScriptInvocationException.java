@@ -1,11 +1,11 @@
 package com.moud.server.minestom.scripting;
 
-final class ScriptInvocationException extends Exception {
-    ScriptInvocationException(String message) {
+public final class ScriptInvocationException extends Exception {
+    public ScriptInvocationException(String message) {
         super(message);
     }
 
-    ScriptInvocationException(String message, Throwable cause) {
+    public ScriptInvocationException(String message, Throwable cause) {
         super(message, cause);
     }
 }
