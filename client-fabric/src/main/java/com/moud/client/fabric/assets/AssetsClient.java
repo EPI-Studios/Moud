@@ -9,6 +9,8 @@ import com.moud.net.protocol.AssetDownloadBegin;
 import com.moud.net.protocol.AssetDownloadChunk;
 import com.moud.net.protocol.AssetDownloadComplete;
 import com.moud.net.protocol.AssetDownloadRequest;
+import com.moud.net.protocol.AssetDeleteAck;
+import com.moud.net.protocol.AssetDeleteRequest;
 import com.moud.net.protocol.AssetManifestRequest;
 import com.moud.net.protocol.AssetManifestResponse;
 import com.moud.net.protocol.AssetTransferStatus;
@@ -39,6 +41,9 @@ public final class AssetsClient {
         }
 
         default void onDownloadComplete(AssetHash hash, AssetTransferStatus status, byte[] bytes, String message) {
+        }
+
+        default void onDeleteAck(AssetDeleteAck ack) {
         }
     }
 
@@ -99,6 +104,17 @@ public final class AssetsClient {
         session.send(Lane.ASSETS, new AssetDownloadRequest(hash));
     }
 
+    public void delete(Session session, ResPath path) {
+        Objects.requireNonNull(path, "path");
+        if (session == null) {
+            return;
+        }
+        lastSession = session;
+        long requestId = nextRequestId++;
+        ClientDebugLog.debug("Assets request delete requestId=" + requestId + " path=" + path.value());
+        session.send(Lane.ASSETS, new AssetDeleteRequest(requestId, path));
+    }
+
     public void tick(Session session) {
         if (session == null) {
             return;
@@ -140,6 +156,17 @@ public final class AssetsClient {
             onDownloadChunk(chunk);
         } else if (message instanceof AssetDownloadComplete complete) {
             onDownloadComplete(complete);
+        } else if (message instanceof AssetDeleteAck ack) {
+            onDeleteAck(ack);
+        }
+    }
+
+    private void onDeleteAck(AssetDeleteAck ack) {
+        for (Listener listener : listeners) {
+            listener.onDeleteAck(ack);
+        }
+        if (ack != null && (ack.status() == AssetTransferStatus.OK || ack.status() == AssetTransferStatus.NOT_FOUND)) {
+            requestManifest(lastSession);
         }
     }
 
@@ -200,7 +227,6 @@ public final class AssetsClient {
         task.type = begin.assetType();
         task.expectedSize = begin.sizeBytes();
         if (begin.status() != AssetTransferStatus.OK) {
-            // server will likely follow with complete; keep task until then.
             return;
         }
         task.buffer = new ByteArrayOutputStream((int) Math.min(begin.sizeBytes(), 1024 * 1024));

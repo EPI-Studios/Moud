@@ -1,5 +1,6 @@
 package com.moud.client.fabric.scene;
 
+import com.moud.core.util.ParseUtils;
 import com.moud.net.protocol.SceneSnapshot;
 import java.util.HashMap;
 import java.util.List;
@@ -69,15 +70,15 @@ public final class SceneNodeTransforms {
                 String key = prop.key();
                 String value = prop.value();
                 switch (key) {
-                    case "x" -> x = parseFloat(value, x);
-                    case "y" -> y = parseFloat(value, y);
-                    case "z" -> z = parseFloat(value, z);
-                    case "rx" -> rx = parseFloat(value, rx);
-                    case "ry" -> ry = parseFloat(value, ry);
-                    case "rz" -> rz = parseFloat(value, rz);
-                    case "sx" -> sx = Math.max(SCALE_EPS, parseFloat(value, sx));
-                    case "sy" -> sy = Math.max(SCALE_EPS, parseFloat(value, sy));
-                    case "sz" -> sz = Math.max(SCALE_EPS, parseFloat(value, sz));
+                    case "x" -> x = ParseUtils.parseFloat(value, x);
+                    case "y" -> y = ParseUtils.parseFloat(value, y);
+                    case "z" -> z = ParseUtils.parseFloat(value, z);
+                    case "rx" -> rx = ParseUtils.parseFloat(value, rx);
+                    case "ry" -> ry = ParseUtils.parseFloat(value, ry);
+                    case "rz" -> rz = ParseUtils.parseFloat(value, rz);
+                    case "sx" -> sx = Math.max(SCALE_EPS, ParseUtils.parseFloat(value, sx));
+                    case "sy" -> sy = Math.max(SCALE_EPS, ParseUtils.parseFloat(value, sy));
+                    case "sz" -> sz = Math.max(SCALE_EPS, ParseUtils.parseFloat(value, sz));
                     case "@inherit_transform" -> inheritRaw = value;
                     default -> {
                     }
@@ -88,7 +89,7 @@ public final class SceneNodeTransforms {
         pose.pos.set(x, y, z);
         pose.rot.set(quatFromEulerDeg(rx, ry, rz));
         pose.scale.set(sx, sy, sz);
-        pose.inherit = parseBool(inheritRaw, true);
+        pose.inherit = ParseUtils.parseBool(inheritRaw, true);
         return pose;
     }
 
@@ -98,29 +99,6 @@ public final class SceneNodeTransforms {
                 (float) Math.toRadians(Float.isFinite(ryDeg) ? ryDeg : 0.0f),
                 (float) Math.toRadians(Float.isFinite(rzDeg) ? rzDeg : 0.0f)
         );
-    }
-
-    private static float parseFloat(String value, float fallback) {
-        if (value == null || value.isBlank()) {
-            return fallback;
-        }
-        try {
-            return Float.parseFloat(value.trim());
-        } catch (Exception ignored) {
-            return fallback;
-        }
-    }
-
-    private static boolean parseBool(String value, boolean fallback) {
-        if (value == null || value.isBlank()) {
-            return fallback;
-        }
-        String s = value.trim().toLowerCase();
-        return switch (s) {
-            case "true", "1", "t", "yes", "y" -> true;
-            case "false", "0", "f", "no", "n" -> false;
-            default -> fallback;
-        };
     }
 
     private static final class Pose {
