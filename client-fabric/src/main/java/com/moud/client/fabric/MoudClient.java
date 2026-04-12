@@ -12,7 +12,9 @@ import com.moud.client.fabric.editor.util.AssetImportUtil;
 import com.moud.client.fabric.net.ClientSessionBus;
 import com.moud.client.fabric.player.ClientPlayerMotionController;
 import com.moud.client.fabric.player.MoudPalAnimLayer;
+import com.moud.client.fabric.player.PalAnimInjector;
 import com.moud.client.fabric.player.PlayerBodyAttachmentCache;
+import com.moud.client.fabric.physics.CsgBoxCollisionCache;
 import com.moud.client.fabric.net.EnginePayload;
 import com.moud.client.fabric.net.FabricEngineTransport;
 import com.moud.client.fabric.platform.MinecraftFreeflyCamera;
@@ -45,10 +47,12 @@ import com.moud.net.protocol.SceneSaveAck;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.protocol.SceneSnapshotRequest;
 import com.moud.net.protocol.EditorModeChanged;
+import com.moud.net.protocol.EditorDiagnosticEvent;
 import com.moud.net.protocol.SchemaSnapshot;
 import com.moud.net.protocol.ScriptActionInvokeAck;
 import com.moud.net.protocol.ScriptActionListResponse;
 import com.moud.net.protocol.ScriptFileReadResponse;
+import com.moud.net.protocol.CollisionGeometrySnapshot;
 import com.moud.net.protocol.MultiMeshData;
 import com.moud.net.protocol.PlayerMotion;
 import com.moud.net.protocol.ScriptFileWriteAck;
@@ -92,6 +96,7 @@ final class MoudClient {
     private boolean pendingRestoreSnapshot;
     private boolean autoOpenedEditor;
     private KeyBinding toggleKey;
+    private KeyBinding collisionDebugKey;
     private boolean dropCallbackRegistered;
 
     private volatile SchemaSnapshot lastSchema;
@@ -128,6 +133,11 @@ final class MoudClient {
                 GLFW.GLFW_KEY_F8,
                 "category.moud"
         ));
+        collisionDebugKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.moud.collision_debug",
+                GLFW.GLFW_KEY_F9,
+                "category.moud"
+        ));
     }
 
     private void registerLifecycleEvents() {
@@ -145,6 +155,7 @@ final class MoudClient {
         VeilSceneNodeRenderer.init();
         VeilWorldEnvironmentRenderer.init();
         MoudPalAnimLayer.register();
+        assets.addListener(new PalAnimInjector(assets));
         MoudTextures.init(assets);
         MoudTextAssets.init(assets);
         MoudAudioAssets.init(assets);
@@ -235,6 +246,8 @@ final class MoudClient {
         PlayerBodyAttachmentCache.clear();
         VeilSceneNodeRenderer.clearLights();
         VeilSceneNodeRenderer.clearMaterialTextureCache();
+        VeilSceneNodeRenderer.clearCollisionGeometryCache();
+        CsgBoxCollisionCache.clearCollisionGeometry();
         VeilWorldEnvironmentRenderer.clear();
         MoudTextures.clear();
         MoudTextAssets.clear();
@@ -300,7 +313,6 @@ final class MoudClient {
         handleInputBlocking(client);
         handleOverlayState();
         tickSystems();
-        // anchor override, must run last
         ClientPlayerMotionController.clientTick(client);
     }
 
@@ -365,9 +377,15 @@ final class MoudClient {
                 closeEditorOverlay(client);
             }
         }
+        while (collisionDebugKey != null && collisionDebugKey.wasPressed()) {
+            VeilSceneNodeRenderer.toggleCollisionDebug();
+        }
     }
 
     private void handleInputBlocking(MinecraftClient client) {
+        if (playRuntime.isActive() && client.currentScreen == null) {
+            playRuntime.captureInput();
+        }
         if ((overlayOpen || playRuntime.shouldBlockVanillaInput(client)) && client.currentScreen == null) {
             blockVanillaInput(client);
         }
@@ -535,6 +553,8 @@ final class MoudClient {
             playRuntime.onRuntimeState(state);
         } else if (message instanceof CursorState state) {
             playRuntime.onCursorState(state);
+        } else if (message instanceof EditorDiagnosticEvent diagnostic) {
+            handleEditorDiagnostic(diagnostic);
         } else if (message instanceof ProjectInfo info && overlayReady) {
             overlay.onProjectInfo(info);
         } else if (message instanceof ProjectCreateAck ack && overlayReady) {
@@ -604,9 +624,30 @@ final class MoudClient {
             MinecraftGhostBlocks.get().onAck(ack);
         } else if (message instanceof MultiMeshData mmData) {
             InstanceDataStore.accumulate(mmData.nodeId(), mmData.offset(), mmData.total(), mmData.data());
+        } else if (message instanceof CollisionGeometrySnapshot cg) {
+            CsgBoxCollisionCache.onCollisionGeometry(cg);
+            VeilSceneNodeRenderer.onCollisionGeometry(cg);
         } else if (message instanceof PlayerMotion motion) {
             ClientPlayerMotionController.onPlayerMotion(motion);
         }
+    }
+
+    private void handleEditorDiagnostic(EditorDiagnosticEvent diagnostic) {
+        if (diagnostic == null) {
+            return;
+        }
+        String source = diagnostic.source() == null || diagnostic.source().isBlank() ? "Runtime" : diagnostic.source();
+        String severity = diagnostic.severity() == null ? "" : diagnostic.severity().trim();
+        String message = diagnostic.message() == null ? "" : diagnostic.message();
+        if ("WARN".equalsIgnoreCase(severity) || "WARNING".equalsIgnoreCase(severity)) {
+            ClientDebugLog.warn(source, message);
+            return;
+        }
+        if ("INFO".equalsIgnoreCase(severity)) {
+            ClientDebugLog.info(source, message);
+            return;
+        }
+        ClientDebugLog.error(source, message);
     }
 
     private void handleSceneSave(SceneSaveAck ack, boolean overlayReady) {
