@@ -8,6 +8,12 @@ public record BoneNode(
         float pivotX,
         float pivotY,
         float pivotZ,
+        float posX,
+        float posY,
+        float posZ,
+        float rotX,
+        float rotY,
+        float rotZ,
         List<CubeGeometry> cubes,
         List<BoneNode> children
 ) {

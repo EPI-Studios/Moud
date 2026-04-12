@@ -1,6 +1,11 @@
 package com.moud.client.fabric.model.loader;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.moud.client.fabric.model.AnimationClip;
+import com.moud.core.util.ParseUtils;
 import com.moud.client.fabric.model.BoneNode;
 import com.moud.client.fabric.model.BoneTrack;
 import com.moud.client.fabric.model.CubeGeometry;
@@ -10,10 +15,6 @@ import fr.mrqsdf.bbmodelreader.BbModelReader;
 import fr.mrqsdf.bbmodelreader.data.BbModel;
 import fr.mrqsdf.bbmodelreader.data.Element;
 import fr.mrqsdf.bbmodelreader.data.Face;
-import fr.mrqsdf.bbmodelreader.data.Outliner;
-import fr.mrqsdf.bbmodelreader.data.OutlinerChild;
-import fr.mrqsdf.bbmodelreader.data.OutlinerElementRef;
-import fr.mrqsdf.bbmodelreader.data.OutlinerGroupRef;
 import fr.mrqsdf.bbmodelreader.data.Texture;
 import fr.mrqsdf.bbmodelreader.data.animation.Animation;
 import fr.mrqsdf.bbmodelreader.data.animation.Animator;
@@ -37,10 +38,14 @@ public final class BbmodelLoader {
         String json = new String(jsonBytes, StandardCharsets.UTF_8);
         String cacheKey = "moud_" + Long.toHexString(System.nanoTime());
         BbModel bb = BbModelReader.loadFromJson(json, cacheKey);
-        return fromBbModel(bb, modelName);
+        JsonObject root = asObject(JsonParser.parseString(json));
+        if (root == null) {
+            throw new IllegalStateException("bbmodel root is not a JSON object");
+        }
+        return fromBbModel(bb, root, modelName);
     }
 
-    private static ModelAsset fromBbModel(BbModel bb, String modelName) {
+    private static ModelAsset fromBbModel(BbModel bb, JsonObject root, String modelName) {
         int resW = 64, resH = 64;
         if (bb.getResolution() != null) {
             resW = Math.max(1, bb.getResolution().getWidth());
@@ -70,18 +75,11 @@ public final class BbmodelLoader {
                 if (e != null && e.getUuid() != null) elementsByUuid.put(e.getUuid(), e);
             }
         }
+        Map<String, JsonObject> elementJsonByUuid = parseElementJson(root);
 
         List<BoneNode> rootBones = new ArrayList<>();
         Map<String, BoneNode> bonesByUuid = new HashMap<>();
-        Outliner[] outliner = bb.getOutliner();
-        if (outliner != null) {
-            for (Outliner root : outliner) {
-                if (root == null) continue;
-                BoneNode bone = buildBone(root, elementsByUuid, resW, resH);
-                rootBones.add(bone);
-                collectBones(bone, bonesByUuid);
-            }
-        }
+        buildBones(root, elementsByUuid, elementJsonByUuid, rootBones, bonesByUuid);
 
         Map<String, AnimationClip> animations = new HashMap<>();
         Animation[] anims = bb.getAnimations();
@@ -100,39 +98,124 @@ public final class BbmodelLoader {
         for (BoneNode child : bone.children()) collectBones(child, out);
     }
 
-    private static BoneNode buildBone(Outliner outliner, Map<String, Element> elements, int resW, int resH) {
-        float px = 0, py = 0, pz = 0;
-        float[] origin = outliner.getOrigin();
-        if (origin != null && origin.length >= 3) { px = origin[0]; py = origin[1]; pz = origin[2]; }
+    private static void buildBones(JsonObject root,
+                                   Map<String, Element> elementsByUuid,
+                                   Map<String, JsonObject> elementJsonByUuid,
+                                   List<BoneNode> rootBones,
+                                   Map<String, BoneNode> bonesByUuid) {
+        JsonArray outliner = root != null && root.has("outliner") && root.get("outliner").isJsonArray()
+                ? asArray(root.get("outliner"))
+                : null;
+        if (outliner == null) {
+            return;
+        }
+        int syntheticRootIndex = 0;
+        for (JsonElement entry : outliner) {
+            if (entry == null || entry.isJsonNull()) {
+                continue;
+            }
+            BoneNode bone;
+            JsonObject entryObject = asObject(entry);
+            if (entryObject != null) {
+                bone = buildBone(entryObject, elementsByUuid, elementJsonByUuid);
+            } else if (entry.isJsonPrimitive() && entry.getAsJsonPrimitive().isString()) {
+                String uuid = entry.getAsString();
+                bone = syntheticBoneForElement(uuid, elementsByUuid, elementJsonByUuid, syntheticRootIndex++);
+            } else {
+                bone = null;
+            }
+            if (bone == null) {
+                continue;
+            }
+            rootBones.add(bone);
+            collectBones(bone, bonesByUuid);
+        }
+    }
+
+    private static BoneNode buildBone(JsonObject outliner,
+                                      Map<String, Element> elements,
+                                      Map<String, JsonObject> elementJsonByUuid) {
+        if (outliner == null) {
+            return null;
+        }
+        float[] origin = jsonFloat3(outliner.get("origin"), 0f, 0f, 0f);
+        float[] rotation = jsonFloat3(outliner.get("rotation"), 0f, 0f, 0f);
+        float[] position = jsonFloat3(outliner.get("position"), 0f, 0f, 0f);
 
         List<CubeGeometry> cubes = new ArrayList<>();
         List<BoneNode> children = new ArrayList<>();
-
-        if (outliner.getChildren() != null) {
-            for (OutlinerChild child : outliner.getChildren()) {
-                if (child instanceof OutlinerElementRef eRef) {
-                    Element e = elements.get(eRef.getUuid());
-                    if (e != null) {
-                        CubeGeometry cube = toCube(e);
-                        if (cube != null) cubes.add(cube);
+        JsonArray childArray = outliner.has("children") && outliner.get("children").isJsonArray()
+                ? asArray(outliner.get("children"))
+                : null;
+        if (childArray != null) {
+            for (JsonElement child : childArray) {
+                if (child == null || child.isJsonNull()) {
+                    continue;
+                }
+                JsonObject childObject = asObject(child);
+                if (childObject != null) {
+                    BoneNode childBone = buildBone(childObject, elements, elementJsonByUuid);
+                    if (childBone != null) {
+                        children.add(childBone);
                     }
-                } else if (child instanceof OutlinerGroupRef gRef) {
-                    children.add(buildBone(gRef.getGroup(), elements, resW, resH));
+                } else if (child.isJsonPrimitive() && child.getAsJsonPrimitive().isString()) {
+                    Element element = elements.get(child.getAsString());
+                    if (element != null) {
+                        CubeGeometry cube = toCube(element, elementJsonByUuid.get(child.getAsString()));
+                        if (cube != null) {
+                            cubes.add(cube);
+                        }
+                    }
                 }
             }
         }
 
-        String uuid = outliner.getUuid() != null ? outliner.getUuid() : "";
-        String name = outliner.getName() != null ? outliner.getName() : "";
-        return new BoneNode(name, uuid, px, py, pz, cubes, children);
+        String uuid = string(outliner, "uuid", "");
+        String name = string(outliner, "name", "");
+        return new BoneNode(
+                name, uuid,
+                origin[0], origin[1], origin[2],
+                position[0], position[1], position[2],
+                rotation[0], rotation[1], rotation[2],
+                cubes, children
+        );
     }
 
-    private static CubeGeometry toCube(Element e) {
+    private static BoneNode syntheticBoneForElement(String uuid,
+                                                    Map<String, Element> elements,
+                                                    Map<String, JsonObject> elementJsonByUuid,
+                                                    int index) {
+        Element element = elements.get(uuid);
+        if (element == null) {
+            return null;
+        }
+        CubeGeometry cube = toCube(element, elementJsonByUuid.get(uuid));
+        if (cube == null) {
+            return null;
+        }
+        return new BoneNode(
+                "__root_" + index,
+                "",
+                0f, 0f, 0f,
+                0f, 0f, 0f,
+                0f, 0f, 0f,
+                List.of(cube),
+                List.of()
+        );
+    }
+
+    private static CubeGeometry toCube(Element e, JsonObject raw) {
         float[] from = e.getFrom(), to = e.getTo();
         if (from == null || to == null || from.length < 3 || to.length < 3) return null;
         Face f = e.getFaces();
+        float[] origin = rawFloat3(raw, "origin", 0.0f, 0.0f, 0.0f);
+        float[] rotation = rawFloat3(raw, "rotation", 0.0f, 0.0f, 0.0f);
+        float inflate = rawFloat(raw, "inflate", 0.0f);
         return new CubeGeometry(
                 from[0], from[1], from[2], to[0], to[1], to[2],
+                origin[0], origin[1], origin[2],
+                rotation[0], rotation[1], rotation[2],
+                inflate,
                 toFaceUv(f != null ? f.getNorth() : null),
                 toFaceUv(f != null ? f.getSouth() : null),
                 toFaceUv(f != null ? f.getEast()  : null),
@@ -174,7 +257,7 @@ public final class BbmodelLoader {
             DataPoint dp = kf.getDataPoints().get(0);
             if (dp == null) continue;
             float t = kf.getTime();
-            float x = parseFloat(dp.getX(), 0f), y = parseFloat(dp.getY(), 0f), z = parseFloat(dp.getZ(), 0f);
+            float x = ParseUtils.parseFloat(dp.getX(), 0f), y = ParseUtils.parseFloat(dp.getY(), 0f), z = ParseUtils.parseFloat(dp.getZ(), 0f);
             switch (kf.getChannel() != null ? kf.getChannel() : "") {
                 case "position" -> pos.add(new float[]{t, x, y, z});
                 case "rotation" -> rot.add(new float[]{t, x, y, z});
@@ -203,17 +286,92 @@ public final class BbmodelLoader {
         return a;
     }
 
-    private static float parseFloat(String s, float def) {
-        if (s == null || s.isBlank()) return def;
-        try { return Float.parseFloat(s.trim()); } catch (NumberFormatException e) { return def; }
-    }
-
     private static byte[] extractPng(Texture tex) {
         String source = tex.getSource();
         if (source == null || !source.contains(",")) return null;
         try {
             return Base64.getDecoder().decode(source.substring(source.indexOf(',') + 1));
         } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static Map<String, JsonObject> parseElementJson(JsonObject root) {
+        Map<String, JsonObject> out = new HashMap<>();
+        JsonArray elements = root != null && root.has("elements") && root.get("elements").isJsonArray()
+                ? asArray(root.get("elements"))
+                : null;
+        if (elements == null) {
+            return out;
+        }
+        for (JsonElement element : elements) {
+            JsonObject object = asObject(element);
+            if (object == null) {
+                continue;
+            }
+            String uuid = string(object, "uuid", "");
+            if (!uuid.isEmpty()) {
+                out.put(uuid, object);
+            }
+        }
+        return out;
+    }
+
+    private static float[] rawFloat3(JsonObject object, String key, float x, float y, float z) {
+        if (object == null || key == null || !object.has(key)) {
+            return new float[]{x, y, z};
+        }
+        return jsonFloat3(object.get(key), x, y, z);
+    }
+
+    private static float rawFloat(JsonObject object, String key, float fallback) {
+        if (object == null || key == null || !object.has(key)) {
+            return fallback;
+        }
+        JsonElement el = object.get(key);
+        return el != null && el.isJsonPrimitive() && el.getAsJsonPrimitive().isNumber()
+                ? el.getAsFloat()
+                : fallback;
+    }
+
+    private static String string(JsonObject object, String key, String fallback) {
+        if (object == null || key == null || !object.has(key)) {
+            return fallback;
+        }
+        JsonElement el = object.get(key);
+        return el != null && el.isJsonPrimitive() ? el.getAsString() : fallback;
+    }
+
+    private static float[] jsonFloat3(JsonElement element, float x, float y, float z) {
+        float[] out = new float[]{x, y, z};
+        JsonArray arr = asArray(element);
+        if (arr == null) {
+            return out;
+        }
+        if (arr.size() > 0 && arr.get(0).isJsonPrimitive()) out[0] = arr.get(0).getAsFloat();
+        if (arr.size() > 1 && arr.get(1).isJsonPrimitive()) out[1] = arr.get(1).getAsFloat();
+        if (arr.size() > 2 && arr.get(2).isJsonPrimitive()) out[2] = arr.get(2).getAsFloat();
+        return out;
+    }
+
+    private static JsonObject asObject(JsonElement element) {
+        if (element == null || element.isJsonNull()) {
+            return null;
+        }
+        try {
+            return element.isJsonObject() ? element.getAsJsonObject() : null;
+        } catch (IllegalStateException ignored) {
+            return null;
+        }
+    }
+
+    private static JsonArray asArray(JsonElement element) {
+        if (element == null || element.isJsonNull()) {
+            return null;
+        }
+        try {
+            return element.isJsonArray() ? element.getAsJsonArray() : null;
+        } catch (IllegalStateException ignored) {
             return null;
         }
     }

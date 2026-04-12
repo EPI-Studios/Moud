@@ -3,6 +3,7 @@ package com.moud.client.fabric.model;
 import com.moud.client.fabric.assets.AssetsClient;
 import com.moud.client.fabric.model.loader.BbmodelLoader;
 import com.moud.client.fabric.net.ClientSessionBus;
+import com.moud.client.fabric.util.ClientDebugLog;
 import com.moud.core.assets.AssetHash;
 import com.moud.core.assets.AssetMeta;
 import com.moud.core.assets.ResPath;
@@ -128,7 +129,7 @@ public final class ModelCache implements AssetsClient.Listener {
 
         if (status != AssetTransferStatus.OK || bytes == null || bytes.length == 0) {
             synchronized (LOCK) { entry.state = ModelState.FAILED; }
-            System.err.println("[ModelCache] download failed for " + entry.path + ": " + (message != null ? message : status));
+            ClientDebugLog.error("Assets", "Model download failed path=" + entry.path + " error=" + (message != null ? message : status));
             return;
         }
 
@@ -147,7 +148,7 @@ public final class ModelCache implements AssetsClient.Listener {
                 }
             } catch (Exception e) {
                 synchronized (LOCK) { entry.state = ModelState.FAILED; }
-                System.err.println("[ModelCache] parse failed for " + path + ": " + e.getMessage());
+                ClientDebugLog.error("Assets", "Model parse failed path=" + path + " error=" + e.getMessage());
             }
         });
     }
