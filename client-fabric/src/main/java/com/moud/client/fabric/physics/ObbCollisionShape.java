@@ -16,7 +16,7 @@ public record ObbCollisionShape(
         double a10, double a11, double a12,
         double a20, double a21, double a22,
         Box worldAabb
-) {
+) implements CollisionShape {
     private static final double EPSILON = 1e-6;
 
     public static ObbCollisionShape of(
@@ -113,3 +113,5 @@ public record ObbCollisionShape(
         return true;
     }
 }
+
+// THIS WAS IA GENERATED AND SHOULD BE REWRITTEN - Meekiavelique

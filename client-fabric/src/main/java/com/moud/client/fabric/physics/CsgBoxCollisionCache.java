@@ -1,6 +1,9 @@
 package com.moud.client.fabric.physics;
 
 import com.moud.client.fabric.scene.ClientSceneBus;
+import com.moud.core.physics.CollisionGeometry;
+import com.moud.core.util.ParseUtils;
+import com.moud.net.protocol.CollisionGeometrySnapshot;
 import com.moud.net.protocol.SceneSnapshot;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -13,15 +16,16 @@ import java.util.Map;
 import java.util.Set;
 
 public final class CsgBoxCollisionCache {
-    private static volatile ObbCollisionShape[] shapes = new ObbCollisionShape[0];
+    private static volatile CollisionShape[] shapes = new CollisionShape[0];
     private static long cachedVersion = Long.MIN_VALUE;
+    private static final Map<Long, List<CollisionGeometry>> collisionGeometryByNode = new HashMap<>();
     private static final int DEFAULT_LAYER = 1;
     private static final int DEFAULT_MASK = 1;
 
     private CsgBoxCollisionCache() {
     }
 
-    public static ObbCollisionShape[] get() {
+    public static CollisionShape[] get() {
         long v = ClientSceneBus.version();
         if (v != cachedVersion) {
             cachedVersion = v;
@@ -30,8 +34,22 @@ public final class CsgBoxCollisionCache {
         return shapes;
     }
 
-    private static ObbCollisionShape[] rebuild(List<SceneSnapshot.NodeSnapshot> nodes) {
-        if (nodes.isEmpty()) return new ObbCollisionShape[0];
+    public static void onCollisionGeometry(CollisionGeometrySnapshot snapshot) {
+        if (snapshot == null || snapshot.nodeId() <= 0L || snapshot.hulls() == null || snapshot.hulls().isEmpty()) {
+            return;
+        }
+        collisionGeometryByNode.put(snapshot.nodeId(), List.copyOf(snapshot.hulls()));
+        cachedVersion = Long.MIN_VALUE;
+    }
+
+    public static void clearCollisionGeometry() {
+        collisionGeometryByNode.clear();
+        cachedVersion = Long.MIN_VALUE;
+        shapes = new CollisionShape[0];
+    }
+
+    private static CollisionShape[] rebuild(List<SceneSnapshot.NodeSnapshot> nodes) {
+        if (nodes.isEmpty()) return new CollisionShape[0];
 
         // Parse local transforms for all nodes (needed to walk the parent chain)
         Map<Long, float[]> locals = new HashMap<>(nodes.size() * 2);
@@ -47,12 +65,20 @@ public final class CsgBoxCollisionCache {
         }
 
         List<Long> csgBoxIds = new ArrayList<>();
+        List<Long> hullNodeIds = new ArrayList<>();
         for (SceneSnapshot.NodeSnapshot node : nodes) {
-            if (node != null && "CSGBox".equals(node.type()) && node.nodeId() > 0 && collisionEnabled(node)) {
+            if (node == null || node.nodeId() <= 0 || !collisionEnabled(node)) {
+                continue;
+            }
+            if ("CSGBox".equals(node.type()) || "CSGBlock".equals(node.type())) {
                 csgBoxIds.add(node.nodeId());
             }
+            List<CollisionGeometry> hulls = collisionGeometryByNode.get(node.nodeId());
+            if (hulls != null && !hulls.isEmpty()) {
+                hullNodeIds.add(node.nodeId());
+            }
         }
-        if (csgBoxIds.isEmpty()) return new ObbCollisionShape[0];
+        if (csgBoxIds.isEmpty() && hullNodeIds.isEmpty()) return new CollisionShape[0];
 
         Map<Long, float[]> worldCache = new HashMap<>(nodes.size() * 2);
         Set<Long> visiting = new HashSet<>();
@@ -62,8 +88,11 @@ public final class CsgBoxCollisionCache {
         for (long id : csgBoxIds) {
             computeWorld(id, locals, parentInfo, worldCache, visiting, tempQ, tempV);
         }
+        for (long id : hullNodeIds) {
+            computeWorld(id, locals, parentInfo, worldCache, visiting, tempQ, tempV);
+        }
 
-        List<ObbCollisionShape> result = new ArrayList<>(csgBoxIds.size());
+        List<CollisionShape> result = new ArrayList<>(csgBoxIds.size() + hullNodeIds.size() * 4);
         for (long id : csgBoxIds) {
             float[] w = worldCache.get(id);
             if (w == null) continue;
@@ -93,7 +122,76 @@ public final class CsgBoxCollisionCache {
                     m00, m01, m02, m10, m11, m12, m20, m21, m22));
         }
 
-        return result.toArray(new ObbCollisionShape[0]);
+        for (long id : hullNodeIds) {
+            float[] w = worldCache.get(id);
+            SceneSnapshot.NodeSnapshot node = nodesById.get(id);
+            List<CollisionGeometry> hulls = collisionGeometryByNode.get(id);
+            if (w == null || node == null || hulls == null || hulls.isEmpty()) {
+                continue;
+            }
+
+            float qx = w[3], qy = w[4], qz = w[5], qw = w[6];
+            double m00 = 1.0 - 2.0 * (qy * qy + qz * qz);
+            double m10 = 2.0 * (qx * qy + qz * qw);
+            double m20 = 2.0 * (qx * qz - qy * qw);
+            double m01 = 2.0 * (qx * qy - qz * qw);
+            double m11 = 1.0 - 2.0 * (qx * qx + qz * qz);
+            double m21 = 2.0 * (qy * qz + qx * qw);
+            double m02 = 2.0 * (qx * qz + qy * qw);
+            double m12 = 2.0 * (qy * qz - qx * qw);
+            double m22 = 1.0 - 2.0 * (qx * qx + qy * qy);
+
+            int layerBits = layer(node);
+            int maskBits = mask(node);
+
+            for (CollisionGeometry hull : hulls) {
+                CollisionShape shape = hullShape(hull, w, layerBits, maskBits);
+                if (shape != null) {
+                    result.add(shape);
+                }
+            }
+        }
+
+        return result.toArray(new CollisionShape[0]);
+    }
+
+    private static CollisionShape hullShape(CollisionGeometry hull, float[] world, int layerBits, int maskBits) {
+        if (hull == null || hull.vertices() == null || hull.vertices().length < 9 || world == null || world.length < 10) {
+            return null;
+        }
+        float[] vertices = hull.vertices();
+
+        float px = world[0];
+        float py = world[1];
+        float pz = world[2];
+        float qx = world[3];
+        float qy = world[4];
+        float qz = world[5];
+        float qw = world[6];
+        float sx = world[7];
+        float sy = world[8];
+        float sz = world[9];
+
+        double m00 = 1.0 - 2.0 * (qy * qy + qz * qz);
+        double m10 = 2.0 * (qx * qy + qz * qw);
+        double m20 = 2.0 * (qx * qz - qy * qw);
+        double m01 = 2.0 * (qx * qy - qz * qw);
+        double m11 = 1.0 - 2.0 * (qx * qx + qz * qz);
+        double m21 = 2.0 * (qy * qz + qx * qw);
+        double m02 = 2.0 * (qx * qz + qy * qw);
+        double m12 = 2.0 * (qy * qz - qx * qw);
+        double m22 = 1.0 - 2.0 * (qx * qx + qy * qy);
+
+        float[] worldVertices = new float[vertices.length];
+        for (int i = 0; i + 2 < vertices.length; i += 3) {
+            double lx = vertices[i] * sx;
+            double ly = vertices[i + 1] * sy;
+            double lz = vertices[i + 2] * sz;
+            worldVertices[i] = (float) (px + m00 * lx + m01 * ly + m02 * lz);
+            worldVertices[i + 1] = (float) (py + m10 * lx + m11 * ly + m12 * lz);
+            worldVertices[i + 2] = (float) (pz + m20 * lx + m21 * ly + m22 * lz);
+        }
+        return ConvexCollisionShape.of(worldVertices, hull.indices(), layerBits, maskBits);
     }
 
     private static void computeWorld(long nodeId, Map<Long, float[]> locals, Map<Long, long[]> parentInfo,
@@ -158,15 +256,15 @@ public final class CsgBoxCollisionCache {
             for (SceneSnapshot.Property p : props) {
                 if (p == null || p.key() == null) continue;
                 switch (p.key()) {
-                    case "x" -> x = parseFloat(p.value(), 0);
-                    case "y" -> y = parseFloat(p.value(), 0);
-                    case "z" -> z = parseFloat(p.value(), 0);
-                    case "rx" -> rxDeg = parseFloat(p.value(), 0);
-                    case "ry" -> ryDeg = parseFloat(p.value(), 0);
-                    case "rz" -> rzDeg = parseFloat(p.value(), 0);
-                    case "sx" -> { sx = parseFloat(p.value(), 1); hasScale = true; }
-                    case "sy" -> { sy = parseFloat(p.value(), 1); hasScale = true; }
-                    case "sz" -> { sz = parseFloat(p.value(), 1); hasScale = true; }
+                    case "x" -> x = ParseUtils.parseFloat(p.value(), 0);
+                    case "y" -> y = ParseUtils.parseFloat(p.value(), 0);
+                    case "z" -> z = ParseUtils.parseFloat(p.value(), 0);
+                    case "rx" -> rxDeg = ParseUtils.parseFloat(p.value(), 0);
+                    case "ry" -> ryDeg = ParseUtils.parseFloat(p.value(), 0);
+                    case "rz" -> rzDeg = ParseUtils.parseFloat(p.value(), 0);
+                    case "sx" -> { sx = ParseUtils.parseFloat(p.value(), 1); hasScale = true; }
+                    case "sy" -> { sy = ParseUtils.parseFloat(p.value(), 1); hasScale = true; }
+                    case "sz" -> { sz = ParseUtils.parseFloat(p.value(), 1); hasScale = true; }
                     default -> { }
                 }
             }
@@ -237,35 +335,68 @@ public final class CsgBoxCollisionCache {
         if (node == null || key == null) return fallback;
         List<SceneSnapshot.Property> props = node.properties();
         if (props == null) return fallback;
+        String alias = alternatePropertyKey(key);
+
+        if (alias != null) {
+            for (SceneSnapshot.Property p : props) {
+                if (p == null || !alias.equals(p.key())) {
+                    continue;
+                }
+                return parseBitsValue(p.value(), fallback);
+            }
+        }
 
         for (SceneSnapshot.Property p : props) {
             if (p == null || !key.equals(p.key())) {
                 continue;
             }
-            String v = p.value();
-            if (v == null || v.isBlank()) {
-                return fallback;
-            }
-            try {
-                int bits = Integer.parseInt(v.trim());
-                if (bits <= 0) return 0;
-                return bits == Integer.MIN_VALUE ? 0 : Math.abs(bits);
-            } catch (Exception ignored) {
-                return fallback;
-            }
+            return parseBitsValue(p.value(), fallback);
         }
 
         return fallback;
     }
 
-    private static float parseFloat(String v, float fallback) {
+    private static int parseBitsValue(String value, int fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
         try {
-            if (v == null) return fallback;
-            float r = Float.parseFloat(v.trim());
-            return Float.isFinite(r) ? r : fallback;
+            int bits = Integer.parseInt(value.trim());
+            if (bits <= 0) return 0;
+            return bits == Integer.MIN_VALUE ? 0 : Math.abs(bits);
         } catch (Exception ignored) {
             return fallback;
         }
+    }
+
+    private static String alternatePropertyKey(String key) {
+        if (key == null || key.isBlank()) {
+            return null;
+        }
+        if (key.indexOf('_') >= 0) {
+            StringBuilder out = new StringBuilder(key.length());
+            boolean upperNext = false;
+            for (int i = 0; i < key.length(); i++) {
+                char c = key.charAt(i);
+                if (c == '_') {
+                    upperNext = true;
+                    continue;
+                }
+                out.append(upperNext ? Character.toUpperCase(c) : c);
+                upperNext = false;
+            }
+            return out.toString();
+        }
+        StringBuilder out = new StringBuilder(key.length() + 4);
+        for (int i = 0; i < key.length(); i++) {
+            char c = key.charAt(i);
+            if (Character.isUpperCase(c)) {
+                out.append('_').append(Character.toLowerCase(c));
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
     }
 
     private static float safeScale(float v) {
