@@ -1,4 +1,4 @@
-package com.moud.server.minestom.scripting;
+package com.moud.server.minestom.scripting.luau;
 
 import com.moud.core.scene.Node;
 import com.moud.net.protocol.ScriptActionInvoke;
@@ -7,26 +7,29 @@ import com.moud.net.protocol.ScriptActionListRequest;
 import com.moud.net.protocol.ScriptActionListResponse;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.project.ProjectService;
+import com.moud.server.minestom.scripting.ScriptReference;
+import com.moud.server.minestom.scripting.ToolScriptService;
+import com.moud.server.minestom.scripting.lang.ScriptPaths;
 import com.moud.server.minestom.util.DebugLog;
 
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 
-final class LuauToolScriptService {
+public final class LuauToolScriptService {
     private final ProjectService project;
     private final LuauRuntimeBridge luau;
 
-    LuauToolScriptService(ProjectService project) {
+    public LuauToolScriptService(ProjectService project) {
         this.project = Objects.requireNonNull(project, "project");
         this.luau = new LuauRuntimeBridge();
     }
 
-    void close() {
+    public void close() {
         luau.close();
     }
 
-    ScriptActionListResponse onListActions(ServerScene scene, ScriptActionListRequest request) {
+    public ScriptActionListResponse onListActions(ServerScene scene, ScriptActionListRequest request) {
         Objects.requireNonNull(scene, "scene");
         Objects.requireNonNull(request, "request");
 
@@ -60,7 +63,7 @@ final class LuauToolScriptService {
         }
     }
 
-    ScriptActionInvokeAck onInvokeAction(ServerScene scene, ScriptActionInvoke request) {
+    public ScriptActionInvokeAck onInvokeAction(ServerScene scene, ScriptActionInvoke request) {
         Objects.requireNonNull(scene, "scene");
         Objects.requireNonNull(request, "request");
 
