@@ -41,6 +41,10 @@ public final class MinestomNodeTypesProvider implements NodeTypeProvider {
                 Map.entry(Model3D.PROP_ANIMATION,    new PropertyDef(Model3D.PROP_ANIMATION,    PropertyType.STRING, "",     "Animation",     "Model",     1,  Map.of())),
                 Map.entry(Model3D.PROP_ANIMATION_LOOP,  new PropertyDef(Model3D.PROP_ANIMATION_LOOP,  PropertyType.STRING, "loop", "Loop Mode", "Model",  2,  Map.of())),
                 Map.entry(Model3D.PROP_ANIMATION_SPEED, new PropertyDef(Model3D.PROP_ANIMATION_SPEED, PropertyType.FLOAT,  "1.0",  "Anim Speed", "Model", 3,  Map.of("min", "0.01", "step", "0.1"))),
+                Map.entry("solid",                   new PropertyDef("solid",                   PropertyType.BOOL,   "false", "Solid",         "Collision", 0,  Map.of())),
+                Map.entry("collision_strategy",      new PropertyDef("collision_strategy",      PropertyType.STRING, "auto",  "Collision",     "Collision", 1,  Map.of())),
+                Map.entry("collision_layer",         new PropertyDef("collision_layer",         PropertyType.INT,    "1",     "Layer",         "Collision", 2,  Map.of("min", "0", "step", "1"))),
+                Map.entry("collision_mask",          new PropertyDef("collision_mask",          PropertyType.INT,    "1",     "Mask",          "Collision", 3,  Map.of("min", "0", "step", "1"))),
                 Map.entry("script",                  new PropertyDef("script",                  PropertyType.STRING, null,   "Script",        "Script",    100, Map.of()))
         )));
 

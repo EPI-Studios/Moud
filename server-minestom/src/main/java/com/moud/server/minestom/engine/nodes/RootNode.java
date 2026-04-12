@@ -18,16 +18,29 @@ public final class RootNode extends Node {
         return mode != null && mode.equalsIgnoreCase("2d");
     }
 
+    private Node findTicker() {
+        for (Node child : children()) {
+            if (child == null) {
+                continue;
+            }
+            String type = child.getProperty("@type");
+            if ("Ticker".equals(type) || "ticker".equalsIgnoreCase(child.name())) {
+                return child;
+            }
+        }
+        return null;
+    }
+
     @Override
     protected void onReady() {
         if (is2D()) {
-            Node ticker = findChild("ticker");
+            Node ticker = findTicker();
             if (ticker != null) {
                 ticker.queueFree();
             }
             return;
         }
-        if (findChild("ticker") == null) {
+        if (findTicker() == null) {
             addChild(new TickerNode("ticker"));
         }
     }
@@ -36,7 +49,7 @@ public final class RootNode extends Node {
     protected void onProcess(double dtSeconds) {
         processed.incrementAndGet();
         boolean is2d = is2D();
-        Node ticker = findChild("ticker");
+        Node ticker = findTicker();
         if (is2d) {
             if (ticker != null) {
                 ticker.queueFree();

@@ -1,6 +1,7 @@
 package com.moud.server.minestom.engine;
 
 import com.moud.net.protocol.SceneInfo;
+import com.moud.server.minestom.collision.CollisionBakeService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -16,11 +17,13 @@ import java.util.*;
 
 public final class ServerScenes {
     private final InstanceManager instanceManager;
+    private final CollisionBakeService collisionBakeService;
     private final Map<String, ServerScene> scenes = new LinkedHashMap<>();
     private long scenesRevision;
 
-    public ServerScenes(InstanceManager instanceManager) {
+    public ServerScenes(InstanceManager instanceManager, CollisionBakeService collisionBakeService) {
         this.instanceManager = Objects.requireNonNull(instanceManager, "instanceManager");
+        this.collisionBakeService = Objects.requireNonNull(collisionBakeService, "collisionBakeService");
     }
 
     public long scenesRevision() {
@@ -71,7 +74,7 @@ public final class ServerScenes {
         instance.setGenerator(unit -> {
         });
         instance.setChunkLoader(new AnvilLoader("world_" + sceneId));
-        return new ServerScene(sceneId, displayName, instance);
+        return new ServerScene(sceneId, displayName, instance, collisionBakeService);
     }
 
     public List<SceneInfo> snapshotInfo() {
