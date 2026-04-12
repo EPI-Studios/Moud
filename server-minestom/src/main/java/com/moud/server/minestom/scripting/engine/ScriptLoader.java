@@ -1,5 +1,6 @@
-package com.moud.server.minestom.scripting;
+package com.moud.server.minestom.scripting.engine;
 
+import com.moud.server.minestom.scripting.ScriptLanguage;
 import com.moud.server.minestom.scripting.typescript.TypeScriptContext;
 import com.moud.server.minestom.util.DebugLog;
 import org.graalvm.polyglot.*;
@@ -10,7 +11,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
-final class ScriptLoader {
+public final class ScriptLoader {
 
     private static final String LOG_TAG = "script-runtime";
 
@@ -19,7 +20,7 @@ final class ScriptLoader {
     private final TypeScriptContext tsContext;
     private final Map<Path, Program> programs = new HashMap<>();
 
-    ScriptLoader(Context ctx, TypeScriptContext tsContext) {
+    public ScriptLoader(Context ctx, TypeScriptContext tsContext) {
         this.ctx = ctx;
         this.tsContext = tsContext;
         this.createInstanceFn = ctx.eval("js", "(proto) => Object.create(proto)");
@@ -30,11 +31,11 @@ final class ScriptLoader {
         }
     }
 
-    Value createInstanceFn() {
+    public Value createInstanceFn() {
         return createInstanceFn;
     }
 
-    Program programFor(Path scriptFile, ScriptLanguage language) {
+    public Program programFor(Path scriptFile, ScriptLanguage language) {
         if (scriptFile == null) return null;
         long modified;
         try {
@@ -54,7 +55,7 @@ final class ScriptLoader {
         return loaded;
     }
 
-    Value createNodeInstance(Value exports) {
+    public Value createNodeInstance(Value exports) {
         if (exports == null) return null;
         try {
             if (exports.canInstantiate()) return exports.newInstance();
@@ -99,5 +100,5 @@ final class ScriptLoader {
         }
     }
 
-    record Program(Path file, long modifiedMs, Value exports) {}
+    public record Program(Path file, long modifiedMs, Value exports) {}
 }

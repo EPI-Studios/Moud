@@ -1,17 +1,22 @@
-package com.moud.server.minestom.scripting;
+package com.moud.server.minestom.scripting.engine;
 
+
+
+import com.moud.server.minestom.scripting.ScriptCallable;
+import com.moud.server.minestom.scripting.ScriptInvocationException;
+import com.moud.server.minestom.scripting.ScriptObject;
 import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Value;
 
-final class JsScriptAdapters {
+public final class JsScriptAdapters {
     private JsScriptAdapters() {
     }
 
-    static ScriptObject object(Value value) {
+    public static ScriptObject object(Value value) {
         return new JsScriptObject(value);
     }
 
-    static ScriptCallable callable(Value value) {
+    public static ScriptCallable callable(Value value) {
         return new JsScriptCallable(value);
     }
 
