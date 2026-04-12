@@ -1,10 +1,13 @@
-package com.moud.server.minestom.scripting;
+package com.moud.server.minestom.scripting.lang;
 
-final class ScriptPaths {
+import com.moud.server.minestom.scripting.ScriptLanguage;
+import com.moud.server.minestom.scripting.ScriptReference;
+
+public final class ScriptPaths {
     private ScriptPaths() {
     }
 
-    static String normalizeScriptPath(String raw) {
+    public static String normalizeScriptPath(String raw) {
         if (raw == null) {
             return null;
         }
@@ -15,7 +18,7 @@ final class ScriptPaths {
         return value;
     }
 
-    static ScriptReference parseScript(String raw) {
+    public static ScriptReference parseScript(String raw) {
         String path = normalizeScriptPath(raw);
         if (path == null) {
             return null;

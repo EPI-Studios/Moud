@@ -1,14 +1,14 @@
-package com.moud.server.minestom.scripting;
+package com.moud.server.minestom.scripting.lang;
 
 
 import com.moud.core.scene.Node;
 import java.util.UUID;
 
-final class RuntimeScriptUtil {
+public final class RuntimeScriptUtil {
     private RuntimeScriptUtil() {
     }
 
-    static String resolveOwnerUuid(Node node) {
+    public static String resolveOwnerUuid(Node node) {
         if (node == null) {
             return null;
         }
@@ -33,7 +33,7 @@ final class RuntimeScriptUtil {
         }
     }
 
-    static String trimFloat(float v) {
+    public static String trimFloat(float v) {
         if (!Float.isFinite(v)) {
             v = 0.0f;
         }
