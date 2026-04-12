@@ -1,12 +1,16 @@
-package com.moud.server.minestom.scripting;
+package com.moud.server.minestom.scripting.lang;
+
+
+import com.moud.server.minestom.scripting.ScriptLanguage;
+import com.moud.server.minestom.scripting.luau.LuauRuntimeBridge;
 
 import java.util.EnumMap;
 import java.util.Map;
 
-final class ScriptLanguageRegistry {
+public final class ScriptLanguageRegistry {
     private final Map<ScriptLanguage, ScriptLanguageSupport> supportByLanguage;
 
-    ScriptLanguageRegistry() {
+    public ScriptLanguageRegistry() {
         EnumMap<ScriptLanguage, ScriptLanguageSupport> map = new EnumMap<>(ScriptLanguage.class);
         map.put(ScriptLanguage.JAVASCRIPT, new ScriptLanguageSupport(
                 ScriptLanguage.JAVASCRIPT,
@@ -27,7 +31,7 @@ final class ScriptLanguageRegistry {
         supportByLanguage = Map.copyOf(map);
     }
 
-    ScriptLanguageSupport supportFor(ScriptLanguage language) {
+    public ScriptLanguageSupport supportFor(ScriptLanguage language) {
         if (language == null) {
             return supportByLanguage.get(ScriptLanguage.UNKNOWN);
         }
