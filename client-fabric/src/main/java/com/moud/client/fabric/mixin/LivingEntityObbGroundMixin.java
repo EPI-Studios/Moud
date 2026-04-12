@@ -1,8 +1,8 @@
 package com.moud.client.fabric.mixin;
 
 import com.moud.client.fabric.mixin.accessor.EntityGroundAccessor;
+import com.moud.client.fabric.physics.CollisionShape;
 import com.moud.client.fabric.physics.CsgBoxCollisionCache;
-import com.moud.client.fabric.physics.ObbCollisionShape;
 import com.moud.client.fabric.runtime.PlayRuntimeBus;
 import com.moud.client.fabric.runtime.PlayRuntimeClient;
 import net.minecraft.client.MinecraftClient;
@@ -31,8 +31,8 @@ public abstract class LivingEntityObbGroundMixin {
         PlayRuntimeClient runtime = PlayRuntimeBus.get();
         if (runtime == null || !runtime.isActive()) return;
 
-        ObbCollisionShape[] obbs = CsgBoxCollisionCache.get();
-        if (obbs.length == 0) return;
+        CollisionShape[] shapes = CsgBoxCollisionCache.get();
+        if (shapes.length == 0) return;
 
         Entity self = (Entity) (Object) this;
         Box bb = self.getBoundingBox();
@@ -43,12 +43,13 @@ public abstract class LivingEntityObbGroundMixin {
         double cy   = (bb.minY + bb.maxY) * 0.5;
         double cz   = (bb.minZ + bb.maxZ) * 0.5;
 
-        for (ObbCollisionShape obb : obbs) {
-            if (!canCollide(PLAYER_COLLISION_LAYER, PLAYER_COLLISION_MASK, obb.layerBits(), obb.maskBits())) continue;
-            if (!obb.worldAabb().intersects(cx - bbHw, cy - bbHh - GROUND_PROBE, cz - bbHd,
+        for (CollisionShape shape : shapes) {
+            if (!canCollide(PLAYER_COLLISION_LAYER, PLAYER_COLLISION_MASK, shape.layerBits(), shape.maskBits())) continue;
+            if (!shape.worldAabb().intersects(cx - bbHw, cy - bbHh - GROUND_PROBE, cz - bbHd,
                     cx + bbHw, cy + bbHh,                cz + bbHd)) continue;
-            double[] mtv = obb.computeMtv(cx, cy - GROUND_PROBE, cz, bbHw, bbHh + GROUND_PROBE, bbHd);
+            double[] mtv = shape.computeMtv(cx, cy - GROUND_PROBE, cz, bbHw, bbHh + GROUND_PROBE, bbHd);
             if (mtv == null) continue;
+            if (mtv[1] <= 1e-4) continue;
             Vec3d vel = self.getVelocity();
             if (vel.y < 0) self.setVelocity(vel.x, 0, vel.z);
             ((EntityGroundAccessor) self).setOnGround(true);

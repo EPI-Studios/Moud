@@ -2,6 +2,7 @@ package com.moud.client.fabric.mixin;
 
 import com.moud.client.fabric.runtime.PlayRuntimeBus;
 import com.moud.client.fabric.runtime.PlayRuntimeClient;
+import com.moud.core.util.MathUtils;
 import com.moud.net.protocol.RuntimeState;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.block.enums.CameraSubmersionType;
@@ -33,9 +34,9 @@ public abstract class BackgroundRendererMixin {
         if (state == null || !state.fogEnabled()) {
             return;
         }
-        float r = clamp01(state.fogColorR());
-        float g = clamp01(state.fogColorG());
-        float b = clamp01(state.fogColorB());
+        float r = MathUtils.clamp01(state.fogColorR());
+        float g = MathUtils.clamp01(state.fogColorG());
+        float b = MathUtils.clamp01(state.fogColorB());
         red = r;
         green = g;
         blue = b;
@@ -75,9 +76,9 @@ public abstract class BackgroundRendererMixin {
             return;
         }
         RenderSystem.setShaderFogColor(
-                clamp01(state.fogColorR()),
-                clamp01(state.fogColorG()),
-                clamp01(state.fogColorB())
+                MathUtils.clamp01(state.fogColorR()),
+                MathUtils.clamp01(state.fogColorG()),
+                MathUtils.clamp01(state.fogColorB())
         );
     }
 
@@ -86,10 +87,4 @@ public abstract class BackgroundRendererMixin {
         return runtime == null ? null : runtime.lastServerState();
     }
 
-    private static float clamp01(float value) {
-        if (!Float.isFinite(value)) {
-            return 0.0f;
-        }
-        return Math.max(0.0f, Math.min(1.0f, value));
-    }
 }
