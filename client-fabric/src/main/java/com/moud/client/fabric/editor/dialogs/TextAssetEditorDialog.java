@@ -139,7 +139,7 @@ public final class TextAssetEditorDialog implements AssetsClient.Listener {
             if (editor.text().isEmpty()) {
                 editor.setText("");
             }
-            ClientDebugLog.error("Text asset read failed path=" + resPath + " error=" + error);
+            ClientDebugLog.error("Assets", "Text asset read failed path=" + resPath + " error=" + error);
             return;
         }
 
@@ -575,6 +575,9 @@ public final class TextAssetEditorDialog implements AssetsClient.Listener {
             return GLSL;
         }
         if (p.endsWith(".moudmat") || p.endsWith(".json")) {
+            return TS;
+        }
+        if (p.endsWith(".ts") || p.endsWith(".tsx") || p.endsWith(".mts")) {
             return TS;
         }
         if (p.endsWith(".js") || p.endsWith(".mjs") || p.endsWith(".cjs")) {

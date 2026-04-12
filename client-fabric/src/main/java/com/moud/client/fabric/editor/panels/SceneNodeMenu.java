@@ -54,14 +54,28 @@ class SceneNodeMenu {
 
     void openNodeMenu(SceneSnapshot.NodeSnapshot node) {
         nodeMenu.clear();
-        nodeMenu.addItem("Add Child…", () -> sceneNodeOps.openCreateDialog(node.nodeId()));
+        nodeMenu.addItem("Add Child", () -> sceneNodeOps.openCreateDialog(node.nodeId()));
         nodeMenu.addSeparator();
         nodeMenu.addItem("Rename", () -> beginInlineRename(node));
         Set<TreeNode<SceneSnapshot.NodeSnapshot>> multiSel = treeView != null ? treeView.selectedNodes() : Set.of();
+        long rootId = SceneNodeOps.rootNodeId(runtime.state());
+        int deletableCount = node.nodeId() == rootId ? sceneNodeOps.selectedDeletableCount(node) : 1;
         if (multiSel.size() > 1) {
             nodeMenu.addItem("Duplicate (" + multiSel.size() + ")", () -> sceneNodeOps.duplicateSelectedNodes());
         } else {
             nodeMenu.addItem("Duplicate", () -> sceneNodeOps.duplicateNode(node));
+        }
+        if (deletableCount > 0) {
+            nodeMenu.addItem(deletableCount > 1 ? "Delete Selection (" + deletableCount + ")" : "Delete",
+                    () -> {
+                        if (node.nodeId() == rootId) {
+                            sceneNodeOps.queueFreeSelectedOrNode(node);
+                        } else {
+                            sceneNodeOps.queueFree(node.nodeId());
+                        }
+                    });
+        } else if (node.nodeId() == rootId) {
+            nodeMenu.addItem("Clear Root Children", () -> sceneNodeOps.queueFreeRootChildren(node));
         }
         nodeMenu.addItem("Change Type…", () -> sceneNodeOps.openChangeTypeDialog(node));
         nodeMenu.addSeparator();
@@ -69,13 +83,11 @@ class SceneNodeMenu {
         boolean locked = SceneNodeOps.isLocked(node);
         nodeMenu.addItem(visible ? "Hide" : "Show", () -> sceneNodeOps.toggleVisible(node.nodeId(), visible));
         nodeMenu.addItem(locked ? "Unlock" : "Lock", () -> sceneNodeOps.toggleLocked(node.nodeId(), locked));
-        if (node.parentId() != 0L) {
+        if (node.nodeId() != rootId) {
             nodeMenu.addSeparator();
             nodeMenu.addItem("Move Up", () -> sceneNodeOps.moveNode(node, -1));
             nodeMenu.addItem("Move Down", () -> sceneNodeOps.moveNode(node, 1));
             nodeMenu.addItem("Move to Root", () -> sceneNodeOps.moveToRoot(node));
-            nodeMenu.addSeparator();
-            nodeMenu.addItem("Queue free", () -> sceneNodeOps.queueFree(node.nodeId()));
         }
         Set<TreeNode<SceneSnapshot.NodeSnapshot>> selectedNodes = treeView != null ? treeView.selectedNodes() : Set.of();
         if (selectedNodes.size() > 1) {

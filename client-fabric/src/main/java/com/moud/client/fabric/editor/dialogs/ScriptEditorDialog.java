@@ -133,7 +133,7 @@ public final class ScriptEditorDialog {
             if (editor.text().isEmpty()) {
                 editor.setText("");
             }
-            ClientDebugLog.error("Script read failed path=" + response.path() + " error=" + error);
+            ClientDebugLog.error("Scripts", "Script read failed path=" + response.path() + " error=" + error);
             return;
         }
 
@@ -154,7 +154,7 @@ public final class ScriptEditorDialog {
         saving = false;
         if (!ack.success()) {
             error = ack.error() == null ? "Save failed" : ack.error();
-            ClientDebugLog.error("Script save failed path=" + ack.path() + " error=" + error);
+            ClientDebugLog.error("Scripts", "Script save failed path=" + ack.path() + " error=" + error);
             return;
         }
         lastLoadedText = editor.text();
@@ -574,7 +574,7 @@ public final class ScriptEditorDialog {
             return LanguageProvider.PLAIN_TEXT;
         }
         String p = path.trim().toLowerCase();
-        if (p.endsWith(".ts") || p.endsWith(".tsx")) {
+        if (p.endsWith(".ts") || p.endsWith(".tsx") || p.endsWith(".mts")) {
             return TS;
         }
         if (p.endsWith(".js") || p.endsWith(".mjs") || p.endsWith(".cjs")) {

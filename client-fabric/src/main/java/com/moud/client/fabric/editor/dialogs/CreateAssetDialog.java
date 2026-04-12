@@ -293,7 +293,7 @@ public final class CreateAssetDialog {
 
     private static String primaryPathFor(int tab, String base, boolean luauScript) {
         return switch (tab) {
-            case 0 -> "res://scripts/" + base + (luauScript ? ".luau" : ".js");
+            case 0 -> "res://scripts/" + base + (luauScript ? ".luau" : ".ts");
             case 1 -> shaderPathFor(base);
             case 2 -> "res://materials/" + base + ".moudmat";
             case 3 -> "res://text/" + base + ".txt";
@@ -368,7 +368,7 @@ public final class CreateAssetDialog {
 
     private static String hintFor(int tab) {
         return switch (tab) {
-            case 0 -> "Creates res://scripts/<name>.js or .luau";
+            case 0 -> "Creates res://scripts/<name>.ts or .luau";
             case 1 -> "Creates res://shaders/<name>.moudshader";
             case 2 -> "Creates res://materials/<name>.moudmat (+ matching shader)";
             default -> "Creates res://text/<name>.txt";

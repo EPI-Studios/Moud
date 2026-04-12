@@ -57,17 +57,26 @@ class SceneNodeClipboard {
         if (state == null || session == null) return;
         long parentId;
         SceneSnapshot.NodeSnapshot sel = state.scene.getNode(state.selectedId);
-        if (asSibling && sel != null && sel.parentId() != 0L) {
+        long rootId = SceneNodeOps.rootNodeId(state);
+        if (asSibling && sel != null && sel.nodeId() != rootId) {
             parentId = sel.parentId();
         } else if (sel != null) {
             parentId = sel.nodeId();
         } else {
-            parentId = 0L;
+            parentId = rootId;
         }
         long finalParentId = parentId;
         long pendingCut = cutNodeId;
         cutNodeId = -1;
+        SceneSnapshot.NodeSnapshot parentNode = state.scene.getNode(finalParentId);
+        String parentType = parentNode != null ? parentNode.type() : (finalParentId == 0L || finalParentId == rootId ? "Root" : null);
+        int pastedCount = 0;
         for (ClipboardEntry entry : clipboard) {
+            if (entry == null || !SceneNodeOps.isTypeCompatible(state, runtime, entry.type(), parentType)) {
+                String name = entry != null && entry.name() != null ? entry.name() : "node";
+                runtime.requestToast("Cannot paste '" + name + "' here (incompatible type).", true, 3000);
+                continue;
+            }
             ArrayList<Map.Entry<String, String>> props = new ArrayList<>();
             if (entry.properties() != null) {
                 for (SceneSnapshot.Property p : entry.properties()) {
@@ -80,19 +89,21 @@ class SceneNodeClipboard {
             EditorHistory.CreateNodeEntry hist = new EditorHistory.CreateNodeEntry(finalParentId, entry.name(), entry.type(), props, true);
             runtime.history().pushEntry(hist);
             hist.redo(runtime);
+            pastedCount++;
         }
         if (pendingCut > 0L) {
             queueFree(pendingCut);
         }
-        int count = clipboard.size();
-        runtime.requestToast("Pasted " + count + " node" + (count == 1 ? "" : "s"), false, 1500);
+        if (pastedCount > 0) {
+            runtime.requestToast("Pasted " + pastedCount + " node" + (pastedCount == 1 ? "" : "s"), false, 1500);
+        }
     }
 
     void cutSelectedNode() {
         EditorState state = runtime.state();
         if (state == null) return;
         SceneSnapshot.NodeSnapshot selected = state.scene.getNode(state.selectedId);
-        if (selected == null || selected.parentId() == 0L) return;
+        if (selected == null || selected.nodeId() == SceneNodeOps.rootNodeId(state)) return;
         copySelectedNode();
         cutNodeId = selected.nodeId();
         runtime.requestToast("Cut: " + selected.name(), false, 1500);

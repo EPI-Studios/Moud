@@ -170,7 +170,8 @@ class SceneBranchExporter {
             return List.of();
         }
 
-        boolean includeRoot = selectedRoot.parentId() != 0L;
+        long rootId = SceneNodeOps.rootNodeId(state);
+        boolean includeRoot = selectedRoot.nodeId() != rootId;
         boolean includeRuntimePlayers = isRuntimePlayerNode(selectedRoot);
 
         List<SceneSnapshot.NodeSnapshot> roots = includeRoot
