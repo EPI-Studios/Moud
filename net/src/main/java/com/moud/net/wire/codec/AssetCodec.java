@@ -8,6 +8,8 @@ import com.moud.net.protocol.AssetDownloadBegin;
 import com.moud.net.protocol.AssetDownloadChunk;
 import com.moud.net.protocol.AssetDownloadComplete;
 import com.moud.net.protocol.AssetDownloadRequest;
+import com.moud.net.protocol.AssetDeleteAck;
+import com.moud.net.protocol.AssetDeleteRequest;
 import com.moud.net.protocol.AssetManifestResponse;
 import com.moud.net.protocol.AssetTransferStatus;
 import com.moud.net.protocol.AssetUploadAck;
@@ -173,6 +175,32 @@ public final class AssetCodec {
         return new AssetDownloadComplete(hash, status, message);
     }
 
+    public static void writeAssetDeleteRequest(ByteBuffer out, AssetDeleteRequest request) {
+        WireIo.writeLong(out, request.requestId());
+        WireIo.writeString(out, request.path() == null ? "" : request.path().value());
+    }
+
+    public static AssetDeleteRequest readAssetDeleteRequest(ByteBuffer in) {
+        long requestId = WireIo.readLong(in);
+        ResPath path = readResPathOrNull(in);
+        return new AssetDeleteRequest(requestId, path);
+    }
+
+    public static void writeAssetDeleteAck(ByteBuffer out, AssetDeleteAck ack) {
+        WireIo.writeLong(out, ack.requestId());
+        WireIo.writeString(out, ack.path() == null ? "" : ack.path().value());
+        writeStatus(out, ack.status());
+        WireIo.writeString(out, ack.message());
+    }
+
+    public static AssetDeleteAck readAssetDeleteAck(ByteBuffer in) {
+        long requestId = WireIo.readLong(in);
+        ResPath path = readResPathOrNull(in);
+        AssetTransferStatus status = readStatus(in);
+        String message = WireIo.readString(in);
+        return new AssetDeleteAck(requestId, path, status, message);
+    }
+
     // --- Size estimations ---
 
     public static int assetManifestResponseSize(AssetManifestResponse response) {
@@ -243,6 +271,18 @@ public final class AssetCodec {
         return WireIo.stringSize(complete.hash() == null ? "" : complete.hash().hex())
                 + WireIo.varIntSize(complete.status() == null ? AssetTransferStatus.ERROR.id() : complete.status().id())
                 + WireIo.stringSize(complete.message());
+    }
+
+    public static int assetDeleteRequestSize(AssetDeleteRequest request) {
+        return WireIo.longSize(request.requestId())
+                + WireIo.stringSize(request.path() == null ? "" : request.path().value());
+    }
+
+    public static int assetDeleteAckSize(AssetDeleteAck ack) {
+        return WireIo.longSize(ack.requestId())
+                + WireIo.stringSize(ack.path() == null ? "" : ack.path().value())
+                + WireIo.varIntSize(ack.status() == null ? AssetTransferStatus.ERROR.id() : ack.status().id())
+                + WireIo.stringSize(ack.message());
     }
 
     private static void writeBytes(ByteBuffer out, byte[] bytes) {
