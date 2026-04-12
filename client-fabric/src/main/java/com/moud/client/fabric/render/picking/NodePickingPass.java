@@ -1,16 +1,15 @@
 package com.moud.client.fabric.render.picking;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.moud.client.fabric.render.Model3DRenderer;
 import com.moud.client.fabric.render.VeilSceneNodeRenderer;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
 import com.moud.client.fabric.render.veil.GlUtil;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
+import com.moud.core.csg.CsgVoxelizer;
 import com.moud.net.protocol.SceneSnapshot;
-import foundry.veil.api.client.render.CameraMatrices;
 import foundry.veil.api.client.render.VeilRenderSystem;
-import foundry.veil.api.client.render.shader.block.ShaderBlock;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
-import foundry.veil.api.client.registry.VeilShaderBufferRegistry;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import net.minecraft.client.MinecraftClient;
@@ -48,7 +47,7 @@ public final class NodePickingPass {
     private int instanceVboCapacity;
     private FloatBuffer instanceBuffer;
 
-    private static final int FLOATS_PER_INSTANCE = 20; // 16 mat4 + 4 color
+    private static final int FLOATS_PER_INSTANCE = 20;
 
     private long hoveredNodeId;
 
@@ -80,102 +79,183 @@ public final class NodePickingPass {
             return;
         }
 
-        ShaderBlock<CameraMatrices> camBlock = VeilRenderSystem.getBlock(VeilShaderBufferRegistry.CAMERA.get());
-        CameraMatrices veilCam = camBlock != null ? camBlock.getValue() : null;
-        Matrix4f viewMat = veilCam != null ? new Matrix4f(veilCam.getViewMatrix())
-                : (viewMatrix != null ? new Matrix4f(viewMatrix) : new Matrix4f());
-        Matrix4f projMat = veilCam != null ? new Matrix4f(veilCam.getProjectionMatrix())
-                : (projectionMatrix != null ? new Matrix4f(projectionMatrix) : new Matrix4f(RenderSystem.getProjectionMatrix()));
+        Matrix4f viewMat = viewMatrix != null ? new Matrix4f(viewMatrix) : new Matrix4f();
+        Matrix4f projMat = projectionMatrix != null ? new Matrix4f(projectionMatrix) : new Matrix4f(RenderSystem.getProjectionMatrix());
 
-        int prevFbo = GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING);
-        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
-        GL11.glViewport(0, 0, fboWidth, fboHeight);
-        GL11.glClearColor(0f, 0f, 0f, 0f);
-        GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
+        int prevReadFbo = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
+        int prevDrawFbo = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
+        int prevVao = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
+        int prevActiveTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+        boolean prevDepthTest = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+        boolean prevBlend = GL11.glIsEnabled(GL11.GL_BLEND);
+        boolean prevCull = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+        int[] viewport = new int[4];
+        GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
 
-        RenderSystem.enableDepthTest();
-        RenderSystem.depthMask(true);
-        RenderSystem.disableBlend();
+        try {
+            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
+            GL20.glDrawBuffers(new int[]{GL30.GL_COLOR_ATTACHMENT0});
+            GL11.glViewport(0, 0, fboWidth, fboHeight);
+            GL11.glClearColor(0f, 0f, 0f, 0f);
+            GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
 
-        List<PickInstance> singleNodes = new ArrayList<>();
-        Map<String, List<PickInstance>> batches = new HashMap<>();
+            RenderSystem.enableDepthTest();
+            RenderSystem.depthMask(true);
+            RenderSystem.disableBlend();
+            RenderSystem.enableCull();
 
-        for (SceneSnapshot.NodeSnapshot node : nodes) {
-            if (node == null) continue;
-            if (!VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "visible"), true)) continue;
+            Map<String, List<PickInstance>> batches = new HashMap<>();
 
-            String type = node.type();
-            if (!isPickableType(type)) continue;
+            for (SceneSnapshot.NodeSnapshot node : nodes) {
+                if (node == null) continue;
+                if (!VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "visible"), true)) continue;
 
-            VeilSceneNodeRenderer.Pose world = poseResolver.apply(node.nodeId());
-            if (world == null) continue;
+                String type = node.type();
+                if (!isPickableType(type)) continue;
 
-            boolean billboard = VeilSceneNodeRenderer.parseBool(
-                    VeilSceneNodeRenderer.stringProp(node, "billboard"), "Sprite3D".equals(type));
-
-            String meshType = VeilSceneNodeRenderer.stringProp(node, "mesh");
-            if ("Sprite3D".equals(type) && (meshType == null || meshType.isBlank())) meshType = "plane";
-            if (meshType == null || meshType.isBlank()) meshType = "cube";
-            boolean isPlane = "plane".equals(meshType);
-            float HALF_PI = (float) (Math.PI / 2.0);
-
-            Matrix4f modelMat;
-            if (billboard) {
-                Quaternionf camRot = viewMat.getNormalizedRotation(new Quaternionf()).conjugate();
-                modelMat = new Matrix4f()
-                        .translate((float) (world.pos.x - camPos.x),
-                                (float) (world.pos.y - camPos.y),
-                                (float) (world.pos.z - camPos.z))
-                        .rotate(camRot)
-                        .scale(world.scale.x, world.scale.y, world.scale.z);
-                if (isPlane) {
-                    modelMat.rotateX(-HALF_PI).translate(-0.5f, 0.0f, -0.5f);
-                } else {
-                    modelMat.translate(-0.5f, -0.5f, -0.5f);
+                if ("CSGBlock".equals(type)) {
+                    collectCsgBlockPickInstances(node, camPos, batches);
+                    continue;
                 }
-            } else {
-                modelMat = new Matrix4f()
-                        .translate((float) (world.pos.x - camPos.x),
-                                (float) (world.pos.y - camPos.y),
-                                (float) (world.pos.z - camPos.z))
-                        .rotate(world.rot)
-                        .scale(world.scale.x, world.scale.y, world.scale.z);
-                if (isPlane) {
-                    modelMat.rotateX(-HALF_PI).translate(-0.5f, 0.0f, -0.5f);
-                } else {
-                    modelMat.translate(-0.5f, -0.5f, -0.5f);
+
+                VeilSceneNodeRenderer.Pose world = poseResolver.apply(node.nodeId());
+                if (world == null) continue;
+
+                 if ("Model3D".equals(type)) {
+                    collectModelPickInstances(node, world, camPos, batches);
+                    continue;
                 }
+
+                boolean billboard = VeilSceneNodeRenderer.parseBool(
+                        VeilSceneNodeRenderer.stringProp(node, "billboard"), "Sprite3D".equals(type) || "AnimatedSprite3D".equals(type));
+
+                String meshType = VeilSceneNodeRenderer.stringProp(node, "mesh");
+                if (("Sprite3D".equals(type) || "AnimatedSprite3D".equals(type)) && (meshType == null || meshType.isBlank())) meshType = "plane";
+                if (meshType == null || meshType.isBlank()) meshType = "cube";
+                boolean isPlane = "plane".equals(meshType);
+                float HALF_PI = (float) (Math.PI / 2.0);
+
+                Matrix4f modelMat;
+                if (billboard) {
+                    Quaternionf camRot = viewMat.getNormalizedRotation(new Quaternionf()).conjugate();
+                    modelMat = new Matrix4f()
+                            .translate((float) (world.pos.x - camPos.x),
+                                    (float) (world.pos.y - camPos.y),
+                                    (float) (world.pos.z - camPos.z))
+                            .rotate(camRot)
+                            .scale(world.scale.x, world.scale.y, world.scale.z);
+                    if (isPlane) {
+                        modelMat.rotateX(-HALF_PI).translate(-0.5f, 0.0f, -0.5f);
+                    } else {
+                        modelMat.translate(-0.5f, -0.5f, -0.5f);
+                    }
+                } else {
+                    modelMat = new Matrix4f()
+                            .translate((float) (world.pos.x - camPos.x),
+                                    (float) (world.pos.y - camPos.y),
+                                    (float) (world.pos.z - camPos.z))
+                            .rotate(world.rot)
+                            .scale(world.scale.x, world.scale.y, world.scale.z);
+                    if (isPlane) {
+                        modelMat.rotateX(-HALF_PI).translate(-0.5f, 0.0f, -0.5f);
+                    } else {
+                        modelMat.translate(-0.5f, -0.5f, -0.5f);
+                    }
+                }
+
+                PickInstance inst = new PickInstance(node.nodeId(), modelMat, meshType);
+                batches.computeIfAbsent(meshType, k -> new ArrayList<>()).add(inst);
             }
 
-            PickInstance inst = new PickInstance(node.nodeId(), modelMat, meshType);
-            batches.computeIfAbsent(meshType, k -> new ArrayList<>()).add(inst);
-        }
+            renderBatchesPick(batches, viewMat, projMat);
 
-        renderBatchesPick(batches, viewMat, projMat);
+            int px = Math.round((mouseNdcX * 0.5f + 0.5f) * fboWidth);
+            int py = Math.round((mouseNdcY * 0.5f + 0.5f) * fboHeight);
+            px = Math.max(0, Math.min(fboWidth - 1, px));
+            py = Math.max(0, Math.min(fboHeight - 1, py));
 
-        int px = Math.round((mouseNdcX * 0.5f + 0.5f) * fboWidth);
-        int py = Math.round((mouseNdcY * 0.5f + 0.5f) * fboHeight);
-        px = Math.max(0, Math.min(fboWidth - 1, px));
-        py = Math.max(0, Math.min(fboHeight - 1, py));
-
-        ByteBuffer pixel = MemoryUtil.memAlloc(4);
-        try {
-            GL11.glReadPixels(px, py, 1, 1, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, pixel);
-            int r = pixel.get(0) & 0xFF;
-            int g = pixel.get(1) & 0xFF;
-            int b = pixel.get(2) & 0xFF;
-            int a = pixel.get(3) & 0xFF;
-            hoveredNodeId = (a == 0) ? 0L : ((long) r | ((long) g << 8) | ((long) b << 16));
+            ByteBuffer pixel = MemoryUtil.memAlloc(4);
+            try {
+                GL11.glReadPixels(px, py, 1, 1, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, pixel);
+                int r = pixel.get(0) & 0xFF;
+                int g = pixel.get(1) & 0xFF;
+                int b = pixel.get(2) & 0xFF;
+                int a = pixel.get(3) & 0xFF;
+                hoveredNodeId = (a == 0) ? 0L : ((long) r | ((long) g << 8) | ((long) b << 16));
+            } finally {
+                MemoryUtil.memFree(pixel);
+            }
         } finally {
-            MemoryUtil.memFree(pixel);
+            GL30.glBindVertexArray(prevVao);
+            ShaderProgram.unbind();
+            GL13.glActiveTexture(prevActiveTexture);
+            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, prevReadFbo);
+            GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, prevDrawFbo);
+            GL11.glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+            if (prevDepthTest) RenderSystem.enableDepthTest();
+            else RenderSystem.disableDepthTest();
+            RenderSystem.depthMask(true);
+            if (prevBlend) RenderSystem.enableBlend();
+            else RenderSystem.disableBlend();
+            if (prevCull) RenderSystem.enableCull();
+            else RenderSystem.disableCull();
         }
+    }
 
-        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, prevFbo);
-
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client != null && client.getWindow() != null) {
-            GL11.glViewport(0, 0, client.getWindow().getFramebufferWidth(), client.getWindow().getFramebufferHeight());
+    private void collectCsgBlockPickInstances(SceneSnapshot.NodeSnapshot node,
+                                              Vec3d camPos,
+                                              Map<String, List<PickInstance>> batches) {
+        CsgVoxelizer.VoxelDefinition def = csgVoxelDefinition(node);
+        if (def == null) {
+            return;
         }
+        List<PickInstance> cubeBatch = batches.computeIfAbsent("cube", k -> new ArrayList<>());
+        CsgVoxelizer.forEachVoxel(def, (x, y, z) -> cubeBatch.add(new PickInstance(
+                node.nodeId(),
+                cubeModelAt(x + 0.5f - (float) camPos.x, y + 0.5f - (float) camPos.y, z + 0.5f - (float) camPos.z),
+                "cube"
+        )));
+    }
+
+    private void collectModelPickInstances(SceneSnapshot.NodeSnapshot node,
+                                           VeilSceneNodeRenderer.Pose world,
+                                           Vec3d camPos,
+                                           Map<String, List<PickInstance>> batches) {
+        List<PickInstance> cubeBatch = batches.computeIfAbsent("cube", k -> new ArrayList<>());
+        Matrix4f nodeTransform = new Matrix4f()
+                .translate((float) (world.pos.x - camPos.x),
+                        (float) (world.pos.y - camPos.y),
+                        (float) (world.pos.z - camPos.z))
+                .rotate(world.rot)
+                .scale(world.scale.x, world.scale.y, world.scale.z);
+        Model3DRenderer.forEachCubeTransform(node, cubeMatrix ->
+                cubeBatch.add(new PickInstance(node.nodeId(), new Matrix4f(nodeTransform).mul(cubeMatrix), "cube")));
+    }
+
+    private static Matrix4f cubeModelAt(float centerX, float centerY, float centerZ) {
+        return new Matrix4f()
+                .translate(centerX, centerY, centerZ)
+                .translate(-0.5f, -0.5f, -0.5f);
+    }
+
+    private static CsgVoxelizer.VoxelDefinition csgVoxelDefinition(SceneSnapshot.NodeSnapshot node) {
+        if (node == null) {
+            return null;
+        }
+        int x = Math.round(propFloat(node, "x", 0.0f));
+        int y = Math.round(propFloat(node, "y", 0.0f));
+        int z = Math.round(propFloat(node, "z", 0.0f));
+        int sx = Math.max(1, Math.round(propFloat(node, "sx", 1.0f)));
+        int sy = Math.max(1, Math.round(propFloat(node, "sy", 1.0f)));
+        int sz = Math.max(1, Math.round(propFloat(node, "sz", 1.0f)));
+        float rx = propFloat(node, "rx", 0.0f);
+        float ry = propFloat(node, "ry", 0.0f);
+        float rz = propFloat(node, "rz", 0.0f);
+        return new CsgVoxelizer.VoxelDefinition(x, y, z, sx, sy, sz, rx, ry, rz);
+    }
+
+    private static float propFloat(SceneSnapshot.NodeSnapshot node, String key, float fallback) {
+        return VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, key), fallback);
     }
 
     private void renderBatchesPick(Map<String, List<PickInstance>> batches, Matrix4f viewMat, Matrix4f projMat) {
@@ -300,7 +380,7 @@ public final class NodePickingPass {
 
     static boolean isPickableType(String type) {
         return switch (type) {
-            case "MeshInstance3D", "CSGBox", "CSGBlock", "Sprite3D", "Model3D", "MultiMesh3D" -> true;
+            case "MeshInstance3D", "CSGBox", "CSGBlock", "Sprite3D", "AnimatedSprite3D", "Model3D", "MultiMesh3D" -> true;
             default -> false;
         };
     }
