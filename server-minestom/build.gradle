@@ -7,12 +7,12 @@ plugins {
 
 def luauEnabled = providers.gradleProperty("moud.server.enableLuau")
         .map { it.toBoolean() }
-        .orElse(false)
+        .orElse(true)
 def luauVersion = providers.gradleProperty("moud.server.luauVersion")
         .orElse("1.0.0")
 def serverJavaVersion = providers.gradleProperty("moud.server.java")
         .map { Integer.parseInt(it) }
-        .orElse(luauEnabled.get() ? 25 : 21)
+        .orElse(25)
 
 repositories {
     maven {
@@ -24,10 +24,6 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(serverJavaVersion.get())
     }
-}
-
-def serverJavaLauncher = javaToolchains.launcherFor {
-    languageVersion = JavaLanguageVersion.of(serverJavaVersion.get())
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -109,7 +105,6 @@ tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.Shadow
 // IntelliJ sometimes runs main classes via ad-hoc JavaExec tasks; ensure our project deps
 // are always present on the runtime classpath (classes dirs, not just jars).
 tasks.withType(JavaExec).configureEach {
-    javaLauncher = serverJavaLauncher
     dependsOn(':core:classes', ':net:classes')
     classpath += project(':core').sourceSets.main.output
     classpath += project(':net').sourceSets.main.output
@@ -119,7 +114,6 @@ tasks.withType(JavaExec).configureEach {
 }
 
 tasks.withType(Test).configureEach {
-    javaLauncher = serverJavaLauncher
     if (luauEnabled.get()) {
         jvmArgs '-Dmoud.server.enableLuau=true', '--enable-preview', '--enable-native-access=ALL-UNNAMED'
     }
