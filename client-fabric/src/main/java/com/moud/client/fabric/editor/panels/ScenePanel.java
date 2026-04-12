@@ -124,7 +124,10 @@ public final class ScenePanel extends Panel {
         if (sceneTreeController.treeView != null && sceneTreeController.treeView.isFocused(ctx) && e.isPressOrRepeat()) {
             if (e.key() == InputConstants.KEY_ESCAPE) {
                 EditorState state = runtime.state();
-                if (state != null) state.selectedId = 0L;
+                if (state != null) {
+                    state.selectedId = 0L;
+                    state.selectedIds.clear();
+                }
                 sceneTreeController.clearTreeSelection();
                 return;
             }
@@ -151,8 +154,8 @@ public final class ScenePanel extends Panel {
             if (e.key() == InputConstants.KEY_DELETE) {
                 EditorState state = runtime.state();
                 SceneSnapshot.NodeSnapshot selected = state != null ? state.scene.getNode(state.selectedId) : null;
-                if (selected != null && selected.parentId() != 0L) {
-                    sceneNodeOps.queueFree(selected.nodeId());
+                if (selected != null) {
+                    sceneNodeOps.queueFreeSelectedOrNode(selected);
                 }
                 return;
             }
@@ -204,13 +207,21 @@ public final class ScenePanel extends Panel {
             if (ctrl && e.key() == InputConstants.KEY_UP) {
                 EditorState s = runtime.state();
                 SceneSnapshot.NodeSnapshot sel = s != null ? s.scene.getNode(s.selectedId) : null;
-                if (sel != null && sel.parentId() != 0L) sceneNodeOps.moveNode(sel, -1);
+                if (sel != null && sel.nodeId() != SceneNodeOps.rootNodeId(s)) sceneNodeOps.moveNode(sel, -1);
                 return;
             }
             if (ctrl && e.key() == InputConstants.KEY_DOWN) {
                 EditorState s = runtime.state();
                 SceneSnapshot.NodeSnapshot sel = s != null ? s.scene.getNode(s.selectedId) : null;
-                if (sel != null && sel.parentId() != 0L) sceneNodeOps.moveNode(sel, 1);
+                if (sel != null && sel.nodeId() != SceneNodeOps.rootNodeId(s)) sceneNodeOps.moveNode(sel, 1);
+                return;
+            }
+        }
+        if (e.isPressOrRepeat() && e.key() == InputConstants.KEY_DELETE) {
+            EditorState state = runtime.state();
+            SceneSnapshot.NodeSnapshot selected = state != null ? state.scene.getNode(state.selectedId) : null;
+            if (selected != null) {
+                sceneNodeOps.queueFreeSelectedOrNode(selected);
                 return;
             }
         }
@@ -300,9 +311,6 @@ public final class ScenePanel extends Panel {
                 || state.scene.revision() != lastRev
                 || !Objects.equals(lastSceneId, currentSceneId);
         if (needsRebuild) {
-            sceneNodeMenu.nodeMenu.close();
-            sceneNodeMenu.addChildMenu.close();
-            sceneNodeMenu.closeAddChildCategoryMenus();
             sceneTreeController.rebuildTree(state, filter);
             sceneNodeMenu.setTreeView(sceneTreeController.treeView);
             lastFilter = filter;
@@ -310,7 +318,6 @@ public final class ScenePanel extends Panel {
             lastSceneId = currentSceneId;
         }
 
-        // Player start warning banner
         if (state.scene.revision() >= 0 && !SceneNodeOps.sceneIs2D(state) && !SceneNodeOps.sceneHasPlayerStart(state)) {
             int warnH = 22;
             int warnPad = theme.design.space_sm;
@@ -371,6 +378,7 @@ public final class ScenePanel extends Panel {
                 List<TreeView.VisibleNode<SceneSnapshot.NodeSnapshot>> vis = sceneTreeController.treeView.getVisibleNodes();
                 if (clickRow < 0 || clickRow >= vis.size()) {
                     state.selectedId = 0L;
+                    state.selectedIds.clear();
                     sceneTreeController.clearTreeSelection();
                 }
             }
@@ -381,10 +389,25 @@ public final class ScenePanel extends Panel {
             boolean rightPressed = interactive && runtime.rightPressed();
             if (!skipClick && rightPressed && !sceneNodeMenu.nodeMenu.isOpen()) {
                 if (mx >= treeX && mx < treeX + treeW && my >= treeY && my < treeY + treeH) {
-                    sceneTreeController.treeView.handleClick(input, (int) mx, (int) my, treeX, treeY, treeW, treeH, scrollOffset);
-                    sceneTreeController.updateSelectionFromTree(state);
-                    SceneSnapshot.NodeSnapshot selected = state.scene.getNode(state.selectedId);
-                    if (selected != null) {
+                    int clickRow = (int) ((my - treeY + scrollOffset) / itemH);
+                    List<TreeView.VisibleNode<SceneSnapshot.NodeSnapshot>> visible = sceneTreeController.treeView.getVisibleNodes();
+                    if (clickRow >= 0 && clickRow < visible.size()) {
+                        var clickedTreeNode = visible.get(clickRow).node();
+                        SceneSnapshot.NodeSnapshot selected = clickedTreeNode != null ? clickedTreeNode.data() : null;
+                        if (selected != null && !sceneTreeController.treeView.selectedNodes().contains(clickedTreeNode)) {
+                            sceneTreeController.clearTreeSelection();
+                            clickedTreeNode.setSelected(true);
+                            sceneTreeController.treeView.selectedNodes().add(clickedTreeNode);
+                            state.selectedId = selected.nodeId();
+                            state.selectedIds.clear();
+                            state.selectedIds.add(selected.nodeId());
+                        }
+                        if (selected == null) {
+                            selected = state.scene.getNode(state.selectedId);
+                        }
+                        if (selected == null) {
+                            return;
+                        }
                         sceneNodeMenu.openNodeMenu(selected);
                         EditorUiUtil.openMenuClamped(sceneNodeMenu.nodeMenu, runtime, (int) mx, (int) my);
                     }
@@ -411,6 +434,8 @@ public final class ScenePanel extends Panel {
                                     || !(dragPath.endsWith(".js")
                                     || dragPath.endsWith(".mjs")
                                     || dragPath.endsWith(".cjs")
+                                    || dragPath.endsWith(".ts")
+                                    || dragPath.endsWith(".mts")
                                     || dragPath.endsWith(".luau"))) {
                                 return;
                             }

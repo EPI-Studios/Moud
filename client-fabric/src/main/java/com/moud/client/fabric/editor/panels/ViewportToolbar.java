@@ -9,9 +9,6 @@ import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
 import com.moud.client.fabric.editor.tools.EditorTool;
 import com.moud.client.fabric.editor.util.EditorUiUtil;
-import com.moud.net.protocol.SceneSnapshot;
-
-import java.util.List;
 
 class ViewportToolbar {
     private final EditorRuntime runtime;
@@ -108,37 +105,7 @@ class ViewportToolbar {
             if (runtime == null) return;
             boolean to2d = runtime.viewportMode() != EditorRuntime.ViewportMode.TWO_D;
             runtime.setViewportMode(to2d ? EditorRuntime.ViewportMode.TWO_D : EditorRuntime.ViewportMode.THREE_D);
-
-            if (to2d) {
-                EditorState st = runtime.state();
-                if (st != null && !activeSceneIs2D(st)) {
-                    runtime.markSceneMode(st.activeSceneId, EditorRuntime.ViewportMode.TWO_D);
-                    st.pendingSnapshot = true;
-                }
-            }
         });
-    }
-
-    static boolean activeSceneIs2D(EditorState state) {
-        if (state == null || state.scene == null) {
-            return false;
-        }
-        List<SceneSnapshot.NodeSnapshot> roots = state.scene.childrenOf(0L);
-        if (roots == null || roots.isEmpty()) {
-            return false;
-        }
-        SceneSnapshot.NodeSnapshot root = null;
-        for (SceneSnapshot.NodeSnapshot n : roots) {
-            if (n != null && "Root".equals(n.type())) {
-                root = n;
-                break;
-            }
-        }
-        if (root == null) {
-            root = roots.getFirst();
-        }
-        String mode = state.scene.getPropertyValue(root.nodeId(), "scene_mode");
-        return mode != null && mode.equalsIgnoreCase("2d");
     }
 
     static String formatSnapStep(float step) {

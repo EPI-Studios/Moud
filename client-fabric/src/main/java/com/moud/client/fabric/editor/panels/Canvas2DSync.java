@@ -17,24 +17,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 
 class Canvas2DSync {
-    static final Set<String> CANVAS_2D_TYPES = Set.of(
-            "Node2D", "Sprite2D", "Camera2D",
-            "CanvasItem", "Control", "CanvasLayer",
-            "HBoxContainer", "VBoxContainer", "GridContainer",
-            "MarginContainer", "ScrollContainer", "PanelContainer",
-            "Label", "RichTextLabel", "TextureRect", "ColorRect", "ProgressBar",
-            "Button", "TextureButton", "CheckBox", "HSlider", "VSlider", "LineEdit");
-
-    static final Set<String> CONTROL_TYPES = Set.of(
-            "CanvasItem", "Control",
-            "HBoxContainer", "VBoxContainer", "GridContainer",
-            "MarginContainer", "ScrollContainer", "PanelContainer",
-            "Label", "RichTextLabel", "TextureRect", "ColorRect", "ProgressBar",
-            "Button", "TextureButton", "CheckBox", "HSlider", "VSlider", "LineEdit");
-
     static final int VIRTUAL_SCREEN_W = 1920;
     static final int VIRTUAL_SCREEN_H = 1080;
 
@@ -123,7 +107,7 @@ class Canvas2DSync {
                 canvas2d.addObject(obj);
             }
             obj.bind(runtime, canvas2d, canvasObjectsById);
-            if (CONTROL_TYPES.contains(node.type())) {
+            if (CanvasNodeTypes.CONTROL_TYPES.contains(node.type())) {
                 obj.syncFromSnapshot(node, null, controlRects.get(node.nodeId()));
             } else {
                 Vector2f world = worldPos2D(state, node.nodeId(), worldCache);
@@ -166,7 +150,7 @@ class Canvas2DSync {
                                        HashMap<Long, List<SceneSnapshot.NodeSnapshot>> childrenByParent,
                                        HashMap<Long, int[]> rects) {
         for (SceneSnapshot.NodeSnapshot child : childrenByParent.getOrDefault(parentId, List.of())) {
-            if (child == null || child.type() == null || !CONTROL_TYPES.contains(child.type())) continue;
+            if (child == null || child.type() == null || !CanvasNodeTypes.CONTROL_TYPES.contains(child.type())) continue;
             int[] rect = resolveControlRect(child, parentX, parentY, parentW, parentH);
             rects.put(child.nodeId(), rect);
             buildControlRectsUnder(child.nodeId(), rect[0], rect[1], rect[2], rect[3],
@@ -378,7 +362,7 @@ class Canvas2DSync {
     }
 
     static boolean isCanvas2DNode(String typeId) {
-        return typeId != null && CANVAS_2D_TYPES.contains(typeId);
+        return typeId != null && CanvasNodeTypes.CANVAS_2D_TYPES.contains(typeId);
     }
 
     static String getProp(SceneSnapshot.NodeSnapshot node, String key) {

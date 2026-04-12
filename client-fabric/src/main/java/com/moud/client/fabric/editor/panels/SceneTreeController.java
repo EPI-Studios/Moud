@@ -103,11 +103,26 @@ class SceneTreeController {
 
     void rebuildTree(EditorState state, String filter) {
         saveExpandedState();
-        rootNode = new TreeNode<>(null);
+
+        Set<Long> selectedIds = new HashSet<>();
+        if (treeView != null) {
+            for (TreeNode<SceneSnapshot.NodeSnapshot> tn : treeView.selectedNodes()) {
+                if (tn.data() != null) selectedIds.add(tn.data().nodeId());
+            }
+        }
+
+        boolean needsNewTreeView = treeView == null || rootNode == null;
+
+        if (rootNode == null) {
+            rootNode = new TreeNode<>(null);
+        } else {
+            rootNode.children().clear();
+        }
+
         if (state == null || state.scene == null) {
-            treeView = new TreeView<>(rootNode, 24);
-            treeView.setLabelFunction(this::formatNodeLabel);
-            sceneNodeOps.setTreeView(treeView);
+            if (needsNewTreeView) {
+                initTreeView();
+            }
             return;
         }
 
@@ -123,6 +138,18 @@ class SceneTreeController {
         }
 
         rootNode.setExpanded(true);
+
+        if (needsNewTreeView) {
+            initTreeView();
+        }
+
+        if (!selectedIds.isEmpty()) {
+            treeView.selectedNodes().clear();
+            restoreSelection(rootNode, selectedIds);
+        }
+    }
+
+    private void initTreeView() {
         treeView = new TreeView<>(rootNode, 24);
         treeView.setLabelFunction(this::formatNodeLabel);
         treeView.setIndentStepPx(16);
@@ -239,6 +266,16 @@ class SceneTreeController {
             }
             sceneNodeOps.sendOpsRecorded(List.of(new SceneOp.Reparent(dragged.nodeId(), newParentId, newIndex)));
         });
+    }
+
+    private void restoreSelection(TreeNode<SceneSnapshot.NodeSnapshot> node, Set<Long> selectedIds) {
+        if (node.data() != null && selectedIds.contains(node.data().nodeId())) {
+            node.setSelected(true);
+            treeView.selectedNodes().add(node);
+        }
+        for (TreeNode<SceneSnapshot.NodeSnapshot> child : node.children()) {
+            restoreSelection(child, selectedIds);
+        }
     }
 
     void updateTreeStyle(Theme theme) {
@@ -579,4 +616,3 @@ class SceneTreeController {
         return desired + " (" + n + ")";
     }
 }
-

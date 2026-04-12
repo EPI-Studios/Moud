@@ -7,52 +7,25 @@ import net.minecraft.client.util.Window;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
-import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL30;
 
 final class ViewportCapture {
-    private static final long MIN_CAPTURE_INTERVAL_NS = 16_666_667L; // ~60 FPS cap
-
-    private Texture front;
-    private Texture back;
-    private long lastCaptureNs;
+    private Texture texture;
+    private int copyFbo;
+    private int width;
+    private int height;
 
     Texture texture() {
-        return front;
+        return texture;
     }
 
     void ensureInitialized() {
-        if (front != null && back != null) {
-            return;
-        }
-
-        close();
         if (GLFW.glfwGetCurrentContext() == 0L) {
+            close();
             return;
         }
-
-        front = new Texture();
-        front.setFilteringLinear();
-        setClampToEdge(front);
-        back = new Texture();
-        back.setFilteringLinear();
-        setClampToEdge(back);
-    }
-
-    private static void setClampToEdge(Texture texture) {
-        if (texture == null || texture.id() == 0) {
-            return;
-        }
-        int prevActive = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
-        GL13.glActiveTexture(GL13.GL_TEXTURE0);
-        int prev = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
-        try {
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture.id());
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
-        } finally {
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, prev);
-            GL13.glActiveTexture(prevActive);
+        if (copyFbo == 0) {
+            copyFbo = GL30.glGenFramebuffers();
         }
     }
 
@@ -60,79 +33,90 @@ final class ViewportCapture {
         if (window == null) {
             return;
         }
-        ensureInitialized();
 
-        long now = System.nanoTime();
-        if (now - lastCaptureNs < MIN_CAPTURE_INTERVAL_NS) {
-            return;
-        }
-        lastCaptureNs = now;
-
-        Framebuffer src = null;
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client != null) {
-            src = client.getFramebuffer();
-        }
-
-        int fbw = window.getFramebufferWidth();
-        int fbh = window.getFramebufferHeight();
-        if (src != null) {
-            fbw = Math.min(fbw, src.textureWidth);
-            fbh = Math.min(fbh, src.textureHeight);
-        }
-        if (fbw <= 0 || fbh <= 0) {
+        Framebuffer src = client != null ? client.getFramebuffer() : null;
+        if (src == null || src.fbo == 0 || src.getColorAttachment() == 0) {
+            clearTexture();
             return;
         }
 
-        Texture write = back;
-        if (write.width() != fbw || write.height() != fbh) {
-            write.allocateRgba(fbw, fbh);
-            write.setFilteringLinear();
-            setClampToEdge(write);
+        int targetW = Math.max(1, Math.min(window.getFramebufferWidth(), src.textureWidth));
+        int targetH = Math.max(1, Math.min(window.getFramebufferHeight(), src.textureHeight));
+        if (targetW <= 0 || targetH <= 0) {
+            clearTexture();
+            return;
+        }
+
+        ensureTarget(targetW, targetH);
+        if (texture == null || copyFbo == 0) {
+            return;
         }
 
         int prevReadFbo = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
-        int prevReadBuffer = GL11.glGetInteger(GL11.GL_READ_BUFFER);
-        if (src != null) {
-            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, src.fbo);
-            GL11.glReadBuffer(src.fbo == 0 ? GL11.GL_BACK : GL30.GL_COLOR_ATTACHMENT0);
-        }
-        int prevActive = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
-        GL13.glActiveTexture(GL13.GL_TEXTURE0);
-        int prev = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
-        try {
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, write.id());
-            GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, 0, 0, fbw, fbh);
-        } finally {
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, prev);
-            GL13.glActiveTexture(prevActive);
-            if (src != null) {
-                GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, prevReadFbo);
-                GL11.glReadBuffer(prevReadBuffer);
-            }
-        }
+        int prevDrawFbo = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
 
-        Texture tmp = front;
-        front = back;
-        back = tmp;
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, src.fbo);
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, copyFbo);
+        GL30.glBlitFramebuffer(
+                0, 0, targetW, targetH,
+                0, 0, targetW, targetH,
+                GL11.GL_COLOR_BUFFER_BIT,
+                GL11.GL_NEAREST
+        );
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, prevReadFbo);
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, prevDrawFbo);
     }
 
     void close() {
-        if (front == null && back == null) {
+        clearTexture();
+        if (copyFbo != 0) {
+            GL30.glDeleteFramebuffers(copyFbo);
+            copyFbo = 0;
+        }
+    }
+
+    private void ensureTarget(int targetW, int targetH) {
+        if (texture != null && width == targetW && height == targetH) {
             return;
         }
-        if (GLFW.glfwGetCurrentContext() == 0L) {
-            front = null;
-            back = null;
+
+        clearTexture();
+        texture = new Texture();
+        texture.allocateRgba(targetW, targetH);
+        texture.setFilteringLinear();
+
+        texture.bind(0);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+        texture.unbind();
+
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, copyFbo);
+        GL30.glFramebufferTexture2D(
+                GL30.GL_DRAW_FRAMEBUFFER,
+                GL30.GL_COLOR_ATTACHMENT0,
+                GL11.GL_TEXTURE_2D,
+                texture.id(),
+                0
+        );
+
+        int status = GL30.glCheckFramebufferStatus(GL30.GL_DRAW_FRAMEBUFFER);
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, 0);
+        if (status != GL30.GL_FRAMEBUFFER_COMPLETE) {
+            clearTexture();
             return;
         }
-        if (front != null) {
-            front.close();
-            front = null;
+
+        width = targetW;
+        height = targetH;
+    }
+
+    private void clearTexture() {
+        if (texture != null) {
+            texture.close();
+            texture = null;
         }
-        if (back != null) {
-            back.close();
-            back = null;
-        }
+        width = 0;
+        height = 0;
     }
 }

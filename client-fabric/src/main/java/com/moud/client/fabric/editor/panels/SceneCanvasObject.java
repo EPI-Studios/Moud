@@ -7,6 +7,7 @@ import com.miry.ui.widgets.CanvasEditor2D;
 import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
 import com.moud.client.fabric.render.MoudTextures;
+import com.moud.client.fabric.render.sprite.SpriteSheets;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneSnapshot;
 import net.minecraft.client.MinecraftClient;
@@ -18,7 +19,7 @@ import org.joml.Vector2f;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import static com.moud.client.fabric.editor.panels.Canvas2DSync.CONTROL_TYPES;
+import static com.moud.client.fabric.editor.panels.CanvasNodeTypes.CONTROL_TYPES;
 import static com.moud.client.fabric.editor.panels.Canvas2DSync.getProp;
 import static com.moud.client.fabric.editor.panels.Canvas2DSync.parseFloat;
 import static com.moud.client.fabric.editor.panels.Canvas2DSync.worldPos2D;
@@ -38,6 +39,12 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
     private boolean cachedChecked = false;
 
     private String cachedTexRef = "";
+    private String cachedSpriteSheetRef = "";
+    private String cachedAnimation = "";
+    private boolean cachedPlaying = true;
+    private boolean cachedLoop = true;
+    private float cachedSpeedScale = 1.0f;
+    private int cachedFrame = 0;
     private Texture cachedTexture = null;
 
     private float pendingLocalX;
@@ -97,13 +104,7 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
             }
         } else {
             if (world != null) pos.set(world);
-            if ("Sprite2D".equals(typeId)) {
-                float w = parseFloat(getProp(node, "w"), 64.0f);
-                float h = parseFloat(getProp(node, "h"), 64.0f);
-                size.set(Math.max(1, w), Math.max(1, h));
-            } else {
-                size.set(1, 1);
-            }
+            size.set(1, 1);
         }
         cachedText = nvl(getProp(node, "text"), "");
         String fillR = nvl(getProp(node, "fill_color_r"), getProp(node, "color_r"));
@@ -118,13 +119,21 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
         cachedMinValue = parseFloat(getProp(node, "min_value"),  0.0f);
         cachedMaxValue = parseFloat(getProp(node, "max_value"), 100.0f);
         cachedChecked  = "true".equalsIgnoreCase(getProp(node, "checked"));
+        String prevSpriteSheetRef = cachedSpriteSheetRef;
+        String newSpriteSheetRef = nvl(getProp(node, "sprite_sheet"), "");
+        cachedSpriteSheetRef = newSpriteSheetRef;
+        cachedAnimation = nvl(getProp(node, "animation"), "");
+        cachedPlaying = !"false".equalsIgnoreCase(nvl(getProp(node, "playing"), "true"));
+        cachedLoop = !"false".equalsIgnoreCase(nvl(getProp(node, "loop"), "true"));
+        cachedSpeedScale = parseFloat(getProp(node, "speed_scale"), 1.0f);
+        cachedFrame = Math.round(parseFloat(getProp(node, "frame"), 0.0f));
 
         String newTexRef = switch (typeId) {
-            case "TextureRect", "Sprite2D" -> nvl(getProp(node, "texture"), "");
+            case "TextureRect", "AnimatedTextureRect" -> nvl(getProp(node, "texture"), "");
             case "TextureButton" -> nvl(nvl(getProp(node, "texture_normal"), getProp(node, "texture_hover")), "");
             default -> "";
         };
-        if (!newTexRef.equals(cachedTexRef)) {
+        if (!newTexRef.equals(cachedTexRef) || !newSpriteSheetRef.equals(prevSpriteSheetRef)) {
             cachedTexRef = newTexRef;
             cachedTexture = null;
         }
@@ -132,9 +141,13 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
 
     private Texture resolveTexture() {
         if (cachedTexRef == null || cachedTexRef.isBlank()) return null;
-        if (cachedTexture != null) return cachedTexture;
         Identifier id = MoudTextures.resolve(cachedTexRef);
+        return resolveTexture(id);
+    }
+
+    private Texture resolveTexture(Identifier id) {
         if (id == null || TextureManager.MISSING_IDENTIFIER.equals(id)) return null;
+        if (cachedTexture != null) return cachedTexture;
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc == null || mc.getTextureManager() == null) return null;
         AbstractTexture mcTex = mc.getTextureManager().getOrDefault(id, null);
@@ -265,22 +278,6 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
 
     @Override
     public void render(UiRenderer r, Theme theme, int px, int py) {
-        if ("Sprite2D".equals(typeId)) {
-            float z = canvas2d.zoom();
-            int sw = Math.max(4, (int) (size.x * scale.x * z));
-            int sh = Math.max(4, (int) (size.y * scale.y * z));
-            int rx = px - sw / 2;
-            int ry = py - sh / 2;
-            Texture tex = resolveTexture();
-            if (tex != null) {
-                r.drawTexturedRect(tex, rx, ry, sw, sh, 0xFFFFFFFF);
-            } else {
-                int c = Theme.mulAlpha(Theme.toArgb(theme.accent), 0.25f);
-                r.drawRect(rx, ry, sw, sh, c);
-                r.drawRectOutline(rx, ry, sw, sh, 1, Theme.mulAlpha(Theme.toArgb(theme.accent), 0.8f));
-            }
-            return;
-        }
         if (!CONTROL_TYPES.contains(typeId)) {
             int c = Theme.mulAlpha(Theme.toArgb(theme.accent), 0.8f);
             r.drawRect(px - 4, py - 4, 8, 8, c);
@@ -323,11 +320,8 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
                 if (sw > 8 && sh > 4)
                     r.drawText(label, rx + 3, r.baselineForBox(ry, sh), TEXT);
             }
-            case "TextureButton", "TextureRect" -> {
-                Texture tex = resolveTexture();
-                if (tex != null) {
-                    r.drawTexturedRect(tex, rx, ry, sw, sh, 0xFFFFFFFF);
-                } else {
+            case "TextureButton", "TextureRect", "AnimatedTextureRect" -> {
+                if (!renderTextureLikeControl(r, rx, ry, sw, sh)) {
                     r.drawRect(rx, ry, sw, sh, BG);
                     r.drawLine(rx + 4, ry + 4, rx + sw - 4, ry + sh - 4, 1, BORDER);
                     r.drawLine(rx + sw - 4, ry + 4, rx + 4, ry + sh - 4, 1, BORDER);
@@ -405,5 +399,37 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
         int gi = Math.max(0, Math.min(255, (int) (fg * 255)));
         int bi = Math.max(0, Math.min(255, (int) (fb * 255)));
         return (a << 24) | (ri << 16) | (gi << 8) | bi;
+    }
+
+    private boolean renderTextureLikeControl(UiRenderer r, int rx, int ry, int sw, int sh) {
+        if ("AnimatedTextureRect".equals(typeId)) {
+            SpriteSheets.ResolvedFrame frame = SpriteSheets.resolve(
+                    cachedSpriteSheetRef,
+                    cachedTexRef,
+                    cachedAnimation,
+                    cachedPlaying,
+                    cachedLoop,
+                    cachedSpeedScale,
+                    cachedFrame,
+                    System.nanoTime() / 1_000_000L
+            );
+            Texture texture = resolveTexture(frame == null ? null : frame.textureId());
+            if (frame == null || texture == null) {
+                return false;
+            }
+            int drawX = rx + Math.round(frame.offsetX() * (sw / (float) Math.max(1, frame.sourceWidth())));
+            int drawY = ry + Math.round(frame.offsetY() * (sh / (float) Math.max(1, frame.sourceHeight())));
+            int drawW = Math.max(1, Math.round(frame.frameWidth() * (sw / (float) Math.max(1, frame.sourceWidth()))));
+            int drawH = Math.max(1, Math.round(frame.frameHeight() * (sh / (float) Math.max(1, frame.sourceHeight()))));
+            r.drawTexturedRect(texture, drawX, drawY, drawW, drawH, frame.u0(), frame.v0(), frame.u1(), frame.v1(), 0xFFFFFFFF);
+            return true;
+        }
+
+        Texture tex = resolveTexture();
+        if (tex == null) {
+            return false;
+        }
+        r.drawTexturedRect(tex, rx, ry, sw, sh, 0xFFFFFFFF);
+        return true;
     }
 }
