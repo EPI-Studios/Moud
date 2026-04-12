@@ -1,15 +1,16 @@
 package com.moud.client.fabric.util;
 
-import java.util.Locale;
+import com.moud.client.fabric.editor.diagnostics.EditorDiagnostics;
+import com.moud.core.util.ParseUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class ClientDebugLog {
     private static final Logger LOGGER = LoggerFactory.getLogger("MoudClient");
-    private static final boolean DEBUG = parseBool(System.getenv("MOUD_DEBUG_CLIENT"))
-            || parseBool(System.getenv("MOUD_DEBUG"))
-            || parseBool(System.getProperty("moud.client.debug"))
-            || parseBool(System.getProperty("moud.debug"));
+    private static final boolean DEBUG = ParseUtils.parseBool(System.getenv("MOUD_DEBUG_CLIENT"))
+            || ParseUtils.parseBool(System.getenv("MOUD_DEBUG"))
+            || ParseUtils.parseBool(System.getProperty("moud.client.debug"))
+            || ParseUtils.parseBool(System.getProperty("moud.debug"));
 
     private ClientDebugLog() {
     }
@@ -26,18 +27,38 @@ public final class ClientDebugLog {
     }
 
     public static void info(String message) {
-        LOGGER.info(safe(message));
+        info("Client", message);
     }
 
     public static void warn(String message) {
-        LOGGER.warn(safe(message));
+        warn("Client", message);
     }
 
     public static void error(String message) {
-        LOGGER.error(safe(message));
+        error("Client", message);
     }
 
     public static void error(String message, Throwable t) {
+        error("Client", message, t);
+    }
+
+    public static void info(String source, String message) {
+        EditorDiagnostics.info(source, safe(message));
+        LOGGER.info(safe(message));
+    }
+
+    public static void warn(String source, String message) {
+        EditorDiagnostics.warn(source, safe(message));
+        LOGGER.warn(safe(message));
+    }
+
+    public static void error(String source, String message) {
+        EditorDiagnostics.error(source, safe(message));
+        LOGGER.error(safe(message));
+    }
+
+    public static void error(String source, String message, Throwable t) {
+        EditorDiagnostics.error(source, t == null ? safe(message) : safe(message) + " (" + t.getClass().getSimpleName() + ": " + safe(t.getMessage()) + ")");
         LOGGER.error(safe(message), t);
     }
 
@@ -45,11 +66,4 @@ public final class ClientDebugLog {
         return message == null ? "" : message;
     }
 
-    private static boolean parseBool(String v) {
-        if (v == null) {
-            return false;
-        }
-        String s = v.trim().toLowerCase(Locale.ROOT);
-        return "1".equals(s) || "true".equals(s) || "yes".equals(s) || "y".equals(s) || "on".equals(s);
-    }
 }
