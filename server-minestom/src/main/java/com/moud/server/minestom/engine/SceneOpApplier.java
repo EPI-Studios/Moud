@@ -3,6 +3,7 @@ package com.moud.server.minestom.engine;
 import com.moud.core.NodeTypeDef;
 import com.moud.core.math.Quat;
 import com.moud.core.math.Vec3;
+import com.moud.core.util.ParseUtils;
 import com.moud.core.scene.Node;
 import com.moud.core.scene.PlainNode;
 import com.moud.net.protocol.SceneOp;
@@ -29,6 +30,7 @@ public final class SceneOpApplier {
             "x", "y", "z", "rx", "ry", "rz", "sx", "sy", "sz",
             "solid", "@type",
             "shape", "radius", "height", "enabled",
+            "mesh", "model_path", "collision_strategy",
             "mass", "freeze",
             "linear_damping", "angular_damping", "gravity_scale"
     );
@@ -428,7 +430,7 @@ public final class SceneOpApplier {
             return false;
         }
         String typeId = engine.nodeTypes().typeIdFor(node);
-        return isCsgTypeId(typeId) || isPhysicsBodyTypeId(typeId);
+        return isCsgTypeId(typeId) || isPhysicsBodyTypeId(typeId) || isCollisionGeometryTypeId(typeId);
     }
 
     private boolean affectsCollisionFilter(Node node, String key) {
@@ -439,7 +441,14 @@ public final class SceneOpApplier {
             return false;
         }
         String typeId = engine.nodeTypes().typeIdFor(node);
-        return isCsgTypeId(typeId) || isPhysicsBodyTypeId(typeId);
+        return isCsgTypeId(typeId) || isPhysicsBodyTypeId(typeId) || isCollisionGeometryTypeId(typeId);
+    }
+
+    private static boolean isCollisionGeometryTypeId(String typeId) {
+        return "Model3D".equals(typeId)
+                || "MeshInstance3D".equals(typeId)
+                || "Sprite3D".equals(typeId)
+                || "AnimatedSprite3D".equals(typeId);
     }
 
     private boolean subtreeContainsCsg(Node node) {
@@ -538,28 +547,6 @@ public final class SceneOpApplier {
         return !("false".equals(s) || "0".equals(s));
     }
 
-    private static float parseFloat(String value, float fallback) {
-        if (value == null || value.isBlank()) {
-            return fallback;
-        }
-        try {
-            float v = Float.parseFloat(value.trim());
-            return Float.isFinite(v) ? v : fallback;
-        } catch (NumberFormatException ignored) {
-            return fallback;
-        }
-    }
-
-    private static String trimFloat(float v) {
-        if (!Float.isFinite(v)) {
-            return "0";
-        }
-        if (Math.abs(v - Math.round(v)) < 1e-6f) {
-            return Integer.toString(Math.round(v));
-        }
-        return Float.toString(v);
-    }
-
     private boolean applyPositionDeltaToDescendants(Node node, String key, float delta) {
         boolean changed = false;
         for (Node child : node.children()) {
@@ -567,9 +554,9 @@ public final class SceneOpApplier {
                 continue;
             }
             if (nodeAcceptsKey(child, key)) {
-                float before = parseFloat(child.getProperty(key), 0.0f);
+                float before = ParseUtils.parseFloat(child.getProperty(key), 0.0f);
                 float after = before + delta;
-                child.setProperty(key, trimFloat(after));
+                child.setProperty(key, ParseUtils.trimFloat(after));
                 changed = true;
             }
 
@@ -604,15 +591,15 @@ public final class SceneOpApplier {
         }
 
         if (nodeAcceptsKey(node, "rx") && nodeAcceptsKey(node, "ry") && nodeAcceptsKey(node, "rz")) {
-            float rx = parseFloat(node.getProperty("rx"), 0.0f);
-            float ry = parseFloat(node.getProperty("ry"), 0.0f);
-            float rz = parseFloat(node.getProperty("rz"), 0.0f);
+            float rx = ParseUtils.parseFloat(node.getProperty("rx"), 0.0f);
+            float ry = ParseUtils.parseFloat(node.getProperty("ry"), 0.0f);
+            float rz = ParseUtils.parseFloat(node.getProperty("rz"), 0.0f);
             Quat qChild = Quat.fromEulerDeg(rx, ry, rz);
             Quat qNew = delta.mul(qChild).normalized();
             Vec3 euler = qNew.toEulerDeg();
-            node.setProperty("rx", trimFloat((float) euler.x));
-            node.setProperty("ry", trimFloat((float) euler.y));
-            node.setProperty("rz", trimFloat((float) euler.z));
+            node.setProperty("rx", ParseUtils.trimFloat((float) euler.x));
+            node.setProperty("ry", ParseUtils.trimFloat((float) euler.y));
+            node.setProperty("rz", ParseUtils.trimFloat((float) euler.z));
             changed = true;
         }
 
@@ -675,14 +662,14 @@ public final class SceneOpApplier {
     }
 
     private NodePose readPose(Node node) {
-        double x = parseFloat(node.getProperty("x"), 0.0f);
-        double y = parseFloat(node.getProperty("y"), 0.0f);
-        double z = parseFloat(node.getProperty("z"), 0.0f);
+        double x = ParseUtils.parseFloat(node.getProperty("x"), 0.0f);
+        double y = ParseUtils.parseFloat(node.getProperty("y"), 0.0f);
+        double z = ParseUtils.parseFloat(node.getProperty("z"), 0.0f);
 
         boolean hasSize = nodeAcceptsKey(node, "sx") && nodeAcceptsKey(node, "sy") && nodeAcceptsKey(node, "sz");
-        double sx = hasSize ? Math.max(1.0, parseFloat(node.getProperty("sx"), 1.0f)) : 0.0;
-        double sy = hasSize ? Math.max(1.0, parseFloat(node.getProperty("sy"), 1.0f)) : 0.0;
-        double sz = hasSize ? Math.max(1.0, parseFloat(node.getProperty("sz"), 1.0f)) : 0.0;
+        double sx = hasSize ? Math.max(1.0, ParseUtils.parseFloat(node.getProperty("sx"), 1.0f)) : 0.0;
+        double sy = hasSize ? Math.max(1.0, ParseUtils.parseFloat(node.getProperty("sy"), 1.0f)) : 0.0;
+        double sz = hasSize ? Math.max(1.0, ParseUtils.parseFloat(node.getProperty("sz"), 1.0f)) : 0.0;
 
         Vec3 size = new Vec3(sx, sy, sz);
         Vec3 pivot = hasSize
@@ -712,9 +699,9 @@ public final class SceneOpApplier {
         double baseY = hasSize ? (pivot.y - size.y * 0.5) : pivot.y;
         double baseZ = hasSize ? (pivot.z - size.z * 0.5) : pivot.z;
 
-        node.setProperty("x", trimFloat((float) baseX));
-        node.setProperty("y", trimFloat((float) baseY));
-        node.setProperty("z", trimFloat((float) baseZ));
+        node.setProperty("x", ParseUtils.trimFloat((float) baseX));
+        node.setProperty("y", ParseUtils.trimFloat((float) baseY));
+        node.setProperty("z", ParseUtils.trimFloat((float) baseZ));
     }
 
     private record NodePose(Vec3 pivot, Vec3 size, boolean hasSize) {

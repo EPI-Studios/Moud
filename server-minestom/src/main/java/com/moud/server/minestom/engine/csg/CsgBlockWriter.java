@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+import com.moud.core.util.ParseUtils;
 import com.moud.server.minestom.engine.Engine;
 import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.instance.block.Block;
@@ -35,32 +36,6 @@ public final class CsgBlockWriter {
         } catch (NumberFormatException ignored) {
             return fallback;
         }
-    }
-
-    private static float parseFloat(String value, float fallback) {
-        if (value == null || value.isBlank()) {
-            return fallback;
-        }
-        try {
-            float v = Float.parseFloat(value.trim());
-            return Float.isFinite(v) ? v : fallback;
-        } catch (NumberFormatException ignored) {
-            return fallback;
-        }
-    }
-
-    private static boolean parseBool(String value, boolean fallback) {
-        if (value == null || value.isBlank()) {
-            return fallback;
-        }
-        String v = value.trim().toLowerCase();
-        if ("true".equals(v) || "1".equals(v) || "t".equals(v) || "yes".equals(v) || "y".equals(v)) {
-            return true;
-        }
-        if ("false".equals(v) || "0".equals(v) || "f".equals(v) || "no".equals(v) || "n".equals(v)) {
-            return false;
-        }
-        return fallback;
     }
 
     private static String defaulted(String value, String fallback) {
@@ -169,7 +144,7 @@ public final class CsgBlockWriter {
     }
 
     private void emitCsgBlock(Node node, Transform world, Map<Long, Block> out) {
-        if (!parseBool(node.getProperty("solid"), true)) {
+        if (!ParseUtils.parseBool(node.getProperty("solid"), true)) {
             return;
         }
 
@@ -215,13 +190,13 @@ public final class CsgBlockWriter {
         if (node == null) {
             return Transform.IDENTITY;
         }
-        float x = parseFloat(node.getProperty("x"), 0.0f);
-        float y = parseFloat(node.getProperty("y"), 0.0f);
-        float z = parseFloat(node.getProperty("z"), 0.0f);
+        float x = ParseUtils.parseFloat(node.getProperty("x"), 0.0f);
+        float y = ParseUtils.parseFloat(node.getProperty("y"), 0.0f);
+        float z = ParseUtils.parseFloat(node.getProperty("z"), 0.0f);
 
-        float rxDeg = parseFloat(node.getProperty("rx"), 0.0f);
-        float ryDeg = parseFloat(node.getProperty("ry"), 0.0f);
-        float rzDeg = parseFloat(node.getProperty("rz"), 0.0f);
+        float rxDeg = ParseUtils.parseFloat(node.getProperty("rx"), 0.0f);
+        float ryDeg = ParseUtils.parseFloat(node.getProperty("ry"), 0.0f);
+        float rzDeg = ParseUtils.parseFloat(node.getProperty("rz"), 0.0f);
         Quat rot = Quat.fromEulerDeg(rxDeg, ryDeg, rzDeg);
 
         String sxRaw = node.getProperty("sx");
@@ -229,9 +204,9 @@ public final class CsgBlockWriter {
         String szRaw = node.getProperty("sz");
         boolean hasScale = sxRaw != null || syRaw != null || szRaw != null;
 
-        double sx = hasScale ? safeScale(parseFloat(sxRaw, 1.0f)) : 1.0;
-        double sy = hasScale ? safeScale(parseFloat(syRaw, 1.0f)) : 1.0;
-        double sz = hasScale ? safeScale(parseFloat(szRaw, 1.0f)) : 1.0;
+        double sx = hasScale ? safeScale(ParseUtils.parseFloat(sxRaw, 1.0f)) : 1.0;
+        double sy = hasScale ? safeScale(ParseUtils.parseFloat(syRaw, 1.0f)) : 1.0;
+        double sz = hasScale ? safeScale(ParseUtils.parseFloat(szRaw, 1.0f)) : 1.0;
         Vec3 scale = new Vec3(sx, sy, sz);
 
         boolean pivotIsMinCorner = "CSGBox".equals(typeId) || "CSGBlock".equals(typeId);

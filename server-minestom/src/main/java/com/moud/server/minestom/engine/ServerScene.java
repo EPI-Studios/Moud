@@ -3,9 +3,11 @@ package com.moud.server.minestom.engine;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpBatch;
 import com.moud.net.protocol.SceneSnapshot;
+import com.moud.server.minestom.collision.CollisionBakeService;
 import com.moud.server.minestom.engine.anvil.AnvilWorldLoader;
 import com.moud.server.minestom.engine.csg.CsgBlockWriter;
 import com.moud.server.minestom.engine.nodes.RootNode;
+import com.moud.server.minestom.physics.JoltBootstrap;
 import com.moud.server.minestom.physics.JoltPhysicsWorld;
 import net.minestom.server.instance.InstanceContainer;
 import com.moud.server.minestom.engine.EngineSchema;
@@ -22,7 +24,7 @@ public final class ServerScene {
     private final AnvilWorldLoader anvilLoader;
     private final JoltPhysicsWorld physics;
 
-    public ServerScene(String sceneId, String displayName, InstanceContainer instance) {
+    public ServerScene(String sceneId, String displayName, InstanceContainer instance, CollisionBakeService collisionBakeService) {
         this.sceneId = Objects.requireNonNull(sceneId, "sceneId");
         this.displayName = displayName == null ? "" : displayName;
         this.instance = Objects.requireNonNull(instance, "instance");
@@ -31,7 +33,7 @@ public final class ServerScene {
         this.applier = new SceneOpApplier(engine);
         this.csgWriter = new CsgBlockWriter(instance, engine);
         this.anvilLoader = new AnvilWorldLoader(instance, engine);
-        this.physics = JoltPhysicsWorld.tryCreate();
+        this.physics = JoltBootstrap.isAvailable() ? new JoltPhysicsWorld(collisionBakeService) : null;
     }
 
     public String sceneId() {
