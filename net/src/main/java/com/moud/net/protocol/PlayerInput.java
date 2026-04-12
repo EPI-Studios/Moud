@@ -10,7 +10,8 @@ public record PlayerInput(
         float cursorX,
         float cursorY,
         boolean jump,
-        boolean sprint
+        boolean sprint,
+        boolean sneak
 ) implements Message {
     @Override
     public MessageType type() {
