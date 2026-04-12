@@ -129,8 +129,15 @@ public final class MoudTextAssets implements AssetsClient.Listener {
                 || path.endsWith(".json")
                 || path.endsWith(".tres")
                 || path.endsWith(".glsl")
+                || path.endsWith(".ts")
+                || path.endsWith(".mts")
+                || path.endsWith(".js")
+                || path.endsWith(".mjs")
+                || path.endsWith(".cjs")
+                || path.endsWith(".luau")
                 || path.contains("/materials/")
-                || path.contains("/shaders/");
+                || path.contains("/shaders/")
+                || path.contains("/scripts/");
 
         if (!isTextType) {
             return null;
