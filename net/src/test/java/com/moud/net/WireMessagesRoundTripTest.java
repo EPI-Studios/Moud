@@ -92,7 +92,7 @@ public final class WireMessagesRoundTripTest {
     @Test
     void runtime_roundTrip() {
         List<Message> messages = List.of(
-                new PlayerInput(123L, 1.0f, -0.25f, 90.0f, -10.0f, true, false),
+                new PlayerInput(123L, 1.0f, -0.25f, 90.0f, -10.0f, 0.25f, -0.75f, true, false),
                 new RuntimeState(456L, "main",
                         true, 0.1f, 0.2f, 0.3f, 0.0125f,
                         12345, "thunder", 0.75f,
@@ -111,6 +111,25 @@ public final class WireMessagesRoundTripTest {
             Message decoded = WireMessages.decode(WireMessages.encode(message));
             assertEquals(message, decoded);
         }
+    }
+
+    @Test
+    void runtime_playerInput_legacyDecode() {
+        java.nio.ByteBuffer out = java.nio.ByteBuffer.allocate(64);
+        com.moud.net.wire.WireIo.writeVarInt(out, MessageType.PLAYER_INPUT.id());
+        com.moud.net.wire.WireIo.writeLong(out, 123L);
+        out.putFloat(1.0f);
+        out.putFloat(-0.25f);
+        out.putFloat(90.0f);
+        out.putFloat(-10.0f);
+        com.moud.net.wire.WireIo.writeVarInt(out, 1);
+        out.flip();
+
+        byte[] bytes = new byte[out.remaining()];
+        out.get(bytes);
+
+        Message decoded = WireMessages.decode(bytes);
+        assertEquals(new PlayerInput(123L, 1.0f, -0.25f, 90.0f, -10.0f, 0.0f, 0.0f, true, false), decoded);
     }
 
     @Test
