@@ -1,6 +1,9 @@
 package com.moud.client.fabric.render.hud;
 
+import com.moud.client.fabric.render.MoudTextures;
+import com.moud.client.fabric.render.sprite.SpriteSheets;
 import com.moud.net.protocol.SceneSnapshot;
+import net.minecraft.util.Identifier;
 
 public final class TextureRectRenderer implements ControlRenderer {
 
@@ -10,11 +13,82 @@ public final class TextureRectRenderer implements ControlRenderer {
 
     @Override
     public void render(ControlRenderContext ctx, SceneSnapshot.NodeSnapshot node, int x, int y, int w, int h) {
+        if (renderAnimated(ctx, node, x, y, w, h)) {
+            return;
+        }
+        if (renderStatic(ctx, node, x, y, w, h)) {
+            return;
+        }
         ctx.fill(x, y, w, h, ControlRenderContext.BG);
         ctx.border(x, y, w, h, ControlRenderContext.BORDER);
-        ctx.hline(x, x + w - 1, y,         ControlRenderContext.BORDER);
-        ctx.hline(x, x + w - 1, y + h - 1, ControlRenderContext.BORDER);
-        ctx.vline(x,         y, y + h - 1,  ControlRenderContext.BORDER);
-        ctx.vline(x + w - 1, y, y + h - 1,  ControlRenderContext.BORDER);
+    }
+
+    private boolean renderAnimated(ControlRenderContext ctx, SceneSnapshot.NodeSnapshot node, int x, int y, int w, int h) {
+        if (!"AnimatedTextureRect".equals(node.type())) {
+            return false;
+        }
+        SpriteSheets.ResolvedFrame frame = SpriteSheets.resolve(
+                ControlRenderContext.strProp(node, "sprite_sheet", ""),
+                ControlRenderContext.strProp(node, "texture", ""),
+                ControlRenderContext.strProp(node, "animation", ""),
+                ControlRenderContext.boolProp(node, "playing", true),
+                ControlRenderContext.boolProp(node, "loop", true),
+                ControlRenderContext.floatProp(node, "speed_scale", 1f),
+                Math.round(ControlRenderContext.floatProp(node, "frame", 0f)),
+                System.nanoTime() / 1_000_000L
+        );
+        if (frame == null) {
+            return false;
+        }
+        drawFrame(ctx, node, x, y, w, h, frame.textureId(), frame.u0(), frame.v0(), frame.u1(), frame.v1(),
+                frame.textureWidth(), frame.textureHeight(), frame.offsetX(), frame.offsetY(), frame.frameWidth(), frame.frameHeight(), frame.sourceWidth(), frame.sourceHeight());
+        return true;
+    }
+
+    private boolean renderStatic(ControlRenderContext ctx, SceneSnapshot.NodeSnapshot node, int x, int y, int w, int h) {
+        String textureRef = switch (node.type()) {
+            case "TextureButton" -> firstNonBlank(
+                    ControlRenderContext.strProp(node, "texture_normal", ""),
+                    ControlRenderContext.strProp(node, "texture_hover", ""),
+                    ControlRenderContext.strProp(node, "texture_pressed", ""),
+                    ControlRenderContext.strProp(node, "texture_disabled", "")
+            );
+            default -> ControlRenderContext.strProp(node, "texture", "");
+        };
+        if (textureRef == null || textureRef.isBlank()) {
+            return false;
+        }
+        Identifier textureId = MoudTextures.resolve(textureRef);
+        MoudTextures.TextureSize size = MoudTextures.sizeOf(textureId);
+        drawFrame(ctx, node, x, y, w, h, textureId, 0f, 0f, 1f, 1f, size.width(), size.height(), 0, 0, size.width(), size.height(), size.width(), size.height());
+        return true;
+    }
+
+    private void drawFrame(ControlRenderContext ctx,
+                           SceneSnapshot.NodeSnapshot node,
+                           int x, int y, int w, int h,
+                           Identifier textureId,
+                           float u0, float v0, float u1, float v1,
+                           int textureWidth, int textureHeight,
+                           int offsetX, int offsetY,
+                           int frameWidth, int frameHeight,
+                           int sourceWidth, int sourceHeight) {
+        int drawX = x + Math.round(offsetX * (w / (float) Math.max(1, sourceWidth)));
+        int drawY = y + Math.round(offsetY * (h / (float) Math.max(1, sourceHeight)));
+        int drawW = Math.max(1, Math.round(frameWidth * (w / (float) Math.max(1, sourceWidth))));
+        int drawH = Math.max(1, Math.round(frameHeight * (h / (float) Math.max(1, sourceHeight))));
+        ctx.drawTexture(textureId, drawX, drawY, drawW, drawH, u0, v0, u1, v1, textureWidth, textureHeight, 0xFFFFFFFF);
+    }
+
+    private static String firstNonBlank(String... values) {
+        if (values == null) {
+            return "";
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
     }
 }

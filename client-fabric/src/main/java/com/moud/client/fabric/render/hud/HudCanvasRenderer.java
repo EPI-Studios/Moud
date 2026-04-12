@@ -36,6 +36,16 @@ public final class HudCanvasRenderer {
         List<HitResult> hits = new ArrayList<>();
 
         try {
+            SceneSnapshot.NodeSnapshot root = primaryRoot(nodes);
+            if (root != null && "2d".equalsIgnoreCase(ControlRenderContext.prop(root, "scene_mode"))) {
+                List<SceneSnapshot.NodeSnapshot> rootChildren = childrenByParent.getOrDefault(root.nodeId(), List.of());
+                for (SceneSnapshot.NodeSnapshot child : rootChildren) {
+                    if (child != null && !"CanvasLayer".equals(child.type())) {
+                        renderNode(ctx, child, childrenByParent, 0, 0, screenW, screenH, false, 0, 0, hits);
+                    }
+                }
+            }
+
             sortedCanvasLayers(nodes).forEach(layer -> {
                 if (!ControlRenderContext.boolProp(layer, "visible", true)) return;
                 List<SceneSnapshot.NodeSnapshot> children = childrenByParent.getOrDefault(layer.nodeId(), List.of());
@@ -186,6 +196,25 @@ public final class HudCanvasRenderer {
                 (int) ControlRenderContext.floatProp(a, "layer", 0f),
                 (int) ControlRenderContext.floatProp(b, "layer", 0f)));
         return layers;
+    }
+
+    private static SceneSnapshot.NodeSnapshot primaryRoot(List<SceneSnapshot.NodeSnapshot> nodes) {
+        if (nodes == null || nodes.isEmpty()) {
+            return null;
+        }
+        SceneSnapshot.NodeSnapshot firstTopLevel = null;
+        for (SceneSnapshot.NodeSnapshot n : nodes) {
+            if (n == null || n.parentId() != 0L) {
+                continue;
+            }
+            if (firstTopLevel == null) {
+                firstTopLevel = n;
+            }
+            if ("Root".equals(n.type())) {
+                return n;
+            }
+        }
+        return firstTopLevel;
     }
 
 
