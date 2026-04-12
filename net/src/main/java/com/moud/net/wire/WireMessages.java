@@ -16,6 +16,8 @@ import com.moud.net.protocol.AssetDownloadBegin;
 import com.moud.net.protocol.AssetDownloadChunk;
 import com.moud.net.protocol.AssetDownloadComplete;
 import com.moud.net.protocol.AssetDownloadRequest;
+import com.moud.net.protocol.AssetDeleteAck;
+import com.moud.net.protocol.AssetDeleteRequest;
 import com.moud.net.protocol.AssetManifestRequest;
 import com.moud.net.protocol.AssetManifestResponse;
 import com.moud.net.protocol.AssetTransferStatus;
@@ -43,6 +45,7 @@ import com.moud.net.protocol.PlayerMotion;
 import com.moud.net.protocol.RuntimeState;
 import com.moud.net.protocol.RequestRespawn;
 import com.moud.net.protocol.EditorModeChanged;
+import com.moud.net.protocol.EditorDiagnosticEvent;
 import com.moud.net.protocol.CursorState;
 import com.moud.net.protocol.SceneCreate;
 import com.moud.net.protocol.SceneCreateAck;
@@ -62,6 +65,8 @@ import com.moud.net.protocol.ScriptFileWriteRequest;
 import com.moud.net.protocol.ScriptFileWriteAck;
 import com.moud.net.protocol.UiNodeEvent;
 import com.moud.net.protocol.MultiMeshData;
+import com.moud.net.protocol.CollisionGeometrySnapshot;
+import com.moud.core.physics.CollisionGeometry;
 
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
@@ -113,6 +118,16 @@ public final class WireMessages {
                     case AssetDownloadBegin begin -> writeAssetDownloadBegin(out, begin);
                     case AssetDownloadChunk chunk -> writeAssetDownloadChunk(out, chunk);
                     case AssetDownloadComplete complete -> writeAssetDownloadComplete(out, complete);
+                    case AssetDeleteRequest request -> {
+                        writeLong(out, request.requestId());
+                        WireIo.writeString(out, request.path() == null ? "" : request.path().value());
+                    }
+                    case AssetDeleteAck ack -> {
+                        writeLong(out, ack.requestId());
+                        WireIo.writeString(out, ack.path() == null ? "" : ack.path().value());
+                        writeStatus(out, ack.status());
+                        WireIo.writeString(out, ack.message());
+                    }
                     case PlayerInput input -> writePlayerInput(out, input);
                     case RuntimeState state -> writeRuntimeState(out, state);
                     case CursorState state -> {
@@ -195,6 +210,11 @@ public final class WireMessages {
                         WireIo.writeString(out, msg.path());
                         WireIo.writeString(out, msg.error());
                     }
+                    case EditorDiagnosticEvent msg -> {
+                        WireIo.writeString(out, msg.severity());
+                        WireIo.writeString(out, msg.source());
+                        WireIo.writeString(out, msg.message());
+                    }
                     case UiNodeEvent msg -> {
                         writeLong(out, msg.nodeId());
                         WireIo.writeString(out, msg.event());
@@ -217,6 +237,23 @@ public final class WireMessages {
                         out.putFloat(msg.y());
                         out.putFloat(msg.z());
                         out.putFloat(msg.yawDeg());
+                    }
+                    case CollisionGeometrySnapshot msg -> {
+                        writeLong(out, msg.nodeId());
+                        List<CollisionGeometry> hulls = msg.hulls() == null ? List.of() : msg.hulls();
+                        WireIo.writeVarInt(out, hulls.size());
+                        for (CollisionGeometry hull : hulls) {
+                            float[] vertices = hull.vertices();
+                            WireIo.writeVarInt(out, vertices == null ? 0 : vertices.length);
+                            if (vertices != null) {
+                                for (float f : vertices) out.putFloat(f);
+                            }
+                            int[] indices = hull.indices();
+                            WireIo.writeVarInt(out, indices == null ? 0 : indices.length);
+                            if (indices != null) {
+                                for (int i : indices) WireIo.writeVarInt(out, i);
+                            }
+                        }
                     }
                 }
                 out.flip();
@@ -265,6 +302,14 @@ public final class WireMessages {
             case ASSET_DOWNLOAD_BEGIN -> readAssetDownloadBegin(in);
             case ASSET_DOWNLOAD_CHUNK -> readAssetDownloadChunk(in);
             case ASSET_DOWNLOAD_COMPLETE -> readAssetDownloadComplete(in);
+            case ASSET_DELETE_REQUEST -> new AssetDeleteRequest(readLong(in), readResPathOrNull(in));
+            case ASSET_DELETE_ACK -> {
+                long requestId = readLong(in);
+                ResPath path = readResPathOrNull(in);
+                AssetTransferStatus status = readStatus(in);
+                String message = WireIo.readString(in);
+                yield new AssetDeleteAck(requestId, path, status, message);
+            }
             case PLAYER_INPUT -> readPlayerInput(in);
             case RUNTIME_STATE -> readRuntimeState(in);
             case CURSOR_STATE -> {
@@ -356,6 +401,11 @@ public final class WireMessages {
                 String error = WireIo.readString(in);
                 yield new ScriptFileWriteAck(requestId, success, path, error);
             }
+            case EDITOR_DIAGNOSTIC_EVENT -> new EditorDiagnosticEvent(
+                    WireIo.readString(in),
+                    WireIo.readString(in),
+                    WireIo.readString(in)
+            );
             case PLAYER_MOTION -> {
                 int mode = WireIo.readVarInt(in);
                 float x = in.getFloat();
@@ -363,6 +413,21 @@ public final class WireMessages {
                 float z = in.getFloat();
                 float yawDeg = in.getFloat();
                 yield new PlayerMotion(mode, x, y, z, yawDeg);
+            }
+            case COLLISION_GEOMETRY -> {
+                long nodeId = readLong(in);
+                int hullCount = WireIo.readVarInt(in);
+                List<CollisionGeometry> hulls = new ArrayList<>(hullCount);
+                for (int i = 0; i < hullCount; i++) {
+                    int vLen = WireIo.readVarInt(in);
+                    float[] vertices = new float[vLen];
+                    for (int j = 0; j < vLen; j++) vertices[j] = in.getFloat();
+                    int iLen = WireIo.readVarInt(in);
+                    int[] indices = new int[iLen];
+                    for (int j = 0; j < iLen; j++) indices[j] = WireIo.readVarInt(in);
+                    hulls.add(new CollisionGeometry(vertices, indices));
+                }
+                yield new CollisionGeometrySnapshot(nodeId, hulls);
             }
         };
     }
@@ -400,12 +465,23 @@ public final class WireMessages {
         float moveZ = in.getFloat();
         float yaw = in.getFloat();
         float pitch = in.getFloat();
-        float cursorX = in.getFloat();
-        float cursorY = in.getFloat();
-        int flags = WireIo.readVarInt(in);
+        float cursorX;
+        float cursorY;
+        int flags;
+        if (in.remaining() >= (Float.BYTES * 2) + 1) {
+            cursorX = in.getFloat();
+            cursorY = in.getFloat();
+            flags = WireIo.readVarInt(in);
+        } else {
+            // Backward compatibility: older clients sent PlayerInput without cursor coordinates.
+            cursorX = 0.0f;
+            cursorY = 0.0f;
+            flags = WireIo.readVarInt(in);
+        }
         boolean jump = (flags & 1) != 0;
         boolean sprint = (flags & 2) != 0;
-        return new PlayerInput(tick, moveX, moveZ, yaw, pitch, cursorX, cursorY, jump, sprint);
+        boolean sneak = (flags & 4) != 0;
+        return new PlayerInput(tick, moveX, moveZ, yaw, pitch, cursorX, cursorY, jump, sprint, sneak);
     }
 
     private static void writeSceneSaveAck(ByteBuffer out, SceneSaveAck ack) {
@@ -1048,6 +1124,11 @@ public final class WireMessages {
             case AssetDownloadBegin begin -> size += estimateAssetDownloadBeginSize(begin);
             case AssetDownloadChunk chunk -> size += estimateAssetDownloadChunkSize(chunk);
             case AssetDownloadComplete complete -> size += estimateAssetDownloadCompleteSize(complete);
+            case AssetDeleteRequest request -> size += longSize(request.requestId()) + stringSize(request.path() == null ? "" : request.path().value());
+            case AssetDeleteAck ack -> size += longSize(ack.requestId())
+                    + stringSize(ack.path() == null ? "" : ack.path().value())
+                    + varIntSize(ack.status() == null ? AssetTransferStatus.ERROR.id() : ack.status().id())
+                    + stringSize(ack.message());
             case PlayerInput input -> size += estimatePlayerInputSize(input);
             case SceneSave save -> size += estimateSceneSaveSize(save);
             case SceneSaveAck ack -> size += estimateSceneSaveAckSize(ack);
@@ -1075,10 +1156,27 @@ public final class WireMessages {
             case ScriptFileReadResponse msg -> size += longSize(msg.requestId()) + varIntSize(1) + stringSize(msg.path()) + stringSize(msg.content()) + stringSize(msg.error());
             case ScriptFileWriteRequest msg -> size += longSize(msg.requestId()) + stringSize(msg.path()) + stringSize(msg.content());
             case ScriptFileWriteAck msg -> size += longSize(msg.requestId()) + varIntSize(1) + stringSize(msg.path()) + stringSize(msg.error());
+            case EditorDiagnosticEvent msg -> size += stringSize(msg.severity()) + stringSize(msg.source()) + stringSize(msg.message());
             case UiNodeEvent msg -> size += longSize(msg.nodeId()) + stringSize(msg.event()) + Float.BYTES;
             case MultiMeshData msg -> size += longSize(msg.nodeId()) + varIntSize(msg.offset()) + varIntSize(msg.total()) + varIntSize(msg.data() == null ? 0 : msg.data().length) + (msg.data() == null ? 0 : msg.data().length * Float.BYTES);
             case PlayerMotion ignored -> size += varIntSize(2) + 4 * Float.BYTES;
             case CursorState ignored -> size += varIntSize(3);
+            case CollisionGeometrySnapshot msg -> {
+                size += longSize(msg.nodeId());
+                List<CollisionGeometry> hulls = msg.hulls() == null ? List.of() : msg.hulls();
+                size += varIntSize(hulls.size());
+                for (CollisionGeometry hull : hulls) {
+                    float[] vertices = hull.vertices();
+                    int vLen = vertices == null ? 0 : vertices.length;
+                    size += varIntSize(vLen) + vLen * Float.BYTES;
+                    int[] indices = hull.indices();
+                    int iLen = indices == null ? 0 : indices.length;
+                    size += varIntSize(iLen);
+                    if (indices != null) {
+                        for (int i : indices) size += varIntSize(i);
+                    }
+                }
+            }
         }
         return size + 16;
     }
