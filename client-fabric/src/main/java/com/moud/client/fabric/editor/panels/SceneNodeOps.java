@@ -8,7 +8,8 @@ import com.moud.client.fabric.editor.net.EditorNet;
 import com.moud.client.fabric.editor.state.EditorHistory;
 import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
-import com.moud.client.fabric.util.ParseUtils;
+import com.moud.core.util.ParseUtils;
+import com.moud.core.NodeTypeDef;
 import com.moud.core.assets.ResPath;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneSnapshot;
@@ -28,7 +29,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-class SceneNodeOps {
+public class SceneNodeOps {
     private static final String PROP_VISIBLE = "visible";
     private static final String PROP_LOCKED = "@locked";
     private static final String PROP_EDITOR_LOCKED = "editor_locked";
@@ -201,7 +202,8 @@ class SceneNodeOps {
         for (SceneSnapshot.NodeSnapshot n : roots) {
             if (n != null && "Root".equals(n.type())) return n.nodeId();
         }
-        return 0L;
+        SceneSnapshot.NodeSnapshot first = roots.getFirst();
+        return first != null ? first.nodeId() : 0L;
     }
 
     static boolean sceneHasPlayerStart(EditorState state) {
@@ -314,6 +316,12 @@ class SceneNodeOps {
         if (state == null || node == null) {
             return;
         }
+        SceneSnapshot.NodeSnapshot parent = state.scene != null ? state.scene.getNode(node.parentId()) : null;
+        String parentType = parent != null ? parent.type() : (node.parentId() == 0L || node.parentId() == rootNodeId(state) ? "Root" : null);
+        if (!isTypeCompatible(state, runtime, node.type(), parentType)) {
+            runtime.requestToast("Cannot duplicate '" + node.name() + "' here (incompatible type).", true, 3000);
+            return;
+        }
 
         String baseName = node.name() == null ? "Node" : node.name();
         String nameHint = baseName + "_copy";
@@ -424,7 +432,7 @@ class SceneNodeOps {
     }
 
     void moveNode(SceneSnapshot.NodeSnapshot node, int direction) {
-        if (node == null || node.parentId() == 0L) {
+        if (node == null || node.nodeId() == rootNodeId(runtime.state())) {
             return;
         }
         nodeMenu.close();
@@ -459,14 +467,165 @@ class SceneNodeOps {
         EditorNet net = runtime.net();
         if (state == null || session == null || net == null) return;
         SceneSnapshot.NodeSnapshot delNode = state.scene.getNode(nodeId);
+        if (delNode == null || delNode.nodeId() == rootNodeId(state)) {
+            return;
+        }
         runtime.history().clearRedo();
         net.sendOps(session, state, List.of(new SceneOp.QueueFree(nodeId)));
         if (state.selectedId == nodeId) {
             state.selectedId = 0L;
         }
+        state.selectedIds.remove(nodeId);
         if (delNode != null) {
             runtime.requestToast("Deleted: " + delNode.name(), false, 1500);
         }
+    }
+
+    int selectedDeletableCount(SceneSnapshot.NodeSnapshot fallback) {
+        EditorState state = runtime.state();
+        if (state == null || state.scene == null) {
+            return 0;
+        }
+        Set<Long> ids = selectedNodeIds(fallback);
+        long rootId = rootNodeId(state);
+        int count = 0;
+        for (long id : topLevelSelection(state, deletableNodeIds(state, ids))) {
+            SceneSnapshot.NodeSnapshot snap = state.scene.getNode(id);
+            if (snap != null && snap.nodeId() != rootId) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    void queueFreeSelectedOrNode(SceneSnapshot.NodeSnapshot fallback) {
+        nodeMenu.close();
+        addChildMenu.close();
+        closeAddChildCategoryMenus();
+        EditorState state = runtime.state();
+        Session session = runtime.session();
+        EditorNet net = runtime.net();
+        if (state == null || state.scene == null || session == null || net == null) {
+            return;
+        }
+
+        ArrayList<SceneOp> ops = new ArrayList<>();
+        ArrayList<String> names = new ArrayList<>();
+        Set<Long> ids = selectedNodeIds(fallback);
+        long rootId = rootNodeId(state);
+        for (long id : topLevelSelection(state, deletableNodeIds(state, ids))) {
+            SceneSnapshot.NodeSnapshot snap = state.scene.getNode(id);
+            if (snap == null || snap.nodeId() == rootId) {
+                continue;
+            }
+            ops.add(new SceneOp.QueueFree(id));
+            names.add(snap.name() == null ? Long.toString(id) : snap.name());
+        }
+        if (ops.isEmpty()) {
+            return;
+        }
+
+        runtime.history().clearRedo();
+        net.sendOps(session, state, ops);
+        for (SceneOp op : ops) {
+            if (op instanceof SceneOp.QueueFree qf) {
+                if (state.selectedId == qf.nodeId()) {
+                    state.selectedId = 0L;
+                }
+                state.selectedIds.remove(qf.nodeId());
+            }
+        }
+        if (treeView != null) {
+            treeView.selectedNodes().removeIf(tn -> {
+                SceneSnapshot.NodeSnapshot snap = tn != null ? tn.data() : null;
+                return snap != null && containsQueuedOp(ops, snap.nodeId());
+            });
+        }
+        runtime.requestToast(ops.size() == 1 ? "Deleted: " + names.getFirst() : "Deleted " + ops.size() + " nodes", false, 1500);
+    }
+
+    void queueFreeRootChildren(SceneSnapshot.NodeSnapshot root) {
+        nodeMenu.close();
+        addChildMenu.close();
+        closeAddChildCategoryMenus();
+        EditorState state = runtime.state();
+        Session session = runtime.session();
+        EditorNet net = runtime.net();
+        if (state == null || state.scene == null || session == null || net == null || root == null || root.nodeId() != rootNodeId(state)) {
+            return;
+        }
+
+        ArrayList<SceneOp> ops = new ArrayList<>();
+        for (SceneSnapshot.NodeSnapshot child : state.scene.childrenOf(root.nodeId())) {
+            if (child != null && child.nodeId() > 0L) {
+                ops.add(new SceneOp.QueueFree(child.nodeId()));
+            }
+        }
+        if (ops.isEmpty()) {
+            return;
+        }
+
+        runtime.history().clearRedo();
+        net.sendOps(session, state, ops);
+        state.selectedId = 0L;
+        state.selectedIds.clear();
+        if (treeView != null) {
+            treeView.selectedNodes().clear();
+        }
+        runtime.requestToast("Deleted " + ops.size() + " root children", false, 1500);
+    }
+
+    private Set<Long> selectedNodeIds(SceneSnapshot.NodeSnapshot fallback) {
+        HashSet<Long> ids = new HashSet<>();
+        EditorState state = runtime.state();
+        if (state != null && state.selectedIds != null) {
+            for (long id : state.selectedIds) {
+                if (id > 0L) {
+                    ids.add(id);
+                }
+            }
+        }
+        if (treeView != null) {
+            for (TreeNode<SceneSnapshot.NodeSnapshot> tn : treeView.selectedNodes()) {
+                SceneSnapshot.NodeSnapshot snap = tn != null ? tn.data() : null;
+                if (snap != null && snap.nodeId() > 0L) {
+                    ids.add(snap.nodeId());
+                }
+            }
+        }
+        if (fallback != null && fallback.nodeId() > 0L && !ids.contains(fallback.nodeId())) {
+            ids.clear();
+            ids.add(fallback.nodeId());
+            return ids;
+        }
+        if (ids.isEmpty() && fallback != null && fallback.nodeId() > 0L) {
+            ids.add(fallback.nodeId());
+        }
+        return ids;
+    }
+
+    private static Set<Long> deletableNodeIds(EditorState state, Set<Long> ids) {
+        if (state == null || state.scene == null || ids == null || ids.isEmpty()) {
+            return Set.of();
+        }
+        long rootId = rootNodeId(state);
+        HashSet<Long> out = new HashSet<>();
+        for (long id : ids) {
+            SceneSnapshot.NodeSnapshot snap = state.scene.getNode(id);
+            if (snap != null && snap.nodeId() != rootId) {
+                out.add(id);
+            }
+        }
+        return out;
+    }
+
+    private static boolean containsQueuedOp(List<SceneOp> ops, long nodeId) {
+        for (SceneOp op : ops) {
+            if (op instanceof SceneOp.QueueFree qf && qf.nodeId() == nodeId) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Sends ops, records undo/redo history, and returns the batch ID. */
@@ -549,7 +708,7 @@ class SceneNodeOps {
     }
 
     void moveToRoot(SceneSnapshot.NodeSnapshot node) {
-        if (node == null || node.parentId() == 0L) return;
+        if (node == null || node.nodeId() == rootNodeId(runtime.state())) return;
         nodeMenu.close();
         EditorState state = runtime.state();
         if (state == null) return;
@@ -568,7 +727,7 @@ class SceneNodeOps {
         }
         try {
             String osPath = TinyFileDialogs.tinyfd_openFileDialog(
-                    "Attach Script (.js, .luau)", "", null, "Script (.js, .luau)", false);
+                    "Attach Script (.ts, .js, .luau)", "", null, "Script (.ts, .js, .luau)", false);
             if (osPath == null || osPath.isBlank()) return;
             File file = new File(osPath);
             if (!file.exists() || !file.isFile()) {
@@ -582,16 +741,18 @@ class SceneNodeOps {
             }
             String lower = filename.toLowerCase(Locale.ROOT);
             boolean isLuau = lower.endsWith(".luau");
-            if (!(lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs") || isLuau)) {
-                filename = filename + ".js";
+            boolean isTs = lower.endsWith(".ts") || lower.endsWith(".mts");
+            if (!(lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs") || isTs || isLuau)) {
+                filename = filename + ".ts";
                 lower = filename.toLowerCase(Locale.ROOT);
                 isLuau = false;
+                isTs = true;
             }
             String scriptPath = "res://scripts/" + filename;
             try {
                 new ResPath(scriptPath);
             } catch (Exception ignored) {
-                scriptPath = "res://scripts/node_" + nodeId + (isLuau ? ".luau" : ".js");
+                scriptPath = "res://scripts/node_" + nodeId + (isLuau ? ".luau" : (isTs ? ".ts" : ".js"));
             }
             String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
             net.writeScriptFile(session, state, scriptPath, content);
@@ -611,10 +772,22 @@ class SceneNodeOps {
         if (state == null || session == null) return;
         if (runtime.getCreateNodeDialog() == null) return;
         long nodeId = node.nodeId();
-        runtime.getCreateNodeDialog().open(node.parentId());
+        boolean changingRoot = nodeId == rootNodeId(state);
+        if (changingRoot) {
+            runtime.getCreateNodeDialog().open(node.parentId(), typeId -> isRootReplacementType(state, typeId));
+        } else {
+            runtime.getCreateNodeDialog().open(node.parentId());
+        }
         runtime.getCreateNodeDialog().setOnTypeSelected(typeId -> {
             if (typeId != null && !typeId.isBlank()) {
-                sendOpsRecorded(List.of(new SceneOp.SetProperty(nodeId, "@type", typeId)));
+                ArrayList<SceneOp> ops = new ArrayList<>();
+                ops.add(new SceneOp.SetProperty(nodeId, "@type", typeId));
+                if (changingRoot) {
+                    boolean is2D = is2DType(typeId, state.typesById);
+                    ops.add(new SceneOp.SetProperty(nodeId, "scene_mode", is2D ? "2d" : "3d"));
+                    runtime.setViewportMode(is2D ? EditorRuntime.ViewportMode.TWO_D : EditorRuntime.ViewportMode.THREE_D);
+                }
+                sendOpsRecorded(ops);
             }
         });
     }
@@ -624,5 +797,73 @@ class SceneNodeOps {
             return false;
         }
         return "PlayerStart".equals(node.type());
+    }
+
+    static boolean isRootReplacementType(EditorState state, String typeId) {
+        if (typeId == null || typeId.isBlank() || "Root".equals(typeId) || "Ticker".equals(typeId)) {
+            return false;
+        }
+        return "Node3D".equals(typeId)
+                || "Node2D".equals(typeId)
+                || "Control".equals(typeId)
+                || is3DType(typeId, state != null ? state.typesById : null)
+                || is2DType(typeId, state != null ? state.typesById : null);
+    }
+
+    public static boolean isTypeCompatible(EditorState state, EditorRuntime runtime, String typeId, String parentTypeId) {
+        if (state == null || typeId == null || typeId.isBlank()) {
+            return false;
+        }
+        Map<String, NodeTypeDef> types = state.typesById;
+        boolean scene2d = sceneIs2D(state);
+        boolean typeIs2D = is2DType(typeId, types);
+        boolean typeIs3D = is3DType(typeId, types);
+        boolean parentIs2D = is2DType(parentTypeId, types);
+        boolean parentIsRoot = parentTypeId == null || "Root".equals(parentTypeId);
+
+        if (scene2d && typeIs3D) {
+            return false;
+        }
+        if (typeIs2D && !"CanvasLayer".equals(typeId) && !parentIs2D && !(scene2d && parentIsRoot)) {
+            return false;
+        }
+        return true;
+    }
+
+    static boolean is2DType(String typeId, Map<String, NodeTypeDef> typesById) {
+        return "CanvasLayer".equals(typeId)
+                || "CanvasItem".equals(typeId)
+                || "Control".equals(typeId)
+                || "Node2D".equals(typeId)
+                || isDescendantOf(typeId, "CanvasLayer", typesById)
+                || isDescendantOf(typeId, "CanvasItem", typesById)
+                || isDescendantOf(typeId, "Control", typesById)
+                || isDescendantOf(typeId, "Node2D", typesById)
+                || CanvasNodeTypes.CANVAS_2D_TYPES.contains(typeId);
+    }
+
+    static boolean is3DType(String typeId, Map<String, NodeTypeDef> typesById) {
+        return "Node3D".equals(typeId)
+                || "WorldEnvironment".equals(typeId)
+                || "PlayerStart".equals(typeId)
+                || "PlayerAttachment".equals(typeId)
+                || isDescendantOf(typeId, "Node3D", typesById);
+    }
+
+    static boolean isDescendantOf(String typeId, String ancestorId, Map<String, NodeTypeDef> typesById) {
+        if (typeId == null || ancestorId == null || typesById == null) {
+            return false;
+        }
+        String current = typeId;
+        int depth = 0;
+        while (current != null && depth < 32) {
+            if (current.equals(ancestorId)) {
+                return true;
+            }
+            NodeTypeDef def = typesById.get(current);
+            current = def != null ? def.parentTypeId() : null;
+            depth++;
+        }
+        return false;
     }
 }
