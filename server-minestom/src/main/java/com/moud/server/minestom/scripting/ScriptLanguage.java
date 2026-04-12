@@ -2,7 +2,7 @@ package com.moud.server.minestom.scripting;
 
 import java.util.Locale;
 
-enum ScriptLanguage {
+public enum ScriptLanguage {
     JAVASCRIPT("JavaScript"),
     TYPESCRIPT("TypeScript"),
     LUAU("Luau"),
@@ -14,11 +14,11 @@ enum ScriptLanguage {
         this.displayName = displayName;
     }
 
-    String displayName() {
+    public String displayName() {
         return displayName;
     }
 
-    static ScriptLanguage fromPath(String path) {
+    public static ScriptLanguage fromPath(String path) {
         if (path == null) {
             return UNKNOWN;
         }

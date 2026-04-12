@@ -1,6 +1,6 @@
 package com.moud.server.minestom.scripting;
 
-record ScriptReference(
+public record ScriptReference(
         String path,
         ScriptLanguage language
 ) {
