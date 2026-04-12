@@ -30,6 +30,8 @@ public sealed interface Message permits
         AssetDownloadBegin,
         AssetDownloadChunk,
         AssetDownloadComplete,
+        AssetDeleteRequest,
+        AssetDeleteAck,
         PlayerInput,
         RuntimeState,
         RequestRespawn,
@@ -46,9 +48,11 @@ public sealed interface Message permits
         ScriptFileReadResponse,
         ScriptFileWriteRequest,
         ScriptFileWriteAck,
+        EditorDiagnosticEvent,
         UiNodeEvent,
         MultiMeshData,
         PlayerMotion,
-        CursorState {
+        CursorState,
+        CollisionGeometrySnapshot {
     MessageType type();
 }

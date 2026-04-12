@@ -12,9 +12,14 @@ public record PlayerMotion(
     public static final int MODE_ANCHOR_SET = 1;
     public static final int MODE_ANCHOR_CLEAR = 2;
     public static final int MODE_VELOCITY_REPORT = 3;
+    public static final int MODE_POSITION = 4;
 
     public static PlayerMotion velocity(float vx, float vy, float vz) {
         return new PlayerMotion(MODE_VELOCITY, vx, vy, vz, 0f);
+    }
+
+    public static PlayerMotion position(float x, float y, float z, float yawDeg) {
+        return new PlayerMotion(MODE_POSITION, x, y, z, yawDeg);
     }
 
     public static PlayerMotion anchorSet(float x, float y, float z, float yawDeg) {
