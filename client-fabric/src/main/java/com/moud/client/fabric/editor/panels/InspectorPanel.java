@@ -29,7 +29,8 @@ import com.moud.client.fabric.model.ModelCache;
 import com.moud.client.fabric.render.MoudIcons;
 import com.moud.client.fabric.render.MoudTextures;
 import com.moud.client.fabric.render.preview.MaterialPreviewRenderer;
-import com.moud.client.fabric.util.ParseUtils;
+import com.moud.client.fabric.render.sprite.SpriteSheetAsset;
+import com.moud.core.util.ParseUtils;
 import com.moud.core.NodeTypeDef;
 import com.moud.core.player.AttachPoint;
 import com.moud.core.PropertyDef;
@@ -85,6 +86,11 @@ public final class InspectorPanel extends Panel {
     private long assetMenuNodeId;
     private String assetMenuKey;
 
+    private final ContextMenu scriptMenu = new ContextMenu();
+    private final ContextMenu scriptServerMenu = new ContextMenu();
+    private final ContextMenu clientScriptMenu = new ContextMenu();
+    private long scriptMenuNodeId;
+
     private final ContextMenu selectMenu = new ContextMenu();
     private long selectMenuNodeId;
     private String selectMenuKey;
@@ -92,6 +98,7 @@ public final class InspectorPanel extends Panel {
     private boolean syncingNumbers;
     private long lastSelectedId;
     private String lastSelectedTypeId = "";
+    private boolean lastWasMulti;
 
     private static final AttachPoint[] ATTACH_POINTS = AttachPoint.values();
 
@@ -326,6 +333,11 @@ public final class InspectorPanel extends Panel {
             scriptPath = scriptPath.trim();
         }
 
+        String clientScriptPath = values.get("client_script");
+        if (clientScriptPath != null) {
+            clientScriptPath = clientScriptPath.trim();
+        }
+
         if (state != null) {
             maybeRequestScriptActions(state, selection.nodeId(), scriptPath);
         }
@@ -355,6 +367,8 @@ public final class InspectorPanel extends Panel {
             }
             cursorY = renderVec3Row(ui, renderer, uiContext, theme, selection.nodeId(), typeDef, values, innerX, cursorY, innerWidth, rowHeight, labelWidth, sizeLabel, "sx", "sy", "sz", filterLower);
         }
+
+        cursorY = renderWrappedModelRows(ui, renderer, uiContext, theme, state, selection, innerX, cursorY, innerWidth, rowHeight, labelWidth, filterLower, interactive);
 
         String lastCategory = null;
         boolean fogColorRendered = false;
@@ -428,6 +442,12 @@ public final class InspectorPanel extends Panel {
                 }
             }
 
+            if (("AnimatedTextureRect".equals(selection.type()) || "AnimatedSprite3D".equals(selection.type()))
+                    && "animation".equals(property.key())) {
+                cursorY = renderSpriteSheetAnimationRow(ui, renderer, uiContext, theme, selection.nodeId(), property, values, innerX, cursorY, innerWidth, rowHeight, labelWidth, value, interactive);
+                continue;
+            }
+
             cursorY = renderPropertyRow(ui, renderer, uiContext, theme, selection.nodeId(), property, innerX, cursorY, innerWidth, rowHeight, labelWidth, value);
         }
 
@@ -439,8 +459,86 @@ public final class InspectorPanel extends Panel {
         ui.endScrollArea(area);
 
         renderAssetMenu(ui, renderer, theme, interactive);
+        renderScriptMenu(ui, renderer, theme, interactive);
+        renderClientScriptMenu(ui, renderer, theme, interactive);
         renderSelectMenu(ui, renderer, theme, interactive);
         materialEditor.renderMaterialTextureMenu(ui, renderer, theme, interactive);
+    }
+
+    private int renderWrappedModelRows(Ui ui,
+                                       UiRenderer renderer,
+                                       UiContext uiContext,
+                                       Theme theme,
+                                       EditorState state,
+                                       SceneSnapshot.NodeSnapshot selection,
+                                       int x,
+                                       int y,
+                                       int width,
+                                       int rowHeight,
+                                       int labelWidth,
+                                       String filterLower,
+                                       boolean interactive) {
+        if (state == null || selection == null || !"StaticBody3D".equals(selection.type())) {
+            return y;
+        }
+        SceneSnapshot.NodeSnapshot modelChild = findWrappedModelChild(state, selection.nodeId());
+        if (modelChild == null) {
+            return y;
+        }
+        NodeTypeDef modelDef = state.typesById.get("Model3D");
+        if (modelDef == null || modelDef.properties() == null) {
+            return y;
+        }
+
+        Map<String, String> modelValues = toPropertyMap(modelChild.properties());
+        PropertyDef modelPathDef = modelDef.properties().get(Model3D.PROP_MODEL_PATH);
+        PropertyDef animationDef = modelDef.properties().get(Model3D.PROP_ANIMATION);
+        PropertyDef loopDef = modelDef.properties().get(Model3D.PROP_ANIMATION_LOOP);
+        PropertyDef speedDef = modelDef.properties().get(Model3D.PROP_ANIMATION_SPEED);
+        if (modelPathDef == null) {
+            return y;
+        }
+
+        if (!filterLower.isEmpty()) {
+            String target = (modelPathDef.uiLabel() + " " + modelPathDef.key() + " model animation loop speed").toLowerCase(Locale.ROOT);
+            if (!target.contains(filterLower)) {
+                return y;
+            }
+        }
+
+        y = renderGroupHeader(ui, renderer, theme, x, y, width, "Model");
+        if (!isExpanded("Model")) {
+            return y;
+        }
+
+        String modelPath = modelValues.getOrDefault(Model3D.PROP_MODEL_PATH, modelPathDef.defaultValue() == null ? "" : modelPathDef.defaultValue());
+        y = renderModel3DModelPathRow(ui, renderer, uiContext, theme, modelChild.nodeId(), modelPathDef, x, y, width, rowHeight, labelWidth, modelPath, interactive);
+
+        if (animationDef != null) {
+            String animation = modelValues.getOrDefault(Model3D.PROP_ANIMATION, animationDef.defaultValue() == null ? "" : animationDef.defaultValue());
+            y = renderModel3DAnimationRow(ui, renderer, uiContext, theme, modelChild.nodeId(), animationDef, modelValues, x, y, width, rowHeight, labelWidth, animation, interactive);
+        }
+        if (loopDef != null) {
+            String loop = modelValues.getOrDefault(Model3D.PROP_ANIMATION_LOOP, loopDef.defaultValue() == null ? "" : loopDef.defaultValue());
+            y = renderModel3DAnimationLoopRow(ui, renderer, uiContext, theme, modelChild.nodeId(), loopDef, x, y, width, rowHeight, labelWidth, loop, interactive);
+        }
+        if (speedDef != null) {
+            String speed = modelValues.getOrDefault(Model3D.PROP_ANIMATION_SPEED, speedDef.defaultValue() == null ? "" : speedDef.defaultValue());
+            y = renderPropertyRow(ui, renderer, uiContext, theme, modelChild.nodeId(), speedDef, x, y, width, rowHeight, labelWidth, speed);
+        }
+        return y;
+    }
+
+    private static SceneSnapshot.NodeSnapshot findWrappedModelChild(EditorState state, long parentId) {
+        if (state == null || state.scene == null || parentId <= 0L) {
+            return null;
+        }
+        for (SceneSnapshot.NodeSnapshot child : state.scene.childrenOf(parentId)) {
+            if (child != null && "Model3D".equals(child.type())) {
+                return child;
+            }
+        }
+        return null;
     }
 
     private int renderModel3DModelPathRow(Ui ui, UiRenderer renderer, UiContext uiContext, Theme theme, long nodeId, PropertyDef property, int x, int y, int width, int rowHeight, int labelWidth, String value, boolean interactive) {
@@ -525,6 +623,38 @@ public final class InspectorPanel extends Panel {
         return y + rowHeight;
     }
 
+    private int renderSpriteSheetAnimationRow(Ui ui, UiRenderer renderer, UiContext uiContext, Theme theme, long nodeId, PropertyDef property, Map<String, String> values, int x, int y, int width, int rowHeight, int labelWidth, String value, boolean interactive) {
+        if (ui == null || renderer == null || theme == null || property == null) return y + rowHeight;
+
+        String spriteSheetPath = values == null ? null : values.get("sprite_sheet");
+        if (spriteSheetPath != null) {
+            spriteSheetPath = spriteSheetPath.trim();
+        }
+        if (spriteSheetPath == null || spriteSheetPath.isBlank()) {
+            return renderPropertyRow(ui, renderer, uiContext, theme, nodeId, property, x, y, width, rowHeight, labelWidth, value);
+        }
+
+        List<String> options = spriteSheetAnimationOptions(spriteSheetPath);
+        if (options.isEmpty()) {
+            return renderPropertyRow(ui, renderer, uiContext, theme, nodeId, property, x, y, width, rowHeight, labelWidth, value);
+        }
+
+        String current = value == null ? "" : value.trim();
+        String display = current.isEmpty() ? "(default)" : current;
+
+        renderSelectRow(ui, renderer, theme, x, y, width, rowHeight, labelWidth, property.uiLabel(), display, interactive, () -> {
+            ArrayList<SelectOption> items = new ArrayList<>(options.size() + 1);
+            items.add(new SelectOption("(default)", ""));
+            for (String option : options) {
+                if (option == null || option.isBlank()) continue;
+                items.add(new SelectOption(option, option));
+            }
+            toggleSelectMenu(x + labelWidth + theme.design.space_sm, y + rowHeight, nodeId, property.key(), items);
+        });
+
+        return y + rowHeight;
+    }
+
 
     private int renderPlayerBodyAttachRow(
             Ui ui, UiRenderer renderer, Theme theme,
@@ -584,7 +714,7 @@ public final class InspectorPanel extends Panel {
         y += rowHeight;
 
         boolean followAnim = ParseUtils.parseBool(values.get(PROP_FOLLOW), false);
-        int baseline = renderer.baselineForBox(y, rowHeight);
+        int baseline = (int) renderer.baselineForBox(y, rowHeight);
 
         renderer.drawText("Follow Anim", x, baseline, Theme.toArgb(theme.textMuted));
         renderBool(ui, renderer, theme,
@@ -867,7 +997,9 @@ public final class InspectorPanel extends Panel {
         }
 
         boolean isScriptPath = "script".equals(property.key());
+        boolean isClientScriptPath = "client_script".equals(property.key());
         boolean hasScript = isScriptPath && value != null && !value.trim().isEmpty();
+        boolean hasClientScript = isClientScriptPath && value != null && !value.trim().isEmpty();
         boolean isImageAsset = isAssetKind(property, "image");
         boolean isShaderAsset = isAssetKind(property, "shader");
         boolean isMaterialAsset = isAssetKind(property, "material");
@@ -877,7 +1009,7 @@ public final class InspectorPanel extends Panel {
         int iconButtonWidth = Math.max(18, rowHeight - 4);
         int iconButtonHeight = rowHeight - 4;
         int iconGap = theme.design.space_xs;
-        int iconCount = (isAnyAsset ? 1 : 0) + (isScriptPath ? 1 : 0) + (hasScript ? 1 : 0);
+        int iconCount = (isAnyAsset ? 1 : 0) + (isScriptPath ? 1 : 0) + (hasScript ? 1 : 0) + (isClientScriptPath ? 1 : 0) + (hasClientScript ? 1 : 0);
         int iconsTotalWidth = iconCount == 0 ? 0 : (iconCount * iconButtonWidth + (iconCount - 1) * iconGap);
         int fieldToIconsGap = iconCount == 0 ? 0 : iconGap;
 
@@ -904,13 +1036,27 @@ public final class InspectorPanel extends Panel {
         }
 
         if (isScriptPath) {
-            EditorUiUtil.iconButtonOutlined(ui, renderer, theme, buttonX, buttonY, iconButtonWidth, iconButtonHeight, Icon.ADD, input != null, () -> attachScriptFromFile(nodeId));
+            int menuX = buttonX;
+            int menuY = buttonY + iconButtonHeight;
+            EditorUiUtil.iconButtonOutlined(ui, renderer, theme, menuX, buttonY, iconButtonWidth, iconButtonHeight, Icon.ADD, input != null, () -> toggleScriptMenu(menuX, menuY, nodeId));
             buttonX += iconButtonWidth + iconGap;
         }
 
         if (hasScript) {
             String script = value == null ? "" : value;
             EditorUiUtil.iconButtonOutlined(ui, renderer, theme, buttonX, buttonY, iconButtonWidth, iconButtonHeight, Icon.CODE, input != null, () -> runtime.openScriptEditor(nodeId, script));
+        }
+
+        if (isClientScriptPath) {
+            int menuX = buttonX;
+            int menuY = buttonY + iconButtonHeight;
+            EditorUiUtil.iconButtonOutlined(ui, renderer, theme, menuX, buttonY, iconButtonWidth, iconButtonHeight, Icon.ADD, input != null, () -> toggleClientScriptMenu(menuX, menuY, nodeId));
+            buttonX += iconButtonWidth + iconGap;
+        }
+
+        if (hasClientScript) {
+            String clientScript = value == null ? "" : value;
+            EditorUiUtil.iconButtonOutlined(ui, renderer, theme, buttonX, buttonY, iconButtonWidth, iconButtonHeight, Icon.CODE, input != null, () -> runtime.openScriptEditor(nodeId, clientScript));
         }
 
         return y + rowHeight;
@@ -927,7 +1073,7 @@ public final class InspectorPanel extends Panel {
         }
 
         try {
-            String selectedPath = TinyFileDialogs.tinyfd_openFileDialog("Attach Script (.js, .luau)", "", null, "Script (.js, .luau)", false);
+            String selectedPath = TinyFileDialogs.tinyfd_openFileDialog("Attach Script (.ts, .js, .luau)", "", null, "Script (.ts, .js, .luau)", false);
             if (selectedPath == null || selectedPath.isBlank()) return;
 
             File file = new File(selectedPath);
@@ -944,17 +1090,19 @@ public final class InspectorPanel extends Panel {
 
             String lower = filename.toLowerCase(Locale.ROOT);
             boolean isLuau = lower.endsWith(".luau");
-            if (!(lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs") || isLuau)) {
-                filename = filename + ".js";
+            boolean isTs = lower.endsWith(".ts") || lower.endsWith(".mts");
+            if (!(lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs") || isTs || isLuau)) {
+                filename = filename + ".ts";
                 lower = filename.toLowerCase(Locale.ROOT);
                 isLuau = false;
+                isTs = true;
             }
 
             String scriptPath = "res://scripts/" + filename;
             try {
                 new ResPath(scriptPath);
             } catch (Exception ignored) {
-                scriptPath = "res://scripts/node_" + nodeId + (isLuau ? ".luau" : ".js");
+                scriptPath = "res://scripts/node_" + nodeId + (isLuau ? ".luau" : (isTs ? ".ts" : ".js"));
             }
 
             String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
@@ -968,6 +1116,132 @@ public final class InspectorPanel extends Panel {
             String message = exception.getMessage();
             runtime.requestToast("Attach failed" + (message == null || message.isBlank() ? "" : ": " + message), true, 6000);
         }
+    }
+
+    private void toggleScriptMenu(int x, int y, long nodeId) {
+        if (scriptMenu.isOpen() && nodeId == scriptMenuNodeId) {
+            closeScriptMenus();
+            return;
+        }
+
+        scriptMenuNodeId = nodeId;
+        buildScriptMenu(nodeId);
+        EditorUiUtil.openMenuClamped(scriptMenu, runtime, x, y);
+    }
+
+    private void buildScriptMenu(long nodeId) {
+        scriptMenu.clear();
+        scriptServerMenu.clear();
+
+        scriptMenu.addItem("Load From System", () -> {
+            closeScriptMenus();
+            attachScriptFromFile(nodeId);
+        });
+        scriptMenu.addItem("Create New Script", () -> {
+            closeScriptMenus();
+            createAndAttachScript(nodeId);
+        });
+
+        EditorState state = runtime.state();
+        ArrayList<String> scriptPaths = new ArrayList<>();
+        if (state != null) {
+            for (var entry : state.manifestEntries) {
+                if (entry == null || entry.path() == null) continue;
+                String path = entry.path().value();
+                if (isScriptAssetPath(path)) {
+                    scriptPaths.add(path);
+                }
+            }
+        }
+        scriptPaths.sort(String::compareToIgnoreCase);
+
+        if (scriptPaths.isEmpty()) {
+            scriptMenu.addItem("Load From Server Files", () -> {});
+            return;
+        }
+
+        for (String path : scriptPaths) {
+            scriptServerMenu.addItem(path, () -> {
+                closeScriptMenus();
+                commitStringProperty("script", path);
+                runtime.openScriptEditor(nodeId, path);
+            });
+        }
+        scriptMenu.addSubmenu("Load From Server Files", scriptServerMenu);
+    }
+
+    private void createAndAttachScript(long nodeId) {
+        EditorState state = runtime.state();
+        EditorNet net = runtime.net();
+        Session session = runtime.session();
+
+        if (state == null || net == null || session == null) {
+            runtime.requestToast("Create failed: not connected", true, 3500);
+            return;
+        }
+
+        try {
+            String filename = TinyFileDialogs.tinyfd_inputBox("Create Script", "Script filename", "node_" + nodeId + ".ts");
+            if (filename == null) return;
+
+            String nextName = filename.trim();
+            if (nextName.isBlank()) return;
+
+            String lower = nextName.toLowerCase(Locale.ROOT);
+            boolean luau = lower.endsWith(".luau");
+            if (!(lower.endsWith(".ts") || lower.endsWith(".mts") || luau)) {
+                nextName = nextName + ".ts";
+            }
+
+            String scriptPath = "res://scripts/" + nextName;
+            String baseName = nextName;
+            int slash = baseName.lastIndexOf('/');
+            if (slash >= 0) {
+                baseName = baseName.substring(slash + 1);
+            }
+            int dot = baseName.lastIndexOf('.');
+            if (dot > 0) {
+                baseName = baseName.substring(0, dot);
+            }
+
+            String content = scriptTemplate(baseName, luau);
+            net.writeScriptFile(session, state, scriptPath, content);
+            sendOpsRecorded(List.of(new SceneOp.SetProperty(nodeId, "script", scriptPath)));
+            runtime.requestToast("Attached script: " + scriptPath, false, 2500);
+            runtime.openScriptEditor(nodeId, scriptPath);
+        } catch (Exception exception) {
+            String message = exception.getMessage();
+            runtime.requestToast("Create failed" + (message == null || message.isBlank() ? "" : ": " + message), true, 6000);
+        }
+    }
+
+    private static String scriptTemplate(String name, boolean luauScript) {
+        String n = name == null || name.isBlank() ? "Script" : name;
+        String template = luauScript ? "new_script.luau" : "new_script.js";
+        return loadTemplate(template).replace("{{name}}", n);
+    }
+
+    private static String loadTemplate(String fileName) {
+        String path = "/assets/moud/templates/" + fileName;
+        try (var in = InspectorPanel.class.getResourceAsStream(path)) {
+            if (in == null) return "";
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private static boolean isScriptAssetPath(String path) {
+        if (path == null || !path.startsWith("res://scripts/")) {
+            return false;
+        }
+        String lower = path.toLowerCase(Locale.ROOT);
+        return lower.endsWith(".js")
+                || lower.endsWith(".mjs")
+                || lower.endsWith(".cjs")
+                || lower.endsWith(".ts")
+                || lower.endsWith(".mts")
+                || lower.endsWith(".luau");
     }
 
     static boolean isAssetKind(PropertyDef property, String targetKind) {
@@ -1014,7 +1288,7 @@ public final class InspectorPanel extends Panel {
             assetMenu.addSeparator();
             for (String path : images) {
                 if (path == null || path.isBlank()) continue;
-                assetMenu.addItem(path, () -> commitStringProperty(propertyKey, path));
+                assetMenu.addItem(path, () -> commitAssetProperty(assetMenuNodeId, propertyKey, path));
             }
             return;
         }
@@ -1048,7 +1322,7 @@ public final class InspectorPanel extends Panel {
                 MaterialPreviewRenderer.request(path);
             }
             String finalPath = path;
-            assetMenu.addItem(label, () -> commitStringProperty(propertyKey, finalPath));
+            assetMenu.addItem(label, () -> commitAssetProperty(assetMenuNodeId, propertyKey, finalPath));
         }
 
         if (!foundAny && suffixFilter != null) {
@@ -1071,6 +1345,49 @@ public final class InspectorPanel extends Panel {
 
         if (interactive && input != null && input.mousePressed()) {
             assetMenu.handleClick((int) ui.mouse().x, (int) ui.mouse().y, itemHeight);
+        }
+    }
+
+    private void renderScriptMenu(Ui ui, UiRenderer renderer, Theme theme, boolean interactive) {
+        if (ui == null || renderer == null || theme == null) return;
+
+        var input = interactive ? ui.input() : null;
+        int itemHeight = theme.design.menu_item_height;
+
+        if (scriptMenu.isOpen()) {
+            if (input != null) {
+                scriptMenu.updateFromInput(input, theme, itemHeight);
+                EditorUiUtil.clampOpenMenuToScreen(scriptMenu, runtime);
+            }
+
+            scriptMenu.render(renderer, theme, itemHeight, Theme.toArgb(theme.panelBg), Theme.toArgb(theme.widgetHover), Theme.toArgb(theme.text), scriptMenu.hoverIndex());
+
+            if (interactive && input != null && input.mousePressed()) {
+                scriptMenu.handleClick((int) ui.mouse().x, (int) ui.mouse().y, itemHeight);
+            }
+
+            int hover = scriptMenu.hoverIndex();
+            if (hover >= 0 && hover < scriptMenu.items().size()) {
+                ContextMenu.MenuItem item = scriptMenu.items().get(hover);
+                if (item != null && item.submenu() == scriptServerMenu) {
+                    int sx = scriptMenu.x() + scriptMenu.lastWidth() - 2;
+                    int sy = scriptMenu.y() + hover * itemHeight;
+                    EditorUiUtil.openMenuClamped(scriptServerMenu, runtime, sx, sy);
+                }
+            }
+        }
+
+        if (scriptServerMenu.isOpen()) {
+            if (input != null) {
+                scriptServerMenu.updateFromInput(input, theme, itemHeight);
+                EditorUiUtil.clampOpenMenuToScreen(scriptServerMenu, runtime);
+            }
+
+            scriptServerMenu.render(renderer, theme, itemHeight, Theme.toArgb(theme.panelBg), Theme.toArgb(theme.widgetHover), Theme.toArgb(theme.text), scriptServerMenu.hoverIndex());
+
+            if (interactive && input != null && input.mousePressed()) {
+                scriptServerMenu.handleClick((int) ui.mouse().x, (int) ui.mouse().y, itemHeight);
+            }
         }
     }
 
@@ -1418,12 +1735,16 @@ public final class InspectorPanel extends Panel {
     private void onSelectionMaybeChanged(SceneSnapshot.NodeSnapshot selection) {
         if (selection == null) return;
 
-        if (lastSelectedId == selection.nodeId() && Objects.equals(lastSelectedTypeId, selection.type())) {
+        boolean isMulti = runtime.state() != null && runtime.state().selectedIds.size() >= 2;
+        if (lastSelectedId == selection.nodeId()
+                && Objects.equals(lastSelectedTypeId, selection.type())
+                && lastWasMulti == isMulti) {
             return;
         }
 
         lastSelectedId = selection.nodeId();
         lastSelectedTypeId = selection.type();
+        lastWasMulti = isMulti;
 
         renameField.setText(selection.name() == null ? "" : selection.name());
         renameField.setCursorPos(renameField.text().length());
@@ -1445,9 +1766,109 @@ public final class InspectorPanel extends Panel {
         assetMenuNodeId = 0L;
         assetMenuKey = null;
 
+        closeScriptMenus();
+
         selectMenu.close();
         selectMenuNodeId = 0L;
         selectMenuKey = null;
+    }
+
+    private void closeScriptMenus() {
+        scriptMenu.close();
+        scriptServerMenu.close();
+        clientScriptMenu.close();
+        scriptMenuNodeId = 0L;
+    }
+
+    private void toggleClientScriptMenu(int x, int y, long nodeId) {
+        if (clientScriptMenu.isOpen() && nodeId == scriptMenuNodeId) {
+            clientScriptMenu.close();
+            scriptMenuNodeId = 0L;
+            return;
+        }
+
+        scriptMenuNodeId = nodeId;
+        clientScriptMenu.clear();
+        clientScriptMenu.addItem("Load From System", () -> {
+            clientScriptMenu.close();
+            scriptMenuNodeId = 0L;
+            attachClientScriptFromFile(nodeId);
+        });
+        EditorUiUtil.openMenuClamped(clientScriptMenu, runtime, x, y);
+    }
+
+    private void attachClientScriptFromFile(long nodeId) {
+        EditorState state = runtime.state();
+        EditorNet net = runtime.net();
+        Session session = runtime.session();
+
+        if (state == null || net == null || session == null) {
+            runtime.requestToast("Attach failed: not connected", true, 3500);
+            return;
+        }
+
+        try {
+            String selectedPath = TinyFileDialogs.tinyfd_openFileDialog("Attach Client Script (.ts, .js, .luau)", "", null, "Script (.ts, .js, .luau)", false);
+            if (selectedPath == null || selectedPath.isBlank()) return;
+
+            File file = new File(selectedPath);
+            if (!file.exists() || !file.isFile()) {
+                runtime.requestToast("Script file not found", true, 4500);
+                return;
+            }
+
+            String filename = file.getName();
+            if (filename == null || filename.isBlank()) {
+                runtime.requestToast("Invalid filename", true, 4500);
+                return;
+            }
+
+            String lower = filename.toLowerCase(Locale.ROOT);
+            boolean isLuau = lower.endsWith(".luau");
+            boolean isTs = lower.endsWith(".ts") || lower.endsWith(".mts");
+            if (!(lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs") || isTs || isLuau)) {
+                filename = filename + ".ts";
+                lower = filename.toLowerCase(Locale.ROOT);
+                isLuau = false;
+                isTs = true;
+            }
+
+            String scriptPath = "res://scripts/" + filename;
+            try {
+                new ResPath(scriptPath);
+            } catch (Exception ignored) {
+                scriptPath = "res://scripts/client_" + nodeId + (isLuau ? ".luau" : (isTs ? ".ts" : ".js"));
+            }
+
+            String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+            net.writeScriptFile(session, state, scriptPath, content);
+
+            sendOpsRecorded(List.of(new SceneOp.SetProperty(nodeId, "client_script", scriptPath)));
+            runtime.requestToast("Attached client script: " + scriptPath, false, 2500);
+            runtime.openScriptEditor(nodeId, scriptPath);
+
+        } catch (Exception exception) {
+            String message = exception.getMessage();
+            runtime.requestToast("Attach failed" + (message == null || message.isBlank() ? "" : ": " + message), true, 6000);
+        }
+    }
+
+    private void renderClientScriptMenu(Ui ui, UiRenderer renderer, Theme theme, boolean interactive) {
+        if (ui == null || renderer == null || theme == null || !clientScriptMenu.isOpen()) return;
+
+        var input = interactive ? ui.input() : null;
+        int itemHeight = theme.design.menu_item_height;
+
+        if (input != null) {
+            clientScriptMenu.updateFromInput(input, theme, itemHeight);
+            EditorUiUtil.clampOpenMenuToScreen(clientScriptMenu, runtime);
+        }
+
+        clientScriptMenu.render(renderer, theme, itemHeight, Theme.toArgb(theme.panelBg), Theme.toArgb(theme.widgetHover), Theme.toArgb(theme.text), clientScriptMenu.hoverIndex());
+
+        if (interactive && input != null && input.mousePressed()) {
+            clientScriptMenu.handleClick((int) ui.mouse().x, (int) ui.mouse().y, itemHeight);
+        }
     }
 
     private void sendOpsRecorded(List<SceneOp> operations) {
@@ -1508,6 +1929,68 @@ public final class InspectorPanel extends Panel {
             ops.add(new SceneOp.SetProperty(id, key, nextValue));
         }
         if (!ops.isEmpty()) sendOpsRecorded(ops);
+    }
+
+    private void commitAssetProperty(long nodeId, String key, String value) {
+        if ("sprite_sheet".equals(key)) {
+            commitSpriteSheetProperty(nodeId, value);
+            return;
+        }
+        commitStringProperty(key, value);
+    }
+
+    private void commitSpriteSheetProperty(long nodeId, String value) {
+        EditorState state = runtime.state();
+        if (state == null || state.scene == null) return;
+
+        String nextValue = value == null ? "" : value;
+        Collection<Long> ids = effectiveSelectedIds(state);
+        ArrayList<SceneOp> ops = new ArrayList<>(ids.size() * 2);
+
+        for (long id : ids) {
+            ops.add(new SceneOp.SetProperty(id, "sprite_sheet", nextValue));
+
+            SceneSnapshot.NodeSnapshot node = state.scene.getNode(id);
+            Map<String, String> props = node == null ? Map.of() : toPropertyMap(node.properties());
+            String currentAnimation = props.getOrDefault("animation", "").trim();
+            String resolvedAnimation = resolveAnimationForSpriteSheet(nextValue, currentAnimation);
+            if (!Objects.equals(currentAnimation, resolvedAnimation)) {
+                ops.add(new SceneOp.SetProperty(id, "animation", resolvedAnimation));
+            }
+        }
+
+        if (!ops.isEmpty()) sendOpsRecorded(ops);
+    }
+
+    private String resolveAnimationForSpriteSheet(String spriteSheetPath, String currentAnimation) {
+        List<String> options = spriteSheetAnimationOptions(spriteSheetPath);
+        if (options.isEmpty()) {
+            return "";
+        }
+        String current = currentAnimation == null ? "" : currentAnimation.trim();
+        if (!current.isEmpty() && options.contains(current)) {
+            return current;
+        }
+        return options.getFirst();
+    }
+
+    private List<String> spriteSheetAnimationOptions(String spriteSheetPath) {
+        if (spriteSheetPath == null || spriteSheetPath.isBlank()) {
+            return List.of();
+        }
+        String json = MoudTextAssets.readText(spriteSheetPath);
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            SpriteSheetAsset asset = SpriteSheetAsset.parse(json);
+            ArrayList<String> options = new ArrayList<>(asset.animations().keySet());
+            options.removeIf(name -> name == null || name.isBlank() || "default".equalsIgnoreCase(name.trim()));
+            options.sort(String::compareToIgnoreCase);
+            return List.copyOf(options);
+        } catch (Exception ignored) {
+            return List.of();
+        }
     }
 
     private static Map<String, String> toPropertyMap(List<SceneSnapshot.Property> properties) {
