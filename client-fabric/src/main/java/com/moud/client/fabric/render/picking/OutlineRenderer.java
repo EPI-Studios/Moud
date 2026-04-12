@@ -1,16 +1,15 @@
 package com.moud.client.fabric.render.picking;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.moud.client.fabric.render.Model3DRenderer;
 import com.moud.client.fabric.render.VeilSceneNodeRenderer;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
 import com.moud.client.fabric.render.veil.GlUtil;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
+import com.moud.core.csg.CsgVoxelizer;
 import com.moud.net.protocol.SceneSnapshot;
-import foundry.veil.api.client.render.CameraMatrices;
 import foundry.veil.api.client.render.VeilRenderSystem;
-import foundry.veil.api.client.render.shader.block.ShaderBlock;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
-import foundry.veil.api.client.registry.VeilShaderBufferRegistry;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import net.minecraft.client.MinecraftClient;
@@ -50,6 +49,7 @@ public final class OutlineRenderer {
     private ShaderProgram maskProgram;
     private ShaderProgram compositeProgram;
     private final Map<Long, Integer> vaoCache = new HashMap<>();
+    private int fullscreenVao;
 
     public OutlineRenderer() {
         maskVert = loadResource("assets/moud/shaders/builtin/outline_mask.vert");
@@ -68,6 +68,12 @@ public final class OutlineRenderer {
         if ((hoveredId <= 0 && selectedId <= 0) || client == null) return;
 
         Framebuffer mainFb = client.getFramebuffer();
+        int prevReadFbo = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
+        int prevDrawFbo = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
+        int prevVao = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
+        int prevActiveTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+        boolean prevDepthTest = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+        boolean prevBlend = GL11.glIsEnabled(GL11.GL_BLEND);
         int sourceFbo = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
         if (sourceFbo == 0 && mainFb != null) sourceFbo = mainFb.fbo;
 
@@ -77,12 +83,8 @@ public final class OutlineRenderer {
         int fbH = viewport[3] > 0 ? viewport[3] : (mainFb != null ? mainFb.textureHeight : 0);
         if (fbW <= 0 || fbH <= 0 || sourceFbo == 0) return;
 
-        ShaderBlock<CameraMatrices> camBlock = VeilRenderSystem.getBlock(VeilShaderBufferRegistry.CAMERA.get());
-        CameraMatrices veilCam = camBlock != null ? camBlock.getValue() : null;
-        Matrix4f viewMat = veilCam != null ? new Matrix4f(veilCam.getViewMatrix())
-                : (viewMatrix != null ? new Matrix4f(viewMatrix) : new Matrix4f());
-        Matrix4f projMat = veilCam != null ? new Matrix4f(veilCam.getProjectionMatrix())
-                : (projectionMatrix != null ? new Matrix4f(projectionMatrix) : new Matrix4f(RenderSystem.getProjectionMatrix()));
+        Matrix4f viewMat = viewMatrix != null ? new Matrix4f(viewMatrix) : new Matrix4f();
+        Matrix4f projMat = projectionMatrix != null ? new Matrix4f(projectionMatrix) : new Matrix4f(RenderSystem.getProjectionMatrix());
 
         ensureMaskFbo(fbW, fbH);
         if (maskFbo == 0) return;
@@ -159,8 +161,11 @@ public final class OutlineRenderer {
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, maskDepthTex);
             GlUtil.uniform1i(pid, "OutlineDepthSampler", 3);
 
+            ensureFullscreenVao();
+            GL30.glBindVertexArray(fullscreenVao);
             GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, 3);
         } finally {
+            GL30.glBindVertexArray(prevVao);
             ShaderProgram.unbind();
             GL13.glActiveTexture(GL13.GL_TEXTURE3);
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
@@ -170,9 +175,14 @@ public final class OutlineRenderer {
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
             GL13.glActiveTexture(GL13.GL_TEXTURE0);
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
-            RenderSystem.enableDepthTest();
+            GL13.glActiveTexture(prevActiveTexture);
+            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, prevReadFbo);
+            GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, prevDrawFbo);
+            if (prevDepthTest) RenderSystem.enableDepthTest();
+            else RenderSystem.disableDepthTest();
             RenderSystem.depthMask(true);
-            RenderSystem.disableBlend();
+            if (prevBlend) RenderSystem.enableBlend();
+            else RenderSystem.disableBlend();
         }
     }
 
@@ -184,14 +194,24 @@ public final class OutlineRenderer {
         if (!NodePickingPass.isPickableType(type)) return;
         if (!VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "visible"), true)) return;
 
+        if ("CSGBlock".equals(type)) {
+            renderCsgBlockMask(node, camPos, pid, maskAlpha);
+            return;
+        }
+
         VeilSceneNodeRenderer.Pose world = poseResolver.apply(node.nodeId());
         if (world == null) return;
 
+        if ("Model3D".equals(type)) {
+            renderModelMask(node, world, camPos, pid, maskAlpha);
+            return;
+        }
+
         boolean billboard = VeilSceneNodeRenderer.parseBool(
-                VeilSceneNodeRenderer.stringProp(node, "billboard"), "Sprite3D".equals(type));
+                VeilSceneNodeRenderer.stringProp(node, "billboard"), "Sprite3D".equals(type) || "AnimatedSprite3D".equals(type));
 
         String meshType = VeilSceneNodeRenderer.stringProp(node, "mesh");
-        if ("Sprite3D".equals(type) && (meshType == null || meshType.isBlank())) meshType = "plane";
+        if (("Sprite3D".equals(type) || "AnimatedSprite3D".equals(type)) && (meshType == null || meshType.isBlank())) meshType = "plane";
         boolean isPlane = "plane".equals(meshType);
         float HALF_PI = (float) (Math.PI / 2.0);
 
@@ -241,6 +261,73 @@ public final class OutlineRenderer {
         long key = ((long) pid << 32) | (vbo & 0xFFFFFFFFL);
         int vao = vaoCache.computeIfAbsent(key, k -> GlUtil.createMeshVao(pid, vbo, ebo));
         GlUtil.drawElements(vao, indexCount);
+    }
+
+    private void renderCsgBlockMask(SceneSnapshot.NodeSnapshot node, Vec3d camPos, int pid, float maskAlpha) {
+        CsgVoxelizer.VoxelDefinition def = csgVoxelDefinition(node);
+        if (def == null) {
+            return;
+        }
+        int vbo = MoudMeshBuffer.vbo();
+        int ebo = MoudMeshBuffer.ebo();
+        int indexCount = MoudMeshBuffer.indexCount();
+        long key = ((long) pid << 32) | (vbo & 0xFFFFFFFFL);
+        int vao = vaoCache.computeIfAbsent(key, k -> GlUtil.createMeshVao(pid, vbo, ebo));
+
+        GlUtil.uniform1f(pid, "MaskAlpha", maskAlpha);
+        CsgVoxelizer.forEachVoxel(def, (x, y, z) -> {
+            Matrix4f modelMat = new Matrix4f()
+                    .translate(x + 0.5f - (float) camPos.x,
+                            y + 0.5f - (float) camPos.y,
+                            z + 0.5f - (float) camPos.z)
+                    .translate(-0.5f, -0.5f, -0.5f);
+            GlUtil.uniformMat4(pid, "ModelMat", modelMat);
+            GlUtil.drawElements(vao, indexCount);
+        });
+    }
+
+    private void renderModelMask(SceneSnapshot.NodeSnapshot node,
+                                 VeilSceneNodeRenderer.Pose world,
+                                 Vec3d camPos,
+                                 int pid,
+                                 float maskAlpha) {
+        int vbo = MoudMeshBuffer.vbo();
+        int ebo = MoudMeshBuffer.ebo();
+        int indexCount = MoudMeshBuffer.indexCount();
+        long key = ((long) pid << 32) | (vbo & 0xFFFFFFFFL);
+        int vao = vaoCache.computeIfAbsent(key, k -> GlUtil.createMeshVao(pid, vbo, ebo));
+        Matrix4f nodeTransform = new Matrix4f()
+                .translate((float) (world.pos.x - camPos.x),
+                        (float) (world.pos.y - camPos.y),
+                        (float) (world.pos.z - camPos.z))
+                .rotate(world.rot)
+                .scale(world.scale.x, world.scale.y, world.scale.z);
+
+        GlUtil.uniform1f(pid, "MaskAlpha", maskAlpha);
+        Model3DRenderer.forEachCubeTransform(node, cubeMatrix -> {
+            GlUtil.uniformMat4(pid, "ModelMat", new Matrix4f(nodeTransform).mul(cubeMatrix));
+            GlUtil.drawElements(vao, indexCount);
+        });
+    }
+
+    private static CsgVoxelizer.VoxelDefinition csgVoxelDefinition(SceneSnapshot.NodeSnapshot node) {
+        if (node == null) {
+            return null;
+        }
+        int x = Math.round(propFloat(node, "x", 0.0f));
+        int y = Math.round(propFloat(node, "y", 0.0f));
+        int z = Math.round(propFloat(node, "z", 0.0f));
+        int sx = Math.max(1, Math.round(propFloat(node, "sx", 1.0f)));
+        int sy = Math.max(1, Math.round(propFloat(node, "sy", 1.0f)));
+        int sz = Math.max(1, Math.round(propFloat(node, "sz", 1.0f)));
+        float rx = propFloat(node, "rx", 0.0f);
+        float ry = propFloat(node, "ry", 0.0f);
+        float rz = propFloat(node, "rz", 0.0f);
+        return new CsgVoxelizer.VoxelDefinition(x, y, z, sx, sy, sz, rx, ry, rz);
+    }
+
+    private static float propFloat(SceneSnapshot.NodeSnapshot node, String key, float fallback) {
+        return VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, key), fallback);
     }
 
     private void ensureMaskFbo(int w, int h) {
@@ -326,6 +413,8 @@ public final class OutlineRenderer {
     }
 
     private void blitSceneColor(int sourceFbo, int w, int h) {
+        int prevReadFbo = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
+        int prevDrawFbo = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
         int copyFbo = GL30.glGenFramebuffers();
         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, copyFbo);
         GL30.glFramebufferTexture2D(GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, colorCopyTex, 0);
@@ -333,11 +422,14 @@ public final class OutlineRenderer {
         GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, sourceFbo);
         GL30.glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL11.GL_COLOR_BUFFER_BIT, GL11.GL_NEAREST);
 
-        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, sourceFbo);
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, prevReadFbo);
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, prevDrawFbo);
         GL30.glDeleteFramebuffers(copyFbo);
     }
 
     private void blitSceneDepth(int sourceFbo, int w, int h) {
+        int prevReadFbo = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
+        int prevDrawFbo = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
         int copyFbo = GL30.glGenFramebuffers();
         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, copyFbo);
         GL30.glFramebufferTexture2D(GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT, GL11.GL_TEXTURE_2D, depthCopyTex, 0);
@@ -345,8 +437,15 @@ public final class OutlineRenderer {
         GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, sourceFbo);
         GL30.glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL11.GL_DEPTH_BUFFER_BIT, GL11.GL_NEAREST);
 
-        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, sourceFbo);
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, prevReadFbo);
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, prevDrawFbo);
         GL30.glDeleteFramebuffers(copyFbo);
+    }
+
+    private void ensureFullscreenVao() {
+        if (fullscreenVao == 0) {
+            fullscreenVao = GL30.glGenVertexArrays();
+        }
     }
 
     private ShaderProgram getMaskProgram() {
@@ -379,6 +478,7 @@ public final class OutlineRenderer {
         if (depthCopyTex != 0) { GL11.glDeleteTextures(depthCopyTex); depthCopyTex = 0; }
         depthCopyW = 0;
         depthCopyH = 0;
+        if (fullscreenVao != 0) { GL30.glDeleteVertexArrays(fullscreenVao); fullscreenVao = 0; }
         maskProgram = null;
         compositeProgram = null;
     }
