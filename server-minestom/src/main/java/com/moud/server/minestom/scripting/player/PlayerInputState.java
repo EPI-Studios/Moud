@@ -1,9 +1,8 @@
-package com.moud.server.minestom.scripting;
-
+package com.moud.server.minestom.scripting.player;
 
 import com.moud.net.protocol.PlayerInput;
 
-record PlayerInputState(
+public record PlayerInputState(
         String playerUuid,
         long clientTick,
         float moveX,
@@ -13,9 +12,10 @@ record PlayerInputState(
         float cursorX,
         float cursorY,
         boolean jump,
-        boolean sprint
+        boolean sprint,
+        boolean sneak
 ) {
-    PlayerInputState(String playerUuid, PlayerInput input) {
+    public PlayerInputState(String playerUuid, PlayerInput input) {
         this(
                 playerUuid,
                 input.clientTick(),
@@ -26,7 +26,8 @@ record PlayerInputState(
                 input.cursorX(),
                 input.cursorY(),
                 input.jump(),
-                input.sprint()
+                input.sprint(),
+                input.sneak()
         );
     }
 }

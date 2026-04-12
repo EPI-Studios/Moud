@@ -1,27 +1,33 @@
-package com.moud.server.minestom.scripting;
+package com.moud.server.minestom.scripting.physics;
+
 
 import com.moud.core.physics.BodyHandle;
 import com.moud.core.scene.Node;
+import com.moud.core.util.ParseUtils;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.physics.CollisionEvent;
 import com.moud.server.minestom.physics.JoltPhysicsWorld;
 import com.moud.server.minestom.physics.CollisionLayerMask;
+import com.moud.server.minestom.scripting.ScriptInvocationException;
+import com.moud.server.minestom.scripting.ScriptObject;
+import com.moud.server.minestom.scripting.engine.RuntimeScriptInstance;
+import com.moud.server.minestom.scripting.signal.SignalBus;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
 
 import java.util.*;
 import java.util.function.Supplier;
 
-final class CollisionSignalEmitter {
+public final class CollisionSignalEmitter {
 
     private final HashSet<Long> previousPairs = new HashSet<>();
     private final HashSet<Long> currentPairs = new HashSet<>();
 
-    HashSet<Long> previousPairs() { return previousPairs; }
-    HashSet<Long> currentPairs()  { return currentPairs; }
+    public HashSet<Long> previousPairs() { return previousPairs; }
+    public HashSet<Long> currentPairs()  { return currentPairs; }
 
-    void emit(ServerScene scene, Map<Long, SceneRuntime.NodeInstance> instances,
-              SignalBus signalBus, Supplier<Map<Long, ScriptObject>> valueMapSupplier) {
+    public void emit(ServerScene scene, Map<Long, RuntimeScriptInstance> instances,
+                     SignalBus signalBus, Supplier<Map<Long, ScriptObject>> valueMapSupplier) {
         if (scene == null) return;
         JoltPhysicsWorld physics = scene.physics();
         Map<Long, ScriptObject> valueMap = null;
@@ -48,17 +54,17 @@ final class CollisionSignalEmitter {
             }
         }
 
-        for (SceneRuntime.NodeInstance inst : instances.values()) {
+        for (RuntimeScriptInstance inst : instances.values()) {
             if (inst == null || inst.disabled) continue;
             Node node = scene.engine().sceneTree().getNode(inst.nodeId);
             if (node == null) continue;
             String typeId = scene.engine().nodeTypes().typeIdFor(node);
             if (!isAreaNode(typeId)) continue;
-            if (!parseBoolSafe(node.getProperty("monitoring"), true)) continue;
+            if (!ParseUtils.parseBool(node.getProperty("monitoring"), true)) continue;
 
-            float x = parseFloatSafe(node.getProperty("x"), 0f);
-            float y = parseFloatSafe(node.getProperty("y"), 0f);
-            float z = parseFloatSafe(node.getProperty("z"), 0f);
+            float x = ParseUtils.parseFloat(node.getProperty("x"), 0f);
+            float y = ParseUtils.parseFloat(node.getProperty("y"), 0f);
+            float z = ParseUtils.parseFloat(node.getProperty("z"), 0f);
 
             if (physics != null) {
                 int areaLayer = CollisionLayerMask.layer(node);
@@ -66,11 +72,11 @@ final class CollisionSignalEmitter {
                 String shape = node.getProperty("shape");
                 float radius = 1.0f;
                 if ("sphere".equalsIgnoreCase(shape)) {
-                    radius = Math.max(0.01f, parseFloatSafe(node.getProperty("radius"), 1.0f));
+                    radius = Math.max(0.01f, ParseUtils.parseFloat(node.getProperty("radius"), 1.0f));
                 } else if ("box".equalsIgnoreCase(shape)) {
-                    float sx = Math.max(0.01f, parseFloatSafe(node.getProperty("sx"), 1.0f));
-                    float sy = Math.max(0.01f, parseFloatSafe(node.getProperty("sy"), 1.0f));
-                    float sz = Math.max(0.01f, parseFloatSafe(node.getProperty("sz"), 1.0f));
+                    float sx = Math.max(0.01f, ParseUtils.parseFloat(node.getProperty("sx"), 1.0f));
+                    float sy = Math.max(0.01f, ParseUtils.parseFloat(node.getProperty("sy"), 1.0f));
+                    float sz = Math.max(0.01f, ParseUtils.parseFloat(node.getProperty("sz"), 1.0f));
                     radius = 0.5f * Math.max(sx, Math.max(sy, sz));
                 }
 
@@ -96,10 +102,10 @@ final class CollisionSignalEmitter {
             }
 
             String shape = node.getProperty("shape");
-            float radius = Math.max(0.01f, parseFloatSafe(node.getProperty("radius"), 1.0f));
-            float halfX = Math.max(0.01f, parseFloatSafe(node.getProperty("sx"), 1.0f)) * 0.5f;
-            float halfY = Math.max(0.01f, parseFloatSafe(node.getProperty("sy"), 1.0f)) * 0.5f;
-            float halfZ = Math.max(0.01f, parseFloatSafe(node.getProperty("sz"), 1.0f)) * 0.5f;
+            float radius = Math.max(0.01f, ParseUtils.parseFloat(node.getProperty("radius"), 1.0f));
+            float halfX = Math.max(0.01f, ParseUtils.parseFloat(node.getProperty("sx"), 1.0f)) * 0.5f;
+            float halfY = Math.max(0.01f, ParseUtils.parseFloat(node.getProperty("sy"), 1.0f)) * 0.5f;
+            float halfZ = Math.max(0.01f, ParseUtils.parseFloat(node.getProperty("sz"), 1.0f)) * 0.5f;
             boolean sphere = "sphere".equalsIgnoreCase(shape) || shape == null || shape.isBlank();
 
             if (scene.instance() != null) for (Player player : scene.instance().getPlayers()) {
@@ -156,10 +162,10 @@ final class CollisionSignalEmitter {
         previousPairs.addAll(currentPairs);
     }
 
-    private void emitBodyEntered(ServerScene scene, Map<Long, SceneRuntime.NodeInstance> instances,
+    private void emitBodyEntered(ServerScene scene, Map<Long, RuntimeScriptInstance> instances,
                                  SignalBus signalBus, long nodeId, long otherNodeId,
                                  float cx, float cy, float cz, Map<Long, ScriptObject> valueMap) {
-        SceneRuntime.NodeInstance inst = instances.get(nodeId);
+        RuntimeScriptInstance inst = instances.get(nodeId);
         if (inst == null || inst.disabled) return;
         Node node = scene.engine().sceneTree().getNode(nodeId);
         if (node == null) return;
@@ -175,9 +181,9 @@ final class CollisionSignalEmitter {
         }
     }
 
-    private void emitBodyExited(ServerScene scene, Map<Long, SceneRuntime.NodeInstance> instances,
+    private void emitBodyExited(ServerScene scene, Map<Long, RuntimeScriptInstance> instances,
                                 SignalBus signalBus, long nodeId, long otherNodeId, Map<Long, ScriptObject> valueMap) {
-        SceneRuntime.NodeInstance inst = instances.get(nodeId);
+        RuntimeScriptInstance inst = instances.get(nodeId);
         if (inst == null || inst.disabled) return;
         Node node = scene.engine().sceneTree().getNode(nodeId);
         if (node == null) return;
@@ -197,11 +203,11 @@ final class CollisionSignalEmitter {
         return "Area3D".equals(typeId);
     }
 
-    static long pairKey(long nodeId, int bodyId) {
+    public static long pairKey(long nodeId, int bodyId) {
         return (nodeId << 32) | (bodyId & 0xFFFFFFFFL);
     }
 
-    static long pairKey(long nodeIdA, long nodeIdB) {
+    public static long pairKey(long nodeIdA, long nodeIdB) {
         long lo = Math.min(nodeIdA, nodeIdB);
         long hi = Math.max(nodeIdA, nodeIdB);
         return (lo << 32) | (hi & 0xFFFFFFFFL);
@@ -213,24 +219,6 @@ final class CollisionSignalEmitter {
 
     private static int pairBodyId(long pairKey) {
         return (int) pairKey;
-    }
-
-    private static float parseFloatSafe(String v, float fallback) {
-        if (v == null || v.isBlank()) return fallback;
-        try {
-            float f = Float.parseFloat(v.trim());
-            return Float.isFinite(f) ? f : fallback;
-        } catch (Exception ignored) { return fallback; }
-    }
-
-    private static boolean parseBoolSafe(String v, boolean fallback) {
-        if (v == null || v.isBlank()) return fallback;
-        String s = v.trim();
-        if ("1".equals(s)) return true;
-        if ("0".equals(s)) return false;
-        if ("true".equalsIgnoreCase(s)) return true;
-        if ("false".equalsIgnoreCase(s)) return false;
-        return fallback;
     }
 
     private static Player findPlayerByEntityId(ServerScene scene, int entityId) {

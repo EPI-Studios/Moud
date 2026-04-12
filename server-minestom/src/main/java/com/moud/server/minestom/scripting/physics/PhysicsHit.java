@@ -1,4 +1,4 @@
-package com.moud.server.minestom.scripting;
+package com.moud.server.minestom.scripting.physics;
 
 import com.moud.core.physics.RaycastResult;
 import org.graalvm.polyglot.HostAccess;
@@ -13,7 +13,7 @@ public final class PhysicsHit {
     private final double distance;
     private final long bodyId;
 
-    PhysicsHit(RaycastResult r) {
+    public PhysicsHit(RaycastResult r) {
         this.x = r.hitX();
         this.y = r.hitY();
         this.z = r.hitZ();

@@ -1,4 +1,4 @@
-package com.moud.server.minestom.scripting;
+package com.moud.server.minestom.scripting.player;
 
 import org.graalvm.polyglot.HostAccess;
 
@@ -10,7 +10,7 @@ public final class PlayerInfo {
     private final String name;
     private final String uuid;
 
-    PlayerInfo(String uuid, String name, float[] pos) {
+    public PlayerInfo(String uuid, String name, float[] pos) {
         this.uuid = uuid;
         this.name = name != null ? name : uuid;
         this.x  = pos != null && pos.length > 0 ? pos[0] : 0.0;
