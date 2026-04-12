@@ -2,6 +2,8 @@ package com.moud.client.fabric.mixin;
 
 import com.moud.client.fabric.editor.overlay.EditorContext;
 import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
+import com.moud.client.fabric.runtime.ClientCameraState;
+import com.moud.client.fabric.runtime.ClientCameraStateBus;
 import com.moud.client.fabric.runtime.PlayRuntimeBus;
 import com.moud.client.fabric.runtime.PlayRuntimeClient;
 import net.minecraft.client.MinecraftClient;
@@ -23,7 +25,7 @@ public abstract class MouseMixin {
     private void moud$onMouseScroll(long window, double horizontal, double vertical, CallbackInfo ci) {
         EditorContext ctx = EditorOverlayBus.get();
         if (ctx == null || !ctx.isActive()) {
-            return; // in play mode, let vanilla hotbar scroll work
+            return;
         }
         if (client == null || client.currentScreen != null) {
             return;
@@ -38,7 +40,7 @@ public abstract class MouseMixin {
         if (ctx == null || !ctx.isActive()) {
             PlayRuntimeClient runtime = PlayRuntimeBus.get();
             if (runtime == null || !runtime.isActive() || !runtime.isCursorModeEnabled() || client == null || client.currentScreen != null) {
-                return; // in play mode, let vanilla handle clicks unless cursor mode is active
+                return;
             }
             ci.cancel();
             return;
@@ -79,13 +81,31 @@ public abstract class MouseMixin {
             ci.cancel();
             return;
         }
-        // dans le playmode on laisse la souris
         PlayRuntimeClient runtime = PlayRuntimeBus.get();
-        if (runtime != null && runtime.isActive() && runtime.isCursorModeEnabled()) {
+        if (runtime != null && runtime.isActive()) {
             if (client == null || client.currentScreen != null) {
                 return;
             }
-            ci.cancel();
+            ClientCameraState camState = ClientCameraStateBus.get();
+            if (camState != null && camState.captureMouseEnabled) {
+                float cx = camState.cursorX;
+                float cy = camState.cursorY;
+                if (!Float.isNaN(cx) && !Float.isNaN(cy)
+                        && !Float.isNaN(camState.prevCursorX) && !Float.isNaN(camState.prevCursorY)) {
+                    camState.mouseDx = cx - camState.prevCursorX;
+                    camState.mouseDy = cy - camState.prevCursorY;
+                } else {
+                    camState.mouseDx = 0f;
+                    camState.mouseDy = 0f;
+                }
+                camState.prevCursorX = cx;
+                camState.prevCursorY = cy;
+                ci.cancel();
+                return;
+            }
+            if (runtime.isCursorModeEnabled()) {
+                ci.cancel();
+            }
         }
     }
 
@@ -97,6 +117,11 @@ public abstract class MouseMixin {
                 return;
             }
             ctx.camera().consumeMouseMove(x, y);
+        }
+        ClientCameraState camState = ClientCameraStateBus.get();
+        if (camState != null) {
+            camState.cursorX = (float) x;
+            camState.cursorY = (float) y;
         }
     }
 

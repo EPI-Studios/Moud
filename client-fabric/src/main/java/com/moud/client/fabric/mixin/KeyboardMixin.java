@@ -30,12 +30,12 @@ public final class KeyboardMixin {
             return;
         }
 
-        // In play mode only intercept Escape to open the pause menu; let vanilla handle everything else.
         PlayRuntimeClient runtime = PlayRuntimeBus.get();
         MinecraftClient client = MinecraftClient.getInstance();
         if (runtime == null || !runtime.isActive() || client == null || client.currentScreen != null) {
             return;
         }
+        runtime.onKeyEvent(key, scancode, action);
         if (key == GLFW.GLFW_KEY_ESCAPE && action == GLFW.GLFW_PRESS) {
             client.setScreen(new GameMenuScreen(true));
             ci.cancel();
