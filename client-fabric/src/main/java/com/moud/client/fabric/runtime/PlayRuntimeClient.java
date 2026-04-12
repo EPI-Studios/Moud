@@ -1,15 +1,20 @@
 package com.moud.client.fabric.runtime;
 
-import com.miry.ui.util.MathUtils;
+import com.moud.core.util.MathUtils;
 import com.moud.client.fabric.mixin.accessor.CameraAccessor;
+import com.moud.client.fabric.render.VeilSceneNodeRenderer;
+import com.moud.client.fabric.scripting.ClientScriptRuntime;
+import com.moud.client.fabric.scripting.api.InputApi;
 import com.moud.net.protocol.PlayerInput;
 import com.moud.net.protocol.RuntimeState;
 import com.moud.net.protocol.CursorState;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
 import com.moud.net.transport.Lane;
+import net.minecraft.client.input.Input;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.Vec3d;
 import org.lwjgl.glfw.GLFW;
 import org.joml.Quaternionf;
@@ -18,12 +23,17 @@ import org.joml.Vector3f;
 public final class PlayRuntimeClient {
     private boolean active;
     private volatile RuntimeState lastServerState;
+    private final ClientCameraState cameraState = new ClientCameraState();
     private boolean cursorModeEnabled;
     private boolean osCursorVisible = true;
     private float cursorX;
     private float cursorY;
+    private long clientTick;
+    private long lastFrameNanoTime;
+    private final PlayRuntimeInputState inputState = new PlayRuntimeInputState();
+    private final CharacterBody3D characterBody = new CharacterBody3D();
+    private final ClientScriptRuntime clientScriptRuntime = new ClientScriptRuntime();
 
-    // previous and current camera poses for per-frame interpolation
     private float prevX, prevY, prevZ, prevYaw, prevPitch, prevRoll;
     private float currX, currY, currZ, currYaw, currPitch, currRoll;
     private boolean hasPrev;
@@ -37,17 +47,35 @@ public final class PlayRuntimeClient {
     }
 
     public void setActive(boolean active) {
+        if (this.active && !active) {
+            inputState.clear();
+            characterBody.reset();
+            lastFrameNanoTime = 0L;
+            VeilSceneNodeRenderer.clearRuntimeBodyOverride();
+            clientScriptRuntime.unloadAll();
+        }
         this.active = active;
+        ClientCameraStateBus.set(active ? cameraState : null);
     }
 
     public void onDisconnect() {
         active = false;
         lastServerState = null;
         hasPrev = false;
+        prevX = 0f; prevY = 0f; prevZ = 0f;
+        prevYaw = 0f; prevPitch = 0f; prevRoll = 0f;
+        currX = 0f; currY = 0f; currZ = 0f;
+        currYaw = 0f; currPitch = 0f; currRoll = 0f;
         cursorModeEnabled = false;
         osCursorVisible = true;
         cursorX = 0.0f;
         cursorY = 0.0f;
+        clientTick = 0L;
+        lastFrameNanoTime = 0L;
+        inputState.clear();
+        characterBody.reset();
+        VeilSceneNodeRenderer.clearRuntimeBodyOverride();
+        clientScriptRuntime.unloadAll();
     }
 
     public void onCursorState(CursorState state) {
@@ -106,23 +134,106 @@ public final class PlayRuntimeClient {
         if (client == null || client.player == null || client.currentScreen != null) {
             return;
         }
+        syncCharacterBodyRenderOverride(client.player);
+        clientTick++;
         updateCursorPosition(client);
         float yaw = client.player.getYaw();
         float pitch = client.player.getPitch();
+        PlayRuntimeInputState.Movement movement = inputState.movement();
         session.send(Lane.INPUT,
-                new PlayerInput(0L, 0.0f, 0.0f, yaw, pitch, cursorX, cursorY, false, false));
+                new PlayerInput(clientTick, movement.moveX(), movement.moveZ(), yaw, pitch, cursorX, cursorY, inputState.jump(), inputState.sprint(), inputState.sneak()));
+    }
+
+    public void captureInput() {
+        inputState.captureKeys();
+    }
+
+    public void onKeyEvent(int key, int scancode, int action) {
+        if (!active) {
+            return;
+        }
+        inputState.onKeyEvent(key, scancode, action);
+    }
+
+    public boolean applyCharacterInputTo(Input input) {
+        return active && characterBody.applyInputToVanilla(input, inputState);
+    }
+
+    public boolean handleCharacterBodyTravel(PlayerEntity player, Vec3d movementInput) {
+        return active && characterBody.isActive();
+    }
+
+    public void travelFrame(MinecraftClient client) {
+        if (!active || client == null || client.player == null || client.currentScreen != null) {
+            lastFrameNanoTime = 0L;
+            return;
+        }
+        if (!characterBody.isActive()) {
+            lastFrameNanoTime = 0L;
+            return;
+        }
+        long now = System.nanoTime();
+        double dt;
+        if (lastFrameNanoTime == 0L) {
+            dt = 1.0 / 60.0;
+        } else {
+            dt = (now - lastFrameNanoTime) / 1_000_000_000.0;
+            if (dt > 0.1) dt = 0.1;
+            if (dt <= 0.0) dt = 1.0 / 120.0;
+        }
+        lastFrameNanoTime = now;
+
+        inputState.captureKeys();
+
+        cameraState.resetForFrame();
+
+        PlayRuntimeInputState.Movement movement = inputState.movement();
+        InputApi.InputStateSnapshot inputSnapshot = new InputApi.InputStateSnapshot(
+                inputState.jump(),
+                inputState.sprint(),
+                inputState.sneak(),
+                movement.moveX(),
+                movement.moveZ(),
+                cursorX,
+                cursorY
+        );
+
+        clientScriptRuntime.syncAllNodes(characterBody, inputSnapshot, cameraState);
+        clientScriptRuntime.frame(dt);
+        if (!Float.isNaN(cameraState.playerYaw) && client.player != null) {
+            float py = cameraState.playerYaw;
+            client.player.setYaw(py);
+            client.player.bodyYaw = py;
+        }
+
+        double preTravelX = client.player.getX();
+        double preTravelY = client.player.getY();
+        double preTravelZ = client.player.getZ();
+
+        characterBody.travel(client.player, inputState, dt);
+
+        if (cameraState.hasOverride && !Float.isNaN(cameraState.posX)) {
+            cameraState.posX += (float)(client.player.getX() - preTravelX);
+            cameraState.posY += (float)(client.player.getY() - preTravelY);
+            cameraState.posZ += (float)(client.player.getZ() - preTravelZ);
+        }
     }
 
     public boolean applyCameraOverride(Camera camera, float partialTick) {
         if (!active) {
             return false;
         }
-        RuntimeState st = lastServerState;
-        if (st == null) {
+
+        if (!(camera instanceof CameraAccessor accessor)) {
             return false;
         }
 
-        if (!(camera instanceof CameraAccessor accessor)) {
+        if (cameraState.hasOverride) {
+            return applyScriptCamera(accessor);
+        }
+
+        RuntimeState st = lastServerState;
+        if (st == null) {
             return false;
         }
 
@@ -135,10 +246,43 @@ public final class PlayRuntimeClient {
         return false;
     }
 
+    private boolean applyScriptCamera(CameraAccessor accessor) {
+        float x = cameraState.posX;
+        float y = cameraState.posY;
+        float z = cameraState.posZ;
+        if (Float.isNaN(x) || Float.isNaN(y) || Float.isNaN(z)) {
+            return false;
+        }
+        float yaw   = Float.isNaN(cameraState.yaw)   ? 0f : cameraState.yaw;
+        float pitch = Float.isNaN(cameraState.pitch)  ? 0f : cameraState.pitch;
+        float roll  = Float.isNaN(cameraState.roll)   ? 0f : cameraState.roll;
+        accessor.moud$setThirdPerson(true);
+        accessor.moud$setCameraPosition(x, y, z);
+        accessor.moud$setRotation(yaw, pitch);
+        applyRoll(accessor, roll);
+        return true;
+    }
+
     public boolean shouldHideVanillaHand() {
         if (!active) return false;
+        if (cameraState.hasOverride) return true;
         RuntimeState st = lastServerState;
         return st != null && (st.useFollowCamera() || st.useSceneCamera() || st.useScriptCamera());
+    }
+
+    private void syncCharacterBodyRenderOverride(PlayerEntity player) {
+        long nodeId = characterBody.nodeId();
+        if (!active || player == null || nodeId <= 0L) {
+            VeilSceneNodeRenderer.clearRuntimeBodyOverride();
+            return;
+        }
+        VeilSceneNodeRenderer.setRuntimeBodyOverride(
+                nodeId,
+                (float) player.getX(),
+                (float) player.getY(),
+                (float) player.getZ(),
+                player.getYaw()
+        );
     }
 
     private boolean applyFollowCamera(CameraAccessor accessor, RuntimeState st, float partialTick) {
@@ -224,24 +368,23 @@ public final class PlayRuntimeClient {
     }
 
     private static float normalizeYawDeg(float yawDeg) {
-        if (!Float.isFinite(yawDeg)) {
-            return 0.0f;
-        }
-        float y = yawDeg % 360.0f;
-        if (y < -180.0f) y += 360.0f;
-        else if (y > 180.0f) y -= 360.0f;
-        return y;
+        return MathUtils.normalizeYaw(yawDeg);
     }
 
     private static float clampPitchDeg(float pitchDeg, float min, float max) {
-        if (!Float.isFinite(pitchDeg)) {
-            return 0.0f;
-        }
-        return MathUtils.clamp(pitchDeg, min, max);
+        return MathUtils.clampPitch(pitchDeg, min, max);
+    }
+
+    public ClientCameraState cameraState() {
+        return cameraState;
+    }
+
+    public boolean isCharacterBodyDrivingMovement() {
+        return active && characterBody.isActive();
     }
 
     public boolean shouldBlockVanillaInput(MinecraftClient client) {
-        return cursorModeEnabled;
+        return cursorModeEnabled || (active && characterBody.isActive());
     }
 
     public boolean isCursorModeEnabled() {

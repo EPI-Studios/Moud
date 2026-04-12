@@ -1,53 +1,112 @@
 package com.moud.client.fabric.runtime;
 
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.option.GameOptions;
+import net.minecraft.client.option.KeyBinding;
 import org.lwjgl.glfw.GLFW;
 
 final class PlayRuntimeInputState {
-    private boolean forward;
-    private boolean back;
-    private boolean left;
-    private boolean right;
-    private boolean jump;
-    private boolean sprint;
+    private boolean forwardDown;
+    private boolean backDown;
+    private boolean leftDown;
+    private boolean rightDown;
+    private boolean jumpDown;
+    private boolean sprintDown;
+    private boolean sneakDown;
 
-    void clear() {
-        forward = back = left = right = jump = sprint = false;
+    private float cachedMoveX;
+    private float cachedMoveZ;
+    private boolean cachedJump;
+    private boolean cachedSprint;
+    private boolean cachedSneak;
+    private boolean hasCached;
+
+    void captureKeys() {
+        GameOptions opts = options();
+        if (opts == null) {
+            hasCached = false;
+            return;
+        }
+        float moveX = 0f;
+        if (rightDown) moveX += 1.0f;
+        if (leftDown)  moveX -= 1.0f;
+        float moveZ = 0f;
+        if (forwardDown) moveZ += 1.0f;
+        if (backDown)    moveZ -= 1.0f;
+        float len = (float) Math.sqrt(moveX * moveX + moveZ * moveZ);
+        if (len > 1.0f) { moveX /= len; moveZ /= len; }
+        cachedMoveX  = moveX;
+        cachedMoveZ  = moveZ;
+        cachedJump   = jumpDown;
+        cachedSprint = sprintDown;
+        cachedSneak  = sneakDown;
+        hasCached    = true;
     }
 
-    void onKeyEvent(int key, int action) {
-        boolean down = action != GLFW.GLFW_RELEASE;
-        switch (key) {
-            case GLFW.GLFW_KEY_W -> forward = down;
-            case GLFW.GLFW_KEY_S -> back = down;
-            case GLFW.GLFW_KEY_A -> left = down;
-            case GLFW.GLFW_KEY_D -> right = down;
-            case GLFW.GLFW_KEY_SPACE -> jump = down;
-            case GLFW.GLFW_KEY_LEFT_SHIFT -> sprint = down;
-            default -> {
-            }
+    void clear() {
+        hasCached    = false;
+        cachedMoveX  = 0f;
+        cachedMoveZ  = 0f;
+        cachedJump   = false;
+        cachedSprint = false;
+        cachedSneak  = false;
+        forwardDown  = false;
+        backDown     = false;
+        leftDown     = false;
+        rightDown    = false;
+        jumpDown     = false;
+        sprintDown   = false;
+        sneakDown    = false;
+    }
+
+    void onKeyEvent(int key, int scancode, int action) {
+        GameOptions opts = options();
+        if (opts == null) {
+            return;
         }
+        boolean pressed = action != GLFW.GLFW_RELEASE;
+        if (matches(opts.forwardKey, key, scancode)) forwardDown = pressed;
+        if (matches(opts.backKey, key, scancode))    backDown = pressed;
+        if (matches(opts.leftKey, key, scancode))    leftDown = pressed;
+        if (matches(opts.rightKey, key, scancode))   rightDown = pressed;
+        if (matches(opts.jumpKey, key, scancode))    jumpDown = pressed;
+        if (matches(opts.sprintKey, key, scancode))  sprintDown = pressed;
+        if (matches(opts.sneakKey, key, scancode))   sneakDown = pressed;
     }
 
     Movement movement() {
-        float moveX = (right ? 1.0f : 0.0f) + (left ? -1.0f : 0.0f);
-        float moveZ = (forward ? 1.0f : 0.0f) + (back ? -1.0f : 0.0f);
+        if (hasCached) return new Movement(cachedMoveX, cachedMoveZ);
+        float moveX = 0f;
+        if (rightDown) moveX += 1.0f;
+        if (leftDown)  moveX -= 1.0f;
+        float moveZ = 0f;
+        if (forwardDown) moveZ += 1.0f;
+        if (backDown)    moveZ -= 1.0f;
         float len = (float) Math.sqrt(moveX * moveX + moveZ * moveZ);
-        if (len > 1e-6f && len > 1.0f) {
-            moveX /= len;
-            moveZ /= len;
-        }
+        if (len > 1.0f) { moveX /= len; moveZ /= len; }
         return new Movement(moveX, moveZ);
     }
 
     boolean jump() {
-        return jump;
+        return hasCached ? cachedJump : jumpDown;
     }
 
     boolean sprint() {
-        return sprint;
+        return hasCached ? cachedSprint : sprintDown;
     }
 
-    record Movement(float moveX, float moveZ) {
+    boolean sneak() {
+        return hasCached ? cachedSneak : sneakDown;
     }
+
+    private static GameOptions options() {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        return mc != null ? mc.options : null;
+    }
+
+    private static boolean matches(KeyBinding binding, int keyCode, int scanCode) {
+        return binding != null && binding.matchesKey(keyCode, scanCode);
+    }
+
+    record Movement(float moveX, float moveZ) {}
 }
-
