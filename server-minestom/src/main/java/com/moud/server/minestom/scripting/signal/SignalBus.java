@@ -1,10 +1,14 @@
-package com.moud.server.minestom.scripting;
+package com.moud.server.minestom.scripting.signal;
 
+
+
+import com.moud.server.minestom.scripting.ScriptInvocationException;
+import com.moud.server.minestom.scripting.ScriptObject;
 import com.moud.server.minestom.util.DebugLog;
 
 import java.util.*;
 
-final class SignalBus {
+public final class SignalBus {
     private static final String LOG_TAG = "signal-bus";
 
     private record SignalConnection(long targetNodeId, String method) {}
