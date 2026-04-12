@@ -1,11 +1,12 @@
-package com.moud.server.minestom.scripting;
+package com.moud.server.minestom.scripting.player;
+
 
 import org.graalvm.polyglot.HostAccess;
 
 public final class InputEvent {
     private final PlayerInputState input;
 
-    InputEvent(PlayerInputState input) {
+    public InputEvent(PlayerInputState input) {
         this.input = input;
     }
 
