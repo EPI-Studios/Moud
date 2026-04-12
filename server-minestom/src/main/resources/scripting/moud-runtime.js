@@ -4,7 +4,8 @@
     var NESTED_PROP_KEYS = {
         position: { x: 'x', y: 'y', z: 'z' },
         rotation: { x: 'rx', y: 'ry', z: 'rz' },
-        scale:    { x: 'sx', y: 'sy', z: 'sz' }
+        scale:    { x: 'sx', y: 'sy', z: 'sz' },
+        velocity: { x: 'velocity_x', y: 'velocity_y', z: 'velocity_z' }
     };
 
     var INTERNAL_PROPS = {
@@ -310,6 +311,63 @@
         var v = this.__api.playerGetVelocity(this.getProperty('target'));
         return { x: v[0], y: v[1], z: v[2] };
     };
+
+    // CharacterBody3D augmentations — Godot-style script surface.
+    Object.defineProperty(CharacterBody3D.prototype, 'velocity', {
+        get: function () {
+            var v = this.__api.getCharacterVelocity(this.__id);
+            return { x: v[0], y: v[1], z: v[2] };
+        },
+        set: function (v) {
+            v = v || { x: 0, y: 0, z: 0 };
+            this.__api.setCharacterVelocity(this.__id, v.x || 0, v.y || 0, v.z || 0);
+        },
+        enumerable: true
+    });
+
+    CharacterBody3D.prototype.move_and_slide = function (deltaSeconds) {
+        var v = this.__api.moveAndSlide(this.__id, deltaSeconds || (1 / 20));
+        return { x: v[0], y: v[1], z: v[2] };
+    };
+
+    CharacterBody3D.prototype.moveAndSlide = CharacterBody3D.prototype.move_and_slide;
+
+    CharacterBody3D.prototype.use_script_controller = function () {
+        this.__api.setCharacterScriptControlled(this.__id, true);
+    };
+    CharacterBody3D.prototype.useScriptController = CharacterBody3D.prototype.use_script_controller;
+
+    CharacterBody3D.prototype.use_default_controller = function () {
+        this.__api.setCharacterScriptControlled(this.__id, false);
+    };
+    CharacterBody3D.prototype.useDefaultController = CharacterBody3D.prototype.use_default_controller;
+
+    CharacterBody3D.prototype.is_on_floor = function () {
+        return !!this.__api.isOnFloor(this.__id);
+    };
+    CharacterBody3D.prototype.isOnFloor = CharacterBody3D.prototype.is_on_floor;
+
+    CharacterBody3D.prototype.is_on_wall = function () {
+        return !!this.__api.isOnWall(this.__id);
+    };
+    CharacterBody3D.prototype.isOnWall = CharacterBody3D.prototype.is_on_wall;
+
+    CharacterBody3D.prototype.is_on_ceiling = function () {
+        return !!this.__api.isOnCeiling(this.__id);
+    };
+    CharacterBody3D.prototype.isOnCeiling = CharacterBody3D.prototype.is_on_ceiling;
+
+    CharacterBody3D.prototype.get_wall_normal = function () {
+        var r = this.__api.getWallNormal(this.__id);
+        return { x: r[0], y: r[1], z: r[2] };
+    };
+    CharacterBody3D.prototype.getWallNormal = CharacterBody3D.prototype.get_wall_normal;
+
+    CharacterBody3D.prototype.get_input_direction = function () {
+        var r = this.__api.getInputDirection(this.__id);
+        return { x: r[0], y: r[1], z: r[2] };
+    };
+    CharacterBody3D.prototype.getInputDirection = CharacterBody3D.prototype.get_input_direction;
 
     // Decorators
     function process()       { return function (target, key) { getMoud(target).process = key; }; }
