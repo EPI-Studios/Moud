@@ -2,6 +2,19 @@ plugins {
     id 'fabric-loom' version '1.15-SNAPSHOT'
 }
 
+import net.fabricmc.loom.task.RenderDocRunTask
+import net.fabricmc.loom.task.RenderDocRunUITask
+import java.util.Locale
+
+def luauEnabled = providers.gradleProperty("moud.client.enableLuau")
+        .map { it.toBoolean() }
+        .orElse(true)
+def luauVersion = providers.gradleProperty("moud.client.luauVersion")
+        .orElse("1.0.0")
+def clientJavaVersion = providers.gradleProperty("moud.client.java")
+        .map { Integer.parseInt(it) }
+        .orElse(25)
+
 repositories {
     mavenLocal()
     mavenCentral()
@@ -25,6 +38,8 @@ repositories {
         url = 'https://maven.blamejared.com'
     }
 
+    maven { url = 'https://maven.hollowcube.dev/releases' }
+
 }
 
 
@@ -34,6 +49,7 @@ dependencies {
     mappings "net.fabricmc:yarn:1.21.1+build.3:v2"
     modImplementation "net.fabricmc:fabric-loader:0.18.6"
     modImplementation "net.fabricmc.fabric-api:fabric-api:0.116.10+1.21.1"
+    compileOnly "javax.annotation:javax.annotation-api:1.3.2"
 
     include(modImplementation("foundry.veil:veil-fabric-1.21.1:3.3.3"))
     modImplementation "com.zigythebird.playeranim:PlayerAnimationLibFabric:1.1.4+mc.1.21.1"
@@ -44,6 +60,20 @@ dependencies {
     include(implementation("com.miry:miry:1.0-SNAPSHOT") {
         exclude group: "org.lwjgl"
     })
+
+    if (luauEnabled.get()) {
+        include implementation("dev.hollowcube:luau:${luauVersion.get()}")
+        String luauOs = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT)
+        String luauArch = System.getProperty("os.arch", "").toLowerCase(java.util.Locale.ROOT)
+        String luauNative = null
+        if ((luauArch == "amd64" || luauArch == "x86_64") && luauOs.contains("linux"))  luauNative = "linux-x64"
+        else if ((luauArch == "amd64" || luauArch == "x86_64") && luauOs.contains("win")) luauNative = "windows-x64"
+        else if ((luauArch == "amd64" || luauArch == "x86_64") && luauOs.contains("mac")) luauNative = "macos-x64"
+        else if ((luauArch == "aarch64" || luauArch == "arm64") && luauOs.contains("mac")) luauNative = "macos-arm64"
+        if (luauNative != null) {
+            include runtimeOnly("dev.hollowcube:luau-natives-${luauNative}:${luauVersion.get()}")
+        }
+    }
 }
 
 loom {
@@ -54,7 +84,72 @@ loom {
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(clientJavaVersion.get())
     }
 }
 
+tasks.withType(JavaCompile).configureEach {
+    options.release = clientJavaVersion.get()
+    if (luauEnabled.get()) {
+        options.compilerArgs += ["--enable-preview"]
+    }
+}
+
+afterEvaluate {
+    def resolveRenderDocExecutable = {
+        def override = providers.environmentVariable("RENDERDOC_CMD").orNull
+        if (override != null && !override.isBlank()) {
+            return file(override.trim())
+        }
+
+        def osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT)
+        def candidates = []
+        if (osName.contains("win")) {
+            candidates.add(file("C:/Program Files/RenderDoc/renderdoccmd.exe"))
+            candidates.add(file("C:/Program Files/RenderDoc/qrenderdoc.exe"))
+        } else if (osName.contains("mac")) {
+            candidates.add(file("/Applications/RenderDoc.app/Contents/MacOS/renderdoccmd"))
+            candidates.add(file("/Applications/RenderDoc.app/Contents/MacOS/qrenderdoc"))
+            candidates.add(file("/usr/local/bin/renderdoccmd"))
+        } else {
+            candidates.add(file("/usr/bin/renderdoccmd"))
+            candidates.add(file("/usr/local/bin/renderdoccmd"))
+            candidates.add(file("/snap/bin/renderdoccmd"))
+        }
+
+        def resolved = candidates.find { it.exists() }
+        if (resolved != null) {
+            return resolved
+        }
+
+        throw new GradleException(
+            "RenderDoc executable not found. Set RENDERDOC_CMD to renderdoccmd/qrenderdoc, or install RenderDoc in a standard location."
+        )
+    }
+
+    def withoutExtractRenderDoc = { dependencies ->
+        dependencies.findAll { dep ->
+            if (dep == null) {
+                return false
+            }
+
+            if (dep instanceof CharSequence) {
+                return dep.toString() != "extractRenderDoc"
+            }
+
+            def name = dep.hasProperty("name") ? dep.name : null
+            return name != "extractRenderDoc"
+        }
+    }
+
+    def renderDocExecutable = resolveRenderDocExecutable()
+
+    tasks.withType(RenderDocRunTask).configureEach { task ->
+        task.getRenderDocExecutable().set(renderDocExecutable)
+        task.setDependsOn(withoutExtractRenderDoc(task.getDependsOn()))
+    }
+
+    tasks.withType(RenderDocRunUITask).configureEach { task ->
+        task.getRenderDocExecutable().set(renderDocExecutable)
+    }
+}
