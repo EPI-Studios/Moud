@@ -9,7 +9,10 @@ import com.moud.client.fabric.render.MoudTextures;
 import com.moud.client.fabric.render.picking.NodePickingPass;
 import com.moud.client.fabric.render.picking.OutlineRenderer;
 import com.moud.client.fabric.scene.ClientSceneBus;
+import com.moud.core.physics.CollisionGeometry;
+import com.moud.net.protocol.CollisionGeometrySnapshot;
 import com.moud.net.protocol.SceneSnapshot;
+import com.moud.client.fabric.physics.CapsuleShapeData;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.dynamicbuffer.DynamicBufferType;
@@ -31,6 +34,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.Frustum;
 import net.minecraft.client.render.OverlayTexture;
@@ -43,6 +47,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -50,6 +55,22 @@ import org.joml.Vector3f;
 public final class VeilSceneNodeRenderer {
     private static boolean initialized;
     private static boolean gBuffersEnabled;
+    private static boolean collisionDebugEnabled;
+
+    private static final Map<Long, List<CollisionGeometry>> collisionGeometryCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public static void toggleCollisionDebug() {
+        collisionDebugEnabled = !collisionDebugEnabled;
+    }
+
+    public static void onCollisionGeometry(CollisionGeometrySnapshot snapshot) {
+        if (snapshot == null || snapshot.hulls() == null || snapshot.hulls().isEmpty()) return;
+        collisionGeometryCache.put(snapshot.nodeId(), snapshot.hulls());
+    }
+
+    public static void clearCollisionGeometryCache() {
+        collisionGeometryCache.clear();
+    }
 
     private static long cachedVersion = Long.MIN_VALUE;
     private static long cachedSnapshotVersion = Long.MIN_VALUE;
@@ -260,28 +281,231 @@ public final class VeilSceneNodeRenderer {
 
         EditorContext editorCtx = EditorOverlayBus.get();
         if (editorCtx != null && editorCtx.isActive()) {
-            int[] viewport = new int[4];
-            org.lwjgl.opengl.GL11.glGetIntegerv(org.lwjgl.opengl.GL11.GL_VIEWPORT, viewport);
-            int vpW = viewport[2];
-            int vpH = viewport[3];
+            pickingPass.render(
+                    filteredCachedNodes,
+                    VeilSceneNodeRenderer::worldPose,
+                    camPos,
+                    frustumMatrix,
+                    projectionMatrix,
+                    editorCtx.viewportW(),
+                    editorCtx.viewportH(),
+                    editorCtx.mouseViewportNdcX(),
+                    editorCtx.mouseViewportNdcY()
+            );
+            editorCtx.setHoveredNodeId(pickingPass.hoveredNodeId());
+            outlineRenderer.render(
+                    filteredCachedNodes,
+                    cachedNodesById,
+                    VeilSceneNodeRenderer::worldPose,
+                    camPos,
+                    frustumMatrix,
+                    projectionMatrix,
+                    editorCtx.hoveredNodeId(),
+                    editorCtx.selectedNodeId(),
+                    client
+            );
+        }
 
-            if (vpW > 0 && vpH > 0 && editorCtx.isMouseInViewport()) {
-                pickingPass.render(cachedNodes, VeilSceneNodeRenderer::worldPose,
-                        camPos, frustumMatrix, projectionMatrix,
-                        vpW, vpH,
-                        editorCtx.mouseViewportNdcX(), editorCtx.mouseViewportNdcY());
-                editorCtx.setHoveredNodeId(pickingPass.hoveredNodeId());
+        if (collisionDebugEnabled) {
+            renderCollisionDebug(filteredCachedNodes, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta);
+        }
+    }
+
+    private static void renderCollisionDebug(List<SceneSnapshot.NodeSnapshot> nodes,
+                                             Vec3d camPos,
+                                             Camera camera,
+                                             Matrix4fc frustumMatrix,
+                                             Matrix4fc projectionMatrix,
+                                             MinecraftClient client,
+                                             float tickDelta) {
+        VeilDebugRenderer debug = VeilDebugRenderer.instance();
+        debug.clear();
+
+        for (SceneSnapshot.NodeSnapshot node : nodes) {
+            if (node == null) continue;
+            String type = node.type();
+            Pose world = worldPose(node.nodeId());
+            if (world == null) continue;
+
+            boolean solid = isCollisionDebugSolid(node);
+            boolean isPhysicsBody = "StaticBody3D".equals(type) || "RigidBody3D".equals(type) || "CharacterBody3D".equals(type);
+            boolean isCSG = "CSGBox".equals(type) || "CSGBlock".equals(type);
+
+            if (!solid && !isPhysicsBody && !isCSG) {
+                continue;
             }
 
-            long hoveredId = editorCtx.hoveredNodeId();
-            long selectedId = editorCtx.selectedNodeId();
-            if (hoveredId > 0 || selectedId > 0) {
-                outlineRenderer.render(cachedNodes, cachedNodesById,
-                        VeilSceneNodeRenderer::worldPose,
-                        camPos, frustumMatrix, projectionMatrix,
-                        hoveredId, selectedId, client);
+            int color = isPhysicsBody ? 0x80FF00FF : 0x8000FF00;
+            List<CollisionGeometry> cachedHulls = collisionGeometryCache.get(node.nodeId());
+            if (isCSG) {
+                Matrix4f matrix = new Matrix4f()
+                        .translation(world.pos.x, world.pos.y, world.pos.z)
+                        .rotate(world.rot)
+                        .scale(world.scale.x, world.scale.y, world.scale.z)
+                        .translate(-0.5f, -0.5f, -0.5f);
+                drawWireframeUnitCube(debug, matrix, color);
+            } else if (cachedHulls != null && !cachedHulls.isEmpty()) {
+                int hullColor = "Model3D".equals(type) ? 0x8000FFFF : color;
+                for (CollisionGeometry hull : cachedHulls) {
+                    drawCollisionGeometry(debug, hull, world, hullColor);
+                }
+            } else if ("Model3D".equals(type)) {
+                Model3DRenderer.forEachCubeTransform(node, (matrix) -> {
+                    Matrix4f worldMatrix = new Matrix4f()
+                            .translation(world.pos.x, world.pos.y, world.pos.z)
+                            .rotate(world.rot)
+                            .scale(world.scale.x, world.scale.y, world.scale.z)
+                            .mul(matrix);
+                    drawWireframeUnitCube(debug, worldMatrix, 0x8000FFFF);
+                });
+            } else if ("MeshInstance3D".equals(type)) {
+                String mesh = stringProp(node, "mesh");
+                if (mesh == null || mesh.isBlank()) mesh = "box";
+                mesh = mesh.trim().toLowerCase(java.util.Locale.ROOT);
+                if ("sphere".equals(mesh)) {
+                    debug.sphere(world.pos, 0.5f * Math.max(world.scale.x, Math.max(world.scale.y, world.scale.z)), color, 16);
+                } else {
+                    Matrix4f matrix = new Matrix4f()
+                            .translation(world.pos.x, world.pos.y, world.pos.z)
+                            .rotate(world.rot)
+                            .scale(world.scale.x, world.scale.y, world.scale.z)
+                            .translate(-0.5f, -0.5f, -0.5f);
+                    drawWireframeUnitCube(debug, matrix, color);
+                }
+            } else if (isPhysicsBody) {
+                String shape = stringProp(node, "shape");
+                if (shape == null || shape.isBlank()) shape = "auto";
+                shape = shape.trim().toLowerCase(java.util.Locale.ROOT);
+
+                if ("sphere".equals(shape)) {
+                    float radius = parseFloat(stringProp(node, "radius"), 0.5f);
+                    debug.sphere(world.pos, radius, color, 16);
+                } else if ("capsule".equals(shape)) {
+                    CapsuleShapeData capsule = CapsuleShapeData.fromNode(node);
+                    drawBottomAnchoredCapsule(debug, world, capsule, color);
+                } else if ("box".equals(shape)) {
+                    Matrix4f matrix = new Matrix4f()
+                            .translation(world.pos.x, world.pos.y, world.pos.z)
+                            .rotate(world.rot)
+                            .scale(world.scale.x, world.scale.y, world.scale.z)
+                            .translate(-0.5f, -0.5f, -0.5f);
+                    drawWireframeUnitCube(debug, matrix, color);
+                }
             }
         }
+    }
+
+    private static boolean isCollisionDebugSolid(SceneSnapshot.NodeSnapshot node) {
+        if (node == null) {
+            return false;
+        }
+        String type = node.type();
+        boolean solidByDefault = "CSGBox".equals(type)
+                || "CSGBlock".equals(type)
+                || "Model3D".equals(type)
+                || "MeshInstance3D".equals(type)
+                || "Sprite3D".equals(type)
+                || "AnimatedSprite3D".equals(type);
+        return parseBool(stringProp(node, "solid"), solidByDefault);
+    }
+
+    private static void drawCollisionGeometry(VeilDebugRenderer debug, CollisionGeometry hull, Pose world, int color) {
+        if (hull == null) return;
+        float[] vertices = hull.vertices();
+        int[] indices = hull.indices();
+        if (vertices == null || vertices.length < 9) return;
+        int vCount = vertices.length / 3;
+
+        if (indices != null && indices.length >= 3) {
+            for (int i = 0; i + 2 < indices.length; i += 3) {
+                int i0 = indices[i], i1 = indices[i + 1], i2 = indices[i + 2];
+                if (i0 < 0 || i0 >= vCount || i1 < 0 || i1 >= vCount || i2 < 0 || i2 >= vCount) continue;
+                Vector3f a = transformVertex(vertices, i0, world);
+                Vector3f b = transformVertex(vertices, i1, world);
+                Vector3f c = transformVertex(vertices, i2, world);
+                debug.line(a, b, color, 1.0f);
+                debug.line(b, c, color, 1.0f);
+                debug.line(c, a, color, 1.0f);
+            }
+        } else {
+            float cx = 0, cy = 0, cz = 0;
+            for (int i = 0; i < vCount; i++) {
+                cx += vertices[i * 3];
+                cy += vertices[i * 3 + 1];
+                cz += vertices[i * 3 + 2];
+            }
+            cx /= vCount; cy /= vCount; cz /= vCount;
+            Vector3f centroid = new Vector3f(cx, cy, cz);
+            world.rot.transform(centroid);
+            centroid.add(world.pos);
+            for (int i = 0; i < vCount; i++) {
+                Vector3f v = transformVertex(vertices, i, world);
+                debug.line(centroid, v, color, 1.0f);
+                Vector3f next = transformVertex(vertices, (i + 1) % vCount, world);
+                debug.line(v, next, color, 1.0f);
+            }
+        }
+    }
+
+    private static void drawBottomAnchoredCapsule(VeilDebugRenderer debug, Pose world, CapsuleShapeData capsule, int color) {
+        if (debug == null || world == null) {
+            return;
+        }
+        float r = capsule.radius();
+        float bottomY = world.pos.y + capsule.bottomSphereY();
+        float topY    = world.pos.y + capsule.topSphereY();
+
+        Vector3f bottomCenter = new Vector3f(world.pos.x, bottomY, world.pos.z);
+        Vector3f topCenter    = new Vector3f(world.pos.x, topY,    world.pos.z);
+        debug.sphere(bottomCenter, r, color, 16);
+        debug.sphere(topCenter,    r, color, 16);
+
+        debug.line(new Vector3f(world.pos.x + r, bottomY, world.pos.z),
+                new Vector3f(world.pos.x + r, topY,    world.pos.z), color, 1f);
+        debug.line(new Vector3f(world.pos.x - r, bottomY, world.pos.z),
+                new Vector3f(world.pos.x - r, topY,    world.pos.z), color, 1f);
+        debug.line(new Vector3f(world.pos.x, bottomY, world.pos.z + r),
+                new Vector3f(world.pos.x, topY,    world.pos.z + r), color, 1f);
+        debug.line(new Vector3f(world.pos.x, bottomY, world.pos.z - r),
+                new Vector3f(world.pos.x, topY,    world.pos.z - r), color, 1f);
+    }
+
+    private static Vector3f transformVertex(float[] vertices, int index, Pose world) {
+        Vector3f v = new Vector3f(vertices[index * 3], vertices[index * 3 + 1], vertices[index * 3 + 2]);
+        world.rot.transform(v);
+        v.add(world.pos);
+        return v;
+    }
+
+    private static void drawWireframeUnitCube(VeilDebugRenderer debug, Matrix4f matrix, int color) {
+        Vector3f[] p = new Vector3f[8];
+        p[0] = new Vector3f(0, 0, 0);
+        p[1] = new Vector3f(1, 0, 0);
+        p[2] = new Vector3f(1, 1, 0);
+        p[3] = new Vector3f(0, 1, 0);
+        p[4] = new Vector3f(0, 0, 1);
+        p[5] = new Vector3f(1, 0, 1);
+        p[6] = new Vector3f(1, 1, 1);
+        p[7] = new Vector3f(0, 1, 1);
+
+        for (int i = 0; i < 8; i++) {
+            matrix.transformPosition(p[i]);
+        }
+
+        debug.line(p[0], p[1], color, 1.0f);
+        debug.line(p[1], p[2], color, 1.0f);
+        debug.line(p[2], p[3], color, 1.0f);
+        debug.line(p[3], p[0], color, 1.0f);
+
+        debug.line(p[4], p[5], color, 1.0f);
+        debug.line(p[5], p[6], color, 1.0f);
+        debug.line(p[6], p[7], color, 1.0f);
+        debug.line(p[7], p[4], color, 1.0f);
+
+        debug.line(p[0], p[4], color, 1.0f);
+        debug.line(p[1], p[5], color, 1.0f);
+        debug.line(p[2], p[6], color, 1.0f);
+        debug.line(p[3], p[7], color, 1.0f);
     }
 
     private static void renderUnitCube(VertexConsumer vc, MatrixStack.Entry entry, int light, int overlay, int r, int g, int b, int a) {
@@ -355,6 +579,9 @@ public final class VeilSceneNodeRenderer {
                 Pose world = worldPose(node.nodeId());
                 if (world == null) continue;
                 int light = WorldRenderer.getLightmapCoordinates(client.world, BlockPos.ofFloored(world.pos.x, world.pos.y, world.pos.z));
+                if (light <= 0) {
+                    light = 0x00F000F0;
+                }
                 matrices.push();
                 matrices.translate(world.pos.x - camPos.x, world.pos.y - camPos.y, world.pos.z - camPos.z);
                 matrices.multiply(world.rot);
@@ -364,12 +591,17 @@ public final class VeilSceneNodeRenderer {
                 continue;
             }
 
-            if (!"MeshInstance3D".equals(type) && !"CSGBox".equals(type) && !"Sprite3D".equals(type)) {
+            if ("Text3D".equals(type)) {
+                renderText3D(node, consumers, matrices, camPos, camera, client);
+                continue;
+            }
+
+            if (!"MeshInstance3D".equals(type) && !"CSGBox".equals(type) && !"Sprite3D".equals(type) && !"AnimatedSprite3D".equals(type)) {
                 continue;
             }
 
             String materialPath = stringProp(node, "material");
-            if (!"Sprite3D".equals(type) && (materialPath == null || materialPath.isBlank())) {
+            if (!"Sprite3D".equals(type) && !"AnimatedSprite3D".equals(type) && (materialPath == null || materialPath.isBlank())) {
                 String texProp = stringProp(node, "texture");
                 boolean hasCustomTexture = texProp != null && !texProp.isBlank()
                         && !MoudTextures.WHITE_ID.toString().equals(texProp)
@@ -386,7 +618,7 @@ public final class VeilSceneNodeRenderer {
                 continue;
             }
 
-            if ("Sprite3D".equals(type)) {
+            if ("Sprite3D".equals(type) || "AnimatedSprite3D".equals(type)) {
                 continue;
             }
 
@@ -406,6 +638,9 @@ public final class VeilSceneNodeRenderer {
                     : RenderLayer.getEntityCutout(textureId);
             VertexConsumer vc = consumers.getBuffer(layer);
             int light = WorldRenderer.getLightmapCoordinates(client.world, BlockPos.ofFloored(world.pos.x, world.pos.y, world.pos.z));
+            if (light <= 0) {
+                light = 0x00F000F0;
+            }
 
             matrices.push();
             matrices.translate(world.pos.x - camPos.x, world.pos.y - camPos.y, world.pos.z - camPos.z);
@@ -415,6 +650,72 @@ public final class VeilSceneNodeRenderer {
             renderUnitCube(vc, matrices.peek(), light, OverlayTexture.DEFAULT_UV, tintRi, tintGi, tintBi, alphaI);
             matrices.pop();
         }
+    }
+
+    private static void renderText3D(SceneSnapshot.NodeSnapshot node,
+                                     VertexConsumerProvider.Immediate consumers,
+                                     MatrixStack matrices,
+                                     Vec3d camPos,
+                                     Camera camera,
+                                     MinecraftClient client) {
+        if (node == null || consumers == null || matrices == null || camPos == null || camera == null || client == null || client.textRenderer == null) {
+            return;
+        }
+        Pose world = worldPose(node.nodeId());
+        if (world == null) {
+            return;
+        }
+
+        String text = stringProp(node, "text");
+        if (text == null || text.isEmpty()) {
+            text = "Text3D";
+        }
+
+        TextRenderer textRenderer = client.textRenderer;
+        float size = Math.max(0.001f, parseFloat(stringProp(node, "size"), 0.025f));
+        boolean billboard = parseBool(stringProp(node, "billboard"), true);
+        boolean shadow = parseBool(stringProp(node, "shadow"), true);
+        boolean seeThrough = parseBool(stringProp(node, "see_through"), false);
+
+        int a = Math.round(clamp01(parseFloat(stringProp(node, "opacity"), 1f)) * 255f);
+        int r = Math.round(clamp01(parseFloat(stringProp(node, "color_tint_r"), 1f)) * 255f);
+        int g = Math.round(clamp01(parseFloat(stringProp(node, "color_tint_g"), 1f)) * 255f);
+        int b = Math.round(clamp01(parseFloat(stringProp(node, "color_tint_b"), 1f)) * 255f);
+        int color = (a << 24) | (r << 16) | (g << 8) | b;
+        int light = WorldRenderer.getLightmapCoordinates(client.world, BlockPos.ofFloored(world.pos.x, world.pos.y, world.pos.z));
+        if (light <= 0) {
+            light = 0x00F000F0;
+        }
+
+        matrices.push();
+        matrices.translate(world.pos.x - camPos.x, world.pos.y - camPos.y, world.pos.z - camPos.z);
+        if (billboard) {
+            matrices.multiply(camera.getRotation());
+        } else {
+            matrices.multiply(world.rot);
+        }
+
+        float scaleFactor = size * Math.max(world.scale.x, Math.max(world.scale.y, world.scale.z));
+        Matrix4f posMatrix = matrices.peek().getPositionMatrix();
+        posMatrix.rotate((float) Math.PI, 0f, 1f, 0f);
+        posMatrix.scale(-scaleFactor, -scaleFactor, -scaleFactor);
+
+        int textWidth = textRenderer.getWidth(text);
+        int lineHeight = textRenderer.fontHeight + 1;
+        posMatrix.translate(-textWidth * 0.5f, -lineHeight * 0.5f, 0f);
+
+        int bgColor = 0x40000000;
+        VertexConsumer bgVc = consumers.getBuffer(seeThrough
+                ? RenderLayer.getTextBackgroundSeeThrough()
+                : RenderLayer.getTextBackground());
+        bgVc.vertex(posMatrix, -1f, -1f, 0f).color(bgColor).light(light);
+        bgVc.vertex(posMatrix, -1f, lineHeight, 0f).color(bgColor).light(light);
+        bgVc.vertex(posMatrix, textWidth, lineHeight, 0f).color(bgColor).light(light);
+        bgVc.vertex(posMatrix, textWidth, -1f, 0f).color(bgColor).light(light);
+
+        TextRenderer.TextLayerType layer = seeThrough ? TextRenderer.TextLayerType.SEE_THROUGH : TextRenderer.TextLayerType.NORMAL;
+        textRenderer.draw(text, 0f, 0f, color, shadow, posMatrix, consumers, layer, 0, light);
+        matrices.pop();
     }
 
 
@@ -779,7 +1080,8 @@ public final class VeilSceneNodeRenderer {
 
     private static void beginPoseFrame(float tickDelta) {
         poseFrameId++;
-        poseFrameTickDelta = clamp01(tickDelta);
+        EditorContext editorCtx = EditorOverlayBus.get();
+        poseFrameTickDelta = editorCtx != null && editorCtx.isActive() ? 1.0f : clamp01(tickDelta);
     }
 
     private static void updatePoseStates(boolean shiftPrev) {
@@ -813,9 +1115,6 @@ public final class VeilSceneNodeRenderer {
                 if (!st.initialized || st.parentId != parentId) {
                     Pose.copy(scratch, st.prevLocal);
                 } else {
-                    // Preserve the last authoritative pose as the interpolation start.
-                    // This smooths replicated physics/snapshot updates without changing
-                    // the actual simulated state.
                     Pose.copy(st.currLocal, st.prevLocal);
                 }
                 Pose.copy(scratch, st.currLocal);
@@ -891,17 +1190,27 @@ public final class VeilSceneNodeRenderer {
             if (parentSn != null && "PlayerAttachment".equals(parentSn.type())) {
                 String uuid = stringProp(parentSn, "target");
                 if (uuid != null && !uuid.isBlank() && !"all".equals(uuid)) {
-                    String attachPoint = nodeSn != null ? stringProp(nodeSn, "attachment_point") : null;
+                    String childAttach = nodeSn != null ? stringProp(nodeSn, "attachment_point") : null;
+                    String attachPoint = childAttach != null && !childAttach.isBlank()
+                            ? childAttach
+                            : stringProp(parentSn, "attachment_point");
                     float[] attachPos = PlayerBodyAttachmentCache.getAttachPoint(uuid, attachPoint);
                     if (attachPos != null) {
                         float[] root = PlayerBodyAttachmentCache.getRoot(uuid);
-                        out.pos.set(attachPos[0] + local.pos.x, attachPos[1] + local.pos.y, attachPos[2] + local.pos.z);
+                        float yaw = root != null ? root[3] : 0f;
+                        Pose offset = st.currLocal;
+                        float yawRad = (float) Math.toRadians(-yaw);
+                        float sinY = (float) Math.sin(yawRad);
+                        float cosY = (float) Math.cos(yawRad);
+                        float ox = offset.pos.x * cosY - offset.pos.z * sinY;
+                        float oz = offset.pos.x * sinY + offset.pos.z * cosY;
+                        out.pos.set(attachPos[0] + ox, attachPos[1] + offset.pos.y, attachPos[2] + oz);
                         if (root != null) {
-                            out.rot.set(quatFromEulerDeg(0f, -root[3], 0f)).mul(local.rot).normalize();
+                            out.rot.set(quatFromEulerDeg(0f, -yaw, 0f)).mul(offset.rot).normalize();
                         } else {
-                            out.rot.set(local.rot);
+                            out.rot.set(offset.rot);
                         }
-                        out.scale.set(local.scale);
+                        out.scale.set(offset.scale);
                         out.inherit = false;
                         return out;
                     }
@@ -928,7 +1237,8 @@ public final class VeilSceneNodeRenderer {
         if (pos != null) {
             out.pos.set(pos[0], pos[1], pos[2]);
             if (followRot && root != null) {
-                out.rot.set(quatFromEulerDeg(0f, -root[3], 0f));
+                float yaw = root[3];
+                out.rot.set(quatFromEulerDeg(0f, -yaw, 0f));
             } else {
                 out.rot.identity();
             }
@@ -958,7 +1268,7 @@ public final class VeilSceneNodeRenderer {
 
         NodePoseState st = poseStatesById.get(nodeId);
         if (st == null || !st.initialized) return Pose.IDENTITY;
-        Pose local = st.interpolatedLocal(poseFrameId, poseFrameTickDelta);
+        Pose local = st.currLocal;
 
         SceneSnapshot.NodeSnapshot rootSn = activeAttachmentRootNodeId > 0L
                 ? cachedNodesById.get(activeAttachmentRootNodeId) : null;
@@ -966,12 +1276,24 @@ public final class VeilSceneNodeRenderer {
         boolean followAnim = nodeSn != null && parseBool(stringProp(nodeSn, "follow_animation"), false);
 
         String childAttachPoint = nodeSn != null ? stringProp(nodeSn, "attachment_point") : null;
+        if (childAttachPoint == null || childAttachPoint.isBlank()) {
+            SceneSnapshot.NodeSnapshot parentSn = st.parentId > 0L ? cachedNodesById.get(st.parentId) : null;
+            if (parentSn != null && "PlayerAttachment".equals(parentSn.type())) {
+                childAttachPoint = stringProp(parentSn, "attachment_point");
+            }
+        }
         if (childAttachPoint != null && !childAttachPoint.isBlank()) {
             float[] pos = PlayerBodyAttachmentCache.getAttachPoint(playerUuid, childAttachPoint);
             float[] root = PlayerBodyAttachmentCache.getRoot(playerUuid);
             Pose out = new Pose();
             if (pos != null) {
-                out.pos.set(pos[0] + local.pos.x, pos[1] + local.pos.y, pos[2] + local.pos.z);
+                float yaw = root != null ? root[3] : 0f;
+                float yawRad = (float) Math.toRadians(-yaw);
+                float sinY = (float) Math.sin(yawRad);
+                float cosY = (float) Math.cos(yawRad);
+                float ox = local.pos.x * cosY - local.pos.z * sinY;
+                float oz = local.pos.x * sinY + local.pos.z * cosY;
+                out.pos.set(pos[0] + ox, pos[1] + local.pos.y, pos[2] + oz);
                 out.rot.set(boneWorldRot(playerUuid, childAttachPoint, local.rot, root, followRot, followAnim));
                 out.scale.set(local.scale);
                 out.inherit = false;
@@ -1015,7 +1337,8 @@ public final class VeilSceneNodeRenderer {
         if (pos != null) {
             out.pos.set(pos[0], pos[1], pos[2]);
             if (followRot && root != null) {
-                out.rot.set(quatFromEulerDeg(0f, -root[3], 0f));
+                float yaw = root[3];
+                out.rot.set(quatFromEulerDeg(0f, -yaw, 0f));
             } else {
                 out.rot.identity();
             }
@@ -1125,7 +1448,7 @@ public final class VeilSceneNodeRenderer {
 
         out.pos.set(px, py, pz);
         out.rot.set(quatFromEulerDeg(rxDeg, ryDeg, rzDeg));
-        out.inherit = shouldInheritTransform(inheritRaw);
+        out.inherit = "CSGBlock".equals(node.type()) ? false : shouldInheritTransform(inheritRaw);
     }
 
     private static boolean shouldInheritTransform(String v) {
