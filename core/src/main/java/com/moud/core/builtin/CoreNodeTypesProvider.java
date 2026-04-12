@@ -184,6 +184,10 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("color_tint_r", new PropertyDef("color_tint_r", PropertyType.FLOAT, "1", "R", "Color Tint", 0, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("color_tint_g", new PropertyDef("color_tint_g", PropertyType.FLOAT, "1", "G", "Color Tint", 1, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("color_tint_b", new PropertyDef("color_tint_b", PropertyType.FLOAT, "1", "B", "Color Tint", 2, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("solid", new PropertyDef("solid", PropertyType.BOOL, "false", "Solid", "Collision", 30, Map.of())),
+                Map.entry("collision_strategy", new PropertyDef("collision_strategy", PropertyType.STRING, "auto", "Collision", "Collision", 31, Map.of())),
+                Map.entry("collision_layer", new PropertyDef("collision_layer", PropertyType.INT, "1", "Layer", "Collision", 32, Map.of("min", "0", "step", "1"))),
+                Map.entry("collision_mask", new PropertyDef("collision_mask", PropertyType.INT, "1", "Mask", "Collision", 33, Map.of("min", "0", "step", "1"))),
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
 
@@ -223,6 +227,59 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("color_tint_r", new PropertyDef("color_tint_r", PropertyType.FLOAT, "1", "R", "Color Tint", 0, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("color_tint_g", new PropertyDef("color_tint_g", PropertyType.FLOAT, "1", "G", "Color Tint", 1, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("color_tint_b", new PropertyDef("color_tint_b", PropertyType.FLOAT, "1", "B", "Color Tint", 2, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("solid", new PropertyDef("solid", PropertyType.BOOL, "false", "Solid", "Collision", 44, Map.of())),
+                Map.entry("collision_strategy", new PropertyDef("collision_strategy", PropertyType.STRING, "auto", "Collision", "Collision", 45, Map.of())),
+                Map.entry("collision_layer", new PropertyDef("collision_layer", PropertyType.INT, "1", "Layer", "Collision", 46, Map.of("min", "0", "step", "1"))),
+                Map.entry("collision_mask", new PropertyDef("collision_mask", PropertyType.INT, "1", "Mask", "Collision", 47, Map.of("min", "0", "step", "1"))),
+                Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
+        )));
+
+        registry.registerType(new NodeTypeDef("AnimatedSprite3D", "Node3D", "AnimatedSprite3D", "Geometry", 26, Map.ofEntries(
+                Map.entry("x", new PropertyDef("x", PropertyType.FLOAT, "0", "X", "Transform", 0, Map.of("step", "0.1"))),
+                Map.entry("y", new PropertyDef("y", PropertyType.FLOAT, "0", "Y", "Transform", 1, Map.of("step", "0.1"))),
+                Map.entry("z", new PropertyDef("z", PropertyType.FLOAT, "0", "Z", "Transform", 2, Map.of("step", "0.1"))),
+                Map.entry("rx", new PropertyDef("rx", PropertyType.FLOAT, "0", "Rot X", "Transform", 10, Map.of("step", "1"))),
+                Map.entry("ry", new PropertyDef("ry", PropertyType.FLOAT, "0", "Rot Y", "Transform", 11, Map.of("step", "1"))),
+                Map.entry("rz", new PropertyDef("rz", PropertyType.FLOAT, "0", "Rot Z", "Transform", 12, Map.of("step", "1"))),
+                Map.entry("sx", new PropertyDef("sx", PropertyType.FLOAT, "1", "Width", "Transform", 20, Map.of("min", "0.001", "step", "0.1"))),
+                Map.entry("sy", new PropertyDef("sy", PropertyType.FLOAT, "1", "Height", "Transform", 21, Map.of("min", "0.001", "step", "0.1"))),
+                Map.entry("sz", new PropertyDef("sz", PropertyType.FLOAT, "1", "Depth", "Transform", 22, Map.of("min", "0.001", "step", "0.1"))),
+                Map.entry("billboard", new PropertyDef("billboard", PropertyType.BOOL, "true", "Billboard", "Mesh", 26, Map.of())),
+                Map.entry("double_sided", new PropertyDef("double_sided", PropertyType.BOOL, "true", "Double Sided", "Mesh", 27, Map.of())),
+                Map.entry("sprite_sheet", new PropertyDef("sprite_sheet", PropertyType.STRING, "", "Sprite Sheet", "Animation", 30, Map.of("asset", "text"))),
+                Map.entry("texture", new PropertyDef("texture", PropertyType.STRING, "", "Texture Override", "Animation", 31, Map.of("asset", "image"))),
+                Map.entry("animation", new PropertyDef("animation", PropertyType.STRING, "", "Animation", "Animation", 32, Map.of())),
+                Map.entry("playing", new PropertyDef("playing", PropertyType.BOOL, "true", "Playing", "Animation", 33, Map.of())),
+                Map.entry("loop", new PropertyDef("loop", PropertyType.BOOL, "true", "Loop", "Animation", 34, Map.of())),
+                Map.entry("speed_scale", new PropertyDef("speed_scale", PropertyType.FLOAT, "1", "Speed Scale", "Animation", 35, Map.of("min", "0.001", "step", "0.05"))),
+                Map.entry("frame", new PropertyDef("frame", PropertyType.INT, "0", "Frame", "Animation", 36, Map.of("min", "0", "step", "1"))),
+                Map.entry("opacity", new PropertyDef("opacity", PropertyType.FLOAT, "1", "Opacity", "Material", 40, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("uv_scale_x", new PropertyDef("uv_scale_x", PropertyType.FLOAT, "1", "UV Scale X", "Material", 41, Map.of("min", "0.001", "step", "0.1"))),
+                Map.entry("uv_scale_y", new PropertyDef("uv_scale_y", PropertyType.FLOAT, "1", "UV Scale Y", "Material", 42, Map.of("min", "0.001", "step", "0.1"))),
+                Map.entry("uv_offset_x", new PropertyDef("uv_offset_x", PropertyType.FLOAT, "0", "UV Offset X", "Material", 43, Map.of("step", "0.05"))),
+                Map.entry("uv_offset_y", new PropertyDef("uv_offset_y", PropertyType.FLOAT, "0", "UV Offset Y", "Material", 44, Map.of("step", "0.05"))),
+                Map.entry("color_tint_r", new PropertyDef("color_tint_r", PropertyType.FLOAT, "1", "R", "Color Tint", 0, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("color_tint_g", new PropertyDef("color_tint_g", PropertyType.FLOAT, "1", "G", "Color Tint", 1, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("color_tint_b", new PropertyDef("color_tint_b", PropertyType.FLOAT, "1", "B", "Color Tint", 2, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
+        )));
+
+        registry.registerType(new NodeTypeDef("Text3D", "Node3D", "Text3D", "Geometry", 27, Map.ofEntries(
+                Map.entry("x", new PropertyDef("x", PropertyType.FLOAT, "0", "X", "Transform", 0, Map.of("step", "0.1"))),
+                Map.entry("y", new PropertyDef("y", PropertyType.FLOAT, "0", "Y", "Transform", 1, Map.of("step", "0.1"))),
+                Map.entry("z", new PropertyDef("z", PropertyType.FLOAT, "0", "Z", "Transform", 2, Map.of("step", "0.1"))),
+                Map.entry("rx", new PropertyDef("rx", PropertyType.FLOAT, "0", "Rot X", "Transform", 10, Map.of("step", "1"))),
+                Map.entry("ry", new PropertyDef("ry", PropertyType.FLOAT, "0", "Rot Y", "Transform", 11, Map.of("step", "1"))),
+                Map.entry("rz", new PropertyDef("rz", PropertyType.FLOAT, "0", "Rot Z", "Transform", 12, Map.of("step", "1"))),
+                Map.entry("text", new PropertyDef("text", PropertyType.STRING, "Text3D", "Text", "Text", 0, Map.of())),
+                Map.entry("size", new PropertyDef("size", PropertyType.FLOAT, "0.025", "Size", "Text", 1, Map.of("min", "0.001", "step", "0.005"))),
+                Map.entry("billboard", new PropertyDef("billboard", PropertyType.BOOL, "true", "Billboard", "Text", 2, Map.of())),
+                Map.entry("shadow", new PropertyDef("shadow", PropertyType.BOOL, "true", "Shadow", "Text", 3, Map.of())),
+                Map.entry("see_through", new PropertyDef("see_through", PropertyType.BOOL, "false", "See Through", "Text", 4, Map.of())),
+                Map.entry("color_tint_r", new PropertyDef("color_tint_r", PropertyType.FLOAT, "1", "R", "Color Tint", 0, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("color_tint_g", new PropertyDef("color_tint_g", PropertyType.FLOAT, "1", "G", "Color Tint", 1, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("color_tint_b", new PropertyDef("color_tint_b", PropertyType.FLOAT, "1", "B", "Color Tint", 2, Map.of("min", "0", "max", "1", "step", "0.01"))),
+                Map.entry("opacity", new PropertyDef("opacity", PropertyType.FLOAT, "1", "Opacity", "Color Tint", 3, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
 
@@ -328,7 +385,7 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("rx", new PropertyDef("rx", PropertyType.FLOAT, "0", "Rot X", "Transform", 10, Map.of("step", "1"))),
                 Map.entry("ry", new PropertyDef("ry", PropertyType.FLOAT, "0", "Rot Y", "Transform", 11, Map.of("step", "1"))),
                 Map.entry("rz", new PropertyDef("rz", PropertyType.FLOAT, "0", "Rot Z", "Transform", 12, Map.of("step", "1"))),
-                Map.entry("shape", new PropertyDef("shape", PropertyType.STRING, "box", "Shape", "Collision", 0, Map.of())),
+                Map.entry("shape", new PropertyDef("shape", PropertyType.STRING, "auto", "Shape", "Collision", 0, Map.of())),
                 Map.entry("sx", new PropertyDef("sx", PropertyType.FLOAT, "1", "Size X", "Collision", 1, Map.of("min", "0.01", "step", "0.1"))),
                 Map.entry("sy", new PropertyDef("sy", PropertyType.FLOAT, "1", "Size Y", "Collision", 2, Map.of("min", "0.01", "step", "0.1"))),
                 Map.entry("sz", new PropertyDef("sz", PropertyType.FLOAT, "1", "Size Z", "Collision", 3, Map.of("min", "0.01", "step", "0.1"))),
@@ -346,7 +403,7 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("rx", new PropertyDef("rx", PropertyType.FLOAT, "0", "Rot X", "Transform", 10, Map.of("step", "1"))),
                 Map.entry("ry", new PropertyDef("ry", PropertyType.FLOAT, "0", "Rot Y", "Transform", 11, Map.of("step", "1"))),
                 Map.entry("rz", new PropertyDef("rz", PropertyType.FLOAT, "0", "Rot Z", "Transform", 12, Map.of("step", "1"))),
-                Map.entry("shape", new PropertyDef("shape", PropertyType.STRING, "box", "Shape", "Collision", 0, Map.of())),
+                Map.entry("shape", new PropertyDef("shape", PropertyType.STRING, "auto", "Shape", "Collision", 0, Map.of())),
                 Map.entry("sx", new PropertyDef("sx", PropertyType.FLOAT, "1", "Size X", "Collision", 1, Map.of("min", "0.01", "step", "0.1"))),
                 Map.entry("sy", new PropertyDef("sy", PropertyType.FLOAT, "1", "Size Y", "Collision", 2, Map.of("min", "0.01", "step", "0.1"))),
                 Map.entry("sz", new PropertyDef("sz", PropertyType.FLOAT, "1", "Size Z", "Collision", 3, Map.of("min", "0.01", "step", "0.1"))),
@@ -375,8 +432,20 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("collision_layer", new PropertyDef("collision_layer", PropertyType.INT, "1", "Layer", "Collision", 11, Map.of("min", "0", "step", "1"))),
                 Map.entry("collision_mask", new PropertyDef("collision_mask", PropertyType.INT, "1", "Mask", "Collision", 12, Map.of("min", "0", "step", "1"))),
                 Map.entry("speed", new PropertyDef("speed", PropertyType.FLOAT, "5", "Speed", "Movement", 0, Map.of("min", "0", "step", "0.5"))),
-                Map.entry("jump_velocity", new PropertyDef("jump_velocity", PropertyType.FLOAT, "10", "Jump Velocity", "Movement", 1, Map.of("min", "0", "step", "0.5"))),
-                Map.entry("gravity_scale", new PropertyDef("gravity_scale", PropertyType.FLOAT, "1", "Gravity Scale", "Movement", 2, Map.of("step", "0.1"))),
+                Map.entry("acceleration", new PropertyDef("acceleration", PropertyType.FLOAT, "40", "Acceleration", "Movement", 1, Map.of("min", "0", "step", "1"))),
+                Map.entry("deceleration", new PropertyDef("deceleration", PropertyType.FLOAT, "30", "Deceleration", "Movement", 2, Map.of("min", "0", "step", "1"))),
+                Map.entry("air_control", new PropertyDef("air_control", PropertyType.FLOAT, "0.3", "Air Control", "Movement", 3, Map.of("min", "0", "max", "1", "step", "0.05"))),
+                Map.entry("jump_velocity", new PropertyDef("jump_velocity", PropertyType.FLOAT, "10", "Jump Velocity", "Movement", 4, Map.of("min", "0", "step", "0.5"))),
+                Map.entry("gravity_scale", new PropertyDef("gravity_scale", PropertyType.FLOAT, "1", "Gravity Scale", "Movement", 5, Map.of("step", "0.1"))),
+                Map.entry("player_controlled", new PropertyDef("player_controlled", PropertyType.BOOL, "true", "Player Controlled", "Movement", 6, Map.of())),
+                Map.entry("floor_snap_length", new PropertyDef("floor_snap_length", PropertyType.FLOAT, "0.2", "Floor Snap Length", "Movement", 7, Map.of("min", "0", "step", "0.05"))),
+                Map.entry("velocity_x", new PropertyDef("velocity_x", PropertyType.FLOAT, "0", "Velocity X", "Runtime", 20, Map.of("step", "0.1"))),
+                Map.entry("velocity_y", new PropertyDef("velocity_y", PropertyType.FLOAT, "0", "Velocity Y", "Runtime", 21, Map.of("step", "0.1"))),
+                Map.entry("velocity_z", new PropertyDef("velocity_z", PropertyType.FLOAT, "0", "Velocity Z", "Runtime", 22, Map.of("step", "0.1"))),
+                Map.entry("on_floor", new PropertyDef("on_floor", PropertyType.BOOL, "false", "On Floor", "Runtime", 23, Map.of())),
+                Map.entry("on_wall", new PropertyDef("on_wall", PropertyType.BOOL, "false", "On Wall", "Runtime", 24, Map.of())),
+                Map.entry("on_ceiling", new PropertyDef("on_ceiling", PropertyType.BOOL, "false", "On Ceiling", "Runtime", 25, Map.of())),
+                Map.entry("client_script", new PropertyDef("client_script", PropertyType.STRING, null, "Client Script", "Script", 101, Map.of())),
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
 
@@ -503,6 +572,20 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                         .add("stretch_mode", PropertyType.STRING, "scale", "Stretch Mode", "Content", 1, Map.of())
                         .add("flip_h", PropertyType.BOOL, "false", "Flip H", "Content", 2, Map.of())
                         .add("flip_v", PropertyType.BOOL, "false", "Flip V", "Content", 3, Map.of())
+                        .build()));
+
+        registry.registerType(new NodeTypeDef("AnimatedTextureRect", "Control", "Animated Texture Rect", "UI", 86,
+                new B(128, 128)
+                        .add("sprite_sheet", PropertyType.STRING, "", "Sprite Sheet", "Animation", 0, Map.of("asset", "text"))
+                        .add("texture", PropertyType.STRING, "", "Texture Override", "Animation", 1, Map.of("asset", "image"))
+                        .add("animation", PropertyType.STRING, "", "Animation", "Animation", 2, Map.of())
+                        .add("playing", PropertyType.BOOL, "true", "Playing", "Animation", 3, Map.of())
+                        .add("loop", PropertyType.BOOL, "true", "Loop", "Animation", 4, Map.of())
+                        .add("speed_scale", PropertyType.FLOAT, "1", "Speed Scale", "Animation", 5, Map.of("min", "0.001", "step", "0.05"))
+                        .add("frame", PropertyType.INT, "0", "Frame", "Animation", 6, Map.of("min", "0", "step", "1"))
+                        .add("stretch_mode", PropertyType.STRING, "scale", "Stretch Mode", "Content", 10, Map.of())
+                        .add("flip_h", PropertyType.BOOL, "false", "Flip H", "Content", 11, Map.of())
+                        .add("flip_v", PropertyType.BOOL, "false", "Flip V", "Content", 12, Map.of())
                         .build()));
 
         registry.registerType(new NodeTypeDef("ColorRect", "Control", "Color Rect", "UI", 73,
