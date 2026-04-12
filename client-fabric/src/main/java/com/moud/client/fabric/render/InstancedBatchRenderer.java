@@ -6,7 +6,6 @@ import com.moud.client.fabric.render.MoudTextures;
 import com.moud.client.fabric.render.veil.GlUtil;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
 import com.moud.net.protocol.SceneSnapshot;
-import foundry.veil.api.client.render.CameraMatrices;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.shader.block.ShaderBlock;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
@@ -68,12 +67,8 @@ final class InstancedBatchRenderer {
         Map<String, List<NodeInstance>> batches = buildBatches(nodes, poseResolver, camPos);
         if (batches.isEmpty()) return 0;
 
-        ShaderBlock<CameraMatrices> camBlock = VeilRenderSystem.getBlock(VeilShaderBufferRegistry.CAMERA.get());
-        CameraMatrices veilCam = camBlock != null ? camBlock.getValue() : null;
-        Matrix4f viewMat = veilCam != null ? new Matrix4f(veilCam.getViewMatrix())
-                : (viewMatrix != null ? new Matrix4f(viewMatrix) : new Matrix4f());
-        Matrix4f projMat = veilCam != null ? new Matrix4f(veilCam.getProjectionMatrix())
-                : (projectionMatrix != null ? new Matrix4f(projectionMatrix) : new Matrix4f(RenderSystem.getProjectionMatrix()));
+        Matrix4f viewMat = viewMatrix != null ? new Matrix4f(viewMatrix) : new Matrix4f();
+        Matrix4f projMat = projectionMatrix != null ? new Matrix4f(projectionMatrix) : new Matrix4f(RenderSystem.getProjectionMatrix());
 
         RenderSystem.enableDepthTest();
         RenderSystem.depthMask(true);

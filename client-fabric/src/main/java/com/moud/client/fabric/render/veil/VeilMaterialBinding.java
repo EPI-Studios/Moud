@@ -7,6 +7,7 @@ import com.moud.client.fabric.render.material.MoudMaterialParser;
 import com.moud.client.fabric.render.material.MoudShaderFile;
 import com.moud.client.fabric.render.material.MoudShaderParser;
 import com.moud.client.fabric.render.material.MoudShaderUniform;
+import com.moud.client.fabric.util.ClientDebugLog;
 import com.moud.core.assets.AssetHash;
 import com.moud.core.assets.ResPath;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
@@ -246,6 +247,7 @@ public final class VeilMaterialBinding {
         }
         if (LOGGED_WARNINGS.add(key)) {
             LOGGER.warn(message);
+            ClientDebugLog.warn("Shaders", message);
         }
     }
 

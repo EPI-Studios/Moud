@@ -4,10 +4,11 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.moud.client.fabric.assets.MoudTextAssets;
 import com.moud.client.fabric.render.material.*;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
+import com.moud.client.fabric.render.sprite.SpriteSheets;
 import com.moud.client.fabric.render.veil.*;
+import com.moud.client.fabric.util.ClientDebugLog;
 import com.moud.core.assets.ResPath;
 import com.moud.net.protocol.SceneSnapshot;
-import foundry.veil.api.client.render.CameraMatrices;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.shader.block.ShaderBlock;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
@@ -177,6 +178,7 @@ final class MeshShaderRenderer {
                 String pbrError = VeilDynamicShaders.getLastError(Identifier.of("moud", "builtin/pbr_mesh"));
                 if (pbrError != null && loggedShaderErrors.add("pbr_fallback:" + pbrError)) {
                     LOGGER.warn("[Moud] PBR shader unavailable ({}), falling back to default", pbrError);
+                    ClientDebugLog.warn("Shaders", "Fallback to default mesh shader: builtin/pbr_mesh unavailable: " + pbrError);
                 }
                 program = getDefaultShaderProgram();
             }
@@ -193,6 +195,11 @@ final class MeshShaderRenderer {
                             binding == null ? null : binding.shaderPath(),
                             shaderErrorId,
                             error);
+                    ClientDebugLog.error("Shaders", "Shader compilation failed nodeId=" + node.nodeId()
+                            + " material=" + materialPath
+                            + " shader=" + (binding == null ? null : binding.shaderPath())
+                            + " program=" + shaderErrorId
+                            + " error=" + error);
                 }
             }
             return false;
@@ -204,13 +211,10 @@ final class MeshShaderRenderer {
         float tintG  = clampedProp(node, "color_tint_g", 1f);
         float tintB  = clampedProp(node, "color_tint_b", 1f);
         float opacity = clampedProp(node, "opacity", 1f);
+        TextureSample textureSample = resolveTextureSample(node);
 
-        ShaderBlock<CameraMatrices> camBlock = VeilRenderSystem.getBlock(VeilShaderBufferRegistry.CAMERA.get());
-        CameraMatrices veilCam = camBlock != null ? camBlock.getValue() : null;
-        Matrix4f viewMat = veilCam != null ? new Matrix4f(veilCam.getViewMatrix())
-                : (viewMatrix != null ? new Matrix4f(viewMatrix) : new Matrix4f());
-        Matrix4f projMat = veilCam != null ? new Matrix4f(veilCam.getProjectionMatrix())
-                : (projectionMatrix != null ? new Matrix4f(projectionMatrix) : new Matrix4f(RenderSystem.getProjectionMatrix()));
+        Matrix4f viewMat = viewMatrix != null ? new Matrix4f(viewMatrix) : new Matrix4f();
+        Matrix4f projMat = projectionMatrix != null ? new Matrix4f(projectionMatrix) : new Matrix4f(RenderSystem.getProjectionMatrix());
 
         boolean isSprite3D = "Sprite3D".equals(node.type());
         boolean billboard = VeilSceneNodeRenderer.parseBool(
@@ -316,15 +320,14 @@ final class MeshShaderRenderer {
             }
             GlUtil.uniform1f(pid, "DeltaTime", tickDelta);
             GlUtil.uniform3f(pid, "CameraPos", (float) camPos.x, (float) camPos.y, (float) camPos.z);
-            float uvScaleX = VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "uv_scale_x"), 1f);
-            float uvScaleY = VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "uv_scale_y"), 1f);
-            float uvOffX   = VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "uv_offset_x"), 0f);
-            float uvOffY   = VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "uv_offset_y"), 0f);
+            float uvScaleX = textureSample.uvScaleX() * VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "uv_scale_x"), 1f);
+            float uvScaleY = textureSample.uvScaleY() * VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "uv_scale_y"), 1f);
+            float uvOffX   = textureSample.uvOffsetX() + VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "uv_offset_x"), 0f) * textureSample.uvScaleX();
+            float uvOffY   = textureSample.uvOffsetY() + VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "uv_offset_y"), 0f) * textureSample.uvScaleY();
             GlUtil.uniform2f(pid, "UvScale", uvScaleX, uvScaleY);
             GlUtil.uniform2f(pid, "UvOffset", uvOffX, uvOffY);
             sceneLights.applyUniforms(pid);
 
-            // param_* node properties as shader uniforms
             List<SceneSnapshot.Property> props = node.properties();
             if (props != null) {
                 for (SceneSnapshot.Property p : props) {
@@ -340,7 +343,7 @@ final class MeshShaderRenderer {
             if (binding != null) binding.applyMaterial(program);
             else program.clearSamplers();
 
-            Identifier nodeTexture = resolveNodeTexture(node);
+            Identifier nodeTexture = textureSample.textureId();
             program.setSampler("Texture0", nodeTexture);
             if (binding == null || !binding.hasTextureParam("albedo_texture")) {
                 program.setSampler("albedo_texture", nodeTexture);
@@ -427,16 +430,41 @@ final class MeshShaderRenderer {
     }
 
     Identifier resolveNodeTexture(SceneSnapshot.NodeSnapshot node) {
-        if (node == null) return MoudTextures.white();
+        return resolveTextureSample(node).textureId();
+    }
+
+    TextureSample resolveTextureSample(SceneSnapshot.NodeSnapshot node) {
+        if (node == null) return new TextureSample(MoudTextures.white(), 1f, 1f, 0f, 0f);
+        if ("AnimatedSprite3D".equals(node.type())) {
+            SpriteSheets.ResolvedFrame frame = SpriteSheets.resolve(
+                    VeilSceneNodeRenderer.stringProp(node, "sprite_sheet"),
+                    VeilSceneNodeRenderer.stringProp(node, "texture"),
+                    VeilSceneNodeRenderer.stringProp(node, "animation"),
+                    VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "playing"), true),
+                    VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "loop"), true),
+                    VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "speed_scale"), 1f),
+                    Math.round(VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "frame"), 0f)),
+                    System.nanoTime() / 1_000_000L
+            );
+            if (frame != null) {
+                return new TextureSample(
+                        frame.textureId(),
+                        frame.u1() - frame.u0(),
+                        frame.v1() - frame.v0(),
+                        frame.u0(),
+                        frame.v0()
+                );
+            }
+        }
         Identifier fromMaterial = resolveMaterialTexture(VeilSceneNodeRenderer.stringProp(node, "material"));
-        if (fromMaterial != null) return fromMaterial;
+        if (fromMaterial != null) return new TextureSample(fromMaterial, 1f, 1f, 0f, 0f);
         Identifier id = MoudTextures.resolve(VeilSceneNodeRenderer.stringProp(node, "texture"));
         if (id != null && "moud".equals(id.getNamespace())
                 && id.getPath() != null && id.getPath().startsWith("bbmodel/")
                 && !MoudTextures.isRawReady(id)) {
-            return MoudTextures.white();
+            return new TextureSample(MoudTextures.white(), 1f, 1f, 0f, 0f);
         }
-        return id;
+        return new TextureSample(id, 1f, 1f, 0f, 0f);
     }
 
     Identifier resolveMaterialTexture(String materialPathRaw) {
@@ -512,4 +540,10 @@ final class MeshShaderRenderer {
     }
 
     private record MaterialTexCache(String materialText, Identifier textureId) {}
+
+    record TextureSample(Identifier textureId, float uvScaleX, float uvScaleY, float uvOffsetX, float uvOffsetY) {
+        TextureSample {
+            textureId = textureId == null ? MoudTextures.white() : textureId;
+        }
+    }
 }
