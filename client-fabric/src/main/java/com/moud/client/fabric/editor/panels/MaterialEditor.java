@@ -25,7 +25,7 @@ import com.moud.client.fabric.render.material.MoudMaterialWriter;
 import com.moud.client.fabric.render.material.MoudShaderFile;
 import com.moud.client.fabric.render.material.MoudShaderUniform;
 import com.moud.client.fabric.render.material.MoudShaderParser;
-import com.moud.client.fabric.util.ParseUtils;
+import com.moud.core.util.ParseUtils;
 import com.moud.client.fabric.render.preview.MaterialPreviewRenderer;
 import com.moud.core.PropertyDef;
 import com.moud.core.assets.AssetType;

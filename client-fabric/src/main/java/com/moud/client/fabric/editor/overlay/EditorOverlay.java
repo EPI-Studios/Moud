@@ -55,6 +55,7 @@ import com.moud.net.protocol.ScriptActionInvokeAck;
 import com.moud.net.protocol.ScriptActionListResponse;
 import com.moud.net.protocol.ScriptFileReadResponse;
 import com.moud.net.protocol.ScriptFileWriteAck;
+import com.moud.core.util.ParseUtils;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
 import net.minecraft.client.MinecraftClient;
@@ -72,6 +73,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.nio.ByteBuffer;
 
 public final class EditorOverlay {
     private final Theme theme = new Theme();
@@ -181,7 +183,7 @@ public final class EditorOverlay {
                     if (msg == null || msg.isBlank()) {
                         msg = r.error() == null ? "SceneOp failed" : r.error().name();
                     }
-                    ClientDebugLog.error("SceneOp failed targetId=" + r.targetId() + " error=" + msg);
+                    ClientDebugLog.error("Scene", "SceneOp failed targetId=" + r.targetId() + " error=" + msg);
                 }
             }
             if (failed > 0 && ClientDebugLog.enabled()) {
@@ -283,7 +285,7 @@ public final class EditorOverlay {
             if (err == null || err.isBlank()) {
                 err = "Unknown error";
             }
-            ClientDebugLog.error("ScriptActionList failed nodeId=" + response.nodeId() + " error=" + err);
+            ClientDebugLog.error("Scripts", "ScriptActionList failed nodeId=" + response.nodeId() + " error=" + err);
         }
         state.onScriptActionListResponse(response, null);
     }
@@ -301,6 +303,7 @@ public final class EditorOverlay {
         if (error == null || error.isBlank()) {
             error = "Unknown error";
         }
+        ClientDebugLog.error("Scripts", "Script action failed error=" + error);
         showToast("Script action failed: " + error, true, 6000);
     }
 
@@ -479,6 +482,7 @@ public final class EditorOverlay {
             if (dockSpace == null || windowManager == null || uiContext == null) {
                 boolean batchBegun = false;
                 try {
+                    bindFallbackVaoIfNeeded();
                     batch.begin(w, h, framebufferScale);
                     batchBegun = true;
                     batch.drawRect(0, 0, w, h, 0xAA000000);
@@ -486,6 +490,7 @@ public final class EditorOverlay {
                 } finally {
                     if (batchBegun) {
                         batch.end();
+                        bindFallbackVaoIfNeeded();
                     }
                 }
                 return;
@@ -538,10 +543,12 @@ public final class EditorOverlay {
             }
 
             MaterialPreviewRenderer.renderRequested();
+            needsBackdropBlur = false;
 
             if (!needsBackdropBlur) {
                 boolean batchBegun = false;
                 try {
+                    bindFallbackVaoIfNeeded();
                     batch.begin(w, h, framebufferScale);
                     batchBegun = true;
                     dockSpace.render(batch);
@@ -580,6 +587,7 @@ public final class EditorOverlay {
                 } finally {
                     if (batchBegun) {
                         batch.end();
+                        bindFallbackVaoIfNeeded();
                     }
                 }
                 applyDeferredViewportClick(ctx);
@@ -602,6 +610,7 @@ public final class EditorOverlay {
                 GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
                 boolean batchBegun = false;
                 try {
+                    bindFallbackVaoIfNeeded();
                     batch.begin(w, h, framebufferScale);
                     batchBegun = true;
                     dockSpace.render(batch);
@@ -610,6 +619,7 @@ public final class EditorOverlay {
                 } finally {
                     if (batchBegun) {
                         batch.end();
+                        bindFallbackVaoIfNeeded();
                     }
                 }
             }
@@ -618,6 +628,7 @@ public final class EditorOverlay {
 
             boolean batchBegun = false;
             try {
+                bindFallbackVaoIfNeeded();
                 batch.begin(w, h, framebufferScale);
                 batchBegun = true;
                 batch.drawTexturedRect(uiFramebuffer.colorTexture(), 0, 0, w, h, 0.0f, 1.0f, 1.0f, 0.0f, 0xFFFFFFFF);
@@ -649,6 +660,7 @@ public final class EditorOverlay {
             } finally {
                 if (batchBegun) {
                     batch.end();
+                    bindFallbackVaoIfNeeded();
                 }
             }
         } finally {
@@ -741,6 +753,12 @@ public final class EditorOverlay {
         EditorTheme.apply(theme, runtime.editorUiScale());
     }
 
+    private void bindFallbackVaoIfNeeded() {
+        if (fallbackVao != 0) {
+            GL30.glBindVertexArray(fallbackVao);
+        }
+    }
+
     private void applyEditorUiScale(Window window) {
         float scale = runtime.editorUiScale();
         if (Math.abs(scale - appliedEditorUiScale) < 0.0001f) {
@@ -772,13 +790,11 @@ public final class EditorOverlay {
         layoutSeedW = w;
         layoutSeedH = h;
 
-        // Default split sizing (user can still resize via splitters).
-        int bottomPx = Math.round(32.0f * uiScale);
+        int bottomPx = Math.round(156.0f * uiScale);
         int remaining = Math.max(1, h - topPx);
         float mainRatio = (remaining - bottomPx) / (float) remaining;
-        mainWithBottom.splitRatio = MathUtils.clamp(mainRatio, 0.55f, 0.98f);
+        mainWithBottom.splitRatio = MathUtils.clamp(mainRatio, 0.45f, 0.92f);
 
-        // Left column sizing: approximate Godot dock widths in pixels.
         int leftPx = Math.round(280.0f * uiScale);
         int rightPx = Math.round(320.0f * uiScale);
         int mainW = Math.max(1, w);
@@ -789,7 +805,6 @@ public final class EditorOverlay {
         float centerRatio = (centerAndRightW - rightPx) / (float) centerAndRightW;
         viewportAndRight.splitRatio = MathUtils.clamp(centerRatio, 0.40f, 0.82f);
 
-        // Left column split between Scene and FileSystem.
         leftColumn.splitRatio = 0.50f;
     }
 
@@ -906,8 +921,16 @@ public final class EditorOverlay {
         }
         float uiScale = runtime.editorUiScale();
         int atlasSize = Math.min(4096, Math.max(1024, Math.round(768.0f * scale * uiScale)));
-        fontAtlas = new FontAtlas(FontData.loadDefault(), 16.0f * uiScale, atlasSize, scale, FontAtlas.Mode.COVERAGE);
+        fontAtlas = new FontAtlas(loadEditorFont(), 16.0f * uiScale, atlasSize, scale, FontAtlas.Mode.COVERAGE);
         batch.setTextRenderer(new TextRenderer(fontAtlas));
+    }
+
+    private ByteBuffer loadEditorFont() {
+        try {
+            return FontData.loadFromResource("/fonts/inter.ttf");
+        } catch (Exception ignored) {
+        }
+        return FontData.loadDefault();
     }
 
     private void openSettingsWindow() {
@@ -1034,11 +1057,14 @@ public final class EditorOverlay {
         }
 
         dockableLeaves.clear();
-        for (LeafNode leaf : new LeafNode[]{scene, filesystem, right, bottom}) {
+        for (LeafNode leaf : new LeafNode[]{scene, filesystem, right}) {
             leaf.setHeaderHeight(26);
             leaf.setOnUndock(this::undockPanel);
             dockableLeaves.add(leaf);
         }
+        bottom.setHeaderHeight(26);
+        bottom.setHeaderButtons(LeafNode.HeaderButtons.NONE);
+        bottom.setOnUndock(null);
 
         int panelBg = Theme.toArgb(theme.panelBg);
         scene.setBackgroundArgb(panelBg);
@@ -1050,7 +1076,7 @@ public final class EditorOverlay {
 
         viewportAndRight = new SplitNode(viewport, right, false, 0.72f);
         mainRow = new SplitNode(leftColumn, viewportAndRight, false, 0.30f);
-        mainWithBottom = new SplitNode(mainRow, bottom, true, 0.92f);
+        mainWithBottom = new SplitNode(mainRow, bottom, true, 0.82f);
         rootWithTop = new SplitNode(top, mainWithBottom, true, 0.06f);
 
         DockSpace ds = new DockSpace(rootWithTop);
@@ -1292,15 +1318,15 @@ public final class EditorOverlay {
             }
             switch (p.key()) {
                 case "sx" -> {
-                    sx = parseFloat(p.value(), sx);
+                    sx = ParseUtils.parseFloat(p.value(), sx);
                     any = true;
                 }
                 case "sy" -> {
-                    sy = parseFloat(p.value(), sy);
+                    sy = ParseUtils.parseFloat(p.value(), sy);
                     any = true;
                 }
                 case "sz" -> {
-                    sz = parseFloat(p.value(), sz);
+                    sz = ParseUtils.parseFloat(p.value(), sz);
                     any = true;
                 }
                 default -> {
@@ -1322,18 +1348,6 @@ public final class EditorOverlay {
             dist = 64.0;
         }
         return dist;
-    }
-
-    private static float parseFloat(String raw, float fallback) {
-        if (raw == null || raw.isBlank()) {
-            return fallback;
-        }
-        try {
-            float v = Float.parseFloat(raw.trim());
-            return Float.isFinite(v) ? v : fallback;
-        } catch (Exception ignored) {
-            return fallback;
-        }
     }
 
     private void showToast(String message, boolean error, int durationMs) {

@@ -27,15 +27,11 @@ public final class EditorDropActions {
         }
         String lower = filename.toLowerCase(Locale.ROOT);
         if (type == AssetType.MODEL && lower.endsWith(".bbmodel")) {
-            spawnNodeWithProperty(runtime, filename, "Model3D", Model3D.PROP_MODEL_PATH, dest.value());
+            importModelAsStaticBody(runtime, filename, dest.value());
         }
     }
 
-    private static void spawnNodeWithProperty(EditorRuntime runtime,
-                                              String filename,
-                                              String nodeTypeId,
-                                              String propertyKey,
-                                              String propertyValue) {
+    private static void importModelAsStaticBody(EditorRuntime runtime, String filename, String modelPath) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc == null) {
             return;
@@ -48,20 +44,31 @@ public final class EditorDropActions {
             }
 
             long parentId = state.selectedId > 0L ? state.selectedId : 0L;
-            String name = filename == null ? nodeTypeId : filename;
+            String name = filename == null ? "StaticBody3D" : filename;
             int dot = name.lastIndexOf('.');
             if (dot > 0) {
                 name = name.substring(0, dot);
             }
             if (name.isBlank()) {
-                name = nodeTypeId;
+                name = "StaticBody3D";
             }
 
-            EditorHistory.CreateNodeEntry entry = new EditorHistory.CreateNodeEntry(
+            EditorHistory.DuplicateSubtreeEntry.CloneSpec visual = new EditorHistory.DuplicateSubtreeEntry.CloneSpec(
+                    "Model",
+                    "Model3D",
+                    List.of(Map.entry(Model3D.PROP_MODEL_PATH, modelPath)),
+                    List.of()
+            );
+            EditorHistory.DuplicateSubtreeEntry.CloneSpec root = new EditorHistory.DuplicateSubtreeEntry.CloneSpec(
+                    name,
+                    "StaticBody3D",
+                    List.of(Map.entry("shape", "auto")),
+                    List.of(visual)
+            );
+            EditorHistory.DuplicateSubtreeEntry entry = new EditorHistory.DuplicateSubtreeEntry(
                     parentId,
                     name,
-                    nodeTypeId,
-                    List.of(Map.entry(propertyKey, propertyValue)),
+                    root,
                     true
             );
             runtime.history().pushEntry(entry);

@@ -14,19 +14,17 @@ import com.miry.ui.widgets.TextField;
 import com.moud.client.fabric.editor.state.EditorHistory;
 import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
+import com.moud.client.fabric.editor.panels.SceneNodeOps;
 import com.moud.core.NodeTypeDef;
-import com.moud.core.scene.Node;
-import com.moud.net.protocol.SceneOp;
-import com.moud.net.session.Session;
 import com.moud.net.protocol.SceneSnapshot;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 public final class CreateNodeDialog {
     private static final int DIALOG_W = 600;
@@ -39,11 +37,14 @@ public final class CreateNodeDialog {
     private final List<ListItem> filteredItems = new ArrayList<>();
     private long parentNodeId;
     private String parentName = "";
+    private String parentType = null;
     private boolean justOpened;
+    private boolean resetScrollPending;
     private boolean open;
     private int typeListScrollY;
     private int highlightedIndex = -1;
     private Consumer<String> onTypeSelected;
+    private Predicate<String> compatibilityOverride;
 
     private record ListItem(boolean header, String label, String typeId, String category) {
         static ListItem header(String label) {
@@ -60,20 +61,27 @@ public final class CreateNodeDialog {
     }
 
     public void open(long parentId) {
+        open(parentId, null);
+    }
+
+    public void open(long parentId, Predicate<String> compatibilityOverride) {
         EditorState state = runtime.state();
         if (state == null) {
             return;
         }
 
+        this.compatibilityOverride = compatibilityOverride;
         this.parentNodeId = parentId;
         var parent = state.scene.getNode(parentId);
         this.parentName = parent != null ? parent.name() : "";
+        this.parentType = parent != null ? parent.type() : (parentId == 0L ? "Root" : null);
 
         searchField.setText("");
         updateFilter();
         typeListScrollY = 0;
         highlightedIndex = firstSelectableIndex();
         justOpened = true;
+        resetScrollPending = true;
         open = true;
         onTypeSelected = null;
     }
@@ -161,7 +169,6 @@ public final class CreateNodeDialog {
 
         boolean pressed = ui.input() != null && ui.input().mousePressed();
         if (pressed) {
-            // close on backdrop click
             if (mx < dialogX || my < dialogY || mx >= dialogX + dialogW || my >= dialogY + dialogH) {
                 close();
                 return;
@@ -176,9 +183,15 @@ public final class CreateNodeDialog {
         int contentW = dialogW - pad * 2;
         int contentH = buttonY - contentY - theme.design.space_md;
 
-        renderContent(r, ctx, ui, theme, contentX, contentY, contentW, contentH);
+        String clickedType = renderContent(r, ctx, ui, theme, contentX, contentY, contentW, contentH, pressed);
 
         if (pressed) {
+            if (clickedType != null) {
+                EditorState state = runtime.state();
+                if (state != null) createNode(state, clickedType);
+                close();
+                return;
+            }
             if (hit(mx, my, cancelX, buttonY, buttonW, buttonH)) {
                 close();
                 return;
@@ -187,15 +200,13 @@ public final class CreateNodeDialog {
                 createFirstMatch();
                 return;
             }
-
-            handleContentClick(ctx, ui, theme, contentX, contentY, contentW, contentH);
         }
     }
 
-    private void renderContent(UiRenderer r, UiContext uiContext, Ui ui, Theme theme, int x, int y, int width, int height) {
+    private String renderContent(UiRenderer r, UiContext uiContext, Ui ui, Theme theme, int x, int y, int width, int height, boolean pressed) {
         EditorState state = runtime.state();
         if (state == null) {
-            return;
+            return null;
         }
 
         var input = ui != null ? ui.input() : null;
@@ -224,9 +235,13 @@ public final class CreateNodeDialog {
         int listOutline = Theme.toArgb(theme.widgetOutline);
         r.drawRoundedRect(x, cursorY, width, listH, theme.design.radius_sm, listBg, theme.design.border_thin, listOutline);
 
+        if (pressed && canInteract && hit((int) mx, (int) my, x, cursorY - searchH - theme.design.space_sm, width, searchH)) {
+            if (uiContext != null) searchField.focus(uiContext);
+        }
+
         if (filteredItems.isEmpty()) {
             r.drawText("No matches", x + theme.design.space_sm, r.baselineForBox(cursorY + theme.design.space_sm, 18), Theme.toArgb(theme.textMuted));
-            return;
+            return null;
         }
 
         int itemH = Math.max(18, theme.tokens.itemHeight);
@@ -235,6 +250,10 @@ public final class CreateNodeDialog {
         int listW = width;
         int contentHeight = filteredItems.size() * itemH + theme.design.space_xs * 2;
 
+        if (resetScrollPending) {
+            resetScrollPending = false;
+            ui.setScrollY("createNodeTypesScroll", 0f);
+        }
         Ui.ScrollArea area = ui.beginScrollArea(r, "createNodeTypesScroll", listX, listY, listW, listH, contentHeight);
         int scrollY = (int) area.scrollY();
         typeListScrollY = scrollY;
@@ -243,11 +262,22 @@ public final class CreateNodeDialog {
         int visible = Math.max(1, (listH / Math.max(1, itemH)) + 2);
         int last = Math.min(filteredItems.size(), first + visible);
 
+        String clickedTypeId = null;
         int itemY = listY + theme.design.space_xs - scrollY;
         for (int i = first; i < last; i++) {
             int rowY = itemY + i * itemH;
             boolean hovered = canInteract && mx >= listX && my >= rowY && mx < listX + listW && my < rowY + itemH;
             boolean highlighted = i == highlightedIndex;
+
+            if (hovered) {
+                highlightedIndex = i;
+                if (pressed) {
+                    ListItem clickItem = filteredItems.get(i);
+                    if (!clickItem.header && clickItem.typeId != null && !clickItem.typeId.isBlank()) {
+                        clickedTypeId = clickItem.typeId;
+                    }
+                }
+            }
 
             if (hovered || highlighted) {
                 int fill = Theme.mulAlpha(Theme.toArgb(hovered ? theme.widgetHover : theme.widgetActive), 0.30f);
@@ -288,6 +318,7 @@ public final class CreateNodeDialog {
             int col = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.80f);
             r.drawText("↑/↓ navigate   Enter create   Esc close", x, r.baselineForBox(hintY, 18), col);
         }
+        return clickedTypeId;
     }
 
     public void handleTextInput(int codepoint) {
@@ -313,9 +344,13 @@ public final class CreateNodeDialog {
 
         ArrayList<TypeRow> matches = new ArrayList<>();
         for (String typeId : state.typeIds) {
-            if (typeId == null || typeId.isBlank() || "Root".equals(typeId)) {
+            if (typeId == null || typeId.isBlank() || "Root".equals(typeId) || "Ticker".equals(typeId)) {
                 continue;
             }
+            if (!isTypeAllowed(state, typeId)) {
+                continue;
+            }
+
             NodeTypeDef def = state.typesById.get(typeId);
             String label = def == null ? typeId : def.uiLabel();
             String cat = def == null ? "" : def.category();
@@ -332,7 +367,10 @@ public final class CreateNodeDialog {
         if (query.isEmpty() && !recentTypes.isEmpty()) {
             ArrayList<TypeRow> recents = new ArrayList<>();
             for (String recent : recentTypes) {
-                if (recent == null || !state.typesById.containsKey(recent)) {
+                if (recent == null || !state.typesById.containsKey(recent) || "Ticker".equals(recent)) {
+                    continue;
+                }
+                if (!isTypeAllowed(state, recent)) {
                     continue;
                 }
                 NodeTypeDef def = state.typesById.get(recent);
@@ -381,6 +419,13 @@ public final class CreateNodeDialog {
         EditorHistory.CreateNodeEntry entry = new EditorHistory.CreateNodeEntry(parentNodeId, typeId, typeId, List.of(), true);
         runtime.history().pushEntry(entry);
         entry.redo(runtime);
+    }
+
+    private boolean isTypeAllowed(EditorState state, String typeId) {
+        if (compatibilityOverride != null) {
+            return compatibilityOverride.test(typeId);
+        }
+        return SceneNodeOps.isTypeCompatible(state, runtime, typeId, parentType);
     }
 
     private static void addRecentType(String typeId) {
@@ -473,49 +518,6 @@ public final class CreateNodeDialog {
                 highlightedIndex = next;
                 break;
             }
-        }
-    }
-
-    private void handleContentClick(UiContext ctx, Ui ui, Theme theme, int x, int y, int width, int height) {
-        EditorState state = runtime.state();
-        if (state == null || ui == null) {
-            return;
-        }
-
-        int cursorY = y + 22;
-        int searchH = theme.design.widget_height_md;
-        if (ctx != null && hit((int) ui.mouse().x, (int) ui.mouse().y, x, cursorY, width, searchH)) {
-            searchField.focus(ctx);
-            return;
-        }
-        cursorY += searchH + theme.design.space_sm;
-
-        int listH = Math.max(0, height - (cursorY - y) - theme.design.space_sm);
-        int mx = (int) ui.mouse().x;
-        int my = (int) ui.mouse().y;
-        if (!hit(mx, my, x, cursorY, width, listH)) {
-            return;
-        }
-
-        int itemH = Math.max(18, theme.tokens.itemHeight);
-        int offsetY = my - (cursorY + theme.design.space_xs);
-        int contentY = offsetY + typeListScrollY;
-        if (contentY < 0) {
-            return;
-        }
-        int idx = contentY / Math.max(1, itemH);
-        if (idx < 0 || idx >= filteredItems.size()) {
-            return;
-        }
-
-        ListItem item = filteredItems.get(idx);
-        if (item == null) {
-            return;
-        }
-        highlightedIndex = idx;
-        if (!item.header && item.typeId != null && !item.typeId.isBlank()) {
-            createNode(state, item.typeId);
-            close();
         }
     }
 

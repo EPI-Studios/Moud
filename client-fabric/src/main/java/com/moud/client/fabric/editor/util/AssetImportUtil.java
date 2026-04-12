@@ -99,7 +99,6 @@ public final class AssetImportUtil {
             return;
         }
         upload(runtime, file, target, dest);
-        EditorDropActions.afterImport(runtime, file, dest, target.type);
     }
 
     private static void upload(EditorRuntime runtime, File file, ImportTarget target) {
@@ -215,9 +214,13 @@ public final class AssetImportUtil {
             ResPath finalDest = dest;
             if (mc != null && !mc.isOnThread()) {
                 byte[] finalBytes = bytes;
-                mc.execute(() -> assets.upload(session, finalDest, finalBytes, target.type));
+                mc.execute(() -> {
+                    assets.upload(session, finalDest, finalBytes, target.type);
+                    EditorDropActions.afterImport(runtime, file, finalDest, target.type);
+                });
             } else {
                 assets.upload(session, finalDest, bytes, target.type);
+                EditorDropActions.afterImport(runtime, file, finalDest, target.type);
             }
             toast(runtime, "Uploading: " + finalDest.value(), false, 2500);
         } catch (Exception e) {
@@ -288,6 +291,9 @@ public final class AssetImportUtil {
         }
         if (lower.endsWith(".bbmodel") || lower.endsWith(".obj") || lower.endsWith(".gltf") || lower.endsWith(".glb")) {
             return new ImportTarget("res://models/", AssetType.MODEL);
+        }
+        if (lower.endsWith(".animation.json")) {
+            return new ImportTarget("res://animations/", AssetType.TEXT);
         }
         if (lower.endsWith(".txt") || lower.endsWith(".json")) {
             return new ImportTarget("res://text/", AssetType.TEXT);

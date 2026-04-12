@@ -18,6 +18,7 @@ import com.moud.client.fabric.model.ModelAsset;
 import com.moud.client.fabric.model.ModelCache;
 import com.moud.core.NodeTypeDef;
 import com.moud.core.PropertyDef;
+import com.moud.core.util.ParseUtils;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneOpBatch;
 import com.moud.net.protocol.SceneSnapshot;
@@ -96,7 +97,6 @@ public final class EditorGizmos implements AutoCloseable {
 
         HashMap<Long, Pose> poseCache = new HashMap<>();
 
-        // Render camera frustums in 3D
         for (SceneSnapshot.NodeSnapshot node : state.scene.nodes()) {
             if (node == null || !"Camera3D".equals(node.type())) {
                 continue;
@@ -107,7 +107,7 @@ public final class EditorGizmos implements AutoCloseable {
             }
 
             boolean active = node.nodeId() == state.selectedId;
-            int color = active ? 0xFFFFFF00 : 0xFF00FFFF; // Yellow if selected, cyan otherwise
+            int color = active ? 0xFFFFFF00 : 0xFF00FFFF;
 
             debug.frustum(frustumWorld, color, active ? 3f : 2f);
 
@@ -207,7 +207,6 @@ public final class EditorGizmos implements AutoCloseable {
                     debug.line(focusWorld, headEdge, lightColor, active ? 1.5f : 1.0f);
                 }
             } else {
-                // SpotLight3D
                 float angleDeg = parseFloat(lProps.get("angle"), "45");
                 float distance = parseFloat(lProps.get("distance"), "10");
                 Vector3f dir = new Vector3f(0, 0, 1);
@@ -376,9 +375,6 @@ public final class EditorGizmos implements AutoCloseable {
         if (state == null) {
             return;
         }
-        // Camera frustums now rendered in 3D via DebugRenderer (see update3DGizmos)
-        // renderCameraFrustums(ui, r, state, viewportX, viewportY, viewportW, viewportH);
-
         if (runtime.tool() == null || runtime.tool() == EditorTool.SELECT) {
             return;
         }
@@ -406,7 +402,7 @@ public final class EditorGizmos implements AutoCloseable {
 
         NodeTypeDef def = state.typesById.get(typeId);
         Map<String, String> props = toPropertyMap(sel.properties());
-        if (parseBool(props.get("editor_locked"), false) || parseBool(props.get("@locked"), false)) {
+        if (ParseUtils.parseBool(props.get("editor_locked"), false) || ParseUtils.parseBool(props.get("@locked"), false)) {
             return;
         }
 
@@ -1167,8 +1163,8 @@ public final class EditorGizmos implements AutoCloseable {
         }
 
         Theme theme = ui.theme();
-        int colInactive = 0xFF00FFFF; // Bright cyan for visibility
-        int colActive = 0xFFFFFF00; // Bright yellow for active camera
+        int colInactive = 0xFF00FFFF;
+        int colActive = 0xFFFFFF00;
 
         r.pushClipRect(viewportX, viewportY, viewportW, viewportH);
         try {
@@ -1198,19 +1194,16 @@ public final class EditorGizmos implements AutoCloseable {
     }
 
     private void drawFrustumLines(UiRenderer r, int thickness, int color) {
-        // Near plane
         drawEdge(r, 0, 1, thickness, color);
         drawEdge(r, 1, 2, thickness, color);
         drawEdge(r, 2, 3, thickness, color);
         drawEdge(r, 3, 0, thickness, color);
 
-        // Far plane
         drawEdge(r, 4, 5, thickness, color);
         drawEdge(r, 5, 6, thickness, color);
         drawEdge(r, 6, 7, thickness, color);
         drawEdge(r, 7, 4, thickness, color);
 
-        // Sides
         drawEdge(r, 0, 4, thickness, color);
         drawEdge(r, 1, 5, thickness, color);
         drawEdge(r, 2, 6, thickness, color);
@@ -1335,13 +1328,11 @@ public final class EditorGizmos implements AutoCloseable {
 
         cameraRot.identity().set(world.rot);
 
-        // Near plane
         setFrustumPoint(0, -nearW, nearH, nearDist, x, y, z);
         setFrustumPoint(1, nearW, nearH, nearDist, x, y, z);
         setFrustumPoint(2, nearW, -nearH, nearDist, x, y, z);
         setFrustumPoint(3, -nearW, -nearH, nearDist, x, y, z);
 
-        // Far plane
         setFrustumPoint(4, -farW, farH, gizmoFar, x, y, z);
         setFrustumPoint(5, farW, farH, gizmoFar, x, y, z);
         setFrustumPoint(6, farW, -farH, gizmoFar, x, y, z);
@@ -1441,23 +1432,6 @@ public final class EditorGizmos implements AutoCloseable {
         }
         String s = v.trim().toLowerCase();
         return !("false".equals(s) || "0".equals(s));
-    }
-
-    private static boolean parseBool(String v, boolean fallback) {
-        if (v == null) {
-            return fallback;
-        }
-        String s = v.trim().toLowerCase();
-        if (s.isEmpty()) {
-            return fallback;
-        }
-        if ("true".equals(s) || "1".equals(s) || "t".equals(s) || "yes".equals(s) || "y".equals(s)) {
-            return true;
-        }
-        if ("false".equals(s) || "0".equals(s) || "f".equals(s) || "no".equals(s) || "n".equals(s)) {
-            return false;
-        }
-        return fallback;
     }
 
     private static Quaternionf quatFromEulerDeg(float rxDeg, float ryDeg, float rzDeg) {

@@ -87,6 +87,7 @@ public final class EditorRuntime {
     private Runnable overlayMenuRender;
 
     private final HashMap<String, ViewportMode> pendingSceneModes = new HashMap<>();
+    private String lastSyncedSceneId = "";
 
     public EditorRuntime(EditorState state, EditorNet net) {
         this.state = state;
@@ -157,10 +158,24 @@ public final class EditorRuntime {
             return;
         }
         ViewportMode pending = pendingSceneModes.remove(sceneId);
-        if (pending == null) {
+        if (pending != null) {
+            applySceneModeTemplate(sceneId, pending);
+            lastSyncedSceneId = sceneId;
             return;
         }
-        applySceneModeTemplate(sceneId, pending);
+
+        if (!sceneId.equals(lastSyncedSceneId)) {
+            lastSyncedSceneId = sceneId;
+            long rootId = findRootNodeId(st);
+            if (rootId > 0L) {
+                String modeStr = st.scene.getPropertyValue(rootId, PROP_SCENE_MODE);
+                if ("2d".equalsIgnoreCase(modeStr)) {
+                    setViewportMode(ViewportMode.TWO_D);
+                } else {
+                    setViewportMode(ViewportMode.THREE_D);
+                }
+            }
+        }
     }
 
     private void applySceneModeTemplate(String sceneId, ViewportMode mode) {
