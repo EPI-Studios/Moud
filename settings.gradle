@@ -11,6 +11,9 @@ pluginManagement {
 
 rootProject.name = 'moud'
 
+includeBuild('/home/meek/Desktop/DEV/BbModelReader')
+includeBuild('/home/meek/Desktop/DEV/fliffel')
+
 include 'core'
 include 'net'
 include 'client-launcher'
