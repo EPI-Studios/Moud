@@ -4,6 +4,7 @@ import com.moud.net.protocol.SceneSnapshot;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -123,6 +124,34 @@ public final class ControlRenderContext {
         drawContext.disableScissor();
     }
 
+    public void drawTexture(Identifier textureId,
+                            int x, int y, int w, int h,
+                            float u0, float v0, float u1, float v1,
+                            int textureWidth, int textureHeight,
+                            int argb) {
+        if (textureId == null || w <= 0 || h <= 0 || textureWidth <= 0 || textureHeight <= 0) {
+            return;
+        }
+        int tinted = mulColor(argb, mR, mG, mB, mA);
+        drawContext.setShaderColor(
+                ((tinted >> 16) & 0xFF) / 255.0f,
+                ((tinted >> 8) & 0xFF) / 255.0f,
+                (tinted & 0xFF) / 255.0f,
+                ((tinted >> 24) & 0xFF) / 255.0f
+        );
+        drawContext.drawTexture(
+                textureId,
+                x, y, w, h,
+                u0 * textureWidth,
+                v0 * textureHeight,
+                Math.max(1, Math.round((u1 - u0) * textureWidth)),
+                Math.max(1, Math.round((v1 - v0) * textureHeight)),
+                textureWidth,
+                textureHeight
+        );
+        drawContext.setShaderColor(1f, 1f, 1f, 1f);
+    }
+
     public static int argb(float r, float g, float b, float a) {
         return (Math.round(clamp01(a) * 255f) << 24)
              | (Math.round(clamp01(r) * 255f) << 16)
@@ -133,6 +162,14 @@ public final class ControlRenderContext {
     public static int mulAlpha(int argb, float factor) {
         int a = (int)(((argb >>> 24) & 0xFF) * clamp01(factor));
         return (argb & 0x00FFFFFF) | (a << 24);
+    }
+
+    public static int mulColor(int argb, float rFactor, float gFactor, float bFactor, float aFactor) {
+        int a = Math.round(((argb >>> 24) & 0xFF) * clamp01(aFactor));
+        int r = Math.round(((argb >>> 16) & 0xFF) * clamp01(rFactor));
+        int g = Math.round(((argb >>> 8) & 0xFF) * clamp01(gFactor));
+        int b = Math.round((argb & 0xFF) * clamp01(bFactor));
+        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
     public static float clamp01(float v) {

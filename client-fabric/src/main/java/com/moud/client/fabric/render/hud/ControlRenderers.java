@@ -8,6 +8,7 @@ public final class ControlRenderers {
             Map.entry("RichTextLabel",  RichTextLabelRenderer.INSTANCE),
             Map.entry("Button",         ButtonRenderer.INSTANCE),
             Map.entry("TextureButton",  TextureRectRenderer.INSTANCE),
+            Map.entry("AnimatedTextureRect", TextureRectRenderer.INSTANCE),
             Map.entry("CheckBox",       CheckBoxRenderer.INSTANCE),
             Map.entry("ProgressBar",    ProgressBarRenderer.INSTANCE),
             Map.entry("HSlider",        SliderRenderer.HORIZONTAL),
