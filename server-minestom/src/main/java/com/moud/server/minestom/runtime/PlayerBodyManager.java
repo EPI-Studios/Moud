@@ -16,7 +16,6 @@ import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
 
 public final class PlayerBodyManager {
-
     private record AnchorSnapshot(boolean active, float x, float y, float z, float yaw) {
         static final AnchorSnapshot INACTIVE = new AnchorSnapshot(false, 0f, 0f, 0f, 0f);
     }
