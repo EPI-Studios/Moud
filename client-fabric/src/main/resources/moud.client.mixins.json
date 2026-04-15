@@ -19,6 +19,8 @@
     "EntityObbCollisionMixin",
     "LivingEntityObbGroundMixin",
     "LivingEntityRendererPlayerAttachMixin",
+    "LivingEntityRendererRollMixin",
+    "ClientPlayNetworkHandlerMixin",
     "MinecraftClientMixin",
     "accessor.CameraAccessor",
     "accessor.EntityGroundAccessor",
