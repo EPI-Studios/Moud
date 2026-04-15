@@ -2,16 +2,25 @@ package com.moud.client.fabric.player;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.util.math.MathHelper;
 
 public final class PlayerBodyAttachmentCache {
-
     private static final Map<String, float[]> rootByUuid = new ConcurrentHashMap<>();
 
     private static final Map<String, float[]> pointByKey = new ConcurrentHashMap<>();
 
     private static final Map<String, float[]> rotByKey = new ConcurrentHashMap<>();
+
+    /** Interpolation alpha applied per frame toward the remote target. */
+    private static final float REMOTE_POSE_ALPHA = 0.35f;
+
+    /** Target pose received from the remote state (updated at 24 Hz). Key: uuid:boneName */
+    private static final Map<String, float[]> boneTargetByKey = new ConcurrentHashMap<>();
+
+    /** Current visual pose (lerped toward target at framerate). Key: uuid:boneName */
+    private static final Map<String, float[]> boneCurrentByKey = new ConcurrentHashMap<>();
 
     private PlayerBodyAttachmentCache() {
     }
@@ -21,6 +30,7 @@ public final class PlayerBodyAttachmentCache {
             return;
         }
         String uuid = player.getUuidAsString();
+        applyReplicatedBoneState(player, uuid);
 
         float px = (float) MathHelper.lerp(tickDelta, player.lastRenderX, player.getX());
         float py = (float) MathHelper.lerp(tickDelta, player.lastRenderY, player.getY());
@@ -52,6 +62,122 @@ public final class PlayerBodyAttachmentCache {
         storePointRotated(uuid, "left_foot",  px, py + 0.25f, pz, -0.15f, 0f, sinYaw, cosYaw);
 
         MoudPalAnimLayer.applyBoneOffsets(player, uuid, px, py, pz, sinYaw, cosYaw);
+    }
+
+    private static void applyReplicatedBoneState(AbstractClientPlayerEntity player, String uuid) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || player == client.player || uuid == null || uuid.isBlank()) {
+            return;
+        }
+        ScriptablePalController controller = MoudPalAnimLayer.controller(player);
+        if (controller == null) {
+            return;
+        }
+
+        // Discover all bones that have any remote anim state key set for this player.
+        // Keys: anim.<boneName>.rot  or  anim.<boneName>.pos
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (String key : RemotePlayerStateCache.getPlayerKeys(uuid)) {
+            if (!key.startsWith("anim.")) {
+                continue;
+            }
+            String boneName = null;
+            if (key.endsWith(".rot")) {
+                boneName = key.substring("anim.".length(), key.length() - ".rot".length());
+            } else if (key.endsWith(".pos")) {
+                boneName = key.substring("anim.".length(), key.length() - ".pos".length());
+            }
+            if (boneName == null || boneName.isBlank() || !seen.add(boneName)) {
+                continue;
+            }
+            applyReplicatedBone(controller, uuid, boneName);
+        }
+    }
+
+    private static void applyReplicatedBone(ScriptablePalController controller, String uuid, String boneName) {
+        var bone = controller.getBone(boneName);
+        if (bone == null) {
+            return;
+        }
+        String compactKey = uuid + ":" + boneName;
+
+        // Refresh target from remote state keys
+        String rotValue = RemotePlayerStateCache.get(uuid, "anim." + boneName + ".rot");
+        String posValue = RemotePlayerStateCache.get(uuid, "anim." + boneName + ".pos");
+
+        float[] target = boneTargetByKey.computeIfAbsent(compactKey, k -> new float[6]);
+        if (!rotValue.isEmpty()) {
+            float[] rotDeg = parseTriple(rotValue);
+            if (rotDeg != null) {
+                target[3] = rotDeg[0];
+                target[4] = rotDeg[1];
+                target[5] = rotDeg[2];
+            }
+        }
+        if (!posValue.isEmpty()) {
+            float[] pos = parseTriple(posValue);
+            if (pos != null) {
+                target[0] = pos[0];
+                target[1] = pos[1];
+                target[2] = pos[2];
+            }
+        }
+
+        // Lerp current visual state toward target
+        float[] current = boneCurrentByKey.computeIfAbsent(compactKey, k -> target.clone());
+        current[0] = approachLinear(current[0], target[0], REMOTE_POSE_ALPHA);
+        current[1] = approachLinear(current[1], target[1], REMOTE_POSE_ALPHA);
+        current[2] = approachLinear(current[2], target[2], REMOTE_POSE_ALPHA);
+        current[3] = approachAngle(current[3], target[3], REMOTE_POSE_ALPHA);
+        current[4] = approachAngle(current[4], target[4], REMOTE_POSE_ALPHA);
+        current[5] = approachAngle(current[5], target[5], REMOTE_POSE_ALPHA);
+
+        bone.setPosX(current[0]);
+        bone.setPosY(current[1]);
+        bone.setPosZ(current[2]);
+        bone.setRotX((float) Math.toRadians(current[3]));
+        bone.setRotY((float) Math.toRadians(current[4]));
+        bone.setRotZ((float) Math.toRadians(current[5]));
+    }
+
+    private static float approachLinear(float current, float target, float alpha) {
+        return current + (target - current) * alpha;
+    }
+
+    private static float approachAngle(float current, float target, float alpha) {
+        return wrapDegrees(current + wrapDegrees(target - current) * alpha);
+    }
+
+    private static float wrapDegrees(float degrees) {
+        float value = degrees;
+        while (value > 180.0f) {
+            value -= 360.0f;
+        }
+        while (value < -180.0f) {
+            value += 360.0f;
+        }
+        return value;
+    }
+
+    private static float[] parseTriple(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String[] parts = value.split(",", -1);
+        if (parts.length != 3) {
+            return null;
+        }
+        try {
+            float x = Float.parseFloat(parts[0].trim());
+            float y = Float.parseFloat(parts[1].trim());
+            float z = Float.parseFloat(parts[2].trim());
+            if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)) {
+                return null;
+            }
+            return new float[]{x, y, z};
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private static void storePoint(String uuid, String point, float x, float y, float z) {
@@ -116,5 +242,8 @@ public final class PlayerBodyAttachmentCache {
         rootByUuid.clear();
         pointByKey.clear();
         rotByKey.clear();
+        boneTargetByKey.clear();
+        boneCurrentByKey.clear();
+        RemotePlayerStateCache.clear();
     }
 }
