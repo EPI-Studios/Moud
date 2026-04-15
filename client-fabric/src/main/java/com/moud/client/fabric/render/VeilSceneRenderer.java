@@ -214,7 +214,7 @@ public final class VeilSceneRenderer {
         }
     }
 
-private static void renderPostProcess(MinecraftClient client) {
+    private static void renderPostProcess(MinecraftClient client) {
         if (PostProcessService.INSTANCE.effectCount() <= 0) {
             return;
         }
