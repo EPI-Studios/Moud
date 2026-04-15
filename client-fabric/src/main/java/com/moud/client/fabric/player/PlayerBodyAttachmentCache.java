@@ -13,14 +13,33 @@ public final class PlayerBodyAttachmentCache {
 
     private static final Map<String, float[]> rotByKey = new ConcurrentHashMap<>();
 
-    /** Interpolation alpha applied per frame toward the remote target. */
-    private static final float REMOTE_POSE_ALPHA = 0.35f;
+    /**
+     * Decay constant for frame-rate-independent exponential smoothing.
+     * Derived so that at 60 fps (dt ≈ 0.01667 s) the effective alpha ≈ 0.35.
+     * alpha(dt) = 1 - exp(ln(1 - 0.35) / 0.01667 * dt) = 1 - exp(-25.8 * dt)
+     */
+    private static final double BONE_LERP_DECAY = -Math.log(1.0 - 0.35) / 0.01667; // ≈ 25.8
 
     /** Target pose received from the remote state (updated at 24 Hz). Key: uuid:boneName */
     private static final Map<String, float[]> boneTargetByKey = new ConcurrentHashMap<>();
 
-    /** Current visual pose (lerped toward target at framerate). Key: uuid:boneName */
+    /** Current visual pose (lerped toward target at render framerate). Key: uuid:boneName */
     private static final Map<String, float[]> boneCurrentByKey = new ConcurrentHashMap<>();
+
+    /**
+     * Last-seen raw network strings per bone component, used to skip re-parsing
+     * unchanged values. Key: "uuid:boneName.rot" or "uuid:boneName.pos".
+     */
+    private static final Map<String, String> boneRawCache = new ConcurrentHashMap<>();
+
+    /** Per-UUID wall-clock time of last bone lerp update, for computing real dt. */
+    private static final Map<String, Long> boneLerpLastNanosPerUuid = new ConcurrentHashMap<>();
+
+    /**
+     * Pre-allocated, render-thread-only set for deduplicating discovered bone names
+     * within a single applyReplicatedBoneState call. Cleared before each use.
+     */
+    private static final java.util.HashSet<String> reusedSeenBones = new java.util.HashSet<>();
 
     private PlayerBodyAttachmentCache() {
     }
@@ -74,9 +93,17 @@ public final class PlayerBodyAttachmentCache {
             return;
         }
 
+        // Compute real frame dt in seconds for frame-rate-independent lerp.
+        long now = System.nanoTime();
+        long last = boneLerpLastNanosPerUuid.getOrDefault(uuid, now);
+        boneLerpLastNanosPerUuid.put(uuid, now);
+        float dtSecs = Math.min((now - last) * 1e-9f, 0.1f); // cap at 100ms to survive pauses
+        float alpha = dtSecs <= 0f ? 0f : 1f - (float) Math.exp(-BONE_LERP_DECAY * dtSecs);
+
         // Discover all bones that have any remote anim state key set for this player.
         // Keys: anim.<boneName>.rot  or  anim.<boneName>.pos
-        java.util.Set<String> seen = new java.util.HashSet<>();
+        // Reuse pre-allocated set to avoid per-frame allocation.
+        reusedSeenBones.clear();
         for (String key : RemotePlayerStateCache.getPlayerKeys(uuid)) {
             if (!key.startsWith("anim.")) {
                 continue;
@@ -87,50 +114,61 @@ public final class PlayerBodyAttachmentCache {
             } else if (key.endsWith(".pos")) {
                 boneName = key.substring("anim.".length(), key.length() - ".pos".length());
             }
-            if (boneName == null || boneName.isBlank() || !seen.add(boneName)) {
+            if (boneName == null || boneName.isBlank() || !reusedSeenBones.add(boneName)) {
                 continue;
             }
-            applyReplicatedBone(controller, uuid, boneName);
+            applyReplicatedBone(controller, uuid, boneName, alpha);
         }
     }
 
-    private static void applyReplicatedBone(ScriptablePalController controller, String uuid, String boneName) {
+    private static void applyReplicatedBone(ScriptablePalController controller, String uuid, String boneName, float alpha) {
         var bone = controller.getBone(boneName);
         if (bone == null) {
             return;
         }
         String compactKey = uuid + ":" + boneName;
-
-        // Refresh target from remote state keys
-        String rotValue = RemotePlayerStateCache.get(uuid, "anim." + boneName + ".rot");
-        String posValue = RemotePlayerStateCache.get(uuid, "anim." + boneName + ".pos");
-
         float[] target = boneTargetByKey.computeIfAbsent(compactKey, k -> new float[6]);
-        if (!rotValue.isEmpty()) {
-            float[] rotDeg = parseTriple(rotValue);
-            if (rotDeg != null) {
-                target[3] = rotDeg[0];
-                target[4] = rotDeg[1];
-                target[5] = rotDeg[2];
-            }
-        }
-        if (!posValue.isEmpty()) {
-            float[] pos = parseTriple(posValue);
-            if (pos != null) {
-                target[0] = pos[0];
-                target[1] = pos[1];
-                target[2] = pos[2];
+
+        // Only re-parse rotation when the raw network string has changed (network updates at 24 Hz,
+        // rendering runs at 60-144 Hz — avoid String.split + Float.parseFloat every frame).
+        String rotNetKey = "anim." + boneName + ".rot";
+        String rotValue = RemotePlayerStateCache.get(uuid, rotNetKey);
+        String rotCacheKey = compactKey + ".rot";
+        if (!rotValue.equals(boneRawCache.getOrDefault(rotCacheKey, ""))) {
+            boneRawCache.put(rotCacheKey, rotValue);
+            if (!rotValue.isEmpty()) {
+                float[] rotDeg = parseTriple(rotValue);
+                if (rotDeg != null) {
+                    target[3] = rotDeg[0];
+                    target[4] = rotDeg[1];
+                    target[5] = rotDeg[2];
+                }
             }
         }
 
-        // Lerp current visual state toward target
+        String posNetKey = "anim." + boneName + ".pos";
+        String posValue = RemotePlayerStateCache.get(uuid, posNetKey);
+        String posCacheKey = compactKey + ".pos";
+        if (!posValue.equals(boneRawCache.getOrDefault(posCacheKey, ""))) {
+            boneRawCache.put(posCacheKey, posValue);
+            if (!posValue.isEmpty()) {
+                float[] pos = parseTriple(posValue);
+                if (pos != null) {
+                    target[0] = pos[0];
+                    target[1] = pos[1];
+                    target[2] = pos[2];
+                }
+            }
+        }
+
+        // Frame-rate-independent lerp toward target using pre-computed alpha.
         float[] current = boneCurrentByKey.computeIfAbsent(compactKey, k -> target.clone());
-        current[0] = approachLinear(current[0], target[0], REMOTE_POSE_ALPHA);
-        current[1] = approachLinear(current[1], target[1], REMOTE_POSE_ALPHA);
-        current[2] = approachLinear(current[2], target[2], REMOTE_POSE_ALPHA);
-        current[3] = approachAngle(current[3], target[3], REMOTE_POSE_ALPHA);
-        current[4] = approachAngle(current[4], target[4], REMOTE_POSE_ALPHA);
-        current[5] = approachAngle(current[5], target[5], REMOTE_POSE_ALPHA);
+        current[0] = approachLinear(current[0], target[0], alpha);
+        current[1] = approachLinear(current[1], target[1], alpha);
+        current[2] = approachLinear(current[2], target[2], alpha);
+        current[3] = approachAngle(current[3], target[3], alpha);
+        current[4] = approachAngle(current[4], target[4], alpha);
+        current[5] = approachAngle(current[5], target[5], alpha);
 
         bone.setPosX(current[0]);
         bone.setPosY(current[1]);
@@ -238,12 +276,30 @@ public final class PlayerBodyAttachmentCache {
         return rootByUuid.keySet();
     }
 
+    /** Removes all cached state for a single player UUID (call on player disconnect). */
+    public static void clearPlayer(String uuid) {
+        if (uuid == null) {
+            return;
+        }
+        rootByUuid.remove(uuid);
+        boneLerpLastNanosPerUuid.remove(uuid);
+        String prefix = uuid + ":";
+        pointByKey.keySet().removeIf(k -> k.startsWith(prefix));
+        rotByKey.keySet().removeIf(k -> k.startsWith(prefix));
+        boneTargetByKey.keySet().removeIf(k -> k.startsWith(prefix));
+        boneCurrentByKey.keySet().removeIf(k -> k.startsWith(prefix));
+        boneRawCache.keySet().removeIf(k -> k.startsWith(prefix));
+    }
+
+    /** Clears all cached state for all players (call on scene teardown / disconnect). */
     public static void clear() {
         rootByUuid.clear();
         pointByKey.clear();
         rotByKey.clear();
         boneTargetByKey.clear();
         boneCurrentByKey.clear();
+        boneRawCache.clear();
+        boneLerpLastNanosPerUuid.clear();
         RemotePlayerStateCache.clear();
     }
 }
