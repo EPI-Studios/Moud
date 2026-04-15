@@ -88,18 +88,6 @@ public final class SceneCacheManager {
         return cachedNodes;
     }
 
-    public List<SceneSnapshot.NodeSnapshot> playerAttachmentAllNodes() {
-        return List.of();
-    }
-
-    public Map<Long, List<SceneSnapshot.NodeSnapshot>> attachmentDescendants() {
-        return Map.of();
-    }
-
-    public Map<Long, Long> nodeToAttachAncestor() {
-        return Map.of();
-    }
-
     public boolean isEmpty() {
         return cachedNodes.isEmpty();
     }
