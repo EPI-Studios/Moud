@@ -60,6 +60,8 @@ uniform int heightmap_min_layers;
 uniform int heightmap_max_layers;
 // @expose
 uniform int orm_enabled;
+// @expose
+uniform int fullbright;
 
 struct PointLight { vec3 position; vec3 color; float brightness; float radius; };
 struct DirLight   { vec3 direction; vec3 color; float brightness; };
@@ -237,91 +239,93 @@ void main() {
     float mat_metallic = metallic;
     float mat_roughness = roughness;
     float ao = 1.0;
-
-    if (orm_enabled != 0) {
-        vec4 ormSample = texture(orm_texture, uv);
-        ao = ormSample.r;
-        mat_roughness *= ormSample.g;
-        mat_metallic *= ormSample.b;
-    } else {
-        mat_roughness *= sampleRoughnessChannel(uv);
-        mat_metallic *= texture(metallic_texture, uv).r;
-        if (ao_enabled != 0) {
-            ao = texture(ao_texture, uv).r;
-        }
-    }
-
-    mat_roughness = clamp(mat_roughness, 0.04, 1.0);
-    mat_metallic = clamp(mat_metallic, 0.0, 1.0);
-
     vec3 N = baseNormal;
-    if (normal_enabled != 0) {
-        float ns = normal_scale > 0.0 ? normal_scale : 1.0;
-        N = applyNormalMap(N, vWorldPos, uv, ns);
-    }
-
     vec3 emissive = vec3(0.0);
-    if (emission_enabled != 0) {
-        emissive = srgbToLinear(texture(emission_texture, uv).rgb);
+    vec3 color = albedo;
+
+    if (fullbright == 0) {
+        if (orm_enabled != 0) {
+            vec4 ormSample = texture(orm_texture, uv);
+            ao = ormSample.r;
+            mat_roughness *= ormSample.g;
+            mat_metallic *= ormSample.b;
+        } else {
+            mat_roughness *= sampleRoughnessChannel(uv);
+            mat_metallic *= texture(metallic_texture, uv).r;
+            if (ao_enabled != 0) {
+                ao = texture(ao_texture, uv).r;
+            }
+        }
+
+        mat_roughness = clamp(mat_roughness, 0.04, 1.0);
+        mat_metallic = clamp(mat_metallic, 0.0, 1.0);
+
+        if (normal_enabled != 0) {
+            float ns = normal_scale > 0.0 ? normal_scale : 1.0;
+            N = applyNormalMap(N, vWorldPos, uv, ns);
+        }
+
+        if (emission_enabled != 0) {
+            emissive = srgbToLinear(texture(emission_texture, uv).rgb);
+        }
+
+        vec3 V = safeNormalize(CameraPos - vWorldPos);
+        float NdotV = max(dot(N, V), 0.001);
+        vec3 F0 = mix(vec3(0.04), albedo, mat_metallic);
+
+        color = vec3(0.0);
+
+        for (int i = 0; i < NumPointLights; i++) {
+            vec3 toLight = PointLights[i].position - vWorldPos;
+            float dist = length(toLight);
+            if (dist < PointLights[i].radius && dist > 0.001) {
+                vec3 L = toLight / dist;
+                float atten = 1.0 - smoothstep(0.0, PointLights[i].radius, dist);
+                atten *= atten;
+                vec3 lc = PointLights[i].color * PointLights[i].brightness * atten;
+                color += evaluateLight(N, V, NdotV, F0, albedo, mat_roughness, mat_metallic, L, lc);
+            }
+        }
+
+        for (int i = 0; i < NumDirLights; i++) {
+            vec3 L = -normalize(DirLights[i].direction);
+            vec3 lc = DirLights[i].color * DirLights[i].brightness;
+            color += evaluateLight(N, V, NdotV, F0, albedo, mat_roughness, mat_metallic, L, lc);
+        }
+
+        for (int i = 0; i < NumSpotLights; i++) {
+            vec3 toLight = SpotLights[i].position - vWorldPos;
+            float dist = length(toLight);
+            if (dist < SpotLights[i].distance && dist > 0.001) {
+                vec3 L = toLight / dist;
+                float cosAngle = dot(-L, normalize(SpotLights[i].direction));
+                float cosOuter = cos(radians(SpotLights[i].angle * 0.5));
+                float cosInner = mix(cosOuter, 1.0, 0.2);
+                float spotFade = clamp((cosAngle - cosOuter) / max(cosInner - cosOuter, 0.001), 0.0, 1.0);
+                if (spotFade > 0.0) {
+                    float atten = 1.0 - smoothstep(0.0, SpotLights[i].distance, dist);
+                    atten *= atten;
+                    vec3 lc = SpotLights[i].color * SpotLights[i].brightness * atten * spotFade;
+                    color += evaluateLight(N, V, NdotV, F0, albedo, mat_roughness, mat_metallic, L, lc);
+                }
+            }
+        }
+
+        vec3 ambient = albedo * 0.15 * ao * ambient_light;
+        color += ambient + emissive;
+        color = color / (color + vec3(1.0));
     }
 
     vec3 viewN = normalize(mat3(ViewMat) * N);
 
     // #veil:albedo
-    vec4 albedoColor = vec4(albedo, ao);
+    vec4 albedoColor = fullbright == 0 ? vec4(albedo, ao) : vec4(0.0);
 
     // #veil:normal
-    vec4 normalColor = vec4(viewN, 1.0);
+    vec4 normalColor = fullbright == 0 ? vec4(viewN, 1.0) : vec4(0.0);
 
     // #veil:debug
-    vec4 debugColor = vec4(mat_roughness, mat_metallic, 0.0, specular);
-
-    vec3 V = safeNormalize(CameraPos - vWorldPos);
-    float NdotV = max(dot(N, V), 0.001);
-    vec3 F0 = mix(vec3(0.04), albedo, mat_metallic);
-
-    vec3 color = vec3(0.0);
-
-    for (int i = 0; i < NumPointLights; i++) {
-        vec3 toLight = PointLights[i].position - vWorldPos;
-        float dist = length(toLight);
-        if (dist < PointLights[i].radius && dist > 0.001) {
-            vec3 L = toLight / dist;
-            float atten = 1.0 - smoothstep(0.0, PointLights[i].radius, dist);
-            atten *= atten;
-            vec3 lc = PointLights[i].color * PointLights[i].brightness * atten;
-            color += evaluateLight(N, V, NdotV, F0, albedo, mat_roughness, mat_metallic, L, lc);
-        }
-    }
-
-    for (int i = 0; i < NumDirLights; i++) {
-        vec3 L = -normalize(DirLights[i].direction);
-        vec3 lc = DirLights[i].color * DirLights[i].brightness;
-        color += evaluateLight(N, V, NdotV, F0, albedo, mat_roughness, mat_metallic, L, lc);
-    }
-
-    for (int i = 0; i < NumSpotLights; i++) {
-        vec3 toLight = SpotLights[i].position - vWorldPos;
-        float dist = length(toLight);
-        if (dist < SpotLights[i].distance && dist > 0.001) {
-            vec3 L = toLight / dist;
-            float cosAngle = dot(-L, normalize(SpotLights[i].direction));
-            float cosOuter = cos(radians(SpotLights[i].angle * 0.5));
-            float cosInner = mix(cosOuter, 1.0, 0.2);
-            float spotFade = clamp((cosAngle - cosOuter) / max(cosInner - cosOuter, 0.001), 0.0, 1.0);
-            if (spotFade > 0.0) {
-                float atten = 1.0 - smoothstep(0.0, SpotLights[i].distance, dist);
-                atten *= atten;
-                vec3 lc = SpotLights[i].color * SpotLights[i].brightness * atten * spotFade;
-                color += evaluateLight(N, V, NdotV, F0, albedo, mat_roughness, mat_metallic, L, lc);
-            }
-        }
-    }
-
-    vec3 ambient = albedo * 0.15 * ao * ambient_light;
-    color += ambient + emissive;
-
-    color = color / (color + vec3(1.0));
+    vec4 debugColor = fullbright == 0 ? vec4(mat_roughness, mat_metallic, 0.0, specular) : vec4(0.0);
 
     fragColor = vec4(linearToSrgb(color), albedoSample.a);
 }
