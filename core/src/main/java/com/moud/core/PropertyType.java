@@ -39,6 +39,27 @@ public enum PropertyType {
             }
             return ValidationResult.failure("expected bool");
         }
+    },
+    CURVE {
+        @Override
+        public ValidationResult validate(String value) {
+            if (value == null || value.isBlank()) return ValidationResult.success();
+            for (String seg : value.split("\\|")) {
+                String s = seg.trim();
+                if (s.isEmpty()) continue;
+                int colon = s.indexOf(':');
+                if (colon <= 0 || colon == s.length() - 1) {
+                    return ValidationResult.failure("expected t:v|t:v...");
+                }
+                try {
+                    Float.parseFloat(s.substring(0, colon).trim());
+                    Float.parseFloat(s.substring(colon + 1).trim());
+                } catch (NumberFormatException e) {
+                    return ValidationResult.failure("expected numeric t:v pairs");
+                }
+            }
+            return ValidationResult.success();
+        }
     };
 
     public abstract ValidationResult validate(String value);
