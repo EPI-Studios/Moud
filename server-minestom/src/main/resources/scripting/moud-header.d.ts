@@ -203,6 +203,7 @@ declare module "moud/players" {
     name: string;
     x: number; y: number; z: number;
     yaw: number;
+    state(key: string): string;
   }
   export function getPlayers(): PlayerInfo[];
   export function teleportPlayer(opts: {
