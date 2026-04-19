@@ -9,8 +9,10 @@ import com.moud.net.protocol.ScriptActionListResponse;
 import com.moud.core.scene.Node;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.net.PlayerMessageSink;
+import com.moud.server.minestom.script.ScriptMessageRouter;
 import com.moud.server.minestom.scripting.lang.ScriptLanguageRegistry;
 import com.moud.server.minestom.scripting.lang.ScriptLanguageSupport;
+import com.moud.server.minestom.scripting.lang.ScriptPaths;
 import com.moud.server.minestom.scripting.luau.LuauToolScriptService;
 import org.graalvm.polyglot.Engine;
 import com.moud.server.minestom.project.ProjectService;
@@ -18,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 public final class ScriptService {
     private final ScriptLanguageRegistry languages;
@@ -38,6 +41,10 @@ public final class ScriptService {
         this.jsTools = new ToolScriptService(project, toolsEngine);
         this.luauTools = languages.supportFor(ScriptLanguage.LUAU).available() ? new LuauToolScriptService(project) : null;
         this.runtime = new RuntimeScriptService(project, runtimeEngine, languages, playerMessageSink);
+    }
+
+    public void setScriptMessaging(ScriptMessageRouter router, Supplier<Iterable<UUID>> connectedPlayers) {
+        runtime.setScriptMessaging(router, connectedPlayers);
     }
 
     /** @return a pending scene-transition ID, or {@code null} if none was requested. */
@@ -72,6 +79,12 @@ public final class ScriptService {
         runtime.onPlayerInput(uuid, input);
     }
 
+    public void sendFullClientStateTo(UUID uuid) {
+        if (uuid != null) {
+            runtime.sendFullClientStateTo(uuid.toString());
+        }
+    }
+
     public void onUiEvent(ServerScene scene, long nodeId, String event, float value) {
         runtime.onUiEvent(scene, nodeId, event, value);
     }
@@ -86,6 +99,10 @@ public final class ScriptService {
 
     public void refreshEditorRuntime(ServerScene scene) {
         runtime.refreshEditor(scene);
+    }
+
+    public void replayReady(ServerScene scene) {
+        runtime.replayReady(scene);
     }
 
     public void onSceneDeleted(String sceneId) {
