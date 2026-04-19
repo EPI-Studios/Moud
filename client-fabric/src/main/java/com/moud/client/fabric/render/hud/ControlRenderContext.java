@@ -1,5 +1,6 @@
 package com.moud.client.fabric.render.hud;
 
+import com.moud.client.fabric.render.scene.util.NodePropertyUtils;
 import com.moud.net.protocol.SceneSnapshot;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
@@ -8,7 +9,6 @@ import net.minecraft.util.Identifier;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.List;
 
 public final class ControlRenderContext {
 
@@ -152,6 +152,45 @@ public final class ControlRenderContext {
         drawContext.setShaderColor(1f, 1f, 1f, 1f);
     }
 
+    public void drawNinePatch(Identifier textureId,
+                              int x, int y, int w, int h,
+                              int texW, int texH,
+                              int left, int top, int right, int bottom,
+                              int argb) {
+        if (textureId == null || w <= 0 || h <= 0 || texW <= 0 || texH <= 0) return;
+
+        int tinted = mulColor(argb, mR, mG, mB, mA);
+        drawContext.setShaderColor(
+                ((tinted >> 16) & 0xFF) / 255.0f,
+                ((tinted >> 8) & 0xFF) / 255.0f,
+                (tinted & 0xFF) / 255.0f,
+                ((tinted >> 24) & 0xFF) / 255.0f
+        );
+
+        int centerW = Math.max(0, w - left - right);
+        int centerH = Math.max(0, h - top - bottom);
+        int texCenterW = Math.max(0, texW - left - right);
+        int texCenterH = Math.max(0, texH - top - bottom);
+
+        if (top > 0) {
+            if (left > 0) drawContext.drawTexture(textureId, x, y, left, top, 0, 0, left, top, texW, texH);
+            if (centerW > 0 && texCenterW > 0) drawContext.drawTexture(textureId, x + left, y, centerW, top, left, 0, texCenterW, top, texW, texH);
+            if (right > 0) drawContext.drawTexture(textureId, x + left + centerW, y, right, top, texW - right, 0, right, top, texW, texH);
+        }
+        if (centerH > 0 && texCenterH > 0) {
+            if (left > 0) drawContext.drawTexture(textureId, x, y + top, left, centerH, 0, top, left, texCenterH, texW, texH);
+            if (centerW > 0 && texCenterW > 0) drawContext.drawTexture(textureId, x + left, y + top, centerW, centerH, left, top, texCenterW, texCenterH, texW, texH);
+            if (right > 0) drawContext.drawTexture(textureId, x + left + centerW, y + top, right, centerH, texW - right, top, right, texCenterH, texW, texH);
+        }
+        if (bottom > 0) {
+            if (left > 0) drawContext.drawTexture(textureId, x, y + top + centerH, left, bottom, 0, texH - bottom, left, bottom, texW, texH);
+            if (centerW > 0 && texCenterW > 0) drawContext.drawTexture(textureId, x + left, y + top + centerH, centerW, bottom, left, texH - bottom, texCenterW, bottom, texW, texH);
+            if (right > 0) drawContext.drawTexture(textureId, x + left + centerW, y + top + centerH, right, bottom, texW - right, texH - bottom, right, bottom, texW, texH);
+        }
+
+        drawContext.setShaderColor(1f, 1f, 1f, 1f);
+    }
+
     public static int argb(float r, float g, float b, float a) {
         return (Math.round(clamp01(a) * 255f) << 24)
              | (Math.round(clamp01(r) * 255f) << 16)
@@ -177,12 +216,7 @@ public final class ControlRenderContext {
     }
 
     public static String prop(SceneSnapshot.NodeSnapshot node, String key) {
-        List<SceneSnapshot.Property> props = node.properties();
-        if (props == null) return null;
-        for (SceneSnapshot.Property p : props) {
-            if (p != null && key.equals(p.key())) return p.value();
-        }
-        return null;
+        return NodePropertyUtils.stringProp(node, key);
     }
 
     public static float floatProp(SceneSnapshot.NodeSnapshot node, String key, float def) {

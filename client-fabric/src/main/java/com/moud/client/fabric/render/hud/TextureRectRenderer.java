@@ -60,6 +60,17 @@ public final class TextureRectRenderer implements ControlRenderer {
         }
         Identifier textureId = MoudTextures.resolve(textureRef);
         MoudTextures.TextureSize size = MoudTextures.sizeOf(textureId);
+
+        int patchL = (int) ControlRenderContext.floatProp(node, "patch_margin_left", 0f);
+        int patchT = (int) ControlRenderContext.floatProp(node, "patch_margin_top", 0f);
+        int patchR = (int) ControlRenderContext.floatProp(node, "patch_margin_right", 0f);
+        int patchB = (int) ControlRenderContext.floatProp(node, "patch_margin_bottom", 0f);
+        if (patchL > 0 || patchT > 0 || patchR > 0 || patchB > 0) {
+            ctx.drawNinePatch(textureId, x, y, w, h, size.width(), size.height(),
+                    patchL, patchT, patchR, patchB, 0xFFFFFFFF);
+            return true;
+        }
+
         drawFrame(ctx, node, x, y, w, h, textureId, 0f, 0f, 1f, 1f, size.width(), size.height(), 0, 0, size.width(), size.height(), size.width(), size.height());
         return true;
     }
