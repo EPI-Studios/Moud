@@ -3,16 +3,19 @@ package com.moud.server.minestom.scripting;
 import com.moud.core.NodeTypeProviders;
 import com.moud.core.NodeTypeRegistry;
 import com.moud.net.protocol.MultiMeshData;
+import com.moud.net.protocol.PlayerClientState;
 import com.moud.server.minestom.scripting.lang.RuntimeScriptKeys;
 import com.moud.server.minestom.scripting.lang.ScriptLanguageRegistry;
 import com.moud.server.minestom.scripting.lang.ScriptLanguageSupport;
 import com.moud.server.minestom.scripting.lang.ScriptPaths;
 import com.moud.server.minestom.scripting.player.PlayerInputState;
+import com.moud.server.minestom.scripting.luau.ServerLuauTypeGenerator;
 import com.moud.server.minestom.scripting.typescript.ScriptTypeGenerator;
 import com.moud.net.protocol.PlayerInput;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.net.PlayerMessageSink;
 import com.moud.server.minestom.project.ProjectService;
+import com.moud.server.minestom.script.ScriptMessageRouter;
 import com.moud.server.minestom.scripting.typescript.TypeScriptContext;
 import com.moud.server.minestom.util.DebugLog;
 import java.util.ArrayDeque;
@@ -22,6 +25,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 import org.graalvm.polyglot.Engine;
 
@@ -33,11 +37,23 @@ final class RuntimeScriptService {
     private final PlayerMessageSink playerMessageSink;
     private final ConcurrentHashMap<String, SceneRuntime> runtimeByScene = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, PlayerInputState> inputsByPlayer = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ConcurrentHashMap<String, String>> clientStateByPlayer = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, float[]> playerVelocities = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, float[]> playerPositions = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, float[]> previousPlayerPositions = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> playerNames = new ConcurrentHashMap<>();
     private final Set<String> loggedUnsupportedScripts = ConcurrentHashMap.newKeySet();
+    private ScriptMessageRouter scriptMessageRouter;
+    private Supplier<Iterable<UUID>> connectedPlayersSupplier;
+
+    public void setScriptMessaging(ScriptMessageRouter router, Supplier<Iterable<UUID>> connectedPlayers) {
+        this.scriptMessageRouter = router;
+        this.connectedPlayersSupplier = connectedPlayers;
+        for (SceneRuntime rt : runtimeByScene.values()) {
+            rt.setScriptMessageRouter(router);
+            rt.setConnectedPlayersSupplier(connectedPlayers);
+        }
+    }
 
     RuntimeScriptService(ProjectService project, Engine engine, ScriptLanguageRegistry languages,
                          PlayerMessageSink playerMessageSink) {
@@ -69,10 +85,12 @@ final class RuntimeScriptService {
 
     private static void generateTypeDeclarations(NodeTypeRegistry registry, ProjectService project) {
         try {
-            java.nio.file.Path outputPath = project.projectRoot().resolve("scripts/types/moud.d.ts");
-            new ScriptTypeGenerator(registry).generate(outputPath);
+            java.nio.file.Path typesDir = project.projectRoot().resolve("types");
+            new ServerLuauTypeGenerator(registry).generate(
+                    typesDir.resolve("moud-server.d.luau"),
+                    typesDir.resolve("moud-client.d.luau"));
         } catch (Exception e) {
-            DebugLog.error("script-runtime", "Failed to generate moud.d.ts: " + e.getMessage(), e);
+            DebugLog.error("script-runtime", "Failed to generate Luau type declarations: " + e.getMessage(), e);
         }
     }
 
@@ -138,7 +156,32 @@ final class RuntimeScriptService {
         if (uuid == null || input == null) {
             return;
         }
-        inputsByPlayer.put(uuid.toString(), new PlayerInputState(uuid.toString(), input));
+        String playerUuid = uuid.toString();
+        inputsByPlayer.put(playerUuid, new PlayerInputState(playerUuid, input));
+        PlayerClientState update = applyClientStateDelta(playerUuid, input.stateKey(), input.stateValue());
+        if (update != null) {
+            broadcastClientState(update);
+        }
+    }
+
+    void sendFullClientStateTo(String targetPlayerUuid) {
+        if (targetPlayerUuid == null || targetPlayerUuid.isBlank()) {
+            return;
+        }
+        for (Map.Entry<String, ConcurrentHashMap<String, String>> playerEntry : clientStateByPlayer.entrySet()) {
+            String sourcePlayerUuid = playerEntry.getKey();
+            Map<String, String> state = playerEntry.getValue();
+            if (sourcePlayerUuid == null || state == null || state.isEmpty()) {
+                continue;
+            }
+            for (Map.Entry<String, String> entry : state.entrySet()) {
+                if (entry.getKey() == null) {
+                    continue;
+                }
+                playerMessageSink.send(UUID.fromString(targetPlayerUuid), com.moud.net.transport.Lane.EVENTS,
+                        new PlayerClientState(sourcePlayerUuid, entry.getKey(), entry.getValue() == null ? "" : entry.getValue()));
+            }
+        }
     }
 
     List<MultiMeshData> getLatestMultiMesh(String sceneId) {
@@ -153,6 +196,12 @@ final class RuntimeScriptService {
         return rt == null ? List.of() : rt.drainMultiMesh();
     }
 
+    void replayReady(ServerScene scene) {
+        if (scene == null) return;
+        SceneRuntime rt = runtimeByScene.get(scene.sceneId());
+        if (rt != null) rt.replayReady();
+    }
+
     void refreshEditor(ServerScene scene) {
         if (scene == null) {
             return;
@@ -160,7 +209,12 @@ final class RuntimeScriptService {
         warnUnsupportedScripts(scene);
         SceneRuntime rt = runtimeByScene.computeIfAbsent(
                 scene.sceneId(),
-                ignored -> new SceneRuntime(project, engine, inputsByPlayer, playerVelocities, tsContext, playerMessageSink)
+                ignored -> {
+                    SceneRuntime created = new SceneRuntime(project, engine, inputsByPlayer, clientStateByPlayer, playerVelocities, tsContext, playerMessageSink);
+                    created.setScriptMessageRouter(scriptMessageRouter);
+                    created.setConnectedPlayersSupplier(connectedPlayersSupplier);
+                    return created;
+                }
         );
         rt.updatePlayerPositions(playerPositions);
         rt.updatePlayerNames(playerNames);
@@ -195,7 +249,12 @@ final class RuntimeScriptService {
 
         SceneRuntime rt = runtimeByScene.computeIfAbsent(
                 scene.sceneId(),
-                ignored -> new SceneRuntime(project, engine, inputsByPlayer, playerVelocities, tsContext, playerMessageSink)
+                ignored -> {
+                    SceneRuntime created = new SceneRuntime(project, engine, inputsByPlayer, clientStateByPlayer, playerVelocities, tsContext, playerMessageSink);
+                    created.setScriptMessageRouter(scriptMessageRouter);
+                    created.setConnectedPlayersSupplier(connectedPlayersSupplier);
+                    return created;
+                }
         );
         rt.updatePlayerPositions(playerPositions);
         rt.updatePlayerNames(playerNames);
@@ -236,5 +295,71 @@ final class RuntimeScriptService {
                             + " error=" + support.messageForPath(script.path()),
                     null);
         }
+    }
+
+    private PlayerClientState applyClientStateDelta(String playerUuid, String key, String value) {
+        String safeKey = sanitizeClientStateKey(key);
+        if (playerUuid == null || safeKey == null) {
+            return null;
+        }
+        String safeValue = sanitizeClientStateValue(value);
+        ConcurrentHashMap<String, String> state = clientStateByPlayer.computeIfAbsent(playerUuid, ignored -> new ConcurrentHashMap<>());
+        if (safeValue.isEmpty()) {
+            state.remove(safeKey);
+            if (state.isEmpty()) {
+                clientStateByPlayer.remove(playerUuid, state);
+            }
+            return new PlayerClientState(playerUuid, safeKey, "");
+        }
+        if (state.size() >= 16 && !state.containsKey(safeKey)) {
+            return null;
+        }
+        state.put(safeKey, safeValue);
+        return new PlayerClientState(playerUuid, safeKey, safeValue);
+    }
+
+    private void broadcastClientState(PlayerClientState update) {
+        if (update == null) {
+            return;
+        }
+        for (String playerUuid : inputsByPlayer.keySet()) {
+            if (playerUuid == null || playerUuid.isBlank()) {
+                continue;
+            }
+            try {
+                playerMessageSink.send(UUID.fromString(playerUuid), com.moud.net.transport.Lane.EVENTS, update);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private static String sanitizeClientStateKey(String key) {
+        if (key == null) {
+            return null;
+        }
+        String trimmed = key.trim().toLowerCase();
+        if (trimmed.isEmpty() || trimmed.length() > 32) {
+            return null;
+        }
+        for (int i = 0; i < trimmed.length(); i++) {
+            char c = trimmed.charAt(i);
+            boolean ok = (c >= 'a' && c <= 'z')
+                    || (c >= '0' && c <= '9')
+                    || c == '.'
+                    || c == '_'
+                    || c == '-';
+            if (!ok) {
+                return null;
+            }
+        }
+        return trimmed;
+    }
+
+    private static String sanitizeClientStateValue(String value) {
+        if (value == null) {
+            return "";
+        }
+        String trimmed = value.trim();
+        return trimmed.length() > 128 ? trimmed.substring(0, 128) : trimmed;
     }
 }

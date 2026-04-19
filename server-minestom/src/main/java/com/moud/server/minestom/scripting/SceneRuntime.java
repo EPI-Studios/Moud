@@ -22,6 +22,7 @@ import com.moud.server.minestom.engine.SceneBatchIds;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.net.PlayerMessageSink;
 import com.moud.server.minestom.project.ProjectService;
+import com.moud.server.minestom.script.ScriptMessageRouter;
 import com.moud.server.minestom.util.DebugLog;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Engine;
@@ -34,7 +35,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.DisableHandler, ScriptLifecycleManager.CameraCleanup {
     private static final String LOG_TAG = "script-runtime";
@@ -54,10 +57,13 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
     private final ScriptLifecycleManager lifecycleManager;
     private volatile ServerScene lastScene;
     private String pendingSceneTransition;
+    private ScriptMessageRouter scriptMessageRouter;
+    private Supplier<Iterable<UUID>> connectedPlayersSupplier;
 
     SceneRuntime(ProjectService project,
                  Engine engine,
                  ConcurrentHashMap<String, PlayerInputState> inputsByPlayer,
+                 ConcurrentHashMap<String, ConcurrentHashMap<String, String>> clientStateByPlayer,
                  ConcurrentHashMap<String, float[]> playerVelocities,
                  com.moud.server.minestom.scripting.typescript.TypeScriptContext tsContext,
                  PlayerMessageSink playerMessageSink) {
@@ -73,6 +79,7 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
         this.playerNetworkSink = new PlayerNetworkSink(Objects.requireNonNull(playerMessageSink, "playerMessageSink"));
         this.playerState = new PlayerStateManager(
                 Objects.requireNonNull(inputsByPlayer, "inputsByPlayer"),
+                Objects.requireNonNull(clientStateByPlayer, "clientStateByPlayer"),
                 Objects.requireNonNull(playerVelocities, "playerVelocities"),
                 new InputMap(),
                 this.playerNetworkSink
@@ -138,6 +145,10 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
         if (scene != null) {
             tick(scene, 0.0);
         }
+    }
+
+    void replayReady() {
+        lifecycleManager.replayReady();
     }
 
     List<MultiMeshData> getLatestMultiMesh() {
@@ -301,6 +312,24 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
     }
 
     @Override
+    public ScriptMessageRouter scriptMessageRouter() {
+        return scriptMessageRouter;
+    }
+
+    @Override
+    public Iterable<UUID> connectedPlayerUuids() {
+        return connectedPlayersSupplier == null ? List.of() : connectedPlayersSupplier.get();
+    }
+
+    void setScriptMessageRouter(ScriptMessageRouter router) {
+        this.scriptMessageRouter = router;
+    }
+
+    void setConnectedPlayersSupplier(Supplier<Iterable<UUID>> supplier) {
+        this.connectedPlayersSupplier = supplier;
+    }
+
+    @Override
     public void disable(ServerScene scene, RuntimeScriptInstance instance, String stage, Throwable throwable) {
         long nodeId = instance == null ? 0L : instance.nodeId;
         Path scriptFile = instance == null ? null : instance.scriptFile;
@@ -314,6 +343,9 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
             existing.disabled = true;
         }
         clearCameraOverridesOwnedBy(nodeId);
+        if (scriptMessageRouter != null && nodeId > 0L) {
+            scriptMessageRouter.unregisterAll(nodeId);
+        }
         String sceneId = scene == null ? "?" : scene.sceneId();
         String file = scriptFile == null ? "?" : scriptFile.toString();
         String msg = throwable == null || throwable.getMessage() == null || throwable.getMessage().isBlank()
