@@ -56,6 +56,12 @@ dependencies {
 
     include implementation(project(':core'))
     include implementation(project(':net'))
+
+    include implementation("com.github.stephengold:jolt-jni-Linux64:3.5.0")
+    include runtimeOnly("com.github.stephengold:jolt-jni-Linux64:3.5.0:ReleaseSp")
+    include runtimeOnly("com.github.stephengold:jolt-jni-Linux_ARM64:3.5.0:ReleaseSp")
+    include runtimeOnly("com.github.stephengold:jolt-jni-Windows64:3.5.0:ReleaseSp")
+
     include implementation("fr.mrqsdf:BbModelReader:1.0-SNAPSHOT")
     include(implementation("com.miry:miry:1.0-SNAPSHOT") {
         exclude group: "org.lwjgl"
@@ -153,3 +159,13 @@ afterEvaluate {
         task.getRenderDocExecutable().set(renderDocExecutable)
     }
 }
+
+tasks.register('generateLuauClientTypes', JavaExec) {
+    group = 'build'
+    description = 'Regenerate core/src/main/resources/types/moud-client.d.luau from @LuauExport classes in client-fabric.'
+    dependsOn tasks.named('classes')
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.moud.client.fabric.scripting.types.ClientLuauTypesMain'
+    args = [rootProject.projectDir.toPath().resolve('core/src/main/resources/types/moud-client.d.luau').toString()]
+}
+
