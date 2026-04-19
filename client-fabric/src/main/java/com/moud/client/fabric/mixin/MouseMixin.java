@@ -27,7 +27,10 @@ public abstract class MouseMixin {
         if (ctx == null || !ctx.isActive()) {
             return;
         }
-        if (client == null || client.currentScreen != null) {
+        if (client == null || client.currentScreen != null || !client.isWindowFocused()) {
+            return;
+        }
+        if (ctx.isViewportInputFocused()) {
             return;
         }
         ctx.pushScrollY(vertical);
@@ -36,16 +39,33 @@ public abstract class MouseMixin {
 
     @Inject(method = "onMouseButton", at = @At("HEAD"), cancellable = true)
     private void moud$onMouseButton(long window, int button, int action, int mods, CallbackInfo ci) {
+        if (client == null || !client.isWindowFocused()) {
+            return;
+        }
         EditorContext ctx = EditorOverlayBus.get();
         if (ctx == null || !ctx.isActive()) {
             PlayRuntimeClient runtime = PlayRuntimeBus.get();
-            if (runtime == null || !runtime.isActive() || !runtime.isCursorModeEnabled() || client == null || client.currentScreen != null) {
+            if (runtime == null || !runtime.isActive() || !runtime.isCursorModeEnabled() || client.currentScreen != null) {
                 return;
             }
             ci.cancel();
             return;
         }
-        if (client == null || client.currentScreen != null) {
+        if (client.currentScreen != null) {
+            return;
+        }
+
+        if (ctx.isViewportInputFocused()) {
+            return;
+        }
+
+        PlayRuntimeClient runtime = PlayRuntimeBus.get();
+        if (runtime != null && runtime.isActive()
+                && button == GLFW.GLFW_MOUSE_BUTTON_LEFT && action == GLFW.GLFW_PRESS
+                && ctx.isMouseOverViewport(client.mouse.getX(), client.mouse.getY())) {
+            ctx.setViewportInputFocused(true);
+            client.mouse.lockCursor();
+            ci.cancel();
             return;
         }
 
@@ -75,7 +95,10 @@ public abstract class MouseMixin {
     private void moud$updateMouse(CallbackInfo ci) {
         EditorContext ctx = EditorOverlayBus.get();
         if (ctx != null && ctx.isActive()) {
-            if (client == null || client.currentScreen != null) {
+            if (client == null || client.currentScreen != null || !client.isWindowFocused()) {
+                return;
+            }
+            if (ctx.isViewportInputFocused()) {
                 return;
             }
             ci.cancel();
@@ -83,7 +106,7 @@ public abstract class MouseMixin {
         }
         PlayRuntimeClient runtime = PlayRuntimeBus.get();
         if (runtime != null && runtime.isActive()) {
-            if (client == null || client.currentScreen != null) {
+            if (client == null || client.currentScreen != null || !client.isWindowFocused()) {
                 return;
             }
             ClientCameraState camState = ClientCameraStateBus.get();
@@ -111,9 +134,12 @@ public abstract class MouseMixin {
 
     @Inject(method = "onCursorPos", at = @At("HEAD"))
     private void moud$onCursorPos(long window, double x, double y, CallbackInfo ci) {
+        if (client == null || !client.isWindowFocused()) {
+            return;
+        }
         EditorContext ctx = EditorOverlayBus.get();
         if (ctx != null && ctx.isActive()) {
-            if (client == null || client.currentScreen != null) {
+            if (client.currentScreen != null) {
                 return;
             }
             ctx.camera().consumeMouseMove(x, y);
