@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 // proprety type map from the node type registry for graalvm context
+@Deprecated
 public final class NodeTypeSchema {
 
     private final Map<String, Map<String, String>> schema;

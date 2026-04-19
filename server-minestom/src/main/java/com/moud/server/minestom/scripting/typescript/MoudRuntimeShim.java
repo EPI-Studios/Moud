@@ -15,18 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-/**
- * Loads {@code moud-runtime.js} from the classpath and injects two generated
- * sections derived from the {@link NodeTypeRegistry}:
- * <ul>
- *   <li>{@code // __MOUD_CLASS_HIERARCHY__} — {@code var X = extend(Y)} declarations
- *       for every registered type, in topological order (parents before children).</li>
- *   <li>{@code // __MOUD_TYPE_MAP__} — {@code buildTypeClassMap()}, {@code NodeType}
- *       enum, and the {@code globalThis.__MoudRuntimeExports} assignment.</li>
- * </ul>
- * Adding a new node type to {@code CoreNodeTypesProvider} is all that is needed —
- * the runtime JS updates automatically on the next server start.
- */
+@Deprecated
 public final class MoudRuntimeShim {
 
     private static final String RESOURCE_PATH = "/scripting/moud-runtime.js";
@@ -48,17 +37,15 @@ public final class MoudRuntimeShim {
         return source;
     }
 
-    // -------------------------------------------------------------------------
-
     private static String generateHierarchy(NodeTypeRegistry registry) {
         Map<String, NodeTypeDef> types = new TreeMap<>(registry.types());
         Map<String, String> parentOf = buildParentMap(types);
         List<String> ordered = topologicalSort(types.keySet(), parentOf);
 
         StringBuilder sb = new StringBuilder();
-        sb.append("    // node class hierarchy — auto-generated from NodeTypeRegistry\n");
+        sb.append("    // node class hierarchy - auto-generated from NodeTypeRegistry\n");
         for (String typeId : ordered) {
-            if ("Node".equals(typeId)) continue; // Node is declared statically
+            if ("Node".equals(typeId)) continue;
             String parent = parentOf.getOrDefault(typeId, "Node");
             sb.append("    var ").append(typeId).append(" = extend(").append(parent).append(");\n");
         }
@@ -71,7 +58,7 @@ public final class MoudRuntimeShim {
         typeIds.sort(null);
 
         StringBuilder sb = new StringBuilder();
-        sb.append("    // type map — auto-generated from NodeTypeRegistry\n");
+        sb.append("    // type map - auto-generated from NodeTypeRegistry\n");
 
         // buildTypeClassMap
         sb.append("    var __typeClassMap = null;\n");
@@ -90,7 +77,7 @@ public final class MoudRuntimeShim {
         }
         sb.append("    };\n\n");
 
-        // __MoudRuntimeExports — all node classes + static API surface
+        // __MoudRuntimeExports - all node classes + static API surface
         sb.append("    globalThis.__MoudRuntimeExports = {\n");
         // node classes
         for (String id : typeIds) {
@@ -125,10 +112,6 @@ public final class MoudRuntimeShim {
         return sb.toString();
     }
 
-    // -------------------------------------------------------------------------
-    // Topology helpers (mirrors ScriptTypeGenerator logic)
-    // -------------------------------------------------------------------------
-
     private static Map<String, String> buildParentMap(Map<String, NodeTypeDef> types) {
         Map<String, String> parentOf = new LinkedHashMap<>();
         for (NodeTypeDef def : types.values()) {
@@ -157,8 +140,6 @@ public final class MoudRuntimeShim {
         if (parent != null) visit(parent, parentOf, visited, result);
         result.add(type);
     }
-
-    // -------------------------------------------------------------------------
 
     private static String load() {
         try (InputStream in = MoudRuntimeShim.class.getResourceAsStream(RESOURCE_PATH)) {

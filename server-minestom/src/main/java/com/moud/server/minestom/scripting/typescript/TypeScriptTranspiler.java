@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 
+@Deprecated
 public final class TypeScriptTranspiler {
 
     private static final String COMPILER_RESOURCE = "/scripting/typescript.js";
