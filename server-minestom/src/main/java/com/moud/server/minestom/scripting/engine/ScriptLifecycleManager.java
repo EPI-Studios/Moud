@@ -119,6 +119,12 @@ public final class ScriptLifecycleManager {
         return alive;
     }
 
+    public void replayReady() {
+        for (RuntimeScriptInstance instance : instances.values()) {
+            if (instance != null) instance.readyCalled = false;
+        }
+    }
+
     public void cleanupDead(ServerScene scene) {
         cleanupDead(scene, Set.of());
     }

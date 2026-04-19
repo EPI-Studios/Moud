@@ -11,8 +11,10 @@ import com.moud.server.minestom.scripting.player.PlayerStateManager;
 import com.moud.server.minestom.scripting.scene.MultiMeshManager;
 import com.moud.server.minestom.scripting.scene.SceneMutator;
 import com.moud.server.minestom.scripting.signal.SignalBus;
+import com.moud.server.minestom.script.ScriptMessageRouter;
 
 import java.util.Map;
+import java.util.UUID;
 
 public interface RuntimeFacade {
     SceneMutator mutator();
@@ -44,4 +46,8 @@ public interface RuntimeFacade {
     long instantiateScene(ServerScene scene, String scenePath, long parentId);
 
     ScriptInputApi inputApiForNode(long nodeId);
+
+    default ScriptMessageRouter scriptMessageRouter() { return null; }
+
+    default Iterable<UUID> connectedPlayerUuids() { return java.util.List.of(); }
 }
