@@ -23,7 +23,18 @@ public final class KeyboardMixin {
 
         if (overlay != null && overlay.isOpen()) {
             MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null && client.currentScreen == null && key != GLFW.GLFW_KEY_F8) {
+            if (client != null && client.isWindowFocused() && client.currentScreen == null && key != GLFW.GLFW_KEY_F8 && key != GLFW.GLFW_KEY_F7) {
+                if (ctx != null && ctx.isViewportInputFocused()) {
+                    PlayRuntimeClient runtime = PlayRuntimeBus.get();
+                    if (key == GLFW.GLFW_KEY_ESCAPE && action == GLFW.GLFW_PRESS) {
+                        ctx.setViewportInputFocused(false);
+                        client.mouse.unlockCursor();
+                    } else if (runtime != null) {
+                        runtime.onKeyEvent(key, scancode, action);
+                    }
+                    ci.cancel();
+                    return;
+                }
                 overlay.pushKeyEvent(key, scancode, action, modifiers);
                 ci.cancel();
             }
@@ -32,7 +43,7 @@ public final class KeyboardMixin {
 
         PlayRuntimeClient runtime = PlayRuntimeBus.get();
         MinecraftClient client = MinecraftClient.getInstance();
-        if (runtime == null || !runtime.isActive() || client == null || client.currentScreen != null) {
+        if (runtime == null || !runtime.isActive() || client == null || !client.isWindowFocused() || client.currentScreen != null) {
             return;
         }
         runtime.onKeyEvent(key, scancode, action);
