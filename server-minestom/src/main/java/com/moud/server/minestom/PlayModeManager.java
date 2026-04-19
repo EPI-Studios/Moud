@@ -13,6 +13,7 @@ import com.moud.server.minestom.engine.SceneInstancer;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.engine.ServerScenes;
 import com.moud.server.minestom.net.PlayerMessageSink;
+import com.moud.server.minestom.runtime.PlayerBodyManager;
 import com.moud.server.minestom.runtime.PlayRuntime;
 import com.moud.server.minestom.runtime.RuntimeRigidBodyReplicator;
 import com.moud.server.minestom.scripting.ScriptService;
@@ -38,6 +39,7 @@ final class PlayModeManager {
     private final ScriptService scripts;
     private final SceneInstancer instancer;
     private final PlayRuntime playRuntime;
+    private final PlayerBodyManager bodyManager;
     private final BiConsumer<Session, ServerScene> collisionGeometrySender;
     private final RuntimeRigidBodyReplicator rigidBodyReplicator = new RuntimeRigidBodyReplicator();
     private final Map<String, SceneBaseline> baselineBySceneId = new HashMap<>();
@@ -69,7 +71,7 @@ final class PlayModeManager {
         this.scripts = Objects.requireNonNull(scripts, "scripts");
         this.instancer = Objects.requireNonNull(instancer, "instancer");
         this.playRuntime = Objects.requireNonNull(playRuntime, "playRuntime");
-        Objects.requireNonNull(playerMessageSink, "playerMessageSink");
+        this.bodyManager = new PlayerBodyManager(Objects.requireNonNull(playerMessageSink, "playerMessageSink"));
         this.collisionGeometrySender = Objects.requireNonNull(collisionGeometrySender, "collisionGeometrySender");
     }
 
@@ -87,16 +89,19 @@ final class PlayModeManager {
 
         if (!wasOpen && editorOpen) {
             restoreBaseline(scene);
+            ps.sceneSnapshotSentRevision = Long.MIN_VALUE;
             if (session != null && session.state() == SessionState.CONNECTED) {
                 instancer.syncScene(scenes, scene);
                 SceneSnapshot snapshot = scene.snapshot(0L);
                 session.send(Lane.STATE, snapshot);
+                ps.sceneSnapshotSentRevision = snapshot.revision();
                 scripts.refreshEditorRuntime(scene);
                 sendLatestMultiMesh(session, snapshot, scene.sceneId());
                 sendLatestCollisionGeometry(session, scene);
             }
         } else if (wasOpen && !editorOpen) {
             captureBaseline(scene);
+            scripts.replayReady(scene);
             ps.multiMeshSent = false;
             ps.collisionGeometrySentSceneId = null;
             Pos startPos = PlayRuntime.findPlayerStartPos(scene);
@@ -105,6 +110,12 @@ final class PlayModeManager {
                 playRuntime.syncControllableBodyToPlayer(player, scene, startPos);
             }
         }
+    }
+
+    void initBaselineFromDisk(ServerScene scene) {
+        if (scene == null) return;
+        if (baselineBySceneId.containsKey(scene.sceneId())) return;
+        captureBaseline(scene);
     }
 
     private void captureBaseline(ServerScene scene) {
@@ -161,7 +172,7 @@ final class PlayModeManager {
         if (scene == null) {
             return;
         }
-        SceneBaseline baseline = baselineBySceneId.remove(scene.sceneId());
+        SceneBaseline baseline = baselineBySceneId.get(scene.sceneId());
         if (baseline == null) {
             return;
         }
@@ -238,6 +249,7 @@ final class PlayModeManager {
         float[] scriptCam = (followCam == null && playerCamId == null)
                 ? scripts.getScriptCameraForPlayer(scene.sceneId(), player.getUuid())
                 : null;
+        bodyManager.tick(player);
         playRuntime.tick(player.getUuid(), session, scene, playerCamId, followCam, scriptCam);
         rigidBodyReplicator.send(scene, session);
         if (!ps.multiMeshSent) {
@@ -249,7 +261,12 @@ final class PlayModeManager {
         for (MultiMeshData msg : pendingMultiMeshByScene.getOrDefault(scene.sceneId(), Collections.emptyList())) {
             session.send(Lane.STATE, msg);
         }
-        session.send(Lane.STATE, scene.snapshot(0L));
+        long sceneRevision = scene.engine().sceneRevision();
+        if (ps.sceneSnapshotSentRevision != sceneRevision) {
+            SceneSnapshot snapshot = scene.snapshot(0L);
+            session.send(Lane.STATE, snapshot);
+            ps.sceneSnapshotSentRevision = snapshot.revision();
+        }
     }
 
     void onPlayerSpawn(Player player, PlayerState ps, ServerScene spawnScene) {
@@ -257,11 +274,14 @@ final class PlayModeManager {
             return;
         }
         playRuntime.onPlayerSpawn(player, spawnScene);
+        bodyManager.onPlayerSpawn(player, spawnScene);
+        scripts.sendFullClientStateTo(player.getUuid());
     }
 
 
     void onDisconnect(UUID uuid) {
         playRuntime.onDisconnect(uuid);
+        bodyManager.onPlayerLeave(uuid);
     }
 
     void onSceneChanged(UUID uuid, String sceneId) {
@@ -302,6 +322,7 @@ final class PlayModeManager {
         String targetId = target.sceneId();
         ps.activeSceneId = targetId;
         ps.collisionGeometrySentSceneId = null;
+        ps.sceneSnapshotSentRevision = Long.MIN_VALUE;
         playRuntime.onSceneChanged(player.getUuid(), targetId);
 
         Pos targetStartPos = PlayRuntime.findPlayerStartPos(target);
@@ -314,11 +335,14 @@ final class PlayModeManager {
                     playRuntime.syncControllableBodyToPlayer(player, target, spawnPos);
                     session.send(Lane.STATE, new SceneList(scenes.snapshotInfo(), targetId));
                     instancer.syncScene(scenes, target);
-                    session.send(Lane.STATE, target.snapshot(0L));
+                    SceneSnapshot snapshot = target.snapshot(0L);
+                    session.send(Lane.STATE, snapshot);
+                    ps.sceneSnapshotSentRevision = snapshot.revision();
                     sendLatestCollisionGeometry(session, target);
                     for (MultiMeshData mm : scripts.getLatestMultiMesh(targetId)) {
                         session.send(Lane.STATE, mm);
                     }
+                    scripts.sendFullClientStateTo(player.getUuid());
                 }).schedule())
                 .exceptionally(ex -> {
                     DebugLog.error("scene", "failed to switch to '" + targetId + "': " + ex.getMessage());
