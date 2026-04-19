@@ -1,5 +1,6 @@
 package com.moud.client.fabric.net;
 
+import com.moud.client.fabric.editor.diagnostics.ClientNetworkLog;
 import com.moud.net.transport.Lane;
 import com.moud.net.transport.Transport;
 import com.moud.net.transport.TransportFragments;
@@ -46,6 +47,7 @@ public final class FabricEngineTransport implements Transport {
     public void send(Lane lane, byte[] payload) {
         byte[] frame = TransportFrames.encode(lane, payload);
         List<byte[]> packets = TransportFragments.encode(frame, MAX_PACKET_BYTES, nextMessageId.getAndIncrement());
+        ClientNetworkLog.recordSend(lane.name(), payload.length);
         for (byte[] packet : packets) {
             ClientPlayNetworking.send(new EnginePayload(packet));
         }
@@ -55,6 +57,7 @@ public final class FabricEngineTransport implements Transport {
     public void tick() {
         TransportFrames.DecodedFrame frame;
         while ((frame = inbound.poll()) != null) {
+            ClientNetworkLog.recordRecv(frame.lane().name(), frame.payload().length);
             receiver.accept(frame.lane(), frame.payload());
         }
     }

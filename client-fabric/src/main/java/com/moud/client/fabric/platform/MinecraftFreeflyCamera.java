@@ -184,8 +184,8 @@ public final class MinecraftFreeflyCamera {
             return false;
         }
 
-        targetYaw -= dx * lookSensitivity;
-        targetPitch -= dy * lookSensitivity;
+        targetYaw += dx * lookSensitivity;
+        targetPitch += dy * lookSensitivity;
         targetPitch = MathHelper.clamp(targetPitch, -89.0, 89.0);
         return true;
     }
@@ -257,7 +257,7 @@ public final class MinecraftFreeflyCamera {
         if (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_ALT) == GLFW.GLFW_PRESS) up -= 1.0;
 
         Vec3d dir = forwardDir();
-        Vec3d right = new Vec3d(dir.z, 0.0, -dir.x);
+        Vec3d right = new Vec3d(-dir.z, 0.0, dir.x);
         Vec3d move = dir.multiply(forward).add(right.multiply(strafe)).add(0.0, up, 0.0);
         double len = move.length();
         if (len < 1e-6) {
