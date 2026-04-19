@@ -10,8 +10,10 @@ import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.client.fabric.render.scene.state.SceneCacheManager;
 import com.moud.client.fabric.render.scene.state.TransformManager;
 import com.moud.client.fabric.render.scene.subrender.FallbackMeshRenderer;
+import com.moud.client.fabric.render.scene.subrender.particle.ParticleRenderer;
 import com.moud.client.fabric.render.scene.subrender.SceneDebugRenderer;
 import com.moud.client.fabric.render.scene.subrender.Text3DRenderer;
+import com.moud.client.fabric.render.scene.subrender.ViewmodelRenderer;
 import com.moud.client.fabric.render.scene.util.NodePropertyUtils;
 import com.moud.core.physics.CollisionGeometry;
 import com.moud.net.protocol.CollisionGeometrySnapshot;
@@ -46,6 +48,8 @@ public final class VeilSceneRenderer {
     private static final SceneLightManager lightManager = new SceneLightManager(cacheManager, transformManager);
     private static final Text3DRenderer textRenderer = new Text3DRenderer();
     private static final FallbackMeshRenderer fallbackRenderer = new FallbackMeshRenderer();
+    private static final ParticleRenderer particleRenderer = new ParticleRenderer();
+    private static final ViewmodelRenderer viewmodelRenderer = new ViewmodelRenderer();
     private static final SceneDebugRenderer debugRenderer = new SceneDebugRenderer();
 
     private static final MeshShaderRenderer meshShader = new MeshShaderRenderer();
@@ -153,6 +157,9 @@ public final class VeilSceneRenderer {
             multiMeshRenderer.onSnapshotUpdate(nodes);
         });
         if (cacheManager.sceneChangedThisRefresh()) {
+            if (cacheManager.sceneResetThisRefresh()) {
+                transformManager.resetPoseStates();
+            }
             transformManager.updatePoseStates(cacheManager.shiftPrevPoseState());
         }
         transformManager.beginPoseFrame(tickDelta);
@@ -165,7 +172,7 @@ public final class VeilSceneRenderer {
                 return;
             }
             bufferSource.draw();
-            renderMeshes(bufferSource, camera, frustumMatrix, projectionMatrix, tickDelta);
+            renderMeshes(bufferSource, camera, frustumMatrix, projectionMatrix, frustum, tickDelta);
         }
     }
 
@@ -173,6 +180,7 @@ public final class VeilSceneRenderer {
                                      Camera camera,
                                      Matrix4fc frustumMatrix,
                                      Matrix4fc projectionMatrix,
+                                     Frustum frustum,
                                      float tickDelta) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.world == null || cacheManager.isEmpty()) {
@@ -199,11 +207,24 @@ public final class VeilSceneRenderer {
                 consumers.draw();
             }
 
+            try (ClientFrameProfiler.Scope particles = ClientFrameProfiler.scope("render.scene.particles")) {
+                particleRenderer.render(filteredNodes, transformManager::worldPose, consumers, matrices, camPos, camera, frustum, client, tickDelta);
+                consumers.draw();
+            }
+
             try (ClientFrameProfiler.Scope decals = ClientFrameProfiler.scope("render.scene.decals")) {
                 decalRenderer.renderAll(filteredNodes, transformManager::worldPose, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta);
             }
 
-            renderPostProcess(client);
+            // Viewmodel renders directly into MC's main framebuffer
+            // alongside everything else. The post-process pass runs at
+            // HudRenderCallback time (see MoudClient.renderOverlays),
+            // after MC has composited world + entities + viewmodel +
+            // translucent, so renderScale uniformly pixelates the whole
+            // frame - including MC's player entity.
+            try (ClientFrameProfiler.Scope viewmodels = ClientFrameProfiler.scope("render.scene.viewmodels")) {
+                viewmodelRenderer.render(filteredNodes, consumers, matrices, camera);
+            }
             renderEditor(camPos, frustumMatrix, projectionMatrix, client);
 
             if (collisionDebugEnabled) {
@@ -211,6 +232,24 @@ public final class VeilSceneRenderer {
                     debugRenderer.render(filteredNodes, collisionGeometryCache, transformManager::worldPose);
                 }
             }
+        }
+    }
+
+    public static void runFullscreenPostProcess(MinecraftClient client) {
+        if (PostProcessService.INSTANCE.effectCount() <= 0) {
+            return;
+        }
+        try (ClientFrameProfiler.Scope post = ClientFrameProfiler.scope("overlay.postprocess")) {
+            net.minecraft.client.gl.Framebuffer fb = client != null ? client.getFramebuffer() : null;
+            if (fb == null) return;
+            int width = fb.textureWidth;
+            int height = fb.textureHeight;
+            if (width <= 0 || height <= 0) return;
+            // Bind MC's main framebuffer explicitly so sourceFbo detection
+            // grabs the fully-composited frame (world + MC entities +
+            // viewmodel) regardless of whatever was bound last.
+            fb.beginWrite(false);
+            PostProcessService.INSTANCE.renderAll(client, width, height);
         }
     }
 

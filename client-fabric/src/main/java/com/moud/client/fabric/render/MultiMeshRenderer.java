@@ -2,6 +2,7 @@ package com.moud.client.fabric.render;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
+import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.client.fabric.render.veil.GlUtil;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
 import com.moud.client.fabric.render.veil.VeilMaterialBinding;
@@ -61,12 +62,12 @@ final class MultiMeshRenderer {
         float[] dataRef = null;
         float px, py, pz, qx, qy, qz, qw;
 
-        boolean poseMatches(VeilSceneNodeRenderer.Pose p) {
+        boolean poseMatches(Pose p) {
             return px == (float) p.pos.x && py == (float) p.pos.y && pz == (float) p.pos.z
                     && qx == p.rot.x && qy == p.rot.y && qz == p.rot.z && qw == p.rot.w;
         }
 
-        void capturePose(VeilSceneNodeRenderer.Pose p) {
+        void capturePose(Pose p) {
             px = (float) p.pos.x; py = (float) p.pos.y; pz = (float) p.pos.z;
             qx = p.rot.x; qy = p.rot.y; qz = p.rot.z; qw = p.rot.w;
         }
@@ -79,7 +80,7 @@ final class MultiMeshRenderer {
     }
 
     void renderAll(List<SceneSnapshot.NodeSnapshot> nodes,
-                   Function<Long, VeilSceneNodeRenderer.Pose> poseResolver,
+                   Function<Long, Pose> poseResolver,
                    Vec3d camPos, Camera camera, Matrix4fc viewMatrix, Matrix4fc projectionMatrix,
                    MinecraftClient client, float tickDelta) {
         if (!RenderSystem.isOnRenderThread()) return;
@@ -162,8 +163,8 @@ final class MultiMeshRenderer {
             if (isCross) GL11.glDisable(GL11.GL_CULL_FACE);
             RenderSystem.depthMask(true);
 
-            VeilSceneNodeRenderer.Pose nodePose = poseResolver.apply(node.nodeId());
-            if (nodePose == null) nodePose = VeilSceneNodeRenderer.Pose.IDENTITY;
+            Pose nodePose = poseResolver.apply(node.nodeId());
+            if (nodePose == null) nodePose = Pose.IDENTITY;
 
             NodeGpuState state = nodeStates.computeIfAbsent(node.nodeId(), k -> new NodeGpuState());
 
@@ -254,7 +255,7 @@ final class MultiMeshRenderer {
     }
 
     private static void fillAndUpload(NodeGpuState state, float[] data, int instanceCount,
-                                      boolean isCross, VeilSceneNodeRenderer.Pose nodePose) {
+                                      boolean isCross, Pose nodePose) {
         int needed = instanceCount * FLOATS_PER_GPU_INSTANCE;
         FloatBuffer buf = MemoryUtil.memAllocFloat(needed);
         try {

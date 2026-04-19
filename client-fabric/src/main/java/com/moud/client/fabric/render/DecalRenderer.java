@@ -2,6 +2,7 @@ package com.moud.client.fabric.render;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
+import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.client.fabric.render.veil.GlUtil;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
 import com.moud.net.protocol.SceneSnapshot;
@@ -69,7 +70,7 @@ final class DecalRenderer {
     }
 
     void renderAll(List<SceneSnapshot.NodeSnapshot> nodes,
-                   Function<Long, VeilSceneNodeRenderer.Pose> poseResolver,
+                   Function<Long, Pose> poseResolver,
                    Vec3d camPos, Camera camera, Matrix4fc viewMatrix, Matrix4fc projectionMatrix,
                    MinecraftClient client, float tickDelta) {
         List<SceneSnapshot.NodeSnapshot> decals = null;
@@ -135,7 +136,7 @@ final class DecalRenderer {
             GL13.glActiveTexture(GL13.GL_TEXTURE0);
 
             for (SceneSnapshot.NodeSnapshot node : decals) {
-                VeilSceneNodeRenderer.Pose world = poseResolver.apply(node.nodeId());
+                Pose world = poseResolver.apply(node.nodeId());
                 if (world == null) continue;
                 renderDecal(node, world, camPos, prog, pid);
             }
@@ -150,7 +151,7 @@ final class DecalRenderer {
         }
     }
 
-    private void renderDecal(SceneSnapshot.NodeSnapshot node, VeilSceneNodeRenderer.Pose world,
+    private void renderDecal(SceneSnapshot.NodeSnapshot node, Pose world,
                              Vec3d camPos, ShaderProgram prog, int pid) {
         float tintR  = VeilSceneNodeRenderer.clamp01(VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "color_tint_r"), 1f));
         float tintG  = VeilSceneNodeRenderer.clamp01(VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "color_tint_g"), 1f));

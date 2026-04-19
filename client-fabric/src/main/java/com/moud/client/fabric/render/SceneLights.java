@@ -1,6 +1,7 @@
 package com.moud.client.fabric.render;
 
 import com.moud.client.fabric.render.veil.GlUtil;
+import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.net.protocol.SceneSnapshot;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -25,7 +26,7 @@ final class SceneLights {
                      float r, float g, float b, float brightness, float angleDeg, float distance) {}
 
     void collect(List<SceneSnapshot.NodeSnapshot> nodes,
-                 Function<Long, VeilSceneNodeRenderer.Pose> poseResolver) {
+                 Function<Long, Pose> poseResolver) {
         pointLights.clear();
         dirLights.clear();
         spotLights.clear();
@@ -33,7 +34,7 @@ final class SceneLights {
     }
 
     void collectAdd(List<SceneSnapshot.NodeSnapshot> nodes,
-                    Function<Long, VeilSceneNodeRenderer.Pose> poseResolver) {
+                    Function<Long, Pose> poseResolver) {
         for (SceneSnapshot.NodeSnapshot node : nodes) {
             if (node == null) continue;
             String type = node.type();
@@ -45,7 +46,7 @@ final class SceneLights {
             if (!VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "enabled"), true))
                 continue;
 
-            VeilSceneNodeRenderer.Pose world = poseResolver.apply(node.nodeId());
+            Pose world = poseResolver.apply(node.nodeId());
             if (world == null) continue;
 
             float cr = VeilSceneNodeRenderer.clamp01(VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "color_r"), 1.0f));
@@ -113,5 +114,7 @@ final class SceneLights {
             GlUtil.uniform1f(pid, p + "angle", l.angleDeg);
             GlUtil.uniform1f(pid, p + "distance", l.distance);
         }
+
+        GlUtil.uniform1f(pid, "ambient_light", 1.0f);
     }
 }

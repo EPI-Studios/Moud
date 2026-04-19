@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.moud.client.fabric.assets.MoudTextAssets;
 import com.moud.client.fabric.render.material.*;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
+import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.client.fabric.render.sprite.SpriteSheets;
 import com.moud.client.fabric.render.veil.*;
 import com.moud.client.fabric.util.ClientDebugLog;
@@ -23,9 +24,7 @@ import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
-import foundry.veil.api.client.render.dynamicbuffer.DynamicBufferType;
 import org.lwjgl.opengl.GL20C;
-import org.lwjgl.opengl.GL30C;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -146,16 +145,16 @@ final class MeshShaderRenderer {
     }
 
     void collectLights(List<SceneSnapshot.NodeSnapshot> nodes,
-                       Function<Long, VeilSceneNodeRenderer.Pose> poseResolver) {
+                       Function<Long, Pose> poseResolver) {
         sceneLights.collect(nodes, poseResolver);
     }
 
     void collectLightsAdd(List<SceneSnapshot.NodeSnapshot> nodes,
-                          Function<Long, VeilSceneNodeRenderer.Pose> poseResolver) {
+                          Function<Long, Pose> poseResolver) {
         sceneLights.collectAdd(nodes, poseResolver);
     }
 
-    boolean renderNode(SceneSnapshot.NodeSnapshot node, VeilSceneNodeRenderer.Pose world,
+    boolean renderNode(SceneSnapshot.NodeSnapshot node, Pose world,
                        Vec3d camPos, Camera camera, Matrix4fc viewMatrix, Matrix4fc projectionMatrix,
                        MinecraftClient client, float tickDelta) {
         if (!RenderSystem.isOnRenderThread()) return false;
@@ -327,6 +326,8 @@ final class MeshShaderRenderer {
             GlUtil.uniform2f(pid, "UvScale", uvScaleX, uvScaleY);
             GlUtil.uniform2f(pid, "UvOffset", uvOffX, uvOffY);
             sceneLights.applyUniforms(pid);
+            boolean fullbright = VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "fullbright"), false);
+            GlUtil.uniform1i(pid, "fullbright", fullbright ? 1 : 0);
 
             List<SceneSnapshot.Property> props = node.properties();
             if (props != null) {
@@ -350,32 +351,12 @@ final class MeshShaderRenderer {
             }
             program.bindSamplers(0);
 
-            var dbm = VeilRenderSystem.renderer().getDynamicBufferManger();
-            int activeBufferMask = VeilRenderSystem.renderer().getActiveBuffers();
-            DynamicBufferType[] activeTypes = DynamicBufferType.decode(activeBufferMask);
-            for (int i = 0; i < activeTypes.length; i++) {
-                int tex = dbm.getBufferTexture(activeTypes[i]);
-                GL30C.glFramebufferTexture2D(GL30C.GL_FRAMEBUFFER,
-                        GL30C.GL_COLOR_ATTACHMENT0 + 1 + i, GL30C.GL_TEXTURE_2D, tex, 0);
-            }
-            int[] drawBuffers = new int[1 + activeTypes.length];
-            for (int i = 0; i < drawBuffers.length; i++) {
-                drawBuffers[i] = GL30C.GL_COLOR_ATTACHMENT0 + i;
-            }
-            GL30C.glDrawBuffers(drawBuffers);
-
             if (isPlane) {
                 MoudMeshBuffer.ensurePlaneInitialized();
                 drawMesh(MoudMeshBuffer.planeVbo(), MoudMeshBuffer.planeEbo(), MoudMeshBuffer.planeIndexCount());
             } else {
                 drawMesh(MoudMeshBuffer.vbo(), MoudMeshBuffer.ebo(), MoudMeshBuffer.indexCount());
             }
-
-            for (int i = 0; i < activeTypes.length; i++) {
-                GL30C.glFramebufferTexture2D(GL30C.GL_FRAMEBUFFER,
-                        GL30C.GL_COLOR_ATTACHMENT0 + 1 + i, GL30C.GL_TEXTURE_2D, 0, 0);
-            }
-            GL30C.glDrawBuffers(new int[]{ GL30C.GL_COLOR_ATTACHMENT0 });
         } finally {
             ShaderProgram.unbind();
             if (translucent) { RenderSystem.disableBlend(); RenderSystem.depthMask(true); }

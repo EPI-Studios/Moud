@@ -4,6 +4,7 @@ import com.moud.client.fabric.model.AnimationClip;
 import com.moud.client.fabric.model.BoneNode;
 import com.moud.client.fabric.model.BoneTrack;
 import com.moud.client.fabric.model.CubeGeometry;
+import com.moud.client.fabric.model.MeshGeometry;
 import com.moud.client.fabric.model.ModelAsset;
 import com.moud.client.fabric.model.ModelCache;
 import com.moud.client.fabric.model.ModelInstance;
@@ -204,6 +205,9 @@ public final class Model3DRenderer {
         for (CubeGeometry cube : bone.cubes()) {
             renderCube(consumers, matrices, cube, asset, light);
         }
+        for (MeshGeometry mesh : bone.meshes()) {
+            renderMeshFace(consumers, matrices, mesh, asset, light);
+        }
         for (BoneNode child : bone.children()) {
             renderBone(consumers, matrices, child, clip, animTime, asset, light);
         }
@@ -237,6 +241,43 @@ public final class Model3DRenderer {
         face(consumers, matrices, c.up(),     asset, light, x0,y1,z1, x1,y1,z1, x1,y1,z0, x0,y1,z0, 0,1,0);
         face(consumers, matrices, c.down(),   asset, light, x0,y0,z0, x1,y0,z0, x1,y0,z1, x0,y0,z1, 0,-1,0);
         matrices.pop();
+    }
+
+    private static void renderMeshFace(VertexConsumerProvider.Immediate consumers,
+                                       MatrixStack matrices,
+                                       MeshGeometry m,
+                                       ModelAsset asset,
+                                       int light) {
+        int idx = m.textureIndex();
+        List<Identifier> ids = asset.textureIds();
+        Identifier texId = (idx >= 0 && idx < ids.size()) ? ids.get(idx) : MoudTextures.white();
+        if ("moud".equals(texId.getNamespace())
+                && texId.getPath().startsWith("bbmodel/")
+                && !MoudTextures.isRawReady(texId)) {
+            texId = MoudTextures.white();
+        }
+
+        VertexConsumer vc = consumers.getBuffer(RenderLayer.getEntityCutoutNoCull(texId));
+        MatrixStack.Entry entry = matrices.peek();
+
+        float ex = m.x1() - m.x0(), ey = m.y1() - m.y0(), ez = m.z1() - m.z0();
+        float fx = m.x2() - m.x0(), fy = m.y2() - m.y0(), fz = m.z2() - m.z0();
+        Vector3f normal = new Vector3f(
+                ey * fz - ez * fy,
+                ez * fx - ex * fz,
+                ex * fy - ey * fx
+        );
+        float len = normal.length();
+        if (len > 1e-6f) normal.div(len);
+        entry.getNormalMatrix().transform(normal);
+
+        float rW = asset.resWidth(), rH = asset.resHeight();
+        int overlay = OverlayTexture.DEFAULT_UV;
+
+        vertex(vc, entry, m.x0(), m.y0(), m.z0(), m.u0() / rW, m.v0() / rH, light, overlay, normal.x, normal.y, normal.z);
+        vertex(vc, entry, m.x1(), m.y1(), m.z1(), m.u1() / rW, m.v1() / rH, light, overlay, normal.x, normal.y, normal.z);
+        vertex(vc, entry, m.x2(), m.y2(), m.z2(), m.u2() / rW, m.v2() / rH, light, overlay, normal.x, normal.y, normal.z);
+        vertex(vc, entry, m.x3(), m.y3(), m.z3(), m.u3() / rW, m.v3() / rH, light, overlay, normal.x, normal.y, normal.z);
     }
 
     private static void face(VertexConsumerProvider.Immediate consumers,
