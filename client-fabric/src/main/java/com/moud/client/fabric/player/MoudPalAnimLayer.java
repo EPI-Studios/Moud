@@ -1,11 +1,9 @@
 package com.moud.client.fabric.player;
 
-import com.zigythebird.playeranim.animation.PlayerAnimationController;
 import com.zigythebird.playeranim.api.PlayerAnimationAccess;
 import com.zigythebird.playeranim.api.PlayerAnimationFactory;
 import com.zigythebird.playeranimcore.animation.AnimationController;
 import com.zigythebird.playeranimcore.bones.PlayerAnimBone;
-import com.zigythebird.playeranimcore.enums.PlayState;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.util.Identifier;
 
@@ -20,30 +18,17 @@ public final class MoudPalAnimLayer {
         PlayerAnimationFactory.ANIMATION_DATA_FACTORY.registerFactory(
                 LAYER_ID,
                 0,
-                player -> new PlayerAnimationController(player, (controller, state, setter) -> {
-                    return PlayState.STOP;
-                })
+                player -> new ScriptablePalController(player)
         );
     }
 
     static void applyBoneOffsets(AbstractClientPlayerEntity player, String uuid,
                                  float baseX, float baseY, float baseZ,
                                  float sinYaw, float cosYaw) {
-        if (player == null) {
+        AnimationController ctrl = controller(player);
+        if (ctrl == null) {
             return;
         }
-
-        AnimationController ctrl;
-        try {
-            Object layer = PlayerAnimationAccess.getPlayerAnimationLayer(player, LAYER_ID);
-            if (!(layer instanceof AnimationController ac)) {
-                return;
-            }
-            ctrl = ac;
-        } catch (Exception ignored) {
-            return;
-        }
-
         applyBone(ctrl, uuid, "head",       baseX, baseY + 1.45f, baseZ,  0f,     0f, sinYaw, cosYaw);
         applyBone(ctrl, uuid, "right_arm", baseX, baseY + 0.95f, baseZ,  0.35f,  0f, sinYaw, cosYaw);
         applyBone(ctrl, uuid, "left_arm",  baseX, baseY + 0.95f, baseZ, -0.35f,  0f, sinYaw, cosYaw);
@@ -51,6 +36,18 @@ public final class MoudPalAnimLayer {
         applyBone(ctrl, uuid, "left_item", baseX, baseY + 0.9f,  baseZ, -0.65f,  0f, sinYaw, cosYaw);
         applyBone(ctrl, uuid, "right_leg", baseX, baseY + 0.25f, baseZ,  0.15f,  0f, sinYaw, cosYaw);
         applyBone(ctrl, uuid, "left_leg",  baseX, baseY + 0.25f, baseZ, -0.15f,  0f, sinYaw, cosYaw);
+    }
+
+    static ScriptablePalController controller(AbstractClientPlayerEntity player) {
+        if (player == null) {
+            return null;
+        }
+        try {
+            Object layer = PlayerAnimationAccess.getPlayerAnimationLayer(player, LAYER_ID);
+            return layer instanceof ScriptablePalController controller ? controller : null;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private static void applyBone(AnimationController ctrl, String uuid,
