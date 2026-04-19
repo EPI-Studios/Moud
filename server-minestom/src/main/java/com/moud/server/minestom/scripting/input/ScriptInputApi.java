@@ -4,7 +4,7 @@ import com.moud.server.minestom.scripting.player.PlayerInputState;
 import org.graalvm.polyglot.HostAccess;
 
 public final class ScriptInputApi {
-    private static final PlayerInputState EMPTY = new PlayerInputState("", 0L, 0f, 0f, 0f, 0f, 0f, 0f, false, false, false);
+    private static final PlayerInputState EMPTY = new PlayerInputState("", 0L, 0f, 0f, 0f, 0f, 0f, 0f, "", "", false, false, false);
     private final InputMap inputMap;
     private PlayerInputState current;
     private PlayerInputState previous;

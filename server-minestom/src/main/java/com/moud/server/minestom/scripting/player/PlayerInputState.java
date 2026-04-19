@@ -11,6 +11,8 @@ public record PlayerInputState(
         float pitchDeg,
         float cursorX,
         float cursorY,
+        String stateKey,
+        String stateValue,
         boolean jump,
         boolean sprint,
         boolean sneak
@@ -25,6 +27,8 @@ public record PlayerInputState(
                 input.pitchDeg(),
                 input.cursorX(),
                 input.cursorY(),
+                input.stateKey(),
+                input.stateValue(),
                 input.jump(),
                 input.sprint(),
                 input.sneak()
