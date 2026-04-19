@@ -1,6 +1,8 @@
 package com.moud.client.fabric.mixin;
 
 import com.moud.client.fabric.player.PlayerBodyAttachmentCache;
+import com.moud.client.fabric.player.PlayerBodyScale;
+import com.moud.client.fabric.player.PlayerBodyVisibility;
 import java.util.UUID;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.network.packet.s2c.play.PlayerRemoveS2CPacket;
@@ -16,6 +18,8 @@ public abstract class ClientPlayNetworkHandlerMixin {
     private void moud$onPlayerRemove(PlayerRemoveS2CPacket packet, CallbackInfo ci) {
         for (UUID uuid : packet.profileIds()) {
             PlayerBodyAttachmentCache.clearPlayer(uuid.toString());
+            PlayerBodyVisibility.clearPlayer(uuid.toString());
+            PlayerBodyScale.clearPlayer(uuid.toString());
         }
     }
 }
