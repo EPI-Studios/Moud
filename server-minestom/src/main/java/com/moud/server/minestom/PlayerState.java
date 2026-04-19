@@ -9,6 +9,7 @@ final class PlayerState {
     String activeSceneId = "main";
     boolean schemaSent;
     long scenesSentRevision = Long.MIN_VALUE;
+    long sceneSnapshotSentRevision = Long.MIN_VALUE;
     boolean editorOpen;
     boolean multiMeshSent;
     String collisionGeometrySentSceneId;
