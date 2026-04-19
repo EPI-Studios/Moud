@@ -3,6 +3,7 @@ package com.moud.client.fabric.render.picking;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.moud.client.fabric.render.Model3DRenderer;
 import com.moud.client.fabric.render.VeilSceneNodeRenderer;
+import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
 import com.moud.client.fabric.render.veil.GlUtil;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
@@ -60,7 +61,7 @@ public final class OutlineRenderer {
 
     public void render(List<SceneSnapshot.NodeSnapshot> nodes,
                        Map<Long, SceneSnapshot.NodeSnapshot> nodesById,
-                       Function<Long, VeilSceneNodeRenderer.Pose> poseResolver,
+                       Function<Long, Pose> poseResolver,
                        Vec3d camPos, Matrix4fc viewMatrix, Matrix4fc projectionMatrix,
                        long hoveredId, long selectedId,
                        MinecraftClient client) {
@@ -187,7 +188,7 @@ public final class OutlineRenderer {
     }
 
     private void renderMaskNode(SceneSnapshot.NodeSnapshot node,
-                                Function<Long, VeilSceneNodeRenderer.Pose> poseResolver,
+                                Function<Long, Pose> poseResolver,
                                 Vec3d camPos, Matrix4f viewMat, int pid, float maskAlpha) {
         if (node == null) return;
         String type = node.type();
@@ -199,7 +200,7 @@ public final class OutlineRenderer {
             return;
         }
 
-        VeilSceneNodeRenderer.Pose world = poseResolver.apply(node.nodeId());
+        Pose world = poseResolver.apply(node.nodeId());
         if (world == null) return;
 
         if ("Model3D".equals(type)) {
@@ -287,7 +288,7 @@ public final class OutlineRenderer {
     }
 
     private void renderModelMask(SceneSnapshot.NodeSnapshot node,
-                                 VeilSceneNodeRenderer.Pose world,
+                                 Pose world,
                                  Vec3d camPos,
                                  int pid,
                                  float maskAlpha) {

@@ -20,6 +20,7 @@ public final class SceneCacheManager {
 
     private boolean sceneChangedThisRefresh;
     private boolean shiftPrevPoseState;
+    private boolean sceneResetThisRefresh;
 
     public void refreshSceneCache(AtomicLong runtimeOverrideVersion,
                                   Consumer<List<SceneSnapshot.NodeSnapshot>> snapshotUpdateListener) {
@@ -33,6 +34,7 @@ public final class SceneCacheManager {
 
         sceneChangedThisRefresh = false;
         shiftPrevPoseState = false;
+        sceneResetThisRefresh = false;
 
         if (!sceneChanged && !overrideChanged) {
             return;
@@ -61,6 +63,7 @@ public final class SceneCacheManager {
 
         sceneChangedThisRefresh = true;
         shiftPrevPoseState = physicsChanged && !isReset;
+        sceneResetThisRefresh = isReset;
 
         if (snapshotVersion != cachedSnapshotVersion && snapshotUpdateListener != null) {
             snapshotUpdateListener.accept(cachedNodes);
@@ -74,6 +77,10 @@ public final class SceneCacheManager {
 
     public boolean shiftPrevPoseState() {
         return shiftPrevPoseState;
+    }
+
+    public boolean sceneResetThisRefresh() {
+        return sceneResetThisRefresh;
     }
 
     public List<SceneSnapshot.NodeSnapshot> cachedNodes() {

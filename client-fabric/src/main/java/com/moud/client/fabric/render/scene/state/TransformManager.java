@@ -89,6 +89,12 @@ public final class TransformManager {
         runtimeOverrideVersion.incrementAndGet();
     }
 
+    public void resetPoseStates() {
+        poseStatesById.clear();
+        worldPoseCacheById.clear();
+        playerAttachPoseScratch.clear();
+    }
+
     public void beginPoseFrame(float tickDelta) {
         poseFrameId++;
         EditorContext editorContext = EditorOverlayBus.get();
@@ -124,11 +130,7 @@ public final class TransformManager {
                     || state.parentId != parentId
                     || !Pose.approxEquals(state.currLocal, scratch);
             if (changed) {
-                if (!state.initialized || state.parentId != parentId) {
-                    Pose.copy(scratch, state.prevLocal);
-                } else {
-                    Pose.copy(state.currLocal, state.prevLocal);
-                }
+                Pose.copy(scratch, state.prevLocal);
                 Pose.copy(scratch, state.currLocal);
                 state.parentId = parentId;
                 state.initialized = true;
@@ -452,7 +454,7 @@ public final class TransformManager {
         } else {
             out.scale.set(1.0f, 1.0f, 1.0f);
         }
-        if (pivotIsMinCorner && hasScale) {
+        if (pivotIsMinCorner) {
             px = x + sx * 0.5f;
             py = y + sy * 0.5f;
             pz = z + sz * 0.5f;
@@ -460,7 +462,7 @@ public final class TransformManager {
 
         out.pos.set(px, py, pz);
         out.rot.set(quatFromEulerDeg(rxDeg, ryDeg, rzDeg));
-        out.inherit = "CSGBlock".equals(node.type()) ? false : shouldInheritTransform(inheritRaw);
+        out.inherit = shouldInheritTransform(inheritRaw);
     }
 
     private boolean shouldInheritTransform(String value) {

@@ -3,6 +3,7 @@ package com.moud.client.fabric.render.picking;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.moud.client.fabric.render.Model3DRenderer;
 import com.moud.client.fabric.render.VeilSceneNodeRenderer;
+import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
 import com.moud.client.fabric.render.veil.GlUtil;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
@@ -63,7 +64,7 @@ public final class NodePickingPass {
     }
 
     public void render(List<SceneSnapshot.NodeSnapshot> nodes,
-                       Function<Long, VeilSceneNodeRenderer.Pose> poseResolver,
+                       Function<Long, Pose> poseResolver,
                        Vec3d camPos, Matrix4fc viewMatrix, Matrix4fc projectionMatrix,
                        int viewportW, int viewportH,
                        float mouseNdcX, float mouseNdcY) {
@@ -118,7 +119,7 @@ public final class NodePickingPass {
                     continue;
                 }
 
-                VeilSceneNodeRenderer.Pose world = poseResolver.apply(node.nodeId());
+                Pose world = poseResolver.apply(node.nodeId());
                 if (world == null) continue;
 
                  if ("Model3D".equals(type)) {
@@ -218,7 +219,7 @@ public final class NodePickingPass {
     }
 
     private void collectModelPickInstances(SceneSnapshot.NodeSnapshot node,
-                                           VeilSceneNodeRenderer.Pose world,
+                                           Pose world,
                                            Vec3d camPos,
                                            Map<String, List<PickInstance>> batches) {
         List<PickInstance> cubeBatch = batches.computeIfAbsent("cube", k -> new ArrayList<>());

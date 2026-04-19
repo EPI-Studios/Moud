@@ -3,6 +3,7 @@ package com.moud.client.fabric.render;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
 import com.moud.client.fabric.render.MoudTextures;
+import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.client.fabric.render.veil.GlUtil;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
 import com.moud.net.protocol.SceneSnapshot;
@@ -54,7 +55,7 @@ final class InstancedBatchRenderer {
     }
 
     int renderBatched(List<SceneSnapshot.NodeSnapshot> nodes,
-                      Function<Long, VeilSceneNodeRenderer.Pose> poseResolver,
+                      Function<Long, Pose> poseResolver,
                       Vec3d camPos, Camera camera, Matrix4fc viewMatrix, Matrix4fc projectionMatrix,
                       MinecraftClient client, float tickDelta) {
         if (!RenderSystem.isOnRenderThread()) return 0;
@@ -116,7 +117,7 @@ final class InstancedBatchRenderer {
     }
 
     private Map<String, List<NodeInstance>> buildBatches(List<SceneSnapshot.NodeSnapshot> nodes,
-                                                         Function<Long, VeilSceneNodeRenderer.Pose> poseResolver,
+                                                         Function<Long, Pose> poseResolver,
                                                          Vec3d camPos) {
         Map<String, List<NodeInstance>> batches = new HashMap<>();
         for (var node : nodes) {
@@ -124,6 +125,10 @@ final class InstancedBatchRenderer {
             String type = node.type();
             if (!"MeshInstance3D".equals(type) && !"CSGBox".equals(type)) continue;
             if (!VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "visible"), true)) continue;
+            if (VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "viewmodel"), false)) {
+                com.moud.client.fabric.runtime.PlayRuntimeClient rt = com.moud.client.fabric.runtime.PlayRuntimeBus.get();
+                if (rt != null && rt.isActive()) continue;
+            }
 
             String materialPath = VeilSceneNodeRenderer.stringProp(node, "material");
             if (materialPath != null && !materialPath.isBlank()) continue;
@@ -134,7 +139,7 @@ final class InstancedBatchRenderer {
                     && !"moud:dynamic/white".equals(texProp);
             if (hasCustomTexture) continue;
 
-            VeilSceneNodeRenderer.Pose world = poseResolver.apply(node.nodeId());
+            Pose world = poseResolver.apply(node.nodeId());
             if (world == null) continue;
 
             float tintR   = clampedProp(node, "color_tint_r", 1f);
@@ -249,7 +254,7 @@ final class InstancedBatchRenderer {
 
     private record NodeInstance(Matrix4f worldMat,
                                 float tintR, float tintG, float tintB, float opacity) {
-        NodeInstance(VeilSceneNodeRenderer.Pose world,
+        NodeInstance(Pose world,
                      float tintR, float tintG, float tintB, float opacity) {
             this(
                     new Matrix4f()
