@@ -34,6 +34,7 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
     private final HashMap<Long, Vector2f> scratchWorldCache = new HashMap<>();
 
     private String cachedText = "";
+    private float cachedFontSize = 9f;
     private float cachedFillR = 1, cachedFillG = 1, cachedFillB = 1, cachedFillA = 1;
     private float cachedValue = 50, cachedMinValue = 0, cachedMaxValue = 100;
     private boolean cachedChecked = false;
@@ -56,6 +57,7 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
     private long lastSendAtMs;
 
     private long parentId;
+    private boolean cachedVisible = true;
 
     private EditorRuntime runtime;
     private CanvasEditor2D canvas2d;
@@ -76,6 +78,7 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
         if (node == null) return;
         parentId = node.parentId();
         typeId = node.type() != null ? node.type() : "";
+        cachedVisible = !"false".equalsIgnoreCase(nvl(getProp(node, "visible"), "true"));
         float lx = parseFloat(getProp(node, "x"), 0.0f);
         float ly = parseFloat(getProp(node, "y"), 0.0f);
         float sx = parseFloat(getProp(node, "sx"), 1.0f);
@@ -107,6 +110,7 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
             size.set(1, 1);
         }
         cachedText = nvl(getProp(node, "text"), "");
+        cachedFontSize = parseFloat(getProp(node, "font_size"), 9f);
         String fillR = nvl(getProp(node, "fill_color_r"), getProp(node, "color_r"));
         String fillG = nvl(getProp(node, "fill_color_g"), getProp(node, "color_g"));
         String fillB = nvl(getProp(node, "fill_color_b"), getProp(node, "color_b"));
@@ -279,7 +283,7 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
     @Override
     public void render(UiRenderer r, Theme theme, int px, int py) {
         if (!CONTROL_TYPES.contains(typeId)) {
-            int c = Theme.mulAlpha(Theme.toArgb(theme.accent), 0.8f);
+            int c = Theme.mulAlpha(Theme.toArgb(theme.accent), cachedVisible ? 0.8f : 0.3f);
             r.drawRect(px - 4, py - 4, 8, 8, c);
             return;
         }
@@ -288,7 +292,22 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
         int sh = Math.max(4, (int) (size.y * scale.y * z));
         int rx = px - sw / 2;
         int ry = py - sh / 2;
+
+        if (!cachedVisible) {
+            r.pushClipRect(rx, ry, sw, sh);
+        }
         renderControl(r, theme, rx, ry, sw, sh);
+        if (!cachedVisible) {
+            r.popClipRect();
+            int outline = 0x88FF4444;
+            r.drawRect(rx, ry, sw, 2, outline);
+            r.drawRect(rx, ry + sh - 2, sw, 2, outline);
+            r.drawRect(rx, ry, 2, sh, outline);
+            r.drawRect(rx + sw - 2, ry, 2, sh, outline);
+            if (sw > 40 && sh > 10) {
+                r.drawText("Hidden", rx + 4, r.baselineForBox(ry, sh), 0xAAFF4444);
+            }
+        }
     }
 
     private void renderControl(UiRenderer r, Theme theme, int rx, int ry, int sw, int sh) {
@@ -310,8 +329,14 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
             case "Label", "RichTextLabel" -> {
                 r.drawRect(rx, ry, sw, sh, BG);
                 r.drawRectOutline(rx, ry, sw, sh, 1, BORDER);
-                if (!cachedText.isEmpty() && sw > 8 && sh > 4)
-                    r.drawText(cachedText, rx + 3, r.baselineForBox(ry, sh), TEXT);
+                if (!cachedText.isEmpty() && sw > 8 && sh > 4) {
+                    // True-to-runtime font scaling: the HudCanvasRenderer uses
+                    // fontSize/9 as the scale factor, same here so the editor
+                    // preview matches pixel-perfectly what the game renders.
+                    float fontSize = cachedFontSize > 0f ? cachedFontSize : 9f;
+                    float textScale = (fontSize / 9f) * canvas2d.zoom();
+                    r.drawText(cachedText, rx + 3, ry + 2 + r.ascent() * textScale, textScale, TEXT);
+                }
             }
             case "Button" -> {
                 r.drawRect(rx, ry, sw, sh, ACCENT);

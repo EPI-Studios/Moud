@@ -39,7 +39,8 @@ public final class EditorState {
     public long nextProjectRequestId = 1;
     public long nextScriptActionRequestId = 1;
     public long nextScriptFileRequestId = 1;
-    public long lastSavedRevision = -1;
+    public final Map<String, Long> sceneRevisionById = new HashMap<>();
+    public final Map<String, Long> lastSavedRevisionByScene = new HashMap<>();
 
     public boolean projectExists;
     public boolean projectInfoKnown;
@@ -57,11 +58,45 @@ public final class EditorState {
     public boolean pendingSnapshot;
 
     public boolean isDirty() {
-        return scene.revision() >= 0 && scene.revision() != lastSavedRevision;
+        return isSceneDirty(activeSceneId);
+    }
+
+    public boolean isSceneDirty(String sceneId) {
+        long currentRevision = currentRevisionForScene(sceneId);
+        if (currentRevision < 0) {
+            return false;
+        }
+        long savedRevision = lastSavedRevisionByScene.getOrDefault(sceneId, currentRevision);
+        return currentRevision != savedRevision;
+    }
+
+    public long currentRevisionForScene(String sceneId) {
+        if (sceneId == null || sceneId.isBlank()) {
+            return -1L;
+        }
+        if (sceneId.equals(activeSceneId)) {
+            return scene.revision();
+        }
+        return sceneRevisionById.getOrDefault(sceneId, -1L);
+    }
+
+    public void markSceneSaved(String sceneId, long revision) {
+        if (sceneId == null || sceneId.isBlank() || revision < 0L) {
+            return;
+        }
+        lastSavedRevisionByScene.put(sceneId, revision);
+        sceneRevisionById.put(sceneId, revision);
     }
 
     public void onSnapshot(SceneSnapshot snapshot) {
         scene.applySnapshot(snapshot);
+        if (activeSceneId != null && !activeSceneId.isBlank()) {
+            long revision = scene.revision();
+            if (revision >= 0L) {
+                sceneRevisionById.put(activeSceneId, revision);
+                lastSavedRevisionByScene.putIfAbsent(activeSceneId, revision);
+            }
+        }
         if (selectedId == 0L || scene.getNode(selectedId) == null) {
             SceneSnapshot.NodeSnapshot firstCsg = null;
             if (snapshot != null && snapshot.nodes() != null) {
@@ -92,6 +127,9 @@ public final class EditorState {
         boolean anyCreated = ack.results().stream().anyMatch(r -> r.createdId() != 0L);
         if (!anyFailed) {
             scene.setRevision(ack.sceneRevision());
+            if (activeSceneId != null && !activeSceneId.isBlank()) {
+                sceneRevisionById.put(activeSceneId, ack.sceneRevision());
+            }
         }
         if (anyFailed || anyCreated) {
             pendingSnapshot = true;
@@ -129,11 +167,13 @@ public final class EditorState {
         }
         scenes = List.copyOf(list.scenes());
         if (list.activeSceneId() != null && !list.activeSceneId().isBlank()) {
+            if (activeSceneId != null && !activeSceneId.isBlank() && scene.revision() >= 0L) {
+                sceneRevisionById.put(activeSceneId, scene.revision());
+            }
             String next = list.activeSceneId();
             if (!next.equals(activeSceneId)) {
                 activeSceneId = next;
                 selectedId = 0L;
-                lastSavedRevision = -1;
             } else {
                 activeSceneId = next;
             }

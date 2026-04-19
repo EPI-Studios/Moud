@@ -44,6 +44,7 @@ class SceneTreeController {
     int renameFieldH;
 
     final Set<Long> expandedNodeIds = new HashSet<>();
+    private boolean expansionStateCaptured;
 
     SceneTreeController(EditorRuntime runtime) {
         this.runtime = runtime;
@@ -85,9 +86,13 @@ class SceneTreeController {
     }
 
     void saveExpandedState() {
-        if (rootNode == null) return;
+        if (rootNode == null) {
+            expansionStateCaptured = false;
+            return;
+        }
         expandedNodeIds.clear();
         collectExpandedIds(rootNode);
+        expansionStateCaptured = true;
     }
 
     void collectExpandedIds(TreeNode<SceneSnapshot.NodeSnapshot> node) {
@@ -299,6 +304,7 @@ class SceneTreeController {
         if (snapshot == null) return null;
         long nodeId = snapshot.nodeId();
         if (nodeId <= 0L) return null;
+        if (isRuntimeHidden(snapshot)) return null;
 
         if (!path.add(nodeId)) {
             TreeNode<SceneSnapshot.NodeSnapshot> node = new TreeNode<>(snapshot);
@@ -333,12 +339,26 @@ class SceneTreeController {
         for (TreeNode<SceneSnapshot.NodeSnapshot> cn : childNodes) {
             node.addChild(cn);
         }
-        boolean shouldExpand = expandedNodeIds.isEmpty() || expandedNodeIds.contains(snapshot.nodeId());
+        boolean shouldExpand = !expansionStateCaptured || expandedNodeIds.contains(snapshot.nodeId());
         node.setExpanded(shouldExpand);
         node.setIcon(hasScript(snapshot) ? Icon.CODE : Icon.FILE);
         node.setAccentColor(nodeTypeBadgeColor(snapshot.type()));
         path.remove(nodeId);
         return node;
+    }
+
+    private static boolean isRuntimeHidden(SceneSnapshot.NodeSnapshot snapshot) {
+        if (snapshot == null || snapshot.properties() == null) return false;
+        for (SceneSnapshot.Property p : snapshot.properties()) {
+            if (p == null || p.key() == null) continue;
+            String k = p.key();
+            if (!"@runtime".equals(k) && !"@transient".equals(k) && !"runtime_only".equals(k)) continue;
+            String v = p.value();
+            if (v == null) continue;
+            String s = v.trim();
+            if ("1".equals(s) || "true".equalsIgnoreCase(s)) return true;
+        }
+        return false;
     }
 
     static boolean hasScript(SceneSnapshot.NodeSnapshot snapshot) {

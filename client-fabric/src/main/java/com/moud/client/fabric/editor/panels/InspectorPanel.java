@@ -36,6 +36,8 @@ import com.moud.core.player.AttachPoint;
 import com.moud.core.PropertyDef;
 import com.moud.core.PropertyType;
 import com.moud.core.assets.ResPath;
+import com.moud.core.scripts.ScriptFilenames;
+import com.moud.core.scripts.ScriptSlot;
 import com.moud.core.scene.Model3D;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneSnapshot;
@@ -1045,6 +1047,8 @@ public final class InspectorPanel extends Panel {
         if (hasScript) {
             String script = value == null ? "" : value;
             EditorUiUtil.iconButtonOutlined(ui, renderer, theme, buttonX, buttonY, iconButtonWidth, iconButtonHeight, Icon.CODE, input != null, () -> runtime.openScriptEditor(nodeId, script));
+            buttonX += iconButtonWidth + iconGap;
+            EditorUiUtil.iconButtonOutlined(ui, renderer, theme, buttonX, buttonY, iconButtonWidth, iconButtonHeight, Icon.CHEVRON_RIGHT, input != null, () -> runtime.openScriptInExternalEditor(script));
         }
 
         if (isClientScriptPath) {
@@ -1056,7 +1060,9 @@ public final class InspectorPanel extends Panel {
 
         if (hasClientScript) {
             String clientScript = value == null ? "" : value;
-            EditorUiUtil.iconButtonOutlined(ui, renderer, theme, buttonX, buttonY, iconButtonWidth, iconButtonHeight, Icon.CODE, input != null, () -> runtime.openScriptEditor(nodeId, clientScript));
+            EditorUiUtil.iconButtonOutlined(ui, renderer, theme, buttonX, buttonY, iconButtonWidth, iconButtonHeight, Icon.CODE, input != null, () -> runtime.openScriptEditor(0L, clientScript));
+            buttonX += iconButtonWidth + iconGap;
+            EditorUiUtil.iconButtonOutlined(ui, renderer, theme, buttonX, buttonY, iconButtonWidth, iconButtonHeight, Icon.CHEVRON_RIGHT, input != null, () -> runtime.openScriptInExternalEditor(clientScript));
         }
 
         return y + rowHeight;
@@ -1089,20 +1095,23 @@ public final class InspectorPanel extends Panel {
             }
 
             String lower = filename.toLowerCase(Locale.ROOT);
-            boolean isLuau = lower.endsWith(".luau");
             boolean isTs = lower.endsWith(".ts") || lower.endsWith(".mts");
-            if (!(lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs") || isTs || isLuau)) {
+            boolean isJs = lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs");
+            boolean isLuau = ScriptFilenames.isLuau(filename);
+            if (!(isTs || isJs || isLuau)) {
                 filename = filename + ".ts";
-                lower = filename.toLowerCase(Locale.ROOT);
-                isLuau = false;
                 isTs = true;
+            }
+            if (isLuau) {
+                filename = ScriptFilenames.ensureSuffixFor(filename, ScriptSlot.SCRIPT);
             }
 
             String scriptPath = "res://scripts/" + filename;
             try {
                 new ResPath(scriptPath);
             } catch (Exception ignored) {
-                scriptPath = "res://scripts/node_" + nodeId + (isLuau ? ".luau" : (isTs ? ".ts" : ".js"));
+                String ext = isLuau ? ".server.luau" : (isTs ? ".ts" : ".js");
+                scriptPath = "res://scripts/node_" + nodeId + ext;
             }
 
             String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
@@ -1824,20 +1833,18 @@ public final class InspectorPanel extends Panel {
             }
 
             String lower = filename.toLowerCase(Locale.ROOT);
-            boolean isLuau = lower.endsWith(".luau");
-            boolean isTs = lower.endsWith(".ts") || lower.endsWith(".mts");
-            if (!(lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs") || isTs || isLuau)) {
-                filename = filename + ".ts";
-                lower = filename.toLowerCase(Locale.ROOT);
-                isLuau = false;
-                isTs = true;
+            boolean isLuau = ScriptFilenames.isLuau(filename);
+            if (!isLuau) {
+                runtime.requestToast("Client scripts must be Luau (.luau / .client.luau)", true, 5000);
+                return;
             }
+            filename = ScriptFilenames.ensureSuffixFor(filename, ScriptSlot.CLIENT_SCRIPT);
 
             String scriptPath = "res://scripts/" + filename;
             try {
                 new ResPath(scriptPath);
             } catch (Exception ignored) {
-                scriptPath = "res://scripts/client_" + nodeId + (isLuau ? ".luau" : (isTs ? ".ts" : ".js"));
+                scriptPath = "res://scripts/client_" + nodeId + ".client.luau";
             }
 
             String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);

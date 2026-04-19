@@ -4,6 +4,7 @@ package com.moud.client.fabric.editor.net;
 import com.moud.client.fabric.editor.state.EditorState;
 import com.moud.client.fabric.scene.ClientSceneBus;
 import com.moud.client.fabric.scene.SceneState;
+import com.moud.net.protocol.AssetPathOp;
 import com.moud.net.protocol.ProjectCreate;
 import com.moud.net.protocol.ProjectInfoRequest;
 import com.moud.net.protocol.SceneCreate;
@@ -135,6 +136,26 @@ public final class EditorNet {
         String c = content == null ? "" : content;
         long requestId = state.nextScriptFileRequestId++;
         session.send(Lane.EVENTS, new ScriptFileWriteRequest(requestId, p, c));
+        return requestId;
+    }
+
+    public long createFolder(Session session, EditorState state, String path) {
+        return sendAssetPathOp(session, state, AssetPathOp.Kind.CREATE_FOLDER, path, "");
+    }
+
+    public long renameAsset(Session session, EditorState state, String oldPath, String newPath) {
+        return sendAssetPathOp(session, state, AssetPathOp.Kind.RENAME, oldPath, newPath);
+    }
+
+    public long deleteAssetRecursive(Session session, EditorState state, String path) {
+        return sendAssetPathOp(session, state, AssetPathOp.Kind.DELETE_RECURSIVE, path, "");
+    }
+
+    private long sendAssetPathOp(Session session, EditorState state, AssetPathOp.Kind kind,
+                                 String path, String newPath) {
+        if (session == null || state == null || path == null || path.isBlank()) return 0L;
+        long requestId = state.nextScriptFileRequestId++;
+        session.send(Lane.EVENTS, new AssetPathOp(requestId, kind, path.trim(), newPath == null ? "" : newPath.trim()));
         return requestId;
     }
 

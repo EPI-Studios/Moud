@@ -45,11 +45,20 @@ public final class EditorUiUtil {
     public static boolean iconButton(Ui ui, UiRenderer renderer, Theme theme,
                                      int x, int y, int w, int h,
                                      Icon icon, boolean interactive, Runnable action) {
+        return iconButton(ui, renderer, theme, x, y, w, h, icon, interactive, null, action);
+    }
+
+    public static boolean iconButton(Ui ui, UiRenderer renderer, Theme theme,
+                                     int x, int y, int w, int h,
+                                     Icon icon, boolean interactive, String tooltip, Runnable action) {
         boolean hovered = isHovered(ui, interactive, x, y, w, h);
 
         if (hovered) {
             int fillColor = Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.65f);
             renderer.drawRoundedRect(x, y, w, h, theme.design.radius_sm, fillColor);
+            if (tooltip != null && activeRuntime != null) {
+                activeRuntime.requestTooltip(tooltip, x + w / 2, y + h + 4);
+            }
         }
 
         drawCenteredIcon(renderer, theme, icon, x, y, w, h, Theme.toArgb(theme.text));
@@ -60,6 +69,12 @@ public final class EditorUiUtil {
         }
 
         return clicked;
+    }
+
+    private static EditorRuntime activeRuntime;
+
+    public static void setActiveRuntime(EditorRuntime runtime) {
+        activeRuntime = runtime;
     }
 
     public static boolean iconButtonOutlined(Ui ui, UiRenderer renderer, Theme theme,

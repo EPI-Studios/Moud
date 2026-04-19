@@ -54,7 +54,8 @@ class SceneNodeMenu {
 
     void openNodeMenu(SceneSnapshot.NodeSnapshot node) {
         nodeMenu.clear();
-        nodeMenu.addItem("Add Child", () -> sceneNodeOps.openCreateDialog(node.nodeId()));
+        buildAddChildMenu(node);
+        nodeMenu.addSubmenu("Add Child", addChildMenu);
         nodeMenu.addSeparator();
         nodeMenu.addItem("Rename", () -> beginInlineRename(node));
         Set<TreeNode<SceneSnapshot.NodeSnapshot>> multiSel = treeView != null ? treeView.selectedNodes() : Set.of();
@@ -110,6 +111,9 @@ class SceneNodeMenu {
             return;
         }
         long parentId = parent == null ? 0L : parent.nodeId();
+
+        addChildMenu.addItem("Import Scene\u2026", () -> sceneNodeOps.importSceneAsChild(parentId));
+        addChildMenu.addSeparator();
         LinkedHashMap<String, ArrayList<NodeTypeDef>> categories = new LinkedHashMap<>();
         for (String typeId : state.typeIds) {
             if (typeId == null || typeId.isBlank() || "Root".equals(typeId)) {
@@ -178,9 +182,6 @@ class SceneNodeMenu {
     }
 
     void syncSubmenus(Ui ui, Theme theme, int itemH) {
-        if (runtime != null && runtime.uiBlocked()) {
-            return;
-        }
         if (ui == null || ui.input() == null || theme == null) {
             return;
         }

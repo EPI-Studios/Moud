@@ -14,6 +14,7 @@ public final class EditorContext {
     private volatile float mouseViewportNdcX;
     private volatile float mouseViewportNdcY;
     private volatile boolean mouseInViewport;
+    private volatile boolean viewportInputFocused;
 
     public EditorContext(MinecraftFreeflyCamera camera) {
         this.camera = camera;
@@ -93,6 +94,14 @@ public final class EditorContext {
 
     public boolean isMouseInViewport() {
         return mouseInViewport;
+    }
+
+    public boolean isViewportInputFocused() {
+        return viewportInputFocused;
+    }
+
+    public void setViewportInputFocused(boolean focused) {
+        viewportInputFocused = focused;
     }
 
     public boolean isMouseOverViewport(double mx, double my) {

@@ -4,6 +4,7 @@ import com.miry.ui.UiContext;
 import com.miry.ui.widgets.ContextMenu;
 import com.miry.ui.widgets.TreeNode;
 import com.miry.ui.widgets.TreeView;
+import com.moud.client.fabric.editor.dialogs.sceneimport.ImportSceneDialog;
 import com.moud.client.fabric.editor.net.EditorNet;
 import com.moud.client.fabric.editor.state.EditorHistory;
 import com.moud.client.fabric.editor.state.EditorRuntime;
@@ -202,8 +203,7 @@ public class SceneNodeOps {
         for (SceneSnapshot.NodeSnapshot n : roots) {
             if (n != null && "Root".equals(n.type())) return n.nodeId();
         }
-        SceneSnapshot.NodeSnapshot first = roots.getFirst();
-        return first != null ? first.nodeId() : 0L;
+        return 0L;
     }
 
     static boolean sceneHasPlayerStart(EditorState state) {
@@ -707,6 +707,43 @@ public class SceneNodeOps {
         runtime.getCreateNodeDialog().open(parentNodeId);
     }
 
+    void importSceneAsChildById(long parentId, String sceneId) {
+        if (sceneId == null || sceneId.isBlank()) return;
+        EditorState state = runtime.state();
+        if (state == null || runtime.session() == null) {
+            runtime.requestToast("Cannot import scene: not connected", true, 3500);
+            return;
+        }
+        EditorHistory.CreateNodeEntry entry = new EditorHistory.CreateNodeEntry(
+                parentId, "SceneInstance3D", "SceneInstance3D",
+                List.of(Map.entry("scene_id", sceneId.trim())),
+                true);
+        runtime.history().pushEntry(entry);
+        entry.redo(runtime);
+        runtime.requestToast("Imported scene: " + sceneId, false, 2500);
+    }
+
+    void importSceneAsChild(long parentId) {
+        nodeMenu.close();
+        addChildMenu.close();
+        closeAddChildCategoryMenus();
+        EditorState state = runtime.state();
+        if (state == null || runtime.session() == null) {
+            runtime.requestToast("Cannot import scene: not connected", true, 3500);
+            return;
+        }
+        if (state.scenes == null || state.scenes.isEmpty()) {
+            runtime.requestToast("No scenes available to import", true, 3000);
+            return;
+        }
+        ImportSceneDialog dialog = runtime.getImportSceneDialog();
+        if (dialog == null) {
+            runtime.requestToast("Import scene dialog unavailable", true, 3000);
+            return;
+        }
+        dialog.open(parentId);
+    }
+
     void moveToRoot(SceneSnapshot.NodeSnapshot node) {
         if (node == null || node.nodeId() == rootNodeId(runtime.state())) return;
         nodeMenu.close();
@@ -782,11 +819,6 @@ public class SceneNodeOps {
             if (typeId != null && !typeId.isBlank()) {
                 ArrayList<SceneOp> ops = new ArrayList<>();
                 ops.add(new SceneOp.SetProperty(nodeId, "@type", typeId));
-                if (changingRoot) {
-                    boolean is2D = is2DType(typeId, state.typesById);
-                    ops.add(new SceneOp.SetProperty(nodeId, "scene_mode", is2D ? "2d" : "3d"));
-                    runtime.setViewportMode(is2D ? EditorRuntime.ViewportMode.TWO_D : EditorRuntime.ViewportMode.THREE_D);
-                }
                 sendOpsRecorded(ops);
             }
         });
@@ -811,26 +843,11 @@ public class SceneNodeOps {
     }
 
     public static boolean isTypeCompatible(EditorState state, EditorRuntime runtime, String typeId, String parentTypeId) {
-        if (state == null || typeId == null || typeId.isBlank()) {
-            return false;
-        }
-        Map<String, NodeTypeDef> types = state.typesById;
-        boolean scene2d = sceneIs2D(state);
-        boolean typeIs2D = is2DType(typeId, types);
-        boolean typeIs3D = is3DType(typeId, types);
-        boolean parentIs2D = is2DType(parentTypeId, types);
-        boolean parentIsRoot = parentTypeId == null || "Root".equals(parentTypeId);
-
-        if (scene2d && typeIs3D) {
-            return false;
-        }
-        if (typeIs2D && !"CanvasLayer".equals(typeId) && !parentIs2D && !(scene2d && parentIsRoot)) {
-            return false;
-        }
-        return true;
+        return state != null && typeId != null && !typeId.isBlank();
     }
 
     static boolean is2DType(String typeId, Map<String, NodeTypeDef> typesById) {
+        if (typeId == null) return false;
         return "CanvasLayer".equals(typeId)
                 || "CanvasItem".equals(typeId)
                 || "Control".equals(typeId)

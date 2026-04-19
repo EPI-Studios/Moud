@@ -68,6 +68,18 @@ public final class ScenePanel extends Panel {
         this.sceneNodeMenu.setTreeView(sceneTreeController.treeView);
     }
 
+    public boolean hasOpenOverlayMenus() {
+        if (sceneNodeMenu.nodeMenu.isOpen() || sceneNodeMenu.addChildMenu.isOpen()) {
+            return true;
+        }
+        for (ContextMenu menu : sceneNodeMenu.addChildCategoryMenus) {
+            if (menu != null && menu.isOpen()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void handleKey(UiContext ctx, KeyEvent e) {
         if (ctx == null || e == null) {
             return;
@@ -452,20 +464,40 @@ public final class ScenePanel extends Panel {
                             runtime.requestToast("Attached: " + dragPath, false, 1500);
                         }
                 ));
+                uiContext.dragDrop().registerDropTarget(new DropTarget<String>(
+                        0x3370CC,
+                        EditorDnD.TYPE_SCENE_ID,
+                        dropTreeX,
+                        dropTreeY,
+                        dropTreeW,
+                        dropTreeH,
+                        (String sceneId, float dropX, float dropY) -> {
+                            if (sceneId == null || sceneId.isBlank()) return;
+                            int dropRow = (int) ((dropY - dropTreeY + dropScrollOffset) / dropItemH);
+                            List<TreeView.VisibleNode<SceneSnapshot.NodeSnapshot>> vis = dropTreeView.getVisibleNodes();
+                            long parentId;
+                            if (dropRow >= 0 && dropRow < vis.size()) {
+                                SceneSnapshot.NodeSnapshot dropTarget = vis.get(dropRow).node().data();
+                                parentId = dropTarget != null ? dropTarget.nodeId() : sceneNodeOps.rootNodeId(runtime.state());
+                            } else {
+                                parentId = sceneNodeOps.rootNodeId(runtime.state());
+                            }
+                            sceneNodeOps.importSceneAsChildById(parentId, sceneId);
+                        }
+                ));
             }
 
             ui.endScrollArea(area);
 
             if (sceneNodeMenu.nodeMenu.isOpen()) {
                 final int menuItemH = Math.max(24, itemH + 2);
-                if (input != null) {
-                    sceneNodeMenu.nodeMenu.updateFromInput(input, theme, menuItemH);
+                var menuInput = ui.input();
+                if (menuInput != null) {
+                    sceneNodeMenu.nodeMenu.updateFromInput(menuInput, theme, menuItemH);
                     EditorUiUtil.clampOpenMenuToScreen(sceneNodeMenu.nodeMenu, runtime);
                 }
-                if (interactive) {
-                    sceneNodeMenu.syncSubmenus(ui, theme, menuItemH);
-                }
-                if (input != null && input.mousePressed()) {
+                sceneNodeMenu.syncSubmenus(ui, theme, menuItemH);
+                if (menuInput != null && menuInput.mousePressed()) {
                     int cmx = (int) ui.mouse().x;
                     int cmy = (int) ui.mouse().y;
                     boolean insideAny = SceneNodeMenu.inside(sceneNodeMenu.nodeMenu, cmx, cmy, menuItemH)
@@ -484,16 +516,23 @@ public final class ScenePanel extends Panel {
                         sceneNodeMenu.closeAddChildCategoryMenus();
                     } else {
                         if (!sceneNodeMenu.handleSubmenuClick(ui, menuItemH)) {
+                            int hoverIndex = sceneNodeMenu.nodeMenu.hoverIndex();
+                            boolean openingSubmenu = false;
+                            if (hoverIndex >= 0 && hoverIndex < sceneNodeMenu.nodeMenu.items().size()) {
+                                ContextMenu.MenuItem item = sceneNodeMenu.nodeMenu.items().get(hoverIndex);
+                                openingSubmenu = item != null && item.submenu() != null;
+                            }
                             sceneNodeMenu.nodeMenu.handleClick((int) ui.mouse().x, (int) ui.mouse().y, menuItemH);
-                            sceneNodeMenu.closeAddChildCategoryMenus();
-                            sceneNodeMenu.addChildMenu.close();
+                            if (!openingSubmenu) {
+                                sceneNodeMenu.closeAddChildCategoryMenus();
+                                sceneNodeMenu.addChildMenu.close();
+                            }
                         }
                     }
                 }
                 final UiRenderer deferR = r;
                 final Theme deferTheme = theme;
                 final int deferMenuH = menuItemH;
-                final boolean deferInteractive = interactive;
                 runtime.setOverlayMenuRender(() -> {
                     if (sceneNodeMenu.nodeMenu.isOpen()) {
                         int menuBg = Theme.darkenArgb(Theme.toArgb(deferTheme.panelBg), 0.06f);
@@ -504,9 +543,7 @@ public final class ScenePanel extends Panel {
                                 Theme.toArgb(deferTheme.text),
                                 sceneNodeMenu.nodeMenu.hoverIndex());
                     }
-                    if (deferInteractive) {
-                        sceneNodeMenu.renderSubmenus(deferR, deferTheme, deferMenuH);
-                    }
+                    sceneNodeMenu.renderSubmenus(deferR, deferTheme, deferMenuH);
                 });
             }
         }
@@ -561,15 +598,16 @@ public final class ScenePanel extends Panel {
         int collapseX = addX - gap - btnSize;
         int expandX = collapseX - gap - btnSize;
 
-        EditorUiUtil.iconButton(ui, r, theme, expandX, btnY, btnSize, btnSize, Icon.CHEVRON_DOWN, interactive, sceneTreeController::expandAll);
-        EditorUiUtil.iconButton(ui, r, theme, collapseX, btnY, btnSize, btnSize, Icon.CHEVRON_RIGHT, interactive, sceneTreeController::collapseAll);
-        EditorUiUtil.iconButton(ui, r, theme, addX, btnY, btnSize, btnSize, Icon.ADD, interactive, () -> {
+        EditorUiUtil.iconButton(ui, r, theme, expandX, btnY, btnSize, btnSize, Icon.CHEVRON_DOWN, interactive, "Expand all", sceneTreeController::expandAll);
+        EditorUiUtil.iconButton(ui, r, theme, collapseX, btnY, btnSize, btnSize, Icon.CHEVRON_RIGHT, interactive, "Collapse all", sceneTreeController::collapseAll);
+        EditorUiUtil.iconButton(ui, r, theme, addX, btnY, btnSize, btnSize, Icon.ADD, interactive, "Add child to selection", () -> {
             if (runtime.getCreateNodeDialog() == null) {
                 return;
             }
             EditorState state = runtime.state();
-            long parentId = state != null && state.selectedId > 0L ? state.selectedId : SceneNodeOps.rootNodeId(state);
-            if (parentId <= 0L) return;
+            long parentId = state != null && state.selectedId > 0L
+                    ? state.selectedId
+                    : SceneNodeOps.rootNodeId(state);
             runtime.getCreateNodeDialog().open(parentId);
         });
     }
