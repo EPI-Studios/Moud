@@ -20,14 +20,24 @@ import org.lwjgl.glfw.GLFW;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.regex.Pattern;
+
 public final class PlayRuntimeClient {
+    private static final Pattern PLAYER_STATE_KEY_PATTERN = Pattern.compile("[a-z0-9._-]{1,32}");
     private boolean active;
     private volatile RuntimeState lastServerState;
     private final ClientCameraState cameraState = new ClientCameraState();
-    private boolean cursorModeEnabled;
-    private boolean osCursorVisible = true;
+    private boolean serverCursorModeEnabled;
+    private boolean serverOsCursorVisible = true;
+    private Boolean localCursorModeEnabled;
+    private Boolean localOsCursorVisible;
     private float cursorX;
     private float cursorY;
+    private final LinkedHashMap<String, String> playerState = new LinkedHashMap<>();
+    private final LinkedHashMap<String, String> pendingPlayerState = new LinkedHashMap<>();
     private long clientTick;
     private long lastFrameNanoTime;
     private final PlayRuntimeInputState inputState = new PlayRuntimeInputState();
@@ -46,11 +56,28 @@ public final class PlayRuntimeClient {
         return active;
     }
 
+    public boolean isCharacterBodyDriving() {
+        return active && characterBody.isActive();
+    }
+
+    public double characterBodyVelX() {
+        return characterBody.velocity().x;
+    }
+
+    public double characterBodyVelY() {
+        return characterBody.velocity().y;
+    }
+
+    public double characterBodyVelZ() {
+        return characterBody.velocity().z;
+    }
+
     public void setActive(boolean active) {
         if (this.active && !active) {
             inputState.clear();
             characterBody.reset();
             lastFrameNanoTime = 0L;
+            clearLocalCursorOverrides();
             VeilSceneNodeRenderer.clearRuntimeBodyOverride();
             clientScriptRuntime.unloadAll();
         }
@@ -66,10 +93,14 @@ public final class PlayRuntimeClient {
         prevYaw = 0f; prevPitch = 0f; prevRoll = 0f;
         currX = 0f; currY = 0f; currZ = 0f;
         currYaw = 0f; currPitch = 0f; currRoll = 0f;
-        cursorModeEnabled = false;
-        osCursorVisible = true;
+        serverCursorModeEnabled = false;
+        serverOsCursorVisible = true;
+        localCursorModeEnabled = null;
+        localOsCursorVisible = null;
         cursorX = 0.0f;
         cursorY = 0.0f;
+        playerState.clear();
+        pendingPlayerState.clear();
         clientTick = 0L;
         lastFrameNanoTime = 0L;
         inputState.clear();
@@ -82,8 +113,8 @@ public final class PlayRuntimeClient {
         if (state == null) {
             return;
         }
-        cursorModeEnabled = state.cursorModeEnabled();
-        osCursorVisible = state.osCursorVisible();
+        serverCursorModeEnabled = state.cursorModeEnabled();
+        serverOsCursorVisible = state.osCursorVisible();
     }
 
     public void onRuntimeState(RuntimeState state) {
@@ -134,14 +165,24 @@ public final class PlayRuntimeClient {
         if (client == null || client.player == null || client.currentScreen != null) {
             return;
         }
+        characterBody.tick(client.player, inputState);
         syncCharacterBodyRenderOverride(client.player);
         clientTick++;
         updateCursorPosition(client);
         float yaw = client.player.getYaw();
         float pitch = client.player.getPitch();
         PlayRuntimeInputState.Movement movement = inputState.movement();
+        String stateKey = "";
+        String stateValue = "";
+        Iterator<Map.Entry<String, String>> it = pendingPlayerState.entrySet().iterator();
+        if (it.hasNext()) {
+            Map.Entry<String, String> next = it.next();
+            stateKey = next.getKey();
+            stateValue = next.getValue();
+            it.remove();
+        }
         session.send(Lane.INPUT,
-                new PlayerInput(clientTick, movement.moveX(), movement.moveZ(), yaw, pitch, cursorX, cursorY, inputState.jump(), inputState.sprint(), inputState.sneak()));
+                new PlayerInput(clientTick, movement.moveX(), movement.moveZ(), yaw, pitch, cursorX, cursorY, stateKey, stateValue, inputState.jump(), inputState.sprint(), inputState.sneak()));
     }
 
     public void captureInput() {
@@ -163,7 +204,7 @@ public final class PlayRuntimeClient {
         return active && characterBody.isActive();
     }
 
-    public void travelFrame(MinecraftClient client) {
+    public void travelFrame(MinecraftClient client, float tickDelta) {
         if (!active || client == null || client.player == null || client.currentScreen != null) {
             lastFrameNanoTime = 0L;
             return;
@@ -201,16 +242,17 @@ public final class PlayRuntimeClient {
         clientScriptRuntime.syncAllNodes(characterBody, inputSnapshot, cameraState);
         clientScriptRuntime.frame(dt);
         if (!Float.isNaN(cameraState.playerYaw) && client.player != null) {
-            float py = cameraState.playerYaw;
-            client.player.setYaw(py);
-            client.player.bodyYaw = py;
+            // Only set the physics/look yaw (used by CharacterBody3D for movement direction).
+            // bodyYaw is managed by the script via body:writeFloat("rotation_y", ...).
+            client.player.setYaw(cameraState.playerYaw);
         }
 
         double preTravelX = client.player.getX();
         double preTravelY = client.player.getY();
         double preTravelZ = client.player.getZ();
 
-        characterBody.travel(client.player, inputState, dt);
+        characterBody.applyRenderPose(client.player, tickDelta);
+        syncCharacterBodyVisualState(client.player, preTravelX, preTravelY, preTravelZ);
 
         if (cameraState.hasOverride && !Float.isNaN(cameraState.posX)) {
             cameraState.posX += (float)(client.player.getX() - preTravelX);
@@ -263,7 +305,10 @@ public final class PlayRuntimeClient {
         return true;
     }
 
+    public static volatile boolean scriptForceHideHand;
+
     public boolean shouldHideVanillaHand() {
+        if (scriptForceHideHand) return true;
         if (!active) return false;
         if (cameraState.hasOverride) return true;
         RuntimeState st = lastServerState;
@@ -283,6 +328,25 @@ public final class PlayRuntimeClient {
                 (float) player.getZ(),
                 player.getYaw()
         );
+    }
+
+    private void syncCharacterBodyVisualState(PlayerEntity player, double prevX, double prevY, double prevZ) {
+        if (player == null || !characterBody.isActive()) {
+            return;
+        }
+        double x = player.getX();
+        double y = player.getY();
+        double z = player.getZ();
+        // CharacterBody3D.travel already set x/y/z to the interpolated position for this frame.
+        // We set prevX/Y/Z to the same value to disable vanilla interpolation, otherwise
+        // it would try to lerp between render frames using tickDelta (20 Hz), causing jitter.
+        player.prevX = x;
+        player.prevY = y;
+        player.prevZ = z;
+        player.lastRenderX = x;
+        player.lastRenderY = y;
+        player.lastRenderZ = z;
+        syncCharacterBodyRenderOverride(player);
     }
 
     private boolean applyFollowCamera(CameraAccessor accessor, RuntimeState st, float partialTick) {
@@ -379,20 +443,72 @@ public final class PlayRuntimeClient {
         return cameraState;
     }
 
+    public float playerRoll() {
+        return active ? characterBody.rotationZ() : 0f;
+    }
+
     public boolean isCharacterBodyDrivingMovement() {
         return active && characterBody.isActive();
     }
 
     public boolean shouldBlockVanillaInput(MinecraftClient client) {
-        return cursorModeEnabled || (active && characterBody.isActive());
+        return isCursorModeEnabled() || (active && characterBody.isActive());
     }
 
     public boolean isCursorModeEnabled() {
-        return cursorModeEnabled;
+        return localCursorModeEnabled != null ? localCursorModeEnabled : serverCursorModeEnabled;
+    }
+
+    public void setCursorModeEnabled(boolean enabled) {
+        this.localCursorModeEnabled = enabled;
+        if (!enabled && Boolean.FALSE.equals(localOsCursorVisible)) {
+            this.localOsCursorVisible = Boolean.TRUE;
+        }
     }
 
     public boolean isOsCursorVisible() {
-        return osCursorVisible;
+        return localOsCursorVisible != null ? localOsCursorVisible : serverOsCursorVisible;
+    }
+
+    public void setOsCursorVisible(boolean visible) {
+        this.localOsCursorVisible = visible;
+        if (visible) {
+            this.localCursorModeEnabled = true;
+        }
+    }
+
+    public void clearLocalCursorOverrides() {
+        localCursorModeEnabled = null;
+        localOsCursorVisible = null;
+    }
+
+    public float cursorX() {
+        return cursorX;
+    }
+
+    public float cursorY() {
+        return cursorY;
+    }
+
+    public String getPlayerState(String key) {
+        String safeKey = sanitizePlayerStateKey(key);
+        if (safeKey == null) {
+            return "";
+        }
+        return playerState.getOrDefault(safeKey, "");
+    }
+
+    public void setPlayerState(String key, String value) {
+        String safeKey = sanitizePlayerStateKey(key);
+        if (safeKey == null) {
+            return;
+        }
+        String safeValue = sanitizePlayerStateValue(value);
+        String prev = playerState.put(safeKey, safeValue);
+        if (safeValue.equals(prev)) {
+            return;
+        }
+        pendingPlayerState.put(safeKey, safeValue);
     }
 
     public void applyCursorMode(MinecraftClient client) {
@@ -400,12 +516,12 @@ public final class PlayRuntimeClient {
             return;
         }
         long windowHandle = client.getWindow().getHandle();
-        if (cursorModeEnabled) {
+        if (isCursorModeEnabled()) {
             if (client.mouse.isCursorLocked()) {
                 client.mouse.unlockCursor();
             }
             GLFW.glfwSetInputMode(windowHandle, GLFW.GLFW_CURSOR,
-                    osCursorVisible ? GLFW.GLFW_CURSOR_NORMAL : GLFW.GLFW_CURSOR_HIDDEN);
+                    isOsCursorVisible() ? GLFW.GLFW_CURSOR_NORMAL : GLFW.GLFW_CURSOR_HIDDEN);
         } else if (!client.mouse.isCursorLocked()) {
             client.mouse.lockCursor();
         }
@@ -417,11 +533,44 @@ public final class PlayRuntimeClient {
             cursorY = 0.0f;
             return;
         }
+        if (!client.isWindowFocused()) {
+            return;
+        }
         long handle = client.getWindow().getHandle();
         double[] mx = new double[1];
         double[] my = new double[1];
         GLFW.glfwGetCursorPos(handle, mx, my);
-        cursorX = (float) mx[0];
-        cursorY = (float) my[0];
+        int[] ww = new int[1];
+        int[] wh = new int[1];
+        GLFW.glfwGetWindowSize(handle, ww, wh);
+        double cx = mx[0];
+        double cy = my[0];
+        if (ww[0] > 0 && wh[0] > 0 && (cx < 0 || cx > ww[0] || cy < 0 || cy > wh[0])) {
+            return;
+        }
+        cursorX = (float) cx;
+        cursorY = (float) cy;
+    }
+
+    private static String sanitizePlayerStateKey(String key) {
+        if (key == null) {
+            return null;
+        }
+        String trimmed = key.trim().toLowerCase();
+        if (!PLAYER_STATE_KEY_PATTERN.matcher(trimmed).matches()) {
+            return null;
+        }
+        return trimmed;
+    }
+
+    private static String sanitizePlayerStateValue(String value) {
+        if (value == null) {
+            return "";
+        }
+        String trimmed = value.trim();
+        if (trimmed.length() > 128) {
+            return trimmed.substring(0, 128);
+        }
+        return trimmed;
     }
 }
