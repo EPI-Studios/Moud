@@ -34,9 +34,18 @@ public final class ClientSceneBus {
     }
 
     public static List<SceneSnapshot.NodeSnapshot> copyNodes() {
+        List<SceneSnapshot.NodeSnapshot> server;
         synchronized (SCENE) {
-            return List.copyOf(new ArrayList<>(SCENE.nodes()));
+            server = new ArrayList<>(SCENE.nodes());
         }
+        List<SceneSnapshot.NodeSnapshot> local = ClientLocalNodes.snapshot();
+        if (local.isEmpty()) {
+            return List.copyOf(server);
+        }
+        ArrayList<SceneSnapshot.NodeSnapshot> merged = new ArrayList<>(server.size() + local.size());
+        merged.addAll(server);
+        merged.addAll(local);
+        return List.copyOf(merged);
     }
 
     public static SceneSnapshot.NodeSnapshot getNode(long nodeId) {
@@ -76,6 +85,8 @@ public final class ClientSceneBus {
         synchronized (SCENE) {
             SCENE.clear();
         }
+        ClientLocalNodes.clearAll();
+        ClientPropertyOverrides.clearAll();
         VERSION.incrementAndGet();
         SNAPSHOT_VERSION.incrementAndGet();
     }
