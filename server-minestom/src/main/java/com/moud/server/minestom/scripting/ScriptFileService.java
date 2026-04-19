@@ -112,13 +112,13 @@ public final class ScriptFileService {
         if (path.startsWith(ResPath.SCHEME)) {
             ResPath rp = new ResPath(path);
             String inner = rp.path();
-            if (!inner.startsWith("scripts/") && !inner.startsWith("local_scripts/")) {
-                throw new IllegalArgumentException("Only res://scripts/ and res://local_scripts/ paths are allowed");
+            if (!inner.startsWith("scripts/")) {
+                throw new IllegalArgumentException("Only res://scripts/ paths are allowed");
             }
             return rp.value();
         }
-        if (!path.startsWith("scripts/") && !path.startsWith("local_scripts/")) {
-            throw new IllegalArgumentException("Only scripts/ and local_scripts/ paths are allowed");
+        if (!path.startsWith("scripts/")) {
+            throw new IllegalArgumentException("Only scripts/ paths are allowed");
         }
         return path;
     }
