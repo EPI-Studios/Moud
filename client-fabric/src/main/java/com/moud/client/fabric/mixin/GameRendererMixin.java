@@ -1,5 +1,8 @@
 package com.moud.client.fabric.mixin;
 
+import com.moud.client.fabric.editor.diagnostics.ClientFrameProfiler;
+import com.moud.client.fabric.player.PlayerBodyAttachmentCache;
+import com.moud.client.fabric.runtime.CameraLookTarget;
 import com.moud.client.fabric.runtime.ClientCameraState;
 import com.moud.client.fabric.runtime.ClientCameraStateBus;
 import com.moud.client.fabric.runtime.PlayRuntimeBus;
@@ -23,10 +26,32 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public final class GameRendererMixin {
     @Inject(method = "renderWorld(Lnet/minecraft/client/render/RenderTickCounter;)V", at = @At("HEAD"))
     private void moud$travelFrame(RenderTickCounter counter, CallbackInfo ci) {
+        ClientFrameProfiler.beginFrame();
+        ClientFrameProfiler.beginScope("render.world");
         PlayRuntimeClient runtime = PlayRuntimeBus.get();
         if (runtime != null) {
-            runtime.travelFrame(MinecraftClient.getInstance());
+            ClientFrameProfiler.beginScope("runtime.travel_frame");
+            try {
+                runtime.travelFrame(MinecraftClient.getInstance(), counter.getTickDelta(true));
+            } finally {
+                ClientFrameProfiler.endScope();
+            }
         }
+        if (runtime != null && runtime.isActive()) {
+            MinecraftClient mc = MinecraftClient.getInstance();
+            if (mc != null && mc.player != null) {
+                float dt = counter.getTickDelta(true);
+                PlayerBodyAttachmentCache.update(mc.player, dt);
+                if (CameraLookTarget.isActive()) {
+                    CameraLookTarget.applyToLocalPlayer(dt);
+                }
+            }
+        }
+    }
+
+    @Inject(method = "renderWorld(Lnet/minecraft/client/render/RenderTickCounter;)V", at = @At("RETURN"))
+    private void moud$finishProfiledWorldFrame(RenderTickCounter counter, CallbackInfo ci) {
+        ClientFrameProfiler.endScope();
     }
 
     @ModifyArgs(
@@ -81,6 +106,10 @@ public final class GameRendererMixin {
 
     @Inject(method = "renderHand", at = @At("HEAD"), cancellable = true)
     private void moud$renderHand(Camera camera, float tickDelta, Matrix4f matrix, CallbackInfo ci) {
+        if (PlayRuntimeClient.scriptForceHideHand) {
+            ci.cancel();
+            return;
+        }
         PlayRuntimeClient runtime = PlayRuntimeBus.get();
         if (runtime != null && runtime.shouldHideVanillaHand()) {
             ci.cancel();
