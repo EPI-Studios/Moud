@@ -4,7 +4,11 @@ package com.moud.client.fabric.editor.state;
 import com.miry.graphics.Texture;
 import com.moud.client.fabric.assets.AssetsClient;
 import com.moud.client.fabric.editor.dialogs.CreateAssetDialog;
+import com.moud.client.fabric.editor.settings.EditorSettings;
+import com.moud.client.fabric.editor.settings.ExternalEditorLauncher;
+import java.nio.file.Path;
 import com.moud.client.fabric.editor.dialogs.CreateNodeDialog;
+import com.moud.client.fabric.editor.dialogs.sceneimport.ImportSceneDialog;
 import com.moud.client.fabric.editor.dialogs.QuickSearchDialog;
 import com.moud.client.fabric.editor.dialogs.ScriptEditorDialog;
 import com.moud.client.fabric.editor.dialogs.TextAssetEditorDialog;
@@ -52,7 +56,10 @@ public final class EditorRuntime {
 
     private final EditorState state;
     private final EditorNet net;
+    private final EditorSettings settings = new EditorSettings(
+            Path.of(System.getProperty("user.home", "."), ".moud", "editor.properties"));
     private CreateNodeDialog createNodeDialog;
+    private ImportSceneDialog importSceneDialog;
     private CreateAssetDialog createAssetDialog;
     private ScriptEditorDialog scriptEditorDialog;
     private TextAssetEditorDialog textAssetEditorDialog;
@@ -85,6 +92,11 @@ public final class EditorRuntime {
     private final EditorHistory history = new EditorHistory();
 
     private Runnable overlayMenuRender;
+
+    private String pendingTooltipText;
+    private int pendingTooltipX;
+    private int pendingTooltipY;
+    private long pendingTooltipShowAtMs;
 
     private final HashMap<String, ViewportMode> pendingSceneModes = new HashMap<>();
     private String lastSyncedSceneId = "";
@@ -409,6 +421,14 @@ public final class EditorRuntime {
         this.createNodeDialog = dialog;
     }
 
+    public ImportSceneDialog getImportSceneDialog() {
+        return importSceneDialog;
+    }
+
+    public void setImportSceneDialog(ImportSceneDialog dialog) {
+        this.importSceneDialog = dialog;
+    }
+
     public void setCreateAssetDialog(CreateAssetDialog dialog) {
         this.createAssetDialog = dialog;
     }
@@ -442,6 +462,34 @@ public final class EditorRuntime {
             return;
         }
         dialog.open(nodeId, scriptPath);
+    }
+
+    public EditorSettings settings() {
+        return settings;
+    }
+
+    public boolean openScriptInExternalEditor(String scriptPath) {
+        if (scriptPath == null || scriptPath.isBlank()) return false;
+        String command = settings.get(EditorSettings.KEY_EXTERNAL_SCRIPT_EDITOR, null);
+        if (command == null || command.isBlank()) {
+            requestToast("No external editor configured (set " + EditorSettings.KEY_EXTERNAL_SCRIPT_EDITOR + ")", true, 4000);
+            return false;
+        }
+        String abs = resolveProjectPath(scriptPath);
+        if (abs == null) {
+            requestToast("Cannot resolve script path for external editor", true, 4000);
+            return false;
+        }
+        return ExternalEditorLauncher.launch(command, abs, 1);
+    }
+
+    private String resolveProjectPath(String scriptPath) {
+        String clean = scriptPath.startsWith("res://") ? scriptPath.substring("res://".length()) : scriptPath;
+        String home = System.getProperty("user.home", ".");
+        Path candidate = Path.of(home, ".moud", "project", clean);
+        if (candidate.toFile().exists()) return candidate.toAbsolutePath().toString();
+        Path cwd = Path.of(".", clean).toAbsolutePath().normalize();
+        return cwd.toString();
     }
 
     public void openTextAssetEditor(String resPath, AssetHash hash) {
@@ -539,5 +587,30 @@ public final class EditorRuntime {
         Runnable r = this.overlayMenuRender;
         this.overlayMenuRender = null;
         return r;
+    }
+
+    public void requestTooltip(String text, int x, int y) {
+        if (text == null || text.isBlank()) return;
+        long now = System.currentTimeMillis();
+        if (pendingTooltipText == null || !text.equals(pendingTooltipText)) {
+            pendingTooltipShowAtMs = now + 450L;
+        }
+        pendingTooltipText = text;
+        pendingTooltipX = x;
+        pendingTooltipY = y;
+    }
+
+    public String consumeTooltipText() {
+        if (pendingTooltipText == null) return null;
+        if (System.currentTimeMillis() < pendingTooltipShowAtMs) return null;
+        return pendingTooltipText;
+    }
+
+    public int tooltipX() { return pendingTooltipX; }
+    public int tooltipY() { return pendingTooltipY; }
+
+    public void clearTooltip() {
+        pendingTooltipText = null;
+        pendingTooltipShowAtMs = 0L;
     }
 }

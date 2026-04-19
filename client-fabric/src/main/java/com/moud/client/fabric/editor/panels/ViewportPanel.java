@@ -362,7 +362,7 @@ public final class ViewportPanel extends Panel {
                 continue;
             }
             String label = labels.getOrDefault(sceneId, sceneId);
-            if (state.isDirty() && sceneId.equals(state.activeSceneId)) {
+            if (state.isSceneDirty(sceneId)) {
                 label = "* " + label;
             }
             TabBar.Tab tab = new TabBar.Tab(label);

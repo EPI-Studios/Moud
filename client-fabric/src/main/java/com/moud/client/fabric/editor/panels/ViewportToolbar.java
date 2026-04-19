@@ -96,16 +96,6 @@ class ViewportToolbar {
         r.drawText(localSpace ? "Local" : "World", lx, r.baselineForBox(groupY, groupH), Theme.toArgb(localSpace ? theme.text : theme.textMuted));
 
         cursorX += spaceGroupW + pad * 2;
-
-        int modeW = 44;
-        int modeGroupW = groupPad * 2 + modeW;
-        r.drawRoundedRect(cursorX, groupY, modeGroupW, groupH, theme.design.radius_sm, groupBg);
-        String modeLabel = (runtime != null && runtime.viewportMode() == EditorRuntime.ViewportMode.TWO_D) ? "2D" : "3D";
-        EditorUiUtil.stepButton(ui, r, theme, cursorX + groupPad, by, modeW, btn, modeLabel, interactive, () -> {
-            if (runtime == null) return;
-            boolean to2d = runtime.viewportMode() != EditorRuntime.ViewportMode.TWO_D;
-            runtime.setViewportMode(to2d ? EditorRuntime.ViewportMode.TWO_D : EditorRuntime.ViewportMode.THREE_D);
-        });
     }
 
     static String formatSnapStep(float step) {

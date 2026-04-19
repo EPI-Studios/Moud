@@ -2,11 +2,14 @@ package com.moud.client.fabric.editor.overlay;
 
 import com.moud.client.fabric.assets.AssetsClient;
 import com.moud.client.fabric.editor.dialogs.CreateAssetDialog;
+import com.moud.client.fabric.editor.net.HudEditBus;
+import com.moud.client.fabric.editor.util.EditorUiUtil;
 import com.moud.client.fabric.editor.dialogs.CreateNodeDialog;
 import com.moud.client.fabric.editor.dialogs.CreateProjectDialog;
 import com.moud.client.fabric.editor.dialogs.QuickSearchDialog;
 import com.moud.client.fabric.editor.dialogs.ScriptEditorDialog;
 import com.moud.client.fabric.editor.dialogs.TextAssetEditorDialog;
+import com.moud.client.fabric.editor.dialogs.sceneimport.ImportSceneDialog;
 import com.moud.client.fabric.editor.tools.EditorGizmos;
 import com.moud.client.fabric.editor.tools.EditorTool;
 import com.moud.client.fabric.editor.net.EditorNet;
@@ -38,7 +41,9 @@ import com.miry.ui.event.UiEvent;
 import com.miry.ui.event.TextInputEvent;
 import com.moud.client.fabric.platform.MinecraftGhostBlocks;
 import com.moud.client.fabric.render.VeilDebugRenderer;
+import com.moud.client.fabric.render.hud.HudSelectionOverlay;
 import com.moud.client.fabric.render.preview.MaterialPreviewRenderer;
+import com.moud.client.fabric.render.scene.util.NodePropertyUtils;
 import com.moud.client.fabric.util.ClientDebugLog;
 import com.moud.client.fabric.editor.theme.EditorTheme;
 import com.moud.net.protocol.ProjectCreateAck;
@@ -76,6 +81,9 @@ import java.util.Map;
 import java.nio.ByteBuffer;
 
 public final class EditorOverlay {
+    private static final String TYPE_SCENE_INSTANCE = "SceneInstance3D";
+    private static final String PROP_PREFAB_INSTANCE_ROOT = "@prefab_instance_root";
+
     private final Theme theme = new Theme();
     private final Ui ui = new Ui(theme);
     private final UiInput input = new UiInput();
@@ -91,6 +99,7 @@ public final class EditorOverlay {
     private WindowManager windowManager;
     private int fallbackVao;
     private CreateNodeDialog createNodeDialog;
+    private ImportSceneDialog importSceneDialog;
     private CreateProjectDialog createProjectDialog;
     private CreateAssetDialog createAssetDialog;
     private QuickSearchDialog quickSearchDialog;
@@ -108,6 +117,7 @@ public final class EditorOverlay {
     private EditorGizmos gizmos;
     private ScenePanel scenePanel;
     private AssetsPanel assetsPanel;
+    private BottomPanel bottomPanel;
     private ViewportPanel viewportPanel;
     private SplitNode rootWithTop;
     private SplitNode mainWithBottom;
@@ -132,6 +142,17 @@ public final class EditorOverlay {
 
     public EditorRuntime getRuntime() {
         return runtime;
+    }
+
+    public boolean isAnyTextFieldFocused() {
+        return uiContext != null && uiContext.focus().hasAnyFocus();
+    }
+
+    public void onHudPickSelected(long nodeId) {
+        if (state == null) return;
+        state.selectedId = nodeId;
+        state.selectedIds.clear();
+        if (nodeId > 0L) state.selectedIds.add(nodeId);
     }
 
     public void saveAllOpenEditors() {
@@ -205,7 +226,7 @@ public final class EditorOverlay {
             return;
         }
         if (ack.success()) {
-            state.lastSavedRevision = state.scene.revision();
+            state.markSceneSaved(ack.sceneId(), state.currentRevisionForScene(ack.sceneId()));
             showToast("Saved scene: " + ack.sceneId(), false, 2500);
             return;
         }
@@ -378,6 +399,14 @@ public final class EditorOverlay {
         if (!open || session == null || session.state() != SessionState.CONNECTED) {
             return;
         }
+
+        {
+            List<SceneOp> pending =
+                    HudEditBus.drain();
+            if (!pending.isEmpty() && runtime != null && runtime.state() != null) {
+                net.sendOps(session, runtime.state(), pending);
+            }
+        }
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.getWindow() == null) {
             return;
@@ -407,6 +436,25 @@ public final class EditorOverlay {
         boolean right = GLFW.glfwGetMouseButton(handle, GLFW.GLFW_MOUSE_BUTTON_2) == GLFW.GLFW_PRESS;
         boolean rightPressed = right && !runtime.rightDown();
         boolean rightReleased = !right && runtime.rightDown();
+
+        boolean hudGizmoConsumed = HudSelectionOverlay.handleInput(
+                mx, my, left, leftPressed, leftReleased);
+        if (hudGizmoConsumed || HudSelectionOverlay.isDragging()) {
+            left = false;
+            leftPressed = false;
+            leftReleased = false;
+        }
+
+        HudSelectionOverlay.handleNudgeInput(handle);
+
+        if (ctx != null && ctx.isViewportInputFocused()) {
+            left = false;
+            leftPressed = false;
+            leftReleased = false;
+            right = false;
+            rightPressed = false;
+            rightReleased = false;
+        }
         boolean ctrl = GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
                 || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
         boolean shift = GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
@@ -499,19 +547,23 @@ public final class EditorOverlay {
             applyBarRatios(w, h);
             dockSpace.resize(w, h);
             windowManager.update(uiContext, input, w, h);
+            runtime.clearTooltip();
+            EditorUiUtil.setActiveRuntime(runtime);
             boolean modalOpen = (createNodeDialog != null && createNodeDialog.isOpen())
+                    || (importSceneDialog != null && importSceneDialog.isOpen())
                     || (createProjectDialog != null && createProjectDialog.isOpen())
                     || (createAssetDialog != null && createAssetDialog.isOpen())
                     || (quickSearchDialog != null && quickSearchDialog.isOpen())
                     || (textAssetEditorDialog != null && textAssetEditorDialog.isOpen());
             boolean blockedByWindows = windowManager.blocksInput();
-            boolean blocked = modalOpen || blockedByWindows;
+            boolean blockedByMenus = scenePanel != null && scenePanel.hasOpenOverlayMenus();
+            boolean blocked = modalOpen || blockedByWindows || blockedByMenus;
 
             runtime.setUiBlocked(blocked);
 
             if (ctx != null && runtime.viewportMode() == EditorRuntime.ViewportMode.THREE_D) {
                 boolean overVp = ctx.isMouseOverViewport(mx, my);
-                if (overVp) {
+                if (overVp && !blocked) {
                     float ndcX = ((mx - ctx.viewportX()) / (float) ctx.viewportW()) * 2.0f - 1.0f;
                     float ndcY = ((my - ctx.viewportY()) / (float) ctx.viewportH()) * 2.0f - 1.0f;
                     ndcY = -ndcY;
@@ -560,6 +612,9 @@ public final class EditorOverlay {
                     if (createNodeDialog != null && createNodeDialog.isOpen()) {
                         createNodeDialog.render(batch, uiContext, ui, theme, w, h);
                     }
+                    if (importSceneDialog != null && importSceneDialog.isOpen()) {
+                        importSceneDialog.render(batch, uiContext, ui, theme, w, h);
+                    }
                     if (createProjectDialog != null && createProjectDialog.isOpen()) {
                         createProjectDialog.render(batch, uiContext, ui, theme, w, h);
                     }
@@ -583,6 +638,7 @@ public final class EditorOverlay {
                     }
 
                     uiContext.dragDrop().endFrame();
+                    renderTooltip(w, h);
                     renderToast(w, h);
                 } finally {
                     if (batchBegun) {
@@ -637,6 +693,9 @@ public final class EditorOverlay {
                 if (createNodeDialog != null && createNodeDialog.isOpen()) {
                     createNodeDialog.render(batch, uiContext, ui, theme, w, h);
                 }
+                if (importSceneDialog != null && importSceneDialog.isOpen()) {
+                    importSceneDialog.render(batch, uiContext, ui, theme, w, h);
+                }
                 if (createProjectDialog != null && createProjectDialog.isOpen()) {
                     createProjectDialog.render(batch, uiContext, ui, theme, w, h);
                 }
@@ -656,6 +715,7 @@ public final class EditorOverlay {
                 }
 
                 uiContext.dragDrop().endFrame();
+                renderTooltip(w, h);
                 renderToast(w, h);
             } finally {
                 if (batchBegun) {
@@ -683,14 +743,54 @@ public final class EditorOverlay {
         if (state == null || ctx == null) return;
         long hovered = ctx.hoveredNodeId();
         if (hovered > 0) {
-            state.selectedId = hovered;
+            long selected = resolveViewportSelectionNodeId(hovered);
+            state.selectedId = selected;
             state.selectedIds.clear();
-            state.selectedIds.add(hovered);
+            state.selectedIds.add(selected);
         } else {
             state.selectedId = 0L;
             state.selectedIds.clear();
         }
         ctx.setSelectedNodeId(state.selectedId);
+    }
+
+    private long resolveViewportSelectionNodeId(long pickedNodeId) {
+        if (state == null || state.scene == null || pickedNodeId <= 0L) {
+            return pickedNodeId;
+        }
+
+        SceneSnapshot.NodeSnapshot picked = state.scene.getNode(pickedNodeId);
+        if (picked == null) {
+            return pickedNodeId;
+        }
+        if (TYPE_SCENE_INSTANCE.equals(picked.type())) {
+            return picked.nodeId();
+        }
+
+        String instanceRoot = NodePropertyUtils.stringProp(picked, PROP_PREFAB_INSTANCE_ROOT);
+        if (instanceRoot != null && !instanceRoot.isBlank()) {
+            try {
+                long rootId = Long.parseLong(instanceRoot.trim());
+                SceneSnapshot.NodeSnapshot root = state.scene.getNode(rootId);
+                if (root != null && TYPE_SCENE_INSTANCE.equals(root.type())) {
+                    return rootId;
+                }
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        long currentId = picked.parentId();
+        while (currentId > 0L) {
+            SceneSnapshot.NodeSnapshot parent = state.scene.getNode(currentId);
+            if (parent == null) {
+                break;
+            }
+            if (TYPE_SCENE_INSTANCE.equals(parent.type())) {
+                return parent.nodeId();
+            }
+            currentId = parent.parentId();
+        }
+        return pickedNodeId;
     }
 
     private void syncProjectDialogState() {
@@ -726,6 +826,8 @@ public final class EditorOverlay {
         windowManager = new WindowManager();
         createNodeDialog = new CreateNodeDialog(runtime);
         runtime.setCreateNodeDialog(createNodeDialog);
+        importSceneDialog = new ImportSceneDialog(runtime);
+        runtime.setImportSceneDialog(importSceneDialog);
         createProjectDialog = new CreateProjectDialog(runtime);
         createAssetDialog = new CreateAssetDialog(runtime);
         runtime.setCreateAssetDialog(createAssetDialog);
@@ -825,6 +927,7 @@ public final class EditorOverlay {
                 && key == GLFW.GLFW_KEY_P
                 && ((mods & GLFW.GLFW_MOD_CONTROL) != 0 || (mods & GLFW.GLFW_MOD_SUPER) != 0)) {
             boolean noModal = (createNodeDialog == null || !createNodeDialog.isOpen())
+                    && (importSceneDialog == null || !importSceneDialog.isOpen())
                     && (createProjectDialog == null || !createProjectDialog.isOpen())
                     && (createAssetDialog == null || !createAssetDialog.isOpen())
                     && (textAssetEditorDialog == null || !textAssetEditorDialog.isOpen());
@@ -841,6 +944,7 @@ public final class EditorOverlay {
                 && key == GLFW.GLFW_KEY_S
                 && ((mods & GLFW.GLFW_MOD_CONTROL) != 0 || (mods & GLFW.GLFW_MOD_SUPER) != 0)) {
             boolean modalOpen = (createNodeDialog != null && createNodeDialog.isOpen())
+                    || (importSceneDialog != null && importSceneDialog.isOpen())
                     || (createProjectDialog != null && createProjectDialog.isOpen())
                     || (createAssetDialog != null && createAssetDialog.isOpen())
                     || (quickSearchDialog != null && quickSearchDialog.isOpen())
@@ -859,6 +963,7 @@ public final class EditorOverlay {
         if (act == KeyEvent.Action.PRESS
                 && ((mods & GLFW.GLFW_MOD_CONTROL) != 0 || (mods & GLFW.GLFW_MOD_SUPER) != 0)) {
             boolean modalOpen = (createNodeDialog != null && createNodeDialog.isOpen())
+                    || (importSceneDialog != null && importSceneDialog.isOpen())
                     || (createProjectDialog != null && createProjectDialog.isOpen())
                     || (createAssetDialog != null && createAssetDialog.isOpen())
                     || (quickSearchDialog != null && quickSearchDialog.isOpen())
@@ -891,6 +996,10 @@ public final class EditorOverlay {
         }
         if (createNodeDialog != null && createNodeDialog.isOpen()) {
             createNodeDialog.handleTextInput(codepoint);
+            return;
+        }
+        if (importSceneDialog != null && importSceneDialog.isOpen()) {
+            importSceneDialog.handleTextInput(codepoint);
             return;
         }
         if (createAssetDialog != null && createAssetDialog.isOpen()) {
@@ -1049,7 +1158,8 @@ public final class EditorOverlay {
         inspectorPanel = new InspectorPanel(runtime);
         LeafNode right = new LeafNode(inspectorPanel);
 
-        LeafNode bottom = new LeafNode(new BottomPanel(runtime));
+        bottomPanel = new BottomPanel(runtime);
+        LeafNode bottom = new LeafNode(bottomPanel);
 
         for (LeafNode leaf : new LeafNode[]{top, scene, filesystem, viewport, right, bottom}) {
             leaf.setHeaderHeight(0);
@@ -1190,6 +1300,14 @@ public final class EditorOverlay {
                         continue;
                     }
                 }
+                if (importSceneDialog != null && importSceneDialog.isOpen()) {
+                    if (importSceneDialog.handleKey(uiContext, keyEvent)) {
+                        continue;
+                    }
+                    if (blocked) {
+                        continue;
+                    }
+                }
                 if (createAssetDialog != null && createAssetDialog.isOpen()) {
                     if (createAssetDialog.handleKey(uiContext, keyEvent)) {
                         continue;
@@ -1251,6 +1369,9 @@ public final class EditorOverlay {
                 if (!cameraCapturing && assetsPanel != null) {
                     assetsPanel.handleKey(uiContext, keyEvent);
                 }
+                if (!cameraCapturing && bottomPanel != null) {
+                    bottomPanel.handleKey(uiContext, keyEvent);
+                }
             } else if (event instanceof TextInputEvent textEvent) {
                 if (quickSearchDialog != null && quickSearchDialog.isOpen()) {
                     quickSearchDialog.handleTextInput(textEvent.codepoint());
@@ -1275,6 +1396,9 @@ public final class EditorOverlay {
                 }
                 if (!cameraCapturing && assetsPanel != null) {
                     assetsPanel.handleTextInput(uiContext, textEvent);
+                }
+                if (!cameraCapturing && bottomPanel != null) {
+                    bottomPanel.handleTextInput(uiContext, textEvent);
                 }
             }
         }
@@ -1359,6 +1483,23 @@ public final class EditorOverlay {
         } else if (ClientDebugLog.enabled()) {
             ClientDebugLog.debug("toast: " + message);
         }
+    }
+
+    private void renderTooltip(int w, int h) {
+        String text = runtime.consumeTooltipText();
+        if (text == null || text.isBlank() || batch == null) return;
+        int padX = 8;
+        int padY = 4;
+        int textW = Math.max(40, text.length() * 6);
+        int boxW = textW + padX * 2;
+        int boxH = 20;
+        int x = runtime.tooltipX() - boxW / 2;
+        int y = runtime.tooltipY();
+        if (x < 4) x = 4;
+        if (x + boxW > w - 4) x = w - 4 - boxW;
+        if (y + boxH > h - 4) y = runtime.tooltipY() - boxH - 8;
+        batch.drawRect(x, y, boxW, boxH, 0xEE111111);
+        batch.drawText(text, x + padX, batch.baselineForBox(y, boxH), 0xFFFFFFFF);
     }
 
     private void renderToast(int w, int h) {
