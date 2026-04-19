@@ -29,6 +29,10 @@ import com.moud.server.minestom.scripting.ScriptFileService;
 import com.moud.server.minestom.scripting.ScriptService;
 import com.moud.server.minestom.util.DebugLog;
 import java.nio.file.Files;
+import com.moud.net.transport.Lane;
+import com.moud.server.minestom.script.ScriptMessageRouter;
+import com.moud.server.minestom.scripts.AssetPathOpsService;
+import com.moud.server.minestom.scripts.LocalScriptsMigrator;
 import java.nio.file.Path;
 import java.util.stream.Collectors;
 import java.time.Duration;
@@ -38,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.arguments.ArgumentWord;
@@ -102,10 +107,6 @@ public final class MoudServer {
         }
     }
 
-    /**
-     * Reads {@code MOUD_MODE} and {@code MOUD_PROJECT_ROOT} env vars.
-     * Convenience for the standalone launcher.
-     */
     public static Builder fromEnvironment() {
         String mode = System.getenv().getOrDefault("MOUD_MODE", "dev").trim();
         boolean dev = !"player".equalsIgnoreCase(mode);
@@ -171,9 +172,8 @@ public final class MoudServer {
 
         if (devMode) {
             Path assetsDir = projectRoot.resolve("assets");
-            List<Path> watchDirs = new java.util.ArrayList<>();
+            List<Path> watchDirs = new ArrayList<>();
             watchDirs.add(assetsDir);
-            watchDirs.add(projectRoot.resolve("local_scripts"));
             watchDirs.add(projectRoot.resolve("scripts"));
             final Map<UUID, PlayerState> capturedStates = playerStates;
             assets.startHotReloadWatcher(watchDirs, () ->
@@ -184,8 +184,34 @@ public final class MoudServer {
             );
         }
 
+        new LocalScriptsMigrator(projectRoot).run();
         sceneStorage.loadScenesFromDisk();
         instancer.syncAll(scenes);
+
+        for (ServerScene scene : scenes.allScenes()) {
+            playModeManager.initBaselineFromDisk(scene);
+        }
+
+        Supplier<Iterable<UUID>> connectedPlayerUuids = () -> {
+            List<UUID> list = new ArrayList<>(playerStates.size());
+            for (UUID uuid : playerStates.keySet()) list.add(uuid);
+            return list;
+        };
+        ScriptMessageRouter scriptMessages = new ScriptMessageRouter(
+                (senderUuid, node, topic) -> {
+                    if (node == null) return false;
+                    String owner = node.getProperty("owner_uuid");
+                    if (owner == null || owner.isBlank()) owner = node.getProperty("@owner");
+                    if (owner == null || owner.isBlank()) owner = node.getProperty("owner");
+                    return owner == null || owner.isBlank() || owner.equalsIgnoreCase(senderUuid.toString());
+                },
+                (target, message) -> {
+                    PlayerState ps = playerStates.get(target);
+                    if (ps == null || ps.session == null) return;
+                    ps.session.send(message.reliable() ? Lane.EVENTS : Lane.INPUT, message);
+                });
+        scripts.setScriptMessaging(scriptMessages, connectedPlayerUuids);
+        AssetPathOpsService assetPathOps = new AssetPathOpsService(projectRoot);
 
         messageRouter = new MessageRouter(
                 devMode,
@@ -198,7 +224,9 @@ public final class MoudServer {
                 instancer,
                 sceneStorage,
                 playModeManager,
-                playerStates
+                playerStates,
+                scriptMessages,
+                assetPathOps
         );
         connections = new PlayerConnectionHandler(
                 CHANNEL,
@@ -218,7 +246,10 @@ public final class MoudServer {
         });
         events.addListener(PlayerSpawnEvent.class, event -> connections.onPlayerSpawn(event.getPlayer()));
         events.addListener(PlayerPluginMessageEvent.class, connections::onPluginMessage);
-        events.addListener(PlayerDisconnectEvent.class, event -> connections.onDisconnect(event.getPlayer()));
+        events.addListener(PlayerDisconnectEvent.class, event -> {
+            scriptMessages.clearPlayer(event.getPlayer().getUuid());
+            connections.onDisconnect(event.getPlayer());
+        });
 
         registerCommands();
     }
