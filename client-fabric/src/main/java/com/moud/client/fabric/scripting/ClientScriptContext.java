@@ -4,7 +4,11 @@ import com.moud.client.fabric.scripting.api.AnimApi;
 import com.moud.client.fabric.scripting.api.BodyApi;
 import com.moud.client.fabric.scripting.api.CameraApi;
 import com.moud.client.fabric.scripting.api.InputApi;
+import com.moud.client.fabric.scripting.api.MessagingApi;
+import com.moud.client.fabric.scripting.api.MouseApi;
 import com.moud.client.fabric.scripting.api.NodeApi;
+import com.moud.client.fabric.scripting.api.PlayerStateApi;
+import com.moud.client.fabric.scripting.api.PostProcessApi;
 import com.moud.client.fabric.scripting.api.RenderApi;
 import com.moud.client.fabric.scripting.api.TimerApi;
 import com.moud.client.fabric.util.ClientDebugLog;
@@ -16,6 +20,8 @@ final class ClientScriptContext implements AutoCloseable {
     private final ClientLuauBridge bridge;
     private final Object state;
     private final Object thread;
+
+    final MessagingApi messaging;
 
     private final int tableRef;
     private final int onReadyRef;
@@ -33,21 +39,33 @@ final class ClientScriptContext implements AutoCloseable {
             AnimApi anim,
             RenderApi render,
             NodeApi node,
-            CameraApi camera) {
+            CameraApi camera,
+            MouseApi mouse,
+            PlayerStateApi playerState,
+            PostProcessApi postProcess,
+            MessagingApi messaging) {
 
         this.bridge = bridge;
+        this.messaging = messaging;
 
         ClientLuauBridge.LuauVm vm = bridge.createVm();
         this.state  = vm.state();
         this.thread = vm.thread();
 
-        bridge.setApiGlobal(thread, "body",   body);
-        bridge.setApiGlobal(thread, "input",  input);
-        bridge.setApiGlobal(thread, "timer",  timer);
-        bridge.setApiGlobal(thread, "anim",   anim);
-        bridge.setApiGlobal(thread, "render", render);
-        bridge.setApiGlobal(thread, "node",   node);
-        bridge.setApiGlobal(thread, "camera", camera);
+        bridge.setApiGlobal(thread, "body",        body);
+        bridge.setApiGlobal(thread, "input",       input);
+        bridge.setApiGlobal(thread, "timer",       timer);
+        bridge.setApiGlobal(thread, "anim",        anim);
+        bridge.setApiGlobal(thread, "render",      render);
+        bridge.setApiGlobal(thread, "node",        node);
+        bridge.setApiGlobal(thread, "camera",      camera);
+        bridge.setApiGlobal(thread, "mouse",       mouse);
+        bridge.setApiGlobal(thread, "playerstate", playerState);
+        bridge.setApiGlobal(thread, "PostProcess", postProcess);
+        bridge.setApiGlobal(thread, "msg",         messaging);
+        if (node != null && node.net() != null) {
+            bridge.setNestedApiField(thread, "node", "net", node.net());
+        }
         bridge.installPrintRedirect(thread);
 
         bridge.sandboxVm(vm);

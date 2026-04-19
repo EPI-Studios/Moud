@@ -3,53 +3,43 @@ package com.moud.client.fabric.scripting.api;
 import java.util.HashMap;
 import java.util.Map;
 
-public final class RenderApi {
+public final class TimerApi {
 
-    private final Map<Long, Map<String, Object>> uniformOverrides = new HashMap<>();
+    private final Map<String, Double> remaining = new HashMap<>();
+    private final Map<String, Double> startDuration = new HashMap<>();
 
-    private final Map<Long, Map<String, Object>> materialParamOverrides = new HashMap<>();
+    public TimerApi() {}
 
-    public RenderApi() {
+    public void start(String name, double duration) {
+        remaining.put(name, duration);
+        startDuration.put(name, duration);
     }
 
-
-    public void setUniform(long nodeId, String key, double value) {
-        uniformOverrides.computeIfAbsent(nodeId, k -> new HashMap<>()).put(key, value);
+    public void cancel(String name) {
+        remaining.remove(name);
+        startDuration.remove(name);
     }
 
-    public void setUniformVec(long nodeId, String key, double x, double y, double z, double w) {
-        uniformOverrides.computeIfAbsent(nodeId, k -> new HashMap<>())
-                .put(key, new double[]{x, y, z, w});
+    public boolean isActive(String name) {
+        return remaining.containsKey(name);
     }
 
-
-    public void setMaterialParam(long nodeId, String paramName, Object value) {
-        materialParamOverrides.computeIfAbsent(nodeId, k -> new HashMap<>()).put(paramName, value);
+    public double elapsed(String name) {
+        Double start = startDuration.get(name);
+        Double rem = remaining.get(name);
+        if (start == null || rem == null) return 0.0;
+        return start - rem;
     }
 
-
-    public void setTint(long nodeId, double r, double g, double b, double a) {
-        materialParamOverrides.computeIfAbsent(nodeId, k -> new HashMap<>())
-                .put("tint", new double[]{r, g, b, a});
-    }
-
-    public void setVisible(long nodeId, boolean visible) {
-        materialParamOverrides.computeIfAbsent(nodeId, k -> new HashMap<>())
-                .put("visible", visible);
-    }
-
-
-    public void clearFrameOverrides() {
-        uniformOverrides.clear();
-        materialParamOverrides.clear();
-    }
-
-
-    public Map<Long, Map<String, Object>> uniformOverrides() {
-        return uniformOverrides;
-    }
-
-    public Map<Long, Map<String, Object>> materialParamOverrides() {
-        return materialParamOverrides;
+    public void tick(double dt) {
+        remaining.entrySet().removeIf(entry -> {
+            double newVal = entry.getValue() - dt;
+            if (newVal <= 0.0) {
+                startDuration.remove(entry.getKey());
+                return true;
+            }
+            entry.setValue(newVal);
+            return false;
+        });
     }
 }

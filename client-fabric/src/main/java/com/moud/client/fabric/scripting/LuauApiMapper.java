@@ -72,12 +72,45 @@ final class LuauApiMapper {
         if (type == double.class  || type == Double.class)  { return runtime.isNumber(thread, idx) ? runtime.toNumber(thread, idx) : 0.0; }
         if (type == int.class     || type == Integer.class) { return runtime.isNumber(thread, idx) ? (int)  runtime.toNumber(thread, idx) : 0; }
         if (type == long.class    || type == Long.class)    { return runtime.isNumber(thread, idx) ? (long) runtime.toNumber(thread, idx) : 0L; }
+        if (type == LuauCallback.class) {
+            if (!runtime.isFunction(thread, idx)) return null;
+            runtime.pushValue(thread, idx);
+            int ref = runtime.ref(thread, -10000);
+            return new LuauCallback(runtime, thread, ref);
+        }
+        if (Map.class.isAssignableFrom(type)) {
+            return runtime.isTable(thread, idx) ? readTable(thread, idx) : null;
+        }
         if (type == Object.class) {
             if (runtime.isBoolean(thread, idx)) return runtime.toBoolean(thread, idx);
             if (runtime.isNumber(thread, idx))  return runtime.toNumber(thread, idx);
             if (runtime.isString(thread, idx))  return runtime.toStringValue(thread, idx);
+            if (runtime.isTable(thread, idx))   return readTable(thread, idx);
         }
         return null;
+    }
+
+    private Map<String, Object> readTable(Object thread, int idx) {
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        int absIdx = idx > 0 ? idx : runtime.top(thread) + idx + 1;
+        runtime.pushNil(thread);
+        while (runtime.next(thread, absIdx)) {
+            int keyIdx = runtime.top(thread) - 1;
+            int valIdx = runtime.top(thread);
+            String key;
+            if (runtime.isString(thread, keyIdx))      key = runtime.toStringValue(thread, keyIdx);
+            else if (runtime.isNumber(thread, keyIdx)) key = Double.toString(runtime.toNumber(thread, keyIdx));
+            else                                       key = "";
+            Object value;
+            if (runtime.isBoolean(thread, valIdx))      value = runtime.toBoolean(thread, valIdx);
+            else if (runtime.isNumber(thread, valIdx))  value = runtime.toNumber(thread, valIdx);
+            else if (runtime.isString(thread, valIdx))  value = runtime.toStringValue(thread, valIdx);
+            else if (runtime.isTable(thread, valIdx))   value = readTable(thread, valIdx);
+            else                                        value = null;
+            result.put(key, value);
+            runtime.top(thread, keyIdx);
+        }
+        return result;
     }
 
     private int pushReturn(Object thread, Class<?> returnType, Object result) {
@@ -88,7 +121,15 @@ final class LuauApiMapper {
         if (result instanceof String  s) { runtime.pushString(thread, s);                 return 1; }
         if (result instanceof float[] fa){ for (float v : fa) runtime.pushNumber(thread, v); return fa.length; }
         if (result instanceof double[] da){ for (double v : da) runtime.pushNumber(thread, v); return da.length; }
-        runtime.pushNil(thread);
+        if (result instanceof Map<?, ?> m) {
+            runtime.newTable(thread);
+            for (Map.Entry<?, ?> e : m.entrySet()) {
+                pushReturn(thread, e.getValue() == null ? Object.class : e.getValue().getClass(), e.getValue());
+                runtime.setField(thread, -2, String.valueOf(e.getKey()));
+            }
+            return 1;
+        }
+        pushApiObject(thread, result);
         return 1;
     }
 

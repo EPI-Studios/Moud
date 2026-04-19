@@ -1,5 +1,6 @@
 package com.moud.client.fabric.scripting;
 
+import com.moud.client.fabric.editor.diagnostics.ClientOutput;
 import com.moud.client.fabric.util.ClientDebugLog;
 
 import java.nio.charset.StandardCharsets;
@@ -134,6 +135,17 @@ final class ClientLuauBridge {
         apiMapper.setApiGlobal(thread, globalName, javaObject);
     }
 
+    void setNestedApiField(Object thread, String parentGlobal, String fieldName, Object javaObject) {
+        try {
+            runtime.getField(thread, -10002, parentGlobal);
+            apiMapper.pushApiObject(thread, javaObject);
+            runtime.setField(thread, -2, fieldName);
+            runtime.pop(thread, 1);
+        } catch (Exception e) {
+            ClientDebugLog.error("ClientLuauBridge", "setNestedApiField failed: " + e.getMessage(), e);
+        }
+    }
+
     void installPrintRedirect(Object thread) {
         Object luaFunc = apiMapper.keepAlive(runtime.wrapFunction(callThread -> {
             int top = runtime.top(callThread);
@@ -152,7 +164,9 @@ final class ClientLuauBridge {
                     sb.append(runtime.toStringValue(callThread, i));
                 }
             }
-            ClientDebugLog.info("Script", sb.toString());
+            String msg = sb.toString();
+            ClientDebugLog.info("Script", msg);
+            ClientOutput.print("Script", msg);
             return 0;
         }));
         runtime.pushFunction(thread, luaFunc);
