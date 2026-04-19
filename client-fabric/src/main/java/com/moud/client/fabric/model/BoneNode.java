@@ -15,10 +15,12 @@ public record BoneNode(
         float rotY,
         float rotZ,
         List<CubeGeometry> cubes,
+        List<MeshGeometry> meshes,
         List<BoneNode> children
 ) {
     public BoneNode {
         cubes = List.copyOf(cubes);
+        meshes = List.copyOf(meshes);
         children = List.copyOf(children);
     }
 }
