@@ -1,5 +1,6 @@
 package com.moud.client.fabric.scripting.api;
 
+import com.moud.client.fabric.runtime.CameraLookTarget;
 import com.moud.client.fabric.runtime.ClientCameraState;
 
 public final class CameraApi {
@@ -66,5 +67,17 @@ public final class CameraApi {
 
     public void setPlayerYaw(double deg) {
         state.playerYaw = (float) deg;
+    }
+
+    public void setLookTarget(double x, double y, double z, double strength, double maxAngleDeg) {
+        CameraLookTarget.setSoft(x, y, z, (float) strength, (float) maxAngleDeg);
+    }
+
+    public void setLookTargetHard(double x, double y, double z) {
+        CameraLookTarget.setHard(x, y, z);
+    }
+
+    public void clearLookTarget() {
+        CameraLookTarget.clear();
     }
 }

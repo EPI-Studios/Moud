@@ -91,6 +91,9 @@ final class LuauRuntime {
     private final Method stateToBoolean;
     private final Method stateToNumber;
     private final Method stateToString;
+    private final Method stateNext;
+    private final Method stateRawlen;
+    private final Method statePushValue;
     private final Method luaFuncWrap;
     private final Field  compilerDefault;
     private final Method compilerCompileString;
@@ -133,6 +136,9 @@ final class LuauRuntime {
             stateToBoolean        = stateClass.getMethod("toBoolean", int.class);
             stateToNumber         = stateClass.getMethod("toNumber", int.class);
             stateToString         = stateClass.getMethod("toString", int.class);
+            stateNext             = findOptionalMethod(stateClass, "next", int.class);
+            stateRawlen           = findOptionalMethod(stateClass, "rawlen", int.class);
+            statePushValue        = findOptionalMethod(stateClass, "pushValue", int.class);
             luaFuncWrap           = funcClass.getMethod("wrap", ToIntFunction.class, String.class);
             compilerDefault       = compilerClass.getField("DEFAULT");
             compilerCompileString = compilerClass.getMethod("compile", String.class);
@@ -188,6 +194,29 @@ final class LuauRuntime {
     boolean toBoolean(Object state, int i)     { return (Boolean) invoke(stateToBoolean, state, i); }
     double  toNumber(Object state, int i)      { return (Double)  invoke(stateToNumber, state, i); }
     String  toStringValue(Object state, int i) { return (String)  invoke(stateToString, state, i); }
+
+    boolean next(Object state, int idx) {
+        if (stateNext == null) return false;
+        Object r = invoke(stateNext, state, idx);
+        if (r instanceof Boolean b) return b;
+        if (r instanceof Integer i) return i != 0;
+        return false;
+    }
+
+    int rawlen(Object state, int idx) {
+        if (stateRawlen == null) return 0;
+        Object r = invoke(stateRawlen, state, idx);
+        return r instanceof Integer i ? i : 0;
+    }
+
+    void pushValue(Object state, int idx) {
+        if (statePushValue == null) return;
+        invoke(statePushValue, state, idx);
+    }
+
+    private static Method findOptionalMethod(Class<?> cls, String name, Class<?>... params) {
+        try { return cls.getMethod(name, params); } catch (NoSuchMethodException e) { return null; }
+    }
 
     byte[] compile(String code) {
         try {

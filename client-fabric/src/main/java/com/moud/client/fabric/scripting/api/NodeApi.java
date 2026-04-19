@@ -1,5 +1,7 @@
 package com.moud.client.fabric.scripting.api;
 
+import com.moud.client.fabric.scene.ClientLocalNodes;
+import com.moud.client.fabric.scene.ClientPropertyOverrides;
 import com.moud.client.fabric.scene.ClientSceneBus;
 import com.moud.client.fabric.scene.SceneNodeTransforms;
 import com.moud.core.util.ParseUtils;
@@ -12,9 +14,18 @@ import org.joml.Vector3f;
 public final class NodeApi {
 
     private final long nodeId;
+    private NetApi netApi;
 
     public NodeApi(long nodeId) {
         this.nodeId = nodeId;
+    }
+
+    public void attachNet(NetApi netApi) {
+        this.netApi = netApi;
+    }
+
+    public NetApi net() {
+        return netApi;
     }
 
     public long getId() {
@@ -60,6 +71,52 @@ public final class NodeApi {
             if (n != null && name.equals(n.name())) return n.nodeId();
         }
         return 0L;
+    }
+
+    public void writeProperty(String key, String value) {
+        ClientPropertyOverrides.put(nodeId, key, value);
+    }
+
+    public void writeNumber(String key, double value) {
+        ClientPropertyOverrides.put(nodeId, key, Double.toString(value));
+    }
+
+    public void writePropertyOf(long targetId, String key, String value) {
+        ClientPropertyOverrides.put(targetId, key, value);
+    }
+
+    public void writeNumberOf(long targetId, String key, double value) {
+        ClientPropertyOverrides.put(targetId, key, Double.toString(value));
+    }
+
+    public void clearOverride(String key) {
+        ClientPropertyOverrides.put(nodeId, key, null);
+    }
+
+    public void clearOverridesOn(long targetId) {
+        ClientPropertyOverrides.clearNode(targetId);
+    }
+
+    public long spawnLocal(String type, String name, long parentId) {
+        return ClientLocalNodes.create(type, name, parentId);
+    }
+
+    public void setLocalProp(long id, String key, String value) {
+        ClientLocalNodes.setProperty(id, key, value);
+    }
+
+    public void setLocalNumber(long id, String key, double value) {
+        ClientLocalNodes.setProperty(id, key, Double.toString(value));
+    }
+
+    public boolean freeLocal(long id) {
+        ClientLocalNodes.free(id);
+        ClientPropertyOverrides.clearNode(id);
+        return true;
+    }
+
+    public void clearLocalNodes() {
+        ClientLocalNodes.clearAll();
     }
 
     public float getWorldX(long id) { return worldPos(id).x; }

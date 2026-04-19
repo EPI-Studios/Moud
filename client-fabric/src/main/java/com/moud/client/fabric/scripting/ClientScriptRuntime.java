@@ -10,7 +10,12 @@ import com.moud.client.fabric.scripting.api.AnimApi;
 import com.moud.client.fabric.scripting.api.BodyApi;
 import com.moud.client.fabric.scripting.api.CameraApi;
 import com.moud.client.fabric.scripting.api.InputApi;
+import com.moud.client.fabric.scripting.api.MessagingApi;
+import com.moud.client.fabric.scripting.api.NetApi;
+import com.moud.client.fabric.scripting.api.MouseApi;
 import com.moud.client.fabric.scripting.api.NodeApi;
+import com.moud.client.fabric.scripting.api.PlayerStateApi;
+import com.moud.client.fabric.scripting.api.PostProcessApi;
 import com.moud.client.fabric.scripting.api.RenderApi;
 import com.moud.client.fabric.scripting.api.TimerApi;
 import com.moud.client.fabric.util.ClientDebugLog;
@@ -85,11 +90,18 @@ public final class ClientScriptRuntime {
             RenderApi  renderApi  = new RenderApi();
             NodeApi    nodeApi    = new NodeApi(nodeId);
             CameraApi  cameraApi  = new CameraApi(cameraState);
+            MouseApi   mouseApi   = new MouseApi();
+            PlayerStateApi playerStateApi = new PlayerStateApi();
+            PostProcessApi postProcessApi = new PostProcessApi();
+            MessagingApi messagingApi = new MessagingApi(nodeId);
+            ClientScriptMessageDispatcher.register(nodeId, messagingApi);
+            NetApi netApi = new NetApi(messagingApi);
+            nodeApi.attachNet(netApi);
 
             try {
                 ClientScriptContext ctx = new ClientScriptContext(
-                        bridge, program, bodyApi, inputApi, timerApi, animApi, renderApi, nodeApi, cameraApi);
-                contexts.put(nodeId, new ActiveEntry(scriptPath, source.hashCode(), program, ctx, inputApi, timerApi));
+                        bridge, program, bodyApi, inputApi, timerApi, animApi, renderApi, nodeApi, cameraApi, mouseApi, playerStateApi, postProcessApi, messagingApi);
+                contexts.put(nodeId, new ActiveEntry(scriptPath, source.hashCode(), program, ctx, inputApi, timerApi, postProcessApi, netApi));
                 ClientDebugLog.info(TAG, "Loaded client script for node " + nodeId + ": " + scriptPath);
             } catch (Exception e) {
                 ClientDebugLog.error(TAG, "Failed to create script context for node " + nodeId
@@ -136,12 +148,24 @@ public final class ClientScriptRuntime {
 
 
     private void closeEntry(long nodeId, ActiveEntry entry) {
+        ClientScriptMessageDispatcher.unregister(nodeId);
         if (entry == null || entry.context() == null) return;
         try {
             entry.context().close();
         } catch (Exception e) {
             ClientDebugLog.error(TAG, "Error closing script context for node " + nodeId
                     + ": " + e.getMessage(), e);
+        }
+        if (entry.postProcessApi() != null) {
+            try {
+                entry.postProcessApi().disposeOwned();
+            } catch (Exception e) {
+                ClientDebugLog.error(TAG, "Error disposing post-process effects for node " + nodeId
+                        + ": " + e.getMessage(), e);
+            }
+        }
+        if (entry.netApi() != null) {
+            try { entry.netApi().dispose(); } catch (Exception ignored) {}
         }
     }
 
@@ -163,6 +187,8 @@ public final class ClientScriptRuntime {
             ClientLuauBridge.Program program,
             ClientScriptContext context,
             InputApi inputApi,
-            TimerApi timerApi) {
+            TimerApi timerApi,
+            PostProcessApi postProcessApi,
+            NetApi netApi) {
     }
 }
