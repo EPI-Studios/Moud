@@ -9,6 +9,7 @@ import com.moud.core.util.ParseUtils;
 import com.moud.client.fabric.model.BoneNode;
 import com.moud.client.fabric.model.BoneTrack;
 import com.moud.client.fabric.model.CubeGeometry;
+import com.moud.client.fabric.model.MeshGeometry;
 import com.moud.client.fabric.model.ModelAsset;
 import com.moud.client.fabric.render.MoudTextures;
 import fr.mrqsdf.bbmodelreader.BbModelReader;
@@ -37,12 +38,57 @@ public final class BbmodelLoader {
     public static ModelAsset load(byte[] jsonBytes, String modelName) {
         String json = new String(jsonBytes, StandardCharsets.UTF_8);
         String cacheKey = "moud_" + Long.toHexString(System.nanoTime());
-        BbModel bb = BbModelReader.loadFromJson(json, cacheKey);
+        String sanitized = sanitizeOutliner(json);
+        BbModel bb = BbModelReader.loadFromJson(sanitized, cacheKey);
         JsonObject root = asObject(JsonParser.parseString(json));
         if (root == null) {
             throw new IllegalStateException("bbmodel root is not a JSON object");
         }
         return fromBbModel(bb, root, modelName);
+    }
+
+    private static String sanitizeOutliner(String json) {
+        try {
+            JsonObject root = asObject(JsonParser.parseString(json));
+            if (root == null || !root.has("outliner")) return json;
+            JsonArray outliner = asArray(root.get("outliner"));
+            if (outliner == null) return json;
+            boolean needsFix = false;
+            for (JsonElement el : outliner) {
+                if (el != null && el.isJsonPrimitive() && el.getAsJsonPrimitive().isString()) {
+                    needsFix = true;
+                    break;
+                }
+            }
+            if (!needsFix) return json;
+            JsonArray children = new JsonArray();
+            JsonArray fixedOutliner = new JsonArray();
+            for (JsonElement el : outliner) {
+                if (el != null && el.isJsonPrimitive() && el.getAsJsonPrimitive().isString()) {
+                    children.add(el.getAsString());
+                } else {
+                    fixedOutliner.add(el);
+                }
+            }
+            if (children.size() > 0) {
+                JsonObject group = new JsonObject();
+                group.addProperty("name", "__root__");
+                group.addProperty("uuid", "00000000-0000-0000-0000-000000000000");
+                group.add("origin", new JsonArray());
+                group.addProperty("export", true);
+                group.addProperty("isOpen", true);
+                group.addProperty("locked", false);
+                group.addProperty("visibility", true);
+                group.addProperty("autouv", 0);
+                group.add("children", children);
+                fixedOutliner.add(group);
+            }
+            root.add("outliner", fixedOutliner);
+            return root.toString();
+        } catch (Exception e) {
+            com.moud.client.fabric.util.ClientDebugLog.warn("bbmodel", "sanitizeOutliner failed: " + e.getMessage());
+            return json;
+        }
     }
 
     private static ModelAsset fromBbModel(BbModel bb, JsonObject root, String modelName) {
@@ -143,6 +189,7 @@ public final class BbmodelLoader {
         float[] position = jsonFloat3(outliner.get("position"), 0f, 0f, 0f);
 
         List<CubeGeometry> cubes = new ArrayList<>();
+        List<MeshGeometry> meshes = new ArrayList<>();
         List<BoneNode> children = new ArrayList<>();
         JsonArray childArray = outliner.has("children") && outliner.get("children").isJsonArray()
                 ? asArray(outliner.get("children"))
@@ -159,11 +206,14 @@ public final class BbmodelLoader {
                         children.add(childBone);
                     }
                 } else if (child.isJsonPrimitive() && child.getAsJsonPrimitive().isString()) {
-                    Element element = elements.get(child.getAsString());
+                    String uuid2 = child.getAsString();
+                    Element element = elements.get(uuid2);
                     if (element != null) {
-                        CubeGeometry cube = toCube(element, elementJsonByUuid.get(child.getAsString()));
+                        CubeGeometry cube = toCube(element, elementJsonByUuid.get(uuid2));
                         if (cube != null) {
                             cubes.add(cube);
+                        } else {
+                            toMeshFaces(elementJsonByUuid.get(uuid2), meshes);
                         }
                     }
                 }
@@ -177,7 +227,7 @@ public final class BbmodelLoader {
                 origin[0], origin[1], origin[2],
                 position[0], position[1], position[2],
                 rotation[0], rotation[1], rotation[2],
-                cubes, children
+                cubes, meshes, children
         );
     }
 
@@ -189,18 +239,28 @@ public final class BbmodelLoader {
         if (element == null) {
             return null;
         }
-        CubeGeometry cube = toCube(element, elementJsonByUuid.get(uuid));
-        if (cube == null) {
+        JsonObject raw = elementJsonByUuid.get(uuid);
+        CubeGeometry cube = toCube(element, raw);
+        if (cube != null) {
+            return new BoneNode(
+                    "__root_" + index, "",
+                    0f, 0f, 0f,
+                    0f, 0f, 0f,
+                    0f, 0f, 0f,
+                    List.of(cube), List.of(), List.of()
+            );
+        }
+        List<MeshGeometry> meshes = new ArrayList<>();
+        toMeshFaces(raw, meshes);
+        if (meshes.isEmpty()) {
             return null;
         }
         return new BoneNode(
-                "__root_" + index,
-                "",
+                "__root_" + index, "",
                 0f, 0f, 0f,
                 0f, 0f, 0f,
                 0f, 0f, 0f,
-                List.of(cube),
-                List.of()
+                List.of(), meshes, List.of()
         );
     }
 
@@ -223,6 +283,108 @@ public final class BbmodelLoader {
                 toFaceUv(f != null ? f.getUp()    : null),
                 toFaceUv(f != null ? f.getDown()  : null)
         );
+    }
+
+    private static void toMeshFaces(JsonObject raw, List<MeshGeometry> out) {
+        if (raw == null) return;
+        JsonObject verticesJson = asObject(raw.get("vertices"));
+        JsonObject facesJson = asObject(raw.get("faces"));
+        if (verticesJson == null || facesJson == null) return;
+
+        Map<String, float[]> verts = new HashMap<>();
+        for (Map.Entry<String, JsonElement> e : verticesJson.entrySet()) {
+            JsonArray arr = asArray(e.getValue());
+            if (arr != null && arr.size() >= 3) {
+                verts.put(e.getKey(), new float[]{
+                        arr.get(0).getAsFloat(),
+                        arr.get(1).getAsFloat(),
+                        arr.get(2).getAsFloat()
+                });
+            }
+        }
+
+        float[] origin = rawFloat3(raw, "origin", 0f, 0f, 0f);
+        float[] rotation = rawFloat3(raw, "rotation", 0f, 0f, 0f);
+        boolean hasRot = rotation[0] != 0 || rotation[1] != 0 || rotation[2] != 0;
+
+        for (Map.Entry<String, JsonElement> e : facesJson.entrySet()) {
+            JsonObject face = asObject(e.getValue());
+            if (face == null) continue;
+            JsonArray vertOrder = asArray(face.get("vertices"));
+            if (vertOrder == null || vertOrder.size() < 4) continue;
+            JsonObject uvMap = asObject(face.get("uv"));
+            int texIdx = rawInt(face, "texture", 0);
+
+            String[] names = new String[4];
+            for (int i = 0; i < 4; i++) {
+                JsonElement ve = vertOrder.get(i);
+                names[i] = ve != null && ve.isJsonPrimitive() ? ve.getAsString() : null;
+            }
+
+            float[] pos = new float[12]; // 4 * xyz
+            float[] uvs = new float[8];  // 4 * uv
+            boolean valid = true;
+            for (int i = 0; i < 4; i++) {
+                if (names[i] == null) { valid = false; break; }
+                float[] p = verts.get(names[i]);
+                if (p == null) { valid = false; break; }
+                float px = p[0], py = p[1], pz = p[2];
+                if (hasRot) {
+
+                    px -= origin[0]; py -= origin[1]; pz -= origin[2];
+                    float rx = (float) Math.toRadians(rotation[0]);
+                    float ry = (float) Math.toRadians(rotation[1]);
+                    float rz = (float) Math.toRadians(rotation[2]);
+                    float cx = (float) Math.cos(rx), sx2 = (float) Math.sin(rx);
+                    float cy = (float) Math.cos(ry), sy = (float) Math.sin(ry);
+                    float cz = (float) Math.cos(rz), sz = (float) Math.sin(rz);
+
+                    float tx = cz * px - sz * py;
+                    float ty = sz * px + cz * py;
+                    float tz = pz;
+                    float tx2 = cy * tx + sy * tz;
+                    float tz2 = -sy * tx + cy * tz;
+                    float ty2 = ty;
+                    float tx3 = tx2;
+                    float ty3 = cx * ty2 - sx2 * tz2;
+                    float tz3 = sx2 * ty2 + cx * tz2;
+                    px = tx3 + origin[0];
+                    py = ty3 + origin[1];
+                    pz = tz3 + origin[2];
+                }
+                pos[i * 3]     = px;
+                pos[i * 3 + 1] = py;
+                pos[i * 3 + 2] = pz;
+                if (uvMap != null) {
+                    JsonArray uv = asArray(uvMap.get(names[i]));
+                    if (uv != null && uv.size() >= 2) {
+                        uvs[i * 2]     = uv.get(0).getAsFloat();
+                        uvs[i * 2 + 1] = uv.get(1).getAsFloat();
+                    }
+                }
+            }
+            if (!valid) continue;
+
+            out.add(new MeshGeometry(
+                    pos[0], pos[1], pos[2],
+                    pos[3], pos[4], pos[5],
+                    pos[6], pos[7], pos[8],
+                    pos[9], pos[10], pos[11],
+                    uvs[0], uvs[1],
+                    uvs[2], uvs[3],
+                    uvs[4], uvs[5],
+                    uvs[6], uvs[7],
+                    texIdx
+            ));
+        }
+    }
+
+    private static int rawInt(JsonObject object, String key, int fallback) {
+        if (object == null || key == null || !object.has(key)) return fallback;
+        JsonElement el = object.get(key);
+        return el != null && el.isJsonPrimitive() && el.getAsJsonPrimitive().isNumber()
+                ? el.getAsInt()
+                : fallback;
     }
 
     private static CubeGeometry.FaceUV toFaceUv(Face.FaceValue fv) {
