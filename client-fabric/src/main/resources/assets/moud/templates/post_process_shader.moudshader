@@ -1,0 +1,22 @@
+// Built-in post-process inputs:
+//   sampler2D screen
+//   sampler2D depth
+//   vec2 Resolution
+//   vec2 TexelSize
+//   float AspectRatio
+//   float Time
+//   float DeltaTime
+//   int DepthAvailable
+//
+// The engine prepends the post-process header automatically.
+// Do not redeclare those built-in uniforms here.
+
+uniform float strength;
+
+void main() {
+    vec2 uv = vTexCoord;
+    vec4 color = texture(screen, uv);
+    vec2 offset = uv - vec2(0.5);
+    float vignette = 1.0 - clamp(length(offset) * strength, 0.0, 1.0);
+    fragColor = vec4(color.rgb * vignette, color.a);
+}
