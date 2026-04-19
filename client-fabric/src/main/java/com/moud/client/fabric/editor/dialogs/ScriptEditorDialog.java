@@ -8,6 +8,7 @@ import com.miry.ui.render.UiRenderer;
 import com.miry.ui.theme.Icon;
 import com.moud.client.fabric.render.MoudIcons;
 import com.miry.ui.theme.Theme;
+import com.moud.client.fabric.assets.MoudTextAssets;
 import com.moud.client.fabric.editor.net.EditorNet;
 import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
@@ -159,6 +160,7 @@ public final class ScriptEditorDialog {
         }
         lastLoadedText = editor.text();
         error = null;
+        MoudTextAssets.overrideText(scriptPath, editor.text());
     }
 
     public boolean handleKey(UiContext ctx, KeyEvent event) {

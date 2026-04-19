@@ -532,7 +532,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
                 if (path.endsWith(".moud.scene")) {
                     String sid = sceneIdFromPath(path);
                     if (sid != null && !sid.isBlank()) {
-                        dnd.armDrag(EditorDnD.sceneId(sid), "Open: " + filename, mx, my);
+                        dnd.armDrag(EditorDnD.sceneId(sid), "Drag to scene tree to import as child scene", mx, my);
                     }
                 } else if (assetType == AssetType.IMAGE) {
                     dnd.armDrag(EditorDnD.imagePath(path), filename, mx, my);
@@ -633,7 +633,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
             if (path.endsWith(".moud.scene")) {
                 String sid = sceneIdFromPath(path);
                 if (sid != null && !sid.isBlank()) {
-                    dnd.armDrag(EditorDnD.sceneId(sid), "Open: " + filename, mx, my);
+                    dnd.armDrag(EditorDnD.sceneId(sid), "Drag to scene tree to import as child scene", mx, my);
                 }
             } else if (assetType == AssetType.IMAGE) {
                 dnd.armDrag(EditorDnD.imagePath(path), filename, mx, my);
@@ -1135,7 +1135,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
 
             if (hovered && canInteract && input.mousePressed()) {
                 if (dnd != null && !dnd.isBusy()) {
-                    dnd.armDrag(EditorDnD.sceneId(sceneId), "Open: " + filename, mx, my);
+                    dnd.armDrag(EditorDnD.sceneId(sceneId), "Drag to scene tree to import as child scene", mx, my);
                 }
             }
 
@@ -1231,6 +1231,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
 
         if (path.endsWith(".moud.scene")) {
             assetContextMenu.addItem("Open Scene", Icon.PLAY, () -> openSceneFromPath(path));
+            assetContextMenu.addInfo("Drag to scene tree to import as child scene");
         } else if (type == AssetType.TEXT) {
             if (path.startsWith("res://scripts/")
                     && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs")
@@ -1257,6 +1258,10 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
             }
         });
 
+        assetContextMenu.addSeparator();
+
+        assetContextMenu.addItem("New Folder Here", () -> createFolderUnder(AssetPathPrompt.dirnameOf(path)));
+        assetContextMenu.addItem("Rename", () -> renameAsset(path));
         assetContextMenu.addSeparator();
 
         if (isDeletableAssetPath(path)) {
@@ -1536,5 +1541,29 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         if (bytes < 1024) return bytes + " B";
         if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
         return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
+    }
+
+    private void createFolderUnder(String parentPath) {
+        EditorState state = runtime.state();
+        if (state == null || runtime.session() == null) return;
+        String name = AssetPathPrompt.promptName("New folder name", "");
+        if (name == null) return;
+        String target = AssetPathPrompt.joinRes(parentPath, name);
+        runtime.net().createFolder(runtime.session(), state, target);
+        runtime.requestToast("Creating folder: " + target, false, 2000);
+    }
+
+    private void renameAsset(String path) {
+        EditorState state = runtime.state();
+        if (state == null || runtime.session() == null || path == null) return;
+        String stripped = path.startsWith("res://") ? path.substring("res://".length()) : path;
+        int slash = stripped.lastIndexOf('/');
+        String parent = slash < 0 ? "" : stripped.substring(0, slash);
+        String current = slash < 0 ? stripped : stripped.substring(slash + 1);
+        String next = AssetPathPrompt.promptName("Rename to", current);
+        if (next == null || next.equals(current)) return;
+        String newPath = AssetPathPrompt.joinRes(parent, next);
+        runtime.net().renameAsset(runtime.session(), state, path, newPath);
+        runtime.requestToast("Renaming: " + current + " -> " + next, false, 2000);
     }
 }
