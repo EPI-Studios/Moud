@@ -11,11 +11,20 @@ public final class NodeApi {
     private final ServerScene scene;
     private final RuntimeFacade runtime;
     private final long selfId;
+    private NetApi netApi;
 
     public NodeApi(ServerScene scene, RuntimeFacade runtime, long selfId) {
         this.scene = scene;
         this.runtime = runtime;
         this.selfId = selfId;
+    }
+
+    @HostAccess.Export
+    public NetApi net() {
+        if (netApi == null && runtime.scriptMessageRouter() != null) {
+            netApi = new NetApi(runtime.scriptMessageRouter(), selfId, runtime.connectedPlayerUuids());
+        }
+        return netApi;
     }
 
     @HostAccess.Export

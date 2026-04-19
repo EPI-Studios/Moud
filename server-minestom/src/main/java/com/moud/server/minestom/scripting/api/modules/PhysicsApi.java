@@ -29,7 +29,9 @@ public final class PhysicsApi {
         if (physics == null) {
             return null;
         }
-        return physics.raycast(ox, oy, oz, dx, dy, dz, maxDist).map(PhysicsHit::new).orElse(null);
+        return physics.raycast(ox, oy, oz, dx, dy, dz, maxDist)
+                .map(r -> new PhysicsHit(r, physics))
+                .orElse(null);
     }
 
     @HostAccess.Export
