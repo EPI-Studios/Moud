@@ -4,6 +4,7 @@ package com.moud.server.minestom.scripting.api;
 import com.moud.core.scene.Node;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.physics.CollisionEvent;
+import com.moud.server.minestom.script.ScriptMessageRouter;
 import com.moud.server.minestom.scripting.api.modules.*;
 import com.moud.server.minestom.scripting.input.ScriptInputApi;
 import com.moud.server.minestom.scripting.player.InputEvent;
@@ -24,6 +25,8 @@ public final class CoreScriptApi {
     private final PlayerApi playerApi;
     private final CameraApi cameraApi;
     private final CursorApi cursorApi;
+    private final MessagingApi messagingApi;
+    private final ParticlesApi particlesApi;
 
     public CoreScriptApi(ServerScene scene, RuntimeFacade runtime, long selfId) {
         this.scene = scene;
@@ -35,6 +38,23 @@ public final class CoreScriptApi {
         this.playerApi = new PlayerApi(scene, runtime.playerState());
         this.cameraApi = new CameraApi(scene, runtime.playerState(), selfId);
         this.cursorApi = new CursorApi(scene, runtime.playerState(), selfId);
+        ScriptMessageRouter router = runtime.scriptMessageRouter();
+        this.messagingApi = router == null
+                ? null
+                : new MessagingApi(router, selfId, runtime.connectedPlayerUuids());
+        this.particlesApi = router == null
+                ? null
+                : new ParticlesApi(router, runtime.connectedPlayerUuids());
+    }
+
+    @HostAccess.Export
+    public ParticlesApi particles() {
+        return particlesApi;
+    }
+
+    @HostAccess.Export
+    public MessagingApi msg() {
+        return messagingApi;
     }
 
     @HostAccess.Export
@@ -45,6 +65,11 @@ public final class CoreScriptApi {
     @HostAccess.Export
     public long id() {
         return nodeApi.id();
+    }
+
+    @HostAccess.Export
+    public long rootId() {
+        return scene.engine().sceneTree().root().nodeId();
     }
 
     @HostAccess.Export
