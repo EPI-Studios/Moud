@@ -2,6 +2,7 @@ package com.moud.server.minestom.scripting.luau;
 
 
 import com.moud.server.minestom.scripting.ScriptCallable;
+import com.moud.server.minestom.scripting.ScriptCallback;
 import com.moud.server.minestom.scripting.ScriptInvocationException;
 import com.moud.server.minestom.scripting.ScriptObject;
 import com.moud.server.minestom.scripting.signal.*;
@@ -23,6 +24,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -388,10 +390,19 @@ public final class LuauRuntimeBridge implements AutoCloseable {
             BoundMethod chosen = null;
             Object[] args = null;
             for (BoundMethod method : methods) {
-                args = method.tryConvert(thread, top);
+                args = method.tryConvert(thread, top, 1);
                 if (args != null) {
                     chosen = method;
                     break;
+                }
+            }
+            if (chosen == null && top > 0) {
+                for (BoundMethod method : methods) {
+                    args = method.tryConvert(thread, top - 1, 2);
+                    if (args != null) {
+                        chosen = method;
+                        break;
+                    }
                 }
             }
             if (chosen == null || args == null) {
@@ -513,7 +524,7 @@ public final class LuauRuntimeBridge implements AutoCloseable {
             this.requiredArgs = varArgs ? paramTypes.length - 1 : paramTypes.length;
         }
 
-        private Object[] tryConvert(Object thread, int actualArgs) {
+        private Object[] tryConvert(Object thread, int actualArgs, int startIndex) {
             if (!varArgs && actualArgs != paramTypes.length) {
                 return null;
             }
@@ -521,7 +532,7 @@ public final class LuauRuntimeBridge implements AutoCloseable {
                 return null;
             }
             Object[] converted = new Object[paramTypes.length];
-            int stackIndex = 1;
+            int stackIndex = startIndex;
             for (int i = 0; i < paramTypes.length; i++) {
                 Class<?> type = paramTypes[i];
                 if (varArgs && i == paramTypes.length - 1) {
@@ -544,7 +555,7 @@ public final class LuauRuntimeBridge implements AutoCloseable {
                 }
                 converted[i] = value;
             }
-            return stackIndex - 1 == actualArgs ? converted : null;
+            return stackIndex - startIndex == actualArgs ? converted : null;
         }
     }
 
@@ -609,6 +620,53 @@ public final class LuauRuntimeBridge implements AutoCloseable {
             // the runtime scripts hit ALWAYS the lua_close() callback issue
             // thats why i made it so it keep refs clean and let the jvm reclaim the states that are preinstance instead of
             // crashing the entire server when refreshing
+        }
+    }
+
+    private static final class LuauArgsCallable implements ScriptCallback {
+        private final LuauReflection reflection;
+        private final Object thread;
+        private final int ref;
+
+        private LuauArgsCallable(LuauReflection reflection, Object thread, int ref) {
+            this.reflection = reflection;
+            this.thread = thread;
+            this.ref = ref;
+        }
+
+        @Override
+        public void invoke(Object... args) {
+            try {
+                reflection.getRef(thread, ref);
+                for (Object a : args) pushArg(a);
+                reflection.call(thread, args.length, 0);
+            } catch (Exception e) {
+                DebugLog.error("script-runtime", "LuauArgsCallable failed: " + e.getMessage(), e);
+            } finally {
+                reflection.top(thread, 0);
+            }
+        }
+
+        private void pushArg(Object v) {
+            if (v == null) reflection.pushNil(thread);
+            else if (v instanceof Boolean b) reflection.pushBoolean(thread, b);
+            else if (v instanceof Number n)  reflection.pushNumber(thread, n.doubleValue());
+            else if (v instanceof String s)  reflection.pushString(thread, s);
+            else if (v instanceof Map<?, ?> m) {
+                reflection.newTable(thread);
+                for (Map.Entry<?, ?> e : m.entrySet()) {
+                    pushArg(e.getValue());
+                    reflection.setField(thread, -2, String.valueOf(e.getKey()));
+                }
+            } else if (v instanceof List<?> list) {
+                reflection.newTable(thread);
+                for (int i = 0; i < list.size(); i++) {
+                    pushArg(list.get(i));
+                    reflection.rawSetI(thread, -2, i + 1);
+                }
+            } else {
+                reflection.pushNil(thread);
+            }
         }
     }
 
@@ -974,10 +1032,47 @@ public final class LuauRuntimeBridge implements AutoCloseable {
                 int ref = ref(state, index);
                 return new LuauCallableRef(this, state, ref);
             }
+            if (ScriptCallback.class.isAssignableFrom(targetType)) {
+                if (!isFunction(state, index)) {
+                    return INVALID;
+                }
+                int ref = ref(state, index);
+                return new LuauArgsCallable(this, state, ref);
+            }
+            if (Map.class.isAssignableFrom(targetType)) {
+                if (!isTable(state, index)) {
+                    return INVALID;
+                }
+                return readTableAsMap(state, index);
+            }
             if (targetType == Object.class && varArgComponent) {
                 return readDynamic(state, index);
             }
             return INVALID;
+        }
+
+        private Map<String, Object> readTableAsMap(Object state, int index) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            int absIdx = index > 0 ? index : top(state) + index + 1;
+            pushNil(state);
+            while (next(state, absIdx)) {
+                int keyIdx = top(state) - 1;
+                int valIdx = top(state);
+                String key;
+                if (isString(state, keyIdx))      key = toString(state, keyIdx);
+                else if (isNumber(state, keyIdx)) key = Double.toString(toNumber(state, keyIdx));
+                else                              key = "";
+                Object value;
+                if (isNoneOrNil(state, valIdx))      value = null;
+                else if (isBoolean(state, valIdx))   value = toBoolean(state, valIdx);
+                else if (isNumber(state, valIdx))    value = toNumber(state, valIdx);
+                else if (isString(state, valIdx))    value = toString(state, valIdx);
+                else if (isTable(state, valIdx))     value = readTableAsMap(state, valIdx);
+                else                                 value = null;
+                result.put(key, value);
+                top(state, keyIdx);
+            }
+            return result;
         }
 
         private Object readDynamic(Object state, int index) {
