@@ -52,7 +52,11 @@ public sealed interface Message permits
         UiNodeEvent,
         MultiMeshData,
         PlayerMotion,
+        PlayerClientState,
         CursorState,
-        CollisionGeometrySnapshot {
+        CollisionGeometrySnapshot,
+        ScriptMessage,
+        AssetPathOp,
+        AssetPathOpAck {
     MessageType type();
 }
