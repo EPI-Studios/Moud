@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+@Deprecated
 public final class ScriptTypeGenerator {
 
     private static final String LOG_TAG = "script-type-gen";

@@ -5,6 +5,7 @@ import org.graalvm.polyglot.Engine;
 
 import java.util.Map;
 
+@Deprecated
 public final class TypeScriptContext {
 
     private final TypeScriptTranspiler transpiler;

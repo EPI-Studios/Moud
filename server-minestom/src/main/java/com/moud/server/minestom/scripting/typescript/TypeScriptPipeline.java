@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@Deprecated
 public final class TypeScriptPipeline {
 
     private static final Pattern DEFAULT_CLASS_PATTERN =
