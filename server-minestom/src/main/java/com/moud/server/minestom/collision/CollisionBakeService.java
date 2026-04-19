@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 public final class CollisionBakeService {
+    private static final float MIN_CAPSULE_HALF_HEIGHT = 1.0e-6f;
+
     public record BakeResult(ShapeSettings settings, List<CollisionGeometry> hulls) {}
 
     private final GeometrySourceRegistry geometrySources;
@@ -173,7 +175,7 @@ public final class CollisionBakeService {
             case CAPSULE -> {
                 double radius = Math.max(0.01, SceneNodeTransform.parseDouble(node.getProperty("radius"), 0.3));
                 double height = Math.max(radius * 2.0, SceneNodeTransform.parseDouble(node.getProperty("height"), 1.8));
-                yield new CapsuleShapeSettings((float) Math.max(0.0, height * 0.5 - radius), (float) radius);
+                yield new CapsuleShapeSettings((float) Math.max(MIN_CAPSULE_HALF_HEIGHT, height * 0.5 - radius), (float) radius);
             }
             default -> new BoxShapeSettings(
                     (float) Math.max(0.01, SceneNodeTransform.parseDouble(node.getProperty("sx"), 1.0) * 0.5),

@@ -18,6 +18,7 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
 
     private static final float GRAVITY = 30f;
     private static final int TEMP_ALLOCATOR_BYTES = 64 * 1024 * 1024;
+    private static final float MIN_CAPSULE_HALF_HEIGHT = 1.0e-6f;
 
     private final PhysicsSystem system = new PhysicsSystem();
     private final BodyInterface bodies;
@@ -355,7 +356,7 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
         int maskBits = CollisionLayerMask.mask(node);
         float radius = Math.max(0.05f, ParseUtils.parseFloat(node.getProperty("radius"), 0.5f));
         float height = Math.max(radius * 2.0f, ParseUtils.parseFloat(node.getProperty("height"), 2.0f));
-        float halfHeightOfCylinder = Math.max(0.0f, height * 0.5f - radius);
+        float halfHeightOfCylinder = Math.max(MIN_CAPSULE_HALF_HEIGHT, height * 0.5f - radius);
         double centerY = y + height * 0.5;
 
         var rotation = new com.github.stephengold.joltjni.Quat(0f, 0f, 0f, 1f);

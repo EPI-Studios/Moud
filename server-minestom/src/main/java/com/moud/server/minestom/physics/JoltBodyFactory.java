@@ -13,6 +13,7 @@ final class JoltBodyFactory {
 
     static final int LAYER_STATIC = 0;
     static final int LAYER_MOVING = 1;
+    private static final float MIN_CAPSULE_HALF_HEIGHT = 1.0e-6f;
 
     private JoltBodyFactory() {}
 
@@ -168,7 +169,7 @@ final class JoltBodyFactory {
         if ("capsule".equals(type)) {
             float radius = Math.max(0.01f, propFloat(node, "radius", 0.3f));
             float height = Math.max(radius * 2.0f, propFloat(node, "height", 1.8f));
-            return new CapsuleShapeSettings(Math.max(0.0f, height * 0.5f - radius), radius);
+            return new CapsuleShapeSettings(Math.max(MIN_CAPSULE_HALF_HEIGHT, height * 0.5f - radius), radius);
         }
         float hx = propFloat(node, "sx", 1f) * 0.5f;
         float hy = propFloat(node, "sy", 1f) * 0.5f;
