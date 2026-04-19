@@ -41,6 +41,7 @@ import com.moud.net.protocol.SceneSaveAck;
 import com.moud.net.protocol.SchemaSnapshot;
 import com.moud.net.protocol.ServerHello;
 import com.moud.net.protocol.PlayerInput;
+import com.moud.net.protocol.PlayerClientState;
 import com.moud.net.protocol.PlayerMotion;
 import com.moud.net.protocol.RuntimeState;
 import com.moud.net.protocol.RequestRespawn;
@@ -66,6 +67,9 @@ import com.moud.net.protocol.ScriptFileWriteAck;
 import com.moud.net.protocol.UiNodeEvent;
 import com.moud.net.protocol.MultiMeshData;
 import com.moud.net.protocol.CollisionGeometrySnapshot;
+import com.moud.net.protocol.ScriptMessage;
+import com.moud.net.protocol.AssetPathOp;
+import com.moud.net.protocol.AssetPathOpAck;
 import com.moud.core.physics.CollisionGeometry;
 
 import java.nio.BufferOverflowException;
@@ -129,6 +133,7 @@ public final class WireMessages {
                         WireIo.writeString(out, ack.message());
                     }
                     case PlayerInput input -> writePlayerInput(out, input);
+                    case PlayerClientState state -> writePlayerClientState(out, state);
                     case RuntimeState state -> writeRuntimeState(out, state);
                     case CursorState state -> {
                         int flags = 0;
@@ -254,6 +259,30 @@ public final class WireMessages {
                                 for (int i : indices) WireIo.writeVarInt(out, i);
                             }
                         }
+                    }
+                    case ScriptMessage msg -> {
+                        out.put((byte) (msg.direction() & 0xFF));
+                        writeLong(out, msg.nodeId());
+                        WireIo.writeString(out, msg.topic());
+                        out.put((byte) (msg.flags() & 0xFF));
+                        byte[] payload = msg.payload();
+                        WireIo.writeVarInt(out, payload.length);
+                        out.put(payload);
+                    }
+                    case AssetPathOp msg -> {
+                        writeLong(out, msg.requestId());
+                        WireIo.writeVarInt(out, msg.kind().ordinal());
+                        WireIo.writeString(out, msg.path());
+                        WireIo.writeString(out, msg.newPath());
+                    }
+                    case AssetPathOpAck msg -> {
+                        writeLong(out, msg.requestId());
+                        WireIo.writeVarInt(out, msg.kind().ordinal());
+                        WireIo.writeVarInt(out, msg.success() ? 1 : 0);
+                        WireIo.writeString(out, msg.path());
+                        WireIo.writeString(out, msg.newPath());
+                        WireIo.writeVarInt(out, msg.scenesUpdated());
+                        WireIo.writeString(out, msg.error());
                     }
                 }
                 out.flip();
@@ -414,6 +443,11 @@ public final class WireMessages {
                 float yawDeg = in.getFloat();
                 yield new PlayerMotion(mode, x, y, z, yawDeg);
             }
+            case PLAYER_CLIENT_STATE -> new PlayerClientState(
+                    WireIo.readString(in),
+                    WireIo.readString(in),
+                    WireIo.readString(in)
+            );
             case COLLISION_GEOMETRY -> {
                 long nodeId = readLong(in);
                 int hullCount = WireIo.readVarInt(in);
@@ -428,6 +462,36 @@ public final class WireMessages {
                     hulls.add(new CollisionGeometry(vertices, indices));
                 }
                 yield new CollisionGeometrySnapshot(nodeId, hulls);
+            }
+            case SCRIPT_MESSAGE -> {
+                int direction = in.get() & 0xFF;
+                long nodeId = readLong(in);
+                String topic = WireIo.readString(in);
+                int flags = in.get() & 0xFF;
+                int payloadLen = WireIo.readVarInt(in);
+                if (payloadLen < 0 || payloadLen > ScriptMessage.MAX_PAYLOAD_BYTES) {
+                    throw new IllegalArgumentException("ScriptMessage payload length invalid: " + payloadLen);
+                }
+                byte[] payload = new byte[payloadLen];
+                in.get(payload);
+                yield new ScriptMessage(direction, nodeId, topic, flags, payload);
+            }
+            case ASSET_PATH_OP -> {
+                long reqId = readLong(in);
+                int kindOrdinal = WireIo.readVarInt(in);
+                String path = WireIo.readString(in);
+                String newPath = WireIo.readString(in);
+                yield new AssetPathOp(reqId, AssetPathOp.Kind.values()[kindOrdinal], path, newPath);
+            }
+            case ASSET_PATH_OP_ACK -> {
+                long reqId = readLong(in);
+                int kindOrdinal = WireIo.readVarInt(in);
+                boolean success = WireIo.readVarInt(in) != 0;
+                String path = WireIo.readString(in);
+                String newPath = WireIo.readString(in);
+                int scenesUpdated = WireIo.readVarInt(in);
+                String error = WireIo.readString(in);
+                yield new AssetPathOpAck(reqId, AssetPathOp.Kind.values()[kindOrdinal], success, path, newPath, scenesUpdated, error);
             }
         };
     }
@@ -456,7 +520,12 @@ public final class WireMessages {
         if (input.sprint()) {
             flags |= 2;
         }
+        if (input.sneak()) {
+            flags |= 4;
+        }
         WireIo.writeVarInt(out, flags);
+        WireIo.writeString(out, input.stateKey() == null ? "" : input.stateKey());
+        WireIo.writeString(out, input.stateValue() == null ? "" : input.stateValue());
     }
 
     private static PlayerInput readPlayerInput(ByteBuffer in) {
@@ -481,7 +550,15 @@ public final class WireMessages {
         boolean jump = (flags & 1) != 0;
         boolean sprint = (flags & 2) != 0;
         boolean sneak = (flags & 4) != 0;
-        return new PlayerInput(tick, moveX, moveZ, yaw, pitch, cursorX, cursorY, jump, sprint, sneak);
+        String stateKey = in.hasRemaining() ? WireIo.readString(in) : "";
+        String stateValue = in.hasRemaining() ? WireIo.readString(in) : "";
+        return new PlayerInput(tick, moveX, moveZ, yaw, pitch, cursorX, cursorY, stateKey, stateValue, jump, sprint, sneak);
+    }
+
+    private static void writePlayerClientState(ByteBuffer out, PlayerClientState state) {
+        WireIo.writeString(out, state.playerUuid() == null ? "" : state.playerUuid());
+        WireIo.writeString(out, state.key() == null ? "" : state.key());
+        WireIo.writeString(out, state.value() == null ? "" : state.value());
     }
 
     private static void writeSceneSaveAck(ByteBuffer out, SceneSaveAck ack) {
@@ -1130,6 +1207,7 @@ public final class WireMessages {
                     + varIntSize(ack.status() == null ? AssetTransferStatus.ERROR.id() : ack.status().id())
                     + stringSize(ack.message());
             case PlayerInput input -> size += estimatePlayerInputSize(input);
+            case PlayerClientState state -> size += stringSize(state.playerUuid()) + stringSize(state.key()) + stringSize(state.value());
             case SceneSave save -> size += estimateSceneSaveSize(save);
             case SceneSaveAck ack -> size += estimateSceneSaveAckSize(ack);
             case RuntimeState state -> size += estimateRuntimeStateSize(state);
@@ -1177,6 +1255,15 @@ public final class WireMessages {
                     }
                 }
             }
+            case ScriptMessage msg -> {
+                int pLen = msg.payload().length;
+                size += 1 + longSize(msg.nodeId()) + stringSize(msg.topic()) + 1 + varIntSize(pLen) + pLen;
+            }
+            case AssetPathOp msg -> size += longSize(msg.requestId()) + varIntSize(msg.kind().ordinal())
+                    + stringSize(msg.path()) + stringSize(msg.newPath());
+            case AssetPathOpAck msg -> size += longSize(msg.requestId()) + varIntSize(msg.kind().ordinal())
+                    + varIntSize(1) + stringSize(msg.path()) + stringSize(msg.newPath())
+                    + varIntSize(msg.scenesUpdated()) + stringSize(msg.error());
         }
         return size + 16;
     }

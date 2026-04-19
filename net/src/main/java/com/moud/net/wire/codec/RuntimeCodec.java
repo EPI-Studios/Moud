@@ -22,6 +22,8 @@ public final class RuntimeCodec {
         if (input.sprint()) flags |= 2;
         if (input.sneak()) flags |= 4;
         WireIo.writeVarInt(out, flags);
+        WireIo.writeString(out, input.stateKey() == null ? "" : input.stateKey());
+        WireIo.writeString(out, input.stateValue() == null ? "" : input.stateValue());
     }
 
     public static PlayerInput readPlayerInput(ByteBuffer in) {
@@ -42,7 +44,9 @@ public final class RuntimeCodec {
             cursorY = 0.0f;
             flags = WireIo.readVarInt(in);
         }
-        return new PlayerInput(tick, moveX, moveZ, yaw, pitch, cursorX, cursorY, (flags & 1) != 0, (flags & 2) != 0, (flags & 4) != 0);
+        String stateKey = in.hasRemaining() ? WireIo.readString(in) : "";
+        String stateValue = in.hasRemaining() ? WireIo.readString(in) : "";
+        return new PlayerInput(tick, moveX, moveZ, yaw, pitch, cursorX, cursorY, stateKey, stateValue, (flags & 1) != 0, (flags & 2) != 0, (flags & 4) != 0);
     }
 
     public static void writeRuntimeState(ByteBuffer out, RuntimeState state) {
@@ -121,7 +125,9 @@ public final class RuntimeCodec {
     }
 
     public static int playerInputSize(PlayerInput input) {
-        return WireIo.longSize(input.clientTick()) + 6 * 4 + WireIo.varIntSize(0);
+        return WireIo.longSize(input.clientTick()) + 6 * 4 + WireIo.varIntSize(0)
+                + WireIo.stringSize(input.stateKey() == null ? "" : input.stateKey())
+                + WireIo.stringSize(input.stateValue() == null ? "" : input.stateValue());
     }
 
     public static int runtimeStateSize(RuntimeState state) {

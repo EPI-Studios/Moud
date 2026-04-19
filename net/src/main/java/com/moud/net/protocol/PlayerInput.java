@@ -9,6 +9,8 @@ public record PlayerInput(
         float pitchDeg,
         float cursorX,
         float cursorY,
+        String stateKey,
+        String stateValue,
         boolean jump,
         boolean sprint,
         boolean sneak
