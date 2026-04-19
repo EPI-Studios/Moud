@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class PlayerStateManager {
     private final ConcurrentHashMap<String, PlayerInputState> inputsByPlayer;
+    private final ConcurrentHashMap<String, ConcurrentHashMap<String, String>> clientStateByPlayer;
     private final ConcurrentHashMap<String, float[]> playerVelocities;
     private final ConcurrentHashMap<String, float[]> playerPositions = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> playerNames = new ConcurrentHashMap<>();
@@ -25,10 +26,12 @@ public final class PlayerStateManager {
     private final PlayerNetworkSink networkSink;
 
     public PlayerStateManager(ConcurrentHashMap<String, PlayerInputState> inputsByPlayer,
+                       ConcurrentHashMap<String, ConcurrentHashMap<String, String>> clientStateByPlayer,
                        ConcurrentHashMap<String, float[]> playerVelocities,
                        InputMap inputMap,
                        PlayerNetworkSink networkSink) {
         this.inputsByPlayer = Objects.requireNonNull(inputsByPlayer, "inputsByPlayer");
+        this.clientStateByPlayer = Objects.requireNonNull(clientStateByPlayer, "clientStateByPlayer");
         this.playerVelocities = Objects.requireNonNull(playerVelocities, "playerVelocities");
         this.inputMap = Objects.requireNonNull(inputMap, "inputMap");
         this.networkSink = Objects.requireNonNull(networkSink, "networkSink");
@@ -238,9 +241,20 @@ public final class PlayerStateManager {
         PlayerInfo[] result = new PlayerInfo[uuids.length];
         for (int i = 0; i < uuids.length; i++) {
             String uuid = uuids[i];
-            result[i] = new PlayerInfo(uuid, playerNames.get(uuid), playerPositions.get(uuid));
+            result[i] = new PlayerInfo(uuid, playerNames.get(uuid), playerPositions.get(uuid), clientStateSnapshot(uuid));
         }
         return result;
+    }
+
+    public String getClientState(String playerUuid, String key) {
+        if (playerUuid == null || key == null) {
+            return "";
+        }
+        Map<String, String> state = clientStateByPlayer.get(playerUuid);
+        if (state == null) {
+            return "";
+        }
+        return state.getOrDefault(key, "");
     }
 
     public double playerCoord(Node node, int idx) {
@@ -274,6 +288,11 @@ public final class PlayerStateManager {
 
     private static boolean ownedBy(OwnedValue<?> value, long ownerNodeId) {
         return value != null && value.ownerNodeId() == ownerNodeId;
+    }
+
+    private Map<String, String> clientStateSnapshot(String playerUuid) {
+        Map<String, String> state = clientStateByPlayer.get(playerUuid);
+        return state == null ? Map.of() : Map.copyOf(state);
     }
 
     private record OwnedValue<T>(long ownerNodeId, T value) {
