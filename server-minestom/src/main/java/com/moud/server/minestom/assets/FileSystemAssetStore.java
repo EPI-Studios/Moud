@@ -95,13 +95,12 @@ public final class FileSystemAssetStore implements AssetStore {
     }
 
     private static final Map<String, Map<String, AssetType>> SCAN_DIRS = Map.of(
-            "materials",     Map.of(".moudmat", AssetType.TEXT),
-            "shaders",       Map.of(".moudshader", AssetType.TEXT),
-            "textures",      Map.of(".png", AssetType.IMAGE, ".jpg", AssetType.IMAGE, ".jpeg", AssetType.IMAGE),
-            "models",        Map.of(".bbmodel", AssetType.MODEL),
-            "scripts",       Map.of(".js", AssetType.TEXT, ".mjs", AssetType.TEXT, ".cjs", AssetType.TEXT, ".ts", AssetType.TEXT, ".mts", AssetType.TEXT, ".luau", AssetType.TEXT),
-            "local_scripts", Map.of(".luau", AssetType.TEXT),
-            "animations",    Map.of(".json", AssetType.TEXT)
+            "materials",  Map.of(".moudmat", AssetType.TEXT),
+            "shaders",    Map.of(".moudshader", AssetType.TEXT),
+            "textures",   Map.of(".png", AssetType.IMAGE, ".jpg", AssetType.IMAGE, ".jpeg", AssetType.IMAGE),
+            "models",     Map.of(".bbmodel", AssetType.MODEL),
+            "scripts",    Map.of(".js", AssetType.TEXT, ".mjs", AssetType.TEXT, ".cjs", AssetType.TEXT, ".ts", AssetType.TEXT, ".mts", AssetType.TEXT, ".luau", AssetType.TEXT),
+            "animations", Map.of(".json", AssetType.TEXT)
     );
 
     private void scanForNewAssets() throws IOException {
@@ -137,9 +136,6 @@ public final class FileSystemAssetStore implements AssetStore {
             if ("scripts".equals(dirName)) {
                 changed |= scanDir(root.resolve("scripts"), "scripts", extensions);
                 changed |= scanDir(projectRoot.resolve("scripts"), "scripts", extensions);
-            } else if ("local_scripts".equals(dirName)) {
-                changed |= scanDir(root.resolve("local_scripts"), "local_scripts", extensions);
-                changed |= scanDir(projectRoot.resolve("local_scripts"), "local_scripts", extensions);
             } else if ("animations".equals(dirName)) {
                 changed |= scanDir(root.resolve("animations"), "animations", extensions);
             } else {
