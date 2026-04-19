@@ -20,6 +20,7 @@ import com.moud.net.protocol.SceneSaveAck;
 import com.moud.net.protocol.SceneSelect;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.protocol.SceneSnapshotRequest;
+import com.moud.net.protocol.ScriptMessage;
 import com.moud.net.protocol.EditorModeChanged;
 import com.moud.net.protocol.ScriptActionInvoke;
 import com.moud.net.protocol.ScriptActionInvokeAck;
@@ -35,6 +36,10 @@ import com.moud.server.minestom.engine.SceneInstancer;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.engine.ServerScenes;
 import com.moud.server.minestom.project.ProjectService;
+import com.moud.net.protocol.AssetPathOp;
+import com.moud.net.protocol.AssetPathOpAck;
+import com.moud.server.minestom.script.ScriptMessageRouter;
+import com.moud.server.minestom.scripts.AssetPathOpsService;
 import com.moud.server.minestom.scripting.ScriptFileService;
 import com.moud.server.minestom.scripting.ScriptService;
 import com.moud.server.minestom.util.DebugLog;
@@ -59,6 +64,8 @@ final class MessageRouter {
     private final SceneStorage sceneStorage;
     private final PlayModeManager playModeManager;
     private final Map<UUID, PlayerState> playerStates;
+    private final ScriptMessageRouter scriptMessages;
+    private final AssetPathOpsService assetPathOps;
 
     MessageRouter(boolean devMode,
                   ProjectService project,
@@ -70,7 +77,9 @@ final class MessageRouter {
                   SceneInstancer instancer,
                   SceneStorage sceneStorage,
                   PlayModeManager playModeManager,
-                  Map<UUID, PlayerState> playerStates) {
+                  Map<UUID, PlayerState> playerStates,
+                  ScriptMessageRouter scriptMessages,
+                  AssetPathOpsService assetPathOps) {
         this.devMode = devMode;
         this.project = Objects.requireNonNull(project, "project");
         this.scripts = Objects.requireNonNull(scripts, "scripts");
@@ -82,6 +91,8 @@ final class MessageRouter {
         this.sceneStorage = Objects.requireNonNull(sceneStorage, "sceneStorage");
         this.playModeManager = Objects.requireNonNull(playModeManager, "playModeManager");
         this.playerStates = Objects.requireNonNull(playerStates, "playerStates");
+        this.scriptMessages = scriptMessages;
+        this.assetPathOps = assetPathOps;
     }
 
     void onSessionMessage(Player player, PlayerState ps, Lane lane, Message message) {
@@ -90,6 +101,25 @@ final class MessageRouter {
         }
         Session session = ps.session;
         if (session == null) {
+            return;
+        }
+
+        if (message instanceof AssetPathOp op) {
+            if (devMode && assetPathOps != null) {
+                AssetPathOpAck ack = assetPathOps.apply(op);
+                if (ack != null) session.send(Lane.EVENTS, ack);
+            } else {
+                session.send(Lane.EVENTS, new AssetPathOpAck(op.requestId(), op.kind(), false,
+                        op.path(), op.newPath(), 0, "editor disabled"));
+            }
+            return;
+        }
+
+        if (message instanceof ScriptMessage scriptMessage) {
+            if (scriptMessages != null) {
+                ServerScene scene = playModeManager.resolvePlayerScene(ps);
+                scriptMessages.onInbound(player.getUuid(), scene, scriptMessage);
+            }
             return;
         }
 

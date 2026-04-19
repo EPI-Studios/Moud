@@ -45,6 +45,10 @@ public final class PlayerBodyManager {
         body.setProperty("target", uuid.toString());
         body.setProperty("player_name", player.getUsername());
         body.setProperty("attachment_point", "root");
+        body.setProperty("@runtime", "true");
+        body.setProperty("@transient", "true");
+        body.setProperty("@locked", "true");
+        body.setProperty("editor_locked", "true");
 
         Pos pos = player.getPosition();
         body.setProperty("x", String.valueOf((float) pos.x()));
@@ -57,6 +61,15 @@ public final class PlayerBodyManager {
         if (nodeId <= 0L) {
             DebugLog.error("player-body", "PlayerBody node did not receive a valid nodeId for player " + player.getUsername(), null);
             return;
+        }
+
+        Node template = findPlayerTemplate(scene.engine().sceneTree().root());
+        if (template != null) {
+            for (Node child : template.children()) {
+                if (child == null) continue;
+                Node copy = cloneSubtreeTransient(child);
+                if (copy != null) body.addChild(copy);
+            }
         }
 
         bodyNodeIdByPlayer.put(uuid, nodeId);
@@ -104,13 +117,25 @@ public final class PlayerBodyManager {
         }
 
         Pos pos = player.getPosition();
-        body.setProperty("x", String.valueOf((float) pos.x()));
-        body.setProperty("y", String.valueOf((float) pos.y()));
-        body.setProperty("z", String.valueOf((float) pos.z()));
-        body.setProperty("ry", String.valueOf(pos.yaw()));
+        String nextX = String.valueOf((float) pos.x());
+        String nextY = String.valueOf((float) pos.y());
+        String nextZ = String.valueOf((float) pos.z());
+        String nextRy = String.valueOf(pos.yaw());
+
+        boolean changed = !nextX.equals(body.getProperty("x"))
+                || !nextY.equals(body.getProperty("y"))
+                || !nextZ.equals(body.getProperty("z"))
+                || !nextRy.equals(body.getProperty("ry"));
+
+        body.setProperty("x", nextX);
+        body.setProperty("y", nextY);
+        body.setProperty("z", nextZ);
+        body.setProperty("ry", nextRy);
 
         tickAnchor(player, body, scene);
-        scene.engine().bumpSceneRevision();
+        if (changed) {
+            scene.engine().bumpSceneRevision();
+        }
     }
 
     private void tickAnchor(Player player, Node body, ServerScene scene) {
@@ -153,5 +178,41 @@ public final class PlayerBodyManager {
     public long getBodyNodeId(UUID uuid) {
         Long id = bodyNodeIdByPlayer.get(uuid);
         return id == null ? 0L : id;
+    }
+
+    private static Node findPlayerTemplate(Node root) {
+        if (root == null) return null;
+        java.util.ArrayDeque<Node> stack = new java.util.ArrayDeque<>();
+        stack.push(root);
+        while (!stack.isEmpty()) {
+            Node n = stack.pop();
+            if (n == null) continue;
+            String type = n.getProperty("@type");
+            boolean isAttachment = "PlayerAttachment".equals(type);
+            if (!isAttachment && ParseUtils.parseBool(n.getProperty("player_controlled"), false)) {
+                return n;
+            }
+            for (Node c : n.children()) {
+                if (c != null) stack.push(c);
+            }
+        }
+        return null;
+    }
+
+    private static Node cloneSubtreeTransient(Node src) {
+        if (src == null) return null;
+        PlainNode copy = new PlainNode(src.name());
+        for (Map.Entry<String, String> e : src.properties().entrySet()) {
+            copy.setProperty(e.getKey(), e.getValue());
+        }
+        copy.setProperty("@runtime", "true");
+        copy.setProperty("@transient", "true");
+        copy.setProperty("@locked", "true");
+        copy.setProperty("editor_locked", "true");
+        for (Node child : src.children()) {
+            Node childCopy = cloneSubtreeTransient(child);
+            if (childCopy != null) copy.addChild(childCopy);
+        }
+        return copy;
     }
 }
