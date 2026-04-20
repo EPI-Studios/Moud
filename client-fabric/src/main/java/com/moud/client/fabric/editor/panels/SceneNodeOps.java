@@ -764,7 +764,7 @@ public class SceneNodeOps {
         }
         try {
             String osPath = TinyFileDialogs.tinyfd_openFileDialog(
-                    "Attach Script (.ts, .js, .luau)", "", null, "Script (.ts, .js, .luau)", false);
+                    "Attach Script (.ts, .js, .luau, .java)", "", null, "Script (.ts, .js, .luau, .java)", false);
             if (osPath == null || osPath.isBlank()) return;
             File file = new File(osPath);
             if (!file.exists() || !file.isFile()) {
@@ -778,18 +778,21 @@ public class SceneNodeOps {
             }
             String lower = filename.toLowerCase(Locale.ROOT);
             boolean isLuau = lower.endsWith(".luau");
+            boolean isJava = lower.endsWith(".java");
             boolean isTs = lower.endsWith(".ts") || lower.endsWith(".mts");
-            if (!(lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs") || isTs || isLuau)) {
+            if (!(lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs") || isTs || isLuau || isJava)) {
                 filename = filename + ".ts";
                 lower = filename.toLowerCase(Locale.ROOT);
                 isLuau = false;
+                isJava = false;
                 isTs = true;
             }
             String scriptPath = "res://scripts/" + filename;
             try {
                 new ResPath(scriptPath);
             } catch (Exception ignored) {
-                scriptPath = "res://scripts/node_" + nodeId + (isLuau ? ".luau" : (isTs ? ".ts" : ".js"));
+                scriptPath = "res://scripts/node_" + nodeId
+                        + (isLuau ? ".luau" : isJava ? ".java" : (isTs ? ".ts" : ".js"));
             }
             String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
             net.writeScriptFile(session, state, scriptPath, content);

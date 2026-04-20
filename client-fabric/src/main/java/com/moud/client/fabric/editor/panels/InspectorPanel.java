@@ -1198,7 +1198,8 @@ public final class InspectorPanel extends Panel {
 
             String lower = nextName.toLowerCase(Locale.ROOT);
             boolean luau = lower.endsWith(".luau");
-            if (!(lower.endsWith(".ts") || lower.endsWith(".mts") || luau)) {
+            boolean java = lower.endsWith(".java");
+            if (!(lower.endsWith(".ts") || lower.endsWith(".mts") || luau || java)) {
                 nextName = nextName + ".ts";
             }
 
@@ -1213,7 +1214,7 @@ public final class InspectorPanel extends Panel {
                 baseName = baseName.substring(0, dot);
             }
 
-            String content = scriptTemplate(baseName, luau);
+            String content = scriptTemplate(baseName, luau, java);
             net.writeScriptFile(session, state, scriptPath, content);
             sendOpsRecorded(List.of(new SceneOp.SetProperty(nodeId, "script", scriptPath)));
             runtime.requestToast("Attached script: " + scriptPath, false, 2500);
@@ -1224,10 +1225,13 @@ public final class InspectorPanel extends Panel {
         }
     }
 
-    private static String scriptTemplate(String name, boolean luauScript) {
+    private static String scriptTemplate(String name, boolean luauScript, boolean javaScript) {
         String n = name == null || name.isBlank() ? "Script" : name;
-        String template = luauScript ? "new_script.luau" : "new_script.js";
-        return loadTemplate(template).replace("{{name}}", n);
+        String template;
+        if (javaScript) template = "new_script.java";
+        else if (luauScript) template = "new_script.luau";
+        else template = "new_script.js";
+        return loadTemplate(template).replace("{{name}}", n).replace("{{Name}}", n);
     }
 
     private static String loadTemplate(String fileName) {
@@ -1250,7 +1254,8 @@ public final class InspectorPanel extends Panel {
                 || lower.endsWith(".cjs")
                 || lower.endsWith(".ts")
                 || lower.endsWith(".mts")
-                || lower.endsWith(".luau");
+                || lower.endsWith(".luau")
+                || lower.endsWith(".java");
     }
 
     static boolean isAssetKind(PropertyDef property, String targetKind) {
