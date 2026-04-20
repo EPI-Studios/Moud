@@ -582,7 +582,7 @@ public final class ScriptEditorDialog {
         if (p.endsWith(".js") || p.endsWith(".mjs") || p.endsWith(".cjs")) {
             return JS;
         }
-        if (p.endsWith(".luau")) {
+        if (p.endsWith(".luau") || p.endsWith(".java")) {
             return LUAU;
         }
         if (p.endsWith(".java")) {

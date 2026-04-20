@@ -270,7 +270,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
 
         String lower = nextName.toLowerCase(Locale.ROOT);
         if (!(lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs")
-                || lower.endsWith(".ts") || lower.endsWith(".mts") || lower.endsWith(".luau"))) {
+                || lower.endsWith(".ts") || lower.endsWith(".mts") || lower.endsWith(".luau") || lower.endsWith(".java"))) {
             nextName = nextName + ".ts";
         }
 
@@ -313,7 +313,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         return path != null
                 && path.startsWith("res://scripts/")
                 && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs")
-                || path.endsWith(".ts") || path.endsWith(".mts") || path.endsWith(".luau"));
+                || path.endsWith(".ts") || path.endsWith(".mts") || path.endsWith(".luau") || path.endsWith(".java"));
     }
 
     private void renderFileSystemTree(Ui ui, UiRenderer r, UiContext uiContext, Theme theme,
@@ -517,7 +517,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
                     } else if (assetType == AssetType.TEXT) {
                         if (path.startsWith("res://scripts/")
                                 && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs")
-                                || path.endsWith(".ts") || path.endsWith(".mts") || path.endsWith(".luau"))) {
+                                || path.endsWith(".ts") || path.endsWith(".mts") || path.endsWith(".luau") || path.endsWith(".java"))) {
                             runtime.openScriptEditor(0L, path);
                         } else {
                             runtime.openTextAssetEditor(path, entry.meta() == null ? null : entry.meta().hash());
@@ -617,7 +617,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
                 } else if (assetType == AssetType.TEXT) {
                     if (path.startsWith("res://scripts/")
                             && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs")
-                            || path.endsWith(".ts") || path.endsWith(".mts") || path.endsWith(".luau"))) {
+                            || path.endsWith(".ts") || path.endsWith(".mts") || path.endsWith(".luau") || path.endsWith(".java"))) {
                         runtime.openScriptEditor(0L, path);
                     } else {
                         runtime.openTextAssetEditor(path, entry.meta() == null ? null : entry.meta().hash());
@@ -1235,7 +1235,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         } else if (type == AssetType.TEXT) {
             if (path.startsWith("res://scripts/")
                     && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs")
-                    || path.endsWith(".ts") || path.endsWith(".mts") || path.endsWith(".luau"))) {
+                    || path.endsWith(".ts") || path.endsWith(".mts") || path.endsWith(".luau") || path.endsWith(".java"))) {
                 assetContextMenu.addItem("Edit Script", Icon.CODE, () -> runtime.openScriptEditor(0L, path));
             } else {
                 assetContextMenu.addItem("Edit", Icon.TEXT, () -> runtime.openTextAssetEditor(path, entry.meta() == null ? null : entry.meta().hash()));
