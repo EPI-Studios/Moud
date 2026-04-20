@@ -42,6 +42,7 @@ import com.moud.net.protocol.SchemaSnapshot;
 import com.moud.net.protocol.ServerHello;
 import com.moud.net.protocol.PlayerInput;
 import com.moud.net.protocol.PlayerClientState;
+import com.moud.net.protocol.PlayReady;
 import com.moud.net.protocol.PlayerMotion;
 import com.moud.net.protocol.RuntimeState;
 import com.moud.net.protocol.RequestRespawn;
@@ -134,6 +135,7 @@ public final class WireMessages {
                     }
                     case PlayerInput input -> writePlayerInput(out, input);
                     case PlayerClientState state -> writePlayerClientState(out, state);
+                    case PlayReady ready -> WireIo.writeString(out, ready.sceneId() == null ? "" : ready.sceneId());
                     case RuntimeState state -> writeRuntimeState(out, state);
                     case CursorState state -> {
                         int flags = 0;
@@ -448,6 +450,7 @@ public final class WireMessages {
                     WireIo.readString(in),
                     WireIo.readString(in)
             );
+            case PLAY_READY -> new PlayReady(WireIo.readString(in));
             case COLLISION_GEOMETRY -> {
                 long nodeId = readLong(in);
                 int hullCount = WireIo.readVarInt(in);
@@ -1208,6 +1211,7 @@ public final class WireMessages {
                     + stringSize(ack.message());
             case PlayerInput input -> size += estimatePlayerInputSize(input);
             case PlayerClientState state -> size += stringSize(state.playerUuid()) + stringSize(state.key()) + stringSize(state.value());
+            case PlayReady ready -> size += stringSize(ready.sceneId() == null ? "" : ready.sceneId());
             case SceneSave save -> size += estimateSceneSaveSize(save);
             case SceneSaveAck ack -> size += estimateSceneSaveAckSize(ack);
             case RuntimeState state -> size += estimateRuntimeStateSize(state);

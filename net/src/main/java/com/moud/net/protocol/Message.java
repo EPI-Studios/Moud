@@ -53,6 +53,7 @@ public sealed interface Message permits
         MultiMeshData,
         PlayerMotion,
         PlayerClientState,
+        PlayReady,
         CursorState,
         CollisionGeometrySnapshot,
         ScriptMessage,
