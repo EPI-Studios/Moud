@@ -34,6 +34,7 @@ public final class PlayRuntimeClient {
     private boolean serverOsCursorVisible = true;
     private Boolean localCursorModeEnabled;
     private Boolean localOsCursorVisible;
+    private boolean cursorResetPending;
     private float cursorX;
     private float cursorY;
     private final LinkedHashMap<String, String> playerState = new LinkedHashMap<>();
@@ -97,6 +98,7 @@ public final class PlayRuntimeClient {
         serverOsCursorVisible = true;
         localCursorModeEnabled = null;
         localOsCursorVisible = null;
+        cursorResetPending = false;
         cursorX = 0.0f;
         cursorY = 0.0f;
         playerState.clear();
@@ -113,6 +115,7 @@ public final class PlayRuntimeClient {
         if (state == null) {
             return;
         }
+        cursorResetPending = false;
         serverCursorModeEnabled = state.cursorModeEnabled();
         serverOsCursorVisible = state.osCursorVisible();
     }
@@ -456,10 +459,14 @@ public final class PlayRuntimeClient {
     }
 
     public boolean isCursorModeEnabled() {
+        if (cursorResetPending) {
+            return false;
+        }
         return localCursorModeEnabled != null ? localCursorModeEnabled : serverCursorModeEnabled;
     }
 
     public void setCursorModeEnabled(boolean enabled) {
+        cursorResetPending = false;
         this.localCursorModeEnabled = enabled;
         if (!enabled && Boolean.FALSE.equals(localOsCursorVisible)) {
             this.localOsCursorVisible = Boolean.TRUE;
@@ -471,6 +478,7 @@ public final class PlayRuntimeClient {
     }
 
     public void setOsCursorVisible(boolean visible) {
+        cursorResetPending = false;
         this.localOsCursorVisible = visible;
         if (visible) {
             this.localCursorModeEnabled = true;
@@ -480,6 +488,11 @@ public final class PlayRuntimeClient {
     public void clearLocalCursorOverrides() {
         localCursorModeEnabled = null;
         localOsCursorVisible = null;
+    }
+
+    public void onEditorClosed() {
+        clearLocalCursorOverrides();
+        cursorResetPending = true;
     }
 
     public float cursorX() {
