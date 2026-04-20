@@ -7,6 +7,8 @@ import com.moud.server.minestom.scripting.ScriptInvocationException;
 import com.moud.server.minestom.scripting.ScriptLanguage;
 import com.moud.server.minestom.scripting.ScriptObject;
 import com.moud.server.minestom.scripting.ScriptReference;
+import com.moud.server.minestom.scripting.api.CoreScriptApi;
+import com.moud.server.minestom.scripting.java.JavaRuntimeBridge;
 import com.moud.server.minestom.scripting.lang.RuntimeScriptKeys;
 import com.moud.server.minestom.scripting.lang.ScriptPaths;
 import com.moud.server.minestom.scripting.luau.LuauRuntimeBridge;
@@ -35,6 +37,7 @@ public final class ScriptLifecycleManager {
     private final Context ctx;
     private final ScriptLoader scriptLoader;
     private final LuauRuntimeBridge luau;
+    private final JavaRuntimeBridge javaBridge;
     private final PlayerStateManager playerState;
     private final SignalBus signalBus;
     private final RuntimeApiFactory apiFactory;
@@ -48,6 +51,7 @@ public final class ScriptLifecycleManager {
                            Context ctx,
                            ScriptLoader scriptLoader,
                            LuauRuntimeBridge luau,
+                           JavaRuntimeBridge javaBridge,
                            PlayerStateManager playerState,
                            SignalBus signalBus,
                            RuntimeApiFactory apiFactory,
@@ -57,6 +61,7 @@ public final class ScriptLifecycleManager {
         this.ctx = Objects.requireNonNull(ctx, "ctx");
         this.scriptLoader = Objects.requireNonNull(scriptLoader, "scriptLoader");
         this.luau = luau;
+        this.javaBridge = javaBridge;
         this.playerState = Objects.requireNonNull(playerState, "playerState");
         this.signalBus = Objects.requireNonNull(signalBus, "signalBus");
         this.apiFactory = Objects.requireNonNull(apiFactory, "apiFactory");
@@ -201,7 +206,8 @@ public final class ScriptLifecycleManager {
             ScriptReference script = ScriptPaths.parseScript(node.getProperty(RuntimeScriptKeys.SCRIPT_KEY));
             if (script != null && (script.language() == ScriptLanguage.JAVASCRIPT
                     || script.language() == ScriptLanguage.TYPESCRIPT
-                    || (script.language() == ScriptLanguage.LUAU && luau != null))) {
+                    || (script.language() == ScriptLanguage.LUAU && luau != null)
+                    || (script.language() == ScriptLanguage.JAVA && javaBridge != null))) {
                 cachedTargets.add(new ScriptTarget(node.nodeId(), script.path(), script.language()));
             }
 
@@ -225,6 +231,15 @@ public final class ScriptLifecycleManager {
         }
         if (target.language() == ScriptLanguage.LUAU) {
             LuauRuntimeBridge.Program program = luau == null ? null : luau.programFor(scriptFile);
+            if (program == null) {
+                disableHandler.disable(scene, nodeId, scriptFile, "loadProgram",
+                        new IllegalStateException("Script load failed: " + scriptFile.toAbsolutePath()));
+                return -1L;
+            }
+            return program.modifiedMs();
+        }
+        if (target.language() == ScriptLanguage.JAVA) {
+            JavaRuntimeBridge.Program program = javaBridge == null ? null : javaBridge.programFor(scriptFile);
             if (program == null) {
                 disableHandler.disable(scene, nodeId, scriptFile, "loadProgram",
                         new IllegalStateException("Script load failed: " + scriptFile.toAbsolutePath()));
@@ -262,6 +277,9 @@ public final class ScriptLifecycleManager {
                 ScriptLoader.Program program = scriptLoader.programFor(scriptFile, target.language());
                 Value jsInstance = program == null ? null : scriptLoader.createNodeInstance(program.exports());
                 scriptInstance = jsInstance == null ? null : JsScriptAdapters.object(jsInstance);
+            } else if (target.language() == ScriptLanguage.JAVA) {
+                JavaRuntimeBridge.Program program = javaBridge == null ? null : javaBridge.programFor(scriptFile);
+                scriptInstance = program == null ? null : javaBridge.createNodeInstance(program, (CoreScriptApi) api);
             } else {
                 LuauRuntimeBridge.Program program = luau == null ? null : luau.programFor(scriptFile);
                 scriptInstance = program == null ? null : luau.createNodeInstance(program, api);

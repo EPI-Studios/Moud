@@ -4,6 +4,7 @@ import com.moud.server.minestom.scripting.api.*;
 import com.moud.server.minestom.scripting.api.modules.*;
 import com.moud.server.minestom.scripting.engine.*;
 import com.moud.server.minestom.scripting.input.*;
+import com.moud.server.minestom.scripting.java.JavaRuntimeBridge;
 import com.moud.server.minestom.scripting.lang.*;
 import com.moud.server.minestom.scripting.luau.*;
 import com.moud.server.minestom.scripting.physics.*;
@@ -44,6 +45,7 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
 
     private final Context ctx;
     private final LuauRuntimeBridge luau;
+    private final JavaRuntimeBridge javaBridge;
     private final CollisionSignalEmitter collisionEmitter = new CollisionSignalEmitter();
     private final SceneMutator sceneMutator = new SceneMutator();
     private final MultiMeshManager multiMeshManager = new MultiMeshManager();
@@ -59,6 +61,7 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
     private String pendingSceneTransition;
     private ScriptMessageRouter scriptMessageRouter;
     private Supplier<Iterable<UUID>> connectedPlayersSupplier;
+    private com.moud.server.minestom.persistence.PersistenceService persistenceService;
 
     SceneRuntime(ProjectService project,
                  Engine engine,
@@ -75,6 +78,7 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
                 .allowHostClassLookup(ignored -> false)
                 .build();
         this.luau = LuauRuntimeBridge.isRuntimeLinked() ? new LuauRuntimeBridge() : null;
+        this.javaBridge = javax.tools.ToolProvider.getSystemJavaCompiler() != null ? new JavaRuntimeBridge() : null;
         this.scriptLoader = new ScriptLoader(ctx, tsContext);
         this.playerNetworkSink = new PlayerNetworkSink(Objects.requireNonNull(playerMessageSink, "playerMessageSink"));
         this.playerState = new PlayerStateManager(
@@ -91,6 +95,7 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
                 ctx,
                 scriptLoader,
                 luau,
+                javaBridge,
                 playerState,
                 signalBus,
                 (scene, nodeId) -> new CoreScriptApi(scene, this, nodeId),
@@ -107,6 +112,12 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
         try {
             if (luau != null) {
                 luau.close();
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            if (javaBridge != null) {
+                javaBridge.close();
             }
         } catch (Exception ignored) {
         }
@@ -132,6 +143,7 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
         Objects.requireNonNull(scene, "scene");
         lastScene = scene;
 
+        com.moud.server.minestom.scripting.http.HttpScheduler.pump();
         scheduler.tickTimers(dtSeconds);
         scheduler.tickTweens(dtSeconds, sceneMutator);
         Set<Long> alive = lifecycleManager.tickScripts(scene, dtSeconds);
@@ -327,6 +339,15 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
 
     void setConnectedPlayersSupplier(Supplier<Iterable<UUID>> supplier) {
         this.connectedPlayersSupplier = supplier;
+    }
+
+    void setPersistenceService(com.moud.server.minestom.persistence.PersistenceService service) {
+        this.persistenceService = service;
+    }
+
+    @Override
+    public com.moud.server.minestom.persistence.PersistenceService persistence() {
+        return persistenceService;
     }
 
     @Override

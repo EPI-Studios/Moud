@@ -45,6 +45,7 @@ final class RuntimeScriptService {
     private final Set<String> loggedUnsupportedScripts = ConcurrentHashMap.newKeySet();
     private ScriptMessageRouter scriptMessageRouter;
     private Supplier<Iterable<UUID>> connectedPlayersSupplier;
+    private com.moud.server.minestom.persistence.PersistenceService persistenceService;
 
     public void setScriptMessaging(ScriptMessageRouter router, Supplier<Iterable<UUID>> connectedPlayers) {
         this.scriptMessageRouter = router;
@@ -52,6 +53,13 @@ final class RuntimeScriptService {
         for (SceneRuntime rt : runtimeByScene.values()) {
             rt.setScriptMessageRouter(router);
             rt.setConnectedPlayersSupplier(connectedPlayers);
+        }
+    }
+
+    public void setPersistenceService(com.moud.server.minestom.persistence.PersistenceService service) {
+        this.persistenceService = service;
+        for (SceneRuntime rt : runtimeByScene.values()) {
+            rt.setPersistenceService(service);
         }
     }
 
@@ -84,13 +92,18 @@ final class RuntimeScriptService {
     }
 
     private static void generateTypeDeclarations(NodeTypeRegistry registry, ProjectService project) {
+        java.nio.file.Path typesDir = project.projectRoot().resolve("types");
         try {
-            java.nio.file.Path typesDir = project.projectRoot().resolve("types");
             new ServerLuauTypeGenerator(registry).generate(
                     typesDir.resolve("moud-server.d.luau"),
                     typesDir.resolve("moud-client.d.luau"));
         } catch (Exception e) {
             DebugLog.error("script-runtime", "Failed to generate Luau type declarations: " + e.getMessage(), e);
+        }
+        try {
+            new com.moud.server.minestom.scripting.java.JavaStubGenerator().generate(typesDir);
+        } catch (Exception e) {
+            DebugLog.error("script-runtime", "Failed to generate Java type stubs: " + e.getMessage(), e);
         }
     }
 
@@ -213,6 +226,7 @@ final class RuntimeScriptService {
                     SceneRuntime created = new SceneRuntime(project, engine, inputsByPlayer, clientStateByPlayer, playerVelocities, tsContext, playerMessageSink);
                     created.setScriptMessageRouter(scriptMessageRouter);
                     created.setConnectedPlayersSupplier(connectedPlayersSupplier);
+                    created.setPersistenceService(persistenceService);
                     return created;
                 }
         );
@@ -253,6 +267,7 @@ final class RuntimeScriptService {
                     SceneRuntime created = new SceneRuntime(project, engine, inputsByPlayer, clientStateByPlayer, playerVelocities, tsContext, playerMessageSink);
                     created.setScriptMessageRouter(scriptMessageRouter);
                     created.setConnectedPlayersSupplier(connectedPlayersSupplier);
+                    created.setPersistenceService(persistenceService);
                     return created;
                 }
         );
