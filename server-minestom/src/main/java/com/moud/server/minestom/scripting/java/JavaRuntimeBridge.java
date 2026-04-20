@@ -16,15 +16,21 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,7 +40,6 @@ public final class JavaRuntimeBridge implements AutoCloseable {
             Pattern.compile("public\\s+(?:final\\s+|abstract\\s+)?class\\s+([A-Za-z_$][A-Za-z0-9_$]*)");
 
     private final Map<Path, Program> programs = new HashMap<>();
-    private final SandboxPolicy sandbox = new SandboxPolicy();
 
     public Program programFor(Path scriptFile) {
         if (scriptFile == null) {
@@ -100,7 +105,7 @@ public final class JavaRuntimeBridge implements AutoCloseable {
             if (bytecode == null) {
                 return null;
             }
-            ScriptClassLoader loader = new ScriptClassLoader(bytecode, sandbox, scriptFile);
+            ScriptClassLoader loader = new ScriptClassLoader(bytecode, scriptFile);
             return new Program(scriptFile, modifiedMs, className, loader);
         } catch (Exception e) {
             DebugLog.error(LOG_TAG, "load failed: " + scriptFile + ": " + e.getMessage(), e);
@@ -127,11 +132,17 @@ public final class JavaRuntimeBridge implements AutoCloseable {
     private Map<String, byte[]> compile(String className, String source, Path scriptFile) {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         if (compiler == null) {
-            DebugLog.error(LOG_TAG, "load failed: " + scriptFile + ": JavaCompiler unavailable", null);
+            DebugLog.error(LOG_TAG, "load failed: " + scriptFile
+                    + ": JavaCompiler unavailable (running on a JRE without tools.jar). "
+                    + "Launch Moud under a JDK.", null);
             return null;
         }
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
         try (StandardJavaFileManager std = compiler.getStandardFileManager(diagnostics, Locale.ROOT, StandardCharsets.UTF_8)) {
+            List<Path> classpath = collectRuntimeClasspath();
+            if (!classpath.isEmpty()) {
+                std.setLocationFromPaths(StandardLocation.CLASS_PATH, classpath);
+            }
             InMemoryFileManager manager = new InMemoryFileManager(std);
             JavaFileObject unit = new StringSource(className, source);
             List<String> options = List.of(
@@ -152,6 +163,61 @@ public final class JavaRuntimeBridge implements AutoCloseable {
             DebugLog.error(LOG_TAG, "compile failed: " + scriptFile + ": " + e.getMessage(), e);
             return null;
         }
+    }
+
+    private static List<Path> collectRuntimeClasspath() {
+        LinkedHashSet<Path> paths = new LinkedHashSet<>();
+
+        String sysCp = System.getProperty("java.class.path", "");
+        for (String entry : sysCp.split(File.pathSeparator)) {
+            if (!entry.isBlank()) {
+                try { paths.add(Path.of(entry)); } catch (Exception ignored) { }
+            }
+        }
+
+        for (ClassLoader cl = Thread.currentThread().getContextClassLoader();
+             cl != null; cl = cl.getParent()) {
+            if (cl instanceof URLClassLoader ucl) {
+                for (URL url : ucl.getURLs()) {
+                    try { paths.add(Path.of(url.toURI())); } catch (Exception ignored) { }
+                }
+            }
+        }
+
+        addCodeSource(paths, NodeScript.class);
+        addCodeSource(paths, CoreScriptApi.class);
+
+        try {
+            Class<?> loaderCls = Class.forName("net.fabricmc.loader.api.FabricLoader");
+            Object loader = loaderCls.getMethod("getInstance").invoke(null);
+            Iterable<?> mods = (Iterable<?>) loaderCls.getMethod("getAllMods").invoke(loader);
+            for (Object mod : mods) {
+                try {
+                    Object rootPaths = mod.getClass().getMethod("getRootPaths").invoke(mod);
+                    if (rootPaths instanceof Iterable<?> it) {
+                        for (Object p : it) {
+                            if (p instanceof Path path) paths.add(path);
+                        }
+                    }
+                } catch (NoSuchMethodException nsme) {
+                    try {
+                        Object rootPath = mod.getClass().getMethod("getRootPath").invoke(mod);
+                        if (rootPath instanceof Path path) paths.add(path);
+                    } catch (Exception ignored) { }
+                } catch (Exception ignored) { }
+            }
+        } catch (Exception ignored) { }
+
+        return new ArrayList<>(paths);
+    }
+
+    private static void addCodeSource(Set<Path> out, Class<?> klass) {
+        try {
+            URL loc = klass.getProtectionDomain().getCodeSource().getLocation();
+            if (loc != null) {
+                out.add(Path.of(loc.toURI()));
+            }
+        } catch (Exception ignored) { }
     }
 
     private static void logDiagnostics(Path scriptFile, DiagnosticCollector<JavaFileObject> diagnostics) {
@@ -254,59 +320,13 @@ public final class JavaRuntimeBridge implements AutoCloseable {
         }
     }
 
-    static final class SandboxPolicy {
-        private static final List<String> ALLOWED_PACKAGE_PREFIXES = List.of(
-                "java.lang.",
-                "java.util.",
-                "java.math.",
-                "java.time.",
-                "java.text.",
-                "java.nio.charset.",
-                "com.moud.server.minestom.scripting.java.",
-                "com.moud.server.minestom.scripting.api.",
-                "com.moud.server.minestom.scripting.player.",
-                "com.moud.server.minestom.scripting.input.",
-                "com.moud.server.minestom.scripting.signal.",
-                "com.moud.server.minestom.physics.",
-                "com.moud.server.minestom.scripting.ScriptCallable",
-                "com.moud.server.minestom.scripting.ScriptCallback",
-                "com.moud.server.minestom.scripting.ScriptInvocationException",
-                "com.moud.server.minestom.scripting.ScriptObject"
-        );
-
-        private static final List<String> ALLOWED_EXACT = List.of(
-                "java.lang",
-                "java.util",
-                "java.math",
-                "java.time",
-                "java.text"
-        );
-
-        boolean allows(String binaryName) {
-            if (binaryName == null) {
-                return false;
-            }
-            if (ALLOWED_EXACT.contains(binaryName)) {
-                return true;
-            }
-            for (String prefix : ALLOWED_PACKAGE_PREFIXES) {
-                if (binaryName.startsWith(prefix)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-    }
-
     static final class ScriptClassLoader extends ClassLoader {
         private final Map<String, byte[]> bytecode;
-        private final SandboxPolicy sandbox;
         private final Path scriptFile;
 
-        ScriptClassLoader(Map<String, byte[]> bytecode, SandboxPolicy sandbox, Path scriptFile) {
+        ScriptClassLoader(Map<String, byte[]> bytecode, Path scriptFile) {
             super(NodeScript.class.getClassLoader());
             this.bytecode = Map.copyOf(bytecode);
-            this.sandbox = sandbox;
             this.scriptFile = scriptFile;
         }
 
@@ -319,25 +339,8 @@ public final class JavaRuntimeBridge implements AutoCloseable {
             throw new ClassNotFoundException(name);
         }
 
-        @Override
-        protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-            Class<?> loaded = findLoadedClass(name);
-            if (loaded == null && bytecode.containsKey(name)) {
-                loaded = findClass(name);
-            }
-            if (loaded == null) {
-                if (!sandbox.allows(name)) {
-                    throw new ClassNotFoundException(
-                            "Class '" + name + "' is not in the Moud script sandbox allowlist (script: "
-                                    + scriptFile + ")");
-                }
-                loaded = super.loadClass(name, false);
-            }
-            if (resolve) {
-                resolveClass(loaded);
-            }
-            return loaded;
+        public Path scriptFile() {
+            return scriptFile;
         }
     }
-
 }
