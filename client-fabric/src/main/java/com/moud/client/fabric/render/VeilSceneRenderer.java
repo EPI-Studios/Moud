@@ -3,6 +3,9 @@ package com.moud.client.fabric.render;
 import com.moud.client.fabric.editor.diagnostics.ClientFrameProfiler;
 import com.moud.client.fabric.editor.overlay.EditorContext;
 import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
+import com.moud.client.fabric.player.PlayerBodyAttachmentCache;
+import com.moud.client.fabric.render.shadow.ShadowMaps;
+import com.moud.client.fabric.render.shadow.ShadowPass;
 import com.moud.client.fabric.render.picking.NodePickingPass;
 import com.moud.client.fabric.render.picking.OutlineRenderer;
 import com.moud.client.fabric.render.scene.light.SceneLightManager;
@@ -53,9 +56,21 @@ public final class VeilSceneRenderer {
     private static final SceneDebugRenderer debugRenderer = new SceneDebugRenderer();
 
     private static final MeshShaderRenderer meshShader = new MeshShaderRenderer();
+
+    static SceneLights sharedLights() { return meshShader.sceneLights(); }
+
+    private static final org.joml.Matrix4f lastViewMatrix = new org.joml.Matrix4f();
+    private static final org.joml.Matrix4f lastProjectionMatrix = new org.joml.Matrix4f();
+    private static final org.joml.Vector3f lastCameraPos = new org.joml.Vector3f();
+    private static volatile boolean lastMatricesValid = false;
+
+    static org.joml.Matrix4f lastViewMatrix() { return lastMatricesValid ? lastViewMatrix : null; }
+    static org.joml.Matrix4f lastProjectionMatrix() { return lastMatricesValid ? lastProjectionMatrix : null; }
+    static org.joml.Vector3f lastCameraPos() { return lastMatricesValid ? lastCameraPos : null; }
     private static final InstancedBatchRenderer batchRenderer = new InstancedBatchRenderer(meshShader.sceneLights());
     private static final MultiMeshRenderer multiMeshRenderer = new MultiMeshRenderer(meshShader.sceneLights());
     private static final DecalRenderer decalRenderer = new DecalRenderer(meshShader);
+    private static final PostProcessNodeSync postProcessNodeSync = new PostProcessNodeSync();
     private static final NodePickingPass pickingPass = new NodePickingPass();
     private static final OutlineRenderer outlineRenderer = new OutlineRenderer();
 
@@ -176,6 +191,57 @@ public final class VeilSceneRenderer {
         }
     }
 
+    private static void collectAndRenderSpotShadows(List<SceneSnapshot.NodeSnapshot> nodes) {
+        ShadowMaps.resetFrame();
+        SceneLights lights = meshShader.sceneLights();
+        if (lights == null) return;
+        List<SceneLights.SpotLight> spots = lights.spotLights();
+        org.joml.Vector3f camPos = lastCameraPos();
+        float cx = camPos != null ? camPos.x : 0f;
+        float cy = camPos != null ? camPos.y : 0f;
+        float cz = camPos != null ? camPos.z : 0f;
+
+        java.util.ArrayList<int[]> candidates = new java.util.ArrayList<>();
+        for (int i = 0; i < spots.size(); i++) {
+            SceneLights.SpotLight s = spots.get(i);
+            if (!s.castShadows()) continue;
+            float dx = s.x() - cx;
+            float dy = s.y() - cy;
+            float dz = s.z() - cz;
+            int distSq = Float.floatToRawIntBits(dx * dx + dy * dy + dz * dz);
+            candidates.add(new int[] { i, distSq });
+        }
+        if (candidates.isEmpty()) return;
+        candidates.sort((a, b) -> Float.compare(
+                Float.intBitsToFloat(a[1]),
+                Float.intBitsToFloat(b[1])));
+
+        java.util.ArrayList<ShadowPass.SpotCaster> casters = new java.util.ArrayList<>();
+        for (int[] entry : candidates) {
+            int lightIdx = entry[0];
+            SceneLights.SpotLight s = spots.get(lightIdx);
+            ShadowPass.SpotCaster probe = new ShadowPass.SpotCaster(
+                    lightIdx, s.x(), s.y(), s.z(), s.dx(), s.dy(), s.dz(),
+                    s.angleDeg(), s.distance(), -1);
+            org.joml.Matrix4f vp = ShadowPass.buildSpotViewProj(probe);
+            int slot = ShadowMaps.addSpotCaster(lightIdx, vp);
+            if (slot < 0) break;
+            casters.add(new ShadowPass.SpotCaster(
+                    lightIdx, s.x(), s.y(), s.z(), s.dx(), s.dy(), s.dz(),
+                    s.angleDeg(), s.distance(), slot));
+        }
+        if (casters.isEmpty()) return;
+
+        long sceneRev = cacheManager.cachedNodes().isEmpty() ? 0L : com.moud.client.fabric.scene.ClientSceneBus.version();
+        if (ShadowMaps.cachedStaticRevision() != sceneRev) {
+            ShadowMaps.invalidateAllCaches();
+            ShadowMaps.updateCachedStaticRevision(sceneRev);
+        }
+
+        ShadowPass.renderSpotShadows(casters, nodes, transformManager::worldPose,
+                (node, world, vp) -> meshShader.renderNodeDepthOnly(node, world, vp));
+    }
+
     private static void renderMeshes(VertexConsumerProvider.Immediate consumers,
                                      Camera camera,
                                      Matrix4fc frustumMatrix,
@@ -191,9 +257,20 @@ public final class VeilSceneRenderer {
         MatrixStack matrices = new MatrixStack();
         List<SceneSnapshot.NodeSnapshot> filteredNodes = cacheManager.filteredCachedNodes();
 
+        lastViewMatrix.set(frustumMatrix);
+        lastProjectionMatrix.set(projectionMatrix);
+        lastCameraPos.set((float) camPos.x, (float) camPos.y, (float) camPos.z);
+        lastMatricesValid = true;
+
         try (ClientFrameProfiler.Scope ignored = ClientFrameProfiler.scope("render.scene")) {
+            PlayerBodyAttachmentCache.primeFromSnapshot(filteredNodes);
+            postProcessNodeSync.sync(filteredNodes);
             try (ClientFrameProfiler.Scope lights = ClientFrameProfiler.scope("render.scene.lights")) {
                 meshShader.collectLights(filteredNodes, transformManager::worldPose);
+            }
+
+            try (ClientFrameProfiler.Scope shadows = ClientFrameProfiler.scope("render.scene.shadows")) {
+                collectAndRenderSpotShadows(filteredNodes);
             }
 
             try (ClientFrameProfiler.Scope batched = ClientFrameProfiler.scope("render.scene.batches")) {

@@ -20,10 +20,13 @@ final class SceneLights {
     final List<DirLight> dirLights = new ArrayList<>();
     final List<SpotLight> spotLights = new ArrayList<>();
 
+    public List<SpotLight> spotLights() { return spotLights; }
+
     record PointLight(float x, float y, float z, float r, float g, float b, float brightness, float radius) {}
     record DirLight(float dx, float dy, float dz, float r, float g, float b, float brightness) {}
     record SpotLight(float x, float y, float z, float dx, float dy, float dz,
-                     float r, float g, float b, float brightness, float angleDeg, float distance) {}
+                     float r, float g, float b, float brightness, float angleDeg, float distance,
+                     boolean castShadows) {}
 
     void collect(List<SceneSnapshot.NodeSnapshot> nodes,
                  Function<Long, Pose> poseResolver) {
@@ -76,7 +79,8 @@ final class SceneLights {
                         if (dir.lengthSquared() > 1e-12f) dir.normalize();
                         float angle = VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "angle"), 45.0f);
                         float dist = Math.max(0, VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "distance"), 10.0f));
-                        spotLights.add(new SpotLight(world.pos.x, world.pos.y, world.pos.z, dir.x, dir.y, dir.z, cr, cg, cb, brightness, angle, dist));
+                        boolean castShadows = VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "cast_shadows"), false);
+                        spotLights.add(new SpotLight(world.pos.x, world.pos.y, world.pos.z, dir.x, dir.y, dir.z, cr, cg, cb, brightness, angle, dist, castShadows));
                     }
                 }
             }
