@@ -74,6 +74,30 @@ uniform DirLight DirLights[4];
 uniform int NumSpotLights;
 uniform SpotLight SpotLights[8];
 
+uniform int NumSpotShadows;
+uniform int SpotShadowLightIdx[4];
+uniform vec4 SpotShadowTile[4];
+uniform mat4 SpotShadowMatrix[4];
+uniform sampler2D SpotShadowMap;
+
+float moud_sampleSpotShadow(vec3 worldPos, int lightIdx) {
+    if (NumSpotShadows == 0) return 1.0;
+    for (int s = 0; s < 4; s++) {
+        if (s >= NumSpotShadows) break;
+        if (SpotShadowLightIdx[s] != lightIdx) continue;
+        vec4 clip = SpotShadowMatrix[s] * vec4(worldPos, 1.0);
+        if (clip.w <= 0.0) return 1.0;
+        vec3 ndc = clip.xyz / clip.w;
+        if (abs(ndc.x) > 1.0 || abs(ndc.y) > 1.0 || ndc.z > 1.0 || ndc.z < -1.0) return 1.0;
+        vec2 tileUv = ndc.xy * 0.5 + 0.5;
+        vec2 atlasUv = mix(SpotShadowTile[s].xy, SpotShadowTile[s].zw, tileUv);
+        float mapDepth = texture(SpotShadowMap, atlasUv).r;
+        float fragDepth = ndc.z * 0.5 + 0.5;
+        return (fragDepth - 0.003) > mapDepth ? 0.0 : 1.0;
+    }
+    return 1.0;
+}
+
 out vec4 fragColor;
 
 const float PI = 3.14159265359;
@@ -305,7 +329,8 @@ void main() {
                 if (spotFade > 0.0) {
                     float atten = 1.0 - smoothstep(0.0, SpotLights[i].distance, dist);
                     atten *= atten;
-                    vec3 lc = SpotLights[i].color * SpotLights[i].brightness * atten * spotFade;
+                    float shadow = moud_sampleSpotShadow(vWorldPos, i);
+                    vec3 lc = SpotLights[i].color * SpotLights[i].brightness * atten * spotFade * shadow;
                     color += evaluateLight(N, V, NdotV, F0, albedo, mat_roughness, mat_metallic, L, lc);
                 }
             }

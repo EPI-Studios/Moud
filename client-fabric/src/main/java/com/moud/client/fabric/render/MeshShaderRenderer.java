@@ -43,10 +43,13 @@ final class MeshShaderRenderer {
     private final String pbrVert;
     private final String pbrFrag;
     private final String meshVertForMaterial;
+    private final String shadowDepthVert;
+    private final String shadowDepthFrag;
 
     private final Map<Long, VeilMaterialBinding> materialBindings = new ConcurrentHashMap<>();
     private ShaderProgram defaultShaderProgram;
     private ShaderProgram pbrShaderProgram;
+    private ShaderProgram shadowDepthProgram;
     private final Map<Long, Integer> meshVaoCache = new ConcurrentHashMap<>();
 
     private final Object MATERIAL_TEX_LOCK = new Object();
@@ -64,6 +67,71 @@ final class MeshShaderRenderer {
         pbrVert = loadResource("assets/moud/shaders/builtin/pbr_mesh.vert");
         pbrFrag = loadResource("assets/moud/shaders/builtin/pbr_mesh.frag");
         meshVertForMaterial = loadResource("assets/moud/shaders/builtin/mesh_material.vert");
+        shadowDepthVert = loadResource("assets/moud/shaders/builtin/shadow_depth.vert");
+        shadowDepthFrag = loadResource("assets/moud/shaders/builtin/shadow_depth.frag");
+    }
+
+    ShaderProgram getShadowDepthProgram() {
+        if (shadowDepthProgram != null && shadowDepthProgram.isValid()) return shadowDepthProgram;
+        if (shadowDepthVert.isEmpty() || shadowDepthFrag.isEmpty()) return null;
+        Int2ObjectMap<String> stages = new Int2ObjectArrayMap<>();
+        stages.put(GL20C.GL_VERTEX_SHADER, shadowDepthVert);
+        stages.put(GL20C.GL_FRAGMENT_SHADER, shadowDepthFrag);
+        shadowDepthProgram = VeilDynamicShaders.getOrCompile(Identifier.of("moud", "builtin/shadow_depth"), stages);
+        return shadowDepthProgram;
+    }
+
+    void renderNodeDepthOnly(SceneSnapshot.NodeSnapshot node, Pose world, Matrix4fc lightViewProj) {
+        if (!RenderSystem.isOnRenderThread() || node == null || world == null) return;
+        ShaderProgram program = getShadowDepthProgram();
+        if (program == null || !program.isValid()) return;
+
+        MoudMeshBuffer.ensureInitialized();
+
+        String meshType = VeilSceneNodeRenderer.stringProp(node, "mesh");
+        boolean isSprite3D = "Sprite3D".equals(node.type());
+        if (isSprite3D && (meshType == null || meshType.isBlank())) meshType = "plane";
+        boolean isPlane = "plane".equals(meshType);
+
+        Matrix4f modelMat;
+        float halfPi = (float) (Math.PI / 2.0);
+        if (isPlane) {
+            modelMat = new Matrix4f()
+                    .translate(world.pos.x, world.pos.y, world.pos.z)
+                    .rotate(world.rot)
+                    .scale(world.scale.x, world.scale.y, world.scale.z)
+                    .rotateX(-halfPi)
+                    .translate(-0.5f, 0.0f, -0.5f);
+        } else {
+            modelMat = new Matrix4f()
+                    .translate(world.pos.x, world.pos.y, world.pos.z)
+                    .rotate(world.rot)
+                    .scale(world.scale.x, world.scale.y, world.scale.z)
+                    .translate(-0.5f, -0.5f, -0.5f);
+        }
+
+        boolean doubleSided = VeilSceneNodeRenderer.parseBool(
+                VeilSceneNodeRenderer.stringProp(node, "double_sided"), false);
+        if (doubleSided) RenderSystem.disableCull();
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthMask(true);
+
+        try {
+            VeilRenderSystem.setShader(program);
+            program.bind();
+            int pid = GlUtil.currentProgram();
+            GlUtil.uniformMat4(pid, "ModelMat", modelMat);
+            GlUtil.uniformMat4(pid, "LightViewProj", new Matrix4f(lightViewProj));
+            if (isPlane) {
+                MoudMeshBuffer.ensurePlaneInitialized();
+                drawMesh(MoudMeshBuffer.planeVbo(), MoudMeshBuffer.planeEbo(), MoudMeshBuffer.planeIndexCount());
+            } else {
+                drawMesh(MoudMeshBuffer.vbo(), MoudMeshBuffer.ebo(), MoudMeshBuffer.indexCount());
+            }
+        } finally {
+            ShaderProgram.unbind();
+            if (doubleSided) RenderSystem.enableCull();
+        }
     }
 
     private static String loadResource(String path) {
@@ -326,6 +394,7 @@ final class MeshShaderRenderer {
             GlUtil.uniform2f(pid, "UvScale", uvScaleX, uvScaleY);
             GlUtil.uniform2f(pid, "UvOffset", uvOffX, uvOffY);
             sceneLights.applyUniforms(pid);
+            com.moud.client.fabric.render.shadow.ShadowMaps.uploadSpotShadowScalarUniforms(pid);
             boolean fullbright = VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "fullbright"), false);
             GlUtil.uniform1i(pid, "fullbright", fullbright ? 1 : 0);
 
@@ -348,6 +417,9 @@ final class MeshShaderRenderer {
             program.setSampler("Texture0", nodeTexture);
             if (binding == null || !binding.hasTextureParam("albedo_texture")) {
                 program.setSampler("albedo_texture", nodeTexture);
+            }
+            if (com.moud.client.fabric.render.shadow.ShadowMaps.hasActiveSpotShadow()) {
+                program.setSampler("SpotShadowMap", com.moud.client.fabric.render.shadow.ShadowMaps.spotShadowTextureId());
             }
             program.bindSamplers(0);
 

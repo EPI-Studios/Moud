@@ -141,6 +141,7 @@ final class MultiMeshRenderer {
                 }
                 GlUtil.uniform1f(currentPid, "DeltaTime", tickDelta);
                 sceneLights.applyUniforms(currentPid);
+                com.moud.client.fabric.render.shadow.ShadowMaps.uploadSpotShadowScalarUniforms(currentPid);
             }
 
             if (binding != null) {
@@ -148,6 +149,9 @@ final class MultiMeshRenderer {
             } else {
                 program.clearSamplers();
                 program.setSampler("Texture0", MoudTextures.white());
+            }
+            if (com.moud.client.fabric.render.shadow.ShadowMaps.hasActiveSpotShadow()) {
+                program.setSampler("SpotShadowMap", com.moud.client.fabric.render.shadow.ShadowMaps.spotShadowTextureId());
             }
             program.bindSamplers(0);
 

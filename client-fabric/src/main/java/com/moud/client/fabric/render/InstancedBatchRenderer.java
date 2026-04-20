@@ -4,6 +4,9 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
 import com.moud.client.fabric.render.MoudTextures;
 import com.moud.client.fabric.render.scene.math.Pose;
+import com.moud.client.fabric.render.shadow.ShadowMaps;
+import com.moud.client.fabric.runtime.PlayRuntimeBus;
+import com.moud.client.fabric.runtime.PlayRuntimeClient;
 import com.moud.client.fabric.render.veil.GlUtil;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
 import com.moud.net.protocol.SceneSnapshot;
@@ -85,6 +88,9 @@ final class InstancedBatchRenderer {
 
             program.clearSamplers();
             program.setSampler("Texture0", MoudTextures.white());
+            if (ShadowMaps.hasActiveSpotShadow()) {
+                program.setSampler("SpotShadowMap", ShadowMaps.spotShadowTextureId());
+            }
             program.bindSamplers(0);
 
             for (var entry : batches.entrySet()) {
@@ -126,7 +132,7 @@ final class InstancedBatchRenderer {
             if (!"MeshInstance3D".equals(type) && !"CSGBox".equals(type)) continue;
             if (!VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "visible"), true)) continue;
             if (VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "viewmodel"), false)) {
-                com.moud.client.fabric.runtime.PlayRuntimeClient rt = com.moud.client.fabric.runtime.PlayRuntimeBus.get();
+                PlayRuntimeClient rt = PlayRuntimeBus.get();
                 if (rt != null && rt.isActive()) continue;
             }
 
@@ -175,6 +181,7 @@ final class InstancedBatchRenderer {
         }
         GlUtil.uniform1f(pid, "DeltaTime", tickDelta);
         sceneLights.applyUniforms(pid);
+        ShadowMaps.uploadSpotShadowScalarUniforms(pid);
     }
 
     private record MeshHandles(int vbo, int ebo, int indexCount) {}

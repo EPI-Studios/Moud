@@ -98,6 +98,8 @@ public final class SceneLightManager {
         float colorB = NodePropertyUtils.clamp01(NodePropertyUtils.parseFloat(NodePropertyUtils.stringProp(node, "color_b"), 1.0f));
         float brightness = Math.max(0.0f, NodePropertyUtils.parseFloat(NodePropertyUtils.stringProp(node, "brightness"), 1.0f));
 
+        boolean occluded = NodePropertyUtils.parseBool(NodePropertyUtils.stringProp(node, "occluded"), false);
+
         if ("OmniLight3D".equals(type)) {
             handle = ensurePointLight(renderer, handle);
             if (handle == null) {
@@ -108,7 +110,8 @@ public final class SceneLightManager {
                     .setPosition(world.pos.x, world.pos.y, world.pos.z)
                     .setColor(colorR, colorG, colorB)
                     .setBrightness(brightness)
-                    .setRadius(radius);
+                    .setRadius(radius)
+                    .setOcclusionEnabled(occluded);
         } else if ("DirectionalLight3D".equals(type)) {
             handle = ensureDirectionalLight(renderer, handle);
             if (handle == null) {
@@ -137,7 +140,8 @@ public final class SceneLightManager {
                     .setAngle((float) Math.toRadians(angleDeg * 0.5f))
                     .setDistance(distance)
                     .setColor(colorR, colorG, colorB)
-                    .setBrightness(brightness);
+                    .setBrightness(brightness)
+                    .setOcclusionEnabled(occluded);
         }
 
         handle.markDirty();
