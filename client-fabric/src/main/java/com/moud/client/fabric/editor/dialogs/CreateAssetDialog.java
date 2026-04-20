@@ -205,13 +205,13 @@ public final class CreateAssetDialog {
 
         String raw = nameField.text() == null ? "" : nameField.text().trim();
         String base = normalizeBaseName(raw);
-        boolean luauScript = isLuauScriptName(raw);
+        ScriptKind scriptKind = scriptKindFor(raw);
         if (base == null || base.isBlank()) {
             error = "Invalid name";
             return;
         }
 
-        String primaryPath = primaryPathFor(activeTab, base, luauScript);
+        String primaryPath = primaryPathFor(activeTab, base, scriptKind);
         if (primaryPath == null) {
             error = "Unsupported type";
             return;
@@ -231,7 +231,7 @@ public final class CreateAssetDialog {
         }
 
         if (activeTab == 0) {
-            String script = scriptTemplate(base, luauScript);
+            String script = scriptTemplate(base, scriptKind);
             net.writeScriptFile(session, state, primaryPath, script);
             runtime.openScriptEditor(0L, primaryPath);
             requestManifest();
@@ -291,9 +291,9 @@ public final class CreateAssetDialog {
         }
     }
 
-    private static String primaryPathFor(int tab, String base, boolean luauScript) {
+    private static String primaryPathFor(int tab, String base, ScriptKind scriptKind) {
         return switch (tab) {
-            case 0 -> "res://scripts/" + base + (luauScript ? ".luau" : ".ts");
+            case 0 -> "res://scripts/" + base + scriptKind.extension();
             case 1 -> shaderPathFor(base);
             case 2 -> "res://materials/" + base + ".moudmat";
             case 3 -> "res://text/" + base + ".txt";
@@ -368,24 +368,59 @@ public final class CreateAssetDialog {
 
     private static String hintFor(int tab) {
         return switch (tab) {
-            case 0 -> "Creates res://scripts/<name>.ts or .luau";
+            case 0 -> "Creates res://scripts/<name>.ts (default), .luau, or .java — append the extension in the name";
             case 1 -> "Creates res://shaders/<name>.moudshader";
             case 2 -> "Creates res://materials/<name>.moudmat (+ matching shader)";
             default -> "Creates res://text/<name>.txt";
         };
     }
 
-    private static String scriptTemplate(String name, boolean luauScript) {
+    private static String scriptTemplate(String name, ScriptKind kind) {
         String n = name == null ? "Script" : name;
-        String template = luauScript ? "new_script.luau" : "new_script.js";
-        return loadTemplate(template).replace("{{name}}", n);
+        return loadTemplate(kind.templateFile()).replace("{{name}}", n).replace("{{Name}}", capitalize(n));
     }
 
-    private static boolean isLuauScriptName(String raw) {
+    private static ScriptKind scriptKindFor(String raw) {
         if (raw == null) {
-            return false;
+            return ScriptKind.TYPESCRIPT;
         }
-        return raw.trim().toLowerCase().endsWith(".luau");
+        String lower = raw.trim().toLowerCase();
+        if (lower.endsWith(".luau")) {
+            return ScriptKind.LUAU;
+        }
+        if (lower.endsWith(".java")) {
+            return ScriptKind.JAVA;
+        }
+        return ScriptKind.TYPESCRIPT;
+    }
+
+    private static String capitalize(String s) {
+        if (s == null || s.isEmpty()) {
+            return "Script";
+        }
+        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+
+    private enum ScriptKind {
+        TYPESCRIPT(".ts", "new_script.js"),
+        LUAU(".luau", "new_script.luau"),
+        JAVA(".java", "new_script.java");
+
+        private final String extension;
+        private final String templateFile;
+
+        ScriptKind(String extension, String templateFile) {
+            this.extension = extension;
+            this.templateFile = templateFile;
+        }
+
+        String extension() {
+            return extension;
+        }
+
+        String templateFile() {
+            return templateFile;
+        }
     }
 
     private static String shaderTemplate() {
