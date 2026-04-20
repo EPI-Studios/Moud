@@ -1,5 +1,7 @@
 package com.moud.client.fabric.editor.panels;
 
+import com.moud.client.fabric.editor.util.ScriptAssetTypes;
+
 import com.miry.ui.UiContext;
 import com.miry.ui.widgets.ContextMenu;
 import com.miry.ui.widgets.TreeNode;
@@ -776,23 +778,13 @@ public class SceneNodeOps {
                 runtime.requestToast("Invalid filename", true, 4500);
                 return;
             }
-            String lower = filename.toLowerCase(Locale.ROOT);
-            boolean isLuau = lower.endsWith(".luau");
-            boolean isJava = lower.endsWith(".java");
-            boolean isTs = lower.endsWith(".ts") || lower.endsWith(".mts");
-            if (!(lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs") || isTs || isLuau || isJava)) {
-                filename = filename + ".ts";
-                lower = filename.toLowerCase(Locale.ROOT);
-                isLuau = false;
-                isJava = false;
-                isTs = true;
-            }
+            filename = ScriptAssetTypes.ensureExtension(filename);
+            ScriptAssetTypes.Kind kind = ScriptAssetTypes.kindOrDefault(filename);
             String scriptPath = "res://scripts/" + filename;
             try {
                 new ResPath(scriptPath);
             } catch (Exception ignored) {
-                scriptPath = "res://scripts/node_" + nodeId
-                        + (isLuau ? ".luau" : isJava ? ".java" : (isTs ? ".ts" : ".js"));
+                scriptPath = "res://scripts/node_" + nodeId + kind.extension();
             }
             String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
             net.writeScriptFile(session, state, scriptPath, content);

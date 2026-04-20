@@ -1,5 +1,7 @@
 package com.moud.client.fabric.editor.panels;
 
+import com.moud.client.fabric.editor.util.ScriptAssetTypes;
+
 import com.miry.platform.InputConstants;
 import com.miry.ui.UiContext;
 import com.miry.ui.PanelContext;
@@ -443,12 +445,7 @@ public final class ScenePanel extends Panel {
                         dropTreeH,
                         (String dragPath, float dropX, float dropY) -> {
                             if (dragPath == null
-                                    || !(dragPath.endsWith(".js")
-                                    || dragPath.endsWith(".mjs")
-                                    || dragPath.endsWith(".cjs")
-                                    || dragPath.endsWith(".ts")
-                                    || dragPath.endsWith(".mts")
-                                    || dragPath.endsWith(".luau") || dragPath.endsWith(".java"))) {
+                                    || !ScriptAssetTypes.isScriptPath(dragPath)) {
                                 return;
                             }
                             int dropRow = (int) ((dropY - dropTreeY + dropScrollOffset) / dropItemH);

@@ -1,5 +1,7 @@
 package com.moud.client.fabric.editor.panels;
 
+import com.moud.client.fabric.editor.util.ScriptAssetTypes;
+
 
 import com.miry.platform.InputConstants;
 import com.miry.ui.PanelContext;
@@ -268,11 +270,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
             return;
         }
 
-        String lower = nextName.toLowerCase(Locale.ROOT);
-        if (!(lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs")
-                || lower.endsWith(".ts") || lower.endsWith(".mts") || lower.endsWith(".luau") || lower.endsWith(".java"))) {
-            nextName = nextName + ".ts";
-        }
+        nextName = ScriptAssetTypes.ensureExtension(nextName);
 
         String relative = path.substring("res://".length());
         Path current = resolveLocalScriptFile(relative);
@@ -312,8 +310,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
     private static boolean isScriptPath(String path) {
         return path != null
                 && path.startsWith("res://scripts/")
-                && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs")
-                || path.endsWith(".ts") || path.endsWith(".mts") || path.endsWith(".luau") || path.endsWith(".java"));
+                && ScriptAssetTypes.isScriptPath(path);
     }
 
     private void renderFileSystemTree(Ui ui, UiRenderer r, UiContext uiContext, Theme theme,
@@ -516,8 +513,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
                         openSceneFromPath(path);
                     } else if (assetType == AssetType.TEXT) {
                         if (path.startsWith("res://scripts/")
-                                && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs")
-                                || path.endsWith(".ts") || path.endsWith(".mts") || path.endsWith(".luau") || path.endsWith(".java"))) {
+                                && ScriptAssetTypes.isScriptPath(path)) {
                             runtime.openScriptEditor(0L, path);
                         } else {
                             runtime.openTextAssetEditor(path, entry.meta() == null ? null : entry.meta().hash());
@@ -616,8 +612,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
                     openSceneFromPath(path);
                 } else if (assetType == AssetType.TEXT) {
                     if (path.startsWith("res://scripts/")
-                            && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs")
-                            || path.endsWith(".ts") || path.endsWith(".mts") || path.endsWith(".luau") || path.endsWith(".java"))) {
+                            && ScriptAssetTypes.isScriptPath(path)) {
                         runtime.openScriptEditor(0L, path);
                     } else {
                         runtime.openTextAssetEditor(path, entry.meta() == null ? null : entry.meta().hash());
@@ -1234,8 +1229,7 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
             assetContextMenu.addInfo("Drag to scene tree to import as child scene");
         } else if (type == AssetType.TEXT) {
             if (path.startsWith("res://scripts/")
-                    && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs")
-                    || path.endsWith(".ts") || path.endsWith(".mts") || path.endsWith(".luau") || path.endsWith(".java"))) {
+                    && ScriptAssetTypes.isScriptPath(path)) {
                 assetContextMenu.addItem("Edit Script", Icon.CODE, () -> runtime.openScriptEditor(0L, path));
             } else {
                 assetContextMenu.addItem("Edit", Icon.TEXT, () -> runtime.openTextAssetEditor(path, entry.meta() == null ? null : entry.meta().hash()));

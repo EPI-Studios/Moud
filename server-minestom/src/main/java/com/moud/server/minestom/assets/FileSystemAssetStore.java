@@ -99,7 +99,7 @@ public final class FileSystemAssetStore implements AssetStore {
             "shaders",    Map.of(".moudshader", AssetType.TEXT),
             "textures",   Map.of(".png", AssetType.IMAGE, ".jpg", AssetType.IMAGE, ".jpeg", AssetType.IMAGE),
             "models",     Map.of(".bbmodel", AssetType.MODEL),
-            "scripts",    Map.of(".js", AssetType.TEXT, ".mjs", AssetType.TEXT, ".cjs", AssetType.TEXT, ".ts", AssetType.TEXT, ".mts", AssetType.TEXT, ".luau", AssetType.TEXT),
+            "scripts",    Map.of(".js", AssetType.TEXT, ".mjs", AssetType.TEXT, ".cjs", AssetType.TEXT, ".ts", AssetType.TEXT, ".mts", AssetType.TEXT, ".luau", AssetType.TEXT, ".java", AssetType.TEXT),
             "animations", Map.of(".json", AssetType.TEXT)
     );
 

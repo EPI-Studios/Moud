@@ -135,6 +135,7 @@ public final class MoudTextAssets implements AssetsClient.Listener {
                 || path.endsWith(".mjs")
                 || path.endsWith(".cjs")
                 || path.endsWith(".luau")
+                || path.endsWith(".java")
                 || path.contains("/materials/")
                 || path.contains("/shaders/")
                 || path.contains("/scripts/");

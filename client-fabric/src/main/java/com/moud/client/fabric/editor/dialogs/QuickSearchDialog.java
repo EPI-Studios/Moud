@@ -1,5 +1,7 @@
 package com.moud.client.fabric.editor.dialogs;
 
+import com.moud.client.fabric.editor.util.ScriptAssetTypes;
+
 import com.miry.platform.InputConstants;
 import com.miry.ui.Ui;
 import com.miry.ui.UiContext;
@@ -159,8 +161,7 @@ public final class QuickSearchDialog {
         AssetType type = entry.meta() != null ? entry.meta().type() : null;
         if (type == AssetType.TEXT
                 && path.startsWith("res://scripts/")
-                && (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs")
-                || path.endsWith(".ts") || path.endsWith(".mts") || path.endsWith(".luau") || path.endsWith(".java"))) {
+                && ScriptAssetTypes.isScriptPath(path)) {
             runtime.openScriptEditor(0L, path);
         } else if (type == AssetType.TEXT) {
             runtime.openTextAssetEditor(path, entry.meta() == null ? null : entry.meta().hash());
