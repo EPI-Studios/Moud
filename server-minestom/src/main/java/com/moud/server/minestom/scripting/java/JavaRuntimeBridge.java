@@ -140,26 +140,49 @@ public final class JavaRuntimeBridge implements AutoCloseable {
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
         try (StandardJavaFileManager std = compiler.getStandardFileManager(diagnostics, Locale.ROOT, StandardCharsets.UTF_8)) {
             List<Path> classpath = collectRuntimeClasspath();
+            DebugLog.info(LOG_TAG, "java compile classpath entries=" + classpath.size()
+                    + " for " + scriptFile.getFileName());
+            for (Path p : classpath) {
+                DebugLog.info(LOG_TAG, "  cp: " + p);
+            }
             if (!classpath.isEmpty()) {
-                std.setLocationFromPaths(StandardLocation.CLASS_PATH, classpath);
+                try {
+                    std.setLocationFromPaths(StandardLocation.CLASS_PATH, classpath);
+                } catch (Throwable t) {
+                    DebugLog.error(LOG_TAG, "setLocationFromPaths failed: " + t.getMessage(), t);
+                }
             }
             InMemoryFileManager manager = new InMemoryFileManager(std);
             JavaFileObject unit = new StringSource(className, source);
             List<String> options = List.of(
                     "--release", String.valueOf(Runtime.version().feature()),
                     "-implicit:none",
-                    "-proc:none"
+                    "-proc:none",
+                    "-g:source,lines"
             );
             JavaCompiler.CompilationTask task = compiler.getTask(null, manager, diagnostics, options,
                     null, List.of(unit));
-            boolean ok = task.call();
+            boolean ok;
+            try {
+                ok = task.call();
+            } catch (Throwable t) {
+                DebugLog.error(LOG_TAG, "compile threw: " + scriptFile + ": " + t.getMessage(), t);
+                logDiagnostics(scriptFile, diagnostics);
+                return null;
+            }
             logDiagnostics(scriptFile, diagnostics);
             Map<String, byte[]> collected = manager.collect();
-            if (!ok || collected.isEmpty()) {
+            if (!ok) {
+                DebugLog.error(LOG_TAG, "compile returned not-ok with "
+                        + diagnostics.getDiagnostics().size() + " diagnostics for " + scriptFile, null);
+                return null;
+            }
+            if (collected.isEmpty()) {
+                DebugLog.error(LOG_TAG, "compile ok but produced no class bytes for " + scriptFile, null);
                 return null;
             }
             return collected;
-        } catch (IOException e) {
+        } catch (Throwable e) {
             DebugLog.error(LOG_TAG, "compile failed: " + scriptFile + ": " + e.getMessage(), e);
             return null;
         }
@@ -193,20 +216,22 @@ public final class JavaRuntimeBridge implements AutoCloseable {
             Iterable<?> mods = (Iterable<?>) loaderCls.getMethod("getAllMods").invoke(loader);
             for (Object mod : mods) {
                 try {
-                    Object rootPaths = mod.getClass().getMethod("getRootPaths").invoke(mod);
-                    if (rootPaths instanceof Iterable<?> it) {
-                        for (Object p : it) {
-                            if (p instanceof Path path) paths.add(path);
+                    Object origin = mod.getClass().getMethod("getOrigin").invoke(mod);
+                    if (origin != null) {
+                        Object originPaths = origin.getClass().getMethod("getPaths").invoke(origin);
+                        if (originPaths instanceof Iterable<?> it) {
+                            for (Object p : it) {
+                                if (p instanceof Path path && Files.exists(path)) paths.add(path);
+                            }
                         }
                     }
-                } catch (NoSuchMethodException nsme) {
-                    try {
-                        Object rootPath = mod.getClass().getMethod("getRootPath").invoke(mod);
-                        if (rootPath instanceof Path path) paths.add(path);
-                    } catch (Exception ignored) { }
                 } catch (Exception ignored) { }
             }
         } catch (Exception ignored) { }
+
+        paths.removeIf(p -> {
+            try { return !Files.exists(p); } catch (Throwable t) { return true; }
+        });
 
         return new ArrayList<>(paths);
     }
