@@ -69,6 +69,7 @@ public final class MoudServer {
     private ProjectService project;
     private ScriptService scripts;
     private ScriptFileService scriptFiles;
+    private com.moud.server.minestom.persistence.PersistenceService persistenceService;
     private final PlayRuntime playRuntime = new PlayRuntime();
     private final SceneInstancer instancer = new SceneInstancer();
 
@@ -157,6 +158,9 @@ public final class MoudServer {
 
         scripts = new ScriptService(project, playerMessageSink);
         scriptFiles = new ScriptFileService(project);
+        persistenceService = new com.moud.server.minestom.persistence.PersistenceService(projectRoot);
+        persistenceService.loadWorld();
+        scripts.setPersistenceService(persistenceService);
         sceneStorage = new SceneStorage(projectRoot, scenes, instancer, scripts);
         playModeManager = new PlayModeManager(
                 scenes,
@@ -244,10 +248,17 @@ public final class MoudServer {
             Pos startPos = PlayRuntime.findPlayerStartPos(mainScene);
             event.getPlayer().setRespawnPoint(startPos != null ? startPos : new Pos(0, 64, 0));
         });
-        events.addListener(PlayerSpawnEvent.class, event -> connections.onPlayerSpawn(event.getPlayer()));
+        events.addListener(PlayerSpawnEvent.class, event -> {
+            if (persistenceService != null) persistenceService.loadPlayer(event.getPlayer().getUuid());
+            connections.onPlayerSpawn(event.getPlayer());
+        });
         events.addListener(PlayerPluginMessageEvent.class, connections::onPluginMessage);
         events.addListener(PlayerDisconnectEvent.class, event -> {
             scriptMessages.clearPlayer(event.getPlayer().getUuid());
+            if (persistenceService != null) {
+                persistenceService.savePlayer(event.getPlayer().getUuid());
+                persistenceService.clearPlayer(event.getPlayer().getUuid());
+            }
             connections.onDisconnect(event.getPlayer());
         });
 

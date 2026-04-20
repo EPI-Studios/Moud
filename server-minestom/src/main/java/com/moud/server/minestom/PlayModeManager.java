@@ -3,6 +3,7 @@ package com.moud.server.minestom;
 import com.moud.core.NodeTypeDef;
 import com.moud.core.scene.SceneTreeMutator;
 import com.moud.net.protocol.MultiMeshData;
+import com.moud.net.protocol.PlayReady;
 import com.moud.net.protocol.SceneList;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.protocol.SchemaSnapshot;
@@ -108,6 +109,9 @@ final class PlayModeManager {
             if (startPos != null && player != null) {
                 player.teleport(startPos);
                 playRuntime.syncControllableBodyToPlayer(player, scene, startPos);
+            }
+            if (session != null && session.state() == SessionState.CONNECTED) {
+                session.send(Lane.STATE, new PlayReady(scene.sceneId()));
             }
         }
     }
@@ -276,6 +280,9 @@ final class PlayModeManager {
         playRuntime.onPlayerSpawn(player, spawnScene);
         bodyManager.onPlayerSpawn(player, spawnScene);
         scripts.sendFullClientStateTo(player.getUuid());
+        if (ps != null && ps.session != null && ps.session.state() == SessionState.CONNECTED) {
+            ps.session.send(Lane.STATE, new PlayReady(spawnScene.sceneId()));
+        }
     }
 
 
