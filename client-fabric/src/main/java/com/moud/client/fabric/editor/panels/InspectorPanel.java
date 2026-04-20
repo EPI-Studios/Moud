@@ -24,6 +24,7 @@ import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
 import com.moud.client.fabric.editor.theme.EditorTheme;
 import com.moud.client.fabric.editor.util.EditorUiUtil;
+import com.moud.client.fabric.editor.util.ScriptAssetTypes;
 import com.moud.client.fabric.model.ModelAsset;
 import com.moud.client.fabric.model.ModelCache;
 import com.moud.client.fabric.render.MoudIcons;
@@ -1079,7 +1080,9 @@ public final class InspectorPanel extends Panel {
         }
 
         try {
-            String selectedPath = TinyFileDialogs.tinyfd_openFileDialog("Attach Script (.ts, .js, .luau)", "", null, "Script (.ts, .js, .luau)", false);
+            String selectedPath = TinyFileDialogs.tinyfd_openFileDialog(
+                    "Attach " + ScriptAssetTypes.FILTER_LABEL, "", null,
+                    ScriptAssetTypes.FILTER_LABEL, false);
             if (selectedPath == null || selectedPath.isBlank()) return;
 
             File file = new File(selectedPath);
@@ -1094,15 +1097,9 @@ public final class InspectorPanel extends Panel {
                 return;
             }
 
-            String lower = filename.toLowerCase(Locale.ROOT);
-            boolean isTs = lower.endsWith(".ts") || lower.endsWith(".mts");
-            boolean isJs = lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs");
-            boolean isLuau = ScriptFilenames.isLuau(filename);
-            if (!(isTs || isJs || isLuau)) {
-                filename = filename + ".ts";
-                isTs = true;
-            }
-            if (isLuau) {
+            filename = ScriptAssetTypes.ensureExtension(filename);
+            ScriptAssetTypes.Kind kind = ScriptAssetTypes.kindOrDefault(filename);
+            if (kind == ScriptAssetTypes.Kind.LUAU) {
                 filename = ScriptFilenames.ensureSuffixFor(filename, ScriptSlot.SCRIPT);
             }
 
@@ -1110,7 +1107,7 @@ public final class InspectorPanel extends Panel {
             try {
                 new ResPath(scriptPath);
             } catch (Exception ignored) {
-                String ext = isLuau ? ".server.luau" : (isTs ? ".ts" : ".js");
+                String ext = kind == ScriptAssetTypes.Kind.LUAU ? ".server.luau" : kind.extension();
                 scriptPath = "res://scripts/node_" + nodeId + ext;
             }
 
@@ -1196,12 +1193,10 @@ public final class InspectorPanel extends Panel {
             String nextName = filename.trim();
             if (nextName.isBlank()) return;
 
-            String lower = nextName.toLowerCase(Locale.ROOT);
-            boolean luau = lower.endsWith(".luau");
-            boolean java = lower.endsWith(".java");
-            if (!(lower.endsWith(".ts") || lower.endsWith(".mts") || luau || java)) {
-                nextName = nextName + ".ts";
-            }
+            nextName = ScriptAssetTypes.ensureExtension(nextName);
+            ScriptAssetTypes.Kind kind = ScriptAssetTypes.kindOrDefault(nextName);
+            boolean luau = kind == ScriptAssetTypes.Kind.LUAU;
+            boolean java = kind == ScriptAssetTypes.Kind.JAVA;
 
             String scriptPath = "res://scripts/" + nextName;
             String baseName = nextName;
@@ -1248,14 +1243,7 @@ public final class InspectorPanel extends Panel {
         if (path == null || !path.startsWith("res://scripts/")) {
             return false;
         }
-        String lower = path.toLowerCase(Locale.ROOT);
-        return lower.endsWith(".js")
-                || lower.endsWith(".mjs")
-                || lower.endsWith(".cjs")
-                || lower.endsWith(".ts")
-                || lower.endsWith(".mts")
-                || lower.endsWith(".luau")
-                || lower.endsWith(".java");
+        return ScriptAssetTypes.isScriptPath(path);
     }
 
     static boolean isAssetKind(PropertyDef property, String targetKind) {

@@ -366,6 +366,12 @@ public final class AssetService {
         if (name == null) return false;
         String lower = name.toLowerCase(java.util.Locale.ROOT);
         return lower.endsWith(".luau")
+                || lower.endsWith(".ts")
+                || lower.endsWith(".mts")
+                || lower.endsWith(".js")
+                || lower.endsWith(".mjs")
+                || lower.endsWith(".cjs")
+                || lower.endsWith(".java")
                 || lower.endsWith(".moudshader")
                 || lower.endsWith(".moudmat")
                 || lower.endsWith(".png")
