@@ -4,6 +4,7 @@ import com.moud.client.fabric.audio.SceneAudioManager;
 import com.moud.client.fabric.assets.AssetsClient;
 import com.moud.client.fabric.assets.MoudAudioAssets;
 import com.moud.client.fabric.assets.MoudTextAssets;
+import com.moud.client.fabric.uri.ClientUriServer;
 import com.moud.client.fabric.editor.diagnostics.ClientFrameProfiler;
 import com.moud.client.fabric.editor.overlay.EditorContext;
 import com.moud.client.fabric.editor.overlay.EditorOverlay;
@@ -39,6 +40,8 @@ import com.moud.client.fabric.runtime.PlayRuntimeClient;
 import com.moud.client.fabric.scene.ClientSceneBus;
 import com.moud.client.fabric.scene.ClientSchemaBus;
 import com.moud.client.fabric.util.ClientDebugLog;
+import com.moud.core.uri.MoudUri;
+import com.moud.core.uri.MoudUris;
 import com.moud.net.protocol.Message;
 import com.moud.net.protocol.ProjectCreateAck;
 import com.moud.net.protocol.ProjectInfo;
@@ -65,6 +68,10 @@ import com.moud.net.protocol.ScriptFileReadResponse;
 import com.moud.net.protocol.CollisionGeometrySnapshot;
 import com.moud.net.protocol.MultiMeshData;
 import com.moud.net.protocol.PlayerClientState;
+import com.moud.net.protocol.PlayReady;
+import com.moud.client.fabric.render.VeilSceneRenderer;
+import com.moud.client.fabric.render.loading.PlayLoading;
+import com.moud.client.fabric.render.loading.PlayLoadingOverlay;
 import com.moud.net.protocol.PlayerMotion;
 import com.moud.net.protocol.AssetPathOpAck;
 import com.moud.net.protocol.ScriptFileWriteAck;
@@ -75,6 +82,7 @@ import com.moud.net.session.SessionState;
 import com.moud.net.transport.Lane;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -83,6 +91,12 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.TitleScreen;
+import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
+import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
+import net.minecraft.client.network.ServerAddress;
+import net.minecraft.client.network.ServerInfo;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.KeyBinding;
@@ -91,16 +105,20 @@ import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWDropCallback;
 
 final class MoudClient {
+    private static final long URI_TIMEOUT_MS = 30_000L;
+
     private final MinecraftFreeflyCamera camera = new MinecraftFreeflyCamera();
     private final EditorContext editorContext = new EditorContext(camera);
     private final AssetsClient assets = new AssetsClient();
     private final PlayRuntimeClient playRuntime = new PlayRuntimeClient();
     private final UiInputTracker uiInputTracker = new UiInputTracker();
     private final SceneAudioManager sceneAudio = new SceneAudioManager();
+    private final ClientUriServer uriServer = new ClientUriServer();
 
     private FabricEngineTransport transport;
     private Session session;
     private EditorOverlay overlay;
+    private PendingUri pendingUri;
 
     private boolean overlayOpen;
     private boolean playInViewport;
@@ -162,6 +180,7 @@ final class MoudClient {
     private void registerLifecycleEvents() {
         ClientTickEvents.END_WORLD_TICK.register(world -> registerFileDropCallback());
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> initIcons());
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> uriServer.close());
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(this::onJoin));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(this::onDisconnect));
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
@@ -179,6 +198,8 @@ final class MoudClient {
         MoudTextAssets.init(assets);
         MoudAudioAssets.init(assets);
         ModelCache.init(assets);
+        com.moud.client.fabric.input.ClientInputMap.ensureRegistered();
+        uriServer.start();
     }
 
     private void registerFileDropCallback() {
@@ -310,12 +331,7 @@ final class MoudClient {
     }
 
     private void renderOverlays(DrawContext drawContext) {
-        // Run the global pixelize / dither / post-process on MC's main
-        // framebuffer NOW - the world pass has already composited the
-        // scene, MC entities (player body), and our viewmodel into it,
-        // so renderScale downscales everything uniformly. HUD drawn
-        // after this stays sharp at full resolution.
-        com.moud.client.fabric.render.VeilSceneRenderer.runFullscreenPostProcess(MinecraftClient.getInstance());
+        VeilSceneRenderer.runFullscreenPostProcess(MinecraftClient.getInstance());
 
         boolean isConnected = session != null && session.state() == SessionState.CONNECTED;
         if (isConnected) {
@@ -338,6 +354,9 @@ final class MoudClient {
                 ClientFrameProfiler.endScope();
             }
         }
+
+        PlayLoadingOverlay.render(drawContext);
+
         ClientFrameProfiler.endFrame();
     }
 
@@ -349,11 +368,13 @@ final class MoudClient {
         MinecraftGhostBlocks.get().clientTick();
 
         handleSessionLifecycle(client);
+        handleUris(client);
         handleEditorToggle(client);
         handleInputBlocking(client);
         handleOverlayState();
         tickSystems();
         ClientPlayerMotionController.clientTick(client);
+        com.moud.client.fabric.input.ClientInputMap.poll();
     }
 
     private void handleSessionLifecycle(MinecraftClient client) {
@@ -374,6 +395,9 @@ final class MoudClient {
                     autoOpenedEditor = true;
                     if (hello.devMode() && !overlayOpen) {
                         openEditorOverlay(client, false);
+                    } else if (!overlayOpen) {
+                        PlayLoading.begin();
+                        PlayLoading.pushStatus("server", "Connecting to server");
                     }
                 }
             }
@@ -394,6 +418,148 @@ final class MoudClient {
             session.setLogSink(System.out::println);
             session.setMessageHandler(this::onMessage);
             session.start();
+        }
+    }
+
+    private void handleUris(MinecraftClient client) {
+        for (String rawUri : uriServer.drain()) {
+            if (rawUri == null || rawUri.isBlank()) {
+                continue;
+            }
+            try {
+                MoudUri link = MoudUris.parse(rawUri);
+                pendingUri = new PendingUri(link, System.currentTimeMillis());
+                showOverlayMessage(client, "Moud: opening " + describeUri(link));
+                ClientDebugLog.info("Uri", "Accepted URI " + rawUri);
+            } catch (IllegalArgumentException e) {
+                ClientDebugLog.warn("Uri", "Rejected URI: " + e.getMessage());
+                showOverlayMessage(client, "Moud link rejected: " + e.getMessage());
+            }
+        }
+
+        PendingUri pending = pendingUri;
+        if (pending == null) {
+            return;
+        }
+        if (System.currentTimeMillis() - pending.receivedAtMs > URI_TIMEOUT_MS) {
+            ClientDebugLog.warn("Uri", "Dropping expired URI " + pending.link.rawUri());
+            showOverlayMessage(client, "Moud link timed out");
+            pendingUri = null;
+            return;
+        }
+
+        String targetAddress = normalizeServerAddress(pending.link.serverAddress());
+        String currentAddress = currentServerAddress(client);
+
+        if (targetAddress != null) {
+            if (!targetAddress.equals(currentAddress)) {
+                if (!pending.connectStarted) {
+                    if (!connectToServer(client, pending.link)) {
+                        pendingUri = null;
+                        return;
+                    }
+                    pending.connectStarted = true;
+                    return;
+                }
+                return;
+            }
+
+            if (!pending.arrivedAtTargetServer) {
+                pending.arrivedAtTargetServer = true;
+                ClientDebugLog.info("Uri", "Arrived at target server " + targetAddress);
+            }
+        }
+
+        if (!pending.link.hasSceneId()) {
+            pendingUri = null;
+            return;
+        }
+        if (pending.sceneSelectSent) {
+            pendingUri = null;
+            return;
+        }
+
+        Session currentSession = session;
+        if (currentSession == null || currentSession.state() != SessionState.CONNECTED) {
+            return;
+        }
+
+        currentSession.send(Lane.STATE, new com.moud.net.protocol.SceneSelect(pending.link.sceneId()));
+        pending.sceneSelectSent = true;
+        showOverlayMessage(client, "Moud: joined scene " + pending.link.sceneId());
+        ClientDebugLog.info("Uri", "Selected scene " + pending.link.sceneId());
+        pendingUri = null;
+    }
+
+    private boolean connectToServer(MinecraftClient client, MoudUri link) {
+        String rawAddress = link.serverAddress();
+        if (rawAddress == null || rawAddress.isBlank()) {
+            showOverlayMessage(client, "Moud link is missing a server address");
+            return false;
+        }
+        if (!ServerAddress.isValid(rawAddress)) {
+            showOverlayMessage(client, "Moud link has an invalid server address");
+            ClientDebugLog.warn("Uri", "Invalid server address in URI: " + rawAddress);
+            return false;
+        }
+
+        ServerAddress address = ServerAddress.parse(rawAddress);
+        String displayName = link.hasSceneId() ? "Moud: " + link.sceneId() : "Moud";
+        ServerInfo serverInfo = new ServerInfo(displayName, rawAddress.trim(), ServerInfo.ServerType.OTHER);
+        Screen parent = client.currentScreen;
+        if (parent == null) {
+            parent = new MultiplayerScreen(new TitleScreen());
+        }
+
+        if (client.world != null || client.getCurrentServerEntry() != null || client.getServer() != null) {
+            client.disconnect(parent, false);
+        }
+
+        ConnectScreen.connect(parent, client, address, serverInfo, false, null);
+        showOverlayMessage(client, "Moud: connecting to " + rawAddress);
+        ClientDebugLog.info("Uri", "Connecting to " + rawAddress);
+        return true;
+    }
+
+    private static String currentServerAddress(MinecraftClient client) {
+        if (client == null) {
+            return null;
+        }
+        ServerInfo entry = client.getCurrentServerEntry();
+        return entry == null ? null : normalizeServerAddress(entry.address);
+    }
+
+    private static String normalizeServerAddress(String rawAddress) {
+        if (rawAddress == null || rawAddress.isBlank() || !ServerAddress.isValid(rawAddress)) {
+            return null;
+        }
+        ServerAddress address = ServerAddress.parse(rawAddress.trim());
+        String host = address.getAddress();
+        if (host == null || host.isBlank()) {
+            return null;
+        }
+        return host.trim().toLowerCase(Locale.ROOT) + ":" + address.getPort();
+    }
+
+    private static String describeUri(MoudUri link) {
+        if (link == null) {
+            return "link";
+        }
+        if (link.hasServerAddress() && link.hasSceneId()) {
+            return link.serverAddress() + " / " + link.sceneId();
+        }
+        if (link.hasServerAddress()) {
+            return link.serverAddress();
+        }
+        if (link.hasSceneId()) {
+            return link.sceneId();
+        }
+        return "link";
+    }
+
+    private static void showOverlayMessage(MinecraftClient client, String message) {
+        if (client != null && client.inGameHud != null && message != null && !message.isBlank()) {
+            client.inGameHud.setOverlayMessage(Text.literal(message), false);
         }
     }
 
@@ -543,6 +709,7 @@ final class MoudClient {
         playInViewport = false;
         editorContext.setViewportInputFocused(false);
         camera.setEnabled(false);
+        playRuntime.onEditorClosed();
         MinecraftGhostBlocks.get().cancel();
 
         if (overlay != null) {
@@ -560,6 +727,8 @@ final class MoudClient {
         }
 
         if (session != null && session.state() == SessionState.CONNECTED) {
+            PlayLoading.begin();
+            PlayLoading.pushStatus("server", "Waiting for server");
             session.send(Lane.STATE, new EditorModeChanged(false));
             lastEditorModeSent = false;
             session.send(Lane.EVENTS, new RequestRespawn());
@@ -622,6 +791,7 @@ final class MoudClient {
         } else if (message instanceof EditorDiagnosticEvent diagnostic) {
             handleEditorDiagnostic(diagnostic);
         } else if (message instanceof ProjectInfo info && overlayReady) {
+            PlayLoading.setGameName(info.name());
             overlay.onProjectInfo(info);
         } else if (message instanceof ProjectCreateAck ack && overlayReady) {
             overlay.onProjectCreateAck(ack);
@@ -700,6 +870,9 @@ final class MoudClient {
             ClientPlayerMotionController.onPlayerMotion(motion);
         } else if (message instanceof PlayerClientState state) {
             RemotePlayerStateCache.apply(state);
+        } else if (message instanceof PlayReady ready) {
+            PlayLoading.popStatus("server");
+            PlayLoading.onServerReady(ready.sceneId());
         }
     }
 
@@ -784,6 +957,19 @@ final class MoudClient {
         }
         if (lastSnapshot != null) {
             overlay.onSnapshot(lastSnapshot);
+        }
+    }
+
+    private static final class PendingUri {
+        private final MoudUri link;
+        private final long receivedAtMs;
+        private boolean connectStarted;
+        private boolean arrivedAtTargetServer;
+        private boolean sceneSelectSent;
+
+        private PendingUri(MoudUri link, long receivedAtMs) {
+            this.link = link;
+            this.receivedAtMs = receivedAtMs;
         }
     }
 }
