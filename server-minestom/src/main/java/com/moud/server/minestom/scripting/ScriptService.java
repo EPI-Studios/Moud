@@ -122,6 +122,10 @@ public final class ScriptService {
         if (script != null && script.language() == ScriptLanguage.LUAU && luauTools != null) {
             return luauTools.onListActions(scene, request);
         }
+        if (script != null && script.language() == ScriptLanguage.JAVA) {
+            return new ScriptActionListResponse(
+                    request.requestId(), request.nodeId(), true, "", List.of());
+        }
         return jsTools.onListActions(scene, request);
     }
 
@@ -133,6 +137,11 @@ public final class ScriptService {
         ScriptReference script = scriptForNode(scene, request == null ? 0L : request.nodeId());
         if (script != null && script.language() == ScriptLanguage.LUAU && luauTools != null) {
             return luauTools.onInvokeAction(scene, request);
+        }
+        if (script != null && script.language() == ScriptLanguage.JAVA) {
+            return new ScriptActionInvokeAck(
+                    request.requestId(), request.nodeId(), false,
+                    "Java scripts do not expose editor actions");
         }
         return jsTools.onInvokeAction(scene, request);
     }
