@@ -448,7 +448,7 @@ public final class ScenePanel extends Panel {
                                     || dragPath.endsWith(".cjs")
                                     || dragPath.endsWith(".ts")
                                     || dragPath.endsWith(".mts")
-                                    || dragPath.endsWith(".luau"))) {
+                                    || dragPath.endsWith(".luau") || dragPath.endsWith(".java"))) {
                                 return;
                             }
                             int dropRow = (int) ((dropY - dropTreeY + dropScrollOffset) / dropItemH);

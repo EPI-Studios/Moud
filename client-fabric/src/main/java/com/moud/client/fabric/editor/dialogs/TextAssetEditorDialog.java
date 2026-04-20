@@ -583,7 +583,7 @@ public final class TextAssetEditorDialog implements AssetsClient.Listener {
         if (p.endsWith(".js") || p.endsWith(".mjs") || p.endsWith(".cjs")) {
             return JS;
         }
-        if (p.endsWith(".luau")) {
+        if (p.endsWith(".luau") || p.endsWith(".java")) {
             return LUAU;
         }
         return LanguageProvider.PLAIN_TEXT;
