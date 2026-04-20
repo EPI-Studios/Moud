@@ -121,6 +121,46 @@ public final class CoreScriptApi {
         nodeApi.set(nodeId, key, value);
     }
 
+    public void set(long nodeId, String key, double value) {
+        nodeApi.setNumber(nodeId, key, value);
+    }
+
+    public void set(long nodeId, String key, float value) {
+        nodeApi.setNumber(nodeId, key, value);
+    }
+
+    public void set(long nodeId, String key, int value) {
+        nodeApi.setNumber(nodeId, key, value);
+    }
+
+    public void set(long nodeId, String key, long value) {
+        nodeApi.setNumber(nodeId, key, (double) value);
+    }
+
+    public void set(long nodeId, String key, boolean value) {
+        nodeApi.set(nodeId, key, value ? "true" : "false");
+    }
+
+    public void set(String key, double value) {
+        nodeApi.setNumber(key, value);
+    }
+
+    public void set(String key, float value) {
+        nodeApi.setNumber(key, value);
+    }
+
+    public void set(String key, int value) {
+        nodeApi.setNumber(key, value);
+    }
+
+    public void set(String key, long value) {
+        nodeApi.setNumber(key, (double) value);
+    }
+
+    public void set(String key, boolean value) {
+        nodeApi.set(key, value ? "true" : "false");
+    }
+
     @HostAccess.Export
     public void setNumber(String key, double value) {
         nodeApi.setNumber(key, value);
