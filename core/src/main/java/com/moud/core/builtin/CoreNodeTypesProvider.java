@@ -411,6 +411,14 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
 
+        registry.registerType(new NodeTypeDef("PostProcess", "Node", "PostProcess", "Effects", 29, Map.ofEntries(
+                Map.entry("source", new PropertyDef("source", PropertyType.STRING, "", "Shader", "Effect", 0, Map.of("asset", "shader"))),
+                Map.entry("enabled", new PropertyDef("enabled", PropertyType.BOOL, "true", "Enabled", "Effect", 1, Map.of())),
+                Map.entry("priority", new PropertyDef("priority", PropertyType.INT, "0", "Priority", "Effect", 2, Map.of("step", "1"))),
+                Map.entry("uniforms", new PropertyDef("uniforms", PropertyType.STRING, "", "Uniforms", "Effect", 3, Map.of("hint", "key=v; key=x,y,z"))),
+                Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
+        )));
+
         registry.registerType(new NodeTypeDef("PlayerAttachment", "Node3D", "Player Attachment", "Player", 25, Map.ofEntries(
                 Map.entry("target", new PropertyDef("target", PropertyType.STRING, "all", "Target", "Player", 0, Map.of())),
                 Map.entry("player_name", new PropertyDef("player_name", PropertyType.STRING, "", "Name", "Player", 1, Map.of())),
@@ -457,7 +465,9 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("color_b", new PropertyDef("color_b", PropertyType.FLOAT, "1", "B", "Color", 12, Map.of("min", "0", "max", "1", "step", "0.01"))),
                 Map.entry("brightness", new PropertyDef("brightness", PropertyType.FLOAT, "1", "Brightness", "Light", 20, Map.of("min", "0", "step", "0.1"))),
                 Map.entry("radius", new PropertyDef("radius", PropertyType.FLOAT, "8", "Radius", "Light", 21, Map.of("min", "0", "step", "0.1"))),
-                Map.entry("enabled", new PropertyDef("enabled", PropertyType.BOOL, "true", "Enabled", "Light", 22, Map.of())),
+                Map.entry("occluded", new PropertyDef("occluded", PropertyType.BOOL, "false", "Occluded", "Light", 22, Map.of())),
+                Map.entry("cast_shadows", new PropertyDef("cast_shadows", PropertyType.BOOL, "false", "Cast Shadows", "Light", 23, Map.of())),
+                Map.entry("enabled", new PropertyDef("enabled", PropertyType.BOOL, "true", "Enabled", "Light", 24, Map.of())),
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
 
@@ -486,7 +496,9 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("brightness", new PropertyDef("brightness", PropertyType.FLOAT, "1", "Brightness", "Light", 20, Map.of("min", "0", "step", "0.1"))),
                 Map.entry("angle", new PropertyDef("angle", PropertyType.FLOAT, "45", "Angle", "Light", 21, Map.of("min", "0", "max", "180", "step", "1"))),
                 Map.entry("distance", new PropertyDef("distance", PropertyType.FLOAT, "10", "Distance", "Light", 22, Map.of("min", "0", "step", "0.1"))),
-                Map.entry("enabled", new PropertyDef("enabled", PropertyType.BOOL, "true", "Enabled", "Light", 23, Map.of())),
+                Map.entry("occluded", new PropertyDef("occluded", PropertyType.BOOL, "false", "Occluded", "Light", 23, Map.of())),
+                Map.entry("cast_shadows", new PropertyDef("cast_shadows", PropertyType.BOOL, "false", "Cast Shadows", "Light", 24, Map.of())),
+                Map.entry("enabled", new PropertyDef("enabled", PropertyType.BOOL, "true", "Enabled", "Light", 25, Map.of())),
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
 
