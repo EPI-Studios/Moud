@@ -49,6 +49,8 @@ public final class JavaRuntimeBridge implements AutoCloseable {
         try {
             modified = Files.getLastModifiedTime(scriptFile).toMillis();
         } catch (Exception e) {
+            DebugLog.error(LOG_TAG, "java script file missing or unreadable: "
+                    + scriptFile.toAbsolutePath() + " (" + e.getMessage() + ")", null);
             return null;
         }
         Program cached = programs.get(scriptFile);
@@ -92,6 +94,8 @@ public final class JavaRuntimeBridge implements AutoCloseable {
     private Program loadProgram(Path scriptFile, long modifiedMs) {
         try {
             if (!Files.isRegularFile(scriptFile)) {
+                DebugLog.error(LOG_TAG, "java script is not a regular file: "
+                        + scriptFile.toAbsolutePath(), null);
                 return null;
             }
             String source = Files.readString(scriptFile, StandardCharsets.UTF_8);
