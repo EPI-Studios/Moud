@@ -1,5 +1,7 @@
 package com.moud.client.launcher;
 
+import com.moud.core.uri.MoudUriIpc;
+import com.moud.core.uri.MoudUris;
 import com.moud.core.update.ArtifactDownloader;
 import com.moud.core.update.GitHubReleaseResolver;
 import com.moud.core.update.ReleaseKeys;
@@ -20,6 +22,20 @@ public final class ClientLauncher {
     private ClientLauncher() {}
 
     public static void main(String[] args) throws Exception {
+        if (args.length >= 2 && ("--uri".equals(args[0]) || "--handle-uri".equals(args[0]))) {
+            int code = handleUri(args[1]);
+            if (code != 0) {
+                System.exit(code);
+            }
+            return;
+        }
+        if (args.length == 1 && looksLikeMoudUri(args[0])) {
+            int code = handleUri(args[0]);
+            if (code != 0) {
+                System.exit(code);
+            }
+            return;
+        }
         if (args.length == 0 || "--help".equals(args[0]) || "-h".equals(args[0])) {
             printUsage();
             return;
@@ -38,6 +54,7 @@ public final class ClientLauncher {
         Path baseDir = gameDir.resolve(".moud").resolve("client");
 
         log("Client launcher starting, game dir: " + gameDir);
+        ensureUriSchemeRegistration();
 
         String installedVersion = "";
 
@@ -116,10 +133,44 @@ public final class ClientLauncher {
     }
 
     private static void printUsage() {
-        System.out.println("Usage: java -jar moud-client-launcher.jar --wrap <java> [args...]");
+        System.out.println("Usage:");
+        System.out.println("  java -jar moud-client-launcher.jar --wrap <java> [args...]");
+        System.out.println("  java -jar moud-client-launcher.jar --uri <moud://join?...>");
     }
 
     static void log(String message) {
         System.out.println("[moud-launcher] " + message);
+    }
+
+    private static void ensureUriSchemeRegistration() {
+        UriSchemeRegistrar.Result result = UriSchemeRegistrar.ensureRegistered();
+        if (result.status() == UriSchemeRegistrar.Status.REGISTERED) {
+            log("Registered moud:// URI handler");
+            return;
+        }
+        if (result.status() == UriSchemeRegistrar.Status.FAILED) {
+            log("URI handler registration failed: " + result.message());
+        }
+    }
+
+    private static boolean looksLikeMoudUri(String value) {
+        return value != null && value.trim().regionMatches(true, 0, MoudUris.SCHEME + ":", 0, MoudUris.SCHEME.length() + 1);
+    }
+
+    private static int handleUri(String rawUri) {
+        try {
+            MoudUris.parse(rawUri);
+        } catch (IllegalArgumentException e) {
+            log("Rejected URI: " + e.getMessage());
+            return 2;
+        }
+
+        if (!MoudUriIpc.sendToRunningClient(rawUri)) {
+            log("No running Moud client accepted the URI handoff");
+            return 3;
+        }
+
+        log("Forwarded link to running Moud client");
+        return 0;
     }
 }
