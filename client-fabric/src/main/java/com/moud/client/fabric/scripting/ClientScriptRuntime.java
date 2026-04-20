@@ -14,6 +14,7 @@ import com.moud.client.fabric.scripting.api.MessagingApi;
 import com.moud.client.fabric.scripting.api.NetApi;
 import com.moud.client.fabric.scripting.api.MouseApi;
 import com.moud.client.fabric.scripting.api.NodeApi;
+import com.moud.client.fabric.scripting.api.PlayModeApi;
 import com.moud.client.fabric.scripting.api.PlayerStateApi;
 import com.moud.client.fabric.scripting.api.PostProcessApi;
 import com.moud.client.fabric.scripting.api.RenderApi;
@@ -97,10 +98,11 @@ public final class ClientScriptRuntime {
             ClientScriptMessageDispatcher.register(nodeId, messagingApi);
             NetApi netApi = new NetApi(messagingApi);
             nodeApi.attachNet(netApi);
+            PlayModeApi playModeApi = new PlayModeApi();
 
             try {
                 ClientScriptContext ctx = new ClientScriptContext(
-                        bridge, program, bodyApi, inputApi, timerApi, animApi, renderApi, nodeApi, cameraApi, mouseApi, playerStateApi, postProcessApi, messagingApi);
+                        bridge, program, bodyApi, inputApi, timerApi, animApi, renderApi, nodeApi, cameraApi, mouseApi, playerStateApi, postProcessApi, messagingApi, playModeApi);
                 contexts.put(nodeId, new ActiveEntry(scriptPath, source.hashCode(), program, ctx, inputApi, timerApi, postProcessApi, netApi));
                 ClientDebugLog.info(TAG, "Loaded client script for node " + nodeId + ": " + scriptPath);
             } catch (Exception e) {
