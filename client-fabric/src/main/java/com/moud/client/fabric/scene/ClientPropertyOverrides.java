@@ -26,6 +26,12 @@ public final class ClientPropertyOverrides {
         return perNode == null ? null : perNode.get(key);
     }
 
+    public static boolean hasAny(long nodeId) {
+        if (nodeId <= 0L) return false;
+        Map<String, String> perNode = OVERRIDES.get(nodeId);
+        return perNode != null && !perNode.isEmpty();
+    }
+
     public static void clearNode(long nodeId) {
         OVERRIDES.remove(nodeId);
     }
