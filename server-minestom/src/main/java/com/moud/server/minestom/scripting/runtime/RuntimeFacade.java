@@ -50,4 +50,6 @@ public interface RuntimeFacade {
     default ScriptMessageRouter scriptMessageRouter() { return null; }
 
     default Iterable<UUID> connectedPlayerUuids() { return java.util.List.of(); }
+
+    default com.moud.server.minestom.persistence.PersistenceService persistence() { return null; }
 }

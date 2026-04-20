@@ -23,6 +23,7 @@ public final class ScriptLanguageRegistry {
                 ""
         ));
         map.put(ScriptLanguage.LUAU, buildLuauSupport());
+        map.put(ScriptLanguage.JAVA, buildJavaSupport());
         map.put(ScriptLanguage.UNKNOWN, new ScriptLanguageSupport(
                 ScriptLanguage.UNKNOWN,
                 false,
@@ -36,6 +37,17 @@ public final class ScriptLanguageRegistry {
             return supportByLanguage.get(ScriptLanguage.UNKNOWN);
         }
         return supportByLanguage.getOrDefault(language, supportByLanguage.get(ScriptLanguage.UNKNOWN));
+    }
+
+    private static ScriptLanguageSupport buildJavaSupport() {
+        if (javax.tools.ToolProvider.getSystemJavaCompiler() == null) {
+            return new ScriptLanguageSupport(
+                    ScriptLanguage.JAVA,
+                    false,
+                    "Java scripting requires a JDK (javax.tools.JavaCompiler unavailable in this JRE)"
+            );
+        }
+        return new ScriptLanguageSupport(ScriptLanguage.JAVA, true, "");
     }
 
     private static ScriptLanguageSupport buildLuauSupport() {

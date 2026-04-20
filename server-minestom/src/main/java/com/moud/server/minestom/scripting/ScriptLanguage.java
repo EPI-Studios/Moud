@@ -6,6 +6,7 @@ public enum ScriptLanguage {
     JAVASCRIPT("JavaScript"),
     TYPESCRIPT("TypeScript"),
     LUAU("Luau"),
+    JAVA("Java"),
     UNKNOWN("Unknown");
 
     private final String displayName;
@@ -28,6 +29,9 @@ public enum ScriptLanguage {
         }
         if (value.endsWith(".luau")) {
             return LUAU;
+        }
+        if (value.endsWith(".java")) {
+            return JAVA;
         }
         if (value.endsWith(".ts") || value.endsWith(".mts")) {
             return TYPESCRIPT;

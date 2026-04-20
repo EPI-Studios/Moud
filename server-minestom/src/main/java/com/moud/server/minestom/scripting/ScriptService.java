@@ -47,6 +47,10 @@ public final class ScriptService {
         runtime.setScriptMessaging(router, connectedPlayers);
     }
 
+    public void setPersistenceService(com.moud.server.minestom.persistence.PersistenceService service) {
+        runtime.setPersistenceService(service);
+    }
+
     /** @return a pending scene-transition ID, or {@code null} if none was requested. */
     public String tickRuntime(ServerScene scene, double dtSeconds) {
         return runtime.tick(scene, dtSeconds);

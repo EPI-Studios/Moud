@@ -27,6 +27,8 @@ public final class CoreScriptApi {
     private final CursorApi cursorApi;
     private final MessagingApi messagingApi;
     private final ParticlesApi particlesApi;
+    private final PersistApi persistApi;
+    private final HttpApi httpApi;
 
     public CoreScriptApi(ServerScene scene, RuntimeFacade runtime, long selfId) {
         this.scene = scene;
@@ -45,6 +47,8 @@ public final class CoreScriptApi {
         this.particlesApi = router == null
                 ? null
                 : new ParticlesApi(router, runtime.connectedPlayerUuids());
+        this.persistApi = new PersistApi(runtime.persistence());
+        this.httpApi = new HttpApi();
     }
 
     @HostAccess.Export
@@ -55,6 +59,16 @@ public final class CoreScriptApi {
     @HostAccess.Export
     public MessagingApi msg() {
         return messagingApi;
+    }
+
+    @HostAccess.Export
+    public PersistApi persist() {
+        return persistApi;
+    }
+
+    @HostAccess.Export
+    public HttpApi http() {
+        return httpApi;
     }
 
     @HostAccess.Export
