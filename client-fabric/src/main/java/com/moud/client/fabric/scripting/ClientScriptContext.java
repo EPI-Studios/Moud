@@ -7,6 +7,7 @@ import com.moud.client.fabric.scripting.api.InputApi;
 import com.moud.client.fabric.scripting.api.MessagingApi;
 import com.moud.client.fabric.scripting.api.MouseApi;
 import com.moud.client.fabric.scripting.api.NodeApi;
+import com.moud.client.fabric.scripting.api.PlayModeApi;
 import com.moud.client.fabric.scripting.api.PlayerStateApi;
 import com.moud.client.fabric.scripting.api.PostProcessApi;
 import com.moud.client.fabric.scripting.api.RenderApi;
@@ -43,7 +44,8 @@ final class ClientScriptContext implements AutoCloseable {
             MouseApi mouse,
             PlayerStateApi playerState,
             PostProcessApi postProcess,
-            MessagingApi messaging) {
+            MessagingApi messaging,
+            PlayModeApi playMode) {
 
         this.bridge = bridge;
         this.messaging = messaging;
@@ -63,6 +65,7 @@ final class ClientScriptContext implements AutoCloseable {
         bridge.setApiGlobal(thread, "playerstate", playerState);
         bridge.setApiGlobal(thread, "PostProcess", postProcess);
         bridge.setApiGlobal(thread, "msg",         messaging);
+        bridge.setApiGlobal(thread, "playmode",    playMode);
         if (node != null && node.net() != null) {
             bridge.setNestedApiField(thread, "node", "net", node.net());
         }
