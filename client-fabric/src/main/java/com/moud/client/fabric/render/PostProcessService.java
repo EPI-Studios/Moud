@@ -3,6 +3,7 @@ package com.moud.client.fabric.render;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.moud.client.fabric.assets.MoudTextAssets;
+import com.moud.client.fabric.render.loading.PlayLoading;
 import com.moud.client.fabric.render.material.MoudShaderFile;
 import com.moud.client.fabric.render.material.MoudShaderParser;
 import com.moud.client.fabric.render.veil.GlUtil;
@@ -305,6 +306,22 @@ public final class PostProcessService {
                 GlUtil.uniform1f(pid, "DeltaTime", deltaSec);
                 GlUtil.uniform1i(pid, "DepthAvailable", depthTex != 0 ? 1 : 0);
 
+                SceneLights lights = VeilSceneRenderer.sharedLights();
+                if (lights != null) {
+                    lights.applyUniforms(pid);
+                }
+
+                org.joml.Matrix4f viewM = VeilSceneRenderer.lastViewMatrix();
+                org.joml.Matrix4f projM = VeilSceneRenderer.lastProjectionMatrix();
+                org.joml.Vector3f camP = VeilSceneRenderer.lastCameraPos();
+                if (viewM != null && projM != null && camP != null) {
+                    org.joml.Matrix4f vp = new org.joml.Matrix4f(projM).mul(viewM);
+                    org.joml.Matrix4f invVp = new org.joml.Matrix4f(vp).invert();
+                    GlUtil.uniformMat4(pid, "moud_viewProj", vp);
+                    GlUtil.uniformMat4(pid, "moud_invViewProj", invVp);
+                    GlUtil.uniform3f(pid, "moud_cameraPos", camP.x, camP.y, camP.z);
+                }
+
                 for (Map.Entry<String, float[]> u : effect.floatUniforms().entrySet()) {
                     float[] vals = u.getValue();
                     String key = u.getKey();
@@ -456,14 +473,20 @@ public final class PostProcessService {
         if (effect.program != null && effect.program.isValid()) {
             return effect.program;
         }
-        Int2ObjectMap<String> stages = new Int2ObjectArrayMap<>();
-        stages.put(GL20.GL_VERTEX_SHADER, DEFAULT_VERTEX_SRC);
-        stages.put(GL20.GL_FRAGMENT_SHADER, FRAG_HEADER + "\n" + effect.sourceValue);
-        ShaderProgram compiled = VeilDynamicShaders.getOrCompile(effect.programId, stages);
-        if (compiled != null && compiled.isValid()) {
-            effect.program = compiled;
+        String statusId = "shader:" + effect.programId;
+        PlayLoading.pushStatus(statusId, "Compiling shaders");
+        try {
+            Int2ObjectMap<String> stages = new Int2ObjectArrayMap<>();
+            stages.put(GL20.GL_VERTEX_SHADER, DEFAULT_VERTEX_SRC);
+            stages.put(GL20.GL_FRAGMENT_SHADER, FRAG_HEADER + "\n" + effect.sourceValue);
+            ShaderProgram compiled = VeilDynamicShaders.getOrCompile(effect.programId, stages);
+            if (compiled != null && compiled.isValid()) {
+                effect.program = compiled;
+            }
+            return compiled;
+        } finally {
+            PlayLoading.popStatus(statusId);
         }
-        return compiled;
     }
 
     private ShaderProgram ensureAssetProgram(PostProcessEffect effect) {
@@ -497,13 +520,19 @@ public final class PostProcessService {
             hash = AssetHash.sha256((shaderPath + "\n" + shaderText).getBytes(StandardCharsets.UTF_8));
         }
         effect.programId = Identifier.of("moud", "scripted/postprocess/" + hash.hex());
-        ShaderProgram compiled = VeilDynamicShaders.getOrCompile(effect.programId, stages);
-        if (compiled != null && compiled.isValid()) {
-            effect.program = compiled;
-            effect.assetVersion = version;
-            effect.assetHash = hash;
+        String statusId = "shader:" + effect.programId;
+        PlayLoading.pushStatus(statusId, "Compiling shaders");
+        try {
+            ShaderProgram compiled = VeilDynamicShaders.getOrCompile(effect.programId, stages);
+            if (compiled != null && compiled.isValid()) {
+                effect.program = compiled;
+                effect.assetVersion = version;
+                effect.assetHash = hash;
+            }
+            return compiled;
+        } finally {
+            PlayLoading.popStatus(statusId);
         }
-        return compiled;
     }
 
     private static String defaultVertex(String value) {
