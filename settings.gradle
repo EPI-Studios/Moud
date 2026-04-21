@@ -11,8 +11,14 @@ pluginManagement {
 
 rootProject.name = 'moud'
 
-includeBuild('/home/meek/Desktop/DEV/BbModelReader')
-includeBuild('/home/meek/Desktop/DEV/fliffel')
+def bbModelReaderDir = file('/home/meek/Desktop/DEV/BbModelReader')
+if (bbModelReaderDir.exists()) {
+    includeBuild(bbModelReaderDir)
+}
+def fliffelDir = file('/home/meek/Desktop/DEV/fliffel')
+if (fliffelDir.exists()) {
+    includeBuild(fliffelDir)
+}
 
 include 'core'
 include 'net'
