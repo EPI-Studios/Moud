@@ -56,17 +56,19 @@ jobs:
       - name: Install vendored libs to mavenLocal
         shell: bash
         run: |
-          for spec in "com/miry/miry:libs/miry-1.0-SNAPSHOT.jar" "fr/mrqsdf/BbModelReader:libs/BbModelReader-1.0-SNAPSHOT.jar"; do
-            IFS=: read -r coords jar <<< "$spec"
+          for spec in "com/miry/miry:libs/miry-1.0-SNAPSHOT.jar:1.0-SNAPSHOT" \
+                     "fr/mrqsdf/BbModelReader:libs/BbModelReader-1.0-SNAPSHOT.jar:1.0-SNAPSHOT" \
+                     "moud/vendored/luau-natives-windows-x64:libs/luau-natives-windows-x64-1.0.0-moud.jar:1.0.0"; do
+            IFS=: read -r coords jar version <<< "$spec"
             group="${coords%/*}"
             artifact="${coords##*/}"
-            dest="$HOME/.m2/repository/${coords}/1.0-SNAPSHOT"
+            dest="$HOME/.m2/repository/${coords}/${version}"
             mkdir -p "$dest"
-            cp "$jar" "$dest/${artifact}-1.0-SNAPSHOT.jar"
-            cat > "$dest/${artifact}-1.0-SNAPSHOT.pom" <<POMEOF
+            cp "$jar" "$dest/${artifact}-${version}.jar"
+            cat > "$dest/${artifact}-${version}.pom" <<POMEOF
           <?xml version="1.0" encoding="UTF-8"?>
           <project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>
-            <groupId>${group//\//.}</groupId><artifactId>${artifact}</artifactId><version>1.0-SNAPSHOT</version>
+            <groupId>${group//\//.}</groupId><artifactId>${artifact}</artifactId><version>${version}</version>
           </project>
           POMEOF
           done

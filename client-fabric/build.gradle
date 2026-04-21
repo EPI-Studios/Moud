@@ -69,11 +69,10 @@ dependencies {
 
     if (luauEnabled.get()) {
         include implementation("dev.hollowcube:luau:${luauVersion.get()}")
-        // Bundle every supported Luau native so the client works on any host OS,
-        // regardless of which platform builds the release jar.
-        for (String variant : ['linux-x64', 'windows-x64', 'macos-x64', 'macos-arm64']) {
+        for (String variant : ['linux-x64', 'macos-x64', 'macos-arm64']) {
             include runtimeOnly("dev.hollowcube:luau-natives-${variant}:${luauVersion.get()}")
         }
+        include runtimeOnly("moud.vendored:luau-natives-windows-x64:1.0.0")
     }
 }
 
