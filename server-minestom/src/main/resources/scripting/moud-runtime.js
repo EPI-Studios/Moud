@@ -276,11 +276,11 @@
     }
 
     // ==========================================================================
-    // AUTO-GENERATED: node class hierarchy — injected by MoudRuntimeShim
+    // AUTO-GENERATED: node class hierarchy - injected by MoudRuntimeShim
     // ==========================================================================
     // __MOUD_CLASS_HIERARCHY__
 
-    // PlayerAttachment augmentations — runtime helpers for player-bound nodes
+    // PlayerAttachment augmentations - runtime helpers for player-bound nodes
     Object.defineProperty(PlayerAttachment.prototype, 'playerName', {
         get: function () { return this.getProperty('player_name'); },
         enumerable: true
@@ -312,7 +312,7 @@
         return { x: v[0], y: v[1], z: v[2] };
     };
 
-    // CharacterBody3D augmentations — Godot-style script surface.
+    // CharacterBody3D augmentations - Godot-style script surface.
     Object.defineProperty(CharacterBody3D.prototype, 'velocity', {
         get: function () {
             var v = this.__api.getCharacterVelocity(this.__id);

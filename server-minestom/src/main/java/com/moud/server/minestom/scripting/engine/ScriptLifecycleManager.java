@@ -224,7 +224,7 @@ public final class ScriptLifecycleManager {
             ScriptLoader.Program program = scriptLoader.programFor(scriptFile, target.language());
             if (program == null) {
                 disableHandler.disable(scene, nodeId, scriptFile, "loadProgram",
-                        new IllegalStateException("Script load failed: " + scriptFile.toAbsolutePath()));
+                        new IllegalStateException("load failed (see previous errors)"));
                 return -1L;
             }
             return program.modifiedMs();
@@ -233,7 +233,7 @@ public final class ScriptLifecycleManager {
             LuauRuntimeBridge.Program program = luau == null ? null : luau.programFor(scriptFile);
             if (program == null) {
                 disableHandler.disable(scene, nodeId, scriptFile, "loadProgram",
-                        new IllegalStateException("Script load failed: " + scriptFile.toAbsolutePath()));
+                        new IllegalStateException("load failed (see previous errors)"));
                 return -1L;
             }
             return program.modifiedMs();
@@ -242,7 +242,7 @@ public final class ScriptLifecycleManager {
             JavaRuntimeBridge.Program program = javaBridge == null ? null : javaBridge.programFor(scriptFile);
             if (program == null) {
                 disableHandler.disable(scene, nodeId, scriptFile, "loadProgram",
-                        new IllegalStateException("Script load failed: " + scriptFile.toAbsolutePath()));
+                        new IllegalStateException("load failed (see previous errors)"));
                 return -1L;
             }
             return program.modifiedMs();

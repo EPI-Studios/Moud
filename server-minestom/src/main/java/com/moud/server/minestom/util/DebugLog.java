@@ -45,7 +45,7 @@ public final class DebugLog {
 
     public static void error(String subsystem, String message, Throwable t) {
         print(System.err, "ERROR", RED, subsystem, message);
-        if (t != null) t.printStackTrace(System.err);
+        if (t != null && DEBUG) t.printStackTrace(System.err);
     }
 
     private static void print(PrintStream out, String level, String levelColor, String subsystem, String message) {
@@ -73,7 +73,6 @@ public final class DebugLog {
         String noColor = System.getenv("NO_COLOR");
         if (noColor != null && !noColor.isEmpty()) return false;
         if ("dumb".equals(System.getenv("TERM"))) return false;
-        // Default to enabled — most modern terminals support ANSI
         return true;
     }
 

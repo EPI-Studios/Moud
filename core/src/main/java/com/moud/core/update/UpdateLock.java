@@ -24,7 +24,7 @@ public final class UpdateLock implements Closeable {
         UpdateLock result = tryAcquire(lockFile);
         if (result == null) {
             throw new IOException("Could not acquire update lock: " + lockFile
-                    + " — another update may be in progress");
+                    + " - another update may be in progress");
         }
         return result;
     }

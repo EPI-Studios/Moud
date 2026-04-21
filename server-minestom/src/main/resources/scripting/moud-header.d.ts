@@ -1,4 +1,4 @@
-// moud.d.ts — TypeScript declarations for the Moud scripting API.
+// moud.d.ts - TypeScript declarations for the Moud scripting API.
 // The node type declarations at the bottom are auto-generated from the server's
 // NodeTypeRegistry. The rest is the stable, hand-curated API surface.
 
@@ -229,7 +229,7 @@ declare module "moud/scene" {
 }
 
 // =============================================================================
-// PLAYER ATTACHMENT AUGMENTATION — runtime helpers for player-bound nodes
+// PLAYER ATTACHMENT AUGMENTATION - runtime helpers for player-bound nodes
 // =============================================================================
 declare module "moud" {
   export interface CharacterBody3D {
