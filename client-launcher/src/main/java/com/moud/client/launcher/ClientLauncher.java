@@ -93,7 +93,7 @@ public final class ClientLauncher {
                     }
                 }
             } else {
-                updateStatus = "No installed client version — launching with existing mods";
+                updateStatus = "No installed client version - launching with existing mods";
                 log(updateStatus);
             }
         } catch (Exception e) {

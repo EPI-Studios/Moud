@@ -309,8 +309,8 @@ public final class ScriptEditorDialog {
         if (dirty && confirmAction != null) {
             statusColor = danger;
             status = confirmAction == ConfirmAction.CLOSE
-                    ? "Unsaved changes — click Close again to discard"
-                    : "Unsaved changes — click Reload again to discard";
+                    ? "Unsaved changes - click Close again to discard"
+                    : "Unsaved changes - click Reload again to discard";
         } else if (loading) {
             status = "Loading…";
         } else if (saving) {
@@ -431,8 +431,8 @@ public final class ScriptEditorDialog {
         if (dirty && confirmAction != null) {
             statusColor = danger;
             statusText = confirmAction == ConfirmAction.CLOSE
-                    ? "Unsaved — close again to discard"
-                    : "Unsaved — reload again to discard";
+                    ? "Unsaved - close again to discard"
+                    : "Unsaved - reload again to discard";
         } else if (loading) {
             statusText = "Loading…";
             statusColor = muted;

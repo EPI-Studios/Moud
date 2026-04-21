@@ -19,20 +19,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Listens for animation JSON blobs downloaded from the server and injects them into
- * PAL's static animation registry at runtime.
- *
- * <p>Recognized paths:
- * <ul>
- *   <li>{@code res://animations/*.json} — explicit animations directory</li>
- *   <li>{@code *.animation.json} anywhere — naming convention (drag-dropped files
- *       land in {@code res://text/} via the editor importer)</li>
- * </ul>
- *
- * <p>Downloads are requested proactively on each manifest update so the animations
- * are ready before the script asks for them.
- */
 public final class PalAnimInjector implements AssetsClient.Listener {
 
     private static final String TAG = "PalAnimInjector";

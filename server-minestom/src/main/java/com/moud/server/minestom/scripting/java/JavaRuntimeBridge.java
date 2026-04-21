@@ -49,8 +49,7 @@ public final class JavaRuntimeBridge implements AutoCloseable {
         try {
             modified = Files.getLastModifiedTime(scriptFile).toMillis();
         } catch (Exception e) {
-            DebugLog.error(LOG_TAG, "java script file missing or unreadable: "
-                    + scriptFile.toAbsolutePath() + " (" + e.getMessage() + ")", null);
+            DebugLog.error(LOG_TAG, scriptFile.getFileName() + ": file missing or unreadable (" + e.getMessage() + ")");
             return null;
         }
         Program cached = programs.get(scriptFile);
@@ -60,8 +59,8 @@ public final class JavaRuntimeBridge implements AutoCloseable {
         Program loaded = loadProgram(scriptFile, modified);
         if (loaded != null) {
             programs.put(scriptFile, loaded);
-            DebugLog.info(LOG_TAG, (cached == null ? "loaded" : "reloaded")
-                    + " language=java file=" + scriptFile.toAbsolutePath().normalize());
+            DebugLog.debug(LOG_TAG, (cached == null ? "loaded" : "reloaded")
+                    + " java " + scriptFile.getFileName());
         }
         return loaded;
     }
@@ -94,15 +93,13 @@ public final class JavaRuntimeBridge implements AutoCloseable {
     private Program loadProgram(Path scriptFile, long modifiedMs) {
         try {
             if (!Files.isRegularFile(scriptFile)) {
-                DebugLog.error(LOG_TAG, "java script is not a regular file: "
-                        + scriptFile.toAbsolutePath(), null);
+                DebugLog.error(LOG_TAG, scriptFile.getFileName() + ": not a regular file");
                 return null;
             }
             String source = Files.readString(scriptFile, StandardCharsets.UTF_8);
             String className = detectClassName(source, scriptFile);
             if (className == null) {
-                DebugLog.error(LOG_TAG,
-                        "load failed: " + scriptFile + ": could not find public class declaration", null);
+                DebugLog.error(LOG_TAG, scriptFile.getFileName() + ": no public class declaration found");
                 return null;
             }
             Map<String, byte[]> bytecode = compile(className, source, scriptFile);
@@ -112,7 +109,7 @@ public final class JavaRuntimeBridge implements AutoCloseable {
             ScriptClassLoader loader = new ScriptClassLoader(bytecode, scriptFile);
             return new Program(scriptFile, modifiedMs, className, loader);
         } catch (Exception e) {
-            DebugLog.error(LOG_TAG, "load failed: " + scriptFile + ": " + e.getMessage(), e);
+            DebugLog.error(LOG_TAG, scriptFile.getFileName() + ": load failed: " + e.getMessage());
             return null;
         }
     }
@@ -136,24 +133,25 @@ public final class JavaRuntimeBridge implements AutoCloseable {
     private Map<String, byte[]> compile(String className, String source, Path scriptFile) {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         if (compiler == null) {
-            DebugLog.error(LOG_TAG, "load failed: " + scriptFile
-                    + ": JavaCompiler unavailable (running on a JRE without tools.jar). "
-                    + "Launch Moud under a JDK.", null);
+            DebugLog.error(LOG_TAG, scriptFile.getFileName()
+                    + ": JavaCompiler unavailable - launch Moud under a JDK, not a JRE");
             return null;
         }
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
         try (StandardJavaFileManager std = compiler.getStandardFileManager(diagnostics, Locale.ROOT, StandardCharsets.UTF_8)) {
             List<Path> classpath = collectRuntimeClasspath();
-            DebugLog.info(LOG_TAG, "java compile classpath entries=" + classpath.size()
-                    + " for " + scriptFile.getFileName());
-            for (Path p : classpath) {
-                DebugLog.info(LOG_TAG, "  cp: " + p);
+            if (DebugLog.enabled()) {
+                DebugLog.debug(LOG_TAG, "java classpath entries=" + classpath.size()
+                        + " for " + scriptFile.getFileName());
+                for (Path p : classpath) {
+                    DebugLog.debug(LOG_TAG, "  cp: " + p);
+                }
             }
             if (!classpath.isEmpty()) {
                 try {
                     std.setLocationFromPaths(StandardLocation.CLASS_PATH, classpath);
                 } catch (Throwable t) {
-                    DebugLog.error(LOG_TAG, "setLocationFromPaths failed: " + t.getMessage(), t);
+                    DebugLog.error(LOG_TAG, scriptFile.getFileName() + ": classpath setup failed: " + t.getMessage());
                 }
             }
             InMemoryFileManager manager = new InMemoryFileManager(std);
@@ -170,24 +168,18 @@ public final class JavaRuntimeBridge implements AutoCloseable {
             try {
                 ok = task.call();
             } catch (Throwable t) {
-                DebugLog.error(LOG_TAG, "compile threw: " + scriptFile + ": " + t.getMessage(), t);
                 logDiagnostics(scriptFile, diagnostics);
+                DebugLog.error(LOG_TAG, scriptFile.getFileName() + ": compiler crashed: " + t.getMessage());
                 return null;
             }
             logDiagnostics(scriptFile, diagnostics);
             Map<String, byte[]> collected = manager.collect();
-            if (!ok) {
-                DebugLog.error(LOG_TAG, "compile returned not-ok with "
-                        + diagnostics.getDiagnostics().size() + " diagnostics for " + scriptFile, null);
-                return null;
-            }
-            if (collected.isEmpty()) {
-                DebugLog.error(LOG_TAG, "compile ok but produced no class bytes for " + scriptFile, null);
+            if (!ok || collected.isEmpty()) {
                 return null;
             }
             return collected;
         } catch (Throwable e) {
-            DebugLog.error(LOG_TAG, "compile failed: " + scriptFile + ": " + e.getMessage(), e);
+            DebugLog.error(LOG_TAG, scriptFile.getFileName() + ": compile failed: " + e.getMessage());
             return null;
         }
     }
@@ -250,13 +242,18 @@ public final class JavaRuntimeBridge implements AutoCloseable {
     }
 
     private static void logDiagnostics(Path scriptFile, DiagnosticCollector<JavaFileObject> diagnostics) {
+        String fileName = scriptFile.getFileName().toString();
         for (Diagnostic<? extends JavaFileObject> d : diagnostics.getDiagnostics()) {
-            String msg = scriptFile + ":" + d.getLineNumber() + ":" + d.getColumnNumber()
-                    + " " + d.getKind() + " " + d.getMessage(Locale.ROOT);
+            long line = d.getLineNumber();
+            long col = d.getColumnNumber();
+            String loc = line > 0 ? fileName + ":" + line + (col > 0 ? ":" + col : "") : fileName;
+            String msg = loc + ": " + d.getMessage(Locale.ROOT);
             if (d.getKind() == Diagnostic.Kind.ERROR) {
-                DebugLog.error(LOG_TAG, msg, null);
+                DebugLog.error(LOG_TAG, msg);
+            } else if (d.getKind() == Diagnostic.Kind.WARNING || d.getKind() == Diagnostic.Kind.MANDATORY_WARNING) {
+                DebugLog.warn(LOG_TAG, msg);
             } else {
-                DebugLog.info(LOG_TAG, msg);
+                DebugLog.debug(LOG_TAG, msg);
             }
         }
     }

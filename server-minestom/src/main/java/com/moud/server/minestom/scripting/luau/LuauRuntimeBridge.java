@@ -117,8 +117,8 @@ public final class LuauRuntimeBridge implements AutoCloseable {
         Program loaded = loadProgram(scriptFile, modified);
         if (loaded != null) {
             programs.put(scriptFile, loaded);
-            DebugLog.info("script-runtime", (cached == null ? "loaded" : "reloaded")
-                    + " language=luau file=" + scriptFile.toAbsolutePath().normalize());
+            DebugLog.debug("script-runtime", (cached == null ? "loaded" : "reloaded")
+                    + " luau " + scriptFile.getFileName());
         }
         return loaded;
     }
@@ -204,7 +204,7 @@ public final class LuauRuntimeBridge implements AutoCloseable {
             byte[] bytecode = reflection.compile(code);
             return new Program(scriptFile, modifiedMs, bytecode);
         } catch (Exception e) {
-            DebugLog.error("script-runtime", "load failed: " + scriptFile + ": " + e.getMessage(), e);
+            DebugLog.error("script-runtime", scriptFile.getFileName() + ": load failed: " + e.getMessage());
             return null;
         }
     }

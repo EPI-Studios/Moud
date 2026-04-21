@@ -17,6 +17,7 @@ import com.moud.net.session.SessionState;
 import com.moud.net.transport.Lane;
 import com.moud.net.wire.WireMessages;
 import com.moud.server.minestom.net.PlayerMessageSink;
+import com.moud.server.minestom.persistence.PersistenceService;
 import com.moud.server.minestom.assets.AssetService;
 import com.moud.server.minestom.assets.FileSystemAssetStore;
 import com.moud.server.minestom.collision.CollisionBakeService;
@@ -69,7 +70,7 @@ public final class MoudServer {
     private ProjectService project;
     private ScriptService scripts;
     private ScriptFileService scriptFiles;
-    private com.moud.server.minestom.persistence.PersistenceService persistenceService;
+    private PersistenceService persistenceService;
     private final PlayRuntime playRuntime = new PlayRuntime();
     private final SceneInstancer instancer = new SceneInstancer();
 
@@ -158,7 +159,7 @@ public final class MoudServer {
 
         scripts = new ScriptService(project, playerMessageSink);
         scriptFiles = new ScriptFileService(project);
-        persistenceService = new com.moud.server.minestom.persistence.PersistenceService(projectRoot);
+        persistenceService = new PersistenceService(projectRoot);
         persistenceService.loadWorld();
         scripts.setPersistenceService(persistenceService);
         sceneStorage = new SceneStorage(projectRoot, scenes, instancer, scripts);

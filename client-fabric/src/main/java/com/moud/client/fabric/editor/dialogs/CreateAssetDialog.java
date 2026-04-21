@@ -368,7 +368,7 @@ public final class CreateAssetDialog {
 
     private static String hintFor(int tab) {
         return switch (tab) {
-            case 0 -> "Creates res://scripts/<name>.ts (default), .luau, or .java — append the extension in the name";
+            case 0 -> "Creates res://scripts/<name>.ts (default), .luau, or .java";
             case 1 -> "Creates res://shaders/<name>.moudshader";
             case 2 -> "Creates res://materials/<name>.moudmat (+ matching shader)";
             default -> "Creates res://text/<name>.txt";

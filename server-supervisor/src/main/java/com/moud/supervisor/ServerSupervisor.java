@@ -90,7 +90,7 @@ public final class ServerSupervisor {
                         log("Rollback successful");
                         rapidCrashes = 0;
                     } else {
-                        log("Rollback failed — no previous version available");
+                        log("Rollback failed - no previous version available");
                         log("Waiting 60s before retry...");
                         Thread.sleep(60_000);
                     }

@@ -1,8 +1,10 @@
 package com.moud.server.minestom.scripting;
 
+import com.moud.server.minestom.persistence.PersistenceService;
 import com.moud.server.minestom.scripting.api.*;
 import com.moud.server.minestom.scripting.api.modules.*;
 import com.moud.server.minestom.scripting.engine.*;
+import com.moud.server.minestom.scripting.http.HttpScheduler;
 import com.moud.server.minestom.scripting.input.*;
 import com.moud.server.minestom.scripting.java.JavaRuntimeBridge;
 import com.moud.server.minestom.scripting.lang.*;
@@ -24,6 +26,7 @@ import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.net.PlayerMessageSink;
 import com.moud.server.minestom.project.ProjectService;
 import com.moud.server.minestom.script.ScriptMessageRouter;
+import com.moud.server.minestom.scripting.typescript.TypeScriptContext;
 import com.moud.server.minestom.util.DebugLog;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Engine;
@@ -61,14 +64,16 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
     private String pendingSceneTransition;
     private ScriptMessageRouter scriptMessageRouter;
     private Supplier<Iterable<UUID>> connectedPlayersSupplier;
-    private com.moud.server.minestom.persistence.PersistenceService persistenceService;
+    private PersistenceService persistenceService;
+    private final Map<String, Long> recentDiagnosticKeys = new ConcurrentHashMap<>();
+    private static final long DIAGNOSTIC_DEDUPE_MS = 2_000L;
 
     SceneRuntime(ProjectService project,
                  Engine engine,
                  ConcurrentHashMap<String, PlayerInputState> inputsByPlayer,
                  ConcurrentHashMap<String, ConcurrentHashMap<String, String>> clientStateByPlayer,
                  ConcurrentHashMap<String, float[]> playerVelocities,
-                 com.moud.server.minestom.scripting.typescript.TypeScriptContext tsContext,
+                 TypeScriptContext tsContext,
                  PlayerMessageSink playerMessageSink) {
         Objects.requireNonNull(project, "project");
         Objects.requireNonNull(engine, "engine");
@@ -143,7 +148,7 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
         Objects.requireNonNull(scene, "scene");
         lastScene = scene;
 
-        com.moud.server.minestom.scripting.http.HttpScheduler.pump();
+        HttpScheduler.pump();
         scheduler.tickTimers(dtSeconds);
         scheduler.tickTweens(dtSeconds, sceneMutator);
         Set<Long> alive = lifecycleManager.tickScripts(scene, dtSeconds);
@@ -341,12 +346,12 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
         this.connectedPlayersSupplier = supplier;
     }
 
-    void setPersistenceService(com.moud.server.minestom.persistence.PersistenceService service) {
+    void setPersistenceService(PersistenceService service) {
         this.persistenceService = service;
     }
 
     @Override
-    public com.moud.server.minestom.persistence.PersistenceService persistence() {
+    public PersistenceService persistence() {
         return persistenceService;
     }
 
@@ -368,22 +373,35 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
             scriptMessageRouter.unregisterAll(nodeId);
         }
         String sceneId = scene == null ? "?" : scene.sceneId();
-        String file = scriptFile == null ? "?" : scriptFile.toString();
+        String fileName = scriptFile == null ? "?" : scriptFile.getFileName().toString();
         String msg = throwable == null || throwable.getMessage() == null || throwable.getMessage().isBlank()
                 ? "Script error"
                 : throwable.getMessage();
-        String nodeInfo = "";
+        String nodeName = "";
+        String nodeType = "";
         if (scene != null && nodeId > 0L) {
             Node node = scene.engine().sceneTree().getNode(nodeId);
             if (node != null) {
-                nodeInfo = " name='" + (node.name() == null ? "" : node.name()) + "' type=" + scene.engine().nodeTypes().typeIdFor(node);
+                nodeName = node.name() == null ? "" : node.name();
+                nodeType = scene.engine().nodeTypes().typeIdFor(node);
             }
         }
-        DebugLog.error(LOG_TAG, "scene=" + sceneId + " nodeId=" + nodeId + nodeInfo
-                + " stage=" + (stage == null ? "" : stage) + " file=" + file + " error=" + msg, throwable);
-        playerNetworkSink.publishEditorDiagnostic(scene, "ERROR", "Scripts",
-                "scene=" + sceneId + " nodeId=" + nodeId + nodeInfo
-                        + " stage=" + (stage == null ? "" : stage) + " file=" + file + " error=" + msg);
+        String stageLabel = (stage == null || stage.isBlank()) ? "" : " [" + stage + "]";
+        String nodeLabel = nodeName.isEmpty() && nodeType.isEmpty()
+                ? ("#" + nodeId)
+                : (nodeName + " (" + nodeType + ")");
+        String compact = fileName + stageLabel + " on " + nodeLabel + ": " + msg;
+        String dedupeKey = sceneId + "|" + nodeId + "|" + fileName + "|" + stage + "|" + msg;
+        long now = System.currentTimeMillis();
+        Long prev = recentDiagnosticKeys.put(dedupeKey, now);
+        if (prev != null && now - prev < DIAGNOSTIC_DEDUPE_MS) {
+            return;
+        }
+        if (recentDiagnosticKeys.size() > 256) {
+            recentDiagnosticKeys.entrySet().removeIf(e -> now - e.getValue() > DIAGNOSTIC_DEDUPE_MS);
+        }
+        DebugLog.error(LOG_TAG, compact, throwable);
+        playerNetworkSink.publishEditorDiagnostic(scene, "ERROR", "Scripts", compact);
     }
 
     @Override

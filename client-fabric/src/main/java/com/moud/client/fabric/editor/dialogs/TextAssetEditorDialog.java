@@ -412,8 +412,8 @@ public final class TextAssetEditorDialog implements AssetsClient.Listener {
         if (dirty && confirmAction != null) {
             statusColor = danger;
             status = confirmAction == ConfirmAction.CLOSE
-                    ? "Unsaved changes — click Close again to discard"
-                    : "Unsaved changes — click Reload again to discard";
+                    ? "Unsaved changes - click Close again to discard"
+                    : "Unsaved changes - click Reload again to discard";
         } else if (loading) {
             status = "Loading…";
         } else if (saving) {
