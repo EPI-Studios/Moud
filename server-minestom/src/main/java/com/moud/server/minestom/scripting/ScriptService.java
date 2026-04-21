@@ -9,6 +9,7 @@ import com.moud.net.protocol.ScriptActionListResponse;
 import com.moud.core.scene.Node;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.net.PlayerMessageSink;
+import com.moud.server.minestom.persistence.PersistenceService;
 import com.moud.server.minestom.script.ScriptMessageRouter;
 import com.moud.server.minestom.scripting.lang.ScriptLanguageRegistry;
 import com.moud.server.minestom.scripting.lang.ScriptLanguageSupport;
@@ -47,7 +48,7 @@ public final class ScriptService {
         runtime.setScriptMessaging(router, connectedPlayers);
     }
 
-    public void setPersistenceService(com.moud.server.minestom.persistence.PersistenceService service) {
+    public void setPersistenceService(PersistenceService service) {
         runtime.setPersistenceService(service);
     }
 
