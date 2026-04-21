@@ -69,15 +69,10 @@ dependencies {
 
     if (luauEnabled.get()) {
         include implementation("dev.hollowcube:luau:${luauVersion.get()}")
-        String luauOs = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT)
-        String luauArch = System.getProperty("os.arch", "").toLowerCase(java.util.Locale.ROOT)
-        String luauNative = null
-        if ((luauArch == "amd64" || luauArch == "x86_64") && luauOs.contains("linux"))  luauNative = "linux-x64"
-        else if ((luauArch == "amd64" || luauArch == "x86_64") && luauOs.contains("win")) luauNative = "windows-x64"
-        else if ((luauArch == "amd64" || luauArch == "x86_64") && luauOs.contains("mac")) luauNative = "macos-x64"
-        else if ((luauArch == "aarch64" || luauArch == "arm64") && luauOs.contains("mac")) luauNative = "macos-arm64"
-        if (luauNative != null) {
-            include runtimeOnly("dev.hollowcube:luau-natives-${luauNative}:${luauVersion.get()}")
+        // Bundle every supported Luau native so the client works on any host OS,
+        // regardless of which platform builds the release jar.
+        for (String variant : ['linux-x64', 'windows-x64', 'macos-x64', 'macos-arm64']) {
+            include runtimeOnly("dev.hollowcube:luau-natives-${variant}:${luauVersion.get()}")
         }
     }
 }
