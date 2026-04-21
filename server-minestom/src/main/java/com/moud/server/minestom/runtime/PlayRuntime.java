@@ -211,4 +211,24 @@ public final class PlayRuntime {
         return null;
     }
 
+    public static boolean sceneHasNodeType(ServerScene scene, String typeId) {
+        if (scene == null || typeId == null) return false;
+        Node root = scene.engine().sceneTree().root();
+        if (root == null) return false;
+        ArrayList<Node> stack = new ArrayList<>();
+        stack.add(root);
+        while (!stack.isEmpty()) {
+            Node node = stack.remove(stack.size() - 1);
+            if (node == null) continue;
+            if (typeId.equals(scene.engine().nodeTypes().typeIdFor(node))) {
+                return true;
+            }
+            List<Node> children = node.children();
+            for (int i = children.size() - 1; i >= 0; i--) {
+                stack.add(children.get(i));
+            }
+        }
+        return false;
+    }
+
 }

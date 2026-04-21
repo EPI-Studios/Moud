@@ -55,7 +55,8 @@ final class EditorOverlayController {
         if (ctx.playRuntime.isActive() && client.currentScreen == null) {
             ctx.playRuntime.captureInput();
         }
-        if ((ctx.overlayOpen || ctx.playRuntime.shouldBlockVanillaInput(client)) && client.currentScreen == null) {
+        boolean editorConsumingInput = ctx.overlayOpen && !ctx.playInViewport;
+        if ((editorConsumingInput || ctx.playRuntime.shouldBlockVanillaInput(client)) && client.currentScreen == null) {
             blockVanillaInput(client);
         }
         if (ctx.playRuntime.isActive() && client.currentScreen == null) {

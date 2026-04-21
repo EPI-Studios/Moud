@@ -20,7 +20,7 @@ public final class ScriptablePalController extends PlayerAnimationController {
 
     @Override
     public boolean isActive() {
-        return true;
+        return getCurrentAnimation() != null;
     }
 
     @Override
