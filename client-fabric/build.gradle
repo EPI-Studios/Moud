@@ -124,13 +124,7 @@ afterEvaluate {
         }
 
         def resolved = candidates.find { it.exists() }
-        if (resolved != null) {
-            return resolved
-        }
-
-        throw new GradleException(
-            "RenderDoc executable not found. Set RENDERDOC_CMD to renderdoccmd/qrenderdoc, or install RenderDoc in a standard location."
-        )
+        return resolved
     }
 
     def withoutExtractRenderDoc = { dependencies ->
@@ -150,13 +144,15 @@ afterEvaluate {
 
     def renderDocExecutable = resolveRenderDocExecutable()
 
-    tasks.withType(RenderDocRunTask).configureEach { task ->
-        task.getRenderDocExecutable().set(renderDocExecutable)
-        task.setDependsOn(withoutExtractRenderDoc(task.getDependsOn()))
-    }
+    if (renderDocExecutable != null) {
+        tasks.withType(RenderDocRunTask).configureEach { task ->
+            task.getRenderDocExecutable().set(renderDocExecutable)
+            task.setDependsOn(withoutExtractRenderDoc(task.getDependsOn()))
+        }
 
-    tasks.withType(RenderDocRunUITask).configureEach { task ->
-        task.getRenderDocExecutable().set(renderDocExecutable)
+        tasks.withType(RenderDocRunUITask).configureEach { task ->
+            task.getRenderDocExecutable().set(renderDocExecutable)
+        }
     }
 }
 
