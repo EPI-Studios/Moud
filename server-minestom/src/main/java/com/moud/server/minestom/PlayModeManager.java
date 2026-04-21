@@ -110,9 +110,6 @@ final class PlayModeManager {
                 player.teleport(startPos);
                 playRuntime.syncControllableBodyToPlayer(player, scene, startPos);
             }
-            if (player != null) {
-                applyPlayerMovementFallback(player, scene);
-            }
             if (session != null && session.state() == SessionState.CONNECTED) {
                 session.send(Lane.STATE, new PlayReady(scene.sceneId()));
             }
