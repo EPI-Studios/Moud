@@ -14,6 +14,7 @@ import com.moud.server.minestom.scripting.typescript.ScriptTypeGenerator;
 import com.moud.net.protocol.PlayerInput;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.net.PlayerMessageSink;
+import com.moud.server.minestom.persistence.PersistenceService;
 import com.moud.server.minestom.project.ProjectService;
 import com.moud.server.minestom.script.ScriptMessageRouter;
 import com.moud.server.minestom.scripting.typescript.TypeScriptContext;
@@ -45,7 +46,7 @@ final class RuntimeScriptService {
     private final Set<String> loggedUnsupportedScripts = ConcurrentHashMap.newKeySet();
     private ScriptMessageRouter scriptMessageRouter;
     private Supplier<Iterable<UUID>> connectedPlayersSupplier;
-    private com.moud.server.minestom.persistence.PersistenceService persistenceService;
+    private PersistenceService persistenceService;
 
     public void setScriptMessaging(ScriptMessageRouter router, Supplier<Iterable<UUID>> connectedPlayers) {
         this.scriptMessageRouter = router;
@@ -56,7 +57,7 @@ final class RuntimeScriptService {
         }
     }
 
-    public void setPersistenceService(com.moud.server.minestom.persistence.PersistenceService service) {
+    public void setPersistenceService(PersistenceService service) {
         this.persistenceService = service;
         for (SceneRuntime rt : runtimeByScene.values()) {
             rt.setPersistenceService(service);
