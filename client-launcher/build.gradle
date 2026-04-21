@@ -1,6 +1,6 @@
 plugins {
-    id 'application'
-    id 'com.gradleup.shadow' version '8.3.0'
+    id 'java'
+    id 'com.gradleup.shadow' version '8.3.6'
 }
 
 dependencies {
@@ -13,14 +13,18 @@ java {
     }
 }
 
-application {
-    mainClass = 'com.moud.client.launcher.ClientLauncher'
+def mainClassName = 'com.moud.client.launcher.ClientLauncher'
+
+tasks.named('jar', Jar).configure {
+    manifest {
+        attributes('Main-Class': mainClassName)
+    }
 }
 
 tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).configure {
     archiveClassifier.set('')
     mergeServiceFiles()
     manifest {
-        attributes('Main-Class': application.mainClass.get())
+        attributes('Main-Class': mainClassName)
     }
 }
