@@ -100,6 +100,12 @@ final class LuauRuntime {
 
     LuauRuntime() {
         try {
+            try {
+                net.hollowcube.luau.util.NativeLibraryLoader.loadLibrary("globalref");
+                net.hollowcube.luau.util.NativeLibraryLoader.loadLibrary("compiler");
+            } catch (Throwable ignored) {
+            }
+
             Class<?> stateClass    = Class.forName(LUA_STATE_CLASS);
             Class<?> funcClass     = Class.forName(LUA_FUNC_CLASS);
             Class<?> compilerClass = Class.forName(LUA_COMPILER_CLASS);
