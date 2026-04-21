@@ -83,7 +83,7 @@ final class JavaScriptObject implements ScriptObject {
         Class<?>[] params = method.getParameterTypes();
         if (originalMember.startsWith("_on_")) {
             String signal = originalMember.substring(4);
-            Object value = incoming != null && incoming.length > 1 ? incoming[1] : null;
+            Object value = incoming != null && incoming.length > 0 ? incoming[0] : null;
             if (params.length == 2 && params[0] == String.class) {
                 return new Object[]{signal, value};
             }
