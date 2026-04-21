@@ -39,25 +39,27 @@ final class PostProcessNodeSync {
     private static void pushUniforms(String effectId, String spec) {
         if (spec == null || spec.isBlank()) return;
         for (String entry : spec.split(";")) {
-            String s = entry.trim();
-            if (s.isEmpty()) continue;
-            int eq = s.indexOf('=');
-            if (eq <= 0 || eq == s.length() - 1) continue;
-            String key = s.substring(0, eq).trim();
+            int eq = entry.indexOf('=');
+            if (eq <= 0) continue;
+            String key = entry.substring(0, eq).trim();
             if (key.isEmpty()) continue;
-            String[] parts = s.substring(eq + 1).trim().split(",");
-            float[] vals = new float[parts.length];
-            boolean ok = true;
-            for (int i = 0; i < parts.length; i++) {
-                try {
-                    vals[i] = Float.parseFloat(parts[i].trim());
-                } catch (NumberFormatException e) {
-                    ok = false;
-                    break;
-                }
-            }
-            if (!ok || vals.length == 0 || vals.length > 4) continue;
+            float[] vals = parseFloats(entry.substring(eq + 1));
+            if (vals == null) continue;
             PostProcessService.INSTANCE.setUniform(effectId, key, vals);
         }
+    }
+
+    private static float[] parseFloats(String csv) {
+        String[] parts = csv.trim().split(",");
+        if (parts.length == 0 || parts.length > 4) return null;
+        float[] out = new float[parts.length];
+        for (int i = 0; i < parts.length; i++) {
+            try {
+                out[i] = Float.parseFloat(parts[i].trim());
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return out;
     }
 }
