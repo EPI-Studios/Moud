@@ -8,6 +8,11 @@ import com.moud.client.fabric.util.ClientDebugLog;
 import com.moud.core.physics.CollisionGeometry;
 import com.moud.core.util.ParseUtils;
 import com.moud.net.protocol.*;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.client.world.ClientWorld;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -34,7 +39,7 @@ public final class ClientPhysicsWorld {
 
     private long cachedSceneVersion = Long.MIN_VALUE;
     private long cachedCsgFingerprint = Long.MIN_VALUE;
-    private final List<Integer> csgBodyIds = new ArrayList<>();
+    private final IntArrayList csgBodyIds = new IntArrayList();
     private final Map<Long, List<CollisionGeometry>> hullsByNode = new ConcurrentHashMap<>();
 
     public record SweepHit(double fraction, double nx, double ny, double nz) {}
@@ -139,17 +144,20 @@ public final class ClientPhysicsWorld {
         if (terrain != null && onRenderThread("clearTerrain")) terrain.clear();
     }
 
-    public Optional<SweepHit> sweepCapsuleHorizontal(double x, double y, double z, double r, double h, double dx, double dz) {
-        if (system == null || !onRenderThread("sweepCapsuleHorizontal") || dx * dx + dz * dz <= 1e-10) return Optional.empty();
+    public Optional<SweepHit> sweepCapsule(double x, double y, double z, double r, double h, double dx, double dy, double dz) {
+        if (system == null || !onRenderThread("sweepCapsule") || dx * dx + dy * dy + dz * dz <= 1e-10) return Optional.empty();
 
         float halfH = (float) Math.max(MIN_CAPSULE_HALF_HEIGHT, h * 0.5 - r);
-        if (!JoltSafety.checkExtents("CapsuleShape", halfH + 1e-6f, (float) r) || !JoltSafety.checkVector("sweepCapsuleHorizontal", x, y, z, dx, dz)) return Optional.empty();
+        if (!JoltSafety.checkExtents("CapsuleShape", halfH + 1e-6f, (float) r)
+                || !JoltSafety.checkVector("sweepCapsule", x, y, z, dx, dy, dz)) {
+            return Optional.empty();
+        }
 
-        JoltSafety.breadcrumb("sweepCapsuleHorizontal", "pos=" + x + "," + y + "," + z, "r=" + r, "h=" + h, "d=" + dx + "," + dz);
+        JoltSafety.breadcrumb("sweepCapsule", "pos=" + x + "," + y + "," + z, "r=" + r, "h=" + h, "d=" + dx + "," + dy + "," + dz);
 
         try (var shape = new CapsuleShape(halfH, (float) r);
              var start = RMat44.sTranslation(new RVec3(x, y + h * 0.5, z));
-             var cast = new RShapeCast(shape, new Vec3(1f, 1f, 1f), start, new Vec3((float) dx, 0f, (float) dz));
+             var cast = new RShapeCast(shape, new Vec3(1f, 1f, 1f), start, new Vec3((float) dx, (float) dy, (float) dz));
              var settings = new ShapeCastSettings();
              var collector = new AllHitCastShapeCollector()) {
 
@@ -163,20 +171,32 @@ public final class ClientPhysicsWorld {
             for (int i = 0; i < collector.countHits(); i++) {
                 try (var hit = collector.get(i)) {
                     var axis = hit.getPenetrationAxis();
-                    double nx = axis != null ? axis.getX() : 0;
-                    double ny = axis != null ? axis.getY() : 0;
-                    double nz = axis != null ? axis.getZ() : 0;
+                    double nx = axis != null ? axis.getX() : 0.0;
+                    double ny = axis != null ? axis.getY() : 0.0;
+                    double nz = axis != null ? axis.getZ() : 0.0;
+                    double lenSq = nx * nx + ny * ny + nz * nz;
+                    if (lenSq <= 1e-10) continue;
 
-                    if (nx * nx + nz * nz < 0.0025) continue;
-
-                    double lenXz = Math.sqrt(nx * nx + nz * nz);
-                    return Optional.of(new SweepHit(hit.getFraction(), nx / lenXz, ny, nz / lenXz));
+                    double invLen = 1.0 / Math.sqrt(lenSq);
+                    nx *= invLen;
+                    ny *= invLen;
+                    nz *= invLen;
+                    if (nx * dx + ny * dy + nz * dz > 0.0) {
+                        nx = -nx;
+                        ny = -ny;
+                        nz = -nz;
+                    }
+                    return Optional.of(new SweepHit(hit.getFraction(), nx, ny, nz));
                 }
             }
             return Optional.empty();
         } catch (Throwable ignored) {
             return Optional.empty();
         }
+    }
+
+    public Optional<SweepHit> sweepCapsuleHorizontal(double x, double y, double z, double r, double h, double dx, double dz) {
+        return sweepCapsule(x, y, z, r, h, dx, 0.0, dz);
     }
 
     public Optional<Double> raycastFloor(double x, double startY, double z, double maxDist) {
@@ -242,8 +262,8 @@ public final class ClientPhysicsWorld {
         destroyCsgBodies();
         if (nodes == null || nodes.isEmpty()) return;
 
-        Map<Long, float[]> locals = new HashMap<>(nodes.size() * 2);
-        Map<Long, long[]> parents = new HashMap<>(nodes.size() * 2);
+        Long2ObjectMap<float[]> locals = new Long2ObjectOpenHashMap<>(nodes.size() * 2);
+        Long2ObjectMap<long[]> parents = new Long2ObjectOpenHashMap<>(nodes.size() * 2);
 
         for (var node : nodes) {
             if (node == null || node.nodeId() <= 0) continue;
@@ -251,8 +271,8 @@ public final class ClientPhysicsWorld {
             parents.put(node.nodeId(), new long[]{node.parentId(), parseInherit(node) ? 1L : 0L});
         }
 
-        Map<Long, float[]> cache = new HashMap<>();
-        Set<Long> visiting = new HashSet<>();
+        Long2ObjectMap<float[]> cache = new Long2ObjectOpenHashMap<>();
+        LongSet visiting = new LongOpenHashSet();
         var tQ = new Quaternionf();
         var tV = new Vector3f();
 
@@ -310,6 +330,23 @@ public final class ClientPhysicsWorld {
                 );
             }
 
+            int[] idx = hull.indices();
+            boolean useTrimesh = idx != null && idx.length >= 3 && idx.length % 3 == 0;
+
+            if (useTrimesh) {
+                IndexedTriangle[] tris = new IndexedTriangle[idx.length / 3];
+                for (int t = 0; t < tris.length; t++) {
+                    tris[t] = new IndexedTriangle(idx[t * 3], idx[t * 3 + 1], idx[t * 3 + 2], 0);
+                }
+                try (var shs = new MeshShapeSettings(pts, tris);
+                     var bcs = new BodyCreationSettings(shs, new RVec3(w[0], w[1], w[2]), Quat.sIdentity(), EMotionType.Static, LAYER_STATIC)) {
+                    int id = bodies.createAndAddBody(bcs, EActivation.DontActivate);
+                    if (id != Jolt.cInvalidBodyId) csgBodyIds.add(id);
+                    else ClientDebugLog.warn("physics-jolt", "trimesh body create failed");
+                } catch (Throwable ignored) {}
+                continue;
+            }
+
             try (var shs = new ConvexHullShapeSettings(Arrays.asList(pts));
                  var bcs = new BodyCreationSettings(shs, new RVec3(w[0], w[1], w[2]), Quat.sIdentity(), EMotionType.Static, LAYER_STATIC)) {
                 int id = bodies.createAndAddBody(bcs, EActivation.DontActivate);
@@ -323,17 +360,20 @@ public final class ClientPhysicsWorld {
         if (csgBodyIds.isEmpty()) return;
         JoltSafety.breadcrumb("destroyCsgBodies", "count=" + csgBodyIds.size());
 
-        for (int id : csgBodyIds) {
+        for (int i = 0, n = csgBodyIds.size(); i < n; i++) {
+            int id = csgBodyIds.getInt(i);
             if (id == Jolt.cInvalidBodyId) continue;
             try { bodies.removeBody(id); bodies.destroyBody(id); } catch (Throwable ignored) {}
         }
         csgBodyIds.clear();
     }
 
-    private static void computeWorld(long id, Map<Long, float[]> locals, Map<Long, long[]> parents, Map<Long, float[]> cache, Set<Long> visiting, Quaternionf tQ, Vector3f tV) {
+    private static final float[] IDENTITY_LOCAL = {0, 0, 0, 0, 0, 0, 1, 1, 1, 1};
+
+    private static void computeWorld(long id, Long2ObjectMap<float[]> locals, Long2ObjectMap<long[]> parents, Long2ObjectMap<float[]> cache, LongSet visiting, Quaternionf tQ, Vector3f tV) {
         if (cache.containsKey(id)) return;
 
-        float[] loc = locals.getOrDefault(id, new float[]{0, 0, 0, 0, 0, 0, 1, 1, 1, 1});
+        float[] loc = locals.getOrDefault(id, IDENTITY_LOCAL);
         long[] pInfo = parents.get(id);
         long pId = pInfo != null ? pInfo[0] : 0L;
         boolean inherit = pInfo != null && pInfo[1] != 0L;
@@ -388,11 +428,11 @@ public final class ClientPhysicsWorld {
             x += sx * 0.5f; y += sy * 0.5f; z += sz * 0.5f;
         }
 
-        var q = new Quaternionf()
-                .rotationZ((float) Math.toRadians(rz))
-                .mul(new Quaternionf().rotationY((float) Math.toRadians(ry)))
-                .mul(new Quaternionf().rotationX((float) Math.toRadians(rx)))
-                .normalize();
+        var q = new Quaternionf().rotationZYX(
+                (float) Math.toRadians(rz),
+                (float) Math.toRadians(ry),
+                (float) Math.toRadians(rx)
+        ).normalize();
 
         return new float[]{x, y, z, q.x, q.y, q.z, q.w, sx, sy, sz};
     }
