@@ -28,6 +28,12 @@ public final class Model3DRenderer {
     private static final float INV16 = 1f / 16f;
     private static final Map<Long, ModelInstance> instances = new HashMap<>();
 
+    // render-thread scratch, consumers either copy or use transiently inside the lambda
+    private static final Matrix4f SCRATCH_CUBE = new Matrix4f();
+    private static final Quaternionf SCRATCH_ROT = new Quaternionf();
+    private static final Matrix4f SCRATCH_VISIT_ROOT = new Matrix4f();
+    private static final Vector3f SCRATCH_NORMAL = new Vector3f();
+
     private Model3DRenderer() {}
 
     @FunctionalInterface
@@ -89,7 +95,7 @@ public final class Model3DRenderer {
 
         AnimationClip clip = asset.animations().get(inst.currentAnim());
         float animTime = inst.currentTime(clip);
-        Matrix4f root = new Matrix4f().scaling(INV16);
+        Matrix4f root = SCRATCH_VISIT_ROOT.identity().scaling(INV16);
         for (BoneNode bone : asset.rootBones()) {
             visitBoneTransforms(bone, clip, animTime, root, consumer);
         }
@@ -123,7 +129,7 @@ public final class Model3DRenderer {
                 .translate(posX, posY, posZ)
                 .translate(px, py, pz);
         if (rotX != 0 || rotY != 0 || rotZ != 0) {
-            boneMatrix.rotate(new Quaternionf().rotationZYX(
+            boneMatrix.rotate(SCRATCH_ROT.rotationZYX(
                     (float) Math.toRadians(rotZ),
                     (float) Math.toRadians(rotY),
                     (float) Math.toRadians(rotX)
@@ -151,10 +157,10 @@ public final class Model3DRenderer {
         float sy = (cube.toY() - cube.fromY()) + inflate * 2f;
         float sz = (cube.toZ() - cube.fromZ()) + inflate * 2f;
 
-        Matrix4f matrix = new Matrix4f(boneMatrix);
+        Matrix4f matrix = SCRATCH_CUBE.set(boneMatrix);
         if (cube.rotX() != 0 || cube.rotY() != 0 || cube.rotZ() != 0) {
             matrix.translate(cube.originX(), cube.originY(), cube.originZ());
-            matrix.rotate(new Quaternionf().rotationZYX(
+            matrix.rotate(SCRATCH_ROT.rotationZYX(
                     (float) Math.toRadians(cube.rotZ()),
                     (float) Math.toRadians(cube.rotY()),
                     (float) Math.toRadians(cube.rotX())
@@ -191,7 +197,7 @@ public final class Model3DRenderer {
         matrices.translate(posX, posY, posZ);
         matrices.translate(px, py, pz);
         if (rotX != 0 || rotY != 0 || rotZ != 0) {
-            matrices.multiply(new Quaternionf().rotationZYX(
+            matrices.multiply(SCRATCH_ROT.rotationZYX(
                     (float) Math.toRadians(rotZ),
                     (float) Math.toRadians(rotY),
                     (float) Math.toRadians(rotX)
@@ -227,7 +233,7 @@ public final class Model3DRenderer {
         matrices.push();
         if (rotated) {
             matrices.translate(c.originX(), c.originY(), c.originZ());
-            matrices.multiply(new Quaternionf().rotationZYX(
+            matrices.multiply(SCRATCH_ROT.rotationZYX(
                     (float) Math.toRadians(c.rotZ()),
                     (float) Math.toRadians(c.rotY()),
                     (float) Math.toRadians(c.rotX())
@@ -262,7 +268,7 @@ public final class Model3DRenderer {
 
         float ex = m.x1() - m.x0(), ey = m.y1() - m.y0(), ez = m.z1() - m.z0();
         float fx = m.x2() - m.x0(), fy = m.y2() - m.y0(), fz = m.z2() - m.z0();
-        Vector3f normal = new Vector3f(
+        Vector3f normal = SCRATCH_NORMAL.set(
                 ey * fz - ez * fy,
                 ez * fx - ex * fz,
                 ex * fy - ey * fx
@@ -306,7 +312,7 @@ public final class Model3DRenderer {
         float rW = asset.resWidth(), rH = asset.resHeight();
         float[] uv = uvRotated(face.u1() / rW, face.v1() / rH, face.u2() / rW, face.v2() / rH, face.rotation());
         int overlay = OverlayTexture.DEFAULT_UV;
-        Vector3f normal = new Vector3f(nx, ny, nz);
+        Vector3f normal = SCRATCH_NORMAL.set(nx, ny, nz);
         entry.getNormalMatrix().transform(normal).normalize();
 
         vertex(vc, entry, x0, y0, z0, uv[0], uv[1], light, overlay, normal.x, normal.y, normal.z);
