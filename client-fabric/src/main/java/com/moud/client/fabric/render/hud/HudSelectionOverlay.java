@@ -24,13 +24,46 @@ public final class HudSelectionOverlay {
     );
 
     private static final int HANDLE_SIZE = 10;
-    private static final int BORDER_ARGB = 0xFFFFBB33;
-    private static final int HANDLE_FILL_ARGB = 0xFFFFBB33;
-    private static final int HANDLE_BORDER_ARGB = 0xFF202020;
-    private static final int ROT_HANDLE_ARGB = 0xFF66CCFF;
+    private static final int BORDER_ARGB = 0xFF5C9121;
+    private static final int HANDLE_FILL_ARGB = 0xFFFFFFFF;
+    private static final int HANDLE_BORDER_ARGB = 0xFF5C9121;
+    private static final int ROT_HANDLE_ARGB = 0xFF7BCC2E;
     private static final int ROT_OFFSET_PX = 22;
 
     private enum Handle { NONE, BODY, NW, N, NE, E, SE, S, SW, W, ROT }
+
+    private static long cursorArrow, cursorMove, cursorHResize, cursorVResize, cursorNwseResize, cursorNeswResize, cursorCrosshair;
+    private static boolean cursorsInitialised;
+    private static long lastSetCursor;
+
+    private static void ensureCursors(long window) {
+        if (cursorsInitialised || window == 0L) return;
+        cursorsInitialised = true;
+        cursorArrow      = GLFW.glfwCreateStandardCursor(GLFW.GLFW_ARROW_CURSOR);
+        cursorMove       = GLFW.glfwCreateStandardCursor(GLFW.GLFW_HAND_CURSOR);
+        cursorHResize    = GLFW.glfwCreateStandardCursor(GLFW.GLFW_HRESIZE_CURSOR);
+        cursorVResize    = GLFW.glfwCreateStandardCursor(GLFW.GLFW_VRESIZE_CURSOR);
+        cursorNwseResize = GLFW.glfwCreateStandardCursor(GLFW.GLFW_RESIZE_NWSE_CURSOR);
+        cursorNeswResize = GLFW.glfwCreateStandardCursor(GLFW.GLFW_RESIZE_NESW_CURSOR);
+        cursorCrosshair  = GLFW.glfwCreateStandardCursor(GLFW.GLFW_CROSSHAIR_CURSOR);
+    }
+
+    private static void applyHandleCursor(long window, Handle h) {
+        ensureCursors(window);
+        long cursor = switch (h) {
+            case BODY -> cursorMove;
+            case N, S -> cursorVResize;
+            case E, W -> cursorHResize;
+            case NW, SE -> cursorNwseResize;
+            case NE, SW -> cursorNeswResize;
+            case ROT -> cursorCrosshair;
+            default -> cursorArrow;
+        };
+        if (cursor != 0L && cursor != lastSetCursor) {
+            GLFW.glfwSetCursor(window, cursor);
+            lastSetCursor = cursor;
+        }
+    }
 
     private static long dragNodeId = 0L;
     private static Handle dragHandle = Handle.NONE;
@@ -101,6 +134,36 @@ public final class HudSelectionOverlay {
         return true;
     }
 
+    public static void updateHoverCursor(double mx, double my) {
+        var ctx = EditorOverlayBus.get();
+        if (ctx == null || !ctx.isActive() || !ctx.isMouseOverViewport(mx, my)) {
+            resetCursor();
+            return;
+        }
+        long selId = ctx.selectedNodeId();
+        var target = findControlTarget(selId);
+        Handle h = Handle.NONE;
+        if (dragHandle != Handle.NONE) {
+            h = dragHandle;
+        } else if (target != null) {
+            var rect = resolveAbsoluteRect(target);
+            if (rect != null) h = hitTest(rect, (int) mx, (int) my);
+        }
+        long window = MinecraftClient.getInstance().getWindow().getHandle();
+        if (h == Handle.NONE) resetCursor();
+        else applyHandleCursor(window, h);
+    }
+
+    private static void resetCursor() {
+        if (lastSetCursor == 0L) return;
+        long window = MinecraftClient.getInstance().getWindow().getHandle();
+        ensureCursors(window);
+        if (cursorArrow != 0L) {
+            GLFW.glfwSetCursor(window, cursorArrow);
+            lastSetCursor = cursorArrow;
+        }
+    }
+
     private static long pickControlAt(double mx, double my) {
         var rects = HudCanvasRenderer.lastControlRects;
         if (rects == null || rects.isEmpty()) return 0L;
@@ -119,6 +182,52 @@ public final class HudSelectionOverlay {
             }
         }
         return bestId;
+    }
+
+    private static boolean pBracketLeft, pBracketRight;
+
+    public static void handleZOrderShortcuts(long window) {
+        var ctx = EditorOverlayBus.get();
+        if (ctx == null || !ctx.isActive() || (ctx.overlay() != null && ctx.overlay().isAnyTextFieldFocused())) {
+            pBracketLeft = pBracketRight = false;
+            return;
+        }
+        var target = findControlTarget(ctx.selectedNodeId());
+        if (target == null) {
+            pBracketLeft = pBracketRight = false;
+            return;
+        }
+        boolean bl = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_BRACKET) == GLFW.GLFW_PRESS;
+        boolean br = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_BRACKET) == GLFW.GLFW_PRESS;
+        boolean shift = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
+                || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+
+        boolean leftEdge = bl && !pBracketLeft;
+        boolean rightEdge = br && !pBracketRight;
+        pBracketLeft = bl; pBracketRight = br;
+
+        if (!leftEdge && !rightEdge) return;
+
+        var state = ctx.overlay() != null && ctx.overlay().getRuntime() != null
+                ? ctx.overlay().getRuntime().state() : null;
+        if (state == null || state.scene == null) return;
+        long parentId = target.parentId();
+        var siblings = state.scene.childrenOf(parentId);
+        if (siblings == null || siblings.isEmpty()) return;
+        int currentIdx = -1;
+        for (int i = 0; i < siblings.size(); i++) {
+            if (siblings.get(i).nodeId() == target.nodeId()) { currentIdx = i; break; }
+        }
+        if (currentIdx < 0) return;
+
+        int newIdx;
+        if (leftEdge) newIdx = shift ? 0 : Math.max(0, currentIdx - 1);
+        else newIdx = shift ? siblings.size() - 1 : Math.min(siblings.size() - 1, currentIdx + 1);
+        if (newIdx == currentIdx) return;
+
+        HudEditBus.pushAll(java.util.List.of(
+                new SceneOp.Reparent(target.nodeId(), parentId, newIdx)
+        ));
     }
 
     public static void handleNudgeInput(long window) {

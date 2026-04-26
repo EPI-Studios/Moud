@@ -242,11 +242,6 @@ public final class ViewportPanel extends Panel {
             return;
         }
 
-        ScriptEditorDialog scriptDialog = runtime.scriptEditorDialog();
-        if (scriptDialog != null && scriptDialog.isOpen()) {
-            scriptDialog.cancelInteractions(uiContext);
-        }
-
         var input = interactive ? ctx.ui().input() : null;
         boolean canInteract = input != null;
         float mx = canInteract ? input.mousePos().x : -1;
