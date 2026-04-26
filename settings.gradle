@@ -22,6 +22,7 @@ if (fliffelDir.exists()) {
 
 include 'core'
 include 'net'
+include 'moud-bootstrap'
 include 'client-launcher'
 include 'server-minestom'
 include 'server-supervisor'

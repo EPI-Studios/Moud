@@ -245,8 +245,7 @@ public final class PlayRuntimeClient {
         clientScriptRuntime.syncAllNodes(characterBody, inputSnapshot, cameraState);
         clientScriptRuntime.frame(dt);
         if (!Float.isNaN(cameraState.playerYaw) && client.player != null) {
-            // Only set the physics/look yaw (used by CharacterBody3D for movement direction).
-            // bodyYaw is managed by the script via body:writeFloat("rotation_y", ...).
+            // only the look yaw, body yaw is owned by scripts via rotation_y
             client.player.setYaw(cameraState.playerYaw);
         }
 
@@ -278,16 +277,18 @@ public final class PlayRuntimeClient {
         }
 
         RuntimeState st = lastServerState;
-        if (st == null) {
-            return false;
+        if (st != null) {
+            if (st.useFollowCamera()) {
+                return applyFollowCamera(accessor, st, partialTick);
+            }
+            if (st.useScriptCamera() || st.useSceneCamera()) {
+                return applySceneCamera(accessor, partialTick);
+            }
         }
 
-        if (st.useFollowCamera()) {
-            return applyFollowCamera(accessor, st, partialTick);
-        }
-        if (st.useScriptCamera() || st.useSceneCamera()) {
-            return applySceneCamera(accessor, partialTick);
-        }
+        // clear sticky third-person from a prior follow/scene cam so vanilla resumes cleanly
+        accessor.moud$setThirdPerson(false);
+        hasPrev = false;
         return false;
     }
 
@@ -340,9 +341,7 @@ public final class PlayRuntimeClient {
         double x = player.getX();
         double y = player.getY();
         double z = player.getZ();
-        // CharacterBody3D.travel already set x/y/z to the interpolated position for this frame.
-        // We set prevX/Y/Z to the same value to disable vanilla interpolation, otherwise
-        // it would try to lerp between render frames using tickDelta (20 Hz), causing jitter.
+        // pin prev to current so vanilla doesnt lerp at 20hz on top of our per-frame pose
         player.prevX = x;
         player.prevY = y;
         player.prevZ = z;

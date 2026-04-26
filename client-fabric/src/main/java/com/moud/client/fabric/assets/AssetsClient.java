@@ -21,6 +21,8 @@ import com.moud.net.protocol.AssetUploadComplete;
 import com.moud.net.protocol.Message;
 import com.moud.net.session.Session;
 import com.moud.net.transport.Lane;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -30,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public final class AssetsClient {
+    private static final Logger LOGGER = LoggerFactory.getLogger("MoudAssets");
     public static final int CHUNK_BYTES = 256 * 1024;
     private static final int MAX_CHUNKS_PER_TICK = 2;
 
@@ -215,11 +218,14 @@ public final class AssetsClient {
         if (begin.hash() == null) {
             return;
         }
+        LOGGER.info("[Moud] download-begin hash={} status={} size={}",
+                begin.hash().hex().substring(0, 8), begin.status(), begin.sizeBytes());
         ClientDebugLog.debug("Assets recv download-begin hash=" + begin.hash().hex()
                 + " status=" + begin.status()
                 + " size=" + begin.sizeBytes());
         DownloadTask task = downloads.get(begin.hash());
         if (task == null) {
+            LOGGER.warn("[Moud] download-begin: NO MATCHING TASK for hash={}", begin.hash().hex().substring(0, 8));
             return;
         }
         task.status = begin.status();
@@ -235,6 +241,10 @@ public final class AssetsClient {
     private void onDownloadChunk(AssetDownloadChunk chunk) {
         DownloadTask task = downloads.get(chunk.hash());
         if (task == null || task.buffer == null) {
+            LOGGER.warn("[Moud] download-chunk DROPPED hash={} idx={} bytes={} (task={} buffer={})",
+                    chunk.hash().hex().substring(0, 8), chunk.index(), chunk.bytes().length,
+                    task == null ? "null" : "ok",
+                    task == null ? "null" : (task.buffer == null ? "null" : "ok"));
             return;
         }
         task.buffer.writeBytes(chunk.bytes());
@@ -245,10 +255,14 @@ public final class AssetsClient {
         if (hash == null) {
             return;
         }
+        DownloadTask task = downloads.remove(hash);
+        int receivedBytes = task == null || task.buffer == null ? -1 : task.buffer.size();
+        long expectedBytes = task == null ? -1 : task.expectedSize;
+        LOGGER.info("[Moud] download-complete hash={} status={} received={}/{} bytes",
+                hash.hex().substring(0, 8), complete.status(), receivedBytes, expectedBytes);
         ClientDebugLog.debug("Assets recv download-complete hash=" + hash.hex()
                 + " status=" + complete.status()
                 + " message=" + complete.message());
-        DownloadTask task = downloads.remove(hash);
         if (task == null) {
             return;
         }

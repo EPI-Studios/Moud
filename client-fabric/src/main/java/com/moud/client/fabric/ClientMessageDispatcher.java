@@ -18,6 +18,10 @@ import com.moud.net.protocol.CursorState;
 import com.moud.net.protocol.EditorDiagnosticEvent;
 import com.moud.net.protocol.Message;
 import com.moud.net.protocol.MultiMeshData;
+import com.moud.net.protocol.MeshPublish;
+import com.moud.net.protocol.MeshGeneratorPublish;
+import com.moud.client.fabric.render.mesh.cache.MeshPublishReassembler;
+import com.moud.client.fabric.render.mesh.generate.ClientMeshGenerator;
 import com.moud.net.protocol.PlayReady;
 import com.moud.net.protocol.PlayerClientState;
 import com.moud.net.protocol.PlayerMotion;
@@ -128,6 +132,10 @@ final class ClientMessageDispatcher {
             MinecraftGhostBlocks.get().onAck(ack);
         } else if (message instanceof MultiMeshData mmData) {
             InstanceDataStore.accumulate(mmData.nodeId(), mmData.offset(), mmData.total(), mmData.data());
+        } else if (message instanceof MeshPublish meshPub) {
+            MeshPublishReassembler.onPublish(meshPub);
+        } else if (message instanceof MeshGeneratorPublish meshGen) {
+            ClientMeshGenerator.onPublish(meshGen);
         } else if (message instanceof CollisionGeometrySnapshot cg) {
             ClientPhysicsWorld.onCollisionGeometry(cg);
             VeilSceneNodeRenderer.onCollisionGeometry(cg);

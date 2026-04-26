@@ -59,6 +59,7 @@ public final class WorldEnvironmentClient {
         float skySunriseG = Math.max(0.0f, Math.min(1.0f, ParseUtils.parseFloat(stringProp(env, "sky_color_sunrise_g"), 0.4f)));
         float skySunriseB = Math.max(0.0f, Math.min(1.0f, ParseUtils.parseFloat(stringProp(env, "sky_color_sunrise_b"), 0.2f)));
         float skySunriseStrength = Math.max(0.0f, Math.min(1.0f, ParseUtils.parseFloat(stringProp(env, "sky_color_sunrise_strength"), 1.0f)));
+        float ambientLight = Math.max(0.0f, Math.min(1.0f, ParseUtils.parseFloat(stringProp(env, "ambient_light"), 1.0f)));
 
         String cloudsMode = defaulted(stringProp(env, "clouds_mode"), "vanilla");
         String cloudsShader = defaulted(stringProp(env, "clouds_shader"), "");
@@ -86,6 +87,7 @@ public final class WorldEnvironmentClient {
                 skySunriseG,
                 skySunriseB,
                 skySunriseStrength,
+                ambientLight,
                 Mode.parse(cloudsMode),
                 cloudsShader,
                 cloudsMaterial,
@@ -147,6 +149,7 @@ public final class WorldEnvironmentClient {
             float skySunriseG,
             float skySunriseB,
             float skySunriseStrength,
+            float ambientLight,
             Mode cloudsMode,
             String cloudsShader,
             String cloudsMaterial,
@@ -170,6 +173,7 @@ public final class WorldEnvironmentClient {
                     1.0f,
                     0.4f,
                     0.2f,
+                    1.0f,
                     1.0f,
                     Mode.VANILLA,
                     "",
