@@ -28,6 +28,7 @@ java {
 
 tasks.withType(JavaCompile).configureEach {
     options.release = serverJavaVersion.get()
+    options.compilerArgs += ["-parameters"]
     if (luauEnabled.get()) {
         options.compilerArgs += ["--enable-preview"]
     }

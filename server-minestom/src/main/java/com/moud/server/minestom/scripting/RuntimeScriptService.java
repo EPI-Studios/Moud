@@ -7,12 +7,30 @@ import com.moud.net.protocol.Message;
 import com.moud.net.protocol.MultiMeshData;
 import com.moud.net.protocol.PlayerClientState;
 import com.moud.net.transport.Lane;
+import com.moud.server.minestom.scripting.api.modules.CameraApi;
+import com.moud.server.minestom.scripting.api.modules.CursorApi;
+import com.moud.server.minestom.scripting.api.modules.HttpApi;
+import com.moud.server.minestom.scripting.api.modules.MeshApi;
+import com.moud.server.minestom.scripting.api.modules.MessagingApi;
+import com.moud.server.minestom.scripting.api.modules.NetApi;
+import com.moud.server.minestom.scripting.api.modules.NodeApi;
+import com.moud.server.minestom.scripting.api.modules.ParticlesApi;
+import com.moud.server.minestom.scripting.api.modules.PersistApi;
+import com.moud.server.minestom.scripting.api.modules.PhysicsApi;
+import com.moud.server.minestom.scripting.api.modules.PlayerApi;
+import com.moud.server.minestom.scripting.api.modules.SceneApi;
+import com.moud.server.minestom.scripting.api.modules.mesh.ArrayMeshHandle;
+import com.moud.server.minestom.scripting.api.modules.mesh.MeshBuilderHandle;
+import com.moud.server.minestom.scripting.api.modules.mesh.NoiseHandle;
+import com.moud.server.minestom.scripting.api.modules.mesh.SurfaceHandle;
+import com.moud.server.minestom.scripting.api.modules.mesh.SurfaceToolHandle;
 import com.moud.server.minestom.scripting.java.JavaStubGenerator;
 import com.moud.server.minestom.scripting.lang.RuntimeScriptKeys;
 import com.moud.server.minestom.scripting.lang.ScriptLanguageRegistry;
 import com.moud.server.minestom.scripting.lang.ScriptLanguageSupport;
 import com.moud.server.minestom.scripting.lang.ScriptPaths;
 import com.moud.server.minestom.scripting.player.PlayerInputState;
+import com.moud.server.minestom.scripting.luau.ServerLuauExportRegistry;
 import com.moud.server.minestom.scripting.luau.ServerLuauTypeGenerator;
 import com.moud.server.minestom.scripting.typescript.ScriptTypeGenerator;
 import com.moud.net.protocol.PlayerInput;
@@ -101,7 +119,28 @@ final class RuntimeScriptService {
         }
     }
 
+    private static void registerLuauExports() {
+        ServerLuauExportRegistry.register(NodeApi.class);
+        ServerLuauExportRegistry.register(SceneApi.class);
+        ServerLuauExportRegistry.register(PhysicsApi.class);
+        ServerLuauExportRegistry.register(PlayerApi.class);
+        ServerLuauExportRegistry.register(CameraApi.class);
+        ServerLuauExportRegistry.register(CursorApi.class);
+        ServerLuauExportRegistry.register(MessagingApi.class);
+        ServerLuauExportRegistry.register(NetApi.class);
+        ServerLuauExportRegistry.register(ParticlesApi.class);
+        ServerLuauExportRegistry.register(PersistApi.class);
+        ServerLuauExportRegistry.register(HttpApi.class);
+        ServerLuauExportRegistry.register(MeshApi.class);
+        ServerLuauExportRegistry.register(ArrayMeshHandle.class);
+        ServerLuauExportRegistry.register(MeshBuilderHandle.class);
+        ServerLuauExportRegistry.register(NoiseHandle.class);
+        ServerLuauExportRegistry.register(SurfaceHandle.class);
+        ServerLuauExportRegistry.register(SurfaceToolHandle.class);
+    }
+
     private static void generateTypeDeclarations(NodeTypeRegistry registry, ProjectService project) {
+        registerLuauExports();
         Path typesDir = project.projectRoot().resolve("types");
         try {
             new ServerLuauTypeGenerator(registry).generate(
