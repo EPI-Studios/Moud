@@ -9,7 +9,9 @@ public final class PlayLoadingOverlay {
 
     private static final Identifier PATTERN = Identifier.of("moud", "textures/gui/loading_pattern.png");
     private static final int TILE = 64;
-    private static final float SCROLL_PX_PER_SEC = 28f;
+    private static final float SCROLL_BASE_PX_PER_SEC = 28f;
+    private static final float SCROLL_MAX_PX_PER_SEC = 112f;
+    private static final float SCROLL_ACCEL_TAU_SEC = 1.7f;
 
     private static final int BG_ARGB = 0xFF16181C;
     private static final int TITLE_COLOR = 0xFFFFFFFF;
@@ -32,8 +34,9 @@ public final class PlayLoadingOverlay {
 
         ctx.fill(0, 0, w, h, BG_ARGB);
 
-        float seconds = (System.currentTimeMillis() - EPOCH) / 1000f;
-        float scroll = seconds * SCROLL_PX_PER_SEC;
+        float wallSeconds = (System.currentTimeMillis() - EPOCH) / 1000f;
+        float loadSeconds = PlayLoading.elapsedSeconds();
+        float scroll = wallSeconds * SCROLL_BASE_PX_PER_SEC + acceleratedScroll(loadSeconds);
         float offX = -(scroll % TILE);
         float offY = -(scroll % TILE);
 
@@ -61,7 +64,7 @@ public final class PlayLoadingOverlay {
             int titleH = (int) (9 * scale);
             int lineGap = Math.max(8, Math.round(scale * 2.2f));
 
-            int statusDots = ((int) (seconds * 2.5f) % 4);
+            int statusDots = ((int) (wallSeconds * 2.5f) % 4);
             StringBuilder dots = new StringBuilder();
             for (int i = 0; i < statusDots; i++) dots.append('.');
             String statusLine = PlayLoading.currentSummary() + dots;
@@ -95,6 +98,14 @@ public final class PlayLoadingOverlay {
         float viewportScale = height / 240f;
         float fitScale = availableWidth / (float) Math.max(1, tr.getWidth(title));
         return clamp(Math.min(viewportScale, fitScale), TITLE_SCALE_MIN, TITLE_SCALE_MAX);
+    }
+
+    private static float acceleratedScroll(float seconds) {
+        if (seconds <= 0.0f) return 0.0f;
+        double t = seconds / SCROLL_ACCEL_TAU_SEC;
+        double extraSpeed = SCROLL_MAX_PX_PER_SEC - SCROLL_BASE_PX_PER_SEC;
+        double distance = extraSpeed * (seconds + SCROLL_ACCEL_TAU_SEC * Math.exp(-t) - SCROLL_ACCEL_TAU_SEC);
+        return (float) Math.max(0.0, distance);
     }
 
     private static float clamp(float value, float min, float max) {

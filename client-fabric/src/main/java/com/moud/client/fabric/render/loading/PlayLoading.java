@@ -9,6 +9,7 @@ public final class PlayLoading {
     public record Entry(String id, String label) { }
 
     private static final long MIN_DURATION_MS = 800L;
+    private static final long MAX_DURATION_MS = 30_000L;
 
     private static volatile boolean active = false;
     private static volatile boolean serverReady = false;
@@ -85,9 +86,17 @@ public final class PlayLoading {
 
     public static boolean isActive() {
         if (!active) return false;
-        boolean workDone = serverReady && queue.isEmpty();
-        if (!workDone) return true;
         long elapsed = System.currentTimeMillis() - beginTimeMs;
+        boolean workDone = serverReady && queue.isEmpty();
+        if (!workDone) {
+            if (elapsed >= MAX_DURATION_MS) {
+                queue.clear();
+                serverReady = true;
+                finishNow();
+                return false;
+            }
+            return true;
+        }
         if (elapsed < MIN_DURATION_MS) return true;
         finishNow();
         return false;
@@ -107,6 +116,11 @@ public final class PlayLoading {
 
     public static String gameName() {
         return gameName;
+    }
+
+    public static float elapsedSeconds() {
+        if (!active || beginTimeMs <= 0L) return 0.0f;
+        return Math.max(0L, System.currentTimeMillis() - beginTimeMs) / 1000.0f;
     }
 
     public static void addReadyListener(Runnable listener) {
