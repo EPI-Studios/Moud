@@ -100,8 +100,9 @@ jobs:
       - name: Build artifacts
         run: |
           ./gradlew \
+            :moud-bootstrap:remapJar \
             :client-launcher:shadowJar \
-            :client-fabric:remapJar \
+            :client-fabric:remapRuntimeJar \
             :server-minestom:shadowJar \
             :server-supervisor:shadowJar \
             -Pmoud.server.enableLuau=true \
@@ -116,13 +117,17 @@ jobs:
           VERSION="${{ steps.meta.outputs.version }}"
           TAG="${{ steps.meta.outputs.tag }}"
 
-          CLIENT_JAR="$(find client-fabric/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' | sort | head -n1)"
+          CLIENT_JAR="$(find client-fabric/build/libs -maxdepth 1 -type f -name '*-runtime.jar' ! -name '*-sources.jar' | sort | head -n1)"
+          BOOTSTRAP_JAR="$(find moud-bootstrap/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' | sort | head -n1)"
           CLIENT_LAUNCHER_JAR="$(find client-launcher/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' | sort | head -n1)"
           SERVER_JAR="$(find server-minestom/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' ! -name '*-sources.jar' | sort | head -n1)"
           SUPERVISOR_JAR="$(find server-supervisor/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' ! -name '*-sources.jar' | sort | head -n1)"
 
           if [[ -z "${CLIENT_JAR}" || ! -f "${CLIENT_JAR}" ]]; then
             echo "Client jar not found" >&2; exit 1
+          fi
+          if [[ -z "${BOOTSTRAP_JAR}" || ! -f "${BOOTSTRAP_JAR}" ]]; then
+            echo "Bootstrap jar not found" >&2; exit 1
           fi
           if [[ -z "${CLIENT_LAUNCHER_JAR}" || ! -f "${CLIENT_LAUNCHER_JAR}" ]]; then
             echo "Client launcher jar not found" >&2; exit 1
@@ -153,6 +158,8 @@ jobs:
 
           echo "client_archive=${CLIENT_ARCHIVE}" >> "$GITHUB_OUTPUT"
           echo "server_archive=${SERVER_ARCHIVE}" >> "$GITHUB_OUTPUT"
+          cp "${BOOTSTRAP_JAR}" "dist/moud-bootstrap-${VERSION}.jar"
+          echo "bootstrap_jar=moud-bootstrap-${VERSION}.jar" >> "$GITHUB_OUTPUT"
           cp "${CLIENT_LAUNCHER_JAR}" "dist/moud-client-launcher-${VERSION}.jar"
           echo "client_launcher_jar=moud-client-launcher-${VERSION}.jar" >> "$GITHUB_OUTPUT"
 
@@ -206,6 +213,7 @@ jobs:
           files: |
             dist/${{ steps.package.outputs.client_archive }}
             dist/${{ steps.package.outputs.server_archive }}
+            dist/${{ steps.package.outputs.bootstrap_jar }}
             dist/${{ steps.package.outputs.client_launcher_jar }}
             dist/${{ steps.package.outputs.supervisor_jar }}
             dist/release.json
