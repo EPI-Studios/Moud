@@ -6,8 +6,10 @@ import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.mixin.accessor.CameraAccessor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
+import net.minecraft.entity.Entity;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.BlockView;
 import org.lwjgl.glfw.GLFW;
 
 public final class MinecraftFreeflyCamera {
@@ -218,13 +220,17 @@ public final class MinecraftFreeflyCamera {
         }
     }
 
-    public boolean applyToCamera(Camera camera) {
+    public boolean applyToCamera(Camera camera, BlockView area, Entity focusedEntity, float tickDelta) {
         if (!enabled) {
             return false;
         }
         if (!(camera instanceof CameraAccessor accessor)) {
             return false;
         }
+        accessor.moud$setReady(true);
+        accessor.moud$setArea(area);
+        accessor.moud$setFocusedEntity(focusedEntity);
+        accessor.moud$setLastTickDelta(tickDelta);
         accessor.moud$setThirdPerson(false);
         accessor.moud$setCameraPosition(pos.x, pos.y, pos.z);
         accessor.moud$setRotation((float) yaw, (float) pitch);

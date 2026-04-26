@@ -17,6 +17,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityObbGroundMixin {
     private static final double GROUND_PROBE = 0.1;
+    private static final double FLOOR_COS = Math.cos(Math.toRadians(46.0));
+    private static final double SWEEP_EPSILON = 1.0e-3;
 
     @Inject(method = "tickMovement", at = @At("RETURN"))
     private void moud$drainStaticGravity(CallbackInfo ci) {
@@ -32,10 +34,18 @@ public abstract class LivingEntityObbGroundMixin {
         Entity self = (Entity) (Object) this;
         if (self.isOnGround()) return;
         Box bb = self.getBoundingBox();
+        double hw = (bb.maxX - bb.minX) * 0.5;
+        double hh = (bb.maxY - bb.minY) * 0.5;
+        double hd = (bb.maxZ - bb.minZ) * 0.5;
+        double radius = Math.max(0.05, Math.min(hw, hd));
+        double fullHeight = Math.max(radius * 2.0 + 1e-4, hh * 2.0);
         double cx = (bb.minX + bb.maxX) * 0.5;
+        double cy = (bb.minY + bb.maxY) * 0.5;
         double cz = (bb.minZ + bb.maxZ) * 0.5;
-        var hitY = physics.raycastFloor(cx, bb.minY + 0.05, cz, GROUND_PROBE);
-        if (hitY.isPresent()) {
+        var hit = physics.sweepCapsule(cx, cy - hh, cz, radius, fullHeight, 0.0, -GROUND_PROBE, 0.0);
+        if (hit.isPresent() && hit.get().ny() >= FLOOR_COS) {
+            double snap = GROUND_PROBE * Math.max(0.0, hit.get().fraction() - SWEEP_EPSILON);
+            if (snap > 0.0) self.setPosition(self.getX(), self.getY() - snap, self.getZ());
             Vec3d v = self.getVelocity();
             if (v.y < 0) self.setVelocity(v.x, 0, v.z);
             ((EntityGroundAccessor) self).setOnGround(true);
