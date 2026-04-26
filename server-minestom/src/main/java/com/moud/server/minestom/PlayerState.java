@@ -12,5 +12,6 @@ final class PlayerState {
     long sceneSnapshotSentRevision = Long.MIN_VALUE;
     boolean editorOpen;
     boolean multiMeshSent;
+    boolean meshPublishSent;
     String collisionGeometrySentSceneId;
 }

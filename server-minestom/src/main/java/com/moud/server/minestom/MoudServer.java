@@ -30,7 +30,6 @@ import com.moud.server.minestom.scripting.ScriptFileService;
 import com.moud.server.minestom.scripting.ScriptService;
 import com.moud.server.minestom.util.DebugLog;
 import java.nio.file.Files;
-import com.moud.net.transport.Lane;
 import com.moud.server.minestom.script.ScriptMessageRouter;
 import com.moud.server.minestom.scripts.AssetPathOpsService;
 import com.moud.server.minestom.scripts.LocalScriptsMigrator;
@@ -54,6 +53,11 @@ import net.minestom.server.event.player.AsyncPlayerConfigurationEvent;
 import net.minestom.server.event.player.PlayerDisconnectEvent;
 import net.minestom.server.event.player.PlayerPluginMessageEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
+import net.minestom.server.event.server.ServerListPingEvent;
+import net.minestom.server.ping.ResponseData;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.minestom.server.instance.InstanceManager;
 
 public final class MoudServer {
@@ -157,7 +161,7 @@ public final class MoudServer {
             }
         });
 
-        scripts = new ScriptService(project, playerMessageSink);
+        scripts = new ScriptService(project, playerMessageSink, collisionBakeService.meshResolver());
         scriptFiles = new ScriptFileService(project);
         persistenceService = new PersistenceService(projectRoot);
         persistenceService.loadWorld();
@@ -243,6 +247,15 @@ public final class MoudServer {
                 playerStates
         );
         tickLoop = new ServerTickLoop(TICK_DT_SECONDS, scenes, scripts, playModeManager, connections);
+
+        events.addListener(ServerListPingEvent.class, event -> {
+            ResponseData data = event.getResponseData();
+            Component prefix = Component.text("[Moud] ")
+                    .color(NamedTextColor.AQUA)
+                    .decoration(TextDecoration.BOLD, true);
+            Component existingDesc = data.getDescription();
+            data.setDescription(existingDesc == null ? prefix : prefix.append(existingDesc));
+        });
 
         events.addListener(AsyncPlayerConfigurationEvent.class, event -> {
             event.setSpawningInstance(mainScene.instance());
