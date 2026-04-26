@@ -22,10 +22,16 @@ public final class CharacterBodySimulator {
     private static final double CHARACTER_SIMULATION_TICKS_PER_SECOND = 60.0;
     private static final int CHARACTER_SUBSTEPS = (int) (CHARACTER_SIMULATION_TICKS_PER_SECOND / CHARACTER_TICKS_PER_SECOND);
     private static final double CHARACTER_GRAVITY_PER_SECOND = 30.0;
+    private static final int MAX_SLIDES = 4;
     private static final double FLOOR_EPSILON = 1.0e-5;
+    private static final double FLOOR_COS = Math.cos(Math.toRadians(46.0));
     private static final double VECTOR_EPSILON = 1.0e-8;
     private static final double INPUT_EPSILON = 1.0e-6;
     private static final double SWEEP_EPSILON = 1.0e-3;
+    private static final double COLLISION_SKIN = 2.0e-4;
+    private static final double JUMP_LIFTOFF = 0.05;
+    private static final int JUMP_BUFFER_STEPS = CHARACTER_SUBSTEPS * 3;
+    private static final int COYOTE_STEPS = CHARACTER_SUBSTEPS * 2;
     private static final double WALL_CONTACT_DURATION_SECONDS = 0.15;
     private static final double SQRT_2_OVER_2 = Math.sqrt(2.0) / 2.0;
     private static final double[] WALL_PROBE_DIRECTIONS = {
@@ -91,40 +97,38 @@ public final class CharacterBodySimulator {
         long nodeId = node.nodeId();
         double floorSnapLength = Math.max(0.0, propNumber(node, "floor_snap_length", 0.2));
         double startX = propNumber(node, "x", 0.0);
-        double y = propNumber(node, "y", 0.0) + vy * dt;
+        double startY = propNumber(node, "y", 0.0);
         double startZ = propNumber(node, "z", 0.0);
         CharacterState state = stateFor(nodeId);
-        HorizontalMotion motion = resolveCharacterHorizontalMotion(scene, node, startX, y, startZ, vx * dt, vz * dt);
+        boolean wasOnFloor = startY <= state.floorY + FLOOR_EPSILON && vy <= 0.0;
+        CharacterMotion motion = resolveCharacterMotion(scene, node, startX, startY, startZ, vx, vy, vz, dt, floorSnapLength, wasOnFloor, false);
         double x = motion.x();
+        double y = motion.y();
         double z = motion.z();
-        FloorSnap snap = snapCharacterFloor(scene, node, x, y, z, vy, dt, floorSnapLength);
-        boolean onFloor = snap.onFloor();
-        if (onFloor) {
-            y = snap.y();
-            state.floorY = y;
-            if (vy < 0.0) {
-                vy = 0.0;
-            }
-        }
+        boolean onFloor = motion.onFloor();
+        state.floorY = onFloor ? y : Double.NEGATIVE_INFINITY;
+        double actualVx = dt > VECTOR_EPSILON ? (x - startX) / dt : 0.0;
+        double actualVy = onFloor ? 0.0 : (dt > VECTOR_EPSILON ? (y - startY) / dt : 0.0);
+        double actualVz = dt > VECTOR_EPSILON ? (z - startZ) / dt : 0.0;
 
         mutator.queueSet(nodeId, "x", RuntimeScriptUtil.trimFloat((float) x));
         mutator.queueSet(nodeId, "y", RuntimeScriptUtil.trimFloat((float) y));
         mutator.queueSet(nodeId, "z", RuntimeScriptUtil.trimFloat((float) z));
         mutator.queueSet(nodeId, "on_wall", Boolean.toString(motion.onWall()));
-        mutator.queueSet(nodeId, "on_ceiling", "false");
+        mutator.queueSet(nodeId, "on_ceiling", Boolean.toString(motion.onCeiling()));
         mutator.queueSet(nodeId, "on_floor", Boolean.toString(onFloor));
         mutator.queueSet(nodeId, "wall_normal_x", RuntimeScriptUtil.trimFloat((float) motion.wallNx()));
         mutator.queueSet(nodeId, "wall_normal_z", RuntimeScriptUtil.trimFloat((float) motion.wallNz()));
-        if (onFloor && vy == 0.0) {
+        if (onFloor) {
             mutator.queueSet(nodeId, "velocity_y", "0");
         }
 
         String ownerUuid = playerState.resolveOwnerUuidOrSinglePlayer(node);
         if (ownerUuid != null) {
-            networkSink.sendPlayerVelocity(ownerUuid, (float) vx, (float) vy, (float) vz);
+            networkSink.sendPlayerVelocity(ownerUuid, (float) actualVx, (float) actualVy, (float) actualVz);
         }
 
-        return new double[]{vx, vy, vz};
+        return new double[]{actualVx, actualVy, actualVz};
     }
 
     public boolean isOnFloor(Node node) {
@@ -186,6 +190,10 @@ public final class CharacterBodySimulator {
         frame.wallNormalX = wallNormalX;
         frame.wallNormalZ = wallNormalZ;
 
+        if (jumpDown && !state.jumpDown) {
+            state.jumpBufferSteps = JUMP_BUFFER_STEPS;
+        }
+
         for (int step = 0; step < CHARACTER_SUBSTEPS; step++) {
             frame.jumpWasDown = step == 0 ? state.jumpDown : jumpDown;
             frame.sprintWasDown = step == 0 ? state.sprintDown : sprintDown;
@@ -201,36 +209,73 @@ public final class CharacterBodySimulator {
             double vz = velocity.vz();
             double vy = frame.velocityY;
 
-            onFloor = position.y <= position.floorY + FLOOR_EPSILON && vy <= 0.0;
-            if (onFloor) {
+            onFloor = state.jumpLockSteps <= 0 && vy <= FLOOR_EPSILON
+                    && (frame.onFloorPrev || state.coyoteSteps > 0 || position.y <= position.floorY + FLOOR_EPSILON);
+            if (onFloor && Double.isFinite(position.floorY) && position.y <= position.floorY + Math.max(config.floorSnapLength(), JUMP_LIFTOFF)) {
                 position.y = position.floorY;
                 vy = 0.0;
             }
-            if ((jumpDown && !frame.jumpWasDown && onFloor) || frame.jumpRequested) {
+
+            if (state.jumpBufferSteps > 0 && !onFloor && state.jumpLockSteps <= 0) {
+                double probe = Math.max(0.08, config.floorSnapLength() + JUMP_LIFTOFF);
+                JoltPhysicsWorld physics = scene.physics();
+                var floorProbe = physics != null
+                        ? physics.sweepCharacter(node, position.x, position.y, position.z, 0.0, -probe, 0.0)
+                        : java.util.Optional.<JoltPhysicsWorld.SweepHit>empty();
+                if (floorProbe.isPresent() && floorProbe.get().ny() >= FLOOR_COS) {
+                    double snap = probe * Math.max(0.0, floorProbe.get().fraction() - SWEEP_EPSILON);
+                    position.y -= snap;
+                    position.floorY = position.y;
+                    state.floorY = position.floorY;
+                    onFloor = true;
+                    vy = 0.0;
+                }
+            }
+
+            if (state.jumpBufferSteps > 0 && onFloor) {
+                position.y += JUMP_LIFTOFF;
                 vy = frame.jumpVelocity;
                 onFloor = false;
+                position.floorY = Double.NEGATIVE_INFINITY;
+                state.floorY = Double.NEGATIVE_INFINITY;
+                state.jumpLockSteps = CHARACTER_SUBSTEPS;
+                state.jumpBufferSteps = 0;
             } else if (!onFloor) {
                 vy -= CHARACTER_GRAVITY_PER_SECOND * frame.gravityScale * subDt;
             }
 
             double stepStartX = position.x;
+            double stepStartY = position.y;
             double stepStartZ = position.z;
-            HorizontalMotion motion = resolveCharacterHorizontalMotion(scene, node, position.x, position.y, position.z, vx * subDt, vz * subDt);
+            CharacterMotion motion = resolveCharacterMotion(
+                    scene,
+                    node,
+                    position.x,
+                    position.y,
+                    position.z,
+                    vx,
+                    vy,
+                    vz,
+                    subDt,
+                    config.floorSnapLength(),
+                    onFloor || frame.onFloorPrev,
+                    state.jumpLockSteps > 0
+            );
             position.x = motion.x();
+            position.y = motion.y();
             position.z = motion.z();
-            position.y += vy * subDt;
-
-            onCeiling = false;
-            FloorSnap snap = snapCharacterFloor(scene, node, position.x, position.y, position.z, vy, subDt, config.floorSnapLength());
-            if (snap.onFloor()) {
-                position.y = snap.y();
-                vy = 0.0;
-                onFloor = true;
-                position.floorY = snap.y();
-                state.floorY = snap.y();
+            onFloor = motion.onFloor();
+            onCeiling = motion.onCeiling();
+            position.floorY = onFloor ? position.y : Double.NEGATIVE_INFINITY;
+            state.floorY = position.floorY;
+            if (onFloor) {
+                state.coyoteSteps = COYOTE_STEPS;
+            } else if (state.coyoteSteps > 0) {
+                state.coyoteSteps--;
             }
 
             double actualVx = subDt > VECTOR_EPSILON ? (position.x - stepStartX) / subDt : 0.0;
+            double actualVy = onFloor ? 0.0 : (subDt > VECTOR_EPSILON ? (position.y - stepStartY) / subDt : 0.0);
             double actualVz = subDt > VECTOR_EPSILON ? (position.z - stepStartZ) / subDt : 0.0;
             boolean wallProbe = detectCharacterWallContact(scene, node, position.x, position.y, position.z);
             wallContact = updateWallContact(wallContact, motion.onWall() || wallProbe, subDt);
@@ -241,8 +286,14 @@ public final class CharacterBodySimulator {
             frame.wallNormalZ = wallNormalZ;
 
             frame.velocityX = actualVx;
-            frame.velocityY = vy;
+            frame.velocityY = actualVy;
             frame.velocityZ = actualVz;
+            if (state.jumpLockSteps > 0) {
+                state.jumpLockSteps--;
+            }
+            if (state.jumpBufferSteps > 0) {
+                state.jumpBufferSteps--;
+            }
         }
 
         state.jumpDown = jumpDown;
@@ -329,6 +380,119 @@ public final class CharacterBodySimulator {
 
     private CharacterState stateFor(long nodeId) {
         return characterStates.computeIfAbsent(nodeId, ignored -> new CharacterState());
+    }
+
+    private CharacterMotion resolveCharacterMotion(ServerScene scene, Node node, double x, double y, double z,
+                                                   double vx, double vy, double vz, double dt,
+                                                   double floorSnapLength, boolean wasOnFloor, boolean jumpLocked) {
+        if (node == null || scene == null) {
+            return new CharacterMotion(x + vx * dt, y + vy * dt, z + vz * dt, false, false, false, 0.0, 0.0);
+        }
+        JoltPhysicsWorld physics = scene.physics();
+        if (physics == null) {
+            return new CharacterMotion(x + vx * dt, y + vy * dt, z + vz * dt, false, false, false, 0.0, 0.0);
+        }
+
+        double radius = Math.max(0.05, propNumber(node, "radius", 0.5));
+        double height = Math.max(radius * 2.0, propNumber(node, "height", 2.0));
+        double px = x;
+        double py = y;
+        double pz = z;
+        double remX = vx * dt;
+        double remY = vy * dt;
+        double remZ = vz * dt;
+        boolean onFloor = false;
+        boolean onWall = false;
+        boolean onCeiling = false;
+        double wallNx = 0.0;
+        double wallNz = 0.0;
+
+        for (int i = 0; i < MAX_SLIDES; i++) {
+            if (remX * remX + remY * remY + remZ * remZ <= VECTOR_EPSILON) {
+                break;
+            }
+
+            var hit = physics.sweepCharacter(node, px, py, pz, remX, remY, remZ).orElse(null);
+            if (hit == null || hit.fraction() >= 1.0) {
+                px += remX;
+                py += remY;
+                pz += remZ;
+                break;
+            }
+
+            double moveFrac = Math.max(0.0, hit.fraction() - SWEEP_EPSILON);
+            px += remX * moveFrac;
+            py += remY * moveFrac;
+            pz += remZ * moveFrac;
+
+            if (jumpLocked && hit.fraction() <= SWEEP_EPSILON && hit.ny() >= FLOOR_COS && remY > 0.0) {
+                px += remX;
+                py += remY;
+                pz += remZ;
+                onWall = false;
+                onCeiling = false;
+                break;
+            }
+
+            if (hit.ny() >= FLOOR_COS && remY <= FLOOR_EPSILON) {
+                onFloor = true;
+            } else if (hit.ny() <= -FLOOR_COS && remY > 0.0) {
+                onCeiling = true;
+            } else {
+                onWall = true;
+                double nLenSq = hit.nx() * hit.nx() + hit.nz() * hit.nz();
+                if (nLenSq > VECTOR_EPSILON) {
+                    double invLen = 1.0 / Math.sqrt(nLenSq);
+                    wallNx = hit.nx() * invLen;
+                    wallNz = hit.nz() * invLen;
+                }
+            }
+
+            double remain = Math.max(0.0, 1.0 - hit.fraction());
+            double slideX = remX * remain;
+            double slideY = remY * remain;
+            double slideZ = remZ * remain;
+
+            double nx = hit.nx();
+            double ny = hit.ny();
+            double nz = hit.nz();
+            double into = slideX * nx + slideY * ny + slideZ * nz;
+            if (into > 0.0) {
+                nx = -nx;
+                ny = -ny;
+                nz = -nz;
+                into = slideX * nx + slideY * ny + slideZ * nz;
+            }
+            px += nx * COLLISION_SKIN;
+            py += ny * COLLISION_SKIN;
+            pz += nz * COLLISION_SKIN;
+            if (hit.fraction() <= SWEEP_EPSILON && into >= -FLOOR_EPSILON) {
+                break;
+            }
+            if (into < 0.0) {
+                slideX -= nx * into;
+                slideY -= ny * into;
+                slideZ -= nz * into;
+            }
+
+            remX = slideX;
+            remY = slideY;
+            remZ = slideZ;
+        }
+
+        double reach = jumpLocked ? 0.0 : (wasOnFloor ? floorSnapLength : Math.min(floorSnapLength, 0.05));
+        double fallDist = remY < 0.0 ? Math.min(Math.abs(remY), 10.0) : 0.0;
+        if (!onFloor && remY <= FLOOR_EPSILON && reach > 0.0) {
+            double snapDist = reach + fallDist;
+            var hit = physics.sweepCharacter(node, px, py, pz, 0.0, -snapDist, 0.0).orElse(null);
+            if (hit != null && hit.ny() >= FLOOR_COS) {
+                double snap = snapDist * Math.max(0.0, hit.fraction() - SWEEP_EPSILON);
+                py -= snap;
+                onFloor = true;
+            }
+        }
+
+        return new CharacterMotion(px, py, pz, onFloor, onWall, onCeiling, wallNx, wallNz);
     }
 
     private FloorSnap snapCharacterFloor(ServerScene scene, Node node, double x, double y, double z, double vy, double dt, double snapLength) {
@@ -440,6 +604,11 @@ public final class CharacterBodySimulator {
                 nz = -nz;
                 into = slideX * nx + slideZ * nz;
             }
+            nextX += nx * COLLISION_SKIN;
+            nextZ += nz * COLLISION_SKIN;
+            if (hit.fraction() <= SWEEP_EPSILON && into >= -FLOOR_EPSILON) {
+                break;
+            }
             if (into < 0.0) {
                 slideX -= nx * into;
                 slideZ -= nz * into;
@@ -491,12 +660,20 @@ public final class CharacterBodySimulator {
         private boolean sprintDown;
         private boolean sneakDown;
         private double wallContactSeconds;
+        private int jumpLockSteps;
+        private int jumpBufferSteps;
+        private int coyoteSteps;
     }
 
     private record CharacterConfig(double groundFriction, double floorSnapLength) {
     }
 
     private record HorizontalVelocity(double vx, double vz) {
+    }
+
+    private record CharacterMotion(double x, double y, double z,
+                                   boolean onFloor, boolean onWall, boolean onCeiling,
+                                   double wallNx, double wallNz) {
     }
 
     private static final class PositionState {

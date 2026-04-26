@@ -19,19 +19,22 @@ public final class ServerSupervisor {
     private static final String GITHUB_OWNER = "EPI-Studios";
     private static final String GITHUB_REPO = "Moud";
     private static final String TARGET = "server";
+    private static final String DEFAULT_MODE = "dev";
 
     private static final Duration ROLLBACK_WINDOW = Duration.ofSeconds(30);
     private static final int MAX_RAPID_CRASHES = 3;
     private static final long UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
     public static void main(String[] args) throws Exception {
-        Path baseDir = resolveBaseDir(args);
-        log("Server supervisor starting, base dir: " + baseDir);
+        Path projectRoot = resolveProjectRoot(args);
+        Path updaterDir = resolveUpdaterDir(projectRoot);
+        log("Server supervisor starting, project root: " + projectRoot);
+        log("Updater dir: " + updaterDir);
 
         String publicKey = ReleaseKeys.loadDefaultPublicKeyPem();
         GitHubReleaseResolver resolver = new GitHubReleaseResolver(GITHUB_OWNER, GITHUB_REPO, publicKey);
         ArtifactDownloader downloader = new ArtifactDownloader();
-        UpdateOrchestrator orchestrator = new UpdateOrchestrator(TARGET, baseDir, resolver, downloader);
+        UpdateOrchestrator orchestrator = new UpdateOrchestrator(TARGET, updaterDir, resolver, downloader);
 
         int rapidCrashes = 0;
         long lastUpdateCheckMs = 0;
@@ -75,7 +78,7 @@ public final class ServerSupervisor {
 
             log("Launching engine from: " + engineDir);
             Instant launchTime = Instant.now();
-            int exitCode = launchEngine(engineDir);
+            int exitCode = launchEngine(engineDir, projectRoot);
             Duration runTime = Duration.between(launchTime, Instant.now());
 
             log("Engine exited with code " + exitCode + " after " + runTime.toSeconds() + "s");
@@ -104,7 +107,7 @@ public final class ServerSupervisor {
         }
     }
 
-    private static int launchEngine(Path engineDir) throws IOException, InterruptedException {
+    private static int launchEngine(Path engineDir, Path projectRoot) throws IOException, InterruptedException {
         Path serverJar = findServerJar(engineDir);
         if (serverJar == null) {
             log("No server jar found in " + engineDir);
@@ -124,10 +127,12 @@ public final class ServerSupervisor {
         }
 
         ProcessBuilder pb = new ProcessBuilder(command)
-                .directory(engineDir.toFile())
+                .directory(projectRoot.toFile())
                 .inheritIO();
 
         pb.environment().put("MOUD_ENGINE_DIR", engineDir.toAbsolutePath().toString());
+        pb.environment().put("MOUD_PROJECT_ROOT", projectRoot.toAbsolutePath().toString());
+        pb.environment().putIfAbsent("MOUD_MODE", DEFAULT_MODE);
 
         Process process = pb.start();
         int exitCode = process.waitFor();
@@ -155,15 +160,45 @@ public final class ServerSupervisor {
         }
     }
 
-    private static Path resolveBaseDir(String[] args) {
+    private static Path resolveProjectRoot(String[] args) {
+        Path configured = resolveConfiguredRoot(args);
+        if (configured != null) {
+            return normalizeProjectRoot(configured);
+        }
+        return Path.of(".").toAbsolutePath().normalize();
+    }
+
+    private static Path resolveUpdaterDir(Path projectRoot) {
+        return projectRoot.resolve(".moud").resolve("server");
+    }
+
+    private static Path resolveConfiguredRoot(String[] args) {
         if (args.length > 0 && !args[0].isBlank()) {
-            return Path.of(args[0]).toAbsolutePath();
+            return Path.of(args[0]).toAbsolutePath().normalize();
         }
         String env = System.getenv("MOUD_SERVER_DIR");
         if (env != null && !env.isBlank()) {
-            return Path.of(env).toAbsolutePath();
+            return Path.of(env).toAbsolutePath().normalize();
         }
-        return Path.of(".").toAbsolutePath().resolve("moud-server");
+        return null;
+    }
+
+    private static Path normalizeProjectRoot(Path candidate) {
+        if (candidate == null) {
+            return null;
+        }
+
+        Path normalized = candidate.toAbsolutePath().normalize();
+        Path parent = normalized.getParent();
+        if (parent != null
+                && ".moud".equals(parent.getFileName() != null ? parent.getFileName().toString() : "")
+                && "server".equals(normalized.getFileName() != null ? normalized.getFileName().toString() : "")) {
+            Path projectRoot = parent.getParent();
+            if (projectRoot != null) {
+                return projectRoot.toAbsolutePath().normalize();
+            }
+        }
+        return normalized;
     }
 
     private static void log(String message) {

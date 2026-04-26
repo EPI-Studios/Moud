@@ -15,14 +15,20 @@ import com.moud.server.minestom.util.DebugLog;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 public final class LuauToolScriptService {
     private final ProjectService project;
     private final LuauRuntimeBridge luau;
+    private Consumer<ServerScene> replayReadyFn;
 
     public LuauToolScriptService(ProjectService project) {
         this.project = Objects.requireNonNull(project, "project");
         this.luau = new LuauRuntimeBridge();
+    }
+
+    public void setReplayReadyFn(Consumer<ServerScene> fn) {
+        this.replayReadyFn = fn;
     }
 
     public void close() {
@@ -94,7 +100,7 @@ public final class LuauToolScriptService {
             if (!exports.tool()) {
                 return new ScriptActionInvokeAck(request.requestId(), nodeId, false, "Script is not a tool script");
             }
-            ToolScriptService.ToolApi api = new ToolScriptService.ToolApi(scene, nodeId);
+            ToolScriptService.ToolApi api = new ToolScriptService.ToolApi(scene, nodeId, replayReadyFn);
             exports.invokeAction(action, api);
             api.flushOps(request.requestId());
             return new ScriptActionInvokeAck(request.requestId(), nodeId, true, null);
