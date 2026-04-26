@@ -71,6 +71,8 @@ import com.moud.net.protocol.CollisionGeometrySnapshot;
 import com.moud.net.protocol.ScriptMessage;
 import com.moud.net.protocol.AssetPathOp;
 import com.moud.net.protocol.AssetPathOpAck;
+import com.moud.net.protocol.MeshPublish;
+import com.moud.net.protocol.MeshGeneratorPublish;
 import com.moud.core.physics.CollisionGeometry;
 
 import java.nio.BufferOverflowException;
@@ -286,13 +288,30 @@ public final class WireMessages {
                         WireIo.writeVarInt(out, msg.scenesUpdated());
                         WireIo.writeString(out, msg.error());
                     }
+                    case MeshPublish msg -> {
+                        writeLong(out, msg.nodeId());
+                        byte[] hash = msg.hash() == null ? new byte[0] : msg.hash();
+                        WireIo.writeVarInt(out, hash.length);
+                        out.put(hash);
+                        WireIo.writeVarInt(out, msg.chunkIndex());
+                        WireIo.writeVarInt(out, msg.chunkCount());
+                        byte[] payload = msg.payload() == null ? new byte[0] : msg.payload();
+                        WireIo.writeVarInt(out, payload.length);
+                        out.put(payload);
+                    }
+                    case MeshGeneratorPublish msg -> {
+                        writeLong(out, msg.nodeId());
+                        WireIo.writeString(out, msg.scriptPath());
+                        WireIo.writeString(out, msg.paramsJson());
+                        writeLong(out, msg.seed());
+                    }
                 }
                 out.flip();
                 byte[] bytes = new byte[out.remaining()];
                 out.get(bytes);
                 return bytes;
             } catch (BufferOverflowException e) {
-                // Estimation may under-shoot; retry with a larger buffer.
+                // estimate can under-shoot, grow and retry
                 int next = clampAlloc(Math.max(cap + 64, cap * 2));
                 if (next <= cap) {
                     throw new IllegalArgumentException(
@@ -496,6 +515,25 @@ public final class WireMessages {
                 String error = WireIo.readString(in);
                 yield new AssetPathOpAck(reqId, AssetPathOp.Kind.values()[kindOrdinal], success, path, newPath, scenesUpdated, error);
             }
+            case MESH_PUBLISH -> {
+                long nodeId = readLong(in);
+                int hashLen = WireIo.readVarInt(in);
+                byte[] hash = new byte[Math.max(0, hashLen)];
+                in.get(hash);
+                int chunkIndex = WireIo.readVarInt(in);
+                int chunkCount = WireIo.readVarInt(in);
+                int payloadLen = WireIo.readVarInt(in);
+                byte[] payload = new byte[Math.max(0, payloadLen)];
+                in.get(payload);
+                yield new MeshPublish(nodeId, hash, chunkIndex, chunkCount, payload);
+            }
+            case MESH_GENERATOR_PUBLISH -> {
+                long nodeId = readLong(in);
+                String scriptPath = WireIo.readString(in);
+                String paramsJson = WireIo.readString(in);
+                long seed = readLong(in);
+                yield new MeshGeneratorPublish(nodeId, scriptPath, paramsJson, seed);
+            }
         };
     }
 
@@ -545,7 +583,7 @@ public final class WireMessages {
             cursorY = in.getFloat();
             flags = WireIo.readVarInt(in);
         } else {
-            // Backward compatibility: older clients sent PlayerInput without cursor coordinates.
+            // older clients sent no cursor coords, default to zero
             cursorX = 0.0f;
             cursorY = 0.0f;
             flags = WireIo.readVarInt(in);
@@ -1268,6 +1306,18 @@ public final class WireMessages {
             case AssetPathOpAck msg -> size += longSize(msg.requestId()) + varIntSize(msg.kind().ordinal())
                     + varIntSize(1) + stringSize(msg.path()) + stringSize(msg.newPath())
                     + varIntSize(msg.scenesUpdated()) + stringSize(msg.error());
+            case MeshPublish msg -> {
+                int hashLen = msg.hash() == null ? 0 : msg.hash().length;
+                int payloadLen = msg.payload() == null ? 0 : msg.payload().length;
+                size += longSize(msg.nodeId())
+                        + varIntSize(hashLen) + hashLen
+                        + varIntSize(msg.chunkIndex())
+                        + varIntSize(msg.chunkCount())
+                        + varIntSize(payloadLen) + payloadLen;
+            }
+            case MeshGeneratorPublish msg -> size += longSize(msg.nodeId())
+                    + stringSize(msg.scriptPath()) + stringSize(msg.paramsJson())
+                    + longSize(msg.seed());
         }
         return size + 16;
     }
@@ -1296,13 +1346,13 @@ public final class WireMessages {
         int size = 0;
         size += longSize(state.serverTick());
         size += stringSize(state.sceneId());
-        size += varIntSize(1); // fogEnabled
-        size += 4 * 4; // fogColorR/G/B + fogDensity
+        size += varIntSize(1);
+        size += 4 * 4;
         size += varIntSize(state.timeTicks());
         size += stringSize(state.weather());
-        size += 4; // ambientLight
-        size += varIntSize(1); // useSceneCamera
-        size += 6 * 4; // sceneCamX/Y/Z + Yaw/Pitch/Roll
+        size += 4;
+        size += varIntSize(1);
+        size += 6 * 4;
         return size;
     }
 

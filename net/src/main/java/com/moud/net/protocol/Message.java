@@ -51,6 +51,8 @@ public sealed interface Message permits
         EditorDiagnosticEvent,
         UiNodeEvent,
         MultiMeshData,
+        MeshPublish,
+        MeshGeneratorPublish,
         PlayerMotion,
         PlayerClientState,
         PlayReady,
