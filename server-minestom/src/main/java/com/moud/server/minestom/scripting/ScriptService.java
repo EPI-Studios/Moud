@@ -1,5 +1,7 @@
 package com.moud.server.minestom.scripting;
 
+import com.moud.core.mesh.source.ArrayMeshResolver;
+import com.moud.net.protocol.Message;
 import com.moud.net.protocol.MultiMeshData;
 import com.moud.net.protocol.PlayerInput;
 import com.moud.net.protocol.ScriptActionInvoke;
@@ -21,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public final class ScriptService {
@@ -30,10 +33,14 @@ public final class ScriptService {
     private final RuntimeScriptService runtime;
 
     public ScriptService(ProjectService project) {
-        this(project, PlayerMessageSink.NOOP);
+        this(project, PlayerMessageSink.NOOP, null);
     }
 
     public ScriptService(ProjectService project, PlayerMessageSink playerMessageSink) {
+        this(project, playerMessageSink, null);
+    }
+
+    public ScriptService(ProjectService project, PlayerMessageSink playerMessageSink, ArrayMeshResolver meshResolver) {
         Objects.requireNonNull(project, "project");
         Objects.requireNonNull(playerMessageSink, "playerMessageSink");
         this.languages = new ScriptLanguageRegistry();
@@ -41,7 +48,14 @@ public final class ScriptService {
         Engine runtimeEngine = Engine.create();
         this.jsTools = new ToolScriptService(project, toolsEngine);
         this.luauTools = languages.supportFor(ScriptLanguage.LUAU).available() ? new LuauToolScriptService(project) : null;
-        this.runtime = new RuntimeScriptService(project, runtimeEngine, languages, playerMessageSink);
+        this.runtime = new RuntimeScriptService(project, runtimeEngine, languages, playerMessageSink, meshResolver);
+        // editor mode skips the play tick, so tool actions trigger ready/refresh manually
+        Consumer<ServerScene> replayAndRefresh = scene -> {
+            this.runtime.replayReady(scene);
+            this.runtime.refreshEditor(scene);
+        };
+        this.jsTools.setReplayReadyFn(replayAndRefresh);
+        if (this.luauTools != null) this.luauTools.setReplayReadyFn(replayAndRefresh);
     }
 
     public void setScriptMessaging(ScriptMessageRouter router, Supplier<Iterable<UUID>> connectedPlayers) {
@@ -100,6 +114,18 @@ public final class ScriptService {
 
     public List<MultiMeshData> drainMultiMesh(String sceneId) {
         return runtime.drainMultiMesh(sceneId);
+    }
+
+    public List<Message> drainMeshPublish(String sceneId) {
+        return runtime.drainMeshPublish(sceneId);
+    }
+
+    public List<Message> getLatestMeshPublish(String sceneId) {
+        return runtime.getLatestMeshPublish(sceneId);
+    }
+
+    public void registerSceneMeshes(ServerScene scene) {
+        runtime.registerSceneMeshes(scene);
     }
 
     public void refreshEditorRuntime(ServerScene scene) {

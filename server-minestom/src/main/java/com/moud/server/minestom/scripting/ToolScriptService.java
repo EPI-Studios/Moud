@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
+
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.PolyglotException;
@@ -31,10 +33,15 @@ import com.moud.server.minestom.util.DebugLog;
 public final class ToolScriptService {
     private final ProjectService project;
     private final Engine engine;
+    private Consumer<ServerScene> replayReadyFn;
 
     public ToolScriptService(ProjectService project, Engine engine) {
         this.project = Objects.requireNonNull(project, "project");
         this.engine = Objects.requireNonNull(engine, "engine");
+    }
+
+    public void setReplayReadyFn(Consumer<ServerScene> fn) {
+        this.replayReadyFn = fn;
     }
 
     public ScriptActionListResponse onListActions(ServerScene scene, ScriptActionListRequest request) {
@@ -120,7 +127,7 @@ public final class ToolScriptService {
                 return new ScriptActionInvokeAck(request.requestId(), nodeId, false, "Unknown action: " + action);
             }
 
-            ToolApi api = new ToolApi(scene, nodeId);
+            ToolApi api = new ToolApi(scene, nodeId, replayReadyFn);
             fn.execute(api);
             api.flushOps(request.requestId());
             return new ScriptActionInvokeAck(request.requestId(), nodeId, true, null);
@@ -182,16 +189,28 @@ public final class ToolScriptService {
         private final ServerScene scene;
         private final long selectedNodeId;
         private final ArrayList<SceneOp> pendingOps = new ArrayList<>();
+        private final Consumer<ServerScene> replayReadyFn;
 
         public ToolApi(ServerScene scene, long selectedNodeId) {
+            this(scene, selectedNodeId, null);
+        }
+
+        public ToolApi(ServerScene scene, long selectedNodeId,
+                       Consumer<ServerScene> replayReadyFn) {
             this.scene = Objects.requireNonNull(scene, "scene");
             this.selectedNodeId = selectedNodeId;
+            this.replayReadyFn = replayReadyFn;
         }
 
         @HostAccess.Export
         public void log(String message) {
             String msg = message == null ? "" : message;
             DebugLog.info("script-tools", "scene=" + scene.sceneId() + " nodeId=" + selectedNodeId + " " + msg);
+        }
+
+        @HostAccess.Export
+        public long selected_id() {
+            return selectedNodeId;
         }
 
         @HostAccess.Export
@@ -256,6 +275,35 @@ public final class ToolScriptService {
         }
 
         @HostAccess.Export
+        public long parent(long nodeId) {
+            if (nodeId <= 0L) return 0L;
+            Node n = scene.engine().sceneTree().getNode(nodeId);
+            if (n == null || n.parent() == null) return 0L;
+            return n.parent().nodeId();
+        }
+
+        @HostAccess.Export
+        public int free_children(long parentId) {
+            if (parentId <= 0L) return 0;
+            Node n = scene.engine().sceneTree().getNode(parentId);
+            if (n == null) return 0;
+            int count = 0;
+            for (Node child : List.copyOf(n.children())) {
+                if (child == null) continue;
+                pendingOps.add(new SceneOp.QueueFree(child.nodeId()));
+                count++;
+            }
+            return count;
+        }
+
+        @HostAccess.Export
+        public void replay_ready() {
+            replayRequested = true;
+        }
+
+        private boolean replayRequested = false;
+
+        @HostAccess.Export
         public long create(long parentId, String name, String typeId) {
             if (parentId < 0L || name == null || name.isBlank() || typeId == null || typeId.isBlank()) {
                 return 0L;
@@ -271,22 +319,29 @@ public final class ToolScriptService {
         }
 
         public void flushOps(long requestId) {
-            if (pendingOps.isEmpty()) {
-                return;
-            }
-            long batchId = SceneBatchIds.clearRuntime((scene.engine().ticks() << 32) ^ requestId ^ System.nanoTime());
-            SceneOpAck ack = scene.apply(new SceneOpBatch(batchId, true, List.copyOf(pendingOps)));
-            pendingOps.clear();
-            if (ack == null) {
-                throw new IllegalStateException("Scene apply failed");
-            }
-            for (SceneOpResult r : ack.results()) {
-                if (r != null && !r.ok()) {
-                    String msg = r.message();
-                    if (msg == null || msg.isBlank()) {
-                        msg = r.error() == null ? "SceneOp failed" : r.error().name();
+            try {
+                if (pendingOps.isEmpty()) {
+                    return;
+                }
+                long batchId = SceneBatchIds.clearRuntime((scene.engine().ticks() << 32) ^ requestId ^ System.nanoTime());
+                SceneOpAck ack = scene.apply(new SceneOpBatch(batchId, true, List.copyOf(pendingOps)));
+                pendingOps.clear();
+                if (ack == null) {
+                    throw new IllegalStateException("Scene apply failed");
+                }
+                for (SceneOpResult r : ack.results()) {
+                    if (r != null && !r.ok()) {
+                        String msg = r.message();
+                        if (msg == null || msg.isBlank()) {
+                            msg = r.error() == null ? "SceneOp failed" : r.error().name();
+                        }
+                        throw new IllegalStateException(msg);
                     }
-                    throw new IllegalStateException(msg);
+                }
+            } finally {
+                if (replayRequested && replayReadyFn != null) {
+                    replayRequested = false;
+                    replayReadyFn.accept(scene);
                 }
             }
         }

@@ -2,8 +2,12 @@ package com.moud.server.minestom.scripting;
 
 import com.moud.core.NodeTypeProviders;
 import com.moud.core.NodeTypeRegistry;
+import com.moud.core.mesh.source.ArrayMeshResolver;
+import com.moud.net.protocol.Message;
 import com.moud.net.protocol.MultiMeshData;
 import com.moud.net.protocol.PlayerClientState;
+import com.moud.net.transport.Lane;
+import com.moud.server.minestom.scripting.java.JavaStubGenerator;
 import com.moud.server.minestom.scripting.lang.RuntimeScriptKeys;
 import com.moud.server.minestom.scripting.lang.ScriptLanguageRegistry;
 import com.moud.server.minestom.scripting.lang.ScriptLanguageSupport;
@@ -19,6 +23,7 @@ import com.moud.server.minestom.project.ProjectService;
 import com.moud.server.minestom.script.ScriptMessageRouter;
 import com.moud.server.minestom.scripting.typescript.TypeScriptContext;
 import com.moud.server.minestom.util.DebugLog;
+import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Map;
@@ -64,12 +69,16 @@ final class RuntimeScriptService {
         }
     }
 
+    private final ArrayMeshResolver meshResolver;
+
     RuntimeScriptService(ProjectService project, Engine engine, ScriptLanguageRegistry languages,
-                         PlayerMessageSink playerMessageSink) {
+                         PlayerMessageSink playerMessageSink,
+                         ArrayMeshResolver meshResolver) {
         this.project = Objects.requireNonNull(project, "project");
         this.engine = Objects.requireNonNull(engine, "engine");
         this.languages = Objects.requireNonNull(languages, "languages");
         this.playerMessageSink = Objects.requireNonNull(playerMessageSink, "playerMessageSink");
+        this.meshResolver = meshResolver;
         NodeTypeRegistry registry = buildRegistry();
         this.tsContext = buildTypeScriptContext(registry, engine);
         generateTypeDeclarations(registry, project);
@@ -93,7 +102,7 @@ final class RuntimeScriptService {
     }
 
     private static void generateTypeDeclarations(NodeTypeRegistry registry, ProjectService project) {
-        java.nio.file.Path typesDir = project.projectRoot().resolve("types");
+        Path typesDir = project.projectRoot().resolve("types");
         try {
             new ServerLuauTypeGenerator(registry).generate(
                     typesDir.resolve("moud-server.d.luau"),
@@ -102,7 +111,7 @@ final class RuntimeScriptService {
             DebugLog.error("script-runtime", "Failed to generate Luau type declarations: " + e.getMessage(), e);
         }
         try {
-            new com.moud.server.minestom.scripting.java.JavaStubGenerator().generate(typesDir);
+            new JavaStubGenerator().generate(typesDir);
         } catch (Exception e) {
             DebugLog.error("script-runtime", "Failed to generate Java type stubs: " + e.getMessage(), e);
         }
@@ -192,7 +201,7 @@ final class RuntimeScriptService {
                 if (entry.getKey() == null) {
                     continue;
                 }
-                playerMessageSink.send(UUID.fromString(targetPlayerUuid), com.moud.net.transport.Lane.EVENTS,
+                playerMessageSink.send(UUID.fromString(targetPlayerUuid), Lane.EVENTS,
                         new PlayerClientState(sourcePlayerUuid, entry.getKey(), entry.getValue() == null ? "" : entry.getValue()));
             }
         }
@@ -210,6 +219,24 @@ final class RuntimeScriptService {
         return rt == null ? List.of() : rt.drainMultiMesh();
     }
 
+    List<Message> drainMeshPublish(String sceneId) {
+        if (sceneId == null) return List.of();
+        SceneRuntime rt = runtimeByScene.get(sceneId);
+        return rt == null ? List.of() : rt.drainMeshPublish();
+    }
+
+    List<Message> getLatestMeshPublish(String sceneId) {
+        if (sceneId == null) return List.of();
+        SceneRuntime rt = runtimeByScene.get(sceneId);
+        return rt == null ? List.of() : rt.getLatestMeshPublish();
+    }
+
+    void registerSceneMeshes(ServerScene scene) {
+        if (scene == null) return;
+        SceneRuntime rt = runtimeByScene.get(scene.sceneId());
+        if (rt != null) rt.registerSceneMeshes(scene);
+    }
+
     void replayReady(ServerScene scene) {
         if (scene == null) return;
         SceneRuntime rt = runtimeByScene.get(scene.sceneId());
@@ -224,7 +251,7 @@ final class RuntimeScriptService {
         SceneRuntime rt = runtimeByScene.computeIfAbsent(
                 scene.sceneId(),
                 ignored -> {
-                    SceneRuntime created = new SceneRuntime(project, engine, inputsByPlayer, clientStateByPlayer, playerVelocities, tsContext, playerMessageSink);
+                    SceneRuntime created = new SceneRuntime(project, engine, inputsByPlayer, clientStateByPlayer, playerVelocities, tsContext, playerMessageSink, meshResolver);
                     created.setScriptMessageRouter(scriptMessageRouter);
                     created.setConnectedPlayersSupplier(connectedPlayersSupplier);
                     created.setPersistenceService(persistenceService);
@@ -265,7 +292,7 @@ final class RuntimeScriptService {
         SceneRuntime rt = runtimeByScene.computeIfAbsent(
                 scene.sceneId(),
                 ignored -> {
-                    SceneRuntime created = new SceneRuntime(project, engine, inputsByPlayer, clientStateByPlayer, playerVelocities, tsContext, playerMessageSink);
+                    SceneRuntime created = new SceneRuntime(project, engine, inputsByPlayer, clientStateByPlayer, playerVelocities, tsContext, playerMessageSink, meshResolver);
                     created.setScriptMessageRouter(scriptMessageRouter);
                     created.setConnectedPlayersSupplier(connectedPlayersSupplier);
                     created.setPersistenceService(persistenceService);
@@ -343,7 +370,7 @@ final class RuntimeScriptService {
                 continue;
             }
             try {
-                playerMessageSink.send(UUID.fromString(playerUuid), com.moud.net.transport.Lane.EVENTS, update);
+                playerMessageSink.send(UUID.fromString(playerUuid), Lane.EVENTS, update);
             } catch (Exception ignored) {
             }
         }

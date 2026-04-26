@@ -12,6 +12,11 @@ import com.moud.server.minestom.scripting.player.PlayerInfo;
 import com.moud.server.minestom.scripting.runtime.RuntimeFacade;
 import com.moud.server.minestom.util.DebugLog;
 import org.graalvm.polyglot.HostAccess;
+import org.graalvm.polyglot.Value;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public final class CoreScriptApi {
     private static final String LOG_TAG = "script-runtime";
@@ -29,6 +34,7 @@ public final class CoreScriptApi {
     private final ParticlesApi particlesApi;
     private final PersistApi persistApi;
     private final HttpApi httpApi;
+    private final MeshApi meshApi;
 
     public CoreScriptApi(ServerScene scene, RuntimeFacade runtime, long selfId) {
         this.scene = scene;
@@ -49,6 +55,7 @@ public final class CoreScriptApi {
                 : new ParticlesApi(router, runtime.connectedPlayerUuids());
         this.persistApi = new PersistApi(runtime.persistence());
         this.httpApi = new HttpApi();
+        this.meshApi = new MeshApi(scene, runtime.meshPublishService(), runtime);
     }
 
     @HostAccess.Export
@@ -69,6 +76,11 @@ public final class CoreScriptApi {
     @HostAccess.Export
     public HttpApi http() {
         return httpApi;
+    }
+
+    @HostAccess.Export
+    public MeshApi mesh() {
+        return meshApi;
     }
 
     @HostAccess.Export
@@ -236,11 +248,11 @@ public final class CoreScriptApi {
         if (nodeId <= 0L || name == null || name.isBlank() || values == null) {
             return;
         }
-        java.util.List<Float> floats = new java.util.ArrayList<>(values.length);
+        List<Float> floats = new ArrayList<>(values.length);
         for (double value : values) {
             floats.add((float) value);
         }
-        scene.engine().setUniform(nodeId, name, java.util.List.copyOf(floats));
+        scene.engine().setUniform(nodeId, name, List.copyOf(floats));
     }
 
     @HostAccess.Export
@@ -259,7 +271,7 @@ public final class CoreScriptApi {
             return null;
         }
         if (data instanceof float[] floats) {
-            return java.util.Arrays.copyOf(floats, floats.length);
+            return Arrays.copyOf(floats, floats.length);
         }
         if (data instanceof double[] doubles) {
             float[] out = new float[doubles.length];
@@ -292,7 +304,7 @@ public final class CoreScriptApi {
             }
             return out;
         }
-        if (data instanceof java.util.List<?> list) {
+        if (data instanceof List<?> list) {
             float[] out = new float[list.size()];
             for (int i = 0; i < list.size(); i++) {
                 Object item = list.get(i);
@@ -303,7 +315,7 @@ public final class CoreScriptApi {
             }
             return out;
         }
-        if (data instanceof org.graalvm.polyglot.Value value) {
+        if (data instanceof Value value) {
             if (!value.hasArrayElements()) {
                 return null;
             }
