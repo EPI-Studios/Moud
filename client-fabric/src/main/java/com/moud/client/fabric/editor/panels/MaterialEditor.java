@@ -151,6 +151,8 @@ final class MaterialEditor {
                                    List<PropertyDef> props,
                                    Map<String, String> values,
                                    String filterLower,
+                                   int headerX,
+                                   int headerW,
                                    int x,
                                    int y,
                                    int w,
@@ -188,7 +190,7 @@ final class MaterialEditor {
                 usedTitles.add(title);
             }
 
-            y = panel.renderGroupHeader(ui, r, theme, x, y, w, title);
+            y = panel.renderGroupHeader(ui, r, theme, headerX, y, headerW, title);
             if (!panel.isExpanded(title)) {
                 continue;
             }
@@ -402,7 +404,7 @@ final class MaterialEditor {
         int valueX = x + labelW + theme.design.space_sm;
         int valueW = Math.max(1, w - (valueX - x));
 
-        r.drawText(uniform.uiLabel(), x, r.baselineForBox(y, rowH), Theme.toArgb(theme.textMuted));
+        r.drawText(uniform.uiLabel(), x, r.baselineForBox(y, rowH), Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.86f));
 
         if (uniform.isSampler()) {
             String tex = "";
@@ -478,10 +480,9 @@ final class MaterialEditor {
             for (int i = 0; i < comps; i++) {
                 int fx = valueX + i * (eachW + gap);
                 int fw = (i == comps - 1) ? (valueX + valueW - fx) : eachW;
-                char prefix = (char) ('x' + i);
                 String fieldKey = "mat:" + materialPath + ":" + name + ":" + i;
                 materialNumberBindings.putIfAbsent(fieldKey, new MaterialNumberBinding(materialPath, shaderPath, name, type, i, comps));
-                renderMaterialPrefixedNumber(ui, r, uiContext, theme, fieldKey, uniform, vec[i], fx, fy, fw, fieldH, String.valueOf(prefix));
+                renderMaterialPrefixedNumber(ui, r, uiContext, theme, fieldKey, uniform, vec[i], fx, fy, fw, fieldH, axisColor(i));
             }
             return y + rowH;
         }
@@ -507,14 +508,21 @@ final class MaterialEditor {
                                               int y,
                                               int w,
                                               int h,
-                                              String prefix) {
+                                              int axisColor) {
         DraggableNumberField nf = materialNumberField(fieldKey, uniform, value);
         syncMaterialNumberValue(uiContext, nf, value);
         var input = (runtime != null && !runtime.uiBlocked()) ? ui.input() : null;
+        nf.setLeadingAccent(axisColor, 4);
         nf.render(r, uiContext, input, theme, x, y, w, h, true);
+    }
 
-        int muted = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.70f);
-        r.drawText(prefix, x + 4, r.baselineForBox(y, h), muted);
+    private static int axisColor(int index) {
+        return switch (index) {
+            case 0 -> 0xFFE15F5F;
+            case 1 -> 0xFF6FBE73;
+            case 2 -> 0xFF5F8FE1;
+            default -> 0xFFD2B15F;
+        };
     }
 
     private static int uniformComponentCount(String glslTypeLower) {

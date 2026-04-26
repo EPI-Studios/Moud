@@ -3,6 +3,7 @@ package com.moud.client.fabric.editor.overlay;
 import com.moud.client.fabric.assets.AssetsClient;
 import com.moud.client.fabric.editor.dialogs.CreateAssetDialog;
 import com.moud.client.fabric.editor.net.HudEditBus;
+import com.moud.client.fabric.editor.panels.CanvasNodeTypes;
 import com.moud.client.fabric.editor.util.EditorUiUtil;
 import com.moud.client.fabric.editor.dialogs.CreateNodeDialog;
 import com.moud.client.fabric.editor.dialogs.CreateProjectDialog;
@@ -93,6 +94,7 @@ public final class EditorOverlay {
     private final EditorRuntime runtime = new EditorRuntime(state, net);
     private BatchRenderer batch;
     private FontAtlas fontAtlas;
+    private FontAtlas monoFontAtlas;
     private final ViewportCapture viewportCapture = new ViewportCapture();
     private Framebuffer uiFramebuffer;
     private GaussianBlur blur;
@@ -360,6 +362,7 @@ public final class EditorOverlay {
         }
         if (GLFW.glfwGetCurrentContext() == 0L) {
             fontAtlas = null;
+            monoFontAtlas = null;
             batch = null;
             gizmos = null;
             MaterialPreviewRenderer.dropAll();
@@ -372,6 +375,10 @@ public final class EditorOverlay {
         if (fontAtlas != null) {
             fontAtlas.close();
             fontAtlas = null;
+        }
+        if (monoFontAtlas != null) {
+            monoFontAtlas.close();
+            monoFontAtlas = null;
         }
         viewportCapture.close();
         if (uiFramebuffer != null) {
@@ -445,8 +452,10 @@ public final class EditorOverlay {
             leftPressed = false;
             leftReleased = false;
         }
+        HudSelectionOverlay.updateHoverCursor(mx, my);
 
         HudSelectionOverlay.handleNudgeInput(handle);
+        HudSelectionOverlay.handleZOrderShortcuts(handle);
 
         if (ctx != null && ctx.isViewportInputFocused()) {
             left = false;
@@ -741,6 +750,7 @@ public final class EditorOverlay {
         pendingViewportClick = false;
 
         if (gizmos != null && gizmos.isDragging()) return;
+        if (HudSelectionOverlay.isDragging()) return;
 
         if (state == null || ctx == null) return;
         long hovered = ctx.hoveredNodeId();
@@ -750,6 +760,12 @@ public final class EditorOverlay {
             state.selectedIds.clear();
             state.selectedIds.add(selected);
         } else {
+            if (state.selectedId > 0L) {
+                var node = state.scene.getNode(state.selectedId);
+                if (node != null && CanvasNodeTypes.CONTROL_TYPES.contains(node.type())) {
+                    return;
+                }
+            }
             state.selectedId = 0L;
             state.selectedIds.clear();
         }
@@ -1030,10 +1046,15 @@ public final class EditorOverlay {
         if (fontAtlas != null) {
             fontAtlas.close();
         }
+        if (monoFontAtlas != null) {
+            monoFontAtlas.close();
+        }
         float uiScale = runtime.editorUiScale();
         int atlasSize = Math.min(4096, Math.max(1024, Math.round(768.0f * scale * uiScale)));
         fontAtlas = new FontAtlas(loadEditorFont(), 16.0f * uiScale, atlasSize, scale, FontAtlas.Mode.COVERAGE);
+        monoFontAtlas = new FontAtlas(loadMonoFont(), 15.0f * uiScale, atlasSize, scale, FontAtlas.Mode.COVERAGE);
         batch.setTextRenderer(new TextRenderer(fontAtlas));
+        batch.setMonospaceTextRenderer(new TextRenderer(monoFontAtlas));
     }
 
     private ByteBuffer loadEditorFont() {
@@ -1042,6 +1063,14 @@ public final class EditorOverlay {
         } catch (Exception ignored) {
         }
         return FontData.loadDefault();
+    }
+
+    private ByteBuffer loadMonoFont() {
+        try {
+            return FontData.loadFromResource("/fonts/jetbrains-mono.ttf");
+        } catch (Exception ignored) {
+        }
+        return loadEditorFont();
     }
 
     private void openSettingsWindow() {

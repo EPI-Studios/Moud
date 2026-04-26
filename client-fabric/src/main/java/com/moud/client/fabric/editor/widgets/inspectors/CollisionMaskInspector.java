@@ -37,7 +37,7 @@ public final class CollisionMaskInspector implements NodeInspectorWidget {
 
         var renderer = ctx.renderer();
         var theme = ctx.theme();
-        renderer.drawText(property.uiLabel(), x, renderer.baselineForBox(y, rowHeight), Theme.toArgb(theme.textMuted));
+        renderer.drawText(property.uiLabel(), x, renderer.baselineForBox(y, rowHeight), Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.86f));
 
         int valueX = x + labelWidth + theme.design.space_sm;
         int valueW = Math.max(1, width - (valueX - x));
