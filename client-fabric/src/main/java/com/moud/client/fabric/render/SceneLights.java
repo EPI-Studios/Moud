@@ -1,5 +1,6 @@
 package com.moud.client.fabric.render;
 
+import com.moud.client.fabric.env.WorldEnvironmentClient;
 import com.moud.client.fabric.render.veil.GlUtil;
 import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.net.protocol.SceneSnapshot;
@@ -15,6 +16,47 @@ final class SceneLights {
     static final int MAX_POINT_LIGHTS = 16;
     static final int MAX_DIR_LIGHTS = 4;
     static final int MAX_SPOT_LIGHTS = 8;
+
+    private static final String[] POINT_POSITION = new String[MAX_POINT_LIGHTS];
+    private static final String[] POINT_COLOR = new String[MAX_POINT_LIGHTS];
+    private static final String[] POINT_BRIGHTNESS = new String[MAX_POINT_LIGHTS];
+    private static final String[] POINT_RADIUS = new String[MAX_POINT_LIGHTS];
+    private static final String[] DIR_DIRECTION = new String[MAX_DIR_LIGHTS];
+    private static final String[] DIR_COLOR = new String[MAX_DIR_LIGHTS];
+    private static final String[] DIR_BRIGHTNESS = new String[MAX_DIR_LIGHTS];
+    private static final String[] SPOT_POSITION = new String[MAX_SPOT_LIGHTS];
+    private static final String[] SPOT_DIRECTION = new String[MAX_SPOT_LIGHTS];
+    private static final String[] SPOT_COLOR = new String[MAX_SPOT_LIGHTS];
+    private static final String[] SPOT_BRIGHTNESS = new String[MAX_SPOT_LIGHTS];
+    private static final String[] SPOT_ANGLE = new String[MAX_SPOT_LIGHTS];
+    private static final String[] SPOT_DISTANCE = new String[MAX_SPOT_LIGHTS];
+
+    static {
+        for (int i = 0; i < MAX_POINT_LIGHTS; i++) {
+            String p = "PointLights[" + i + "].";
+            POINT_POSITION[i]   = p + "position";
+            POINT_COLOR[i]      = p + "color";
+            POINT_BRIGHTNESS[i] = p + "brightness";
+            POINT_RADIUS[i]     = p + "radius";
+        }
+        for (int i = 0; i < MAX_DIR_LIGHTS; i++) {
+            String p = "DirLights[" + i + "].";
+            DIR_DIRECTION[i] = p + "direction";
+            DIR_COLOR[i]     = p + "color";
+            DIR_BRIGHTNESS[i] = p + "brightness";
+        }
+        for (int i = 0; i < MAX_SPOT_LIGHTS; i++) {
+            String p = "SpotLights[" + i + "].";
+            SPOT_POSITION[i]   = p + "position";
+            SPOT_DIRECTION[i]  = p + "direction";
+            SPOT_COLOR[i]      = p + "color";
+            SPOT_BRIGHTNESS[i] = p + "brightness";
+            SPOT_ANGLE[i]      = p + "angle";
+            SPOT_DISTANCE[i]   = p + "distance";
+        }
+    }
+
+    private final Vector3f scratchDir = new Vector3f();
 
     final List<PointLight> pointLights = new ArrayList<>();
     final List<DirLight> dirLights = new ArrayList<>();
@@ -66,7 +108,8 @@ final class SceneLights {
                 }
                 case "DirectionalLight3D" -> {
                     if (dirLights.size() < MAX_DIR_LIGHTS) {
-                        Vector3f dir = new Vector3f(0, 0, 1);
+                        // godot/unity light3d convention, default rotation lights the camera-facing side
+                        Vector3f dir = scratchDir.set(0, 0, -1);
                         world.rot.transform(dir);
                         if (dir.lengthSquared() > 1e-12f) dir.normalize();
                         dirLights.add(new DirLight(dir.x, dir.y, dir.z, cr, cg, cb, brightness));
@@ -74,7 +117,8 @@ final class SceneLights {
                 }
                 case "SpotLight3D" -> {
                     if (spotLights.size() < MAX_SPOT_LIGHTS) {
-                        Vector3f dir = new Vector3f(0, 0, 1);
+                        // same -Z forward convention as DirectionalLight3D
+                        Vector3f dir = scratchDir.set(0, 0, -1);
                         world.rot.transform(dir);
                         if (dir.lengthSquared() > 1e-12f) dir.normalize();
                         float angle = VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "angle"), 45.0f);
@@ -88,37 +132,37 @@ final class SceneLights {
     }
 
     void applyUniforms(int pid) {
-        GlUtil.uniform1i(pid, "NumPointLights", pointLights.size());
-        for (int i = 0; i < pointLights.size(); i++) {
-            String p = "PointLights[" + i + "].";
+        int pCount = pointLights.size();
+        GlUtil.uniform1i(pid, "NumPointLights", pCount);
+        for (int i = 0; i < pCount; i++) {
             PointLight l = pointLights.get(i);
-            GlUtil.uniform3f(pid, p + "position", l.x, l.y, l.z);
-            GlUtil.uniform3f(pid, p + "color", l.r, l.g, l.b);
-            GlUtil.uniform1f(pid, p + "brightness", l.brightness);
-            GlUtil.uniform1f(pid, p + "radius", l.radius);
+            GlUtil.uniform3f(pid, POINT_POSITION[i],   l.x, l.y, l.z);
+            GlUtil.uniform3f(pid, POINT_COLOR[i],      l.r, l.g, l.b);
+            GlUtil.uniform1f(pid, POINT_BRIGHTNESS[i], l.brightness);
+            GlUtil.uniform1f(pid, POINT_RADIUS[i],     l.radius);
         }
 
-        GlUtil.uniform1i(pid, "NumDirLights", dirLights.size());
-        for (int i = 0; i < dirLights.size(); i++) {
-            String p = "DirLights[" + i + "].";
+        int dCount = dirLights.size();
+        GlUtil.uniform1i(pid, "NumDirLights", dCount);
+        for (int i = 0; i < dCount; i++) {
             DirLight l = dirLights.get(i);
-            GlUtil.uniform3f(pid, p + "direction", l.dx, l.dy, l.dz);
-            GlUtil.uniform3f(pid, p + "color", l.r, l.g, l.b);
-            GlUtil.uniform1f(pid, p + "brightness", l.brightness);
+            GlUtil.uniform3f(pid, DIR_DIRECTION[i], l.dx, l.dy, l.dz);
+            GlUtil.uniform3f(pid, DIR_COLOR[i],     l.r, l.g, l.b);
+            GlUtil.uniform1f(pid, DIR_BRIGHTNESS[i], l.brightness);
         }
 
-        GlUtil.uniform1i(pid, "NumSpotLights", spotLights.size());
-        for (int i = 0; i < spotLights.size(); i++) {
-            String p = "SpotLights[" + i + "].";
+        int sCount = spotLights.size();
+        GlUtil.uniform1i(pid, "NumSpotLights", sCount);
+        for (int i = 0; i < sCount; i++) {
             SpotLight l = spotLights.get(i);
-            GlUtil.uniform3f(pid, p + "position", l.x, l.y, l.z);
-            GlUtil.uniform3f(pid, p + "direction", l.dx, l.dy, l.dz);
-            GlUtil.uniform3f(pid, p + "color", l.r, l.g, l.b);
-            GlUtil.uniform1f(pid, p + "brightness", l.brightness);
-            GlUtil.uniform1f(pid, p + "angle", l.angleDeg);
-            GlUtil.uniform1f(pid, p + "distance", l.distance);
+            GlUtil.uniform3f(pid, SPOT_POSITION[i],   l.x, l.y, l.z);
+            GlUtil.uniform3f(pid, SPOT_DIRECTION[i],  l.dx, l.dy, l.dz);
+            GlUtil.uniform3f(pid, SPOT_COLOR[i],      l.r, l.g, l.b);
+            GlUtil.uniform1f(pid, SPOT_BRIGHTNESS[i], l.brightness);
+            GlUtil.uniform1f(pid, SPOT_ANGLE[i],      l.angleDeg);
+            GlUtil.uniform1f(pid, SPOT_DISTANCE[i],   l.distance);
         }
 
-        GlUtil.uniform1f(pid, "ambient_light", 1.0f);
+        GlUtil.uniform1f(pid, "ambient_light", WorldEnvironmentClient.current().ambientLight());
     }
 }

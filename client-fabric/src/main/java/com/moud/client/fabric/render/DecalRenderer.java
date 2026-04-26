@@ -46,6 +46,15 @@ final class DecalRenderer {
 
     private final Map<Long, Integer> vaoCache = new HashMap<>();
 
+    private final Matrix4f scratchView = new Matrix4f();
+    private final Matrix4f scratchProj = new Matrix4f();
+    private final Matrix4f scratchInvVP = new Matrix4f();
+    private final Matrix4f scratchModel = new Matrix4f();
+    private final Matrix4f scratchWorld = new Matrix4f();
+    private final Matrix4f scratchInvDecal = new Matrix4f();
+    private final int[] scratchViewport = new int[4];
+    private final List<SceneSnapshot.NodeSnapshot> scratchDecals = new ArrayList<>();
+
     DecalRenderer(MeshShaderRenderer meshShader) {
         this.meshShader = meshShader;
         vertSrc = loadResource("assets/moud/shaders/builtin/decal.vert");
@@ -73,21 +82,21 @@ final class DecalRenderer {
                    Function<Long, Pose> poseResolver,
                    Vec3d camPos, Camera camera, Matrix4fc viewMatrix, Matrix4fc projectionMatrix,
                    MinecraftClient client, float tickDelta) {
-        List<SceneSnapshot.NodeSnapshot> decals = null;
+        List<SceneSnapshot.NodeSnapshot> decals = scratchDecals;
+        decals.clear();
         for (SceneSnapshot.NodeSnapshot node : nodes) {
             if (node == null || !"Decal".equals(node.type())) continue;
             if (!VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "visible"), true)) continue;
-            if (decals == null) decals = new ArrayList<>();
             decals.add(node);
         }
-        if (decals == null) return;
+        if (decals.isEmpty()) return;
 
         ShaderProgram prog = getProgram();
         if (prog == null || !prog.isValid()) return;
 
-        Matrix4f viewMat = viewMatrix != null ? new Matrix4f(viewMatrix) : new Matrix4f();
-        Matrix4f projMat = projectionMatrix != null ? new Matrix4f(projectionMatrix) : new Matrix4f(RenderSystem.getProjectionMatrix());
-        Matrix4f invViewProjMat = new Matrix4f(projMat).mul(viewMat).invert();
+        Matrix4f viewMat = viewMatrix != null ? scratchView.set(viewMatrix) : scratchView.identity();
+        Matrix4f projMat = projectionMatrix != null ? scratchProj.set(projectionMatrix) : scratchProj.set(RenderSystem.getProjectionMatrix());
+        Matrix4f invViewProjMat = scratchInvVP.set(projMat).mul(viewMat).invert();
 
         Framebuffer mainFb = client.getFramebuffer();
         int sourceFbo = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
@@ -97,11 +106,10 @@ final class DecalRenderer {
 
         int fbW = 0;
         int fbH = 0;
-        int[] viewport = new int[4];
-        GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
-        if (viewport[2] > 0 && viewport[3] > 0) {
-            fbW = viewport[2];
-            fbH = viewport[3];
+        GL11.glGetIntegerv(GL11.GL_VIEWPORT, scratchViewport);
+        if (scratchViewport[2] > 0 && scratchViewport[3] > 0) {
+            fbW = scratchViewport[2];
+            fbH = scratchViewport[3];
         } else if (mainFb != null) {
             fbW = mainFb.textureWidth;
             fbH = mainFb.textureHeight;
@@ -158,7 +166,7 @@ final class DecalRenderer {
         float tintB  = VeilSceneNodeRenderer.clamp01(VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "color_tint_b"), 1f));
         float opacity = VeilSceneNodeRenderer.clamp01(VeilSceneNodeRenderer.parseFloat(VeilSceneNodeRenderer.stringProp(node, "opacity"), 1f));
 
-        Matrix4f modelMat = new Matrix4f()
+        Matrix4f modelMat = scratchModel.identity()
                 .translate((float)(world.pos.x - camPos.x),
                            (float)(world.pos.y - camPos.y),
                            (float)(world.pos.z - camPos.z))
@@ -166,13 +174,13 @@ final class DecalRenderer {
                 .scale(world.scale.x, world.scale.y, world.scale.z)
                 .translate(-0.5f, -0.5f, -0.5f);
 
-        Matrix4f worldMat = new Matrix4f()
+        Matrix4f worldMat = scratchWorld.identity()
                 .translate(world.pos.x, world.pos.y, world.pos.z)
                 .rotate(world.rot)
                 .scale(world.scale.x, world.scale.y, world.scale.z)
                 .translate(-0.5f, -0.5f, -0.5f);
 
-        Matrix4f invDecalMat = new Matrix4f(worldMat).invert();
+        Matrix4f invDecalMat = scratchInvDecal.set(worldMat).invert();
 
         GlUtil.uniformMat4(pid, "ModelMat", modelMat);
         GlUtil.uniformMat4(pid, "InvDecalMat", invDecalMat);
