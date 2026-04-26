@@ -39,6 +39,7 @@ import java.util.function.Function;
 
 final class InstancedBatchRenderer {
 
+
     private static final int FLOATS_PER_INSTANCE = 20;
     private static final int INITIAL_CAPACITY    = 64;
 
@@ -87,10 +88,10 @@ final class InstancedBatchRenderer {
             uploadFrameUniforms(pid, viewMat, projMat, camPos, client, tickDelta);
 
             program.clearSamplers();
-            program.setSampler("Texture0", MoudTextures.white());
-            if (ShadowMaps.hasActiveSpotShadow()) {
-                program.setSampler("SpotShadowMap", ShadowMaps.spotShadowTextureId());
-            }
+            program.setSampler("Texture0", MoudTextures.boundGlId(MoudTextures.white()), 0);
+            Identifier ibrShadowId = ShadowMaps.hasActiveSpotShadow()
+                    ? ShadowMaps.spotShadowTextureId() : MoudTextures.white();
+            program.setSampler("SpotShadowMap", MoudTextures.boundGlId(ibrShadowId), 0);
             program.bindSamplers(0);
 
             for (var entry : batches.entrySet()) {
@@ -138,6 +139,9 @@ final class InstancedBatchRenderer {
 
             String materialPath = VeilSceneNodeRenderer.stringProp(node, "material");
             if (materialPath != null && !materialPath.isBlank()) continue;
+
+            String meshSource = VeilSceneNodeRenderer.stringProp(node, "mesh_source");
+            if (meshSource != null && !meshSource.isBlank()) continue;
 
             String texProp = VeilSceneNodeRenderer.stringProp(node, "texture");
             boolean hasCustomTexture = texProp != null && !texProp.isBlank()

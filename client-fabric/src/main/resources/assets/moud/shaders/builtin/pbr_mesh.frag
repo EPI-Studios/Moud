@@ -1,4 +1,4 @@
-#version 150
+#version 330 core
 
 in vec2 vTexCoord;
 in vec3 vNormal;
@@ -98,7 +98,19 @@ float moud_sampleSpotShadow(vec3 worldPos, int lightIdx) {
     return 1.0;
 }
 
-out vec4 fragColor;
+// Explicit MRT outputs matching Veil's DynamicBufferProcessor convention
+// (Albedo=1, Normal=2, LightUV=3, LightColor=4, Debug=5). Veil's processor
+// injects these for vanilla rendertype shaders, but our shader is loaded
+// through the dynamic-shader pipeline which skips that injection — so we
+// declare them ourselves. Writes to attachments not actually bound by the
+// current framebuffer are silently dropped by the driver, so this is safe
+// even when rendering to a non-deferred target.
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out vec4 VeilDynamicAlbedo;
+layout(location = 2) out vec4 VeilDynamicNormal;
+layout(location = 3) out vec4 VeilDynamicLightUV;
+layout(location = 4) out vec4 VeilDynamicLightColor;
+layout(location = 5) out vec4 VeilDynamicDebug;
 
 const float PI = 3.14159265359;
 
@@ -165,6 +177,14 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
+// Cook-Torrance BRDF, single light evaluation.
+//
+// Note: the diffuse term uses `kD * albedo` rather than the strictly
+// energy-conserving `kD * albedo / PI`. Dropping the /π is the industry
+// "looks right with brightness ~1" convention (LearnOpenGL keeps /π but
+// uses light radiant flux of (23, 21, 20) — three orders of magnitude more
+// than our `brightness=1.0` defaults). Without this, all lit surfaces
+// render perceptibly black despite the math being correct.
 vec3 evaluateLight(vec3 N, vec3 V, float NdotV, vec3 F0, vec3 albedo,
                    float mat_roughness, float mat_metallic,
                    vec3 lightDir, vec3 lightColor) {
@@ -181,7 +201,7 @@ vec3 evaluateLight(vec3 N, vec3 V, float NdotV, vec3 F0, vec3 albedo,
 
     vec3 specContrib = (D * G * F) / max(4.0 * NdotV * NdotL, 0.001);
     vec3 kD = (vec3(1.0) - F) * (1.0 - mat_metallic);
-    vec3 diffuse = kD * albedo / PI;
+    vec3 diffuse = kD * albedo;
 
     return (diffuse + specContrib) * lightColor * NdotL;
 }
@@ -300,35 +320,49 @@ void main() {
         color = vec3(0.0);
 
         for (int i = 0; i < NumPointLights; i++) {
-            vec3 toLight = PointLights[i].position - vWorldPos;
-            float dist = length(toLight);
-            if (dist < PointLights[i].radius && dist > 0.001) {
-                vec3 L = toLight / dist;
-                float atten = 1.0 - smoothstep(0.0, PointLights[i].radius, dist);
-                atten *= atten;
+            vec3  toLight = PointLights[i].position - vWorldPos;
+            float dist2   = dot(toLight, toLight);
+            float r       = PointLights[i].radius;
+            float r2      = r * r;
+            if (dist2 < r2 && dist2 > 1.0e-6) {
+                float dist  = sqrt(dist2);
+                vec3  L     = toLight / dist;
+                // Windowed inverse-square. Inverse-square is the physical
+                // falloff (`1 / (1 + r²)`-style); the windowing factor
+                // smoothly takes it to zero at `radius`. Compared to the
+                // smoothstep approach the iso-contours are MUCH smoother in
+                // 8-bit sRGB so you don't see concentric banding rings.
+                float window = max(1.0 - dist2 / r2, 0.0);
+                float atten  = (window * window) / (1.0 + dist2);
                 vec3 lc = PointLights[i].color * PointLights[i].brightness * atten;
                 color += evaluateLight(N, V, NdotV, F0, albedo, mat_roughness, mat_metallic, L, lc);
             }
         }
 
         for (int i = 0; i < NumDirLights; i++) {
-            vec3 L = -normalize(DirLights[i].direction);
+            // SceneLights writes the outward direction. The shader needs the
+            // direction TOWARD the light (per BRDF convention), so negate.
+            vec3 L  = -normalize(DirLights[i].direction);
             vec3 lc = DirLights[i].color * DirLights[i].brightness;
             color += evaluateLight(N, V, NdotV, F0, albedo, mat_roughness, mat_metallic, L, lc);
         }
 
         for (int i = 0; i < NumSpotLights; i++) {
-            vec3 toLight = SpotLights[i].position - vWorldPos;
-            float dist = length(toLight);
-            if (dist < SpotLights[i].distance && dist > 0.001) {
-                vec3 L = toLight / dist;
+            vec3  toLight = SpotLights[i].position - vWorldPos;
+            float dist2   = dot(toLight, toLight);
+            float r       = SpotLights[i].distance;
+            float r2      = r * r;
+            if (dist2 < r2 && dist2 > 1.0e-6) {
+                float dist  = sqrt(dist2);
+                vec3  L     = toLight / dist;
                 float cosAngle = dot(-L, normalize(SpotLights[i].direction));
                 float cosOuter = cos(radians(SpotLights[i].angle * 0.5));
                 float cosInner = mix(cosOuter, 1.0, 0.2);
                 float spotFade = clamp((cosAngle - cosOuter) / max(cosInner - cosOuter, 0.001), 0.0, 1.0);
                 if (spotFade > 0.0) {
-                    float atten = 1.0 - smoothstep(0.0, SpotLights[i].distance, dist);
-                    atten *= atten;
+                    // Same windowed inverse-square as the point-light path.
+                    float window = max(1.0 - dist2 / r2, 0.0);
+                    float atten  = (window * window) / (1.0 + dist2);
                     float shadow = moud_sampleSpotShadow(vWorldPos, i);
                     vec3 lc = SpotLights[i].color * SpotLights[i].brightness * atten * spotFade * shadow;
                     color += evaluateLight(N, V, NdotV, F0, albedo, mat_roughness, mat_metallic, L, lc);
@@ -336,21 +370,45 @@ void main() {
             }
         }
 
-        vec3 ambient = albedo * 0.15 * ao * ambient_light;
+        // Ambient = full albedo at ambient_light=1.0. Anything lower felt
+        // perceptibly dark even with WorldEnvironment.ambient_light cranked
+        // to its 1.0 max. Combined with the no-π diffuse convention (see
+        // evaluateLight comment), direct lights still ADD on top — they get
+        // clamped at white but that's fine for the LDR target.
+        vec3 ambient = albedo * ao * ambient_light;
         color += ambient + emissive;
-        color = color / (color + vec3(1.0));
+
+        // No tone-map: this shader already operates in roughly-LDR range
+        // (lights nominally 0..1, no-π diffuse). Reinhard / ACES were
+        // crushing or inverting the result. Hard clamp keeps saturation
+        // and contrast intact; over-bright pixels clip to white.
+        color = clamp(color, 0.0, 1.0);
     }
 
     vec3 viewN = normalize(mat3(ViewMat) * N);
 
-    // #veil:albedo
-    vec4 albedoColor = fullbright == 0 ? vec4(albedo, ao) : vec4(0.0);
+    // Per-pixel hash dither to break smooth gradients into sub-LSB noise.
+    // Without this, the smooth attenuation falloff of point/spot lights
+    // quantises into visible iso-contour bands at 1/255 sRGB steps.
+    vec3 outColor = linearToSrgb(color);
+    float dither  = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+    outColor     += dither / 255.0;
 
-    // #veil:normal
-    vec4 normalColor = fullbright == 0 ? vec4(viewN, 1.0) : vec4(0.0);
+    fragColor = vec4(outColor, albedoSample.a);
 
-    // #veil:debug
-    vec4 debugColor = fullbright == 0 ? vec4(mat_roughness, mat_metallic, 0.0, specular) : vec4(0.0);
-
-    fragColor = vec4(linearToSrgb(color), albedoSample.a);
+    // G-buffer attachments. Albedo carries linear base colour + AO in alpha;
+    // Normal is view-space (matches Veil's deferred convention); Debug
+    // packs roughness/metallic/AO/specular for the framebuffer inspector.
+    // LightUV / LightColor stay zero — we don't sample MC's lightmap.
+    if (fullbright == 0) {
+        VeilDynamicAlbedo     = vec4(albedo, ao);
+        VeilDynamicNormal     = vec4(viewN, 1.0);
+        VeilDynamicDebug      = vec4(mat_roughness, mat_metallic, ao, specular);
+    } else {
+        VeilDynamicAlbedo     = vec4(albedo, 1.0);
+        VeilDynamicNormal     = vec4(0.0, 0.0, 1.0, 1.0);
+        VeilDynamicDebug      = vec4(0.0);
+    }
+    VeilDynamicLightUV    = vec4(0.0);
+    VeilDynamicLightColor = vec4(0.0);
 }

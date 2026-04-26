@@ -24,12 +24,16 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.texture.AbstractTexture;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.client.texture.TextureManager;
 import net.minecraft.util.Identifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class MoudTextures implements AssetsClient.Listener {
+    private static final Logger LOGGER = LoggerFactory.getLogger("MoudTex");
     public static final Identifier WHITE_ID = Identifier.of("moud", "dynamic/white");
     public static final Identifier BLACK_ID = Identifier.of("moud", "dynamic/black");
     public static final Identifier FLAT_NORMAL_ID = Identifier.of("moud", "dynamic/flat_normal");
@@ -88,25 +92,7 @@ public final class MoudTextures implements AssetsClient.Listener {
             return;
         }
         synchronized (LOCK) {
-            if (defaultsRegistered) {
-                try {
-                    tm.destroyTexture(WHITE_ID);
-                } catch (Exception ignored) {
-                }
-                try {
-                    tm.destroyTexture(BLACK_ID);
-                } catch (Exception ignored) {
-                }
-                try {
-                    tm.destroyTexture(FLAT_NORMAL_ID);
-                } catch (Exception ignored) {
-                }
-                try {
-                    tm.destroyTexture(ORM_DEFAULT_ID);
-                } catch (Exception ignored) {
-                }
-                defaultsRegistered = false;
-            }
+            // keep static defaults alive for client lifetime, destroying them races samplers to mc missing-checker
             for (TextureEntry entry : texturesByHash.values()) {
                 if (entry != null && entry.id != null) {
                     try {
@@ -183,6 +169,10 @@ public final class MoudTextures implements AssetsClient.Listener {
             return TextureManager.MISSING_IDENTIFIER;
         }
         if ("moud".equals(id.getNamespace())) {
+            Identifier assetTexture = resolveMoudAssetTexture(id);
+            if (assetTexture != null) {
+                return assetTexture;
+            }
             return id;
         }
         String path = id.getPath();
@@ -193,6 +183,27 @@ public final class MoudTextures implements AssetsClient.Listener {
             path = path + ".png";
         }
         return Identifier.of(id.getNamespace(), path);
+    }
+
+    private static Identifier resolveMoudAssetTexture(Identifier id) {
+        String path = id == null ? null : id.getPath();
+        if (path == null || !path.startsWith("asset/")) {
+            return null;
+        }
+
+        String hashText = path.substring("asset/".length());
+        int slash = hashText.indexOf('/');
+        if (slash >= 0) {
+            hashText = hashText.substring(0, slash);
+        }
+        int dot = hashText.indexOf('.');
+        if (dot >= 0) {
+            hashText = hashText.substring(0, dot);
+        }
+        if (!AssetHash.validate(hashText).ok()) {
+            return TextureManager.MISSING_IDENTIFIER;
+        }
+        return resolveAssetHashTexture(new AssetHash(hashText));
     }
 
     public static Identifier white() {
@@ -229,6 +240,32 @@ public final class MoudTextures implements AssetsClient.Listener {
         };
     }
 
+    // bind once before reading the gl id so veil multi-bind sees a valid GL_TEXTURE_2D target, also bypasses mc auto-create for unregistered moud ids
+    public static int boundGlId(Identifier id) {
+        ensureDefaultsRegistered();
+        MinecraftClient client = MinecraftClient.getInstance();
+        TextureManager tm = client == null ? null : client.getTextureManager();
+        if (tm == null) {
+            return 0;
+        }
+        AbstractTexture tex;
+        if (id == null) {
+            tex = tm.getOrDefault(WHITE_ID, null);
+        } else if ("moud".equals(id.getNamespace())) {
+            AbstractTexture direct = tm.getOrDefault(id, null);
+            tex = direct != null ? direct : tm.getOrDefault(WHITE_ID, null);
+        } else {
+            tex = tm.getTexture(id);
+        }
+        if (tex == null) {
+            return 0;
+        }
+        if (RenderSystem.isOnRenderThread()) {
+            tex.bindTexture();
+        }
+        return tex.getGlId();
+    }
+
     public static TextureSize sizeOf(Identifier id) {
         if (id == null) {
             return DEFAULT_SIZE;
@@ -262,11 +299,40 @@ public final class MoudTextures implements AssetsClient.Listener {
             meta = metaByPath.get(resPath);
         }
         if (meta == null) {
+            // manifest not arrived yet, show white instead of mc missing-checker while assets sync
             maybeRequestManifest();
-            return TextureManager.MISSING_IDENTIFIER;
+            return WHITE_ID;
         }
 
         AssetHash hash = meta.hash();
+        if (hash == null) {
+            return TextureManager.MISSING_IDENTIFIER;
+        }
+
+        TextureEntry entry;
+        synchronized (LOCK) {
+            entry = texturesByHash.get(hash);
+            if (entry == null) {
+                entry = new TextureEntry(hash, Identifier.of("moud", "asset/" + hash.hex()));
+                texturesByHash.put(hash, entry);
+            }
+            if (entry.state == TextureState.READY) {
+                return entry.id;
+            }
+            if (entry.state == TextureState.REQUESTED) {
+                return WHITE_ID;
+            }
+            if (entry.state == TextureState.FAILED) {
+                return TextureManager.MISSING_IDENTIFIER;
+            }
+            entry.state = TextureState.REQUESTED;
+        }
+
+        requestDownload(hash);
+        return WHITE_ID;
+    }
+
+    private static Identifier resolveAssetHashTexture(AssetHash hash) {
         if (hash == null) {
             return TextureManager.MISSING_IDENTIFIER;
         }
@@ -336,24 +402,56 @@ public final class MoudTextures implements AssetsClient.Listener {
         if (tm == null) {
             return;
         }
+
+        AbstractTexture existing = tm.getOrDefault(WHITE_ID, null);
+        if (existing instanceof NativeImageBackedTexture) {
+            defaultsRegistered = true;
+            return;
+        }
+
         synchronized (LOCK) {
-            if (defaultsRegistered) {
+            if (defaultsRegistered && !RenderSystem.isOnRenderThread()) {
                 return;
             }
             defaultsRegistered = true;
         }
 
         Runnable register = () -> {
-            registerBundledTexture(tm, WHITE_ID, DEFAULT_WHITE_RESOURCE);
+            if (tm.getOrDefault(WHITE_ID, null) instanceof NativeImageBackedTexture) {
+                return;
+            }
+            registerCheckerTexture(tm, WHITE_ID);
             registerSolidTexture(tm, BLACK_ID, 0xFF000000);
             registerSolidTexture(tm, FLAT_NORMAL_ID, 0xFFFF8080);
             registerSolidTexture(tm, ORM_DEFAULT_ID, 0xFF00FFFF);
         };
+
         if (!RenderSystem.isOnRenderThread()) {
             RenderSystem.recordRenderCall(register::run);
         } else {
             register.run();
         }
+    }
+
+    // no-albedo placeholder, 2px grey/white checker on 16x16 tile so untextured faces show the unset indicator
+    private static void registerCheckerTexture(TextureManager tm, Identifier id) {
+        final int size = 16;
+        final int cell = 2;
+        final int light = 0xFFFFFFFF;
+        final int dark = 0xFFCCCCCC;
+        NativeImageBackedTexture tex = new NativeImageBackedTexture(size, size, false);
+        NativeImage img = tex.getImage();
+        if (img != null) {
+            for (int y = 0; y < size; y++) {
+                for (int x = 0; x < size; x++) {
+                    boolean isDark = (((x / cell) + (y / cell)) & 1) == 0;
+                    img.setColor(x, y, isDark ? dark : light);
+                }
+            }
+        }
+        tm.registerTexture(id, tex);
+        tex.upload();
+        tex.setFilter(false, false);
     }
 
     private static void registerSolidTexture(TextureManager tm, Identifier id, int color) {
@@ -364,6 +462,8 @@ public final class MoudTextures implements AssetsClient.Listener {
         }
         tm.registerTexture(id, tex);
         tex.upload();
+        // default min-filter wants mipmaps, without it the texture is incomplete and drivers return the magenta checker
+        tex.setFilter(false, false);
     }
 
     private static void registerBundledTexture(TextureManager tm, Identifier id, String resourcePath) {
@@ -426,21 +526,47 @@ public final class MoudTextures implements AssetsClient.Listener {
         if (hash == null) {
             return;
         }
+
+        boolean isImage = false;
         TextureEntry entry;
         synchronized (LOCK) {
             entry = texturesByHash.get(hash);
             if (entry == null) {
-                entry = new TextureEntry(hash, Identifier.of("moud", "asset/" + hash.hex()));
-                texturesByHash.put(hash, entry);
+                for (AssetMeta meta : metaByPath.values()) {
+                    if (hash.equals(meta.hash()) && meta.type() == AssetType.IMAGE) {
+                        isImage = true;
+                        break;
+                    }
+                }
             }
         }
 
-        if (status != AssetTransferStatus.OK || bytes == null || bytes.length == 0) {
-            synchronized (LOCK) {
-                entry.state = TextureState.FAILED;
-                entry.error = message == null ? "" : message;
+        // skip non-image manifest entries so we don't try to decode scripts or audio as textures
+        if (entry == null && !isImage) {
+            return;
+        }
+
+        if (status != AssetTransferStatus.OK || bytes == null) {
+            if (entry != null) {
+                synchronized (LOCK) {
+                    entry.state = TextureState.FAILED;
+                    entry.error = message != null ? message : "Download failed";
+                }
             }
             return;
+        }
+
+        synchronized (LOCK) {
+            if (entry == null) {
+                entry = texturesByHash.get(hash);
+                if (entry == null) {
+                    entry = new TextureEntry(hash, Identifier.of("moud", "asset/" + hash.hex()));
+                    texturesByHash.put(hash, entry);
+                }
+            }
+            if (entry.state == TextureState.READY) {
+                return;
+            }
         }
 
         TextureEntry finalEntry = entry;
@@ -448,10 +574,15 @@ public final class MoudTextures implements AssetsClient.Listener {
     }
 
     private static void decodeAndUpload(TextureEntry entry, byte[] bytes) {
+        LOGGER.info("[Moud] decode start hash={} bytes={}",
+                entry.hash.hex().substring(0, 8), bytes.length);
         NativeImage image;
         try {
             image = NativeImage.read(new ByteArrayInputStream(bytes));
         } catch (Exception e) {
+            LOGGER.warn("[Moud] decode FAILED hash={}: {}",
+                    entry.hash.hex().substring(0, 8),
+                    e.getMessage() == null ? "decode failed" : e.getMessage());
             synchronized (LOCK) {
                 entry.state = TextureState.FAILED;
                 entry.error = e.getMessage() == null ? "decode failed" : e.getMessage();
@@ -483,6 +614,13 @@ public final class MoudTextures implements AssetsClient.Listener {
 
         NativeImage finalImage = image;
         RenderSystem.recordRenderCall(() -> {
+            // re-check, two concurrent decodes racing on the same hash would close the first's gl handle while a sampler still uses it
+            synchronized (LOCK) {
+                if (entry.state == TextureState.READY) {
+                    finalImage.close();
+                    return;
+                }
+            }
             MinecraftClient client = MinecraftClient.getInstance();
             TextureManager tm = client == null ? null : client.getTextureManager();
             if (tm == null) {
@@ -496,6 +634,8 @@ public final class MoudTextures implements AssetsClient.Listener {
             NativeImageBackedTexture tex = new NativeImageBackedTexture(finalImage);
             tm.registerTexture(entry.id, tex);
             tex.upload();
+            // same no-mipmap trap as the 1x1 defaults, linear here for smoothing on uploaded assets
+            tex.setFilter(true, false);
             synchronized (LOCK) {
                 entry.state = TextureState.READY;
                 entry.error = "";

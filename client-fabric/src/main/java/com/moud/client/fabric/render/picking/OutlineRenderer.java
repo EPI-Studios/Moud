@@ -275,16 +275,20 @@ public final class OutlineRenderer {
         long key = ((long) pid << 32) | (vbo & 0xFFFFFFFFL);
         int vao = vaoCache.computeIfAbsent(key, k -> GlUtil.createMeshVao(pid, vbo, ebo));
 
+        float cx = def.x() + def.width()  * 0.5f - (float) camPos.x;
+        float cy = def.y() + def.height() * 0.5f - (float) camPos.y;
+        float cz = def.z() + def.depth()  * 0.5f - (float) camPos.z;
+
+        Matrix4f modelMat = new Matrix4f()
+                .translate(cx, cy, cz)
+                .rotateZ((float) Math.toRadians(def.rotZDeg()))
+                .rotateY((float) Math.toRadians(def.rotYDeg()))
+                .rotateX((float) Math.toRadians(def.rotXDeg()))
+                .scale(def.width(), def.height(), def.depth());
+
+        GlUtil.uniformMat4(pid, "ModelMat", modelMat);
         GlUtil.uniform1f(pid, "MaskAlpha", maskAlpha);
-        CsgVoxelizer.forEachVoxel(def, (x, y, z) -> {
-            Matrix4f modelMat = new Matrix4f()
-                    .translate(x + 0.5f - (float) camPos.x,
-                            y + 0.5f - (float) camPos.y,
-                            z + 0.5f - (float) camPos.z)
-                    .translate(-0.5f, -0.5f, -0.5f);
-            GlUtil.uniformMat4(pid, "ModelMat", modelMat);
-            GlUtil.drawElements(vao, indexCount);
-        });
+        GlUtil.drawElements(vao, indexCount);
     }
 
     private void renderModelMask(SceneSnapshot.NodeSnapshot node,

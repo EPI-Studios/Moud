@@ -21,7 +21,10 @@ final class PostProcessNodeSync {
 
                 String id = "node:" + node.nodeId();
                 int priority = (int) NodePropertyUtils.parseFloat(NodePropertyUtils.stringProp(node, "priority"), 0f);
-                PostProcessService.INSTANCE.registerShader(id, source, priority);
+                PostProcessStage stage = PostProcessStage.parse(
+                        NodePropertyUtils.stringProp(node, "stage"),
+                        PostProcessStage.WORLD);
+                PostProcessService.INSTANCE.registerShader(id, source, priority, stage);
                 pushUniforms(id, NodePropertyUtils.stringProp(node, "uniforms"));
                 wanted.add(id);
             }

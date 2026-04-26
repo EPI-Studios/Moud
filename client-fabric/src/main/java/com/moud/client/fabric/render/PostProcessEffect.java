@@ -15,6 +15,7 @@ final class PostProcessEffect {
     int priority;
     PostProcessSourceKind sourceKind;
     String sourceValue;
+    PostProcessStage stage;
     Identifier programId;
     ShaderProgram program;
     long assetVersion = Long.MIN_VALUE;
@@ -25,11 +26,21 @@ final class PostProcessEffect {
                       String sourceValue,
                       int priority,
                       long registrationOrder) {
+        this(id, sourceKind, sourceValue, priority, registrationOrder, PostProcessStage.WORLD);
+    }
+
+    PostProcessEffect(String id,
+                      PostProcessSourceKind sourceKind,
+                      String sourceValue,
+                      int priority,
+                      long registrationOrder,
+                      PostProcessStage stage) {
         this.id = id;
         this.sourceKind = sourceKind;
         this.sourceValue = sourceValue;
         this.priority = priority;
         this.registrationOrder = registrationOrder;
+        this.stage = stage == null ? PostProcessStage.WORLD : stage;
     }
 
     int priority() {

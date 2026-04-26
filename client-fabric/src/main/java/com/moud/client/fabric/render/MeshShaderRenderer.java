@@ -5,6 +5,7 @@ import com.moud.client.fabric.assets.MoudTextAssets;
 import com.moud.client.fabric.render.material.*;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
 import com.moud.client.fabric.render.scene.math.Pose;
+import com.moud.client.fabric.render.shadow.ShadowMaps;
 import com.moud.client.fabric.render.sprite.SpriteSheets;
 import com.moud.client.fabric.render.veil.*;
 import com.moud.client.fabric.util.ClientDebugLog;
@@ -226,6 +227,10 @@ final class MeshShaderRenderer {
                        Vec3d camPos, Camera camera, Matrix4fc viewMatrix, Matrix4fc projectionMatrix,
                        MinecraftClient client, float tickDelta) {
         if (!RenderSystem.isOnRenderThread()) return false;
+        String meshSource = VeilSceneNodeRenderer.stringProp(node, "mesh_source");
+        if (meshSource != null && !meshSource.isBlank()) {
+            return false;
+        }
         String materialPath = VeilSceneNodeRenderer.stringProp(node, "material");
         VeilMaterialBinding binding = null;
         ShaderProgram program;
@@ -240,16 +245,9 @@ final class MeshShaderRenderer {
                 if (program == null) program = getDefaultShaderProgram();
             }
         } else {
-            program = getPbrShaderProgram();
-            if (program == null) {
-                String pbrError = VeilDynamicShaders.getLastError(Identifier.of("moud", "builtin/pbr_mesh"));
-                if (pbrError != null && loggedShaderErrors.add("pbr_fallback:" + pbrError)) {
-                    LOGGER.warn("[Moud] PBR shader unavailable ({}), falling back to default", pbrError);
-                    ClientDebugLog.warn("Shaders", "Fallback to default mesh shader: builtin/pbr_mesh unavailable: " + pbrError);
-                }
-                program = getDefaultShaderProgram();
-            }
-            if (program == null) shaderErrorId = Identifier.of("moud", "builtin/pbr_mesh");
+            // no-material path uses the simple default_mesh shader, pbr path needs full sampler set or it pure-blacks
+            program = getDefaultShaderProgram();
+            if (program == null) shaderErrorId = Identifier.of("moud", "builtin/default_mesh");
         }
 
         if (program == null || !program.isValid()) {
@@ -394,7 +392,7 @@ final class MeshShaderRenderer {
             GlUtil.uniform2f(pid, "UvScale", uvScaleX, uvScaleY);
             GlUtil.uniform2f(pid, "UvOffset", uvOffX, uvOffY);
             sceneLights.applyUniforms(pid);
-            com.moud.client.fabric.render.shadow.ShadowMaps.uploadSpotShadowScalarUniforms(pid);
+            ShadowMaps.uploadSpotShadowScalarUniforms(pid);
             boolean fullbright = VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "fullbright"), false);
             GlUtil.uniform1i(pid, "fullbright", fullbright ? 1 : 0);
 
@@ -414,13 +412,17 @@ final class MeshShaderRenderer {
             else program.clearSamplers();
 
             Identifier nodeTexture = textureSample.textureId();
-            program.setSampler("Texture0", nodeTexture);
+            int nodeTextureGl = MoudTextures.boundGlId(nodeTexture);
+            program.setSampler("Texture0", nodeTextureGl, 0);
             if (binding == null || !binding.hasTextureParam("albedo_texture")) {
-                program.setSampler("albedo_texture", nodeTexture);
+                program.setSampler("albedo_texture", nodeTextureGl, 0);
             }
-            if (com.moud.client.fabric.render.shadow.ShadowMaps.hasActiveSpotShadow()) {
-                program.setSampler("SpotShadowMap", com.moud.client.fabric.render.shadow.ShadowMaps.spotShadowTextureId());
-            }
+            // veil 3.3.3 cascades sampler units when any declared sampler is unset, must bind SpotShadowMap every frame even with no shadow
+            Identifier shadowId = ShadowMaps.hasActiveSpotShadow()
+                    ? ShadowMaps.spotShadowTextureId()
+                    : MoudTextures.white();
+            int shadowGl = MoudTextures.boundGlId(shadowId);
+            program.setSampler("SpotShadowMap", shadowGl, 0);
             program.bindSamplers(0);
 
             if (isPlane) {
@@ -517,7 +519,79 @@ final class MeshShaderRenderer {
                 && !MoudTextures.isRawReady(id)) {
             return new TextureSample(MoudTextures.white(), 1f, 1f, 0f, 0f);
         }
-        return new TextureSample(id, 1f, 1f, 0f, 0f);
+        return textureRegionSample(node, id);
+    }
+
+    private TextureSample textureRegionSample(SceneSnapshot.NodeSnapshot node, Identifier id) {
+        if (node == null || id == null) {
+            return new TextureSample(id, 1f, 1f, 0f, 0f);
+        }
+
+        Float u0 = floatProp(node, "texture_u0");
+        Float v0 = floatProp(node, "texture_v0");
+        Float u1 = floatProp(node, "texture_u1");
+        Float v1 = floatProp(node, "texture_v1");
+        if (u0 != null && v0 != null && u1 != null && v1 != null) {
+            return normalizedRegion(id, u0, v0, u1 - u0, v1 - v0);
+        }
+
+        TextureRegion region = firstRegion(node,
+                "texture_region_x", "texture_region_y", "texture_region_w", "texture_region_h",
+                "atlas_x", "atlas_y", "atlas_w", "atlas_h",
+                "texture_x", "texture_y", "texture_w", "texture_h");
+        if (region == null) {
+            return new TextureSample(id, 1f, 1f, 0f, 0f);
+        }
+
+        if (isNormalizedRegion(region)) {
+            return normalizedRegion(id, region.x(), region.y(), region.w(), region.h());
+        }
+
+        MoudTextures.TextureSize size = MoudTextures.sizeOf(id);
+        float texW = Math.max(1, size.width());
+        float texH = Math.max(1, size.height());
+        return normalizedRegion(id, region.x() / texW, region.y() / texH, region.w() / texW, region.h() / texH);
+    }
+
+    private static TextureSample normalizedRegion(Identifier id, float x, float y, float w, float h) {
+        if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(w) || !Float.isFinite(h)
+                || w <= 0f || h <= 0f) {
+            return new TextureSample(id, 1f, 1f, 0f, 0f);
+        }
+        return new TextureSample(id, w, h, x, y);
+    }
+
+    private static boolean isNormalizedRegion(TextureRegion region) {
+        return region.x() >= 0f && region.y() >= 0f && region.w() > 0f && region.h() > 0f
+                && region.x() <= 1f && region.y() <= 1f
+                && region.x() + region.w() <= 1.0001f
+                && region.y() + region.h() <= 1.0001f;
+    }
+
+    private static TextureRegion firstRegion(SceneSnapshot.NodeSnapshot node, String... keys) {
+        for (int i = 0; i + 3 < keys.length; i += 4) {
+            Float x = floatProp(node, keys[i]);
+            Float y = floatProp(node, keys[i + 1]);
+            Float w = floatProp(node, keys[i + 2]);
+            Float h = floatProp(node, keys[i + 3]);
+            if (x != null && y != null && w != null && h != null) {
+                return new TextureRegion(x, y, w, h);
+            }
+        }
+        return null;
+    }
+
+    private static Float floatProp(SceneSnapshot.NodeSnapshot node, String key) {
+        String raw = VeilSceneNodeRenderer.stringProp(node, key);
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            float value = Float.parseFloat(raw.trim());
+            return Float.isFinite(value) ? value : null;
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     Identifier resolveMaterialTexture(String materialPathRaw) {
@@ -593,6 +667,7 @@ final class MeshShaderRenderer {
     }
 
     private record MaterialTexCache(String materialText, Identifier textureId) {}
+    private record TextureRegion(float x, float y, float w, float h) {}
 
     record TextureSample(Identifier textureId, float uvScaleX, float uvScaleY, float uvOffsetX, float uvOffsetY) {
         TextureSample {

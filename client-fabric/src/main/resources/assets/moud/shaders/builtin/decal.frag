@@ -6,6 +6,7 @@ uniform vec4 Tint;
 uniform mat4 InvViewProjMat;
 uniform mat4 InvDecalMat;
 uniform vec3 CameraPos;
+uniform float ambient_light;
 
 struct PointLight { vec3 position; vec3 color; float brightness; float radius; };
 struct DirLight { vec3 direction; vec3 color; float brightness; };
@@ -16,6 +17,12 @@ uniform int NumDirLights;
 uniform DirLight DirLights[4];
 
 out vec4 fragColor;
+
+float directionalDiffuse(vec3 normal, vec3 lightDir) {
+    float wrap = 0.35;
+    float d = clamp((dot(normal, lightDir) + wrap) / (1.0 + wrap), 0.0, 1.0);
+    return d * d * (3.0 - 2.0 * d);
+}
 
 void main() {
     // screen uv from the decal face
@@ -46,7 +53,7 @@ void main() {
         N = -N;
     }
 
-    vec3 lighting = vec3(0.15);
+    vec3 lighting = vec3(0.15 * ambient_light);
 
     for (int i = 0; i < NumPointLights; i++) {
         vec3 toLight = PointLights[i].position - worldPos;
@@ -59,7 +66,7 @@ void main() {
     }
 
     for (int i = 0; i < NumDirLights; i++) {
-        float NdotL = max(dot(N, -DirLights[i].direction), 0.0);
+        float NdotL = directionalDiffuse(N, -normalize(DirLights[i].direction));
         lighting += DirLights[i].color * DirLights[i].brightness * NdotL;
     }
 
