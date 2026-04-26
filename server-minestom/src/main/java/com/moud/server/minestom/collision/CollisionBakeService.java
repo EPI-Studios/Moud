@@ -7,9 +7,12 @@ import com.github.stephengold.joltjni.Float3;
 import com.github.stephengold.joltjni.IndexedTriangle;
 import com.github.stephengold.joltjni.MeshShapeSettings;
 import com.github.stephengold.joltjni.MutableCompoundShapeSettings;
+import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.ShapeSettings;
 import com.github.stephengold.joltjni.SphereShapeSettings;
 import com.github.stephengold.joltjni.StaticCompoundShapeSettings;
+import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.vhacd.ConvexHull;
 import com.github.stephengold.joltjni.vhacd.Decomposer;
 import com.github.stephengold.joltjni.vhacd.Parameters;
 import com.moud.core.scene.Node;
@@ -18,11 +21,14 @@ import com.moud.server.minestom.assets.AssetStore;
 import com.moud.server.minestom.collision.source.BbmodelGeometrySource;
 import com.moud.server.minestom.collision.source.BuiltinMeshGeometrySource;
 import com.moud.server.minestom.collision.source.GeometrySourceRegistry;
+import com.moud.server.minestom.collision.source.ProceduralMeshGeometrySource;
 import com.moud.server.minestom.engine.Engine;
+import com.moud.server.minestom.mesh.ServerArrayMeshResolver;
 import com.moud.server.minestom.project.ProjectService;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.BiConsumer;
 
@@ -34,11 +40,19 @@ public final class CollisionBakeService {
     private final GeometrySourceRegistry geometrySources;
     private BiConsumer<Long, BakeResult> bakeListener;
 
+    private final ServerArrayMeshResolver meshResolver;
+
     public CollisionBakeService(ProjectService project, AssetStore assets) {
+        this.meshResolver = new ServerArrayMeshResolver(assets);
         this.geometrySources = new GeometrySourceRegistry(List.of(
+                new ProceduralMeshGeometrySource(meshResolver),
                 new BuiltinMeshGeometrySource(),
                 new BbmodelGeometrySource(project, assets)
         ));
+    }
+
+    public ServerArrayMeshResolver meshResolver() {
+        return meshResolver;
     }
 
     public void setBakeListener(BiConsumer<Long, BakeResult> listener) {
@@ -186,7 +200,7 @@ public final class CollisionBakeService {
     }
 
     private static ShapeSettings convexSettings(CollisionGeometry geometry) {
-        return new ConvexHullShapeSettings(java.util.Arrays.asList(float3s(geometry.vertices())));
+        return new ConvexHullShapeSettings(Arrays.asList(float3s(geometry.vertices())));
     }
 
     private static ShapeSettings meshSettings(CollisionGeometry geometry) {
@@ -198,28 +212,28 @@ public final class CollisionBakeService {
                 .setMaxConvexHulls(usage == CollisionUsage.DYNAMIC ? 16 : 24)
                 .setMaxNumVerticesPerCh(32)
                 .setResolution(usage == CollisionUsage.DYNAMIC ? 100_000 : 200_000)
-                .setShrinkWrap(false); // Disable shrink-wrap to avoid thin hulls
+                .setShrinkWrap(false); // shrink-wrap produces sliver hulls that fail collision
         try (parameters; Decomposer decomposer = new Decomposer()) {
             var hulls = decomposer.decompose(geometry.vertices(), geometry.indices(), parameters);
             if (hulls == null || hulls.isEmpty()) {
                 return new BakeResult(convexSettings(geometry), List.of(geometry));
             }
 
-            com.github.stephengold.joltjni.Vec3 zero = com.github.stephengold.joltjni.Vec3.sZero();
-            com.github.stephengold.joltjni.Quat identity = com.github.stephengold.joltjni.Quat.sIdentity();
+            Vec3 zero = Vec3.sZero();
+            Quat identity = Quat.sIdentity();
 
             List<CollisionGeometry> resultHulls = new ArrayList<>();
             ShapeSettings compoundSettings;
 
             if (usage == CollisionUsage.STATIC) {
                 StaticCompoundShapeSettings settings = new StaticCompoundShapeSettings();
-                for (com.github.stephengold.joltjni.vhacd.ConvexHull hull : hulls) {
+                for (ConvexHull hull : hulls) {
                     try {
                         int pointCount = hull.countPoints();
                         float[] points = new float[pointCount * 3];
                         hull.getPointsAsBuffer().get(points);
                         resultHulls.add(new CollisionGeometry(points, new int[0]));
-                        settings.addShape(zero, identity, new ConvexHullShapeSettings(java.util.Arrays.asList(float3s(points))));
+                        settings.addShape(zero, identity, new ConvexHullShapeSettings(Arrays.asList(float3s(points))));
                     } finally {
                         hull.close();
                     }
@@ -227,13 +241,13 @@ public final class CollisionBakeService {
                 compoundSettings = settings;
             } else {
                 MutableCompoundShapeSettings settings = new MutableCompoundShapeSettings();
-                for (com.github.stephengold.joltjni.vhacd.ConvexHull hull : hulls) {
+                for (ConvexHull hull : hulls) {
                     try {
                         int pointCount = hull.countPoints();
                         float[] points = new float[pointCount * 3];
                         hull.getPointsAsBuffer().get(points);
                         resultHulls.add(new CollisionGeometry(points, new int[0]));
-                        settings.addShape(zero, identity, new ConvexHullShapeSettings(java.util.Arrays.asList(float3s(points))));
+                        settings.addShape(zero, identity, new ConvexHullShapeSettings(Arrays.asList(float3s(points))));
                     } finally {
                         hull.close();
                     }

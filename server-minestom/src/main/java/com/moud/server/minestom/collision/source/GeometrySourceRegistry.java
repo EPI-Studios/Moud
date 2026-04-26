@@ -23,7 +23,7 @@ public final class GeometrySourceRegistry {
 
     public CollisionGeometry extract(Node node, String typeId) {
         for (CollisionGeometrySource source : sources) {
-            if (source.supports(typeId)) {
+            if (source.canHandle(node, typeId)) {
                 return source.extract(node, typeId);
             }
         }
