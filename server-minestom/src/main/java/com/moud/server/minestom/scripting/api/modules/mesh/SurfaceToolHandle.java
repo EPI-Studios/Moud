@@ -10,12 +10,14 @@ import com.moud.core.mesh.sdf.MarchingCubes;
 import com.moud.core.mesh.source.HashRefMesh;
 import com.moud.core.mesh.source.MeshSourceCodec;
 import com.moud.core.scene.Node;
+import com.moud.core.scripts.luau.LuauExport;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.mesh.MeshPublishService;
 import org.graalvm.polyglot.HostAccess;
 
 import java.util.List;
 
+@LuauExport(name = "SurfaceToolHandle", doc = "Streaming surface builder. Add vertices, normals, uvs, colors, then commit.")
 public final class SurfaceToolHandle {
     private final SurfaceTool tool;
     private final ServerScene scene;
@@ -32,41 +34,48 @@ public final class SurfaceToolHandle {
     }
 
     @HostAccess.Export
+    @LuauExport
     public SurfaceToolHandle set_material(String id) {
         tool.setMaterial(id);
         return this;
     }
 
     @HostAccess.Export
+    @LuauExport
     public SurfaceToolHandle set_normal(double x, double y, double z) {
         tool.setNormal((float) x, (float) y, (float) z);
         return this;
     }
 
     @HostAccess.Export
+    @LuauExport
     public SurfaceToolHandle set_uv(double u, double v) {
         tool.setUv((float) u, (float) v);
         return this;
     }
 
     @HostAccess.Export
+    @LuauExport
     public SurfaceToolHandle set_color(double r, double g, double b, double a) {
         tool.setColor((float) r, (float) g, (float) b, (float) a);
         return this;
     }
 
     @HostAccess.Export
+    @LuauExport
     public int add_vertex(double x, double y, double z) {
         return tool.addVertex((float) x, (float) y, (float) z);
     }
 
     @HostAccess.Export
+    @LuauExport
     public SurfaceToolHandle add_triangle(int a, int b, int c) {
         tool.addTriangle(a, b, c);
         return this;
     }
 
     @HostAccess.Export
+    @LuauExport
     public SurfaceToolHandle add_triangle_verts(double ax, double ay, double az,
                                                 double bx, double by, double bz,
                                                 double cx, double cy, double cz) {
@@ -78,18 +87,21 @@ public final class SurfaceToolHandle {
     }
 
     @HostAccess.Export
+    @LuauExport
     public SurfaceToolHandle generate_flat_normals() {
         tool.generateFlatNormals();
         return this;
     }
 
     @HostAccess.Export
+    @LuauExport
     public SurfaceToolHandle generate_smooth_normals(double angleDeg) {
         tool.generateSmoothNormals((float) angleDeg);
         return this;
     }
 
     @HostAccess.Export
+    @LuauExport
     public SurfaceToolHandle add_vertex_batch(Object positions, Object uvs) {
         float[] p = toFloats(positions);
         if (p == null) return this;
@@ -99,6 +111,7 @@ public final class SurfaceToolHandle {
     }
 
     @HostAccess.Export
+    @LuauExport
     public SurfaceToolHandle add_vertex_batch_colored(Object positions, Object uvs, Object colors) {
         float[] p = toFloats(positions);
         if (p == null) return this;
@@ -109,6 +122,7 @@ public final class SurfaceToolHandle {
     }
 
     @HostAccess.Export
+    @LuauExport
     public SurfaceToolHandle add_triangle_batch(Object indices) {
         int[] idx = toInts(indices);
         if (idx == null) return this;
@@ -117,11 +131,13 @@ public final class SurfaceToolHandle {
     }
 
     @HostAccess.Export
+    @LuauExport
     public SurfaceHandle end_surface() {
         return new SurfaceHandle(tool.end());
     }
 
     @HostAccess.Export
+    @LuauExport
     public String build_and_attach(long nodeId) {
         Surface surface = tool.end();
         ArrayMesh mesh = new MeshBuilder().addSurface(surface).build();
@@ -136,6 +152,7 @@ public final class SurfaceToolHandle {
     }
 
     @HostAccess.Export
+    @LuauExport
     public SurfaceToolHandle fill_heightmap(Object heights, int cols, double spacing) {
         float[] h = toFloats(heights);
         if (h == null || cols <= 1 || h.length < cols * cols) return this;
@@ -170,6 +187,7 @@ public final class SurfaceToolHandle {
     }
 
     @HostAccess.Export
+    @LuauExport
     public SurfaceToolHandle extract_iso_grid(Object samples, int nx, int ny, int nz,
                                               double x0, double y0, double z0,
                                               double x1, double y1, double z1,
