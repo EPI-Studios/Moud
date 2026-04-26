@@ -6,6 +6,7 @@ import com.moud.core.mesh.source.AssetRefMesh;
 import com.moud.core.mesh.source.HashRefMesh;
 import com.moud.core.mesh.source.MeshSourceCodec;
 import com.moud.core.scene.Node;
+import com.moud.core.scripts.luau.LuauExport;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.mesh.MeshPublishService;
 import com.moud.server.minestom.scripting.api.modules.mesh.ArrayMeshHandle;
@@ -15,6 +16,7 @@ import com.moud.server.minestom.scripting.api.modules.mesh.SurfaceToolHandle;
 import com.moud.server.minestom.scripting.runtime.RuntimeFacade;
 import org.graalvm.polyglot.HostAccess;
 
+@LuauExport(name = "MeshApi", doc = "Procedural mesh authoring and runtime mesh-source attachment.")
 public final class MeshApi {
     private final ServerScene scene;
     private final MeshPublishService publisher;
@@ -27,31 +29,37 @@ public final class MeshApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public SurfaceToolHandle surface_tool(String primitive) {
         return SurfaceToolHandle.begin(primitive, scene, publisher);
     }
 
     @HostAccess.Export
+    @LuauExport
     public MeshBuilderHandle builder() {
         return MeshBuilderHandle.create();
     }
 
     @HostAccess.Export
+    @LuauExport
     public NoiseHandle perlin(long seed) {
         return NoiseHandle.perlin(seed);
     }
 
     @HostAccess.Export
+    @LuauExport
     public NoiseHandle simplex(long seed) {
         return NoiseHandle.simplex(seed);
     }
 
     @HostAccess.Export
+    @LuauExport
     public NoiseHandle worley(long seed) {
         return NoiseHandle.worley(seed);
     }
 
     @HostAccess.Export
+    @LuauExport
     public long spawn_mesh_child(long parentId, String name) {
         if (scene == null || runtime == null) return 0L;
         String effectiveName = (name == null || name.isBlank()) ? "ProceduralMesh" : name;
@@ -59,6 +67,7 @@ public final class MeshApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void attach_inline(long nodeId, ArrayMeshHandle handle) {
         Node node = scene.engine().sceneTree().getNode(nodeId);
         if (node == null || handle == null) {
@@ -73,6 +82,7 @@ public final class MeshApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void attach_asset(long nodeId, String resPath) {
         Node node = scene.engine().sceneTree().getNode(nodeId);
         if (node == null || resPath == null || resPath.isBlank()) {
@@ -87,6 +97,7 @@ public final class MeshApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void clear_mesh_source(long nodeId) {
         Node node = scene.engine().sceneTree().getNode(nodeId);
         if (node == null) {
