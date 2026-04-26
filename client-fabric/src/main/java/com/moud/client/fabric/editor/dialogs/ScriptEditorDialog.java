@@ -7,6 +7,7 @@ import com.miry.ui.event.KeyEvent;
 import com.miry.ui.render.UiRenderer;
 import com.miry.ui.theme.Icon;
 import com.moud.client.fabric.render.MoudIcons;
+import com.moud.client.fabric.render.MoudVectorIcons;
 import com.miry.ui.theme.Theme;
 import com.moud.client.fabric.assets.MoudTextAssets;
 import com.moud.client.fabric.editor.net.EditorNet;
@@ -100,6 +101,7 @@ public final class ScriptEditorDialog {
         if (lastUiContext != null) {
             editor.cancelInteractions(lastUiContext);
         }
+        String closingPath = scriptPath;
         open = false;
         loading = false;
         saving = false;
@@ -108,6 +110,15 @@ public final class ScriptEditorDialog {
         error = null;
         confirmAction = null;
         confirmUntilMs = 0L;
+        EditorState st = runtime != null ? runtime.state() : null;
+        if (st != null && closingPath != null && !closingPath.isBlank()) {
+            st.closeScriptTab(closingPath);
+        }
+    }
+
+    public boolean isFocused(UiContext ctx) {
+        if (!open || ctx == null) return false;
+        return editor.isFocused(ctx);
     }
 
     public boolean isOpen() {
@@ -167,6 +178,9 @@ public final class ScriptEditorDialog {
         if (!open || ctx == null || event == null) {
             return false;
         }
+        if (!isFocused(ctx) && !findBarVisible) {
+            return false;
+        }
         lastUiContext = ctx;
 
         boolean ctrl = event.hasCtrl() || event.hasSuper();
@@ -204,6 +218,9 @@ public final class ScriptEditorDialog {
 
     public void handleTextInput(UiContext ctx, int codepoint) {
         if (!open || ctx == null) {
+            return;
+        }
+        if (!isFocused(ctx) && !findBarVisible) {
             return;
         }
         lastUiContext = ctx;
@@ -286,9 +303,10 @@ public final class ScriptEditorDialog {
         }
 
         int btnH = theme.design.widget_height_md + theme.design.border_thin * 2;
-        int btnW = 120;
+        int iconBtnSize = btnH;
         int btnY = dialogY + dialogH - pad - btnH;
-        int closeW = 110;
+        int closeW = iconBtnSize;
+        int btnW = iconBtnSize;
         int closeX = dialogX + dialogW - pad - closeW;
         int saveX = closeX - theme.design.space_sm - btnW;
         int reloadX = saveX - theme.design.space_sm - btnW;
@@ -300,9 +318,12 @@ public final class ScriptEditorDialog {
 
         int reloadText = (dirty && confirmAction == ConfirmAction.RELOAD) ? danger : text;
         int closeText = (dirty && confirmAction == ConfirmAction.CLOSE) ? danger : text;
-        drawButton(r, theme, "Reload", reloadX, btnY, btnW, btnH, mx, my, canReload, reloadText);
-        drawButton(r, theme, "Save", saveX, btnY, btnW, btnH, mx, my, canSave, text);
-        drawButton(r, theme, "Close", closeX, btnY, closeW, btnH, mx, my, true, closeText);
+        drawIconButton(r, theme, "reload", "/assets/moud/icons/godot/Reload.svg",
+                reloadX, btnY, iconBtnSize, mx, my, canReload, reloadText);
+        drawIconButton(r, theme, "save", "/assets/moud/icons/godot/Save.svg",
+                saveX, btnY, iconBtnSize, mx, my, canSave, text);
+        drawIconButton(r, theme, "close", "/assets/moud/icons/godot/Close.svg",
+                closeX, btnY, iconBtnSize, mx, my, true, closeText);
 
         String status;
         int statusColor = muted;
@@ -414,17 +435,22 @@ public final class ScriptEditorDialog {
         boolean canReload = !loading && !saving && hasSession();
 
         int btnH = theme.design.widget_height_md + theme.design.border_thin * 2;
+        int iconBtnSize = btnH;
         int barY = y + (pad >> 1);
-        int closeW = 70, btnW = 80;
+        int closeW = iconBtnSize;
+        int btnW = iconBtnSize;
         int closeX = x + w - pad - closeW;
         int saveX = closeX - theme.design.space_sm - btnW;
         int reloadX = saveX - theme.design.space_sm - btnW;
 
         int reloadTextColor = (dirty && confirmAction == ConfirmAction.RELOAD) ? danger : textColor;
         int closeTextColor = (dirty && confirmAction == ConfirmAction.CLOSE) ? danger : textColor;
-        drawButton(r, theme, "Reload", reloadX, barY, btnW, btnH, mx, my, canReload, reloadTextColor);
-        drawButton(r, theme, "Save", saveX, barY, btnW, btnH, mx, my, canSave, textColor);
-        drawButton(r, theme, "Close", closeX, barY, closeW, btnH, mx, my, true, closeTextColor);
+        drawIconButton(r, theme, "reload", "/assets/moud/icons/godot/Reload.svg",
+                reloadX, barY, iconBtnSize, mx, my, canReload, reloadTextColor);
+        drawIconButton(r, theme, "save", "/assets/moud/icons/godot/Save.svg",
+                saveX, barY, iconBtnSize, mx, my, canSave, textColor);
+        drawIconButton(r, theme, "close", "/assets/moud/icons/godot/Close.svg",
+                closeX, barY, iconBtnSize, mx, my, true, closeTextColor);
 
         String statusText;
         int statusColor;
@@ -613,6 +639,30 @@ public final class ScriptEditorDialog {
         int fg = enabled ? textColor : muted;
         r.drawRoundedRect(x, y, w, h, theme.design.radius_sm, hovered ? hover : bg, theme.design.border_thin, outline);
         r.drawText(label, x + theme.design.space_md, r.baselineForBox(y, h), fg);
+    }
+
+    private static void drawIconButton(UiRenderer r,
+                                       Theme theme,
+                                       String iconName,
+                                       String iconResource,
+                                       int x,
+                                       int y,
+                                       int size,
+                                       int mx,
+                                       int my,
+                                       boolean enabled,
+                                       int tint) {
+        int bg = Theme.toArgb(theme.widgetBg);
+        int hover = Theme.toArgb(theme.widgetHover);
+        int outline = Theme.toArgb(theme.widgetOutline);
+        int muted = Theme.mulAlpha(tint, 0.55f);
+        boolean hovered = enabled && hit(mx, my, x, y, size, size);
+        int fg = enabled ? tint : muted;
+        r.drawRoundedRect(x, y, size, size, theme.design.radius_sm,
+                hovered ? hover : bg, theme.design.border_thin, outline);
+        float iconSize = Math.max(10, size - 8);
+        MoudVectorIcons.drawCentered(r, iconName, iconResource,
+                x, y, size, size, iconSize, fg);
     }
 
     private static boolean hit(int mx, int my, int x, int y, int w, int h) {

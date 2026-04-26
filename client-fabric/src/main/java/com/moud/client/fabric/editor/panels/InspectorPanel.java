@@ -24,7 +24,10 @@ import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
 import com.moud.client.fabric.editor.theme.EditorTheme;
 import com.moud.client.fabric.editor.util.EditorUiUtil;
-import com.moud.client.fabric.editor.util.ScriptAssetTypes;
+import com.moud.client.fabric.editor.widgets.InspectorBridge;
+import com.moud.client.fabric.editor.widgets.InspectorContext;
+import com.moud.client.fabric.editor.widgets.NodeInspectorRegistry;
+import com.moud.client.fabric.editor.widgets.NodeInspectorWidget;
 import com.moud.client.fabric.model.ModelAsset;
 import com.moud.client.fabric.model.ModelCache;
 import com.moud.client.fabric.render.MoudIcons;
@@ -36,18 +39,10 @@ import com.moud.core.NodeTypeDef;
 import com.moud.core.player.AttachPoint;
 import com.moud.core.PropertyDef;
 import com.moud.core.PropertyType;
-import com.moud.core.assets.ResPath;
-import com.moud.core.scripts.ScriptFilenames;
-import com.moud.core.scripts.ScriptSlot;
 import com.moud.core.scene.Model3D;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.session.Session;
-import org.lwjgl.util.tinyfd.TinyFileDialogs;
-
-import java.io.File;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -63,6 +58,7 @@ public final class InspectorPanel extends Panel {
 
     private final EditorRuntime runtime;
     private final MaterialEditor materialEditor;
+    private final EditorScriptOps scriptOps;
 
     private final StripTabs dockTabs = new StripTabs();
     private final StripTabs.Style dockTabStyle = new StripTabs.Style();
@@ -84,6 +80,9 @@ public final class InspectorPanel extends Panel {
 
     private boolean fogColorPickerOpen;
     private boolean tintColorPickerOpen;
+
+    private final NodeInspectorRegistry inspectorRegistry = new NodeInspectorRegistry();
+    private final InspectorBridge inspectorBridge = (nodeId, key, encodedValue) -> sendOpsRecorded(List.of(new SceneOp.SetProperty(nodeId, key, encodedValue)));
 
     private final ContextMenu assetMenu = new ContextMenu();
     private long assetMenuNodeId;
@@ -117,6 +116,7 @@ public final class InspectorPanel extends Panel {
         super("");
         this.runtime = runtime;
         this.materialEditor = new MaterialEditor(runtime);
+        this.scriptOps = new EditorScriptOps(runtime);
         groupExpanded.put("Transform", true);
     }
 
@@ -427,6 +427,16 @@ public final class InspectorPanel extends Panel {
             }
 
             if ("attachment_point".equals(property.key()) && "PlayerAttachment".equals(selection.type())) {
+                continue;
+            }
+
+            NodeInspectorWidget customInspector = inspectorRegistry.findFor(selection.type(), property.key());
+            if (customInspector != null) {
+                InspectorContext inspectorCtx = new InspectorContext(
+                        ui, renderer, uiContext, ui.input(), theme,
+                        selection.nodeId(), values, interactive, inspectorBridge);
+                cursorY = customInspector.renderRow(inspectorCtx, property, value,
+                        innerX, cursorY, innerWidth, rowHeight, labelWidth);
                 continue;
             }
 
@@ -1069,61 +1079,6 @@ public final class InspectorPanel extends Panel {
         return y + rowHeight;
     }
 
-    private void attachScriptFromFile(long nodeId) {
-        EditorState state = runtime.state();
-        EditorNet net = runtime.net();
-        Session session = runtime.session();
-
-        if (state == null || net == null || session == null) {
-            runtime.requestToast("Attach failed: not connected", true, 3500);
-            return;
-        }
-
-        try {
-            String selectedPath = TinyFileDialogs.tinyfd_openFileDialog(
-                    "Attach " + ScriptAssetTypes.FILTER_LABEL, "", null,
-                    ScriptAssetTypes.FILTER_LABEL, false);
-            if (selectedPath == null || selectedPath.isBlank()) return;
-
-            File file = new File(selectedPath);
-            if (!file.exists() || !file.isFile()) {
-                runtime.requestToast("Script file not found", true, 4500);
-                return;
-            }
-
-            String filename = file.getName();
-            if (filename == null || filename.isBlank()) {
-                runtime.requestToast("Invalid filename", true, 4500);
-                return;
-            }
-
-            filename = ScriptAssetTypes.ensureExtension(filename);
-            ScriptAssetTypes.Kind kind = ScriptAssetTypes.kindOrDefault(filename);
-            if (kind == ScriptAssetTypes.Kind.LUAU) {
-                filename = ScriptFilenames.ensureSuffixFor(filename, ScriptSlot.SCRIPT);
-            }
-
-            String scriptPath = "res://scripts/" + filename;
-            try {
-                new ResPath(scriptPath);
-            } catch (Exception ignored) {
-                String ext = kind == ScriptAssetTypes.Kind.LUAU ? ".server.luau" : kind.extension();
-                scriptPath = "res://scripts/node_" + nodeId + ext;
-            }
-
-            String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
-            net.writeScriptFile(session, state, scriptPath, content);
-
-            sendOpsRecorded(List.of(new SceneOp.SetProperty(nodeId, "script", scriptPath)));
-            runtime.requestToast("Attached script: " + scriptPath, false, 2500);
-            runtime.openScriptEditor(nodeId, scriptPath);
-
-        } catch (Exception exception) {
-            String message = exception.getMessage();
-            runtime.requestToast("Attach failed" + (message == null || message.isBlank() ? "" : ": " + message), true, 6000);
-        }
-    }
-
     private void toggleScriptMenu(int x, int y, long nodeId) {
         if (scriptMenu.isOpen() && nodeId == scriptMenuNodeId) {
             closeScriptMenus();
@@ -1141,25 +1096,14 @@ public final class InspectorPanel extends Panel {
 
         scriptMenu.addItem("Load From System", () -> {
             closeScriptMenus();
-            attachScriptFromFile(nodeId);
+            scriptOps.importServerScriptFor(nodeId);
         });
         scriptMenu.addItem("Create New Script", () -> {
             closeScriptMenus();
-            createAndAttachScript(nodeId);
+            scriptOps.newServerScriptFor(nodeId);
         });
 
-        EditorState state = runtime.state();
-        ArrayList<String> scriptPaths = new ArrayList<>();
-        if (state != null) {
-            for (var entry : state.manifestEntries) {
-                if (entry == null || entry.path() == null) continue;
-                String path = entry.path().value();
-                if (isScriptAssetPath(path)) {
-                    scriptPaths.add(path);
-                }
-            }
-        }
-        scriptPaths.sort(String::compareToIgnoreCase);
+        List<String> scriptPaths = scriptOps.scriptAssets(false);
 
         if (scriptPaths.isEmpty()) {
             scriptMenu.addItem("Load From Server Files", () -> {});
@@ -1169,81 +1113,10 @@ public final class InspectorPanel extends Panel {
         for (String path : scriptPaths) {
             scriptServerMenu.addItem(path, () -> {
                 closeScriptMenus();
-                commitStringProperty("script", path);
-                runtime.openScriptEditor(nodeId, path);
+                scriptOps.useServerScript(nodeId, path, true);
             });
         }
         scriptMenu.addSubmenu("Load From Server Files", scriptServerMenu);
-    }
-
-    private void createAndAttachScript(long nodeId) {
-        EditorState state = runtime.state();
-        EditorNet net = runtime.net();
-        Session session = runtime.session();
-
-        if (state == null || net == null || session == null) {
-            runtime.requestToast("Create failed: not connected", true, 3500);
-            return;
-        }
-
-        try {
-            String filename = TinyFileDialogs.tinyfd_inputBox("Create Script", "Script filename", "node_" + nodeId + ".ts");
-            if (filename == null) return;
-
-            String nextName = filename.trim();
-            if (nextName.isBlank()) return;
-
-            nextName = ScriptAssetTypes.ensureExtension(nextName);
-            ScriptAssetTypes.Kind kind = ScriptAssetTypes.kindOrDefault(nextName);
-            boolean luau = kind == ScriptAssetTypes.Kind.LUAU;
-            boolean java = kind == ScriptAssetTypes.Kind.JAVA;
-
-            String scriptPath = "res://scripts/" + nextName;
-            String baseName = nextName;
-            int slash = baseName.lastIndexOf('/');
-            if (slash >= 0) {
-                baseName = baseName.substring(slash + 1);
-            }
-            int dot = baseName.lastIndexOf('.');
-            if (dot > 0) {
-                baseName = baseName.substring(0, dot);
-            }
-
-            String content = scriptTemplate(baseName, luau, java);
-            net.writeScriptFile(session, state, scriptPath, content);
-            sendOpsRecorded(List.of(new SceneOp.SetProperty(nodeId, "script", scriptPath)));
-            runtime.requestToast("Attached script: " + scriptPath, false, 2500);
-            runtime.openScriptEditor(nodeId, scriptPath);
-        } catch (Exception exception) {
-            String message = exception.getMessage();
-            runtime.requestToast("Create failed" + (message == null || message.isBlank() ? "" : ": " + message), true, 6000);
-        }
-    }
-
-    private static String scriptTemplate(String name, boolean luauScript, boolean javaScript) {
-        String n = name == null || name.isBlank() ? "Script" : name;
-        String template;
-        if (javaScript) template = "new_script.java";
-        else if (luauScript) template = "new_script.luau";
-        else template = "new_script.js";
-        return loadTemplate(template).replace("{{name}}", n).replace("{{Name}}", n);
-    }
-
-    private static String loadTemplate(String fileName) {
-        String path = "/assets/moud/templates/" + fileName;
-        try (var in = InspectorPanel.class.getResourceAsStream(path)) {
-            if (in == null) return "";
-            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            return "";
-        }
-    }
-
-    private static boolean isScriptAssetPath(String path) {
-        if (path == null || !path.startsWith("res://scripts/")) {
-            return false;
-        }
-        return ScriptAssetTypes.isScriptPath(path);
     }
 
     static boolean isAssetKind(PropertyDef property, String targetKind) {
@@ -1794,63 +1667,25 @@ public final class InspectorPanel extends Panel {
         clientScriptMenu.addItem("Load From System", () -> {
             clientScriptMenu.close();
             scriptMenuNodeId = 0L;
-            attachClientScriptFromFile(nodeId);
+            scriptOps.importClientScriptFor(nodeId);
         });
+        clientScriptMenu.addItem("Create New Script", () -> {
+            clientScriptMenu.close();
+            scriptMenuNodeId = 0L;
+            scriptOps.newClientScriptFor(nodeId);
+        });
+        List<String> scriptPaths = scriptOps.scriptAssets(true);
+        if (!scriptPaths.isEmpty()) {
+            clientScriptMenu.addSeparator();
+            for (String path : scriptPaths) {
+                clientScriptMenu.addItem(path, () -> {
+                    clientScriptMenu.close();
+                    scriptMenuNodeId = 0L;
+                    scriptOps.useClientScript(nodeId, path, true);
+                });
+            }
+        }
         EditorUiUtil.openMenuClamped(clientScriptMenu, runtime, x, y);
-    }
-
-    private void attachClientScriptFromFile(long nodeId) {
-        EditorState state = runtime.state();
-        EditorNet net = runtime.net();
-        Session session = runtime.session();
-
-        if (state == null || net == null || session == null) {
-            runtime.requestToast("Attach failed: not connected", true, 3500);
-            return;
-        }
-
-        try {
-            String selectedPath = TinyFileDialogs.tinyfd_openFileDialog("Attach Client Script (.ts, .js, .luau)", "", null, "Script (.ts, .js, .luau)", false);
-            if (selectedPath == null || selectedPath.isBlank()) return;
-
-            File file = new File(selectedPath);
-            if (!file.exists() || !file.isFile()) {
-                runtime.requestToast("Script file not found", true, 4500);
-                return;
-            }
-
-            String filename = file.getName();
-            if (filename == null || filename.isBlank()) {
-                runtime.requestToast("Invalid filename", true, 4500);
-                return;
-            }
-
-            String lower = filename.toLowerCase(Locale.ROOT);
-            boolean isLuau = ScriptFilenames.isLuau(filename);
-            if (!isLuau) {
-                runtime.requestToast("Client scripts must be Luau (.luau / .client.luau)", true, 5000);
-                return;
-            }
-            filename = ScriptFilenames.ensureSuffixFor(filename, ScriptSlot.CLIENT_SCRIPT);
-
-            String scriptPath = "res://scripts/" + filename;
-            try {
-                new ResPath(scriptPath);
-            } catch (Exception ignored) {
-                scriptPath = "res://scripts/client_" + nodeId + ".client.luau";
-            }
-
-            String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
-            net.writeScriptFile(session, state, scriptPath, content);
-
-            sendOpsRecorded(List.of(new SceneOp.SetProperty(nodeId, "client_script", scriptPath)));
-            runtime.requestToast("Attached client script: " + scriptPath, false, 2500);
-            runtime.openScriptEditor(nodeId, scriptPath);
-
-        } catch (Exception exception) {
-            String message = exception.getMessage();
-            runtime.requestToast("Attach failed" + (message == null || message.isBlank() ? "" : ": " + message), true, 6000);
-        }
     }
 
     private void renderClientScriptMenu(Ui ui, UiRenderer renderer, Theme theme, boolean interactive) {

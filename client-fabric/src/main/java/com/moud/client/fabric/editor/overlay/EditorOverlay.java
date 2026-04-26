@@ -130,6 +130,7 @@ public final class EditorOverlay {
     private int layoutSeedH;
 
     private final Map<UiWindow, Panel> floatingPanels = new HashMap<>();
+    private final Map<String, UiWindow> floatingScriptWindows = new HashMap<>();
     private final List<LeafNode> dockableLeaves = new ArrayList<>();
 
     private String toastMessage;
@@ -547,6 +548,7 @@ public final class EditorOverlay {
             applyBarRatios(w, h);
             dockSpace.resize(w, h);
             windowManager.update(uiContext, input, w, h);
+            cleanupFloatingScriptWindows();
             runtime.clearTooltip();
             EditorUiUtil.setActiveRuntime(runtime);
             boolean modalOpen = (createNodeDialog != null && createNodeDialog.isOpen())
@@ -948,7 +950,7 @@ public final class EditorOverlay {
                     || (createProjectDialog != null && createProjectDialog.isOpen())
                     || (createAssetDialog != null && createAssetDialog.isOpen())
                     || (quickSearchDialog != null && quickSearchDialog.isOpen())
-                    || (scriptEditorDialog != null && scriptEditorDialog.isOpen())
+                    || (scriptEditorDialog != null && scriptEditorDialog.isFocused(uiContext))
                     || (textAssetEditorDialog != null && textAssetEditorDialog.isOpen());
             if (!modalOpen) {
                 boolean sent = runtime.saveCurrentScene();
@@ -1213,6 +1215,10 @@ public final class EditorOverlay {
 
     private void undockScriptTab(String path) {
         if (windowManager == null || path == null || path.isBlank()) return;
+        UiWindow existing = floatingScriptWindows.get(path);
+        if (existing != null && windowManager.windows().contains(existing)) {
+            return;
+        }
         float mx = input.mousePos().x;
         float my = input.mousePos().y;
         int wx = Math.max(0, (int) mx - 300);
@@ -1220,6 +1226,7 @@ public final class EditorOverlay {
         String title = scriptTabLabel(path);
         UiWindow win = windowManager.create(title, wx, wy, 600, 400);
         win.setBackdropBlur(false);
+        floatingScriptWindows.put(path, win);
         ScriptEditorDialog dialog = runtime.scriptEditorDialog();
         if (dialog != null) {
             dialog.open(0, path);
@@ -1233,6 +1240,25 @@ public final class EditorOverlay {
                 d.renderInline(r, ctx, ui, theme, cx, cy, cw, ch);
             }
         });
+    }
+
+    private void cleanupFloatingScriptWindows() {
+        if (floatingScriptWindows.isEmpty() || windowManager == null) return;
+        EditorState st = runtime != null ? runtime.state() : null;
+        var iter = floatingScriptWindows.entrySet().iterator();
+        while (iter.hasNext()) {
+            var entry = iter.next();
+            UiWindow win = entry.getValue();
+            boolean stillTracked = st != null && st.openScriptPaths.contains(entry.getKey());
+            boolean stillOnScreen = windowManager.windows().contains(win);
+            if (!stillOnScreen) {
+                iter.remove();
+                if (st != null) st.closeScriptTab(entry.getKey());
+            } else if (!stillTracked) {
+                windowManager.windows().remove(win);
+                iter.remove();
+            }
+        }
     }
 
     private static String scriptTabLabel(String path) {

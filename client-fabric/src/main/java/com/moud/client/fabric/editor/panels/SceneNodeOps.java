@@ -1,7 +1,5 @@
 package com.moud.client.fabric.editor.panels;
 
-import com.moud.client.fabric.editor.util.ScriptAssetTypes;
-
 import com.miry.ui.UiContext;
 import com.miry.ui.widgets.ContextMenu;
 import com.miry.ui.widgets.TreeNode;
@@ -13,15 +11,10 @@ import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
 import com.moud.core.util.ParseUtils;
 import com.moud.core.NodeTypeDef;
-import com.moud.core.assets.ResPath;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.session.Session;
-import org.lwjgl.util.tinyfd.TinyFileDialogs;
 
-import java.io.File;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.ArrayDeque;
 import java.util.Comparator;
@@ -38,6 +31,7 @@ public class SceneNodeOps {
     private static final String PROP_EDITOR_LOCKED = "editor_locked";
 
     private final EditorRuntime runtime;
+    private final EditorScriptOps scriptOps;
 
     private ContextMenu nodeMenu;
     private ContextMenu addChildMenu;
@@ -50,6 +44,7 @@ public class SceneNodeOps {
 
     SceneNodeOps(EditorRuntime runtime) {
         this.runtime = runtime;
+        this.scriptOps = new EditorScriptOps(runtime);
     }
 
     void setMenus(ContextMenu nodeMenu, ContextMenu addChildMenu, Runnable closeAddChildCategoryMenus) {
@@ -630,7 +625,6 @@ public class SceneNodeOps {
         return false;
     }
 
-    /** Sends ops, records undo/redo history, and returns the batch ID. */
     long sendOpsRecorded(List<SceneOp> ops) {
         EditorState state = runtime.state();
         Session session = runtime.session();
@@ -757,43 +751,12 @@ public class SceneNodeOps {
 
     void attachScriptFromFile(long nodeId) {
         nodeMenu.close();
-        EditorState state = runtime.state();
-        EditorNet net = runtime.net();
-        Session session = runtime.session();
-        if (state == null || net == null || session == null) {
-            runtime.requestToast("Cannot attach: not connected", true, 3500);
-            return;
-        }
-        try {
-            String osPath = TinyFileDialogs.tinyfd_openFileDialog(
-                    "Attach Script (.ts, .js, .luau, .java)", "", null, "Script (.ts, .js, .luau, .java)", false);
-            if (osPath == null || osPath.isBlank()) return;
-            File file = new File(osPath);
-            if (!file.exists() || !file.isFile()) {
-                runtime.requestToast("Script file not found", true, 4500);
-                return;
-            }
-            String filename = file.getName();
-            if (filename == null || filename.isBlank()) {
-                runtime.requestToast("Invalid filename", true, 4500);
-                return;
-            }
-            filename = ScriptAssetTypes.ensureExtension(filename);
-            ScriptAssetTypes.Kind kind = ScriptAssetTypes.kindOrDefault(filename);
-            String scriptPath = "res://scripts/" + filename;
-            try {
-                new ResPath(scriptPath);
-            } catch (Exception ignored) {
-                scriptPath = "res://scripts/node_" + nodeId + kind.extension();
-            }
-            String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
-            net.writeScriptFile(session, state, scriptPath, content);
-            sendOpsRecorded(List.of(new SceneOp.SetProperty(nodeId, "script", scriptPath)));
-            runtime.requestToast("Attached script: " + scriptPath, false, 2500);
-        } catch (Exception e) {
-            String msg = e.getMessage();
-            runtime.requestToast("Attach failed" + (msg == null || msg.isBlank() ? "" : ": " + msg), true, 6000);
-        }
+        scriptOps.importServerScriptFor(nodeId);
+    }
+
+    void createScript(long nodeId) {
+        nodeMenu.close();
+        scriptOps.newServerScriptFor(nodeId);
     }
 
     void openChangeTypeDialog(SceneSnapshot.NodeSnapshot node) {

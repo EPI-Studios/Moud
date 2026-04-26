@@ -22,6 +22,7 @@ import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.function.Consumer;
 
 public final class CreateAssetDialog {
     private static final int DIALOG_W = 560;
@@ -35,6 +36,7 @@ public final class CreateAssetDialog {
     private boolean justOpened;
     private int activeTab;
     private String error;
+    private Consumer<String> scriptCreatedCallback;
 
     public CreateAssetDialog(EditorRuntime runtime) {
         this.runtime = runtime;
@@ -45,11 +47,23 @@ public final class CreateAssetDialog {
         open = true;
         error = null;
         activeTab = 0;
+        scriptCreatedCallback = null;
+    }
+
+    public void openScript(String defaultName, Consumer<String> createdCallback) {
+        justOpened = true;
+        open = true;
+        error = null;
+        activeTab = 0;
+        scriptCreatedCallback = createdCallback;
+        nameField.setText(defaultName == null || defaultName.isBlank() ? defaultNameFor(activeTab) : defaultName);
+        nameField.setCursorPos(nameField.text().length());
     }
 
     public void close() {
         open = false;
         error = null;
+        scriptCreatedCallback = null;
     }
 
     public boolean isOpen() {
@@ -233,7 +247,11 @@ public final class CreateAssetDialog {
         if (activeTab == 0) {
             String script = scriptTemplate(base, scriptKind);
             net.writeScriptFile(session, state, primaryPath, script);
-            runtime.openScriptEditor(0L, primaryPath);
+            if (scriptCreatedCallback != null) {
+                scriptCreatedCallback.accept(primaryPath);
+            } else {
+                runtime.openScriptEditor(0L, primaryPath);
+            }
             requestManifest();
             close();
             return;
