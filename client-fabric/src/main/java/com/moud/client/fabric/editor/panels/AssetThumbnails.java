@@ -39,7 +39,9 @@ final class AssetThumbnails {
         if (glId <= 0) return null;
 
         Texture miry = Texture.wrapExternal(glId, 1, 1, false);
-        cache.put(hash, new CachedThumb(miry, glId));
+        if (!MoudTextures.WHITE_ID.equals(texId)) {
+            cache.put(hash, new CachedThumb(miry, glId));
+        }
         return miry;
     }
 

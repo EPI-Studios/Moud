@@ -353,7 +353,8 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         ui.endScrollArea(area);
         drawScrollbar(r, theme, x, y, w, h, contentH, area.scrollY());
 
-        renderAssetContextMenu(r, theme, input, pressed);
+        updateAssetContextMenu(theme, input, pressed);
+        queueAssetContextMenuRender(r, theme);
     }
 
     private void renderFolderNode(DragDropManager dnd, FolderNode node, boolean isRoot, int indent, int[] rowIndex,
@@ -548,7 +549,8 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
 
         ui.endScrollArea(area);
         drawScrollbar(r, theme, panelX, panelY, panelW, panelH, contentH, area.scrollY());
-        renderAssetContextMenu(r, theme, input, pressed);
+        updateAssetContextMenu(theme, input, pressed);
+        queueAssetContextMenuRender(r, theme);
     }
 
     private void renderFileRow(DragDropManager dnd, AssetManifestResponse.Entry entry, int indentPx, int[] rowIndex,
@@ -623,7 +625,6 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
             }
         }
 
-        // Universal drag-and-drop
         if (hovered && pressed && dnd != null && !dnd.isBusy()) {
             if (path.endsWith(".moud.scene")) {
                 String sid = sceneIdFromPath(path);
@@ -1496,23 +1497,31 @@ public final class AssetsPanel extends Panel implements AssetsClient.Listener {
         }
     }
 
-    private void renderAssetContextMenu(UiRenderer r, Theme theme, UiInput input, boolean pressed) {
+    private void updateAssetContextMenu(Theme theme, UiInput input, boolean pressed) {
         if (!assetContextMenu.isOpen()) return;
         int itemH = Math.max(18, theme.tokens.itemHeight);
         if (input != null) {
             assetContextMenu.updateFromInput(input, theme, itemH);
             EditorUiUtil.clampOpenMenuToScreen(assetContextMenu, runtime);
         }
-        assetContextMenu.render(r, theme, itemH,
-                Theme.toArgb(theme.panelBg),
-                Theme.toArgb(theme.widgetHover),
-                Theme.toArgb(theme.text),
-                assetContextMenu.hoverIndex());
         if (input != null && pressed) {
             float mx = input.mousePos().x;
             float my = input.mousePos().y;
             assetContextMenu.handleClick((int) mx, (int) my, itemH);
         }
+    }
+
+    private void queueAssetContextMenuRender(UiRenderer r, Theme theme) {
+        if (!assetContextMenu.isOpen()) return;
+        int itemH = Math.max(18, theme.tokens.itemHeight);
+        runtime.setOverlayMenuRender(() -> {
+            if (!assetContextMenu.isOpen()) return;
+            assetContextMenu.render(r, theme, itemH,
+                    Theme.toArgb(theme.panelBg),
+                    Theme.toArgb(theme.widgetHover),
+                    Theme.toArgb(theme.text),
+                    assetContextMenu.hoverIndex());
+        });
     }
 
     private static void drawScrollbar(UiRenderer r, Theme theme, int x, int y, int w, int h,

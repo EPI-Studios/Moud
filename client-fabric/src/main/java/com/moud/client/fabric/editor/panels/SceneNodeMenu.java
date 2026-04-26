@@ -96,7 +96,8 @@ class SceneNodeMenu {
             nodeMenu.addItem("Group Selection", () -> sceneNodeOps.groupSelectedNodes());
         }
         nodeMenu.addSeparator();
-        nodeMenu.addItem("Attach Script…", () -> sceneNodeOps.attachScriptFromFile(node.nodeId()));
+        nodeMenu.addItem("New Script", () -> sceneNodeOps.createScript(node.nodeId()));
+        nodeMenu.addItem("Import Script…", () -> sceneNodeOps.attachScriptFromFile(node.nodeId()));
         nodeMenu.addItem("Copy Path", () -> sceneNodeOps.copyNodePath(node));
         nodeMenu.addSeparator();
         nodeMenu.addItem("Save Branch as Scene…", () -> sceneBranchExporter.openSaveBranch(node));
