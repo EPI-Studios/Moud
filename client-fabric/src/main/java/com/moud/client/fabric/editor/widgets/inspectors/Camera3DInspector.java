@@ -36,7 +36,7 @@ public final class Camera3DInspector implements NodeInspectorWidget {
 
         ctx.renderer().drawText(property.uiLabel(), x,
                 ctx.renderer().baselineForBox(y, rowHeight),
-                Theme.toArgb(ctx.theme().textMuted));
+                Theme.mulAlpha(Theme.toArgb(ctx.theme().textMuted), 0.86f));
 
         int valueX = x + labelWidth + ctx.theme().design.space_sm;
         int valueW = Math.max(40, width - (valueX - x));

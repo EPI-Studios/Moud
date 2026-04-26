@@ -35,7 +35,7 @@ public final class LightColorInspector implements NodeInspectorWidget {
 
         var renderer = ctx.renderer();
         var theme = ctx.theme();
-        renderer.drawText("Color", x, renderer.baselineForBox(y, rowHeight), Theme.toArgb(theme.textMuted));
+        renderer.drawText("Color", x, renderer.baselineForBox(y, rowHeight), Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.86f));
 
         int valueX = x + labelWidth + theme.design.space_sm;
         int swatchW = Math.max(1, width - (valueX - x));

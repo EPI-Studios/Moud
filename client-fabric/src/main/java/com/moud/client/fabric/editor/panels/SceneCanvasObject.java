@@ -79,35 +79,44 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
         parentId = node.parentId();
         typeId = node.type() != null ? node.type() : "";
         cachedVisible = !"false".equalsIgnoreCase(nvl(getProp(node, "visible"), "true"));
+
+        boolean pinned = canvas2d != null && canvas2d.isInteracting(this);
+
         float lx = parseFloat(getProp(node, "x"), 0.0f);
         float ly = parseFloat(getProp(node, "y"), 0.0f);
         float sx = parseFloat(getProp(node, "sx"), 1.0f);
         float sy = parseFloat(getProp(node, "sy"), 1.0f);
         float rz = parseFloat(getProp(node, "rz"), 0.0f);
-        pendingLocalX = lx;
-        pendingLocalY = ly;
-        pendingScaleX = sx;
-        pendingScaleY = sy;
-        pendingRotDeg = rz;
-        pendingDirty = false;
-        scale.set(sx, sy);
-        rotationDeg = rz;
+        if (!pinned) {
+            pendingLocalX = lx;
+            pendingLocalY = ly;
+            pendingScaleX = sx;
+            pendingScaleY = sy;
+            pendingRotDeg = rz;
+            pendingDirty = false;
+            scale.set(sx, sy);
+            rotationDeg = rz;
+        }
 
         if (CONTROL_TYPES.contains(typeId)) {
             if (controlRect != null) {
                 float rw = Math.max(1, controlRect[2]);
                 float rh = Math.max(1, controlRect[3]);
-                size.set(rw, rh);
-                pos.set(controlRect[0] + rw * 0.5f, controlRect[1] + rh * 0.5f);
+                if (!pinned) {
+                    size.set(rw, rh);
+                    pos.set(controlRect[0] + rw * 0.5f, controlRect[1] + rh * 0.5f);
+                }
             } else {
                 float w = parseFloat(getProp(node, "w"), 100.0f);
                 float h = parseFloat(getProp(node, "h"), 30.0f);
-                size.set(Math.max(1, w), Math.max(1, h));
-                if (world != null) pos.set(world.x + w * 0.5f, world.y + h * 0.5f);
+                if (!pinned) {
+                    size.set(Math.max(1, w), Math.max(1, h));
+                    if (world != null) pos.set(world.x + w * 0.5f, world.y + h * 0.5f);
+                }
             }
         } else {
-            if (world != null) pos.set(world);
-            size.set(1, 1);
+            if (!pinned && world != null) pos.set(world);
+            if (!pinned) size.set(1, 1);
         }
         cachedText = nvl(getProp(node, "text"), "");
         cachedFontSize = parseFloat(getProp(node, "font_size"), 9f);
@@ -277,7 +286,17 @@ final class SceneCanvasObject implements CanvasEditor2D.CanvasObject {
     public boolean contains(float x, float y) {
         float hx = (size.x * scale.x) * 0.5f;
         float hy = (size.y * scale.y) * 0.5f;
-        return x >= pos.x - hx && y >= pos.y - hy && x <= pos.x + hx && y <= pos.y + hy;
+        float dx = x - pos.x;
+        float dy = y - pos.y;
+        if (Math.abs(rotationDeg) < 1e-4f) {
+            return dx >= -hx && dy >= -hy && dx <= hx && dy <= hy;
+        }
+        float rad = (float) Math.toRadians(-rotationDeg);
+        float c = (float) Math.cos(rad);
+        float s = (float) Math.sin(rad);
+        float lx = dx * c - dy * s;
+        float ly = dx * s + dy * c;
+        return lx >= -hx && ly >= -hy && lx <= hx && ly <= hy;
     }
 
     @Override

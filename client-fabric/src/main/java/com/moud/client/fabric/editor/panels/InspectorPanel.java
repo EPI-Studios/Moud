@@ -55,6 +55,11 @@ import java.util.function.Consumer;
 
 public final class InspectorPanel extends Panel {
     private static final long DRAG_NUMBER_SEND_INTERVAL_MS = 50;
+    private static final int INSPECTOR_ROW_HEIGHT = 28;
+    private static final int INSPECTOR_CHILD_INDENT = 12;
+    private static final int SECTION_HEADER_HEIGHT = 24;
+    private static final int SECTION_TOP_MARGIN = 5;
+    private static final float LABEL_COLUMN_FRACTION = 0.34f;
 
     private final EditorRuntime runtime;
     private final MaterialEditor materialEditor;
@@ -328,8 +333,10 @@ public final class InspectorPanel extends Panel {
                 .thenComparing(PropertyDef::uiLabel)
                 .thenComparing(PropertyDef::key));
 
-        int rowHeight = 24;
-        int labelWidth = 110;
+        int rowHeight = INSPECTOR_ROW_HEIGHT;
+        int rowX = innerX + INSPECTOR_CHILD_INDENT;
+        int rowWidth = Math.max(1, innerWidth - INSPECTOR_CHILD_INDENT);
+        int labelWidth = inspectorLabelWidth(rowWidth);
 
         String scriptPath = values.get("script");
         if (scriptPath != null) {
@@ -360,18 +367,18 @@ public final class InspectorPanel extends Panel {
         boolean isTransformExpanded = isExpanded("Transform");
 
         if (isTransformExpanded) {
-            cursorY = renderVec3Row(ui, renderer, uiContext, theme, selection.nodeId(), typeDef, values, innerX, cursorY, innerWidth, rowHeight, labelWidth, "Position", "x", "y", "z", filterLower);
-            cursorY = renderVec3Row(ui, renderer, uiContext, theme, selection.nodeId(), typeDef, values, innerX, cursorY, innerWidth, rowHeight, labelWidth, "Rotation", "rx", "ry", "rz", filterLower);
+            cursorY = renderVec3Row(ui, renderer, uiContext, theme, selection.nodeId(), typeDef, values, rowX, cursorY, rowWidth, rowHeight, labelWidth, "Position", "x", "y", "z", filterLower);
+            cursorY = renderVec3Row(ui, renderer, uiContext, theme, selection.nodeId(), typeDef, values, rowX, cursorY, rowWidth, rowHeight, labelWidth, "Rotation", "rx", "ry", "rz", filterLower);
 
             String sizeLabel = "Scale";
             PropertyDef scaleXDef = typeDef.properties().get("sx");
             if (scaleXDef != null && "Size".equalsIgnoreCase(scaleXDef.category())) {
                 sizeLabel = "Size";
             }
-            cursorY = renderVec3Row(ui, renderer, uiContext, theme, selection.nodeId(), typeDef, values, innerX, cursorY, innerWidth, rowHeight, labelWidth, sizeLabel, "sx", "sy", "sz", filterLower);
+            cursorY = renderVec3Row(ui, renderer, uiContext, theme, selection.nodeId(), typeDef, values, rowX, cursorY, rowWidth, rowHeight, labelWidth, sizeLabel, "sx", "sy", "sz", filterLower);
         }
 
-        cursorY = renderWrappedModelRows(ui, renderer, uiContext, theme, state, selection, innerX, cursorY, innerWidth, rowHeight, labelWidth, filterLower, interactive);
+        cursorY = renderWrappedModelRows(ui, renderer, uiContext, theme, state, selection, rowX, cursorY, rowWidth, rowHeight, labelWidth, filterLower, interactive);
 
         String lastCategory = null;
         boolean fogColorRendered = false;
@@ -408,7 +415,7 @@ public final class InspectorPanel extends Panel {
             if ("Fog Color".equals(category) && isFogColorKey(property.key())) {
                 if (!fogColorRendered) {
                     fogColorRendered = true;
-                    cursorY = renderFogColorPicker(ui, renderer, uiContext, theme, selection.nodeId(), values, innerX, cursorY, innerWidth, rowHeight, labelWidth);
+                    cursorY = renderFogColorPicker(ui, renderer, uiContext, theme, selection.nodeId(), values, rowX, cursorY, rowWidth, rowHeight, labelWidth);
                 }
                 continue;
             }
@@ -416,7 +423,7 @@ public final class InspectorPanel extends Panel {
             if ("Color Tint".equals(category) && isColorTintKey(property.key())) {
                 if (!tintColorRendered) {
                     tintColorRendered = true;
-                    cursorY = renderTintColorPicker(ui, renderer, uiContext, theme, selection.nodeId(), values, innerX, cursorY, innerWidth, rowHeight, labelWidth);
+                    cursorY = renderTintColorPicker(ui, renderer, uiContext, theme, selection.nodeId(), values, rowX, cursorY, rowWidth, rowHeight, labelWidth);
                 }
                 continue;
             }
@@ -436,38 +443,39 @@ public final class InspectorPanel extends Panel {
                         ui, renderer, uiContext, ui.input(), theme,
                         selection.nodeId(), values, interactive, inspectorBridge);
                 cursorY = customInspector.renderRow(inspectorCtx, property, value,
-                        innerX, cursorY, innerWidth, rowHeight, labelWidth);
+                        rowX, cursorY, rowWidth, rowHeight, labelWidth);
                 continue;
             }
 
             if ("Model3D".equals(selection.type())) {
                 if (Model3D.PROP_MODEL_PATH.equals(property.key())) {
-                    cursorY = renderModel3DModelPathRow(ui, renderer, uiContext, theme, selection.nodeId(), property, innerX, cursorY, innerWidth, rowHeight, labelWidth, value, interactive);
+                    cursorY = renderModel3DModelPathRow(ui, renderer, uiContext, theme, selection.nodeId(), property, rowX, cursorY, rowWidth, rowHeight, labelWidth, value, interactive);
                     continue;
                 }
                 if (Model3D.PROP_ANIMATION.equals(property.key())) {
-                    cursorY = renderModel3DAnimationRow(ui, renderer, uiContext, theme, selection.nodeId(), property, values, innerX, cursorY, innerWidth, rowHeight, labelWidth, value, interactive);
+                    cursorY = renderModel3DAnimationRow(ui, renderer, uiContext, theme, selection.nodeId(), property, values, rowX, cursorY, rowWidth, rowHeight, labelWidth, value, interactive);
                     continue;
                 }
                 if (Model3D.PROP_ANIMATION_LOOP.equals(property.key())) {
-                    cursorY = renderModel3DAnimationLoopRow(ui, renderer, uiContext, theme, selection.nodeId(), property, innerX, cursorY, innerWidth, rowHeight, labelWidth, value, interactive);
+                    cursorY = renderModel3DAnimationLoopRow(ui, renderer, uiContext, theme, selection.nodeId(), property, rowX, cursorY, rowWidth, rowHeight, labelWidth, value, interactive);
                     continue;
                 }
             }
 
             if (("AnimatedTextureRect".equals(selection.type()) || "AnimatedSprite3D".equals(selection.type()))
                     && "animation".equals(property.key())) {
-                cursorY = renderSpriteSheetAnimationRow(ui, renderer, uiContext, theme, selection.nodeId(), property, values, innerX, cursorY, innerWidth, rowHeight, labelWidth, value, interactive);
+                cursorY = renderSpriteSheetAnimationRow(ui, renderer, uiContext, theme, selection.nodeId(), property, values, rowX, cursorY, rowWidth, rowHeight, labelWidth, value, interactive);
                 continue;
             }
 
-            cursorY = renderPropertyRow(ui, renderer, uiContext, theme, selection.nodeId(), property, innerX, cursorY, innerWidth, rowHeight, labelWidth, value);
+            cursorY = renderPropertyRow(ui, renderer, uiContext, theme, selection.nodeId(), property, rowX, cursorY, rowWidth, rowHeight, labelWidth, value);
         }
 
-        cursorY = renderPlayerBodyAttachRow(ui, renderer, theme, state, selection, values, innerX, cursorY, innerWidth, rowHeight, labelWidth, interactive);
+        cursorY = renderPlayerBodyAttachRow(ui, renderer, theme, state, selection, values, rowX, cursorY, rowWidth, rowHeight, labelWidth, interactive);
 
-        cursorY = materialEditor.renderMaterialShaderParams(this, ui, renderer, uiContext, theme, properties, values, filterLower, innerX, cursorY, innerWidth, rowHeight, labelWidth, interactive);
-        cursorY = renderScriptActions(ui, renderer, uiContext, theme, state, selection.nodeId(), scriptPath, filterLower, innerX, cursorY, innerWidth, rowHeight, interactive);
+        cursorY = materialEditor.renderMaterialShaderParams(this, ui, renderer, uiContext, theme, properties, values, filterLower,
+                innerX, innerWidth, rowX, cursorY, rowWidth, rowHeight, labelWidth, interactive);
+        cursorY = renderScriptActions(ui, renderer, uiContext, theme, state, selection.nodeId(), scriptPath, filterLower, rowX, cursorY, rowWidth, rowHeight, interactive);
 
         ui.endScrollArea(area);
 
@@ -729,7 +737,7 @@ public final class InspectorPanel extends Panel {
         boolean followAnim = ParseUtils.parseBool(values.get(PROP_FOLLOW), false);
         int baseline = (int) renderer.baselineForBox(y, rowHeight);
 
-        renderer.drawText("Follow Anim", x, baseline, Theme.toArgb(theme.textMuted));
+        renderer.drawText("Follow Anim", x, baseline, labelColor(theme));
         renderBool(ui, renderer, theme,
                 x + labelWidth + theme.design.space_sm, y,
                 width - labelWidth - theme.design.space_sm, rowHeight,
@@ -754,10 +762,10 @@ public final class InspectorPanel extends Panel {
         int valueX = x + labelWidth + theme.design.space_sm;
         int valueWidth = Math.max(1, width - (valueX - x));
 
-        renderer.drawText(label == null ? "" : label, x, renderer.baselineForBox(y, rowHeight), Theme.toArgb(theme.textMuted));
+        renderer.drawText(label == null ? "" : label, x, renderer.baselineForBox(y, rowHeight), labelColor(theme));
 
-        int fieldY = y + 2;
-        int fieldHeight = rowHeight - 4;
+        int fieldY = y + 3;
+        int fieldHeight = rowHeight - 6;
 
         var input = interactive ? ui.input() : null;
         boolean canInteract = input != null;
@@ -765,8 +773,8 @@ public final class InspectorPanel extends Panel {
         float mouseY = canInteract ? input.mousePos().y : -1;
         boolean hovered = canInteract && mouseX >= valueX && mouseY >= fieldY && mouseX < valueX + valueWidth && mouseY < fieldY + fieldHeight;
 
-        int backgroundColor = hovered ? Theme.toArgb(theme.widgetHover) : Theme.toArgb(theme.widgetBg);
-        int outlineColor = Theme.toArgb(theme.widgetOutline);
+        int backgroundColor = hovered ? Theme.lerpArgbInt(Theme.toArgb(theme.widgetBg), Theme.toArgb(theme.widgetHover), 0.55f) : Theme.toArgb(theme.widgetBg);
+        int outlineColor = hovered ? Theme.lerpArgbInt(Theme.toArgb(theme.widgetOutline), Theme.toArgb(theme.widgetActive), 0.35f) : Theme.toArgb(theme.widgetOutline);
 
         renderer.drawRoundedRect(valueX, fieldY, valueWidth, fieldHeight, theme.design.radius_sm, backgroundColor, theme.design.border_thin, outlineColor);
 
@@ -775,9 +783,8 @@ public final class InspectorPanel extends Panel {
         int textY = (int) renderer.baselineForBox(y, rowHeight);
         renderer.drawText(text, textX, textY, Theme.toArgb(theme.text));
 
-        float iconSize = Math.min(theme.design.icon_sm, fieldHeight - 6);
         int iconColor = Theme.toArgb(theme.textMuted);
-        MoudIcons.drawOrFallback(renderer, theme, Icon.CHEVRON_DOWN, valueX + valueWidth - theme.design.space_sm - iconSize, fieldY + (fieldHeight - iconSize) * 0.5f, iconSize, iconColor);
+        drawLiveChevron(renderer, valueX + valueWidth - theme.design.space_md - 5, fieldY + (fieldHeight - 10) * 0.5f, true, iconColor);
 
         if (hovered && canInteract && input.mouseReleased() && onOpenMenu != null) {
             onOpenMenu.run();
@@ -853,7 +860,8 @@ public final class InspectorPanel extends Panel {
         int groupsCount = 3;
         int rowsCount = properties != null ? Math.max(0, properties.size()) : 0;
         int extraHeight = (fogColorPickerOpen || tintColorPickerOpen) ? 180 : 0;
-        return 100 + (groupsCount + rowsCount + Math.max(0, extraRows)) * rowHeight + extraHeight;
+        return 160 + (groupsCount + rowsCount + Math.max(0, extraRows)) * rowHeight
+                + groupsCount * (SECTION_HEADER_HEIGHT + SECTION_TOP_MARGIN) + extraHeight;
     }
 
     private static int estimateScriptActionRows(EditorState state, long nodeId, String scriptPath) {
@@ -961,9 +969,11 @@ public final class InspectorPanel extends Panel {
     }
 
     int renderGroupHeader(Ui ui, UiRenderer renderer, Theme theme, int x, int y, int width, String title) {
-        int height = 26;
-        int backgroundColor = Theme.toArgb(theme.headerBg);
-        int hoverColor = Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.7f);
+        if (y > 0) {
+            y += SECTION_TOP_MARGIN;
+        }
+        int height = SECTION_HEADER_HEIGHT;
+        int hoverColor = Theme.mulAlpha(Theme.toArgb(theme.widgetHover), 0.45f);
         boolean isExpanded = isExpanded(title);
 
         boolean canInteract = (runtime == null || !runtime.uiBlocked()) && ui.input() != null;
@@ -971,15 +981,19 @@ public final class InspectorPanel extends Panel {
         float mouseY = canInteract ? ui.mouse().y : -1;
         boolean isHovered = canInteract && mouseX >= x && mouseY >= y && mouseX < x + width && mouseY < y + height;
 
-        renderer.drawRect(x, y, width, height, isHovered ? hoverColor : backgroundColor);
-        renderer.drawRect(x, y, 3, height, Theme.toArgb(theme.accent));
+        if (isHovered) {
+            renderer.drawRect(x, y, width, height, hoverColor);
+        }
+        renderer.drawRect(x, y, width, 1, Theme.mulAlpha(Theme.toArgb(theme.headerLine), 0.55f));
 
-        float iconSize = Math.min(theme.design.icon_sm, height - 8);
-        Icon icon = isExpanded ? Icon.CHEVRON_DOWN : Icon.CHEVRON_RIGHT;
-        MoudIcons.drawOrFallback(renderer, theme, icon, x + 6, y + (height - iconSize) * 0.5f, iconSize, Theme.toArgb(theme.textMuted));
-        renderer.drawText(title, x + 22, renderer.baselineForBox(y, height), Theme.toArgb(theme.text));
-
-        renderer.drawRect(x, y + height - 1, width, 1, Theme.toArgb(theme.headerLine));
+        int chevronColor = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.80f);
+        drawLiveChevron(renderer, x + 6, y + (height - 10) * 0.5f, isExpanded, chevronColor);
+        renderer.flush();
+        renderer.pushClip(x + 23, y, Math.max(0, width - 29), height);
+        String headerText = title == null ? "" : title;
+        renderer.drawText(headerText, x + 23, renderer.baselineForBox(y, height), Theme.toArgb(theme.text));
+        renderer.flush();
+        renderer.popClip();
 
         if (isHovered && canInteract && ui.input().mousePressed()) {
             groupExpanded.put(title, !isExpanded);
@@ -988,11 +1002,40 @@ public final class InspectorPanel extends Panel {
         return y + height;
     }
 
+    private static int inspectorLabelWidth(int width) {
+        int proportional = Math.round(width * LABEL_COLUMN_FRACTION);
+        return Math.max(88, Math.min(140, proportional));
+    }
+
+    private static int labelColor(Theme theme) {
+        return Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.86f);
+    }
+
+    private static void drawLiveChevron(UiRenderer renderer, float x, float y, boolean down, int color) {
+        String icon = down ? "chevron_down" : "chevron_right";
+        if (MoudIcons.has(icon)) {
+            MoudIcons.draw(renderer, icon, x, y, 10.0f, color);
+            return;
+        }
+        drawVectorChevron(renderer, x, y, down, color);
+    }
+
+    private static void drawVectorChevron(UiRenderer renderer, float x, float y, boolean down, int color) {
+        float r = 1.0f;
+        if (down) {
+            renderer.drawCapsule(x + 3.0f, y + 5.0f, x + 6.0f, y + 8.0f, r, color);
+            renderer.drawCapsule(x + 6.0f, y + 8.0f, x + 9.0f, y + 5.0f, r, color);
+        } else {
+            renderer.drawCapsule(x + 5.0f, y + 9.0f, x + 8.0f, y + 6.0f, r, color);
+            renderer.drawCapsule(x + 8.0f, y + 6.0f, x + 5.0f, y + 3.0f, r, color);
+        }
+    }
+
     private int renderPropertyRow(Ui ui, UiRenderer renderer, UiContext uiContext, Theme theme, long nodeId, PropertyDef property, int x, int y, int width, int rowHeight, int labelWidth, String value) {
         int valueX = x + labelWidth + theme.design.space_sm;
         int valueWidth = Math.max(1, width - (valueX - x));
 
-        renderer.drawText(property.uiLabel(), x, renderer.baselineForBox(y, rowHeight), Theme.toArgb(theme.textMuted));
+        renderer.drawText(property.uiLabel(), x, renderer.baselineForBox(y, rowHeight), labelColor(theme));
 
         if (property.type() == PropertyType.BOOL) {
             boolean interactive = runtime != null && !runtime.uiBlocked();
@@ -1285,7 +1328,7 @@ public final class InspectorPanel extends Panel {
             if (!searchTarget.contains(filterLower)) return y;
         }
 
-        renderer.drawText(label, x, renderer.baselineForBox(y, rowHeight), Theme.toArgb(theme.textMuted));
+        renderer.drawText(label, x, renderer.baselineForBox(y, rowHeight), labelColor(theme));
 
         int valueX = x + labelWidth + theme.design.space_sm;
         int valueWidth = Math.max(1, width - (valueX - x));
@@ -1298,23 +1341,21 @@ public final class InspectorPanel extends Panel {
         PropertyDef propY = typeDef != null ? typeDef.properties().get(keyY) : null;
         PropertyDef propZ = typeDef != null ? typeDef.properties().get(keyZ) : null;
 
-        renderPrefixedNumber(ui, renderer, uiContext, theme, nodeId, propX, keyX, valueX, fieldY, componentWidth, fieldHeight, "x", values.get(keyX));
-        renderPrefixedNumber(ui, renderer, uiContext, theme, nodeId, propY, keyY, valueX + componentWidth + gap, fieldY, componentWidth, fieldHeight, "y", values.get(keyY));
+        renderPrefixedNumber(ui, renderer, uiContext, theme, nodeId, propX, keyX, valueX, fieldY, componentWidth, fieldHeight, 0xFFE15F5F, values.get(keyX));
+        renderPrefixedNumber(ui, renderer, uiContext, theme, nodeId, propY, keyY, valueX + componentWidth + gap, fieldY, componentWidth, fieldHeight, 0xFF6FBE73, values.get(keyY));
         int lastX = valueX + (componentWidth + gap) * 2;
-        renderPrefixedNumber(ui, renderer, uiContext, theme, nodeId, propZ, keyZ, lastX, fieldY, valueX + valueWidth - lastX, fieldHeight, "z", values.get(keyZ));
+        renderPrefixedNumber(ui, renderer, uiContext, theme, nodeId, propZ, keyZ, lastX, fieldY, valueX + valueWidth - lastX, fieldHeight, 0xFF5F8FE1, values.get(keyZ));
 
         return y + rowHeight;
     }
 
-    private void renderPrefixedNumber(Ui ui, UiRenderer renderer, UiContext uiContext, Theme theme, long nodeId, PropertyDef propertyDef, String key, int x, int y, int width, int height, String prefix, String rawValue) {
+    private void renderPrefixedNumber(Ui ui, UiRenderer renderer, UiContext uiContext, Theme theme, long nodeId, PropertyDef propertyDef, String key, int x, int y, int width, int height, int axisColor, String rawValue) {
         DraggableNumberField numberField = numberField(key, propertyDef, ParseUtils.parseFloat(rawValue, 0.0f));
         syncNumberValue(uiContext, numberField, ParseUtils.parseFloat(rawValue, numberField.value()));
 
         var input = (runtime != null && !runtime.uiBlocked()) ? ui.input() : null;
+        numberField.setLeadingAccent(axisColor, 4);
         numberField.render(renderer, uiContext, input, theme, x, y, width, height, true);
-
-        int mutedColor = Theme.mulAlpha(Theme.toArgb(theme.textMuted), 0.70f);
-        renderer.drawText(prefix, x + 4, renderer.baselineForBox(y, height), mutedColor);
     }
 
     private DraggableNumberField numberField(String key, PropertyDef propertyDef, float initialValue) {
@@ -1471,7 +1512,7 @@ public final class InspectorPanel extends Panel {
         int valueX = x + labelWidth + theme.design.space_sm;
         int swatchWidth = Math.max(1, width - (valueX - x));
 
-        renderer.drawText("Fog Color", x, renderer.baselineForBox(y, rowHeight), Theme.toArgb(theme.textMuted));
+        renderer.drawText("Fog Color", x, renderer.baselineForBox(y, rowHeight), labelColor(theme));
 
         int swatchHeight = rowHeight - 4;
         int swatchY = y + 2;
@@ -1522,7 +1563,7 @@ public final class InspectorPanel extends Panel {
         int valueX = x + labelWidth + theme.design.space_sm;
         int swatchWidth = Math.max(1, width - (valueX - x));
 
-        renderer.drawText("Color Tint", x, renderer.baselineForBox(y, rowHeight), Theme.toArgb(theme.textMuted));
+        renderer.drawText("Color Tint", x, renderer.baselineForBox(y, rowHeight), labelColor(theme));
 
         int swatchHeight = rowHeight - 4;
         int swatchY = y + 2;
@@ -1851,23 +1892,22 @@ public final class InspectorPanel extends Panel {
         float mouseY = canInteract ? input.mousePos().y : -1;
         boolean isHovered = canInteract && mouseX >= x && mouseY >= y && mouseX < x + width && mouseY < y + height;
 
-        int boxSize = Math.min(16, height);
+        int boxSize = Math.min(16, height - 6);
         int boxY = y + (height - boxSize) / 2;
         int outlineColor = Theme.mulAlpha(Theme.toArgb(theme.widgetOutline), 0.85f);
-        int fillColor = value ? Theme.mulAlpha(Theme.toArgb(theme.widgetActive), 0.85f) : Theme.mulAlpha(Theme.toArgb(theme.widgetBg), 0.65f);
+        int fillColor = value ? Theme.mulAlpha(Theme.toArgb(theme.widgetActive), 0.72f) : Theme.darkenArgb(Theme.toArgb(theme.widgetBg), 0.06f);
 
         if (isHovered) {
             fillColor = Theme.lerpArgbInt(fillColor, Theme.toArgb(theme.widgetHover), 0.35f);
+            outlineColor = Theme.lerpArgbInt(outlineColor, Theme.toArgb(theme.widgetActive), 0.35f);
         }
 
         renderer.drawRoundedRect(x, boxY, boxSize, boxSize, Math.min(theme.design.radius_sm, 3.0f), fillColor, theme.design.border_thin, outlineColor);
 
         if (value) {
             float iconSize = Math.min(theme.design.icon_sm, boxSize - 4);
-            MoudIcons.drawOrFallback(renderer, theme, Icon.CHECK, x + (boxSize - iconSize) * 0.5f, boxY + (boxSize - iconSize) * 0.5f, iconSize, Theme.toArgb(theme.text));
+            MoudIcons.drawOrFallback(renderer, theme, Icon.CHECK, x + (boxSize - iconSize) * 0.5f, boxY + (boxSize - iconSize) * 0.5f, iconSize, 0xFFECEFF4);
         }
-
-        renderer.drawText(value ? "true" : "false", x + boxSize + 10, renderer.baselineForBox(y, height), Theme.toArgb(theme.textMuted));
 
         if (isHovered && canInteract && input.mousePressed() && onToggle != null) {
             onToggle.accept(!value);
