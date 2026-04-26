@@ -2,6 +2,7 @@ package com.moud.server.minestom.scripting.api.modules;
 
 import com.moud.core.physics.BodyHandle;
 import com.moud.core.scene.Node;
+import com.moud.core.scripts.luau.LuauExport;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.physics.CollisionEvent;
 import com.moud.server.minestom.physics.JoltPhysicsWorld;
@@ -12,6 +13,7 @@ import org.graalvm.polyglot.HostAccess;
 
 import java.util.List;
 
+@LuauExport(name = "PhysicsApi", doc = "Raycasts, overlap queries, character body movement, and force application against the physics world.")
 public final class PhysicsApi {
     private final ServerScene scene;
     private final RuntimeFacade runtime;
@@ -24,6 +26,7 @@ public final class PhysicsApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public PhysicsHit raycast(double ox, double oy, double oz, double dx, double dy, double dz, double maxDist) {
         JoltPhysicsWorld physics = scene.physics();
         if (physics == null) {
@@ -35,6 +38,7 @@ public final class PhysicsApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public int[] overlapSphere(double x, double y, double z, double radius) {
         JoltPhysicsWorld physics = scene.physics();
         if (physics == null) {
@@ -49,6 +53,7 @@ public final class PhysicsApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public CollisionEvent[] getCollisionEvents() {
         JoltPhysicsWorld physics = scene.physics();
         if (physics == null) {
@@ -59,6 +64,7 @@ public final class PhysicsApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public double[] getBodyVelocity(long nodeId) {
         JoltPhysicsWorld physics = scene.physics();
         if (physics == null) {
@@ -69,6 +75,7 @@ public final class PhysicsApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public double[] getCharacterVelocity(long nodeId) {
         Node node = scene.engine().sceneTree().getNode(nodeId);
         if (node == null || !"CharacterBody3D".equals(scene.engine().nodeTypes().typeIdFor(node))) {
@@ -82,6 +89,7 @@ public final class PhysicsApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void setCharacterVelocity(long nodeId, double vx, double vy, double vz) {
         Node node = scene.engine().sceneTree().getNode(nodeId);
         if (node == null || !"CharacterBody3D".equals(scene.engine().nodeTypes().typeIdFor(node))) {
@@ -94,6 +102,7 @@ public final class PhysicsApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void setCharacterScriptControlled(long nodeId, boolean controlled) {
         Node node = scene.engine().sceneTree().getNode(nodeId);
         if (node == null || !"CharacterBody3D".equals(scene.engine().nodeTypes().typeIdFor(node))) {
@@ -108,6 +117,7 @@ public final class PhysicsApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public double[] moveAndSlide(long nodeId, double deltaSeconds) {
         Node node = scene.engine().sceneTree().getNode(nodeId);
         if (node == null) {
@@ -121,36 +131,42 @@ public final class PhysicsApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public boolean isOnFloor(long nodeId) {
         Node node = scene.engine().sceneTree().getNode(nodeId);
         return node != null && runtime.characterBodySimulator().isOnFloor(node);
     }
 
     @HostAccess.Export
+    @LuauExport
     public boolean isOnWall(long nodeId) {
         Node node = scene.engine().sceneTree().getNode(nodeId);
         return node != null && runtime.characterBodySimulator().isOnWall(node);
     }
 
     @HostAccess.Export
+    @LuauExport
     public boolean isOnCeiling(long nodeId) {
         Node node = scene.engine().sceneTree().getNode(nodeId);
         return node != null && runtime.characterBodySimulator().isOnCeiling(node);
     }
 
     @HostAccess.Export
+    @LuauExport
     public double[] getWallNormal(long nodeId) {
         Node node = scene.engine().sceneTree().getNode(nodeId);
         return runtime.characterBodySimulator().wallNormal(node);
     }
 
     @HostAccess.Export
+    @LuauExport
     public double[] getInputDirection(long nodeId) {
         Node node = scene.engine().sceneTree().getNode(nodeId);
         return runtime.characterBodySimulator().inputDirection(node);
     }
 
     @HostAccess.Export
+    @LuauExport
     public void applyForce(long nodeId, double fx, double fy, double fz) {
         JoltPhysicsWorld physics = scene.physics();
         if (physics != null) {
@@ -159,6 +175,7 @@ public final class PhysicsApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void applyImpulse(long nodeId, double fx, double fy, double fz) {
         JoltPhysicsWorld physics = scene.physics();
         if (physics != null) {
@@ -167,6 +184,7 @@ public final class PhysicsApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void setLinearVelocity(long nodeId, double vx, double vy, double vz) {
         JoltPhysicsWorld physics = scene.physics();
         if (physics != null) {

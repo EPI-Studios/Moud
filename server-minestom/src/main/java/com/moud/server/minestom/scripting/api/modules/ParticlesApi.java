@@ -1,5 +1,6 @@
 package com.moud.server.minestom.scripting.api.modules;
 
+import com.moud.core.scripts.luau.LuauExport;
 import com.moud.net.script.ScriptPayload;
 import com.moud.server.minestom.script.ScriptMessageRouter;
 import java.util.LinkedHashMap;
@@ -7,6 +8,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.graalvm.polyglot.HostAccess;
 
+@LuauExport(name = "ParticlesApi", doc = "Particle effect spawning, burst, and emitter parameter control.")
 public final class ParticlesApi {
     public static final String TOPIC = "__particle";
     public static final String ACTION_EMIT = "emit";
@@ -28,21 +30,25 @@ public final class ParticlesApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void emit(long nodeId, int count) {
         broadcast(nodeId, payload(ACTION_EMIT, "count", Math.max(0, count)));
     }
 
     @HostAccess.Export
+    @LuauExport
     public void burst(long nodeId) {
         broadcast(nodeId, payload(ACTION_BURST, null, 0));
     }
 
     @HostAccess.Export
+    @LuauExport
     public void restart(long nodeId) {
         broadcast(nodeId, payload(ACTION_RESTART, null, 0));
     }
 
     @HostAccess.Export
+    @LuauExport
     public void setEmitting(long nodeId, boolean emitting) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("action", ACTION_SET_EMITTING);
@@ -51,6 +57,7 @@ public final class ParticlesApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void setRate(long nodeId, double rate) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("action", ACTION_SET_RATE);
@@ -59,6 +66,7 @@ public final class ParticlesApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void setLifetime(long nodeId, double lifetime) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("action", ACTION_SET_LIFETIME);
@@ -67,6 +75,7 @@ public final class ParticlesApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void moveTo(long nodeId, double x, double y, double z) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("action", ACTION_MOVE_TO);
@@ -77,6 +86,7 @@ public final class ParticlesApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void emitAt(long nodeId, double x, double y, double z, int count) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("action", ACTION_EMIT_AT);
@@ -88,6 +98,7 @@ public final class ParticlesApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void clearMoveTo(long nodeId) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("action", ACTION_CLEAR_MOVE);
