@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 public final class SceneTree {
     private final Node root;
@@ -50,6 +51,12 @@ public final class SceneTree {
 
     public Node getNode(long nodeId) {
         return nodesById.get(nodeId);
+    }
+
+    public void forEachNode(Consumer<Node> consumer) {
+        for (Node node : nodesById.values()) {
+            consumer.accept(node);
+        }
     }
 
     public void tick(double dtSeconds) {

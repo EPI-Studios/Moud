@@ -1,6 +1,8 @@
 package com.moud.core;
 
 
+import com.moud.core.mesh.source.MeshSourceCodec;
+
 public enum PropertyType {
     STRING {
         @Override
@@ -59,6 +61,18 @@ public enum PropertyType {
                 }
             }
             return ValidationResult.success();
+        }
+    },
+    MESH_SOURCE {
+        @Override
+        public ValidationResult validate(String value) {
+            if (value == null || value.isBlank()) return ValidationResult.success();
+            try {
+                MeshSourceCodec.decode(value);
+                return ValidationResult.success();
+            } catch (RuntimeException e) {
+                return ValidationResult.failure("invalid mesh_source: " + e.getMessage());
+            }
         }
     };
 
