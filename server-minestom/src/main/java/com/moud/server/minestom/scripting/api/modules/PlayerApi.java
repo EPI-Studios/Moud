@@ -2,6 +2,7 @@ package com.moud.server.minestom.scripting.api.modules;
 
 
 import com.moud.core.scene.Node;
+import com.moud.core.scripts.luau.LuauExport;
 import com.moud.net.protocol.PlayerMotion;
 import com.moud.net.transport.Lane;
 import com.moud.server.minestom.engine.ServerScene;
@@ -13,6 +14,7 @@ import org.graalvm.polyglot.HostAccess;
 
 import java.util.UUID;
 
+@LuauExport(name = "PlayerApi", doc = "Player roster access, position/velocity queries, and teleportation.")
 public final class PlayerApi {
     private final ServerScene scene;
     private final PlayerStateManager playerState;
@@ -24,31 +26,37 @@ public final class PlayerApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public double playerX(Node node) {
         return playerState.playerCoord(node, 0);
     }
 
     @HostAccess.Export
+    @LuauExport
     public double playerY(Node node) {
         return playerState.playerCoord(node, 1);
     }
 
     @HostAccess.Export
+    @LuauExport
     public double playerZ(Node node) {
         return playerState.playerCoord(node, 2);
     }
 
     @HostAccess.Export
+    @LuauExport
     public double playerYaw(Node node) {
         return playerState.playerCoord(node, 3);
     }
 
     @HostAccess.Export
+    @LuauExport
     public boolean teleportPlayer(String playerUuid, double x, double y, double z) {
         return teleportPlayer(playerUuid, x, y, z, Double.NaN, Double.NaN);
     }
 
     @HostAccess.Export
+    @LuauExport
     public boolean teleportPlayer(String playerUuid, double x, double y, double z, double yawDeg, double pitchDeg) {
         if (playerUuid == null || playerUuid.isBlank()) {
             return false;
@@ -65,6 +73,7 @@ public final class PlayerApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void playerSetVelocity(String playerUuid, double vx, double vy, double vz) {
         Player player = findPlayer(playerUuid);
         if (player != null) {
@@ -73,16 +82,19 @@ public final class PlayerApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void playerAddVelocity(String playerUuid, double vx, double vy, double vz) {
         playerSetVelocity(playerUuid, vx, vy, vz);
     }
 
     @HostAccess.Export
+    @LuauExport
     public double[] playerGetVelocity(String playerUuid) {
         return playerState.getPlayerVelocity(playerUuid);
     }
 
     @HostAccess.Export
+    @LuauExport
     public PlayerInfo[] getPlayers() {
         return playerState.getPlayers();
     }

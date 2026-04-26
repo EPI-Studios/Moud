@@ -1,5 +1,6 @@
 package com.moud.server.minestom.scripting.api.modules;
 
+import com.moud.core.scripts.luau.LuauExport;
 import com.moud.net.script.ScriptPayload;
 import com.moud.server.minestom.script.MapSchema;
 import com.moud.server.minestom.script.ScriptMessageRouter;
@@ -14,6 +15,7 @@ import java.util.UUID;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 
+@LuauExport(name = "NetApi", doc = "Low-level networking helpers for scripts: register typed handlers, send to peers, and broadcast.")
 public final class NetApi {
     private final ScriptMessageRouter router;
     private final long selfId;
@@ -26,6 +28,7 @@ public final class NetApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void on(String topic, Map<String, Object> schema, ScriptCallback handler) {
         if (router == null || topic == null || topic.isBlank() || handler == null) return;
         ScriptMessageSchema validator = schema == null || schema.isEmpty()
@@ -39,6 +42,7 @@ public final class NetApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void on(String topic, Value schema, Value handler) {
         if (router == null || topic == null || topic.isBlank() || handler == null || !handler.canExecute()) return;
         ScriptMessageSchema validator = schema == null || schema.isNull() || !schema.hasMembers()
@@ -52,6 +56,7 @@ public final class NetApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void sendTo(String uuid, String topic, Map<String, Object> payload, Map<String, Object> opts) {
         if (router == null || uuid == null || topic == null || topic.isBlank()) return;
         boolean reliable = readReliableMap(opts, true);
@@ -63,6 +68,7 @@ public final class NetApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void sendTo(String uuid, String topic, Value payload, Value opts) {
         if (router == null || uuid == null || topic == null || topic.isBlank()) return;
         boolean reliable = readReliableValue(opts, true);
@@ -74,6 +80,7 @@ public final class NetApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void broadcast(String topic, Map<String, Object> payload, Map<String, Object> opts) {
         if (router == null || topic == null || topic.isBlank() || allPlayers == null) return;
         boolean reliable = readReliableMap(opts, true);
@@ -82,6 +89,7 @@ public final class NetApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void broadcast(String topic, Value payload, Value opts) {
         if (router == null || topic == null || topic.isBlank() || allPlayers == null) return;
         boolean reliable = readReliableValue(opts, true);
@@ -90,6 +98,7 @@ public final class NetApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void clear(String topic) {
         if (router == null || topic == null) return;
         router.unregister(selfId, topic);

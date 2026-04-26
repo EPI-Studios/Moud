@@ -3,8 +3,10 @@ package com.moud.server.minestom.scripting.api.modules.mesh;
 import com.moud.core.mesh.noise.FractalNoise;
 import com.moud.core.mesh.noise.FastNoiseLiteSampler;
 import com.moud.core.mesh.noise.NoiseSampler;
+import com.moud.core.scripts.luau.LuauExport;
 import org.graalvm.polyglot.HostAccess;
 
+@LuauExport(name = "NoiseHandle", doc = "Sampler for procedural noise (perlin, simplex, worley) with fractal octaves.")
 public final class NoiseHandle {
     private final NoiseSampler sampler;
 
@@ -33,21 +35,25 @@ public final class NoiseHandle {
     }
 
     @HostAccess.Export
+    @LuauExport
     public NoiseHandle fractalize(int octaves, double lacunarity, double gain) {
         return fractal(sampler, octaves, lacunarity, gain);
     }
 
     @HostAccess.Export
+    @LuauExport
     public double sample2(double x, double y) {
         return sampler.sample2((float) x, (float) y);
     }
 
     @HostAccess.Export
+    @LuauExport
     public double sample3(double x, double y, double z) {
         return sampler.sample3((float) x, (float) y, (float) z);
     }
 
     @HostAccess.Export
+    @LuauExport
     public double[] heightmap(int cols, double spacing, double originX, double originZ,
                               double frequency, double heightScale, double heightBias) {
         if (cols <= 0) return new double[0];
