@@ -4,15 +4,18 @@ import com.moud.client.fabric.editor.diagnostics.ClientFrameProfiler;
 import com.moud.client.fabric.input.ClientInputMap;
 import com.moud.client.fabric.platform.MinecraftGhostBlocks;
 import com.moud.client.fabric.player.ClientPlayerMotionController;
+import com.moud.client.fabric.render.PostProcessStage;
 import com.moud.client.fabric.render.VeilSceneRenderer;
 import com.moud.client.fabric.render.hud.HudCanvasRenderer;
 import com.moud.client.fabric.render.hud.HudSelectionOverlay;
 import com.moud.client.fabric.render.loading.PlayLoadingOverlay;
 import com.moud.client.fabric.util.ClientDebugLog;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+import com.moud.client.fabric.render.mesh.upload.ProceduralMeshUploader;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 
@@ -41,6 +44,10 @@ final class MoudClient {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
                 client.execute(sessionLifecycle::onDisconnect));
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+        // two-stage post fx: WORLD here for depth-aware passes, SCREEN later for screen-space
+        WorldRenderEvents.LAST.register(context -> VeilSceneRenderer.runFullscreenPostProcess(
+                MinecraftClient.getInstance(),
+                PostProcessStage.WORLD));
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> renderOverlays(drawContext));
     }
 
@@ -60,6 +67,7 @@ final class MoudClient {
     }
 
     private void tickSystems() {
+        ProceduralMeshUploader.drain();
         if (ctx.overlayOpen && ctx.isConnected()) {
             ctx.assets.tick(ctx.session);
         }
@@ -72,8 +80,6 @@ final class MoudClient {
     }
 
     private void renderOverlays(DrawContext drawContext) {
-        VeilSceneRenderer.runFullscreenPostProcess(MinecraftClient.getInstance());
-
         boolean isConnected = ctx.isConnected();
         if (isConnected) {
             ClientFrameProfiler.beginScope("overlay.hud");
@@ -97,6 +103,12 @@ final class MoudClient {
         }
 
         PlayLoadingOverlay.render(drawContext);
+
+        // runs after hud/overlays so screen filters (pixelation etc) sample the composite
+        VeilSceneRenderer.runFullscreenPostProcess(
+                MinecraftClient.getInstance(),
+                PostProcessStage.SCREEN);
+
         ClientFrameProfiler.endFrame();
     }
 }

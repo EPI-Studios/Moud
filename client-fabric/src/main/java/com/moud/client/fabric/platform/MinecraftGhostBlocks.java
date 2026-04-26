@@ -383,6 +383,8 @@ public final class MinecraftGhostBlocks {
         worldUpdatedStreak = 0;
     }
 
+    private static final long GHOST_VOXEL_CAP = 100_000L;
+
     private static void collectCsgPositions(int x,
                                             int y,
                                             int z,
@@ -394,6 +396,10 @@ public final class MinecraftGhostBlocks {
                                             float rzDeg,
                                             LongOpenHashSet out) {
         if (out == null) {
+            return;
+        }
+        long volume = (long) Math.max(1, sx) * Math.max(1, sy) * Math.max(1, sz);
+        if (volume > GHOST_VOXEL_CAP) {
             return;
         }
         CsgVoxelizer.forEachVoxel(

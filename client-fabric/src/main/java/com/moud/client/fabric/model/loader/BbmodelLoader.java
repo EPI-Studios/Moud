@@ -12,6 +12,7 @@ import com.moud.client.fabric.model.CubeGeometry;
 import com.moud.client.fabric.model.MeshGeometry;
 import com.moud.client.fabric.model.ModelAsset;
 import com.moud.client.fabric.render.MoudTextures;
+import com.moud.client.fabric.util.ClientDebugLog;
 import fr.mrqsdf.bbmodelreader.BbModelReader;
 import fr.mrqsdf.bbmodelreader.data.BbModel;
 import fr.mrqsdf.bbmodelreader.data.Element;
@@ -86,7 +87,7 @@ public final class BbmodelLoader {
             root.add("outliner", fixedOutliner);
             return root.toString();
         } catch (Exception e) {
-            com.moud.client.fabric.util.ClientDebugLog.warn("bbmodel", "sanitizeOutliner failed: " + e.getMessage());
+            ClientDebugLog.warn("bbmodel", "sanitizeOutliner failed: " + e.getMessage());
             return json;
         }
     }
@@ -113,6 +114,7 @@ public final class BbmodelLoader {
                 texIds.add(id);
             }
         }
+        Map<String, Integer> textureLookup = textureLookup(textures);
 
         Map<String, Element> elementsByUuid = new HashMap<>();
         Element[] elements = bb.getElements();
@@ -125,7 +127,7 @@ public final class BbmodelLoader {
 
         List<BoneNode> rootBones = new ArrayList<>();
         Map<String, BoneNode> bonesByUuid = new HashMap<>();
-        buildBones(root, elementsByUuid, elementJsonByUuid, rootBones, bonesByUuid);
+        buildBones(root, elementsByUuid, elementJsonByUuid, textureLookup, rootBones, bonesByUuid);
 
         Map<String, AnimationClip> animations = new HashMap<>();
         Animation[] anims = bb.getAnimations();
@@ -147,6 +149,7 @@ public final class BbmodelLoader {
     private static void buildBones(JsonObject root,
                                    Map<String, Element> elementsByUuid,
                                    Map<String, JsonObject> elementJsonByUuid,
+                                   Map<String, Integer> textureLookup,
                                    List<BoneNode> rootBones,
                                    Map<String, BoneNode> bonesByUuid) {
         JsonArray outliner = root != null && root.has("outliner") && root.get("outliner").isJsonArray()
@@ -163,10 +166,10 @@ public final class BbmodelLoader {
             BoneNode bone;
             JsonObject entryObject = asObject(entry);
             if (entryObject != null) {
-                bone = buildBone(entryObject, elementsByUuid, elementJsonByUuid);
+                bone = buildBone(entryObject, elementsByUuid, elementJsonByUuid, textureLookup);
             } else if (entry.isJsonPrimitive() && entry.getAsJsonPrimitive().isString()) {
                 String uuid = entry.getAsString();
-                bone = syntheticBoneForElement(uuid, elementsByUuid, elementJsonByUuid, syntheticRootIndex++);
+                bone = syntheticBoneForElement(uuid, elementsByUuid, elementJsonByUuid, textureLookup, syntheticRootIndex++);
             } else {
                 bone = null;
             }
@@ -180,7 +183,8 @@ public final class BbmodelLoader {
 
     private static BoneNode buildBone(JsonObject outliner,
                                       Map<String, Element> elements,
-                                      Map<String, JsonObject> elementJsonByUuid) {
+                                      Map<String, JsonObject> elementJsonByUuid,
+                                      Map<String, Integer> textureLookup) {
         if (outliner == null) {
             return null;
         }
@@ -201,7 +205,7 @@ public final class BbmodelLoader {
                 }
                 JsonObject childObject = asObject(child);
                 if (childObject != null) {
-                    BoneNode childBone = buildBone(childObject, elements, elementJsonByUuid);
+                    BoneNode childBone = buildBone(childObject, elements, elementJsonByUuid, textureLookup);
                     if (childBone != null) {
                         children.add(childBone);
                     }
@@ -209,11 +213,11 @@ public final class BbmodelLoader {
                     String uuid2 = child.getAsString();
                     Element element = elements.get(uuid2);
                     if (element != null) {
-                        CubeGeometry cube = toCube(element, elementJsonByUuid.get(uuid2));
+                        CubeGeometry cube = toCube(element, elementJsonByUuid.get(uuid2), textureLookup);
                         if (cube != null) {
                             cubes.add(cube);
                         } else {
-                            toMeshFaces(elementJsonByUuid.get(uuid2), meshes);
+                            toMeshFaces(elementJsonByUuid.get(uuid2), meshes, textureLookup);
                         }
                     }
                 }
@@ -234,13 +238,14 @@ public final class BbmodelLoader {
     private static BoneNode syntheticBoneForElement(String uuid,
                                                     Map<String, Element> elements,
                                                     Map<String, JsonObject> elementJsonByUuid,
+                                                    Map<String, Integer> textureLookup,
                                                     int index) {
         Element element = elements.get(uuid);
         if (element == null) {
             return null;
         }
         JsonObject raw = elementJsonByUuid.get(uuid);
-        CubeGeometry cube = toCube(element, raw);
+        CubeGeometry cube = toCube(element, raw, textureLookup);
         if (cube != null) {
             return new BoneNode(
                     "__root_" + index, "",
@@ -251,7 +256,7 @@ public final class BbmodelLoader {
             );
         }
         List<MeshGeometry> meshes = new ArrayList<>();
-        toMeshFaces(raw, meshes);
+        toMeshFaces(raw, meshes, textureLookup);
         if (meshes.isEmpty()) {
             return null;
         }
@@ -264,7 +269,7 @@ public final class BbmodelLoader {
         );
     }
 
-    private static CubeGeometry toCube(Element e, JsonObject raw) {
+    private static CubeGeometry toCube(Element e, JsonObject raw, Map<String, Integer> textureLookup) {
         float[] from = e.getFrom(), to = e.getTo();
         if (from == null || to == null || from.length < 3 || to.length < 3) return null;
         Face f = e.getFaces();
@@ -276,16 +281,16 @@ public final class BbmodelLoader {
                 origin[0], origin[1], origin[2],
                 rotation[0], rotation[1], rotation[2],
                 inflate,
-                toFaceUv(f != null ? f.getNorth() : null),
-                toFaceUv(f != null ? f.getSouth() : null),
-                toFaceUv(f != null ? f.getEast()  : null),
-                toFaceUv(f != null ? f.getWest()  : null),
-                toFaceUv(f != null ? f.getUp()    : null),
-                toFaceUv(f != null ? f.getDown()  : null)
+                toFaceUv(f != null ? f.getNorth() : null, rawFace(raw, "north"), textureLookup),
+                toFaceUv(f != null ? f.getSouth() : null, rawFace(raw, "south"), textureLookup),
+                toFaceUv(f != null ? f.getEast()  : null, rawFace(raw, "east"), textureLookup),
+                toFaceUv(f != null ? f.getWest()  : null, rawFace(raw, "west"), textureLookup),
+                toFaceUv(f != null ? f.getUp()    : null, rawFace(raw, "up"), textureLookup),
+                toFaceUv(f != null ? f.getDown()  : null, rawFace(raw, "down"), textureLookup)
         );
     }
 
-    private static void toMeshFaces(JsonObject raw, List<MeshGeometry> out) {
+    private static void toMeshFaces(JsonObject raw, List<MeshGeometry> out, Map<String, Integer> textureLookup) {
         if (raw == null) return;
         JsonObject verticesJson = asObject(raw.get("vertices"));
         JsonObject facesJson = asObject(raw.get("faces"));
@@ -313,7 +318,7 @@ public final class BbmodelLoader {
             JsonArray vertOrder = asArray(face.get("vertices"));
             if (vertOrder == null || vertOrder.size() < 4) continue;
             JsonObject uvMap = asObject(face.get("uv"));
-            int texIdx = rawInt(face, "texture", 0);
+            int texIdx = rawTextureIndex(face, 0, textureLookup);
 
             String[] names = new String[4];
             for (int i = 0; i < 4; i++) {
@@ -321,8 +326,8 @@ public final class BbmodelLoader {
                 names[i] = ve != null && ve.isJsonPrimitive() ? ve.getAsString() : null;
             }
 
-            float[] pos = new float[12]; // 4 * xyz
-            float[] uvs = new float[8];  // 4 * uv
+            float[] pos = new float[12];
+            float[] uvs = new float[8];
             boolean valid = true;
             for (int i = 0; i < 4; i++) {
                 if (names[i] == null) { valid = false; break; }
@@ -387,13 +392,60 @@ public final class BbmodelLoader {
                 : fallback;
     }
 
-    private static CubeGeometry.FaceUV toFaceUv(Face.FaceValue fv) {
+    private static CubeGeometry.FaceUV toFaceUv(Face.FaceValue fv, JsonObject rawFace, Map<String, Integer> textureLookup) {
         if (fv == null) return null;
         float[] uv = fv.getUv();
         if (uv == null || uv.length < 4) return null;
-        int tex = fv.getTexture() != null ? fv.getTexture() : 0;
+        int fallbackTex = fv.getTexture() != null ? fv.getTexture() : 0;
+        int tex = rawTextureIndex(rawFace, fallbackTex, textureLookup);
         int rot = fv.getRotation() != null ? fv.getRotation() : 0;
         return new CubeGeometry.FaceUV(uv[0], uv[1], uv[2], uv[3], rot, tex);
+    }
+
+    private static JsonObject rawFace(JsonObject element, String faceName) {
+        JsonObject faces = element == null ? null : asObject(element.get("faces"));
+        return faces == null ? null : asObject(faces.get(faceName));
+    }
+
+    private static int rawTextureIndex(JsonObject object, int fallback, Map<String, Integer> lookup) {
+        if (object == null || !object.has("texture")) {
+            return fallback;
+        }
+        JsonElement el = object.get("texture");
+        if (el == null || !el.isJsonPrimitive()) {
+            return fallback;
+        }
+        var prim = el.getAsJsonPrimitive();
+        if (prim.isNumber()) {
+            return prim.getAsInt();
+        }
+        if (!prim.isString()) {
+            return fallback;
+        }
+        return lookupTextureIndex(prim.getAsString(), fallback, lookup);
+    }
+
+    private static int lookupTextureIndex(String ref, int fallback, Map<String, Integer> lookup) {
+        if (ref == null) {
+            return fallback;
+        }
+        String key = ref.trim();
+        if (key.isEmpty()) {
+            return fallback;
+        }
+        while (key.startsWith("#")) {
+            key = key.substring(1);
+        }
+        try {
+            return Integer.parseInt(key);
+        } catch (NumberFormatException ignored) {
+        }
+        Integer direct = lookup == null ? null : lookup.get(key);
+        if (direct != null) {
+            return direct;
+        }
+        Integer lower = lookup == null ? null : lookup.get(key.toLowerCase(Locale.ROOT));
+        return lower != null ? lower : fallback;
     }
 
     private static AnimationClip buildClip(Animation anim) {
@@ -446,6 +498,43 @@ public final class BbmodelLoader {
         float[] a = new float[list.size()];
         for (int i = 0; i < list.size(); i++) a[i] = list.get(i)[comp];
         return a;
+    }
+
+    private static Map<String, Integer> textureLookup(Texture[] textures) {
+        Map<String, Integer> out = new HashMap<>();
+        if (textures == null) {
+            return out;
+        }
+        for (int i = 0; i < textures.length; i++) {
+            Texture texture = textures[i];
+            addTextureKey(out, Integer.toString(i), i);
+            addTextureKey(out, "#" + i, i);
+            if (texture == null) {
+                continue;
+            }
+            addTextureKey(out, texture.getUuid(), i);
+            addTextureKey(out, texture.getId(), i);
+            addTextureKey(out, texture.getName(), i);
+            addTextureKey(out, texture.getPath(), i);
+            addTextureKey(out, texture.getRelative_path(), i);
+        }
+        return out;
+    }
+
+    private static void addTextureKey(Map<String, Integer> out, String key, int index) {
+        if (out == null || key == null) {
+            return;
+        }
+        String normalized = key.trim();
+        if (normalized.isEmpty()) {
+            return;
+        }
+        out.putIfAbsent(normalized, index);
+        out.putIfAbsent(normalized.toLowerCase(Locale.ROOT), index);
+        if (!normalized.startsWith("#")) {
+            out.putIfAbsent("#" + normalized, index);
+            out.putIfAbsent(("#" + normalized).toLowerCase(Locale.ROOT), index);
+        }
     }
 
     private static byte[] extractPng(Texture tex) {

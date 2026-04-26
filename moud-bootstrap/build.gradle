@@ -1,0 +1,83 @@
+plugins {
+    id 'fabric-loom' version '1.15-SNAPSHOT'
+}
+
+def clientJavaVersion = providers.gradleProperty("moud.client.java")
+        .map { Integer.parseInt(it) }
+        .orElse(25)
+def bundledRuntimeMetadata = tasks.register('generateBundledRuntimeMetadata') {
+    def outputDir = layout.buildDirectory.dir('generated/bundled-runtime')
+    outputs.dir(outputDir)
+    doLast {
+        def dir = outputDir.get().asFile
+        dir.mkdirs()
+        new File(dir, 'VERSION').text = project.version.toString() + System.lineSeparator()
+        new File(dir, 'RELEASE_TAG').text = "v${project.version}" + System.lineSeparator()
+    }
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url = 'https://maven.fabricmc.net/' }
+
+    maven {
+        name = "RedlanceMinecraft"
+        url = "https://repo.redlance.org/public"
+    }
+
+    maven {
+        url = 'https://repo.minestom.com/'
+        content {
+            includeGroup 'net.minestom'
+            includeGroup 'com.miry'
+        }
+    }
+
+    maven {
+        name = 'BlameJared Maven (Veil)'
+        url = 'https://maven.blamejared.com'
+    }
+
+    maven { url = 'https://maven.hollowcube.dev/releases' }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:1.21.1"
+    mappings "net.fabricmc:yarn:1.21.1+build.3:v2"
+    modImplementation "net.fabricmc:fabric-loader:0.18.6"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:0.116.10+1.21.1"
+
+    include implementation(project(':core'))
+
+    include(modImplementation("foundry.veil:veil-fabric-1.21.1:3.3.3"))
+    include(modImplementation("com.zigythebird.playeranim:PlayerAnimationLibFabric:1.1.4+mc.1.21.1"))
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(clientJavaVersion.get())
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = clientJavaVersion.get()
+}
+
+tasks.withType(Jar).configureEach {
+    dependsOn(project(':client-fabric').tasks.named('remapRuntimeJar'))
+    dependsOn(bundledRuntimeMetadata)
+    into('bootstrap-runtime') {
+        from(project(':client-fabric').tasks.named('remapRuntimeJar').flatMap { it.archiveFile }) {
+            rename { 'moud-client-runtime.jar' }
+        }
+        from(bundledRuntimeMetadata)
+    }
+    manifest {
+        attributes(
+                'Premain-Class': 'com.moud.bootstrap.MoudAgent',
+                'Can-Redefine-Classes': 'false',
+                'Can-Retransform-Classes': 'false'
+        )
+    }
+}

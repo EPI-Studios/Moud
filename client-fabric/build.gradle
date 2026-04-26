@@ -1,9 +1,12 @@
 plugins {
     id 'fabric-loom' version '1.15-SNAPSHOT'
+    id 'com.gradleup.shadow' version '8.3.6'
 }
 
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import net.fabricmc.loom.task.RenderDocRunTask
 import net.fabricmc.loom.task.RenderDocRunUITask
+import net.fabricmc.loom.task.RemapJarTask
 import java.util.Locale
 
 def luauEnabled = providers.gradleProperty("moud.client.enableLuau")
@@ -14,6 +17,10 @@ def luauVersion = providers.gradleProperty("moud.client.luauVersion")
 def clientJavaVersion = providers.gradleProperty("moud.client.java")
         .map { Integer.parseInt(it) }
         .orElse(25)
+
+configurations {
+    runtimeShadow
+}
 
 repositories {
     mavenLocal()
@@ -56,16 +63,25 @@ dependencies {
 
     include implementation(project(':core'))
     include implementation(project(':net'))
+    runtimeShadow project(':net')
 
     include implementation("com.github.stephengold:jolt-jni-Linux64:3.5.0")
     include runtimeOnly("com.github.stephengold:jolt-jni-Linux64:3.5.0:ReleaseSp")
     include runtimeOnly("com.github.stephengold:jolt-jni-Linux_ARM64:3.5.0:ReleaseSp")
     include runtimeOnly("com.github.stephengold:jolt-jni-Windows64:3.5.0:ReleaseSp")
+    runtimeShadow "com.github.stephengold:jolt-jni-Linux64:3.5.0"
+    runtimeShadow "com.github.stephengold:jolt-jni-Linux64:3.5.0:ReleaseSp"
+    runtimeShadow "com.github.stephengold:jolt-jni-Linux_ARM64:3.5.0:ReleaseSp"
+    runtimeShadow "com.github.stephengold:jolt-jni-Windows64:3.5.0:ReleaseSp"
 
     include implementation("fr.mrqsdf:BbModelReader:1.0-SNAPSHOT")
     include(implementation("com.miry:miry:1.0-SNAPSHOT") {
         exclude group: "org.lwjgl"
     })
+    runtimeShadow "fr.mrqsdf:BbModelReader:1.0-SNAPSHOT"
+    runtimeShadow("com.miry:miry:1.0-SNAPSHOT") {
+        exclude group: "org.lwjgl"
+    }
 
     if (luauEnabled.get()) {
         include implementation("dev.hollowcube:luau:${luauVersion.get()}")
@@ -73,6 +89,12 @@ dependencies {
             include runtimeOnly("dev.hollowcube:luau-natives-${variant}:${luauVersion.get()}")
         }
         include runtimeOnly("moud.vendored:luau-natives-windows-x64:1.0.0")
+
+        runtimeShadow "dev.hollowcube:luau:${luauVersion.get()}"
+        for (String variant : ['linux-x64', 'macos-x64', 'macos-arm64']) {
+            runtimeShadow "dev.hollowcube:luau-natives-${variant}:${luauVersion.get()}"
+        }
+        runtimeShadow "moud.vendored:luau-natives-windows-x64:1.0.0"
     }
 }
 
@@ -159,3 +181,26 @@ tasks.register('generateLuauClientTypes', JavaExec) {
     args = [rootProject.projectDir.toPath().resolve('core/src/main/resources/types/moud-client.d.luau').toString()]
 }
 
+def runtimeDevJar = tasks.register('runtimeDevJar', ShadowJar) {
+    group = 'build'
+    description = 'Builds the managed client runtime jar with loader-independent libraries shaded in.'
+    dependsOn tasks.named('classes')
+    archiveClassifier.set('runtime-dev')
+    from sourceSets.main.output
+    configurations = [project.configurations.runtimeShadow]
+    exclude 'com/moud/client/fabric/bootstrap/**'
+    mergeServiceFiles()
+}
+
+tasks.register('remapRuntimeJar', RemapJarTask) {
+    group = 'build'
+    description = 'Builds the remapped managed client runtime jar consumed by moud-bootstrap.'
+    dependsOn runtimeDevJar
+    input = runtimeDevJar.flatMap { it.archiveFile }
+    archiveClassifier.set('runtime')
+    addNestedDependencies = false
+}
+
+tasks.named('assemble').configure {
+    dependsOn tasks.named('remapRuntimeJar')
+}

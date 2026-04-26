@@ -104,6 +104,7 @@ final class ClientUriFlow {
         ServerAddress address = ServerAddress.parse(rawAddress);
         String displayName = link.hasSceneId() ? "Moud: " + link.sceneId() : "Moud";
         ServerInfo serverInfo = new ServerInfo(displayName, rawAddress.trim(), ServerInfo.ServerType.OTHER);
+        MoudServerDetector.markAddress(rawAddress.trim());
         Screen parent = client.currentScreen;
         if (parent == null) parent = new MultiplayerScreen(new TitleScreen());
 

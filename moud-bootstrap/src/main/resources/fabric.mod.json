@@ -1,19 +1,17 @@
 {
   "schemaVersion": 1,
-  "id": "moud",
+  "id": "moud-bootstrap",
   "version": "0.0.0-dev",
-  "name": "Moud",
-  "description": "Moud",
+  "name": "Moud Bootstrap",
+  "description": "moud's bootstrap.",
   "authors": ["moud"],
   "contact": {},
   "license": "All-Rights-Reserved",
   "environment": "client",
   "entrypoints": {
-    "client": ["com.moud.client.fabric.FabricClientEntrypoint"]
+    "preLaunch": ["com.moud.bootstrap.MoudBootstrap"],
+    "client": ["com.moud.bootstrap.BootstrapClientEntrypoint"]
   },
-  "mixins": [
-    "moud.client.mixins.json"
-  ],
   "depends": {
     "minecraft": "1.21.1",
     "fabricloader": ">=0.18.6",
