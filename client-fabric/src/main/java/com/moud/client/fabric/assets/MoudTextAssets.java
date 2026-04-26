@@ -13,12 +13,8 @@ import com.moud.client.fabric.net.ClientSessionBus;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+
 
 public final class MoudTextAssets implements AssetsClient.Listener {
     private static final Object LOCK = new Object();
@@ -63,6 +59,19 @@ public final class MoudTextAssets implements AssetsClient.Listener {
     public static List<String> textAssetPaths() {
         synchronized (LOCK) {
             return textPaths;
+        }
+    }
+
+    public record ManifestEntry(String path, String type) {}
+
+    public static List<ManifestEntry> allManifestEntries() {
+        synchronized (LOCK) {
+            var out = new ArrayList<ManifestEntry>(metaByPath.size());
+            for (var e : metaByPath.entrySet()) {
+                out.add(new ManifestEntry(e.getKey().value(), e.getValue().type().name()));
+            }
+            out.sort(Comparator.comparing(ManifestEntry::path));
+            return out;
         }
     }
 
