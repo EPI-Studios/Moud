@@ -8,6 +8,7 @@ record PostProcessEffectSnapshot(
         long registrationOrder,
         PostProcessSourceKind sourceKind,
         String sourceValue,
+        PostProcessStage stage,
         Map<String, float[]> floatUniforms,
         Map<String, String> textureUniforms) {
 }

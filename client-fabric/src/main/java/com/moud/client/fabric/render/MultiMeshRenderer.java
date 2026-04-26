@@ -3,6 +3,7 @@ package com.moud.client.fabric.render;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
 import com.moud.client.fabric.render.scene.math.Pose;
+import com.moud.client.fabric.render.shadow.ShadowMaps;
 import com.moud.client.fabric.render.veil.GlUtil;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
 import com.moud.client.fabric.render.veil.VeilMaterialBinding;
@@ -141,18 +142,19 @@ final class MultiMeshRenderer {
                 }
                 GlUtil.uniform1f(currentPid, "DeltaTime", tickDelta);
                 sceneLights.applyUniforms(currentPid);
-                com.moud.client.fabric.render.shadow.ShadowMaps.uploadSpotShadowScalarUniforms(currentPid);
+                ShadowMaps.uploadSpotShadowScalarUniforms(currentPid);
             }
 
             if (binding != null) {
                 binding.applyMaterial(program);
             } else {
                 program.clearSamplers();
-                program.setSampler("Texture0", MoudTextures.white());
+                program.setSampler("Texture0", MoudTextures.boundGlId(MoudTextures.white()), 0);
             }
-            if (com.moud.client.fabric.render.shadow.ShadowMaps.hasActiveSpotShadow()) {
-                program.setSampler("SpotShadowMap", com.moud.client.fabric.render.shadow.ShadowMaps.spotShadowTextureId());
-            }
+            Identifier mmrShadowId = ShadowMaps.hasActiveSpotShadow()
+                    ? ShadowMaps.spotShadowTextureId()
+                    : MoudTextures.white();
+            program.setSampler("SpotShadowMap", MoudTextures.boundGlId(mmrShadowId), 0);
             program.bindSamplers(0);
 
             List<SceneSnapshot.Uniform> uniforms = node.uniforms();

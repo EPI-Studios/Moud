@@ -1,4 +1,4 @@
-// Moud built-in lighting — copy these into your shader to use scene lights.
+// Moud built-in lighting - copy these into your shader to use scene lights.
 //
 // Uniforms set automatically per frame:
 //   NumPointLights, NumDirLights, NumSpotLights
@@ -35,8 +35,14 @@ vec3 calcPointLight(PointLight light, vec3 worldPos, vec3 normal) {
     return light.color * light.brightness * NdotL * atten * atten;
 }
 
+float directionalDiffuse(vec3 normal, vec3 lightDir) {
+    float wrap = 0.35;
+    float d = clamp((dot(normal, lightDir) + wrap) / (1.0 + wrap), 0.0, 1.0);
+    return d * d * (3.0 - 2.0 * d);
+}
+
 vec3 calcDirLight(DirLight light, vec3 normal) {
-    float NdotL = max(dot(normal, -light.direction), 0.0);
+    float NdotL = directionalDiffuse(normal, -normalize(light.direction));
     return light.color * light.brightness * NdotL;
 }
 

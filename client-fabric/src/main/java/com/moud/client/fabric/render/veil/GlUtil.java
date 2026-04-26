@@ -121,7 +121,7 @@ public final class GlUtil {
         GL30.glDeleteVertexArrays(vao);
     }
 
-    private static void bindMeshAttribs(int locPos, int locTex, int locNorm) {
+private static void bindMeshAttribs(int locPos, int locTex, int locNorm) {
         if (locPos >= 0) {
             GL20.glEnableVertexAttribArray(locPos);
             GL20.glVertexAttribPointer(locPos, 3, GL11.GL_FLOAT, false, STRIDE, 0);

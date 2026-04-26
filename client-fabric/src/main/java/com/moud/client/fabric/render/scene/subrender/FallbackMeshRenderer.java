@@ -2,6 +2,7 @@ package com.moud.client.fabric.render.scene.subrender;
 
 import com.moud.client.fabric.render.Model3DRenderer;
 import com.moud.client.fabric.render.MoudTextures;
+import com.moud.client.fabric.render.mesh.draw.ProceduralMeshDrawer;
 import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.client.fabric.render.scene.util.NodePropertyUtils;
 import com.moud.client.fabric.runtime.PlayRuntimeBus;
@@ -85,7 +86,11 @@ public final class FallbackMeshRenderer {
             }
 
             String materialPath = NodePropertyUtils.stringProp(node, "material");
-            if (!"Sprite3D".equals(type) && !"AnimatedSprite3D".equals(type) && (materialPath == null || materialPath.isBlank())) {
+            String meshSource = NodePropertyUtils.stringProp(node, "mesh_source");
+            boolean hasProceduralMesh = meshSource != null && !meshSource.isBlank();
+            if (!"Sprite3D".equals(type) && !"AnimatedSprite3D".equals(type)
+                    && !hasProceduralMesh
+                    && (materialPath == null || materialPath.isBlank())) {
                 String textureProp = NodePropertyUtils.stringProp(node, "texture");
                 boolean hasCustomTexture = textureProp != null && !textureProp.isBlank()
                         && !MoudTextures.WHITE_ID.toString().equals(textureProp)
@@ -130,8 +135,14 @@ public final class FallbackMeshRenderer {
             matrices.translate(world.pos.x - camPos.x, world.pos.y - camPos.y, world.pos.z - camPos.z);
             matrices.multiply(world.rot);
             matrices.scale(world.scale.x, world.scale.y, world.scale.z);
-            matrices.translate(-0.5, -0.5, -0.5);
-            renderUnitCube(vertexConsumer, matrices.peek(), light, OverlayTexture.DEFAULT_UV, tintRi, tintGi, tintBi, alpha);
+            boolean drewProcedural = "MeshInstance3D".equals(type)
+                    && ProceduralMeshDrawer.drawIfBound(
+                            node.nodeId(), vertexConsumer, matrices.peek(), light,
+                            OverlayTexture.DEFAULT_UV, tintRi, tintGi, tintBi, alpha);
+            if (!drewProcedural) {
+                matrices.translate(-0.5, -0.5, -0.5);
+                renderUnitCube(vertexConsumer, matrices.peek(), light, OverlayTexture.DEFAULT_UV, tintRi, tintGi, tintBi, alpha);
+            }
             matrices.pop();
         }
     }

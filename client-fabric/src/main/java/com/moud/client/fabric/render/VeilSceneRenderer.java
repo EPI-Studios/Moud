@@ -12,7 +12,10 @@ import com.moud.client.fabric.render.scene.light.SceneLightManager;
 import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.client.fabric.render.scene.state.SceneCacheManager;
 import com.moud.client.fabric.render.scene.state.TransformManager;
+import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
 import com.moud.client.fabric.render.scene.subrender.FallbackMeshRenderer;
+import com.moud.client.fabric.render.veil.VeilDynamicShaders;
+import com.moud.client.fabric.scene.ClientSceneBus;
 import com.moud.client.fabric.render.scene.subrender.particle.ParticleRenderer;
 import com.moud.client.fabric.render.scene.subrender.SceneDebugRenderer;
 import com.moud.client.fabric.render.scene.subrender.Text3DRenderer;
@@ -29,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.Frustum;
 import net.minecraft.client.render.RenderTickCounter;
@@ -37,7 +41,10 @@ import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
+import org.joml.Vector3f;
+import org.lwjgl.opengl.GL11;
 
 public final class VeilSceneRenderer {
     private static boolean initialized;
@@ -59,14 +66,14 @@ public final class VeilSceneRenderer {
 
     static SceneLights sharedLights() { return meshShader.sceneLights(); }
 
-    private static final org.joml.Matrix4f lastViewMatrix = new org.joml.Matrix4f();
-    private static final org.joml.Matrix4f lastProjectionMatrix = new org.joml.Matrix4f();
-    private static final org.joml.Vector3f lastCameraPos = new org.joml.Vector3f();
+    private static final Matrix4f lastViewMatrix = new Matrix4f();
+    private static final Matrix4f lastProjectionMatrix = new Matrix4f();
+    private static final Vector3f lastCameraPos = new Vector3f();
     private static volatile boolean lastMatricesValid = false;
 
-    static org.joml.Matrix4f lastViewMatrix() { return lastMatricesValid ? lastViewMatrix : null; }
-    static org.joml.Matrix4f lastProjectionMatrix() { return lastMatricesValid ? lastProjectionMatrix : null; }
-    static org.joml.Vector3f lastCameraPos() { return lastMatricesValid ? lastCameraPos : null; }
+    static Matrix4f lastViewMatrix() { return lastMatricesValid ? lastViewMatrix : null; }
+    static Matrix4f lastProjectionMatrix() { return lastMatricesValid ? lastProjectionMatrix : null; }
+    static Vector3f lastCameraPos() { return lastMatricesValid ? lastCameraPos : null; }
     private static final InstancedBatchRenderer batchRenderer = new InstancedBatchRenderer(meshShader.sceneLights());
     private static final MultiMeshRenderer multiMeshRenderer = new MultiMeshRenderer(meshShader.sceneLights());
     private static final DecalRenderer decalRenderer = new DecalRenderer(meshShader);
@@ -115,7 +122,7 @@ public final class VeilSceneRenderer {
         decalRenderer.clear();
         pickingPass.clear();
         outlineRenderer.clear();
-        com.moud.client.fabric.render.mesh.MoudMeshBuffer.cleanup();
+        MoudMeshBuffer.cleanup();
     }
 
     public static void clearLights() {
@@ -161,7 +168,7 @@ public final class VeilSceneRenderer {
                         DynamicBufferType.NORMAL,
                         DynamicBufferType.DEBUG
                 );
-                com.moud.client.fabric.render.veil.VeilDynamicShaders.clear();
+                VeilDynamicShaders.clear();
             } catch (Exception ignored) {
             }
         }
@@ -186,6 +193,12 @@ public final class VeilSceneRenderer {
             if (bufferSource == null || camera == null) {
                 return;
             }
+            Vec3d capturePos = camera.getPos();
+            lastViewMatrix.set(frustumMatrix);
+            lastProjectionMatrix.set(projectionMatrix);
+            lastCameraPos.set((float) capturePos.x, (float) capturePos.y, (float) capturePos.z);
+            lastMatricesValid = true;
+
             bufferSource.draw();
             renderMeshes(bufferSource, camera, frustumMatrix, projectionMatrix, frustum, tickDelta);
         }
@@ -196,7 +209,7 @@ public final class VeilSceneRenderer {
         SceneLights lights = meshShader.sceneLights();
         if (lights == null) return;
         List<SceneLights.SpotLight> spots = lights.spotLights();
-        org.joml.Vector3f camPos = lastCameraPos();
+        Vector3f camPos = lastCameraPos();
         float cx = camPos != null ? camPos.x : 0f;
         float cy = camPos != null ? camPos.y : 0f;
         float cz = camPos != null ? camPos.z : 0f;
@@ -223,7 +236,7 @@ public final class VeilSceneRenderer {
             ShadowPass.SpotCaster probe = new ShadowPass.SpotCaster(
                     lightIdx, s.x(), s.y(), s.z(), s.dx(), s.dy(), s.dz(),
                     s.angleDeg(), s.distance(), -1);
-            org.joml.Matrix4f vp = ShadowPass.buildSpotViewProj(probe);
+            Matrix4f vp = ShadowPass.buildSpotViewProj(probe);
             int slot = ShadowMaps.addSpotCaster(lightIdx, vp);
             if (slot < 0) break;
             casters.add(new ShadowPass.SpotCaster(
@@ -232,7 +245,7 @@ public final class VeilSceneRenderer {
         }
         if (casters.isEmpty()) return;
 
-        long sceneRev = cacheManager.cachedNodes().isEmpty() ? 0L : com.moud.client.fabric.scene.ClientSceneBus.version();
+        long sceneRev = cacheManager.cachedNodes().isEmpty() ? 0L : ClientSceneBus.version();
         if (ShadowMaps.cachedStaticRevision() != sceneRev) {
             ShadowMaps.invalidateAllCaches();
             ShadowMaps.updateCachedStaticRevision(sceneRev);
@@ -293,12 +306,6 @@ public final class VeilSceneRenderer {
                 decalRenderer.renderAll(filteredNodes, transformManager::worldPose, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta);
             }
 
-            // Viewmodel renders directly into MC's main framebuffer
-            // alongside everything else. The post-process pass runs at
-            // HudRenderCallback time (see MoudClient.renderOverlays),
-            // after MC has composited world + entities + viewmodel +
-            // translucent, so renderScale uniformly pixelates the whole
-            // frame - including MC's player entity.
             try (ClientFrameProfiler.Scope viewmodels = ClientFrameProfiler.scope("render.scene.viewmodels")) {
                 viewmodelRenderer.render(filteredNodes, consumers, matrices, camera);
             }
@@ -313,20 +320,24 @@ public final class VeilSceneRenderer {
     }
 
     public static void runFullscreenPostProcess(MinecraftClient client) {
+        runFullscreenPostProcess(client, PostProcessStage.WORLD);
+    }
+
+    public static void runFullscreenPostProcess(MinecraftClient client, PostProcessStage stage) {
         if (PostProcessService.INSTANCE.effectCount() <= 0) {
             return;
         }
-        try (ClientFrameProfiler.Scope post = ClientFrameProfiler.scope("overlay.postprocess")) {
-            net.minecraft.client.gl.Framebuffer fb = client != null ? client.getFramebuffer() : null;
+        String scopeName = stage == PostProcessStage.SCREEN
+                ? "overlay.postprocess.screen"
+                : "overlay.postprocess.world";
+        try (ClientFrameProfiler.Scope post = ClientFrameProfiler.scope(scopeName)) {
+            Framebuffer fb = client != null ? client.getFramebuffer() : null;
             if (fb == null) return;
             int width = fb.textureWidth;
             int height = fb.textureHeight;
             if (width <= 0 || height <= 0) return;
-            // Bind MC's main framebuffer explicitly so sourceFbo detection
-            // grabs the fully-composited frame (world + MC entities +
-            // viewmodel) regardless of whatever was bound last.
             fb.beginWrite(false);
-            PostProcessService.INSTANCE.renderAll(client, width, height);
+            PostProcessService.INSTANCE.renderAll(client, width, height, stage);
         }
     }
 
@@ -336,11 +347,11 @@ public final class VeilSceneRenderer {
         }
         try (ClientFrameProfiler.Scope post = ClientFrameProfiler.scope("render.scene.postprocess")) {
             int[] viewport = new int[4];
-            org.lwjgl.opengl.GL11.glGetIntegerv(org.lwjgl.opengl.GL11.GL_VIEWPORT, viewport);
+            GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
             int width = viewport[2];
             int height = viewport[3];
             if (width <= 0 || height <= 0) {
-                net.minecraft.client.gl.Framebuffer framebuffer = client.getFramebuffer();
+                Framebuffer framebuffer = client.getFramebuffer();
                 if (framebuffer != null) {
                     width = framebuffer.textureWidth;
                     height = framebuffer.textureHeight;

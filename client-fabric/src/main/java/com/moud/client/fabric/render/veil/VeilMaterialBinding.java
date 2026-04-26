@@ -81,13 +81,11 @@ public final class VeilMaterialBinding {
         return VeilDynamicShaders.getOrCompile(programId, shaderFile.stageSources());
     }
 
-    public void applyMaterial(ShaderProgram program) {
-        if (program == null || material == null) {
-            return;
-        }
-        program.clearSamplers();
+    public static void applyPbrDefaults(ShaderProgram program) {
+        if (program == null) return;
+        // bind every builtin pbr sampler to the same shared default, distinct textures triggered veil unit-assignment clashes
         for (String sampler : BUILTIN_PBR_SAMPLERS) {
-            program.setSampler(sampler, MoudTextures.defaultSamplerFor(sampler));
+            program.setSampler(sampler, MoudTextures.boundGlId(MoudTextures.defaultSamplerFor(sampler)), 0);
         }
         setDefaultUniform(program, "albedo_color", DEFAULT_ALBEDO_COLOR);
         setDefaultUniform(program, "metallic", 0.0f);
@@ -107,6 +105,14 @@ public final class VeilMaterialBinding {
         setDefaultUniform(program, "orm_enabled", 0);
         setDefaultUniform(program, "UvScale", new float[]{1.0f, 1.0f});
         setDefaultUniform(program, "UvOffset", new float[]{0.0f, 0.0f});
+    }
+
+    public void applyMaterial(ShaderProgram program) {
+        if (program == null || material == null) {
+            return;
+        }
+        program.clearSamplers();
+        applyPbrDefaults(program);
         for (Map.Entry<String, MoudMaterial.Param> e : material.params().entrySet()) {
             String name = e.getKey();
             MoudMaterial.Param param = e.getValue();
@@ -117,14 +123,14 @@ public final class VeilMaterialBinding {
             if (param instanceof MoudMaterial.Param.Texture tex) {
                 if (u == null || u.isSampler()) {
                     Identifier id = resolveSampler(name, tex.textureRef());
-                    program.setSampler(name, id);
+                    program.setSampler(name, MoudTextures.boundGlId(id), 0);
                 }
                 continue;
             }
             if (param instanceof MoudMaterial.Param.StringParam s) {
                 if (u == null || u.isSampler()) {
                     Identifier id = resolveSampler(name, s.value());
-                    program.setSampler(name, id);
+                    program.setSampler(name, MoudTextures.boundGlId(id), 0);
                 }
                 continue;
             }

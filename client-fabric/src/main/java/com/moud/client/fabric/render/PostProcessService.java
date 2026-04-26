@@ -19,6 +19,8 @@ import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.texture.AbstractTexture;
 import net.minecraft.client.texture.TextureManager;
 import net.minecraft.util.Identifier;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 import org.lwjgl.opengl.GL13;
@@ -77,12 +79,16 @@ public final class PostProcessService {
     }
 
     public void registerInline(String id, String fragSrc, int priority) {
+        registerInline(id, fragSrc, priority, PostProcessStage.WORLD);
+    }
+
+    public void registerInline(String id, String fragSrc, int priority, PostProcessStage stage) {
         if (id == null || id.isBlank() || fragSrc == null) {
             return;
         }
         lock.lock();
         try {
-            upsertEffect(id, PostProcessSourceKind.INLINE, fragSrc, priority);
+            upsertEffect(id, PostProcessSourceKind.INLINE, fragSrc, priority, stage);
         } finally {
             lock.unlock();
         }
@@ -93,6 +99,10 @@ public final class PostProcessService {
     }
 
     public void registerShader(String id, String shaderPath, int priority) {
+        registerShader(id, shaderPath, priority, PostProcessStage.WORLD);
+    }
+
+    public void registerShader(String id, String shaderPath, int priority, PostProcessStage stage) {
         if (id == null || id.isBlank() || shaderPath == null || shaderPath.isBlank()) {
             return;
         }
@@ -102,7 +112,7 @@ public final class PostProcessService {
         }
         lock.lock();
         try {
-            upsertEffect(id, PostProcessSourceKind.ASSET, normalized, priority);
+            upsertEffect(id, PostProcessSourceKind.ASSET, normalized, priority, stage);
         } finally {
             lock.unlock();
         }
@@ -190,10 +200,19 @@ public final class PostProcessService {
     }
 
     public void renderAll(MinecraftClient client, int width, int height) {
-        renderAll(client, width, height, null);
+        renderAll(client, width, height, null, PostProcessStage.WORLD);
     }
 
     public void renderAll(MinecraftClient client, int width, int height, Overlay overlay) {
+        renderAll(client, width, height, overlay, PostProcessStage.WORLD);
+    }
+
+    public void renderAll(MinecraftClient client, int width, int height, PostProcessStage stageFilter) {
+        renderAll(client, width, height, null, stageFilter);
+    }
+
+    public void renderAll(MinecraftClient client, int width, int height, Overlay overlay,
+                          PostProcessStage stageFilter) {
         if (client == null || width <= 0 || height <= 0) {
             return;
         }
@@ -206,15 +225,22 @@ public final class PostProcessService {
             }
             snapshot = new ArrayList<>(effects.size());
             for (PostProcessEffect effect : effects) {
+                if (stageFilter != null && effect.stage != stageFilter) {
+                    continue;
+                }
                 snapshot.add(new PostProcessEffectSnapshot(
                         effect.id,
                         effect.priority,
                         effect.registrationOrder,
                         effect.sourceKind,
                         effect.sourceValue,
+                        effect.stage,
                         new LinkedHashMap<>(effect.floatUniforms),
                         new LinkedHashMap<>(effect.textureUniforms)
                 ));
+            }
+            if (snapshot.isEmpty()) {
+                return;
             }
         } finally {
             lock.unlock();
@@ -262,10 +288,7 @@ public final class PostProcessService {
             RenderSystem.depthMask(false);
             RenderSystem.disableBlend();
 
-            // Downscale the full-res source into the low-res ping buffer.
-            // Uses LINEAR here so high-frequency detail in the source doesn't
-            // produce aliased dots; each subsequent effect pass runs entirely
-            // at rw × rh.
+            // linear downscale into the low-res ping buffer to avoid aliased dots, every later pass runs at rw x rh
             blitColorScaled(sourceFbo, pingFbo, width, height, rw, rh, GL11.GL_LINEAR);
             ensureFullscreenVao();
 
@@ -311,14 +334,18 @@ public final class PostProcessService {
                     lights.applyUniforms(pid);
                 }
 
-                org.joml.Matrix4f viewM = VeilSceneRenderer.lastViewMatrix();
-                org.joml.Matrix4f projM = VeilSceneRenderer.lastProjectionMatrix();
-                org.joml.Vector3f camP = VeilSceneRenderer.lastCameraPos();
+                Matrix4f viewM = VeilSceneRenderer.lastViewMatrix();
+                Matrix4f projM = VeilSceneRenderer.lastProjectionMatrix();
+                Vector3f camP = VeilSceneRenderer.lastCameraPos();
                 if (viewM != null && projM != null && camP != null) {
-                    org.joml.Matrix4f vp = new org.joml.Matrix4f(projM).mul(viewM);
-                    org.joml.Matrix4f invVp = new org.joml.Matrix4f(vp).invert();
+                    Matrix4f vp = new Matrix4f(projM).mul(viewM);
+                    Matrix4f invVp = new Matrix4f(vp).invert();
+                    Matrix4f invProj = new Matrix4f(projM).invert();
+                    Matrix4f invView = new Matrix4f(viewM).invert();
                     GlUtil.uniformMat4(pid, "moud_viewProj", vp);
                     GlUtil.uniformMat4(pid, "moud_invViewProj", invVp);
+                    GlUtil.uniformMat4(pid, "moud_invProj", invProj);
+                    GlUtil.uniformMat4(pid, "moud_invView", invView);
                     GlUtil.uniform3f(pid, "moud_cameraPos", camP.x, camP.y, camP.z);
                 }
 
@@ -360,19 +387,11 @@ public final class PostProcessService {
             if (drawnCount > 0) {
                 int finalFbo = readTex == pingTex ? pingFbo : pongFbo;
 
-                // Upscale back to full framebuffer with NEAREST - this is
-                // what gives the authentic chunky-pixel look when renderScale
-                // is < 1.0. At scale=1.0 the src/dst are same size so there's
-                // no resampling.
+                // nearest upscale gives the chunky-pixel look at renderScale < 1
                 blitColorScaled(finalFbo, sourceFbo, rw, rh, width, height, GL11.GL_NEAREST);
             }
         } finally {
-            // Unbind raw-GL for units outside MC's tracked window (12+),
-            // and sync the tracked units through GlStateManager so MC's
-            // cache matches actual GL state - otherwise the next MC
-            // draw may skip binding the correct texture thinking it's
-            // already set, and calls into GlStateManager with
-            // activeTexture >= 12 blow up BOUND_TEXTURES (length 12).
+            // raw-gl unbind for units 12+ (outside mc tracking, BOUND_TEXTURES len 12), GlStateManager for the rest so mc cache matches
             for (int unit = 15; unit >= 12; unit--) {
                 GL13.glActiveTexture(GL13.GL_TEXTURE0 + unit);
                 GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
@@ -421,6 +440,11 @@ public final class PostProcessService {
     }
 
     private void upsertEffect(String id, PostProcessSourceKind sourceKind, String sourceValue, int priority) {
+        upsertEffect(id, sourceKind, sourceValue, priority, PostProcessStage.WORLD);
+    }
+
+    private void upsertEffect(String id, PostProcessSourceKind sourceKind, String sourceValue, int priority,
+                              PostProcessStage stage) {
         Integer idx = idIndex.get(id);
         PostProcessEffect effect;
         if (idx != null) {
@@ -428,12 +452,13 @@ public final class PostProcessService {
             effect.sourceKind = sourceKind;
             effect.sourceValue = sourceValue;
             effect.priority = priority;
+            effect.stage = stage == null ? PostProcessStage.WORLD : stage;
             effect.programId = nextProgramId(id);
             effect.program = null;
             effect.assetVersion = Long.MIN_VALUE;
             effect.assetHash = null;
         } else {
-            effect = new PostProcessEffect(id, sourceKind, sourceValue, priority, nextRegistrationOrder++);
+            effect = new PostProcessEffect(id, sourceKind, sourceValue, priority, nextRegistrationOrder++, stage);
             effect.programId = nextProgramId(id);
             effects.add(effect);
         }
@@ -572,9 +597,7 @@ public final class PostProcessService {
         int tex = GL11.glGenTextures();
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex);
         GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA8, w, h, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, 0);
-        // NEAREST filter on ping-pong color textures so the low-res pipeline
-        // stays pixel-perfect when renderScale < 1.0 (shaders sampling via
-        // texture() get exact source pixels, no bilinear smear).
+        // nearest on ping-pong so the low-res pipeline stays pixel-perfect, no bilinear smear
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
@@ -649,7 +672,7 @@ public final class PostProcessService {
         int prevDraw = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
         GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, sourceFbo);
         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, depthCopyFbo);
-        // Depth always uses NEAREST - averaging depths is nonsensical.
+        // depth always nearest, averaging depths is nonsensical
         GL30.glBlitFramebuffer(0, 0, srcW, srcH, 0, 0, dstW, dstH, GL11.GL_DEPTH_BUFFER_BIT, GL11.GL_NEAREST);
         GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, prevRead);
         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, prevDraw);
