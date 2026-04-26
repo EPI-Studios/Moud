@@ -10,7 +10,6 @@ import com.moud.core.util.ParseUtils;
 import com.moud.server.minestom.collision.CollisionBakeService;
 import com.moud.server.minestom.engine.Engine;
 import com.moud.server.minestom.util.DebugLog;
-import com.moud.server.minestom.util.DebugLog;
 
 import java.util.*;
 
@@ -30,6 +29,9 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
 
     private long lastPhysicsRevision = Long.MIN_VALUE;
     private long lastFilterRevision = Long.MIN_VALUE;
+    private long pendingPhysicsRevision = Long.MIN_VALUE;
+    private long pendingPhysicsSinceNs = 0L;
+    private static final long PHYSICS_REBUILD_DEBOUNCE_NS = 200_000_000L;
     private final List<Integer> staticBodyIds  = new ArrayList<>();
     private final List<Integer> dynamicBodyIds = new ArrayList<>();
     private final Map<Integer, Long> bodyToNode = new HashMap<>();
@@ -207,7 +209,19 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
         if (engine == null) return;
         long rev = engine.physicsRevision();
         if (rev == lastPhysicsRevision) return;
-        lastPhysicsRevision = rev;
+
+        long now = System.nanoTime();
+        if (rev != pendingPhysicsRevision) {
+            pendingPhysicsRevision = rev;
+            pendingPhysicsSinceNs  = now;
+            return;
+        }
+        if (now - pendingPhysicsSinceNs < PHYSICS_REBUILD_DEBOUNCE_NS) {
+            return;
+        }
+
+        lastPhysicsRevision    = rev;
+        pendingPhysicsRevision = Long.MIN_VALUE;
 
         destroyStaticBodies();
         destroyDynamicBodies();
@@ -407,6 +421,19 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
                         ny = axis.getY();
                         nz = axis.getZ();
                     }
+                    double normalLenSq = nx * nx + ny * ny + nz * nz;
+                    if (normalLenSq <= 1.0e-10) {
+                        continue;
+                    }
+                    double invLen = 1.0 / Math.sqrt(normalLenSq);
+                    nx *= invLen;
+                    ny *= invLen;
+                    nz *= invLen;
+                    if (nx * dx + ny * dy + nz * dz > 0.0) {
+                        nx = -nx;
+                        ny = -ny;
+                        nz = -nz;
+                    }
 
                     Long nodeId = bodyToNode.get(bodyId);
                     return Optional.of(new SweepHit(
@@ -603,7 +630,8 @@ public final class JoltPhysicsWorld implements PhysicsWorld {
         }
         String solid = node.getProperty("solid");
         if (solid == null || solid.isBlank()) {
-            return true; // solid by default, like CSGBox
+            // matches CSGBox default
+            return true;
         }
         String s = solid.trim().toLowerCase();
         return !"false".equals(s) && !"0".equals(s);

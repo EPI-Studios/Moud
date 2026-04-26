@@ -2,6 +2,7 @@ package com.moud.server.minestom;
 
 import com.moud.core.NodeTypeDef;
 import com.moud.core.scene.SceneTreeMutator;
+import com.moud.net.protocol.Message;
 import com.moud.net.protocol.MultiMeshData;
 import com.moud.net.protocol.PlayReady;
 import com.moud.net.protocol.SceneList;
@@ -47,6 +48,7 @@ final class PlayModeManager {
 
     private volatile SchemaSnapshot cachedSchema;
     private final Map<String, List<MultiMeshData>> pendingMultiMeshByScene = new HashMap<>();
+    private final Map<String, List<Message>> pendingMeshPublishByScene = new HashMap<>();
 
     boolean isPausedForEditor(Map<UUID, PlayerState> playerStates) {
         if (playerStates == null || playerStates.isEmpty()) {
@@ -204,6 +206,7 @@ final class PlayModeManager {
         }
 
         pendingMultiMeshByScene.clear();
+        pendingMeshPublishByScene.clear();
         for (ServerScene scene : scenes.allScenes()) {
             playRuntime.applyEditorWorldEnvironment(scene);
             String pendingTransition = scripts.tickRuntime(scene, dtSeconds);
@@ -213,6 +216,10 @@ final class PlayModeManager {
             List<MultiMeshData> mmData = scripts.drainMultiMesh(scene.sceneId());
             if (!mmData.isEmpty()) {
                 pendingMultiMeshByScene.put(scene.sceneId(), mmData);
+            }
+            List<Message> meshMsgs = scripts.drainMeshPublish(scene.sceneId());
+            if (!meshMsgs.isEmpty()) {
+                pendingMeshPublishByScene.put(scene.sceneId(), meshMsgs);
             }
         }
     }
@@ -242,6 +249,13 @@ final class PlayModeManager {
 
         sendLatestCollisionGeometryIfNeeded(ps, session, scene);
 
+        if (!ps.meshPublishSent) {
+            for (Message msg : scripts.getLatestMeshPublish(scene.sceneId())) {
+                session.send(Lane.STATE, msg);
+            }
+            ps.meshPublishSent = true;
+        }
+
         if (ps.editorOpen) {
             return;
         }
@@ -263,6 +277,9 @@ final class PlayModeManager {
             ps.multiMeshSent = true;
         }
         for (MultiMeshData msg : pendingMultiMeshByScene.getOrDefault(scene.sceneId(), Collections.emptyList())) {
+            session.send(Lane.STATE, msg);
+        }
+        for (Message msg : pendingMeshPublishByScene.getOrDefault(scene.sceneId(), Collections.emptyList())) {
             session.send(Lane.STATE, msg);
         }
         long sceneRevision = scene.engine().sceneRevision();
@@ -305,6 +322,9 @@ final class PlayModeManager {
         scripts.refreshEditorRuntime(scene);
         for (MultiMeshData mm : scripts.drainMultiMesh(scene.sceneId())) {
             session.send(Lane.STATE, mm);
+        }
+        for (Message msg : scripts.drainMeshPublish(scene.sceneId())) {
+            session.send(Lane.STATE, msg);
         }
     }
 

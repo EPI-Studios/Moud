@@ -72,12 +72,14 @@ dependencies {
     }
 }
 
+def moudServerJvmArgs = luauEnabled.get()
+        ? ['-Dmoud.server.enableLuau=true', '--enable-preview', '--enable-native-access=ALL-UNNAMED',
+           '-XX:ReservedCodeCacheSize=1g', '-XX:NonNMethodCodeHeapSize=32m']
+        : ['-XX:ReservedCodeCacheSize=1g', '-XX:NonNMethodCodeHeapSize=32m']
+
 application {
     mainClass = 'com.moud.server.minestom.MinestomServerMain'
-    applicationDefaultJvmArgs = luauEnabled.get()
-            ? ['-Dmoud.server.enableLuau=true', '--enable-preview', '--enable-native-access=ALL-UNNAMED',
-               '-XX:ReservedCodeCacheSize=512m', '-XX:NonNMethodCodeHeapSize=16m']
-            : ['-XX:ReservedCodeCacheSize=512m']
+    applicationDefaultJvmArgs = moudServerJvmArgs
 }
 
 tasks.named('jar', Jar).configure {
@@ -108,9 +110,7 @@ tasks.withType(JavaExec).configureEach {
     dependsOn(':core:classes', ':net:classes')
     classpath += project(':core').sourceSets.main.output
     classpath += project(':net').sourceSets.main.output
-    if (luauEnabled.get()) {
-        jvmArgs '-Dmoud.server.enableLuau=true', '--enable-preview', '--enable-native-access=ALL-UNNAMED'
-    }
+    jvmArgs moudServerJvmArgs
 }
 
 tasks.withType(Test).configureEach {
