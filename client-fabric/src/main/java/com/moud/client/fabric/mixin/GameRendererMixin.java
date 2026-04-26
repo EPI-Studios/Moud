@@ -115,4 +115,10 @@ public final class GameRendererMixin {
             ci.cancel();
         }
     }
+
+    // forced far plane so distant scene nodes dont get culled, todo: drive from scene
+    @Inject(method = "getFarPlaneDistance", at = @At("HEAD"), cancellable = true)
+    private void moud$extendFarPlane(CallbackInfoReturnable<Float> cir) {
+        cir.setReturnValue(16384.0F);
+    }
 }

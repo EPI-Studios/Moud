@@ -1,14 +1,19 @@
 package com.moud.client.fabric.mixin;
 
+import com.moud.client.fabric.editor.overlay.EditorContext;
+import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
 import com.moud.client.fabric.env.WorldEnvironmentClient;
 import com.moud.client.fabric.env.WorldEnvironmentClient.Mode;
+import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(WorldRenderer.class)
@@ -25,5 +30,27 @@ public abstract class WorldRendererSkyCloudOverrideMixin {
         if (WorldEnvironmentClient.current().cloudsMode() != Mode.VANILLA) {
             ci.cancel();
         }
+    }
+
+    @Redirect(
+            method = "renderSky",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/network/ClientPlayerEntity;getCameraPosVec(F)Lnet/minecraft/util/math/Vec3d;"
+            )
+    )
+    private Vec3d moud$useActualCameraPosForDarkSky(ClientPlayerEntity player,
+                                                    float tickDelta,
+                                                    Matrix4f frustumMatrix,
+                                                    Matrix4f projectionMatrix,
+                                                    float renderTickDelta,
+                                                    Camera camera,
+                                                    boolean thickFog,
+                                                    Runnable runnable) {
+
+        if (camera != null) {
+            return camera.getPos();
+        }
+        return player.getCameraPosVec(tickDelta);
     }
 }
