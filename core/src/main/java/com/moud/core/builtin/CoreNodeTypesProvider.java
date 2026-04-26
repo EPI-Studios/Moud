@@ -172,6 +172,7 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("sy", new PropertyDef("sy", PropertyType.FLOAT, "1", "Scale Y", "Transform", 21, Map.of("min", "0.001", "step", "0.1"))),
                 Map.entry("sz", new PropertyDef("sz", PropertyType.FLOAT, "1", "Scale Z", "Transform", 22, Map.of("min", "0.001", "step", "0.1"))),
                 Map.entry("mesh", new PropertyDef("mesh", PropertyType.STRING, "box", "Mesh", "Mesh", 30, Map.of())),
+                Map.entry("mesh_source", new PropertyDef("mesh_source", PropertyType.MESH_SOURCE, "", "Procedural Mesh", "Mesh", 30, Map.of("multiline", "true"))),
                 Map.entry("billboard", new PropertyDef("billboard", PropertyType.BOOL, "false", "Billboard", "Mesh", 31, Map.of())),
                 Map.entry("double_sided", new PropertyDef("double_sided", PropertyType.BOOL, "false", "Double Sided", "Mesh", 32, Map.of())),
                 Map.entry("texture", new PropertyDef("texture", PropertyType.STRING, "moud:dynamic/white", "Texture", "Material", 33, Map.of("asset", "image"))),
