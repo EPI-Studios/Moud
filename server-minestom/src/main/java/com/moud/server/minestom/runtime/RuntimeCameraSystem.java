@@ -39,6 +39,7 @@ final class RuntimeCameraSystem {
         Node root = scene.engine().sceneTree().root();
         Node first = null;
         Node current = null;
+        boolean hasCharacterBody = false;
 
         ArrayList<Node> stack = new ArrayList<>();
         stack.add(root);
@@ -51,14 +52,16 @@ final class RuntimeCameraSystem {
                 continue;
             }
 
-            if ("Camera3D".equals(scene.engine().nodeTypes().typeIdFor(node))) {
+            String typeId = scene.engine().nodeTypes().typeIdFor(node);
+            if ("Camera3D".equals(typeId)) {
                 if (first == null) {
                     first = node;
                 }
                 if (ParseUtils.parseBool(node.getProperty("current"))) {
                     current = node;
-                    break;
                 }
+            } else if ("CharacterBody3D".equals(typeId)) {
+                hasCharacterBody = true;
             }
 
             List<Node> children = node.children();
@@ -67,7 +70,9 @@ final class RuntimeCameraSystem {
             }
         }
 
-        Node chosen = current != null ? current : first;
+        // first Camera3D fallback only when a character exists, otherwise an unmarked camera would freeze vanilla controls
+        // cinematic scenes opt in by setting current=true
+        Node chosen = current != null ? current : (hasCharacterBody ? first : null);
         if (chosen == null) {
             return null;
         }

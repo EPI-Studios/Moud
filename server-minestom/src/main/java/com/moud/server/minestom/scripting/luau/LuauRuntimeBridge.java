@@ -406,7 +406,20 @@ public final class LuauRuntimeBridge implements AutoCloseable {
                 }
             }
             if (chosen == null || args == null) {
-                throw new IllegalArgumentException("No matching overload for Luau-bound method");
+                StringBuilder signatures = new StringBuilder();
+                for (BoundMethod method : methods) {
+                    if (signatures.length() > 0) signatures.append(" | ");
+                    signatures.append(method.method.getName()).append('(');
+                    Class<?>[] pts = method.paramTypes;
+                    for (int i = 0; i < pts.length; i++) {
+                        if (i > 0) signatures.append(", ");
+                        signatures.append(pts[i].getSimpleName());
+                    }
+                    signatures.append(')');
+                }
+                throw new IllegalArgumentException(
+                        "No matching overload for Luau-bound method. stackTop=" + top
+                                + " candidates=[" + signatures + "]");
             }
             Object result = chosen.method.invoke(target, args);
             return pushReturnValue(thread, result);
@@ -617,9 +630,8 @@ public final class LuauRuntimeBridge implements AutoCloseable {
                 }
             }
             reflection.unref(thread, instanceRef);
-            // the runtime scripts hit ALWAYS the lua_close() callback issue
-            // thats why i made it so it keep refs clean and let the jvm reclaim the states that are preinstance instead of
-            // crashing the entire server when refreshing
+            // skip lua_close, the per-instance state crashes the server on refresh
+            // unref the bound refs and let the jvm reclaim
         }
     }
 
