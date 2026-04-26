@@ -15,9 +15,12 @@ import com.moud.server.minestom.scripting.runtime.*;
 import com.moud.server.minestom.scripting.scene.*;
 import com.moud.server.minestom.scripting.signal.*;
 
+import com.moud.core.mesh.source.ArrayMeshResolver;
 import com.moud.core.scene.Node;
+import com.moud.net.protocol.Message;
 import com.moud.net.protocol.MultiMeshData;
 import com.moud.net.protocol.SceneOp;
+import com.moud.server.minestom.mesh.MeshPublishService;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpBatch;
 import com.moud.net.protocol.SceneOpResult;
@@ -33,6 +36,7 @@ import org.graalvm.polyglot.Engine;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 
+import javax.tools.ToolProvider;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
@@ -52,6 +56,7 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
     private final CollisionSignalEmitter collisionEmitter = new CollisionSignalEmitter();
     private final SceneMutator sceneMutator = new SceneMutator();
     private final MultiMeshManager multiMeshManager = new MultiMeshManager();
+    private final MeshPublishService meshPublishService;
     private final SignalBus signalBus = new SignalBus();
     private final TimerTweenScheduler scheduler = new TimerTweenScheduler();
     private final PlayerNetworkSink playerNetworkSink;
@@ -74,16 +79,18 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
                  ConcurrentHashMap<String, ConcurrentHashMap<String, String>> clientStateByPlayer,
                  ConcurrentHashMap<String, float[]> playerVelocities,
                  TypeScriptContext tsContext,
-                 PlayerMessageSink playerMessageSink) {
+                 PlayerMessageSink playerMessageSink,
+                 ArrayMeshResolver meshResolver) {
         Objects.requireNonNull(project, "project");
         Objects.requireNonNull(engine, "engine");
+        this.meshPublishService = new MeshPublishService(meshResolver);
         this.ctx = Context.newBuilder("js")
                 .engine(engine)
                 .allowHostAccess(HostAccess.newBuilder(HostAccess.EXPLICIT).allowArrayAccess(true).build())
                 .allowHostClassLookup(ignored -> false)
                 .build();
         this.luau = LuauRuntimeBridge.isRuntimeLinked() ? new LuauRuntimeBridge() : null;
-        this.javaBridge = javax.tools.ToolProvider.getSystemJavaCompiler() != null ? new JavaRuntimeBridge() : null;
+        this.javaBridge = ToolProvider.getSystemJavaCompiler() != null ? new JavaRuntimeBridge() : null;
         this.scriptLoader = new ScriptLoader(ctx, tsContext);
         this.playerNetworkSink = new PlayerNetworkSink(Objects.requireNonNull(playerMessageSink, "playerMessageSink"));
         this.playerState = new PlayerStateManager(
@@ -156,6 +163,7 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
         collisionEmitter.emit(scene, lifecycleManager.instances(), signalBus, this::instanceValueMap);
         cleanupDead(scene, alive);
         sceneMutator.flush(scene);
+        registerSceneMeshes(scene);
     }
 
     void refreshEditor(ServerScene scene) {
@@ -174,6 +182,24 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
 
     List<MultiMeshData> drainMultiMesh() {
         return multiMeshManager.drainMultiMesh();
+    }
+
+    List<Message> drainMeshPublish() {
+        return meshPublishService.drain();
+    }
+
+    List<Message> getLatestMeshPublish() {
+        return meshPublishService.getLatest();
+    }
+
+    void registerSceneMeshes(ServerScene scene) {
+        if (scene == null) return;
+        scene.engine().sceneTree().forEachNode(node -> {
+            if (node == null) return;
+            String typeId = scene.engine().nodeTypes().typeIdFor(node);
+            if (!"MeshInstance3D".equals(typeId)) return;
+            meshPublishService.register(node);
+        });
     }
 
     void updatePlayerPositions(Map<String, float[]> positions) {
@@ -232,6 +258,11 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
     @Override
     public MultiMeshManager multiMeshManager() {
         return multiMeshManager;
+    }
+
+    @Override
+    public MeshPublishService meshPublishService() {
+        return meshPublishService;
     }
 
     @Override

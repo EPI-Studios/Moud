@@ -2,17 +2,20 @@ package com.moud.server.minestom.scripting.runtime;
 
 
 import com.moud.server.minestom.engine.ServerScene;
+import com.moud.server.minestom.persistence.PersistenceService;
 import com.moud.server.minestom.scripting.ScriptCallable;
 import com.moud.server.minestom.scripting.ScriptObject;
 import com.moud.server.minestom.scripting.input.ScriptInputApi;
 import com.moud.server.minestom.scripting.physics.CharacterBodySimulator;
 import com.moud.server.minestom.scripting.player.PlayerNetworkSink;
 import com.moud.server.minestom.scripting.player.PlayerStateManager;
+import com.moud.server.minestom.mesh.MeshPublishService;
 import com.moud.server.minestom.scripting.scene.MultiMeshManager;
 import com.moud.server.minestom.scripting.scene.SceneMutator;
 import com.moud.server.minestom.scripting.signal.SignalBus;
 import com.moud.server.minestom.script.ScriptMessageRouter;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -20,6 +23,8 @@ public interface RuntimeFacade {
     SceneMutator mutator();
 
     MultiMeshManager multiMeshManager();
+
+    default MeshPublishService meshPublishService() { return null; }
 
     PlayerStateManager playerState();
 
@@ -49,7 +54,7 @@ public interface RuntimeFacade {
 
     default ScriptMessageRouter scriptMessageRouter() { return null; }
 
-    default Iterable<UUID> connectedPlayerUuids() { return java.util.List.of(); }
+    default Iterable<UUID> connectedPlayerUuids() { return List.of(); }
 
-    default com.moud.server.minestom.persistence.PersistenceService persistence() { return null; }
+    default PersistenceService persistence() { return null; }
 }
