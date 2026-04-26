@@ -1,43 +1,51 @@
 package com.moud.server.minestom.scripting.api.modules;
 
+import com.moud.core.scripts.luau.LuauExport;
 import com.moud.server.minestom.scripting.http.HttpScheduler;
 import java.util.HashMap;
 import java.util.Map;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 
+@LuauExport(name = "HttpApi", doc = "Async HTTP request scheduling for scripts: GET, POST JSON, and POST form.")
 public final class HttpApi {
 
     public HttpApi() { }
 
     @HostAccess.Export
+    @LuauExport
     public void get(String url, Value callback) {
         get(url, null, callback);
     }
 
     @HostAccess.Export
+    @LuauExport
     public void get(String url, Value headers, Value callback) {
         if (callback == null || !callback.canExecute()) return;
         HttpScheduler.get(url, toStringMap(headers), wrap(callback));
     }
 
     @HostAccess.Export
+    @LuauExport
     public void postJson(String url, String body, Value callback) {
         postJson(url, body, null, callback);
     }
 
     @HostAccess.Export
+    @LuauExport
     public void postJson(String url, String body, Value headers, Value callback) {
         if (callback == null || !callback.canExecute()) return;
         HttpScheduler.postJson(url, body, toStringMap(headers), wrap(callback));
     }
 
     @HostAccess.Export
+    @LuauExport
     public void postForm(String url, Value form, Value callback) {
         postForm(url, form, null, callback);
     }
 
     @HostAccess.Export
+    @LuauExport
     public void postForm(String url, Value form, Value headers, Value callback) {
         if (callback == null || !callback.canExecute()) return;
         HttpScheduler.postForm(url, toStringMap(form), toStringMap(headers), wrap(callback));

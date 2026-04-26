@@ -3,10 +3,12 @@ package com.moud.server.minestom.scripting.api.modules;
 
 
 import com.moud.core.scene.Node;
+import com.moud.core.scripts.luau.LuauExport;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.scripting.player.PlayerStateManager;
 import org.graalvm.polyglot.HostAccess;
 
+@LuauExport(name = "CameraApi", doc = "Per-player camera control: follow, scene-bound, scriptable, and reset.")
 public final class CameraApi {
     private final ServerScene scene;
     private final PlayerStateManager playerState;
@@ -19,6 +21,7 @@ public final class CameraApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void follow(double localX, double localY, double localZ, double pitchDeg, double rollDeg) {
         Node self = scene.engine().sceneTree().getNode(selfId);
         String uuid = playerState.resolveOwnerUuidOrSinglePlayer(self);
@@ -31,6 +34,7 @@ public final class CameraApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void scene(long cameraNodeId) {
         Node self = scene.engine().sceneTree().getNode(selfId);
         String uuid = playerState.resolveOwnerUuidOrSinglePlayer(self);
@@ -40,6 +44,7 @@ public final class CameraApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void scriptable(double x, double y, double z, double yawDeg, double pitchDeg, double rollDeg) {
         Node self = scene.engine().sceneTree().getNode(selfId);
         String uuid = playerState.resolveOwnerUuidOrSinglePlayer(self);
@@ -52,6 +57,7 @@ public final class CameraApi {
     }
 
     @HostAccess.Export
+    @LuauExport
     public void reset() {
         Node self = scene.engine().sceneTree().getNode(selfId);
         String uuid = playerState.resolveOwnerUuidOrSinglePlayer(self);
