@@ -9,6 +9,8 @@ import com.moud.core.util.MathUtils;
 import com.moud.core.util.ParseUtils;
 import com.moud.net.protocol.SceneSnapshot;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.input.Input;
+import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
@@ -20,7 +22,15 @@ public final class CharacterBody3D implements BodyApiTarget {
     private static final int SUBSTEPS = (int) (SIMULATION_TPS / TICKS_PER_SECOND);
     private static final double SUB_DT = 1.0 / SIMULATION_TPS;
     private static final double DEFAULT_GRAVITY = 30.0;
+    private static final int MAX_SLIDES = 4;
+    private static final int JUMP_LOCK_STEPS = SUBSTEPS;
     private static final double EPSILON = 1.0e-5;
+    private static final double FLOOR_COS = Math.cos(Math.toRadians(46.0));
+    private static final double SWEEP_EPSILON = 1.0e-3;
+    private static final double COLLISION_SKIN = 2.0e-4;
+    private static final double JUMP_LIFTOFF = 0.05;
+    private static final int JUMP_BUFFER_STEPS = SUBSTEPS * 3;
+    private static final int COYOTE_STEPS = SUBSTEPS * 2;
     private static final double WALL_CONTACT_TIME = 0.15;
     private static final double SQRT2_2 = Math.sqrt(2.0) / 2.0;
     private static final double[] WALL_PROBES = {
@@ -42,6 +52,7 @@ public final class CharacterBody3D implements BodyApiTarget {
 
     private boolean prevOnFloor, justLeftFloor, justLanded, onFloor, onWall, onCeiling;
     private boolean jumpWasDown, sprintWasDown, sneakWasDown, jumpRequested;
+    private int jumpLock, jumpBuffer, coyoteSteps;
 
     private String clientScriptPath;
     private Vec3d velocity = Vec3d.ZERO, scriptVelocity = Vec3d.ZERO;
@@ -62,6 +73,7 @@ public final class CharacterBody3D implements BodyApiTarget {
         scriptVelocity = velocity = Vec3d.ZERO;
         prevOnFloor = justLeftFloor = justLanded = onFloor = onWall = onCeiling = false;
         jumpWasDown = sprintWasDown = sneakWasDown = jumpRequested = false;
+        jumpLock = jumpBuffer = coyoteSteps = 0;
         wallContact = wallNx = wallNz = floorNx = floorNz = 0;
         floorNy = 1;
         floorY = Double.NEGATIVE_INFINITY;
@@ -70,7 +82,7 @@ public final class CharacterBody3D implements BodyApiTarget {
         initialPos.zero();
     }
 
-    public boolean applyInputToVanilla(net.minecraft.client.input.Input input, PlayRuntimeInputState state) {
+    public boolean applyInputToVanilla(Input input, PlayRuntimeInputState state) {
         if (input == null || state == null || !isActive()) return false;
         var move = state.movement();
         input.movementSideways = -move.moveX();
@@ -115,9 +127,14 @@ public final class CharacterBody3D implements BodyApiTarget {
 
         var physics = ClientPhysicsWorld.get();
         physics.syncSceneIfNeeded();
-        if (player.getWorld() instanceof net.minecraft.client.world.ClientWorld cw) {
+        if (player.getWorld() instanceof ClientWorld cw) {
             physics.updateTerrainWindow(cw, simX, simY, simZ);
         }
+
+        if (jumpRequested || (state.jump() && !jumpWasDown)) {
+            jumpBuffer = JUMP_BUFFER_STEPS;
+        }
+        jumpRequested = false;
 
         prevSimX = simX; prevSimY = simY; prevSimZ = simZ;
         for (int i = 0; i < SUBSTEPS; i++) runSubstep(player, state, physics);
@@ -126,6 +143,9 @@ public final class CharacterBody3D implements BodyApiTarget {
         applyCollisionBox(player);
         player.setVelocity(velocity);
         ((EntityGroundAccessor) player).setOnGround(onFloor);
+        jumpWasDown = state.jump();
+        sprintWasDown = state.sprint();
+        sneakWasDown = state.sneak();
         return true;
     }
 
@@ -144,8 +164,12 @@ public final class CharacterBody3D implements BodyApiTarget {
         double r = Math.max(0.05, radius), h = Math.max(r * 2.0, height);
         double vx = velocity.x * TICKS_PER_SECOND, vy = velocity.y * TICKS_PER_SECOND, vz = velocity.z * TICKS_PER_SECOND;
 
-        boolean grounded = py <= floorY + EPSILON && vy <= 0;
-        if (grounded) { py = floorY; vy = 0; }
+        boolean grounded = jumpLock <= 0 && vy <= EPSILON
+                && (onFloor || prevOnFloor || coyoteSteps > 0 || py <= floorY + EPSILON);
+        if (grounded && Double.isFinite(floorY) && py <= floorY + Math.max(floorSnap, JUMP_LIFTOFF)) {
+            py = floorY;
+            vy = 0;
+        }
 
         var move = state.movement();
         double[] wishDir = MathUtils.yawInputToDirection(player.getYaw(), move.moveX(), move.moveZ());
@@ -163,78 +187,175 @@ public final class CharacterBody3D implements BodyApiTarget {
             vz = MathUtils.approach(vz, 0, groundFriction * SUB_DT);
         }
 
-        if ((jumpRequested || (state.jump() && !jumpWasDown)) && grounded) {
+        if (jumpBuffer > 0 && !grounded && jumpLock <= 0) {
+            double probe = Math.max(0.08, floorSnap + JUMP_LIFTOFF);
+            var floorProbe = physics.sweepCapsule(px, py, pz, r, h, 0.0, -probe, 0.0);
+            if (floorProbe.isPresent() && floorProbe.get().ny() >= FLOOR_COS) {
+                double snap = probe * Math.max(0.0, floorProbe.get().fraction() - SWEEP_EPSILON);
+                py -= snap;
+                floorY = py;
+                grounded = true;
+                vy = 0.0;
+            }
+        }
+
+        if (jumpBuffer > 0 && grounded) {
+            py += JUMP_LIFTOFF;
             vy = Math.max(0, jumpVelocity);
             grounded = false;
+            floorY = Double.NEGATIVE_INFINITY;
+            jumpLock = JUMP_LOCK_STEPS;
+            jumpBuffer = 0;
         } else if (!grounded) {
             vy -= DEFAULT_GRAVITY * gravityScale * SUB_DT;
         }
-        jumpRequested = false;
 
-        double startX = px, startZ = pz, remX = vx * SUB_DT, remZ = vz * SUB_DT;
+        double startX = px, startY = py, startZ = pz;
+        double remX = vx * SUB_DT, remY = vy * SUB_DT, remZ = vz * SUB_DT;
         boolean hitWall = false;
-        wallNx = wallNz = 0;
+        boolean hitCeiling = false;
+        boolean stepOnFloor = false;
+        double floorHitNx = 0.0, floorHitNy = 1.0, floorHitNz = 0.0;
+        double wallHitNx = 0.0, wallHitNz = 0.0;
+        wallNx = wallNz = 0.0;
 
-        for (int i = 0; i < 2 && (remX * remX + remZ * remZ > EPSILON); i++) {
-            var hitOpt = physics.sweepCapsuleHorizontal(px, py, pz, r, h, remX, remZ);
-            if (hitOpt.isEmpty()) { px += remX; pz += remZ; break; }
+        for (int i = 0; i < MAX_SLIDES; i++) {
+            double lenSq = remX * remX + remY * remY + remZ * remZ;
+            if (lenSq <= EPSILON) break;
+
+            var hitOpt = physics.sweepCapsule(px, py, pz, r, h, remX, remY, remZ);
+            if (hitOpt.isEmpty()) {
+                px += remX;
+                py += remY;
+                pz += remZ;
+                break;
+            }
 
             var hit = hitOpt.get();
-            double frac = Math.max(0, hit.fraction() - 1e-3);
-            px += remX * frac; pz += remZ * frac;
+            double frac = Math.max(0.0, hit.fraction() - SWEEP_EPSILON);
+            px += remX * frac;
+            py += remY * frac;
+            pz += remZ * frac;
 
-            hitWall = true;
-            double left = Math.max(0, 1.0 - hit.fraction());
-            double sx = remX * left, sz = remZ * left;
-            double nLen = Math.sqrt(hit.nx() * hit.nx() + hit.nz() * hit.nz());
+            if (jumpLock > 0 && hit.fraction() <= SWEEP_EPSILON && hit.ny() >= FLOOR_COS && remY > 0.0) {
+                px += remX;
+                py += remY;
+                pz += remZ;
+                hitWall = false;
+                hitCeiling = false;
+                break;
+            }
 
-            if (nLen <= EPSILON) break;
+            if (hit.ny() >= FLOOR_COS && remY <= EPSILON) {
+                stepOnFloor = true;
+                if (hit.ny() >= floorHitNy) {
+                    floorHitNx = hit.nx();
+                    floorHitNy = hit.ny();
+                    floorHitNz = hit.nz();
+                }
+            } else if (hit.ny() <= -FLOOR_COS && remY > 0.0) {
+                hitCeiling = true;
+            } else {
+                hitWall = true;
+                double nLenSq = hit.nx() * hit.nx() + hit.nz() * hit.nz();
+                if (nLenSq > EPSILON) {
+                    double invLen = 1.0 / Math.sqrt(nLenSq);
+                    wallHitNx = hit.nx() * invLen;
+                    wallHitNz = hit.nz() * invLen;
+                }
+            }
 
-            wallNx = hit.nx() / nLen; wallNz = hit.nz() / nLen;
-            double dot = sx * wallNx + sz * wallNz;
+            double remain = Math.max(0.0, 1.0 - hit.fraction());
+            double sx = remX * remain;
+            double sy = remY * remain;
+            double sz = remZ * remain;
 
-            if (dot > 0) { wallNx = -wallNx; wallNz = -wallNz; dot = sx * wallNx + sz * wallNz; }
-            if (dot < 0) { sx -= wallNx * dot; sz -= wallNz * dot; }
+            double nx = hit.nx();
+            double ny = hit.ny();
+            double nz = hit.nz();
+            double dot = sx * nx + sy * ny + sz * nz;
 
-            remX = sx; remZ = sz;
+            if (dot > 0.0) {
+                nx = -nx;
+                ny = -ny;
+                nz = -nz;
+                dot = sx * nx + sy * ny + sz * nz;
+            }
+            px += nx * COLLISION_SKIN;
+            py += ny * COLLISION_SKIN;
+            pz += nz * COLLISION_SKIN;
+            if (hit.fraction() <= SWEEP_EPSILON && dot >= -EPSILON) {
+                break;
+            }
+            if (dot < 0.0) {
+                sx -= nx * dot;
+                sy -= ny * dot;
+                sz -= nz * dot;
+            }
+
+            remX = sx;
+            remY = sy;
+            remZ = sz;
         }
 
-        py += vy * SUB_DT;
         onFloor = false;
+        double reach = jumpLock > 0 ? 0.0 : ((grounded || prevOnFloor) ? floorSnap : Math.min(floorSnap, 0.05));
+        double fallDist = remY < 0.0 ? Math.min(Math.abs(remY), 10.0) : 0.0;
 
-        if (vy <= 0) {
-            boolean snapOk = grounded || prevOnFloor || onFloor;
-            double reach = snapOk ? floorSnap : Math.min(floorSnap, 0.05);
-            double fallDist = (snapOk && vy < 0) ? Math.min(Math.abs(vy) * SUB_DT, 10.0) : 0;
-            double rayY = py + 0.1 + fallDist;
-
-            var hit = physics.raycastFloor(px, rayY, pz, reach + 0.15 + fallDist);
-            if (hit.isPresent()) {
-                double hitY = hit.get();
-                if (hitY <= rayY + EPSILON && py - hitY <= reach + fallDist + 0.1) {
-                    floorY = py = hitY;
-                    vy = 0;
-                    onFloor = true;
+        if (!stepOnFloor && remY <= EPSILON && reach > 0.0) {
+            double snapDist = reach + fallDist;
+            var hit = physics.sweepCapsule(px, py, pz, r, h, 0.0, -snapDist, 0.0);
+            if (hit.isPresent() && hit.get().ny() >= FLOOR_COS) {
+                double snap = snapDist * Math.max(0.0, hit.get().fraction() - SWEEP_EPSILON);
+                py -= snap;
+                stepOnFloor = true;
+                floorHitNx = hit.get().nx();
+                floorHitNy = hit.get().ny();
+                floorHitNz = hit.get().nz();
+                if (vy < 0.0) {
+                    vy = 0.0;
                 }
             }
         }
-        if (!onFloor) floorY = Double.NEGATIVE_INFINITY;
+
+        if (stepOnFloor) {
+            floorY = py;
+            onFloor = true;
+            coyoteSteps = COYOTE_STEPS;
+            floorNx = floorHitNx;
+            floorNy = floorHitNy;
+            floorNz = floorHitNz;
+            if (vy < 0.0) vy = 0.0;
+        } else {
+            floorY = Double.NEGATIVE_INFINITY;
+            floorNx = 0.0;
+            floorNy = 1.0;
+            floorNz = 0.0;
+            if (coyoteSteps > 0) coyoteSteps--;
+        }
+
+        if (hitWall) {
+            wallNx = wallHitNx;
+            wallNz = wallHitNz;
+        }
+        if (hitCeiling && vy > 0.0) {
+            vy = 0.0;
+        }
 
         if (hitWall || detectWallContact(physics, px, py, pz, r, h)) wallContact = WALL_CONTACT_TIME;
         else wallContact = Math.max(0, wallContact - SUB_DT);
 
         onWall = wallContact > EPSILON;
-        onCeiling = false;
+        onCeiling = hitCeiling;
         justLeftFloor = prevOnFloor && !onFloor;
         justLanded = !prevOnFloor && onFloor;
         prevOnFloor = onFloor;
 
         simX = px; simY = py; simZ = pz;
-        velocity = new Vec3d((px - startX) / SUB_DT / TICKS_PER_SECOND, vy / TICKS_PER_SECOND, (pz - startZ) / SUB_DT / TICKS_PER_SECOND);
-
-        jumpWasDown = state.jump();
-        sprintWasDown = state.sprint();
-        sneakWasDown = state.sneak();
+        double storedVy = onFloor ? 0.0 : (py - startY) / SUB_DT / TICKS_PER_SECOND;
+        velocity = new Vec3d((px - startX) / SUB_DT / TICKS_PER_SECOND, storedVy, (pz - startZ) / SUB_DT / TICKS_PER_SECOND);
+        if (jumpLock > 0) jumpLock--;
+        if (jumpBuffer > 0) jumpBuffer--;
     }
 
     private boolean detectWallContact(ClientPhysicsWorld physics, double x, double y, double z, double r, double h) {
@@ -377,6 +498,7 @@ public final class CharacterBody3D implements BodyApiTarget {
             serverPosVersion = Long.MIN_VALUE;
             velocity = Vec3d.ZERO;
             jumpWasDown = sprintWasDown = sneakWasDown = jumpRequested = prevOnFloor = justLeftFloor = justLanded = onFloor = onWall = onCeiling = false;
+            jumpLock = jumpBuffer = coyoteSteps = 0;
             floorY = Double.NEGATIVE_INFINITY;
             wallContact = wallNx = wallNz = 0;
         }
@@ -418,4 +540,5 @@ public final class CharacterBody3D implements BodyApiTarget {
         }
         return null;
     }
+
 }
