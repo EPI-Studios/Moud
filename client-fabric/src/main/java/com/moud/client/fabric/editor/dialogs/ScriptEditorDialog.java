@@ -6,6 +6,7 @@ import com.miry.ui.UiContext;
 import com.miry.ui.event.KeyEvent;
 import com.miry.ui.render.UiRenderer;
 import com.miry.ui.theme.Icon;
+import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
 import com.moud.client.fabric.render.MoudIcons;
 import com.moud.client.fabric.render.MoudVectorIcons;
 import com.miry.ui.theme.Theme;
@@ -20,6 +21,8 @@ import com.miry.ui.widgets.editor.language.impl.JSLanguageProvider;
 import com.miry.ui.widgets.editor.language.impl.JavaLanguageProvider;
 import com.miry.ui.widgets.editor.language.impl.LuauLanguageProvider;
 import com.miry.ui.widgets.editor.language.impl.TypeScriptLanguageProvider;
+import com.miry.ui.widgets.editor.completion.CompletionItem;
+import com.miry.ui.widgets.editor.completion.CompletionKind;
 import com.miry.ui.widgets.editor.view.CodeEditor;
 import com.miry.ui.widgets.editor.view.FindBarWidget;
 import com.moud.net.protocol.ScriptFileReadResponse;
@@ -28,6 +31,8 @@ import com.miry.ui.widgets.ContextMenu;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Locale;
 
 public final class ScriptEditorDialog {
     private static final int DIALOG_W = 980;
@@ -70,6 +75,100 @@ public final class ScriptEditorDialog {
     public ScriptEditorDialog(EditorRuntime runtime) {
         this.runtime = runtime;
         findBar.setEditor(editor);
+        registerLuauSnippets();
+        registerAssetPathCompletion();
+        registerNodeRefLinking();
+    }
+
+    private void registerNodeRefLinking() {
+        editor.setPathLinkHandler(path -> {
+            if (path == null || path.isBlank() || path.startsWith("res://")) return;
+            long nodeId = resolveNodeIdByPath(path);
+            if (nodeId == 0L) return;
+            var ctx = EditorOverlayBus.get();
+            if (ctx != null) ctx.setSelectedNodeId(nodeId);
+        });
+    }
+
+    private long resolveNodeIdByPath(String path) {
+        if (runtime == null || runtime.state() == null) return 0L;
+        var scene = runtime.state().scene;
+        String trimmed = path.startsWith("/") ? path.substring(1) : path;
+        if (trimmed.isEmpty()) return 0L;
+        String[] segments = trimmed.split("/");
+
+        long currentId = 0L; // virtual root
+        for (String segment : segments) {
+            if (segment.isEmpty()) continue;
+            long nextId = 0L;
+            for (var child : scene.childrenOf(currentId)) {
+                String name = scene.getPropertyValue(child.nodeId(), "name");
+                if (name == null) name = child.type();
+                if (segment.equals(name)) {
+                    nextId = child.nodeId();
+                    break;
+                }
+            }
+            if (nextId == 0L) return 0L;
+            currentId = nextId;
+        }
+        return currentId;
+    }
+    private static boolean isInternalAssetPath(String path) {
+        return path.contains("/blobs/") || path.startsWith("res://blobs/");
+    }
+
+    private void registerAssetPathCompletion() {
+        editor.addCompletionProvider(ctx -> {
+            if (!ctx.inString()) return Collections.emptyList();
+            String prefix = ctx.stringPrefix();
+            if (prefix.isEmpty()) return Collections.emptyList();
+            String lower = prefix.toLowerCase(Locale.ROOT);
+            var entries = MoudTextAssets.allManifestEntries();
+            var out = new ArrayList<CompletionItem>();
+            for (var entry : entries) {
+                if (isInternalAssetPath(entry.path())) continue;
+                if (!entry.path().toLowerCase(Locale.ROOT).contains(lower)) continue;
+                out.add(new CompletionItem(
+                        entry.path(),
+                        entry.type().toLowerCase(Locale.ROOT),
+                        CompletionKind.ASSET,
+                        entry.path(),
+                        ctx.stringStart(),
+                        ctx.cursorPos(),
+                        entry.path().length()));
+                if (out.size() >= 20) break;
+            }
+            return out;
+        });
+    }
+
+    private void registerLuauSnippets() {
+        editor.addSnippet("luau", "ready",
+                "function script._ready(self, api)\n${INDENT}${TAB}|\n${INDENT}end");
+        editor.addSnippet("luau", "tool",
+                "local script = { tool = true }\n\n"
+                        + "${INDENT}script.actions = {\n"
+                        + "${INDENT}${TAB}{ id = \"|\", label = \"\", run = function(self, api) end },\n"
+                        + "${INDENT}}\n\n"
+                        + "${INDENT}return script");
+        editor.addSnippet("luau", "oncrash",
+                "local ok, err = pcall(function()\n"
+                        + "${INDENT}${TAB}|\n"
+                        + "${INDENT}end)\n"
+                        + "${INDENT}if not ok then\n"
+                        + "${INDENT}${TAB}print(err)\n"
+                        + "${INDENT}end");
+        editor.addSnippet("luau", "forplayer",
+                "for _, player in api.players() do\n${INDENT}${TAB}|\n${INDENT}end");
+        editor.addSnippet("luau", "find",
+                "self:find(\"|\")");
+        editor.addSnippet("luau", "onsignal",
+                "self:connect{\n"
+                        + "${INDENT}${TAB}signal  = \"|\",\n"
+                        + "${INDENT}${TAB}target  = self,\n"
+                        + "${INDENT}${TAB}handler = \"on_event\",\n"
+                        + "${INDENT}}");
     }
 
     public void open(long nodeId, String scriptPath) {
