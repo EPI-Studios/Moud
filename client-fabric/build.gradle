@@ -34,15 +34,6 @@ configurations {
 }
 
 repositories {
-    maven {
-        url = file("${rootDir}/libs-repo").toURI()
-        content { includeGroup 'com.miry' }
-        metadataSources {
-            mavenPom()
-            artifact()
-            gradleMetadata()
-        }
-    }
     mavenLocal()
     mavenCentral()
     maven { url = 'https://maven.fabricmc.net/' }
@@ -56,6 +47,7 @@ repositories {
         url = 'https://repo.minestom.com/'
         content {
             includeGroup 'net.minestom'
+            includeGroup 'com.miry'
         }
     }
 
