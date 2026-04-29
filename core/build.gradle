@@ -4,5 +4,7 @@ plugins {
 
 dependencies {
     api 'com.google.code.gson:gson:2.11.0'
+    // physics types live in physics-api, expose transitively so existing
+    // imports like com.moud.physics.api.Vec3 keep resolving from core consumers
+    api project(':physics-api')
 }
-
