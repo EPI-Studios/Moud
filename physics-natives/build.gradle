@@ -1,0 +1,60 @@
+plugins {
+    id 'base'
+}
+
+def hostTriple() {
+    def os = System.getProperty('os.name').toLowerCase()
+    def arch = System.getProperty('os.arch').toLowerCase()
+    if (os.contains('linux'))      return arch.contains('aarch64') ? 'aarch64-unknown-linux-gnu' : 'x86_64-unknown-linux-gnu'
+    if (os.contains('mac'))        return arch.contains('aarch64') ? 'aarch64-apple-darwin'      : 'x86_64-apple-darwin'
+    if (os.contains('windows'))    return 'x86_64-pc-windows-gnu'
+    throw new GradleException("Unsupported host: $os/$arch")
+}
+
+def resourceSubdir(String triple) {
+    switch (triple) {
+        case 'x86_64-unknown-linux-gnu':  return 'linux-x64'
+        case 'aarch64-unknown-linux-gnu': return 'linux-arm64'
+        case 'x86_64-pc-windows-gnu':     return 'windows-x64'
+        case 'x86_64-apple-darwin':       return 'macos-x64'
+        case 'aarch64-apple-darwin':      return 'macos-arm64'
+        default: throw new GradleException("Unknown triple $triple")
+    }
+}
+
+def libFile(String triple) {
+    if (triple.contains('windows')) return 'rapier_moud.dll'
+    if (triple.contains('darwin'))  return 'librapier_moud.dylib'
+    return 'librapier_moud.so'
+}
+
+def cargoExe() {
+    def path = System.getenv('PATH') ?: ''
+    def exeName = System.getProperty('os.name').toLowerCase().contains('windows') ? 'cargo.exe' : 'cargo'
+    for (String dir : path.split(File.pathSeparator)) {
+        if (dir == null || dir.isBlank()) continue
+        def candidate = file("${dir}/${exeName}")
+        if (candidate.isFile() && candidate.canExecute()) return candidate.absolutePath
+    }
+    def rustupCargo = file("${System.getProperty('user.home')}/.cargo/bin/${exeName}")
+    if (rustupCargo.isFile() && rustupCargo.canExecute()) return rustupCargo.absolutePath
+    return exeName
+}
+
+tasks.register('cargoBuildHost', Exec) {
+    workingDir = projectDir
+    def triple = hostTriple()
+    commandLine cargoExe(), 'build', '--release', '--target', triple
+    inputs.files fileTree('src')
+    inputs.file 'Cargo.toml'
+    outputs.file file("target/${triple}/release/${libFile(triple)}")
+}
+
+tasks.register('copyHostNativeIntoRapier', Copy) {
+    dependsOn 'cargoBuildHost'
+    def triple = hostTriple()
+    from file("target/${triple}/release/${libFile(triple)}")
+    into rootProject.file("physics-rapier/src/main/resources/natives/${resourceSubdir(triple)}")
+}
+
+tasks.named('build') { dependsOn 'copyHostNativeIntoRapier' }
