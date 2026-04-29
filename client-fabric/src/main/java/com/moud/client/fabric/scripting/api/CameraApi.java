@@ -2,6 +2,8 @@ package com.moud.client.fabric.scripting.api;
 
 import com.moud.client.fabric.runtime.CameraLookTarget;
 import com.moud.client.fabric.runtime.ClientCameraState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
 
 public final class CameraApi {
 
@@ -45,6 +47,16 @@ public final class CameraApi {
 
     public float getPitch() {
         return state.getPitchOrPrev();
+    }
+
+    public float getPlayerYaw() {
+        ClientPlayerEntity p = MinecraftClient.getInstance().player;
+        return p == null ? getYaw() : p.getYaw();
+    }
+
+    public float getPlayerPitch() {
+        ClientPlayerEntity p = MinecraftClient.getInstance().player;
+        return p == null ? getPitch() : p.getPitch();
     }
 
     public float getRoll() {
