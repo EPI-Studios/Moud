@@ -378,6 +378,8 @@ public final class AssetService {
                 || lower.endsWith(".jpg")
                 || lower.endsWith(".jpeg")
                 || lower.endsWith(".bbmodel")
+                || lower.endsWith(".obj")
+                || lower.endsWith(".mtl")
                 || lower.endsWith(".json")
                 || lower.endsWith(".glb")
                 || lower.endsWith(".gltf");

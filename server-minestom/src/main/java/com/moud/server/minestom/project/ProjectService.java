@@ -7,6 +7,7 @@ import com.moud.core.assets.ResPath;
 import com.moud.net.protocol.ProjectCreate;
 import com.moud.net.protocol.ProjectCreateAck;
 import com.moud.net.protocol.ProjectInfo;
+import com.moud.server.minestom.engine.MatchmakerConfig;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -41,6 +42,24 @@ public final class ProjectService {
 
     public Path projectFile() {
         return projectFile;
+    }
+
+    public MatchmakerConfig matchmakerConfig() {
+        MatchmakerConfig defaults = MatchmakerConfig.defaults();
+        ProjectFile file = loadIfExists();
+        ProjectRuntimeSettings runtime = file == null ? null : file.runtime();
+        if (runtime == null) {
+            return defaults;
+        }
+        int players = runtime.playersPerInstance() == null ? defaults.playersPerInstance() : runtime.playersPerInstance();
+        int maxInstances = runtime.maxInstances() == null ? defaults.maxInstances() : runtime.maxInstances();
+        long emptyShutdown = runtime.emptyShutdownGraceMillis() == null ? defaults.emptyShutdownGraceMillis() : runtime.emptyShutdownGraceMillis();
+        return new MatchmakerConfig(players, maxInstances, emptyShutdown, defaults.housekeepingIntervalMillis());
+    }
+
+    public ProjectRuntimeSettings runtimeSettings() {
+        ProjectFile file = loadIfExists();
+        return file == null ? null : file.runtime();
     }
 
     public ProjectInfo info(long requestId) {
