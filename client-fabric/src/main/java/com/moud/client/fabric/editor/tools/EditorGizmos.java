@@ -495,11 +495,7 @@ public final class EditorGizmos implements AutoCloseable {
             worldRot.set(world.rot);
             tmpEulerDeg.set(eulerDeg(worldRot));
             rotDeg.set(tmpEulerDeg);
-            if (pivotIsMinCorner) {
-                size.set(world.scale);
-            } else {
-                size.set(1.0f, 1.0f, 1.0f);
-            }
+            size.set(world.scale);
         }
 
         localAxes.identity().set(worldRot);
