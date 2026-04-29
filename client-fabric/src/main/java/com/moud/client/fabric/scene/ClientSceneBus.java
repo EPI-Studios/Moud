@@ -3,6 +3,7 @@ package com.moud.client.fabric.scene;
 
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneSnapshot;
+import com.moud.net.protocol.SceneSnapshotDelta;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -62,6 +63,14 @@ public final class ClientSceneBus {
         SNAPSHOT_VERSION.incrementAndGet();
     }
 
+    public static void applyDelta(SceneSnapshotDelta delta) {
+        synchronized (SCENE) {
+            SCENE.applyDelta(delta);
+        }
+        VERSION.incrementAndGet();
+        SNAPSHOT_VERSION.incrementAndGet();
+    }
+
     public static void applyOps(List<SceneOp> ops) {
         synchronized (SCENE) {
             SCENE.applyOps(ops);
@@ -75,6 +84,7 @@ public final class ClientSceneBus {
         }
         VERSION.incrementAndGet();
         PHYSICS_VERSION.incrementAndGet();
+        MoudTickClock.onPhysicsBatchArrived();
     }
 
     public static void markRestorePending() {
@@ -89,5 +99,6 @@ public final class ClientSceneBus {
         ClientPropertyOverrides.clearAll();
         VERSION.incrementAndGet();
         SNAPSHOT_VERSION.incrementAndGet();
+        MoudTickClock.reset();
     }
 }
