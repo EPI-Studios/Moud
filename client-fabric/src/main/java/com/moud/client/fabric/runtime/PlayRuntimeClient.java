@@ -1,5 +1,7 @@
 package com.moud.client.fabric.runtime;
 
+import com.moud.client.fabric.physics.rapier.ClientRapierPhysics;
+import com.moud.client.fabric.render.VeilSceneRenderer;
 import com.moud.core.util.MathUtils;
 import com.moud.client.fabric.mixin.accessor.CameraAccessor;
 import com.moud.client.fabric.render.VeilSceneNodeRenderer;
@@ -81,6 +83,8 @@ public final class PlayRuntimeClient {
             clearLocalCursorOverrides();
             VeilSceneNodeRenderer.clearRuntimeBodyOverride();
             clientScriptRuntime.unloadAll();
+            ClientRapierPhysics.visuals().clear();
+            VeilSceneRenderer.resetPoseStates();
         }
         this.active = active;
         ClientCameraStateBus.set(active ? cameraState : null);
@@ -241,6 +245,8 @@ public final class PlayRuntimeClient {
                 cursorX,
                 cursorY
         );
+
+        ClientRapierPhysics.get().tickRenderFrame();
 
         clientScriptRuntime.syncAllNodes(characterBody, inputSnapshot, cameraState);
         clientScriptRuntime.frame(dt);

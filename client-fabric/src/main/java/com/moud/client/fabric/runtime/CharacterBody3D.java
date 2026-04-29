@@ -1,7 +1,7 @@
 package com.moud.client.fabric.runtime;
 
 import com.moud.client.fabric.mixin.accessor.EntityGroundAccessor;
-import com.moud.client.fabric.physics.ClientPhysicsWorld;
+import com.moud.client.fabric.physics.rapier.ClientRapierPhysics;
 import com.moud.client.fabric.scene.ClientSceneBus;
 import com.moud.client.fabric.scene.SceneNodeTransforms;
 import com.moud.client.fabric.scripting.api.BodyApiTarget;
@@ -125,7 +125,7 @@ public final class CharacterBody3D implements BodyApiTarget {
             return true;
         }
 
-        var physics = ClientPhysicsWorld.get();
+        var physics = ClientRapierPhysics.get();
         physics.syncSceneIfNeeded();
         if (player.getWorld() instanceof ClientWorld cw) {
             physics.updateTerrainWindow(cw, simX, simY, simZ);
@@ -159,7 +159,7 @@ public final class CharacterBody3D implements BodyApiTarget {
         return true;
     }
 
-    private void runSubstep(PlayerEntity player, PlayRuntimeInputState state, ClientPhysicsWorld physics) {
+    private void runSubstep(PlayerEntity player, PlayRuntimeInputState state, ClientRapierPhysics physics) {
         double px = simX, py = simY, pz = simZ;
         double r = Math.max(0.05, radius), h = Math.max(r * 2.0, height);
         double vx = velocity.x * TICKS_PER_SECOND, vy = velocity.y * TICKS_PER_SECOND, vz = velocity.z * TICKS_PER_SECOND;
@@ -358,7 +358,7 @@ public final class CharacterBody3D implements BodyApiTarget {
         if (jumpBuffer > 0) jumpBuffer--;
     }
 
-    private boolean detectWallContact(ClientPhysicsWorld physics, double x, double y, double z, double r, double h) {
+    private boolean detectWallContact(ClientRapierPhysics physics, double x, double y, double z, double r, double h) {
         double pRad = Math.max(0.06, r * 0.22), pDist = r + pRad + 0.03;
         double lowerY = y + Math.min(h * 0.35, Math.max(r, 0.45));
         double upperY = y + Math.max(lowerY + 0.2, h * 0.7);
