@@ -1,6 +1,6 @@
 package com.moud.client.fabric.render.scene.subrender.particle;
 
-import com.moud.client.fabric.physics.ClientPhysicsWorld;
+import com.moud.client.fabric.physics.rapier.ClientRapierPhysics;
 import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.net.protocol.SceneSnapshot;
 import java.util.HashMap;
@@ -50,7 +50,7 @@ public final class ParticleRenderer {
         float dt = lastNanoTime == 0L ? 1.0f / 60.0f : Math.min(0.066f, (now - lastNanoTime) / 1.0e9f);
         lastNanoTime = now;
 
-        ClientPhysicsWorld physics = ClientPhysicsWorld.get();
+        ClientRapierPhysics physics = ClientRapierPhysics.get();
         if (physics != null && physics.isAvailable()) {
             try { physics.syncSceneIfNeeded(); } catch (Throwable ignored) {}
         }

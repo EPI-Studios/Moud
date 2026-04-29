@@ -66,6 +66,12 @@ public final class VeilDynamicShaders {
             }
 
             ShaderManager sm = VeilRenderSystem.renderer().getShaderManager();
+            ShaderProgram cached = sm.getShader(programId);
+            if (cached != null && cached.isValid()) {
+                entry.program = cached;
+                lastErrors.remove(programId);
+                return cached;
+            }
             entry.future = sm.createDynamicProgram(programId, new Int2ObjectArrayMap<>(stageSources));
             return null;
         }

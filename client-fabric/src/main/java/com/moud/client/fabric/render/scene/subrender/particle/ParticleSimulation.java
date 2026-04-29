@@ -1,6 +1,6 @@
 package com.moud.client.fabric.render.scene.subrender.particle;
 
-import com.moud.client.fabric.physics.ClientPhysicsWorld;
+import com.moud.client.fabric.physics.rapier.ClientRapierPhysics;
 import java.util.List;
 import java.util.Optional;
 import net.minecraft.util.math.BlockPos.Mutable;
@@ -14,7 +14,7 @@ public final class ParticleSimulation {
     private final float[] curl = new float[3];
     private final Mutable scratchPos = new Mutable();
 
-    public void tick(EmitterState state, EmitterConfig c, float frameDt, BlockView world, ClientPhysicsWorld physics) {
+    public void tick(EmitterState state, EmitterConfig c, float frameDt, BlockView world, ClientRapierPhysics physics) {
         if (frameDt <= 0f || state.particles.isEmpty()) {
             flushPending(state);
             return;
@@ -27,7 +27,7 @@ public final class ParticleSimulation {
         }
     }
 
-    private void stepFixed(EmitterState state, EmitterConfig c, float dt, BlockView world, ClientPhysicsWorld physics) {
+    private void stepFixed(EmitterState state, EmitterConfig c, float dt, BlockView world, ClientRapierPhysics physics) {
         state.noiseTime += dt * c.turbSpeed;
         float dampFactor = c.damping > 0f ? (float) Math.exp(-c.damping * dt) : 1f;
         boolean hasTurb = c.turbStrength > 0f;
@@ -94,14 +94,14 @@ public final class ParticleSimulation {
                 if (!resolved && physics != null && physics.isAvailable()) {
                     double sx = nx - p.x, sy = ny - p.y, sz = nz - p.z;
                     if (sx * sx + sy * sy + sz * sz > 1.0e-8) {
-                        Optional<ClientPhysicsWorld.RayHit> maybeHit = physics.raycastAny(p.x, p.y, p.z, sx, sy, sz, PHYSICS_PROBE_RADIUS);
+                        Optional<ClientRapierPhysics.RayHit> maybeHit = physics.raycastAny(p.x, p.y, p.z, sx, sy, sz, PHYSICS_PROBE_RADIUS);
                         if (maybeHit.isPresent()) {
-                            ClientPhysicsWorld.RayHit hit = maybeHit.get();
-                            float f = Math.max(0f, hit.fraction() - PHYSICS_EPSILON);
+                            ClientRapierPhysics.RayHit hit = maybeHit.get();
+                            float f = (float) Math.max(0.0, hit.fraction() - PHYSICS_EPSILON);
                             nx = p.x + sx * f;
                             ny = p.y + sy * f;
                             nz = p.z + sz * f;
-                            float nxN = hit.nx(), nyN = hit.ny(), nzN = hit.nz();
+                            float nxN = (float) hit.nx(), nyN = (float) hit.ny(), nzN = (float) hit.nz();
                             float vDot = p.vx * nxN + p.vy * nyN + p.vz * nzN;
                             if (vDot < 0f) {
                                 p.vx -= (1f + c.bounce) * vDot * nxN;
@@ -185,4 +185,3 @@ public final class ParticleSimulation {
         }
     }
 }
-

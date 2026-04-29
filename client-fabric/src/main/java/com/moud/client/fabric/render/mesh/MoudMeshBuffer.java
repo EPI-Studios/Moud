@@ -23,6 +23,10 @@ public final class MoudMeshBuffer {
     private static int ebo;
     private static boolean initialized;
 
+    private static int quadVbo;
+    private static int quadEbo;
+    private static boolean quadInitialized;
+
     private static int planeVbo;
     private static int planeEbo;
     private static int planeIndexCount;
@@ -98,6 +102,31 @@ public final class MoudMeshBuffer {
             int[] handles = upload(verts, indices);
             planeVbo = handles[0];
             planeEbo = handles[1];
+        } finally {
+            MemoryUtil.memFree(verts);
+            MemoryUtil.memFree(indices);
+        }
+    }
+
+    public static void ensureQuadInitialized() {
+        if (quadInitialized) return;
+        quadInitialized = true;
+
+        FloatBuffer verts = MemoryUtil.memAllocFloat(4 * FLOATS_PER_VERTEX);
+        IntBuffer indices = MemoryUtil.memAllocInt(6);
+
+        try {
+            v(verts, 0f, 0f, 0f, 0f, 1f, 0f, 1f, 0f);
+            v(verts, 1f, 0f, 0f, 1f, 1f, 0f, 1f, 0f);
+            v(verts, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f);
+            v(verts, 1f, 0f, 1f, 1f, 0f, 0f, 1f, 0f);
+            indices.put(new int[]{0, 2, 1, 1, 2, 3});
+            verts.flip();
+            indices.flip();
+
+            int[] handles = upload(verts, indices);
+            quadVbo = handles[0];
+            quadEbo = handles[1];
         } finally {
             MemoryUtil.memFree(verts);
             MemoryUtil.memFree(indices);
@@ -187,6 +216,11 @@ public final class MoudMeshBuffer {
             vbo = 0; ebo = 0;
             initialized = false;
         }
+        if (quadInitialized) {
+            deleteBuffers(quadVbo, quadEbo);
+            quadVbo = 0; quadEbo = 0;
+            quadInitialized = false;
+        }
         if (planeInitialized) {
             deleteBuffers(planeVbo, planeEbo);
             planeVbo = 0; planeEbo = 0;
@@ -207,6 +241,9 @@ public final class MoudMeshBuffer {
     public static int vbo() { return vbo; }
     public static int ebo() { return ebo; }
     public static int indexCount() { return CUBE_INDEX_COUNT; }
+    public static int quadVbo() { return quadVbo; }
+    public static int quadEbo() { return quadEbo; }
+    public static int quadIndexCount() { return 6; }
     public static int planeVbo() { return planeVbo; }
     public static int planeEbo() { return planeEbo; }
     public static int planeIndexCount() { return planeIndexCount; }

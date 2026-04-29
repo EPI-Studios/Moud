@@ -2,7 +2,7 @@ package com.moud.client.fabric.render.scene.subrender;
 
 import com.moud.client.fabric.render.Model3DRenderer;
 import com.moud.client.fabric.render.MoudTextures;
-import com.moud.client.fabric.render.mesh.draw.ProceduralMeshDrawer;
+import com.moud.client.fabric.render.mesh.cache.ClientMeshBindings;
 import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.client.fabric.render.scene.util.NodePropertyUtils;
 import com.moud.client.fabric.runtime.PlayRuntimeBus;
@@ -60,6 +60,11 @@ public final class FallbackMeshRenderer {
                 if (world == null) {
                     continue;
                 }
+                if (ClientMeshBindings.hashFor(node.nodeId()).isPresent()) {
+                    if (nodeShaderRenderer.render(node, world, camPos, camera, frustumMatrix, projectionMatrix, client, tickDelta)) {
+                        continue;
+                    }
+                }
                 int light = WorldRenderer.getLightmapCoordinates(client.world, BlockPos.ofFloored(world.pos.x, world.pos.y, world.pos.z));
                 if (light <= 0) {
                     light = 0x00F000F0;
@@ -109,7 +114,7 @@ public final class FallbackMeshRenderer {
                 continue;
             }
 
-            if ("Sprite3D".equals(type) || "AnimatedSprite3D".equals(type)) {
+            if ("Sprite3D".equals(type) || "AnimatedSprite3D".equals(type) || hasProceduralMesh) {
                 continue;
             }
 
@@ -135,14 +140,8 @@ public final class FallbackMeshRenderer {
             matrices.translate(world.pos.x - camPos.x, world.pos.y - camPos.y, world.pos.z - camPos.z);
             matrices.multiply(world.rot);
             matrices.scale(world.scale.x, world.scale.y, world.scale.z);
-            boolean drewProcedural = "MeshInstance3D".equals(type)
-                    && ProceduralMeshDrawer.drawIfBound(
-                            node.nodeId(), vertexConsumer, matrices.peek(), light,
-                            OverlayTexture.DEFAULT_UV, tintRi, tintGi, tintBi, alpha);
-            if (!drewProcedural) {
-                matrices.translate(-0.5, -0.5, -0.5);
-                renderUnitCube(vertexConsumer, matrices.peek(), light, OverlayTexture.DEFAULT_UV, tintRi, tintGi, tintBi, alpha);
-            }
+            matrices.translate(-0.5, -0.5, -0.5);
+            renderUnitCube(vertexConsumer, matrices.peek(), light, OverlayTexture.DEFAULT_UV, tintRi, tintGi, tintBi, alpha);
             matrices.pop();
         }
     }

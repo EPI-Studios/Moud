@@ -1,6 +1,6 @@
 package com.moud.client.fabric.render.mesh.cache;
 
-import com.moud.client.fabric.render.mesh.upload.ProceduralMeshUploader;
+import com.moud.client.fabric.render.ScenePreloader;
 import com.moud.core.mesh.ArrayMesh;
 import com.moud.core.mesh.MeshRegistry;
 import com.moud.core.mesh.io.MeshBinaryFormat;
@@ -48,7 +48,7 @@ public final class MeshPublishReassembler {
     }
 
     private static void bindExisting(long nodeId, String hex) {
-        if (MeshRegistry.instance().contains(hex) || ClientMeshCache.contains(hex)) {
+        if (MeshRegistry.instance().contains(hex)) {
             ClientMeshBindings.bind(nodeId, hex);
         } else {
         }
@@ -62,10 +62,10 @@ public final class MeshPublishReassembler {
                 ClientDebugLog.warn("mesh", "mesh hash mismatch: published=" + hex + " decoded=" + mesh.hash());
             }
             MeshRegistry.instance().register(mesh);
-            ProceduralMeshUploader.enqueue(mesh);
             for (long nodeId : pending.targetNodes) {
                 ClientMeshBindings.bind(nodeId, mesh.hash());
             }
+            ScenePreloader.preloadMesh(mesh.hash());
         } catch (RuntimeException e) {
             ClientDebugLog.warn("mesh", "mesh decode failed for hash " + hex + ": " + e.getMessage());
         } finally {
