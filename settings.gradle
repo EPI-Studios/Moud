@@ -27,6 +27,9 @@ include 'client-launcher'
 include 'server-minestom'
 include 'server-supervisor'
 include 'client-fabric'
+include 'physics-api'
+include 'physics-rapier'
+include 'physics-natives'
 
 def editorClientDir = file("editor-client")
 if (editorClientDir.exists()) {
