@@ -7,6 +7,7 @@ import com.moud.net.protocol.MultiMeshData;
 import com.moud.net.protocol.PlayReady;
 import com.moud.net.protocol.SceneList;
 import com.moud.net.protocol.SceneSnapshot;
+import com.moud.net.protocol.SceneSnapshotDelta;
 import com.moud.net.protocol.SchemaSnapshot;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
@@ -14,6 +15,7 @@ import com.moud.net.transport.Lane;
 import com.moud.server.minestom.engine.SceneInstancer;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.engine.ServerScenes;
+import com.moud.server.minestom.scene.AoiFilter;
 import com.moud.server.minestom.net.PlayerMessageSink;
 import com.moud.server.minestom.runtime.PlayerBodyManager;
 import com.moud.server.minestom.runtime.PlayRuntime;
@@ -47,12 +49,12 @@ final class PlayModeManager {
     private final Map<String, SceneBaseline> baselineBySceneId = new HashMap<>();
 
     private volatile SchemaSnapshot cachedSchema;
-    private final Map<String, List<MultiMeshData>> pendingMultiMeshByScene = new HashMap<>();
-    private final Map<String, List<Message>> pendingMeshPublishByScene = new HashMap<>();
+    private final Map<String, List<MultiMeshData>> pendingMultiMeshByInstance = new HashMap<>();
+    private final Map<String, List<Message>> pendingMeshPublishByInstance = new HashMap<>();
 
     boolean isPausedForEditor(Map<UUID, PlayerState> playerStates) {
         if (playerStates == null || playerStates.isEmpty()) {
-            return false;
+            return true;
         }
         for (PlayerState ps : playerStates.values()) {
             if (ps != null && ps.editorOpen) {
@@ -99,7 +101,7 @@ final class PlayModeManager {
                 session.send(Lane.STATE, snapshot);
                 ps.sceneSnapshotSentRevision = snapshot.revision();
                 scripts.refreshEditorRuntime(scene);
-                sendLatestMultiMesh(session, snapshot, scene.sceneId());
+                sendLatestMultiMesh(session, snapshot, scene);
                 sendLatestCollisionGeometry(session, scene);
             }
         } else if (wasOpen && !editorOpen) {
@@ -205,21 +207,21 @@ final class PlayModeManager {
             return;
         }
 
-        pendingMultiMeshByScene.clear();
-        pendingMeshPublishByScene.clear();
-        for (ServerScene scene : scenes.allScenes()) {
+        pendingMultiMeshByInstance.clear();
+        pendingMeshPublishByInstance.clear();
+        for (ServerScene scene : scenes.allLiveInstances()) {
             playRuntime.applyEditorWorldEnvironment(scene);
             String pendingTransition = scripts.tickRuntime(scene, dtSeconds);
             if (pendingTransition != null) {
-                applyScriptSceneTransition(scene.sceneId(), pendingTransition, playerStates);
+                applyScriptSceneTransition(scene.placeId(), pendingTransition, playerStates);
             }
-            List<MultiMeshData> mmData = scripts.drainMultiMesh(scene.sceneId());
+            List<MultiMeshData> mmData = scripts.drainMultiMesh(scene);
             if (!mmData.isEmpty()) {
-                pendingMultiMeshByScene.put(scene.sceneId(), mmData);
+                pendingMultiMeshByInstance.put(scene.instanceId(), mmData);
             }
-            List<Message> meshMsgs = scripts.drainMeshPublish(scene.sceneId());
+            List<Message> meshMsgs = scripts.drainMeshPublish(scene);
             if (!meshMsgs.isEmpty()) {
-                pendingMeshPublishByScene.put(scene.sceneId(), meshMsgs);
+                pendingMeshPublishByInstance.put(scene.instanceId(), meshMsgs);
             }
         }
     }
@@ -250,7 +252,7 @@ final class PlayModeManager {
         sendLatestCollisionGeometryIfNeeded(ps, session, scene);
 
         if (!ps.meshPublishSent) {
-            for (Message msg : scripts.getLatestMeshPublish(scene.sceneId())) {
+            for (Message msg : scripts.getLatestMeshPublish(scene)) {
                 session.send(Lane.STATE, msg);
             }
             ps.meshPublishSent = true;
@@ -260,34 +262,64 @@ final class PlayModeManager {
             return;
         }
 
-        float[] followCam = scripts.getFollowCameraForPlayer(scene.sceneId(), player.getUuid());
+        float[] followCam = scripts.getFollowCameraForPlayer(scene, player.getUuid());
         Long playerCamId = followCam == null
-                ? scripts.getActiveCameraForPlayer(scene.sceneId(), player.getUuid())
+                ? scripts.getActiveCameraForPlayer(scene, player.getUuid())
                 : null;
         float[] scriptCam = (followCam == null && playerCamId == null)
-                ? scripts.getScriptCameraForPlayer(scene.sceneId(), player.getUuid())
+                ? scripts.getScriptCameraForPlayer(scene, player.getUuid())
                 : null;
         bodyManager.tick(player);
         playRuntime.tick(player.getUuid(), session, scene, playerCamId, followCam, scriptCam);
         rigidBodyReplicator.send(scene, session);
         if (!ps.multiMeshSent) {
-            for (MultiMeshData mm : scripts.getLatestMultiMesh(scene.sceneId())) {
+            for (MultiMeshData mm : scripts.getLatestMultiMesh(scene)) {
                 session.send(Lane.STATE, mm);
             }
             ps.multiMeshSent = true;
         }
-        for (MultiMeshData msg : pendingMultiMeshByScene.getOrDefault(scene.sceneId(), Collections.emptyList())) {
+        for (MultiMeshData msg : pendingMultiMeshByInstance.getOrDefault(scene.instanceId(), Collections.emptyList())) {
             session.send(Lane.STATE, msg);
         }
-        for (Message msg : pendingMeshPublishByScene.getOrDefault(scene.sceneId(), Collections.emptyList())) {
+        for (Message msg : pendingMeshPublishByInstance.getOrDefault(scene.instanceId(), Collections.emptyList())) {
             session.send(Lane.STATE, msg);
         }
         long sceneRevision = scene.engine().sceneRevision();
-        if (ps.sceneSnapshotSentRevision != sceneRevision) {
-            SceneSnapshot snapshot = scene.snapshot(0L);
-            session.send(Lane.STATE, snapshot);
-            ps.sceneSnapshotSentRevision = snapshot.revision();
+        Pos pPos = player.getPosition();
+        double px = pPos.x();
+        double py = pPos.y();
+        double pz = pPos.z();
+        SceneSnapshot full = scene.snapshot(0L);
+        double radius = AoiFilter.readRadius(full);
+        double threshold = AoiFilter.readResendThreshold(full);
+        double thresholdSq = threshold * threshold;
+
+        boolean revisionChanged = ps.sceneSnapshotSentRevision != sceneRevision;
+        boolean movedFar = !ps.aoiCenterValid || dist2(px, py, pz, ps.aoiCenterX, ps.aoiCenterY, ps.aoiCenterZ) >= thresholdSq;
+        if (!revisionChanged && !movedFar) {
+            return;
         }
+
+        SceneSnapshot filtered = AoiFilter.filter(full, px, py, pz, radius);
+        if (ps.aoiTracker.isEmpty()) {
+            session.send(Lane.STATE, filtered);
+            ps.aoiTracker.diffAndUpdate(filtered);
+        } else {
+            SceneSnapshotDelta delta = ps.aoiTracker.diffAndUpdate(filtered);
+            if (delta != null) {
+                session.send(Lane.STATE, delta);
+            }
+        }
+        ps.sceneSnapshotSentRevision = filtered.revision();
+        ps.aoiCenterX = px;
+        ps.aoiCenterY = py;
+        ps.aoiCenterZ = pz;
+        ps.aoiCenterValid = true;
+    }
+
+    private static double dist2(double ax, double ay, double az, double bx, double by, double bz) {
+        double dx = ax - bx, dy = ay - by, dz = az - bz;
+        return dx * dx + dy * dy + dz * dz;
     }
 
     void onPlayerSpawn(Player player, PlayerState ps, ServerScene spawnScene) {
@@ -320,10 +352,10 @@ final class PlayModeManager {
             return;
         }
         scripts.refreshEditorRuntime(scene);
-        for (MultiMeshData mm : scripts.drainMultiMesh(scene.sceneId())) {
+        for (MultiMeshData mm : scripts.drainMultiMesh(scene)) {
             session.send(Lane.STATE, mm);
         }
-        for (Message msg : scripts.drainMeshPublish(scene.sceneId())) {
+        for (Message msg : scripts.drainMeshPublish(scene)) {
             session.send(Lane.STATE, msg);
         }
     }
@@ -350,6 +382,8 @@ final class PlayModeManager {
         ps.activeSceneId = targetId;
         ps.collisionGeometrySentSceneId = null;
         ps.sceneSnapshotSentRevision = Long.MIN_VALUE;
+        ps.aoiTracker.clear();
+        ps.aoiCenterValid = false;
         playRuntime.onSceneChanged(player.getUuid(), targetId);
 
         Pos targetStartPos = PlayRuntime.findPlayerStartPos(target);
@@ -366,7 +400,7 @@ final class PlayModeManager {
                     session.send(Lane.STATE, snapshot);
                     ps.sceneSnapshotSentRevision = snapshot.revision();
                     sendLatestCollisionGeometry(session, target);
-                    for (MultiMeshData mm : scripts.getLatestMultiMesh(targetId)) {
+                    for (MultiMeshData mm : scripts.getLatestMultiMesh(target)) {
                         session.send(Lane.STATE, mm);
                     }
                     scripts.sendFullClientStateTo(player.getUuid());
@@ -428,11 +462,11 @@ final class PlayModeManager {
         session.send(Lane.STATE, new SceneList(scenes.snapshotInfo(), active));
     }
 
-    private void sendLatestMultiMesh(Session session, SceneSnapshot snapshot, String sceneId) {
-        if (session == null || snapshot == null || sceneId == null || sceneId.isBlank()) {
+    private void sendLatestMultiMesh(Session session, SceneSnapshot snapshot, ServerScene scene) {
+        if (session == null || snapshot == null || scene == null) {
             return;
         }
-        List<MultiMeshData> latest = scripts.getLatestMultiMesh(sceneId);
+        List<MultiMeshData> latest = scripts.getLatestMultiMesh(scene);
         if (latest == null || latest.isEmpty() || snapshot.nodes() == null || snapshot.nodes().isEmpty()) {
             return;
         }

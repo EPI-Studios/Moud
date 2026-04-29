@@ -126,6 +126,14 @@ final class MessageRouter {
         if (lane == Lane.STATE && message instanceof EditorModeChanged mode) {
             if (devMode) {
                 playModeManager.onEditorModeChanged(player, ps, session, mode.editorOpen());
+                if (mode.editorOpen() && ps.activeInstanceId != null) {
+                    ServerScene editorScene = scenes.getByInstanceId(ps.activeInstanceId);
+                    if (editorScene != null && !editorScene.isPrivate()) {
+                        editorScene.setPrivate(true);
+                        DebugLog.info("matchmaker", "marking instance " + editorScene.instanceId()
+                                + " (place=" + editorScene.placeId() + ") private for editor user=" + player.getUsername());
+                    }
+                }
             }
             return;
         }
@@ -363,6 +371,7 @@ final class MessageRouter {
             scene.applier().setLogSink(s -> DebugLog.debug("scene/" + sid, "[" + user + "] " + s));
             SceneOpAck ack = scene.apply(batch);
             instancer.syncScene(scenes, scene);
+            fanOutEditOps(scene, batch);
             if (ack != null && ack.sceneRevision() != scene.engine().sceneRevision()) {
                 ack = new SceneOpAck(ack.batchId(), scene.engine().sceneRevision(), ack.results());
             }
@@ -387,6 +396,29 @@ final class MessageRouter {
 
         if (lane == Lane.ASSETS && assets != null) {
             assets.onMessage(player.getUuid(), session, message);
+        }
+    }
+
+    private void fanOutEditOps(ServerScene source, SceneOpBatch batch) {
+        if (source == null || batch == null) {
+            return;
+        }
+        List<ServerScene> live = scenes.instancesOfPlace(source.placeId());
+        if (live == null || live.isEmpty()) {
+            return;
+        }
+        for (ServerScene other : live) {
+            if (other == null || other == source || other.isDisposed()) {
+                continue;
+            }
+            scenes.tickExecutor().submit(() -> {
+                try {
+                    other.apply(batch);
+                    instancer.syncScene(scenes, other);
+                } catch (Throwable t) {
+                    DebugLog.error("scene", "fan-out apply failed instance=" + other.instanceId() + ": " + t.getMessage());
+                }
+            });
         }
     }
 
