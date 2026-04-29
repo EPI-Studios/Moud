@@ -4,6 +4,7 @@ import com.moud.core.NodeTypeDef;
 import com.moud.core.math.Quat;
 import com.moud.core.math.Vec3;
 import com.moud.core.util.ParseUtils;
+import com.moud.server.minestom.collision.SceneNodeTransform;
 import com.moud.core.scene.Node;
 import com.moud.core.scene.PlainNode;
 import com.moud.net.protocol.SceneOp;
@@ -394,9 +395,31 @@ public final class SceneOpApplier {
                 if (isSceneInstance(newParent)) {
                     yield new ApplyOutcome(SceneOpResult.fail(reparent.newParentId(), SceneOpError.INVALID, "cannot reparent into SceneInstance3D"), false);
                 }
+                String movingTypeId = engine.nodeTypes().typeIdFor(node);
+                boolean preserveWorld = shouldInheritTransform(node) && !isCsgPivotType(movingTypeId);
+                SceneNodeTransform.Transform oldWorld = preserveWorld
+                        ? SceneNodeTransform.worldTransformOf(node, engine.nodeTypes())
+                        : null;
                 boolean ok = engine.sceneTree().reparent(reparent.nodeId(), reparent.newParentId(), reparent.index());
                 if (!ok) {
                     yield new ApplyOutcome(SceneOpResult.fail(reparent.nodeId(), SceneOpError.INVALID, "reparent failed"), false);
+                }
+                if (preserveWorld && oldWorld != null) {
+                    SceneNodeTransform.Transform newParentWorld =
+                            SceneNodeTransform.worldTransformOf(newParent, engine.nodeTypes());
+                    SceneNodeTransform.Transform newLocal = newParentWorld.inverse().compose(oldWorld);
+                    SceneNodeTransform.Vec3 eul = newLocal.rot().toEulerDegXYZ();
+                    node.setProperty("x", trimDouble(newLocal.pos().x()));
+                    node.setProperty("y", trimDouble(newLocal.pos().y()));
+                    node.setProperty("z", trimDouble(newLocal.pos().z()));
+                    node.setProperty("rx", trimDouble(eul.x()));
+                    node.setProperty("ry", trimDouble(eul.y()));
+                    node.setProperty("rz", trimDouble(eul.z()));
+                    if (node.getProperty("sx") != null || node.getProperty("sy") != null || node.getProperty("sz") != null) {
+                        node.setProperty("sx", trimDouble(newLocal.scale().x()));
+                        node.setProperty("sy", trimDouble(newLocal.scale().y()));
+                        node.setProperty("sz", trimDouble(newLocal.scale().z()));
+                    }
                 }
                 boolean affectsCsg = shouldInheritTransform(node) && subtreeContainsCsgInheriting(node);
                 boolean affectsPhysics = shouldInheritTransform(node) && subtreeContainsPhysicsInheriting(node);
@@ -525,6 +548,14 @@ public final class SceneOpApplier {
             }
         }
         return false;
+    }
+
+    private static String trimDouble(double value) {
+        return ParseUtils.trimFloat((float) value);
+    }
+
+    private static boolean isCsgPivotType(String typeId) {
+        return "CSGBox".equals(typeId) || "CSGBlock".equals(typeId);
     }
 
     private static boolean isCsgTypeId(String typeId) {
