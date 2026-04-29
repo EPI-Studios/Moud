@@ -46,6 +46,14 @@ public final class BbmodelGeometrySource implements CollisionGeometrySource {
     }
 
     @Override
+    public boolean canHandle(Node node, String typeId) {
+        if (!supports(typeId) || node == null) return false;
+        String mp = node.getProperty("model_path");
+        if (mp == null || mp.isBlank()) return false;
+        return mp.toLowerCase().endsWith(".bbmodel");
+    }
+
+    @Override
     public CollisionGeometry extract(Node node, String typeId) {
         if (node == null || !"Model3D".equals(typeId)) {
             return CollisionGeometry.EMPTY;

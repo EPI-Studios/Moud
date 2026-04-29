@@ -5,6 +5,7 @@ import com.moud.core.mesh.Surface;
 import com.moud.core.mesh.source.ArrayMeshResolver;
 import com.moud.core.mesh.source.MeshSource;
 import com.moud.core.mesh.source.MeshSourceCodec;
+import com.moud.core.mesh.source.ObjRefMesh;
 import com.moud.core.physics.CollisionGeometry;
 import com.moud.core.scene.Node;
 
@@ -19,7 +20,7 @@ public final class ProceduralMeshGeometrySource implements CollisionGeometrySour
 
     @Override
     public boolean supports(String typeId) {
-        return "MeshInstance3D".equals(typeId);
+        return "MeshInstance3D".equals(typeId) || "Model3D".equals(typeId);
     }
 
     @Override
@@ -28,21 +29,17 @@ public final class ProceduralMeshGeometrySource implements CollisionGeometrySour
             return false;
         }
         var raw = node.getProperty("mesh_source");
-        return raw != null && !raw.isBlank();
+        if (raw != null && !raw.isBlank()) return true;
+        if ("Model3D".equals(typeId)) {
+            String mp = node.getProperty("model_path");
+            return mp != null && mp.toLowerCase().endsWith(".obj");
+        }
+        return false;
     }
 
     @Override
     public CollisionGeometry extract(Node node, String typeId) {
-        var raw = node.getProperty("mesh_source");
-        if (raw == null || raw.isBlank()) {
-            return CollisionGeometry.EMPTY;
-        }
-        MeshSource source;
-        try {
-            source = MeshSourceCodec.decode(raw);
-        } catch (RuntimeException e) {
-            return CollisionGeometry.EMPTY;
-        }
+        MeshSource source = resolveSource(node, typeId);
         if (source == null) {
             return CollisionGeometry.EMPTY;
         }
@@ -51,6 +48,21 @@ public final class ProceduralMeshGeometrySource implements CollisionGeometrySour
             return CollisionGeometry.EMPTY;
         }
         return flatten(resolved.get());
+    }
+
+    private static MeshSource resolveSource(Node node, String typeId) {
+        var raw = node.getProperty("mesh_source");
+        if (raw != null && !raw.isBlank()) {
+            try { return MeshSourceCodec.decode(raw); }
+            catch (RuntimeException e) { return null; }
+        }
+        if ("Model3D".equals(typeId)) {
+            String mp = node.getProperty("model_path");
+            if (mp != null && mp.toLowerCase().endsWith(".obj")) {
+                return new ObjRefMesh(mp);
+            }
+        }
+        return null;
     }
 
     private static CollisionGeometry flatten(ArrayMesh mesh) {
