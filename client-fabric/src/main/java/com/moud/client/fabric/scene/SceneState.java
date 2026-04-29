@@ -2,6 +2,7 @@ package com.moud.client.fabric.scene;
 
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneSnapshot;
+import com.moud.net.protocol.SceneSnapshotDelta;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,6 +31,44 @@ public final class SceneState {
         for (SceneSnapshot.NodeSnapshot node : snapshot.nodes()) {
             nodesById.put(node.nodeId(), node);
             childrenByParent.computeIfAbsent(node.parentId(), k -> new ArrayList<>()).add(node);
+        }
+    }
+
+    public void applyDelta(SceneSnapshotDelta delta) {
+        if (delta == null) return;
+        revision = delta.revision();
+        if (delta.removed() != null) {
+            for (Long id : delta.removed()) {
+                if (id == null) continue;
+                SceneSnapshot.NodeSnapshot existing = nodesById.remove(id);
+                if (existing != null) {
+                    List<SceneSnapshot.NodeSnapshot> siblings = childrenByParent.get(existing.parentId());
+                    if (siblings != null) {
+                        siblings.removeIf(c -> c != null && c.nodeId() == id);
+                        if (siblings.isEmpty()) childrenByParent.remove(existing.parentId());
+                    }
+                }
+            }
+        }
+        if (delta.upserts() != null) {
+            for (SceneSnapshot.NodeSnapshot node : delta.upserts()) {
+                if (node == null) continue;
+                SceneSnapshot.NodeSnapshot prior = nodesById.put(node.nodeId(), node);
+                if (prior != null && prior.parentId() != node.parentId()) {
+                    List<SceneSnapshot.NodeSnapshot> oldSiblings = childrenByParent.get(prior.parentId());
+                    if (oldSiblings != null) {
+                        oldSiblings.removeIf(c -> c != null && c.nodeId() == node.nodeId());
+                        if (oldSiblings.isEmpty()) childrenByParent.remove(prior.parentId());
+                    }
+                }
+                List<SceneSnapshot.NodeSnapshot> bucket = childrenByParent.computeIfAbsent(node.parentId(), k -> new ArrayList<>());
+                int idx = -1;
+                for (int i = 0; i < bucket.size(); i++) {
+                    if (bucket.get(i) != null && bucket.get(i).nodeId() == node.nodeId()) { idx = i; break; }
+                }
+                if (idx >= 0) bucket.set(idx, node);
+                else bucket.add(node);
+            }
         }
     }
 
