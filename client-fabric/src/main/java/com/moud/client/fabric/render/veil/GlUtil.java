@@ -110,6 +110,14 @@ public final class GlUtil {
         GL30.glBindVertexArray(prevVao);
     }
 
+    public static void drawElementsRange(int vao, int indexCount, int firstIndex) {
+        int prevVao = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
+        GL30.glBindVertexArray(vao);
+        long offsetBytes = (long) firstIndex * Integer.BYTES;
+        GL11.glDrawElements(GL11.GL_TRIANGLES, indexCount, GL11.GL_UNSIGNED_INT, offsetBytes);
+        GL30.glBindVertexArray(prevVao);
+    }
+
     public static void drawElementsInstanced(int vao, int indexCount, int instanceCount) {
         int prevVao = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
         GL30.glBindVertexArray(vao);

@@ -5,6 +5,8 @@ import com.moud.client.fabric.render.Model3DRenderer;
 import com.moud.client.fabric.render.VeilSceneNodeRenderer;
 import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
+import com.moud.client.fabric.render.mesh.ProceduralMeshGpuCache;
+import com.moud.client.fabric.render.mesh.cache.ClientMeshBindings;
 import com.moud.client.fabric.render.veil.GlUtil;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
 import com.moud.core.csg.CsgVoxelizer;
@@ -106,6 +108,7 @@ public final class NodePickingPass {
             RenderSystem.enableCull();
 
             Map<String, List<PickInstance>> batches = new HashMap<>();
+            Map<String, List<PickInstance>> proceduralBatches = new HashMap<>();
 
             for (SceneSnapshot.NodeSnapshot node : nodes) {
                 if (node == null) continue;
@@ -122,6 +125,10 @@ public final class NodePickingPass {
                 Pose world = poseResolver.apply(node.nodeId());
                 if (world == null) continue;
 
+                if (collectProceduralMeshPickInstance(node, world, camPos, proceduralBatches)) {
+                    continue;
+                }
+
                  if ("Model3D".equals(type)) {
                     collectModelPickInstances(node, world, camPos, batches);
                     continue;
@@ -131,9 +138,10 @@ public final class NodePickingPass {
                         VeilSceneNodeRenderer.stringProp(node, "billboard"), "Sprite3D".equals(type) || "AnimatedSprite3D".equals(type));
 
                 String meshType = VeilSceneNodeRenderer.stringProp(node, "mesh");
-                if (("Sprite3D".equals(type) || "AnimatedSprite3D".equals(type)) && (meshType == null || meshType.isBlank())) meshType = "plane";
+                if (("Sprite3D".equals(type) || "AnimatedSprite3D".equals(type)) && (meshType == null || meshType.isBlank())) meshType = "sprite_quad";
                 if (meshType == null || meshType.isBlank()) meshType = "cube";
-                boolean isPlane = "plane".equals(meshType);
+                boolean isPlane = "plane".equals(meshType) || "quad".equals(meshType)
+                        || "sprite_quad".equals(meshType) || "subdivided_plane".equals(meshType);
                 float HALF_PI = (float) (Math.PI / 2.0);
 
                 Matrix4f modelMat;
@@ -169,6 +177,7 @@ public final class NodePickingPass {
             }
 
             renderBatchesPick(batches, viewMat, projMat);
+            renderProceduralBatchesPick(proceduralBatches, viewMat, projMat);
 
             int px = Math.round((mouseNdcX * 0.5f + 0.5f) * fboWidth);
             int py = Math.round((mouseNdcY * 0.5f + 0.5f) * fboHeight);
@@ -216,6 +225,52 @@ public final class NodePickingPass {
                 cubeModelAt(x + 0.5f - (float) camPos.x, y + 0.5f - (float) camPos.y, z + 0.5f - (float) camPos.z),
                 "cube"
         )));
+    }
+
+    private boolean collectProceduralMeshPickInstance(SceneSnapshot.NodeSnapshot node,
+                                                      Pose world,
+                                                      Vec3d camPos,
+                                                      Map<String, List<PickInstance>> proceduralBatches) {
+        String hash = ClientMeshBindings.hashFor(node.nodeId()).orElse(null);
+        if (hash == null) return false;
+        Matrix4f modelMat = new Matrix4f()
+                .translate((float) (world.pos.x - camPos.x),
+                        (float) (world.pos.y - camPos.y),
+                        (float) (world.pos.z - camPos.z))
+                .rotate(world.rot)
+                .scale(world.scale.x, world.scale.y, world.scale.z);
+        proceduralBatches.computeIfAbsent(hash, k -> new ArrayList<>())
+                .add(new PickInstance(node.nodeId(), modelMat, hash));
+        return true;
+    }
+
+    private void renderProceduralBatchesPick(Map<String, List<PickInstance>> batches, Matrix4f viewMat, Matrix4f projMat) {
+        if (batches.isEmpty()) return;
+        ShaderProgram program = getPickProgram();
+        if (program == null || !program.isValid()) return;
+        try {
+            VeilRenderSystem.setShader(program);
+            program.bind();
+            int pid = GlUtil.currentProgram();
+            GlUtil.uniformMat4(pid, "ViewMat", viewMat);
+            GlUtil.uniformMat4(pid, "ProjMat", projMat);
+            for (var entry : batches.entrySet()) {
+                ProceduralMeshGpuCache.Handle handle = ProceduralMeshGpuCache.getOrUpload(entry.getKey());
+                if (handle == null) continue;
+                long key = ((long) pid << 32) | (handle.vbo() & 0xFFFFFFFFL);
+                int vao = vaoCache.computeIfAbsent(key, k -> GlUtil.createMeshVao(pid, handle.vbo(), handle.ebo()));
+                for (PickInstance inst : entry.getValue()) {
+                    float r = ((inst.nodeId) & 0xFF) / 255.0f;
+                    float g = ((inst.nodeId >> 8) & 0xFF) / 255.0f;
+                    float b = ((inst.nodeId >> 16) & 0xFF) / 255.0f;
+                    GlUtil.uniformMat4(pid, "ModelMat", inst.modelMat);
+                    GlUtil.uniform4f(pid, "PickColor", r, g, b, 1.0f);
+                    GlUtil.drawElements(vao, handle.indexCount());
+                }
+            }
+        } finally {
+            ShaderProgram.unbind();
+        }
     }
 
     private void collectModelPickInstances(SceneSnapshot.NodeSnapshot node,
@@ -278,11 +333,17 @@ public final class NodePickingPass {
             for (var entry : batches.entrySet()) {
                 int vbo, ebo, indexCount;
                 switch (entry.getKey()) {
-                    case "plane" -> {
+                    case "subdivided_plane" -> {
                         MoudMeshBuffer.ensurePlaneInitialized();
                         vbo = MoudMeshBuffer.planeVbo();
                         ebo = MoudMeshBuffer.planeEbo();
                         indexCount = MoudMeshBuffer.planeIndexCount();
+                    }
+                    case "plane", "quad", "sprite_quad" -> {
+                        MoudMeshBuffer.ensureQuadInitialized();
+                        vbo = MoudMeshBuffer.quadVbo();
+                        ebo = MoudMeshBuffer.quadEbo();
+                        indexCount = MoudMeshBuffer.quadIndexCount();
                     }
                     case "sphere" -> {
                         MoudMeshBuffer.ensureSphereInitialized();

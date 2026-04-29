@@ -5,6 +5,8 @@ import com.moud.client.fabric.render.Model3DRenderer;
 import com.moud.client.fabric.render.VeilSceneNodeRenderer;
 import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
+import com.moud.client.fabric.render.mesh.ProceduralMeshGpuCache;
+import com.moud.client.fabric.render.mesh.cache.ClientMeshBindings;
 import com.moud.client.fabric.render.veil.GlUtil;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
 import com.moud.core.csg.CsgVoxelizer;
@@ -203,6 +205,10 @@ public final class OutlineRenderer {
         Pose world = poseResolver.apply(node.nodeId());
         if (world == null) return;
 
+        if (renderProceduralMeshMask(node, world, camPos, pid, maskAlpha)) {
+            return;
+        }
+
         if ("Model3D".equals(type)) {
             renderModelMask(node, world, camPos, pid, maskAlpha);
             return;
@@ -212,8 +218,9 @@ public final class OutlineRenderer {
                 VeilSceneNodeRenderer.stringProp(node, "billboard"), "Sprite3D".equals(type) || "AnimatedSprite3D".equals(type));
 
         String meshType = VeilSceneNodeRenderer.stringProp(node, "mesh");
-        if (("Sprite3D".equals(type) || "AnimatedSprite3D".equals(type)) && (meshType == null || meshType.isBlank())) meshType = "plane";
-        boolean isPlane = "plane".equals(meshType);
+        if (("Sprite3D".equals(type) || "AnimatedSprite3D".equals(type)) && (meshType == null || meshType.isBlank())) meshType = "sprite_quad";
+        boolean isPlane = "plane".equals(meshType) || "quad".equals(meshType)
+                || "sprite_quad".equals(meshType) || "subdivided_plane".equals(meshType);
         float HALF_PI = (float) (Math.PI / 2.0);
 
         Matrix4f modelMat;
@@ -243,11 +250,16 @@ public final class OutlineRenderer {
         GlUtil.uniform1f(pid, "MaskAlpha", maskAlpha);
 
         int vbo, ebo, indexCount;
-        if ("plane".equals(meshType)) {
+        if ("subdivided_plane".equals(meshType)) {
             MoudMeshBuffer.ensurePlaneInitialized();
             vbo = MoudMeshBuffer.planeVbo();
             ebo = MoudMeshBuffer.planeEbo();
             indexCount = MoudMeshBuffer.planeIndexCount();
+        } else if ("plane".equals(meshType) || "quad".equals(meshType) || "sprite_quad".equals(meshType)) {
+            MoudMeshBuffer.ensureQuadInitialized();
+            vbo = MoudMeshBuffer.quadVbo();
+            ebo = MoudMeshBuffer.quadEbo();
+            indexCount = MoudMeshBuffer.quadIndexCount();
         } else if ("sphere".equals(meshType)) {
             MoudMeshBuffer.ensureSphereInitialized();
             vbo = MoudMeshBuffer.sphereVbo();
@@ -289,6 +301,31 @@ public final class OutlineRenderer {
         GlUtil.uniformMat4(pid, "ModelMat", modelMat);
         GlUtil.uniform1f(pid, "MaskAlpha", maskAlpha);
         GlUtil.drawElements(vao, indexCount);
+    }
+
+    private boolean renderProceduralMeshMask(SceneSnapshot.NodeSnapshot node,
+                                             Pose world,
+                                             Vec3d camPos,
+                                             int pid,
+                                             float maskAlpha) {
+        String hash = ClientMeshBindings.hashFor(node.nodeId()).orElse(null);
+        if (hash == null) return false;
+        ProceduralMeshGpuCache.Handle handle = ProceduralMeshGpuCache.getOrUpload(hash);
+        if (handle == null) return false;
+
+        Matrix4f modelMat = new Matrix4f()
+                .translate((float) (world.pos.x - camPos.x),
+                        (float) (world.pos.y - camPos.y),
+                        (float) (world.pos.z - camPos.z))
+                .rotate(world.rot)
+                .scale(world.scale.x, world.scale.y, world.scale.z);
+        GlUtil.uniformMat4(pid, "ModelMat", modelMat);
+        GlUtil.uniform1f(pid, "MaskAlpha", maskAlpha);
+
+        long key = ((long) pid << 32) | (handle.vbo() & 0xFFFFFFFFL);
+        int vao = vaoCache.computeIfAbsent(key, k -> GlUtil.createMeshVao(pid, handle.vbo(), handle.ebo()));
+        GlUtil.drawElements(vao, handle.indexCount());
+        return true;
     }
 
     private void renderModelMask(SceneSnapshot.NodeSnapshot node,

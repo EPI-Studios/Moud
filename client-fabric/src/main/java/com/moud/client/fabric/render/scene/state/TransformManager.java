@@ -2,6 +2,7 @@ package com.moud.client.fabric.render.scene.state;
 
 import com.moud.client.fabric.editor.overlay.EditorContext;
 import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
+import com.moud.client.fabric.physics.rapier.ClientRapierPhysics;
 import com.moud.client.fabric.player.PlayerBodyAttachmentCache;
 import com.moud.client.fabric.render.scene.math.CachedPose;
 import com.moud.client.fabric.render.scene.math.NodePoseState;
@@ -165,6 +166,21 @@ public final class TransformManager {
         CachedPose cached = worldPoseCacheById.get(nodeId);
         if (cached != null && cached.frame == poseFrameId) {
             return cached.pose;
+        }
+
+        var rapierPose = ClientRapierPhysics.visuals().sampleByNode(nodeId, System.currentTimeMillis());
+        if (rapierPose.isPresent()) {
+            if (cached == null) {
+                cached = new CachedPose();
+                worldPoseCacheById.put(nodeId, cached);
+            }
+            cached.frame = poseFrameId;
+            Pose out = cached.pose;
+            var t = rapierPose.get();
+            out.pos.set(t.pos().x(), t.pos().y(), t.pos().z());
+            out.rot.set(t.rot().x(), t.rot().y(), t.rot().z(), t.rot().w());
+            out.scale.set(1f, 1f, 1f);
+            return out;
         }
 
         SceneSnapshot.NodeSnapshot node = cacheManager.cachedNodesById().get(nodeId);

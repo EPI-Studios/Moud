@@ -3,7 +3,6 @@ package com.moud.client.fabric.render.mesh.generate;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.moud.client.fabric.render.mesh.cache.ClientMeshBindings;
-import com.moud.client.fabric.render.mesh.upload.ProceduralMeshUploader;
 import com.moud.core.mesh.ArrayMesh;
 import com.moud.core.mesh.MeshRegistry;
 import com.moud.core.mesh.source.GeneratorMesh;
@@ -50,7 +49,6 @@ public final class ClientMeshGenerator {
             return;
         }
         ArrayMesh mesh = MeshRegistry.instance().register(produced.get());
-        ProceduralMeshUploader.enqueue(mesh);
         ClientMeshBindings.bind(publish.nodeId(), mesh.hash());
     }
 }
