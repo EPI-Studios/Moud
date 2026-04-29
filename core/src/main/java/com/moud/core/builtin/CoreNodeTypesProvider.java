@@ -32,6 +32,8 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("rx", new PropertyDef("rx", PropertyType.FLOAT, "0", "Rot X", "Transform", 10, Map.of("step", "1"))),
                 Map.entry("ry", new PropertyDef("ry", PropertyType.FLOAT, "0", "Rot Y", "Transform", 11, Map.of("step", "1"))),
                 Map.entry("rz", new PropertyDef("rz", PropertyType.FLOAT, "0", "Rot Z", "Transform", 12, Map.of("step", "1"))),
+                Map.entry("aoi_extent", new PropertyDef("aoi_extent", PropertyType.FLOAT, "0", "Extent", "Streaming", 90, Map.of("min", "0", "step", "1"))),
+                Map.entry("always_relevant", new PropertyDef("always_relevant", PropertyType.BOOL, "false", "Always Relevant", "Streaming", 91, Map.of())),
                 Map.entry("script", new PropertyDef("script", PropertyType.STRING, null, "Script", "Script", 100, Map.of()))
         )));
 
@@ -57,6 +59,9 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("time_ticks", new PropertyDef("time_ticks", PropertyType.INT, "6000", "Time (ticks)", "Time", 11, Map.of("min", "0", "max", "24000", "step", "100"))),
                 Map.entry("weather", new PropertyDef("weather", PropertyType.STRING, "clear", "Weather", "Weather", 20, Map.of())),
                 Map.entry("ambient_light", new PropertyDef("ambient_light", PropertyType.FLOAT, "1.0", "Ambient", "Light", 30, Map.of("min", "0", "max", "1", "step", "0.05"))),
+
+                Map.entry("aoi_radius", new PropertyDef("aoi_radius", PropertyType.FLOAT, "256.0", "Radius", "Streaming", 35, Map.of("min", "0", "step", "8"))),
+                Map.entry("aoi_resend_threshold", new PropertyDef("aoi_resend_threshold", PropertyType.FLOAT, "8.0", "Resend Distance", "Streaming", 36, Map.of("min", "0", "step", "1"))),
 
                 Map.entry("sky_mode", new PropertyDef("sky_mode", PropertyType.STRING, "vanilla", "Mode", "Sky", 40, Map.of())),
                 Map.entry("sky_shader", new PropertyDef("sky_shader", PropertyType.STRING, "", "Shader", "Sky", 41, Map.of("asset", "shader"))),
@@ -220,7 +225,7 @@ public final class CoreNodeTypesProvider implements NodeTypeProvider {
                 Map.entry("sx", new PropertyDef("sx", PropertyType.FLOAT, "1", "Width", "Transform", 20, Map.of("min", "0.001", "step", "0.1"))),
                 Map.entry("sy", new PropertyDef("sy", PropertyType.FLOAT, "1", "Height", "Transform", 21, Map.of("min", "0.001", "step", "0.1"))),
                 Map.entry("sz", new PropertyDef("sz", PropertyType.FLOAT, "1", "Depth", "Transform", 22, Map.of("min", "0.001", "step", "0.1"))),
-                Map.entry("mesh", new PropertyDef("mesh", PropertyType.STRING, "plane", "Mesh", "Mesh", 25, Map.of())),
+                Map.entry("mesh", new PropertyDef("mesh", PropertyType.STRING, "sprite_quad", "Mesh", "Mesh", 25, Map.of())),
                 Map.entry("billboard", new PropertyDef("billboard", PropertyType.BOOL, "true", "Billboard", "Mesh", 26, Map.of())),
                 Map.entry("double_sided", new PropertyDef("double_sided", PropertyType.BOOL, "true", "Double Sided", "Mesh", 27, Map.of())),
                 Map.entry("texture", new PropertyDef("texture", PropertyType.STRING, "moud:dynamic/white", "Texture", "Material", 30, Map.of("asset", "image"))),
