@@ -11,7 +11,6 @@ import com.moud.client.fabric.render.hud.HudSelectionOverlay;
 import com.moud.client.fabric.render.loading.PlayLoadingOverlay;
 import com.moud.client.fabric.util.ClientDebugLog;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
-import com.moud.client.fabric.render.mesh.upload.ProceduralMeshUploader;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
@@ -67,7 +66,6 @@ final class MoudClient {
     }
 
     private void tickSystems() {
-        ProceduralMeshUploader.drain();
         if (ctx.overlayOpen && ctx.isConnected()) {
             ctx.assets.tick(ctx.session);
         }

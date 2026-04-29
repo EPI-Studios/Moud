@@ -46,6 +46,7 @@ final class MoudClientContext {
     KeyBinding toggleKey;
     KeyBinding collisionDebugKey;
     KeyBinding viewportPlayKey;
+    KeyBinding physicsDebugKey;
 
     volatile SchemaSnapshot lastSchema;
     volatile SceneList lastSceneList;

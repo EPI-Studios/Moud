@@ -11,6 +11,7 @@ import com.moud.client.fabric.model.ModelCache;
 import com.moud.client.fabric.net.EnginePayload;
 import com.moud.client.fabric.player.MoudPalAnimLayer;
 import com.moud.client.fabric.player.PalAnimInjector;
+import com.moud.client.fabric.render.MoudFxaa;
 import com.moud.client.fabric.render.MoudIcons;
 import com.moud.client.fabric.render.MoudTextures;
 import com.moud.client.fabric.render.VeilSceneNodeRenderer;
@@ -49,6 +50,8 @@ final class MoudClientBootstrap {
                 "key.moud.collision_debug", GLFW.GLFW_KEY_F9, "category.moud"));
         ctx.viewportPlayKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.moud.viewport_play", GLFW.GLFW_KEY_F7, "category.moud"));
+        ctx.physicsDebugKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.moud.physics_debug", GLFW.GLFW_KEY_F6, "category.moud"));
     }
 
     void initializeSubsystems() {
@@ -59,6 +62,7 @@ final class MoudClientBootstrap {
         MoudPalAnimLayer.register();
         ctx.assets.addListener(new PalAnimInjector(ctx.assets));
         MoudTextures.init(ctx.assets);
+        MoudFxaa.init();
         MoudTextAssets.init(ctx.assets);
         MoudAudioAssets.init(ctx.assets);
         ModelCache.init(ctx.assets);
