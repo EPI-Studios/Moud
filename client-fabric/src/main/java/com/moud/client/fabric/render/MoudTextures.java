@@ -29,6 +29,7 @@ import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.client.texture.TextureManager;
 import net.minecraft.util.Identifier;
+import org.lwjgl.opengl.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -145,8 +146,48 @@ public final class MoudTextures implements AssetsClient.Listener {
             NativeImageBackedTexture tex = new NativeImageBackedTexture(finalImage);
             tm.registerTexture(id, tex);
             tex.upload();
+            applyQualityFilters(tex.getGlId());
             rawReadyIds.add(id);
         });
+    }
+
+    private static int maxAnisotropy = -1;
+
+    private static void applyQualityFilters(int glId) {
+        if (glId <= 0) return;
+        try {
+            int prev = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, glId);
+            GL30.glGenerateMipmap(GL11.GL_TEXTURE_2D);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D,
+                    GL11.GL_TEXTURE_MIN_FILTER,
+                    GL11.GL_LINEAR_MIPMAP_LINEAR);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D,
+                    GL11.GL_TEXTURE_MAG_FILTER,
+                    GL11.GL_LINEAR);
+            if (maxAnisotropy < 0) {
+                try {
+                    var caps = GL.getCapabilities();
+                    if (caps != null && caps.GL_EXT_texture_filter_anisotropic) {
+                        maxAnisotropy = (int) Math.min(16f,
+                                GL11.glGetFloat(EXTTextureFilterAnisotropic.GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT));
+                    } else {
+                        maxAnisotropy = 0;
+                    }
+                } catch (Throwable ignored) {
+                    maxAnisotropy = 0;
+                }
+            }
+            if (maxAnisotropy > 1) {
+                GL11.glTexParameterf(GL11.GL_TEXTURE_2D,
+                        EXTTextureFilterAnisotropic.GL_TEXTURE_MAX_ANISOTROPY_EXT,
+                        maxAnisotropy);
+            }
+            GL11.glTexParameterf(GL11.GL_TEXTURE_2D,
+                    GL14.GL_TEXTURE_LOD_BIAS, 0.25f);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, prev);
+        } catch (Throwable ignored) {
+        }
     }
 
     public static List<String> imageAssetPaths() {

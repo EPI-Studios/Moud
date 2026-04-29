@@ -400,7 +400,7 @@ public final class PostProcessService {
                 GlStateManager._activeTexture(GL13.GL_TEXTURE0 + unit);
                 GlStateManager._bindTexture(0);
             }
-            GlStateManager._activeTexture(GL13.GL_TEXTURE0);
+            GlStateManager._activeTexture(prevActiveTexture);
 
             GL30.glBindVertexArray(prevVao);
             GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, prevReadFbo);

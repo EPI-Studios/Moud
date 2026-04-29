@@ -9,6 +9,7 @@ import com.moud.client.fabric.runtime.PlayRuntimeBus;
 import com.moud.client.fabric.runtime.PlayRuntimeClient;
 import com.moud.client.fabric.render.veil.GlUtil;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
+import com.moud.client.fabric.scene.ClientSceneBus;
 import com.moud.net.protocol.SceneSnapshot;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.shader.block.ShaderBlock;
@@ -51,6 +52,10 @@ final class InstancedBatchRenderer {
     private FloatBuffer instanceBuffer;
     private final Map<Long, Integer> vaoCache = new ConcurrentHashMap<>();
     private final SceneLights sceneLights;
+    private final Matrix4f scratchWorldMat = new Matrix4f();
+    private long cachedSceneVersion = Long.MIN_VALUE;
+    private boolean cachedPlayRuntimeActive;
+    private Map<String, List<BatchInstance>> cachedBatches = Map.of();
 
     InstancedBatchRenderer(SceneLights sceneLights) {
         this.sceneLights = sceneLights;
@@ -69,7 +74,7 @@ final class InstancedBatchRenderer {
 
         MoudMeshBuffer.ensureInitialized();
 
-        Map<String, List<NodeInstance>> batches = buildBatches(nodes, poseResolver, camPos);
+        Map<String, List<BatchInstance>> batches = batchesFor(nodes);
         if (batches.isEmpty()) return 0;
 
         Matrix4f viewMat = viewMatrix != null ? new Matrix4f(viewMatrix) : new Matrix4f();
@@ -95,7 +100,7 @@ final class InstancedBatchRenderer {
             program.bindSamplers(0);
 
             for (var entry : batches.entrySet()) {
-                List<NodeInstance> instances = entry.getValue();
+                List<BatchInstance> instances = entry.getValue();
                 if (instances.isEmpty()) continue;
 
                 String batchKey = entry.getKey();
@@ -104,7 +109,8 @@ final class InstancedBatchRenderer {
 
                 var mesh = resolveMesh(meshKey);
                 ensureInstanceVbo(instances.size());
-                fillInstanceData(instances);
+                int uploadedInstances = fillInstanceData(instances, poseResolver);
+                if (uploadedInstances <= 0) continue;
                 uploadInstanceData();
 
                 long key = ((long) pid << 32) | (mesh.vbo & 0xFFFFFFFFL);
@@ -112,9 +118,9 @@ final class InstancedBatchRenderer {
                         k -> GlUtil.createInstancedMeshVao(pid, mesh.vbo, mesh.ebo, instanceVbo));
 
                 if (doubleSided) RenderSystem.disableCull();
-                GlUtil.drawElementsInstanced(vao, mesh.indexCount, instances.size());
+                GlUtil.drawElementsInstanced(vao, mesh.indexCount, uploadedInstances);
                 if (doubleSided) RenderSystem.enableCull();
-                rendered += instances.size();
+                rendered += uploadedInstances;
             }
         } finally {
             ShaderProgram.unbind();
@@ -123,18 +129,28 @@ final class InstancedBatchRenderer {
         return rendered;
     }
 
-    private Map<String, List<NodeInstance>> buildBatches(List<SceneSnapshot.NodeSnapshot> nodes,
-                                                         Function<Long, Pose> poseResolver,
-                                                         Vec3d camPos) {
-        Map<String, List<NodeInstance>> batches = new HashMap<>();
+    private Map<String, List<BatchInstance>> batchesFor(List<SceneSnapshot.NodeSnapshot> nodes) {
+        long sceneVersion = ClientSceneBus.version();
+        boolean playRuntimeActive = isPlayRuntimeActive();
+        if (cachedSceneVersion == sceneVersion && cachedPlayRuntimeActive == playRuntimeActive) {
+            return cachedBatches;
+        }
+        cachedSceneVersion = sceneVersion;
+        cachedPlayRuntimeActive = playRuntimeActive;
+        cachedBatches = buildBatches(nodes, playRuntimeActive);
+        return cachedBatches;
+    }
+
+    private Map<String, List<BatchInstance>> buildBatches(List<SceneSnapshot.NodeSnapshot> nodes,
+                                                          boolean playRuntimeActive) {
+        Map<String, List<BatchInstance>> batches = new HashMap<>();
         for (var node : nodes) {
             if (node == null) continue;
             String type = node.type();
             if (!"MeshInstance3D".equals(type) && !"CSGBox".equals(type)) continue;
             if (!VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "visible"), true)) continue;
             if (VeilSceneNodeRenderer.parseBool(VeilSceneNodeRenderer.stringProp(node, "viewmodel"), false)) {
-                PlayRuntimeClient rt = PlayRuntimeBus.get();
-                if (rt != null && rt.isActive()) continue;
+                if (playRuntimeActive) continue;
             }
 
             String materialPath = VeilSceneNodeRenderer.stringProp(node, "material");
@@ -149,9 +165,6 @@ final class InstancedBatchRenderer {
                     && !"moud:dynamic/white".equals(texProp);
             if (hasCustomTexture) continue;
 
-            Pose world = poseResolver.apply(node.nodeId());
-            if (world == null) continue;
-
             float tintR   = clampedProp(node, "color_tint_r", 1f);
             float tintG   = clampedProp(node, "color_tint_g", 1f);
             float tintB   = clampedProp(node, "color_tint_b", 1f);
@@ -165,9 +178,14 @@ final class InstancedBatchRenderer {
             String batchKey = doubleSided ? mesh + ":ds" : mesh;
 
             batches.computeIfAbsent(batchKey, k -> new ArrayList<>())
-                    .add(new NodeInstance(world, tintR, tintG, tintB, opacity));
+                    .add(new BatchInstance(node.nodeId(), tintR, tintG, tintB, opacity));
         }
         return batches;
+    }
+
+    private static boolean isPlayRuntimeActive() {
+        PlayRuntimeClient rt = PlayRuntimeBus.get();
+        return rt != null && rt.isActive();
     }
 
     private void uploadFrameUniforms(int pid, Matrix4f view, Matrix4f proj, Vec3d camPos,
@@ -192,9 +210,13 @@ final class InstancedBatchRenderer {
 
     private static MeshHandles resolveMesh(String meshType) {
         return switch (meshType) {
-            case "plane" -> {
+            case "subdivided_plane" -> {
                 MoudMeshBuffer.ensurePlaneInitialized();
                 yield new MeshHandles(MoudMeshBuffer.planeVbo(), MoudMeshBuffer.planeEbo(), MoudMeshBuffer.planeIndexCount());
+            }
+            case "plane", "quad", "sprite_quad" -> {
+                MoudMeshBuffer.ensureQuadInitialized();
+                yield new MeshHandles(MoudMeshBuffer.quadVbo(), MoudMeshBuffer.quadEbo(), MoudMeshBuffer.quadIndexCount());
             }
             case "sphere" -> {
                 MoudMeshBuffer.ensureSphereInitialized();
@@ -215,14 +237,24 @@ final class InstancedBatchRenderer {
         }
     }
 
-    private void fillInstanceData(List<NodeInstance> instances) {
+    private int fillInstanceData(List<BatchInstance> instances, Function<Long, Pose> poseResolver) {
         instanceBuffer.clear();
+        int written = 0;
         for (var inst : instances) {
-            inst.worldMat.get(instanceBuffer);
+            Pose world = poseResolver.apply(inst.nodeId);
+            if (world == null) continue;
+            scratchWorldMat.identity()
+                    .translate(world.pos.x, world.pos.y, world.pos.z)
+                    .rotate(world.rot)
+                    .scale(world.scale.x, world.scale.y, world.scale.z)
+                    .translate(-0.5f, -0.5f, -0.5f)
+                    .get(instanceBuffer);
             instanceBuffer.position(instanceBuffer.position() + 16);
             instanceBuffer.put(inst.tintR).put(inst.tintG).put(inst.tintB).put(inst.opacity);
+            written++;
         }
         instanceBuffer.flip();
+        return written;
     }
 
     private void uploadInstanceData() {
@@ -249,6 +281,9 @@ final class InstancedBatchRenderer {
         if (instanceVbo != 0) { GL15.glDeleteBuffers(instanceVbo); instanceVbo = 0; }
         if (instanceBuffer != null) { MemoryUtil.memFree(instanceBuffer); instanceBuffer = null; }
         instancedProgram = null;
+        cachedSceneVersion = Long.MIN_VALUE;
+        cachedPlayRuntimeActive = false;
+        cachedBatches = Map.of();
     }
 
     private static float clampedProp(SceneSnapshot.NodeSnapshot node, String key, float def) {
@@ -263,18 +298,5 @@ final class InstancedBatchRenderer {
         return "";
     }
 
-    private record NodeInstance(Matrix4f worldMat,
-                                float tintR, float tintG, float tintB, float opacity) {
-        NodeInstance(Pose world,
-                     float tintR, float tintG, float tintB, float opacity) {
-            this(
-                    new Matrix4f()
-                            .translate(world.pos.x, world.pos.y, world.pos.z)
-                            .rotate(world.rot)
-                            .scale(world.scale.x, world.scale.y, world.scale.z)
-                            .translate(-0.5f, -0.5f, -0.5f),
-                    tintR, tintG, tintB, opacity
-            );
-        }
-    }
+    private record BatchInstance(long nodeId, float tintR, float tintG, float tintB, float opacity) {}
 }
