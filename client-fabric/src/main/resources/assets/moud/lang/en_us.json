@@ -2,5 +2,6 @@
   "category.moud": "Moud",
   "key.moud.interact": "Interact",
   "key.moud.reload": "Reload",
-  "key.moud.menu": "Menu"
+  "key.moud.menu": "Menu",
+  "options.moud.fxaa": "FXAA"
 }
