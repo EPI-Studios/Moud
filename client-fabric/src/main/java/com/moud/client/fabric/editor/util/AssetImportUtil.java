@@ -6,6 +6,10 @@ import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
 import com.moud.core.material.TresMaterialConverter;
+import com.moud.core.mesh.obj.MtlMaterial;
+import com.moud.core.mesh.obj.MtlParser;
+import com.moud.core.mesh.obj.ObjModel;
+import com.moud.core.mesh.obj.ObjParser;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
 import net.minecraft.client.MinecraftClient;
@@ -14,8 +18,7 @@ import org.lwjgl.util.tinyfd.TinyFileDialogs;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 public final class AssetImportUtil {
     private AssetImportUtil() {
@@ -204,6 +207,10 @@ public final class AssetImportUtil {
             }
         }
 
+        if (fileName.endsWith(".obj")) {
+            importObjSiblings(runtime, file, bytes);
+        }
+
         if (dest == null) {
             toast(runtime, "Import failed: invalid destination path", true, 6000);
             return;
@@ -226,6 +233,82 @@ public final class AssetImportUtil {
         } catch (Exception e) {
             String msg = e.getMessage();
             toast(runtime, "Import failed" + (msg == null || msg.isBlank() ? "" : ": " + msg), true, 6000);
+        }
+    }
+
+    private static void importObjSiblings(EditorRuntime runtime, File objFile, byte[] objBytes) {
+        if (runtime == null || objFile == null || objBytes == null) return;
+        File dir = objFile.getParentFile();
+        if (dir == null) return;
+        ObjModel model;
+        try {
+            model = ObjParser.parse(new String(objBytes, StandardCharsets.UTF_8));
+        } catch (RuntimeException e) {
+            return;
+        }
+        String mtlLib = model.mtlLibName();
+        if (mtlLib == null || mtlLib.isBlank()) return;
+
+        File mtlFile = new File(dir, mtlLib);
+        if (!mtlFile.isFile()) return;
+
+        byte[] mtlBytes;
+        try {
+            mtlBytes = Files.readAllBytes(mtlFile.toPath());
+        } catch (Exception e) {
+            return;
+        }
+        ImportTarget mtlTarget = new ImportTarget("res://models/", AssetType.TEXT);
+        ResPath mtlDest = safeResPath(mtlTarget.destDir, mtlFile.getName());
+        if (mtlDest != null) {
+            uploadBlob(runtime, mtlDest, mtlBytes, AssetType.TEXT);
+        }
+
+        Map<String, MtlMaterial> materials;
+        try {
+            materials = MtlParser.parse(new String(mtlBytes, StandardCharsets.UTF_8));
+        } catch (RuntimeException e) {
+            return;
+        }
+        Set<String> uploaded = new HashSet<>();
+        int textureCount = 0;
+        for (MtlMaterial mat : materials.values()) {
+            String tex = mat.diffuseTexture();
+            if (tex == null || tex.isBlank() || !uploaded.add(tex)) continue;
+            File texFile = new File(dir, tex);
+            if (!texFile.isFile()) continue;
+            byte[] texBytes;
+            try {
+                texBytes = Files.readAllBytes(texFile.toPath());
+            } catch (Exception e) {
+                continue;
+            }
+            ImportTarget texTarget = inferTarget(texFile.getName(), false);
+            ResPath texDest = safeResPath(texTarget.destDir, texFile.getName());
+            if (texDest == null) continue;
+            uploadBlob(runtime, texDest, texBytes, texTarget.type);
+            textureCount++;
+        }
+        if (textureCount > 0) {
+            toast(runtime, "Auto-imported " + textureCount + " texture(s) from .mtl", false, 2500);
+        }
+    }
+
+    private static void uploadBlob(EditorRuntime runtime, ResPath dest, byte[] bytes, AssetType type) {
+        AssetsClient assets = runtime.assets();
+        Session session = runtime.session();
+        if (assets == null || session == null || session.state() != SessionState.CONNECTED) return;
+        MinecraftClient mc = MinecraftClient.getInstance();
+        Runnable task = () -> {
+            try {
+                assets.upload(session, dest, bytes, type);
+            } catch (Exception ignored) {
+            }
+        };
+        if (mc != null && !mc.isOnThread()) {
+            mc.execute(task);
+        } else {
+            task.run();
         }
     }
 
