@@ -37,6 +37,7 @@ tasks.withType(JavaCompile).configureEach {
 dependencies {
     implementation project(':core')
     implementation project(':net')
+    implementation project(':physics-rapier')
 
     implementation('net.minestom:minestom-snapshots:f966351cb7') {
         exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j2-impl'
@@ -44,10 +45,6 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.11.0'
     runtimeOnly 'ch.qos.logback:logback-classic:1.5.6'
 
-    implementation("com.github.stephengold:jolt-jni-Linux64:3.5.0")
-    runtimeOnly("com.github.stephengold:jolt-jni-Linux64:3.5.0:DebugSp")
-    runtimeOnly("com.github.stephengold:jolt-jni-Linux_ARM64:3.5.0:DebugSp")
-    runtimeOnly("com.github.stephengold:jolt-jni-Windows64:3.5.0:DebugSp")
     implementation("io.github.electrostat-lab:snaploader:1.1.1-stable")
 
     implementation 'org.graalvm.polyglot:polyglot:24.1.0'
