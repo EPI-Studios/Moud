@@ -37,7 +37,7 @@ jobs:
             lib: rapier_moud.dll
             resource_dir: windows-x64
           - label: macos-x64
-            runner: macos-13
+            runner: macos-14
             target: x86_64-apple-darwin
             lib: librapier_moud.dylib
             resource_dir: macos-x64
