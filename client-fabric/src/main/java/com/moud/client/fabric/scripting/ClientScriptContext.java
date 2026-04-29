@@ -3,6 +3,7 @@ package com.moud.client.fabric.scripting;
 import com.moud.client.fabric.scripting.api.AnimApi;
 import com.moud.client.fabric.scripting.api.BodyApi;
 import com.moud.client.fabric.scripting.api.CameraApi;
+import com.moud.client.fabric.scripting.api.ClientPhysicsApi;
 import com.moud.client.fabric.scripting.api.InputApi;
 import com.moud.client.fabric.scripting.api.MessagingApi;
 import com.moud.client.fabric.scripting.api.MouseApi;
@@ -66,6 +67,7 @@ final class ClientScriptContext implements AutoCloseable {
         bridge.setApiGlobal(thread, "PostProcess", postProcess);
         bridge.setApiGlobal(thread, "msg",         messaging);
         bridge.setApiGlobal(thread, "playmode",    playMode);
+        bridge.setApiGlobal(thread, "physics",     new ClientPhysicsApi());
         if (node != null && node.net() != null) {
             bridge.setNestedApiField(thread, "node", "net", node.net());
         }
