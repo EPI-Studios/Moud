@@ -26,6 +26,7 @@ public final class MeshSourceCodec {
                     Base64.getDecoder().decode(root.get("b64").getAsString()));
             case "asset" -> new AssetRefMesh(root.get("path").getAsString());
             case "hash" -> new HashRefMesh(root.get("hash").getAsString());
+            case "obj" -> new ObjRefMesh(root.get("path").getAsString());
             case "gen" -> {
                 JsonObject params = root.has("params") && root.get("params").isJsonObject()
                         ? root.getAsJsonObject("params")
@@ -58,6 +59,10 @@ public final class MeshSourceCodec {
             case HashRefMesh hr -> {
                 root.addProperty("kind", "hash");
                 root.addProperty("hash", hr.hash());
+            }
+            case ObjRefMesh om -> {
+                root.addProperty("kind", "obj");
+                root.addProperty("path", om.path());
             }
             case GeneratorMesh gm -> {
                 root.addProperty("kind", "gen");
