@@ -35,6 +35,7 @@ public final class CoreScriptApi {
     private final PersistApi persistApi;
     private final HttpApi httpApi;
     private final MeshApi meshApi;
+    private final ServerApi serverApi;
 
     public CoreScriptApi(ServerScene scene, RuntimeFacade runtime, long selfId) {
         this.scene = scene;
@@ -56,6 +57,12 @@ public final class CoreScriptApi {
         this.persistApi = new PersistApi(runtime.persistence());
         this.httpApi = new HttpApi();
         this.meshApi = new MeshApi(scene, runtime.meshPublishService(), runtime);
+        this.serverApi = new ServerApi(scene, runtime);
+    }
+
+    @HostAccess.Export
+    public ServerApi server() {
+        return serverApi;
     }
 
     @HostAccess.Export

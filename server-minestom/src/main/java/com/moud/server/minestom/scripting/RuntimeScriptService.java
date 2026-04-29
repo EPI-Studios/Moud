@@ -19,6 +19,7 @@ import com.moud.server.minestom.scripting.api.modules.PersistApi;
 import com.moud.server.minestom.scripting.api.modules.PhysicsApi;
 import com.moud.server.minestom.scripting.api.modules.PlayerApi;
 import com.moud.server.minestom.scripting.api.modules.SceneApi;
+import com.moud.server.minestom.scripting.api.modules.ServerApi;
 import com.moud.server.minestom.scripting.api.modules.mesh.ArrayMeshHandle;
 import com.moud.server.minestom.scripting.api.modules.mesh.MeshBuilderHandle;
 import com.moud.server.minestom.scripting.api.modules.mesh.NoiseHandle;
@@ -34,6 +35,7 @@ import com.moud.server.minestom.scripting.luau.ServerLuauExportRegistry;
 import com.moud.server.minestom.scripting.luau.ServerLuauTypeGenerator;
 import com.moud.server.minestom.scripting.typescript.ScriptTypeGenerator;
 import com.moud.net.protocol.PlayerInput;
+import com.moud.server.minestom.engine.InstanceMatchmaker;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.net.PlayerMessageSink;
 import com.moud.server.minestom.persistence.PersistenceService;
@@ -41,6 +43,7 @@ import com.moud.server.minestom.project.ProjectService;
 import com.moud.server.minestom.script.ScriptMessageRouter;
 import com.moud.server.minestom.scripting.typescript.TypeScriptContext;
 import com.moud.server.minestom.util.DebugLog;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.List;
@@ -49,6 +52,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 
 import org.graalvm.polyglot.Engine;
@@ -59,7 +64,7 @@ final class RuntimeScriptService {
     private final ScriptLanguageRegistry languages;
     private final TypeScriptContext tsContext;
     private final PlayerMessageSink playerMessageSink;
-    private final ConcurrentHashMap<String, SceneRuntime> runtimeByScene = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, SceneRuntime> runtimeByInstance = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, PlayerInputState> inputsByPlayer = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, ConcurrentHashMap<String, String>> clientStateByPlayer = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, float[]> playerVelocities = new ConcurrentHashMap<>();
@@ -70,11 +75,12 @@ final class RuntimeScriptService {
     private ScriptMessageRouter scriptMessageRouter;
     private Supplier<Iterable<UUID>> connectedPlayersSupplier;
     private PersistenceService persistenceService;
+    private InstanceMatchmaker matchmaker;
 
     public void setScriptMessaging(ScriptMessageRouter router, Supplier<Iterable<UUID>> connectedPlayers) {
         this.scriptMessageRouter = router;
         this.connectedPlayersSupplier = connectedPlayers;
-        for (SceneRuntime rt : runtimeByScene.values()) {
+        for (SceneRuntime rt : runtimeByInstance.values()) {
             rt.setScriptMessageRouter(router);
             rt.setConnectedPlayersSupplier(connectedPlayers);
         }
@@ -82,12 +88,32 @@ final class RuntimeScriptService {
 
     public void setPersistenceService(PersistenceService service) {
         this.persistenceService = service;
-        for (SceneRuntime rt : runtimeByScene.values()) {
+        for (SceneRuntime rt : runtimeByInstance.values()) {
             rt.setPersistenceService(service);
         }
     }
 
+    public void setMatchmaker(InstanceMatchmaker matchmaker) {
+        this.matchmaker = matchmaker;
+        for (SceneRuntime rt : runtimeByInstance.values()) {
+            rt.setMatchmaker(matchmaker);
+        }
+    }
+
+    public void dispatchPlayerArrive(ServerScene scene, String playerUuid, byte[] payload) {
+        if (scene == null) return;
+        SceneRuntime rt = runtimeByInstance.get(scene.instanceId());
+        if (rt == null) return;
+        String payloadString = payload == null ? "" : new String(payload, StandardCharsets.UTF_8);
+        rt.dispatchPlayerArrive(scene, playerUuid, payloadString);
+    }
+
     private final ArrayMeshResolver meshResolver;
+    private final ScheduledExecutorService watchdogScheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
+        Thread t = new Thread(runnable, "moud-script-watchdog");
+        t.setDaemon(true);
+        return t;
+    });
 
     RuntimeScriptService(ProjectService project, Engine engine, ScriptLanguageRegistry languages,
                          PlayerMessageSink playerMessageSink,
@@ -124,6 +150,7 @@ final class RuntimeScriptService {
         ServerLuauExportRegistry.register(SceneApi.class);
         ServerLuauExportRegistry.register(PhysicsApi.class);
         ServerLuauExportRegistry.register(PlayerApi.class);
+        ServerLuauExportRegistry.register(ServerApi.class);
         ServerLuauExportRegistry.register(CameraApi.class);
         ServerLuauExportRegistry.register(CursorApi.class);
         ServerLuauExportRegistry.register(MessagingApi.class);
@@ -199,18 +226,18 @@ final class RuntimeScriptService {
         }
     }
 
-    Long getActiveCameraForPlayer(String sceneId, String playerUuid) {
-        SceneRuntime rt = runtimeByScene.get(sceneId);
+    Long getActiveCameraForPlayer(ServerScene scene, String playerUuid) {
+        SceneRuntime rt = scene == null ? null : runtimeByInstance.get(scene.instanceId());
         return rt == null ? null : rt.getActiveCameraForPlayer(playerUuid);
     }
 
-    float[] getFollowCameraForPlayer(String sceneId, String playerUuid) {
-        SceneRuntime rt = runtimeByScene.get(sceneId);
+    float[] getFollowCameraForPlayer(ServerScene scene, String playerUuid) {
+        SceneRuntime rt = scene == null ? null : runtimeByInstance.get(scene.instanceId());
         return rt == null ? null : rt.getFollowCameraForPlayer(playerUuid);
     }
 
-    float[] getScriptCameraForPlayer(String sceneId, String playerUuid) {
-        SceneRuntime rt = runtimeByScene.get(sceneId);
+    float[] getScriptCameraForPlayer(ServerScene scene, String playerUuid) {
+        SceneRuntime rt = scene == null ? null : runtimeByInstance.get(scene.instanceId());
         return rt == null ? null : rt.getScriptCameraForPlayer(playerUuid);
     }
 
@@ -246,39 +273,35 @@ final class RuntimeScriptService {
         }
     }
 
-    List<MultiMeshData> getLatestMultiMesh(String sceneId) {
-        if (sceneId == null) return List.of();
-        SceneRuntime rt = runtimeByScene.get(sceneId);
+    List<MultiMeshData> getLatestMultiMesh(ServerScene scene) {
+        SceneRuntime rt = scene == null ? null : runtimeByInstance.get(scene.instanceId());
         return rt == null ? List.of() : rt.getLatestMultiMesh();
     }
 
-    List<MultiMeshData> drainMultiMesh(String sceneId) {
-        if (sceneId == null) return List.of();
-        SceneRuntime rt = runtimeByScene.get(sceneId);
+    List<MultiMeshData> drainMultiMesh(ServerScene scene) {
+        SceneRuntime rt = scene == null ? null : runtimeByInstance.get(scene.instanceId());
         return rt == null ? List.of() : rt.drainMultiMesh();
     }
 
-    List<Message> drainMeshPublish(String sceneId) {
-        if (sceneId == null) return List.of();
-        SceneRuntime rt = runtimeByScene.get(sceneId);
+    List<Message> drainMeshPublish(ServerScene scene) {
+        SceneRuntime rt = scene == null ? null : runtimeByInstance.get(scene.instanceId());
         return rt == null ? List.of() : rt.drainMeshPublish();
     }
 
-    List<Message> getLatestMeshPublish(String sceneId) {
-        if (sceneId == null) return List.of();
-        SceneRuntime rt = runtimeByScene.get(sceneId);
+    List<Message> getLatestMeshPublish(ServerScene scene) {
+        SceneRuntime rt = scene == null ? null : runtimeByInstance.get(scene.instanceId());
         return rt == null ? List.of() : rt.getLatestMeshPublish();
     }
 
     void registerSceneMeshes(ServerScene scene) {
         if (scene == null) return;
-        SceneRuntime rt = runtimeByScene.get(scene.sceneId());
+        SceneRuntime rt = runtimeByInstance.get(scene.instanceId());
         if (rt != null) rt.registerSceneMeshes(scene);
     }
 
     void replayReady(ServerScene scene) {
         if (scene == null) return;
-        SceneRuntime rt = runtimeByScene.get(scene.sceneId());
+        SceneRuntime rt = runtimeByInstance.get(scene.instanceId());
         if (rt != null) rt.replayReady();
     }
 
@@ -287,15 +310,9 @@ final class RuntimeScriptService {
             return;
         }
         warnUnsupportedScripts(scene);
-        SceneRuntime rt = runtimeByScene.computeIfAbsent(
-                scene.sceneId(),
-                ignored -> {
-                    SceneRuntime created = new SceneRuntime(project, engine, inputsByPlayer, clientStateByPlayer, playerVelocities, tsContext, playerMessageSink, meshResolver);
-                    created.setScriptMessageRouter(scriptMessageRouter);
-                    created.setConnectedPlayersSupplier(connectedPlayersSupplier);
-                    created.setPersistenceService(persistenceService);
-                    return created;
-                }
+        SceneRuntime rt = runtimeByInstance.computeIfAbsent(
+                scene.instanceId(),
+                ignored -> createSceneRuntime()
         );
         rt.updatePlayerPositions(playerPositions);
         rt.updatePlayerNames(playerNames);
@@ -304,18 +321,41 @@ final class RuntimeScriptService {
 
     void onUiEvent(ServerScene scene, long nodeId, String event, float value) {
         if (scene == null || nodeId <= 0 || event == null || event.isBlank()) return;
-        SceneRuntime rt = runtimeByScene.get(scene.sceneId());
+        SceneRuntime rt = runtimeByInstance.get(scene.instanceId());
         if (rt != null) rt.onUiEvent(nodeId, event, value);
     }
 
-    void onSceneDeleted(String sceneId) {
-        if (sceneId == null || sceneId.isBlank()) {
+    void onPlaceDeleted(Iterable<String> instanceIds) {
+        if (instanceIds == null) {
             return;
         }
-        SceneRuntime rt = runtimeByScene.remove(sceneId);
+        for (String instanceId : instanceIds) {
+            if (instanceId == null) continue;
+            SceneRuntime rt = runtimeByInstance.remove(instanceId);
+            if (rt != null) {
+                rt.close();
+            }
+        }
+    }
+
+    void onInstanceDisposed(ServerScene scene) {
+        if (scene == null) {
+            return;
+        }
+        SceneRuntime rt = runtimeByInstance.remove(scene.instanceId());
         if (rt != null) {
             rt.close();
         }
+    }
+
+    private SceneRuntime createSceneRuntime() {
+        SceneRuntime created = new SceneRuntime(project, engine, inputsByPlayer, clientStateByPlayer, playerVelocities, tsContext, playerMessageSink, meshResolver);
+        created.setScriptMessageRouter(scriptMessageRouter);
+        created.setConnectedPlayersSupplier(connectedPlayersSupplier);
+        created.setPersistenceService(persistenceService);
+        created.setWatchdogScheduler(watchdogScheduler);
+        created.setMatchmaker(matchmaker);
+        return created;
     }
 
     /** @return a pending scene-transition ID, or {@code null} if none was requested. */
@@ -328,15 +368,9 @@ final class RuntimeScriptService {
             dtSeconds = 1.0 / 20.0;
         }
 
-        SceneRuntime rt = runtimeByScene.computeIfAbsent(
-                scene.sceneId(),
-                ignored -> {
-                    SceneRuntime created = new SceneRuntime(project, engine, inputsByPlayer, clientStateByPlayer, playerVelocities, tsContext, playerMessageSink, meshResolver);
-                    created.setScriptMessageRouter(scriptMessageRouter);
-                    created.setConnectedPlayersSupplier(connectedPlayersSupplier);
-                    created.setPersistenceService(persistenceService);
-                    return created;
-                }
+        SceneRuntime rt = runtimeByInstance.computeIfAbsent(
+                scene.instanceId(),
+                ignored -> createSceneRuntime()
         );
         rt.updatePlayerPositions(playerPositions);
         rt.updatePlayerNames(playerNames);

@@ -1,13 +1,11 @@
 package com.moud.server.minestom.scripting.physics;
 
 
-import com.moud.core.physics.BodyHandle;
 import com.moud.core.scene.Node;
 import com.moud.core.util.ParseUtils;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.physics.CollisionEvent;
-import com.moud.server.minestom.physics.JoltPhysicsWorld;
-import com.moud.server.minestom.physics.CollisionLayerMask;
+import com.moud.server.minestom.physics.rapier.RapierScenePhysicsWorld;
 import com.moud.server.minestom.scripting.ScriptInvocationException;
 import com.moud.server.minestom.scripting.ScriptObject;
 import com.moud.server.minestom.scripting.engine.RuntimeScriptInstance;
@@ -29,7 +27,7 @@ public final class CollisionSignalEmitter {
     public void emit(ServerScene scene, Map<Long, RuntimeScriptInstance> instances,
                      SignalBus signalBus, Supplier<Map<Long, ScriptObject>> valueMapSupplier) {
         if (scene == null) return;
-        JoltPhysicsWorld physics = scene.physics();
+        RapierScenePhysicsWorld physics = scene.physics();
         Map<Long, ScriptObject> valueMap = null;
 
         currentPairs.clear();
@@ -41,15 +39,13 @@ public final class CollisionSignalEmitter {
                 currentPairs.add(pairKey);
                 if (!previousPairs.contains(pairKey)) {
                     if (valueMap == null) valueMap = valueMapSupplier.get();
-                    emitBodyEntered(scene, instances, signalBus, ev.nodeIdA(), ev.nodeIdB(),
-                            ev.contactX(), ev.contactY(), ev.contactZ(), valueMap);
-                    emitBodyEntered(scene, instances, signalBus, ev.nodeIdB(), ev.nodeIdA(),
-                            ev.contactX(), ev.contactY(), ev.contactZ(), valueMap);
+                    emitBodyEntered(scene, instances, signalBus, ev.nodeIdA(), ev.nodeIdB(), ev, valueMap);
+                    emitBodyEntered(scene, instances, signalBus, ev.nodeIdB(), ev.nodeIdA(), ev, valueMap);
                 }
             }
 
-            Set<Long> joltActive = physics.currentContactPairs();
-            for (long pair : joltActive) {
+            Set<Long> activePairs = physics.currentContactPairs();
+            for (long pair : activePairs) {
                 currentPairs.add(pair);
             }
         }
@@ -67,8 +63,8 @@ public final class CollisionSignalEmitter {
             float z = ParseUtils.parseFloat(node.getProperty("z"), 0f);
 
             if (physics != null) {
-                int areaLayer = CollisionLayerMask.layer(node);
-                int areaMask = CollisionLayerMask.mask(node);
+                int areaLayer = layer(node);
+                int areaMask = mask(node);
                 String shape = node.getProperty("shape");
                 float radius = 1.0f;
                 if ("sphere".equalsIgnoreCase(shape)) {
@@ -80,14 +76,14 @@ public final class CollisionSignalEmitter {
                     radius = 0.5f * Math.max(sx, Math.max(sy, sz));
                 }
 
-                List<BodyHandle> overlaps = physics.overlapSphere(x, y, z, radius);
-                for (BodyHandle bh : overlaps) {
-                    Long otherNodeId = physics.nodeIdForBody(bh.id());
+                long[] overlaps = physics.overlapSphere(x, y, z, radius);
+                for (long bodyId : overlaps) {
+                    Long otherNodeId = physics.nodeIdForBody(bodyId);
                     if (otherNodeId == null || otherNodeId == inst.nodeId) continue;
                     Node other = scene.engine().sceneTree().getNode(otherNodeId);
                     if (other != null) {
-                        int otherLayer = CollisionLayerMask.layer(other);
-                        int otherMask = CollisionLayerMask.mask(other);
+                        int otherLayer = layer(other);
+                        int otherMask = mask(other);
                         if ((areaLayer & otherMask) == 0 || (otherLayer & areaMask) == 0) {
                             continue;
                         }
@@ -164,7 +160,7 @@ public final class CollisionSignalEmitter {
 
     private void emitBodyEntered(ServerScene scene, Map<Long, RuntimeScriptInstance> instances,
                                  SignalBus signalBus, long nodeId, long otherNodeId,
-                                 float cx, float cy, float cz, Map<Long, ScriptObject> valueMap) {
+                                 CollisionEvent ev, Map<Long, ScriptObject> valueMap) {
         RuntimeScriptInstance inst = instances.get(nodeId);
         if (inst == null || inst.disabled) return;
         Node node = scene.engine().sceneTree().getNode(nodeId);
@@ -174,7 +170,8 @@ public final class CollisionSignalEmitter {
         signalBus.emit(nodeId, signal, valueMap, otherNodeId);
         if (inst.instance.hasMethod("_on_body_entered")) {
             try {
-                inst.instance.invokeMethod("_on_body_entered", inst.api, otherNodeId, cx, cy, cz);
+                inst.instance.invokeMethod("_on_body_entered", inst.api,
+                        otherNodeId, ev.contactX(), ev.contactY(), ev.contactZ(), ev);
             } catch (ScriptInvocationException e) {
                 inst.disabled = true;
             }
@@ -201,6 +198,22 @@ public final class CollisionSignalEmitter {
 
     private static boolean isAreaNode(String typeId) {
         return "Area3D".equals(typeId);
+    }
+
+    private static int layer(Node node) {
+        return (int) parseLong(node == null ? null : node.getProperty("collision_layer"), 1L);
+    }
+
+    private static int mask(Node node) {
+        return (int) parseLong(node == null ? null : node.getProperty("collision_mask"), 1L);
+    }
+
+    private static long parseLong(String value, long fallback) {
+        try {
+            return value == null || value.isBlank() ? fallback : Long.parseLong(value.trim());
+        } catch (Exception ignored) {
+            return fallback;
+        }
     }
 
     public static long pairKey(long nodeId, int bodyId) {

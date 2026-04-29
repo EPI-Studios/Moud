@@ -9,6 +9,7 @@ import com.moud.net.protocol.ScriptActionInvokeAck;
 import com.moud.net.protocol.ScriptActionListRequest;
 import com.moud.net.protocol.ScriptActionListResponse;
 import com.moud.core.scene.Node;
+import com.moud.server.minestom.engine.InstanceMatchmaker;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.net.PlayerMessageSink;
 import com.moud.server.minestom.persistence.PersistenceService;
@@ -66,6 +67,14 @@ public final class ScriptService {
         runtime.setPersistenceService(service);
     }
 
+    public void setMatchmaker(InstanceMatchmaker matchmaker) {
+        runtime.setMatchmaker(matchmaker);
+    }
+
+    public void dispatchPlayerArrive(ServerScene scene, String playerUuid, byte[] payload) {
+        runtime.dispatchPlayerArrive(scene, playerUuid, payload);
+    }
+
     /** @return a pending scene-transition ID, or {@code null} if none was requested. */
     public String tickRuntime(ServerScene scene, double dtSeconds) {
         return runtime.tick(scene, dtSeconds);
@@ -79,19 +88,19 @@ public final class ScriptService {
         runtime.updatePlayerNames(names);
     }
 
-    public Long getActiveCameraForPlayer(String sceneId, UUID uuid) {
-        if (sceneId == null || uuid == null) return null;
-        return runtime.getActiveCameraForPlayer(sceneId, uuid.toString());
+    public Long getActiveCameraForPlayer(ServerScene scene, UUID uuid) {
+        if (scene == null || uuid == null) return null;
+        return runtime.getActiveCameraForPlayer(scene, uuid.toString());
     }
 
-    public float[] getFollowCameraForPlayer(String sceneId, UUID uuid) {
-        if (sceneId == null || uuid == null) return null;
-        return runtime.getFollowCameraForPlayer(sceneId, uuid.toString());
+    public float[] getFollowCameraForPlayer(ServerScene scene, UUID uuid) {
+        if (scene == null || uuid == null) return null;
+        return runtime.getFollowCameraForPlayer(scene, uuid.toString());
     }
 
-    public float[] getScriptCameraForPlayer(String sceneId, UUID uuid) {
-        if (sceneId == null || uuid == null) return null;
-        return runtime.getScriptCameraForPlayer(sceneId, uuid.toString());
+    public float[] getScriptCameraForPlayer(ServerScene scene, UUID uuid) {
+        if (scene == null || uuid == null) return null;
+        return runtime.getScriptCameraForPlayer(scene, uuid.toString());
     }
 
     public void onPlayerInput(UUID uuid, PlayerInput input) {
@@ -108,20 +117,20 @@ public final class ScriptService {
         runtime.onUiEvent(scene, nodeId, event, value);
     }
 
-    public List<MultiMeshData> getLatestMultiMesh(String sceneId) {
-        return runtime.getLatestMultiMesh(sceneId);
+    public List<MultiMeshData> getLatestMultiMesh(ServerScene scene) {
+        return runtime.getLatestMultiMesh(scene);
     }
 
-    public List<MultiMeshData> drainMultiMesh(String sceneId) {
-        return runtime.drainMultiMesh(sceneId);
+    public List<MultiMeshData> drainMultiMesh(ServerScene scene) {
+        return runtime.drainMultiMesh(scene);
     }
 
-    public List<Message> drainMeshPublish(String sceneId) {
-        return runtime.drainMeshPublish(sceneId);
+    public List<Message> drainMeshPublish(ServerScene scene) {
+        return runtime.drainMeshPublish(scene);
     }
 
-    public List<Message> getLatestMeshPublish(String sceneId) {
-        return runtime.getLatestMeshPublish(sceneId);
+    public List<Message> getLatestMeshPublish(ServerScene scene) {
+        return runtime.getLatestMeshPublish(scene);
     }
 
     public void registerSceneMeshes(ServerScene scene) {
@@ -136,8 +145,12 @@ public final class ScriptService {
         runtime.replayReady(scene);
     }
 
-    public void onSceneDeleted(String sceneId) {
-        runtime.onSceneDeleted(sceneId);
+    public void onPlaceDeleted(Iterable<String> instanceIds) {
+        runtime.onPlaceDeleted(instanceIds);
+    }
+
+    public void onInstanceDisposed(ServerScene scene) {
+        runtime.onInstanceDisposed(scene);
     }
 
     public ScriptActionListResponse onListActions(ServerScene scene, ScriptActionListRequest request) {

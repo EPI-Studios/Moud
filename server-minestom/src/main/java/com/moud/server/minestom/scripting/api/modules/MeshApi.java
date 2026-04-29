@@ -5,6 +5,7 @@ import com.moud.core.mesh.MeshRegistry;
 import com.moud.core.mesh.source.AssetRefMesh;
 import com.moud.core.mesh.source.HashRefMesh;
 import com.moud.core.mesh.source.MeshSourceCodec;
+import com.moud.core.mesh.source.ObjRefMesh;
 import com.moud.core.scene.Node;
 import com.moud.core.scripts.luau.LuauExport;
 import com.moud.server.minestom.engine.ServerScene;
@@ -90,6 +91,20 @@ public final class MeshApi {
         }
         var source = new AssetRefMesh(resPath);
         node.setProperty("mesh_source", MeshSourceCodec.encode(source));
+        if (publisher != null) {
+            publisher.register(node);
+        }
+        scene.engine().bumpPhysicsRevision();
+    }
+
+    @HostAccess.Export
+    @LuauExport
+    public void attach_obj(long nodeId, String resPath) {
+        Node node = scene.engine().sceneTree().getNode(nodeId);
+        if (node == null || resPath == null || resPath.isBlank()) {
+            return;
+        }
+        node.setProperty("mesh_source", MeshSourceCodec.encode(new ObjRefMesh(resPath)));
         if (publisher != null) {
             publisher.register(node);
         }
