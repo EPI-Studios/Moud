@@ -1,11 +1,12 @@
 package com.moud.client.fabric;
 
 import com.moud.client.fabric.editor.overlay.EditorOverlay;
-import com.moud.client.fabric.physics.ClientPhysicsWorld;
+import com.moud.client.fabric.physics.rapier.ClientRapierPhysics;
 import com.moud.client.fabric.platform.MinecraftGhostBlocks;
 import com.moud.client.fabric.player.ClientPlayerMotionController;
 import com.moud.client.fabric.player.RemotePlayerStateCache;
 import com.moud.client.fabric.render.InstanceDataStore;
+import com.moud.client.fabric.render.ScenePreloader;
 import com.moud.client.fabric.render.VeilSceneNodeRenderer;
 import com.moud.client.fabric.render.loading.PlayLoading;
 import com.moud.client.fabric.scene.ClientSceneBus;
@@ -17,7 +18,9 @@ import com.moud.net.protocol.CollisionGeometrySnapshot;
 import com.moud.net.protocol.CursorState;
 import com.moud.net.protocol.EditorDiagnosticEvent;
 import com.moud.net.protocol.Message;
+import com.moud.net.protocol.MatchmakerStatus;
 import com.moud.net.protocol.MultiMeshData;
+import com.moud.net.protocol.RigidBodySnapshot;
 import com.moud.net.protocol.MeshPublish;
 import com.moud.net.protocol.MeshGeneratorPublish;
 import com.moud.client.fabric.render.mesh.cache.MeshPublishReassembler;
@@ -35,6 +38,7 @@ import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpBatch;
 import com.moud.net.protocol.SceneSaveAck;
 import com.moud.net.protocol.SceneSnapshot;
+import com.moud.net.protocol.SceneSnapshotDelta;
 import com.moud.net.protocol.SchemaSnapshot;
 import com.moud.net.protocol.ScriptActionInvokeAck;
 import com.moud.net.protocol.ScriptActionListResponse;
@@ -83,6 +87,21 @@ final class ClientMessageDispatcher {
     private void handleEngineMessage(Message message) {
         boolean overlayReady = ctx.overlay != null && ctx.overlay.isOpen();
 
+        if (message instanceof RigidBodySnapshot snapshot) {
+            ClientRapierPhysics.get().applyServerSnapshot(snapshot);
+            return;
+        }
+
+        if (message instanceof MatchmakerStatus status) {
+            String code = status.code() == null || status.code().isBlank() ? "matchmaker" : status.code();
+            if (status.show()) {
+                PlayLoading.pushStatus(code, status.label() == null ? "" : status.label());
+            } else {
+                PlayLoading.popStatus(code);
+            }
+            return;
+        }
+
         if (message instanceof RuntimeState state) {
             ctx.playRuntime.onRuntimeState(state);
         } else if (message instanceof CursorState state) {
@@ -118,6 +137,8 @@ final class ClientMessageDispatcher {
                     o -> o.onSceneDeleteAck(ack));
         } else if (message instanceof SceneSnapshot snapshot) {
             handleSnapshot(snapshot);
+        } else if (message instanceof SceneSnapshotDelta delta) {
+            ClientSceneBus.applyDelta(delta);
         } else if (message instanceof SceneOpBatch batch) {
             handleSceneOpBatch(batch);
         } else if (message instanceof SchemaSnapshot schema) {
@@ -137,8 +158,13 @@ final class ClientMessageDispatcher {
         } else if (message instanceof MeshGeneratorPublish meshGen) {
             ClientMeshGenerator.onPublish(meshGen);
         } else if (message instanceof CollisionGeometrySnapshot cg) {
-            ClientPhysicsWorld.onCollisionGeometry(cg);
+            ClientRapierPhysics.onCollisionGeometry(cg);
             VeilSceneNodeRenderer.onCollisionGeometry(cg);
+        } else if (message instanceof com.moud.net.protocol.CollisionGeometryChunk chunk) {
+            CollisionGeometryReassembler.onChunk(chunk).ifPresent(snap -> {
+                ClientRapierPhysics.onCollisionGeometry(snap);
+                VeilSceneNodeRenderer.onCollisionGeometry(snap);
+            });
         } else if (message instanceof PlayerMotion motion) {
             ClientPlayerMotionController.onPlayerMotion(motion);
         } else if (message instanceof PlayerClientState state) {
@@ -156,6 +182,7 @@ final class ClientMessageDispatcher {
             ClientSceneBus.markRestorePending();
         }
         ClientSceneBus.applySnapshot(snapshot);
+        ScenePreloader.preload(snapshot);
         if (!ctx.overlayOpen && ctx.playRuntime.isActive() && !ctx.pendingRuntimeOps.isEmpty()) {
             ClientSceneBus.applyOps(List.copyOf(ctx.pendingRuntimeOps));
             ctx.pendingRuntimeOps.clear();
