@@ -1,7 +1,7 @@
 package com.moud.server.minestom.scripting.physics;
 
-import com.moud.core.physics.RaycastResult;
-import com.moud.server.minestom.physics.JoltPhysicsWorld;
+import com.moud.physics.api.RaycastHit;
+import com.moud.server.minestom.physics.rapier.RapierScenePhysicsWorld;
 import org.graalvm.polyglot.HostAccess;
 
 public final class PhysicsHit {
@@ -15,22 +15,22 @@ public final class PhysicsHit {
     private final long bodyId;
     private final long nodeId;
 
-    public PhysicsHit(RaycastResult r) {
+    public PhysicsHit(RaycastHit r) {
         this(r, null);
     }
 
-    public PhysicsHit(RaycastResult r, JoltPhysicsWorld world) {
-        this.x = r.hitX();
-        this.y = r.hitY();
-        this.z = r.hitZ();
-        this.nx = r.normalX();
-        this.ny = r.normalY();
-        this.nz = r.normalZ();
+    public PhysicsHit(RaycastHit r, RapierScenePhysicsWorld world) {
+        this.x = r.point().x();
+        this.y = r.point().y();
+        this.z = r.point().z();
+        this.nx = r.normal().x();
+        this.ny = r.normal().y();
+        this.nz = r.normal().z();
         this.distance = r.distance();
-        int bId = r.body() != null ? r.body().id() : -1;
+        long bId = r.body() != null ? r.body().id() : 0L;
         this.bodyId = bId;
         long resolvedNode = -1L;
-        if (world != null && bId >= 0) {
+        if (world != null && bId != 0L) {
             Long candidate = world.nodeIdForBody(bId);
             if (candidate != null) resolvedNode = candidate;
         }

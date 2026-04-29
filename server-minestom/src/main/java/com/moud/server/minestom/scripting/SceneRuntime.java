@@ -24,6 +24,7 @@ import com.moud.server.minestom.mesh.MeshPublishService;
 import com.moud.net.protocol.SceneOpAck;
 import com.moud.net.protocol.SceneOpBatch;
 import com.moud.net.protocol.SceneOpResult;
+import com.moud.server.minestom.engine.InstanceMatchmaker;
 import com.moud.server.minestom.engine.SceneBatchIds;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.net.PlayerMessageSink;
@@ -44,7 +45,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.DisableHandler, ScriptLifecycleManager.CameraCleanup {
@@ -72,6 +77,8 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
     private PersistenceService persistenceService;
     private final Map<String, Long> recentDiagnosticKeys = new ConcurrentHashMap<>();
     private static final long DIAGNOSTIC_DEDUPE_MS = 2_000L;
+    private ScheduledExecutorService watchdogScheduler;
+    private InstanceMatchmaker matchmaker;
 
     SceneRuntime(ProjectService project,
                  Engine engine,
@@ -151,6 +158,38 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
         }
     }
 
+    void setWatchdogScheduler(ScheduledExecutorService scheduler) {
+        this.watchdogScheduler = scheduler;
+    }
+
+    void setMatchmaker(InstanceMatchmaker matchmaker) {
+        this.matchmaker = matchmaker;
+    }
+
+    @Override
+    public InstanceMatchmaker matchmaker() {
+        return matchmaker;
+    }
+
+    void dispatchPlayerArrive(ServerScene scene, String playerUuid, String payload) {
+        if (scene == null || playerUuid == null) {
+            return;
+        }
+        for (RuntimeScriptInstance instance : lifecycleManager.instances().values()) {
+            if (instance == null || instance.disabled) {
+                continue;
+            }
+            if (!instance.instance.hasMethod("_on_player_arrive")) {
+                continue;
+            }
+            try {
+                instance.instance.invokeMethod("_on_player_arrive", instance.api, playerUuid, payload == null ? "" : payload);
+            } catch (ScriptInvocationException e) {
+                instance.disabled = true;
+            }
+        }
+    }
+
     void tick(ServerScene scene, double dtSeconds) {
         Objects.requireNonNull(scene, "scene");
         lastScene = scene;
@@ -158,12 +197,39 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
         HttpScheduler.pump();
         scheduler.tickTimers(dtSeconds);
         scheduler.tickTweens(dtSeconds, sceneMutator);
-        Set<Long> alive = lifecycleManager.tickScripts(scene, dtSeconds);
+        boolean degraded = scene.isDegraded();
+        Set<Long> alive = null;
+        if (!degraded) {
+            alive = runScriptsWithWatchdog(scene, dtSeconds);
+        }
         characterBodySimulator.tick(scene, dtSeconds);
-        collisionEmitter.emit(scene, lifecycleManager.instances(), signalBus, this::instanceValueMap);
-        cleanupDead(scene, alive);
+        if (!degraded) {
+            collisionEmitter.emit(scene, lifecycleManager.instances(), signalBus, this::instanceValueMap);
+            cleanupDead(scene, alive);
+        }
         sceneMutator.flush(scene);
         registerSceneMeshes(scene);
+    }
+
+    private Set<Long> runScriptsWithWatchdog(ServerScene scene, double dtSeconds) {
+        ScheduledExecutorService sched = watchdogScheduler;
+        long budgetNanos = scene.budgetConfig().budgetNanos();
+        ScheduledFuture<?> watchdog = null;
+        if (sched != null && budgetNanos > 0) {
+            watchdog = sched.schedule(() -> {
+                try {
+                    ctx.interrupt(Duration.ZERO);
+                } catch (Throwable ignored) {
+                }
+            }, budgetNanos, TimeUnit.NANOSECONDS);
+        }
+        try {
+            return lifecycleManager.tickScripts(scene, dtSeconds);
+        } finally {
+            if (watchdog != null) {
+                watchdog.cancel(false);
+            }
+        }
     }
 
     void refreshEditor(ServerScene scene) {
@@ -197,7 +263,7 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
         scene.engine().sceneTree().forEachNode(node -> {
             if (node == null) return;
             String typeId = scene.engine().nodeTypes().typeIdFor(node);
-            if (!"MeshInstance3D".equals(typeId)) return;
+            if (!"MeshInstance3D".equals(typeId) && !"Model3D".equals(typeId)) return;
             meshPublishService.register(node);
         });
     }
@@ -445,6 +511,9 @@ final class SceneRuntime implements RuntimeFacade, ScriptLifecycleManager.Disabl
             if (!alive.contains(nodeId)) {
                 multiMeshManager.removeNode(nodeId);
                 characterBodySimulator.cleanupNode(nodeId);
+                if (scene != null && scene.physics() != null) {
+                    scene.physics().removeCharacter(nodeId);
+                }
             }
         }
         lifecycleManager.cleanupDead(scene, alive);

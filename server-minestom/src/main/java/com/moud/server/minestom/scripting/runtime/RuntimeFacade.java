@@ -1,6 +1,7 @@
 package com.moud.server.minestom.scripting.runtime;
 
 
+import com.moud.server.minestom.engine.InstanceMatchmaker;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.persistence.PersistenceService;
 import com.moud.server.minestom.scripting.ScriptCallable;
@@ -57,4 +58,6 @@ public interface RuntimeFacade {
     default Iterable<UUID> connectedPlayerUuids() { return List.of(); }
 
     default PersistenceService persistence() { return null; }
+
+    default InstanceMatchmaker matchmaker() { return null; }
 }

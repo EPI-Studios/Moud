@@ -1,11 +1,10 @@
 package com.moud.server.minestom.scripting.api.modules;
 
-import com.moud.core.physics.BodyHandle;
 import com.moud.core.scene.Node;
 import com.moud.core.scripts.luau.LuauExport;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.physics.CollisionEvent;
-import com.moud.server.minestom.physics.JoltPhysicsWorld;
+import com.moud.server.minestom.physics.rapier.RapierScenePhysicsWorld;
 import com.moud.server.minestom.scripting.lang.RuntimeScriptUtil;
 import com.moud.server.minestom.scripting.physics.PhysicsHit;
 import com.moud.server.minestom.scripting.runtime.RuntimeFacade;
@@ -28,7 +27,7 @@ public final class PhysicsApi {
     @HostAccess.Export
     @LuauExport
     public PhysicsHit raycast(double ox, double oy, double oz, double dx, double dy, double dz, double maxDist) {
-        JoltPhysicsWorld physics = scene.physics();
+        RapierScenePhysicsWorld physics = scene.physics();
         if (physics == null) {
             return null;
         }
@@ -38,16 +37,37 @@ public final class PhysicsApi {
     }
 
     @HostAccess.Export
+    @LuauExport(doc = "Block all contacts between two specific nodes regardless of layer/mask. Useful for runtime per-pair gates: ghost frames, faction switches, dive-through-teammate. Idempotent.")
+    public void blockContactPair(long nodeIdA, long nodeIdB) {
+        RapierScenePhysicsWorld physics = scene.physics();
+        if (physics != null) physics.blockContactPair(nodeIdA, nodeIdB);
+    }
+
+    @HostAccess.Export
+    @LuauExport(doc = "Reverse blockContactPair - restore default layer/mask-based collision between the two nodes.")
+    public void unblockContactPair(long nodeIdA, long nodeIdB) {
+        RapierScenePhysicsWorld physics = scene.physics();
+        if (physics != null) physics.unblockContactPair(nodeIdA, nodeIdB);
+    }
+
+    @HostAccess.Export
+    @LuauExport(doc = "Whether the given pair has been explicitly blocked via blockContactPair.")
+    public boolean isContactPairBlocked(long nodeIdA, long nodeIdB) {
+        RapierScenePhysicsWorld physics = scene.physics();
+        return physics != null && physics.isContactPairBlocked(nodeIdA, nodeIdB);
+    }
+
+    @HostAccess.Export
     @LuauExport
     public int[] overlapSphere(double x, double y, double z, double radius) {
-        JoltPhysicsWorld physics = scene.physics();
+        RapierScenePhysicsWorld physics = scene.physics();
         if (physics == null) {
             return new int[0];
         }
-        List<BodyHandle> handles = physics.overlapSphere(x, y, z, radius);
-        int[] ids = new int[handles.size()];
-        for (int i = 0; i < handles.size(); i++) {
-            ids[i] = handles.get(i).id();
+        long[] handles = physics.overlapSphere(x, y, z, radius);
+        int[] ids = new int[handles.length];
+        for (int i = 0; i < handles.length; i++) {
+            ids[i] = (int) handles[i];
         }
         return ids;
     }
@@ -55,7 +75,7 @@ public final class PhysicsApi {
     @HostAccess.Export
     @LuauExport
     public CollisionEvent[] getCollisionEvents() {
-        JoltPhysicsWorld physics = scene.physics();
+        RapierScenePhysicsWorld physics = scene.physics();
         if (physics == null) {
             return new CollisionEvent[0];
         }
@@ -66,7 +86,7 @@ public final class PhysicsApi {
     @HostAccess.Export
     @LuauExport
     public double[] getBodyVelocity(long nodeId) {
-        JoltPhysicsWorld physics = scene.physics();
+        RapierScenePhysicsWorld physics = scene.physics();
         if (physics == null) {
             return new double[]{0.0, 0.0, 0.0};
         }
@@ -168,7 +188,7 @@ public final class PhysicsApi {
     @HostAccess.Export
     @LuauExport
     public void applyForce(long nodeId, double fx, double fy, double fz) {
-        JoltPhysicsWorld physics = scene.physics();
+        RapierScenePhysicsWorld physics = scene.physics();
         if (physics != null) {
             physics.applyForce(nodeId, (float) fx, (float) fy, (float) fz);
         }
@@ -177,7 +197,7 @@ public final class PhysicsApi {
     @HostAccess.Export
     @LuauExport
     public void applyImpulse(long nodeId, double fx, double fy, double fz) {
-        JoltPhysicsWorld physics = scene.physics();
+        RapierScenePhysicsWorld physics = scene.physics();
         if (physics != null) {
             physics.applyImpulse(nodeId, (float) fx, (float) fy, (float) fz);
         }
@@ -186,7 +206,7 @@ public final class PhysicsApi {
     @HostAccess.Export
     @LuauExport
     public void setLinearVelocity(long nodeId, double vx, double vy, double vz) {
-        JoltPhysicsWorld physics = scene.physics();
+        RapierScenePhysicsWorld physics = scene.physics();
         if (physics != null) {
             physics.setLinearVelocity(nodeId, (float) vx, (float) vy, (float) vz);
         }
