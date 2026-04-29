@@ -1,0 +1,9 @@
+plugins {
+    id 'java-library'
+}
+
+dependencies {
+    api project(':physics-api')
+}
+
+tasks.named('processResources') { dependsOn(':physics-natives:copyHostNativeIntoRapier') }
