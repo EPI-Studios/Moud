@@ -30,10 +30,10 @@ public final class BuiltinMeshGeometrySource implements CollisionGeometrySource 
         }
         String mesh = node.getProperty("mesh");
         if (mesh == null || mesh.isBlank()) {
-            mesh = ("Sprite3D".equals(typeId) || "AnimatedSprite3D".equals(typeId)) ? "plane" : "box";
+            mesh = ("Sprite3D".equals(typeId) || "AnimatedSprite3D".equals(typeId)) ? "sprite_quad" : "box";
         }
         return switch (mesh.trim().toLowerCase(Locale.ROOT)) {
-            case "plane", "quad" -> plane();
+            case "plane", "quad", "sprite_quad", "subdivided_plane" -> plane();
             case "sphere" -> sphere(12, 8);
             default -> box();
         };

@@ -1,6 +1,9 @@
 package com.moud.server.minestom.collision;
 
+import com.moud.core.NodeTypeRegistry;
 import com.moud.core.scene.Node;
+
+import java.util.ArrayDeque;
 
 public final class SceneNodeTransform {
     private SceneNodeTransform() {
@@ -45,6 +48,32 @@ public final class SceneNodeTransform {
         return new Transform(new Vec3(px, py, pz), rotation, new Vec3(sx, sy, sz));
     }
 
+    public static Transform worldTransformOf(Node node, NodeTypeRegistry types) {
+        if (node == null) {
+            return Transform.IDENTITY;
+        }
+        Transform world = Transform.IDENTITY;
+        ArrayDeque<Node> chain = new ArrayDeque<>();
+        Node walker = node;
+        while (walker != null) {
+            chain.push(walker);
+            walker = walker.parent();
+        }
+        for (Node n : chain) {
+            if (n.parent() == null) {
+                continue;
+            }
+            String typeId = types == null ? null : types.typeIdFor(n);
+            Transform local = localTransform(n, typeId);
+            if (shouldInheritTransform(n)) {
+                world = world.compose(local);
+            } else {
+                world = local;
+            }
+        }
+        return world;
+    }
+
     public static double parseDouble(String value, double fallback) {
         if (value == null || value.isBlank()) {
             return fallback;
@@ -76,6 +105,18 @@ public final class SceneNodeTransform {
         public Vec3 apply(double x, double y, double z) {
             Vec3 scaled = new Vec3(x * scale.x, y * scale.y, z * scale.z);
             return pos.add(rot.rotate(scaled));
+        }
+
+        public Transform inverse() {
+            Quat invRot = rot.conjugate();
+            double invSx = 1.0 / safeScale(scale.x);
+            double invSy = 1.0 / safeScale(scale.y);
+            double invSz = 1.0 / safeScale(scale.z);
+            Vec3 invScale = new Vec3(invSx, invSy, invSz);
+            Vec3 negP = new Vec3(-pos.x, -pos.y, -pos.z);
+            Vec3 rotated = invRot.rotate(negP);
+            Vec3 invPos = new Vec3(rotated.x * invSx, rotated.y * invSy, rotated.z * invSz);
+            return new Transform(invPos, invRot, invScale);
         }
 
         public static Transform ofPivoted(Vec3 position, Vec3 pivot, Quat rotation, Vec3 scale) {
@@ -131,6 +172,26 @@ public final class SceneNodeTransform {
                     w * other.z + x * other.y - y * other.x + z * other.w,
                     w * other.w - x * other.x - y * other.y - z * other.z
             );
+        }
+
+        public Quat conjugate() {
+            return new Quat(-x, -y, -z, w);
+        }
+
+        public Vec3 toEulerDegXYZ() {
+            double m02 = 2.0 * (x * z + w * y);
+            if (m02 > 0.99999) {
+                double rx = Math.atan2(2.0 * (y * z + w * x), 1.0 - 2.0 * (x * x + z * z));
+                return new Vec3(Math.toDegrees(rx), 90.0, 0.0);
+            }
+            if (m02 < -0.99999) {
+                double rx = Math.atan2(2.0 * (y * z + w * x), 1.0 - 2.0 * (x * x + z * z));
+                return new Vec3(Math.toDegrees(rx), -90.0, 0.0);
+            }
+            double rx = Math.atan2(-2.0 * (y * z - w * x), 1.0 - 2.0 * (x * x + y * y));
+            double ry = Math.asin(m02);
+            double rz = Math.atan2(-2.0 * (x * y - w * z), 1.0 - 2.0 * (y * y + z * z));
+            return new Vec3(Math.toDegrees(rx), Math.toDegrees(ry), Math.toDegrees(rz));
         }
 
         public Quat normalized() {

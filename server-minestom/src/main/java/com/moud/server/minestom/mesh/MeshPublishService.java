@@ -7,6 +7,7 @@ import com.moud.core.mesh.source.GeneratorMesh;
 import com.moud.core.mesh.source.MeshAuthority;
 import com.moud.core.mesh.source.MeshSource;
 import com.moud.core.mesh.source.MeshSourceCodec;
+import com.moud.core.mesh.source.ObjRefMesh;
 import com.moud.core.scene.Node;
 import com.moud.net.protocol.MeshGeneratorPublish;
 import com.moud.net.protocol.MeshPublish;
@@ -36,8 +37,15 @@ public final class MeshPublishService {
             return;
         }
         String raw = node.getProperty("mesh_source");
-        if (raw == null || raw.isBlank()) {
+        MeshSource fromModelPath = sourceFromModelPath(node);
+        if ((raw == null || raw.isBlank()) && fromModelPath == null) {
             unregister(node.nodeId());
+            return;
+        }
+        if ((raw == null || raw.isBlank()) && fromModelPath != null) {
+            var resolved = resolver.resolve(fromModelPath);
+            if (resolved.isEmpty()) return;
+            publishServerAuthMesh(node.nodeId(), resolved.get());
             return;
         }
         MeshSource source;
@@ -62,6 +70,14 @@ public final class MeshPublishService {
             return;
         }
         publishServerAuthMesh(node.nodeId(), resolved.get());
+    }
+
+    private static MeshSource sourceFromModelPath(Node node) {
+        String modelPath = node.getProperty("model_path");
+        if (modelPath == null || modelPath.isBlank()) return null;
+        String lower = modelPath.toLowerCase();
+        if (lower.endsWith(".obj")) return new ObjRefMesh(modelPath);
+        return null;
     }
 
     public synchronized void unregister(long nodeId) {
