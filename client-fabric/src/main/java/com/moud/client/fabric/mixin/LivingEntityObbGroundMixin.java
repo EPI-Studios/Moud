@@ -1,7 +1,7 @@
 package com.moud.client.fabric.mixin;
 
 import com.moud.client.fabric.mixin.accessor.EntityGroundAccessor;
-import com.moud.client.fabric.physics.ClientPhysicsWorld;
+import com.moud.client.fabric.physics.rapier.ClientRapierPhysics;
 import com.moud.client.fabric.runtime.PlayRuntimeBus;
 import com.moud.client.fabric.runtime.PlayRuntimeClient;
 import net.minecraft.client.MinecraftClient;
@@ -27,7 +27,7 @@ public abstract class LivingEntityObbGroundMixin {
         if ((Object) this != client.player) return;
         PlayRuntimeClient runtime = PlayRuntimeBus.get();
         if (runtime == null || !runtime.isActive() || runtime.isCharacterBodyDriving()) return;
-        ClientPhysicsWorld physics = ClientPhysicsWorld.get();
+        ClientRapierPhysics physics = ClientRapierPhysics.get();
         if (!physics.isAvailable()) return;
         physics.syncSceneIfNeeded();
 

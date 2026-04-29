@@ -32,8 +32,10 @@
     "MinecraftClientMixin",
     "ScreenPlayLoadingOverlayMixin",
     "ServerInfoMixin",
+    "VideoOptionsScreenFxaaMixin",
     "accessor.CameraAccessor",
     "accessor.EntityGroundAccessor",
+    "accessor.GameOptionsScreenAccessor",
     "accessor.GameRendererAccessor",
     "accessor.SoundManagerAccessor",
     "accessor.SoundSystemAccessor"
