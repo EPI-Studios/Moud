@@ -1,0 +1,16 @@
+[package]
+name = "rapier_moud"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+rapier3d = "0.22"
+nalgebra = "0.33"
+
+[profile.release]
+lto = true
+opt-level = 3
+strip = true
