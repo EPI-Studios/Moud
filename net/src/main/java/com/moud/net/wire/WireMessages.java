@@ -34,6 +34,7 @@ import com.moud.net.protocol.SceneOpType;
 import com.moud.net.protocol.SceneInfo;
 import com.moud.net.protocol.SceneList;
 import com.moud.net.protocol.SceneSnapshot;
+import com.moud.net.protocol.SceneSnapshotDelta;
 import com.moud.net.protocol.SceneSnapshotRequest;
 import com.moud.net.protocol.SceneSelect;
 import com.moud.net.protocol.SceneSave;
@@ -67,12 +68,16 @@ import com.moud.net.protocol.ScriptFileWriteRequest;
 import com.moud.net.protocol.ScriptFileWriteAck;
 import com.moud.net.protocol.UiNodeEvent;
 import com.moud.net.protocol.MultiMeshData;
+import com.moud.net.protocol.CollisionGeometryChunk;
 import com.moud.net.protocol.CollisionGeometrySnapshot;
 import com.moud.net.protocol.ScriptMessage;
 import com.moud.net.protocol.AssetPathOp;
 import com.moud.net.protocol.AssetPathOpAck;
 import com.moud.net.protocol.MeshPublish;
+import com.moud.net.protocol.MatchmakerStatus;
 import com.moud.net.protocol.MeshGeneratorPublish;
+import com.moud.net.protocol.RigidBodyEntry;
+import com.moud.net.protocol.RigidBodySnapshot;
 import com.moud.core.physics.CollisionGeometry;
 
 import java.nio.BufferOverflowException;
@@ -110,6 +115,7 @@ public final class WireMessages {
                     case SceneOpAck ack -> writeSceneOpAck(out, ack);
                     case SceneSnapshotRequest request -> writeLong(out, request.requestId());
                     case SceneSnapshot snapshot -> writeSceneSnapshot(out, snapshot);
+                    case SceneSnapshotDelta delta -> writeSceneSnapshotDelta(out, delta);
                     case SchemaSnapshot schema -> writeSchemaSnapshot(out, schema);
                     case SceneList sceneList -> writeSceneList(out, sceneList);
                     case SceneSelect sceneSelect -> WireIo.writeString(out, sceneSelect.sceneId());
@@ -264,6 +270,14 @@ public final class WireMessages {
                             }
                         }
                     }
+                    case CollisionGeometryChunk msg -> {
+                        writeLong(out, msg.nodeId());
+                        WireIo.writeVarInt(out, msg.chunkIndex());
+                        WireIo.writeVarInt(out, msg.chunkCount());
+                        byte[] payload = msg.payload() == null ? new byte[0] : msg.payload();
+                        WireIo.writeVarInt(out, payload.length);
+                        out.put(payload);
+                    }
                     case ScriptMessage msg -> {
                         out.put((byte) (msg.direction() & 0xFF));
                         writeLong(out, msg.nodeId());
@@ -305,6 +319,24 @@ public final class WireMessages {
                         WireIo.writeString(out, msg.paramsJson());
                         writeLong(out, msg.seed());
                     }
+                    case MatchmakerStatus msg -> {
+                        WireIo.writeString(out, msg.code() == null ? "" : msg.code());
+                        WireIo.writeString(out, msg.label() == null ? "" : msg.label());
+                        WireIo.writeVarInt(out, msg.show() ? 1 : 0);
+                    }
+                    case RigidBodySnapshot msg -> {
+                        writeLong(out, msg.serverTick());
+                        out.putDouble(msg.timeOfTickMillis());
+                        WireIo.writeVarInt(out, msg.entries().size());
+                        for (RigidBodyEntry e : msg.entries()) {
+                            writeLong(out, e.nodeId());
+                            out.putFloat(e.px()); out.putFloat(e.py()); out.putFloat(e.pz());
+                            out.putFloat(e.qx()); out.putFloat(e.qy()); out.putFloat(e.qz()); out.putFloat(e.qw());
+                            out.putFloat(e.vx()); out.putFloat(e.vy()); out.putFloat(e.vz());
+                            out.putFloat(e.ax()); out.putFloat(e.ay()); out.putFloat(e.az());
+                            out.put((byte) (e.sleeping() ? 1 : 0));
+                        }
+                    }
                 }
                 out.flip();
                 byte[] bytes = new byte[out.remaining()];
@@ -337,6 +369,7 @@ public final class WireMessages {
             case SCENE_OP_ACK -> readSceneOpAck(in);
             case SCENE_SNAPSHOT_REQUEST -> new SceneSnapshotRequest(readLong(in));
             case SCENE_SNAPSHOT -> readSceneSnapshot(in);
+            case SCENE_SNAPSHOT_DELTA -> readSceneSnapshotDelta(in);
             case SCHEMA_SNAPSHOT -> readSchemaSnapshot(in);
             case SCENE_LIST -> readSceneList(in);
             case SCENE_SELECT -> new SceneSelect(WireIo.readString(in));
@@ -485,6 +518,15 @@ public final class WireMessages {
                 }
                 yield new CollisionGeometrySnapshot(nodeId, hulls);
             }
+            case COLLISION_GEOMETRY_CHUNK -> {
+                long nodeId = readLong(in);
+                int chunkIndex = WireIo.readVarInt(in);
+                int chunkCount = WireIo.readVarInt(in);
+                int payloadLen = WireIo.readVarInt(in);
+                byte[] payload = new byte[payloadLen];
+                in.get(payload);
+                yield new CollisionGeometryChunk(nodeId, chunkIndex, chunkCount, payload);
+            }
             case SCRIPT_MESSAGE -> {
                 int direction = in.get() & 0xFF;
                 long nodeId = readLong(in);
@@ -533,6 +575,28 @@ public final class WireMessages {
                 String paramsJson = WireIo.readString(in);
                 long seed = readLong(in);
                 yield new MeshGeneratorPublish(nodeId, scriptPath, paramsJson, seed);
+            }
+            case MATCHMAKER_STATUS -> {
+                String code = WireIo.readString(in);
+                String label = WireIo.readString(in);
+                boolean show = WireIo.readVarInt(in) != 0;
+                yield new MatchmakerStatus(code, label, show);
+            }
+            case RIGID_BODY_SNAPSHOT -> {
+                long tick = readLong(in);
+                double tickTime = in.getDouble();
+                int count = WireIo.readVarInt(in);
+                ArrayList<RigidBodyEntry> entries = new ArrayList<>(Math.max(0, count));
+                for (int i = 0; i < count; i++) {
+                    long nodeId = readLong(in);
+                    float px = in.getFloat(), py = in.getFloat(), pz = in.getFloat();
+                    float qx = in.getFloat(), qy = in.getFloat(), qz = in.getFloat(), qw = in.getFloat();
+                    float vx = in.getFloat(), vy = in.getFloat(), vz = in.getFloat();
+                    float ax = in.getFloat(), ay = in.getFloat(), az = in.getFloat();
+                    boolean sleeping = in.get() != 0;
+                    entries.add(new RigidBodyEntry(nodeId, px, py, pz, qx, qy, qz, qw, vx, vy, vz, ax, ay, az, sleeping));
+                }
+                yield new RigidBodySnapshot(tick, tickTime, entries);
             }
         };
     }
@@ -1036,24 +1100,42 @@ public final class WireMessages {
         List<SceneSnapshot.NodeSnapshot> nodes = snapshot.nodes();
         WireIo.writeVarInt(out, nodes.size());
         for (SceneSnapshot.NodeSnapshot node : nodes) {
-            writeLong(out, node.nodeId());
-            writeLong(out, node.parentId());
-            WireIo.writeString(out, node.name());
-            WireIo.writeString(out, node.type());
-            List<SceneSnapshot.Property> props = node.properties();
-            WireIo.writeVarInt(out, props.size());
-            for (SceneSnapshot.Property prop : props) {
-                WireIo.writeString(out, prop.key());
-                WireIo.writeString(out, prop.value());
-            }
-            List<SceneSnapshot.Uniform> uniforms = node.uniforms();
-            WireIo.writeVarInt(out, uniforms.size());
-            for (SceneSnapshot.Uniform u : uniforms) {
-                WireIo.writeString(out, u.key());
-                List<Float> vals = u.values();
-                WireIo.writeVarInt(out, vals.size());
-                for (float v : vals) out.putFloat(v);
-            }
+            writeNodeSnapshot(out, node);
+        }
+    }
+
+    private static void writeSceneSnapshotDelta(ByteBuffer out, SceneSnapshotDelta delta) {
+        writeLong(out, delta.revision());
+        List<SceneSnapshot.NodeSnapshot> upserts = delta.upserts() == null ? List.of() : delta.upserts();
+        WireIo.writeVarInt(out, upserts.size());
+        for (SceneSnapshot.NodeSnapshot node : upserts) {
+            writeNodeSnapshot(out, node);
+        }
+        List<Long> removed = delta.removed() == null ? List.of() : delta.removed();
+        WireIo.writeVarInt(out, removed.size());
+        for (Long id : removed) {
+            writeLong(out, id == null ? 0L : id);
+        }
+    }
+
+    private static void writeNodeSnapshot(ByteBuffer out, SceneSnapshot.NodeSnapshot node) {
+        writeLong(out, node.nodeId());
+        writeLong(out, node.parentId());
+        WireIo.writeString(out, node.name());
+        WireIo.writeString(out, node.type());
+        List<SceneSnapshot.Property> props = node.properties();
+        WireIo.writeVarInt(out, props.size());
+        for (SceneSnapshot.Property prop : props) {
+            WireIo.writeString(out, prop.key());
+            WireIo.writeString(out, prop.value());
+        }
+        List<SceneSnapshot.Uniform> uniforms = node.uniforms();
+        WireIo.writeVarInt(out, uniforms.size());
+        for (SceneSnapshot.Uniform u : uniforms) {
+            WireIo.writeString(out, u.key());
+            List<Float> vals = u.values();
+            WireIo.writeVarInt(out, vals.size());
+            for (float v : vals) out.putFloat(v);
         }
     }
 
@@ -1099,30 +1181,55 @@ public final class WireMessages {
         }
         List<SceneSnapshot.NodeSnapshot> nodes = new ArrayList<>(nodeCount);
         for (int i = 0; i < nodeCount; i++) {
-            long nodeId = readLong(in);
-            long parentId = readLong(in);
-            String name = WireIo.readString(in);
-            String type = WireIo.readString(in);
-            int propCount = WireIo.readVarInt(in);
-            if (propCount < 0 || propCount > 1_000_000) {
-                throw new IllegalArgumentException("Invalid property count: " + propCount);
-            }
-            List<SceneSnapshot.Property> props = new ArrayList<>(propCount);
-            for (int p = 0; p < propCount; p++) {
-                props.add(new SceneSnapshot.Property(WireIo.readString(in), WireIo.readString(in)));
-            }
-            int uniCount = WireIo.readVarInt(in);
-            List<SceneSnapshot.Uniform> uniforms = new ArrayList<>(uniCount);
-            for (int u = 0; u < uniCount; u++) {
-                String key = WireIo.readString(in);
-                int valCount = WireIo.readVarInt(in);
-                List<Float> vals = new ArrayList<>(valCount);
-                for (int v = 0; v < valCount; v++) vals.add(in.getFloat());
-                uniforms.add(new SceneSnapshot.Uniform(key, List.copyOf(vals)));
-            }
-            nodes.add(new SceneSnapshot.NodeSnapshot(nodeId, parentId, name, type, List.copyOf(props), List.copyOf(uniforms)));
+            nodes.add(readNodeSnapshot(in));
         }
         return new SceneSnapshot(requestId, revision, List.copyOf(nodes));
+    }
+
+    private static SceneSnapshotDelta readSceneSnapshotDelta(ByteBuffer in) {
+        long revision = readLong(in);
+        int upsertCount = WireIo.readVarInt(in);
+        if (upsertCount < 0 || upsertCount > 2_000_000) {
+            throw new IllegalArgumentException("Invalid upsert count: " + upsertCount);
+        }
+        List<SceneSnapshot.NodeSnapshot> upserts = new ArrayList<>(upsertCount);
+        for (int i = 0; i < upsertCount; i++) {
+            upserts.add(readNodeSnapshot(in));
+        }
+        int removedCount = WireIo.readVarInt(in);
+        if (removedCount < 0 || removedCount > 2_000_000) {
+            throw new IllegalArgumentException("Invalid removed count: " + removedCount);
+        }
+        List<Long> removed = new ArrayList<>(removedCount);
+        for (int i = 0; i < removedCount; i++) {
+            removed.add(readLong(in));
+        }
+        return new SceneSnapshotDelta(revision, List.copyOf(upserts), List.copyOf(removed));
+    }
+
+    private static SceneSnapshot.NodeSnapshot readNodeSnapshot(ByteBuffer in) {
+        long nodeId = readLong(in);
+        long parentId = readLong(in);
+        String name = WireIo.readString(in);
+        String type = WireIo.readString(in);
+        int propCount = WireIo.readVarInt(in);
+        if (propCount < 0 || propCount > 1_000_000) {
+            throw new IllegalArgumentException("Invalid property count: " + propCount);
+        }
+        List<SceneSnapshot.Property> props = new ArrayList<>(propCount);
+        for (int p = 0; p < propCount; p++) {
+            props.add(new SceneSnapshot.Property(WireIo.readString(in), WireIo.readString(in)));
+        }
+        int uniCount = WireIo.readVarInt(in);
+        List<SceneSnapshot.Uniform> uniforms = new ArrayList<>(uniCount);
+        for (int u = 0; u < uniCount; u++) {
+            String key = WireIo.readString(in);
+            int valCount = WireIo.readVarInt(in);
+            List<Float> vals = new ArrayList<>(valCount);
+            for (int v = 0; v < valCount; v++) vals.add(in.getFloat());
+            uniforms.add(new SceneSnapshot.Uniform(key, List.copyOf(vals)));
+        }
+        return new SceneSnapshot.NodeSnapshot(nodeId, parentId, name, type, List.copyOf(props), List.copyOf(uniforms));
     }
 
     private static void writeSchemaSnapshot(ByteBuffer out, SchemaSnapshot snapshot) {
@@ -1229,6 +1336,7 @@ public final class WireMessages {
             case SceneOpBatch batch -> size += estimateSceneOpBatchSize(batch);
             case SceneOpAck ack -> size += estimateSceneOpAckSize(ack);
             case SceneSnapshot snapshot -> size += estimateSceneSnapshotSize(snapshot);
+            case SceneSnapshotDelta delta -> size += estimateSceneSnapshotDeltaSize(delta);
             case SchemaSnapshot schema -> size += estimateSchemaSnapshotSize(schema);
             case SceneList list -> size += estimateSceneListSize(list);
             case SceneSelect select -> size += stringSize(select.sceneId());
@@ -1297,6 +1405,10 @@ public final class WireMessages {
                     }
                 }
             }
+            case CollisionGeometryChunk msg -> {
+                int pLen = msg.payload() == null ? 0 : msg.payload().length;
+                size += longSize(msg.nodeId()) + varIntSize(msg.chunkIndex()) + varIntSize(msg.chunkCount()) + varIntSize(pLen) + pLen;
+            }
             case ScriptMessage msg -> {
                 int pLen = msg.payload().length;
                 size += 1 + longSize(msg.nodeId()) + stringSize(msg.topic()) + 1 + varIntSize(pLen) + pLen;
@@ -1318,6 +1430,14 @@ public final class WireMessages {
             case MeshGeneratorPublish msg -> size += longSize(msg.nodeId())
                     + stringSize(msg.scriptPath()) + stringSize(msg.paramsJson())
                     + longSize(msg.seed());
+            case MatchmakerStatus msg -> size += stringSize(msg.code() == null ? "" : msg.code())
+                    + stringSize(msg.label() == null ? "" : msg.label())
+                    + varIntSize(1);
+            case RigidBodySnapshot msg -> {
+                int count = msg.entries() == null ? 0 : msg.entries().size();
+                size += longSize(msg.serverTick()) + Double.BYTES + varIntSize(count);
+                size += count * (longSize(0L) + 13 * Float.BYTES + 1);
+            }
         }
         return size + 16;
     }
@@ -1538,23 +1658,45 @@ public final class WireMessages {
         List<SceneSnapshot.NodeSnapshot> nodes = snapshot.nodes();
         size += varIntSize(nodes.size());
         for (SceneSnapshot.NodeSnapshot node : nodes) {
-            size += longSize(node.nodeId());
-            size += longSize(node.parentId());
-            size += stringSize(node.name());
-            size += stringSize(node.type());
-            List<SceneSnapshot.Property> props = node.properties();
-            size += varIntSize(props.size());
-            for (SceneSnapshot.Property prop : props) {
-                size += stringSize(prop.key());
-                size += stringSize(prop.value());
-            }
-            List<SceneSnapshot.Uniform> uniforms = node.uniforms();
-            size += varIntSize(uniforms.size());
-            for (SceneSnapshot.Uniform u : uniforms) {
-                size += stringSize(u.key());
-                size += varIntSize(u.values().size());
-                size += u.values().size() * Float.BYTES;
-            }
+            size += estimateNodeSnapshotSize(node);
+        }
+        return size;
+    }
+
+    private static int estimateSceneSnapshotDeltaSize(SceneSnapshotDelta delta) {
+        int size = 0;
+        size += longSize(delta.revision());
+        List<SceneSnapshot.NodeSnapshot> upserts = delta.upserts() == null ? List.of() : delta.upserts();
+        size += varIntSize(upserts.size());
+        for (SceneSnapshot.NodeSnapshot node : upserts) {
+            size += estimateNodeSnapshotSize(node);
+        }
+        List<Long> removed = delta.removed() == null ? List.of() : delta.removed();
+        size += varIntSize(removed.size());
+        for (Long id : removed) {
+            size += longSize(id == null ? 0L : id);
+        }
+        return size;
+    }
+
+    private static int estimateNodeSnapshotSize(SceneSnapshot.NodeSnapshot node) {
+        int size = 0;
+        size += longSize(node.nodeId());
+        size += longSize(node.parentId());
+        size += stringSize(node.name());
+        size += stringSize(node.type());
+        List<SceneSnapshot.Property> props = node.properties();
+        size += varIntSize(props.size());
+        for (SceneSnapshot.Property prop : props) {
+            size += stringSize(prop.key());
+            size += stringSize(prop.value());
+        }
+        List<SceneSnapshot.Uniform> uniforms = node.uniforms();
+        size += varIntSize(uniforms.size());
+        for (SceneSnapshot.Uniform u : uniforms) {
+            size += stringSize(u.key());
+            size += varIntSize(u.values().size());
+            size += u.values().size() * Float.BYTES;
         }
         return size;
     }

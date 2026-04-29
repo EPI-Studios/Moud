@@ -17,6 +17,7 @@ public sealed interface Message permits
         SceneSave,
         SceneSaveAck,
         SceneSnapshot,
+        SceneSnapshotDelta,
         SceneSnapshotRequest,
         SchemaSnapshot,
         ServerHello,
@@ -58,8 +59,11 @@ public sealed interface Message permits
         PlayReady,
         CursorState,
         CollisionGeometrySnapshot,
+        CollisionGeometryChunk,
         ScriptMessage,
         AssetPathOp,
-        AssetPathOpAck {
+        AssetPathOpAck,
+        MatchmakerStatus,
+        RigidBodySnapshot {
     MessageType type();
 }
