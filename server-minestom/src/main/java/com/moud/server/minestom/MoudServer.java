@@ -9,9 +9,7 @@ import com.moud.core.assets.ResPath;
 import com.moud.core.scene.Node;
 import com.moud.core.scene.PlainNode;
 import com.moud.core.scene.SceneTreeMutator;
-import com.moud.net.protocol.CollisionGeometrySnapshot;
-import com.moud.net.protocol.Message;
-import com.moud.net.protocol.SceneSnapshot;
+import com.moud.net.protocol.*;
 import com.moud.net.session.Session;
 import com.moud.net.session.SessionState;
 import com.moud.net.transport.Lane;
@@ -21,6 +19,7 @@ import com.moud.server.minestom.persistence.PersistenceService;
 import com.moud.server.minestom.assets.AssetService;
 import com.moud.server.minestom.assets.FileSystemAssetStore;
 import com.moud.server.minestom.collision.CollisionBakeService;
+import com.moud.server.minestom.engine.InstanceMatchmaker;
 import com.moud.server.minestom.engine.SceneInstancer;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.engine.ServerScenes;
@@ -58,18 +57,22 @@ import net.minestom.server.ping.ResponseData;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.instance.InstanceManager;
+import net.minestom.server.instance.LightingChunk;
 
 public final class MoudServer {
 
     private static final String CHANNEL = "moud:engine";
-    private static final double TICK_DT_SECONDS = 1.0 / 20.0;
+    private static final double TICK_DT_SECONDS = 1.0 / 30.0;
+    private static final long TICK_INTERVAL_MILLIS = 33L;
 
     private final boolean devMode;
     private final Path projectRoot;
 
     private ServerScenes scenes;
     private ServerScene mainScene;
+    private InstanceMatchmaker matchmaker;
     private AssetService assets;
     private ProjectService project;
     private ScriptService scripts;
@@ -141,6 +144,13 @@ public final class MoudServer {
         CollisionBakeService collisionBakeService = new CollisionBakeService(project, assets.store());
         scenes = new ServerScenes(instanceManager, collisionBakeService);
         mainScene = scenes.ensureDefault("main", "Main");
+        matchmaker = new InstanceMatchmaker(scenes, project.matchmakerConfig());
+        matchmaker.start();
+
+        InstanceContainer limboInstance = instanceManager.createInstanceContainer();
+        limboInstance.setChunkSupplier(LightingChunk::new);
+        limboInstance.setGenerator(unit -> {
+        });
 
         Map<UUID, PlayerState> playerStates = new ConcurrentHashMap<>();
         PlayerMessageSink playerMessageSink = (uuid, lane, message) -> {
@@ -155,13 +165,20 @@ public final class MoudServer {
         collisionBakeService.setBakeListener((nodeId, result) -> {
             if (result == null || result.hulls() == null || result.hulls().isEmpty()) return;
             latestCollisionGeometryByNode.put(nodeId, List.copyOf(result.hulls()));
-            CollisionGeometrySnapshot msg = new CollisionGeometrySnapshot(nodeId, result.hulls());
+            CollisionGeometrySnapshot snapshot = new CollisionGeometrySnapshot(nodeId, result.hulls());
+            List<CollisionGeometryChunk> chunks = CollisionGeometryCodec.split(snapshot);
             for (Map.Entry<UUID, PlayerState> entry : playerStates.entrySet()) {
-                playerMessageSink.send(entry.getKey(), Lane.STATE, msg);
+                for (CollisionGeometryChunk chunk : chunks) {
+                    playerMessageSink.send(entry.getKey(), Lane.STATE, chunk);
+                }
             }
         });
 
         scripts = new ScriptService(project, playerMessageSink, collisionBakeService.meshResolver());
+        scenes.addInstanceRemovedListener(scripts::onInstanceDisposed);
+        scripts.setMatchmaker(matchmaker);
+        matchmaker.setArrivalHandler((player, destination, payload) ->
+                scripts.dispatchPlayerArrive(destination, player.getUuid().toString(), payload));
         scriptFiles = new ScriptFileService(project);
         persistenceService = new PersistenceService(projectRoot);
         persistenceService.loadWorld();
@@ -242,9 +259,11 @@ public final class MoudServer {
                 devMode,
                 scenes,
                 mainScene,
+                matchmaker,
                 playModeManager,
                 messageRouter,
-                playerStates
+                playerStates,
+                limboInstance
         );
         tickLoop = new ServerTickLoop(TICK_DT_SECONDS, scenes, scripts, playModeManager, connections);
 
@@ -257,11 +276,7 @@ public final class MoudServer {
             data.setDescription(existingDesc == null ? prefix : prefix.append(existingDesc));
         });
 
-        events.addListener(AsyncPlayerConfigurationEvent.class, event -> {
-            event.setSpawningInstance(mainScene.instance());
-            Pos startPos = PlayRuntime.findPlayerStartPos(mainScene);
-            event.getPlayer().setRespawnPoint(startPos != null ? startPos : new Pos(0, 64, 0));
-        });
+        events.addListener(AsyncPlayerConfigurationEvent.class, connections::onConfiguration);
         events.addListener(PlayerSpawnEvent.class, event -> {
             if (persistenceService != null) persistenceService.loadPlayer(event.getPlayer().getUuid());
             connections.onPlayerSpawn(event.getPlayer());
@@ -306,7 +321,7 @@ public final class MoudServer {
     public void registerTickTask() {
         MinecraftServer.getSchedulerManager()
                 .buildTask(this::tick)
-                .repeat(Duration.ofMillis(50))
+                .repeat(Duration.ofMillis(TICK_INTERVAL_MILLIS))
                 .schedule();
     }
 
@@ -333,7 +348,10 @@ public final class MoudServer {
             if (hulls == null || hulls.isEmpty()) {
                 continue;
             }
-            session.send(Lane.STATE, new CollisionGeometrySnapshot(ns.nodeId(), hulls));
+            CollisionGeometrySnapshot snap = new CollisionGeometrySnapshot(ns.nodeId(), hulls);
+            for (CollisionGeometryChunk chunk : CollisionGeometryCodec.split(snap)) {
+                session.send(Lane.STATE, chunk);
+            }
         }
     }
 
@@ -356,7 +374,17 @@ public final class MoudServer {
                 sender.sendMessage("ticks=" + mainScene.engine().ticks() + " lastDumpTick=" + mainScene.engine().lastDumpTick());
                 return;
             }
-            sender.sendMessage("Usage: /moud dump | /moud stats");
+            if ("physics".equalsIgnoreCase(s)) {
+                if (mainScene.physics() == null) {
+                    sender.sendMessage("physics unavailable");
+                    return;
+                }
+                for (String line : mainScene.physics().debugDump()) {
+                    sender.sendMessage(line);
+                }
+                return;
+            }
+            sender.sendMessage("Usage: /moud dump | /moud stats | /moud physics");
         }, sub);
 
         command.addSyntax((sender, context) -> {

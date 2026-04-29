@@ -7,6 +7,8 @@ import com.moud.server.minestom.engine.SceneInstancer;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.engine.ServerScenes;
 import com.moud.server.minestom.scene.SceneFileIO;
+import java.util.ArrayList;
+import java.util.List;
 import com.moud.server.minestom.scripting.ScriptService;
 import com.moud.server.minestom.util.DebugLog;
 import java.nio.charset.StandardCharsets;
@@ -128,8 +130,16 @@ final class SceneStorage {
         return Files.deleteIfExists(sceneFilePath(sceneId));
     }
 
-    void onSceneDeleted(String sceneId) {
-        scripts.onSceneDeleted(sceneId);
+    void onSceneDeleted(String placeId) {
+        if (placeId == null || placeId.isBlank()) {
+            return;
+        }
+        List<ServerScene> live = scenes.instancesOfPlace(placeId);
+        List<String> ids = new ArrayList<>(live.size());
+        for (ServerScene s : live) {
+            if (s != null) ids.add(s.instanceId());
+        }
+        scripts.onPlaceDeleted(ids);
     }
 
     Path sceneFilePath(String sceneId) {
