@@ -34,6 +34,9 @@ final class EditorOverlayController {
         while (ctx.collisionDebugKey != null && ctx.collisionDebugKey.wasPressed()) {
             VeilSceneNodeRenderer.toggleCollisionDebug();
         }
+        while (ctx.physicsDebugKey != null && ctx.physicsDebugKey.wasPressed()) {
+            // rapier client physics debug overlay is deferred
+        }
     }
 
     private void toggleViewportPlay(MinecraftClient client) {

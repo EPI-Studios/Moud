@@ -6,7 +6,7 @@ import com.moud.client.fabric.model.ModelCache;
 import com.moud.client.fabric.net.ClientSessionBus;
 import com.moud.client.fabric.net.EnginePayload;
 import com.moud.client.fabric.net.FabricEngineTransport;
-import com.moud.client.fabric.physics.ClientPhysicsWorld;
+import com.moud.client.fabric.physics.rapier.ClientRapierPhysics;
 import com.moud.client.fabric.platform.MinecraftGhostBlocks;
 import com.moud.client.fabric.player.ClientPlayerMotionController;
 import com.moud.client.fabric.player.PlayerBodyAttachmentCache;
@@ -78,7 +78,7 @@ final class ClientSessionLifecycle {
         VeilSceneNodeRenderer.clearLights();
         VeilSceneNodeRenderer.clearMaterialTextureCache();
         VeilSceneNodeRenderer.clearCollisionGeometryCache();
-        ClientPhysicsWorld.clearCollisionGeometry();
+        ClientRapierPhysics.clearCollisionGeometry();
         VeilWorldEnvironmentRenderer.clear();
         MoudTextures.clear();
         MoudTextAssets.clear();
