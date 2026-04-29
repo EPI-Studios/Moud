@@ -18,8 +18,19 @@ def clientJavaVersion = providers.gradleProperty("moud.client.java")
         .map { Integer.parseInt(it) }
         .orElse(25)
 
+def currentLuauNativeVariant = {
+    def os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT)
+    def arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT)
+    def archPart = (arch.contains("aarch64") || arch.contains("arm64")) ? "arm64" : "x64"
+    if (os.contains("win")) return "windows-${archPart}"
+    if (os.contains("mac")) return "macos-${archPart}"
+    if (os.contains("nix") || os.contains("nux") || os.contains("aix")) return "linux-${archPart}"
+    return null
+}
+
 configurations {
     runtimeShadow
+    luauNativeRuntime
 }
 
 repositories {
@@ -63,16 +74,8 @@ dependencies {
 
     include implementation(project(':core'))
     include implementation(project(':net'))
+    include implementation(project(':physics-rapier'))
     runtimeShadow project(':net')
-
-    include implementation("com.github.stephengold:jolt-jni-Linux64:3.5.0")
-    include runtimeOnly("com.github.stephengold:jolt-jni-Linux64:3.5.0:ReleaseSp")
-    include runtimeOnly("com.github.stephengold:jolt-jni-Linux_ARM64:3.5.0:ReleaseSp")
-    include runtimeOnly("com.github.stephengold:jolt-jni-Windows64:3.5.0:ReleaseSp")
-    runtimeShadow "com.github.stephengold:jolt-jni-Linux64:3.5.0"
-    runtimeShadow "com.github.stephengold:jolt-jni-Linux64:3.5.0:ReleaseSp"
-    runtimeShadow "com.github.stephengold:jolt-jni-Linux_ARM64:3.5.0:ReleaseSp"
-    runtimeShadow "com.github.stephengold:jolt-jni-Windows64:3.5.0:ReleaseSp"
 
     include implementation("fr.mrqsdf:BbModelReader:1.0-SNAPSHOT")
     include(implementation("com.miry:miry:1.0-SNAPSHOT") {
@@ -89,6 +92,13 @@ dependencies {
             include runtimeOnly("dev.hollowcube:luau-natives-${variant}:${luauVersion.get()}")
         }
         include runtimeOnly("moud.vendored:luau-natives-windows-x64:1.0.0")
+
+        def devVariant = currentLuauNativeVariant()
+        if (devVariant == "windows-x64") {
+            luauNativeRuntime "moud.vendored:luau-natives-windows-x64:1.0.0"
+        } else if (devVariant != null) {
+            luauNativeRuntime "dev.hollowcube:luau-natives-${devVariant}:${luauVersion.get()}"
+        }
 
         runtimeShadow "dev.hollowcube:luau:${luauVersion.get()}"
         for (String variant : ['linux-x64', 'macos-x64', 'macos-arm64']) {
@@ -114,6 +124,27 @@ tasks.withType(JavaCompile).configureEach {
     options.release = clientJavaVersion.get()
     if (luauEnabled.get()) {
         options.compilerArgs += ["--enable-preview"]
+    }
+}
+
+def extractLuauNatives = tasks.register('extractLuauNatives', Copy) {
+    enabled = luauEnabled.get()
+    from({ configurations.luauNativeRuntime.collect { zipTree(it) } }) {
+        include '**/*.so'
+        include '**/*.dylib'
+        include '**/*.dll'
+        eachFile { details ->
+            details.path = details.name
+        }
+        includeEmptyDirs = false
+    }
+    into layout.buildDirectory.dir('luau-natives')
+}
+
+tasks.withType(JavaExec).configureEach {
+    if (luauEnabled.get()) {
+        dependsOn extractLuauNatives
+        jvmArgs "-Djava.library.path=${layout.buildDirectory.dir('luau-natives').get().asFile.absolutePath}"
     }
 }
 
