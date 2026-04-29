@@ -310,9 +310,13 @@ final class MultiMeshRenderer {
 
     private static MeshHandles resolveMesh(String meshType) {
         return switch (meshType == null ? "box" : meshType) {
-            case "plane" -> {
+            case "subdivided_plane" -> {
                 MoudMeshBuffer.ensurePlaneInitialized();
                 yield new MeshHandles(MoudMeshBuffer.planeVbo(), MoudMeshBuffer.planeEbo(), MoudMeshBuffer.planeIndexCount());
+            }
+            case "plane", "quad", "sprite_quad" -> {
+                MoudMeshBuffer.ensureQuadInitialized();
+                yield new MeshHandles(MoudMeshBuffer.quadVbo(), MoudMeshBuffer.quadEbo(), MoudMeshBuffer.quadIndexCount());
             }
             case "sphere" -> {
                 MoudMeshBuffer.ensureSphereInitialized();

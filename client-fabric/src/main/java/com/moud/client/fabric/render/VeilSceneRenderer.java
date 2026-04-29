@@ -1,5 +1,6 @@
 package com.moud.client.fabric.render;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.moud.client.fabric.editor.diagnostics.ClientFrameProfiler;
 import com.moud.client.fabric.editor.overlay.EditorContext;
 import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
@@ -13,9 +14,11 @@ import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.client.fabric.render.scene.state.SceneCacheManager;
 import com.moud.client.fabric.render.scene.state.TransformManager;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
+import com.moud.client.fabric.render.mesh.ProceduralMeshGpuCache;
 import com.moud.client.fabric.render.scene.subrender.FallbackMeshRenderer;
 import com.moud.client.fabric.render.veil.VeilDynamicShaders;
 import com.moud.client.fabric.scene.ClientSceneBus;
+import com.moud.client.fabric.scene.MoudTickClock;
 import com.moud.client.fabric.render.scene.subrender.particle.ParticleRenderer;
 import com.moud.client.fabric.render.scene.subrender.SceneDebugRenderer;
 import com.moud.client.fabric.render.scene.subrender.Text3DRenderer;
@@ -115,13 +118,22 @@ public final class VeilSceneRenderer {
         transformManager.clearRuntimeBodyOverride();
     }
 
+    public static void resetPoseStates() {
+        transformManager.resetPoseStates();
+    }
+
     public static void clearMaterialTextureCache() {
+        if (!RenderSystem.isOnRenderThread()) {
+            RenderSystem.recordRenderCall(VeilSceneRenderer::clearMaterialTextureCache);
+            return;
+        }
         meshShader.clear();
         batchRenderer.clear();
         multiMeshRenderer.clear();
         decalRenderer.clear();
         pickingPass.clear();
         outlineRenderer.clear();
+        ProceduralMeshGpuCache.clear();
         MoudMeshBuffer.cleanup();
     }
 
@@ -327,6 +339,9 @@ public final class VeilSceneRenderer {
         if (PostProcessService.INSTANCE.effectCount() <= 0) {
             return;
         }
+        if (EditorOverlayBus.isActive()) {
+            return;
+        }
         String scopeName = stage == PostProcessStage.SCREEN
                 ? "overlay.postprocess.screen"
                 : "overlay.postprocess.world";
@@ -343,6 +358,9 @@ public final class VeilSceneRenderer {
 
     private static void renderPostProcess(MinecraftClient client) {
         if (PostProcessService.INSTANCE.effectCount() <= 0) {
+            return;
+        }
+        if (EditorOverlayBus.isActive()) {
             return;
         }
         try (ClientFrameProfiler.Scope post = ClientFrameProfiler.scope("render.scene.postprocess")) {

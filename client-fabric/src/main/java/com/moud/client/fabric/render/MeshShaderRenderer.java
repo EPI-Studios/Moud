@@ -4,6 +4,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.moud.client.fabric.assets.MoudTextAssets;
 import com.moud.client.fabric.render.material.*;
 import com.moud.client.fabric.render.mesh.MoudMeshBuffer;
+import com.moud.client.fabric.render.mesh.ProceduralMeshGpuCache;
+import com.moud.client.fabric.render.mesh.cache.ClientMeshBindings;
 import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.client.fabric.render.shadow.ShadowMaps;
 import com.moud.client.fabric.render.sprite.SpriteSheets;
@@ -91,12 +93,12 @@ final class MeshShaderRenderer {
 
         String meshType = VeilSceneNodeRenderer.stringProp(node, "mesh");
         boolean isSprite3D = "Sprite3D".equals(node.type());
-        if (isSprite3D && (meshType == null || meshType.isBlank())) meshType = "plane";
-        boolean isPlane = "plane".equals(meshType);
+        meshType = normalizeMeshType(meshType, isSprite3D);
+        boolean isPlanar = isPlanarMesh(meshType);
 
         Matrix4f modelMat;
         float halfPi = (float) (Math.PI / 2.0);
-        if (isPlane) {
+        if (isPlanar) {
             modelMat = new Matrix4f()
                     .translate(world.pos.x, world.pos.y, world.pos.z)
                     .rotate(world.rot)
@@ -123,9 +125,12 @@ final class MeshShaderRenderer {
             int pid = GlUtil.currentProgram();
             GlUtil.uniformMat4(pid, "ModelMat", modelMat);
             GlUtil.uniformMat4(pid, "LightViewProj", new Matrix4f(lightViewProj));
-            if (isPlane) {
+            if ("subdivided_plane".equals(meshType)) {
                 MoudMeshBuffer.ensurePlaneInitialized();
                 drawMesh(MoudMeshBuffer.planeVbo(), MoudMeshBuffer.planeEbo(), MoudMeshBuffer.planeIndexCount());
+            } else if (isPlanar) {
+                MoudMeshBuffer.ensureQuadInitialized();
+                drawMesh(MoudMeshBuffer.quadVbo(), MoudMeshBuffer.quadEbo(), MoudMeshBuffer.quadIndexCount());
             } else {
                 drawMesh(MoudMeshBuffer.vbo(), MoudMeshBuffer.ebo(), MoudMeshBuffer.indexCount());
             }
@@ -227,10 +232,8 @@ final class MeshShaderRenderer {
                        Vec3d camPos, Camera camera, Matrix4fc viewMatrix, Matrix4fc projectionMatrix,
                        MinecraftClient client, float tickDelta) {
         if (!RenderSystem.isOnRenderThread()) return false;
-        String meshSource = VeilSceneNodeRenderer.stringProp(node, "mesh_source");
-        if (meshSource != null && !meshSource.isBlank()) {
-            return false;
-        }
+        String boundHash = ClientMeshBindings.hashFor(node.nodeId()).orElse(null);
+        boolean useProceduralMesh = boundHash != null;
         String materialPath = VeilSceneNodeRenderer.stringProp(node, "material");
         VeilMaterialBinding binding = null;
         ShaderProgram program;
@@ -245,7 +248,6 @@ final class MeshShaderRenderer {
                 if (program == null) program = getDefaultShaderProgram();
             }
         } else {
-            // no-material path uses the simple default_mesh shader, pbr path needs full sampler set or it pure-blacks
             program = getDefaultShaderProgram();
             if (program == null) shaderErrorId = Identifier.of("moud", "builtin/default_mesh");
         }
@@ -286,8 +288,9 @@ final class MeshShaderRenderer {
                 VeilSceneNodeRenderer.stringProp(node, "billboard"), isSprite3D);
 
         String meshType = VeilSceneNodeRenderer.stringProp(node, "mesh");
-        if (isSprite3D && (meshType == null || meshType.isBlank())) meshType = "plane";
-        boolean isPlane = "plane".equals(meshType);
+        meshType = normalizeMeshType(meshType, isSprite3D);
+        boolean isPlanar = isPlanarMesh(meshType) && !useProceduralMesh;
+        boolean centerPivotOffset = !useProceduralMesh;
 
         float HALF_PI = (float) (Math.PI / 2.0);
 
@@ -295,7 +298,7 @@ final class MeshShaderRenderer {
         final Matrix4f modelMat;
         if (billboard) {
             Quaternionf camRot = viewMat.getNormalizedRotation(new Quaternionf()).conjugate();
-            if (isPlane) {
+            if (isPlanar) {
                 worldMat = new Matrix4f()
                         .translate(world.pos.x, world.pos.y, world.pos.z)
                         .rotate(camRot)
@@ -314,18 +317,18 @@ final class MeshShaderRenderer {
                 worldMat = new Matrix4f()
                         .translate(world.pos.x, world.pos.y, world.pos.z)
                         .rotate(camRot)
-                        .scale(world.scale.x, world.scale.y, world.scale.z)
-                        .translate(-0.5f, -0.5f, -0.5f);
+                        .scale(world.scale.x, world.scale.y, world.scale.z);
+                if (centerPivotOffset) worldMat.translate(-0.5f, -0.5f, -0.5f);
                 modelMat = new Matrix4f()
                         .translate((float)(world.pos.x - camPos.x),
                                 (float)(world.pos.y - camPos.y),
                                 (float)(world.pos.z - camPos.z))
                         .rotate(camRot)
-                        .scale(world.scale.x, world.scale.y, world.scale.z)
-                        .translate(-0.5f, -0.5f, -0.5f);
+                        .scale(world.scale.x, world.scale.y, world.scale.z);
+                if (centerPivotOffset) modelMat.translate(-0.5f, -0.5f, -0.5f);
             }
         } else {
-            if (isPlane) {
+            if (isPlanar) {
                 worldMat = new Matrix4f()
                         .translate(world.pos.x, world.pos.y, world.pos.z)
                         .rotate(world.rot)
@@ -344,15 +347,15 @@ final class MeshShaderRenderer {
                 worldMat = new Matrix4f()
                         .translate(world.pos.x, world.pos.y, world.pos.z)
                         .rotate(world.rot)
-                        .scale(world.scale.x, world.scale.y, world.scale.z)
-                        .translate(-0.5f, -0.5f, -0.5f);
+                        .scale(world.scale.x, world.scale.y, world.scale.z);
+                if (centerPivotOffset) worldMat.translate(-0.5f, -0.5f, -0.5f);
                 modelMat = new Matrix4f()
                         .translate((float)(world.pos.x - camPos.x),
                                 (float)(world.pos.y - camPos.y),
                                 (float)(world.pos.z - camPos.z))
                         .rotate(world.rot)
-                        .scale(world.scale.x, world.scale.y, world.scale.z)
-                        .translate(-0.5f, -0.5f, -0.5f);
+                        .scale(world.scale.x, world.scale.y, world.scale.z);
+                if (centerPivotOffset) modelMat.translate(-0.5f, -0.5f, -0.5f);
             }
         }
 
@@ -425,9 +428,45 @@ final class MeshShaderRenderer {
             program.setSampler("SpotShadowMap", shadowGl, 0);
             program.bindSamplers(0);
 
-            if (isPlane) {
+            if (useProceduralMesh) {
+                ProceduralMeshGpuCache.Handle h
+                        = ProceduralMeshGpuCache.getOrUpload(boundHash);
+                if (h != null) {
+                    int progId = GlUtil.currentProgram();
+                    long key = ((long) progId << 32) | (h.vbo() & 0xFFFFFFFFL);
+                    int vao = meshVaoCache.computeIfAbsent(key, k -> GlUtil.createMeshVao(progId, h.vbo(), h.ebo()));
+                    Identifier nodeFallback = textureSample.textureId();
+                    boolean anyPerSurfaceTex = false;
+                    for (var range : h.surfaces()) {
+                        String matId = range.materialId();
+                        if (matId != null && !matId.isBlank()) { anyPerSurfaceTex = true; break; }
+                    }
+                    if (!anyPerSurfaceTex) {
+                        // single texture across whole mesh, faster path
+                        GlUtil.drawElements(vao, h.indexCount());
+                    } else {
+                        for (var range : h.surfaces()) {
+                            String matId = range.materialId();
+                            Identifier surfaceTex = (matId != null && !matId.isBlank())
+                                    ? MoudTextures.resolve(matId)
+                                    : nodeFallback;
+                            if (surfaceTex == null) surfaceTex = nodeFallback;
+                            int gl = MoudTextures.boundGlId(surfaceTex);
+                            program.setSampler("Texture0", gl, 0);
+                            if (binding == null || !binding.hasTextureParam("albedo_texture")) {
+                                program.setSampler("albedo_texture", gl, 0);
+                            }
+                            program.bindSamplers(0);
+                            GlUtil.drawElementsRange(vao, range.indexCount(), range.firstIndex());
+                        }
+                    }
+                }
+            } else if ("subdivided_plane".equals(meshType)) {
                 MoudMeshBuffer.ensurePlaneInitialized();
                 drawMesh(MoudMeshBuffer.planeVbo(), MoudMeshBuffer.planeEbo(), MoudMeshBuffer.planeIndexCount());
+            } else if (isPlanar) {
+                MoudMeshBuffer.ensureQuadInitialized();
+                drawMesh(MoudMeshBuffer.quadVbo(), MoudMeshBuffer.quadEbo(), MoudMeshBuffer.quadIndexCount());
             } else {
                 drawMesh(MoudMeshBuffer.vbo(), MoudMeshBuffer.ebo(), MoudMeshBuffer.indexCount());
             }
@@ -482,6 +521,20 @@ final class MeshShaderRenderer {
         long key = ((long) pid << 32) | (vbo & 0xFFFFFFFFL);
         int vao = meshVaoCache.computeIfAbsent(key, k -> GlUtil.createMeshVao(pid, vbo, ebo));
         GlUtil.drawElements(vao, indexCount);
+    }
+
+    private static String normalizeMeshType(String meshType, boolean sprite) {
+        if (meshType == null || meshType.isBlank()) {
+            return sprite ? "sprite_quad" : "cube";
+        }
+        return meshType;
+    }
+
+    private static boolean isPlanarMesh(String meshType) {
+        return "plane".equals(meshType)
+                || "quad".equals(meshType)
+                || "sprite_quad".equals(meshType)
+                || "subdivided_plane".equals(meshType);
     }
 
     Identifier resolveNodeTexture(SceneSnapshot.NodeSnapshot node) {
@@ -638,9 +691,13 @@ final class MeshShaderRenderer {
     void clear() {
         synchronized (MATERIAL_TEX_LOCK) { textureByMaterialPath.clear(); }
         materialBindings.clear();
+        prevUniforms.clear();
+        currUniforms.clear();
         meshVaoCache.values().forEach(GlUtil::deleteVao);
         meshVaoCache.clear();
         defaultShaderProgram = null;
+        pbrShaderProgram = null;
+        shadowDepthProgram = null;
         loggedShaderErrors.clear();
     }
 
