@@ -78,13 +78,9 @@ dependencies {
     runtimeShadow project(':net')
 
     include implementation("fr.mrqsdf:BbModelReader:1.0-SNAPSHOT")
-    include(implementation("com.miry:miry:1.0-SNAPSHOT") {
-        exclude group: "org.lwjgl"
-    })
+    include implementation(files("${rootDir}/libs/miry-1.0-SNAPSHOT.jar"))
     runtimeShadow "fr.mrqsdf:BbModelReader:1.0-SNAPSHOT"
-    runtimeShadow("com.miry:miry:1.0-SNAPSHOT") {
-        exclude group: "org.lwjgl"
-    }
+    runtimeShadow files("${rootDir}/libs/miry-1.0-SNAPSHOT.jar")
 
     if (luauEnabled.get()) {
         include implementation("dev.hollowcube:luau:${luauVersion.get()}")
