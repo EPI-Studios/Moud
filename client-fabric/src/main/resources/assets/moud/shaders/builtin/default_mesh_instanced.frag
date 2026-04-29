@@ -43,7 +43,7 @@ float moud_sampleSpotShadow(vec3 worldPos, int lightIdx) {
     return 1.0;
 }
 
-// MRT outputs — see pbr_mesh.frag for rationale.
+// MRT outputs - see pbr_mesh.frag for rationale.
 layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec4 VeilDynamicAlbedo;
 layout(location = 2) out vec4 VeilDynamicNormal;
@@ -51,27 +51,40 @@ layout(location = 3) out vec4 VeilDynamicLightUV;
 layout(location = 4) out vec4 VeilDynamicLightColor;
 layout(location = 5) out vec4 VeilDynamicDebug;
 
+vec3 srgbToLinear(vec3 c) {
+    return pow(max(c, vec3(0.0)), vec3(2.2));
+}
+
+vec3 linearToSrgb(vec3 c) {
+    vec3 lo = c * 12.92;
+    vec3 hi = pow(c, vec3(1.0 / 2.4)) * 1.055 - vec3(0.055);
+    bvec3 cutoff = lessThanEqual(c, vec3(0.0031308));
+    return vec3(cutoff.x ? lo.x : hi.x, cutoff.y ? lo.y : hi.y, cutoff.z ? lo.z : hi.z);
+}
+
+vec3 acesTonemap(vec3 x) {
+    const float a = 2.51;
+    const float b = 0.03;
+    const float c = 2.43;
+    const float d = 0.59;
+    const float e = 0.14;
+    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+}
+
 float directionalDiffuse(vec3 normal, vec3 lightDir) {
-    // since they usally represent sun light
-    // i made them softer
-    float wrap = 0.35;
+    float wrap = 0.1;
     float d = clamp((dot(normal, lightDir) + wrap) / (1.0 + wrap), 0.0, 1.0);
     return d * d * (3.0 - 2.0 * d);
 }
 
 void main() {
     vec4 texColor = texture(Texture0, vTexCoord);
-    vec3 baseColor = texColor.rgb * vTint.rgb;
+    vec3 baseColorSrgb = texColor.rgb * vTint.rgb;
+    vec3 baseColor = srgbToLinear(baseColorSrgb);
     vec3 N = normalize(vNormal);
 
-    // Ambient baseline. `ambient_light` is uploaded from the scene's
-    // WorldEnvironment node and clamped to [0,1] there, but we still clamp
-    // here to defend against editor-side float-precision noise (e.g. a
-    // slider snapping to -1.9e-6 instead of 0). The 0.45 floor guarantees
-    // no-light surfaces still register as a clearly visible mid-grey, not
-    // pitch black, even when the world ambient is set to 0.
     float amb = max(ambient_light, 0.0);
-    vec3 lighting = vec3(max(0.45, 0.15 + 0.35 * amb));
+    vec3 lighting = vec3(max(0.05, 0.05 + 0.35 * amb));
 
     for (int i = 0; i < NumPointLights; i++) {
         vec3  toLight = PointLights[i].position - vWorldPos;
@@ -112,13 +125,13 @@ void main() {
         lighting += SpotLights[i].color * SpotLights[i].brightness * NdotL * atten * coneEdge * shadow;
     }
 
-    vec3 finalColor = baseColor * lighting;
-    float dither = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
-    finalColor += dither / 255.0;
+    vec3 lit = baseColor * lighting;
+    vec3 mapped = acesTonemap(lit);
+    vec3 finalColor = linearToSrgb(mapped);
     fragColor = vec4(finalColor, texColor.a * vTint.a);
     if (fragColor.a < 0.01) discard;
 
-    VeilDynamicAlbedo     = vec4(baseColor, 1.0);
+    VeilDynamicAlbedo     = vec4(baseColorSrgb, 1.0);
     VeilDynamicNormal     = vec4(N, 1.0);
     VeilDynamicLightUV    = vec4(0.0);
     VeilDynamicLightColor = vec4(0.0);

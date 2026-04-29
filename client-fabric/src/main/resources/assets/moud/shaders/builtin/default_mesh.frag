@@ -44,7 +44,7 @@ float moud_sampleSpotShadow(vec3 worldPos, int lightIdx) {
     return 1.0;
 }
 
-// MRT outputs — see pbr_mesh.frag for rationale.
+// MRT outputs - see pbr_mesh.frag for rationale.
 layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec4 VeilDynamicAlbedo;
 layout(location = 2) out vec4 VeilDynamicNormal;
@@ -59,18 +59,26 @@ vec3 linearToSrgb(vec3 c) {
     return vec3(cutoff.x ? lo.x : hi.x, cutoff.y ? lo.y : hi.y, cutoff.z ? lo.z : hi.z);
 }
 
+vec3 srgbToLinear(vec3 c) {
+    return pow(max(c, vec3(0.0)), vec3(2.2));
+}
+
+vec3 acesTonemap(vec3 x) {
+    const float a = 2.51;
+    const float b = 0.03;
+    const float c = 2.43;
+    const float d = 0.59;
+    const float e = 0.14;
+    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+}
+
 float directionalDiffuse(vec3 normal, vec3 lightDir) {
-    // since they usally represent sun light
-    // i made them softer
-    float wrap = 0.35;
+    float wrap = 0.1;
     float d = clamp((dot(normal, lightDir) + wrap) / (1.0 + wrap), 0.0, 1.0);
     return d * d * (3.0 - 2.0 * d);
 }
 
 void main() {
-    // Default G-buffer writes — overwritten in the lit branch. Means the
-    // outputs are always defined (GLSL leaves unwritten frag outputs as
-    // undefined, which can flicker in the framebuffer inspector).
     VeilDynamicAlbedo     = vec4(0.0);
     VeilDynamicNormal     = vec4(0.0, 0.0, 1.0, 1.0);
     VeilDynamicLightUV    = vec4(0.0);
@@ -83,14 +91,12 @@ void main() {
         fragColor = vec4(linearToSrgb(texColor.rgb * Tint.rgb), texColor.a * Tint.a);
         VeilDynamicAlbedo = vec4(texColor.rgb * Tint.rgb, 1.0);
     } else {
-        vec3 baseColor = texColor.rgb * Tint.rgb;
+        vec3 baseColorSrgb = texColor.rgb * Tint.rgb;
+        vec3 baseColor = srgbToLinear(baseColorSrgb);
         vec3 N = normalize(vNormal);
 
-        // Ambient baseline. See default_mesh_instanced.frag for the
-        // rationale. 0.45 floor + ambient_light contribution; clamped to
-        // non-negative to defend against editor float noise.
         float amb = max(ambient_light, 0.0);
-        vec3 lighting = vec3(max(0.45, 0.15 + 0.35 * amb));
+        vec3 lighting = vec3(max(0.05, 0.05 + 0.35 * amb));
 
         for (int i = 0; i < NumPointLights; i++) {
             vec3  toLight = PointLights[i].position - vWorldPos;
@@ -101,7 +107,6 @@ void main() {
                 float dist  = sqrt(dist2);
                 vec3  L     = toLight / dist;
                 float NdotL = max(dot(N, L), 0.0);
-                // Windowed inverse-square — smooth iso-contours, no banding.
                 float window = max(1.0 - dist2 / r2, 0.0);
                 float atten  = (window * window) / (1.0 + dist2);
                 lighting += PointLights[i].color * PointLights[i].brightness * NdotL * atten;
@@ -132,14 +137,12 @@ void main() {
             lighting += SpotLights[i].color * SpotLights[i].brightness * NdotL * atten * coneEdge * shadow;
         }
 
-        vec3 finalColor = linearToSrgb(baseColor * lighting);
-        // Sub-LSB hash dither breaks the smooth attenuation falloff into
-        // noise instead of visible iso-contour bands.
-        float dither = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
-        finalColor += dither / 255.0;
+        vec3 lit = baseColor * lighting;
+        vec3 mapped = acesTonemap(lit);
+        vec3 finalColor = linearToSrgb(mapped);
         fragColor = vec4(finalColor, texColor.a * Tint.a);
 
-        VeilDynamicAlbedo     = vec4(baseColor, 1.0);
+        VeilDynamicAlbedo     = vec4(baseColorSrgb, 1.0);
         VeilDynamicNormal     = vec4(N, 1.0);
         VeilDynamicLightUV    = vec4(0.0);
         VeilDynamicLightColor = vec4(0.0);
