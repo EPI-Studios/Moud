@@ -34,6 +34,15 @@ configurations {
 }
 
 repositories {
+    maven {
+        url = file("${rootDir}/libs-repo").toURI()
+        content { includeGroup 'com.miry' }
+        metadataSources {
+            mavenPom()
+            artifact()
+            gradleMetadata()
+        }
+    }
     mavenLocal()
     mavenCentral()
     maven { url = 'https://maven.fabricmc.net/' }
@@ -47,7 +56,6 @@ repositories {
         url = 'https://repo.minestom.com/'
         content {
             includeGroup 'net.minestom'
-            includeGroup 'com.miry'
         }
     }
 
@@ -78,9 +86,13 @@ dependencies {
     runtimeShadow project(':net')
 
     include implementation("fr.mrqsdf:BbModelReader:1.0-SNAPSHOT")
-    include implementation(files("${rootDir}/libs/miry-1.0-SNAPSHOT.jar"))
+    include(implementation("com.miry:miry:1.0-SNAPSHOT") {
+        exclude group: "org.lwjgl"
+    })
     runtimeShadow "fr.mrqsdf:BbModelReader:1.0-SNAPSHOT"
-    runtimeShadow files("${rootDir}/libs/miry-1.0-SNAPSHOT.jar")
+    runtimeShadow("com.miry:miry:1.0-SNAPSHOT") {
+        exclude group: "org.lwjgl"
+    }
 
     if (luauEnabled.get()) {
         include implementation("dev.hollowcube:luau:${luauVersion.get()}")
