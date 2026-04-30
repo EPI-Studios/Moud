@@ -52,8 +52,6 @@ dependencies {
 
     include(modImplementation("foundry.veil:veil-fabric-1.21.1:3.3.3"))
     include(modImplementation("com.zigythebird.playeranim:PlayerAnimationLibFabric:1.1.4+mc.1.21.1"))
-
-    include files(project(':client-fabric').tasks.named('remapRuntimeJar').flatMap { it.archiveFile })
 }
 
 java {
