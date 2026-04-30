@@ -13,6 +13,8 @@ import com.moud.client.fabric.scripting.api.PlayerStateApi;
 import com.moud.client.fabric.scripting.api.PostProcessApi;
 import com.moud.client.fabric.scripting.api.RenderApi;
 import com.moud.client.fabric.scripting.api.TimerApi;
+import com.moud.client.fabric.scripting.api.TweenApi;
+import com.moud.client.fabric.scripting.api.VisualApi;
 import com.moud.client.fabric.util.ClientDebugLog;
 
 final class ClientScriptContext implements AutoCloseable {
@@ -68,6 +70,8 @@ final class ClientScriptContext implements AutoCloseable {
         bridge.setApiGlobal(thread, "msg",         messaging);
         bridge.setApiGlobal(thread, "playmode",    playMode);
         bridge.setApiGlobal(thread, "physics",     new ClientPhysicsApi());
+        bridge.setApiGlobal(thread, "tween",       new TweenApi());
+        bridge.setApiGlobal(thread, "visual",      new VisualApi());
         if (node != null && node.net() != null) {
             bridge.setNestedApiField(thread, "node", "net", node.net());
         }

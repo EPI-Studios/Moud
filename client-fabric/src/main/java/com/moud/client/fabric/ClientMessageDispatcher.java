@@ -18,7 +18,10 @@ import com.moud.net.protocol.CollisionGeometrySnapshot;
 import com.moud.net.protocol.CursorState;
 import com.moud.net.protocol.EditorDiagnosticEvent;
 import com.moud.net.protocol.Message;
+import com.moud.client.fabric.scene.tween.ClientTweenPlayer;
 import com.moud.net.protocol.MatchmakerStatus;
+import com.moud.net.protocol.TweenCancel;
+import com.moud.net.protocol.TweenStart;
 import com.moud.net.protocol.MultiMeshData;
 import com.moud.net.protocol.RigidBodySnapshot;
 import com.moud.net.protocol.MeshPublish;
@@ -89,6 +92,16 @@ final class ClientMessageDispatcher {
 
         if (message instanceof RigidBodySnapshot snapshot) {
             ClientRapierPhysics.get().applyServerSnapshot(snapshot);
+            return;
+        }
+
+        if (message instanceof TweenStart start) {
+            ClientTweenPlayer.get().onStart(start);
+            return;
+        }
+
+        if (message instanceof TweenCancel cancel) {
+            ClientTweenPlayer.get().onCancel(cancel);
             return;
         }
 

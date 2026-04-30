@@ -1,6 +1,9 @@
 package com.moud.client.fabric.scene;
 
 
+import com.moud.client.fabric.scene.interp.InterpolationFeed;
+import com.moud.client.fabric.scene.tween.ClientTweenPlayer;
+import com.moud.client.fabric.scene.visual.VisualTransformRegistry;
 import com.moud.net.protocol.SceneOp;
 import com.moud.net.protocol.SceneSnapshot;
 import com.moud.net.protocol.SceneSnapshotDelta;
@@ -59,6 +62,7 @@ public final class ClientSceneBus {
         synchronized (SCENE) {
             SCENE.applySnapshot(snapshot);
         }
+        InterpolationFeed.onSnapshot(snapshot);
         VERSION.incrementAndGet();
         SNAPSHOT_VERSION.incrementAndGet();
     }
@@ -67,6 +71,7 @@ public final class ClientSceneBus {
         synchronized (SCENE) {
             SCENE.applyDelta(delta);
         }
+        InterpolationFeed.onDelta(delta);
         VERSION.incrementAndGet();
         SNAPSHOT_VERSION.incrementAndGet();
     }
@@ -75,6 +80,7 @@ public final class ClientSceneBus {
         synchronized (SCENE) {
             SCENE.applyOps(ops);
         }
+        feedTouchedNodes(ops);
         VERSION.incrementAndGet();
     }
 
@@ -82,9 +88,43 @@ public final class ClientSceneBus {
         synchronized (SCENE) {
             SCENE.applyOps(ops);
         }
+        feedTouchedNodes(ops);
         VERSION.incrementAndGet();
         PHYSICS_VERSION.incrementAndGet();
         MoudTickClock.onPhysicsBatchArrived();
+    }
+
+    private static void feedTouchedNodes(List<SceneOp> ops) {
+        if (ops == null || ops.isEmpty()) {
+            return;
+        }
+        for (SceneOp op : ops) {
+            long nodeId = touchedNodeId(op);
+            if (nodeId <= 0L) {
+                continue;
+            }
+            SceneSnapshot.NodeSnapshot node;
+            synchronized (SCENE) {
+                node = SCENE.getNode(nodeId);
+            }
+            if (node != null) {
+                InterpolationFeed.onNodeRefreshed(node);
+            } else {
+                InterpolationFeed.onNodeRemoved(nodeId);
+            }
+        }
+    }
+
+    private static long touchedNodeId(SceneOp op) {
+        return switch (op) {
+            case null -> 0L;
+            case SceneOp.CreateNode ignored -> 0L;
+            case SceneOp.QueueFree free -> free.nodeId();
+            case SceneOp.Rename rename -> rename.nodeId();
+            case SceneOp.SetProperty set -> set.nodeId();
+            case SceneOp.RemoveProperty remove -> remove.nodeId();
+            case SceneOp.Reparent reparent -> reparent.nodeId();
+        };
     }
 
     public static void markRestorePending() {
@@ -97,6 +137,9 @@ public final class ClientSceneBus {
         }
         ClientLocalNodes.clearAll();
         ClientPropertyOverrides.clearAll();
+        InterpolationFeed.onClear();
+        ClientTweenPlayer.get().clear();
+        VisualTransformRegistry.get().clearAll();
         VERSION.incrementAndGet();
         SNAPSHOT_VERSION.incrementAndGet();
         MoudTickClock.reset();

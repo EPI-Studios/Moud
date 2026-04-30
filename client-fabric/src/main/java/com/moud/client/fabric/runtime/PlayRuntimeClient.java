@@ -1,6 +1,7 @@
 package com.moud.client.fabric.runtime;
 
 import com.moud.client.fabric.physics.rapier.ClientRapierPhysics;
+import com.moud.client.fabric.scene.tween.ClientTweenPlayer;
 import com.moud.client.fabric.render.VeilSceneRenderer;
 import com.moud.core.util.MathUtils;
 import com.moud.client.fabric.mixin.accessor.CameraAccessor;
@@ -247,6 +248,7 @@ public final class PlayRuntimeClient {
         );
 
         ClientRapierPhysics.get().tickRenderFrame();
+        ClientTweenPlayer.get().tick(System.nanoTime());
 
         clientScriptRuntime.syncAllNodes(characterBody, inputSnapshot, cameraState);
         clientScriptRuntime.frame(dt);

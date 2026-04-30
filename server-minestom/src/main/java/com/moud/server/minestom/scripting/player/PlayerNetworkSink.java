@@ -4,6 +4,8 @@ import com.moud.net.protocol.CursorState;
 import com.moud.net.protocol.EditorDiagnosticEvent;
 import com.moud.net.protocol.Message;
 import com.moud.net.protocol.PlayerMotion;
+import com.moud.net.protocol.TweenCancel;
+import com.moud.net.protocol.TweenStart;
 import com.moud.net.transport.Lane;
 import com.moud.server.minestom.engine.ServerScene;
 import com.moud.server.minestom.net.PlayerMessageSink;
@@ -45,6 +47,29 @@ public final class PlayerNetworkSink {
             }
             try {
                 playerMessageSink.send(player.getUuid(), Lane.EVENTS, event);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    public void broadcastTweenStart(ServerScene scene, TweenStart packet) {
+        broadcast(scene, packet);
+    }
+
+    public void broadcastTweenCancel(ServerScene scene, TweenCancel packet) {
+        broadcast(scene, packet);
+    }
+
+    private void broadcast(ServerScene scene, Message message) {
+        if (scene == null || scene.instance() == null || message == null) {
+            return;
+        }
+        for (Player player : scene.instance().getPlayers()) {
+            if (player == null) {
+                continue;
+            }
+            try {
+                playerMessageSink.send(player.getUuid(), Lane.EVENTS, message);
             } catch (Exception ignored) {
             }
         }

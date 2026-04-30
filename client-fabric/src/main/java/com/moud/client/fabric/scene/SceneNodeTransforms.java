@@ -1,5 +1,9 @@
 package com.moud.client.fabric.scene;
 
+import com.moud.client.fabric.scene.interp.NodeInterpolatorRegistry;
+import com.moud.client.fabric.scene.interp.SampledTransform;
+import com.moud.client.fabric.scene.visual.VisualTransform;
+import com.moud.client.fabric.scene.visual.VisualTransformRegistry;
 import com.moud.core.util.ParseUtils;
 import com.moud.net.protocol.SceneSnapshot;
 import java.util.HashMap;
@@ -86,12 +90,43 @@ public final class SceneNodeTransforms {
             }
         }
 
+        SampledTransform sampled = SAMPLE.get();
+        sampled.reset();
+        if (NodeInterpolatorRegistry.get().fillSampledTransform(node.nodeId(), sampled, System.nanoTime())) {
+            if (sampled.hasX) x = sampled.x;
+            if (sampled.hasY) y = sampled.y;
+            if (sampled.hasZ) z = sampled.z;
+            if (sampled.hasRx) rx = sampled.rx;
+            if (sampled.hasRy) ry = sampled.ry;
+            if (sampled.hasRz) rz = sampled.rz;
+            if (sampled.hasSx) sx = Math.max(SCALE_EPS, sampled.sx);
+            if (sampled.hasSy) sy = Math.max(SCALE_EPS, sampled.sy);
+            if (sampled.hasSz) sz = Math.max(SCALE_EPS, sampled.sz);
+        }
+
+        VisualTransform visual = VISUAL.get();
+        visual.reset();
+        if (VisualTransformRegistry.get().fill(node.nodeId(), visual)) {
+            x += visual.dx;
+            y += visual.dy;
+            z += visual.dz;
+            rx += visual.rxOff;
+            ry += visual.ryOff;
+            rz += visual.rzOff;
+            sx = Math.max(SCALE_EPS, sx * visual.sxMul);
+            sy = Math.max(SCALE_EPS, sy * visual.syMul);
+            sz = Math.max(SCALE_EPS, sz * visual.szMul);
+        }
+
         pose.pos.set(x, y, z);
         pose.rot.set(quatFromEulerDeg(rx, ry, rz));
         pose.scale.set(sx, sy, sz);
         pose.inherit = ParseUtils.parseBool(inheritRaw, true);
         return pose;
     }
+
+    private static final ThreadLocal<SampledTransform> SAMPLE = ThreadLocal.withInitial(SampledTransform::new);
+    private static final ThreadLocal<VisualTransform> VISUAL = ThreadLocal.withInitial(VisualTransform::new);
 
     private static Quaternionf quatFromEulerDeg(float rxDeg, float ryDeg, float rzDeg) {
         return new Quaternionf().rotationXYZ(

@@ -36,6 +36,7 @@ public final class CoreScriptApi {
     private final HttpApi httpApi;
     private final MeshApi meshApi;
     private final ServerApi serverApi;
+    private final TweenApi tweenApi;
 
     public CoreScriptApi(ServerScene scene, RuntimeFacade runtime, long selfId) {
         this.scene = scene;
@@ -58,6 +59,12 @@ public final class CoreScriptApi {
         this.httpApi = new HttpApi();
         this.meshApi = new MeshApi(scene, runtime.meshPublishService(), runtime);
         this.serverApi = new ServerApi(scene, runtime);
+        this.tweenApi = new TweenApi(scene, runtime.playerNetworkSink());
+    }
+
+    @HostAccess.Export
+    public TweenApi tween() {
+        return tweenApi;
     }
 
     @HostAccess.Export
