@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.Objects;
 
 public final class CharacterBodySimulator {
-    private static final double CHARACTER_TICKS_PER_SECOND = 20.0;
+    private static final double CHARACTER_TICKS_PER_SECOND = 60.0;
     private static final double INPUT_EPSILON = 1.0e-6;
     private static final double VECTOR_EPSILON = 1.0e-8;
     private static final double FLOOR_EPSILON = 1.0e-5;

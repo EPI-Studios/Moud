@@ -21,6 +21,7 @@ final class PlayerState {
     double aoiCenterZ;
     boolean aoiCenterValid;
     final AoiSnapshotTracker aoiTracker = new AoiSnapshotTracker();
+    long lastSnapshotEmitNanos;
     boolean editorOpen;
     boolean multiMeshSent;
     boolean meshPublishSent;
