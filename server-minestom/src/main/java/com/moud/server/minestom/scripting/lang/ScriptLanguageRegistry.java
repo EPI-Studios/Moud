@@ -51,13 +51,6 @@ public final class ScriptLanguageRegistry {
     }
 
     private static ScriptLanguageSupport buildLuauSupport() {
-        if (!Boolean.getBoolean("moud.server.enableLuau")) {
-            return new ScriptLanguageSupport(
-                    ScriptLanguage.LUAU,
-                    false,
-                    "Luau support is not enabled in this server build"
-            );
-        }
         int javaVersion = Runtime.version().feature();
         if (javaVersion < 25) {
             return new ScriptLanguageSupport(
