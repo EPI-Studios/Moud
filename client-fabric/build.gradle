@@ -70,7 +70,7 @@ dependencies {
     compileOnly "javax.annotation:javax.annotation-api:1.3.2"
 
     include(modImplementation("foundry.veil:veil-fabric-1.21.1:3.3.3"))
-    modImplementation "com.zigythebird.playeranim:PlayerAnimationLibFabric:1.1.4+mc.1.21.1"
+    include(modImplementation("com.zigythebird.playeranim:PlayerAnimationLibFabric:1.1.4+mc.1.21.1"))
 
     include implementation(project(':core'))
     include implementation(project(':net'))
@@ -233,7 +233,7 @@ tasks.register('remapRuntimeJar', RemapJarTask) {
     dependsOn runtimeDevJar
     input = runtimeDevJar.flatMap { it.archiveFile }
     archiveClassifier.set('runtime')
-    addNestedDependencies = false
+    addNestedDependencies = true
 }
 
 tasks.named('assemble').configure {
