@@ -74,8 +74,12 @@ dependencies {
 
     include implementation(project(':core'))
     include implementation(project(':net'))
+    include implementation(project(':physics-api'))
     include implementation(project(':physics-rapier'))
+    runtimeShadow project(':core')
     runtimeShadow project(':net')
+    runtimeShadow project(':physics-api')
+    runtimeShadow project(':physics-rapier')
 
     include implementation("fr.mrqsdf:BbModelReader:1.0-SNAPSHOT")
     include(implementation("com.miry:miry:1.0-SNAPSHOT") {
