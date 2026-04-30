@@ -116,15 +116,19 @@ public final class ServerSupervisor {
 
         List<String> command = new ArrayList<>();
         command.add(ProcessHandle.current().info().command().orElse("java"));
-        command.add("-jar");
-        command.add(serverJar.toAbsolutePath().toString());
+        command.add("--enable-native-access=ALL-UNNAMED");
+        command.add("--enable-preview");
+        command.add("-Dmoud.server.enableLuau=true");
 
         String engineJvmArgs = System.getenv("MOUD_ENGINE_JVM_ARGS");
         if (engineJvmArgs != null && !engineJvmArgs.isBlank()) {
             for (String arg : engineJvmArgs.split("\\s+")) {
-                if (!arg.isBlank()) command.add(2, arg);
+                if (!arg.isBlank()) command.add(arg);
             }
         }
+
+        command.add("-jar");
+        command.add(serverJar.toAbsolutePath().toString());
 
         ProcessBuilder pb = new ProcessBuilder(command)
                 .directory(projectRoot.toFile())
