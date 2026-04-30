@@ -70,7 +70,10 @@ public enum MessageType {
 
     MATCHMAKER_STATUS(700),
 
-    RIGID_BODY_SNAPSHOT(800);
+    RIGID_BODY_SNAPSHOT(800),
+
+    TWEEN_START(900),
+    TWEEN_CANCEL(901);
 
     private final int id;
 

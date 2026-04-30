@@ -78,6 +78,10 @@ import com.moud.net.protocol.MatchmakerStatus;
 import com.moud.net.protocol.MeshGeneratorPublish;
 import com.moud.net.protocol.RigidBodyEntry;
 import com.moud.net.protocol.RigidBodySnapshot;
+import com.moud.net.protocol.TweenCancel;
+import com.moud.net.protocol.TweenStart;
+import com.moud.core.tween.EasingMode;
+import com.moud.core.tween.TweenLoopMode;
 import com.moud.core.physics.CollisionGeometry;
 
 import java.nio.BufferOverflowException;
@@ -337,6 +341,8 @@ public final class WireMessages {
                             out.put((byte) (e.sleeping() ? 1 : 0));
                         }
                     }
+                    case TweenStart msg -> writeTweenStart(out, msg);
+                    case TweenCancel msg -> writeTweenCancel(out, msg);
                 }
                 out.flip();
                 byte[] bytes = new byte[out.remaining()];
@@ -598,6 +604,8 @@ public final class WireMessages {
                 }
                 yield new RigidBodySnapshot(tick, tickTime, entries);
             }
+            case TWEEN_START -> readTweenStart(in);
+            case TWEEN_CANCEL -> readTweenCancel(in);
         };
     }
 
@@ -1438,6 +1446,26 @@ public final class WireMessages {
                 size += longSize(msg.serverTick()) + Double.BYTES + varIntSize(count);
                 size += count * (longSize(0L) + 13 * Float.BYTES + 1);
             }
+            case TweenStart msg -> {
+                int channels = msg.channels() == null ? 0 : msg.channels().size();
+                size += longSize(msg.tweenId()) + longSize(msg.nodeId());
+                size += varIntSize(channels);
+                if (msg.channels() != null) {
+                    for (TweenStart.TweenChannel ch : msg.channels()) {
+                        size += stringSize(ch.propertyKey()) + 2 * Float.BYTES;
+                    }
+                }
+                size += Float.BYTES + varIntSize(0) + varIntSize(0) + longSize(msg.startTimeMillis());
+            }
+            case TweenCancel msg -> {
+                int keys = msg.propertyKeys() == null ? 0 : msg.propertyKeys().size();
+                size += longSize(msg.nodeId()) + varIntSize(keys);
+                if (msg.propertyKeys() != null) {
+                    for (String key : msg.propertyKeys()) {
+                        size += stringSize(key);
+                    }
+                }
+            }
         }
         return size + 16;
     }
@@ -1753,5 +1781,68 @@ public final class WireMessages {
             return MIN_ALLOC_BYTES;
         }
         return Math.min(MAX_ALLOC_BYTES, cap);
+    }
+
+    private static void writeTweenStart(ByteBuffer out, TweenStart msg) {
+        writeLong(out, msg.tweenId());
+        writeLong(out, msg.nodeId());
+        List<TweenStart.TweenChannel> channels = msg.channels();
+        int count = channels == null ? 0 : channels.size();
+        WireIo.writeVarInt(out, count);
+        if (channels != null) {
+            for (TweenStart.TweenChannel ch : channels) {
+                WireIo.writeString(out, ch.propertyKey() == null ? "" : ch.propertyKey());
+                out.putFloat(ch.fromValue());
+                out.putFloat(ch.toValue());
+            }
+        }
+        out.putFloat(msg.durationSeconds());
+        WireIo.writeVarInt(out, msg.easing() == null ? 0 : msg.easing().ordinal());
+        WireIo.writeVarInt(out, msg.loopMode() == null ? 0 : msg.loopMode().ordinal());
+        writeLong(out, msg.startTimeMillis());
+    }
+
+    private static TweenStart readTweenStart(ByteBuffer in) {
+        long tweenId = readLong(in);
+        long nodeId = readLong(in);
+        int count = WireIo.readVarInt(in);
+        ArrayList<TweenStart.TweenChannel> channels = new ArrayList<>(Math.max(0, count));
+        for (int i = 0; i < count; i++) {
+            String key = WireIo.readString(in);
+            float from = in.getFloat();
+            float to = in.getFloat();
+            channels.add(new TweenStart.TweenChannel(key, from, to));
+        }
+        float duration = in.getFloat();
+        int easingId = WireIo.readVarInt(in);
+        int loopId = WireIo.readVarInt(in);
+        long startMs = readLong(in);
+        EasingMode[] easings = EasingMode.values();
+        TweenLoopMode[] loops = TweenLoopMode.values();
+        EasingMode easing = easingId >= 0 && easingId < easings.length ? easings[easingId] : EasingMode.LINEAR;
+        TweenLoopMode loop = loopId >= 0 && loopId < loops.length ? loops[loopId] : TweenLoopMode.ONCE;
+        return new TweenStart(tweenId, nodeId, channels, duration, easing, loop, startMs);
+    }
+
+    private static void writeTweenCancel(ByteBuffer out, TweenCancel msg) {
+        writeLong(out, msg.nodeId());
+        List<String> keys = msg.propertyKeys();
+        int count = keys == null ? 0 : keys.size();
+        WireIo.writeVarInt(out, count);
+        if (keys != null) {
+            for (String key : keys) {
+                WireIo.writeString(out, key == null ? "" : key);
+            }
+        }
+    }
+
+    private static TweenCancel readTweenCancel(ByteBuffer in) {
+        long nodeId = readLong(in);
+        int count = WireIo.readVarInt(in);
+        ArrayList<String> keys = new ArrayList<>(Math.max(0, count));
+        for (int i = 0; i < count; i++) {
+            keys.add(WireIo.readString(in));
+        }
+        return new TweenCancel(nodeId, keys);
     }
 }

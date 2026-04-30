@@ -64,6 +64,8 @@ public sealed interface Message permits
         AssetPathOp,
         AssetPathOpAck,
         MatchmakerStatus,
-        RigidBodySnapshot {
+        RigidBodySnapshot,
+        TweenStart,
+        TweenCancel {
     MessageType type();
 }
