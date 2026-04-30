@@ -28,11 +28,6 @@ public final class TweenApi {
     }
 
     @HostAccess.Export
-    public long tween(long nodeId, Value targets, double durationSeconds, String easing) {
-        return tween(nodeId, targets, durationSeconds, easing, "once");
-    }
-
-    @HostAccess.Export
     @LuauExport
     public long tween(long nodeId, Value targets, double durationSeconds, String easing, String loopMode) {
         if (nodeId <= 0L || targets == null || !targets.hasMembers()) {

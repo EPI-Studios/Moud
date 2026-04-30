@@ -38,6 +38,21 @@ import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
 
 final class PlayModeManager {
+
+    private static final long SNAPSHOT_INTERVAL_NANOS = readSnapshotIntervalNanos();
+
+    private static long readSnapshotIntervalNanos() {
+        String raw = System.getProperty("moud.server.snapshotHz");
+        int hz = 30;
+        if (raw != null && !raw.isBlank()) {
+            try {
+                hz = Math.max(1, Math.min(120, Integer.parseInt(raw.trim())));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return 1_000_000_000L / hz;
+    }
+
     private final ServerScenes scenes;
     private final ServerScene mainScene;
     private final ScriptService scripts;
@@ -300,6 +315,14 @@ final class PlayModeManager {
             return;
         }
 
+        boolean firstEmit = ps.lastSnapshotEmitNanos == 0L;
+        long now = System.nanoTime();
+        boolean rateGated = !firstEmit && !movedFar
+                && (now - ps.lastSnapshotEmitNanos) < SNAPSHOT_INTERVAL_NANOS;
+        if (rateGated) {
+            return;
+        }
+
         SceneSnapshot filtered = AoiFilter.filter(full, px, py, pz, radius);
         if (ps.aoiTracker.isEmpty()) {
             session.send(Lane.STATE, filtered);
@@ -315,6 +338,7 @@ final class PlayModeManager {
         ps.aoiCenterY = py;
         ps.aoiCenterZ = pz;
         ps.aoiCenterValid = true;
+        ps.lastSnapshotEmitNanos = now;
     }
 
     private static double dist2(double ax, double ay, double az, double bx, double by, double bz) {

@@ -63,8 +63,18 @@ public final class CoreScriptApi {
     }
 
     @HostAccess.Export
-    public TweenApi tween() {
-        return tweenApi;
+    public long startTween(long nodeId, Value targets, double durationSeconds, String easing, String loopMode) {
+        return tweenApi.tween(nodeId, targets, durationSeconds, easing, loopMode);
+    }
+
+    @HostAccess.Export
+    public void cancelTween(long nodeId) {
+        tweenApi.cancel(nodeId);
+    }
+
+    @HostAccess.Export
+    public void cancelTweenProperty(long nodeId, String propertyKey) {
+        tweenApi.cancelProperty(nodeId, propertyKey);
     }
 
     @HostAccess.Export
@@ -594,7 +604,7 @@ public final class CoreScriptApi {
     }
 
     @HostAccess.Export
-    public void tween(long nodeId, String prop, double targetValue, double duration) {
+    public void tweenProperty(long nodeId, String prop, double targetValue, double duration) {
         double fromValue = nodeApi.getNumber(nodeId, prop, targetValue);
         runtime.scheduler().tween(runtime.mutator(), nodeId, prop, fromValue, targetValue, duration);
     }
