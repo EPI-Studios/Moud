@@ -67,6 +67,11 @@ tasks.withType(JavaCompile).configureEach {
 tasks.withType(Jar).configureEach {
     dependsOn(project(':client-fabric').tasks.named('remapRuntimeJar'))
     dependsOn(bundledRuntimeMetadata)
+    into('META-INF/jars') {
+        from(project(':client-fabric').tasks.named('remapRuntimeJar').flatMap { it.archiveFile }) {
+            rename { 'moud-client-runtime.jar' }
+        }
+    }
     into('bootstrap-runtime') {
         from(project(':client-fabric').tasks.named('remapRuntimeJar').flatMap { it.archiveFile }) {
             rename { 'moud-client-runtime.jar' }
