@@ -5,6 +5,7 @@ import com.moud.physics.api.BodyHandle;
 import com.moud.physics.api.CollisionGroups;
 import com.moud.physics.api.ContactEvent;
 import com.moud.physics.api.DynamicProps;
+import com.moud.physics.api.JointHandle;
 import com.moud.physics.api.PhysicsWorld;
 import com.moud.physics.api.QueryFilter;
 import com.moud.physics.api.Quat;
@@ -120,6 +121,26 @@ public final class RapierPhysicsWorld implements PhysicsWorld {
     @Override public void setLinearVelocity(BodyHandle h, Vec3 v) { Rapier3D.bodySetLinvel  (world, h.id(), v.x(), v.y(), v.z()); }
     @Override public void sleep(BodyHandle h)                     { Rapier3D.bodySleep      (world, h.id()); }
     @Override public void wake(BodyHandle h)                      { Rapier3D.bodyWake       (world, h.id()); }
+
+    @Override
+    public JointHandle addFixedJoint(BodyHandle a, BodyHandle b, Transform localA, Transform localB, boolean contactsEnabled) {
+        return new JointHandle(Rapier3D.jointAddFixed(world, a.id(), b.id(),
+                localA.pos().x(), localA.pos().y(), localA.pos().z(),
+                localA.rot().x(), localA.rot().y(), localA.rot().z(), localA.rot().w(),
+                localB.pos().x(), localB.pos().y(), localB.pos().z(),
+                localB.rot().x(), localB.rot().y(), localB.rot().z(), localB.rot().w(),
+                contactsEnabled ? 1 : 0));
+    }
+
+    @Override
+    public JointHandle addSphericalJoint(BodyHandle a, BodyHandle b, Vec3 localAnchorA, Vec3 localAnchorB, boolean contactsEnabled) {
+        return new JointHandle(Rapier3D.jointAddSpherical(world, a.id(), b.id(),
+                localAnchorA.x(), localAnchorA.y(), localAnchorA.z(),
+                localAnchorB.x(), localAnchorB.y(), localAnchorB.z(),
+                contactsEnabled ? 1 : 0));
+    }
+
+    @Override public void removeJoint(JointHandle h) { Rapier3D.jointRemove(world, h.id()); }
 
     @Override
     public Vec3 getLinearVelocity(BodyHandle h) {
