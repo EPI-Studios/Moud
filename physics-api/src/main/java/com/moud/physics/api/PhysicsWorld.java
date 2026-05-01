@@ -20,6 +20,10 @@ public interface PhysicsWorld extends AutoCloseable {
     void sleep(BodyHandle h);
     void wake(BodyHandle h);
 
+    JointHandle addFixedJoint(BodyHandle a, BodyHandle b, Transform localA, Transform localB, boolean contactsEnabled);
+    JointHandle addSphericalJoint(BodyHandle a, BodyHandle b, Vec3 localAnchorA, Vec3 localAnchorB, boolean contactsEnabled);
+    void removeJoint(JointHandle h);
+
     Optional<RaycastHit>   raycast(Vec3 origin, Vec3 dir, float maxDist, QueryFilter f);
     Optional<ShapeCastHit> shapeCast(ShapeDesc s, Transform from, Vec3 dir, float maxDist, QueryFilter f);
     long[]                 overlap(ShapeDesc s, Transform xform, QueryFilter f);

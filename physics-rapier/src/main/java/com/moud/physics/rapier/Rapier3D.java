@@ -209,6 +209,58 @@ public final class Rapier3D {
         catch (Throwable t) { throw new IllegalStateException("rapier_body_wake failed", t); }
     }
 
+    private static final MethodHandle MH_JOINT_ADD_FIXED = bind("rapier_joint_add_fixed",
+            FunctionDescriptor.of(JAVA_LONG,
+                    ADDRESS, JAVA_LONG, JAVA_LONG,
+                    JAVA_FLOAT, JAVA_FLOAT, JAVA_FLOAT,
+                    JAVA_FLOAT, JAVA_FLOAT, JAVA_FLOAT, JAVA_FLOAT,
+                    JAVA_FLOAT, JAVA_FLOAT, JAVA_FLOAT,
+                    JAVA_FLOAT, JAVA_FLOAT, JAVA_FLOAT, JAVA_FLOAT,
+                    JAVA_INT));
+
+    private static final MethodHandle MH_JOINT_ADD_SPHERICAL = bind("rapier_joint_add_spherical",
+            FunctionDescriptor.of(JAVA_LONG,
+                    ADDRESS, JAVA_LONG, JAVA_LONG,
+                    JAVA_FLOAT, JAVA_FLOAT, JAVA_FLOAT,
+                    JAVA_FLOAT, JAVA_FLOAT, JAVA_FLOAT,
+                    JAVA_INT));
+
+    private static final MethodHandle MH_JOINT_REMOVE = bind("rapier_joint_remove",
+            FunctionDescriptor.ofVoid(ADDRESS, JAVA_LONG));
+
+    public static long jointAddFixed(MemorySegment world, long a, long b,
+                                     float ax, float ay, float az,
+                                     float aqx, float aqy, float aqz, float aqw,
+                                     float bx, float by, float bz,
+                                     float bqx, float bqy, float bqz, float bqw,
+                                     int contactsEnabled) {
+        try {
+            return (long) MH_JOINT_ADD_FIXED.invokeExact(world, a, b,
+                    ax, ay, az, aqx, aqy, aqz, aqw,
+                    bx, by, bz, bqx, bqy, bqz, bqw,
+                    contactsEnabled);
+        } catch (Throwable t) {
+            throw new IllegalStateException("rapier_joint_add_fixed failed", t);
+        }
+    }
+
+    public static long jointAddSpherical(MemorySegment world, long a, long b,
+                                         float ax, float ay, float az,
+                                         float bx, float by, float bz,
+                                         int contactsEnabled) {
+        try {
+            return (long) MH_JOINT_ADD_SPHERICAL.invokeExact(world, a, b,
+                    ax, ay, az, bx, by, bz, contactsEnabled);
+        } catch (Throwable t) {
+            throw new IllegalStateException("rapier_joint_add_spherical failed", t);
+        }
+    }
+
+    public static void jointRemove(MemorySegment world, long joint) {
+        try { MH_JOINT_REMOVE.invokeExact(world, joint); }
+        catch (Throwable t) { throw new IllegalStateException("rapier_joint_remove failed", t); }
+    }
+
     private static final MethodHandle MH_CHARCTL_NEW = bind("rapier_charctl_new",
             FunctionDescriptor.of(ADDRESS, ADDRESS));
 

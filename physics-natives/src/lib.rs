@@ -125,6 +125,17 @@ fn unpack_body(packed: u64) -> RigidBodyHandle {
     RigidBodyHandle(rapier3d::data::Index::from_raw_parts(idx, gen))
 }
 
+fn pack_joint(handle: ImpulseJointHandle) -> u64 {
+    let (idx, gen) = handle.0.into_raw_parts();
+    HANDLE_VALID_BIT | (((gen as u64) & 0x7FFF_FFFF) << 32) | (idx as u64 & 0xFFFF_FFFF)
+}
+
+fn unpack_joint(packed: u64) -> ImpulseJointHandle {
+    let idx = (packed & 0xFFFF_FFFF) as u32;
+    let gen = ((packed >> 32) & 0x7FFF_FFFF) as u32;
+    ImpulseJointHandle(rapier3d::data::Index::from_raw_parts(idx, gen))
+}
+
 fn make_groups(group: i32, mask: i32) -> InteractionGroups {
     InteractionGroups::new(
         Group::from_bits_truncate(group as u32),
@@ -504,6 +515,55 @@ pub extern "C" fn rapier_body_wake(world: *mut c_void, body: u64) {
     if let Some(rb) = w.bodies.get_mut(unpack_body(body)) {
         rb.wake_up(true);
     }
+}
+
+#[no_mangle]
+pub extern "C" fn rapier_joint_add_fixed(
+    world: *mut c_void,
+    body_a: u64,
+    body_b: u64,
+    ax: f32, ay: f32, az: f32,
+    aqx: f32, aqy: f32, aqz: f32, aqw: f32,
+    bx: f32, by: f32, bz: f32,
+    bqx: f32, bqy: f32, bqz: f32, bqw: f32,
+    contacts_enabled: i32,
+) -> u64 {
+    if world.is_null() || body_a == 0 || body_b == 0 { return 0; }
+    let w: &mut World = unsafe { &mut *(world as *mut World) };
+    let joint = FixedJointBuilder::new()
+        .local_frame1(iso(ax, ay, az, aqx, aqy, aqz, aqw))
+        .local_frame2(iso(bx, by, bz, bqx, bqy, bqz, bqw))
+        .contacts_enabled(contacts_enabled != 0)
+        .build();
+    let handle = w.impulse_joints.insert(unpack_body(body_a), unpack_body(body_b), joint, true);
+    pack_joint(handle)
+}
+
+#[no_mangle]
+pub extern "C" fn rapier_joint_add_spherical(
+    world: *mut c_void,
+    body_a: u64,
+    body_b: u64,
+    ax: f32, ay: f32, az: f32,
+    bx: f32, by: f32, bz: f32,
+    contacts_enabled: i32,
+) -> u64 {
+    if world.is_null() || body_a == 0 || body_b == 0 { return 0; }
+    let w: &mut World = unsafe { &mut *(world as *mut World) };
+    let joint = SphericalJointBuilder::new()
+        .local_anchor1(Point::new(ax, ay, az))
+        .local_anchor2(Point::new(bx, by, bz))
+        .contacts_enabled(contacts_enabled != 0)
+        .build();
+    let handle = w.impulse_joints.insert(unpack_body(body_a), unpack_body(body_b), joint, true);
+    pack_joint(handle)
+}
+
+#[no_mangle]
+pub extern "C" fn rapier_joint_remove(world: *mut c_void, joint: u64) {
+    if world.is_null() || joint == 0 { return; }
+    let w: &mut World = unsafe { &mut *(world as *mut World) };
+    w.impulse_joints.remove(unpack_joint(joint), true);
 }
 
 unsafe fn write_hit(out: *mut u8, p: Point<Real>, n: Vector<Real>, distance: f32, body_id: i64) {
