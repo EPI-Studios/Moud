@@ -44,6 +44,7 @@ public final class MoudTextures implements AssetsClient.Listener {
     private static final String DEFAULT_WHITE_RESOURCE = "/assets/moud/textures/dynamic/white.png";
 
     private static final int MAX_TEXTURE_SIZE = 2048;
+    private static final int MAX_IMAGE_BYTES = 64 * 1024 * 1024;
     private static final Object LOCK = new Object();
     private static MoudTextures instance;
 
@@ -109,6 +110,7 @@ public final class MoudTextures implements AssetsClient.Listener {
 
     public static void registerRaw(Identifier id, byte[] pngBytes) {
         if (id == null || pngBytes == null || pngBytes.length == 0) return;
+        if (pngBytes.length > MAX_IMAGE_BYTES) return;
         rawReadyIds.remove(id);
         Thread.ofVirtual().name("moud-tex-decode").start(() -> decodeAndUploadRaw(id, pngBytes));
     }
@@ -592,6 +594,28 @@ public final class MoudTextures implements AssetsClient.Listener {
                 synchronized (LOCK) {
                     entry.state = TextureState.FAILED;
                     entry.error = message != null ? message : "Download failed";
+                }
+            }
+            return;
+        }
+
+        if (bytes.length > MAX_IMAGE_BYTES) {
+            if (entry != null) {
+                synchronized (LOCK) {
+                    entry.state = TextureState.FAILED;
+                    entry.error = "image exceeds " + MAX_IMAGE_BYTES + " bytes (" + bytes.length + ")";
+                }
+            }
+            return;
+        }
+
+        AssetHash actual = AssetHash.sha256(bytes);
+        if (!hash.equals(actual)) {
+            if (entry != null) {
+                synchronized (LOCK) {
+                    entry.state = TextureState.FAILED;
+                    entry.error = "hash mismatch (expected " + hash.hex().substring(0, 8)
+                            + ", got " + actual.hex().substring(0, 8) + ")";
                 }
             }
             return;

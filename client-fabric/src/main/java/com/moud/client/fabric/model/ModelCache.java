@@ -148,7 +148,7 @@ public final class ModelCache implements AssetsClient.Listener {
                 }
             } catch (Exception e) {
                 synchronized (LOCK) { entry.state = ModelState.FAILED; }
-                ClientDebugLog.error("Assets", "Model parse failed path=" + path + " error=" + e.getMessage());
+                ClientDebugLog.error("Assets", "Model parse failed path=" + path, e);
             }
         });
     }

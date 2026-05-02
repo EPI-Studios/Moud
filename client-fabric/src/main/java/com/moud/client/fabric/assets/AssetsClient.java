@@ -189,9 +189,11 @@ public final class AssetsClient {
     private void onUploadAck(AssetUploadAck ack) {
         UploadTask task = activeUpload;
         if (task == null) {
+            ClientDebugLog.warn("Assets", "received upload ack with no active upload: status=" + ack.status() + " path=" + (ack.path() == null ? "null" : ack.path().value()));
             return;
         }
         if (!task.hash.equals(ack.hash()) || !task.path.equals(ack.path())) {
+            ClientDebugLog.warn("Assets", "upload ack hash/path mismatch: ack.path=" + (ack.path() == null ? "null" : ack.path().value()) + " task.path=" + task.path.value());
             return;
         }
         if (ack.status() == AssetTransferStatus.OK && task.state == UploadState.AWAITING_BEGIN_ACK) {
@@ -207,9 +209,11 @@ public final class AssetsClient {
             activeUpload = null;
             if (ack.status() == AssetTransferStatus.OK) {
                 requestManifest(lastSession);
+                return;
             }
         }
-        if (ack.status() != AssetTransferStatus.OK) {
+        if (ack.status() != AssetTransferStatus.OK && ack.status() != AssetTransferStatus.ALREADY_PRESENT) {
+            ClientDebugLog.error("Assets", "upload failed for " + task.path.value() + ": status=" + ack.status() + " state=" + task.state + " message=" + ack.message());
             activeUpload = null;
         }
     }

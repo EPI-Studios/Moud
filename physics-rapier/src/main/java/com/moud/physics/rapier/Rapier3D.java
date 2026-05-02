@@ -64,6 +64,14 @@ public final class Rapier3D {
         catch (Throwable t) { throw new IllegalStateException("rapier_world_step failed", t); }
     }
 
+    private static final MethodHandle MH_WORLD_SET_GRAVITY =
+            bind("rapier_world_set_gravity", FunctionDescriptor.ofVoid(ADDRESS, JAVA_FLOAT, JAVA_FLOAT, JAVA_FLOAT));
+
+    public static void worldSetGravity(MemorySegment world, float x, float y, float z) {
+        try { MH_WORLD_SET_GRAVITY.invokeExact(world, x, y, z); }
+        catch (Throwable t) { throw new IllegalStateException("rapier_world_set_gravity failed", t); }
+    }
+
     private static final MethodHandle MH_BODY_ADD_STATIC = bind("rapier_body_add_static",
             FunctionDescriptor.of(JAVA_LONG,
                     ADDRESS, JAVA_LONG,

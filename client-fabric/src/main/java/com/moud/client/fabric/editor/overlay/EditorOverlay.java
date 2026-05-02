@@ -19,6 +19,7 @@ import com.moud.client.fabric.editor.panels.InspectorPanel;
 import com.moud.client.fabric.editor.panels.ScenePanel;
 import com.moud.client.fabric.editor.state.EditorRuntime;
 import com.moud.client.fabric.editor.state.EditorState;
+import com.moud.client.fabric.util.ClientDebugLog;
 import com.miry.graphics.Framebuffer;
 import com.miry.graphics.batch.BatchRenderer;
 import com.miry.graphics.post.GaussianBlur;
@@ -1042,25 +1043,51 @@ public final class EditorOverlay {
     private void installFont(Window window) {
         int w = Math.max(1, window.getWidth());
         float scale = window.getFramebufferWidth() / (float) w;
-        scale = Math.max(0.1f, scale);
+        scale = Math.max(0.1f, Math.min(scale, 4.0f));
         if (fontAtlas != null) {
             fontAtlas.close();
+            fontAtlas = null;
         }
         if (monoFontAtlas != null) {
             monoFontAtlas.close();
+            monoFontAtlas = null;
         }
-        float uiScale = runtime.editorUiScale();
-        int atlasSize = Math.min(4096, Math.max(1024, Math.round(768.0f * scale * uiScale)));
-        fontAtlas = new FontAtlas(loadEditorFont(), 16.0f * uiScale, atlasSize, scale, FontAtlas.Mode.COVERAGE);
-        monoFontAtlas = new FontAtlas(loadMonoFont(), 15.0f * uiScale, atlasSize, scale, FontAtlas.Mode.COVERAGE);
-        batch.setTextRenderer(new TextRenderer(fontAtlas));
-        batch.setMonospaceTextRenderer(new TextRenderer(monoFontAtlas));
+        float uiScale = Math.max(0.5f, Math.min(runtime.editorUiScale(), 3.0f));
+        int atlasSize = Math.min(2048, Math.max(1024, Math.round(768.0f * scale * uiScale)));
+        fontAtlas = buildFontAtlas("editor", loadEditorFont(), 16.0f * uiScale, atlasSize, scale);
+        monoFontAtlas = buildFontAtlas("mono", loadMonoFont(), 15.0f * uiScale, atlasSize, scale);
+        if (fontAtlas != null) {
+            batch.setTextRenderer(new TextRenderer(fontAtlas));
+        }
+        if (monoFontAtlas != null) {
+            batch.setMonospaceTextRenderer(new TextRenderer(monoFontAtlas));
+        }
+    }
+
+    private FontAtlas buildFontAtlas(String name, ByteBuffer fontData, float fontSize, int atlasSize, float scale) {
+        int size = atlasSize;
+        float pixelScale = scale;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            try {
+                return new FontAtlas(fontData, fontSize, size, pixelScale, FontAtlas.Mode.COVERAGE);
+            } catch (RuntimeException e) {
+                ClientDebugLog.error("EditorOverlay", "FontAtlas '" + name + "' build failed (attempt " + attempt + ", atlasSize=" + size + ", pixelScale=" + pixelScale + ")", e);
+                size = Math.max(512, size / 2);
+                pixelScale = Math.max(1.0f, pixelScale * 0.75f);
+            }
+        }
+        ClientDebugLog.error("EditorOverlay", "FontAtlas '" + name + "' giving up; editor text will be unavailable");
+        if (runtime != null) {
+            runtime.requestToast("Editor font '" + name + "' failed to build; text may be missing", true, 6000);
+        }
+        return null;
     }
 
     private ByteBuffer loadEditorFont() {
         try {
             return FontData.loadFromResource("/fonts/inter.ttf");
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            ClientDebugLog.warn("EditorOverlay", "inter.ttf load failed, falling back to default: " + e.getMessage());
         }
         return FontData.loadDefault();
     }
@@ -1068,7 +1095,8 @@ public final class EditorOverlay {
     private ByteBuffer loadMonoFont() {
         try {
             return FontData.loadFromResource("/fonts/jetbrains-mono.ttf");
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            ClientDebugLog.warn("EditorOverlay", "jetbrains-mono.ttf load failed, falling back to editor font: " + e.getMessage());
         }
         return loadEditorFont();
     }

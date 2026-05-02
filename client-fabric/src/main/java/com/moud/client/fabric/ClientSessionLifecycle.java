@@ -92,6 +92,7 @@ final class ClientSessionLifecycle {
         ctx.playRuntime.onDisconnect();
         ctx.pendingRuntimeOps.clear();
         ClientPlayerMotionController.reset();
+        PlayLoading.cancel();
 
         if (ctx.overlay != null) ctx.overlay.setOpen(false);
     }

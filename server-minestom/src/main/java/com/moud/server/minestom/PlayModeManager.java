@@ -402,7 +402,20 @@ final class PlayModeManager {
         if (player == null || ps == null || session == null || target == null) {
             return;
         }
+        var targetInstance = target.instance();
+        if (targetInstance == null || !MinecraftServer.getInstanceManager().getInstances().contains(targetInstance)) {
+            DebugLog.warn("scene", "skipping switch to '" + target.sceneId() + "': instance not registered");
+            return;
+        }
         String targetId = target.sceneId();
+        Pos targetStartPos = PlayRuntime.findPlayerStartPos(target);
+        Pos spawnPos = targetStartPos != null ? targetStartPos : new Pos(0, 64, 0);
+        if (player.getInstance() == targetInstance) {
+            ps.activeSceneId = targetId;
+            playRuntime.onSceneChanged(player.getUuid(), targetId);
+            player.teleport(spawnPos);
+            return;
+        }
         ps.activeSceneId = targetId;
         ps.collisionGeometrySentSceneId = null;
         ps.sceneSnapshotSentRevision = Long.MIN_VALUE;
@@ -410,9 +423,7 @@ final class PlayModeManager {
         ps.aoiCenterValid = false;
         playRuntime.onSceneChanged(player.getUuid(), targetId);
 
-        Pos targetStartPos = PlayRuntime.findPlayerStartPos(target);
-        Pos spawnPos = targetStartPos != null ? targetStartPos : new Pos(0, 64, 0);
-        player.setInstance(target.instance(), spawnPos)
+        player.setInstance(targetInstance, spawnPos)
                 .thenRun(() -> MinecraftServer.getSchedulerManager().buildTask(() -> {
                     if (session.state() != SessionState.CONNECTED) {
                         return;

@@ -1,5 +1,7 @@
 package com.moud.client.fabric.render.loading;
 
+import com.moud.client.fabric.util.ClientDebugLog;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -106,6 +108,15 @@ public final class PlayLoading {
         return !active;
     }
 
+    public static void cancel() {
+        queue.clear();
+        readyListeners.clear();
+        active = false;
+        serverReady = false;
+        activeSceneId = "";
+        beginTimeMs = 0L;
+    }
+
     public static String sceneId() {
         return activeSceneId;
     }
@@ -147,7 +158,11 @@ public final class PlayLoading {
         List<Runnable> toRun = new ArrayList<>(readyListeners);
         readyListeners.clear();
         for (Runnable r : toRun) {
-            try { r.run(); } catch (Throwable ignored) { }
+            try {
+                r.run();
+            } catch (Throwable t) {
+                ClientDebugLog.error("PlayLoading", "ready listener threw", t);
+            }
         }
     }
 }

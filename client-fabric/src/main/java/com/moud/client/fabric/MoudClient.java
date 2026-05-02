@@ -66,7 +66,7 @@ final class MoudClient {
     }
 
     private void tickSystems() {
-        if (ctx.overlayOpen && ctx.isConnected()) {
+        if (ctx.isConnected()) {
             ctx.assets.tick(ctx.session);
         }
         ctx.sceneAudio.tick(MinecraftClient.getInstance(), ctx.playRuntime.isActive() && ctx.isConnected());
