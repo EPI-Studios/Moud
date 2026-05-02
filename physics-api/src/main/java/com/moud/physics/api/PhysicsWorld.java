@@ -31,6 +31,7 @@ public interface PhysicsWorld extends AutoCloseable {
     List<ContactEvent> drainContactEvents();
     List<AreaEvent>    drainAreaEvents();
 
+    void setGravity(Vec3 gravity);
     void step(float dt);
 
     @Override void close();

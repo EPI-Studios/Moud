@@ -246,6 +246,15 @@ pub extern "C" fn rapier_world_step(world: *mut c_void, dt: f32) {
     }
 }
 
+#[no_mangle]
+pub extern "C" fn rapier_world_set_gravity(world: *mut c_void, gx: f32, gy: f32, gz: f32) {
+    if world.is_null() {
+        return;
+    }
+    let w: &mut World = unsafe { &mut *(world as *mut World) };
+    w.gravity = vector![gx, gy, gz];
+}
+
 static SHAPE_POOL: Mutex<Vec<Option<SharedShape>>> = Mutex::new(Vec::new());
 
 fn pool_store(shape: SharedShape) -> u64 {

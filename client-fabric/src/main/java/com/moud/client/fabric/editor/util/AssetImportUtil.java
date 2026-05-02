@@ -3,6 +3,7 @@ package com.moud.client.fabric.editor.util;
 
 import com.moud.client.fabric.assets.AssetsClient;
 import com.moud.client.fabric.editor.state.EditorRuntime;
+import com.moud.client.fabric.util.ClientDebugLog;
 import com.moud.core.assets.AssetType;
 import com.moud.core.assets.ResPath;
 import com.moud.core.material.TresMaterialConverter;
@@ -172,7 +173,8 @@ public final class AssetImportUtil {
                 try {
                     assets.upload(session, shaderDest, shaderBytes, AssetType.TEXT);
                 } catch (Exception e) {
-                    System.err.println("[Moud] Shader upload failed: " + e.getMessage());
+                    ClientDebugLog.error("AssetImport", "Shader upload failed for " + shaderDest.value(), e);
+                    toast(runtime, "Shader upload failed: " + e.getMessage(), true, 6000);
                 }
             };
             if (shaderMc != null && !shaderMc.isOnThread()) {
@@ -244,18 +246,24 @@ public final class AssetImportUtil {
         try {
             model = ObjParser.parse(new String(objBytes, StandardCharsets.UTF_8));
         } catch (RuntimeException e) {
+            ClientDebugLog.error("AssetImport", "OBJ parse failed for " + objFile.getName(), e);
+            toast(runtime, "OBJ parse failed: " + e.getMessage(), true, 6000);
             return;
         }
         String mtlLib = model.mtlLibName();
         if (mtlLib == null || mtlLib.isBlank()) return;
 
         File mtlFile = new File(dir, mtlLib);
-        if (!mtlFile.isFile()) return;
+        if (!mtlFile.isFile()) {
+            ClientDebugLog.warn("AssetImport", "OBJ references missing .mtl: " + mtlLib);
+            return;
+        }
 
         byte[] mtlBytes;
         try {
             mtlBytes = Files.readAllBytes(mtlFile.toPath());
         } catch (Exception e) {
+            ClientDebugLog.error("AssetImport", "Failed reading .mtl " + mtlFile.getName(), e);
             return;
         }
         ImportTarget mtlTarget = new ImportTarget("res://models/", AssetType.TEXT);
@@ -268,6 +276,7 @@ public final class AssetImportUtil {
         try {
             materials = MtlParser.parse(new String(mtlBytes, StandardCharsets.UTF_8));
         } catch (RuntimeException e) {
+            ClientDebugLog.error("AssetImport", "MTL parse failed for " + mtlFile.getName(), e);
             return;
         }
         Set<String> uploaded = new HashSet<>();
@@ -276,11 +285,15 @@ public final class AssetImportUtil {
             String tex = mat.diffuseTexture();
             if (tex == null || tex.isBlank() || !uploaded.add(tex)) continue;
             File texFile = new File(dir, tex);
-            if (!texFile.isFile()) continue;
+            if (!texFile.isFile()) {
+                ClientDebugLog.warn("AssetImport", "MTL references missing texture: " + tex);
+                continue;
+            }
             byte[] texBytes;
             try {
                 texBytes = Files.readAllBytes(texFile.toPath());
             } catch (Exception e) {
+                ClientDebugLog.error("AssetImport", "Failed reading texture " + texFile.getName(), e);
                 continue;
             }
             ImportTarget texTarget = inferTarget(texFile.getName(), false);
@@ -297,12 +310,18 @@ public final class AssetImportUtil {
     private static void uploadBlob(EditorRuntime runtime, ResPath dest, byte[] bytes, AssetType type) {
         AssetsClient assets = runtime.assets();
         Session session = runtime.session();
-        if (assets == null || session == null || session.state() != SessionState.CONNECTED) return;
+        if (assets == null || session == null || session.state() != SessionState.CONNECTED) {
+            ClientDebugLog.warn("AssetImport", "Skipping upload of " + dest.value() + ": not connected");
+            toast(runtime, "Upload skipped (not connected): " + dest.value(), true, 4500);
+            return;
+        }
         MinecraftClient mc = MinecraftClient.getInstance();
         Runnable task = () -> {
             try {
                 assets.upload(session, dest, bytes, type);
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                ClientDebugLog.error("AssetImport", "Upload failed for " + dest.value(), e);
+                toast(runtime, "Upload failed (" + dest.value() + "): " + e.getMessage(), true, 6000);
             }
         };
         if (mc != null && !mc.isOnThread()) {
@@ -335,7 +354,8 @@ public final class AssetImportUtil {
 
         try {
             return new ResPath(dir + filename);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            ClientDebugLog.warn("AssetImport", "Invalid res path for '" + filename + "': " + e.getMessage());
         }
 
         String ext = "";
@@ -346,7 +366,8 @@ public final class AssetImportUtil {
         String fallback = "import_" + System.currentTimeMillis() + ext;
         try {
             return new ResPath(dir + fallback);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            ClientDebugLog.error("AssetImport", "Could not build any res path for '" + filename + "'", e);
             return null;
         }
     }

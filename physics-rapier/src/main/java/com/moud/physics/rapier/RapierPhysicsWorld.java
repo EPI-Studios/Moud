@@ -256,6 +256,7 @@ public final class RapierPhysicsWorld implements PhysicsWorld {
 
     // ---- step --------------------------------------------------------------
 
+    @Override public void setGravity(Vec3 gravity) { Rapier3D.worldSetGravity(world, gravity.x(), gravity.y(), gravity.z()); }
     @Override public void step(float dt) { Rapier3D.worldStep(world, dt); }
 
     @Override
