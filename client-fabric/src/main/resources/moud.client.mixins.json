@@ -22,6 +22,7 @@
     "ClientWorldMixin",
     "LivingEntityCharacterBodyLimbMixin",
     "LivingEntityObbGroundMixin",
+    "LivingEntityRendererLocalPlayerHideMixin",
     "LivingEntityRendererPlayerAttachMixin",
     "LivingEntityRendererVisibilityMixin",
     "BipedEntityModelHeadLookMixin",
@@ -38,7 +39,8 @@
     "accessor.GameOptionsScreenAccessor",
     "accessor.GameRendererAccessor",
     "accessor.SoundManagerAccessor",
-    "accessor.SoundSystemAccessor"
+    "accessor.SoundSystemAccessor",
+    "accessor.SourceAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

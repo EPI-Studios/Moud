@@ -1,6 +1,7 @@
 package com.moud.client.fabric.mixin;
 
 import com.moud.client.fabric.platform.MinecraftGhostBlocks;
+import com.moud.client.fabric.render.MoudLocalPlayerRenderer;
 import com.moud.client.fabric.render.VeilDebugRenderer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.BufferBuilderStorage;
@@ -75,5 +76,7 @@ public abstract class WorldRendererMixin {
         }
 
         VeilDebugRenderer.instance().render(new MatrixStack(), consumers, camera);
+
+        MoudLocalPlayerRenderer.get().render(camera, new MatrixStack(), consumers);
     }
 }

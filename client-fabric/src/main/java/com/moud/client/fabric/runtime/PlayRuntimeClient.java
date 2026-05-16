@@ -3,6 +3,7 @@ package com.moud.client.fabric.runtime;
 import com.moud.client.fabric.physics.rapier.ClientRapierPhysics;
 import com.moud.client.fabric.scene.SceneCameraResolver;
 import com.moud.client.fabric.scene.tween.ClientTweenPlayer;
+import com.moud.client.fabric.render.MoudLocalPlayerRenderer;
 import com.moud.client.fabric.render.VeilSceneRenderer;
 import com.moud.core.util.MathUtils;
 import com.moud.client.fabric.mixin.accessor.CameraAccessor;
@@ -91,6 +92,7 @@ public final class PlayRuntimeClient {
             inputState.clear();
             characterBody.reset();
             player.reset();
+            MoudLocalPlayerRenderer.get().reset();
             lastFrameNanoTime = 0L;
             clearLocalCursorOverrides();
             VeilSceneNodeRenderer.clearRuntimeBodyOverride();
