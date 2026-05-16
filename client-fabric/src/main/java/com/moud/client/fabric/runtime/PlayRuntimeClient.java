@@ -159,8 +159,15 @@ public final class PlayRuntimeClient {
         syncCharacterBodyRenderOverride(client.player);
         clientTick++;
         updateCursorPosition(client);
-        float yaw = client.player.getYaw();
-        float pitch = client.player.getPitch();
+        float yaw;
+        float pitch;
+        if (player.isActive()) {
+            yaw = player.yaw();
+            pitch = player.pitch();
+        } else {
+            yaw = client.player.getYaw();
+            pitch = client.player.getPitch();
+        }
         PlayRuntimeInputState.Movement movement = inputState.movement();
         String stateKey = "";
         String stateValue = "";
