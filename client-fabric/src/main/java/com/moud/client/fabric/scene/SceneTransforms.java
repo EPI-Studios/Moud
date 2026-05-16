@@ -20,6 +20,11 @@ public final class SceneTransforms {
         WORLD_CACHE.clear();
     }
 
+    public static void evict(long nodeId) {
+        if (nodeId == 0L) return;
+        WORLD_CACHE.remove(nodeId);
+    }
+
     public static Transform worldTransform(SceneSnapshot.NodeSnapshot node) {
         if (node == null) return Transform.IDENTITY;
         boolean inherit = shouldInheritTransform(node);
@@ -93,8 +98,9 @@ public final class SceneTransforms {
     private static long localFingerprint(SceneSnapshot.NodeSnapshot node) {
         Transform3DCell cell = SceneStore.get(node.nodeId());
         long cellEpoch = cell != null ? cell.localEpoch() : 0L;
-        return mix(mix(cellEpoch, ClientSceneBus.version()),
-                mix(ClientPropertyOverrides.epoch(), SceneStore.structureEpoch()));
+        long globals = mix(mix(ClientSceneBus.version(), ClientPropertyOverrides.epoch()),
+                mix(SceneStore.structureEpoch(), ClientLocalNodes.epoch()));
+        return mix(cellEpoch, globals);
     }
 
     private static long mix(long a, long b) {

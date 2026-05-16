@@ -23,7 +23,10 @@ public final class SceneState {
     }
 
     private static void mirrorAllProps(SceneSnapshot.NodeSnapshot node) {
-        if (node == null || node.properties() == null) return;
+        if (node == null) return;
+        Transform3DCell existing = SceneStore.get(node.nodeId());
+        if (existing != null) existing.resetTransform();
+        if (node.properties() == null) return;
         for (SceneSnapshot.Property p : node.properties()) {
             if (p == null || p.key() == null) continue;
             if (Transform3DMirror.isTransformKey(p.key())) {
@@ -61,6 +64,7 @@ public final class SceneState {
                         if (siblings.isEmpty()) childrenByParent.remove(existing.parentId());
                     }
                     SceneStore.remove(id);
+                    SceneTransforms.evict(id);
                 }
             }
         }
@@ -278,6 +282,7 @@ public final class SceneState {
             }
             nodesById.remove(id);
             SceneStore.remove(id);
+            SceneTransforms.evict(id);
         }
     }
 

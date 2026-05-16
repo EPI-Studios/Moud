@@ -11,17 +11,17 @@ public final class SceneStore {
     private SceneStore() {}
 
     public static Transform3DCell get(long nodeId) {
-        if (nodeId <= 0L) return null;
+        if (nodeId == 0L) return null;
         return CELLS.get(nodeId);
     }
 
     public static Transform3DCell getOrCreate(long nodeId) {
-        if (nodeId <= 0L) return null;
+        if (nodeId == 0L) return null;
         return CELLS.computeIfAbsent(nodeId, id -> new Transform3DCell());
     }
 
     public static void remove(long nodeId) {
-        if (nodeId <= 0L) return;
+        if (nodeId == 0L) return;
         if (CELLS.remove(nodeId) != null) bumpStructure();
     }
 

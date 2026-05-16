@@ -13,9 +13,19 @@ public final class ClientLocalNodes {
     private static final int MAX_NODES = 1024;
     private static final int MAX_PROPS_PER_NODE = 64;
     private static final AtomicLong NEXT_ID = new AtomicLong(-1L);
+    private static final AtomicLong EPOCH = new AtomicLong(1L);
     private static final Map<Long, Entry> NODES = new ConcurrentHashMap<>();
 
     private ClientLocalNodes() {
+    }
+
+    public static long epoch() {
+        return EPOCH.get();
+    }
+
+    private static void bumpEpoch() {
+        long next = EPOCH.incrementAndGet();
+        if (next <= 0L) EPOCH.set(1L);
     }
 
     public static long create(String type, String name, long parentId) {
@@ -23,28 +33,46 @@ public final class ClientLocalNodes {
         if (NODES.size() >= MAX_NODES) return 0L;
         long id = NEXT_ID.getAndDecrement();
         NODES.put(id, new Entry(id, parentId, name == null ? "" : name, type));
+        bumpEpoch();
         return id;
     }
 
     public static boolean free(long id) {
         if (id >= 0L) return false;
-        return NODES.remove(id) != null;
+        if (NODES.remove(id) == null) return false;
+        SceneStore.remove(id);
+        SceneTransforms.evict(id);
+        bumpEpoch();
+        return true;
     }
 
     public static void setProperty(long id, String key, String value) {
         if (id >= 0L || key == null || key.isEmpty()) return;
         Entry e = NODES.get(id);
         if (e == null) return;
+        String prev;
         if (value == null) {
-            e.props.remove(key);
-            return;
+            prev = e.props.remove(key);
+            if (prev == null) return;
+        } else {
+            if (!e.props.containsKey(key) && e.props.size() >= MAX_PROPS_PER_NODE) return;
+            prev = e.props.put(key, value);
+            if (value.equals(prev)) return;
         }
-        if (!e.props.containsKey(key) && e.props.size() >= MAX_PROPS_PER_NODE) return;
-        e.props.put(key, value);
+        bumpEpoch();
+        if (Transform3DMirror.isTransformKey(key)) {
+            Transform3DMirror.apply(id, key, value);
+        }
     }
 
     public static void clearAll() {
+        if (NODES.isEmpty()) return;
+        for (Long id : NODES.keySet()) {
+            SceneStore.remove(id);
+            SceneTransforms.evict(id);
+        }
         NODES.clear();
+        bumpEpoch();
     }
 
     public static boolean exists(long id) {

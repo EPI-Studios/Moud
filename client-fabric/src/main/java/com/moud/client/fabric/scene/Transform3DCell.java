@@ -88,6 +88,59 @@ public final class Transform3DCell {
         bumpEpoch();
     }
 
+    public void clearEulerComponent(int axis) {
+        switch (axis) {
+            case 0 -> euX = 0.0;
+            case 1 -> euY = 0.0;
+            case 2 -> euZ = 0.0;
+            default -> { return; }
+        }
+        bakeEuler();
+        boolean stillRotated = euX != 0.0 || euY != 0.0 || euZ != 0.0;
+        hasRotation = stillRotated;
+        if (!stillRotated) {
+            qx = qy = qz = 0.0;
+            qw = 1.0;
+        }
+        bumpEpoch();
+    }
+
+    public void clearPositionComponent(int axis) {
+        switch (axis) {
+            case 0 -> px = 0.0;
+            case 1 -> py = 0.0;
+            case 2 -> pz = 0.0;
+            default -> { return; }
+        }
+        boolean stillSet = px != 0.0 || py != 0.0 || pz != 0.0;
+        hasPosition = stillSet;
+        bumpEpoch();
+    }
+
+    public void clearScaleComponent(int axis) {
+        switch (axis) {
+            case 0 -> sx = 1.0;
+            case 1 -> sy = 1.0;
+            case 2 -> sz = 1.0;
+            default -> { return; }
+        }
+        boolean stillSet = sx != 1.0 || sy != 1.0 || sz != 1.0;
+        hasScale = stillSet;
+        bumpEpoch();
+    }
+
+    public void resetTransform() {
+        px = py = pz = 0.0;
+        qx = qy = qz = 0.0;
+        qw = 1.0;
+        euX = euY = euZ = 0.0;
+        sx = sy = sz = 1.0;
+        hasPosition = false;
+        hasRotation = false;
+        hasScale = false;
+        bumpEpoch();
+    }
+
     public void setEuler(double xDeg, double yDeg, double zDeg) {
         euX = xDeg; euY = yDeg; euZ = zDeg;
         bakeEuler();

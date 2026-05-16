@@ -13,7 +13,7 @@ public final class Transform3DMirror {
     }
 
     public static void apply(long nodeId, String key, String value) {
-        if (nodeId <= 0L || !isTransformKey(key)) return;
+        if (nodeId == 0L || !isTransformKey(key)) return;
         if (value == null || value.isBlank()) {
             applyClear(nodeId, key);
             return;
@@ -35,12 +35,14 @@ public final class Transform3DMirror {
     private static void applyClear(long nodeId, String key) {
         Transform3DCell cell = SceneStore.get(nodeId);
         if (cell == null) return;
+        int axis = axisIndex(key);
+        if (axis < 0) return;
         if (key.length() == 1) {
-            cell.clearPosition();
+            cell.clearPositionComponent(axis);
         } else if (key.charAt(0) == 'r') {
-            cell.clearRotation();
-        } else if (key.charAt(0) == 's') {
-            cell.clearScale();
+            cell.clearEulerComponent(axis);
+        } else {
+            cell.clearScaleComponent(axis);
         }
     }
 
