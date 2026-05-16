@@ -137,6 +137,8 @@ public final class ClientSceneBus {
         }
         ClientLocalNodes.clearAll();
         ClientPropertyOverrides.clearAll();
+        SceneStore.clear();
+        SceneTransforms.clearCache();
         InterpolationFeed.onClear();
         ClientTweenPlayer.get().clear();
         VisualTransformRegistry.get().clearAll();
