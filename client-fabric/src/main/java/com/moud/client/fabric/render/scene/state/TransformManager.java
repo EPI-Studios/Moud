@@ -1,5 +1,6 @@
 package com.moud.client.fabric.render.scene.state;
 
+import com.moud.core.builtin.BrushTypes;
 import com.moud.client.fabric.editor.overlay.EditorContext;
 import com.moud.client.fabric.editor.overlay.EditorOverlayBus;
 import com.moud.client.fabric.physics.rapier.ClientRapierPhysics;
@@ -8,6 +9,7 @@ import com.moud.client.fabric.render.scene.math.CachedPose;
 import com.moud.client.fabric.render.scene.math.NodePoseState;
 import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.client.fabric.render.scene.util.NodePropertyUtils;
+import com.moud.core.math.YawConvention;
 import com.moud.net.protocol.SceneSnapshot;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -218,15 +220,16 @@ public final class TransformManager {
                     if (attachPos != null) {
                         float[] root = PlayerBodyAttachmentCache.getRoot(uuid);
                         float yaw = root != null ? root[3] : 0.0f;
+                        float moudYaw = YawConvention.moudFromMc(yaw);
                         Pose offset = state.currLocal;
-                        float yawRad = (float) Math.toRadians(-yaw);
+                        float yawRad = (float) Math.toRadians(moudYaw);
                         float sinY = (float) Math.sin(yawRad);
                         float cosY = (float) Math.cos(yawRad);
                         float ox = offset.pos.x * cosY - offset.pos.z * sinY;
                         float oz = offset.pos.x * sinY + offset.pos.z * cosY;
                         out.pos.set(attachPos[0] + ox, attachPos[1] + offset.pos.y, attachPos[2] + oz);
                         if (root != null) {
-                            out.rot.set(quatFromEulerDeg(0.0f, -yaw, 0.0f)).mul(offset.rot).normalize();
+                            out.rot.set(quatFromEulerDeg(0.0f, moudYaw, 0.0f)).mul(offset.rot).normalize();
                         } else {
                             out.rot.set(offset.rot);
                         }
@@ -325,7 +328,7 @@ public final class TransformManager {
             Pose out = new Pose();
             if (position != null) {
                 float yaw = rootData != null ? rootData[3] : 0.0f;
-                float yawRad = (float) Math.toRadians(-yaw);
+                float yawRad = (float) Math.toRadians(YawConvention.moudFromMc(yaw));
                 float sinY = (float) Math.sin(yawRad);
                 float cosY = (float) Math.cos(yawRad);
                 float ox = local.pos.x * cosY - local.pos.z * sinY;
@@ -460,7 +463,7 @@ public final class TransformManager {
         sy = safeScale(sy);
         sz = safeScale(sz);
 
-        boolean pivotIsMinCorner = "CSGBox".equals(node.type()) || "CSGBlock".equals(node.type());
+        boolean pivotIsMinCorner = BrushTypes.usesMinCornerPivot(node.type());
         float px = x;
         float py = y;
         float pz = z;

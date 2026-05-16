@@ -2,6 +2,7 @@ package com.moud.client.fabric.render.scene.subrender;
 
 import com.moud.client.fabric.render.scene.math.Pose;
 import com.moud.client.fabric.render.scene.util.NodePropertyUtils;
+import com.moud.core.math.YawConvention;
 import com.moud.net.protocol.SceneSnapshot;
 import java.util.List;
 import net.minecraft.client.MinecraftClient;
@@ -69,7 +70,7 @@ public final class Text3DRenderer {
                 billboard ? "full" : "none");
         switch (faceCameraMode) {
             case "full" -> matrices.multiply(camera.getRotation());
-            case "yaw_only" -> matrices.multiply(new Quaternionf().rotationY((float) Math.toRadians(-camera.getYaw())));
+            case "yaw_only" -> matrices.multiply(new Quaternionf().rotationY((float) Math.toRadians(YawConvention.moudFromMc(camera.getYaw()))));
             default -> matrices.multiply(world.rot);
         }
 
