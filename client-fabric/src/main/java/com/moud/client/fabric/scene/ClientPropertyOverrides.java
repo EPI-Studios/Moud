@@ -27,10 +27,14 @@ public final class ClientPropertyOverrides {
             if (perNode.remove(key) != null) {
                 if (perNode.isEmpty()) OVERRIDES.remove(nodeId);
                 bumpEpoch();
+                if (Transform3DMirror.isTransformKey(key)) Transform3DMirror.apply(nodeId, key, null);
             }
         } else {
             String prev = perNode.put(key, value);
-            if (!value.equals(prev)) bumpEpoch();
+            if (!value.equals(prev)) {
+                bumpEpoch();
+                if (Transform3DMirror.isTransformKey(key)) Transform3DMirror.apply(nodeId, key, value);
+            }
         }
     }
 

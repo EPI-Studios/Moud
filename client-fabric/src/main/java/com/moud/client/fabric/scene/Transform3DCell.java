@@ -1,9 +1,12 @@
 package com.moud.client.fabric.scene;
 
+import com.moud.core.math.Quat;
+
 public final class Transform3DCell {
     public double px, py, pz;
     public double qx, qy, qz;
     public double qw = 1.0;
+    public double euX, euY, euZ;
     public double sx = 1.0, sy = 1.0, sz = 1.0;
 
     public boolean hasPosition;
@@ -68,8 +71,33 @@ public final class Transform3DCell {
     public void clearRotation() {
         qx = qy = qz = 0.0;
         qw = 1.0;
+        euX = euY = euZ = 0.0;
         hasRotation = false;
         bumpEpoch();
+    }
+
+    public void setEulerComponent(int axis, double degrees) {
+        switch (axis) {
+            case 0 -> euX = degrees;
+            case 1 -> euY = degrees;
+            case 2 -> euZ = degrees;
+            default -> { return; }
+        }
+        bakeEuler();
+        hasRotation = true;
+        bumpEpoch();
+    }
+
+    public void setEuler(double xDeg, double yDeg, double zDeg) {
+        euX = xDeg; euY = yDeg; euZ = zDeg;
+        bakeEuler();
+        hasRotation = true;
+        bumpEpoch();
+    }
+
+    private void bakeEuler() {
+        Quat q = Quat.fromEulerDeg((float) euX, (float) euY, (float) euZ);
+        qx = q.x(); qy = q.y(); qz = q.z(); qw = q.w();
     }
 
     public void clearScale() {

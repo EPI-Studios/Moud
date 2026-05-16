@@ -19,6 +19,17 @@ public final class SceneState {
         revision = -1;
         nodesById.clear();
         childrenByParent.clear();
+        SceneStore.clear();
+    }
+
+    private static void mirrorAllProps(SceneSnapshot.NodeSnapshot node) {
+        if (node == null || node.properties() == null) return;
+        for (SceneSnapshot.Property p : node.properties()) {
+            if (p == null || p.key() == null) continue;
+            if (Transform3DMirror.isTransformKey(p.key())) {
+                Transform3DMirror.apply(node.nodeId(), p.key(), p.value());
+            }
+        }
     }
 
     public void applySnapshot(SceneSnapshot snapshot) {
@@ -28,9 +39,11 @@ public final class SceneState {
         revision = snapshot.revision();
         nodesById.clear();
         childrenByParent.clear();
+        SceneStore.clear();
         for (SceneSnapshot.NodeSnapshot node : snapshot.nodes()) {
             nodesById.put(node.nodeId(), node);
             childrenByParent.computeIfAbsent(node.parentId(), k -> new ArrayList<>()).add(node);
+            mirrorAllProps(node);
         }
     }
 
@@ -47,6 +60,7 @@ public final class SceneState {
                         siblings.removeIf(c -> c != null && c.nodeId() == id);
                         if (siblings.isEmpty()) childrenByParent.remove(existing.parentId());
                     }
+                    SceneStore.remove(id);
                 }
             }
         }
@@ -68,6 +82,7 @@ public final class SceneState {
                 }
                 if (idx >= 0) bucket.set(idx, node);
                 else bucket.add(node);
+                mirrorAllProps(node);
             }
         }
     }
@@ -146,6 +161,9 @@ public final class SceneState {
         if (node == null) {
             return;
         }
+        if (Transform3DMirror.isTransformKey(key)) {
+            Transform3DMirror.apply(nodeId, key, value);
+        }
         List<SceneSnapshot.Property> props = node.properties() != null ? node.properties() : List.of();
         ArrayList<SceneSnapshot.Property> out = new ArrayList<>(props.size() + 1);
         boolean found = false;
@@ -163,7 +181,11 @@ public final class SceneState {
         if (!found) {
             out.add(new SceneSnapshot.Property(key, value));
         }
-        replaceNode(new SceneSnapshot.NodeSnapshot(node.nodeId(), node.parentId(), node.name(), node.type(), List.copyOf(out), node.uniforms()));
+        String effectiveType = node.type();
+        if ("@type".equals(key) && value != null && !value.isBlank()) {
+            effectiveType = value;
+        }
+        replaceNode(new SceneSnapshot.NodeSnapshot(node.nodeId(), node.parentId(), node.name(), effectiveType, List.copyOf(out), node.uniforms()));
     }
 
     private void applyRemoveProperty(long nodeId, String key) {
@@ -173,6 +195,9 @@ public final class SceneState {
         SceneSnapshot.NodeSnapshot node = nodesById.get(nodeId);
         if (node == null) {
             return;
+        }
+        if (Transform3DMirror.isTransformKey(key)) {
+            Transform3DMirror.apply(nodeId, key, null);
         }
         List<SceneSnapshot.Property> props = node.properties() != null ? node.properties() : List.of();
         ArrayList<SceneSnapshot.Property> out = new ArrayList<>(props.size());
@@ -252,6 +277,7 @@ public final class SceneState {
                 }
             }
             nodesById.remove(id);
+            SceneStore.remove(id);
         }
     }
 
