@@ -2,6 +2,7 @@ package com.moud.client.fabric.runtime;
 
 import com.moud.client.fabric.mixin.accessor.EntityGroundAccessor;
 import com.moud.client.fabric.physics.rapier.ClientRapierPhysics;
+import com.moud.client.fabric.scene.ClientPropertyOverrides;
 import com.moud.client.fabric.scene.ClientSceneBus;
 import com.moud.client.fabric.scene.SceneNodeTransforms;
 import com.moud.client.fabric.scripting.api.BodyApiTarget;
@@ -57,16 +58,27 @@ public final class CharacterBody3D implements BodyApiTarget {
     private String clientScriptPath;
     private Vec3d velocity = Vec3d.ZERO, scriptVelocity = Vec3d.ZERO;
 
+    // Render-rate substep accumulator. We integrate at a fixed SUB_DT (1/60s) but pace those
+    // substeps from variable-dt render frames — classic Godot/Unity "fixed timestep, render
+    // interpolation" model. The 20Hz vanilla tick path no longer drives the sim.
+    private double accumulator;
+
     public boolean isActive() {
         refreshBinding();
         return enabled && nodeId > 0L;
     }
 
     public void reset() {
+        if (nodeId > 0L) {
+            ClientPropertyOverrides.put(nodeId, "x", null);
+            ClientPropertyOverrides.put(nodeId, "y", null);
+            ClientPropertyOverrides.put(nodeId, "z", null);
+        }
         sceneVersion = Long.MIN_VALUE;
         serverPosVersion = Long.MIN_VALUE;
         nodeId = 0L;
         enabled = initialPosApplied = hasScriptVelocity = simInitialized = false;
+        accumulator = 0.0;
         speed = 5f; acceleration = 40f; deceleration = 30f; groundFriction = 70f;
         airControl = 0.3f; jumpVelocity = 10f; gravityScale = 1f; floorSnap = 0.2f;
         radius = 0.3f; height = 1.8f; rotationZ = 0f;
@@ -94,6 +106,79 @@ public final class CharacterBody3D implements BodyApiTarget {
         input.jumping = state.jump();
         input.sneaking = false;
         return true;
+    }
+
+    /**
+     * Render-rate tick. Accumulate the real frame delta, run as many fixed substeps as fit, then
+     * write the predicted position into both mc.player and the scene-tree node's override map so
+     * Layer 2's camera composition reads it on the very next access.
+     */
+    public boolean tickRenderFrame(PlayerEntity player, PlayRuntimeInputState state, double dtSeconds) {
+        if (player == null || state == null || !isActive()) return false;
+
+        if (!simInitialized || player.squaredDistanceTo(simX, simY, simZ) > 0.25) {
+            simX = prevSimX = player.getX();
+            simY = prevSimY = player.getY();
+            simZ = prevSimZ = player.getZ();
+            simInitialized = true;
+            accumulator = 0.0;
+        }
+
+        applyInitialPosition(player);
+        applyAuthoritativeScriptPosition(player);
+
+        if (hasScriptVelocity) {
+            velocity = Vec3d.ZERO;
+            player.setVelocity(Vec3d.ZERO);
+            player.setPosition(prevSimX = simX, prevSimY = simY, prevSimZ = simZ);
+            applyCollisionBox(player);
+            ((EntityGroundAccessor) player).setOnGround(onFloor);
+            pushPositionOverride();
+            return true;
+        }
+
+        var physics = ClientRapierPhysics.get();
+        physics.syncSceneIfNeeded();
+        if (player.getWorld() instanceof ClientWorld cw) {
+            physics.updateTerrainWindow(cw, simX, simY, simZ);
+        }
+
+        if (jumpRequested || (state.jump() && !jumpWasDown)) {
+            jumpBuffer = JUMP_BUFFER_STEPS;
+        }
+        jumpRequested = false;
+
+        // Cap accumulator so a long stutter (alt-tab, GC pause) can't trigger a death spiral of
+        // catch-up substeps. 6 substeps = 100ms of sim per frame, more than enough.
+        accumulator = Math.min(accumulator + dtSeconds, SUB_DT * 6);
+        prevSimX = simX; prevSimY = simY; prevSimZ = simZ;
+        while (accumulator >= SUB_DT) {
+            runSubstep(player, state, physics);
+            accumulator -= SUB_DT;
+        }
+
+        player.setPosition(simX, simY, simZ);
+        applyCollisionBox(player);
+        player.setVelocity(velocity);
+        ((EntityGroundAccessor) player).setOnGround(onFloor);
+        pushPositionOverride();
+        jumpWasDown = state.jump();
+        sprintWasDown = state.sprint();
+        sneakWasDown = state.sneak();
+        return true;
+    }
+
+    /**
+     * Push the body's live simulated position into client-side scene-graph overrides.
+     * SceneTransforms reads overrides first, so Layer-2 camera composition (and anything else
+     * parented under this body — sprites, attachments, weapons) composes off this position with
+     * zero network indirection.
+     */
+    private void pushPositionOverride() {
+        if (nodeId <= 0L) return;
+        ClientPropertyOverrides.put(nodeId, "x", ParseUtils.trimFloat((float) simX));
+        ClientPropertyOverrides.put(nodeId, "y", ParseUtils.trimFloat((float) simY));
+        ClientPropertyOverrides.put(nodeId, "z", ParseUtils.trimFloat((float) simZ));
     }
 
     public boolean tick(PlayerEntity player, PlayRuntimeInputState state) {
@@ -369,6 +454,14 @@ public final class CharacterBody3D implements BodyApiTarget {
             }
         }
         return false;
+    }
+
+    public void publishTo(MoudPlayer out, float lookYaw, float pitch, float bodyYaw, float headYaw) {
+        if (out == null || !isActive() || !simInitialized) return;
+        out.writePose(simX, simY, simZ, lookYaw, pitch, bodyYaw, headYaw, rotationZ);
+        out.writeVelocity(velocityX(), velocityY(), velocityZ());
+        out.writeShape(radius, height);
+        out.writeGroundState(onFloor, onWall, onCeiling, justLanded, justLeftFloor);
     }
 
     public Vec3d velocity() { return velocity; }

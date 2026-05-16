@@ -1,6 +1,7 @@
 package com.moud.client.fabric.runtime;
 
 import com.moud.client.fabric.physics.rapier.ClientRapierPhysics;
+import com.moud.client.fabric.scene.SceneCameraResolver;
 import com.moud.client.fabric.scene.tween.ClientTweenPlayer;
 import com.moud.client.fabric.render.VeilSceneRenderer;
 import com.moud.core.util.MathUtils;
@@ -16,6 +17,7 @@ import com.moud.net.session.SessionState;
 import com.moud.net.transport.Lane;
 import net.minecraft.client.input.Input;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.option.Perspective;
 import net.minecraft.client.render.Camera;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.Vec3d;
@@ -47,10 +49,18 @@ public final class PlayRuntimeClient {
     private final PlayRuntimeInputState inputState = new PlayRuntimeInputState();
     private final CharacterBody3D characterBody = new CharacterBody3D();
     private final ClientScriptRuntime clientScriptRuntime = new ClientScriptRuntime();
+    private final MoudPlayer player = new MoudPlayer();
 
-    private float prevX, prevY, prevZ, prevYaw, prevPitch, prevRoll;
-    private float currX, currY, currZ, currYaw, currPitch, currRoll;
-    private boolean hasPrev;
+    public MoudPlayer player() {
+        return player;
+    }
+
+    private Perspective savedPerspective;
+    private volatile boolean usingSceneCamera;
+
+    public boolean isUsingSceneCamera() {
+        return usingSceneCamera;
+    }
 
     public RuntimeState lastServerState() {
         return lastServerState;
@@ -80,12 +90,14 @@ public final class PlayRuntimeClient {
         if (this.active && !active) {
             inputState.clear();
             characterBody.reset();
+            player.reset();
             lastFrameNanoTime = 0L;
             clearLocalCursorOverrides();
             VeilSceneNodeRenderer.clearRuntimeBodyOverride();
             clientScriptRuntime.unloadAll();
             ClientRapierPhysics.visuals().clear();
             VeilSceneRenderer.resetPoseStates();
+            restoreSavedPerspective();
         }
         this.active = active;
         ClientCameraStateBus.set(active ? cameraState : null);
@@ -94,11 +106,6 @@ public final class PlayRuntimeClient {
     public void onDisconnect() {
         active = false;
         lastServerState = null;
-        hasPrev = false;
-        prevX = 0f; prevY = 0f; prevZ = 0f;
-        prevYaw = 0f; prevPitch = 0f; prevRoll = 0f;
-        currX = 0f; currY = 0f; currZ = 0f;
-        currYaw = 0f; currPitch = 0f; currRoll = 0f;
         serverCursorModeEnabled = false;
         serverOsCursorVisible = true;
         localCursorModeEnabled = null;
@@ -112,6 +119,7 @@ public final class PlayRuntimeClient {
         lastFrameNanoTime = 0L;
         inputState.clear();
         characterBody.reset();
+        player.reset();
         VeilSceneNodeRenderer.clearRuntimeBodyOverride();
         clientScriptRuntime.unloadAll();
     }
@@ -126,39 +134,9 @@ public final class PlayRuntimeClient {
     }
 
     public void onRuntimeState(RuntimeState state) {
-        boolean useExternal = state != null && (state.useSceneCamera() || state.useScriptCamera());
-        if (useExternal) {
-            float nextX, nextY, nextZ, nextYaw, nextPitch, nextRoll;
-            if (state.useScriptCamera()) {
-                nextX = state.scriptCamX();
-                nextY = state.scriptCamY();
-                nextZ = state.scriptCamZ();
-                nextYaw = state.scriptCamYawDeg();
-                nextPitch = state.scriptCamPitchDeg();
-                nextRoll = state.scriptCamRollDeg();
-            } else {
-                nextX = state.sceneCamX();
-                nextY = state.sceneCamY();
-                nextZ = state.sceneCamZ();
-                nextYaw = state.sceneCamYawDeg();
-                nextPitch = state.sceneCamPitchDeg();
-                nextRoll = state.sceneCamRollDeg();
-            }
-
-            prevX = currX; prevY = currY; prevZ = currZ;
-            prevYaw = currYaw; prevPitch = currPitch; prevRoll = currRoll;
-            currX = nextX; currY = nextY; currZ = nextZ;
-            currYaw = normalizeYawDeg(-nextYaw);
-            currPitch = clampPitchDeg(nextPitch, -89.0f, 89.0f);
-            currRoll = Float.isFinite(nextRoll) ? nextRoll : 0.0f;
-            if (!hasPrev) {
-                prevX = currX; prevY = currY; prevZ = currZ;
-                prevYaw = currYaw; prevPitch = currPitch; prevRoll = currRoll;
-                hasPrev = true;
-            }
-        } else {
-            hasPrev = false;
-        }
+        // Camera resolution moved to client-side scene-graph composition (SceneCameraResolver).
+        // The useSceneCamera/useFollowCamera/useScriptCamera/sceneCam*/followCam*/scriptCam* wire
+        // fields are still in the protocol for back-compat but no longer drive the camera.
         lastServerState = state;
     }
 
@@ -173,7 +151,9 @@ public final class PlayRuntimeClient {
         if (client == null || client.player == null || client.currentScreen != null) {
             return;
         }
-        characterBody.tick(client.player, inputState);
+        // Body sim moved to travelFrame (render rate). This tick path stays only for the 20Hz
+        // PlayerInput packet to the server below — vanilla MC's PlayerEntity.travel is fully
+        // cancelled by PlayerEntityCharacterBodyMixin, so the 20Hz sim was never the authority.
         syncCharacterBodyRenderOverride(client.player);
         clientTick++;
         updateCursorPosition(client);
@@ -217,10 +197,6 @@ public final class PlayRuntimeClient {
             lastFrameNanoTime = 0L;
             return;
         }
-        if (!characterBody.isActive()) {
-            lastFrameNanoTime = 0L;
-            return;
-        }
         long now = System.nanoTime();
         double dt;
         if (lastFrameNanoTime == 0L) {
@@ -252,6 +228,10 @@ public final class PlayRuntimeClient {
 
         clientScriptRuntime.syncAllNodes(characterBody, inputSnapshot, cameraState);
         clientScriptRuntime.frame(dt);
+
+        if (!characterBody.isActive()) {
+            return;
+        }
         if (!Float.isNaN(cameraState.playerYaw) && client.player != null) {
             // only the look yaw, body yaw is owned by scripts via rotation_y
             client.player.setYaw(cameraState.playerYaw);
@@ -261,8 +241,12 @@ public final class PlayRuntimeClient {
         double preTravelY = client.player.getY();
         double preTravelZ = client.player.getZ();
 
-        characterBody.applyRenderPose(client.player, tickDelta);
+        // Render-rate body sim. Fixed-substep accumulator paces variable-dt render frames into
+        // SUB_DT (1/60s) physics steps. Writes mc.player position + scene-graph overrides every
+        // frame so the camera composes against the live pose with zero snapshot lag.
+        characterBody.tickRenderFrame(client.player, inputState, dt);
         syncCharacterBodyVisualState(client.player, preTravelX, preTravelY, preTravelZ);
+        characterBody.publishTo(player, client.player.getYaw(), client.player.getPitch(), client.player.bodyYaw, client.player.headYaw);
 
         if (cameraState.hasOverride && !Float.isNaN(cameraState.posX)) {
             cameraState.posX += (float)(client.player.getX() - preTravelX);
@@ -284,20 +268,50 @@ public final class PlayRuntimeClient {
             return applyScriptCamera(accessor);
         }
 
-        RuntimeState st = lastServerState;
-        if (st != null) {
-            if (st.useFollowCamera()) {
-                return applyFollowCamera(accessor, st, partialTick);
+        // Layer 2: scene-graph camera resolution. Read the active Camera3D's world transform
+        // directly from the client scene tree every frame. No wire snapshot, no lerp — the camera
+        // composes against whatever the body's position is THIS frame, the same way Godot/Unity do.
+        SceneCameraResolver.ResolvedCamera resolved = SceneCameraResolver.resolve();
+        if (resolved != null) {
+            cameraState.orthographic = resolved.orthographic();
+            cameraState.orthoSize = resolved.orthoSize();
+            if (resolved.fov() > 0f && cameraState.fov <= 0f) {
+                cameraState.fov = resolved.fov();
             }
-            if (st.useScriptCamera() || st.useSceneCamera()) {
-                return applySceneCamera(accessor, partialTick);
-            }
+            usingSceneCamera = true;
+            forceThirdPersonPerspective();
+            accessor.moud$setThirdPerson(true);
+            accessor.moud$setCameraPosition(resolved.worldX(), resolved.worldY(), resolved.worldZ());
+            accessor.moud$setRotation(resolved.yawDeg(), resolved.pitchDeg());
+            applyRoll(accessor, resolved.rollDeg());
+            return true;
         }
 
-        // clear sticky third-person from a prior follow/scene cam so vanilla resumes cleanly
+        // No Camera3D in the scene → vanilla first-person.
+        usingSceneCamera = false;
         accessor.moud$setThirdPerson(false);
-        hasPrev = false;
+        restoreSavedPerspective();
         return false;
+    }
+
+    private void forceThirdPersonPerspective() {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc == null || mc.options == null) return;
+        if (savedPerspective == null) {
+            savedPerspective = mc.options.getPerspective();
+        }
+        if (mc.options.getPerspective() != Perspective.THIRD_PERSON_BACK) {
+            mc.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+        }
+    }
+
+    private void restoreSavedPerspective() {
+        if (savedPerspective == null) return;
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc != null && mc.options != null) {
+            mc.options.setPerspective(savedPerspective);
+        }
+        savedPerspective = null;
     }
 
     private boolean applyScriptCamera(CameraAccessor accessor) {
@@ -323,8 +337,7 @@ public final class PlayRuntimeClient {
         if (scriptForceHideHand) return true;
         if (!active) return false;
         if (cameraState.hasOverride) return true;
-        RuntimeState st = lastServerState;
-        return st != null && (st.useFollowCamera() || st.useSceneCamera() || st.useScriptCamera());
+        return usingSceneCamera;
     }
 
     private void syncCharacterBodyRenderOverride(PlayerEntity player) {
@@ -359,63 +372,6 @@ public final class PlayRuntimeClient {
         syncCharacterBodyRenderOverride(player);
     }
 
-    private boolean applyFollowCamera(CameraAccessor accessor, RuntimeState st, float partialTick) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc == null || mc.player == null) return false;
-
-        float t = MathUtils.clamp(partialTick, 0.0f, 1.0f);
-        double px = lerp(mc.player.prevX, mc.player.getX(), t);
-        double py = lerp(mc.player.prevY, mc.player.getY(), t);
-        double pz = lerp(mc.player.prevZ, mc.player.getZ(), t);
-        Vec3d fwd = mc.player.getRotationVec(t);
-        double fwdX = fwd.x;
-        double fwdZ = fwd.z;
-        double lenSq = fwdX * fwdX + fwdZ * fwdZ;
-        if (lenSq < 1e-8) {
-            fwdX = 0.0;
-            fwdZ = 1.0;
-            lenSq = 1.0;
-        }
-        double invLen = 1.0 / Math.sqrt(lenSq);
-        fwdX *= invLen;
-        fwdZ *= invLen;
-        double rightX = -fwdZ;
-        double rightZ = fwdX;
-
-        float lx = st.followCamLocalX();
-        float ly = st.followCamLocalY();
-        float lz = st.followCamLocalZ();
-        double camX = px + fwdX * lz + rightX * lx;
-        double camY = py + ly;
-        double camZ = pz + fwdZ * lz + rightZ * lx;
-
-        float yawDeg = normalizeYawDeg(mc.player.getYaw(t));
-        float pitch = clampPitchDeg(st.followCamPitchDeg(), -89.0f, 89.0f);
-        float roll = st.followCamRollDeg();
-
-        accessor.moud$setThirdPerson(true);
-        accessor.moud$setCameraPosition(camX, camY, camZ);
-        accessor.moud$setRotation(yawDeg, pitch);
-        applyRoll(accessor, roll);
-        return true;
-    }
-
-    private boolean applySceneCamera(CameraAccessor accessor, float partialTick) {
-        float t = MathUtils.clamp(partialTick, 0.0f, 1.0f);
-        float x = hasPrev ? lerp(prevX, currX, t) : currX;
-        float y = hasPrev ? lerp(prevY, currY, t) : currY;
-        float z = hasPrev ? lerp(prevZ, currZ, t) : currZ;
-        float yaw = hasPrev ? lerpYaw(prevYaw, currYaw, t) : currYaw;
-        float pitch = hasPrev ? lerp(prevPitch, currPitch, t) : currPitch;
-        float roll = hasPrev ? lerp(prevRoll, currRoll, t) : currRoll;
-
-        accessor.moud$setThirdPerson(true);
-        accessor.moud$setCameraPosition(x, y, z);
-        accessor.moud$setRotation(yaw, pitch);
-        applyRoll(accessor, roll);
-        return true;
-    }
-
     private static void applyRoll(CameraAccessor accessor, float roll) {
         if (!Float.isFinite(roll) || Math.abs(roll) <= 1e-4f) return;
         Quaternionf base = accessor.moud$getRotation();
@@ -424,21 +380,6 @@ public final class PlayRuntimeClient {
         Vector3f forward = new Vector3f(0.0f, 0.0f, 1.0f).rotate(original);
         Quaternionf qRoll = new Quaternionf().fromAxisAngleRad(forward, (float) Math.toRadians(roll));
         base.set(qRoll).mul(original);
-    }
-
-    private static float lerp(float a, float b, float t) {
-        return a + (b - a) * t;
-    }
-
-    private static double lerp(double a, double b, float t) {
-        return a + (b - a) * t;
-    }
-
-    private static float lerpYaw(float from, float to, float t) {
-        float diff = to - from;
-        while (diff > 180f) diff -= 360f;
-        while (diff < -180f) diff += 360f;
-        return from + diff * t;
     }
 
     private static float normalizeYawDeg(float yawDeg) {
