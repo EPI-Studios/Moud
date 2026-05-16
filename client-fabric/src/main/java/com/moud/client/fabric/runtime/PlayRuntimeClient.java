@@ -254,8 +254,8 @@ public final class PlayRuntimeClient {
         // SUB_DT (1/60s) physics steps. Writes mc.player position + scene-graph overrides every
         // frame so the camera composes against the live pose with zero snapshot lag.
         characterBody.tickRenderFrame(client.player, inputState, dt);
-        syncCharacterBodyVisualState(client.player, preTravelX, preTravelY, preTravelZ);
         characterBody.publishTo(player, client.player.getYaw(), client.player.getPitch(), client.player.bodyYaw, client.player.headYaw);
+        syncSoundListenerFromMoudPlayer(client.player);
 
         if (cameraState.hasOverride && !Float.isNaN(cameraState.posX)) {
             cameraState.posX += (float)(client.player.getX() - preTravelX);
@@ -364,21 +364,25 @@ public final class PlayRuntimeClient {
         );
     }
 
-    private void syncCharacterBodyVisualState(PlayerEntity player, double prevX, double prevY, double prevZ) {
-        if (player == null || !characterBody.isActive()) {
+    private void syncSoundListenerFromMoudPlayer(PlayerEntity mcPlayer) {
+        if (mcPlayer == null || !player.isActive()) {
             return;
         }
-        double x = player.getX();
-        double y = player.getY();
-        double z = player.getZ();
-        // pin prev to current so vanilla doesnt lerp at 20hz on top of our per-frame pose
-        player.prevX = x;
-        player.prevY = y;
-        player.prevZ = z;
-        player.lastRenderX = x;
-        player.lastRenderY = y;
-        player.lastRenderZ = z;
-        syncCharacterBodyRenderOverride(player);
+        // mc.player is no longer authoritative for body pose — it's a vehicle for vanilla's sound
+        // listener (and hand/HUD positioning). Drive its position from MoudPlayer every render frame
+        // so the listener tracks the live sim. Pin prev/lastRender to current so vanilla doesn't
+        // re-lerp at 20Hz on top of our per-frame pose.
+        double x = player.x();
+        double y = player.y();
+        double z = player.z();
+        mcPlayer.setPosition(x, y, z);
+        mcPlayer.prevX = x;
+        mcPlayer.prevY = y;
+        mcPlayer.prevZ = z;
+        mcPlayer.lastRenderX = x;
+        mcPlayer.lastRenderY = y;
+        mcPlayer.lastRenderZ = z;
+        syncCharacterBodyRenderOverride(mcPlayer);
     }
 
     private static void applyRoll(CameraAccessor accessor, float roll) {
