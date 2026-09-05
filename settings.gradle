@@ -1,0 +1,18 @@
+pluginManagement {
+    repositories {
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'moud'
+
+include 'core'
+include 'script'
+include 'net'
+include 'mod'
+include 'cli'

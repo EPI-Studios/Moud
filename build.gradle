@@ -1,0 +1,55 @@
+plugins {
+    id 'java'
+}
+
+allprojects {
+    group = project.maven_group
+    version = project.mod_version
+
+    repositories {
+        mavenCentral()
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
+        maven {
+            name = 'meekdev'
+            url = 'https://maven.meekhasto.rest'
+        }
+    }
+}
+
+subprojects {
+    apply plugin: 'java-library'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(25)
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.release = 25
+    }
+
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+    }
+
+    dependencies {
+        testImplementation platform('org.junit:junit-bom:5.12.0')
+        testImplementation 'org.junit.jupiter:junit-jupiter'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+}
+
+// DESIGN.md 5.2 / 19.4: module dependency rules are a build failure, not a convention.
+// Implemented at M0; stub kept here so the task name exists from day one.
+tasks.register('checkArchitecture') {
+    group = 'verification'
+    description = 'Fails on forbidden imports across module boundaries (DESIGN.md 5.2, 6.4).'
+    doLast {
+        logger.lifecycle('checkArchitecture: not implemented yet (M0)')
+    }
+}

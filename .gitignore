@@ -1,0 +1,15 @@
+.gradle/
+build/
+**/build/
+.idea/
+*.iml
+out/
+run/
+*.log
+.moud/
+
+# code only. docs live in the wiki, design notes outside the repo
+docs/
+DESIGN.md
+*HANDOFF*
+CHANGELOG.md
