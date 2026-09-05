@@ -1,0 +1,11 @@
+.gradle/
+build/
+**/build/
+.idea/
+*.iml
+out/
+run/
+*.log
+.moud/
+
+docs/
