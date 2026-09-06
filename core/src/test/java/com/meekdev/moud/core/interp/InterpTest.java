@@ -55,6 +55,24 @@ class InterpTest {
     }
 
     @Test
+    void aLongIdleValueSnapsRatherThanCrawling() {
+        Track track = new Track(PropertyType.VEC3, Vec3.ZERO);
+        track.advance(10.0);
+        track.write(new Vec3(10, 0, 0));
+        track.advance(Track.MAX_AUTO_WINDOW);
+        assertEquals(10.0, ((Vec3) track.sample()).x(), 1e-9,
+                "ten seconds of stillness is not a ten second slide");
+    }
+
+    @Test
+    void anExplicitWindowIsWhatATweenNeeds() {
+        Track track = new Track(PropertyType.VEC3, Vec3.ZERO);
+        track.write(new Vec3(10, 0, 0), 2.0);
+        track.advance(1.0);
+        assertEquals(5.0, ((Vec3) track.sample()).x(), 1e-9, "half way through a two second tween");
+    }
+
+    @Test
     void samplingHoldsRatherThanExtrapolating() {
         Track track = new Track(PropertyType.VEC3, Vec3.ZERO);
         track.advance(0.05);

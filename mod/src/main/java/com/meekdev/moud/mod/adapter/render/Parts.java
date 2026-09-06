@@ -7,7 +7,9 @@ import com.meekdev.amnetic.client.instanced.InstanceRenderContext;
 import com.meekdev.amnetic.client.instanced.InstancedMesh;
 import com.meekdev.amnetic.client.instanced.MeshData;
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Part;
+import com.meekdev.moud.core.interp.Motion;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
@@ -21,7 +23,10 @@ import org.joml.Vector4f;
 
 public final class Parts {
 
-    private static final Identifier ID = Identifier.fromNamespaceAndPath("moud", "parts");
+    // two batches, because 11.3 says a static place costs approximately nothing per frame.
+    // still parts are emitted once and reused; only what moves is repacked every frame
+    private static final Identifier STILL = Identifier.fromNamespaceAndPath("moud", "parts_still");
+    private static final Identifier MOVING = Identifier.fromNamespaceAndPath("moud", "parts_moving");
 
     // batch.add packs straight into its buffer and keeps no reference, so these are reused
     private static final Matrix4f MATRIX = new Matrix4f();
@@ -31,43 +36,63 @@ public final class Parts {
     private Parts() {}
 
     public static void register() {
-        InstancedMesh.builder(BuiltinShader.TRANSFORM_COLOR)
+        mesh(STILL).staticInstances().onRender(Parts::still).register(STILL);
+        mesh(MOVING).onRender(Parts::moving).register(MOVING);
+    }
+
+    // called once the set of still parts changes, never per frame
+    public static void invalidateStill() {
+        InstancedMesh.invalidate(STILL);
+    }
+
+    private static InstancedMesh.Builder<BuiltinShader.TransformColor> mesh(Identifier id) {
+        return InstancedMesh.builder(BuiltinShader.TRANSFORM_COLOR)
                 .geometry(MeshData.unitCube())
                 .flatShaded()
                 .phase(InstancePhase.WORLD_LAST)
                 .writeGBuffer(true)
-                .castsShadow()
-                .onRender(Parts::write)
-                .register(ID);
+                .castsShadow();
     }
 
-    private static void write(InstanceRenderContext ctx, InstanceBatch<BuiltinShader.TransformColor> batch) {
+    private static void still(InstanceRenderContext ctx, InstanceBatch<BuiltinShader.TransformColor> batch) {
+        Motion motion = ClientScene.motion();
         List<Part> parts = ClientScene.tree().ofClass(Classes.PART);
+        for (int n = 0; n < parts.size(); n++) {
+            Part part = parts.get(n);
+            if (!motion.isMoving(part)) write(ctx, batch, motion, part);
+        }
+    }
+
+    private static void moving(InstanceRenderContext ctx, InstanceBatch<BuiltinShader.TransformColor> batch) {
+        Motion motion = ClientScene.motion();
+        for (Instance instance : motion.moving()) {
+            if (instance instanceof Part part) write(ctx, batch, motion, part);
+        }
+    }
+
+    private static void write(InstanceRenderContext ctx, InstanceBatch<BuiltinShader.TransformColor> batch,
+            Motion motion, Part part) {
+        if (!part.visible || part.transparency >= 1.0) return;
+
+        CFrame world = motion.sample(part);
+        Vec3 pos = world.position();
+        Quat rot = world.rotation();
+        Vec3 size = part.size;
         var cam = ctx.cameraPos();
 
-        for (int n = 0; n < parts.size(); n++) {
-            Part p = parts.get(n);
-            if (!p.visible || p.transparency >= 1.0) continue;
+        ROTATION.set((float) rot.x(), (float) rot.y(), (float) rot.z(), (float) rot.w());
+        // vertices are camera relative, the way minecraft draws the world
+        MATRIX.translation(
+                        (float) (pos.x() - cam.x),
+                        (float) (pos.y() - cam.y),
+                        (float) (pos.z() - cam.z))
+                .rotate(ROTATION)
+                .scale((float) size.x(), (float) size.y(), (float) size.z());
 
-            CFrame world = ClientScene.motion().sample(p);
-            Vec3 pos = world.position();
-            Quat rot = world.rotation();
-            Vec3 size = p.size;
+        Color c = part.color;
+        TINT.set(c.r(), c.g(), c.b(), (float) (1.0 - part.transparency));
 
-            ROTATION.set((float) rot.x(), (float) rot.y(), (float) rot.z(), (float) rot.w());
-            // vertices are camera relative, the way minecraft draws the world
-            MATRIX.translation(
-                            (float) (pos.x() - cam.x),
-                            (float) (pos.y() - cam.y),
-                            (float) (pos.z() - cam.z))
-                    .rotate(ROTATION)
-                    .scale((float) size.x(), (float) size.y(), (float) size.z());
-
-            Color c = p.color;
-            TINT.set(c.r(), c.g(), c.b(), (float) (1.0 - p.transparency));
-
-            float radius = (float) (size.length() * 0.5);
-            batch.addVisible(new BuiltinShader.TransformColor(MATRIX, TINT), pos.x(), pos.y(), pos.z(), radius);
-        }
+        float radius = (float) (size.length() * 0.5);
+        batch.addVisible(new BuiltinShader.TransformColor(MATRIX, TINT), pos.x(), pos.y(), pos.z(), radius);
     }
 }

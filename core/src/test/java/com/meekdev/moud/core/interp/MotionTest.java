@@ -1,7 +1,9 @@
 package com.meekdev.moud.core.interp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
@@ -65,6 +67,39 @@ class MotionTest {
         motion.drain(tree, 0.05);
         assertEquals(100.0, motion.sample(child).position().x(), 1e-9,
                 "only the parent was dirty, but the child's world frame moved with it");
+    }
+
+    @Test
+    void stillPartsLeaveTheMovingSetSoTheyCostNothing() {
+        for (int n = 0; n < 50; n++) Instances.create(Classes.PART, world, "p" + n);
+        motion.drain(tree, 0.0);
+        assertEquals(51, motion.moving().size(), "everything is in flight the moment it appears");
+
+        // settle them: past the grace window with nothing written
+        for (int n = 0; n < 5; n++) motion.drain(tree, 0.05);
+        assertEquals(0, motion.moving().size(), "nothing is moving, so nothing is repacked");
+    }
+
+    @Test
+    void onlyWhatMovesStaysInFlight() {
+        Part still = Instances.create(Classes.PART, world, "still");
+        Part mover = Instances.create(Classes.PART, world, "mover");
+        for (int n = 0; n < 5; n++) motion.drain(tree, 0.05);
+        assertEquals(0, motion.moving().size());
+
+        move(mover, 5);
+        motion.drain(tree, 0.05);
+        assertTrue(motion.isMoving(mover));
+        assertFalse(motion.isMoving(still));
+    }
+
+    @Test
+    void theStillSetOnlyReportsAChangeWhenItChanges() {
+        Instances.create(Classes.PART, world, "p");
+        motion.drain(tree, 0.0);
+        assertTrue(motion.takeStillChanged(), "a new part changed the still set");
+        motion.drain(tree, 0.001);
+        assertFalse(motion.takeStillChanged(), "a quiet frame does not repack anything");
     }
 
     @Test
