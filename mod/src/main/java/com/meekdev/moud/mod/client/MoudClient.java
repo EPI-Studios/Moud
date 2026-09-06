@@ -4,6 +4,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.time.Clock;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.render.Parts;
+import com.meekdev.moud.mod.adapter.render.Pipeline;
 import com.meekdev.moud.mod.place.Scripts;
 import com.meekdev.moud.script.vm.Vm;
 import net.fabricmc.api.ClientModInitializer;
@@ -19,6 +20,7 @@ public final class MoudClient implements ClientModInitializer {
         if (vm != null || Demo.enabled()) Demo.switches(MoudMod.features());
         if (vm == null && Demo.enabled()) Demo.build(ClientScene.world());
 
+        Pipeline.install();
         Parts.register();
         frames(vm);
         new Launch(MoudMod.features()).install();
