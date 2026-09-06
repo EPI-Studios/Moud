@@ -34,8 +34,31 @@ class BuildBench {
 
     @Test
     void throughTheBinding() {
-        time("luau vec3", "local v = vec3(1, 2, 3)");
-        time("luau add", "grid:add(\"Part\", { size = vec3(1,1,1), position = vec3(0,64,0) })");
+        time("vec3", "local v = vec3(1, 2, 3)");
+        time("index str", "local n = game.world.name");
+        time("index prop", "local n = grid.name");
+        time("table build", "local t = { size = 1, position = 2, color = 3 }");
+        time("add bare", "grid:add(\"Part\")");
+        time("add full", "grid:add(\"Part\", { size = vec3(1,1,1), position = vec3(0,64,0) })");
+        bulk();
+    }
+
+    private void bulk() {
+        InstanceTree tree = new InstanceTree();
+        Instance world = Instances.createRoot(tree, Classes.SPATIAL, "World");
+        try (Vm vm = new Vm()) {
+            vm.bind(world, Classes.registry());
+            long t0 = System.nanoTime();
+            vm.run("bench", """
+                    local grid = game.world:add("Folder")
+                    local list = table.create(%d)
+                    for i = 1, %d do
+                        list[i] = { size = vec3(1,1,1), position = vec3(0, 64, 0) }
+                    end
+                    grid:addAll("Part", list)
+                    """.formatted(N, N));
+            report("addAll", System.nanoTime() - t0);
+        }
     }
 
     private void time(String what, String body) {

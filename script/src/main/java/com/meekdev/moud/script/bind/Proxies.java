@@ -42,6 +42,8 @@ public final class Proxies {
         state.newTable();
         state.pushFunction(LuaFunc.wrap(Proxies::add, "Instance:add"));
         state.rawSetField(-2, "add");
+        state.pushFunction(LuaFunc.wrap(Proxies::addAll, "Instance:addAll"));
+        state.rawSetField(-2, "addAll");
         state.pushFunction(LuaFunc.wrap(Proxies::destroy, "Instance:destroy"));
         state.rawSetField(-2, "destroy");
         state.rawSetField(LuaState.REGISTRY_INDEX, METHODS);
@@ -135,6 +137,30 @@ public final class Proxies {
             }
         }
         push(state, created);
+        return 1;
+    }
+
+    // one crossing for the whole list instead of one per instance. the same argument 15.4 makes
+    // for worldgen: the per call cost is a floor, so the api has to describe many at once.
+    // it hands nothing back, because a proxy per created instance would put the cost straight back
+    private static int addAll(LuaState state) {
+        Instance parent = self(state);
+        String className = state.checkString(2);
+        ClassDef<?> def = classes.require(className);
+
+        int count = state.len(3);
+        for (int n = 1; n <= count; n++) {
+            state.rawGetI(3, n);
+            int entry = state.absIndex(-1);
+            Instance created = Instances.create(def, parent, className);
+            state.pushNil();
+            while (state.next(entry)) {
+                apply(state, created, state.checkString(-2), state.absIndex(-1));
+                state.pop(1);
+            }
+            state.pop(1);
+        }
+        state.pushInteger(count);
         return 1;
     }
 
