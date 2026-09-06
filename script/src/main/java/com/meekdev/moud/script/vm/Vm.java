@@ -5,6 +5,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.api.Game;
 import com.meekdev.moud.script.bind.Proxies;
 import com.meekdev.moud.script.bind.Signals;
+import com.meekdev.moud.script.sched.Scheduler;
 import java.util.function.Consumer;
 import com.meekdev.moud.script.bind.Values;
 import com.meekdev.moud.script.err.ScriptError;
@@ -31,10 +32,12 @@ public final class Vm implements AutoCloseable {
     private final LuaState state;
     private final Game game = new Game();
     private Consumer<ScriptError> onError = e -> { throw e; };
+    private final Scheduler scheduler;
 
     public Vm() {
         state = LuaState.newState();
         state.openLibs(LIBRARIES);
+        scheduler = new Scheduler(state, e -> onError.accept(e));
     }
 
     public void bind(Instance world, ClassRegistry registry) {
@@ -42,6 +45,12 @@ public final class Vm implements AutoCloseable {
         Signals.install(state);
         Proxies.install(state, registry);
         game.install(state, world);
+        scheduler.install(state);
+        run("task", scheduler.prelude());
+    }
+
+    public Scheduler scheduler() {
+        return scheduler;
     }
 
     // a script error kills its handler, not the game
@@ -50,6 +59,7 @@ public final class Vm implements AutoCloseable {
     }
 
     public void step(double dt) {
+        scheduler.advance(dt);
         fire(game.stepped(), dt);
     }
 
