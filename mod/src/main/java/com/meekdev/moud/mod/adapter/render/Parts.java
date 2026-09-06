@@ -51,6 +51,9 @@ public final class Parts {
                 .flatShaded()
                 .phase(InstancePhase.WORLD_LAST)
                 .writeGBuffer(true)
+                // absolute positions, because the still batch is uploaded once and a camera
+                // relative one would be frozen at the camera the frame it was packed
+                .worldSpace()
                 .castsShadow();
     }
 
@@ -78,14 +81,9 @@ public final class Parts {
         Vec3 pos = world.position();
         Quat rot = world.rotation();
         Vec3 size = part.size;
-        var cam = ctx.cameraPos();
 
         ROTATION.set((float) rot.x(), (float) rot.y(), (float) rot.z(), (float) rot.w());
-        // vertices are camera relative, the way minecraft draws the world
-        MATRIX.translation(
-                        (float) (pos.x() - cam.x),
-                        (float) (pos.y() - cam.y),
-                        (float) (pos.z() - cam.z))
+        MATRIX.translation((float) pos.x(), (float) pos.y(), (float) pos.z())
                 .rotate(ROTATION)
                 .scale((float) size.x(), (float) size.y(), (float) size.z());
 
