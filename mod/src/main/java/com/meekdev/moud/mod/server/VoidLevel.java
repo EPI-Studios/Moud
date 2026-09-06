@@ -1,7 +1,7 @@
 package com.meekdev.moud.mod.server;
 
 import com.meekdev.moud.mod.level.PlaceChunkGenerator;
-import com.meekdev.moud.mod.place.Place;
+import com.meekdev.moud.mod.place.Blocks;
 import java.util.Map;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
@@ -31,7 +31,7 @@ public final class VoidLevel {
                 registries.lookupOrThrow(Registries.DIMENSION_TYPE).getOrThrow(TYPE),
                 new PlaceChunkGenerator(
                         registries.lookupOrThrow(Registries.BIOME).getOrThrow(Biomes.THE_VOID),
-                        Place.world()));
+                        Blocks.load()));
         return new WorldDimensions(Map.of(LevelStem.OVERWORLD, stem));
     }
 

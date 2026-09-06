@@ -9,6 +9,7 @@ public final class Game {
 
     private final Signals.Handlers stepped = new Signals.Handlers();
     private final Signals.Handlers renderStepped = new Signals.Handlers();
+    private final Signals.Handlers reloaded = new Signals.Handlers();
 
     public Signals.Handlers stepped() {
         return stepped;
@@ -16,6 +17,10 @@ public final class Game {
 
     public Signals.Handlers renderStepped() {
         return renderStepped;
+    }
+
+    public Signals.Handlers reloaded() {
+        return reloaded;
     }
 
     public void install(LuaState state, Instance world) {
@@ -26,6 +31,11 @@ public final class Game {
         state.rawSetField(-2, "stepped");
         Signals.push(state, renderStepped);
         state.rawSetField(-2, "renderStepped");
+        Signals.push(state, reloaded);
+        state.rawSetField(-2, "reloaded");
+        // a plain table the place owns, carried across a reload as data
+        state.newTable();
+        state.rawSetField(-2, "persist");
         state.setGlobal("game");
     }
 }

@@ -117,6 +117,30 @@ public final class Values {
         return (Color) value;
     }
 
+    // the value types as plain objects, for anything that has to carry them outside a vm
+    public static Object value(LuaState state, int index) {
+        Object v = state.toUserDataTagged(index, VEC3);
+        if (v != null) return v;
+        v = state.toUserDataTagged(index, COLOR);
+        if (v != null) return v;
+        v = state.toUserDataTagged(index, CFRAME);
+        if (v != null) return v;
+        return state.toUserDataTagged(index, QUAT);
+    }
+
+    public static boolean push(LuaState state, Object value) {
+        switch (value) {
+            case Vec3 v -> push(state, v);
+            case Color c -> push(state, c);
+            case CFrame c -> push(state, c);
+            case Quat q -> push(state, q);
+            default -> {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static int newVec3(LuaState state) {
         push(state, new Vec3(state.checkNumber(1), state.checkNumber(2), state.checkNumber(3)));
         return 1;

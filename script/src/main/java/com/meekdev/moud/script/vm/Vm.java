@@ -5,7 +5,9 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.api.Game;
 import com.meekdev.moud.script.bind.Proxies;
 import com.meekdev.moud.script.bind.Signals;
+import com.meekdev.moud.script.reload.Persist;
 import com.meekdev.moud.script.sched.Scheduler;
+import java.util.Map;
 import java.util.function.Consumer;
 import com.meekdev.moud.script.bind.Values;
 import com.meekdev.moud.script.err.ScriptError;
@@ -51,6 +53,18 @@ public final class Vm implements AutoCloseable {
 
     public Scheduler scheduler() {
         return scheduler;
+    }
+
+    public Map<String, Object> persist() {
+        return Persist.capture(state);
+    }
+
+    public void persist(Map<String, Object> data) {
+        Persist.restore(state, data);
+    }
+
+    public void reloaded() {
+        fire(game.reloaded(), 0);
     }
 
     // a script error kills its handler, not the game
