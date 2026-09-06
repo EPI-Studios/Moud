@@ -19,6 +19,7 @@
     "world.DropsMixin",
     "world.FluidsMixin",
     "world.MobSpawnMixin",
+    "world.RandomTickMixin",
     "world.TimeMixin",
     "world.WeatherMixin"
   ],
