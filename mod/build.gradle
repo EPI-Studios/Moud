@@ -17,15 +17,17 @@ def siblingJar = { String dir, String name, String version, String property ->
     return f
 }
 
-// the game runs outside the checkout, so a dev world never lands in the source tree
+// the game runs outside the checkout, so a dev world never lands in the source tree.
+// loom resolves runDir against the project, so it has to be handed a relative path
 def devRun = file(findProperty('runDir') ?: "${rootDir}/../Moud-run")
+def devRunRelative = projectDir.toPath().relativize(devRun.toPath()).toString()
 
 loom {
     accessWidenerPath = file('src/main/resources/moud.accesswidener')
 
     runs {
         client {
-            runDir devRun.absolutePath
+            runDir devRunRelative
             vmArg '-Dmoud.demo=true'
             // luau reaches its native library through the ffm api, which is restricted by default
             vmArg '--enable-native-access=ALL-UNNAMED'
