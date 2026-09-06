@@ -3,6 +3,8 @@ package com.meekdev.moud.script.bind;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
+import com.meekdev.moud.core.math.Color;
+import com.meekdev.moud.core.math.Vec3;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
@@ -109,6 +111,8 @@ public final class Proxies {
             case BOOL -> state.pushBoolean(property.getBool(instance));
             case INT, NUM -> state.pushNumber(property.getNum(instance));
             case STRING -> state.pushString((String) property.getObj(instance));
+            case VEC3 -> Values.push(state, (Vec3) property.getObj(instance));
+            case COLOR -> Values.push(state, (Color) property.getObj(instance));
             default -> throw state.error("%s is not a value luau can read yet", property.name());
         }
     }
@@ -118,6 +122,8 @@ public final class Proxies {
             case BOOL -> Instances.setBool(instance, property, state.toBoolean(3));
             case INT, NUM -> Instances.setNum(instance, property, state.checkNumber(3));
             case STRING -> Instances.setObj(instance, property, state.checkString(3));
+            case VEC3 -> Instances.setObj(instance, property, Values.vec3(state, 3));
+            case COLOR -> Instances.setObj(instance, property, Values.color(state, 3));
             default -> throw state.error("%s is not a value luau can write yet", property.name());
         }
     }

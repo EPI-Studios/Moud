@@ -3,6 +3,7 @@ package com.meekdev.moud.script.vm;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.api.Game;
 import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.Values;
 import com.meekdev.moud.script.err.ScriptError;
 import net.hollowcube.luau.BuilinLibrary;
 import net.hollowcube.luau.LuaState;
@@ -32,6 +33,7 @@ public final class Vm implements AutoCloseable {
     }
 
     public void bind(Instance world) {
+        Values.install(state);
         Proxies.install(state);
         Game.install(state, world);
     }
