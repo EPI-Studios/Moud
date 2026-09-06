@@ -39,6 +39,7 @@ def amnetic = siblingJar('Amnetic', 'amnetic', project.amnetic_version, 'amnetic
 def bkun = siblingJar('Bkun', 'bkun', project.bkun_version, 'bkunJar')
 def resona = siblingJar('Resona', 'resona', project.resona_version, 'resonaJar')
 def polar = siblingJar('polar', 'polar', project.polar_version, 'polarJar')
+def box3d = siblingJar('box3d-java', 'box3d-java', project.box3d_version, 'box3dJar')
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
@@ -48,6 +49,9 @@ dependencies {
     // not `include` — these ship as their own mods, see the engine pack
     compileOnly files(amnetic, bkun, resona)
     runtimeOnly files(amnetic, bkun, resona)
+
+    // box3d ships inside bkun as a nested jar, so it is only needed to compile against
+    compileOnly files(box3d)
 
     // polar is the level format, not a mod, so it shades in the way core does
     implementation files(polar)

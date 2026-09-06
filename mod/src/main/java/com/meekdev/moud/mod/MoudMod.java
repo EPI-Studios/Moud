@@ -2,6 +2,7 @@ package com.meekdev.moud.mod;
 
 import com.meekdev.moud.mod.features.Features;
 import com.meekdev.moud.mod.level.PlaceChunkGenerator;
+import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.server.MoudServer;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
@@ -28,6 +29,7 @@ public final class MoudMod implements ModInitializer {
         Registry.register(BuiltInRegistries.CHUNK_GENERATOR,
                 Identifier.fromNamespaceAndPath(ID, "place"), PlaceChunkGenerator.CODEC);
         MoudServer.install();
+        Physics.install();
         LOG.info("moud {} starting", version());
     }
 

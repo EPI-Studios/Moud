@@ -2,35 +2,44 @@ package com.meekdev.moud.mod.adapter.physics;
 
 import com.meekdev.bkun.Bkun;
 import com.meekdev.bkun.collision.ColliderProvider;
-import com.meekdev.bkun.collision.ColliderSink;
-import com.meekdev.moud.mod.client.ClientScene;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLevelEvents;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.AABB;
+import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.net.replicate.Change;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLevelEvents;
+import net.minecraft.server.level.ServerLevel;
 import org.jspecify.annotations.Nullable;
 
-// the seam to bkun. the provider is registered once and looks the current colliders up per query,
-// because the mirror replaces its tree on every reload and the registration must outlive that
+// collision is the server's, because the server owns the tree and sub levels only exist there
 public final class Physics {
+
+    private static final Colliders BOXES = new Colliders();
+    private static final SubLevels SHAPES = new SubLevels();
+    private static @Nullable ServerLevel level;
 
     private Physics() {}
 
+    public static Colliders boxes() {
+        return BOXES;
+    }
+
+    public static SubLevels shapes() {
+        return SHAPES;
+    }
+
     public static void install() {
-        Holder holder = new Holder();
-        ColliderProvider provider = (region, sink) -> collect(region, sink);
-        ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
-            if (holder.level != null) Bkun.collision(holder.level).removeProvider(provider);
-            holder.level = level;
-            if (level != null) Bkun.collision(level).addProvider(provider);
+        ColliderProvider provider = BOXES::collect;
+        ServerLevelEvents.LOAD.register((server, loaded) -> {
+            level = loaded;
+            SHAPES.level(loaded);
+            Bkun.collision(loaded).addProvider(provider);
+        });
+        ServerLevelEvents.UNLOAD.register((server, unloaded) -> {
+            if (unloaded == level) level = null;
+            Bkun.collision(unloaded).removeProvider(provider);
         });
     }
 
-    private static void collect(AABB region, ColliderSink sink) {
-        Colliders colliders = ClientScene.colliders();
-        if (colliders != null) colliders.collect(region, sink);
-    }
-
-    private static final class Holder {
-        @Nullable Level level;
+    public static void apply(InstanceTree tree, Change change) {
+        BOXES.apply(tree, change);
+        SHAPES.apply(tree, change);
     }
 }
