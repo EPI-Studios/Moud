@@ -34,6 +34,7 @@ public final class Parts {
     public static void register() {
         InstancedMesh.builder(BuiltinShader.TRANSFORM_COLOR)
                 .geometry(MeshData.unitCube())
+                .flatShaded()
                 .phase(InstancePhase.WORLD_LAST)
                 .writeGBuffer(true)
                 .castsShadow()
