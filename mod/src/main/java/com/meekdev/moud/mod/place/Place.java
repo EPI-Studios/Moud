@@ -1,34 +1,90 @@
 package com.meekdev.moud.mod.place;
 
+import com.meekdev.moud.core.clazz.ClassRegistry;
+import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.script.reload.Watcher;
+import com.meekdev.moud.script.vm.Vm;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 import net.fabricmc.loader.api.FabricLoader;
-import net.hollowcube.polar.PolarReader;
-import net.hollowcube.polar.PolarWorld;
 import org.jspecify.annotations.Nullable;
 
-// a place is a directory beside the game in dev, and the jar itself once exported
 public final class Place {
 
-    private static final String WORLD = "place/world.polar";
+    private static final String ROOT = "place";
+    private static final String MAIN = "server/main.luau";
 
-    private Place() {}
+    private final Instance world;
+    private final ClassRegistry classes;
+    private final Path root;
+    private @Nullable Vm vm;
+    private @Nullable Watcher watcher;
 
-    public static @Nullable PolarWorld world() {
-        Path path = FabricLoader.getInstance().getGameDir().resolve(WORLD);
-        if (!Files.isRegularFile(path)) {
-            MoudMod.LOG.info("no {}, the level stays empty", path);
+    public Place(Instance world, ClassRegistry classes) {
+        this.world = world;
+        this.classes = classes;
+        this.root = FabricLoader.getInstance().getGameDir().resolve(ROOT);
+    }
+
+    public @Nullable Vm vm() {
+        return vm;
+    }
+
+    public void start() {
+        vm = load(Map.of());
+        // no watcher in an exported jar: no cost, no path, nothing to go wrong
+        if (vm != null && FabricLoader.getInstance().isDevelopmentEnvironment()) {
+            try {
+                watcher = new Watcher(root);
+                MoudMod.LOG.info("watching {}", root);
+            } catch (IOException e) {
+                MoudMod.LOG.warn("could not watch {}, reload is off", root, e);
+            }
+        }
+    }
+
+    // called at one defined point in the frame, never from inside a script
+    public void pollReload() {
+        if (watcher == null || !watcher.take()) return;
+        MoudMod.LOG.info("reloading the place");
+
+        Map<String, Object> carried = vm == null ? Map.of() : vm.persist();
+        if (vm != null) vm.close();
+        for (Instance child : List.copyOf(world.children())) Instances.destroy(child);
+
+        vm = load(carried);
+        if (vm != null) vm.reloaded();
+    }
+
+    private @Nullable Vm load(Map<String, Object> carried) {
+        Path main = root.resolve(MAIN);
+        if (!Files.isRegularFile(main)) {
+            MoudMod.LOG.info("no {}, nothing to run", main);
             return null;
         }
+        String source;
         try {
-            PolarWorld world = PolarReader.read(Files.readAllBytes(path));
-            MoudMod.LOG.info("read {} chunks from {}", world.chunks().size(), path);
-            return world;
-        } catch (IOException | RuntimeException e) {
-            MoudMod.LOG.error("could not read {}", path, e);
+            source = Files.readString(main);
+        } catch (IOException e) {
+            MoudMod.LOG.error("could not read {}", main, e);
             return null;
         }
+
+        Vm fresh = new Vm();
+        fresh.bind(world, classes);
+        fresh.onError(e -> MoudMod.LOG.error("script error", e));
+        fresh.persist(carried);
+        try {
+            fresh.run(MAIN, source);
+        } catch (RuntimeException e) {
+            // a broken edit must not take the client with it, the next save gets another go
+            MoudMod.LOG.error("{} failed", main, e);
+        }
+        return fresh;
     }
 }

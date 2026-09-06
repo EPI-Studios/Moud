@@ -1,0 +1,70 @@
+package com.meekdev.moud.script.reload;
+
+import java.io.IOException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardWatchEventKinds;
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+// the io thread only ever sets a flag, the owning thread decides when that becomes a reload,
+// because design 8.6 says reload lands at a defined point and never mid script
+public final class Watcher implements AutoCloseable {
+
+    private final AtomicBoolean dirty = new AtomicBoolean();
+    private final WatchService service;
+    private final Thread thread;
+
+    public Watcher(Path root) throws IOException {
+        service = root.getFileSystem().newWatchService();
+        Files.walkFileTree(root, new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                dir.register(service, StandardWatchEventKinds.ENTRY_CREATE,
+                        StandardWatchEventKinds.ENTRY_MODIFY, StandardWatchEventKinds.ENTRY_DELETE);
+                return FileVisitResult.CONTINUE;
+            }
+        });
+
+        thread = new Thread(this::watch, "moud-watcher");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    public boolean take() {
+        return dirty.getAndSet(false);
+    }
+
+    private void watch() {
+        while (!Thread.currentThread().isInterrupted()) {
+            WatchKey key;
+            try {
+                key = service.poll(200, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | RuntimeException e) {
+                return;
+            }
+            if (key == null) continue;
+            boolean touched = false;
+            for (var event : key.pollEvents()) {
+                if (String.valueOf(event.context()).endsWith(".luau")) touched = true;
+            }
+            key.reset();
+            if (touched) dirty.set(true);
+        }
+    }
+
+    @Override
+    public void close() {
+        thread.interrupt();
+        try {
+            service.close();
+        } catch (IOException ignored) {
+            // closing a watch service we are done with has nothing useful to report
+        }
+    }
+}
