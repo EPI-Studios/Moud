@@ -1,6 +1,8 @@
 package com.meekdev.moud.script.bind;
 
+import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
+import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vec3;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
@@ -10,6 +12,8 @@ public final class Values {
 
     static final int VEC3 = 2;
     static final int COLOR = 3;
+    static final int CFRAME = 4;
+    static final int QUAT = 5;
 
     private Values() {}
 
@@ -44,6 +48,53 @@ public final class Values {
         state.setGlobal("vec3");
         state.pushFunction(LuaFunc.wrap(Values::newColor, "color"));
         state.setGlobal("color");
+
+        state.newTable();
+        state.pushFunction(LuaFunc.wrap(Values::cframeIndex, "cframe.__index"));
+        state.rawSetField(-2, "__index");
+        state.pushFunction(LuaFunc.wrap(Values::cframeMul, "cframe.__mul"));
+        state.rawSetField(-2, "__mul");
+        state.pushFunction(LuaFunc.wrap(Values::cframeEq, "cframe.__eq"));
+        state.rawSetField(-2, "__eq");
+        state.pushFunction(LuaFunc.wrap(Values::cframeText, "cframe.__tostring"));
+        state.rawSetField(-2, "__tostring");
+        state.setUserDataMetaTable(CFRAME);
+
+        state.newTable();
+        state.pushFunction(LuaFunc.wrap(Values::quatIndex, "quat.__index"));
+        state.rawSetField(-2, "__index");
+        state.pushFunction(LuaFunc.wrap(Values::quatEq, "quat.__eq"));
+        state.rawSetField(-2, "__eq");
+        state.setUserDataMetaTable(QUAT);
+
+        // cframe is a callable table so cframe(...), cframe.angles and cframe.identity all live
+        // under one name, which is the surface design 8.3 asks for
+        state.newTable();
+        state.pushFunction(LuaFunc.wrap(Values::cframeAngles, "cframe.angles"));
+        state.rawSetField(-2, "angles");
+        state.pushFunction(LuaFunc.wrap(Values::cframeLookAt, "cframe.lookAt"));
+        state.rawSetField(-2, "lookAt");
+        push(state, CFrame.IDENTITY);
+        state.rawSetField(-2, "identity");
+        state.newTable();
+        state.pushFunction(LuaFunc.wrap(Values::newCFrame, "cframe"));
+        state.rawSetField(-2, "__call");
+        state.setMetaTable(-2);
+        state.setGlobal("cframe");
+    }
+
+    public static void push(LuaState state, CFrame c) {
+        state.newUserDataTaggedWithMetatable(c, CFRAME);
+    }
+
+    public static void push(LuaState state, Quat q) {
+        state.newUserDataTaggedWithMetatable(q, QUAT);
+    }
+
+    public static CFrame cframe(LuaState state, int index) {
+        Object value = state.toUserDataTagged(index, CFRAME);
+        if (value == null) throw state.error("expected a cframe");
+        return (CFrame) value;
     }
 
     public static void push(LuaState state, Vec3 v) {
@@ -128,6 +179,76 @@ public final class Values {
     private static int vec3Text(LuaState state) {
         Vec3 v = vec3(state, 1);
         state.pushString("vec3(" + v.x() + ", " + v.y() + ", " + v.z() + ")");
+        return 1;
+    }
+
+    // arg 1 is the cframe table itself, because this is __call
+    private static int newCFrame(LuaState state) {
+        if (state.isNumber(2)) {
+            push(state, CFrame.at(state.checkNumber(2), state.checkNumber(3), state.checkNumber(4)));
+        } else if (state.isNoneOrNil(3)) {
+            push(state, CFrame.at(vec3(state, 2)));
+        } else {
+            push(state, CFrame.lookAt(vec3(state, 2), vec3(state, 3)));
+        }
+        return 1;
+    }
+
+    private static int cframeAngles(LuaState state) {
+        push(state, CFrame.angles(state.checkNumber(1), state.checkNumber(2), state.checkNumber(3)));
+        return 1;
+    }
+
+    private static int cframeLookAt(LuaState state) {
+        push(state, CFrame.lookAt(vec3(state, 1), vec3(state, 2)));
+        return 1;
+    }
+
+    private static int cframeIndex(LuaState state) {
+        CFrame c = cframe(state, 1);
+        switch (state.checkString(2)) {
+            case "position" -> push(state, c.position());
+            case "rotation" -> push(state, c.rotation());
+            case "lookVector" -> push(state, c.lookVector());
+            case "rightVector" -> push(state, c.rightVector());
+            case "upVector" -> push(state, c.upVector());
+            default -> throw state.error("cframe has no member '%s'", state.checkString(2));
+        }
+        return 1;
+    }
+
+    private static int cframeMul(LuaState state) {
+        push(state, cframe(state, 1).mul(cframe(state, 2)));
+        return 1;
+    }
+
+    private static int cframeEq(LuaState state) {
+        state.pushBoolean(cframe(state, 1).equals(cframe(state, 2)));
+        return 1;
+    }
+
+    private static int cframeText(LuaState state) {
+        CFrame c = cframe(state, 1);
+        state.pushString("cframe(" + c.position().x() + ", " + c.position().y() + ", " + c.position().z() + ")");
+        return 1;
+    }
+
+    private static int quatIndex(LuaState state) {
+        Object value = state.toUserDataTagged(1, QUAT);
+        if (value == null) throw state.error("expected a quat");
+        Quat q = (Quat) value;
+        switch (state.checkString(2)) {
+            case "x" -> state.pushNumber(q.x());
+            case "y" -> state.pushNumber(q.y());
+            case "z" -> state.pushNumber(q.z());
+            case "w" -> state.pushNumber(q.w());
+            default -> throw state.error("quat has no member '%s'", state.checkString(2));
+        }
+        return 1;
+    }
+
+    private static int quatEq(LuaState state) {
+        state.pushBoolean(state.toUserDataTagged(1, QUAT).equals(state.toUserDataTagged(2, QUAT)));
         return 1;
     }
 

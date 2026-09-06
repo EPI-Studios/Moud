@@ -76,6 +76,34 @@ class ValuesTest {
     }
 
     @Test
+    void aCframePropertyRoundTrips() {
+        vm.run("t", "game.world.floor.cframe = cframe(1, 2, 3)");
+        assertEquals(new Vec3(1, 2, 3), floor.cframe.position());
+        vm.run("t", "y = game.world.floor.cframe.position.y");
+        assertEquals(2.0, vm.number("y"));
+    }
+
+    @Test
+    void cframeHasIdentityAndConstructors() {
+        vm.run("t", "a = cframe.identity.position.x\nb = cframe(vec3(4, 5, 6)).position.z");
+        assertEquals(0.0, vm.number("a"));
+        assertEquals(6.0, vm.number("b"));
+    }
+
+    @Test
+    void worldCframeComposesTheParentChain() {
+        vm.run("t", "game.world.cframe = cframe(10, 0, 0)\ngame.world.floor.cframe = cframe(1, 0, 0)");
+        vm.run("t", "x = game.world.floor.worldCframe.position.x");
+        assertEquals(11.0, vm.number("x"));
+    }
+
+    @Test
+    void writingWorldCframeStoresTheLocalOne() {
+        vm.run("t", "game.world.cframe = cframe(10, 0, 0)\ngame.world.floor.worldCframe = cframe(12, 0, 0)");
+        assertEquals(2.0, floor.cframe.position().x(), 1e-9);
+    }
+
+    @Test
     void anUnknownMemberIsAnError() {
         assertThrows(RuntimeException.class, () -> vm.run("t", "x = vec3(1, 2, 3).w"));
     }
