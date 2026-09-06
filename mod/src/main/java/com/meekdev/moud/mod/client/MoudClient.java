@@ -48,6 +48,7 @@ public final class MoudClient implements ClientModInitializer {
             Vm vm = place.vm();
             if (vm != null) vm.renderStep(dt);
             ClientScene.motion().drain(ClientScene.tree(), dt);
+            if (ClientScene.motion().takeStillChanged()) Parts.invalidateStill();
         });
     }
 }
