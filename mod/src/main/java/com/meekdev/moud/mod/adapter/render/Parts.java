@@ -8,7 +8,6 @@ import com.meekdev.amnetic.client.instanced.InstancedMesh;
 import com.meekdev.amnetic.client.instanced.MeshData;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Part;
-import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
@@ -50,7 +49,7 @@ public final class Parts {
             Part p = parts.get(n);
             if (!p.visible || p.transparency >= 1.0) continue;
 
-            CFrame world = Transforms.world(p);
+            CFrame world = ClientScene.motion().sample(p);
             Vec3 pos = world.position();
             Quat rot = world.rotation();
             Vec3 size = p.size;

@@ -16,23 +16,28 @@ public final class MoudClient implements ClientModInitializer {
     public void onInitializeClient() {
         ClientScene.start();
         Vm vm = Scripts.run(ClientScene.world(), Classes.registry());
-        if (vm == null && Demo.enabled()) {
-            Demo.switches(MoudMod.features());
-            Demo.build(ClientScene.world());
-        } else if (vm != null) {
-            Demo.switches(MoudMod.features());
-            step(vm);
-        }
+        if (vm != null || Demo.enabled()) Demo.switches(MoudMod.features());
+        if (vm == null && Demo.enabled()) Demo.build(ClientScene.world());
+
         Parts.register();
+        frames(vm);
         new Launch(MoudMod.features()).install();
         MoudMod.LOG.info("moud client ready");
     }
 
-    // stepped is the tick, renderStepped is the frame, and both get real time rather than a rate
-    private static void step(Vm vm) {
+    // stepped is the tick, renderStepped is the frame, and both get real time rather than a rate.
+    // the drain runs every frame whether or not a script does, because interpolation is what the
+    // renderer samples from
+    private static void frames(Vm vm) {
         Clock tick = new Clock();
         Clock frame = new Clock();
-        ClientTickEvents.END_CLIENT_TICK.register(client -> vm.step(tick.tick()));
-        LevelRenderEvents.START_MAIN.register(context -> vm.renderStep(frame.tick()));
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (vm != null) vm.step(tick.tick());
+        });
+        LevelRenderEvents.START_MAIN.register(context -> {
+            double dt = frame.tick();
+            if (vm != null) vm.renderStep(dt);
+            ClientScene.motion().drain(ClientScene.tree(), dt);
+        });
     }
 }

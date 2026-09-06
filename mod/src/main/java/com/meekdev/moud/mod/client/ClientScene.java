@@ -4,10 +4,12 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
+import com.meekdev.moud.mod.adapter.render.Motion;
 
 public final class ClientScene {
 
     private static final InstanceTree TREE = new InstanceTree();
+    private static final Motion MOTION = new Motion();
     private static Instance world;
 
     private ClientScene() {}
@@ -18,6 +20,10 @@ public final class ClientScene {
 
     public static Instance world() {
         return world;
+    }
+
+    public static Motion motion() {
+        return MOTION;
     }
 
     public static void start() {
