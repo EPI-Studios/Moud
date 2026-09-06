@@ -1,5 +1,7 @@
 package com.meekdev.moud.mod.adapter.physics;
 
+import com.meekdev.box3d.B3Body;
+import com.meekdev.box3d.B3BodyType;
 import com.meekdev.bkun.sublevel.SubLevel;
 import com.meekdev.bkun.sublevel.SubLevelContainer;
 import com.meekdev.moud.core.instance.Instance;
@@ -7,6 +9,7 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
+import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.net.replicate.Change;
 import java.util.HashMap;
@@ -32,6 +35,16 @@ public final class SubLevels {
     }
 
     // the same change stream the mirror and the broadphase read, so dirty is drained once
+    // a body is created lazily on the first tick, so the type it wants is settled then, not at
+    // allocation time when body() is still null
+    public void settle() {
+        if (tree == null) return;
+        for (Map.Entry<Integer, SubLevel> entry : byInstance.entrySet()) {
+            Instance instance = tree.byId(entry.getKey());
+            if (instance instanceof Part part) type(entry.getValue(), part);
+        }
+    }
+
     public void apply(InstanceTree source, Change change) {
         tree = source;
         if (level == null) return;
@@ -59,7 +72,26 @@ public final class SubLevels {
             subLevel.setModel(PartShapes.of(part.size));
             subLevel.markShapesDirty();
         }
+        pose(subLevel, part, world);
+    }
+
+    // the pose carries the rotation and setPosition is what pushes both into the body, so the
+    // orientation has to be written first or the obb would sit square while the part looks tilted
+    private static void pose(SubLevel subLevel, Part part, CFrame world) {
+        Quat rotation = world.rotation();
+        subLevel.pose().setRotation(
+                (float) rotation.x(), (float) rotation.y(), (float) rotation.z(), (float) rotation.w());
         subLevel.setPosition(world.position().x(), world.position().y(), world.position().z());
+
+        type(subLevel, part);
+    }
+
+    // a sub level body is dynamic, so an anchored part would fall out of the world without this
+    private static void type(SubLevel subLevel, Part part) {
+        B3Body body = subLevel.body();
+        if (body == null) return;
+        B3BodyType wanted = part.anchored ? B3BodyType.KINEMATIC : B3BodyType.DYNAMIC;
+        if (body.type() != wanted) body.setType(wanted);
     }
 
     // rotated or unanchored: the two cases an axis aligned box gets wrong
