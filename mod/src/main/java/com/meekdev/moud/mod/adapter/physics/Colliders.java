@@ -1,62 +1,72 @@
 package com.meekdev.moud.mod.adapter.physics;
 
 import com.meekdev.bkun.collision.BoxCollider;
-import com.meekdev.bkun.collision.ColliderProvider;
 import com.meekdev.bkun.collision.ColliderSink;
-import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Part;
-import com.meekdev.moud.core.interp.Motion;
+import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Aabb;
+import com.meekdev.moud.core.math.CFrame;
+import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.space.Broadphase;
+import com.meekdev.moud.net.replicate.Change;
 import net.minecraft.world.phys.AABB;
+import org.jspecify.annotations.Nullable;
 
-// design 12.1: a part with collides is a box in bkun's world, region queried rather than rebuilt
-public final class Colliders implements ColliderProvider {
+// axis aligned parts only. a rotated one is not honestly an aabb, so it goes to a sub level
+// instead where the collision is a real obb (12.1.1)
+public final class Colliders {
 
-    // parts are metre scale, so a cell of four holds a handful rather than a crowd
+    private static final double SQUARE = 1.0e-4;
     private static final double CELL = 4.0;
 
-    private final InstanceTree tree;
-    private final Motion motion;
     private final Broadphase grid = new Broadphase(CELL);
-
-    private long structure = -1;
-
-    public Colliders(InstanceTree tree, Motion motion) {
-        this.tree = tree;
-        this.motion = motion;
-    }
+    private @Nullable InstanceTree tree;
 
     public int size() {
         return grid.size();
     }
 
-    // the tree changed shape, or something moved: both are cheap to fold into the grid
-    public void sync() {
-        if (tree.structureEpoch() != structure) {
-            structure = tree.structureEpoch();
-            grid.rebuild(tree.ofClass(Classes.PART), i -> box((Part) i));
-            return;
-        }
-        for (Instance instance : motion.moving()) {
-            if (instance instanceof Part part) grid.put(part, box(part));
+    public static boolean isAxisAligned(Part part) {
+        Quat rotation = Transforms.world(part).rotation();
+        return Math.abs(rotation.x()) < SQUARE && Math.abs(rotation.y()) < SQUARE
+                && Math.abs(rotation.z()) < SQUARE;
+    }
+
+    // it follows the same change stream the mirror does, so the tick drains dirty exactly once
+    public void apply(InstanceTree source, Change change) {
+        tree = source;
+        switch (change) {
+            case Change.Reset ignored -> grid.clear();
+            case Change.Destroyed destroyed -> removeById(destroyed.id());
+            case Change.Created created -> refresh(created.id());
+            case Change.Wrote wrote -> refresh(wrote.id());
         }
     }
 
-    @Override
     public void collect(AABB region, ColliderSink sink) {
-        Aabb query = new Aabb(region.minX, region.minY, region.minZ, region.maxX, region.maxY, region.maxZ);
-        grid.query(query, instance -> {
+        grid.query(new Aabb(region.minX, region.minY, region.minZ,
+                region.maxX, region.maxY, region.maxZ), instance -> {
             Aabb box = grid.boundsOf(instance);
             if (box != null) sink.add(new BoxCollider(new AABB(
                     box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ())));
         });
     }
 
-    private Aabb box(Part part) {
-        // a part that does not collide is simply not in the grid, so it costs nothing to skip
-        return part.collides ? Aabb.around(motion.sample(part).position(), part.size) : null;
+    private void refresh(int id) {
+        Instance instance = tree == null ? null : tree.byId(id);
+        if (!(instance instanceof Part part)) return;
+        if (!part.collides || !isAxisAligned(part)) {
+            grid.remove(part);
+            return;
+        }
+        CFrame world = Transforms.world(part);
+        grid.put(part, Aabb.around(world.position(), part.size));
+    }
+
+    private void removeById(int id) {
+        Instance instance = tree == null ? null : tree.byId(id);
+        if (instance != null) grid.remove(instance);
     }
 }

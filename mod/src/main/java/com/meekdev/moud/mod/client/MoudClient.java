@@ -2,7 +2,6 @@ package com.meekdev.moud.mod.client;
 
 import com.meekdev.moud.core.time.Clock;
 import com.meekdev.moud.mod.MoudMod;
-import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.place.Switches;
 import com.meekdev.moud.mod.adapter.render.Parts;
 import com.meekdev.moud.mod.adapter.render.Pipeline;
@@ -15,7 +14,6 @@ public final class MoudClient implements ClientModInitializer {
     public void onInitializeClient() {
         Switches.install(MoudMod.features());
         Pipeline.install();
-        Physics.install();
         Parts.register();
         frames();
         new Launch(MoudMod.features()).install();

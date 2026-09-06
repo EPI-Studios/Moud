@@ -24,12 +24,14 @@ public final class Mirror {
         return APPLIER;
     }
 
-    // server thread: read the authority, hand over a snapshot of what changed
-    public static void record() {
+    // server thread: drain the authority once, then let every consumer read the same batch.
+    // dirty is cleared by the drain, so a second consumer that drained for itself would see nothing
+    public static void record(java.util.function.Consumer<Change> also) {
         if (!ServerScene.running()) return;
         Queue<Change> batch = new ArrayDeque<>();
         RECORDER.follow(ServerScene.tree(), batch::add);
         RECORDER.drain(batch::add);
+        for (Change change : batch) also.accept(change);
         QUEUE.addAll(batch);
     }
 

@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.server;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.time.Clock;
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.client.Mirror;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.script.vm.Vm;
@@ -49,7 +50,7 @@ public final class MoudServer {
         place.pollReload();
         Vm vm = place.vm();
         if (vm != null) vm.step(TICK.tick());
-        Mirror.record();
+        Mirror.record(change -> Physics.apply(ServerScene.tree(), change));
     }
 
     // scaffolding until the character lands: nothing holds a player up in a void level
