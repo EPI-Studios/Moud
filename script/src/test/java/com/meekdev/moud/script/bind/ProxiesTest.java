@@ -27,7 +27,7 @@ class ProxiesTest {
         world = Instances.createRoot(tree, Classes.SPATIAL, "World");
         floor = Instances.create(Classes.PART, world, "floor");
         vm = new Vm();
-        vm.bind(world);
+        vm.bind(world, Classes.registry());
     }
 
     @AfterEach
