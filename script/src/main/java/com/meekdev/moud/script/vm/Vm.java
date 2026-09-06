@@ -50,7 +50,15 @@ public final class Vm implements AutoCloseable {
     }
 
     public void step(double dt) {
-        Signals.fire(state, game.stepped(), onError, s -> {
+        fire(game.stepped(), dt);
+    }
+
+    public void renderStep(double dt) {
+        fire(game.renderStepped(), dt);
+    }
+
+    private void fire(Signals.Handlers signal, double dt) {
+        Signals.fire(state, signal, onError, s -> {
             s.pushNumber(dt);
             return 1;
         });

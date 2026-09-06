@@ -64,6 +64,21 @@ class SignalsTest {
     }
 
     @Test
+    void renderSteppedIsSeparateFromStepped() {
+        vm.run("main", """
+                ticks = 0
+                frames = 0
+                game.stepped:connect(function() ticks += 1 end)
+                game.renderStepped:connect(function() frames += 1 end)
+                """);
+        vm.step(0.05);
+        vm.renderStep(0.008);
+        vm.renderStep(0.008);
+        assertEquals(1.0, vm.number("ticks"));
+        assertEquals(2.0, vm.number("frames"));
+    }
+
+    @Test
     void aDisconnectedHandlerStopsRunning() {
         vm.run("main", """
                 n = 0
