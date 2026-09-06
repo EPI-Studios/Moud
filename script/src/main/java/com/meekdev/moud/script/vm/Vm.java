@@ -1,5 +1,6 @@
 package com.meekdev.moud.script.vm;
 
+import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.api.Game;
 import com.meekdev.moud.script.bind.Proxies;
@@ -32,9 +33,9 @@ public final class Vm implements AutoCloseable {
         state.openLibs(LIBRARIES);
     }
 
-    public void bind(Instance world) {
+    public void bind(Instance world, ClassRegistry registry) {
         Values.install(state);
-        Proxies.install(state);
+        Proxies.install(state, registry);
         Game.install(state, world);
     }
 

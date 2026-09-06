@@ -1,5 +1,7 @@
 package com.meekdev.moud.script.bind;
 
+import com.meekdev.moud.core.clazz.ClassDef;
+import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
@@ -18,10 +20,15 @@ public final class Proxies {
 
     // one proxy per instance so identity holds in luau, weak valued so a dead one can go
     private static final String CACHE = "moud.instances";
+    private static final String METHODS = "moud.methods";
+
+    private static ClassRegistry classes;
 
     private Proxies() {}
 
-    public static void install(LuaState state) {
+    public static void install(LuaState state, ClassRegistry registry) {
+        classes = registry;
+
         state.newTable();
         state.pushFunction(LuaFunc.wrap(Proxies::index, "Instance.__index"));
         state.rawSetField(-2, "__index");
@@ -37,6 +44,14 @@ public final class Proxies {
         state.rawSetField(-2, "__mode");
         state.setMetaTable(-2);
         state.rawSetField(LuaState.REGISTRY_INDEX, CACHE);
+
+        // shared method table, so __index hands back the same function rather than a new closure
+        state.newTable();
+        state.pushFunction(LuaFunc.wrap(Proxies::add, "Instance:add"));
+        state.rawSetField(-2, "add");
+        state.pushFunction(LuaFunc.wrap(Proxies::destroy, "Instance:destroy"));
+        state.rawSetField(-2, "destroy");
+        state.rawSetField(LuaState.REGISTRY_INDEX, METHODS);
     }
 
     public static void push(LuaState state, Instance instance) {
@@ -75,11 +90,17 @@ public final class Proxies {
             default -> { }
         }
 
-        // cframe is the local frame, matching the field. the composed one is its own name so
-        // neither reading is a silent surprise
-        if (key.equals("worldCframe") && instance instanceof Spatial) {
-            Values.push(state, Transforms.world(instance));
-            return 1;
+        if (instance instanceof Spatial spatial) {
+            // cframe is the local frame, matching the field. the composed one is its own name so
+            // neither reading is a silent surprise
+            if (key.equals("position")) {
+                Values.push(state, spatial.cframe.position());
+                return 1;
+            }
+            if (key.equals("worldCframe")) {
+                Values.push(state, Transforms.world(instance));
+                return 1;
+            }
         }
 
         PropertyDef property = instance.def().property(key);
@@ -93,33 +114,69 @@ public final class Proxies {
             push(state, child);
             return 1;
         }
+
+        state.rawGetField(LuaState.REGISTRY_INDEX, METHODS);
+        if (state.rawGetField(-1, key) != LuaType.NIL) {
+            state.remove(-2);
+            return 1;
+        }
         throw state.error("%s has no member '%s'", instance.def().name(), key);
     }
 
     private static int newIndex(LuaState state) {
-        Instance instance = self(state);
-        String key = state.checkString(2);
+        apply(state, self(state), state.checkString(2), 3);
+        return 0;
+    }
 
-        if (key.equals("name")) {
-            Instances.rename(instance, state.checkString(3));
-            return 0;
+    // world:add("Part", { size = ..., position = ... })
+    private static int add(LuaState state) {
+        Instance parent = self(state);
+        String className = state.checkString(2);
+        ClassDef<?> def = classes.require(className);
+        Instance created = Instances.create(def, parent, className);
+
+        if (!state.isNoneOrNil(3)) {
+            state.pushNil();
+            while (state.next(3)) {
+                apply(state, created, state.checkString(-2), state.absIndex(-1));
+                state.pop(1);
+            }
         }
+        push(state, created);
+        return 1;
+    }
 
-        if (key.equals("worldCframe") && instance instanceof Spatial) {
-            PropertyDef local = instance.def().property("cframe");
-            Instances.setObj(instance, local, Transforms.localFor(instance, Values.cframe(state, 3)));
-            return 0;
-        }
-
-        PropertyDef property = instance.def().property(key);
-        if (property == null) throw state.error("%s has no property '%s'", instance.def().name(), key);
-        write(state, instance, property);
+    private static int destroy(LuaState state) {
+        Instances.destroy(self(state));
         return 0;
     }
 
     private static int name(LuaState state) {
         state.pushString(self(state).name());
         return 1;
+    }
+
+    // the one place a member is written, so :add and assignment can never drift apart
+    private static void apply(LuaState state, Instance instance, String key, int value) {
+        if (key.equals("name")) {
+            Instances.rename(instance, state.checkString(value));
+            return;
+        }
+        if (instance instanceof Spatial spatial) {
+            PropertyDef frame = instance.def().property("cframe");
+            if (key.equals("position")) {
+                Instances.setObj(instance, frame, spatial.cframe.withPosition(Values.vec3(state, value)));
+                return;
+            }
+            if (key.equals("worldCframe")) {
+                Instances.setObj(instance, frame, Transforms.localFor(instance, Values.cframe(state, value)));
+                return;
+            }
+        }
+
+        PropertyDef property = instance.def().property(key);
+        if (property == null) throw state.error("%s has no property '%s'", instance.def().name(), key);
+        write(state, instance, property, value);
     }
 
     private static void read(LuaState state, Instance instance, PropertyDef property) {
@@ -134,14 +191,14 @@ public final class Proxies {
         }
     }
 
-    private static void write(LuaState state, Instance instance, PropertyDef property) {
+    private static void write(LuaState state, Instance instance, PropertyDef property, int value) {
         switch (property.type()) {
-            case BOOL -> Instances.setBool(instance, property, state.toBoolean(3));
-            case INT, NUM -> Instances.setNum(instance, property, state.checkNumber(3));
-            case STRING -> Instances.setObj(instance, property, state.checkString(3));
-            case VEC3 -> Instances.setObj(instance, property, Values.vec3(state, 3));
-            case COLOR -> Instances.setObj(instance, property, Values.color(state, 3));
-            case CFRAME -> Instances.setObj(instance, property, Values.cframe(state, 3));
+            case BOOL -> Instances.setBool(instance, property, state.toBoolean(value));
+            case INT, NUM -> Instances.setNum(instance, property, state.checkNumber(value));
+            case STRING -> Instances.setObj(instance, property, state.checkString(value));
+            case VEC3 -> Instances.setObj(instance, property, Values.vec3(state, value));
+            case COLOR -> Instances.setObj(instance, property, Values.color(state, value));
+            case CFRAME -> Instances.setObj(instance, property, Values.cframe(state, value));
             default -> throw state.error("%s is not a value luau can write yet", property.name());
         }
     }
