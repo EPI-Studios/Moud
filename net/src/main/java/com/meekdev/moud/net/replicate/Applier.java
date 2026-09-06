@@ -1,0 +1,66 @@
+package com.meekdev.moud.net.replicate;
+
+import com.meekdev.moud.core.clazz.ClassDef;
+import com.meekdev.moud.core.clazz.ClassRegistry;
+import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.clazz.PropertyDef;
+import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.instance.Instances;
+
+// builds the mirror from a change stream. it never invents an id, so both sides agree on identity
+public final class Applier {
+
+    private final ClassRegistry classes;
+    private InstanceTree tree;
+    private Instance world;
+
+    public Applier(ClassRegistry classes) {
+        this.classes = classes;
+    }
+
+    public InstanceTree tree() {
+        return tree;
+    }
+
+    public Instance world() {
+        return world;
+    }
+
+    public void apply(Change change) {
+        switch (change) {
+            case Change.Reset ignored -> {
+                tree = new InstanceTree();
+                world = Instances.createRoot(tree, Classes.SPATIAL, "World");
+            }
+            case Change.Created created -> create(created);
+            case Change.Wrote wrote -> write(wrote);
+            case Change.Destroyed destroyed -> {
+                Instance instance = tree == null ? null : tree.byId(destroyed.id());
+                if (instance != null) Instances.destroy(instance);
+            }
+        }
+    }
+
+    private void create(Change.Created created) {
+        if (tree == null) return;
+        Instance parent = created.parent() == world.id() ? world : tree.byId(created.parent());
+        if (parent == null || tree.byId(created.id()) != null) return;
+        ClassDef<?> def = classes.require(created.className());
+        Instances.adopt(def, parent, created.id(), created.name());
+    }
+
+    private void write(Change.Wrote wrote) {
+        if (tree == null) return;
+        Instance instance = tree.byId(wrote.id());
+        if (instance == null) return;
+        PropertyDef property = instance.def().property(wrote.property());
+        if (property == null) return;
+        switch (wrote.value()) {
+            case Boolean b -> Instances.setBool(instance, property, b);
+            case Double d -> Instances.setNum(instance, property, d);
+            case null -> { }
+            default -> Instances.setObj(instance, property, wrote.value());
+        }
+    }
+}
