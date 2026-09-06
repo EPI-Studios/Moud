@@ -41,10 +41,13 @@ public final class PlaceChunkGenerator extends ChunkGenerator {
         this(biome, null);
     }
 
+    // terrain is read once here rather than per chunk, because generation runs on worker threads
+    // and it is a load time switch, not a live one
     public PlaceChunkGenerator(Holder<Biome> biome, @Nullable PolarWorld place) {
         super(new FixedBiomeSource(biome));
         this.biome = biome;
-        this.place = place;
+        this.place = MoudMod.features().isOn(Feature.TERRAIN) ? place : null;
+        MoudMod.LOG.info("place chunks {}", this.place == null ? 0 : this.place.chunks().size());
     }
 
     @Override
@@ -55,7 +58,7 @@ public final class PlaceChunkGenerator extends ChunkGenerator {
     @Override
     public CompletableFuture<ChunkAccess> fillFromNoise(Blender blender, RandomState random,
             StructureManager structures, ChunkAccess chunk) {
-        if (place != null && MoudMod.features().isOn(Feature.TERRAIN)) PolarChunks.fill(place, chunk);
+        if (place != null) PolarChunks.fill(place, chunk);
         return CompletableFuture.completedFuture(chunk);
     }
 

@@ -12,6 +12,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 public final class PolarChunks {
 
@@ -24,13 +25,18 @@ public final class PolarChunks {
         if (source == null) return;
 
         HolderLookup<Block> blocks = BuiltInRegistries.BLOCK;
+        // generation owns these two, and light is computed from them later, so blocks written
+        // without updating them come out unlit and invisible
+        Heightmap oceanFloor = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.OCEAN_FLOOR_WG);
+        Heightmap worldSurface = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE_WG);
 
         PolarSection[] sections = source.sections();
         for (int i = 0; i < sections.length; i++) {
             PolarSection section = sections[i];
             if (section.isEmpty()) continue;
 
-            int index = chunk.getSectionIndexFromSectionY(place.minSection() + i);
+            int sectionY = place.minSection() + i;
+            int index = chunk.getSectionIndexFromSectionY(sectionY);
             if (index < 0 || index >= chunk.getSections().length) continue;
 
             BlockState[] palette = states(blocks, section.blockPalette());
@@ -41,7 +47,12 @@ public final class PolarChunks {
                 for (int z = 0; z < SECTION; z++) {
                     for (int x = 0; x < SECTION; x++) {
                         int id = data == null ? 0 : data[(y << 8) | (z << 4) | x];
-                        target.setBlockState(x, y, z, id < palette.length ? palette[id] : palette[0], false);
+                        BlockState state = id < palette.length ? palette[id] : palette[0];
+                        if (state.isAir()) continue;
+                        target.setBlockState(x, y, z, state, false);
+                        int worldY = sectionY * SECTION + y;
+                        oceanFloor.update(x, worldY, z, state);
+                        worldSurface.update(x, worldY, z, state);
                     }
                 }
             }
