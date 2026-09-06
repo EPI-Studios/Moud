@@ -1,11 +1,10 @@
-package com.meekdev.moud.mod.adapter.render;
+package com.meekdev.moud.core.interp;
 
 import com.meekdev.moud.core.clazz.PropertyType;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
-import com.meekdev.moud.core.interp.Track;
 import com.meekdev.moud.core.math.CFrame;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
@@ -24,8 +23,15 @@ public final class Motion {
             if (!entry.getKey().isAlive()) it.remove(); else entry.getValue().advance(dt);
         }
 
+        // a moved parent changes every descendant's world frame while only the parent is dirty,
+        // so the subtree has to follow or a child would render at a frame that no longer exists
         tree.drainDirty((instance, mask) -> {
-            if (!(instance instanceof Spatial)) return;
+            if (instance instanceof Spatial) writeSubtree(instance);
+        });
+    }
+
+    private void writeSubtree(Instance instance) {
+        if (instance instanceof Spatial) {
             CFrame world = Transforms.world(instance);
             Track track = tracks.get(instance);
             if (track == null) {
@@ -33,7 +39,8 @@ public final class Motion {
             } else {
                 track.write(world);
             }
-        });
+        }
+        for (Instance child : instance.children()) writeSubtree(child);
     }
 
     public CFrame sample(Instance instance) {
