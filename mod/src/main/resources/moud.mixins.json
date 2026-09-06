@@ -2,8 +2,36 @@
   "required": true,
   "package": "com.meekdev.moud.mod.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [],
-  "client": [],
+  "mixins": [
+    "player.DamageMixin",
+    "player.HungerMixin",
+    "player.MovementMixin",
+    "player.RegenMixin",
+    "player.XpMixin",
+    "storage.LevelDataMixin",
+    "storage.PlayerDataMixin",
+    "storage.RegionIoMixin",
+    "world.AmbientLightMixin",
+    "world.BlockEntitiesMixin",
+    "world.BlocksMixin",
+    "world.DropsMixin",
+    "world.FluidsMixin",
+    "world.MobSpawnMixin",
+    "world.TimeMixin",
+    "world.WeatherMixin"
+  ],
+  "client": [
+    "client.CloudsMixin",
+    "client.DebugScreenMixin",
+    "client.EntityRenderMixin",
+    "client.FogMixin",
+    "client.HandMixin",
+    "client.HudMixin",
+    "client.NameTagMixin",
+    "client.ScreensMixin",
+    "client.SkyMixin",
+    "client.SoundMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }
