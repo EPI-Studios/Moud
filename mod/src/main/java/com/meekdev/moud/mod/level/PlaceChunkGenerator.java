@@ -1,5 +1,7 @@
 package com.meekdev.moud.mod.level;
 
+import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.features.Feature;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.List;
@@ -53,7 +55,7 @@ public final class PlaceChunkGenerator extends ChunkGenerator {
     @Override
     public CompletableFuture<ChunkAccess> fillFromNoise(Blender blender, RandomState random,
             StructureManager structures, ChunkAccess chunk) {
-        if (place != null) PolarChunks.fill(place, chunk);
+        if (place != null && MoudMod.features().isOn(Feature.TERRAIN)) PolarChunks.fill(place, chunk);
         return CompletableFuture.completedFuture(chunk);
     }
 
