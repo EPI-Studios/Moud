@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.IntConsumer;
 
 public final class InstanceTree {
 
@@ -16,6 +17,10 @@ public final class InstanceTree {
 
     int[] dirtyList = new int[64];
     int dirtyCount;
+
+    // ids that left the tree since the last drain, which a mirror needs and the renderer does not
+    int[] removedList = new int[16];
+    int removedCount;
 
     long structureEpoch = 1;
 
@@ -58,11 +63,31 @@ public final class InstanceTree {
         structureEpoch++;
     }
 
+    // the highest replicated id handed out so far, which is what lets a mirror spot new instances
+    public int highestId() {
+        return nextId - 1;
+    }
+
+    public int removedCount() {
+        return removedCount;
+    }
+
+    public void drainRemoved(IntConsumer visitor) {
+        for (int n = 0; n < removedCount; n++) visitor.accept(removedList[n]);
+        removedCount = 0;
+    }
+
     void unindex(Instance i) {
         int slot = i.id < 0 ? -i.id : i.id;
         if (slot < byId.length && byId[slot] == i) byId[slot] = null;
         List<Instance> list = byClass.get(i.def());
         if (list != null) list.remove(i);
+        if (removedCount == removedList.length) {
+            int[] grown = new int[removedList.length * 2];
+            System.arraycopy(removedList, 0, grown, 0, removedList.length);
+            removedList = grown;
+        }
+        removedList[removedCount++] = i.id;
         structureEpoch++;
     }
 

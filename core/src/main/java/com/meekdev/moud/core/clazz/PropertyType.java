@@ -11,5 +11,9 @@ public enum PropertyType {
     COLOR,
     ASSET,
     ENUM,
-    REF
+    REF;
+
+    public boolean isBool() {
+        return this == BOOL;
+    }
 }
