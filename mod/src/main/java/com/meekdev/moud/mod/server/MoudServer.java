@@ -51,6 +51,7 @@ public final class MoudServer {
         Vm vm = place.vm();
         if (vm != null) vm.step(TICK.tick());
         Mirror.record(change -> Physics.apply(ServerScene.tree(), change));
+        Physics.settle();
     }
 
     // scaffolding until the character lands: nothing holds a player up in a void level

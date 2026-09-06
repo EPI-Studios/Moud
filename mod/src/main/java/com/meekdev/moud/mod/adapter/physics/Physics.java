@@ -42,4 +42,8 @@ public final class Physics {
         BOXES.apply(tree, change);
         SHAPES.apply(tree, change);
     }
+
+    public static void settle() {
+        SHAPES.settle();
+    }
 }
