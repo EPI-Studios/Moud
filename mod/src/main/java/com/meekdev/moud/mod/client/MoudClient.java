@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.client;
 import com.meekdev.moud.core.time.Clock;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.physics.Physics;
+import com.meekdev.moud.mod.place.Switches;
 import com.meekdev.moud.mod.adapter.render.Parts;
 import com.meekdev.moud.mod.adapter.render.Pipeline;
 import net.fabricmc.api.ClientModInitializer;
@@ -12,7 +13,7 @@ public final class MoudClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        Demo.switches(MoudMod.features());
+        Switches.install(MoudMod.features());
         Pipeline.install();
         Physics.install();
         Parts.register();
