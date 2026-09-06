@@ -6,7 +6,6 @@ import com.meekdev.moud.mod.server.VoidLevel;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
-import net.minecraft.client.gui.screens.worldselection.WorldOpenFlows;
 import net.minecraft.world.level.levelgen.WorldOptions;
 
 // temporary launch flow until luau owns it, the latch means quitting to title stays there
@@ -30,13 +29,10 @@ public final class Launch {
         open(client);
     }
 
+    // always fresh, never opened: a level read back from disk gets its generator from the codec,
+    // which has no place attached, and the level would silently come up empty
     private void open(Minecraft client) {
-        WorldOpenFlows flows = client.createWorldOpenFlows();
-        if (client.getLevelSource().levelExists(VoidLevel.NAME)) {
-            flows.openWorld(VoidLevel.NAME, () -> client.setScreen(new TitleScreen()));
-            return;
-        }
-        flows.createFreshLevel(
+        client.createWorldOpenFlows().createFreshLevel(
                 VoidLevel.NAME,
                 VoidLevel.settings(),
                 WorldOptions.defaultWithRandomSeed(),
