@@ -1,6 +1,7 @@
 package com.meekdev.moud.script.sched;
 
 import com.meekdev.moud.script.err.ScriptError;
+import com.meekdev.moud.script.vm.Luau;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -11,28 +12,6 @@ import net.hollowcube.luau.LuaStatus;
 // task.wait has to yield, and a java frame cannot, so the waiting half is luau and the parking
 // half is here. one place decides when a coroutine runs again
 public final class Scheduler {
-
-    private static final String PRELUDE = """
-            local spawn, cancel = __moud_spawn, __moud_cancel
-            __moud_spawn, __moud_cancel = nil, nil
-            task = {
-                wait = function(seconds)
-                    return coroutine.yield(seconds or 0)
-                end,
-                spawn = function(fn)
-                    return spawn(fn)
-                end,
-                delay = function(seconds, fn)
-                    return spawn(function()
-                        coroutine.yield(seconds or 0)
-                        fn()
-                    end)
-                end,
-                cancel = function(handle)
-                    cancel(handle)
-                end,
-            }
-            """;
 
     private final LuaState main;
     private final Consumer<ScriptError> onError;
@@ -45,7 +24,7 @@ public final class Scheduler {
     }
 
     public String prelude() {
-        return PRELUDE;
+        return Luau.source("task.luau");
     }
 
     public void install(LuaState state) {
