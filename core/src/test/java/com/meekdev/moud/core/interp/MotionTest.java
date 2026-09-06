@@ -1,6 +1,7 @@
 package com.meekdev.moud.core.interp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
@@ -35,12 +36,22 @@ class MotionTest {
 
         move(part, 10);
         motion.drain(tree, 0.05);
-        assertEquals(10.0, motion.sample(part).position().x(), 1e-9, "the first write has no window");
+        assertEquals(0.0, motion.sample(part).position().x(), 1e-9, "the leg has only just started");
 
-        move(part, 20);
-        motion.drain(tree, 0.05);
         motion.drain(tree, 0.025);
-        assertEquals(15.0, motion.sample(part).position().x(), 1e-9, "half a tick in, half way");
+        assertEquals(5.0, motion.sample(part).position().x(), 1e-9, "half a tick in, half way");
+
+        motion.drain(tree, 0.025);
+        assertEquals(10.0, motion.sample(part).position().x(), 1e-9);
+    }
+
+    @Test
+    void aStaticPartIsTrackedFromTheMomentItAppears() {
+        Part part = Instances.create(Classes.PART, world, "p");
+        move(part, 3);
+        motion.drain(tree, 0.0);
+        // the sample is the stored value, not a fresh walk of the parent chain
+        assertSame(motion.sample(part), motion.sample(part));
     }
 
     @Test
@@ -50,6 +61,7 @@ class MotionTest {
         motion.drain(tree, 0.0);
 
         move(folder, 100);
+        motion.drain(tree, 0.05);
         motion.drain(tree, 0.05);
         assertEquals(100.0, motion.sample(child).position().x(), 1e-9,
                 "only the parent was dirty, but the child's world frame moved with it");

@@ -14,10 +14,19 @@ import java.util.Map;
 public final class Motion {
 
     private final Map<Instance, Track> tracks = new IdentityHashMap<>();
+    private long structure;
 
     // draining every frame is what makes the window the gap between two writes, so a value written
     // on the tick smooths across the frames after it and one written on the frame does not lag
     public void drain(InstanceTree tree, double dt) {
+        // every spatial gets a track when it appears, not when it first moves. without this a
+        // static part has no track and every frame recomposes its world frame from the parent
+        // chain, which is a parent walk and three allocations per part per frame
+        if (tree.structureEpoch() != structure) {
+            structure = tree.structureEpoch();
+            if (tree.root() != null) adopt(tree.root());
+        }
+
         for (Iterator<Map.Entry<Instance, Track>> it = tracks.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<Instance, Track> entry = it.next();
             if (!entry.getKey().isAlive()) it.remove(); else entry.getValue().advance(dt);
@@ -28,6 +37,13 @@ public final class Motion {
         tree.drainDirty((instance, mask) -> {
             if (instance instanceof Spatial) writeSubtree(instance);
         });
+    }
+
+    private void adopt(Instance instance) {
+        if (instance instanceof Spatial && !tracks.containsKey(instance)) {
+            tracks.put(instance, new Track(PropertyType.CFRAME, Transforms.world(instance)));
+        }
+        for (Instance child : instance.children()) adopt(child);
     }
 
     private void writeSubtree(Instance instance) {
