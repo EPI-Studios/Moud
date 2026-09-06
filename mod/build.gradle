@@ -1,0 +1,50 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+base {
+    archivesName = 'moud'
+}
+
+// the three libraries are sibling checkouts, same convention bkun uses for amnetic
+// override with -PamneticJar= / -PbkunJar= / -PresonaJar= if yours live elsewhere
+def siblingJar = { String name, String version, String property ->
+    def f = file(findProperty(property) ?: "${rootDir}/../${name.capitalize()}/build/libs/${name}-${version}.jar")
+    if (!f.exists()) {
+        throw new GradleException("moud needs ${name} at ${f}. build the ${name.capitalize()} repo "
+                + "next to this one, or pass -P${property}=/path/to/${name}.jar")
+    }
+    return f
+}
+
+def amnetic = siblingJar('amnetic', project.amnetic_version, 'amneticJar')
+def bkun = siblingJar('bkun', project.bkun_version, 'bkunJar')
+def resona = siblingJar('resona', project.resona_version, 'resonaJar')
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // not `include` — these ship as their own mods, see the engine pack
+    compileOnly files(amnetic, bkun, resona)
+    runtimeOnly files(amnetic, bkun, resona)
+
+    implementation project(':core')
+    implementation project(':script')
+    implementation project(':net')
+    include project(':core')
+    include project(':script')
+    include project(':net')
+}
+
+processResources {
+    inputs.property 'version', project.version
+    inputs.property 'minecraft_version', project.minecraft_version
+    inputs.property 'loader_version', project.loader_version
+    filesMatching('fabric.mod.json') {
+        expand 'version': project.version,
+                'minecraft_version': project.minecraft_version,
+                'loader_version': project.loader_version
+    }
+}
