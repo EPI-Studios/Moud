@@ -4,6 +4,8 @@ import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.api.Game;
 import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.Signals;
+import java.util.function.Consumer;
 import com.meekdev.moud.script.bind.Values;
 import com.meekdev.moud.script.err.ScriptError;
 import net.hollowcube.luau.BuilinLibrary;
@@ -27,6 +29,8 @@ public final class Vm implements AutoCloseable {
     };
 
     private final LuaState state;
+    private final Game game = new Game();
+    private Consumer<ScriptError> onError = e -> { throw e; };
 
     public Vm() {
         state = LuaState.newState();
@@ -35,8 +39,21 @@ public final class Vm implements AutoCloseable {
 
     public void bind(Instance world, ClassRegistry registry) {
         Values.install(state);
+        Signals.install(state);
         Proxies.install(state, registry);
-        Game.install(state, world);
+        game.install(state, world);
+    }
+
+    // a script error kills its handler, not the game
+    public void onError(Consumer<ScriptError> handler) {
+        onError = handler;
+    }
+
+    public void step(double dt) {
+        Signals.fire(state, game.stepped(), onError, s -> {
+            s.pushNumber(dt);
+            return 1;
+        });
     }
 
     public void run(String chunkName, String source) {
