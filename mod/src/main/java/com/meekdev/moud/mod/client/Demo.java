@@ -26,20 +26,15 @@ final class Demo {
         features.set(Feature.PAUSE_MENU, true);
     }
 
+    // the floor is the place's own, from polar, so the parts only have to sit on top of it
     static void build(Instance world) {
-        Instances.create(Classes.PART, world, "floor", p -> {
-            p.cframe = CFrame.at(0, 63, 0);
-            p.size = new Vec3(64, 1, 64);
-            p.color = new Color(0.36f, 0.42f, 0.38f);
-        });
-
         Instance grid = Instances.create(Classes.FOLDER, world, "grid");
         for (int x = 0; x < 32; x++) {
             for (int z = 0; z < 32; z++) {
                 int gx = x;
                 int gz = z;
                 Instances.create(Classes.PART, grid, "p" + x + "_" + z, p -> {
-                    p.cframe = CFrame.at(-31 + gx * 2, 65 + ((gx + gz) % 3), -31 + gz * 2);
+                    p.cframe = CFrame.at(-31 + gx * 2, 62 + ((gx + gz) % 3), -31 + gz * 2);
                     p.size = new Vec3(1.4, 1.4, 1.4);
                     p.color = new Color(0.2f + gx / 48f, 0.35f, 0.7f - gz / 64f);
                 });

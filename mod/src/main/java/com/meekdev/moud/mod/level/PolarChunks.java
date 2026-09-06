@@ -45,6 +45,8 @@ public final class PolarChunks {
                     }
                 }
             }
+            // without this the section can still report itself as air and never render or collide
+            target.recalcBlockCounts();
         }
     }
 
