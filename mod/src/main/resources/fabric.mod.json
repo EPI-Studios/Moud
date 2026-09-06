@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "moud",
+  "version": "${version}",
+  "name": "Moud",
+  "description": "build a game inside minecraft in luau",
+  "authors": ["Meekiavelique"],
+  "license": "All-Rights-Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.meekdev.moud.mod.MoudMod"],
+    "client": ["com.meekdev.moud.mod.client.MoudClient"]
+  },
+  "mixins": ["moud.mixins.json"],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}",
+    "amnetic": "*",
+    "bkun": "*",
+    "resona": "*"
+  }
+}
