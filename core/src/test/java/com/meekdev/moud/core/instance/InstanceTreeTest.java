@@ -89,6 +89,26 @@ class InstanceTreeTest {
     }
 
     @Test
+    void movingOnePartInABigSceneCostsOneDirtyEntry() {
+        PropertyDef charge = TestClasses.GADGET.property("charge");
+        List<Instance> parts = new ArrayList<>();
+        for (int n = 0; n < 1000; n++) {
+            parts.add(Instances.create(TestClasses.GADGET, world, "p" + n));
+        }
+        assertEquals(1000, tree.ofClass(TestClasses.GADGET).size());
+        assertEquals(0, tree.dirtyCount(), "building a scene is a structure change, not a dirty one");
+
+        Instance moved = parts.get(500);
+        Instances.setNum(moved, charge, 0.25);
+        assertEquals(1, tree.dirtyCount());
+
+        List<Instance> drained = new ArrayList<>();
+        tree.drainDirty((i, mask) -> drained.add(i));
+        assertEquals(List.of(moved), drained);
+        assertEquals(0, tree.dirtyCount());
+    }
+
+    @Test
     void writingTheSameValueDoesNothing() {
         Instance part = Instances.create(TestClasses.GADGET, world, "p");
         PropertyDef enabled = TestClasses.GADGET.property("enabled");
