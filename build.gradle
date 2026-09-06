@@ -12,9 +12,14 @@ allprojects {
             name = 'Fabric'
             url = 'https://maven.fabricmc.net/'
         }
+        // release only, and content filtered because gradle otherwise asks it for every
+        // artifact including minecraft, and one dns failure there fails the whole resolve
         maven {
             name = 'meekdev'
             url = 'https://maven.meekhasto.rest'
+            content {
+                includeGroup 'com.meekdev'
+            }
         }
     }
 }
