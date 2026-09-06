@@ -18,8 +18,6 @@ public final class Proxies {
 
     static final int TAG = 1;
 
-    // one proxy per instance so identity holds in luau, weak valued so a dead one can go
-    private static final String CACHE = "moud.instances";
     private static final String METHODS = "moud.methods";
 
     private static ClassRegistry classes;
@@ -36,14 +34,9 @@ public final class Proxies {
         state.rawSetField(-2, "__newindex");
         state.pushFunction(LuaFunc.wrap(Proxies::name, "Instance.__tostring"));
         state.rawSetField(-2, "__tostring");
+        state.pushFunction(LuaFunc.wrap(Proxies::same, "Instance.__eq"));
+        state.rawSetField(-2, "__eq");
         state.setUserDataMetaTable(TAG);
-
-        state.newTable();
-        state.newTable();
-        state.pushString("v");
-        state.rawSetField(-2, "__mode");
-        state.setMetaTable(-2);
-        state.rawSetField(LuaState.REGISTRY_INDEX, CACHE);
 
         // shared method table, so __index hands back the same function rather than a new closure
         state.newTable();
@@ -54,17 +47,16 @@ public final class Proxies {
         state.rawSetField(LuaState.REGISTRY_INDEX, METHODS);
     }
 
+    // a proxy is not cached. caching one per instance pins a jni global ref for every instance
+    // that a script ever touches, and building a scene then degrades as the ref table grows.
+    // identity is __eq on the instance behind the proxy instead, which is what a place observes
     public static void push(LuaState state, Instance instance) {
-        state.rawGetField(LuaState.REGISTRY_INDEX, CACHE);
-        if (state.rawGetI(-1, instance.id()) != LuaType.NIL) {
-            state.remove(-2);
-            return;
-        }
-        state.pop(1);
         state.newUserDataTaggedWithMetatable(instance, TAG);
-        state.pushValue(-1);
-        state.rawSetI(-3, instance.id());
-        state.remove(-2);
+    }
+
+    private static int same(LuaState state) {
+        state.pushBoolean(state.toUserDataTagged(1, TAG) == state.toUserDataTagged(2, TAG));
+        return 1;
     }
 
     private static Instance self(LuaState state) {
