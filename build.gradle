@@ -12,6 +12,15 @@ allprojects {
             name = 'Fabric'
             url = 'https://maven.fabricmc.net/'
         }
+        // the imgui bridge the amnetic editor draws through, dev only
+        maven {
+            name = 'ryanhcode'
+            url = 'https://maven.ryanhcode.dev/releases'
+            content {
+                includeGroup 'foundry.imguimc'
+            }
+        }
+
         // release only, and content filtered because gradle otherwise asks it for every
         // artifact including minecraft, and one dns failure there fails the whole resolve
         maven {

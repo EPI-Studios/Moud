@@ -77,7 +77,7 @@ public final class Place {
 
         Vm fresh = new Vm();
         fresh.bind(world, classes);
-        fresh.onError(e -> MoudMod.LOG.error("script error", e));
+        fresh.onError(Errors::record);
         fresh.persist(carried);
         try {
             fresh.run(MAIN, source);

@@ -53,6 +53,11 @@ dependencies {
     // box3d ships inside bkun as a nested jar, so it is only needed to compile against
     compileOnly files(box3d)
 
+    // the editor draws through imgui. dev only: it is never on a player's classpath, and the
+    // inspectors check that amnetic brought it before they touch it
+    compileOnly "foundry.imguimc:imguimc-fabric-26.1:${project.imguimc_version}"
+    localRuntime "foundry.imguimc:imguimc-fabric-26.1:${project.imguimc_version}"
+
     // polar is the level format, not a mod, so it shades in the way core does
     implementation files(polar)
 

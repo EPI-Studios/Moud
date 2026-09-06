@@ -5,6 +5,7 @@ import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.place.Switches;
 import com.meekdev.moud.mod.adapter.render.Parts;
 import com.meekdev.moud.mod.adapter.render.Pipeline;
+import com.meekdev.moud.mod.client.editor.Editor;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 
@@ -14,6 +15,7 @@ public final class MoudClient implements ClientModInitializer {
     public void onInitializeClient() {
         Switches.install(MoudMod.features());
         Pipeline.install();
+        Editor.install();
         Parts.register();
         frames();
         new Launch(MoudMod.features()).install();
