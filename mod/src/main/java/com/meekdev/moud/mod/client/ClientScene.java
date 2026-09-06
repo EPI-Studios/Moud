@@ -4,7 +4,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
-import com.meekdev.moud.mod.adapter.render.Motion;
+import com.meekdev.moud.core.interp.Motion;
 
 public final class ClientScene {
 
