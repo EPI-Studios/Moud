@@ -4,6 +4,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.time.Clock;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.render.Parts;
+import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.adapter.render.Pipeline;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.script.vm.Vm;
@@ -23,6 +24,7 @@ public final class MoudClient implements ClientModInitializer {
         if (place.vm() == null && Demo.enabled()) Demo.build(ClientScene.world());
 
         Pipeline.install();
+        Physics.install(ClientScene.colliders());
         Parts.register();
         frames(place);
         new Launch(MoudMod.features()).install();
@@ -41,6 +43,7 @@ public final class MoudClient implements ClientModInitializer {
             place.pollReload();
             Vm vm = place.vm();
             if (vm != null) vm.step(tick.tick());
+            ClientScene.colliders().sync();
         });
 
         LevelRenderEvents.START_MAIN.register(context -> {
