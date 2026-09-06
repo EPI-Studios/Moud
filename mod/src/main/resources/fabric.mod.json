@@ -12,6 +12,7 @@
     "client": ["com.meekdev.moud.mod.client.MoudClient"]
   },
   "mixins": ["moud.mixins.json"],
+  "accessWidener": "moud.accesswidener",
   "depends": {
     "fabricloader": ">=${loader_version}",
     "fabric-api": "*",

@@ -1,0 +1,4 @@
+accessWidener v2 official
+
+# the info bar state is package private, and the xpBar switch has to name a value to return
+accessible class net/minecraft/client/gui/Gui$ContextualInfo

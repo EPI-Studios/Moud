@@ -6,20 +6,31 @@ base {
     archivesName = 'moud'
 }
 
-// the three libraries are sibling checkouts, same convention bkun uses for amnetic
-// override with -PamneticJar= / -PbkunJar= / -PresonaJar= if yours live elsewhere
-def siblingJar = { String name, String version, String property ->
-    def f = file(findProperty(property) ?: "${rootDir}/../${name.capitalize()}/build/libs/${name}-${version}.jar")
+// the libraries are sibling checkouts, same convention bkun uses for amnetic
+// override with -PamneticJar= / -PbkunJar= / -PresonaJar= / -PpolarJar= if yours live elsewhere
+def siblingJar = { String dir, String name, String version, String property ->
+    def f = file(findProperty(property) ?: "${rootDir}/../${dir}/build/libs/${name}-${version}.jar")
     if (!f.exists()) {
-        throw new GradleException("moud needs ${name} at ${f}. build the ${name.capitalize()} repo "
+        throw new GradleException("moud needs ${name} at ${f}. build the ${dir} repo "
                 + "next to this one, or pass -P${property}=/path/to/${name}.jar")
     }
     return f
 }
 
-def amnetic = siblingJar('amnetic', project.amnetic_version, 'amneticJar')
-def bkun = siblingJar('bkun', project.bkun_version, 'bkunJar')
-def resona = siblingJar('resona', project.resona_version, 'resonaJar')
+loom {
+    accessWidenerPath = file('src/main/resources/moud.accesswidener')
+
+    runs {
+        client {
+            vmArg '-Dmoud.demo=true'
+        }
+    }
+}
+
+def amnetic = siblingJar('Amnetic', 'amnetic', project.amnetic_version, 'amneticJar')
+def bkun = siblingJar('Bkun', 'bkun', project.bkun_version, 'bkunJar')
+def resona = siblingJar('Resona', 'resona', project.resona_version, 'resonaJar')
+def polar = siblingJar('polar', 'polar', project.polar_version, 'polarJar')
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
@@ -29,6 +40,9 @@ dependencies {
     // not `include` — these ship as their own mods, see the engine pack
     compileOnly files(amnetic, bkun, resona)
     runtimeOnly files(amnetic, bkun, resona)
+
+    // polar is the level format, not a mod, so it shades in the way core does
+    implementation files(polar)
 
     implementation project(':core')
     implementation project(':script')
@@ -46,5 +60,11 @@ processResources {
         expand 'version': project.version,
                 'minecraft_version': project.minecraft_version,
                 'loader_version': project.loader_version
+    }
+}
+
+jar {
+    from(zipTree(polar)) {
+        exclude 'META-INF/**'
     }
 }
