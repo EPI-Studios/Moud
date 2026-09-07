@@ -43,7 +43,11 @@ public final class SubLevels {
     public void settle() {
         if (tree == null) return;
         ticks++;
-        boolean trace = ticks == 60 || ticks == 200;
+        boolean trace = ticks == 60 || ticks == 200 || ticks == 600;
+        if (trace) {
+            MoudMod.LOG.info("trace settle tick={} subLevels={} level={}",
+                    ticks, byInstance.size(), level == null ? "none" : "set");
+        }
         for (Map.Entry<Integer, SubLevel> entry : byInstance.entrySet()) {
             Instance instance = tree.byId(entry.getKey());
             if (!(instance instanceof Part part)) continue;
