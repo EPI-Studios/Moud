@@ -67,8 +67,11 @@ final class Diagnostics {
             }
         }
         var player = Minecraft.getInstance().player;
-        MoudMod.LOG.info("diag chunksFilled={} blocksWritten={} clientChunksLoaded={}/64 withStone={} at={}{}",
+        MoudMod.LOG.info("diag chunksFilled={} blocksWritten={} polarChunksOnClient={}/64 withStone={}"
+                        + " clientChunksTotal={} renderDistance={} at={}{}",
                 PolarChunks.filled(), PolarChunks.blocks(), loaded, stone,
+                level.getChunkSource().getLoadedChunksCount(),
+                Minecraft.getInstance().options.renderDistance().get(),
                 player == null ? "?" : player.blockPosition(), missing);
 
         // what the client would actually collide against, and whether it is rotated at all
