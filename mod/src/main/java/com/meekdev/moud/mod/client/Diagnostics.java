@@ -10,16 +10,17 @@ import com.meekdev.moud.mod.adapter.render.Parts;
 import com.meekdev.moud.mod.level.PolarChunks;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import com.meekdev.bkun.sublevel.SubLevelEntity;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 
 // the same numbers the editor shows, written to the log a few seconds in. a symptom described in
 // words has cost several runs to chase; these are the values that decide between the causes
 final class Diagnostics {
 
-    // stone spans -64..63, so these sample the middle and all four quadrants
-    private static final int[][] PROBES = {
-        {0, 60, 0}, {-40, 60, -40}, {40, 60, -40}, {-40, 60, 40}, {40, 60, 40}, {-60, 60, 60},
-    };
+    // the stone is one layer at y=60 spanning chunks -4..3 on both axes
+    private static final int MIN_CHUNK = -4;
+    private static final int MAX_CHUNK = 3;
 
     private double elapsed;
     private int reports;
@@ -46,14 +47,36 @@ final class Diagnostics {
                 Physics.boxes().size(), ClientPhysics.boxes().size(),
                 Physics.shapes().size(), SubLevelIndex.in(level).size());
 
-        StringBuilder blocks = new StringBuilder();
-        for (int[] probe : PROBES) {
-            BlockPos pos = new BlockPos(probe[0], probe[1], probe[2]);
-            blocks.append(' ').append(probe[0]).append(',').append(probe[2]).append('=')
-                    .append(level.getBlockState(pos).getBlock().toString())
-                    .append(level.isLoaded(pos) ? "" : "(unloaded)");
+        // every chunk the polar file covers, asked of the client's own level: which arrived and
+        // which of those actually carry the stone layer. a fixed probe list only measured where
+        // the player happened to be standing
+        int loaded = 0;
+        int stone = 0;
+        StringBuilder missing = new StringBuilder();
+        for (int cx = MIN_CHUNK; cx <= MAX_CHUNK; cx++) {
+            for (int cz = MIN_CHUNK; cz <= MAX_CHUNK; cz++) {
+                BlockPos pos = new BlockPos(cx * 16 + 8, 60, cz * 16 + 8);
+                boolean here = level.isLoaded(pos);
+                if (here) loaded++;
+                if (here && !level.getBlockState(pos).isAir()) {
+                    stone++;
+                } else if (missing.length() < 200) {
+                    missing.append(' ').append(cx).append(',').append(cz)
+                            .append(here ? "=air" : "=unloaded");
+                }
+            }
         }
-        MoudMod.LOG.info("diag chunksFilled={} blocksWritten={} clientBlocks{}",
-                PolarChunks.filled(), PolarChunks.blocks(), blocks);
+        var player = Minecraft.getInstance().player;
+        MoudMod.LOG.info("diag chunksFilled={} blocksWritten={} clientChunksLoaded={}/64 withStone={} at={}{}",
+                PolarChunks.filled(), PolarChunks.blocks(), loaded, stone,
+                player == null ? "?" : player.blockPosition(), missing);
+
+        // what the client would actually collide against, and whether it is rotated at all
+        for (SubLevelEntity platform : SubLevelIndex.in(level)) {
+            AABB body = new AABB(-64, -64, -64, 64, 64, 64);
+            MoudMod.LOG.info("diag subLevel id={} at={} rot={} model={} boxes={}",
+                    platform.getId(), platform.position(), platform.rotation(),
+                    platform.isModel(), platform.collisionBoxesNear(body).size());
+        }
     }
 }
