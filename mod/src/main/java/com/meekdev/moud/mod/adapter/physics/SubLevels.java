@@ -43,8 +43,25 @@ public final class SubLevels {
         if (tree == null) return;
         for (Map.Entry<Integer, SubLevel> entry : byInstance.entrySet()) {
             Instance instance = tree.byId(entry.getKey());
-            if (instance instanceof Part part) type(entry.getValue(), part);
+            if (!(instance instanceof Part part)) continue;
+            SubLevel subLevel = entry.getValue();
+            type(subLevel, part);
+            drive(subLevel, part);
         }
+    }
+
+    // the body carries the transform, and sub level tick copies it back over the pose every tick.
+    // writing the pose alone is why every ramp collided as an axis aligned box
+    private static void drive(SubLevel subLevel, Part part) {
+        B3Body body = subLevel.body();
+        if (body == null) return;
+        CFrame world = Transforms.world(part);
+        Quat r = world.rotation();
+        body.setTransform(
+                new com.meekdev.box3d.Vec3(
+                        world.position().x(), world.position().y(), world.position().z()),
+                new com.meekdev.box3d.Quat(
+                        (float) r.x(), (float) r.y(), (float) r.z(), (float) r.w()));
     }
 
     public void apply(InstanceTree source, Change change) {
