@@ -56,7 +56,27 @@ public final class SubLevels {
         }
     }
 
+    // box3d is a native library, so it can fail at load rather than at build. one failure turns
+    // sub levels off for the run and the rotated parts fall back to boxes, which is wrong by the
+    // width of the rotation but is a great deal better than no collision and a dead server
+    private static boolean available = true;
+
+    public static boolean available() {
+        return available;
+    }
+
     private void refresh(int id) {
+        if (!available) return;
+        try {
+            refreshOrThrow(id);
+        } catch (Throwable failure) {
+            available = false;
+            byInstance.clear();
+            MoudMod.LOG.error("sub levels are off for this run, parts collide as boxes", failure);
+        }
+    }
+
+    private void refreshOrThrow(int id) {
         Instance instance = tree == null ? null : tree.byId(id);
         if (!(instance instanceof Part part)) return;
         if (!wants(part)) {

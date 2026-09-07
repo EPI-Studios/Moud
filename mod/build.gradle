@@ -28,7 +28,6 @@ loom {
     runs {
         client {
             runDir devRunRelative
-            vmArg '-Dmoud.demo=true'
             // luau reaches its native library through the ffm api, which is restricted by default
             vmArg '--enable-native-access=ALL-UNNAMED'
         }
@@ -40,6 +39,26 @@ def bkun = siblingJar('Bkun', 'bkun', project.bkun_version, 'bkunJar')
 def resona = siblingJar('Resona', 'resona', project.resona_version, 'resonaJar')
 def polar = siblingJar('polar', 'polar', project.polar_version, 'polarJar')
 def box3d = siblingJar('box3d-java', 'box3d-java', project.box3d_version, 'box3dJar')
+
+// box3d's NativeLoader reads natives/<os>-<arch>/<lib> off the classpath, so the native has to be
+// a resource of ours. no jar ships it, every consumer copies it from the box3d checkout
+def box3dNatives = file(findProperty('box3dNatives') ?: "${rootDir}/../box3d-java/natives")
+
+def nativePlatform = {
+    def os = System.getProperty('os.name').toLowerCase()
+    def arch = System.getProperty('os.arch').toLowerCase()
+    def bit = arch.contains('aarch64') || arch.contains('arm64') ? 'arm64' : 'x64'
+    if (os.contains('win')) return "windows-${bit}"
+    if (os.contains('mac')) return "macos-${bit}"
+    return "linux-${bit}"
+}
+
+def nativePathVariable = {
+    def os = System.getProperty('os.name').toLowerCase()
+    if (os.contains('win')) return 'PATH'
+    if (os.contains('mac')) return 'DYLD_LIBRARY_PATH'
+    return 'LD_LIBRARY_PATH'
+}
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
@@ -70,6 +89,11 @@ dependencies {
 }
 
 processResources {
+    if (box3dNatives.exists()) {
+        from(box3dNatives) { into 'natives' }
+    } else {
+        logger.warn("moud: no box3d natives at ${box3dNatives}, sub level collision will fail to load")
+    }
     inputs.property 'version', project.version
     inputs.property 'minecraft_version', project.minecraft_version
     inputs.property 'loader_version', project.loader_version
@@ -83,5 +107,14 @@ processResources {
 jar {
     from(zipTree(polar)) {
         exclude 'META-INF/**'
+    }
+}
+
+tasks.matching { it.name.startsWith('run') }.configureEach {
+    def dir = new File(box3dNatives, nativePlatform())
+    if (dir.exists()) {
+        def variable = nativePathVariable()
+        def existing = System.getenv(variable)
+        environment variable, existing ? "${dir}${File.pathSeparator}${existing}" : dir.toString()
     }
 }

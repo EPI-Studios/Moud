@@ -21,6 +21,10 @@ public final class PartShapes {
 
     private static final Map<String, SubLevelModel> BY_SIZE = new HashMap<>();
 
+    // baking is the expensive half and the unit cube is the same every time, so it is baked once
+    // and every size is a transform of it. it lives as long as the game does, so it is never closed
+    private static B3Hull unit;
+
     private PartShapes() {}
 
     public static SubLevelModel of(Vec3 size) {
@@ -28,7 +32,7 @@ public final class PartShapes {
         SubLevelModel cached = BY_SIZE.get(key);
         if (cached != null) return cached;
 
-        B3Hull unit = B3Hull.bake(UNIT_CUBE, 8);
+        if (unit == null) unit = B3Hull.bake(UNIT_CUBE, 8);
         B3Hull hull = unit.transformed(
                 new com.meekdev.box3d.Vec3(0, 0, 0),
                 new com.meekdev.box3d.Quat(0, 0, 0, 1),
