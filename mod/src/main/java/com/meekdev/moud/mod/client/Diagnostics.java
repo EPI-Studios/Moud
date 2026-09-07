@@ -44,7 +44,23 @@ final class Diagnostics {
         var server = Minecraft.getInstance().getSingleplayerServer();
         if (server == null) return "?";
         var chunks = server.overworld().getChunkSource();
-        return chunks.getLoadedChunksCount() + " pending=" + chunks.getPendingTasksCount();
+        // 25 chunks on the client is exactly a radius of two, so what the server thinks the
+        // view distance is matters more than what the options say
+        // getChunkNow is non null only for a chunk that reached FULL, so this separates
+        // "the server never finished them" from "the server finished them and did not send them"
+        int full = 0;
+        int lit = 0;
+        for (int cx = MIN_CHUNK; cx <= MAX_CHUNK; cx++) {
+            for (int cz = MIN_CHUNK; cz <= MAX_CHUNK; cz++) {
+                var chunk = chunks.getChunkNow(cx, cz);
+                if (chunk == null) continue;
+                full++;
+                if (chunk.isLightCorrect()) lit++;
+            }
+        }
+        return chunks.getLoadedChunksCount() + " pending=" + chunks.getPendingTasksCount()
+                + " serverView=" + server.getPlayerList().getViewDistance()
+                + " polarFull=" + full + " polarLit=" + lit;
     }
 
     private void report(Level level) {
