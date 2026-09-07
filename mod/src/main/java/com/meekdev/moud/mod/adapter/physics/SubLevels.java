@@ -171,6 +171,21 @@ public final class SubLevels {
         return part.collides && (!part.anchored || !Colliders.isAxisAligned(part));
     }
 
+    // only the shape's name reaches the other side, so a client that never baked it resolves null
+    // and the sub level is neither solid nor drawn. singleplayer hides this behind a shared static
+    // map. the name is the size, so the mirror can bake the same shape without being told
+    static void mirror(InstanceTree tree, Change change) {
+        if (!available) return;
+        int id = switch (change) {
+            case Change.Created created -> created.id();
+            case Change.Wrote wrote -> wrote.id();
+            case Change.Reset ignored -> -1;
+            case Change.Destroyed ignored -> -1;
+        };
+        if (id < 0) return;
+        if (tree.byId(id) instanceof Part part && wants(part)) PartShapes.of(part.size);
+    }
+
     private @Nullable SubLevel allocate(int id, CFrame world) {
         SubLevel subLevel = SubLevelContainer.get(level)
                 .allocate(world.position().x(), world.position().y(), world.position().z());

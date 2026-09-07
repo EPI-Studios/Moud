@@ -4,9 +4,9 @@ import com.meekdev.box3d.B3Hull;
 import com.meekdev.bkun.sublevel.SubLevelModel;
 import com.meekdev.bkun.sublevel.SubLevelModelRegistry;
 import com.meekdev.moud.core.math.Vec3;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.AABB;
 
@@ -19,7 +19,7 @@ public final class PartShapes {
         -0.5f, -0.5f,  0.5f,  0.5f, -0.5f,  0.5f,  0.5f,  0.5f,  0.5f, -0.5f,  0.5f,  0.5f,
     };
 
-    private static final Map<String, SubLevelModel> BY_SIZE = new HashMap<>();
+    private static final Map<String, SubLevelModel> BY_SIZE = new ConcurrentHashMap<>();
 
     // baking is the expensive half and the unit cube is the same every time, so it is baked once
     // and every size is a transform of it. it lives as long as the game does, so it is never closed
@@ -29,6 +29,13 @@ public final class PartShapes {
 
     public static SubLevelModel of(Vec3 size) {
         String key = key(size);
+        SubLevelModel cached = BY_SIZE.get(key);
+        return cached != null ? cached : bake(key, size);
+    }
+
+    // the server bakes these as the place loads and the mirror bakes the same ones on the client,
+    // so both threads can reach a cold cache for one name at the same moment
+    private static synchronized SubLevelModel bake(String key, Vec3 size) {
         SubLevelModel cached = BY_SIZE.get(key);
         if (cached != null) return cached;
 

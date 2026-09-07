@@ -23,7 +23,9 @@ public final class ClientPhysics {
     }
 
     public static void apply(@Nullable InstanceTree tree, Change change) {
-        if (tree != null) BOXES.apply(tree, change);
+        if (tree == null) return;
+        BOXES.apply(tree, change);
+        SubLevels.mirror(tree, change);
     }
 
     // the level a client is in changes without a load event we can hold a provider across, so the
