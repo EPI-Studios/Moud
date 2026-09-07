@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 class BroadphaseTest {
 
@@ -89,5 +90,16 @@ class BroadphaseTest {
         assertEquals(22500, grid.size());
         // a player sized query touches a handful, not the whole field
         assertTrue(hits(new Aabb(-0.5, -1, -0.5, 0.5, 1, 0.5)).size() <= 4);
+    }
+
+    // the region bkun hands the provider when it bakes static colliders. walking it cell by cell
+    // is a hundred million billion lookups, which reads as a server that stops ticking
+    @Test
+    @Timeout(5)
+    void theWholeWorldCostsWhatIsInItNotWhatItSpans() {
+        for (int x = 0; x < 40; x++) at(x * 2, 0, 0);
+        grid.rebuild(tree.ofClass(Classes.PART), BroadphaseTest::boxOf);
+
+        assertEquals(40, hits(new Aabb(-3.0e7, -1024, -3.0e7, 3.0e7, 1024, 3.0e7)).size());
     }
 }
