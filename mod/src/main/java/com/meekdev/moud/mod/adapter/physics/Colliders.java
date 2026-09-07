@@ -57,7 +57,7 @@ public final class Colliders {
     private void refresh(int id) {
         Instance instance = tree == null ? null : tree.byId(id);
         if (!(instance instanceof Part part)) return;
-        if (!part.collides || !isAxisAligned(part)) {
+        if (!part.collides || (!isAxisAligned(part) && SubLevels.available())) {
             grid.remove(part);
             return;
         }
