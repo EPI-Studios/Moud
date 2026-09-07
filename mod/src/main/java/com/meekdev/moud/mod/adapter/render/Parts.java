@@ -37,7 +37,10 @@ public final class Parts {
     private Parts() {}
 
     public static void register() {
-        mesh(STILL).staticInstances().onRender(Parts::still).register(STILL);
+        // the still batch is packed once and reused for every later frame, so it must not be culled
+        // against the frustum it happened to be packed in. gpu culling reads the same bounds per
+        // frame instead, which is the only kind that stays true as the camera turns
+        mesh(STILL).staticInstances().gpuCull().onRender(Parts::still).register(STILL);
         mesh(MOVING).onRender(Parts::moving).register(MOVING);
     }
 
@@ -65,19 +68,19 @@ public final class Parts {
         List<Part> parts = tree.ofClass(Classes.PART);
         for (int n = 0; n < parts.size(); n++) {
             Part part = parts.get(n);
-            if (!motion.isMoving(part)) write(ctx, batch, motion, part);
+            if (!motion.isMoving(part)) write(ctx, batch, motion, part, false);
         }
     }
 
     private static void moving(InstanceRenderContext ctx, InstanceBatch<BuiltinShader.TransformColor> batch) {
         Motion motion = ClientScene.motion();
         for (Instance instance : motion.moving()) {
-            if (instance instanceof Part part) write(ctx, batch, motion, part);
+            if (instance instanceof Part part) write(ctx, batch, motion, part, true);
         }
     }
 
     private static void write(InstanceRenderContext ctx, InstanceBatch<BuiltinShader.TransformColor> batch,
-            Motion motion, Part part) {
+            Motion motion, Part part, boolean cull) {
         if (!part.visible || part.transparency >= 1.0) return;
 
         CFrame world = motion.sample(part);
@@ -94,6 +97,11 @@ public final class Parts {
         TINT.set(c.r(), c.g(), c.b(), (float) (1.0 - part.transparency));
 
         float radius = (float) (size.length() * 0.5);
-        batch.addVisible(new BuiltinShader.TransformColor(MATRIX, TINT), pos.x(), pos.y(), pos.z(), radius);
+        BuiltinShader.TransformColor instance = new BuiltinShader.TransformColor(MATRIX, TINT);
+        if (cull) {
+            batch.addVisible(instance, pos.x(), pos.y(), pos.z(), radius);
+        } else {
+            batch.add(instance, pos.x(), pos.y(), pos.z(), radius);
+        }
     }
 }
