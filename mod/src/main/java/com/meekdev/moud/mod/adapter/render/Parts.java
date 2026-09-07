@@ -34,13 +34,24 @@ public final class Parts {
     private static final Quaternionf ROTATION = new Quaternionf();
     private static final Vector4f TINT = new Vector4f();
 
+    private static int stillCount;
+    private static int movingCount;
+
+    public static int stillCount() {
+        return stillCount;
+    }
+
+    public static int movingCount() {
+        return movingCount;
+    }
+
     private Parts() {}
 
     public static void register() {
         // the still batch is packed once and reused for every later frame, so it must not be culled
-        // against the frustum it happened to be packed in. gpu culling reads the same bounds per
-        // frame instead, which is the only kind that stays true as the camera turns
-        mesh(STILL).staticInstances().gpuCull().onRender(Parts::still).register(STILL);
+        // against the frustum it happened to be packed in: those parts would never come back.
+        // it is drawn whole instead, which is what a static instanced batch is for
+        mesh(STILL).staticInstances().onRender(Parts::still).register(STILL);
         mesh(MOVING).onRender(Parts::moving).register(MOVING);
     }
 
@@ -66,22 +77,26 @@ public final class Parts {
         if (tree == null) return;
         Motion motion = ClientScene.motion();
         List<Part> parts = tree.ofClass(Classes.PART);
+        int emitted = 0;
         for (int n = 0; n < parts.size(); n++) {
             Part part = parts.get(n);
-            if (!motion.isMoving(part)) write(ctx, batch, motion, part, false);
+            if (!motion.isMoving(part) && write(ctx, batch, motion, part, false)) emitted++;
         }
+        stillCount = emitted;
     }
 
     private static void moving(InstanceRenderContext ctx, InstanceBatch<BuiltinShader.TransformColor> batch) {
         Motion motion = ClientScene.motion();
+        int emitted = 0;
         for (Instance instance : motion.moving()) {
-            if (instance instanceof Part part) write(ctx, batch, motion, part, true);
+            if (instance instanceof Part part && write(ctx, batch, motion, part, true)) emitted++;
         }
+        movingCount = emitted;
     }
 
-    private static void write(InstanceRenderContext ctx, InstanceBatch<BuiltinShader.TransformColor> batch,
+    private static boolean write(InstanceRenderContext ctx, InstanceBatch<BuiltinShader.TransformColor> batch,
             Motion motion, Part part, boolean cull) {
-        if (!part.visible || part.transparency >= 1.0) return;
+        if (!part.visible || part.transparency >= 1.0) return false;
 
         CFrame world = motion.sample(part);
         Vec3 pos = world.position();
@@ -103,5 +118,6 @@ public final class Parts {
         } else {
             batch.add(instance, pos.x(), pos.y(), pos.z(), radius);
         }
+        return true;
     }
 }

@@ -4,6 +4,7 @@ import com.meekdev.amnetic.client.ui.Inspector;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
+import com.meekdev.moud.mod.adapter.render.Parts;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.place.Errors;
@@ -29,6 +30,10 @@ public final class PlaceInspector extends Inspector {
         ImGui.text("instances");
         row("parts", tree == null ? 0 : tree.ofClass(Classes.PART).size());
         row("moving", ClientScene.motion().moving().size());
+        // what the two batches last emitted. a part the tree has but neither batch
+        // drew is a renderer bug, not a place one
+        row("drawn still", Parts.stillCount());
+        row("drawn moving", Parts.movingCount());
         row("dirty", tree == null ? 0 : tree.dirtyCount());
 
         ImGui.separator();
