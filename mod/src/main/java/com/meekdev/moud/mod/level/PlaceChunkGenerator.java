@@ -47,7 +47,8 @@ public final class PlaceChunkGenerator extends ChunkGenerator {
         super(new FixedBiomeSource(biome));
         this.biome = biome;
         this.place = MoudMod.features().isOn(Feature.TERRAIN) ? place : null;
-        MoudMod.LOG.info("place chunks {}", this.place == null ? 0 : this.place.chunks().size());
+        MoudMod.LOG.info("place holds {} chunks, terrain is {}",
+                place == null ? 0 : place.chunks().size(), this.place == null ? "off" : "on");
     }
 
     @Override
