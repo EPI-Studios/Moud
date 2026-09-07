@@ -8,6 +8,7 @@ import com.meekdev.amnetic.client.instanced.InstancedMesh;
 import com.meekdev.amnetic.client.instanced.MeshData;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.interp.Motion;
 import com.meekdev.moud.core.math.CFrame;
@@ -58,8 +59,10 @@ public final class Parts {
     }
 
     private static void still(InstanceRenderContext ctx, InstanceBatch<BuiltinShader.TransformColor> batch) {
+        InstanceTree tree = ClientScene.tree();
+        if (tree == null) return;
         Motion motion = ClientScene.motion();
-        List<Part> parts = ClientScene.tree().ofClass(Classes.PART);
+        List<Part> parts = tree.ofClass(Classes.PART);
         for (int n = 0; n < parts.size(); n++) {
             Part part = parts.get(n);
             if (!motion.isMoving(part)) write(ctx, batch, motion, part);
