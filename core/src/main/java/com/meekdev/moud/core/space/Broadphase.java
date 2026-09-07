@@ -62,21 +62,55 @@ public final class Broadphase {
     // the stamp is what makes each one reported once, without allocating a set per query
     public void query(Aabb region, Consumer<Instance> out) {
         int stamp = ++query;
-        for (int x = floor(region.minX()); x <= floor(region.maxX()); x++) {
-            for (int y = floor(region.minY()); y <= floor(region.maxY()); y++) {
-                for (int z = floor(region.minZ()); z <= floor(region.maxZ()); z++) {
+        int minX = floor(region.minX());
+        int maxX = floor(region.maxX());
+        int minY = floor(region.minY());
+        int maxY = floor(region.maxY());
+        int minZ = floor(region.minZ());
+        int maxZ = floor(region.maxZ());
+
+        // a caller may ask for the whole world, and walking a region that size costs far more than
+        // there are parts to report: baking every static collider once asked for thirty million
+        // metres a side, which is a hundred million billion cells and never returned. above the
+        // crossover, what is occupied is the smaller set to walk
+        if (cellSpan(minX, maxX, minY, maxY, minZ, maxZ) > cells.size()) {
+            for (List<Instance> list : cells.values()) {
+                report(list, region, stamp, out);
+            }
+            return;
+        }
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
                     List<Instance> list = cells.get(key(x, y, z));
-                    if (list == null) continue;
-                    for (int n = 0; n < list.size(); n++) {
-                        Instance instance = list.get(n);
-                        Entry entry = entries.get(instance);
-                        if (entry == null || entry.seen == stamp) continue;
-                        entry.seen = stamp;
-                        if (entry.box.intersects(region)) out.accept(instance);
-                    }
+                    if (list != null) report(list, region, stamp, out);
                 }
             }
         }
+    }
+
+    private void report(List<Instance> list, Aabb region, int stamp, Consumer<Instance> out) {
+        for (int n = 0; n < list.size(); n++) {
+            Instance instance = list.get(n);
+            Entry entry = entries.get(instance);
+            if (entry == null || entry.seen == stamp) continue;
+            entry.seen = stamp;
+            if (entry.box.intersects(region)) out.accept(instance);
+        }
+    }
+
+    // multiplied one axis at a time and abandoned as soon as it is past the cell count, so a
+    // region wide enough to overflow the product never gets that far
+    private long cellSpan(int minX, int maxX, int minY, int maxY, int minZ, int maxZ) {
+        long span = axis(minX, maxX);
+        if (span > cells.size()) return span;
+        span *= axis(minY, maxY);
+        if (span > cells.size()) return span;
+        return span * axis(minZ, maxZ);
+    }
+
+    private static long axis(int min, int max) {
+        return max < min ? 0 : (long) max - min + 1;
     }
 
     public Aabb boundsOf(Instance instance) {
