@@ -95,7 +95,12 @@ public final class SubLevels {
             subLevel.markShapesDirty();
             // the plot is only the shape. collision finds sub levels through their entity, and so
             // does the client, so a plot nobody spawned is invisible to both
-            entities.put(id, SubLevelEntity.spawn(level, subLevel));
+            SubLevelEntity spawned = SubLevelEntity.spawn(level, subLevel);
+            entities.put(id, spawned);
+            // the plot's own "body built" line comes from bkun and says nothing about the entity,
+            // which is the half collision and the client both go through
+            MoudMod.LOG.info("sub level entity {} for part {} at {} model {}",
+                    spawned.getId(), id, world.position(), subLevel.model() == null ? "none" : "set");
         }
         pose(subLevel, part, world);
     }
