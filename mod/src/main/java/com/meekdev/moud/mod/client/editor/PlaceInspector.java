@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.client.editor;
 import com.meekdev.amnetic.client.ui.Inspector;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.place.Errors;
@@ -32,7 +33,9 @@ public final class PlaceInspector extends Inspector {
 
         ImGui.separator();
         ImGui.text("collision");
-        row("boxes", Physics.boxes().size());
+        row("boxes (server)", Physics.boxes().size());
+        // the client set is the one the player actually collides against
+        row("boxes (client)", ClientPhysics.boxes().size());
         row("sub levels", Physics.shapes().size());
 
         ImGui.separator();

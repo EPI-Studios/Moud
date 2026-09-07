@@ -36,8 +36,11 @@ public final class Mirror {
     }
 
     // client thread: everything the client tree ever sees is applied here, at one point in the frame
-    public static void apply() {
+    public static void apply(java.util.function.Consumer<Change> also) {
         Change change;
-        while ((change = QUEUE.poll()) != null) APPLIER.apply(change);
+        while ((change = QUEUE.poll()) != null) {
+            APPLIER.apply(change);
+            also.accept(change);
+        }
     }
 }

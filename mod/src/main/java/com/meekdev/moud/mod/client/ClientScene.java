@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.client;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.interp.Motion;
+import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
 import org.jspecify.annotations.Nullable;
 
 // the client side of the tree: a mirror of the server's, plus the state only rendering needs
@@ -25,7 +26,8 @@ public final class ClientScene {
     }
 
     public static void frame(double dt) {
-        Mirror.apply();
+        Mirror.apply(change -> ClientPhysics.apply(tree(), change));
+        ClientPhysics.attach(net.minecraft.client.Minecraft.getInstance().level);
         InstanceTree tree = tree();
         if (tree != null) MOTION.drain(tree, dt);
     }
