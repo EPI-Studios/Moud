@@ -4,6 +4,7 @@ import com.meekdev.box3d.B3Body;
 import com.meekdev.box3d.B3BodyType;
 import com.meekdev.bkun.sublevel.SubLevel;
 import com.meekdev.bkun.sublevel.SubLevelContainer;
+import com.meekdev.bkun.sublevel.SubLevelEntity;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Part;
@@ -22,6 +23,7 @@ import org.jspecify.annotations.Nullable;
 public final class SubLevels {
 
     private final Map<Integer, SubLevel> byInstance = new HashMap<>();
+    private final Map<Integer, SubLevelEntity> entities = new HashMap<>();
     private @Nullable ServerLevel level;
     private @Nullable InstanceTree tree;
     private boolean warned;
@@ -71,7 +73,7 @@ public final class SubLevels {
             refreshOrThrow(id);
         } catch (Throwable failure) {
             available = false;
-            byInstance.clear();
+            clear();
             MoudMod.LOG.error("sub levels are off for this run, parts collide as boxes", failure);
         }
     }
@@ -91,6 +93,9 @@ public final class SubLevels {
             if (subLevel == null) return;
             subLevel.setModel(PartShapes.of(part.size));
             subLevel.markShapesDirty();
+            // the plot is only the shape. collision finds sub levels through their entity, and so
+            // does the client, so a plot nobody spawned is invisible to both
+            entities.put(id, SubLevelEntity.spawn(level, subLevel));
         }
         pose(subLevel, part, world);
     }
@@ -135,11 +140,15 @@ public final class SubLevels {
     }
 
     private void release(int id) {
+        SubLevelEntity entity = entities.remove(id);
+        if (entity != null) entity.discard();
         SubLevel subLevel = byInstance.remove(id);
         if (subLevel != null && level != null) SubLevelContainer.get(level).remove(subLevel);
     }
 
     private void clear() {
+        for (SubLevelEntity entity : entities.values()) entity.discard();
+        entities.clear();
         if (level != null) {
             for (SubLevel subLevel : byInstance.values()) SubLevelContainer.get(level).remove(subLevel);
         }
