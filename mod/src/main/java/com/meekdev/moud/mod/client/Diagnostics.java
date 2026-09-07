@@ -40,27 +40,30 @@ final class Diagnostics {
 
     // if the server holds the chunks and the client does not, they are not being sent. if the
     // server does not hold them either, they never finished loading
-    private static String serverChunks() {
+    //
+    // getChunkNow returns null off the server thread whatever the chunk's state, so asking from
+    // the render thread reported nothing loaded and read as evidence. it is queued instead, and a
+    // line that never arrives says the server thread is not getting round to it, which is a
+    // finding of its own
+    private static void serverChunks() {
         var server = Minecraft.getInstance().getSingleplayerServer();
-        if (server == null) return "?";
-        var chunks = server.overworld().getChunkSource();
-        // 25 chunks on the client is exactly a radius of two, so what the server thinks the
-        // view distance is matters more than what the options say
-        // getChunkNow is non null only for a chunk that reached FULL, so this separates
-        // "the server never finished them" from "the server finished them and did not send them"
-        int full = 0;
-        int lit = 0;
-        for (int cx = MIN_CHUNK; cx <= MAX_CHUNK; cx++) {
-            for (int cz = MIN_CHUNK; cz <= MAX_CHUNK; cz++) {
-                var chunk = chunks.getChunkNow(cx, cz);
-                if (chunk == null) continue;
-                full++;
-                if (chunk.isLightCorrect()) lit++;
+        if (server == null) return;
+        server.execute(() -> {
+            var chunks = server.overworld().getChunkSource();
+            int full = 0;
+            int lit = 0;
+            for (int cx = MIN_CHUNK; cx <= MAX_CHUNK; cx++) {
+                for (int cz = MIN_CHUNK; cz <= MAX_CHUNK; cz++) {
+                    var chunk = chunks.getChunkNow(cx, cz);
+                    if (chunk == null) continue;
+                    full++;
+                    if (chunk.isLightCorrect()) lit++;
+                }
             }
-        }
-        return chunks.getLoadedChunksCount() + " pending=" + chunks.getPendingTasksCount()
-                + " serverView=" + server.getPlayerList().getViewDistance()
-                + " polarFull=" + full + " polarLit=" + lit;
+            MoudMod.LOG.info("diag server loaded={} pending={} view={} polarFull={} polarLit={}",
+                    chunks.getLoadedChunksCount(), chunks.getPendingTasksCount(),
+                    server.getPlayerList().getViewDistance(), full, lit);
+        });
     }
 
     private void report(Level level) {
@@ -96,8 +99,9 @@ final class Diagnostics {
                         + " clientChunksTotal={} renderDistance={} at={}{}",
                 PolarChunks.filled(), PolarChunks.blocks(), loaded, stone,
                 level.getChunkSource().getLoadedChunksCount(),
-                Minecraft.getInstance().options.renderDistance().get() + "/server=" + serverChunks(),
+                Minecraft.getInstance().options.renderDistance().get(),
                 player == null ? "?" : player.blockPosition(), missing);
+        serverChunks();
 
         // what the client would actually collide against, and whether it is rotated at all
         for (SubLevelEntity platform : SubLevelIndex.in(level)) {
