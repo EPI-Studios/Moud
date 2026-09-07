@@ -18,11 +18,26 @@ public final class PolarChunks {
 
     private static final int SECTION = 16;
 
+    private static final java.util.concurrent.atomic.AtomicInteger FILLED =
+            new java.util.concurrent.atomic.AtomicInteger();
+    private static final java.util.concurrent.atomic.AtomicLong BLOCKS =
+            new java.util.concurrent.atomic.AtomicLong();
+
+    public static int filled() {
+        return FILLED.get();
+    }
+
+    public static long blocks() {
+        return BLOCKS.get();
+    }
+
     private PolarChunks() {}
 
     public static void fill(PolarWorld place, ChunkAccess chunk) {
         PolarChunk source = place.chunkAt(chunk.getPos().x(), chunk.getPos().z());
         if (source == null) return;
+        FILLED.incrementAndGet();
+        long written = 0;
 
         HolderLookup<Block> blocks = BuiltInRegistries.BLOCK;
         // generation owns these two, and light is computed from them later, so blocks written
@@ -50,6 +65,7 @@ public final class PolarChunks {
                         BlockState state = id < palette.length ? palette[id] : palette[0];
                         if (state.isAir()) continue;
                         target.setBlockState(x, y, z, state, false);
+                        written++;
                         int worldY = sectionY * SECTION + y;
                         oceanFloor.update(x, worldY, z, state);
                         worldSurface.update(x, worldY, z, state);
@@ -59,6 +75,7 @@ public final class PolarChunks {
             // without this the section can still report itself as air and never render or collide
             target.recalcBlockCounts();
         }
+        BLOCKS.addAndGet(written);
     }
 
     private static BlockState[] states(HolderLookup<Block> blocks, String[] palette) {

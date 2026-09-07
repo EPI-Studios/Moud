@@ -12,7 +12,12 @@ import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.server.MoudServer;
 import com.meekdev.moud.script.err.ScriptError;
 import com.meekdev.moud.script.vm.Vm;
+import com.meekdev.bkun.sublevel.SubLevelIndex;
+import com.meekdev.moud.mod.level.PolarChunks;
 import imgui.ImGui;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 import java.util.List;
 
 // the numbers and the errors, which are otherwise only in a log file nobody reads mid session
@@ -41,7 +46,22 @@ public final class PlaceInspector extends Inspector {
         row("boxes (server)", Physics.boxes().size());
         // the client set is the one the player actually collides against
         row("boxes (client)", ClientPhysics.boxes().size());
-        row("sub levels", Physics.shapes().size());
+        row("sub levels (server)", Physics.shapes().size());
+        // what the client can actually collide with: bkun finds sub levels through this index, and
+        // an entity the client never received is not in it
+        row("sub levels (client)", clientSubLevels());
+
+        ImGui.separator();
+        ImGui.text("terrain");
+        row("chunks filled", PolarChunks.filled());
+        ImGui.text("blocks written");
+        ImGui.sameLine(160);
+        ImGui.textDisabled(String.valueOf(PolarChunks.blocks()));
+        // straight off the client's own level: if this is not stone, the client has no floor,
+        // which is both why nothing draws there and why nothing stops the player
+        ImGui.text("client block 0,60,0");
+        ImGui.sameLine(160);
+        ImGui.textDisabled(blockAtSpawn());
 
         ImGui.separator();
         ImGui.text("script");
@@ -59,6 +79,22 @@ public final class PlaceInspector extends Inspector {
             ImGui.textWrapped(error.getMessage());
         }
         if (ImGui.button("clear")) Errors.clear();
+    }
+
+    // the panel opens on the title screen too, where there is no level to ask
+    private static int clientSubLevels() {
+        Level level = clientLevel();
+        return level == null ? 0 : SubLevelIndex.in(level).size();
+    }
+
+    private static Level clientLevel() {
+        return Minecraft.getInstance().level;
+    }
+
+    private static String blockAtSpawn() {
+        Level level = clientLevel();
+        if (level == null) return "no level";
+        return level.getBlockState(new BlockPos(0, 60, 0)).getBlock().toString();
     }
 
     private static void row(String name, int value) {
