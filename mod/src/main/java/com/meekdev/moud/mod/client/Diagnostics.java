@@ -38,6 +38,15 @@ final class Diagnostics {
         report(level);
     }
 
+    // if the server holds the chunks and the client does not, they are not being sent. if the
+    // server does not hold them either, they never finished loading
+    private static String serverChunks() {
+        var server = Minecraft.getInstance().getSingleplayerServer();
+        if (server == null) return "?";
+        var chunks = server.overworld().getChunkSource();
+        return chunks.getLoadedChunksCount() + " pending=" + chunks.getPendingTasksCount();
+    }
+
     private void report(Level level) {
         InstanceTree tree = ClientScene.tree();
         MoudMod.LOG.info("diag parts={} drawnStill={} drawnMoving={} moving={}",
@@ -71,7 +80,7 @@ final class Diagnostics {
                         + " clientChunksTotal={} renderDistance={} at={}{}",
                 PolarChunks.filled(), PolarChunks.blocks(), loaded, stone,
                 level.getChunkSource().getLoadedChunksCount(),
-                Minecraft.getInstance().options.renderDistance().get(),
+                Minecraft.getInstance().options.renderDistance().get() + "/server=" + serverChunks(),
                 player == null ? "?" : player.blockPosition(), missing);
 
         // what the client would actually collide against, and whether it is rotated at all
