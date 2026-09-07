@@ -27,6 +27,7 @@ public final class SubLevels {
     private @Nullable ServerLevel level;
     private @Nullable InstanceTree tree;
     private boolean warned;
+    private int ticks;
 
     public int size() {
         return byInstance.size();
@@ -41,13 +42,33 @@ public final class SubLevels {
     // allocation time when body() is still null
     public void settle() {
         if (tree == null) return;
+        ticks++;
+        boolean trace = ticks == 60 || ticks == 200;
         for (Map.Entry<Integer, SubLevel> entry : byInstance.entrySet()) {
             Instance instance = tree.byId(entry.getKey());
             if (!(instance instanceof Part part)) continue;
             SubLevel subLevel = entry.getValue();
             type(subLevel, part);
             drive(subLevel, part);
+            if (trace) trace(subLevel, part);
         }
+    }
+
+    // where the rotation stops: the part has it, the body is told it, the pose is copied back
+    // from the body. printing all three says which link drops it
+    private static void trace(SubLevel subLevel, Part part) {
+        Quat want = Transforms.world(part).rotation();
+        B3Body body = subLevel.body();
+        MoudMod.LOG.info("trace part=({} {} {} {}) pose=({} {} {} {}) body={} type={}",
+                fmt(want.x()), fmt(want.y()), fmt(want.z()), fmt(want.w()),
+                fmt(subLevel.pose().rotation().x()), fmt(subLevel.pose().rotation().y()),
+                fmt(subLevel.pose().rotation().z()), fmt(subLevel.pose().rotation().w()),
+                body == null ? "none" : body.rotation(),
+                body == null ? "none" : body.type());
+    }
+
+    private static String fmt(double v) {
+        return String.format("%.4f", v);
     }
 
     // the body carries the transform, and sub level tick copies it back over the pose every tick.
