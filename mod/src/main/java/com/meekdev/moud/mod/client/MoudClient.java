@@ -26,11 +26,9 @@ public final class MoudClient implements ClientModInitializer {
     // drained here and nowhere else, which is the one point design 7.4 puts it at
     private static void frames() {
         Clock frame = new Clock();
-        Diagnostics diagnostics = new Diagnostics();
         LevelRenderEvents.START_MAIN.register(context -> {
             double dt = frame.tick();
             ClientScene.frame(dt);
-            diagnostics.tick(dt);
             if (ClientScene.motion().takeStillChanged()) Parts.invalidateStill();
         });
     }
