@@ -39,7 +39,12 @@ public final class Motion {
         return was;
     }
 
-    public void drain(InstanceTree tree, double dt) {
+    // one tick of the stream, drained where the stream arrives rather than per frame
+    //
+    // last tick's value becomes the start of this tick's leg, whatever arrived becomes its end,
+    // and anything nothing wrote settles. a frame then draws the leg at its own tick fraction, so
+    // the render clock never decides how fast a part appears to move
+    public void drain(InstanceTree tree) {
         // every spatial gets a track when it appears, not when it first moves. without this a
         // static part has no track and every frame recomposes its world frame from the parent
         // chain, which is a parent walk and three allocations per part per frame
@@ -49,22 +54,10 @@ public final class Motion {
             prune();
         }
 
-        // only what is in flight is advanced, so a million still parts cost nothing here
-        for (Iterator<Instance> it = moving.iterator(); it.hasNext(); ) {
-            Instance instance = it.next();
+        // only what is in flight is stepped, so a million still parts cost nothing here
+        for (Instance instance : moving) {
             Track track = tracks.get(instance);
-            if (track == null) {
-                it.remove();
-                stillChanged = true;
-                continue;
-            }
-            track.advance(dt);
-            // kept a moment past settling: a part written every tick settles exactly as the next
-            // write lands, and dropping it there would leave the next window at zero and snap
-            if (track.settled() && track.sinceWrite() > Track.MAX_AUTO_WINDOW) {
-                it.remove();
-                stillChanged = true;
-            }
+            if (track != null) track.beginLeg();
         }
 
         // a moved parent changes every descendant's world frame while only the parent is dirty,
@@ -72,18 +65,31 @@ public final class Motion {
         tree.drainDirty((instance, mask) -> {
             if (instance instanceof Spatial) writeSubtree(instance);
         });
+
+        for (Iterator<Instance> it = moving.iterator(); it.hasNext(); ) {
+            Track track = tracks.get(it.next());
+            if (track == null || track.still()) {
+                it.remove();
+                stillChanged = true;
+            }
+        }
+    }
+
+    // alpha is how far through the current tick the frame is
+    public CFrame sample(Instance instance, double alpha) {
+        Track track = tracks.get(instance);
+        return track == null ? Transforms.world(instance) : (CFrame) track.sampleAt(alpha);
     }
 
     public CFrame sample(Instance instance) {
-        Track track = tracks.get(instance);
-        return track == null ? Transforms.world(instance) : (CFrame) track.sample();
+        return sample(instance, 1.0);
     }
 
     private void adopt(Instance instance) {
         if (instance instanceof Spatial && !tracks.containsKey(instance)) {
+            // born still: both ends of its leg are where it is, so it belongs to the static batch
+            // until something writes it
             tracks.put(instance, new Track(PropertyType.CFRAME, Transforms.world(instance)));
-            // in flight briefly so it accumulates a window, then it drains out to the static batch
-            moving.add(instance);
             stillChanged = true;
         }
         for (Instance child : instance.children()) adopt(child);
@@ -106,7 +112,7 @@ public final class Motion {
             if (track == null) {
                 tracks.put(instance, new Track(PropertyType.CFRAME, Transforms.world(instance)));
             } else {
-                track.write(Transforms.world(instance));
+                track.to(Transforms.world(instance));
             }
             if (moving.add(instance)) stillChanged = true;
         }

@@ -32,26 +32,49 @@ class MotionTest {
     }
 
     @Test
-    void aTickWrittenPartSmoothsAcrossTheFramesAfterIt() {
+    void aTickWrittenPartIsDrawnAcrossTheTickAfterIt() {
         Part part = Instances.create(Classes.PART, world, "p");
-        motion.drain(tree, 0.0);
+        motion.drain(tree);
 
         move(part, 10);
-        motion.drain(tree, 0.05);
-        assertEquals(0.0, motion.sample(part).position().x(), 1e-9, "the leg has only just started");
+        motion.drain(tree);
+        assertEquals(0.0, motion.sample(part, 0.0).position().x(), 1e-9, "the leg has only just started");
+        assertEquals(5.0, motion.sample(part, 0.5).position().x(), 1e-9, "half a tick in, half way");
+        assertEquals(10.0, motion.sample(part, 1.0).position().x(), 1e-9);
+    }
 
-        motion.drain(tree, 0.025);
-        assertEquals(5.0, motion.sample(part).position().x(), 1e-9, "half a tick in, half way");
+    // the frame rate decides how often a leg is sampled, never how far along it is
+    @Test
+    void theFrameRateDoesNotChangeHowFarAlongTheLegIs() {
+        Part part = Instances.create(Classes.PART, world, "p");
+        motion.drain(tree);
+        move(part, 10);
+        motion.drain(tree);
 
-        motion.drain(tree, 0.025);
-        assertEquals(10.0, motion.sample(part).position().x(), 1e-9);
+        assertEquals(2.5, motion.sample(part, 0.25).position().x(), 1e-9);
+        assertEquals(2.5, motion.sample(part, 0.25).position().x(), 1e-9, "sampling again moves nothing");
+        assertEquals(7.5, motion.sample(part, 0.75).position().x(), 1e-9);
+    }
+
+    // the leg that stalled: it used to finish early and sit at its end waiting for the next write
+    @Test
+    void aPartWrittenEveryTickNeverRunsOutOfLeg() {
+        Part part = Instances.create(Classes.PART, world, "p");
+        motion.drain(tree);
+        for (int tick = 1; tick <= 5; tick++) {
+            move(part, tick * 10);
+            motion.drain(tree);
+            assertEquals((tick - 1) * 10.0, motion.sample(part, 0.0).position().x(), 1e-9);
+            assertEquals(tick * 10.0 - 5.0, motion.sample(part, 0.5).position().x(), 1e-9);
+            assertEquals(tick * 10.0, motion.sample(part, 1.0).position().x(), 1e-9);
+        }
     }
 
     @Test
     void aStaticPartIsTrackedFromTheMomentItAppears() {
         Part part = Instances.create(Classes.PART, world, "p");
         move(part, 3);
-        motion.drain(tree, 0.0);
+        motion.drain(tree);
         // the sample is the stored value, not a fresh walk of the parent chain
         assertSame(motion.sample(part), motion.sample(part));
     }
@@ -60,11 +83,10 @@ class MotionTest {
     void aMovedParentCarriesItsChildren() {
         Instance folder = Instances.create(Classes.SPATIAL, world, "folder");
         Part child = Instances.create(Classes.PART, folder, "child");
-        motion.drain(tree, 0.0);
+        motion.drain(tree);
 
         move(folder, 100);
-        motion.drain(tree, 0.05);
-        motion.drain(tree, 0.05);
+        motion.drain(tree);
         assertEquals(100.0, motion.sample(child).position().x(), 1e-9,
                 "only the parent was dirty, but the child's world frame moved with it");
     }
@@ -72,11 +94,15 @@ class MotionTest {
     @Test
     void stillPartsLeaveTheMovingSetSoTheyCostNothing() {
         for (int n = 0; n < 50; n++) Instances.create(Classes.PART, world, "p" + n);
-        motion.drain(tree, 0.0);
-        assertEquals(51, motion.moving().size(), "everything is in flight the moment it appears");
+        motion.drain(tree);
+        assertEquals(0, motion.moving().size(), "a part that appeared is still, not in flight");
 
-        // settle them: past the grace window with nothing written
-        for (int n = 0; n < 5; n++) motion.drain(tree, 0.05);
+        move(world.children().get(0), 5);
+        motion.drain(tree);
+        assertEquals(1, motion.moving().size(), "only the one that was written");
+
+        // one tick with nothing written is all it takes to settle
+        motion.drain(tree);
         assertEquals(0, motion.moving().size(), "nothing is moving, so nothing is repacked");
     }
 
@@ -84,11 +110,11 @@ class MotionTest {
     void onlyWhatMovesStaysInFlight() {
         Part still = Instances.create(Classes.PART, world, "still");
         Part mover = Instances.create(Classes.PART, world, "mover");
-        for (int n = 0; n < 5; n++) motion.drain(tree, 0.05);
+        motion.drain(tree);
         assertEquals(0, motion.moving().size());
 
         move(mover, 5);
-        motion.drain(tree, 0.05);
+        motion.drain(tree);
         assertTrue(motion.isMoving(mover));
         assertFalse(motion.isMoving(still));
     }
@@ -96,9 +122,9 @@ class MotionTest {
     @Test
     void theStillSetOnlyReportsAChangeWhenItChanges() {
         Instances.create(Classes.PART, world, "p");
-        motion.drain(tree, 0.0);
+        motion.drain(tree);
         assertTrue(motion.takeStillChanged(), "a new part changed the still set");
-        motion.drain(tree, 0.001);
+        motion.drain(tree);
         assertFalse(motion.takeStillChanged(), "a quiet frame does not repack anything");
     }
 

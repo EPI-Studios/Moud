@@ -98,7 +98,8 @@ public final class Parts {
             Motion motion, Part part, boolean cull) {
         if (!part.visible || part.transparency >= 1.0) return false;
 
-        CFrame world = motion.sample(part);
+        // how far through the tick this frame is, which is the only clock the stream shares
+        CFrame world = motion.sample(part, ctx.deltaTick());
         Vec3 pos = world.position();
         Quat rot = world.rotation();
         Vec3 size = part.size;

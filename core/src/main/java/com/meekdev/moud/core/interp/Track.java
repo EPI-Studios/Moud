@@ -32,6 +32,33 @@ public final class Track {
         return this;
     }
 
+    // the streamed path: a value that arrives once a tick is drawn between the last two ticks and
+    // sampled by how far through the current one the frame is
+    //
+    // the windowed path below measures the gap between two writes on the wall clock, which is the
+    // render loop's clock and not the one the values arrive on. a write that lands a frame late
+    // gives a longer window and a slower leg, one that lands early gives a shorter one, and a leg
+    // that finishes before the next write sits at its end until it comes. that is the judder. a
+    // tick fraction is bounded, arrives on the same clock the writes do, and never runs out
+    public void beginLeg() {
+        from = to;
+    }
+
+    public void to(Object value) {
+        to = value;
+    }
+
+    // nothing arrived to move it on, so the two ends of its leg are the same place
+    public boolean still() {
+        return from == to || from.equals(to);
+    }
+
+    public Object sampleAt(double alpha) {
+        if (alpha >= 1.0 || still()) return to;
+        if (alpha <= 0.0) return from;
+        return Blend.of(type, from, to, alpha);
+    }
+
     // the new leg starts wherever the last one had got to, so a write mid flight does not jump
     public void write(Object value) {
         write(value, Math.min(sinceWrite, MAX_AUTO_WINDOW));
