@@ -7,8 +7,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
+import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.instance.Instances;
+import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.vm.Vm;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -85,8 +90,25 @@ class TypesTest {
         }
     }
 
+    // properties come from the registry and cannot drift, methods are written by hand in both
+    // places. this is what stops one being added without the other
+    @Test
+    void everyInstanceMethodIsDeclared() {
+        try (Vm vm = new Vm()) {
+            vm.bind(Instances.createRoot(new InstanceTree(), Classes.SPATIAL, "World"),
+                    Classes.registry());
+            Set<String> methods = Proxies.methodNames();
+            assertFalse(methods.isEmpty(), "the binding registered its methods");
+            for (String name : methods) {
+                assertTrue(block("Instance").contains("function " + name + "(self"),
+                        name + " is declared on Instance");
+            }
+        }
+    }
+
     private String block(String className) {
-        int at = declared.indexOf("declare class " + className + " extends ");
+        int at = declared.indexOf("declare class " + className + "\n");
+        if (at < 0) at = declared.indexOf("declare class " + className + " extends ");
         assertTrue(at >= 0, className + " is declared");
         return declared.substring(at, declared.indexOf("\nend\n", at));
     }

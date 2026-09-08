@@ -100,6 +100,9 @@ public final class Types {
                     destroying: InstanceSignal
                     function add(self, className: string, properties: { [string]: any }?): Instance
                     function addAll(self, className: string, properties: { { [string]: any } }): number
+                    function children(self): { Instance }
+                    function find(self, name: string): Instance?
+                    function isA(self, className: string): boolean
                     function destroy(self): ()
                 end
 
