@@ -10,6 +10,11 @@ import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vec3;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
@@ -19,6 +24,8 @@ public final class Proxies {
     static final int TAG = 1;
 
     private static final String METHODS = "moud.methods";
+
+    private static final Set<String> NAMES = new LinkedHashSet<>();
 
     private static ClassRegistry classes;
 
@@ -40,13 +47,25 @@ public final class Proxies {
 
         // shared method table, so __index hands back the same function rather than a new closure
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(Proxies::add, "Instance:add"));
-        state.rawSetField(-2, "add");
-        state.pushFunction(LuaFunc.wrap(Proxies::addAll, "Instance:addAll"));
-        state.rawSetField(-2, "addAll");
-        state.pushFunction(LuaFunc.wrap(Proxies::destroy, "Instance:destroy"));
-        state.rawSetField(-2, "destroy");
+        method(state, "add", Proxies::add);
+        method(state, "addAll", Proxies::addAll);
+        method(state, "children", Proxies::children);
+        method(state, "find", Proxies::find);
+        method(state, "isA", Proxies::isA);
+        method(state, "destroy", Proxies::destroy);
         state.rawSetField(LuaState.REGISTRY_INDEX, METHODS);
+    }
+
+    // every method an instance carries passes through here, so the names the type declarations
+    // promise are the names that were actually registered rather than a second list to keep
+    private static void method(LuaState state, String name, ToIntFunction<LuaState> body) {
+        NAMES.add(name);
+        state.pushFunction(LuaFunc.wrap(body, "Instance:" + name));
+        state.rawSetField(-2, name);
+    }
+
+    public static Set<String> methodNames() {
+        return Collections.unmodifiableSet(NAMES);
     }
 
     // a proxy is not cached. caching one per instance pins a jni global ref for every instance
@@ -154,7 +173,8 @@ public final class Proxies {
 
     // one crossing for the whole list instead of one per instance. the same argument 15.4 makes
     // for worldgen: the per call cost is a floor, so the api has to describe many at once.
-    // it hands nothing back, because a proxy per created instance would put the cost straight back
+    // it hands back a count rather than the instances, because a proxy each would put the cost
+    // straight back. a place that needs them can walk children
     private static int addAll(LuaState state) {
         Instance parent = self(state);
         String className = state.checkString(2);
@@ -181,6 +201,32 @@ public final class Proxies {
         return 0;
     }
 
+    // an array of proxies, because reaching a child by name is no use to a place that does not
+    // know the names. one crossing per child is what a list costs, which is why anything that
+    // builds rather than reads belongs in addAll instead (19.4)
+    private static int children(LuaState state) {
+        List<Instance> children = self(state).children();
+        state.createTable(children.size(), 0);
+        for (int i = 0; i < children.size(); i++) {
+            push(state, children.get(i));
+            state.rawSetI(-2, i + 1);
+        }
+        return 1;
+    }
+
+    // nil rather than an error, which is the difference between asking whether a child is there
+    // and reaching for one that has to be
+    private static int find(LuaState state) {
+        Instance child = self(state).child(state.checkString(2));
+        if (child == null) state.pushNil(); else push(state, child);
+        return 1;
+    }
+
+    private static int isA(LuaState state) {
+        state.pushBoolean(self(state).isA(classes.require(state.checkString(2))));
+        return 1;
+    }
+
     private static int name(LuaState state) {
         state.pushString(self(state).name());
         return 1;
@@ -190,6 +236,14 @@ public final class Proxies {
     private static void apply(LuaState state, Instance instance, String key, int value) {
         if (key.equals("name")) {
             Instances.rename(instance, state.checkString(value));
+            return;
+        }
+        // the tree is moved by assignment like everything else. detaching is destroy, so there is
+        // one way to remove an instance rather than two that mean different things
+        if (key.equals("parent")) {
+            Instance parent = (Instance) state.toUserDataTagged(value, TAG);
+            if (parent == null) throw state.error("parent wants an instance, use destroy to detach");
+            Instances.reparent(instance, parent);
             return;
         }
         if (instance instanceof Spatial spatial) {
