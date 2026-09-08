@@ -14,6 +14,9 @@ public final class Switches {
         // reach is pure black and reads as missing rather than dark
         features.set(Feature.AMBIENT_LIGHT, true);
         features.set(Feature.VANILLA_MOVEMENT, true);
+        // until the character lands there is nothing else to see yourself as, and an invisible
+        // player reads as a broken renderer rather than a switch that is down
+        features.set(Feature.PLAYER_MODEL, true);
         // without it escape does nothing and there is no way out of the client yet
         features.set(Feature.PAUSE_MENU, true);
     }
