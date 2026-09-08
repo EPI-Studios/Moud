@@ -3,6 +3,7 @@ package com.meekdev.moud.script.vm;
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.api.Game;
+import com.meekdev.moud.script.bind.InstanceSignals;
 import com.meekdev.moud.script.bind.Proxies;
 import com.meekdev.moud.script.bind.Signals;
 import com.meekdev.moud.script.reload.Persist;
@@ -45,6 +46,7 @@ public final class Vm implements AutoCloseable {
     public void bind(Instance world, ClassRegistry registry) {
         Values.install(state);
         Signals.install(state);
+        InstanceSignals.install(state, e -> onError.accept(e));
         Proxies.install(state, registry);
         game.install(state, world);
         scheduler.install(state);

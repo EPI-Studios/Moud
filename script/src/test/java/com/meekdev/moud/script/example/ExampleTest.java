@@ -1,12 +1,15 @@
 package com.meekdev.moud.script.example;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
+import com.meekdev.moud.core.instance.Part;
+import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.script.vm.Vm;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,11 +30,15 @@ class ExampleTest {
         try (Vm vm = new Vm()) {
             vm.bind(world, Classes.registry());
             vm.run("main.luau", Files.readString(MAIN));
+            assertFalse(world.children().isEmpty(), "the place built a scene");
+
+            Part plate = (Part) world.children().get(0);
+            CFrame before = plate.cframe;
             for (int n = 0; n < 40; n++) {
                 vm.step(0.05);
                 vm.renderStep(0.016);
             }
-            assertTrue(world.children().size() > 3, "the place built a scene");
+            assertNotEquals(before, plate.cframe, "stepping moved the platform");
         }
     }
 }
