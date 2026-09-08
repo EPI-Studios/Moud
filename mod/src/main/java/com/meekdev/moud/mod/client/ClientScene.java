@@ -25,10 +25,16 @@ public final class ClientScene {
         return MOTION;
     }
 
-    public static void frame(double dt) {
+    // the mirror is drained on the tick, because that is the clock the changes are produced on.
+    // draining it per frame meant two ticks could land in one frame and none in the next, and the
+    // interpolation then measured the render loop instead of the stream
+    public static void tick() {
         Mirror.apply(change -> ClientPhysics.apply(tree(), change));
-        ClientPhysics.attach(net.minecraft.client.Minecraft.getInstance().level);
         InstanceTree tree = tree();
-        if (tree != null) MOTION.drain(tree, dt);
+        if (tree != null) MOTION.drain(tree);
+    }
+
+    public static void frame() {
+        ClientPhysics.attach(net.minecraft.client.Minecraft.getInstance().level);
     }
 }
