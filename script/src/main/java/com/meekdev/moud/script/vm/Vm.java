@@ -65,8 +65,9 @@ public final class Vm implements AutoCloseable {
         Persist.restore(state, data);
     }
 
+    // no delta: a reload is not a step, and a handler that took one was handed a zero to ignore
     public void reloaded() {
-        fire(game.reloaded(), 0);
+        Signals.fire(state, game.reloaded(), onError, s -> 0);
     }
 
     // a script error kills its handler, not the game
