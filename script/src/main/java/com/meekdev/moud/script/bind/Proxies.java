@@ -81,6 +81,18 @@ public final class Proxies {
                 if (parent == null) state.pushNil(); else push(state, parent);
                 return 1;
             }
+            case "changed" -> {
+                Signals.push(state, InstanceSignals.changed(instance));
+                return 1;
+            }
+            case "childAdded" -> {
+                Signals.push(state, InstanceSignals.childAdded(instance));
+                return 1;
+            }
+            case "destroying" -> {
+                Signals.push(state, InstanceSignals.destroying(instance));
+                return 1;
+            }
             default -> { }
         }
 

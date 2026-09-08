@@ -19,7 +19,7 @@ public abstract class Instance {
 
     final List<Instance> children = new ArrayList<>(0);
 
-    // the luau proxy, made once and cached so a script always sees the same object
+    // whatever the script layer hangs off this instance, cleared when it dies. core never reads it
     public Object userdata;
 
     Signal<PropertyDef> changed;
