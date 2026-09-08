@@ -1,8 +1,8 @@
 package com.meekdev.moud.mod.adapter.physics;
 
 import com.meekdev.box3d.B3Hull;
+import com.meekdev.bkun.api.SubLevels;
 import com.meekdev.bkun.sublevel.SubLevelModel;
-import com.meekdev.bkun.sublevel.SubLevelModelRegistry;
 import com.meekdev.moud.core.math.Vec3;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +48,7 @@ public final class PartShapes {
         double hx = size.x() * 0.5;
         double hy = size.y() * 0.5;
         double hz = size.z() * 0.5;
-        SubLevelModel model = SubLevelModelRegistry.register(new SubLevelModel(
+        SubLevelModel model = SubLevels.registerModel(new SubLevelModel(
                 Identifier.fromNamespaceAndPath("moud", "part_" + key),
                 List.of(hull),
                 List.of(new AABB(-hx, -hy, -hz, hx, hy, hz)),
