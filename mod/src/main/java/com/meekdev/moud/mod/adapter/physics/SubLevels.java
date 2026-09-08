@@ -13,7 +13,9 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.net.replicate.Change;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.minecraft.server.level.ServerLevel;
 import org.jspecify.annotations.Nullable;
@@ -24,6 +26,7 @@ public final class SubLevels {
 
     private final Map<Integer, SubLevel> byInstance = new HashMap<>();
     private final Map<Integer, SubLevelEntity> entities = new HashMap<>();
+    private final Map<Integer, Integer> square = new HashMap<>();
     private @Nullable ServerLevel level;
     private @Nullable InstanceTree tree;
     private boolean warned;
@@ -41,12 +44,28 @@ public final class SubLevels {
     // allocation time when body() is still null
     public void settle() {
         if (tree == null) return;
+        List<Integer> letGo = null;
         for (Map.Entry<Integer, SubLevel> entry : byInstance.entrySet()) {
             Instance instance = tree.byId(entry.getKey());
             if (!(instance instanceof Part part)) continue;
+            // a turning part passes exactly through square once a revolution, and giving the plot
+            // back there destroys the entity and every rider's tracking with it. a client riding it
+            // then sends a plot frame the server can no longer decode, and lands in the plot. the
+            // count runs here rather than on a write, so a part that stops moving still lets go
+            if (!wants(part)) {
+                if (square.merge(entry.getKey(), 1, Integer::sum) >= SQUARE_TICKS) {
+                    if (letGo == null) letGo = new ArrayList<>(1);
+                    letGo.add(entry.getKey());
+                }
+                continue;
+            }
+            square.remove(entry.getKey());
             SubLevel subLevel = entry.getValue();
             type(subLevel, part);
             drive(subLevel, part);
+        }
+        if (letGo != null) {
+            for (int id : letGo) release(id);
         }
     }
 
@@ -98,12 +117,14 @@ public final class SubLevels {
     private void refreshOrThrow(int id) {
         Instance instance = tree == null ? null : tree.byId(id);
         if (!(instance instanceof Part part)) return;
+        CFrame world = Transforms.world(part);
         if (!wants(part)) {
-            release(id);
+            // settle decides when a square part gives its plot back, so one that is only passing
+            // through square keeps being posed rather than being torn down and rebuilt
+            SubLevel settled = byInstance.get(id);
+            if (settled != null) pose(settled, part, world);
             return;
         }
-
-        CFrame world = Transforms.world(part);
         SubLevel subLevel = byInstance.get(id);
         if (subLevel == null) {
             subLevel = allocate(id, world);
@@ -135,6 +156,9 @@ public final class SubLevels {
         B3BodyType wanted = part.anchored ? B3BodyType.KINEMATIC : B3BodyType.DYNAMIC;
         if (body.type() != wanted) body.setType(wanted);
     }
+
+    // how long a sub level's part has to stay square before its plot is given back
+    private static final int SQUARE_TICKS = 40;
 
     // rotated or unanchored: the two cases an axis aligned box gets wrong
     private static boolean wants(Part part) {
@@ -172,6 +196,7 @@ public final class SubLevels {
     }
 
     private void release(int id) {
+        square.remove(id);
         SubLevelEntity entity = entities.remove(id);
         if (entity != null) entity.discard();
         SubLevel subLevel = byInstance.remove(id);
@@ -185,6 +210,7 @@ public final class SubLevels {
             for (SubLevel subLevel : byInstance.values()) SubLevelContainer.get(level).remove(subLevel);
         }
         byInstance.clear();
+        square.clear();
         warned = false;
     }
 }
