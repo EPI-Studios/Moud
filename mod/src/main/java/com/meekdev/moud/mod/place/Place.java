@@ -5,6 +5,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.script.reload.Watcher;
+import com.meekdev.moud.script.types.Types;
 import com.meekdev.moud.script.vm.Vm;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -39,6 +40,7 @@ public final class Place {
         vm = load(Map.of());
         // no watcher in an exported jar: no cost, no path, nothing to go wrong
         if (vm != null && FabricLoader.getInstance().isDevelopmentEnvironment()) {
+            types();
             try {
                 watcher = new Watcher(root);
                 MoudMod.LOG.info("watching {}", root);
@@ -59,6 +61,16 @@ public final class Place {
 
         vm = load(carried);
         if (vm != null) vm.reloaded();
+    }
+
+    // the definitions an editor reads the place against, rewritten on every start so they always
+    // describe the engine that is about to run it
+    private void types() {
+        try {
+            Types.write(root, classes);
+        } catch (IOException e) {
+            MoudMod.LOG.warn("could not write the luau definitions, an editor will not know the api", e);
+        }
     }
 
     private @Nullable Vm load(Map<String, Object> carried) {
