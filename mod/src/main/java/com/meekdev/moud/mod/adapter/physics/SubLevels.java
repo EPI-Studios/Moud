@@ -11,6 +11,7 @@ import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
+import com.meekdev.moud.core.math.Vec3;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.net.replicate.Change;
 import java.util.ArrayList;
@@ -71,16 +72,24 @@ public final class SubLevels {
 
     // the body carries the transform, and sub level tick copies it back over the pose every tick.
     // writing the pose alone is why every ramp collided as an axis aligned box
+    //
+    // and the body is woken, because a sleeping one does not move its shapes in the broadphase: the
+    // place would draw the part turning while the world kept colliding against where it used to be.
+    // no velocity goes with it. gravimity sets one wherever it drives a body by hand, but it drives
+    // dynamic bodies, which the solver integrates from wherever they were put. an anchored part is
+    // kinematic, so a velocity would be integrated on top of the teleport and leave the deck a tick
+    // ahead of the place that owns it
     private static void drive(SubLevel subLevel, Part part) {
         B3Body body = subLevel.body();
         if (body == null) return;
         CFrame world = Transforms.world(part);
+        Vec3 position = world.position();
         Quat r = world.rotation();
         body.setTransform(
-                new com.meekdev.box3d.Vec3(
-                        world.position().x(), world.position().y(), world.position().z()),
+                new com.meekdev.box3d.Vec3(position.x(), position.y(), position.z()),
                 new com.meekdev.box3d.Quat(
                         (float) r.x(), (float) r.y(), (float) r.z(), (float) r.w()));
+        body.setAwake(true);
     }
 
     public void apply(InstanceTree source, Change change) {
@@ -130,6 +139,9 @@ public final class SubLevels {
             subLevel = allocate(id, world);
             if (subLevel == null) return;
             subLevel.setModel(PartShapes.of(part.size));
+            // the origin belongs to the shape's centre, which is what spawnModel does between
+            // setting a model and spawning its entity. createBody would settle it a tick later
+            subLevel.recentreOrigin();
             subLevel.markShapesDirty();
             // the plot is only the shape. collision finds sub levels through their entity, and so
             // does the client, so a plot nobody spawned is invisible to both
