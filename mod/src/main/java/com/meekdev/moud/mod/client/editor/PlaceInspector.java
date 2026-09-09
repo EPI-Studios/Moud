@@ -12,10 +12,12 @@ import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.server.MoudServer;
 import com.meekdev.moud.script.err.ScriptError;
 import com.meekdev.moud.script.vm.Vm;
+import com.meekdev.bkun.physics.MovementProfile;
 import com.meekdev.bkun.sublevel.SubLevelIndex;
 import com.meekdev.moud.mod.level.PolarChunks;
 import imgui.ImGui;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import java.util.List;
@@ -64,6 +66,25 @@ public final class PlaceInspector extends Inspector {
         ImGui.textDisabled(blockAtSpawn());
 
         ImGui.separator();
+        ImGui.text("character");
+        LocalPlayer player = Minecraft.getInstance().player;
+        // bkun's Physics against our own adapter's, the one clash 20.1 allows for
+        MovementProfile profile = player == null
+                ? null
+                : com.meekdev.bkun.physics.Physics.getProfile(player).orElse(null);
+        ImGui.text("profile");
+        ImGui.sameLine(160);
+        ImGui.textDisabled(profile == null ? "none, vanilla is driving" : "bkun");
+        if (player != null && profile != null) {
+            // what the place asked for, back in the units it asked in
+            text("walk m/s", String.format("%.2f", profile.maxGroundSpeed() * 20.0));
+            text("capsule", String.format("r %.2f h %.2f",
+                    profile.moverRadius(), profile.moverHeight()));
+            text("at", String.format("%.1f %.1f %.1f", player.getX(), player.getY(), player.getZ()));
+            text("on ground", String.valueOf(player.onGround()));
+        }
+
+        ImGui.separator();
         ImGui.text("script");
         Vm vm = place == null ? null : place.vm();
         row("sleeping tasks", vm == null ? 0 : vm.scheduler().sleepingCount());
@@ -95,6 +116,12 @@ public final class PlaceInspector extends Inspector {
         Level level = clientLevel();
         if (level == null) return "no level";
         return level.getBlockState(new BlockPos(0, 60, 0)).getBlock().toString();
+    }
+
+    private static void text(String name, String value) {
+        ImGui.textDisabled(name);
+        ImGui.sameLine(160);
+        ImGui.text(value);
     }
 
     private static void row(String name, int value) {

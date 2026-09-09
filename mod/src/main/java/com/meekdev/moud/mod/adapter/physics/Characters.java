@@ -29,6 +29,20 @@ public final class Characters {
 
     private static final PropertyDef CFRAME = Classes.CHARACTER.property("cframe");
 
+    // the properties the profile is built from, which is every one the class adds to a spatial.
+    // a pose write is not one of them, and follow makes one of those every tick: pushing the
+    // profile for it syncs the whole thing to the client twenty times a second
+    private static final boolean[] PROFILE = profileProperties();
+
+    private static boolean[] profileProperties() {
+        PropertyDef[] all = Classes.CHARACTER.properties();
+        boolean[] mine = new boolean[all.length];
+        for (PropertyDef property : all) {
+            mine[property.index()] = Classes.SPATIAL.property(property.name()) == null;
+        }
+        return mine;
+    }
+
     private final Map<UUID, Integer> bound = new HashMap<>();
 
     public static MovementProfile profileOf(Character character) {
@@ -94,6 +108,10 @@ public final class Characters {
     // stored one goes on taking writes nobody can see
     public void apply(InstanceTree source, Change change, MinecraftServer server) {
         if (!(change instanceof Change.Wrote wrote)) return;
+        if (wrote.property() < 0 || wrote.property() >= PROFILE.length
+                || !PROFILE[wrote.property()]) {
+            return;
+        }
         for (Map.Entry<UUID, Integer> entry : bound.entrySet()) {
             if (entry.getValue() != wrote.id()) continue;
             Instance instance = source.byId(wrote.id());
