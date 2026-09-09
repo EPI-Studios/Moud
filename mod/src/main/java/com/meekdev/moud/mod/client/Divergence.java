@@ -33,6 +33,17 @@ final class Divergence {
         if (elapsed < 1.0) return;
         elapsed = 0;
 
+        // why a fall beside a deck is slow: whether anything is telling the player they landed,
+        // and whether gravity is still building. a y that sits at one value instead of growing is
+        // something zeroing it every tick
+        var player = Minecraft.getInstance().player;
+        if (player != null) {
+            MoudMod.LOG.info("fall onGround={} dY={} fallDistance={} riding={}",
+                    player.onGround(), String.format("%.4f", player.getDeltaMovement().y),
+                    String.format("%.2f", player.fallDistance),
+                    com.meekdev.bkun.sublevel.SubLevelTracking.of(player) != null);
+        }
+
         for (SubLevelEntity platform : SubLevelIndex.in(level)) {
             SubLevelPose drawn = platform.renderPose(partialTick, new SubLevelPose());
             Part nearest = nearestPart(tree, drawn.x(), drawn.y(), drawn.z());
