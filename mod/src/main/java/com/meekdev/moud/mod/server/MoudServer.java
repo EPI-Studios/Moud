@@ -1,6 +1,9 @@
 package com.meekdev.moud.mod.server;
 
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.instance.Character;
+import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.time.Clock;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.physics.Physics;
@@ -30,6 +33,7 @@ public final class MoudServer {
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> stopped());
         ServerTickEvents.START_SERVER_TICK.register(MoudServer::tick);
         ServerPlayerEvents.JOIN.register(MoudServer::spawn);
+        ServerPlayerEvents.LEAVE.register(MoudServer::leave);
     }
 
     private static void started(net.minecraft.server.MinecraftServer server) {
@@ -57,16 +61,38 @@ public final class MoudServer {
         place.pollReload();
         Vm vm = place.vm();
         if (vm != null) vm.step(TICK.tick());
-        Mirror.record(change -> Physics.apply(ServerScene.tree(), change));
+        Mirror.record(change -> Physics.apply(ServerScene.tree(), change, server));
         Physics.settle();
+        Physics.bodies().follow(server, ServerScene.tree());
     }
 
-    // scaffolding until the character lands: nothing holds a player up in a void level
+    // every player gets a character, because a place that never mentions one still has to be
+    // walkable. it lives in the tree like anything else, so a place tunes it by writing to it
     private static void spawn(ServerPlayer player) {
-        player.teleportTo(0.5, 70.0, 0.5);
+        Instance world = ServerScene.world();
+        if (place == null || world == null) return;
         Abilities abilities = player.getAbilities();
-        abilities.mayfly = true;
-        abilities.flying = true;
+        abilities.mayfly = false;
+        abilities.flying = false;
         player.onUpdateAbilities();
+
+        Character character = Instances.create(Classes.CHARACTER, world,
+                player.getGameProfile().name());
+        Physics.bodies().bind(player, character);
+        player.teleportTo(0.5, 70.0, 0.5);
+
+        Vm vm = place.vm();
+        if (vm != null) vm.joined(new JoinedPlayer(player));
+    }
+
+    // the character goes with the player, or a place that has been joined a hundred times holds
+    // a hundred of them
+    private static void leave(ServerPlayer player) {
+        Vm vm = place == null ? null : place.vm();
+        if (vm != null) vm.leaving(new JoinedPlayer(player));
+
+        Character character = Physics.bodies().of(player, ServerScene.tree());
+        Physics.bodies().release(player);
+        if (character != null) Instances.destroy(character);
     }
 }

@@ -4,6 +4,8 @@ import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.api.Game;
 import com.meekdev.moud.script.bind.InstanceSignals;
+import com.meekdev.moud.script.api.PlayerRef;
+import com.meekdev.moud.script.bind.Players;
 import com.meekdev.moud.script.bind.Proxies;
 import com.meekdev.moud.script.bind.Signals;
 import com.meekdev.moud.script.reload.Persist;
@@ -46,6 +48,7 @@ public final class Vm implements AutoCloseable {
     public void bind(Instance world, ClassRegistry registry) {
         Values.install(state);
         Signals.install(state);
+        Players.install(state);
         InstanceSignals.install(state, e -> onError.accept(e));
         Proxies.install(state, registry);
         game.install(state, world);
@@ -68,6 +71,20 @@ public final class Vm implements AutoCloseable {
     // no delta: a reload is not a step, and a handler that took one was handed a zero to ignore
     public void reloaded() {
         Signals.fire(state, game.reloaded(), onError, s -> 0);
+    }
+
+    public void joined(PlayerRef player) {
+        Signals.fire(state, game.joined(), onError, s -> {
+            Players.push(s, player);
+            return 1;
+        });
+    }
+
+    public void leaving(PlayerRef player) {
+        Signals.fire(state, game.leaving(), onError, s -> {
+            Players.push(s, player);
+            return 1;
+        });
     }
 
     // a script error kills its handler, not the game

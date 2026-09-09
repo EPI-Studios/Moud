@@ -35,16 +35,23 @@ public final class Colliders {
     }
 
     // it follows the same change stream the mirror does, so the tick drains dirty exactly once
-    public void apply(InstanceTree source, Change change) {
+    //
+    // returns whether the static set actually moved, because whoever caches it downstream has to
+    // throw that cache away and rebuilding it costs the whole world
+    public boolean apply(InstanceTree source, Change change) {
         tree = source;
-        switch (change) {
-            case Change.Reset ignored -> grid.clear();
+        return switch (change) {
+            case Change.Reset ignored -> {
+                boolean had = grid.size() > 0;
+                grid.clear();
+                yield had;
+            }
             case Change.Destroyed destroyed -> removeById(destroyed.id());
             case Change.Created created -> refresh(created.id());
             case Change.Wrote wrote -> refresh(wrote.id());
             // a moved part keeps every property and lands somewhere else, so its box is stale
             case Change.Moved moved -> refresh(moved.id());
-        }
+        };
     }
 
     public void collect(AABB region, ColliderSink sink) {
@@ -56,19 +63,18 @@ public final class Colliders {
         });
     }
 
-    private void refresh(int id) {
+    private boolean refresh(int id) {
         Instance instance = tree == null ? null : tree.byId(id);
-        if (!(instance instanceof Part part)) return;
+        if (!(instance instanceof Part part)) return false;
         if (!part.collides || (!isAxisAligned(part) && SubLevels.available())) {
-            grid.remove(part);
-            return;
+            return grid.remove(part);
         }
         CFrame world = Transforms.world(part);
-        grid.put(part, Aabb.around(world.position(), part.size));
+        return grid.put(part, Aabb.around(world.position(), part.size));
     }
 
-    private void removeById(int id) {
+    private boolean removeById(int id) {
         Instance instance = tree == null ? null : tree.byId(id);
-        if (instance != null) grid.remove(instance);
+        return instance != null && grid.remove(instance);
     }
 }

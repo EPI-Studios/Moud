@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.adapter.physics;
 
 import com.meekdev.bkun.Bkun;
+import com.meekdev.bkun.box3d.LevelPhysics;
 import com.meekdev.bkun.collision.ColliderProvider;
 import com.meekdev.bkun.sublevel.SubLevelEntity;
 import com.meekdev.bkun.sublevel.SubLevelIndex;
@@ -31,7 +32,12 @@ public final class ClientPhysics {
 
     public static void apply(@Nullable InstanceTree tree, Change change) {
         if (tree == null) return;
-        BOXES.apply(tree, change);
+        // the client predicts against its own baked copy of these boxes, so it has to be told
+        // the set moved for the same reason the server does
+        if (BOXES.apply(tree, change) && attached != null) {
+            LevelPhysics physics = Bkun.physics(attached);
+            if (physics != null) physics.invalidateProviders();
+        }
         SubLevels.mirror(tree, change);
         drive(tree, change);
     }

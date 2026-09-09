@@ -33,21 +33,27 @@ public final class Broadphase {
         entries.clear();
     }
 
-    public void put(Instance instance, Aabb box) {
+    // says whether the grid actually changed, so a caller that caches what it queried knows
+    // when the cache is stale. a part that went red is a write and is not a move
+    public boolean put(Instance instance, Aabb box) {
+        Entry current = entries.get(instance);
+        if (current != null && current.box.equals(box)) return false;
         remove(instance);
         entries.put(instance, new Entry(box));
         forEachCell(box, key -> cells.computeIfAbsent(key, k -> new ArrayList<>(4)).add(instance));
+        return true;
     }
 
-    public void remove(Instance instance) {
+    public boolean remove(Instance instance) {
         Entry old = entries.remove(instance);
-        if (old == null) return;
+        if (old == null) return false;
         forEachCell(old.box, key -> {
             List<Instance> list = cells.get(key);
             if (list == null) return;
             list.remove(instance);
             if (list.isEmpty()) cells.remove(key);
         });
+        return true;
     }
 
     public void rebuild(List<? extends Instance> instances, Function<Instance, Aabb> box) {

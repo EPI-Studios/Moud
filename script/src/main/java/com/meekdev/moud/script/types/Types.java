@@ -88,6 +88,21 @@ public final class Types {
                     function connect(self, handler: () -> ()): Connection
                 end
 
+                declare class PlayerSignal
+                    function connect(self, handler: (player: Player) -> ()): Connection
+                end
+
+                declare class Player
+                    name: string
+                    character: Instance?
+                    function spawn(self, position: Vector3): ()
+                end
+
+                declare class Players
+                    joined: PlayerSignal
+                    leaving: PlayerSignal
+                end
+
                 """);
 
         out.append("""
@@ -115,6 +130,7 @@ public final class Types {
         out.append("""
                 declare class Game
                     world: Instance
+                    players: Players
                     stepped: StepSignal
                     renderStepped: StepSignal
                     reloaded: ReloadedSignal
