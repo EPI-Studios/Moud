@@ -149,4 +149,34 @@ class MirrorTest {
 
         assertNull(applier.tree().byId(part.id()), "destroyed on the mirror too");
     }
+
+    // two server ticks arriving between one pair of client ticks used to be replayed as one, which
+    // is a track handed a leg of twice the length and a part that jumps ahead and settles back
+    @Test
+    void aBatchIsOneServerTickAndIsReplayedAsOne() {
+        Part part = Instances.create(Classes.PART, world, "p");
+        sync();
+
+        List<List<Change>> ticks = new ArrayList<>();
+        for (int tick = 1; tick <= 3; tick++) {
+            Instances.setObj(part, part.def().property("cframe"), CFrame.at(tick, 0, 0));
+            List<Change> batch = new ArrayList<>();
+            recorder.drain(batch::add);
+            ticks.add(batch);
+        }
+
+        // each tick carried its own write, rather than three collapsing into one
+        assertEquals(3, ticks.size());
+        for (List<Change> batch : ticks) {
+            assertEquals(1, batch.size(), "one write per tick");
+        }
+
+        // replayed one at a time, the mirror passes through every value the authority held
+        List<Double> seen = new ArrayList<>();
+        for (List<Change> batch : ticks) {
+            for (Change change : batch) applier.apply(change);
+            seen.add(((Part) applier.tree().byId(part.id())).cframe.position().x());
+        }
+        assertEquals(List.of(1.0, 2.0, 3.0), seen, "no tick was skipped");
+    }
 }
