@@ -13,6 +13,8 @@ import com.meekdev.moud.script.vm.Vm;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import java.util.List;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Abilities;
 import org.jspecify.annotations.Nullable;
@@ -36,7 +38,7 @@ public final class MoudServer {
         ServerPlayerEvents.LEAVE.register(MoudServer::leave);
     }
 
-    private static void started(net.minecraft.server.MinecraftServer server) {
+    private static void started(MinecraftServer server) {
         ServerScene.start(server);
         place = new Place(ServerScene.world(), Classes.registry());
         place.start();
@@ -56,9 +58,9 @@ public final class MoudServer {
     // body to the entity before the script had said where the part was this tick. what was drawn
     // came from the part and what was collided against came from the entity, one whole tick apart
     // -- which at seven metres and 2.6 rad/s is most of a block of the deck sitting inside you
-    private static void tick(net.minecraft.server.MinecraftServer server) {
+    private static void tick(MinecraftServer server) {
         if (place == null) return;
-        place.pollReload();
+        if (place.pollReload()) respawnAll(server);
         Vm vm = place.vm();
         if (vm != null) vm.step(TICK.tick());
         Mirror.record(change -> Physics.apply(ServerScene.tree(), change, server));
@@ -83,6 +85,16 @@ public final class MoudServer {
 
         Vm vm = place.vm();
         if (vm != null) vm.joined(new JoinedPlayer(player));
+    }
+
+    // a reload destroys everything under the world, characters included, and the fresh vm has
+    // never seen anyone join. so everyone connected joins again: a new character, a new profile,
+    // and the place's own joined handler deciding where they land
+    private static void respawnAll(MinecraftServer server) {
+        for (ServerPlayer player : List.copyOf(server.getPlayerList().getPlayers())) {
+            Physics.bodies().release(player);
+            spawn(player);
+        }
     }
 
     // the character goes with the player, or a place that has been joined a hundred times holds

@@ -51,8 +51,11 @@ public final class Place {
     }
 
     // called at one defined point in the frame, never from inside a script
-    public void pollReload() {
-        if (watcher == null || !watcher.take()) return;
+    //
+    // says whether it reloaded, because the tree it tore down held the characters of everyone
+    // connected and 8.6 has them respawned rather than left without one
+    public boolean pollReload() {
+        if (watcher == null || !watcher.take()) return false;
         MoudMod.LOG.info("reloading the place");
 
         Map<String, Object> carried = vm == null ? Map.of() : vm.persist();
@@ -61,6 +64,7 @@ public final class Place {
 
         vm = load(carried);
         if (vm != null) vm.reloaded();
+        return true;
     }
 
     // the definitions an editor reads the place against, rewritten on every start so they always
