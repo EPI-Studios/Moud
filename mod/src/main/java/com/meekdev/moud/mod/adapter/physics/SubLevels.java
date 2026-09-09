@@ -146,7 +146,11 @@ public final class SubLevels {
             subLevel.markShapesDirty();
             // the plot is only the shape. collision finds sub levels through their entity, and so
             // does the client, so a plot nobody spawned is invisible to both
-            entities.put(id, SubLevelEntity.spawn(level, subLevel));
+            SubLevelEntity spawned = SubLevelEntity.spawn(level, subLevel);
+            // the part it stands for, so the client can find this deck again and drive it from the
+            // same cframe it draws, rather than from entity data a tick behind
+            spawned.setOwner(id);
+            entities.put(id, spawned);
         }
         pose(subLevel, part, world);
     }
@@ -192,6 +196,12 @@ public final class SubLevels {
         };
         if (id < 0) return;
         if (tree.byId(id) instanceof Part part && wants(part)) PartShapes.of(part.size);
+    }
+
+    // whether a part is one the deck machinery takes over, for the client adapter that has to ask
+    // the same question without owning the answer
+    static boolean wantsSubLevel(Part part) {
+        return wants(part);
     }
 
     private @Nullable SubLevel allocate(int id, CFrame world) {
