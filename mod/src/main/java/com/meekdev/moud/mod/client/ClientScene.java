@@ -1,9 +1,12 @@
 package com.meekdev.moud.mod.client;
 
+import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.interp.Motion;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
+import com.meekdev.moud.mod.adapter.render.PartLight;
 import org.jspecify.annotations.Nullable;
 
 // the client side of the tree: a mirror of the server's, plus the state only rendering needs
@@ -31,7 +34,13 @@ public final class ClientScene {
     public static void tick() {
         Mirror.apply(change -> ClientPhysics.apply(tree(), change));
         InstanceTree tree = tree();
-        if (tree != null) MOTION.drain(tree);
+        if (tree == null) return;
+        MOTION.drain(tree);
+        // the light a part stands in, once a tick. reading it per frame would be a chunk lookup per
+        // part per frame for a value that changes when someone places a torch
+        for (Part part : tree.ofClass(Classes.PART)) {
+            PartLight.refresh(part, MOTION.sample(part).position());
+        }
     }
 
     public static void frame() {
