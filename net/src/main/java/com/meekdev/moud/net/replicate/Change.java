@@ -9,5 +9,8 @@ public sealed interface Change {
 
     record Wrote(int id, int property, Object value) implements Change {}
 
+    // a reparent, which no property carries: the instance is the same one, hanging somewhere else
+    record Moved(int id, int parent) implements Change {}
+
     record Destroyed(int id) implements Change {}
 }

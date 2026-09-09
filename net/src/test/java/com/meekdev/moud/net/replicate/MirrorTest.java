@@ -96,4 +96,57 @@ class MirrorTest {
         sync();
         assertEquals(5000, applier.world().children().size());
     }
+
+    // a reparent touches no property, so nothing on the dirty channel carries it. before it had a
+    // channel of its own the mirror kept the old parent for ever and composed the world frame of
+    // everything under it through the wrong chain
+    @Test
+    void aReparentReachesTheMirror() {
+        Instance from = Instances.create(Classes.SPATIAL, world, "from");
+        Instance to = Instances.create(Classes.SPATIAL, world, "to");
+        Part part = Instances.create(Classes.PART, from, "mover");
+        sync();
+        assertNotNull(applier.tree().byId(part.id()));
+        assertEquals(from.id(), applier.tree().byId(part.id()).parent().id());
+
+        Instances.reparent(part, to);
+        sync();
+
+        Instance mirrored = applier.tree().byId(part.id());
+        assertEquals(to.id(), mirrored.parent().id(), "the mirror follows the move");
+        assertNull(applier.tree().byId(from.id()).child("mover"), "and leaves where it was");
+        assertNotNull(applier.tree().byId(to.id()).child("mover"));
+    }
+
+    // the world frame is composed through the parent chain, so a mirror that kept the old parent
+    // drew the part where its old parent put it
+    @Test
+    void aReparentedPartLandsInItsNewParentsFrame() {
+        Instance from = Instances.create(Classes.SPATIAL, world, "from", s -> s.cframe = CFrame.at(10, 0, 0));
+        Instance to = Instances.create(Classes.SPATIAL, world, "to", s -> s.cframe = CFrame.at(0, 0, 50));
+        Part part = Instances.create(Classes.PART, from, "mover");
+        sync();
+
+        Instances.reparent(part, to);
+        sync();
+
+        Instance mirrored = applier.tree().byId(part.id());
+        Vec3 at = com.meekdev.moud.core.instance.Transforms.world(mirrored).position();
+        assertEquals(0.0, at.x(), 1e-9);
+        assertEquals(50.0, at.z(), 1e-9, "composed through the parent it moved to");
+    }
+
+    // it moved and then it went: the mirror must not be asked to move something that is gone
+    @Test
+    void aPartMovedAndDestroyedInOneTickJustGoes() {
+        Instance to = Instances.create(Classes.SPATIAL, world, "to");
+        Part part = Instances.create(Classes.PART, world, "mover");
+        sync();
+
+        Instances.reparent(part, to);
+        Instances.destroy(part);
+        sync();
+
+        assertNull(applier.tree().byId(part.id()), "destroyed on the mirror too");
+    }
 }

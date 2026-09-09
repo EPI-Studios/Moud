@@ -100,6 +100,7 @@ public final class SubLevels {
             case Change.Destroyed destroyed -> release(destroyed.id());
             case Change.Created created -> refresh(created.id());
             case Change.Wrote wrote -> refresh(wrote.id());
+            case Change.Moved moved -> refresh(moved.id());
         }
     }
 
@@ -185,6 +186,7 @@ public final class SubLevels {
         int id = switch (change) {
             case Change.Created created -> created.id();
             case Change.Wrote wrote -> wrote.id();
+            case Change.Moved moved -> moved.id();
             case Change.Reset ignored -> -1;
             case Change.Destroyed ignored -> -1;
         };

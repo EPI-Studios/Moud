@@ -11,6 +11,8 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.script.vm.Vm;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -133,5 +135,22 @@ class TreeTest {
                 local inner = outer:add("Folder")
                 outer.parent = inner
                 """));
+    }
+
+    // the move has to reach the replication stream, or a place that reparents from luau moves
+    // something the client never learns about
+    @Test
+    void assigningParentIsSomethingTheTreeCanReplay() {
+        vm.run("main", """
+                local to = game.world:add("Folder")
+                to.name = "to"
+                local part = game.world:add("Part", { size = vec3(1, 1, 1) })
+                part.name = "mover"
+                part.parent = to
+                """);
+        List<Integer> moved = new ArrayList<>();
+        world.tree().drainMoved(moved::add);
+        assertEquals(1, moved.size(), "the reparent was recorded for the stream");
+        assertEquals(world.child("to").child("mover").id(), moved.get(0).intValue());
     }
 }

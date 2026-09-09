@@ -35,6 +35,15 @@ public final class Recorder {
         }
         seen = highest;
 
+        // after the creations, so an instance that appeared and moved in the same tick is there to
+        // be moved. the parent is read now rather than when it moved, which is the one that stuck
+        tree.drainMoved(id -> {
+            Instance instance = tree.byId(id);
+            if (instance != null && instance.parent() != null) {
+                out.accept(new Change.Moved(id, instance.parent().id()));
+            }
+        });
+
         tree.drainDirty((instance, mask) -> {
             if (instance.id() > seen) return;
             for (PropertyDef property : instance.def().properties()) {

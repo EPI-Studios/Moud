@@ -77,6 +77,23 @@ public final class InstanceTree {
         removedCount = 0;
     }
 
+    // a reparent leaves every property untouched, so the dirty channel cannot carry it: drainDirty
+    // skips an instance whose mask is zero. what changed is where the instance hangs, and the world
+    // frame of everything under it, which is its own thing to say
+    public void drainMoved(IntConsumer visitor) {
+        for (int n = 0; n < movedCount; n++) visitor.accept(movedList[n]);
+        movedCount = 0;
+    }
+
+    void markMoved(Instance i) {
+        if (movedCount == movedList.length) {
+            int[] grown = new int[movedList.length * 2];
+            System.arraycopy(movedList, 0, grown, 0, movedList.length);
+            movedList = grown;
+        }
+        movedList[movedCount++] = i.id;
+    }
+
     void unindex(Instance i) {
         int slot = i.id < 0 ? -i.id : i.id;
         if (slot < byId.length && byId[slot] == i) byId[slot] = null;
@@ -90,6 +107,9 @@ public final class InstanceTree {
         removedList[removedCount++] = i.id;
         structureEpoch++;
     }
+
+    private int[] movedList = new int[8];
+    private int movedCount;
 
     void markDirty(Instance i) {
         if (dirtyCount == dirtyList.length) {
