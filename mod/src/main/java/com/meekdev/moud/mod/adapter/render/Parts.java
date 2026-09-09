@@ -1,7 +1,7 @@
 package com.meekdev.moud.mod.adapter.render;
 
-import com.meekdev.amnetic.client.instanced.BuiltinShader;
 import com.meekdev.amnetic.client.instanced.InstanceBatch;
+import com.meekdev.amnetic.client.instanced.InstanceLayout;
 import com.meekdev.amnetic.client.instanced.InstancePhase;
 import com.meekdev.amnetic.client.instanced.InstanceRenderContext;
 import com.meekdev.amnetic.client.instanced.InstancedMesh;
@@ -18,8 +18,12 @@ import com.meekdev.moud.core.math.Vec3;
 import com.meekdev.moud.mod.client.ClientScene;
 import java.util.List;
 import net.minecraft.resources.Identifier;
+import com.mojang.blaze3d.opengl.GlTexture;
+import com.mojang.blaze3d.textures.GpuTextureView;
+import net.minecraft.client.Minecraft;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
+import org.joml.Vector2f;
 import org.joml.Vector4f;
 
 public final class Parts {
@@ -55,15 +59,33 @@ public final class Parts {
         mesh(MOVING).onRender(Parts::moving).register(MOVING);
     }
 
+    // one entry per part: its transform, the colour the place asked for, and where it sits in the
+    // light map
+    private static final InstanceLayout LAYOUT =
+            InstanceLayout.builder().mat4(1).vec4(5).vec2(6).build();
+
+    private record Lit(Matrix4f transform, Vector4f color, Vector2f light) {}
+
+    // minecraft's light map is a gpu texture the game renderer owns and never registers, so it is
+    // reached by its gl name rather than by an identifier
+    private static int lightMap() {
+        GpuTextureView view = Minecraft.getInstance().gameRenderer.levelLightmap();
+        return view != null && view.texture() instanceof GlTexture texture ? texture.glId() : 0;
+    }
+
     // called once the set of still parts changes, never per frame
     public static void invalidateStill() {
         InstancedMesh.invalidate(STILL);
     }
 
-    private static InstancedMesh.Builder<BuiltinShader.TransformColor> mesh(Identifier id) {
-        return InstancedMesh.builder(BuiltinShader.TRANSFORM_COLOR)
+    private static InstancedMesh.Builder<Lit> mesh(Identifier id) {
+        return InstancedMesh.<Lit>builder(LAYOUT,
+                        (inst, p) -> p.putMat4(inst.transform()).putVec4(inst.color())
+                                .putVec2(inst.light().x, inst.light().y))
+                .shaders(Identifier.fromNamespaceAndPath("moud", "instance/part.vsh"),
+                        Identifier.fromNamespaceAndPath("moud", "instance/part.fsh"))
+                .extraSampler("LightMap", Parts::lightMap, 1)
                 .geometry(MeshData.unitCube())
-                .flatShaded()
                 .phase(InstancePhase.WORLD_LAST)
                 .writeGBuffer(true)
                 // absolute positions, because the still batch is uploaded once and a camera
@@ -72,7 +94,7 @@ public final class Parts {
                 .castsShadow();
     }
 
-    private static void still(InstanceRenderContext ctx, InstanceBatch<BuiltinShader.TransformColor> batch) {
+    private static void still(InstanceRenderContext ctx, InstanceBatch<Lit> batch) {
         InstanceTree tree = ClientScene.tree();
         if (tree == null) return;
         Motion motion = ClientScene.motion();
@@ -85,7 +107,7 @@ public final class Parts {
         stillCount = emitted;
     }
 
-    private static void moving(InstanceRenderContext ctx, InstanceBatch<BuiltinShader.TransformColor> batch) {
+    private static void moving(InstanceRenderContext ctx, InstanceBatch<Lit> batch) {
         Motion motion = ClientScene.motion();
         int emitted = 0;
         for (Instance instance : motion.moving()) {
@@ -94,7 +116,7 @@ public final class Parts {
         movingCount = emitted;
     }
 
-    private static boolean write(InstanceRenderContext ctx, InstanceBatch<BuiltinShader.TransformColor> batch,
+    private static boolean write(InstanceRenderContext ctx, InstanceBatch<Lit> batch,
             Motion motion, Part part, boolean cull) {
         if (!part.visible || part.transparency >= 1.0) return false;
 
@@ -113,7 +135,7 @@ public final class Parts {
         TINT.set(c.r(), c.g(), c.b(), (float) (1.0 - part.transparency));
 
         float radius = (float) (size.length() * 0.5);
-        BuiltinShader.TransformColor instance = new BuiltinShader.TransformColor(MATRIX, TINT);
+        Lit instance = new Lit(MATRIX, TINT, PartLight.of(part, pos));
         if (cull) {
             batch.addVisible(instance, pos.x(), pos.y(), pos.z(), radius);
         } else {
