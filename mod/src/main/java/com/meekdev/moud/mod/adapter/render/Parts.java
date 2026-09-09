@@ -82,8 +82,8 @@ public final class Parts {
         return InstancedMesh.<Lit>builder(LAYOUT,
                         (inst, p) -> p.putMat4(inst.transform()).putVec4(inst.color())
                                 .putVec2(inst.light().x, inst.light().y))
-                .shaders(Identifier.fromNamespaceAndPath("moud", "instance/part.vsh"),
-                        Identifier.fromNamespaceAndPath("moud", "instance/part.fsh"))
+                // amnetic prefixes shaders/ and appends the extension, so this names the pair
+                .shader(Identifier.fromNamespaceAndPath("moud", "instance/part"))
                 .extraSampler("LightMap", Parts::lightMap, 1)
                 .geometry(MeshData.unitCube())
                 .phase(InstancePhase.WORLD_LAST)
