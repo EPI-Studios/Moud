@@ -28,7 +28,7 @@ public final class MoudServer {
     public static void install() {
         ServerLifecycleEvents.SERVER_STARTED.register(MoudServer::started);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> stopped());
-        ServerTickEvents.END_SERVER_TICK.register(MoudServer::tick);
+        ServerTickEvents.START_SERVER_TICK.register(MoudServer::tick);
         ServerPlayerEvents.JOIN.register(MoudServer::spawn);
     }
 
@@ -44,7 +44,14 @@ public final class MoudServer {
         ServerScene.stop();
     }
 
-    // the place ticks where its tree lives, which is the only thread allowed to write it
+    // the place ticks where its tree lives, which is the only thread allowed to write it, and
+    // before the levels do
+    //
+    // 7.5 puts the stepped signal at 3 and the bkun step at 4, and the end of the server tick is
+    // past both: bkun's sub level tick runs inside tickChildren, so on the end hook it copied the
+    // body to the entity before the script had said where the part was this tick. what was drawn
+    // came from the part and what was collided against came from the entity, one whole tick apart
+    // -- which at seven metres and 2.6 rad/s is most of a block of the deck sitting inside you
     private static void tick(net.minecraft.server.MinecraftServer server) {
         if (place == null) return;
         place.pollReload();
