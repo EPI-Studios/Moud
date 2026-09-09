@@ -60,6 +60,13 @@ public final class Motion {
             if (track != null) track.beginLeg();
         }
 
+        // a reparent leaves every property alone and still moves the world frame of everything
+        // under it, so it arrives on its own channel and the subtree is rewritten from here
+        tree.drainMoved(id -> {
+            Instance instance = tree.byId(id);
+            if (instance instanceof Spatial) writeSubtree(instance);
+        });
+
         // a moved parent changes every descendant's world frame while only the parent is dirty,
         // so the subtree has to follow or a child would render at a frame that no longer exists
         tree.drainDirty((instance, mask) -> {

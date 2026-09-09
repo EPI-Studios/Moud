@@ -97,6 +97,7 @@ public final class Instances {
         i.parent = newParent;
         newParent.children.add(i);
         i.tree.structureEpoch++;
+        i.tree.markMoved(i);
         if (newParent.childAdded != null) newParent.childAdded.fire(i);
     }
 

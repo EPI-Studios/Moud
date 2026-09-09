@@ -35,6 +35,7 @@ public final class Applier {
             }
             case Change.Created created -> create(created);
             case Change.Wrote wrote -> write(wrote);
+            case Change.Moved moved -> move(moved);
             case Change.Destroyed destroyed -> {
                 Instance instance = tree == null ? null : tree.byId(destroyed.id());
                 if (instance != null) Instances.destroy(instance);
@@ -48,6 +49,14 @@ public final class Applier {
         if (parent == null || tree.byId(created.id()) != null) return;
         ClassDef<?> def = classes.require(created.className());
         Instances.adopt(def, parent, created.id(), created.name());
+    }
+
+    private void move(Change.Moved moved) {
+        if (tree == null) return;
+        Instance instance = tree.byId(moved.id());
+        Instance parent = moved.parent() == world.id() ? world : tree.byId(moved.parent());
+        if (instance == null || parent == null || instance.parent() == parent) return;
+        Instances.reparent(instance, parent);
     }
 
     private void write(Change.Wrote wrote) {
