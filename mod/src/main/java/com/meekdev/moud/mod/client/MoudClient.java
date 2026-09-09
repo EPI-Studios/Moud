@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.client;
 
+import com.meekdev.moud.core.time.Clock;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.place.Switches;
 import com.meekdev.moud.mod.adapter.render.Parts;
@@ -25,9 +26,13 @@ public final class MoudClient implements ClientModInitializer {
     // the client does not run the place, it draws what the server says exists. the mirror is
     // drained on the client tick and nowhere else, and the frame only draws what that left
     private static void frames() {
+        Clock frame = new Clock();
+        Divergence divergence = new Divergence();
         ClientTickEvents.END_CLIENT_TICK.register(client -> ClientScene.tick());
         LevelRenderEvents.START_MAIN.register(context -> {
             ClientScene.frame();
+            divergence.tick(frame.tick(), net.minecraft.client.Minecraft.getInstance()
+                    .getDeltaTracker().getGameTimeDeltaPartialTick(true));
             if (ClientScene.motion().takeStillChanged()) Parts.invalidateStill();
         });
     }

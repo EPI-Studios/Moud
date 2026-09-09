@@ -2,9 +2,16 @@ package com.meekdev.moud.mod.adapter.physics;
 
 import com.meekdev.bkun.Bkun;
 import com.meekdev.bkun.collision.ColliderProvider;
+import com.meekdev.bkun.sublevel.SubLevelEntity;
+import com.meekdev.bkun.sublevel.SubLevelIndex;
 import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.instance.Part;
+import com.meekdev.moud.core.instance.Transforms;
+import com.meekdev.moud.core.math.CFrame;
+import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.net.replicate.Change;
 import net.minecraft.client.multiplayer.ClientLevel;
+import org.joml.Quaternionf;
 import org.jspecify.annotations.Nullable;
 
 // bkun's collide mixin skips its providers for a ServerPlayer, because movement is client
@@ -26,6 +33,35 @@ public final class ClientPhysics {
         if (tree == null) return;
         BOXES.apply(tree, change);
         SubLevels.mirror(tree, change);
+        drive(tree, change);
+    }
+
+    // the deck a part stands for is put where the part is, on the tick the part arrives
+    //
+    // its own pose reaches here through entity data, which the tracker has already broadcast by the
+    // time the entity writes it, so it lands a tick late. the part does not: the mirror hands it
+    // over in process. measured at 4.58 degrees behind on a deck turning at 1.6 rad/s, which is
+    // exactly one tick, and half a body of deck standing where nothing is drawn
+    private static void drive(InstanceTree tree, Change change) {
+        ClientLevel level = attached;
+        if (level == null) return;
+        int id = switch (change) {
+            case Change.Created created -> created.id();
+            case Change.Wrote wrote -> wrote.id();
+            case Change.Moved moved -> moved.id();
+            case Change.Reset ignored -> -1;
+            case Change.Destroyed ignored -> -1;
+        };
+        if (id < 0 || !(tree.byId(id) instanceof Part part) || !SubLevels.wantsSubLevel(part)) return;
+
+        CFrame world = Transforms.world(part);
+        Quat r = world.rotation();
+        for (SubLevelEntity deck : SubLevelIndex.in(level)) {
+            if (deck.owner() != id) continue;
+            deck.drivePose(world.position().x(), world.position().y(), world.position().z(),
+                    new Quaternionf((float) r.x(), (float) r.y(), (float) r.z(), (float) r.w()));
+            return;
+        }
     }
 
     // the level a client is in changes without a load event we can hold a provider across, so the
