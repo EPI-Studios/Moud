@@ -30,6 +30,7 @@ public final class Characters {
     private static final double TICKS = 20.0;
 
     private static final PropertyDef CFRAME = Classes.CHARACTER.property("cframe");
+    private static final PropertyDef OWNER = Classes.CHARACTER.property("owner");
 
     // the properties the profile is built from, which is every one the class adds to a spatial.
     // a pose write is not one of them, and follow makes one of those every tick: pushing the
@@ -94,6 +95,8 @@ public final class Characters {
 
     public void bind(ServerPlayer player, Character character) {
         bound.put(player.getUUID(), character.id());
+        // the client finds whose skin this body wears by asking the level for this player
+        Instances.setObj(character, OWNER, player.getUUID().toString());
         Physics.setProfile(player, profileOf(character));
     }
 

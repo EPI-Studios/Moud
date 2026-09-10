@@ -68,7 +68,7 @@ public final class Parts {
 
     // minecraft's light map is a gpu texture the game renderer owns and never registers, so it is
     // reached by its gl name rather than by an identifier
-    private static int lightMap() {
+    static int lightMap() {
         GpuTextureView view = Minecraft.getInstance().gameRenderer.levelLightmap();
         return view != null && view.texture() instanceof GlTexture texture ? texture.glId() : 0;
     }
@@ -119,6 +119,9 @@ public final class Parts {
     private static boolean write(InstanceRenderContext ctx, InstanceBatch<Lit> batch,
             Motion motion, Part part, boolean cull) {
         if (!part.visible || part.transparency >= 1.0) return false;
+        // a body wearing a skin is drawn by the batch that holds that skin. drawing it here too
+        // paints it flat over the top and the skin loses to whichever went second
+        if (Skins.wearsSkin(part)) return false;
 
         // how far through the tick this frame is, which is the only clock the stream shares
         CFrame world = motion.sample(part, ctx.deltaTick());

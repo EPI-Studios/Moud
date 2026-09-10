@@ -5,6 +5,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
 import com.meekdev.moud.mod.adapter.render.Parts;
+import com.meekdev.moud.mod.adapter.render.Skins;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.place.Errors;
@@ -41,6 +42,9 @@ public final class PlaceInspector extends Inspector {
         // drew is a renderer bug, not a place one
         row("drawn still", Parts.stillCount());
         row("drawn moving", Parts.movingCount());
+        // a body wearing a skin leaves the flat batches and lands here, so a zero with a
+        // character in the tree means the skin never resolved
+        row("drawn skinned", Skins.count());
         row("dirty", tree == null ? 0 : tree.dirtyCount());
 
         ImGui.separator();

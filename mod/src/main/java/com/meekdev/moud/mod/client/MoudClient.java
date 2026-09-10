@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.client;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.place.Switches;
 import com.meekdev.moud.mod.adapter.render.Parts;
+import com.meekdev.moud.mod.adapter.render.Skins;
 import com.meekdev.moud.mod.adapter.render.Pipeline;
 import com.meekdev.moud.mod.client.editor.Editor;
 import net.fabricmc.api.ClientModInitializer;
@@ -32,8 +33,10 @@ public final class MoudClient implements ClientModInitializer {
         });
         LevelRenderEvents.START_MAIN.register(context -> {
             ClientScene.frame();
-            ClientPlace.frame(Minecraft.getInstance().getDeltaTracker()
-                    .getGameTimeDeltaPartialTick(true));
+            float partialTick = Minecraft.getInstance().getDeltaTracker()
+                    .getGameTimeDeltaPartialTick(true);
+            ClientPlace.frame(partialTick);
+            Skins.gather(partialTick);
             if (ClientScene.motion().takeStillChanged()) Parts.invalidateStill();
         });
     }

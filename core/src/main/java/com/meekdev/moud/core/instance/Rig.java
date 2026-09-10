@@ -16,6 +16,13 @@ public final class Rig {
 
     public static final String HITBOX = "hitbox";
 
+    // the second shell every part wears: hat, jacket, sleeves and trousers. it is a child of the
+    // part it covers, so it follows an arm that swings without anyone animating it twice
+    public static final String OVERLAY = "overlay";
+
+    // half a texel proud of the part underneath, which is what stops the two z fighting
+    private static final double SHELL = 0.5 / 16.0;
+
     private static final double UNIT = 1.0 / 16.0;
 
     private static final Vec3 HEAD = new Vec3(8, 8, 8).mul(UNIT);
@@ -45,6 +52,7 @@ public final class Rig {
         limb(character, "rightLeg", LIMB.x() * 0.5, HIP);
 
         part(character, HITBOX, Vec3.ONE, CFrame.IDENTITY, Vec3.ZERO);
+        for (String name : BODY) shell(character, name);
         apply(character);
     }
 
@@ -67,8 +75,28 @@ public final class Rig {
                 CFrame.at(0, character.height * 0.5, 0), Vec3.ZERO);
 
         boolean body = character.display == CharacterDisplay.MODEL;
-        for (String name : BODY) visible(character, name, body);
+        for (String name : BODY) {
+            visible(character, name, body);
+            if (!(character.child(name) instanceof Part part)) continue;
+            if (part.child(OVERLAY) instanceof Part over) {
+                Instances.setBool(over, VISIBLE, body);
+                Instances.setObj(over, SIZE, part.size.add(new Vec3(SHELL, SHELL, SHELL).mul(2)));
+            }
+        }
         visible(character, HITBOX, character.display == CharacterDisplay.HITBOX);
+    }
+
+    // the shell sits on the part, not on the character: it inherits the swing, the pivot and
+    // the scale of whatever it covers
+    private static void shell(Character character, String name) {
+        if (!(character.child(name) instanceof Part part)) return;
+        Instances.create(Classes.PART, part, OVERLAY, over -> {
+            over.size = part.size;
+            over.cframe = CFrame.IDENTITY;
+            over.color = Color.WHITE;
+            over.collides = false;
+            over.anchored = true;
+        });
     }
 
     private static void arm(Character character, String name, double x, double top, double s) {

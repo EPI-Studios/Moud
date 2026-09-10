@@ -16,6 +16,10 @@ public final class Character extends Spatial {
     // what is drawn where the character is
     public CharacterDisplay display = CharacterDisplay.MODEL;
 
+    // the player this body belongs to, so the client can find whose skin to wear. empty for a
+    // character nobody is driving
+    public String owner = "";
+
     // the rig, over the proportions the engine built it at. the capsule is radius and height and
     // does not follow this: a place that wants a bigger character says so on both, deliberately
     @Prop(min = 0.05) public double scale = 1.0;
