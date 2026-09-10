@@ -2,7 +2,11 @@ package com.meekdev.moud.mod.client.editor;
 
 import com.meekdev.amnetic.client.ui.Inspector;
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.instance.Spatial;
+import com.meekdev.moud.core.instance.Transforms;
+import com.meekdev.moud.core.math.Vec3;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
 import com.meekdev.moud.mod.adapter.render.Parts;
 import com.meekdev.moud.mod.adapter.render.Skins;
@@ -89,6 +93,21 @@ public final class PlaceInspector extends Inspector {
         }
 
         ImGui.separator();
+        ImGui.text("body");
+        // the arm as the client has it: what it was told, where that puts it, and whether it is
+        // wearing anything. a limb that will not move is one of these three
+        Instance arm = firstArm(tree);
+        if (arm == null) {
+            ImGui.textDisabled("no character in the tree");
+        } else {
+            Spatial limb = (Spatial) arm;
+            text("arm local", fmt(limb.cframe.position()));
+            text("arm pivot", fmt(limb.pivot));
+            text("arm world", fmt(Transforms.world(limb).position()));
+            text("arm visible", String.valueOf(limb.visible));
+        }
+
+        ImGui.separator();
         ImGui.text("script");
         Vm vm = place == null ? null : place.vm();
         row("sleeping tasks", vm == null ? 0 : vm.scheduler().sleepingCount());
@@ -104,6 +123,19 @@ public final class PlaceInspector extends Inspector {
             ImGui.textWrapped(error.getMessage());
         }
         if (ImGui.button("clear")) Errors.clear();
+    }
+
+    private static Instance firstArm(InstanceTree tree) {
+        if (tree == null) return null;
+        for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
+            Instance arm = instance.child("rightArm");
+            if (arm != null) return arm;
+        }
+        return null;
+    }
+
+    private static String fmt(Vec3 v) {
+        return String.format("%.2f %.2f %.2f", v.x(), v.y(), v.z());
     }
 
     // the panel opens on the title screen too, where there is no level to ask
