@@ -63,7 +63,17 @@ public final class Skins {
     // a rig part is drawn here and must not also be drawn flat by the ordinary batches, or the
     // body is painted twice and the skin loses to whichever went second
     public static boolean wearsSkin(Part part) {
-        return characterOf(part) != null && skinOf(characterOf(part)) != null;
+        // only the body itself. a sword in a hand hangs off a limb and is still an ordinary part,
+        // and swallowing it here would make it invisible rather than skinned
+        if (SkinLayout.of(bodyName(part), false, false) == null) return false;
+        Character character = characterOf(part);
+        return character != null && skinOf(character) != null;
+    }
+
+    // the overlay shell is named for what it covers, so it answers as its parent does
+    private static String bodyName(Part part) {
+        return Rig.OVERLAY.equals(part.name()) && part.parent() != null
+                ? part.parent().name() : part.name();
     }
 
     // gathered once per frame, then handed to whichever batch wears that skin

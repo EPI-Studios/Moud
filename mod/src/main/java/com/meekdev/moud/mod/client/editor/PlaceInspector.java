@@ -103,6 +103,8 @@ public final class PlaceInspector extends Inspector {
             Spatial limb = (Spatial) arm;
             text("arm local", fmt(limb.cframe.position()));
             text("arm pivot", fmt(limb.pivot));
+            var r = limb.cframe.rotation();
+            text("arm turn", String.format("%.2f %.2f %.2f %.2f", r.x(), r.y(), r.z(), r.w()));
             text("arm world", fmt(Transforms.world(limb).position()));
             text("arm visible", String.valueOf(limb.visible));
         }
