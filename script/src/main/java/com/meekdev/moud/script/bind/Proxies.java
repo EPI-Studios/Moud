@@ -9,6 +9,7 @@ import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
+import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vec3;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -147,6 +148,10 @@ public final class Proxies {
             // neither reading is a silent surprise
             if (key.equals("position")) {
                 Values.push(state, spatial.cframe.position());
+                return 1;
+            }
+            if (key.equals("rotation")) {
+                Values.push(state, spatial.cframe.rotation());
                 return 1;
             }
             if (key.equals("worldCframe")) {
@@ -295,6 +300,13 @@ public final class Proxies {
                 Instances.setObj(instance, frame, spatial.cframe.withPosition(Values.vec3(state, value)));
                 return;
             }
+            // turning a thing leaves it where it is. an arm animated by writing the whole frame
+            // loses the offset that put it at the shoulder and swings from the floor instead,
+            // which is what 6.2.5 means by these being views onto one value rather than state
+            if (key.equals("rotation")) {
+                Instances.setObj(instance, frame, spatial.cframe.withRotation(rotationOf(state, value)));
+                return;
+            }
             if (key.equals("worldCframe")) {
                 Instances.setObj(instance, frame, Transforms.localFor(instance, Values.cframe(state, value)));
                 return;
@@ -318,6 +330,16 @@ public final class Proxies {
         if (target == null) throw state.error("%s wants an instance or nil", property.name());
         if (!target.isAlive()) throw state.error("%s was handed a destroyed instance", property.name());
         return target;
+    }
+
+    // a rotation is a quat, and a cframe is the friendlier way to say one: cframe.angles reads
+    // better than any constructor we would offer for the quat itself
+    private static Quat rotationOf(LuaState state, int value) {
+        Object quat = state.toUserDataTagged(value, Values.QUAT);
+        if (quat instanceof Quat q) return q;
+        Object frame = state.toUserDataTagged(value, Values.CFRAME);
+        if (frame instanceof CFrame cf) return cf.rotation();
+        throw state.error("rotation wants a cframe or a quat");
     }
 
     // the default is an instance of the enum, so it names the type without the class def

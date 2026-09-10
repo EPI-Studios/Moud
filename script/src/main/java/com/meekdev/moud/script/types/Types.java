@@ -188,6 +188,7 @@ public final class Types {
         PropertyDef frame = def.property("cframe");
         if (frame != null && frame.index() >= inherited(def)) {
             out.append("    position: Vector3\n");
+            out.append("    rotation: Quat\n");
             out.append("    worldCframe: CFrame\n");
         }
 
