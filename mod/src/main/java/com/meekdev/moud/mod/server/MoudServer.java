@@ -4,6 +4,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
+import com.meekdev.moud.core.instance.Rig;
 import com.meekdev.moud.core.time.Clock;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.physics.Physics;
@@ -80,6 +81,7 @@ public final class MoudServer {
 
         Character character = Instances.create(Classes.CHARACTER, world,
                 player.getGameProfile().name());
+        Rig.build(character);
         Physics.bodies().bind(player, character);
         player.teleportTo(0.5, 70.0, 0.5);
 

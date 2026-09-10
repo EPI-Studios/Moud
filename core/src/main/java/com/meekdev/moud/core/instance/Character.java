@@ -13,6 +13,13 @@ public final class Character extends Spatial {
     @Prop(min = 0.05) public double radius = 0.3;
     @Prop(min = 0.1) public double height = 1.8;
 
+    // what is drawn where the character is
+    public CharacterDisplay display = CharacterDisplay.MODEL;
+
+    // the rig, over the proportions the engine built it at. the capsule is radius and height and
+    // does not follow this: a place that wants a bigger character says so on both, deliberately
+    @Prop(min = 0.05) public double scale = 1.0;
+
     @Prop(min = 0) public double walkSpeed = 4.317;
     @Prop(min = 0) public double sprintMultiplier = 1.3;
     @Prop(min = 0) public double sneakMultiplier = 0.3;

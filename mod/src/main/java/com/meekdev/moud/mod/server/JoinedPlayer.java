@@ -33,6 +33,6 @@ final class JoinedPlayer implements PlayerRef {
     public void spawn(Vec3 position) {
         player.teleportTo(position.x(), position.y(), position.z());
         Character character = Physics.bodies().of(player, ServerScene.tree());
-        if (character != null) Characters.place(character, position);
+        if (character != null) Characters.place(character, position, player.getYRot());
     }
 }

@@ -7,8 +7,10 @@ import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.instance.Rig;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.math.CFrame;
+import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vec3;
 import com.meekdev.moud.net.replicate.Change;
 import java.util.HashMap;
@@ -71,8 +73,11 @@ public final class Characters {
 
     // where the tree says a character is. the entity is authority, this is the view of it a
     // place reads, written once a tick from the same place everything else is
-    public static void place(Character character, Vec3 position) {
-        Instances.setObj(character, CFRAME, CFrame.at(position));
+    public static void place(Character character, Vec3 position, double yawDegrees) {
+        // the body faces where the player does. minecraft's yaw is the opposite way round from a
+        // right handed turn and its zero looks down +z, which is half a turn from our forward
+        double yaw = Math.PI - Math.toRadians(yawDegrees);
+        Instances.setObj(character, CFRAME, new CFrame(position, Quat.euler(0, yaw, 0)));
     }
 
     public void follow(MinecraftServer server, @Nullable InstanceTree tree) {
@@ -82,7 +87,8 @@ public final class Characters {
             if (player == null || !(tree.byId(entry.getValue()) instanceof Character character)) {
                 continue;
             }
-            place(character, new Vec3(player.getX(), player.getY(), player.getZ()));
+            place(character, new Vec3(player.getX(), player.getY(), player.getZ()),
+                    player.getYRot());
         }
     }
 
@@ -118,6 +124,9 @@ public final class Characters {
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
             if (instance instanceof Character character && player != null) {
                 Physics.setProfile(player, profileOf(character));
+                // radius, height, display and scale all shape the body, and the same write that
+                // changed the profile is the one that has to rebuild it
+                Rig.apply(character);
             }
         }
     }
