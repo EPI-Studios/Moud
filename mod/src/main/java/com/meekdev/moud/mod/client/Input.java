@@ -56,6 +56,28 @@ public final class Input implements InputRef {
     }
 
     @Override
+    public boolean mouseLocked() {
+        return Minecraft.getInstance().mouseHandler.isMouseGrabbed();
+    }
+
+    @Override
+    public void lockMouse(boolean locked) {
+        Minecraft client = Minecraft.getInstance();
+        if (locked == client.mouseHandler.isMouseGrabbed()) return;
+        if (locked) client.mouseHandler.grabMouse(); else client.mouseHandler.releaseMouse();
+    }
+
+    @Override
+    public double sensitivity() {
+        return Minecraft.getInstance().options.sensitivity().get();
+    }
+
+    @Override
+    public void sensitivity(double value) {
+        Minecraft.getInstance().options.sensitivity().set(Math.max(0, Math.min(1, value)));
+    }
+
+    @Override
     public double mouseX() {
         return dx;
     }

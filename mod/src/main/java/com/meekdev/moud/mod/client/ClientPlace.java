@@ -6,6 +6,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.time.Clock;
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.adapter.render.CameraApi;
 import com.meekdev.moud.mod.adapter.render.Cameras;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.script.vm.Vm;
@@ -22,6 +23,7 @@ public final class ClientPlace {
     private static @Nullable Place place;
     private static @Nullable Camera camera;
     private static final Input INPUT = new Input();
+    private static final CameraApi LENS = new CameraApi();
 
     private ClientPlace() {}
 
@@ -54,7 +56,7 @@ public final class ClientPlace {
     private static void start(Instance world) {
         place = Place.client(world, Classes.registry(), vm -> {
             camera = Instances.createLocal(Classes.CAMERA, world, "Camera");
-            vm.bindClient(camera, INPUT);
+            vm.bindClient(camera, LENS, INPUT);
         });
         place.start();
         MoudMod.LOG.info("the client place is running");

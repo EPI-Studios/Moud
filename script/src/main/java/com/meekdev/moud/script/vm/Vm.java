@@ -4,8 +4,10 @@ import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.api.Game;
 import com.meekdev.moud.script.bind.InstanceSignals;
+import com.meekdev.moud.script.api.CameraRef;
 import com.meekdev.moud.script.api.InputRef;
 import com.meekdev.moud.script.api.PlayerRef;
+import com.meekdev.moud.script.bind.CameraMethods;
 import com.meekdev.moud.script.bind.Inputs;
 import com.meekdev.moud.script.bind.Players;
 import com.meekdev.moud.script.bind.Proxies;
@@ -60,8 +62,9 @@ public final class Vm implements AutoCloseable {
 
     // the client half of the surface, which only exists where there is a screen and someone
     // looking at it. a server vm never sees these globals rather than seeing dead ones
-    public void bindClient(Instance camera, InputRef input) {
+    public void bindClient(Instance camera, CameraRef lens, InputRef input) {
         Inputs.install(state);
+        CameraMethods.install(state, lens);
         Proxies.push(state, camera);
         state.setGlobal("camera");
         Inputs.push(state, input);

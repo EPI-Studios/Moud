@@ -55,6 +55,20 @@ public record CFrame(Vec3 position, Quat rotation) {
         return rotation.rotate(Vec3.FORWARD);
     }
 
+    // how far the frame is rolled about its own look, measured against a reference up
+    //
+    // a frame carries roll inside its basis with nothing naming it, and a camera that wants to
+    // tilt has to be able to say by how much. undefined looking straight up or down, where there
+    // is no horizon to be level with, and zero is the answer there rather than a NaN
+    public double roll(Vec3 reference) {
+        Vec3 look = lookVector();
+        Vec3 flat = look.cross(reference);
+        if (flat.lengthSq() < 1e-12) return 0;
+        Vec3 level = flat.normalize().cross(look).normalize();
+        Vec3 up = upVector();
+        return Math.atan2(level.cross(up).dot(look), level.dot(up));
+    }
+
     public Vec3 rightVector() {
         return rotation.rotate(Vec3.RIGHT);
     }

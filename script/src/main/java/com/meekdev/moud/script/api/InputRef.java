@@ -15,4 +15,14 @@ public interface InputRef {
 
     // names an unknown action so a typo is an error rather than a key that never fires
     boolean known(String action);
+
+    // the pointer is captured for looking around, or released for a cursor to click with. a place
+    // that draws ui has to be able to let go of it
+    boolean mouseLocked();
+
+    void lockMouse(boolean locked);
+
+    double sensitivity();
+
+    void sensitivity(double value);
 }

@@ -143,7 +143,11 @@ public final class Types {
                 declare class Input
                     mouseX: number
                     mouseY: number
+                    mouseLocked: boolean
+                    sensitivity: number
                     function down(self, action: string): boolean
+                    function lockMouse(self): ()
+                    function releaseMouse(self): ()
                 end
 
                 declare game: Game
@@ -194,7 +198,24 @@ public final class Types {
             out.append("    ").append(properties[i].name())
                     .append(": ").append(luau(properties[i])).append('\n');
         }
+        out.append(verbs(def.name()));
         return out.append("end\n\n").toString();
+    }
+
+    // methods a single class carries. properties cannot drift because they come from the
+    // registry; these are written by hand in two places and a test is what holds them together
+    private static String verbs(String className) {
+        return switch (className) {
+            case "Camera" -> """
+                        function shake(self, trauma: number): ()
+                        function kick(self, pitch: number, yaw: number, roll: number, seconds: number): ()
+                        function fovPunch(self, degrees: number, seconds: number): ()
+                        function clearEffects(self): ()
+                        function worldToScreen(self, world: Vector3): Vector3?
+                        function screenToRay(self, x: number, y: number): (Vector3, Vector3)
+                    """;
+            default -> "";
+        };
     }
 
     private static int inherited(ClassDef<?> def) {

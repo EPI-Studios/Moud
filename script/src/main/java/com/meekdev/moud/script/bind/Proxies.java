@@ -11,8 +11,10 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vec3;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
@@ -26,6 +28,8 @@ public final class Proxies {
     private static final String METHODS = "moud.methods";
 
     private static final Set<String> NAMES = new LinkedHashSet<>();
+
+    private static final Map<String, Set<String>> CLASS_NAMES = new LinkedHashMap<>();
 
     private static ClassRegistry classes;
 
@@ -54,6 +58,29 @@ public final class Proxies {
         method(state, "isA", Proxies::isA);
         method(state, "destroy", Proxies::destroy);
         state.rawSetField(LuaState.REGISTRY_INDEX, METHODS);
+    }
+
+    private static String methodsOf(ClassDef<?> def) {
+        return "moud.methods." + def.name();
+    }
+
+    // methods only one class has. the table is per vm like every other registry entry, so a
+    // client vm can carry the camera's verbs and a server vm never sees them
+    public static void classMethods(LuaState state, ClassDef<?> def,
+                                    Map<String, ToIntFunction<LuaState>> methods) {
+        state.newTable();
+        for (Map.Entry<String, ToIntFunction<LuaState>> entry : methods.entrySet()) {
+            CLASS_NAMES.computeIfAbsent(def.name(), name -> new LinkedHashSet<>())
+                    .add(entry.getKey());
+            state.pushFunction(LuaFunc.wrap(entry.getValue(), def.name() + ":" + entry.getKey()));
+            state.rawSetField(-2, entry.getKey());
+        }
+        state.rawSetField(LuaState.REGISTRY_INDEX, methodsOf(def));
+    }
+
+    public static Set<String> methodNames(String className) {
+        return Collections.unmodifiableSet(
+                CLASS_NAMES.getOrDefault(className, new LinkedHashSet<>()));
     }
 
     // every method an instance carries passes through here, so the names the type declarations
@@ -138,6 +165,22 @@ public final class Proxies {
         if (child != null) {
             push(state, child);
             return 1;
+        }
+
+        // a class may carry methods of its own, and a subclass inherits its parent's, so the
+        // chain is walked before the table every instance shares
+        for (ClassDef<?> def = instance.def(); def != null; def = def.parent()) {
+            // most classes register nothing, and indexing the nil that leaves on the stack is a
+            // native abort rather than an error a place could see
+            if (state.rawGetField(LuaState.REGISTRY_INDEX, methodsOf(def)) != LuaType.TABLE) {
+                state.pop(1);
+                continue;
+            }
+            if (state.rawGetField(-1, key) != LuaType.NIL) {
+                state.remove(-2);
+                return 1;
+            }
+            state.pop(2);
         }
 
         state.rawGetField(LuaState.REGISTRY_INDEX, METHODS);
@@ -263,6 +306,20 @@ public final class Proxies {
         write(state, instance, property, value);
     }
 
+    // a reference to something destroyed reads as nil rather than as a proxy that errors on
+    // touch: a place holding a ref to a part someone removed asked a reasonable question
+    private static void ref(LuaState state, Instance target) {
+        if (target == null || !target.isAlive()) state.pushNil(); else push(state, target);
+    }
+
+    private static Instance refOf(LuaState state, PropertyDef property, int value) {
+        if (state.isNoneOrNil(value)) return null;
+        Instance target = (Instance) state.toUserDataTagged(value, TAG);
+        if (target == null) throw state.error("%s wants an instance or nil", property.name());
+        if (!target.isAlive()) throw state.error("%s was handed a destroyed instance", property.name());
+        return target;
+    }
+
     // the default is an instance of the enum, so it names the type without the class def
     // having to carry one
     private static Enum<?> enumOf(LuaState state, PropertyDef property, int value) {
@@ -282,6 +339,7 @@ public final class Proxies {
             case COLOR -> Values.push(state, (Color) property.getObj(instance));
             case CFRAME -> Values.push(state, (CFrame) property.getObj(instance));
             case ENUM -> state.pushString(Enums.name((Enum<?>) property.getObj(instance)));
+            case REF -> ref(state, (Instance) property.getObj(instance));
             default -> throw state.error("%s is not a value luau can read yet", property.name());
         }
     }
@@ -295,6 +353,7 @@ public final class Proxies {
             case COLOR -> Instances.setObj(instance, property, Values.color(state, value));
             case CFRAME -> Instances.setObj(instance, property, Values.cframe(state, value));
             case ENUM -> Instances.setObj(instance, property, enumOf(state, property, value));
+            case REF -> Instances.setObj(instance, property, refOf(state, property, value));
             default -> throw state.error("%s is not a value luau can write yet", property.name());
         }
     }

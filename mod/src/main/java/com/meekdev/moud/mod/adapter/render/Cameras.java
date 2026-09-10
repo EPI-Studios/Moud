@@ -5,6 +5,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Camera;
 import com.meekdev.moud.core.instance.Instances;
+import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vec3;
@@ -41,11 +42,12 @@ public final class Cameras {
         AmneticCamera.clearFov();
     }
 
-    // the place wrote the pose, so it is the pose
+    // the place wrote the pose, so it is the pose, roll included. a frame carries roll in its
+    // basis and dropping it means a place can write a tilt that never appears
     private static void hold(Camera camera) {
         CFrame frame = camera.cframe;
         Vec3 look = frame.lookVector();
-        pose(frame.position(), mcYaw(look), mcPitch(look));
+        pose(frame.position(), mcYaw(look), mcPitch(look), mcRoll(frame));
     }
 
     private static void first(Camera camera, LocalPlayer player, float partialTick) {
@@ -62,7 +64,12 @@ public final class Cameras {
         report(camera, at, player.getYRot(), player.getXRot());
     }
 
+    // a subject is followed where it is, not where it was a tick ago: it is an instance, and
+    // the tree is already the interpolated view of one. the player is the entity, which is not
     private static Vec3 eye(Camera camera, LocalPlayer player, float partialTick) {
+        if (camera.subject != null && camera.subject.isAlive()) {
+            return Transforms.world(camera.subject).position().add(camera.offset);
+        }
         double x = player.xOld + (player.getX() - player.xOld) * partialTick;
         double y = player.yOld + (player.getY() - player.yOld) * partialTick;
         double z = player.zOld + (player.getZ() - player.zOld) * partialTick;
@@ -80,8 +87,13 @@ public final class Cameras {
     }
 
     private static void pose(Vec3 at, float yaw, float pitch) {
+        pose(at, yaw, pitch, 0f);
+    }
+
+    private static void pose(Vec3 at, float yaw, float pitch, float roll) {
         // minecraft's Vec3 against ours, the one clash 20.1 keeps a qualified name for
-        AmneticCamera.setPose(new net.minecraft.world.phys.Vec3(at.x(), at.y(), at.z()), yaw, pitch);
+        AmneticCamera.setPose(
+                new net.minecraft.world.phys.Vec3(at.x(), at.y(), at.z()), yaw, pitch, roll);
     }
 
     // the instance is told where the camera ended up, so a place reads the one it is looking
@@ -98,6 +110,12 @@ public final class Cameras {
     // convention nor a quaternion. this is the only place either is converted
     private static float mcYaw(Vec3 look) {
         return (float) (Math.atan2(-look.x(), look.z()) * DEGREES);
+    }
+
+    // minecraft states every angle the opposite way round from a right handed rotation, which
+    // yaw and pitch below already show. roll follows them rather than being special
+    private static float mcRoll(CFrame frame) {
+        return (float) (-frame.roll(Vec3.UP) * DEGREES);
     }
 
     private static float mcPitch(Vec3 look) {

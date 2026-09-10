@@ -99,6 +99,9 @@ public final class ClassDef<T extends Instance> {
         if (t == CFrame.class) return PropertyType.CFRAME;
         if (t == Color.class) return PropertyType.COLOR;
         if (t.isEnum()) return PropertyType.ENUM;
+        // a field that points at another instance. it holds the instance, not an id: the id is
+        // what the wire carries, and resolving one per read would be a map lookup per frame
+        if (Instance.class.isAssignableFrom(t)) return PropertyType.REF;
         return null;
     }
 

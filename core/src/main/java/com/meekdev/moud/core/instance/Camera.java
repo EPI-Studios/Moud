@@ -18,6 +18,10 @@ public final class Camera extends Spatial {
     // how far behind the subject the third person camera sits
     @Prop(min = 0) public double distance = 4.0;
 
-    // from the character's feet to its eye, which is not the middle of it
+    // from the subject's feet to its eye, which is not the middle of it
     public Vec3 offset = new Vec3(0, 1.62, 0);
+
+    // what the follow modes follow. nil means the player, which is what a place that never
+    // mentions it wants
+    public Instance subject;
 }

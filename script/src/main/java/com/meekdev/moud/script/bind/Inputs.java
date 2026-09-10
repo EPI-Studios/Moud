@@ -23,10 +23,14 @@ public final class Inputs {
         state.newTable();
         state.pushFunction(LuaFunc.wrap(Inputs::index, "input.__index"));
         state.rawSetField(-2, "__index");
+        state.pushFunction(LuaFunc.wrap(Inputs::newIndex, "input.__newindex"));
+        state.rawSetField(-2, "__newindex");
         state.setUserDataMetaTable(TAG);
 
         state.newTable();
         method(state, "down", Inputs::down);
+        method(state, "lockMouse", Inputs::lockMouse);
+        method(state, "releaseMouse", Inputs::releaseMouse);
         state.rawSetField(LuaState.REGISTRY_INDEX, METHODS);
     }
 
@@ -56,6 +60,8 @@ public final class Inputs {
         switch (key) {
             case "mouseX" -> { state.pushNumber(input.mouseX()); return 1; }
             case "mouseY" -> { state.pushNumber(input.mouseY()); return 1; }
+            case "mouseLocked" -> { state.pushBoolean(input.mouseLocked()); return 1; }
+            case "sensitivity" -> { state.pushNumber(input.sensitivity()); return 1; }
             default -> { }
         }
         state.rawGetField(LuaState.REGISTRY_INDEX, METHODS);
@@ -64,6 +70,24 @@ public final class Inputs {
             return 1;
         }
         throw state.error("input has no member '%s'", key);
+    }
+
+    private static int newIndex(LuaState state) {
+        InputRef input = self(state);
+        String key = state.checkString(2);
+        if (!key.equals("sensitivity")) throw state.error("input has no property '%s'", key);
+        input.sensitivity(state.checkNumber(3));
+        return 0;
+    }
+
+    private static int lockMouse(LuaState state) {
+        self(state).lockMouse(true);
+        return 0;
+    }
+
+    private static int releaseMouse(LuaState state) {
+        self(state).lockMouse(false);
+        return 0;
     }
 
     private static int down(LuaState state) {
