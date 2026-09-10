@@ -1,26 +1,26 @@
 package com.meekdev.moud.mod.adapter.render;
 
 import com.meekdev.amnetic.client.camera.AmneticCamera;
+import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Camera;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vec3;
-import com.meekdev.moud.core.clazz.Classes;
-import com.meekdev.moud.core.clazz.PropertyDef;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 
 // the camera instance in, amnetic's pose out
 //
-// only scriptable holds an absolute pose. the follow modes let vanilla aim, because the mouse
-// already turns the player and taking that over means reimplementing sensitivity, smoothing and
-// every accessibility option attached to it for no gain
+// aiming stays the player's in the follow modes: the mouse already turns them, and taking that
+// over means reimplementing sensitivity, smoothing and every accessibility option attached to it.
+// where the camera *is* is ours, and that is the whole of third person
 public final class Cameras {
 
     private static final PropertyDef CFRAME = Classes.CAMERA.property("cframe");
 
-    private static final double DEGREES = Math.PI / 180.0;
+    private static final double DEGREES = 180.0 / Math.PI;
 
     private Cameras() {}
 
@@ -31,8 +31,8 @@ public final class Cameras {
         AmneticCamera.setFov((float) camera.fov);
         switch (camera.mode) {
             case SCRIPTABLE -> hold(camera);
-            case FIRST_PERSON -> follow(camera, player, partialTick, 0);
-            case THIRD_PERSON -> follow(camera, player, partialTick, camera.distance);
+            case FIRST_PERSON -> first(camera, player, partialTick);
+            case THIRD_PERSON -> third(camera, player, partialTick);
         }
     }
 
@@ -41,40 +41,66 @@ public final class Cameras {
         AmneticCamera.clearFov();
     }
 
-    // the place wrote the pose, so it is the pose. yaw and pitch come back out of the frame
-    // because amnetic takes them as angles, not as a basis
+    // the place wrote the pose, so it is the pose
     private static void hold(Camera camera) {
         CFrame frame = camera.cframe;
-        Vec3 position = frame.position();
-        Quat r = frame.rotation();
-        double yaw = Math.atan2(2.0 * (r.w() * r.y() + r.x() * r.z()),
-                1.0 - 2.0 * (r.y() * r.y() + r.x() * r.x()));
-        double pitch = Math.asin(Math.max(-1.0, Math.min(1.0,
-                2.0 * (r.w() * r.x() - r.y() * r.z()))));
-        // minecraft's Vec3 against ours, the one clash 20.1 keeps a qualified name for
-        AmneticCamera.setPose(
-                new net.minecraft.world.phys.Vec3(position.x(), position.y(), position.z()),
-                (float) (-yaw / DEGREES), (float) (-pitch / DEGREES));
+        Vec3 look = frame.lookVector();
+        pose(frame.position(), mcYaw(look), mcPitch(look));
     }
 
-    // vanilla draws it, and the instance is told where it ended up so a place can read the camera
-    // it is actually looking through rather than the one it asked for
-    private static void follow(Camera camera, LocalPlayer player, float partialTick, double back) {
+    private static void first(Camera camera, LocalPlayer player, float partialTick) {
         AmneticCamera.clearPose();
+        report(camera, eye(camera, player, partialTick), player.getYRot(), player.getXRot());
+    }
 
-        double yaw = player.getYRot() * DEGREES;
-        double pitch = player.getXRot() * DEGREES;
+    // pulled back along the look, which needs an absolute pose. clearing it instead leaves vanilla
+    // drawing from the player's own eye, and the mode then does nothing at all
+    private static void third(Camera camera, LocalPlayer player, float partialTick) {
+        Vec3 at = eye(camera, player, partialTick)
+                .sub(moudLookFromMc(player.getYRot(), player.getXRot()).mul(camera.distance));
+        pose(at, player.getYRot(), player.getXRot());
+        report(camera, at, player.getYRot(), player.getXRot());
+    }
+
+    private static Vec3 eye(Camera camera, LocalPlayer player, float partialTick) {
         double x = player.xOld + (player.getX() - player.xOld) * partialTick;
         double y = player.yOld + (player.getY() - player.yOld) * partialTick;
         double z = player.zOld + (player.getZ() - player.zOld) * partialTick;
+        return new Vec3(x, y, z).add(camera.offset);
+    }
 
-        Vec3 eye = new Vec3(x, y, z).add(camera.offset);
-        if (back > 0) {
-            double cosPitch = Math.cos(pitch);
-            eye = eye.sub(new Vec3(-Math.sin(yaw) * cosPitch, -Math.sin(pitch),
-                    Math.cos(yaw) * cosPitch).mul(back));
-        }
+    // 6.2.5: the conversion happens here and in mcYaw/mcPitch, and nowhere else. our forward is
+    // -z and minecraft's yaw zero looks down +z, so the two differ by half a turn rather than by
+    // a sign -- which is exactly the inline negate that section says to reject
+    private static Vec3 moudLookFromMc(float mcYaw, float mcPitch) {
+        double yaw = mcYaw / DEGREES;
+        double pitch = mcPitch / DEGREES;
+        double cosPitch = Math.cos(pitch);
+        return new Vec3(-Math.sin(yaw) * cosPitch, -Math.sin(pitch), Math.cos(yaw) * cosPitch);
+    }
+
+    private static void pose(Vec3 at, float yaw, float pitch) {
+        // minecraft's Vec3 against ours, the one clash 20.1 keeps a qualified name for
+        AmneticCamera.setPose(new net.minecraft.world.phys.Vec3(at.x(), at.y(), at.z()), yaw, pitch);
+    }
+
+    // the instance is told where the camera ended up, so a place reads the one it is looking
+    // through rather than the one it asked for
+    //
+    // built from the look vector rather than from euler angles, because a frame that round trips
+    // through mcYaw is worth more than one that happens to agree with a rotation order
+    private static void report(Camera camera, Vec3 at, float yaw, float pitch) {
         Instances.setObj(camera, CFRAME,
-                new CFrame(eye, Quat.euler(-pitch, -yaw, 0)));
+                new CFrame(at, Quat.lookAt(moudLookFromMc(yaw, pitch), Vec3.UP)));
+    }
+
+    // minecraft states a look as yaw clockwise from south and pitch downward, which is neither our
+    // convention nor a quaternion. this is the only place either is converted
+    private static float mcYaw(Vec3 look) {
+        return (float) (Math.atan2(-look.x(), look.z()) * DEGREES);
+    }
+
+    private static float mcPitch(Vec3 look) {
+        return (float) (Math.asin(Math.max(-1.0, Math.min(1.0, -look.y()))) * DEGREES);
     }
 }
