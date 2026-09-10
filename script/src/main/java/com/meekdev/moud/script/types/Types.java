@@ -4,9 +4,12 @@ import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.clazz.PropertyType;
+import com.meekdev.moud.script.bind.Enums;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.stream.Collectors;
 
 // the luau definitions a place is edited against, written from the class registry rather than kept
 // beside it. a property that is not declared cannot appear here, so the api and what an editor
@@ -137,7 +140,16 @@ public final class Types {
                     persist: { [string]: any }
                 end
 
+                declare class Input
+                    mouseX: number
+                    mouseY: number
+                    function down(self, action: string): boolean
+                end
+
                 declare game: Game
+
+                declare camera: Camera
+                declare input: Input
 
                 declare function vec3(x: number, y: number, z: number): Vector3
                 declare function color(r: number, g: number, b: number, a: number?): Color
@@ -180,13 +192,22 @@ public final class Types {
         // and everything before it is already declared on the class it extends
         for (int i = inherited(def); i < properties.length; i++) {
             out.append("    ").append(properties[i].name())
-                    .append(": ").append(luau(properties[i].type())).append('\n');
+                    .append(": ").append(luau(properties[i])).append('\n');
         }
         return out.append("end\n\n").toString();
     }
 
     private static int inherited(ClassDef<?> def) {
         return def.parent() == null ? 0 : def.parent().properties().length;
+    }
+
+    // an enum declares the strings it accepts rather than "string", so an editor completes
+    // them and a typo is red before the place is ever run
+    private static String luau(PropertyDef property) {
+        if (property.type() != PropertyType.ENUM) return luau(property.type());
+        List<String> names = Enums.names(property.defaultValue().getClass());
+        return names.stream().map(name -> '"' + name + '"')
+                .collect(Collectors.joining(" | "));
     }
 
     private static String luau(PropertyType type) {

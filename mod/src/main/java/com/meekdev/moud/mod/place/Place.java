@@ -12,24 +12,42 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 import net.fabricmc.loader.api.FabricLoader;
 import org.jspecify.annotations.Nullable;
 
 public final class Place {
 
     private static final String ROOT = "place";
-    private static final String MAIN = "server/main.luau";
 
     private final Instance world;
     private final ClassRegistry classes;
     private final Path root;
+    private final String main;
+    private final Predicate<Instance> dropped;
+    private final Consumer<Vm> extend;
     private @Nullable Vm vm;
     private @Nullable Watcher watcher;
 
-    public Place(Instance world, ClassRegistry classes) {
+    private Place(Instance world, ClassRegistry classes, String main,
+                  Predicate<Instance> dropped, Consumer<Vm> extend) {
         this.world = world;
         this.classes = classes;
         this.root = FabricLoader.getInstance().getGameDir().resolve(ROOT);
+        this.main = main;
+        this.dropped = dropped;
+        this.extend = extend;
+    }
+
+    public static Place server(Instance world, ClassRegistry classes) {
+        return new Place(world, classes, "server/main.luau", instance -> true, vm -> { });
+    }
+
+    // 8.6: a client reload re-runs the place's local scripts and leaves the mirror alone, so the
+    // only things it may destroy are the ones the client made itself. those are the negative ids
+    public static Place client(Instance world, ClassRegistry classes, Consumer<Vm> extend) {
+        return new Place(world, classes, "client/main.luau", instance -> instance.id() < 0, extend);
     }
 
     public @Nullable Vm vm() {
@@ -60,7 +78,9 @@ public final class Place {
 
         Map<String, Object> carried = vm == null ? Map.of() : vm.persist();
         if (vm != null) vm.close();
-        for (Instance child : List.copyOf(world.children())) Instances.destroy(child);
+        for (Instance child : List.copyOf(world.children())) {
+            if (dropped.test(child)) Instances.destroy(child);
+        }
 
         vm = load(carried);
         if (vm != null) vm.reloaded();
@@ -78,16 +98,16 @@ public final class Place {
     }
 
     private @Nullable Vm load(Map<String, Object> carried) {
-        Path main = root.resolve(MAIN);
-        if (!Files.isRegularFile(main)) {
-            MoudMod.LOG.info("no {}, nothing to run", main);
+        Path entry = root.resolve(main);
+        if (!Files.isRegularFile(entry)) {
+            MoudMod.LOG.info("no {}, nothing to run", entry);
             return null;
         }
         String source;
         try {
-            source = Files.readString(main);
+            source = Files.readString(entry);
         } catch (IOException e) {
-            MoudMod.LOG.error("could not read {}", main, e);
+            MoudMod.LOG.error("could not read {}", entry, e);
             return null;
         }
 
@@ -95,11 +115,12 @@ public final class Place {
         fresh.bind(world, classes);
         fresh.onError(Errors::record);
         fresh.persist(carried);
+        extend.accept(fresh);
         try {
-            fresh.run(MAIN, source);
+            fresh.run(main, source);
         } catch (RuntimeException e) {
             // a broken edit must not take the client with it, the next save gets another go
-            MoudMod.LOG.error("{} failed", main, e);
+            MoudMod.LOG.error("{} failed", entry, e);
         }
         return fresh;
     }

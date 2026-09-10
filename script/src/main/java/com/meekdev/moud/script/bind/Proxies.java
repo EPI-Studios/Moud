@@ -263,6 +263,16 @@ public final class Proxies {
         write(state, instance, property, value);
     }
 
+    // the default is an instance of the enum, so it names the type without the class def
+    // having to carry one
+    private static Enum<?> enumOf(LuaState state, PropertyDef property, int value) {
+        try {
+            return Enums.parse(property.defaultValue().getClass(), state.checkString(value));
+        } catch (IllegalArgumentException e) {
+            throw state.error("%s: %s", property.name(), e.getMessage());
+        }
+    }
+
     private static void read(LuaState state, Instance instance, PropertyDef property) {
         switch (property.type()) {
             case BOOL -> state.pushBoolean(property.getBool(instance));
@@ -271,6 +281,7 @@ public final class Proxies {
             case VEC3 -> Values.push(state, (Vec3) property.getObj(instance));
             case COLOR -> Values.push(state, (Color) property.getObj(instance));
             case CFRAME -> Values.push(state, (CFrame) property.getObj(instance));
+            case ENUM -> state.pushString(Enums.name((Enum<?>) property.getObj(instance)));
             default -> throw state.error("%s is not a value luau can read yet", property.name());
         }
     }
@@ -283,6 +294,7 @@ public final class Proxies {
             case VEC3 -> Instances.setObj(instance, property, Values.vec3(state, value));
             case COLOR -> Instances.setObj(instance, property, Values.color(state, value));
             case CFRAME -> Instances.setObj(instance, property, Values.cframe(state, value));
+            case ENUM -> Instances.setObj(instance, property, enumOf(state, property, value));
             default -> throw state.error("%s is not a value luau can write yet", property.name());
         }
     }

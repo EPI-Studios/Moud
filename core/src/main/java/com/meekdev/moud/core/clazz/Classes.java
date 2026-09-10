@@ -1,5 +1,6 @@
 package com.meekdev.moud.core.clazz;
 
+import com.meekdev.moud.core.instance.Camera;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Folder;
 import com.meekdev.moud.core.instance.Part;
@@ -12,6 +13,7 @@ public final class Classes {
     public static final ClassDef<Part> PART = ClassDef.of("Part", SPATIAL, Part.class, Part::new);
     public static final ClassDef<Character> CHARACTER =
             ClassDef.of("Character", SPATIAL, Character.class, Character::new);
+    public static final ClassDef<Camera> CAMERA = ClassDef.of("Camera", SPATIAL, Camera.class, Camera::new);
 
     private Classes() {}
 
@@ -21,6 +23,7 @@ public final class Classes {
         r.register(SPATIAL);
         r.register(PART);
         r.register(CHARACTER);
+        r.register(CAMERA);
         return r;
     }
 }

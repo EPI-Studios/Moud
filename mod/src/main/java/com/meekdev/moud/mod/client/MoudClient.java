@@ -6,6 +6,7 @@ import com.meekdev.moud.mod.adapter.render.Parts;
 import com.meekdev.moud.mod.adapter.render.Pipeline;
 import com.meekdev.moud.mod.client.editor.Editor;
 import net.fabricmc.api.ClientModInitializer;
+import net.minecraft.client.Minecraft;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 
@@ -25,9 +26,14 @@ public final class MoudClient implements ClientModInitializer {
     // the client does not run the place, it draws what the server says exists. the mirror is
     // drained on the client tick and nowhere else, and the frame only draws what that left
     private static void frames() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> ClientScene.tick());
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            ClientScene.tick();
+            ClientPlace.tick();
+        });
         LevelRenderEvents.START_MAIN.register(context -> {
             ClientScene.frame();
+            ClientPlace.frame(Minecraft.getInstance().getDeltaTracker()
+                    .getGameTimeDeltaPartialTick(true));
             if (ClientScene.motion().takeStillChanged()) Parts.invalidateStill();
         });
     }

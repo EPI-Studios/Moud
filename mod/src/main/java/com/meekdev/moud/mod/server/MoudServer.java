@@ -40,7 +40,7 @@ public final class MoudServer {
 
     private static void started(MinecraftServer server) {
         ServerScene.start(server);
-        place = new Place(ServerScene.world(), Classes.registry());
+        place = Place.server(ServerScene.world(), Classes.registry());
         place.start();
         MoudMod.LOG.info("place is running on the server");
     }
