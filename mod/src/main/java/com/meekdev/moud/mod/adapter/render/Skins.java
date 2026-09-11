@@ -13,7 +13,6 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Rig;
-import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
@@ -116,7 +115,10 @@ public final class Skins {
     private static void emit(Part part, SkinLayout.Box box, boolean shell, List<Worn> into,
                              float partialTick) {
         if (!part.visible) return;
-        CFrame frame = Transforms.world(part);
+        // sampled at the frame's own fraction of the tick, the way every other part is. reading
+        // the live property drew the body at twenty a second while the world around it was smooth,
+        // which reads as the body lagging behind the camera rather than as a missing sample
+        CFrame frame = ClientScene.motion().sample(part, partialTick);
         Vec3 at = frame.position();
         Quat r = frame.rotation();
         Matrix4f transform = new Matrix4f()
