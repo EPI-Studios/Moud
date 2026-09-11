@@ -19,6 +19,12 @@ public final class Rig {
 
     public static final String HITBOX = "hitbox";
 
+    // where the joints live, so a place reaches one by name the way it reaches a limb
+    public static final String JOINTS = "joints";
+
+    // the joint the whole body hangs from, which is what carries a tilt none of the limbs own
+    public static final String ROOT = "root";
+
     // the second shell every part wears: hat, jacket, sleeves and trousers
     public static final String OVERLAY = "overlay";
 
@@ -31,6 +37,7 @@ public final class Rig {
     private static final PropertyDef CFRAME = Classes.PART.property("cframe");
     private static final PropertyDef PIVOT = Classes.PART.property("pivot");
     private static final PropertyDef VISIBLE = Classes.PART.property("visible");
+    private static final PropertyDef C0 = Classes.JOINT.property("c0");
 
     // a limb: where it turns, the box hung off that, and how far its shell stands proud
     private record Limb(String name, Vec3 pivot, Vec3 box, Vec3 size, double shell) {}
@@ -43,6 +50,14 @@ public final class Rig {
             limb("rightLeg", -1.9, 12, 0, -2, 0, -2, 4, 12, 4, 0.25),
             limb("leftLeg", 1.9, 12, 0, -2, 0, -2, 4, 12, 4, 0.25),
     };
+
+    // the six, in one place. they were strings in three files, so renaming one stopped the pose
+    // finding it and said nothing
+    public static String[] limbs() {
+        String[] names = new String[BODY.length];
+        for (int n = 0; n < BODY.length; n++) names[n] = BODY[n].name();
+        return names;
+    }
 
     private Rig() {}
 
@@ -62,6 +77,11 @@ public final class Rig {
     // a pose that moves a joint starts from here, never from where it left it last tick: the
     // model states a crouch as an offset applied to the standing pivot, and reading back the
     // offset one would compound it every tick until the body came apart
+    // the joint that drives a limb, or the body's own when asked for the root
+    public static Instance joint(Character character, String name) {
+        return character.child(JOINTS) instanceof Instance joints ? joints.child(name) : null;
+    }
+
     public static Vec3 pivot(String name, double scale) {
         for (Limb limb : BODY) {
             if (limb.name().equals(name)) return limb.pivot().mul(scale);
@@ -97,6 +117,17 @@ public final class Rig {
             part.collides = false;
             part.anchored = true;
         });
+
+        Instance joints = Instances.create(Classes.FOLDER, character, JOINTS);
+        // the body's own, hanging off nothing: its transform is the tilt the whole body takes,
+        // and every limb joint is composed through it
+        Instances.create(Classes.JOINT, joints, ROOT, joint -> joint.part0 = character);
+        for (Limb limb : BODY) {
+            Instances.create(Classes.JOINT, joints, limb.name(), joint -> {
+                joint.part0 = character;
+                joint.part1 = character.child(limb.name());
+            });
+        }
         apply(character);
     }
 
@@ -125,9 +156,13 @@ public final class Rig {
         for (Limb limb : BODY) {
             if (!(character.child(limb.name()) instanceof Part part)) continue;
             Instances.setObj(part, SIZE, limb.size().mul(s));
-            Instances.setObj(part, CFRAME, part.cframe.withPosition(limb.pivot().mul(s)));
             Instances.setObj(part, PIVOT, limb.box().neg().mul(s));
             Instances.setBool(part, VISIBLE, shown);
+            // where the joint stands, which is the engine's half of it. the turn at it is the
+            // place's half and is never touched from here
+            if (joint(character, limb.name()) instanceof Joint hinge) {
+                Instances.setObj(hinge, C0, CFrame.at(limb.pivot().mul(s)));
+            }
 
             if (part.child(OVERLAY) instanceof Part over) {
                 Vec3 grown = new Vec3(limb.shell() * 2, limb.shell() * 2, limb.shell() * 2);
@@ -135,6 +170,10 @@ public final class Rig {
                 Instances.setBool(over, VISIBLE, shown);
             }
         }
+
+        // a rig that has settled leaves the body where it says it is, rather than where it was
+        // before the joints moved
+        Joints.apply(character);
 
         if (character.child(HITBOX) instanceof Part box) {
             Instances.setObj(box, SIZE,

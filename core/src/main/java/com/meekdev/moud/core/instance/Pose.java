@@ -28,7 +28,7 @@ public final class Pose {
 
     // the six parts are siblings, exactly as the model has them: nothing hangs off the torso, so
     // a torso that twists has to hand its twist to the arms by hand. the game does the same
-    private static final PropertyDef CFRAME = Classes.PART.property("cframe");
+    private static final PropertyDef TRANSFORM = Classes.JOINT.property("transform");
 
     // one limb, as the model states it
     private static final class Limb {
@@ -117,13 +117,20 @@ public final class Pose {
         swim(character, rightArm, leftArm, rightLeg, leftLeg);
 
         double scale = character.scale;
-        CFrame root = root(character, ageInTicks);
-        turn(character, "head", head, scale, root);
-        turn(character, "torso", torso, scale, root);
-        turn(character, "rightArm", rightArm, scale, root);
-        turn(character, "leftArm", leftArm, scale, root);
-        turn(character, "rightLeg", rightLeg, scale, root);
-        turn(character, "leftLeg", leftLeg, scale, root);
+        // the tilt goes on the body's own joint, so every limb inherits it through one write
+        // rather than six, and a place can read what tilted the body
+        if (Rig.joint(character, Rig.ROOT) instanceof Joint hinge) {
+            Instances.setObj(hinge, TRANSFORM, root(character, ageInTicks));
+        }
+        turn(character, "head", head, scale);
+        turn(character, "torso", torso, scale);
+        turn(character, "rightArm", rightArm, scale);
+        turn(character, "leftArm", leftArm, scale);
+        turn(character, "rightLeg", rightLeg, scale);
+        turn(character, "leftLeg", leftLeg, scale);
+        // a pose that has been applied leaves the body in it, rather than leaving six joints
+        // written and the body still standing where it was
+        Joints.apply(character);
     }
 
     // how the whole body is hung, before any limb is posed
@@ -266,15 +273,15 @@ public final class Pose {
     // the joint always starts from where the rig says it stands, never from where the last tick
     // left it: the model states every one of these as an offset on the standing pose, and reading
     // back the offset one would compound it every tick until the body came apart
-    private static void turn(Character character, String name, Limb limb, double scale,
-                             CFrame root) {
-        if (!(character.child(name) instanceof Part part)) return;
+    // the turn at a joint, and nothing else. where the joint stands is the rig's and is not
+    // touched here, which is why a pose can no longer lose one
+    private static void turn(Character character, String name, Limb limb, double scale) {
+        if (!(Rig.joint(character, name) instanceof Joint hinge)) return;
         Quat rotation = Quat.axisAngle(Vec3.UP, -limb.y)
                 .mul(Quat.axisAngle(FORWARD, limb.z))
                 .mul(Quat.axisAngle(RIGHT, -limb.x));
-        Vec3 at = Rig.pivot(name, scale)
-                .add(Rig.offset(limb.atX, limb.atY, limb.atZ).mul(scale));
-        Instances.setObj(part, CFRAME, root.mul(new CFrame(at, rotation)));
+        Vec3 at = Rig.offset(limb.atX, limb.atY, limb.atZ).mul(scale);
+        Instances.setObj(hinge, TRANSFORM, new CFrame(at, rotation));
     }
 
     private static double lerp(double t, double from, double to) {

@@ -4,6 +4,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
+import com.meekdev.moud.core.instance.Joints;
 import com.meekdev.moud.core.instance.Rig;
 import com.meekdev.moud.core.time.Clock;
 import com.meekdev.moud.mod.MoudMod;
@@ -67,6 +68,7 @@ public final class MoudServer {
         // after the place has written, before the drain: a body reshaped this tick crosses with
         // the write that reshaped it rather than a tick behind it
         Rig.follow(ServerScene.tree());
+        Joints.follow(ServerScene.tree());
         Mirror.record(change -> Physics.apply(ServerScene.tree(), change, server));
         Physics.settle();
         Physics.bodies().follow(server, ServerScene.tree());
