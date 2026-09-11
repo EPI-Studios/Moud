@@ -85,6 +85,14 @@ public final class Character extends Spatial {
     // the way a name nobody says out loud hangs a body
     public boolean upsideDown;
 
+    // just hit, which washes the body red. the model carries this and the one below as a pair of
+    // coordinates into a sixteen by sixteen table; they are the table's two axes
+    public boolean hurt;
+
+    // how far the body is washed white, which is what a mob about to go off does. zero for a
+    // player unless a place says otherwise
+    @Prop(min = 0, max = 1) public double whiteFlash;
+
     @Prop(min = 0) public double walkSpeed = 4.317;
     @Prop(min = 0) public double sprintMultiplier = 1.3;
     @Prop(min = 0) public double sneakMultiplier = 0.3;

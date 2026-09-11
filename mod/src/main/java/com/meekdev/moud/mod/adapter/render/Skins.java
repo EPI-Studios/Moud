@@ -6,6 +6,7 @@ import com.meekdev.amnetic.client.instanced.InstancePhase;
 import com.meekdev.amnetic.client.instanced.InstanceRenderContext;
 import com.meekdev.amnetic.client.instanced.InstancedMesh;
 import com.meekdev.amnetic.client.instanced.MeshData;
+import com.meekdev.amnetic.client.instanced.RenderState;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.CharacterDisplay;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.PlayerModelType;
 import net.minecraft.world.entity.player.PlayerModelPart;
@@ -42,15 +44,18 @@ import org.joml.Vector4f;
 public final class Skins {
 
     private static final InstanceLayout LAYOUT =
-            InstanceLayout.builder().mat4(1).vec4(5).vec2(6).vec4(7).vec2(8).build();
+            InstanceLayout.builder().mat4(1).vec4(5).vec2(6).vec4(7).vec2(8).vec2(9).build();
 
     private record Worn(Matrix4f transform, Vector4f color, Vector2f light,
-                        Vector4f uv, Vector2f box) {}
+                        Vector4f uv, Vector2f box, Vector2f overlay) {}
 
     private static final Map<Identifier, Identifier> BATCHES = new HashMap<>();
     private static final Map<Identifier, List<Worn>> PACKED = new HashMap<>();
 
     private static final double TEXEL = 1.0 / 16.0;
+
+    // one body's wash, set once per character and read by each of its twelve parts
+    private static final Vector2f OVERLAY = new Vector2f();
 
     private static final Matrix4f MATRIX = new Matrix4f();
     private static final Quaternionf ROTATION = new Quaternionf();
@@ -94,6 +99,17 @@ public final class Skins {
             PlayerSkin skin = wearer == null ? null : wearer.getSkin();
             if (skin == null) continue;
 
+            // an invisible body is not drawn at all to anyone it is invisible to, and drawn at a
+            // sixth of solid to anyone it is not -- which includes yourself, so going invisible
+            // leaves you a ghost of your own body rather than nothing
+            float solid = 1f;
+            if (wearer.isInvisible()) {
+                LocalPlayer me = Minecraft.getInstance().player;
+                if (me == null || wearer.isInvisibleTo(me)) continue;
+                solid = 39f / 255f;
+            }
+            OVERLAY.set((float) character.whiteFlash, character.hurt ? 1f : 0f);
+
             Identifier texture = skin.body().texturePath();
             boolean slim = skin.model() == PlayerModelType.SLIM;
             List<Worn> into = PACKED.computeIfAbsent(texture, id -> {
@@ -102,24 +118,24 @@ public final class Skins {
             });
             for (Instance child : character.children()) {
                 if (child instanceof Part part) {
-                    pack(part, slim, character.scale, wearer, into, partialTick);
+                    pack(part, slim, character.scale, solid, wearer, into, partialTick);
                 }
             }
         }
     }
 
-    private static void pack(Part part, boolean slim, double scale,
+    private static void pack(Part part, boolean slim, double scale, float solid,
                              @Nullable AbstractClientPlayer wearer, List<Worn> into,
                              float partialTick) {
         SkinLayout.Box box = SkinLayout.of(part.name(), false, slim);
         if (box == null) return;
         double narrow = slim ? narrowing(part.name()) * scale : 0;
-        emit(part, box, false, narrow, into, partialTick);
+        emit(part, box, false, narrow, solid, into, partialTick);
 
         if (!shows(wearer, part.name())) return;
         if (part.child(Rig.OVERLAY) instanceof Part shell) {
             SkinLayout.Box over = SkinLayout.of(part.name(), true, slim);
-            if (over != null) emit(shell, over, true, narrow, into, partialTick);
+            if (over != null) emit(shell, over, true, narrow, solid, into, partialTick);
         }
     }
 
@@ -152,7 +168,7 @@ public final class Skins {
     }
 
     private static void emit(Part part, SkinLayout.Box box, boolean shell, double narrow,
-                             List<Worn> into, float partialTick) {
+                             float solid, List<Worn> into, float partialTick) {
         if (!part.visible) return;
         // sampled at the frame's own fraction of the tick, the way every other part is. reading
         // the live property drew the body at twenty a second while the world around it was smooth,
@@ -173,10 +189,11 @@ public final class Skins {
         Color tint = part.color;
         into.add(new Worn(transform,
                 new Vector4f((float) tint.r(), (float) tint.g(), (float) tint.b(),
-                        (float) (1.0 - part.transparency)),
+                        (float) (1.0 - part.transparency) * solid),
                 PartLight.of(part, at),
                 new Vector4f(box.u(), box.v(), box.w(), box.h()),
-                new Vector2f(box.d(), shell ? 1f : 0f)));
+                new Vector2f(box.d(), shell ? 1f : 0f),
+                new Vector2f(OVERLAY)));
         drawn++;
     }
 
@@ -188,11 +205,18 @@ public final class Skins {
                         (inst, p) -> p.putMat4(inst.transform()).putVec4(inst.color())
                                 .putVec2(inst.light().x, inst.light().y)
                                 .putVec4(inst.uv())
-                                .putVec2(inst.box().x, inst.box().y))
+                                .putVec2(inst.box().x, inst.box().y)
+                                .putVec2(inst.overlay().x, inst.overlay().y))
                 .shader(Identifier.fromNamespaceAndPath("moud", "instance/skin"))
                 .texture(texture)
                 .extraSampler("LightMap", Parts::lightMap, 1)
                 .geometry(MeshData.unitCube())
+                // alpha blended, but still writing depth: a solid body is unaffected by the blend
+                // and a ghost of one needs it. dropping the depth write for the ghost's sake would
+                // cost every solid body the ordering it depends on
+                .renderState(RenderState.builder()
+                        .blend(RenderState.BlendMode.ALPHA)
+                        .build())
                 .phase(InstancePhase.WORLD_LAST)
                 .writeGBuffer(true)
                 .worldSpace()

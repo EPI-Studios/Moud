@@ -51,6 +51,7 @@ public final class Characters {
     private static final PropertyDef CRAWLING = Classes.CHARACTER.property("crawling");
     private static final PropertyDef SPINNING = Classes.CHARACTER.property("spinning");
     private static final PropertyDef FROZEN = Classes.CHARACTER.property("frozen");
+    private static final PropertyDef HURT = Classes.CHARACTER.property("hurt");
 
     // the properties the profile is built from, which is every one the class adds to a spatial.
     // a pose write is not one of them, and follow makes one of those every tick: pushing the
@@ -152,6 +153,8 @@ public final class Characters {
         Instances.setBool(character, CRAWLING, player.isVisuallySwimming());
         Instances.setBool(character, SPINNING, player.isAutoSpinAttack());
         Instances.setBool(character, FROZEN, player.isFullyFrozen());
+        // the same condition the model washes a body red on: still bleeding, or already down
+        Instances.setBool(character, HURT, player.hurtTime > 0 || player.deathTime > 0);
     }
 
     // how far the body is banking under a wing: the angle between where it is going and where it

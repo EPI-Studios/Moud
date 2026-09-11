@@ -5,6 +5,7 @@ in vec3 vPos;
 in vec2 vLight;
 in vec2 vUv;
 in float vShell;
+in vec2 vOverlay;
 
 uniform sampler2D TextureSampler;
 uniform sampler2D LightMap;
@@ -32,5 +33,20 @@ void main() {
     vec3 light = texture(LightMap, uv).rgb;
 
     // the tint is what a place set on the part, white unless it asked for something
-    FragColor = vec4(skin.rgb * vColor.rgb * face * light, skin.a * vColor.a);
+    vec3 rgb = skin.rgb * vColor.rgb * face;
+
+    // the game keeps this in a sixteen by sixteen table it draws once at startup: the top half is
+    // red at an alpha of 179, the bottom half white at an alpha that falls off across the row.
+    // the table is the reason a hurt body is exactly thirty percent red and not fifty
+    //
+    // the white column is stepped to fifteen the way a texel is, so a flash climbs in the same
+    // sixteen steps it does in the game rather than sliding smoothly past them
+    float stepped = floor(clamp(vOverlay.x, 0.0, 1.0) * 15.0) / 15.0;
+    bool red = vOverlay.y > 0.5;
+    vec3 wash = red ? vec3(1.0, 0.0, 0.0) : vec3(1.0);
+    float keep = red ? 179.0 / 255.0 : floor((1.0 - stepped * 0.75) * 255.0) / 255.0;
+    rgb = mix(wash, rgb, keep);
+
+    // the light map last, exactly as the entity shader has it: a body washed red is still lit
+    FragColor = vec4(rgb * light, skin.a * vColor.a);
 }

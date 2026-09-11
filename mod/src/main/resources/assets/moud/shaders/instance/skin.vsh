@@ -14,6 +14,8 @@ layout(location = 6) in vec2 InstLight;
 layout(location = 7) in vec4 InstUv;
 // depth in texels, and whether this is the shell over a part rather than the part
 layout(location = 8) in vec2 InstBox;
+// how far the body is washed white, and whether it is washed red
+layout(location = 9) in vec2 InstOverlay;
 
 uniform mat4 ProjViewMatrix;
 uniform vec3 CameraPos;
@@ -30,6 +32,7 @@ out vec3 vPos;
 out vec2 vLight;
 out vec2 vUv;
 out float vShell;
+out vec2 vOverlay;
 
 // the unit cube is 24 vertices in six quads and carries neither normals nor texture coordinates,
 // so the face is the quad this vertex belongs to. the order is the one MeshData.unitCube builds:
@@ -85,4 +88,5 @@ void main() {
     vPos = pos.xyz;
     vLight = InstLight;
     vShell = InstBox.y;
+    vOverlay = InstOverlay;
 }
