@@ -7,7 +7,6 @@ import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.instance.Rig;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
@@ -153,9 +152,6 @@ public final class Characters {
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
             if (instance instanceof Character character && player != null) {
                 Physics.setProfile(player, profileOf(character));
-                // radius, height, display and scale all shape the body, and the same write that
-                // changed the profile is the one that has to rebuild it
-                Rig.apply(character);
             }
         }
     }

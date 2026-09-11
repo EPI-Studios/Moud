@@ -6,6 +6,7 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Pose;
+import com.meekdev.moud.core.instance.Rig;
 import com.meekdev.moud.core.interp.Motion;
 import com.meekdev.moud.mod.adapter.physics.Characters;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
@@ -45,6 +46,8 @@ public final class ClientScene {
         if (tree == null) return;
         // the body is posed here, on the client, from the handful of numbers the server sent.
         // a place that wants the limbs to itself turns animate off and writes them instead
+        // before the pose, which places a joint at the shape the rig has just settled on
+        Rig.follow(tree);
         LocalPlayer me = Minecraft.getInstance().player;
         Character own = own();
         for (Instance instance : tree.ofClass(Classes.CHARACTER)) {

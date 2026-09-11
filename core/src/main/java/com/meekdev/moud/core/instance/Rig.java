@@ -100,6 +100,22 @@ public final class Rig {
         apply(character);
     }
 
+    // every body follows its own character's shape, once a tick, on whichever side is ticking
+    //
+    // scale, radius, height and display each change what the rig is, and a place on the server, a
+    // place on the client or the engine can all write one. hanging the rebuild off the single
+    // write that happened to be a bound player's profile change left two bodies wrong: a statue
+    // that could not be resized at all, and a body scaled by the client with its joints moved to
+    // the new size while its boxes kept the old one, which is a body coming apart at the joints
+    //
+    // a write that changes nothing is already a no-op, so a tick where no shape moved costs six
+    // comparisons and touches nothing
+    public static void follow(InstanceTree tree) {
+        for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
+            if (instance instanceof Character character) apply(character);
+        }
+    }
+
     // sizes are recomputed rather than scaled in place, so a place that writes scale twice gets
     // the same body both times instead of one that grew twice
     public static void apply(Character character) {

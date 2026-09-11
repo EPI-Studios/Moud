@@ -64,6 +64,9 @@ public final class MoudServer {
         if (place.pollReload()) respawnAll(server);
         Vm vm = place.vm();
         if (vm != null) vm.step(TICK.tick());
+        // after the place has written, before the drain: a body reshaped this tick crosses with
+        // the write that reshaped it rather than a tick behind it
+        Rig.follow(ServerScene.tree());
         Mirror.record(change -> Physics.apply(ServerScene.tree(), change, server));
         Physics.settle();
         Physics.bodies().follow(server, ServerScene.tree());
