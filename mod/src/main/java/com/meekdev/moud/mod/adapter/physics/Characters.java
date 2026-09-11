@@ -31,6 +31,11 @@ public final class Characters {
 
     private static final PropertyDef CFRAME = Classes.CHARACTER.property("cframe");
     private static final PropertyDef OWNER = Classes.CHARACTER.property("owner");
+    private static final PropertyDef LOOK_PITCH = Classes.CHARACTER.property("lookPitch");
+    private static final PropertyDef LOOK_YAW = Classes.CHARACTER.property("lookYaw");
+    private static final PropertyDef MOVE_DISTANCE = Classes.CHARACTER.property("moveDistance");
+    private static final PropertyDef MOVE_SPEED = Classes.CHARACTER.property("moveSpeed");
+    private static final PropertyDef CROUCHING = Classes.CHARACTER.property("crouching");
 
     // the properties the profile is built from, which is every one the class adds to a spatial.
     // a pose write is not one of them, and follow makes one of those every tick: pushing the
@@ -90,7 +95,21 @@ public final class Characters {
             }
             place(character, new Vec3(player.getX(), player.getY(), player.getZ()),
                     player.getYRot());
+            animation(character, player);
         }
+    }
+
+    // the four numbers a body is animated from, rather than the six transforms they produce.
+    // the client evaluates the same pose from the same state, which is what keeps a limb off the
+    // wire twenty times a second and what lets the server rewind one for a hit test
+    private static void animation(Character character, ServerPlayer player) {
+        // the head turns against the body, and the body already faces where the player does
+        double relative = Math.toRadians(player.getYHeadRot() - player.getYRot());
+        Instances.setNum(character, LOOK_PITCH, Math.toRadians(player.getXRot()));
+        Instances.setNum(character, LOOK_YAW, relative);
+        Instances.setNum(character, MOVE_DISTANCE, player.walkAnimation.position());
+        Instances.setNum(character, MOVE_SPEED, Math.min(1.0, player.walkAnimation.speed()));
+        Instances.setBool(character, CROUCHING, player.isCrouching());
     }
 
     public void bind(ServerPlayer player, Character character) {

@@ -3,7 +3,9 @@ package com.meekdev.moud.mod.client;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Part;
+import com.meekdev.moud.core.instance.Pose;
 import com.meekdev.moud.core.interp.Motion;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
 import com.meekdev.moud.mod.adapter.render.PartLight;
@@ -35,6 +37,11 @@ public final class ClientScene {
         Mirror.apply(change -> ClientPhysics.apply(tree(), change));
         InstanceTree tree = tree();
         if (tree == null) return;
+        // the body is posed here, on the client, from the handful of numbers the server sent.
+        // a place that wants the limbs to itself turns animate off and writes them instead
+        for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
+            if (instance instanceof Character character && character.animate) Pose.apply(character);
+        }
         MOTION.drain(tree);
         // the light a part stands in, once a tick. reading it per frame would be a chunk lookup per
         // part per frame for a value that changes when someone places a torch

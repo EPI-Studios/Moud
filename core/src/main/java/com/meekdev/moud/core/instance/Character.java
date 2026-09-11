@@ -24,6 +24,21 @@ public final class Character extends Spatial {
     // does not follow this: a place that wants a bigger character says so on both, deliberately
     @Prop(min = 0.05) public double scale = 1.0;
 
+    // the engine poses the body from the state below. a place that wants the limbs to itself
+    // turns this off and writes them, rather than fighting a pose that is rewritten every tick
+    public boolean animate = true;
+
+    // where the head looks, relative to the body
+    public double lookPitch;
+    public double lookYaw;
+
+    // how far this body has walked and how fast, which is what a limb swings on. distance rather
+    // than time, so a body animates the same however long the frame took
+    public double moveDistance;
+    @Prop(min = 0, max = 1) public double moveSpeed;
+
+    public boolean crouching;
+
     @Prop(min = 0) public double walkSpeed = 4.317;
     @Prop(min = 0) public double sprintMultiplier = 1.3;
     @Prop(min = 0) public double sneakMultiplier = 0.3;
