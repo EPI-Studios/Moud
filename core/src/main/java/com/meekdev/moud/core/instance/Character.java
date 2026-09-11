@@ -64,4 +64,9 @@ public final class Character extends Spatial {
     @Prop(min = 0) public double jumpBuffer = 0.15;
 
     public boolean followSlopes = true;
+
+    @Override
+    void created() {
+        Rig.build(this);
+    }
 }

@@ -77,4 +77,10 @@ public abstract class Instance {
     public final String toString() {
         return (def == null ? "?" : def.name()) + "#" + id + (name.isEmpty() ? "" : " '" + name + "'");
     }
+
+    // a class that is made of more than itself builds the rest here, once it is in the tree and
+    // can have children. the mirror never calls this: what a replicated instance is made of
+    // arrives over the wire, and building it twice would give it two of everything
+    void created() {
+    }
 }

@@ -81,7 +81,6 @@ public final class MoudServer {
 
         Character character = Instances.create(Classes.CHARACTER, world,
                 player.getGameProfile().name());
-        Rig.build(character);
         Physics.bodies().bind(player, character);
         player.teleportTo(0.5, 70.0, 0.5);
 

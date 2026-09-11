@@ -62,6 +62,7 @@ public final class Instances {
         parent.children.add(i);
         tree.index(i);
 
+        i.created();
         if (parent.childAdded != null) parent.childAdded.fire(i);
         return i;
     }

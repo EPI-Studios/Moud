@@ -58,6 +58,9 @@ public final class Rig {
     }
 
     public static void build(Character character) {
+        // a character builds its own body once. asking twice is a caller that did not know it
+        // was already done, not a request for a second head
+        if (character.child(HITBOX) != null) return;
         for (Limb limb : BODY) {
             Instances.create(Classes.PART, character, limb.name(), part -> {
                 part.size = limb.size();
