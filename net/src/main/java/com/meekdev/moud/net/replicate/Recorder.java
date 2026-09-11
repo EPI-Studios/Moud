@@ -1,6 +1,7 @@
 package com.meekdev.moud.net.replicate;
 
 import com.meekdev.moud.core.clazz.PropertyDef;
+import com.meekdev.moud.core.clazz.PropertyType;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import java.util.function.Consumer;
@@ -56,6 +57,15 @@ public final class Recorder {
     private static Object read(Instance instance, PropertyDef property) {
         if (property.type().isBool()) return property.getBool(instance);
         if (property.isNumeric()) return property.getNum(instance);
+        // a reference crosses as the id it points at, never as the instance
+        //
+        // the instance belongs to the authority's tree. handing it over put one tree's object
+        // into the other's, so the mirror pointed at something the server thread was writing --
+        // and anything that followed the reference read across the two
+        if (property.type() == PropertyType.REF) {
+            Object target = property.getObj(instance);
+            return target instanceof Instance pointed ? pointed.id() : null;
+        }
         return property.getObj(instance);
     }
 }

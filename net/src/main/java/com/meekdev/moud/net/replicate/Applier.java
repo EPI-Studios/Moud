@@ -4,6 +4,7 @@ import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
+import com.meekdev.moud.core.clazz.PropertyType;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
@@ -65,6 +66,17 @@ public final class Applier {
         if (instance == null) return;
         PropertyDef property = instance.def().property(wrote.property());
         if (property == null) return;
+        // resolved in this tree, by the id the authority sent
+        //
+        // a reference forward to something not created yet lands as nothing. the authority emits
+        // every creation before any write, so that only happens for a target outside the tree --
+        // a local instance, which could never have crossed anyway
+        if (property.type() == PropertyType.REF) {
+            Object id = wrote.value();
+            Instances.setObj(instance, property,
+                    id instanceof Integer at ? tree.byId(at) : null);
+            return;
+        }
         switch (wrote.value()) {
             case Boolean b -> Instances.setBool(instance, property, b);
             case Double d -> Instances.setNum(instance, property, d);
