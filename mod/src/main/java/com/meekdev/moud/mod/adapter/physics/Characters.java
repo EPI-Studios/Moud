@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.Mth;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import org.jspecify.annotations.Nullable;
@@ -101,7 +102,11 @@ public final class Characters {
     // your own through here too, off its own player: the state that went to the server and came
     // back is several ticks old, and a body that walks after you do is not the same body
     public static void drive(Character character, Player player) {
-        place(character, new Vec3(player.getX(), player.getY(), player.getZ()), player.getYRot());
+        // the body faces where the body faces, which is not where the player is looking. yRot is
+        // the aim; yBodyRot lags it and only gets dragged round once the head has turned far
+        // enough or the player walks. driving the body from the aim instead snapped it to the
+        // mouse and left the head with nothing to turn against
+        place(character, new Vec3(player.getX(), player.getY(), player.getZ()), player.yBodyRot);
         animation(character, player);
     }
 
@@ -109,8 +114,8 @@ public final class Characters {
     // the client evaluates the same pose from the same state, which is what keeps a limb off the
     // wire twenty times a second and what lets the server rewind one for a hit test
     private static void animation(Character character, Player player) {
-        // the head turns against the body, and the body already faces where the player does
-        double relative = Math.toRadians(player.getYHeadRot() - player.getYRot());
+        // the head turns against the body, and the game has already clamped how far it may
+        double relative = Math.toRadians(Mth.wrapDegrees(player.getYHeadRot() - player.yBodyRot));
         Instances.setNum(character, LOOK_PITCH, Math.toRadians(player.getXRot()));
         Instances.setNum(character, LOOK_YAW, relative);
         Instances.setNum(character, MOVE_DISTANCE, player.walkAnimation.position());
