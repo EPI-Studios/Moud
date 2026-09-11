@@ -91,6 +91,12 @@ public final class PlaceInspector extends Inspector {
                     profile.moverRadius(), profile.moverHeight()));
             text("at", String.format("%.1f %.1f %.1f", player.getX(), player.getY(), player.getZ()));
             text("on ground", String.valueOf(player.onGround()));
+            // what it is doing against what it was asked for. movement that feels slow off the
+            // line is this climbing to the number above it over several ticks, which is an
+            // acceleration question and not a rendering one
+            double dx = player.getX() - player.xOld;
+            double dz = player.getZ() - player.zOld;
+            text("speed m/s", String.format("%.2f", Math.sqrt(dx * dx + dz * dz) * 20.0));
         }
 
         ImGui.separator();
@@ -106,6 +112,10 @@ public final class PlaceInspector extends Inspector {
             // against the entity's at, above. the same pair of numbers separates a body the
             // server never moved from one the mirror never heard about
             text("body at", fmt(Transforms.world(mine).position()));
+            // the two numbers the skin shader washes a body with. a place writes them as readily
+            // as the engine does, so a zero here is a write that never arrived
+            text("wash", String.format("white %.2f  red %s",
+                    mine.whiteFlash, mine.hurt));
         }
         if (arm != null) {
             Spatial limb = (Spatial) arm;
