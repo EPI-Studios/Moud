@@ -27,7 +27,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.PlayerModelType;
+import net.minecraft.world.entity.player.PlayerModelPart;
 import net.minecraft.world.entity.player.PlayerSkin;
+import org.jspecify.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector2f;
@@ -68,7 +70,7 @@ public final class Skins {
         // and swallowing it here would make it invisible rather than skinned
         if (SkinLayout.of(bodyName(part), false, false) == null) return false;
         Character character = characterOf(part);
-        return character != null && skinOf(character) != null;
+        return character != null && wearerOf(character) != null;
     }
 
     // the overlay shell is named for what it covers, so it answers as its parent does
@@ -88,7 +90,8 @@ public final class Skins {
         for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
             if (!(instance instanceof Character character)) continue;
             if (character.display != CharacterDisplay.MODEL) continue;
-            PlayerSkin skin = skinOf(character);
+            AbstractClientPlayer wearer = wearerOf(character);
+            PlayerSkin skin = wearer == null ? null : wearer.getSkin();
             if (skin == null) continue;
 
             Identifier texture = skin.body().texturePath();
@@ -99,23 +102,42 @@ public final class Skins {
             });
             for (Instance child : character.children()) {
                 if (child instanceof Part part) {
-                    pack(part, slim, character.scale, into, partialTick);
+                    pack(part, slim, character.scale, wearer, into, partialTick);
                 }
             }
         }
     }
 
-    private static void pack(Part part, boolean slim, double scale, List<Worn> into,
+    private static void pack(Part part, boolean slim, double scale,
+                             @Nullable AbstractClientPlayer wearer, List<Worn> into,
                              float partialTick) {
         SkinLayout.Box box = SkinLayout.of(part.name(), false, slim);
         if (box == null) return;
         double narrow = slim ? narrowing(part.name()) * scale : 0;
         emit(part, box, false, narrow, into, partialTick);
 
+        if (!shows(wearer, part.name())) return;
         if (part.child(Rig.OVERLAY) instanceof Part shell) {
             SkinLayout.Box over = SkinLayout.of(part.name(), true, slim);
             if (over != null) emit(shell, over, true, narrow, into, partialTick);
         }
+    }
+
+    // the second layer is the player's to switch off, one part at a time, in skin customisation.
+    // drawing it anyway puts a hat back on someone who took it off, and a jacket over a skin
+    // drawn to be seen without one
+    private static boolean shows(@Nullable AbstractClientPlayer wearer, String name) {
+        if (wearer == null) return true;
+        PlayerModelPart part = switch (name) {
+            case "head" -> PlayerModelPart.HAT;
+            case "torso" -> PlayerModelPart.JACKET;
+            case "rightArm" -> PlayerModelPart.RIGHT_SLEEVE;
+            case "leftArm" -> PlayerModelPart.LEFT_SLEEVE;
+            case "rightLeg" -> PlayerModelPart.RIGHT_PANTS_LEG;
+            case "leftLeg" -> PlayerModelPart.LEFT_PANTS_LEG;
+            default -> null;
+        };
+        return part == null || wearer.isModelPartShown(part);
     }
 
     // a slim skin narrows an arm to three texels, and the texel it loses is the one away from the
@@ -192,14 +214,14 @@ public final class Skins {
                         ? owner : null;
     }
 
-    private static PlayerSkin skinOf(Character character) {
+    private static @Nullable AbstractClientPlayer wearerOf(Character character) {
         if (character == null || character.owner.isEmpty()) return null;
         Minecraft client = Minecraft.getInstance();
         if (client.level == null) return null;
         try {
             if (client.level.getPlayerByUUID(UUID.fromString(character.owner))
                     instanceof AbstractClientPlayer player) {
-                return player.getSkin();
+                return player;
             }
         } catch (IllegalArgumentException ignored) {
             // an owner that is not a uuid is a place's own character, and it wears no skin
