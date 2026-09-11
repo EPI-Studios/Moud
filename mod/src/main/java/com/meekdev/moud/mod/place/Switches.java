@@ -19,6 +19,12 @@ public final class Switches {
         // straight through ours -- which reads as our renderer being broken rather than as a
         // switch nobody lowered
 
+        // the hand is the game's own for now, because ours does not exist: it is a separate path
+        // from the body renderer and nothing has been drawn down it. with the switch down there
+        // was no hand at all in first person, which is further from the game than borrowing its
+        // one. it comes down again the day a character's own arm is drawn there
+        features.set(Feature.HAND, true);
+
         // without it escape does nothing and there is no way out of the client yet
         features.set(Feature.PAUSE_MENU, true);
     }
