@@ -6,6 +6,7 @@ import com.meekdev.amnetic.client.instanced.InstancePhase;
 import com.meekdev.amnetic.client.instanced.InstanceRenderContext;
 import com.meekdev.amnetic.client.instanced.InstancedMesh;
 import com.meekdev.amnetic.client.instanced.MeshData;
+import com.meekdev.amnetic.client.instanced.RenderState;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
@@ -86,6 +87,12 @@ public final class Parts {
                 .shader(Identifier.fromNamespaceAndPath("moud", "instance/part"))
                 .extraSampler("LightMap", Parts::lightMap, 1)
                 .geometry(MeshData.unitCube())
+                // alpha blended, still writing depth. a part at full opacity blends to exactly
+                // itself, so this costs nothing until something asks to be see through -- and
+                // without it transparency was a property that read back and changed nothing
+                .renderState(RenderState.builder()
+                        .blend(RenderState.BlendMode.ALPHA)
+                        .build())
                 .phase(InstancePhase.WORLD_LAST)
                 .writeGBuffer(true)
                 // absolute positions, because the still batch is uploaded once and a camera

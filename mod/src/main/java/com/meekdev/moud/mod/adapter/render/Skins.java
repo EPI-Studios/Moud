@@ -27,6 +27,7 @@ import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.PlayerModelType;
 import net.minecraft.world.entity.player.PlayerModelPart;
@@ -74,8 +75,7 @@ public final class Skins {
         // only the body itself. a sword in a hand hangs off a limb and is still an ordinary part,
         // and swallowing it here would make it invisible rather than skinned
         if (SkinLayout.of(bodyName(part), false, false) == null) return false;
-        Character character = characterOf(part);
-        return character != null && wearerOf(character) != null;
+        return characterOf(part) != null;
     }
 
     // the overlay shell is named for what it covers, so it answers as its parent does
@@ -96,22 +96,22 @@ public final class Skins {
             if (!(instance instanceof Character character)) continue;
             if (character.display != CharacterDisplay.MODEL) continue;
             AbstractClientPlayer wearer = wearerOf(character);
-            PlayerSkin skin = wearer == null ? null : wearer.getSkin();
-            if (skin == null) continue;
+            Identifier texture = textureOf(character, wearer);
+            boolean slim = wearer != null
+                    ? wearer.getSkin().model() == PlayerModelType.SLIM
+                    : character.slim;
 
             // an invisible body is not drawn at all to anyone it is invisible to, and drawn at a
             // sixth of solid to anyone it is not -- which includes yourself, so going invisible
             // leaves you a ghost of your own body rather than nothing
             float solid = 1f;
-            if (wearer.isInvisible()) {
+            if (wearer != null && wearer.isInvisible()) {
                 LocalPlayer me = Minecraft.getInstance().player;
                 if (me == null || wearer.isInvisibleTo(me)) continue;
                 solid = 39f / 255f;
             }
             OVERLAY.set((float) character.whiteFlash, character.hurt ? 1f : 0f);
 
-            Identifier texture = skin.body().texturePath();
-            boolean slim = skin.model() == PlayerModelType.SLIM;
             List<Worn> into = PACKED.computeIfAbsent(texture, id -> {
                 register(id);
                 return new ArrayList<>();
@@ -236,6 +236,20 @@ public final class Skins {
         return part.parent() instanceof Character character ? character
                 : part.parent() instanceof Part parent && parent.parent() instanceof Character owner
                         ? owner : null;
+    }
+
+    // what this body is drawn in, in the order a body gets one: what the place asked for, then
+    // the skin of the player who drives it, then the game's own default
+    //
+    // there is no fourth case and no flat fallback. a body is a body: it is always drawn through
+    // the unwrap, and a place that wants a grey statue hands it a grey png or tints the limbs
+    private static Identifier textureOf(Character character, @Nullable AbstractClientPlayer wearer) {
+        if (!character.skin.isEmpty()) {
+            Identifier asked = Identifier.tryParse(character.skin);
+            if (asked != null) return asked;
+        }
+        if (wearer != null) return wearer.getSkin().body().texturePath();
+        return DefaultPlayerSkin.getDefaultSkin().body().texturePath();
     }
 
     private static @Nullable AbstractClientPlayer wearerOf(Character character) {

@@ -20,6 +20,18 @@ public final class Character extends Spatial {
     // character nobody is driving
     public String owner = "";
 
+    // the texture this body is drawn in, named the way any other asset is. empty means the one
+    // that comes with the body: the owner's own skin if a player drives it, and the game's
+    // default if nobody does
+    //
+    // a body is never drawn as flat boxes. a place that wants one a different colour tints the
+    // limbs, and a place that wants one a different shape hands it a png
+    public String skin = "";
+
+    // a narrower arm, which a texture is drawn for rather than a body built for. the client
+    // takes this from the owner's own skin when a player drives the body
+    public boolean slim;
+
     // the rig, over the proportions the engine built it at. the capsule is radius and height and
     // does not follow this: a place that wants a bigger character says so on both, deliberately
     @Prop(min = 0.05) public double scale = 1.0;
