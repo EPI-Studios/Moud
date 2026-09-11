@@ -1,7 +1,6 @@
 package com.meekdev.moud.mod.adapter.render;
 
 import java.util.Map;
-import org.joml.Vector4f;
 
 // where each part of a body sits on a 64x64 skin, in texels
 //
@@ -9,8 +8,6 @@ import org.joml.Vector4f;
 // against, so a body wearing one has to read it exactly. the numbers are the origin of the box
 // and its width, height and depth
 public final class SkinLayout {
-
-    public static final float SIZE = 64.0f;
 
     // origin u, origin v, then the box as width, height, depth
     public record Box(float u, float v, float w, float h, float d) {}
@@ -49,9 +46,5 @@ public final class SkinLayout {
         }
         Box narrow = slim ? SLIM.get(part) : null;
         return narrow != null ? narrow : WIDE.get(part);
-    }
-
-    public static Vector4f uv(Box box, Vector4f out) {
-        return out.set(box.u(), box.v(), box.w(), box.h());
     }
 }

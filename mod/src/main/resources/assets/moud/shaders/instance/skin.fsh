@@ -6,13 +6,13 @@ in vec2 vLight;
 in vec2 vUv;
 in float vShell;
 
-uniform sampler2D Sampler0;
+uniform sampler2D TextureSampler;
 uniform sampler2D LightMap;
 
 out vec4 FragColor;
 
 void main() {
-    vec4 skin = texture(Sampler0, vUv);
+    vec4 skin = texture(TextureSampler, vUv);
 
     // the shell is a hat, a sleeve or a jacket: where the skin left it blank there is nothing to
     // draw, and drawing it anyway is the black box every bad skin renderer puts on someone's head

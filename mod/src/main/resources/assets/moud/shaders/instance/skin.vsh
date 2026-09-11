@@ -18,7 +18,12 @@ layout(location = 8) in vec2 InstBox;
 uniform mat4 ProjViewMatrix;
 uniform vec3 CameraPos;
 uniform int WorldSpace;
-uniform vec2 SkinSize;
+
+// the layout below is stated in texels of a 64x64 skin and only makes sense against one, so this
+// is a constant rather than a uniform. it was a uniform, and amnetic has no way to feed one: it
+// stayed zero, every texel size divided by it, and the whole body sampled at infinity and
+// discarded -- a skin that is packed, counted, and never drawn
+const vec2 SkinSize = vec2(64.0, 64.0);
 
 out vec4 vColor;
 out vec3 vPos;
