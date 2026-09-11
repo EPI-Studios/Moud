@@ -48,6 +48,8 @@ public final class Skins {
     private static final Map<Identifier, Identifier> BATCHES = new HashMap<>();
     private static final Map<Identifier, List<Worn>> PACKED = new HashMap<>();
 
+    private static final double TEXEL = 1.0 / 16.0;
+
     private static final Matrix4f MATRIX = new Matrix4f();
     private static final Quaternionf ROTATION = new Quaternionf();
 
@@ -96,36 +98,56 @@ public final class Skins {
                 return new ArrayList<>();
             });
             for (Instance child : character.children()) {
-                if (child instanceof Part part) pack(part, slim, into, partialTick);
+                if (child instanceof Part part) {
+                    pack(part, slim, character.scale, into, partialTick);
+                }
             }
         }
     }
 
-    private static void pack(Part part, boolean slim, List<Worn> into, float partialTick) {
+    private static void pack(Part part, boolean slim, double scale, List<Worn> into,
+                             float partialTick) {
         SkinLayout.Box box = SkinLayout.of(part.name(), false, slim);
         if (box == null) return;
-        emit(part, box, false, into, partialTick);
+        double narrow = slim ? narrowing(part.name()) * scale : 0;
+        emit(part, box, false, narrow, into, partialTick);
 
         if (part.child(Rig.OVERLAY) instanceof Part shell) {
             SkinLayout.Box over = SkinLayout.of(part.name(), true, slim);
-            if (over != null) emit(shell, over, true, into, partialTick);
+            if (over != null) emit(shell, over, true, narrow, into, partialTick);
         }
     }
 
-    private static void emit(Part part, SkinLayout.Box box, boolean shell, List<Worn> into,
-                             float partialTick) {
+    // a slim skin narrows an arm to three texels, and the texel it loses is the one away from the
+    // torso, so the box also slides half a texel inward to stay flush against it
+    //
+    // the tree keeps the wide box on purpose: which skin someone wears is a thing this client can
+    // see and the server cannot, and a body must not collide differently for it. so the narrowing
+    // lives here, on the way to the batch, and never in the rig
+    private static double narrowing(String name) {
+        if ("rightArm".equals(name)) return -TEXEL;
+        return "leftArm".equals(name) ? TEXEL : 0;
+    }
+
+    private static void emit(Part part, SkinLayout.Box box, boolean shell, double narrow,
+                             List<Worn> into, float partialTick) {
         if (!part.visible) return;
         // sampled at the frame's own fraction of the tick, the way every other part is. reading
         // the live property drew the body at twenty a second while the world around it was smooth,
         // which reads as the body lagging behind the camera rather than as a missing sample
         CFrame frame = ClientScene.motion().sample(part, partialTick);
+        // the slide is along the arm's own x, so it follows the arm through the swing rather than
+        // drifting sideways in the world when the body turns
+        if (narrow != 0) frame = frame.mul(CFrame.at(narrow * 0.5, 0, 0));
         Vec3 at = frame.position();
         Quat r = frame.rotation();
+        Vec3 size = narrow == 0 ? part.size
+                : new Vec3(part.size.x() - Math.abs(narrow), part.size.y(), part.size.z());
         Matrix4f transform = new Matrix4f()
                 .translationRotateScale(
                         (float) at.x(), (float) at.y(), (float) at.z(),
                         (float) r.x(), (float) r.y(), (float) r.z(), (float) r.w(),
-                        (float) part.size.x(), (float) part.size.y(), (float) part.size.z());
+                        (float) size.x(), (float) size.y(), (float) size.z());
         Color tint = part.color;
         into.add(new Worn(transform,
                 new Vector4f((float) tint.r(), (float) tint.g(), (float) tint.b(),
