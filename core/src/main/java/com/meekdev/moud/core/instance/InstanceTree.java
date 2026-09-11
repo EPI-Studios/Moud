@@ -15,6 +15,13 @@ public final class InstanceTree {
     int nextId = 1;
     int nextLocalId = -1;
 
+    // a mirror holds ids somebody else chose, so nothing made in one may take an id from the
+    // same counter: a client place adding a part would be handed an id the authority is about
+    // to use for something else, and from then on the two are one instance to anything that
+    // looks one up. so everything made in a mirror is local, which it is anyway -- there is
+    // nowhere for it to replicate to
+    final boolean mirror;
+
     int[] dirtyList = new int[64];
     int dirtyCount;
 
@@ -25,6 +32,16 @@ public final class InstanceTree {
     long structureEpoch = 1;
 
     private Instance root;
+
+    public InstanceTree() {
+        this(false);
+    }
+
+    public InstanceTree(boolean mirror) {
+        this.mirror = mirror;
+    }
+
+    public boolean mirror() { return mirror; }
 
     public Instance root() { return root; }
 

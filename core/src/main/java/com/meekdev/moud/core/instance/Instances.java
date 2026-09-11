@@ -54,7 +54,7 @@ public final class Instances {
         if (tree == null) throw new IllegalStateException("parent " + parent + " is not in a tree");
 
         T i = def.create();
-        i.id = local ? tree.nextLocalId-- : tree.nextId++;
+        i.id = local || tree.mirror ? tree.nextLocalId-- : tree.nextId++;
         i.name = name == null ? def.name() : name;
         if (init != null) init.accept(i);
         i.tree = tree;

@@ -30,7 +30,7 @@ public final class Applier {
     public void apply(Change change) {
         switch (change) {
             case Change.Reset ignored -> {
-                tree = new InstanceTree();
+                tree = new InstanceTree(true);
                 world = Instances.createRoot(tree, Classes.SPATIAL, "World");
             }
             case Change.Created created -> create(created);
