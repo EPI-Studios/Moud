@@ -57,6 +57,24 @@ public final class Rig {
         return new Limb(name, pivot, centre, new Vec3(w * PX, h * PX, d * PX), shell * PX);
     }
 
+    // where a limb turns, at this scale
+    //
+    // a pose that moves a joint starts from here, never from where it left it last tick: the
+    // model states a crouch as an offset applied to the standing pivot, and reading back the
+    // offset one would compound it every tick until the body came apart
+    public static Vec3 pivot(String name, double scale) {
+        for (Limb limb : BODY) {
+            if (limb.name().equals(name)) return limb.pivot().mul(scale);
+        }
+        return Vec3.ZERO;
+    }
+
+    // an offset stated the way the model states one, in its units and its directions, converted
+    // here for the same reason every other number is
+    public static Vec3 offset(double x, double y, double z) {
+        return new Vec3(-x * PX, -y * PX, z * PX);
+    }
+
     public static void build(Character character) {
         // a character builds its own body once. asking twice is a caller that did not know it
         // was already done, not a request for a second head

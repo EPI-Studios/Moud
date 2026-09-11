@@ -12,6 +12,9 @@ import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
 import com.meekdev.moud.mod.adapter.render.PartLight;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
 // the client side of the tree: a mirror of the server's, plus the state only rendering needs
@@ -50,7 +53,7 @@ public final class ClientScene {
             // mirror is the server's answer to a move you made several ticks ago, and a body that
             // arrives late is the one thing you are guaranteed to be looking at
             if (uuid != null && uuid.equals(character.owner)) Characters.drive(character, me);
-            if (character.animate) Pose.apply(character);
+            if (character.animate) Pose.apply(character, age(character));
         }
         MOTION.drain(tree);
         // the light a part stands in, once a tick. reading it per frame would be a chunk lookup per
@@ -58,6 +61,23 @@ public final class ClientScene {
         for (Part part : tree.ofClass(Classes.PART)) {
             PartLight.refresh(part, MOTION.sample(part).position());
         }
+    }
+
+    // the age the model animates the idle sway on, which is the body's own and not the world's:
+    // vanilla reads it off the entity, so two players who joined at different times sway out of
+    // phase. a character no entity backs falls back to the clock everything shares
+    private static double age(Character character) {
+        Level level = Minecraft.getInstance().level;
+        if (level == null) return 0;
+        if (!character.owner.isEmpty()) {
+            try {
+                Player player = level.getPlayerByUUID(UUID.fromString(character.owner));
+                if (player != null) return player.tickCount;
+            } catch (IllegalArgumentException ignored) {
+                // an owner that is not a uuid is a place's own character, and no entity backs it
+            }
+        }
+        return level.getGameTime();
     }
 
     public static void frame() {
