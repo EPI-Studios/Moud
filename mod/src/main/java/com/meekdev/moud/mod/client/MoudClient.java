@@ -31,11 +31,13 @@ public final class MoudClient implements ClientModInitializer {
             ClientScene.tick();
             ClientPlace.tick();
         });
+        // the place itself is stepped earlier, from GameRenderer.update, because the camera it
+        // writes has to exist before the world is culled against it. what is left here is the
+        // packing, which has to happen as late as possible instead: just before the batches draw
         LevelRenderEvents.START_MAIN.register(context -> {
             ClientScene.frame();
             float partialTick = Minecraft.getInstance().getDeltaTracker()
                     .getGameTimeDeltaPartialTick(true);
-            ClientPlace.frame(partialTick);
             Skins.gather(partialTick);
             if (ClientScene.motion().takeStillChanged()) Parts.invalidateStill();
         });

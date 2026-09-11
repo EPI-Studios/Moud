@@ -29,6 +29,7 @@
     "client.DebugScreenMixin",
     "client.EntityRenderMixin",
     "client.FogMixin",
+    "client.GameRenderMixin",
     "client.HandMixin",
     "client.HudMixin",
     "client.NameTagMixin",
