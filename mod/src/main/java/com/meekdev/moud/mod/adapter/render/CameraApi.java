@@ -29,22 +29,20 @@ public final class CameraApi implements CameraRef {
         CameraEffects.clear();
     }
 
-    // amnetic hands back a screen point with no way to say "behind you", so the check is ours:
-    // a point behind the camera projects to a perfectly plausible pixel and a place would draw
-    // a marker for something nobody can see
+    // a point behind the camera has no place on screen, and amnetic already says so by handing
+    // back nothing rather than a plausible pixel. asking it twice was the bug: the ndc check
+    // divides by a w that is negative behind the camera, so it agreed when it should not have
     @Override
     public Vec3 worldToScreen(Vec3 world) {
         if (!AmneticCamera.isReady()) return null;
         // minecraft's Vec3 against ours, the one clash 20.1 keeps a qualified name for
         net.minecraft.world.phys.Vec3 point =
                 new net.minecraft.world.phys.Vec3(world.x(), world.y(), world.z());
-        if (AmneticCamera.worldToNdc(point).z() > 1.0f) return null;
         Vector2f screen = AmneticCamera.worldToScreen(point);
+        if (screen == null) return null;
         return new Vec3(screen.x(), screen.y(), AmneticCamera.distanceTo(point));
     }
 
-    // amnetic's Ray qualified because CameraRef carries one of its own, and an inherited nested
-    // type wins over an import
     @Override
     public CameraRef.Ray screenToRay(double x, double y) {
         com.meekdev.amnetic.client.camera.Ray ray = AmneticCamera.screenToRay(x, y);
