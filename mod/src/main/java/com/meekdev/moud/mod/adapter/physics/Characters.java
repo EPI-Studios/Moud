@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import org.jspecify.annotations.Nullable;
@@ -37,6 +38,12 @@ public final class Characters {
     private static final PropertyDef MOVE_DISTANCE = Classes.CHARACTER.property("moveDistance");
     private static final PropertyDef MOVE_SPEED = Classes.CHARACTER.property("moveSpeed");
     private static final PropertyDef CROUCHING = Classes.CHARACTER.property("crouching");
+    private static final PropertyDef ATTACK_TIME = Classes.CHARACTER.property("attackTime");
+    private static final PropertyDef ATTACK_LEFT = Classes.CHARACTER.property("attackLeft");
+    private static final PropertyDef SWIM_AMOUNT = Classes.CHARACTER.property("swimAmount");
+    private static final PropertyDef RIDING = Classes.CHARACTER.property("riding");
+    private static final PropertyDef FLYING = Classes.CHARACTER.property("flying");
+    private static final PropertyDef IN_WATER = Classes.CHARACTER.property("inWater");
 
     // the properties the profile is built from, which is every one the class adds to a spatial.
     // a pose write is not one of them, and follow makes one of those every tick: pushing the
@@ -121,6 +128,15 @@ public final class Characters {
         Instances.setNum(character, MOVE_DISTANCE, player.walkAnimation.position());
         Instances.setNum(character, MOVE_SPEED, Math.min(1.0, player.walkAnimation.speed()));
         Instances.setBool(character, CROUCHING, player.isCrouching());
+
+        // the swing runs backward in the entity: attackAnim counts down from one as the arm
+        // returns, and the model reads it as how far through the swing the arm is
+        Instances.setNum(character, ATTACK_TIME, player.getAttackAnim(1.0f));
+        Instances.setBool(character, ATTACK_LEFT, player.getMainArm() == HumanoidArm.LEFT);
+        Instances.setNum(character, SWIM_AMOUNT, player.getSwimAmount(1.0f));
+        Instances.setBool(character, RIDING, player.isPassenger());
+        Instances.setBool(character, FLYING, player.isFallFlying());
+        Instances.setBool(character, IN_WATER, player.isInWater());
     }
 
     public void bind(ServerPlayer player, Character character) {

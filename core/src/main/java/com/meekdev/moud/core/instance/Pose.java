@@ -8,82 +8,233 @@ import com.meekdev.moud.core.math.Vec3;
 
 // how a body stands, ported from the game's own humanoid animation
 //
-// the constants are its constants: limbs swing on a cosine of distance walked, arms at twice the
-// amplitude of legs and half the gain, the two sides half a cycle apart, and a crouch leans the
-// torso while dropping everything hung off it. a walk cycle that is merely similar reads as wrong
-// immediately, which is why these are copied rather than tuned
+// the constants are its constants and the order is its order: walk, riding, the swing, the crouch,
+// the idle sway, then swimming over the top. the order is not decoration -- each stage reads what
+// the one before it left, so a crouched swing and a swinging crouch are different poses, and
+// moving one stage past another quietly changes both
 //
-// the order is the model's order too: walk, then crouch, then the idle sway last over the top.
-// swapping the last two changes what a crouched body looks like, because the sway is added to
-// whatever the crouch left rather than to the standing pose
+// every limb is carried here as the model carries it: three angles and a joint offset, in the
+// model's own units and its own directions, converted once at the end in turn(). that is why a
+// number lifted out of the decompiler can be pasted in and be right
 //
 // the model turns the opposite way round from us on two axes, because the whole thing is drawn
-// through half a turn about z. that conversion happens in turn(), once
+// through half a turn about z
 public final class Pose {
 
     private static final double SWING = 0.6662;
 
+    // the six parts are siblings, exactly as the model has them: nothing hangs off the torso, so
+    // a torso that twists has to hand its twist to the arms by hand. the game does the same
     private static final PropertyDef CFRAME = Classes.PART.property("cframe");
+
+    // one limb, as the model states it
+    private static final class Limb {
+
+        double x;
+        double y;
+        double z;
+
+        // where the joint moved to, from where it stands, in model units
+        double atX;
+        double atY;
+        double atZ;
+    }
 
     private Pose() {}
 
     // ageInTicks is the body's own age, which is what the idle sway runs on. two bodies standing
-    // side by side sway out of phase because they are not the same age, and passing one clock for
-    // everybody would have them breathe in unison
+    // side by side sway out of phase because they are not the same age
     public static void apply(Character character, double ageInTicks) {
         double phase = character.moveDistance * SWING;
         double gain = character.moveSpeed;
-        double scale = character.scale;
+
+        Limb head = new Limb();
+        Limb torso = new Limb();
+        Limb rightArm = new Limb();
+        Limb leftArm = new Limb();
+        Limb rightLeg = new Limb();
+        Limb leftLeg = new Limb();
+
+        head.x = character.lookPitch;
+        head.y = character.lookYaw;
+        if (character.flying) {
+            head.x = -Math.PI / 4;
+        } else if (character.swimAmount > 0) {
+            head.x = rotLerp(character.swimAmount, head.x, -Math.PI / 4);
+        }
 
         // the arms lead the legs by half a cycle, which is what makes a walk look like a walk
-        double rightArmX = Math.cos(phase + Math.PI) * 2.0 * gain * 0.5;
-        double leftArmX = Math.cos(phase) * 2.0 * gain * 0.5;
-        double rightLegX = Math.cos(phase) * 1.4 * gain;
-        double leftLegX = Math.cos(phase + Math.PI) * 1.4 * gain;
+        rightArm.x = Math.cos(phase + Math.PI) * 2.0 * gain * 0.5;
+        leftArm.x = Math.cos(phase) * 2.0 * gain * 0.5;
+        rightLeg.x = Math.cos(phase) * 1.4 * gain;
+        leftLeg.x = Math.cos(phase + Math.PI) * 1.4 * gain;
+        // a hair of yaw and roll so the two legs are never coplanar and never z fight
+        rightLeg.y = 0.005;
+        rightLeg.z = 0.005;
+        leftLeg.y = -0.005;
+        leftLeg.z = -0.005;
 
-        double torsoX = 0;
-        Vec3 headAt = Vec3.ZERO;
-        Vec3 torsoAt = Vec3.ZERO;
-        Vec3 armAt = Vec3.ZERO;
-        Vec3 legAt = Vec3.ZERO;
+        if (character.riding) {
+            rightArm.x += -Math.PI / 5;
+            leftArm.x += -Math.PI / 5;
+            // set, not added: a sat body folds its legs wherever the walk had left them
+            rightLeg.x = -1.4137167;
+            rightLeg.y = Math.PI / 10;
+            rightLeg.z = 0.07853982;
+            leftLeg.x = -1.4137167;
+            leftLeg.y = -Math.PI / 10;
+            leftLeg.z = -0.07853982;
+        }
+
+        swing(character, head, torso, rightArm, leftArm);
 
         if (character.crouching) {
-            torsoX = 0.5;
-            rightArmX += 0.4;
-            leftArmX += 0.4;
-            // a crouch is not only a lean: the model drops everything hung off the torso and sits
-            // the legs back under it. leaning alone leaves the head where a standing one was and
-            // the body reads as bowing rather than as crouching
-            headAt = Rig.offset(0, 4.2, 0).mul(scale);
-            torsoAt = Rig.offset(0, 3.2, 0).mul(scale);
-            armAt = Rig.offset(0, 3.2, 0).mul(scale);
-            legAt = Rig.offset(0, 0, 4.0).mul(scale);
+            torso.x = 0.5;
+            rightArm.x += 0.4;
+            leftArm.x += 0.4;
+            // a crouch is not only a lean: it drops everything hung off the torso and sits the
+            // legs back under it. leaning alone reads as bowing
+            rightLeg.atZ += 4.0;
+            leftLeg.atZ += 4.0;
+            head.atY += 4.2;
+            torso.atY += 3.2;
+            rightArm.atY += 3.2;
+            leftArm.atY += 3.2;
         }
 
         // the sway an idle body carries, one arm against the other. without it a body standing
-        // still is perfectly rigid, which is the single clearest tell that a model is not the
-        // game's own
+        // still is perfectly rigid, which is the clearest tell that a model is not the game's own
         double swayZ = Math.cos(ageInTicks * 0.09) * 0.05 + 0.05;
         double swayX = Math.sin(ageInTicks * 0.067) * 0.05;
+        rightArm.z += swayZ;
+        rightArm.x += swayX;
+        leftArm.z -= swayZ;
+        leftArm.x -= swayX;
 
-        turn(character, "head", character.lookPitch, character.lookYaw, 0, headAt);
-        turn(character, "torso", torsoX, 0, 0, torsoAt);
-        turn(character, "rightArm", rightArmX + swayX, 0, swayZ, armAt);
-        turn(character, "leftArm", leftArmX - swayX, 0, -swayZ, armAt);
-        // the legs are given a hair of yaw and roll so the two never coplanar z fight
-        turn(character, "rightLeg", rightLegX, 0.005, 0.005, legAt);
-        turn(character, "leftLeg", leftLegX, -0.005, -0.005, legAt);
+        swim(character, rightArm, leftArm, rightLeg, leftLeg);
+
+        double scale = character.scale;
+        turn(character, "head", head, scale);
+        turn(character, "torso", torso, scale);
+        turn(character, "rightArm", rightArm, scale);
+        turn(character, "leftArm", leftArm, scale);
+        turn(character, "rightLeg", rightLeg, scale);
+        turn(character, "leftLeg", leftLeg, scale);
+    }
+
+    // the attack, which twists the whole torso and carries the shoulders round with it
+    //
+    // the arms are siblings of the torso, so they do not inherit the twist: the model adds it to
+    // their yaw and walks their joints round the turn by hand, which is why this moves joints at
+    // all. a swing that only rotates the arm is the one that looks like a puppet
+    private static void swing(Character character, Limb head, Limb torso,
+                              Limb rightArm, Limb leftArm) {
+        double attack = character.attackTime;
+        if (attack <= 0) return;
+
+        double twist = Math.sin(Math.sqrt(attack) * Math.PI * 2) * 0.2;
+        if (character.attackLeft) twist = -twist;
+        torso.y = twist;
+
+        // the shoulder line turns with the torso: the joint that stood five out to the side ends
+        // up five out along the turn instead, so the offset is the difference between the two
+        rightArm.atX += 5.0 - Math.cos(twist) * 5.0;
+        rightArm.atZ += Math.sin(twist) * 5.0;
+        leftArm.atX += Math.cos(twist) * 5.0 - 5.0;
+        leftArm.atZ += -Math.sin(twist) * 5.0;
+
+        rightArm.y += twist;
+        leftArm.y += twist;
+        leftArm.x += twist;
+
+        double eased = 1.0 - square(square(1.0 - attack));
+        double reach = Math.sin(eased * Math.PI);
+        // the swing is aimed where the head looks, so looking up throws the arm further back
+        double aim = Math.sin(attack * Math.PI) * -(head.x - 0.7) * 0.75;
+
+        Limb arm = character.attackLeft ? leftArm : rightArm;
+        arm.x -= reach * 1.2 + aim;
+        arm.y += twist * 2.0;
+        arm.z += Math.sin(attack * Math.PI) * -0.4;
+    }
+
+    // the crawl, on its own twenty six unit cycle, blended over whatever the walk left
+    //
+    // the two arms are blended with different functions in the model -- the left wraps its angles
+    // and the right does not. that is copied rather than tidied: tidying it changes the pose
+    private static void swim(Character character, Limb rightArm, Limb leftArm,
+                             Limb rightLeg, Limb leftLeg) {
+        double amount = character.swimAmount;
+        if (amount <= 0) return;
+
+        double pos = character.moveDistance % 26.0;
+        if (pos < 14.0) {
+            leftArm.x = rotLerp(amount, leftArm.x, 0);
+            rightArm.x = lerp(amount, rightArm.x, 0);
+            leftArm.y = rotLerp(amount, leftArm.y, Math.PI);
+            rightArm.y = lerp(amount, rightArm.y, Math.PI);
+            leftArm.z = rotLerp(amount, leftArm.z,
+                    Math.PI + 1.8707964 * reach(pos) / reach(14.0));
+            rightArm.z = lerp(amount, rightArm.z,
+                    Math.PI - 1.8707964 * reach(pos) / reach(14.0));
+        } else if (pos < 22.0) {
+            double through = (pos - 14.0) / 8.0;
+            leftArm.x = rotLerp(amount, leftArm.x, Math.PI / 2 * through);
+            rightArm.x = lerp(amount, rightArm.x, Math.PI / 2 * through);
+            leftArm.y = rotLerp(amount, leftArm.y, Math.PI);
+            rightArm.y = lerp(amount, rightArm.y, Math.PI);
+            leftArm.z = rotLerp(amount, leftArm.z, 5.012389 - 1.8707964 * through);
+            rightArm.z = lerp(amount, rightArm.z, 1.2707963 + 1.8707964 * through);
+        } else {
+            double through = (pos - 22.0) / 4.0;
+            leftArm.x = rotLerp(amount, leftArm.x, Math.PI / 2 - Math.PI / 2 * through);
+            rightArm.x = lerp(amount, rightArm.x, Math.PI / 2 - Math.PI / 2 * through);
+            leftArm.y = rotLerp(amount, leftArm.y, Math.PI);
+            rightArm.y = lerp(amount, rightArm.y, Math.PI);
+            leftArm.z = rotLerp(amount, leftArm.z, Math.PI);
+            rightArm.z = lerp(amount, rightArm.z, Math.PI);
+        }
+
+        double kick = character.moveDistance * 0.33333334;
+        leftLeg.x = lerp(amount, leftLeg.x, 0.3 * Math.cos(kick + Math.PI));
+        rightLeg.x = lerp(amount, rightLeg.x, 0.3 * Math.cos(kick));
+    }
+
+    // the model's own name for it, and its own curve: how far through the stroke an arm is
+    private static double reach(double at) {
+        return -65.0 * at + at * at;
     }
 
     // an angle the model states is the opposite of the one we turn by on x and y, and the same
     // on z, because the model is drawn through half a turn about z
-    private static void turn(Character character, String name, double x, double y, double z,
-                             Vec3 offset) {
+    //
+    // the joint always starts from where the rig says it stands, never from where the last tick
+    // left it: the model states every one of these as an offset on the standing pose, and reading
+    // back the offset one would compound it every tick until the body came apart
+    private static void turn(Character character, String name, Limb limb, double scale) {
         if (!(character.child(name) instanceof Part part)) return;
-        Quat rotation = Quat.axisAngle(Vec3.UP, -y)
-                .mul(Quat.axisAngle(new Vec3(0, 0, 1), z))
-                .mul(Quat.axisAngle(new Vec3(1, 0, 0), -x));
-        Vec3 at = Rig.pivot(name, character.scale).add(offset);
+        Quat rotation = Quat.axisAngle(Vec3.UP, -limb.y)
+                .mul(Quat.axisAngle(new Vec3(0, 0, 1), limb.z))
+                .mul(Quat.axisAngle(new Vec3(1, 0, 0), -limb.x));
+        Vec3 at = Rig.pivot(name, scale)
+                .add(Rig.offset(limb.atX, limb.atY, limb.atZ).mul(scale));
         Instances.setObj(part, CFRAME, new CFrame(at, rotation));
+    }
+
+    private static double lerp(double t, double from, double to) {
+        return from + (to - from) * t;
+    }
+
+    // the same, on the short way round a circle, so a blend from just under a half turn to just
+    // over it does not unwind the whole way back
+    private static double rotLerp(double t, double from, double to) {
+        double difference = (to - from) % (Math.PI * 2);
+        if (difference >= Math.PI) difference -= Math.PI * 2;
+        if (difference < -Math.PI) difference += Math.PI * 2;
+        return from + difference * t;
+    }
+
+    private static double square(double x) {
+        return x * x;
     }
 }

@@ -39,6 +39,27 @@ public final class Character extends Spatial {
 
     public boolean crouching;
 
+    // the rest of what the body is doing, which is all the model animates from
+    //
+    // every one of these is a plain property, so a place writes them exactly as readily as the
+    // engine does: a cutscene can put a body mid swing, a chair can sit it down, a script can
+    // drown it. that is what customising a pose is here -- no limb is taken from anyone
+    @Prop(min = 0, max = 1) public double attackTime;
+
+    // which arm the swing belongs to
+    public boolean attackLeft;
+
+    @Prop(min = 0, max = 1) public double swimAmount;
+
+    // sat on something, which folds the legs rather than swinging them
+    public boolean riding;
+
+    // under an elytra, which pitches the head down and the body flat
+    public boolean flying;
+
+    // a body swimming in water pitches to its own look, one in air to straight down
+    public boolean inWater;
+
     @Prop(min = 0) public double walkSpeed = 4.317;
     @Prop(min = 0) public double sprintMultiplier = 1.3;
     @Prop(min = 0) public double sneakMultiplier = 0.3;
