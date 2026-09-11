@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.client.editor;
 
 import com.meekdev.amnetic.client.ui.Inspector;
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Spatial;
@@ -94,12 +95,19 @@ public final class PlaceInspector extends Inspector {
 
         ImGui.separator();
         ImGui.text("body");
-        // the arm as the client has it: what it was told, where that puts it, and whether it is
-        // wearing anything. a limb that will not move is one of these three
-        Instance arm = firstArm(tree);
-        if (arm == null) {
-            ImGui.textDisabled("no character in the tree");
+        // yours, not whichever came first: a place makes characters of its own and one posed by
+        // hand never moves, so reading that one says the body is stuck when nothing is wrong
+        Character mine = ownCharacter(tree);
+        Instance arm = mine == null ? null : mine.child("rightArm");
+        if (mine == null) {
+            ImGui.textDisabled("no character of yours in the tree");
         } else {
+            text("name", mine.name());
+            // against the entity's at, above. the same pair of numbers separates a body the
+            // server never moved from one the mirror never heard about
+            text("body at", fmt(Transforms.world(mine).position()));
+        }
+        if (arm != null) {
             Spatial limb = (Spatial) arm;
             text("arm local", fmt(limb.cframe.position()));
             text("arm pivot", fmt(limb.pivot));
@@ -127,11 +135,16 @@ public final class PlaceInspector extends Inspector {
         if (ImGui.button("clear")) Errors.clear();
     }
 
-    private static Instance firstArm(InstanceTree tree) {
-        if (tree == null) return null;
+    // the one wearing this client's own uuid. a place's own characters carry an owner nobody
+    // can look up, which is exactly what tells them apart
+    private static Character ownCharacter(InstanceTree tree) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (tree == null || player == null) return null;
+        String uuid = player.getUUID().toString();
         for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
-            Instance arm = instance.child("rightArm");
-            if (arm != null) return arm;
+            if (instance instanceof Character character && uuid.equals(character.owner)) {
+                return character;
+            }
         }
         return null;
     }
