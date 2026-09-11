@@ -60,6 +60,31 @@ public final class Character extends Spatial {
     // a body swimming in water pitches to its own look, one in air to straight down
     public boolean inWater;
 
+    // how long the body has been under an elytra, in ticks. the tilt comes on over the first
+    // ten of them rather than at once
+    @Prop(min = 0) public double flyingTime;
+
+    // the angle between where the body is going and where it is looking, which is what banks it
+    public double flyingYaw;
+
+    // how long it has been dead, in ticks. the fall takes twenty
+    @Prop(min = 0) public double deathTime;
+
+    public boolean sleeping;
+
+    // flat and low in the swimming pose, which decides where the body is drawn rather than how
+    // its limbs are animated
+    public boolean crawling;
+
+    // spinning on a riptide trident
+    public boolean spinning;
+
+    // frozen solid, which shakes the body about its own up
+    public boolean frozen;
+
+    // the way a name nobody says out loud hangs a body
+    public boolean upsideDown;
+
     @Prop(min = 0) public double walkSpeed = 4.317;
     @Prop(min = 0) public double sprintMultiplier = 1.3;
     @Prop(min = 0) public double sneakMultiplier = 0.3;

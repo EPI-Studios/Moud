@@ -23,6 +23,9 @@ public final class Pose {
 
     private static final double SWING = 0.6662;
 
+    private static final Vec3 RIGHT = new Vec3(1, 0, 0);
+    private static final Vec3 FORWARD = new Vec3(0, 0, 1);
+
     // the six parts are siblings, exactly as the model has them: nothing hangs off the torso, so
     // a torso that twists has to hand its twist to the arms by hand. the game does the same
     private static final PropertyDef CFRAME = Classes.PART.property("cframe");
@@ -114,12 +117,64 @@ public final class Pose {
         swim(character, rightArm, leftArm, rightLeg, leftLeg);
 
         double scale = character.scale;
-        turn(character, "head", head, scale);
-        turn(character, "torso", torso, scale);
-        turn(character, "rightArm", rightArm, scale);
-        turn(character, "leftArm", leftArm, scale);
-        turn(character, "rightLeg", rightLeg, scale);
-        turn(character, "leftLeg", leftLeg, scale);
+        CFrame root = root(character, ageInTicks);
+        turn(character, "head", head, scale, root);
+        turn(character, "torso", torso, scale, root);
+        turn(character, "rightArm", rightArm, scale, root);
+        turn(character, "leftArm", leftArm, scale, root);
+        turn(character, "rightLeg", rightLeg, scale, root);
+        turn(character, "leftLeg", leftLeg, scale, root);
+    }
+
+    // how the whole body is hung, before any limb is posed
+    //
+    // this is the model's setupRotations, minus the one rotation we already carry: the body's own
+    // yaw is on the character's frame, where the hitbox and everything a place hangs off the body
+    // can see it. what is left is the tilting -- and it goes on the six limbs rather than on the
+    // character, because a body lying dead or flat in the water still collides standing up
+    //
+    // not ported: sleeping, which replaces the body's yaw with the bed's rather than adding to it,
+    // and needs the bed's direction here to do it
+    private static CFrame root(Character character, double ageInTicks) {
+        Quat r = Quat.IDENTITY;
+        Vec3 at = Vec3.ZERO;
+        double pitch = Math.toDegrees(character.lookPitch);
+
+        if (character.frozen) {
+            // the model adds this to the body yaw and then turns by a half turn minus it, so
+            // against a yaw we have already applied it comes back the other way round
+            double shake = Math.cos(Math.floor(ageInTicks) * 3.25) * Math.PI * 0.4;
+            r = r.mul(spin(Vec3.UP, -shake));
+        }
+
+        if (character.deathTime > 0) {
+            // twenty ticks from upright to flat, on a square root so it drops fast and settles
+            double fall = Math.min(1.0, Math.sqrt(
+                    Math.max(0, (character.deathTime - 1.0) / 20.0 * 1.6)));
+            r = r.mul(spin(FORWARD, fall * 90.0));
+        } else if (character.spinning) {
+            r = r.mul(spin(RIGHT, -90.0 - pitch)).mul(spin(Vec3.UP, ageInTicks * -75.0));
+        } else if (character.upsideDown) {
+            at = new Vec3(0, character.height + 0.1, 0);
+            r = r.mul(spin(FORWARD, 180.0));
+        }
+
+        if (character.flying) {
+            // the tilt arrives over the first ten ticks under the wing rather than at once
+            double onset = Math.min(1.0, character.flyingTime * character.flyingTime / 100.0);
+            if (!character.spinning) r = r.mul(spin(RIGHT, onset * (-90.0 - pitch)));
+            r = r.mul(Quat.axisAngle(Vec3.UP, character.flyingYaw));
+        } else if (character.swimAmount > 0) {
+            // in water the body follows its own look, out of it the crawl is flat
+            double target = character.inWater ? -90.0 - pitch : -90.0;
+            r = r.mul(spin(RIGHT, character.swimAmount * target));
+            if (character.crawling) at = at.add(new Vec3(0, -1, 0.3));
+        }
+        return new CFrame(at, r);
+    }
+
+    private static Quat spin(Vec3 axis, double degrees) {
+        return Quat.axisAngle(axis, Math.toRadians(degrees));
     }
 
     // the attack, which twists the whole torso and carries the shoulders round with it
@@ -211,14 +266,15 @@ public final class Pose {
     // the joint always starts from where the rig says it stands, never from where the last tick
     // left it: the model states every one of these as an offset on the standing pose, and reading
     // back the offset one would compound it every tick until the body came apart
-    private static void turn(Character character, String name, Limb limb, double scale) {
+    private static void turn(Character character, String name, Limb limb, double scale,
+                             CFrame root) {
         if (!(character.child(name) instanceof Part part)) return;
         Quat rotation = Quat.axisAngle(Vec3.UP, -limb.y)
-                .mul(Quat.axisAngle(new Vec3(0, 0, 1), limb.z))
-                .mul(Quat.axisAngle(new Vec3(1, 0, 0), -limb.x));
+                .mul(Quat.axisAngle(FORWARD, limb.z))
+                .mul(Quat.axisAngle(RIGHT, -limb.x));
         Vec3 at = Rig.pivot(name, scale)
                 .add(Rig.offset(limb.atX, limb.atY, limb.atZ).mul(scale));
-        Instances.setObj(part, CFRAME, new CFrame(at, rotation));
+        Instances.setObj(part, CFRAME, root.mul(new CFrame(at, rotation)));
     }
 
     private static double lerp(double t, double from, double to) {

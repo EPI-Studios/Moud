@@ -44,6 +44,13 @@ public final class Characters {
     private static final PropertyDef RIDING = Classes.CHARACTER.property("riding");
     private static final PropertyDef FLYING = Classes.CHARACTER.property("flying");
     private static final PropertyDef IN_WATER = Classes.CHARACTER.property("inWater");
+    private static final PropertyDef FLYING_TIME = Classes.CHARACTER.property("flyingTime");
+    private static final PropertyDef FLYING_YAW = Classes.CHARACTER.property("flyingYaw");
+    private static final PropertyDef DEATH_TIME = Classes.CHARACTER.property("deathTime");
+    private static final PropertyDef SLEEPING = Classes.CHARACTER.property("sleeping");
+    private static final PropertyDef CRAWLING = Classes.CHARACTER.property("crawling");
+    private static final PropertyDef SPINNING = Classes.CHARACTER.property("spinning");
+    private static final PropertyDef FROZEN = Classes.CHARACTER.property("frozen");
 
     // the properties the profile is built from, which is every one the class adds to a spatial.
     // a pose write is not one of them, and follow makes one of those every tick: pushing the
@@ -137,6 +144,28 @@ public final class Characters {
         Instances.setBool(character, RIDING, player.isPassenger());
         Instances.setBool(character, FLYING, player.isFallFlying());
         Instances.setBool(character, IN_WATER, player.isInWater());
+
+        Instances.setNum(character, FLYING_TIME, player.getFallFlyingTicks());
+        Instances.setNum(character, FLYING_YAW, flyingYaw(player));
+        Instances.setNum(character, DEATH_TIME, player.deathTime);
+        Instances.setBool(character, SLEEPING, player.isSleeping());
+        Instances.setBool(character, CRAWLING, player.isVisuallySwimming());
+        Instances.setBool(character, SPINNING, player.isAutoSpinAttack());
+        Instances.setBool(character, FROZEN, player.isFullyFrozen());
+    }
+
+    // how far the body is banking under a wing: the angle between where it is going and where it
+    // is looking, signed by which side it is turning toward
+    private static double flyingYaw(Player player) {
+        // net.minecraft.world.phys.Vec3 against ours, the one clash 20.1 allows for
+        net.minecraft.world.phys.Vec3 look = player.getViewVector(1.0f);
+        net.minecraft.world.phys.Vec3 move = player.getDeltaMovement();
+        if (move.horizontalDistanceSqr() <= 1.0E-5 || look.horizontalDistanceSqr() <= 1.0E-5) {
+            return 0;
+        }
+        double along = move.horizontal().normalize().dot(look.horizontal().normalize());
+        double side = move.x * look.z - move.z * look.x;
+        return Math.signum(side) * Math.acos(Math.min(1.0, Math.abs(along)));
     }
 
     public void bind(ServerPlayer player, Character character) {
