@@ -104,6 +104,7 @@ public final class Types {
                 declare class Players
                     joined: PlayerSignal
                     leaving: PlayerSignal
+                    function me(self): Instance?
                 end
 
                 """);

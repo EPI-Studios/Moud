@@ -97,7 +97,7 @@ public final class PlaceInspector extends Inspector {
         ImGui.text("body");
         // yours, not whichever came first: a place makes characters of its own and one posed by
         // hand never moves, so reading that one says the body is stuck when nothing is wrong
-        Character mine = ownCharacter(tree);
+        Character mine = ClientScene.own();
         Instance arm = mine == null ? null : mine.child("rightArm");
         if (mine == null) {
             ImGui.textDisabled("no character of yours in the tree");
@@ -133,20 +133,6 @@ public final class PlaceInspector extends Inspector {
             ImGui.textWrapped(error.getMessage());
         }
         if (ImGui.button("clear")) Errors.clear();
-    }
-
-    // the one wearing this client's own uuid. a place's own characters carry an owner nobody
-    // can look up, which is exactly what tells them apart
-    private static Character ownCharacter(InstanceTree tree) {
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (tree == null || player == null) return null;
-        String uuid = player.getUUID().toString();
-        for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
-            if (instance instanceof Character character && uuid.equals(character.owner)) {
-                return character;
-            }
-        }
-        return null;
     }
 
     private static String fmt(Vec3 v) {

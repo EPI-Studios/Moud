@@ -46,13 +46,13 @@ public final class ClientScene {
         // the body is posed here, on the client, from the handful of numbers the server sent.
         // a place that wants the limbs to itself turns animate off and writes them instead
         LocalPlayer me = Minecraft.getInstance().player;
-        String uuid = me == null ? null : me.getUUID().toString();
+        Character own = own();
         for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
             if (!(instance instanceof Character character)) continue;
             // yours is driven from your own player rather than from what the mirror carries. the
             // mirror is the server's answer to a move you made several ticks ago, and a body that
             // arrives late is the one thing you are guaranteed to be looking at
-            if (uuid != null && uuid.equals(character.owner)) Characters.drive(character, me);
+            if (character == own && me != null) Characters.drive(character, me);
             if (character.animate) Pose.apply(character, age(character));
         }
         MOTION.drain(tree);
@@ -61,6 +61,21 @@ public final class ClientScene {
         for (Part part : tree.ofClass(Classes.PART)) {
             PartLight.refresh(part, MOTION.sample(part).position());
         }
+    }
+
+    // the body this client drives. a place's own characters carry an owner nobody can look up,
+    // which is exactly what tells them apart from a player's
+    public static @Nullable Character own() {
+        InstanceTree tree = tree();
+        LocalPlayer me = Minecraft.getInstance().player;
+        if (tree == null || me == null) return null;
+        String uuid = me.getUUID().toString();
+        for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
+            if (instance instanceof Character character && uuid.equals(character.owner)) {
+                return character;
+            }
+        }
+        return null;
     }
 
     // the age the model animates the idle sway on, which is the body's own and not the world's:

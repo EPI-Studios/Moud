@@ -19,6 +19,8 @@ import java.util.function.Consumer;
 import com.meekdev.moud.script.bind.Values;
 import com.meekdev.moud.script.err.ScriptError;
 import net.hollowcube.luau.BuilinLibrary;
+import java.util.function.Supplier;
+import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.compiler.LuauCompileException;
 import net.hollowcube.luau.compiler.LuauCompiler;
@@ -62,13 +64,31 @@ public final class Vm implements AutoCloseable {
 
     // the client half of the surface, which only exists where there is a screen and someone
     // looking at it. a server vm never sees these globals rather than seeing dead ones
-    public void bindClient(Instance camera, CameraRef lens, InputRef input) {
+    public void bindClient(Instance camera, CameraRef lens, InputRef input,
+            Supplier<Instance> own) {
         Inputs.install(state);
         CameraMethods.install(state, lens);
         Proxies.push(state, camera);
         state.setGlobal("camera");
         Inputs.push(state, input);
         state.setGlobal("input");
+
+        // the body this client drives, and the only thing that tells it apart from everyone
+        // else's. a call rather than a field: a respawn and a reload both hand out a new one, and
+        // a reference held across either points at something destroyed
+        state.getGlobal("game");
+        state.rawGetField(-1, "players");
+        state.pushFunction(LuaFunc.wrap(s -> {
+            Instance character = own.get();
+            if (character == null || !character.isAlive()) {
+                s.pushNil();
+            } else {
+                Proxies.push(s, character);
+            }
+            return 1;
+        }, "players.me"));
+        state.rawSetField(-2, "me");
+        state.pop(2);
     }
 
     public Scheduler scheduler() {

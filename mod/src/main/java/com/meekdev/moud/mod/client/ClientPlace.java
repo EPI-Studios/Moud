@@ -56,7 +56,7 @@ public final class ClientPlace {
     private static void start(Instance world) {
         place = Place.client(world, Classes.registry(), vm -> {
             camera = Instances.createLocal(Classes.CAMERA, world, "Camera");
-            vm.bindClient(camera, LENS, INPUT);
+            vm.bindClient(camera, LENS, INPUT, ClientScene::own);
         });
         place.start();
         MoudMod.LOG.info("the client place is running");
