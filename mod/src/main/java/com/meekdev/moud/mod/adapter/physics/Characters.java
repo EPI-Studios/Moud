@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import org.jspecify.annotations.Nullable;
 
 // the character instance drives the player's movement profile
@@ -93,16 +94,22 @@ public final class Characters {
             if (player == null || !(tree.byId(entry.getValue()) instanceof Character character)) {
                 continue;
             }
-            place(character, new Vec3(player.getX(), player.getY(), player.getZ()),
-                    player.getYRot());
-            animation(character, player);
+            drive(character, player);
         }
+    }
+
+    // where a body is and how it is standing, from the player it belongs to. the client drives
+    // your own through here too, off its own player: the state that went to the server and came
+    // back is several ticks old, and a body that walks after you do is not the same body
+    public static void drive(Character character, Player player) {
+        place(character, new Vec3(player.getX(), player.getY(), player.getZ()), player.getYRot());
+        animation(character, player);
     }
 
     // the four numbers a body is animated from, rather than the six transforms they produce.
     // the client evaluates the same pose from the same state, which is what keeps a limb off the
     // wire twenty times a second and what lets the server rewind one for a hit test
-    private static void animation(Character character, ServerPlayer player) {
+    private static void animation(Character character, Player player) {
         // the head turns against the body, and the body already faces where the player does
         double relative = Math.toRadians(player.getYHeadRot() - player.getYRot());
         Instances.setNum(character, LOOK_PITCH, Math.toRadians(player.getXRot()));
