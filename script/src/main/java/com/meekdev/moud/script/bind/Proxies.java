@@ -178,14 +178,22 @@ public final class Proxies {
         }
 
         if (instance instanceof Spatial spatial) {
-            // cframe is the local frame, matching the field. the composed one is its own name so
-            // neither reading is a silent surprise
+            // where the thing actually is, not where it is stated
+            //
+            // these used to read the local frame, which was honest while nothing was ever reparented
+            // without being asked: the field is local, so the shortcut matching the field surprised
+            // nobody. that premise is gone -- a body standing on something that moves is hung off it
+            // by the engine, and a place that never mentioned a parent would start reading positions
+            // in the deck's frame. "where is this" is a world question, and roblox answers it the same
+            // way: a part's Position is world and there is no local one to confuse it with
+            //
+            // cframe is still the field and still local. it says so, and worldCframe still composes
             if (key.equals("position")) {
-                Values.push(state, spatial.cframe.position());
+                Values.push(state, Transforms.world(instance).position());
                 return 1;
             }
             if (key.equals("rotation")) {
-                Values.push(state, spatial.cframe.rotation());
+                Values.push(state, Transforms.world(instance).rotation());
                 return 1;
             }
             if (key.equals("worldCframe")) {
@@ -353,15 +361,28 @@ public final class Proxies {
         }
         if (instance instanceof Spatial spatial) {
             PropertyDef frame = instance.def().property("cframe");
+            // put where the world says, whatever it hangs off. the same question in the other
+            // direction: a place saying "stand here" means here in the world
             if (key.equals("position")) {
-                Instances.setObj(instance, frame, spatial.cframe.withPosition(Values.vec3(state, value)));
+                // the pivot comes back on the way in. a world frame already has it folded out --
+                // that is what makes an arm's world frame the middle of its box rather than the
+                // shoulder it turns at -- so converting back without refolding it would slide the
+                // thing by however far its pivot was moved
+                Instances.setObj(instance, frame, Transforms.localFor(instance,
+                        Transforms.world(instance).withPosition(Values.vec3(state, value)))
+                        .mul(CFrame.at(spatial.pivot)));
                 return;
             }
             // turning a thing leaves it where it is. an arm animated by writing the whole frame
             // loses the offset that put it at the shoulder and swings from the floor instead,
             // which is what 6.2.5 means by these being views onto one value rather than state
+            //
+            // so only the rotation is touched, and only it is converted: the angle asked for is a
+            // world angle, and what gets written is that angle expressed against the parent
             if (key.equals("rotation")) {
-                Instances.setObj(instance, frame, spatial.cframe.withRotation(rotationOf(state, value)));
+                Quat local = Transforms.localFor(instance,
+                        new CFrame(Vec3.ZERO, rotationOf(state, value))).rotation();
+                Instances.setObj(instance, frame, spatial.cframe.withRotation(local));
                 return;
             }
             if (key.equals("worldCframe")) {
