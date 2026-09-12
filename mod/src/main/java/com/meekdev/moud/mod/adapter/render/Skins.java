@@ -78,6 +78,11 @@ public final class Skins {
     private static final Vector4f ARMOUR_SHEET = new Vector4f(64f, 32f, 0f, 0f);
     private static final Vector4f ARMOUR_MIRRORED = new Vector4f(64f, 32f, 1f, 0f);
 
+    // a mob's head is cut from half the sheet a player's is
+    private static final Vector4f HEAD_SHEET = new Vector4f(64f, 32f, 0f, 0f);
+    private static final SkinLayout.Box HEAD_RECT = new SkinLayout.Box(0, 0, 8, 8, 8);
+    private static final SkinLayout.Box HEAD_LAYER_RECT = new SkinLayout.Box(32, 0, 8, 8, 8);
+
     private static final SkinLayout.Box SPIN_RECT = new SkinLayout.Box(0, 0, 16, 32, 16);
 
     private static final Identifier RIPTIDE =
@@ -152,6 +157,32 @@ public final class Skins {
             wings(character, wearer, solid, partialTick);
             armour(character, solid, partialTick);
             spin(character, solid, partialTick);
+            wornHead(character, solid, partialTick);
+        }
+    }
+
+    // a skull, a pumpkin or somebody's head
+    //
+    // its sheet is half the height of a skin unless it is a head that has a second layer, which
+    // is the same sixty four by sixty four a body is cut from. one box or two, on the point a hat
+    // is worn at
+    private static void wornHead(Character character, float solid, float partialTick) {
+        Armour worn = Rig.armour(character);
+        if (worn == null || worn.hat.isEmpty()) return;
+        if (!(character.child("head") instanceof Part head)) return;
+        if (!(head.child(Rig.HAT) instanceof Instance point)) return;
+
+        Identifier texture = Identifier.tryParse(worn.hat);
+        if (texture == null) return;
+        List<Worn> into = PACKED.computeIfAbsent(texture, id -> {
+            register(id);
+            return new ArrayList<>();
+        });
+        Vector4f sheet = worn.hatLayered ? SHEET : HEAD_SHEET;
+        for (int n = 0; n < Rig.WORN_HEAD.length; n++) {
+            if (!(point.child(Rig.WORN_HEAD[n]) instanceof Part box) || !box.visible) continue;
+            emit(box, n == 0 ? HEAD_RECT : HEAD_LAYER_RECT, false, 0, solid, into,
+                    partialTick, sheet);
         }
     }
 

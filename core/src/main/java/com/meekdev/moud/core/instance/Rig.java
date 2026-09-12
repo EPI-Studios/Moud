@@ -66,6 +66,13 @@ public final class Rig {
     // what it is wearing
     public static final String ARMOUR = "armour";
 
+    // a worn head, and the second layer some of them carry
+    public static final String[] WORN_HEAD = {"wornHead", "wornHeadLayer"};
+
+    // the game draws one at a shade over full size, which is what makes it sit around a head
+    // rather than inside it
+    private static final double HEAD_WORN = 1.1875;
+
     // the ten boxes four pieces of armour are made of, named for the limb they cover and the slot
     // they belong to
     //
@@ -283,6 +290,17 @@ public final class Rig {
         Instances.create(Classes.HUMANOID, character, HUMANOID);
         Instances.create(Classes.ANIMATOR, character, ANIMATOR);
         Instances.create(Classes.ARMOUR, character, ARMOUR);
+        if (character.child("head") instanceof Part head
+                && head.child(HAT) instanceof Spatial point) {
+            for (String name : WORN_HEAD) {
+                Instances.create(Classes.PART, point, name, part -> {
+                    part.color = Color.WHITE;
+                    part.collides = false;
+                    part.anchored = true;
+                    part.visible = false;
+                });
+            }
+        }
         for (Plate plate : ARMOUR_PLATES) {
             if (!(character.child(plate.limb()) instanceof Part limb)) continue;
             Instances.create(Classes.PART, limb, plate.name(), part -> {
@@ -430,6 +448,23 @@ public final class Rig {
         }
 
         Armour worn = armour(character);
+        if (character.child("head") instanceof Part head
+                && head.child(HAT) instanceof Spatial point) {
+            boolean wearing = worn != null && !worn.hat.isEmpty();
+            for (int n = 0; n < WORN_HEAD.length; n++) {
+                if (!(point.child(WORN_HEAD[n]) instanceof Part part)) continue;
+                // the second layer stands a quarter texel proud of the first, exactly as a hat
+                // stands off a head
+                double out = n == 0 ? 0 : 0.25 * 2 * PX;
+                double at = HEAD_WORN * s;
+                Instances.setObj(part, SIZE,
+                        new Vec3(8 * PX + out, 8 * PX + out, 8 * PX + out).mul(at));
+                // its box hangs four texels above the neck it is anchored at
+                Instances.setObj(part, PIVOT, new Vec3(0, -4 * PX, 0).mul(at));
+                Instances.setBool(part, VISIBLE,
+                        shown && wearing && (n == 0 || worn.hatLayered));
+            }
+        }
         for (Plate plate : ARMOUR_PLATES) {
             if (!(character.child(plate.limb()) instanceof Part limb)) continue;
             if (!(limb.child(plate.name()) instanceof Part plated)) continue;
@@ -440,7 +475,9 @@ public final class Rig {
             Instances.setObj(plated, SIZE,
                     shape.size().add(new Vec3(out, out, out)).mul(s));
             Instances.setObj(plated, PIVOT, shape.box().neg().mul(s));
-            Instances.setBool(plated, VISIBLE, shown && !slot(worn, plate.slot()).isEmpty());
+            boolean taken = "head".equals(plate.slot()) && worn != null && !worn.hat.isEmpty();
+            Instances.setBool(plated, VISIBLE,
+                    shown && !taken && !slot(worn, plate.slot()).isEmpty());
         }
 
         if (character.child(HITBOX) instanceof Part box) {
