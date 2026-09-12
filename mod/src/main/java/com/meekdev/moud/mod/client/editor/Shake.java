@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.client.editor;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.adapter.physics.Bodies;
+import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
@@ -32,6 +33,10 @@ public final class Shake {
     // a different fault from "shaking up and down" and neither shows in the other's number
     private static final double[] CAM_YAW = new double[SAMPLES];
 
+    // and the deck's own heading, which is what the rider's yaw is turned from. a shudder here is
+    // the platform arriving unevenly, and no amount of fixing the turn would help
+    private static final double[] DECK_YAW = new double[SAMPLES];
+
     private static int at;
     private static int filled;
     private static float bob;
@@ -59,6 +64,11 @@ public final class Shake {
         int was = (at + SAMPLES - 1) % SAMPLES;
         CAM_YAW[at] = filled == 0 ? yaw : CAM_YAW[was] + wrap(yaw - CAM_YAW[was] % 360.0);
 
+        double deck = ClientPhysics.riddenYaw();
+        boolean riddenNow = !Double.isNaN(deck);
+        DECK_YAW[at] = !riddenNow ? (filled == 0 ? 0 : DECK_YAW[was])
+                : filled == 0 ? deck : DECK_YAW[was] + wrap(deck - DECK_YAW[was] % 360.0);
+
         Character body = Bodies.of(ClientScene.tree(), me.getUUID().toString());
         BODY[at] = body == null ? me.getY() : body.cframe.position().y();
 
@@ -68,7 +78,7 @@ public final class Shake {
         if (me instanceof AbstractClientPlayer avatar) {
             bob = avatar.avatarState().getInterpolatedBob(1.0f);
         }
-        riding = me.onGround() ? "ground" : "air";
+        riding = riddenNow ? "deck" : me.onGround() ? "ground" : "air";
     }
 
     public static String body() {
@@ -102,7 +112,8 @@ public final class Shake {
         // a rider on a deck turning at seventy degrees a second is meant to be turning: the shake is
         // whatever is left once that is taken out, so this reads the second difference rather than
         // the first
-        return spread > 30 ? "turning" : String.format("%.3f deg", jitterOf(CAM_YAW));
+        return spread > 30 ? String.format("turning, %.3f deg jitter", jitterOf(CAM_YAW))
+                : String.format("%.3f deg", jitterOf(CAM_YAW));
     }
 
     // how far each step differs from the one before it. a steady turn has a constant step and reads
@@ -115,6 +126,14 @@ public final class Shake {
             worst = Math.max(worst, Math.abs(second));
         }
         return worst;
+    }
+
+    // the platform's own heading, judged the same way as the rider's. if this shudders and the
+    // rider's shudders with it, the turn is faithful and the platform is the fault
+    public static String deckYaw() {
+        double spread = spread(DECK_YAW);
+        return spread > 30 ? String.format("turning, %.3f deg jitter", jitterOf(DECK_YAW))
+                : String.format("%.3f deg", jitterOf(DECK_YAW));
     }
 
     private static double wrap(double degrees) {

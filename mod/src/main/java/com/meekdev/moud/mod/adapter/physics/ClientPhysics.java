@@ -5,6 +5,8 @@ import com.meekdev.bkun.box3d.LevelPhysics;
 import com.meekdev.bkun.collision.ColliderProvider;
 import com.meekdev.bkun.sublevel.SubLevelEntity;
 import com.meekdev.bkun.sublevel.SubLevelIndex;
+import com.meekdev.bkun.sublevel.SubLevelPose;
+import com.meekdev.bkun.sublevel.SubLevelTracking;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Transforms;
@@ -12,6 +14,8 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.net.replicate.Change;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.Minecraft;
+import org.joml.Vector3f;
 import org.joml.Quaternionf;
 import org.jspecify.annotations.Nullable;
 
@@ -25,6 +29,24 @@ public final class ClientPhysics {
     private static @Nullable ClientLevel attached;
 
     private ClientPhysics() {}
+
+    // the heading the deck under a player is drawn at, in degrees, or NaN when it is standing on
+    // nothing that moves
+    //
+    // the deck's own pose, read where the frame reads it. a rider's camera is turned from this, so a
+    // shudder in it is a shudder in the view -- and the two are worth telling apart, because one is
+    // the platform arriving unevenly and the other is the turn being applied wrongly
+    public static double riddenYaw() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) return Double.NaN;
+        SubLevelEntity deck = SubLevelTracking.of(client.player);
+        if (deck == null || deck.isRemoved()) return Double.NaN;
+        float partialTick = client.getDeltaTracker().getGameTimeDeltaPartialTick(true);
+        Quaternionf turn = new Quaternionf(
+                deck.renderPose(partialTick, new SubLevelPose()).rotation());
+        Vector3f forward = new Vector3f(1, 0, 0).rotate(turn);
+        return -Math.toDegrees(Math.atan2(-forward.z, forward.x));
+    }
 
     public static Colliders boxes() {
         return BOXES;
