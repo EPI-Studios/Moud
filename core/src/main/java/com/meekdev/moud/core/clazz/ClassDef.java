@@ -2,6 +2,7 @@ package com.meekdev.moud.core.clazz;
 
 import com.meekdev.moud.core.event.Signal;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.Stage;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
@@ -34,8 +35,15 @@ public final class ClassDef<T extends Instance> {
     // class an addon writes carries its own events without the binding learning about it
     private final Map<String, EventDef> events;
 
+    // which stages of a tick this class takes part in, one bit per Stage
+    //
+    // read off the class once, here, by looking for the method. that is the same bargain the fields
+    // make: overriding is the declaration, so a class cannot take part in a stage without saying so
+    // in the one place someone reads it, and cannot say so without taking part
+    private final int stages;
+
     private ClassDef(String name, ClassDef<?> parent, Supplier<T> factory, List<PropertyDef> props,
-                     Map<String, EventDef> events) {
+                     Map<String, EventDef> events, int stages) {
         this.name = name;
         this.parent = parent;
         this.factory = factory;
@@ -43,6 +51,7 @@ public final class ClassDef<T extends Instance> {
         this.byName = new HashMap<>(props.size() * 2);
         for (PropertyDef p : props) byName.put(p.name(), p);
         this.events = Map.copyOf(events);
+        this.stages = stages;
     }
 
     public static <T extends Instance> ClassDef<T> of(String name, ClassDef<?> parent, Class<T> type, Supplier<T> factory) {
@@ -86,7 +95,35 @@ public final class ClassDef<T extends Instance> {
             }
             props.add(define(name, type, f, prototype, lookup, props.size()));
         }
-        return new ClassDef<>(name, parent, factory, props, events);
+        return new ClassDef<>(name, parent, factory, props, events, stagesOf(type));
+    }
+
+    // every stage whose method is declared anywhere between this class and Instance
+    //
+    // walking the java chain rather than asking the parent ClassDef: a class's java parent and its
+    // declared parent are not always the same one -- a Joint has no declared parent and still
+    // extends Instance -- and it is the java chain that decides which method actually runs
+    private static int stagesOf(Class<?> type) {
+        int bits = 0;
+        for (Stage stage : Stage.ORDER) {
+            for (Class<?> c = type; c != null && c != Instance.class; c = c.getSuperclass()) {
+                if (declares(c, stage)) {
+                    bits |= stage.bit;
+                    break;
+                }
+            }
+        }
+        return bits;
+    }
+
+    private static boolean declares(Class<?> type, Stage stage) {
+        try {
+            type.getDeclaredMethod(stage.method(),
+                    stage.timed() ? new Class<?>[] {double.class} : new Class<?>[0]);
+            return true;
+        } catch (NoSuchMethodException absent) {
+            return false;
+        }
     }
 
     private static PropertyDef define(String owner, Class<?> type, Field field, Instance prototype,
@@ -132,6 +169,10 @@ public final class ClassDef<T extends Instance> {
     public PropertyDef[] properties() { return byIndex; }
 
     public EventDef event(String name) { return events.get(name); }
+
+    public boolean takesPart(Stage stage) { return (stages & stage.bit) != 0; }
+
+    public int stages() { return stages; }
 
     public java.util.Collection<EventDef> events() { return events.values(); }
 

@@ -11,6 +11,16 @@ public final class InstanceTree {
 
     private final Map<ClassDef<?>, List<Instance>> byClass = new HashMap<>();
 
+    // what takes part in each stage, so a tick visits the handful that do rather than the thousands
+    // that do not. a part sitting in the world is in none of these lists
+    @SuppressWarnings("unchecked")
+    private final List<Instance>[] byStage = new List[Stage.ORDER.length];
+
+    // a stage is snapshotted into this before it runs, because a stage may create or destroy: drive
+    // can kill a body, and iterating the live list while it shrinks skips whoever moved into the
+    // gap. one array per tree, grown once, so this costs nothing after the first tick
+    private Instance[] scratch = new Instance[32];
+
     Instance[] byId = new Instance[64];
     int nextId = 1;
     int nextLocalId = -1;
@@ -77,7 +87,28 @@ public final class InstanceTree {
         }
         byId[slot] = i;
         byClass.computeIfAbsent(i.def(), k -> new ArrayList<>()).add(i);
+        for (Stage stage : Stage.ORDER) {
+            if (!i.def().takesPart(stage)) continue;
+            List<Instance> list = byStage[stage.ordinal()];
+            if (list == null) byStage[stage.ordinal()] = list = new ArrayList<>();
+            list.add(i);
+        }
         structureEpoch++;
+    }
+
+    // whoever takes part in a stage, in the order they entered the tree
+    //
+    // that order is the one guarantee: a body builds its root joint before its limb joints, so
+    // composing in this order composes a parent before what hangs off it without anyone sorting
+    public List<Instance> inStage(Stage stage) {
+        List<Instance> list = byStage[stage.ordinal()];
+        return list == null ? List.of() : list;
+    }
+
+    Instance[] snapshot(List<Instance> of) {
+        if (scratch.length < of.size()) scratch = new Instance[Math.max(of.size(), scratch.length * 2)];
+        for (int n = 0; n < of.size(); n++) scratch[n] = of.get(n);
+        return scratch;
     }
 
     // the highest replicated id handed out so far, which is what lets a mirror spot new instances
@@ -116,6 +147,11 @@ public final class InstanceTree {
         if (slot < byId.length && byId[slot] == i) byId[slot] = null;
         List<Instance> list = byClass.get(i.def());
         if (list != null) list.remove(i);
+        for (Stage stage : Stage.ORDER) {
+            if (!i.def().takesPart(stage)) continue;
+            List<Instance> staged = byStage[stage.ordinal()];
+            if (staged != null) staged.remove(i);
+        }
         if (removedCount == removedList.length) {
             int[] grown = new int[removedList.length * 2];
             System.arraycopy(removedList, 0, grown, 0, removedList.length);

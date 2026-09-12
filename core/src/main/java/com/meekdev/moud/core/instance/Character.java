@@ -138,7 +138,7 @@ public final class Character extends Spatial {
 
 
     @Override
-    void created() {
+    protected void build() {
         Rig.build(this);
     }
 }
