@@ -15,6 +15,25 @@ import com.meekdev.moud.core.math.Vec3;
 // on six names could never do
 public class Limb extends Part {
 
+    // how far this limb swings with a walk, in radians at full speed, and where in the stride
+    //
+    // the whole point of these two: the engine's walk used to be six names written into it, so a
+    // seventh limb was textured, posable and jointed and then stood perfectly still while the body
+    // walked out from under it. a tail is a limb that swings a little, out of phase with the legs,
+    // and saying so should be two numbers rather than a change to the engine
+    //
+    // roblox has no procedural walk at all -- their humanoid plays a keyframed animation, and a
+    // seventh limb moves only if the animation names it. a track that names a joint already works
+    // here too (§ the animators), so this is the other half: taking part in the walk the engine
+    // itself runs, without a track
+    @Prop(min = 0) public double swing;
+
+    // in turns, so a half is the opposite leg. anything between is a lag
+    public double swingPhase;
+
+    // side to side rather than fore and aft, which is what a tail does and a leg does not
+    public boolean swingSideways;
+
     // the origin of the rect this box is cut from, in texels of its sheet
     public double u;
     public double v;

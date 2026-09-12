@@ -270,6 +270,27 @@ public final class Rig {
         return new Vec3(-x * PX, -y * PX, z * PX);
     }
 
+    // how far each of the six swings with the stride, and where in it
+    //
+    // stated on the limbs rather than written into the walk, which is what lets a seventh limb take
+    // part: the walk reads these off whatever is hanging on the body instead of off six names. the
+    // numbers are the model's own -- the arms swing an amplitude of one and the legs of 1.4, and the
+    // arms lead the legs by half a cycle, which is what makes a walk look like a walk
+    private static double swing(String name) {
+        return switch (name) {
+            case "rightArm", "leftArm" -> 1.0;
+            case "rightLeg", "leftLeg" -> 1.4;
+            default -> 0;
+        };
+    }
+
+    private static double swingPhase(String name) {
+        return switch (name) {
+            case "rightArm", "leftLeg" -> 0.5;
+            default -> 0;
+        };
+    }
+
     public static void build(Character character) {
         // a character builds its own body once. asking twice is a caller that did not know it
         // was already done, not a request for a second head
@@ -286,6 +307,8 @@ public final class Rig {
                 part.u = limb.u();
                 part.v = limb.v();
                 part.texels = limb.texels();
+                part.swing = swing(limb.name());
+                part.swingPhase = swingPhase(limb.name());
             });
             shell(character, limb);
             grip(character, limb);

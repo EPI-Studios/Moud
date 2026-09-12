@@ -5,6 +5,8 @@ import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vec3;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 // how a body stands, ported from the game's own humanoid animation
 //
@@ -30,8 +32,9 @@ public final class Pose {
     // a torso that twists has to hand its twist to the arms by hand. the game does the same
     private static final PropertyDef TRANSFORM = Classes.JOINT.property("transform");
 
-    // one limb, as the model states it
-    private static final class Limb {
+    // one limb's turn, as the model states it. not the Limb class -- this is the scratch a stage
+    // adds into, and it exists for limbs the rig has no class for too, like the root
+    private static final class Turn {
 
         double x;
         double y;
@@ -51,12 +54,20 @@ public final class Pose {
         double phase = character.moveDistance * SWING;
         double gain = character.moveSpeed;
 
-        Limb head = new Limb();
-        Limb torso = new Limb();
-        Limb rightArm = new Limb();
-        Limb leftArm = new Limb();
-        Limb rightLeg = new Limb();
-        Limb leftLeg = new Limb();
+        // one scratch per joint, and the walk is already in them: every limb hanging on this body
+        // says how far it swings and where in the stride, so a seventh one takes part without the
+        // walk having heard of it. the six below are then read back out by name, because everything
+        // *after* the walk -- the crouch, the saddle, the swim, which arm holds what -- is not
+        // something a limb can declare
+        Map<String, Turn> turns = new LinkedHashMap<>();
+        walk(character, turns, phase, gain);
+
+        Turn head = scratch(turns, "head");
+        Turn torso = scratch(turns, "torso");
+        Turn rightArm = scratch(turns, "rightArm");
+        Turn leftArm = scratch(turns, "leftArm");
+        Turn rightLeg = scratch(turns, "rightLeg");
+        Turn leftLeg = scratch(turns, "leftLeg");
 
         head.x = character.lookPitch;
         head.y = character.lookYaw;
@@ -66,13 +77,6 @@ public final class Pose {
             head.x = rotLerp(character.swimAmount, head.x, -Math.PI / 4);
         }
 
-        // the arms lead the legs by half a cycle, which is what makes a walk look like a walk.
-        // all four are divided by the stride, exactly as the model divides them
-        double stride = character.speedValue;
-        rightArm.x = Math.cos(phase + Math.PI) * 2.0 * gain * 0.5 / stride;
-        leftArm.x = Math.cos(phase) * 2.0 * gain * 0.5 / stride;
-        rightLeg.x = Math.cos(phase) * 1.4 * gain / stride;
-        leftLeg.x = Math.cos(phase + Math.PI) * 1.4 * gain / stride;
         // a hair of yaw and roll so the two legs are never coplanar and never z fight
         rightLeg.y = 0.005;
         rightLeg.z = 0.005;
@@ -125,18 +129,50 @@ public final class Pose {
         if (Rig.joint(character, Rig.ROOT) instanceof Joint hinge) {
             Instances.setObj(hinge, TRANSFORM, root(character, ageInTicks));
         }
-        turn(character, "head", head, scale);
-        turn(character, "torso", torso, scale);
-        turn(character, "rightArm", rightArm, scale);
-        turn(character, "leftArm", leftArm, scale);
-        turn(character, "rightLeg", rightLeg, scale);
-        turn(character, "leftLeg", leftLeg, scale);
+        // every joint the walk or a stage touched, which is the six and whatever else the body has
+        for (Map.Entry<String, Turn> one : turns.entrySet()) {
+            turn(character, one.getKey(), one.getValue(), scale);
+        }
         wings(character, scale);
         cape(character);
         spin(character, ageInTicks, scale);
         // the tracks a place is playing go over what this left, and only then do the joints
         // settle. a track that names a joint takes it; one that does not, leaves it walking
         Animators.apply(character);
+    }
+
+    // the walk, read off the body rather than written into the engine
+    //
+    // every joint whose limb declares a swing takes part, at the amplitude and the phase that limb
+    // states. the six the model names are set up with the model's own numbers when the rig is built,
+    // so this produces exactly what the six lines it replaced produced -- and a tail hung on
+    // afterwards swings too, which is the whole point
+    //
+    // divided by the stride, exactly as the model divides it: a body that covers more ground per step
+    // swings its legs less rather than faster
+    private static void walk(Character character, Map<String, Turn> turns, double phase,
+                             double gain) {
+        double stride = character.speedValue;
+        if (!(character.child(Rig.JOINTS) instanceof Instance joints)) return;
+        for (Instance child : joints.children()) {
+            if (!(child instanceof Joint hinge) || !(hinge.part1 instanceof Limb limb)) continue;
+            // nothing is written for a limb that declares no swing, rather than an identity: a
+            // joint the walk has no opinion about is one a place may be writing itself, and zeroing
+            // it every tick would be the engine quietly taking it back
+            if (limb.swing == 0) continue;
+            Turn turn = scratch(turns, child.name());
+            double swung = Math.cos(phase + limb.swingPhase * Math.PI * 2)
+                    * limb.swing * gain / stride;
+            if (limb.swingSideways) {
+                turn.y += swung;
+            } else {
+                turn.x += swung;
+            }
+        }
+    }
+
+    private static Turn scratch(Map<String, Turn> turns, String joint) {
+        return turns.computeIfAbsent(joint, name -> new Turn());
     }
 
     // how the whole body is hung, before any limb is posed
@@ -199,7 +235,7 @@ public final class Pose {
     // this order is the model's and it is not decoration: a two handed pose writes both arms, so
     // posing the other one afterwards would undo half of it. the used hand goes first when a use
     // is held, and the main hand goes first otherwise unless the off hand is the two handed one
-    private static void arms(Character character, Limb head, Limb rightArm, Limb leftArm) {
+    private static void arms(Character character, Turn head, Turn rightArm, Turn leftArm) {
         boolean rightHanded = !character.mainLeft;
         boolean first;
         if (character.usingItem) {
@@ -220,7 +256,7 @@ public final class Pose {
         }
     }
 
-    private static void poseRight(Character character, Limb head, Limb rightArm, Limb leftArm) {
+    private static void poseRight(Character character, Turn head, Turn rightArm, Turn leftArm) {
         switch (character.rightArmPose) {
             case EMPTY -> rightArm.y = 0;
             case BLOCK -> block(head, rightArm, true);
@@ -256,7 +292,7 @@ public final class Pose {
         }
     }
 
-    private static void poseLeft(Character character, Limb head, Limb rightArm, Limb leftArm) {
+    private static void poseLeft(Character character, Turn head, Turn rightArm, Turn leftArm) {
         switch (character.leftArmPose) {
             case EMPTY -> leftArm.y = 0;
             case BLOCK -> block(head, leftArm, false);
@@ -294,16 +330,16 @@ public final class Pose {
 
     // a shield goes up in front of the face and follows it, within limits: the head can look past
     // the shield without dragging it off the body
-    private static void block(Limb head, Limb arm, boolean right) {
+    private static void block(Turn head, Turn arm, boolean right) {
         arm.x = arm.x * 0.5 - 0.9424779 + clamp(head.x, -Math.PI * 4.0 / 9.0, 0.43633232);
         arm.y = (right ? -30.0 : 30.0) * (Math.PI / 180.0)
                 + clamp(head.y, -Math.PI / 6, Math.PI / 6);
     }
 
     // winding a crossbow: the holding arm is still and the pulling one comes across as it winds
-    private static void charge(Character character, Limb rightArm, Limb leftArm, boolean right) {
-        Limb holding = right ? rightArm : leftArm;
-        Limb pulling = right ? leftArm : rightArm;
+    private static void charge(Character character, Turn rightArm, Turn leftArm, boolean right) {
+        Turn holding = right ? rightArm : leftArm;
+        Turn pulling = right ? leftArm : rightArm;
         holding.y = right ? -0.8 : 0.8;
         holding.x = -0.97079635;
         pulling.x = holding.x;
@@ -312,9 +348,9 @@ public final class Pose {
         pulling.x = lerp(wound, pulling.x, -Math.PI / 2);
     }
 
-    private static void hold(Limb head, Limb rightArm, Limb leftArm, boolean right) {
-        Limb holding = right ? rightArm : leftArm;
-        Limb shooting = right ? leftArm : rightArm;
+    private static void hold(Turn head, Turn rightArm, Turn leftArm, boolean right) {
+        Turn holding = right ? rightArm : leftArm;
+        Turn shooting = right ? leftArm : rightArm;
         holding.y = (right ? -0.3 : 0.3) + head.y;
         shooting.y = (right ? 0.6 : -0.6) + head.y;
         holding.x = -Math.PI / 2 + head.x + 0.1;
@@ -330,8 +366,8 @@ public final class Pose {
     // the arms are siblings of the torso, so they do not inherit the twist: the model adds it to
     // their yaw and walks their joints round the turn by hand, which is why this moves joints at
     // all. a swing that only rotates the arm is the one that looks like a puppet
-    private static void swing(Character character, Limb head, Limb torso,
-                              Limb rightArm, Limb leftArm) {
+    private static void swing(Character character, Turn head, Turn torso,
+                              Turn rightArm, Turn leftArm) {
         double attack = character.attackTime;
         if (attack <= 0) return;
 
@@ -355,7 +391,7 @@ public final class Pose {
         // the swing is aimed where the head looks, so looking up throws the arm further back
         double aim = Math.sin(attack * Math.PI) * -(head.x - 0.7) * 0.75;
 
-        Limb arm = character.attackLeft ? leftArm : rightArm;
+        Turn arm = character.attackLeft ? leftArm : rightArm;
         arm.x -= reach * 1.2 + aim;
         arm.y += twist * 2.0;
         arm.z += Math.sin(attack * Math.PI) * -0.4;
@@ -365,8 +401,8 @@ public final class Pose {
     //
     // the two arms are blended with different functions in the model -- the left wraps its angles
     // and the right does not. that is copied rather than tidied: tidying it changes the pose
-    private static void swim(Character character, Limb rightArm, Limb leftArm,
-                             Limb rightLeg, Limb leftLeg) {
+    private static void swim(Character character, Turn rightArm, Turn leftArm,
+                             Turn rightLeg, Turn leftLeg) {
         double amount = character.swimAmount;
         if (amount <= 0) return;
 
@@ -429,8 +465,8 @@ public final class Pose {
     private static void wings(Character character, double scale) {
         Wings pair = Rig.wings(character);
         if (pair == null || !pair.worn) return;
-        Limb right = new Limb();
-        Limb left = new Limb();
+        Turn right = new Turn();
+        Turn left = new Turn();
 
         left.x = pair.x;
         left.y = pair.y;
@@ -455,7 +491,7 @@ public final class Pose {
     private static void spin(Character character, double ageInTicks, double scale) {
         if (!character.spinning) return;
         for (int n = 0; n < Rig.SPIN.length; n++) {
-            Limb shell = new Limb();
+            Turn shell = new Turn();
             shell.y = -Math.toRadians(wrapDegrees(ageInTicks * -(45.0 + (n + 1) * 5.0)));
             turn(character, Rig.SPIN[n], shell, scale);
         }
@@ -493,7 +529,7 @@ public final class Pose {
 
     // the turn at a joint, and nothing else. where the joint stands is the rig's and is not
     // touched here, which is why a pose can no longer lose one
-    private static void turn(Character character, String name, Limb limb, double scale) {
+    private static void turn(Character character, String name, Turn limb, double scale) {
         if (!(Rig.joint(character, name) instanceof Joint hinge)) return;
         // z, then y, then x -- the order the model composes them in, which is rotationZYX. we had
         // y and z the other way round, and two rotations do not commute
