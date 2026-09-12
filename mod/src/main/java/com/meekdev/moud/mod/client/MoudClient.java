@@ -39,6 +39,9 @@ public final class MoudClient implements ClientModInitializer {
             float partialTick = Minecraft.getInstance().getDeltaTracker()
                     .getGameTimeDeltaPartialTick(true);
             Skins.gather(partialTick);
+            // every number behind this frame of your own body, while it is standing on something
+            // that moves. it writes itself and stops, so there is nothing to turn on
+            Trace.frame(partialTick);
             if (ClientScene.motion().takeStillChanged()) Parts.invalidateStill();
         });
     }
