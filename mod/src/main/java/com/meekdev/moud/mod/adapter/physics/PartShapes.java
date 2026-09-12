@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.adapter.physics;
 import com.meekdev.box3d.B3Hull;
 import com.meekdev.bkun.api.SubLevels;
 import com.meekdev.bkun.sublevel.SubLevelModel;
+import com.meekdev.box3d.Quat;
 import com.meekdev.moud.core.math.Vec3;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +43,7 @@ public final class PartShapes {
         if (unit == null) unit = B3Hull.bake(UNIT_CUBE, 8);
         B3Hull hull = unit.transformed(
                 new com.meekdev.box3d.Vec3(0, 0, 0),
-                new com.meekdev.box3d.Quat(0, 0, 0, 1),
+                new Quat(0, 0, 0, 1),
                 new com.meekdev.box3d.Vec3(size.x(), size.y(), size.z()));
 
         double hx = size.x() * 0.5;

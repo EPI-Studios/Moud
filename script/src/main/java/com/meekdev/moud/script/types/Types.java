@@ -1,5 +1,6 @@
 package com.meekdev.moud.script.types;
 
+import com.meekdev.moud.core.clazz.EventDef;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.clazz.PropertyDef;
@@ -201,7 +202,7 @@ public final class Types {
             out.append("    worldCframe: CFrame\n");
         }
 
-        for (com.meekdev.moud.core.clazz.EventDef event : def.events()) {
+        for (EventDef event : def.events()) {
             // every event carries the instance it happened to, so one shape covers all of them
             out.append("    ").append(event.name()).append(": InstanceSignal\n");
         }

@@ -45,6 +45,8 @@ public final class CameraApi implements CameraRef {
 
     @Override
     public CameraRef.Ray screenToRay(double x, double y) {
+        // spelled out because Ray is taken: this class implements CameraRef, and an inherited
+        // nested type shadows a single type import
         com.meekdev.amnetic.client.camera.Ray ray = AmneticCamera.screenToRay(x, y);
         return new CameraRef.Ray(ours(ray.origin()), ours(ray.direction()));
     }

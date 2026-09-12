@@ -1,5 +1,6 @@
 package com.meekdev.moud.core.instance;
 
+import com.meekdev.moud.core.math.Vec3;
 import com.meekdev.moud.core.clazz.Prop;
 import com.meekdev.moud.core.event.Signal;
 
@@ -42,7 +43,7 @@ public final class Humanoid extends Instance {
     //
     // a body with somewhere to go walks there on its own: this is how a place makes anything that
     // is not a player move, and it is the one thing our characters could not do at all
-    public com.meekdev.moud.core.math.Vec3 walkTo = com.meekdev.moud.core.math.Vec3.ZERO;
+    public Vec3 walkTo = Vec3.ZERO;
 
     public boolean walking;
 
