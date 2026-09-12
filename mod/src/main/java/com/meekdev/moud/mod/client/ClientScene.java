@@ -15,6 +15,8 @@ import com.meekdev.moud.mod.adapter.physics.Characters;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
 import com.meekdev.moud.mod.adapter.render.PartLight;
 import net.minecraft.client.Minecraft;
+import com.meekdev.moud.mod.adapter.render.Skins;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -59,6 +61,12 @@ public final class ClientScene {
             // mirror is the server's answer to a move you made several ticks ago, and a body that
             // arrives late is the one thing you are guaranteed to be looking at
             if (character == own && me != null) Characters.drive(character, me);
+            // what the body looks like, from what this client can see of whoever wears it. the
+            // server has no view of a player's sheet or of the lagging position a cape reads
+            if (Skins.wearerOf(character) instanceof AbstractClientPlayer wearer) {
+                Characters.fit(character, wearer);
+                Characters.dress(character, wearer, 1.0f);
+            }
             if (character.animate) {
                 Pose.apply(character, age(character));
             } else {

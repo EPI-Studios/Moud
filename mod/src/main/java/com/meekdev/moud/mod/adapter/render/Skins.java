@@ -13,6 +13,7 @@ import com.meekdev.moud.core.instance.Appearance;
 import com.meekdev.moud.core.instance.Camera;
 import com.meekdev.moud.core.instance.CameraMode;
 import com.meekdev.moud.core.instance.FirstPerson;
+import com.meekdev.moud.core.instance.Cape;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.CharacterDisplay;
 import com.meekdev.moud.core.instance.Instance;
@@ -169,19 +170,24 @@ public final class Skins {
             case Rig.SHEET_RIPTIDE -> {
                 return RIPTIDE;
             }
-            case Rig.SHEET_CAPE, Rig.SHEET_ELYTRA -> {
+            case Rig.SHEET_CAPE -> {
+                // a cape nobody has is nothing rather than a default one: the game draws no cape on
+                // a player without one, and a place that wants one writes a path on the cape itself
+                if (wearer != null && wearer.getSkin().cape() != null) {
+                    return wearer.getSkin().cape().texturePath();
+                }
+                return null;
+            }
+            case Rig.SHEET_ELYTRA -> {
                 Wings pair = Rig.wings(character);
                 if (pair != null && !pair.skin.isEmpty()) return Identifier.tryParse(pair.skin);
                 if (wearer != null) {
                     PlayerSkin skin = wearer.getSkin();
-                    if (Rig.SHEET_ELYTRA.equals(asked) && skin.elytra() != null) {
-                        return skin.elytra().texturePath();
-                    }
+                    if (skin.elytra() != null) return skin.elytra().texturePath();
                     if (skin.cape() != null) return skin.cape().texturePath();
                 }
-                // a cape nobody has is nothing rather than a default one. an elytra is a real item
-                // and always has a look
-                return Rig.SHEET_ELYTRA.equals(asked) ? ELYTRA : null;
+                // an elytra is a real item and always has a look
+                return ELYTRA;
             }
             default -> { }
         }
@@ -209,7 +215,9 @@ public final class Skins {
     // drawing it anyway puts a hat back on someone who took it off, and a jacket over a skin drawn
     // to be seen without one
     private static boolean shows(@Nullable AbstractClientPlayer wearer, Limb limb) {
-        if (wearer == null || !Rig.OVERLAY.equals(limb.name())) return true;
+        if (wearer == null) return true;
+        if (limb instanceof Cape) return wearer.isModelPartShown(PlayerModelPart.CAPE);
+        if (!Rig.OVERLAY.equals(limb.name())) return true;
         Instance covers = limb.parent();
         PlayerModelPart part = covers == null ? null : switch (covers.name()) {
             case "head" -> PlayerModelPart.HAT;
@@ -321,7 +329,7 @@ public final class Skins {
         return DefaultPlayerSkin.getDefaultSkin().body().texturePath();
     }
 
-    private static @Nullable AbstractClientPlayer wearerOf(Character character) {
+    public static @Nullable AbstractClientPlayer wearerOf(Character character) {
         if (character == null || character.owner.isEmpty()) return null;
         Minecraft client = Minecraft.getInstance();
         if (client.level == null) return null;

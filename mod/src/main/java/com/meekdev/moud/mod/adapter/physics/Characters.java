@@ -35,6 +35,10 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.level.block.AbstractSkullBlock;
 import net.minecraft.world.level.block.SkullBlock;
 import net.minecraft.core.Direction;
+import com.meekdev.moud.core.instance.Cape;
+import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.entity.ClientAvatarState;
+import net.minecraft.world.entity.player.PlayerModelType;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.server.level.ServerPlayer;
@@ -147,6 +151,64 @@ public final class Characters {
     // where a body is and how it is standing, from the player it belongs to. the client drives
     // your own through here too, off its own player: the state that went to the server and came
     // back is several ticks old, and a body that walks after you do is not the same body
+    private static final PropertyDef SLIM = Classes.APPEARANCE.property("slim");
+    private static final PropertyDef CAPE_FLAP = Classes.CAPE.property("flap");
+    private static final PropertyDef CAPE_LEAN = Classes.CAPE.property("lean");
+    private static final PropertyDef CAPE_SWAY = Classes.CAPE.property("sway");
+
+    // how a cape hangs, which is not animated at all
+    //
+    // the game drags a second, lagging position behind the player and reads the gap between the
+    // two. that one vector is the whole effect: a cape lifts when you fall, flares out when you
+    // run, and swings to the side when you turn, and nobody keyframed any of it
+    //
+    // client only, because the lagging position is. a cape is a thing this client can see and the
+    // server has no opinion about -- so a place on the server that writes these is overwritten on
+    // the next frame, and a place on the client is not
+    public static void dress(Character character, AbstractClientPlayer wearer, float partialTick) {
+        if (!(character.child("torso") instanceof Instance torso)) return;
+        if (!(torso.child(Rig.CAPE) instanceof Cape cape)) return;
+
+        ClientAvatarState state = wearer.avatarState();
+        double deltaX = state.getInterpolatedCloakX(partialTick)
+                - Mth.lerp(partialTick, wearer.xo, wearer.getX());
+        double deltaY = state.getInterpolatedCloakY(partialTick)
+                - Mth.lerp(partialTick, wearer.yo, wearer.getY());
+        double deltaZ = state.getInterpolatedCloakZ(partialTick)
+                - Mth.lerp(partialTick, wearer.zo, wearer.getZ());
+
+        // the direction the body faces, not the direction it is looking
+        float facing = Mth.rotLerp(partialTick, wearer.yBodyRotO, wearer.yBodyRot);
+        double forwardX = Mth.sin(facing * (float) (Math.PI / 180.0));
+        double forwardZ = -Mth.cos(facing * (float) (Math.PI / 180.0));
+
+        // under a wing the lean is given up: the cape is the wing, and leaning it as well would
+        // fold it into the back
+        double wing = Mth.clamp(character.flyingTime * character.flyingTime / 100.0, 0.0, 1.0);
+
+        double flap = Mth.clamp(deltaY * 10.0, -6.0, 32.0)
+                // and the bob of a walk on top, which is what makes it ripple rather than trail
+                + Math.sin(state.getInterpolatedWalkDistance(partialTick) * 6.0) * 32.0
+                        * state.getInterpolatedBob(partialTick);
+        double lean = Mth.clamp((deltaX * forwardX + deltaZ * forwardZ) * 100.0 * (1.0 - wing),
+                0.0, 150.0);
+        double sway = Mth.clamp((deltaX * forwardZ - deltaZ * forwardX) * 100.0, -20.0, 20.0);
+
+        Instances.setNum(cape, CAPE_FLAP, flap);
+        Instances.setNum(cape, CAPE_LEAN, lean);
+        Instances.setNum(cape, CAPE_SWAY, sway);
+    }
+
+    // whether this body's sheet draws slim arms, written where every reader can see it
+    //
+    // the renderer used to work it out privately from the player's skin and narrow the arm on the
+    // way to the batch. so the arm was drawn three texels wide while the tree still said four, and
+    // the hand that holds a sword, and a ray reaching for that arm, both used the four
+    public static void fit(Character character, AbstractClientPlayer wearer) {
+        if (!(Rig.appearance(character) instanceof Appearance look)) return;
+        Instances.setBool(look, SLIM, wearer.getSkin().model() == PlayerModelType.SLIM);
+    }
+
     public static void drive(Character character, Player player) {
         // the body faces where the body faces, which is not where the player is looking. yRot is
         // the aim; yBodyRot lags it and only gets dragged round once the head has turned far

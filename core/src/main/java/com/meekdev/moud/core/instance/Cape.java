@@ -15,7 +15,4 @@ public final class Cape extends Limb {
     public double flap;
     public double lean;
     public double sway;
-
-    // the sheet it is cut from. empty means the wearer's own
-    public String skin = "";
 }
