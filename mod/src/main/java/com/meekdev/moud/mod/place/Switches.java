@@ -19,11 +19,10 @@ public final class Switches {
         // straight through ours -- which reads as our renderer being broken rather than as a
         // switch nobody lowered
 
-        // the hand is the game's own for now, because ours does not exist: it is a separate path
-        // from the body renderer and nothing has been drawn down it. with the switch down there
-        // was no hand at all in first person, which is further from the game than borrowing its
-        // one. it comes down again the day a character's own arm is drawn there
-        features.set(Feature.HAND, true);
+        // down, because ours is drawn now. the game's hand went back up while there was nothing
+        // to replace it, which was further from the game than borrowing its one; a place that
+        // wants it back raises this and ours steps aside
+        features.set(Feature.HAND, false);
 
         // a name over a body is the game's own, drawn from the game's own state. ours would be a
         // ui layer that does not exist yet
