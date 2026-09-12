@@ -83,6 +83,11 @@ public final class Codec {
             }
         }
 
+        // an instance this side cannot name a class for has been destroyed since the write was
+        // recorded, which is a race and not a fault: the recorder saw it change and then it went. the
+        // far side would have nothing to apply it to either way
+        wrote.keySet().removeIf(id -> classOf(id, made, tree) == null);
+
         out.varint(wrote.size());
         for (Map.Entry<Integer, Map<Integer, Object>> entry : wrote.entrySet()) {
             int id = entry.getKey();

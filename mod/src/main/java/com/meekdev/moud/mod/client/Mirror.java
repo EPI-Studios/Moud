@@ -5,14 +5,19 @@ import com.meekdev.moud.mod.server.ServerScene;
 import com.meekdev.moud.net.replicate.Applier;
 import com.meekdev.moud.net.replicate.Change;
 import com.meekdev.moud.net.replicate.Recorder;
+import com.meekdev.moud.net.wire.Codec;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 // the client renders its own copy, never the server's tree. sharing one would race: the place adds
-// a hundred thousand parts on the server thread while the renderer walks the same list.
-// this is the in process stand in for design 10 and it goes when the real transport lands
+// a hundred thousand parts on the server thread while the renderer walks the same list
+//
+// and the copy is made out of bytes even here, where the two sides are one process and handing the
+// objects over would obviously work. §10.2 is explicit about it and it is the right call: a codec bug
+// that only shows once the bytes are real is one nobody meets until the first time two people play
+// together, which is far too late to be finding out that a colour does not survive the trip
 public final class Mirror {
 
     // one entry per server tick, not one per change
@@ -25,7 +30,7 @@ public final class Mirror {
     private static final int BACKLOG = 2;
 
     private static final Recorder RECORDER = new Recorder();
-    private static final Queue<List<Change>> QUEUE = new ConcurrentLinkedQueue<>();
+    private static final Queue<byte[]> QUEUE = new ConcurrentLinkedQueue<>();
     private static final Applier APPLIER = new Applier(Addons.classes());
 
     private Mirror() {}
@@ -44,7 +49,7 @@ public final class Mirror {
         for (Change change : batch) also.accept(change);
         // a quiet tick is queued too, because it is what tells the client that a tick happened
         // and nothing moved. dropping it would let the queue pace on busy ticks alone
-        QUEUE.add(batch);
+        QUEUE.add(Codec.encode(batch, ServerScene.tree(), Addons.classes()));
     }
 
     // client thread: everything the client tree ever sees is applied here, one server tick's worth
@@ -53,8 +58,9 @@ public final class Mirror {
     public static void apply(java.util.function.Consumer<Change> also) {
         int ticks = Math.max(1, QUEUE.size() - BACKLOG + 1);
         for (int n = 0; n < ticks; n++) {
-            List<Change> batch = QUEUE.poll();
-            if (batch == null) return;
+            byte[] packet = QUEUE.poll();
+            if (packet == null) return;
+            List<Change> batch = Codec.decode(packet, APPLIER.tree(), Addons.classes());
             for (int i = 0; i < batch.size(); i++) {
                 APPLIER.apply(batch.get(i));
                 also.accept(batch.get(i));
