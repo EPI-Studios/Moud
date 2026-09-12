@@ -148,7 +148,7 @@ public final class Skins {
                         register(id);
                         return new ArrayList<>();
                     });
-                    emit(limb, solid, into, partialTick);
+                    emit(character, limb, solid, into, partialTick);
                 }
             }
             // a limb that is switched off still holds up what hangs on it, so this does not stop
@@ -241,7 +241,8 @@ public final class Skins {
         return Minecraft.getInstance().options.getCameraType().isFirstPerson();
     }
 
-    private static void emit(Limb limb, float solid, List<Worn> into, float partialTick) {
+    private static void emit(Character character, Limb limb, float solid, List<Worn> into,
+                             float partialTick) {
         // sampled at the frame's own fraction of the tick, the way every other part is. reading the
         // live property drew the body at twenty a second while the world around it was smooth,
         // which reads as the body lagging behind the camera rather than as a missing sample
@@ -258,7 +259,8 @@ public final class Skins {
         into.add(new Worn(transform,
                 new Vector4f((float) tint.r(), (float) tint.g(), (float) tint.b(),
                         (float) (1.0 - limb.transparency) * solid),
-                PartLight.of(limb, at),
+                // the body's light, not the limb's: one answer for all of it
+                PartLight.of(character, at),
                 new Vector4f((float) limb.u, (float) limb.v,
                         (float) limb.texels.x(), (float) limb.texels.y()),
                 new Vector2f((float) limb.texels.z(), limb.cutout ? 1f : 0f),

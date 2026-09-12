@@ -86,7 +86,16 @@ public final class InstanceTree {
             byId = grown;
         }
         byId[slot] = i;
-        byClass.computeIfAbsent(i.def(), k -> new ArrayList<>()).add(i);
+        // under its own class and under every class it is one of
+        //
+        // isA has always been inheritance aware and this was not, which is a trap that goes off the
+        // first time a class gains a subclass: turning every box of a body into a Limb quietly took
+        // all of them out of ofClass(Part), and the one thing that reads that list is what keeps
+        // their lighting up to date. every caller means "everything that is a Part" -- nobody has
+        // ever wanted exactly-this-class, and if they did they would test def() themselves
+        for (ClassDef<?> c = i.def(); c != null; c = c.parent()) {
+            byClass.computeIfAbsent(c, k -> new ArrayList<>()).add(i);
+        }
         for (Stage stage : Stage.ORDER) {
             if (!i.def().takesPart(stage)) continue;
             List<Instance> list = byStage[stage.ordinal()];
@@ -145,8 +154,10 @@ public final class InstanceTree {
     void unindex(Instance i) {
         int slot = i.id < 0 ? -i.id : i.id;
         if (slot < byId.length && byId[slot] == i) byId[slot] = null;
-        List<Instance> list = byClass.get(i.def());
-        if (list != null) list.remove(i);
+        for (ClassDef<?> c = i.def(); c != null; c = c.parent()) {
+            List<Instance> list = byClass.get(c);
+            if (list != null) list.remove(i);
+        }
         for (Stage stage : Stage.ORDER) {
             if (!i.def().takesPart(stage)) continue;
             List<Instance> staged = byStage[stage.ordinal()];

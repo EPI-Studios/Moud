@@ -53,6 +53,25 @@ public final class PlaceInspector extends Inspector {
         row("dirty", tree == null ? 0 : tree.dirtyCount());
 
         ImGui.separator();
+        ImGui.text("steadiness");
+        // the peak to peak of the last second, in millimetres, for the two things that can shake
+        // independently: where the body actually is, and where the camera actually is
+        //
+        // they are separate on purpose. a body that is still under a camera that is not means the
+        // shake is in the view, and the view is drawn by the game in first person and by us in
+        // third -- so which of the two moves, and whether it stops in third person, says where to
+        // look. anything under a millimetre is the floating point of a rotation and is not a shake
+        Shake.sample();
+        text("body y", Shake.body());
+        text("camera y", Shake.camera());
+        text("camera xz", Shake.cameraFlat());
+        text("camera yaw", Shake.cameraYaw());
+        // and what the game thinks you are doing, because the view bob is driven from it and bob
+        // is a vertical wobble that only exists in first person
+        text("bob", Shake.bob());
+        text("riding", Shake.riding());
+
+        ImGui.separator();
         ImGui.text("collision");
         row("boxes (server)", Physics.boxes().size());
         // the client set is the one the player actually collides against

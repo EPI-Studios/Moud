@@ -4,6 +4,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Character;
+import com.meekdev.moud.core.instance.Limb;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Animators;
 import com.meekdev.moud.core.instance.Stage;
@@ -82,7 +83,17 @@ public final class ClientScene {
         // the light a part stands in, once a tick. reading it per frame would be a chunk lookup per
         // part per frame for a value that changes when someone places a torch
         for (Part part : tree.ofClass(Classes.PART)) {
+            // a limb takes the light of the body it belongs to, once, below. sampling each of the
+            // thirty boxes a body is made of would be thirty chunk lookups for one answer, and it
+            // would be the wrong answer: a body straddling the edge of a torch's reach would have
+            // one arm lit and the other dark, which the game never does
+            if (part instanceof Limb) continue;
             PartLight.refresh(part, MOTION.sample(part).position());
+        }
+        // one sample for a whole body, at the body's own position, the way the game takes one for a
+        // whole entity
+        for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
+            PartLight.refresh(instance, MOTION.sample(instance).position());
         }
     }
 

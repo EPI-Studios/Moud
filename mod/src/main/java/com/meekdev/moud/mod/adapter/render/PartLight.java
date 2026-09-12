@@ -2,8 +2,8 @@ package com.meekdev.moud.mod.adapter.render;
 
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.math.Vec3;
-import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.WeakHashMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.core.BlockPos;
@@ -20,7 +20,10 @@ public final class PartLight {
 
     private static final Vector2f FULL = new Vector2f(240f, 240f);
 
-    private static final Map<Instance, Vector2f> BY_PART = new IdentityHashMap<>();
+    // weakly held, because nothing ever told it a part had gone. an identity map kept an entry for
+    // every destroyed part and every body a respawn replaced, which is a leak that only ever grows.
+    // an instance has no equals of its own, so a weak map is an identity map that tidies up
+    private static final Map<Instance, Vector2f> BY_PART = new WeakHashMap<>();
 
     private PartLight() {}
 
