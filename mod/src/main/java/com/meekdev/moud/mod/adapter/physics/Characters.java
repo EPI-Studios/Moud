@@ -16,6 +16,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
+import com.meekdev.moud.core.instance.ArmPose;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
@@ -50,6 +55,12 @@ public final class Characters {
     private static final PropertyDef DEATH_TIME = Classes.CHARACTER.property("deathTime");
     private static final PropertyDef SLEEPING = Classes.CHARACTER.property("sleeping");
     private static final PropertyDef BED_YAW = Classes.CHARACTER.property("bedYaw");
+    private static final PropertyDef MAIN_LEFT = Classes.CHARACTER.property("mainLeft");
+    private static final PropertyDef RIGHT_ARM_POSE = Classes.CHARACTER.property("rightArmPose");
+    private static final PropertyDef LEFT_ARM_POSE = Classes.CHARACTER.property("leftArmPose");
+    private static final PropertyDef USING_ITEM = Classes.CHARACTER.property("usingItem");
+    private static final PropertyDef USE_LEFT_HAND = Classes.CHARACTER.property("useLeftHand");
+    private static final PropertyDef CHARGE = Classes.CHARACTER.property("chargeProgress");
     private static final PropertyDef CRAWLING = Classes.CHARACTER.property("crawling");
     private static final PropertyDef SPINNING = Classes.CHARACTER.property("spinning");
     private static final PropertyDef FROZEN = Classes.CHARACTER.property("frozen");
@@ -175,6 +186,57 @@ public final class Characters {
         Instances.setBool(character, FROZEN, player.isFullyFrozen());
         // the same condition the model washes a body red on: still bleeding, or already down
         Instances.setBool(character, HURT, player.hurtTime > 0 || player.deathTime > 0);
+
+        boolean mainLeft = player.getMainArm() == HumanoidArm.LEFT;
+        Instances.setBool(character, MAIN_LEFT, mainLeft);
+        Instances.setBool(character, USING_ITEM, player.isUsingItem());
+        Instances.setBool(character, USE_LEFT_HAND,
+                (player.getUsedItemHand() == InteractionHand.OFF_HAND) != mainLeft);
+        Instances.setObj(character, RIGHT_ARM_POSE, armPose(player, HumanoidArm.RIGHT));
+        Instances.setObj(character, LEFT_ARM_POSE, armPose(player, HumanoidArm.LEFT));
+        Instances.setNum(character, CHARGE, charge(player));
+    }
+
+    // what each arm is doing, chosen the way the model chooses it: a two handed main hand takes
+    // the off hand over, and an empty off hand behind one is simply empty
+    private static ArmPose armPose(Player player, HumanoidArm arm) {
+        ItemStack main = player.getItemInHand(InteractionHand.MAIN_HAND);
+        ItemStack off = player.getItemInHand(InteractionHand.OFF_HAND);
+        ArmPose mainPose = poseOf(player, main, InteractionHand.MAIN_HAND);
+        ArmPose offPose = poseOf(player, off, InteractionHand.OFF_HAND);
+        if (mainPose.twoHanded()) offPose = off.isEmpty() ? ArmPose.EMPTY : ArmPose.ITEM;
+        return player.getMainArm() == arm ? mainPose : offPose;
+    }
+
+    private static ArmPose poseOf(Player player, ItemStack held, InteractionHand hand) {
+        if (held.isEmpty()) return ArmPose.EMPTY;
+        if (!player.swinging && held.is(Items.CROSSBOW) && CrossbowItem.isCharged(held)) {
+            return ArmPose.CROSSBOW_HOLD;
+        }
+        if (player.getUsedItemHand() == hand && player.getUseItemRemainingTicks() > 0) {
+            return switch (held.getUseAnimation()) {
+                case BLOCK -> ArmPose.BLOCK;
+                case BOW -> ArmPose.BOW;
+                case TRIDENT -> ArmPose.TRIDENT;
+                case CROSSBOW -> ArmPose.CROSSBOW_CHARGE;
+                case SPYGLASS -> ArmPose.SPYGLASS;
+                case TOOT_HORN -> ArmPose.HORN;
+                case BRUSH -> ArmPose.BRUSH;
+                default -> ArmPose.ITEM;
+            };
+        }
+        return ArmPose.ITEM;
+    }
+
+    // the model keeps ticks used and a maximum and reads nothing but their ratio, so that is what
+    // crosses rather than two numbers that only mean something together
+    private static double charge(Player player) {
+        ItemStack held = player.getUseItem();
+        if (held.isEmpty() || !held.is(Items.CROSSBOW)) return 0;
+        double max = CrossbowItem.getChargeDuration(held, player);
+        if (max <= 0) return 0;
+        double used = held.getUseDuration(player) - player.getUseItemRemainingTicks();
+        return Math.max(0, Math.min(1, used / max));
     }
 
     // how far the body is banking under a wing: the angle between where it is going and where it

@@ -62,8 +62,25 @@ public final class Character extends Spatial {
     // drown it. that is what customising a pose is here -- no limb is taken from anyone
     @Prop(min = 0, max = 1) public double attackTime;
 
-    // which arm the swing belongs to
+    // which arm the swing belongs to, which is not always the main one: swinging the off hand
+    // puts the blow on the other side
     public boolean attackLeft;
+
+    // which arm is the main one, which decides the order the two are posed in
+    public boolean mainLeft;
+
+    // what each arm is doing with what it holds
+    public ArmPose rightArmPose = ArmPose.EMPTY;
+    public ArmPose leftArmPose = ArmPose.EMPTY;
+
+    // holding a use down, and in which hand. the model poses the used hand first and only lets
+    // the other one have its own pose if the first did not already write it
+    public boolean usingItem;
+    public boolean useLeftHand;
+
+    // how far through winding a crossbow, which is the only thing the charge pose reads. the
+    // model keeps ticks and a maximum and uses nothing but their ratio
+    @Prop(min = 0, max = 1) public double chargeProgress;
 
     @Prop(min = 0, max = 1) public double swimAmount;
 

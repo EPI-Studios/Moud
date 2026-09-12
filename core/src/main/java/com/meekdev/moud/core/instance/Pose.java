@@ -91,6 +91,7 @@ public final class Pose {
             leftLeg.z = -0.07853982;
         }
 
+        arms(character, head, rightArm, leftArm);
         swing(character, head, torso, rightArm, leftArm);
 
         if (character.crouching) {
@@ -187,6 +188,138 @@ public final class Pose {
 
     private static Quat spin(Vec3 axis, double degrees) {
         return Quat.axisAngle(axis, Math.toRadians(degrees));
+    }
+
+
+    // which arm is posed first, and whether the other one gets its own pose at all
+    //
+    // this order is the model's and it is not decoration: a two handed pose writes both arms, so
+    // posing the other one afterwards would undo half of it. the used hand goes first when a use
+    // is held, and the main hand goes first otherwise unless the off hand is the two handed one
+    private static void arms(Character character, Limb head, Limb rightArm, Limb leftArm) {
+        boolean rightHanded = !character.mainLeft;
+        boolean first;
+        if (character.usingItem) {
+            first = (!character.useLeftHand) == rightHanded;
+        } else {
+            boolean twoHandedOffhand = rightHanded
+                    ? character.leftArmPose.twoHanded()
+                    : character.rightArmPose.twoHanded();
+            first = rightHanded == twoHandedOffhand;
+        }
+
+        if (first) {
+            poseRight(character, head, rightArm, leftArm);
+            if (!character.rightArmPose.affectsOther()) poseLeft(character, head, rightArm, leftArm);
+        } else {
+            poseLeft(character, head, rightArm, leftArm);
+            if (!character.leftArmPose.affectsOther()) poseRight(character, head, rightArm, leftArm);
+        }
+    }
+
+    private static void poseRight(Character character, Limb head, Limb rightArm, Limb leftArm) {
+        switch (character.rightArmPose) {
+            case EMPTY -> rightArm.y = 0;
+            case BLOCK -> block(head, rightArm, true);
+            case ITEM -> {
+                rightArm.x = rightArm.x * 0.5 - 0.31415927;
+                rightArm.y = 0;
+            }
+            case TRIDENT -> {
+                rightArm.x = rightArm.x * 0.5 - 3.1415927;
+                rightArm.y = 0;
+            }
+            case BOW -> {
+                rightArm.y = -0.1 + head.y;
+                leftArm.y = 0.1 + head.y + 0.4;
+                rightArm.x = -1.5707964 + head.x;
+                leftArm.x = -1.5707964 + head.x;
+            }
+            case CROSSBOW_CHARGE -> charge(character, rightArm, leftArm, true);
+            case CROSSBOW_HOLD -> hold(head, rightArm, leftArm, true);
+            case SPYGLASS -> {
+                rightArm.x = clamp(head.x - 1.9198622
+                        - (character.crouching ? 0.2617994 : 0), -2.4, 3.3);
+                rightArm.y = head.y - 0.2617994;
+            }
+            case HORN -> {
+                rightArm.x = clamp(head.x, -1.2, 1.2) - 1.4835298;
+                rightArm.y = head.y - 0.5235988;
+            }
+            case BRUSH -> {
+                rightArm.x = rightArm.x * 0.5 - 0.62831855;
+                rightArm.y = 0;
+            }
+        }
+    }
+
+    private static void poseLeft(Character character, Limb head, Limb rightArm, Limb leftArm) {
+        switch (character.leftArmPose) {
+            case EMPTY -> leftArm.y = 0;
+            case BLOCK -> block(head, leftArm, false);
+            case ITEM -> {
+                leftArm.x = leftArm.x * 0.5 - 0.31415927;
+                leftArm.y = 0;
+            }
+            case TRIDENT -> {
+                leftArm.x = leftArm.x * 0.5 - 3.1415927;
+                leftArm.y = 0;
+            }
+            case BOW -> {
+                rightArm.y = -0.1 + head.y - 0.4;
+                leftArm.y = 0.1 + head.y;
+                rightArm.x = -1.5707964 + head.x;
+                leftArm.x = -1.5707964 + head.x;
+            }
+            case CROSSBOW_CHARGE -> charge(character, rightArm, leftArm, false);
+            case CROSSBOW_HOLD -> hold(head, rightArm, leftArm, false);
+            case SPYGLASS -> {
+                leftArm.x = clamp(head.x - 1.9198622
+                        - (character.crouching ? 0.2617994 : 0), -2.4, 3.3);
+                leftArm.y = head.y + 0.2617994;
+            }
+            case HORN -> {
+                leftArm.x = clamp(head.x, -1.2, 1.2) - 1.4835298;
+                leftArm.y = head.y + 0.5235988;
+            }
+            case BRUSH -> {
+                leftArm.x = leftArm.x * 0.5 - 0.62831855;
+                leftArm.y = 0;
+            }
+        }
+    }
+
+    // a shield goes up in front of the face and follows it, within limits: the head can look past
+    // the shield without dragging it off the body
+    private static void block(Limb head, Limb arm, boolean right) {
+        arm.x = arm.x * 0.5 - 0.9424779 + clamp(head.x, -Math.PI * 4.0 / 9.0, 0.43633232);
+        arm.y = (right ? -30.0 : 30.0) * (Math.PI / 180.0)
+                + clamp(head.y, -Math.PI / 6, Math.PI / 6);
+    }
+
+    // winding a crossbow: the holding arm is still and the pulling one comes across as it winds
+    private static void charge(Character character, Limb rightArm, Limb leftArm, boolean right) {
+        Limb holding = right ? rightArm : leftArm;
+        Limb pulling = right ? leftArm : rightArm;
+        holding.y = right ? -0.8 : 0.8;
+        holding.x = -0.97079635;
+        pulling.x = holding.x;
+        double wound = character.chargeProgress;
+        pulling.y = lerp(wound, 0.4, 0.85) * (right ? 1 : -1);
+        pulling.x = lerp(wound, pulling.x, -Math.PI / 2);
+    }
+
+    private static void hold(Limb head, Limb rightArm, Limb leftArm, boolean right) {
+        Limb holding = right ? rightArm : leftArm;
+        Limb shooting = right ? leftArm : rightArm;
+        holding.y = (right ? -0.3 : 0.3) + head.y;
+        shooting.y = (right ? 0.6 : -0.6) + head.y;
+        holding.x = -Math.PI / 2 + head.x + 0.1;
+        shooting.x = -1.5 + head.x;
+    }
+
+    private static double clamp(double value, double low, double high) {
+        return value < low ? low : Math.min(value, high);
     }
 
     // the attack, which twists the whole torso and carries the shoulders round with it
