@@ -47,16 +47,19 @@ import org.joml.Vector4f;
 public final class Skins {
 
     private static final InstanceLayout LAYOUT =
-            InstanceLayout.builder().mat4(1).vec4(5).vec2(6).vec4(7).vec2(8).vec2(9).build();
+            InstanceLayout.builder().mat4(1).vec4(5).vec2(6).vec4(7).vec2(8).vec2(9).vec2(10).build();
 
     private record Worn(Matrix4f transform, Vector4f color, Vector2f light,
-                        Vector4f uv, Vector2f box, Vector2f overlay) {}
+                        Vector4f uv, Vector2f box, Vector2f overlay, Vector2f sheet) {}
 
     private static final Map<Identifier, Identifier> BATCHES = new HashMap<>();
     private static final Map<Identifier, List<Worn>> PACKED = new HashMap<>();
 
     // one body's wash, set once per character and read by each of its twelve parts
     private static final Vector2f OVERLAY = new Vector2f();
+
+    // every player skin, for the last decade
+    private static final Vector2f SHEET = new Vector2f(64f, 64f);
 
     private static final Matrix4f MATRIX = new Matrix4f();
     private static final Quaternionf ROTATION = new Quaternionf();
@@ -201,7 +204,8 @@ public final class Skins {
                 PartLight.of(part, at),
                 new Vector4f(box.u(), box.v(), box.w(), box.h()),
                 new Vector2f(box.d(), shell ? 1f : 0f),
-                new Vector2f(OVERLAY)));
+                new Vector2f(OVERLAY),
+                SHEET));
         drawn++;
     }
 
@@ -214,7 +218,8 @@ public final class Skins {
                                 .putVec2(inst.light().x, inst.light().y)
                                 .putVec4(inst.uv())
                                 .putVec2(inst.box().x, inst.box().y)
-                                .putVec2(inst.overlay().x, inst.overlay().y))
+                                .putVec2(inst.overlay().x, inst.overlay().y)
+                                .putVec2(inst.sheet().x, inst.sheet().y))
                 .shader(Identifier.fromNamespaceAndPath("moud", "instance/skin"))
                 .texture(texture)
                 .extraSampler("LightMap", Parts::lightMap, 1)

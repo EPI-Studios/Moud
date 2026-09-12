@@ -21,11 +21,13 @@ uniform mat4 ProjViewMatrix;
 uniform vec3 CameraPos;
 uniform int WorldSpace;
 
-// the layout below is stated in texels of a 64x64 skin and only makes sense against one, so this
-// is a constant rather than a uniform. it was a uniform, and amnetic has no way to feed one: it
-// stayed zero, every texel size divided by it, and the whole body sampled at infinity and
-// discarded -- a skin that is packed, counted, and never drawn
-const vec2 SkinSize = vec2(64.0, 64.0);
+// how big the sheet this box is cut from is, in texels
+//
+// it was a constant 64 by 64, which is every player skin and nothing else. the game cuts a parrot
+// out of 32 by 32, a bee stinger out of 16 by 16, a mob head out of 64 by 32, and an arrow out of
+// a sheet whose height is scaled to 25.6 -- so the size belongs to the box rather than to the
+// shader, and a layer that is not a skin can use the same unwrap
+layout(location = 10) in vec2 InstSheet;
 
 out vec4 vColor;
 out vec3 vPos;
@@ -90,7 +92,7 @@ void main() {
     vec2 within = faceCoord(face, Position);
 
     // half a texel in from every edge, so a face never bleeds into the one packed beside it
-    vec2 texel = vec2(1.0) / SkinSize;
+    vec2 texel = vec2(1.0) / InstSheet;
     vec2 uv = (rect.xy + within * rect.zw) * texel;
     vUv = clamp(uv, (rect.xy + 0.03) * texel, (rect.xy + rect.zw - 0.03) * texel);
 
