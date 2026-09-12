@@ -35,5 +35,9 @@ public final class Switches {
 
         // without it escape does nothing and there is no way out of the client yet
         features.set(Feature.PAUSE_MENU, true);
+
+        // raise it and standing on anything that moves writes a thousand frames of every number
+        // behind your own body to moud-trace.tsv in the run directory, then stops
+        features.set(Feature.TRACE, false);
     }
 }

@@ -5,6 +5,8 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.features.Feature;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
 import java.io.IOException;
 import java.io.Writer;
@@ -47,7 +49,7 @@ public final class Trace {
     private Trace() {}
 
     public static void frame(float partialTick) {
-        if (done) return;
+        if (done || !MoudMod.features().isOn(Feature.TRACE)) return;
         Minecraft client = Minecraft.getInstance();
         LocalPlayer me = client.player;
         if (me == null) return;
