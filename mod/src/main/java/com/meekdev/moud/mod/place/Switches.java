@@ -25,6 +25,10 @@ public final class Switches {
         // one. it comes down again the day a character's own arm is drawn there
         features.set(Feature.HAND, true);
 
+        // a name over a body is the game's own, drawn from the game's own state. ours would be a
+        // ui layer that does not exist yet
+        features.set(Feature.NAME_TAGS, true);
+
         // off, so a body casts the shadow its own shape makes rather than dropping a flat circle
         // under itself. a place that wants the game's circle back turns this on, and the body
         // stops casting its own

@@ -13,7 +13,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// suppresses entityRendering and playerModel
+// suppresses entityRendering and playerModel, and puts back the two things that are not
+// the model but are drawn in the same call: the shadow and the name
 //
 // on the submit, because that is where an entity is actually drawn now. shouldRender is still on
 // the dispatcher and nothing calls it any more: cancelling there suppressed nothing at all, and
@@ -40,6 +41,27 @@ abstract class EntityRenderMixin {
             poses.pushPose();
             poses.translate(x, y, z);
             out.submitShadow(poses, state.shadowRadius, state.shadowPieces);
+            poses.popPose();
+        }
+
+        // and the name, for the same reason: it is submitted inside the call we cancel, so a
+        // suppressed body took its name with it and nothing said so
+        //
+        // no switch of its own here. nameTags already decides, further back: with it down the
+        // state never gets a name to draw, so this finds nothing to submit
+        if (state.nameTag != null || state.scoreText != null) {
+            poses.pushPose();
+            poses.translate(x, y, z);
+            if (state.scoreText != null) {
+                out.submitNameTag(poses, state.nameTagAttachment, 0, state.scoreText,
+                        !state.isDiscrete, state.lightCoords, state.distanceToCameraSq, camera);
+                // the name sits above the score rather than through it
+                poses.translate(0.0F, 9.0F * 1.15F * 0.025F, 0.0F);
+            }
+            if (state.nameTag != null) {
+                out.submitNameTag(poses, state.nameTagAttachment, 0, state.nameTag,
+                        !state.isDiscrete, state.lightCoords, state.distanceToCameraSq, camera);
+            }
             poses.popPose();
         }
         ci.cancel();
