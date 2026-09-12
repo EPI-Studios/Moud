@@ -148,9 +148,6 @@ public final class Characters {
         }
     }
 
-    // where a body is and how it is standing, from the player it belongs to. the client drives
-    // your own through here too, off its own player: the state that went to the server and came
-    // back is several ticks old, and a body that walks after you do is not the same body
     private static final PropertyDef SLIM = Classes.APPEARANCE.property("slim");
     private static final PropertyDef CAPE_FLAP = Classes.CAPE.property("flap");
     private static final PropertyDef CAPE_LEAN = Classes.CAPE.property("lean");
@@ -209,7 +206,17 @@ public final class Characters {
         Instances.setBool(look, SLIM, wearer.getSkin().model() == PlayerModelType.SLIM);
     }
 
+    // where a body is and how it is standing, from the player it belongs to. the client drives
+    // your own through here too, off its own player: the state that went to the server and came
+    // back is several ticks old, and a body that walks after you do is not the same body
     public static void drive(Character character, Player player) {
+        // the game's own volume comes off the body now, so it has to be told when the body changed.
+        // nothing else tells it: a pose change refreshes the box and growing is not a pose change,
+        // so a body that doubled kept the box it had and could only be hit in the shins
+        if (Math.abs(player.getBbWidth() - character.radius * 2) > 1e-4
+                || Math.abs(player.getBbHeight() - character.height) > 1e-4) {
+            player.refreshDimensions();
+        }
         // the body faces where the body faces, which is not where the player is looking. yRot is
         // the aim; yBodyRot lags it and only gets dragged round once the head has turned far
         // enough or the player walks. driving the body from the aim instead snapped it to the

@@ -4,6 +4,7 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "player.DamageMixin",
+    "player.VolumeMixin",
     "player.HungerMixin",
     "player.MovementMixin",
     "player.RegenMixin",
