@@ -125,10 +125,17 @@ public final class Hands {
         m.rotateZ(side * 0.1f);
 
         // the model is authored y down and x mirrored, and every box we draw is in our own axes,
-        // so the half turn that reconciles them happens once, here
+        // so the half turn that reconciles them happens once, here. everything after it is stated
+        // the way the model states it
         m.rotateZ((float) Math.PI);
 
+        // and a cube of the model's is not centred on the frame it hangs from: it runs from a
+        // corner. ours is centred, so the middle of the box is the difference between the two
+        boolean left = arm == HumanoidArm.LEFT;
         float wide = slim ? 3f : 4f;
+        float minX = left ? -1f : (slim ? -2f : -3f);
+        m.translate((minX + wide / 2f) / 16f, (-2f + 6f) / 16f, 0f);
+
         emit(m, arm, wide, 0f);
         if (sleeved) emit(m, arm, wide, 0.25f);
     }
