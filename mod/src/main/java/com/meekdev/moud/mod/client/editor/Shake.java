@@ -37,8 +37,18 @@ public final class Shake {
     // the platform arriving unevenly, and no amount of fixing the turn would help
     private static final double[] DECK_YAW = new double[SAMPLES];
 
+    // the difference between the two, which is frame rate independent and is the whole diagnosis
+    private static final double[] HOLD = new double[SAMPLES];
+
+    // when each sample was taken, because an overlay frame is not a fixed interval and every rate
+    // below is per second rather than per sample
+    private static final double[] TIME = new double[SAMPLES];
+
     private static int at;
     private static int filled;
+    private static boolean seeded;
+    private static double camWas;
+    private static double deckWas;
     private static float bob;
     private static String riding = "no";
 
@@ -56,24 +66,35 @@ public final class Shake {
         CAM_X[at] = eye.x;
         CAM_Y[at] = eye.y;
         CAM_Z[at] = eye.z;
-        // unwrapped against the last sample, so a turn through the wrap does not read as a jump of
-        // three hundred and sixty degrees
-        // the player's own yaw, sampled per frame, because that is the camera's yaw in first
-        // person: the deck's turn is written into it once a frame and vanilla aims the camera at it
-        double yaw = me.getYRot();
+        // the player's own yaw, because that is what aims the camera in first person, and the deck's
+        // own heading beside it
+        //
+        // each unwrapped against the previous raw reading -- the only thing either can be unwrapped
+        // against. it used to be unwrapped against a modulo of the running total, which is both a
+        // precedence mistake and wrong in principle once the total passes a full turn
         int was = (at + SAMPLES - 1) % SAMPLES;
-        CAM_YAW[at] = filled == 0 ? yaw : CAM_YAW[was] + wrap(yaw - CAM_YAW[was] % 360.0);
+        double rawCam = me.getYRot();
+        double rawDeck = ClientPhysics.riddenYaw();
+        boolean riddenNow = !Double.isNaN(rawDeck);
 
-        double deck = ClientPhysics.riddenYaw();
-        boolean riddenNow = !Double.isNaN(deck);
-        DECK_YAW[at] = !riddenNow ? (filled == 0 ? 0 : DECK_YAW[was])
-                : filled == 0 ? deck : DECK_YAW[was] + wrap(deck - DECK_YAW[was] % 360.0);
+        CAM_YAW[at] = seeded ? CAM_YAW[was] + wrap(rawCam - camWas) : rawCam;
+        DECK_YAW[at] = seeded && riddenNow
+                ? DECK_YAW[was] + wrap(rawDeck - deckWas)
+                : riddenNow ? rawDeck : 0;
+        // the rider's heading in the deck's frame: a constant whenever the turn is faithful
+        HOLD[at] = riddenNow ? CAM_YAW[at] - DECK_YAW[at] : seeded ? HOLD[was] : 0;
+        camWas = rawCam;
+        if (riddenNow) deckWas = rawDeck;
 
         Character body = Bodies.of(ClientScene.tree(), me.getUUID().toString());
         BODY[at] = body == null ? me.getY() : body.cframe.position().y();
 
+        TIME[at] = System.nanoTime() / 1.0e9;
         at = (at + 1) % SAMPLES;
         if (filled < SAMPLES) filled++;
+        // seeded only while it is on a deck, so stepping off and back on starts a fresh window
+        // rather than folding a jump across the gap into the reading
+        seeded = riddenNow;
 
         if (me instanceof AbstractClientPlayer avatar) {
             bob = avatar.avatarState().getInterpolatedBob(1.0f);
@@ -105,35 +126,62 @@ public final class Shake {
         return riding;
     }
 
-    // a shudder about the vertical, which is what a turning deck can hand a rider and what no
-    // amount of measuring the camera's height will ever show
-    public static String cameraYaw() {
-        double spread = spread(CAM_YAW);
-        // a rider on a deck turning at seventy degrees a second is meant to be turning: the shake is
-        // whatever is left once that is taken out, so this reads the second difference rather than
-        // the first
-        return spread > 30 ? String.format("turning, %.3f deg jitter", jitterOf(CAM_YAW))
-                : String.format("%.3f deg", jitterOf(CAM_YAW));
+    // how far the rider is turned away from where the deck would put it
+    //
+    // this is the reading that means something. the difference between the two headings is a constant
+    // whenever the turn is faithful -- it does not care how fast the frames come, how unevenly the
+    // deck's pose arrives, or how fast the deck is going round -- so its spread is the fault itself,
+    // in degrees
+    //
+    // a second difference of the heading was measured here first, and that was a mistake: samples are
+    // taken once per overlay frame at whatever interval the frame rate gives, so a perfectly steady
+    // turn read as tens of degrees of shudder. it was measuring the frame pacing
+    public static String hold() {
+        if (!seeded) return "not on a deck";
+        return String.format("%.3f deg", spread(HOLD));
     }
 
-    // how far each step differs from the one before it. a steady turn has a constant step and reads
-    // zero; a shudder has alternating steps and reads the size of the alternation
-    private static double jitterOf(double[] window) {
-        if (filled < 3) return 0;
-        double worst = 0;
-        for (int n = 2; n < filled; n++) {
-            double second = (window[n] - window[n - 1]) - (window[n - 1] - window[n - 2]);
-            worst = Math.max(worst, Math.abs(second));
+    // how fast the deck is turning, and how steady that rate is
+    //
+    // in degrees a second, off the wall clock, so it is the same number at any frame rate. a deck
+    // driven evenly reads its own turn rate with a small spread; one whose pose arrives in bursts
+    // reads the same average with a large one, and that is the platform's fault rather than the
+    // rider's
+    public static String deckRate() {
+        if (!seeded || filled < 5) return "not on a deck";
+        return String.format("%.0f deg/s, spread %.0f", rate(DECK_YAW), rateSpread(DECK_YAW));
+    }
+
+    private static double rate(double[] window) {
+        double seconds = elapsed();
+        if (seconds <= 0) return 0;
+        return (window[newest()] - window[oldest()]) / seconds;
+    }
+
+    // the fastest and the slowest a few samples ever ran, which is what bursty delivery looks like
+    private static double rateSpread(double[] window) {
+        double low = Double.MAX_VALUE;
+        double high = -Double.MAX_VALUE;
+        for (int n = 3; n < filled; n++) {
+            double dt = TIME[n] - TIME[n - 3];
+            if (dt <= 1.0e-6) continue;
+            double r = (window[n] - window[n - 3]) / dt;
+            low = Math.min(low, r);
+            high = Math.max(high, r);
         }
-        return worst;
+        return high < low ? 0 : high - low;
     }
 
-    // the platform's own heading, judged the same way as the rider's. if this shudders and the
-    // rider's shudders with it, the turn is faithful and the platform is the fault
-    public static String deckYaw() {
-        double spread = spread(DECK_YAW);
-        return spread > 30 ? String.format("turning, %.3f deg jitter", jitterOf(DECK_YAW))
-                : String.format("%.3f deg", jitterOf(DECK_YAW));
+    private static int newest() {
+        return (at + SAMPLES - 1) % SAMPLES;
+    }
+
+    private static int oldest() {
+        return filled < SAMPLES ? 0 : at;
+    }
+
+    private static double elapsed() {
+        return TIME[newest()] - TIME[oldest()];
     }
 
     private static double wrap(double degrees) {

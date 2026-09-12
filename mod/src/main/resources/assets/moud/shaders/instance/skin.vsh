@@ -35,6 +35,7 @@ out vec2 vLight;
 out vec2 vUv;
 out float vCutout;
 out vec2 vOverlay;
+out vec3 vNormal;
 
 // the unit cube is 24 vertices in six quads and carries neither normals nor texture coordinates,
 // so the face is the quad this vertex belongs to. the order is the one MeshData.unitCube builds:
@@ -68,6 +69,16 @@ vec4 faceRect(int face, vec2 origin, float w, float h, float d) {
 //
 // the model builds a generic humanoid's left limbs mirrored off the right ones, but a player's
 // are not: they carry their own regions, so one handedness per face is the whole of it
+// which way a face looks, in the order MeshData.unitCube builds them
+vec3 faceNormal(int face) {
+    if (face == 0) return vec3(0.0, 0.0, -1.0);
+    if (face == 1) return vec3(0.0, 0.0, 1.0);
+    if (face == 2) return vec3(-1.0, 0.0, 0.0);
+    if (face == 3) return vec3(1.0, 0.0, 0.0);
+    if (face == 4) return vec3(0.0, -1.0, 0.0);
+    return vec3(0.0, 1.0, 0.0);
+}
+
 vec2 faceCoord(int face, vec3 p) {
     if (face == 0) return vec2(0.5 - p.x, 0.5 - p.y);
     if (face == 1) return vec2(p.x + 0.5, 0.5 - p.y);
@@ -111,6 +122,14 @@ void main() {
     vec2 texel = vec2(1.0) / InstSheet.xy;
     vec2 uv = (rect.xy + within * rect.zw) * texel;
     vUv = clamp(uv, (rect.xy + 0.03) * texel, (rect.xy + rect.zw - 0.03) * texel);
+
+    // in the world, not in the box: the light an entity takes comes from two fixed directions, so a
+    // limb turning has to change shade as it turns. the mirrored face is the one to ask -- its
+    // geometry has been reflected in x, so the quad that was the left side is now the right one
+    //
+    // the scale in the model matrix is per axis, and a face normal lies along one axis: scaling it
+    // changes its length and not its direction, so normalising afterwards is all it needs
+    vNormal = normalize(mat3(model) * faceNormal(rect_face));
 
     vColor = InstColor;
     vPos = pos.xyz;

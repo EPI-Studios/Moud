@@ -65,8 +65,8 @@ public final class PlaceInspector extends Inspector {
         text("body y", Shake.body());
         text("camera y", Shake.camera());
         text("camera xz", Shake.cameraFlat());
-        text("camera yaw", Shake.cameraYaw());
-        text("deck yaw", Shake.deckYaw());
+        text("yaw held", Shake.hold());
+        text("deck rate", Shake.deckRate());
         // and what the game thinks you are doing, because the view bob is driven from it and bob
         // is a vertical wobble that only exists in first person
         text("bob", Shake.bob());
