@@ -27,7 +27,7 @@ uniform int WorldSpace;
 // out of 32 by 32, a bee stinger out of 16 by 16, a mob head out of 64 by 32, and an arrow out of
 // a sheet whose height is scaled to 25.6 -- so the size belongs to the box rather than to the
 // shader, and a layer that is not a skin can use the same unwrap
-layout(location = 10) in vec2 InstSheet;
+layout(location = 10) in vec4 InstSheet;
 
 out vec4 vColor;
 out vec3 vPos;
@@ -88,11 +88,27 @@ void main() {
     gl_Position = ProjViewMatrix * pos;
 
     int face = gl_VertexID / 4;
-    vec4 rect = faceRect(face, InstUv.xy, InstUv.z, InstUv.w, InstBox.x);
-    vec2 within = faceCoord(face, Position);
+
+    // a mirrored box is the same box reflected in x. the game builds one by swapping the two x
+    // extents, which leaves the unwrap alone and moves the geometry under it: the two side rects
+    // change places and every face's u runs the other way
+    //
+    // it is not decoration. the game mirrors the left arm and the left leg of every armour piece
+    // and the right wing of an elytra off their opposites, so a renderer without this draws half
+    // of each of them back to front
+    int rect_face = face;
+    vec3 corner = Position;
+    if (InstSheet.z > 0.5) {
+        if (face == 2) rect_face = 3;
+        else if (face == 3) rect_face = 2;
+        corner.x = -corner.x;
+    }
+
+    vec4 rect = faceRect(rect_face, InstUv.xy, InstUv.z, InstUv.w, InstBox.x);
+    vec2 within = faceCoord(rect_face, corner);
 
     // half a texel in from every edge, so a face never bleeds into the one packed beside it
-    vec2 texel = vec2(1.0) / InstSheet;
+    vec2 texel = vec2(1.0) / InstSheet.xy;
     vec2 uv = (rect.xy + within * rect.zw) * texel;
     vUv = clamp(uv, (rect.xy + 0.03) * texel, (rect.xy + rect.zw - 0.03) * texel);
 

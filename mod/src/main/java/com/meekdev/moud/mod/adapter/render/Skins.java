@@ -47,10 +47,10 @@ import org.joml.Vector4f;
 public final class Skins {
 
     private static final InstanceLayout LAYOUT =
-            InstanceLayout.builder().mat4(1).vec4(5).vec2(6).vec4(7).vec2(8).vec2(9).vec2(10).build();
+            InstanceLayout.builder().mat4(1).vec4(5).vec2(6).vec4(7).vec2(8).vec2(9).vec4(10).build();
 
     private record Worn(Matrix4f transform, Vector4f color, Vector2f light,
-                        Vector4f uv, Vector2f box, Vector2f overlay, Vector2f sheet) {}
+                        Vector4f uv, Vector2f box, Vector2f overlay, Vector4f sheet) {}
 
     private static final Map<Identifier, Identifier> BATCHES = new HashMap<>();
     private static final Map<Identifier, List<Worn>> PACKED = new HashMap<>();
@@ -58,8 +58,9 @@ public final class Skins {
     // one body's wash, set once per character and read by each of its twelve parts
     private static final Vector2f OVERLAY = new Vector2f();
 
-    // every player skin, for the last decade
-    private static final Vector2f SHEET = new Vector2f(64f, 64f);
+    // every player skin, for the last decade, and never mirrored: a player's left limbs carry
+    // their own regions rather than being built off the right ones
+    private static final Vector4f SHEET = new Vector4f(64f, 64f, 0f, 0f);
 
     private static final Matrix4f MATRIX = new Matrix4f();
     private static final Quaternionf ROTATION = new Quaternionf();
@@ -219,7 +220,7 @@ public final class Skins {
                                 .putVec4(inst.uv())
                                 .putVec2(inst.box().x, inst.box().y)
                                 .putVec2(inst.overlay().x, inst.overlay().y)
-                                .putVec2(inst.sheet().x, inst.sheet().y))
+                                .putVec4(inst.sheet()))
                 .shader(Identifier.fromNamespaceAndPath("moud", "instance/skin"))
                 .texture(texture)
                 .extraSampler("LightMap", Parts::lightMap, 1)
