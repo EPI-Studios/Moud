@@ -90,6 +90,20 @@ public final class Character extends Spatial {
     // under an elytra, which pitches the head down and the body flat
     public boolean flying;
 
+    // wearing a pair, which is not the same as flying on them
+    public boolean wings;
+
+    // where the wings are held, in radians. the game smooths these on the entity rather than
+    // deriving them per frame -- they ease toward a target at 0.3 a tick, so a body that starts
+    // to fly opens them over half a second rather than snapping them out
+    public double wingX;
+    public double wingY;
+    public double wingZ;
+
+    // the sheet the wings are cut from: the player's own elytra, else their cape, else the
+    // game's. empty means the game's
+    public String wingSkin = "";
+
     // a body swimming in water pitches to its own look, one in air to straight down
     public boolean inWater;
 

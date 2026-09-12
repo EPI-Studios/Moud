@@ -32,6 +32,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.PlayerModelType;
+import net.minecraft.world.entity.player.PlayerSkin;
 import net.minecraft.world.entity.player.PlayerModelPart;
 import net.minecraft.world.entity.player.PlayerSkin;
 import org.jspecify.annotations.Nullable;
@@ -61,6 +62,17 @@ public final class Skins {
     // every player skin, for the last decade, and never mirrored: a player's left limbs carry
     // their own regions rather than being built off the right ones
     private static final Vector4f SHEET = new Vector4f(64f, 64f, 0f, 0f);
+
+    // one wing, cut from a sheet half the height of a skin. the right one reads it mirrored,
+    // which is how the model builds it and why one rect serves both
+    private static final SkinLayout.Box WING_RECT = new SkinLayout.Box(22, 0, 10, 20, 2);
+    private static final Vector4f[] WING_SHEET = {
+            new Vector4f(64f, 32f, 1f, 0f),
+            new Vector4f(64f, 32f, 0f, 0f),
+    };
+
+    private static final Identifier ELYTRA =
+            Identifier.withDefaultNamespace("textures/entity/equipment/wings/elytra.png");
 
     private static final Matrix4f MATRIX = new Matrix4f();
     private static final Quaternionf ROTATION = new Quaternionf();
@@ -125,7 +137,43 @@ public final class Skins {
                     pack(part, slim, solid, wearer, into, partialTick);
                 }
             }
+            wings(character, wearer, solid, partialTick);
         }
+    }
+
+    // the pair on the back, off a sheet of their own
+    //
+    // one is mirrored off the other, exactly as the model builds them, so the two rects are the
+    // same rect read the other way round. and the sheet is half as tall as a skin, which is why
+    // the size of the sheet had to stop being a constant in the shader
+    private static void wings(Character character, @Nullable AbstractClientPlayer wearer,
+                              float solid, float partialTick) {
+        if (!character.wings) return;
+        Identifier texture = wingTexture(character, wearer);
+        List<Worn> into = PACKED.computeIfAbsent(texture, id -> {
+            register(id);
+            return new ArrayList<>();
+        });
+        for (int side = 0; side < Rig.WINGS.length; side++) {
+            if (!(character.child(Rig.WINGS[side]) instanceof Part wing)) continue;
+            // the right one is the mirror. the model builds it that way and the texture only
+            // carries one wing
+            emit(wing, WING_RECT, false, 0, solid, into, partialTick, WING_SHEET[side]);
+        }
+    }
+
+    private static Identifier wingTexture(Character character,
+                                          @Nullable AbstractClientPlayer wearer) {
+        if (!character.wingSkin.isEmpty()) {
+            Identifier asked = Identifier.tryParse(character.wingSkin);
+            if (asked != null) return asked;
+        }
+        if (wearer != null) {
+            PlayerSkin skin = wearer.getSkin();
+            if (skin.elytra() != null) return skin.elytra().texturePath();
+            if (skin.cape() != null) return skin.cape().texturePath();
+        }
+        return ELYTRA;
     }
 
     private static void pack(Part part, boolean slim, float solid,
@@ -181,6 +229,11 @@ public final class Skins {
 
     private static void emit(Part part, SkinLayout.Box box, boolean shell, double narrow,
                              float solid, List<Worn> into, float partialTick) {
+        emit(part, box, shell, narrow, solid, into, partialTick, SHEET);
+    }
+
+    private static void emit(Part part, SkinLayout.Box box, boolean shell, double narrow,
+                             float solid, List<Worn> into, float partialTick, Vector4f sheet) {
         if (!part.visible) return;
         // sampled at the frame's own fraction of the tick, the way every other part is. reading
         // the live property drew the body at twenty a second while the world around it was smooth,
@@ -206,7 +259,7 @@ public final class Skins {
                 new Vector4f(box.u(), box.v(), box.w(), box.h()),
                 new Vector2f(box.d(), shell ? 1f : 0f),
                 new Vector2f(OVERLAY),
-                SHEET));
+                new Vector4f(sheet)));
         drawn++;
     }
 

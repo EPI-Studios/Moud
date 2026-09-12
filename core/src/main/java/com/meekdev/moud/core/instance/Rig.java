@@ -36,6 +36,10 @@ public final class Rig {
     // lands where a real one would be drawn -- the look is the game's, the mechanism is ours
     public static final String GRIP = "grip";
 
+    // a pair of wings on the back. they are not limbs: the model states them from the body's own
+    // root and steps them two texels back, and they are drawn off a sheet of their own
+    public static final String[] WINGS = {"rightWing", "leftWing"};
+
     private static final double PX = 1.0 / 16.0;
 
     // the model is authored from the shoulder down; the feet are twenty four units below it
@@ -50,6 +54,14 @@ public final class Rig {
 
     // a limb: where it turns, the box hung off that, and how far its shell stands proud
     private record Limb(String name, Vec3 pivot, Vec3 box, Vec3 size, double shell) {}
+
+    // the wing the model builds, in its own units. the box is ten by twenty by two grown by a
+    // whole texel on every side, which is why the drawn size and the rect it is cut from are two
+    // separate numbers and always will be
+    private static final Limb[] WING = {
+            limb("rightWing", -5, 0, -2, 0, 0, 0, 10, 20, 2, 1.0),
+            limb("leftWing", 5, 0, -2, -10, 0, 0, 10, 20, 2, 1.0),
+    };
 
     private static final Limb[] BODY = {
             limb("head", 0, 0, 0, -4, -8, -4, 8, 8, 8, 0.5),
@@ -128,10 +140,28 @@ public final class Rig {
             part.anchored = true;
         });
 
+        for (Limb wing : WING) {
+            Instances.create(Classes.PART, character, wing.name(), part -> {
+                part.size = wing.size();
+                part.cframe = CFrame.at(wing.pivot());
+                part.pivot = wing.box().neg();
+                part.color = Color.WHITE;
+                part.collides = false;
+                part.anchored = true;
+                part.visible = false;
+            });
+        }
+
         Instance joints = Instances.create(Classes.FOLDER, character, JOINTS);
         // the body's own, hanging off nothing: its transform is the tilt the whole body takes,
         // and every limb joint is composed through it
         Instances.create(Classes.JOINT, joints, ROOT, joint -> joint.part0 = character);
+        for (Limb wing : WING) {
+            Instances.create(Classes.JOINT, joints, wing.name(), joint -> {
+                joint.part0 = character;
+                joint.part1 = character.child(wing.name());
+            });
+        }
         for (Limb limb : BODY) {
             Instances.create(Classes.JOINT, joints, limb.name(), joint -> {
                 joint.part0 = character;
@@ -197,6 +227,19 @@ public final class Rig {
         // a rig that has settled leaves the body where it says it is, rather than where it was
         // before the joints moved
         Joints.apply(character);
+
+        for (Limb wing : WING) {
+            if (!(character.child(wing.name()) instanceof Part part)) continue;
+            // grown by a texel on every side, and the rect it is cut from is not
+            double grown = wing.shell() * 2;
+            Instances.setObj(part, SIZE,
+                    wing.size().add(new Vec3(grown, grown, grown)).mul(s));
+            Instances.setObj(part, PIVOT, wing.box().neg().mul(s));
+            Instances.setBool(part, VISIBLE, shown && character.wings);
+            if (joint(character, wing.name()) instanceof Joint hinge) {
+                Instances.setObj(hinge, C0, CFrame.at(wing.pivot().mul(s)));
+            }
+        }
 
         if (character.child(HITBOX) instanceof Part box) {
             Instances.setObj(box, SIZE,

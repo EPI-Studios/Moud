@@ -21,6 +21,8 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.CrossbowItem;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.ElytraAnimationState;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
@@ -61,6 +63,10 @@ public final class Characters {
     private static final PropertyDef USING_ITEM = Classes.CHARACTER.property("usingItem");
     private static final PropertyDef USE_LEFT_HAND = Classes.CHARACTER.property("useLeftHand");
     private static final PropertyDef CHARGE = Classes.CHARACTER.property("chargeProgress");
+    private static final PropertyDef WINGS = Classes.CHARACTER.property("wings");
+    private static final PropertyDef WING_X = Classes.CHARACTER.property("wingX");
+    private static final PropertyDef WING_Y = Classes.CHARACTER.property("wingY");
+    private static final PropertyDef WING_Z = Classes.CHARACTER.property("wingZ");
     private static final PropertyDef CRAWLING = Classes.CHARACTER.property("crawling");
     private static final PropertyDef SPINNING = Classes.CHARACTER.property("spinning");
     private static final PropertyDef FROZEN = Classes.CHARACTER.property("frozen");
@@ -195,6 +201,16 @@ public final class Characters {
         Instances.setObj(character, RIGHT_ARM_POSE, armPose(player, HumanoidArm.RIGHT));
         Instances.setObj(character, LEFT_ARM_POSE, armPose(player, HumanoidArm.LEFT));
         Instances.setNum(character, CHARGE, charge(player));
+
+        // the wings are worn, which is not the same as being flown on. and where they are held
+        // is smoothed on the entity rather than derived here: the game eases them toward a
+        // target at 0.3 a tick, so they open over half a second instead of snapping out
+        Instances.setBool(character, WINGS,
+                player.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA));
+        ElytraAnimationState wings = player.elytraAnimationState;
+        Instances.setNum(character, WING_X, wings.getRotX(1.0f));
+        Instances.setNum(character, WING_Y, wings.getRotY(1.0f));
+        Instances.setNum(character, WING_Z, wings.getRotZ(1.0f));
     }
 
     // what each arm is doing, chosen the way the model chooses it: a two handed main hand takes
