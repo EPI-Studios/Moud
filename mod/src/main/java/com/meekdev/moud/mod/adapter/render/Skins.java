@@ -18,7 +18,9 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientScene;
+import com.meekdev.moud.mod.features.Feature;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -203,7 +205,7 @@ public final class Skins {
         Identifier id = Identifier.fromNamespaceAndPath("moud",
                 "skin_" + texture.getNamespace() + "_" + texture.getPath().replace('/', '_'));
         BATCHES.put(texture, id);
-        InstancedMesh.<Worn>builder(LAYOUT,
+        InstancedMesh.Builder<Worn> mesh = InstancedMesh.<Worn>builder(LAYOUT,
                         (inst, p) -> p.putMat4(inst.transform()).putVec4(inst.color())
                                 .putVec2(inst.light().x, inst.light().y)
                                 .putVec4(inst.uv())
@@ -222,9 +224,14 @@ public final class Skins {
                 .phase(InstancePhase.WORLD_LAST)
                 .writeGBuffer(true)
                 .worldSpace()
-                .castsShadow()
-                .onRender((ctx, batch) -> draw(texture, ctx, batch))
-                .register(id);
+                .onRender((ctx, batch) -> draw(texture, ctx, batch));
+        // one or the other, never both: a body that casts its own shadow and also drops the
+        // game's flat circle under itself is drawn twice on the ground
+        //
+        // read once, when the batch is made, because a batch cannot change its mind about
+        // shadows later. a place states this at startup like any other switch
+        if (!MoudMod.features().isOn(Feature.BLOB_SHADOWS)) mesh.castsShadow();
+        mesh.register(id);
     }
 
     private static void draw(Identifier texture, InstanceRenderContext ctx,

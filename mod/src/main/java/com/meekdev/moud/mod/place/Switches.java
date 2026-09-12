@@ -25,6 +25,11 @@ public final class Switches {
         // one. it comes down again the day a character's own arm is drawn there
         features.set(Feature.HAND, true);
 
+        // off, so a body casts the shadow its own shape makes rather than dropping a flat circle
+        // under itself. a place that wants the game's circle back turns this on, and the body
+        // stops casting its own
+        features.set(Feature.BLOB_SHADOWS, false);
+
         // without it escape does nothing and there is no way out of the client yet
         features.set(Feature.PAUSE_MENU, true);
     }

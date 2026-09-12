@@ -46,6 +46,7 @@ public enum Feature {
     TITLE_SCREEN,
 
     ENTITY_RENDERING,
+    BLOB_SHADOWS,
     PLAYER_MODEL,
     NAME_TAGS,
     VANILLA_SOUNDS,

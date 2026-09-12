@@ -27,6 +27,21 @@ abstract class EntityRenderMixin {
             CallbackInfo ci) {
         Feature feature = state instanceof AvatarRenderState
                 ? Feature.PLAYER_MODEL : Feature.ENTITY_RENDERING;
-        if (!MoudMod.features().isOn(feature)) ci.cancel();
+        if (MoudMod.features().isOn(feature)) return;
+
+        // the blob is submitted inside this method, past the point we cancel, so suppressing the
+        // model takes the shadow with it. a place that wants the game's flat circle rather than
+        // the one our own body casts gets it resubmitted here, from the game's own state
+        //
+        // at the head the stack has not been translated yet, so this does what the method does:
+        // for a player the render offset is added and taken off again before the shadow, which
+        // leaves it at exactly the position handed in
+        if (MoudMod.features().isOn(Feature.BLOB_SHADOWS) && !state.shadowPieces.isEmpty()) {
+            poses.pushPose();
+            poses.translate(x, y, z);
+            out.submitShadow(poses, state.shadowRadius, state.shadowPieces);
+            poses.popPose();
+        }
+        ci.cancel();
     }
 }
