@@ -60,6 +60,31 @@ public final class Rig {
     // where the tracks that pose it live
     public static final String ANIMATOR = "animator";
 
+    // what it is wearing
+    public static final String ARMOUR = "armour";
+
+    // the ten boxes four pieces of armour are made of, named for the limb they cover and the slot
+    // they belong to
+    //
+    // the grows are not decoration: leggings use half a texel where the other three use a whole
+    // one, and boots take a tenth off the legs. that is exactly what stops each piece coming
+    // through the one under it, and getting it wrong is armour that z fights with itself
+    public record Plate(String limb, String name, String slot, float u, float v,
+                        double grow, boolean mirrored) {}
+
+    public static final Plate[] ARMOUR_PLATES = {
+            new Plate("head", "helmet", "head", 0, 0, 1.0, false),
+            new Plate("head", "helmetHat", "head", 32, 0, 1.5, false),
+            new Plate("torso", "chestplate", "chest", 16, 16, 1.0, false),
+            new Plate("rightArm", "chestplate", "chest", 40, 16, 1.0, false),
+            new Plate("leftArm", "chestplate", "chest", 40, 16, 1.0, true),
+            new Plate("torso", "leggings", "legs", 16, 16, 0.5, false),
+            new Plate("rightLeg", "leggings", "legs", 0, 16, 0.4, false),
+            new Plate("leftLeg", "leggings", "legs", 0, 16, 0.4, true),
+            new Plate("rightLeg", "boots", "feet", 0, 16, 0.9, false),
+            new Plate("leftLeg", "boots", "feet", 0, 16, 0.9, true),
+    };
+
     private static final double PX = 1.0 / 16.0;
 
     // the model is authored from the shoulder down; the feet are twenty four units below it
@@ -122,6 +147,29 @@ public final class Rig {
     // a pose that moves a joint starts from here, never from where it left it last tick: the
     // model states a crouch as an offset applied to the standing pivot, and reading back the
     // offset one would compound it every tick until the body came apart
+    // what this body is wearing, or nothing if something took it away
+    public static Armour armour(Character character) {
+        return character.child(ARMOUR) instanceof Armour worn ? worn : null;
+    }
+
+    // the sheet a slot is wearing, by name rather than by four branches at every call site
+    public static String slot(Armour worn, String slot) {
+        if (worn == null) return "";
+        return switch (slot) {
+            case "head" -> worn.head;
+            case "chest" -> worn.chest;
+            case "legs" -> worn.legs;
+            default -> worn.feet;
+        };
+    }
+
+    private static Limb shapeOf(String name) {
+        for (Limb limb : BODY) {
+            if (limb.name().equals(name)) return limb;
+        }
+        return null;
+    }
+
     // the living half, or nothing if something took it away
     public static Humanoid humanoid(Character character) {
         return character.child(HUMANOID) instanceof Humanoid living ? living : null;
@@ -208,6 +256,16 @@ public final class Rig {
 
         Instances.create(Classes.HUMANOID, character, HUMANOID);
         Instances.create(Classes.ANIMATOR, character, ANIMATOR);
+        Instances.create(Classes.ARMOUR, character, ARMOUR);
+        for (Plate plate : ARMOUR_PLATES) {
+            if (!(character.child(plate.limb()) instanceof Part limb)) continue;
+            Instances.create(Classes.PART, limb, plate.name(), part -> {
+                part.color = Color.WHITE;
+                part.collides = false;
+                part.anchored = true;
+                part.visible = false;
+            });
+        }
         Instances.create(Classes.WINGS, character, WING_SET);
 
         Instance joints = Instances.create(Classes.FOLDER, character, JOINTS);
@@ -325,6 +383,20 @@ public final class Rig {
             if (joint(character, wing.name()) instanceof Joint hinge) {
                 Instances.setObj(hinge, C0, CFrame.at(wing.pivot().mul(s)));
             }
+        }
+
+        Armour worn = armour(character);
+        for (Plate plate : ARMOUR_PLATES) {
+            if (!(character.child(plate.limb()) instanceof Part limb)) continue;
+            if (!(limb.child(plate.name()) instanceof Part plated)) continue;
+            Limb shape = shapeOf(plate.limb());
+            if (shape == null) continue;
+
+            double out = plate.grow() * 2 * PX;
+            Instances.setObj(plated, SIZE,
+                    shape.size().add(new Vec3(out, out, out)).mul(s));
+            Instances.setObj(plated, PIVOT, shape.box().neg().mul(s));
+            Instances.setBool(plated, VISIBLE, shown && !slot(worn, plate.slot()).isEmpty());
         }
 
         if (character.child(HITBOX) instanceof Part box) {

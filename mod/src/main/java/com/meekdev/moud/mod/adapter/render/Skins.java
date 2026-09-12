@@ -8,6 +8,7 @@ import com.meekdev.amnetic.client.instanced.InstancedMesh;
 import com.meekdev.amnetic.client.instanced.MeshData;
 import com.meekdev.amnetic.client.instanced.RenderState;
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.instance.Armour;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.CharacterDisplay;
 import com.meekdev.moud.core.instance.Instance;
@@ -71,6 +72,11 @@ public final class Skins {
             new Vector4f(64f, 32f, 1f, 0f),
             new Vector4f(64f, 32f, 0f, 0f),
     };
+
+    // every piece of armour, off a sheet half the height of a skin. the left arm and the left leg
+    // are built as mirrors of the right ones, which is why one rect serves both sides
+    private static final Vector4f ARMOUR_SHEET = new Vector4f(64f, 32f, 0f, 0f);
+    private static final Vector4f ARMOUR_MIRRORED = new Vector4f(64f, 32f, 1f, 0f);
 
     private static final Identifier ELYTRA =
             Identifier.withDefaultNamespace("textures/entity/equipment/wings/elytra.png");
@@ -139,6 +145,35 @@ public final class Skins {
                 }
             }
             wings(character, wearer, solid, partialTick);
+            armour(character, solid, partialTick);
+        }
+    }
+
+    // the ten boxes four pieces of armour are made of
+    //
+    // each is the limb it covers again, a little bigger, off whatever sheet that slot is wearing.
+    // so a body in an iron helmet and a diamond chestplate lands in two batches and neither knows
+    // about the other
+    private static void armour(Character character, float solid, float partialTick) {
+        Armour worn = Rig.armour(character);
+        if (worn == null) return;
+        for (Rig.Plate plate : Rig.ARMOUR_PLATES) {
+            String sheet = Rig.slot(worn, plate.slot());
+            if (sheet.isEmpty()) continue;
+            if (!(character.child(plate.limb()) instanceof Part limb)) continue;
+            if (!(limb.child(plate.name()) instanceof Part plated) || !plated.visible) continue;
+
+            Identifier texture = Identifier.tryParse(sheet);
+            if (texture == null) continue;
+            List<Worn> into = PACKED.computeIfAbsent(texture, id -> {
+                register(id);
+                return new ArrayList<>();
+            });
+            SkinLayout.Box box = SkinLayout.of(plate.limb(), false, false);
+            if (box == null) continue;
+            emit(plated, new SkinLayout.Box(plate.u(), plate.v(), box.w(), box.h(), box.d()),
+                    false, 0, solid, into, partialTick,
+                    plate.mirrored() ? ARMOUR_MIRRORED : ARMOUR_SHEET);
         }
     }
 

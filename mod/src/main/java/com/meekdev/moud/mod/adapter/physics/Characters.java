@@ -26,6 +26,10 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ElytraAnimationState;
+import com.meekdev.moud.core.instance.Armour;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.equipment.Equippable;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
@@ -66,6 +70,10 @@ public final class Characters {
     private static final PropertyDef USING_ITEM = Classes.CHARACTER.property("usingItem");
     private static final PropertyDef USE_LEFT_HAND = Classes.CHARACTER.property("useLeftHand");
     private static final PropertyDef CHARGE = Classes.CHARACTER.property("chargeProgress");
+    private static final PropertyDef ARMOUR_HEAD = Classes.ARMOUR.property("head");
+    private static final PropertyDef ARMOUR_CHEST = Classes.ARMOUR.property("chest");
+    private static final PropertyDef ARMOUR_LEGS = Classes.ARMOUR.property("legs");
+    private static final PropertyDef ARMOUR_FEET = Classes.ARMOUR.property("feet");
     private static final PropertyDef WORN = Classes.WINGS.property("worn");
     private static final PropertyDef WING_X = Classes.WINGS.property("x");
     private static final PropertyDef WING_Y = Classes.WINGS.property("y");
@@ -199,6 +207,14 @@ public final class Characters {
         Instances.setObj(character, LEFT_ARM_POSE, armPose(player, HumanoidArm.LEFT));
         Instances.setNum(character, CHARGE, charge(player));
 
+        if (Rig.armour(character) instanceof Armour worn) {
+            Instances.setObj(worn, ARMOUR_HEAD, plate(player, EquipmentSlot.HEAD, "humanoid"));
+            Instances.setObj(worn, ARMOUR_CHEST, plate(player, EquipmentSlot.CHEST, "humanoid"));
+            Instances.setObj(worn, ARMOUR_LEGS,
+                    plate(player, EquipmentSlot.LEGS, "humanoid_leggings"));
+            Instances.setObj(worn, ARMOUR_FEET, plate(player, EquipmentSlot.FEET, "humanoid"));
+        }
+
         // the wings are worn, which is not the same as being flown on. and where they are held
         // is smoothed on the entity rather than derived here: the game eases them toward a
         // target at 0.3 a tick, so they open over half a second instead of snapping out
@@ -252,6 +268,20 @@ public final class Characters {
         if (max <= 0) return 0;
         double used = held.getUseDuration(player) - player.getUseItemRemainingTicks();
         return Math.max(0, Math.min(1, used / max));
+    }
+
+    // the sheet a slot is wearing, by the name the equipment itself carries
+    //
+    // the item does not name a texture, it names an asset -- "iron" -- and the path is built from
+    // that and the shape it is worn on. legs have their own folder because leggings are drawn a
+    // half texel out rather than a whole one
+    private static String plate(Player player, EquipmentSlot slot, String shape) {
+        ItemStack worn = player.getItemBySlot(slot);
+        Equippable kit = worn.get(DataComponents.EQUIPPABLE);
+        if (kit == null || kit.assetId().isEmpty()) return "";
+        Identifier asset = kit.assetId().get().identifier();
+        return asset.withPath(name ->
+                "textures/entity/equipment/" + shape + "/" + name + ".png").toString();
     }
 
     // how far the body is banking under a wing: the angle between where it is going and where it
