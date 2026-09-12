@@ -1,8 +1,13 @@
 package com.meekdev.moud.script.bind;
 
+import com.meekdev.moud.core.clazz.EventDef;
 import com.meekdev.moud.core.event.Signal;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.err.ScriptError;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import net.hollowcube.luau.LuaState;
 
@@ -35,6 +40,14 @@ public final class InstanceSignals {
         return bundle(instance).destroying(instance);
     }
 
+    // anything the class declared as an event, by name
+    //
+    // one bridge for every one of them rather than a method per signal: a class an addon writes
+    // gets its events across without this file learning they exist
+    public static Signals.Handlers of(Instance instance, EventDef event) {
+        return bundle(instance).named(instance, event);
+    }
+
     // a bundle holds refs into one lua state and a reload opens another, so one built for a state
     // that has gone is dropped rather than fired into. core nulls userdata when the instance dies,
     // which is the whole of the lifetime
@@ -57,6 +70,8 @@ public final class InstanceSignals {
         private Signal.Connection changedLink;
         private Signal.Connection childAddedLink;
         private Signal.Connection destroyingLink;
+        private final Map<String, Signals.Handlers> named = new HashMap<>();
+        private final List<Signal.Connection> namedLinks = new ArrayList<>();
 
         Bundle(LuaState state) {
             this.state = state;
@@ -98,6 +113,20 @@ public final class InstanceSignals {
             return destroying;
         }
 
+        Signals.Handlers named(Instance instance, EventDef event) {
+            Signals.Handlers existing = named.get(event.name());
+            if (existing != null) return existing;
+
+            Signals.Handlers handlers = new Signals.Handlers();
+            named.put(event.name(), handlers);
+            namedLinks.add(event.on(instance).connect(what ->
+                    fire(handlers, s -> {
+                        Proxies.push(s, what);
+                        return 1;
+                    })));
+            return handlers;
+        }
+
         private void fire(Signals.Handlers handlers, Signals.Args args) {
             Signals.fire(state, handlers, onError, args);
         }
@@ -106,6 +135,7 @@ public final class InstanceSignals {
             if (changedLink != null) changedLink.disconnect();
             if (childAddedLink != null) childAddedLink.disconnect();
             if (destroyingLink != null) destroyingLink.disconnect();
+            for (Signal.Connection link : namedLinks) link.disconnect();
         }
     }
 }

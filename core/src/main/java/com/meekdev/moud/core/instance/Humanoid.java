@@ -1,6 +1,7 @@
 package com.meekdev.moud.core.instance;
 
 import com.meekdev.moud.core.clazz.Prop;
+import com.meekdev.moud.core.event.Signal;
 
 // what makes a body a living thing rather than a pile of boxes
 //
@@ -11,6 +12,20 @@ import com.meekdev.moud.core.clazz.Prop;
 //
 // a place reaches it the way it reaches anything: character.humanoid
 public final class Humanoid extends Instance {
+
+    // no life left. it fires once, on the tick it runs out, and not again until something gives
+    // it life back
+    public final Signal<Instance> died = new Signal<>();
+
+    // life went up or down, however it went
+    public final Signal<Instance> healthChanged = new Signal<>();
+
+    // it started doing something else. one handler covers landing, jumping, sitting and dying,
+    // because they are one question
+    public final Signal<Instance> stateChanged = new Signal<>();
+
+    // it got where it was told to go
+    public final Signal<Instance> arrived = new Signal<>();
 
     // at zero the body is dead. the engine does not decide what that means -- it sets the state
     // and stops driving the body, and a place decides whether that is a respawn, a ragdoll or a

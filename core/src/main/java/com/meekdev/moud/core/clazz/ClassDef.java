@@ -1,5 +1,6 @@
 package com.meekdev.moud.core.clazz;
 
+import com.meekdev.moud.core.event.Signal;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
@@ -26,13 +27,22 @@ public final class ClassDef<T extends Instance> {
     private final PropertyDef[] byIndex;
     private final Map<String, PropertyDef> byName;
 
-    private ClassDef(String name, ClassDef<?> parent, Supplier<T> factory, List<PropertyDef> props) {
+    // what this class tells you about, by name
+    //
+    // the same rule properties follow: a plain public field is a property, and a public final
+    // Signal field is an event. nothing is declared twice and nothing has to be registered, so a
+    // class an addon writes carries its own events without the binding learning about it
+    private final Map<String, EventDef> events;
+
+    private ClassDef(String name, ClassDef<?> parent, Supplier<T> factory, List<PropertyDef> props,
+                     Map<String, EventDef> events) {
         this.name = name;
         this.parent = parent;
         this.factory = factory;
         this.byIndex = props.toArray(new PropertyDef[0]);
         this.byName = new HashMap<>(props.size() * 2);
         for (PropertyDef p : props) byName.put(p.name(), p);
+        this.events = Map.copyOf(events);
     }
 
     public static <T extends Instance> ClassDef<T> of(String name, ClassDef<?> parent, Class<T> type, Supplier<T> factory) {
@@ -48,10 +58,22 @@ public final class ClassDef<T extends Instance> {
             throw new IllegalStateException("cannot reach the fields of " + name, e);
         }
 
+        Map<String, EventDef> events = new HashMap<>();
+        if (parent != null) events.putAll(parent.events);
+
         List<Field> fields = new ArrayList<>();
         for (Field f : type.getDeclaredFields()) {
             int mods = f.getModifiers();
-            if (!Modifier.isPublic(mods) || Modifier.isStatic(mods) || Modifier.isFinal(mods)) continue;
+            if (!Modifier.isPublic(mods) || Modifier.isStatic(mods)) continue;
+            // a public final Signal is an event, which is why final is skipped rather than
+            // rejected: the class says what it tells you about in the same place it says what it
+            // holds
+            if (Modifier.isFinal(mods)) {
+                if (Signal.class.isAssignableFrom(f.getType())) {
+                    events.put(f.getName(), new EventDef(f.getName(), f));
+                }
+                continue;
+            }
             fields.add(f);
         }
         // sorted rather than declaration order, so a property index never depends on the jvm
@@ -64,7 +86,7 @@ public final class ClassDef<T extends Instance> {
             }
             props.add(define(name, type, f, prototype, lookup, props.size()));
         }
-        return new ClassDef<>(name, parent, factory, props);
+        return new ClassDef<>(name, parent, factory, props, events);
     }
 
     private static PropertyDef define(String owner, Class<?> type, Field field, Instance prototype,
@@ -108,6 +130,10 @@ public final class ClassDef<T extends Instance> {
     public String name() { return name; }
     public ClassDef<?> parent() { return parent; }
     public PropertyDef[] properties() { return byIndex; }
+
+    public EventDef event(String name) { return events.get(name); }
+
+    public java.util.Collection<EventDef> events() { return events.values(); }
 
     public PropertyDef property(String name) {
         return byName.get(name);

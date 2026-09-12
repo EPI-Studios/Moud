@@ -2,6 +2,7 @@ package com.meekdev.moud.script.bind;
 
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.ClassRegistry;
+import com.meekdev.moud.core.clazz.EventDef;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Hits;
 import com.meekdev.moud.core.instance.Instance;
@@ -143,6 +144,14 @@ public final class Proxies {
                 return 1;
             }
             default -> { }
+        }
+
+        // whatever the class said it tells you about. it comes before properties for the same
+        // reason a name cannot be both: a class declares each of them once, in the same place
+        EventDef event = instance.def().event(key);
+        if (event != null) {
+            Signals.push(state, InstanceSignals.of(instance, event));
+            return 1;
         }
 
         if (instance instanceof Spatial spatial) {

@@ -198,6 +198,11 @@ public final class Types {
             out.append("    worldCframe: CFrame\n");
         }
 
+        for (com.meekdev.moud.core.clazz.EventDef event : def.events()) {
+            // every event carries the instance it happened to, so one shape covers all of them
+            out.append("    ").append(event.name()).append(": InstanceSignal\n");
+        }
+
         PropertyDef[] properties = def.properties();
         // a subclass keeps its parent's property indices, so everything past that count is its own
         // and everything before it is already declared on the class it extends

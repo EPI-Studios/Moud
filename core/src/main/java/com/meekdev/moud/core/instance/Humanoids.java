@@ -39,18 +39,20 @@ public final class Humanoids {
         if (living == null) return;
 
         // a place may write either of these to anything. the bound is the engine's job
+        double was = living.health;
         double health = Math.max(0, Math.min(living.maxHealth, living.health));
         if (health != living.health) Instances.setNum(living, HEALTH, health);
+        if (health != was) living.healthChanged.fire(living);
 
         if (health <= 0) {
-            Instances.setObj(living, STATE, HumanoidState.DEAD);
+            became(living, HumanoidState.DEAD);
             Instances.setBool(living, WALKING, false);
             Instances.setNum(character, MOVE_SPEED, 0);
             return;
         }
         if (living.state == HumanoidState.DEAD) {
             // brought back by a place writing health, which is the only way back out
-            Instances.setObj(living, STATE, HumanoidState.STANDING);
+            became(living, HumanoidState.STANDING);
         }
 
         // a body somebody else drives is walked by whatever drives it. this is for the ones
@@ -62,7 +64,7 @@ public final class Humanoids {
     private static void walk(Character character, Humanoid living, double dt) {
         if (!living.walking || living.state == HumanoidState.SEATED) {
             if (character.moveSpeed != 0) Instances.setNum(character, MOVE_SPEED, 0);
-            Instances.setObj(living, STATE, HumanoidState.STANDING);
+            if (living.state != HumanoidState.SEATED) became(living, HumanoidState.STANDING);
             return;
         }
 
@@ -76,7 +78,8 @@ public final class Humanoids {
         if (away <= living.walkRadius) {
             Instances.setBool(living, WALKING, false);
             Instances.setNum(character, MOVE_SPEED, 0);
-            Instances.setObj(living, STATE, HumanoidState.STANDING);
+            became(living, HumanoidState.STANDING);
+            living.arrived.fire(living);
             return;
         }
 
@@ -93,6 +96,14 @@ public final class Humanoids {
         // step is what makes the legs match the speed rather than the frame rate
         Instances.setNum(character, MOVE_DISTANCE, character.moveDistance + step * 4.0);
         Instances.setNum(character, MOVE_SPEED, Math.min(1.0, living.walkSpeed / 4.317));
-        Instances.setObj(living, STATE, HumanoidState.RUNNING);
+        became(living, HumanoidState.RUNNING);
+    }
+
+    // the state is written in one place, so the signal cannot be forgotten at one of them
+    private static void became(Humanoid living, HumanoidState next) {
+        if (living.state == next) return;
+        Instances.setObj(living, STATE, next);
+        living.stateChanged.fire(living);
+        if (next == HumanoidState.DEAD) living.died.fire(living);
     }
 }
