@@ -1,6 +1,7 @@
 package com.meekdev.moud.core.clazz;
 
 import com.meekdev.moud.core.addon.Addon;
+import com.meekdev.moud.core.instance.Attachment;
 import com.meekdev.moud.core.instance.Camera;
 import com.meekdev.moud.core.instance.Cape;
 import com.meekdev.moud.core.instance.Character;
@@ -21,6 +22,8 @@ public final class Classes {
             ClassDef.of("Character", SPATIAL, Character.class, Character::new);
     public static final ClassDef<Camera> CAMERA = ClassDef.of("Camera", SPATIAL, Camera.class, Camera::new);
     // not a spatial: a joint is not somewhere, it is how two things are held together
+    public static final ClassDef<Attachment> ATTACHMENT =
+            ClassDef.of("Attachment", SPATIAL, Attachment.class, Attachment::new);
     public static final ClassDef<Cape> CAPE = ClassDef.of("Cape", PART, Cape.class, Cape::new);
     public static final ClassDef<Humanoid> HUMANOID =
             ClassDef.of("Humanoid", null, Humanoid.class, Humanoid::new);
@@ -45,6 +48,7 @@ public final class Classes {
         r.register(PART);
         r.register(CHARACTER);
         r.register(CAMERA);
+        r.register(ATTACHMENT);
         r.register(CAPE);
         r.register(HUMANOID);
         r.register(WINGS);

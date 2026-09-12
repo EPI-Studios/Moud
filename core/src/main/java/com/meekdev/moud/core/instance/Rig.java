@@ -36,6 +36,13 @@ public final class Rig {
     // lands where a real one would be drawn -- the look is the game's, the mechanism is ours
     public static final String GRIP = "grip";
 
+    // where a hat, a helmet or a worn head sits. the game anchors one at the neck and lets it
+    // reach up over the skull, so this is the head's own joint rather than the top of it
+    public static final String HAT = "hat";
+
+    // where a cape, a pair of wings or a pack rides
+    public static final String BACK = "back";
+
     // a pair of wings on the back. they are not limbs: the model states them from the body's own
     // root and steps them two texels back, and they are drawn off a sheet of their own
     public static final String[] WINGS = {"rightWing", "leftWing"};
@@ -161,6 +168,10 @@ public final class Rig {
             });
             shell(character, limb);
             grip(character, limb);
+            if ("head".equals(limb.name())) attach(character, limb, HAT, Vec3.ZERO);
+            if ("torso".equals(limb.name())) {
+                attach(character, limb, BACK, CAPE_BOX.pivot().sub(limb.pivot()));
+            }
         }
         Instances.create(Classes.PART, character, HITBOX, part -> {
             part.size = Vec3.ONE;
@@ -263,6 +274,13 @@ public final class Rig {
             if (part.child(GRIP) instanceof Spatial hand) {
                 Instances.setObj(hand, GRIP_FRAME, hold(limb, character));
             }
+            if (part.child(HAT) instanceof Spatial hat) {
+                Instances.setObj(hat, GRIP_FRAME, CFrame.at(limb.box().neg().mul(s)));
+            }
+            if (part.child(BACK) instanceof Spatial back) {
+                Instances.setObj(back, GRIP_FRAME, CFrame.at(
+                        limb.box().neg().add(CAPE_BOX.pivot().sub(limb.pivot())).mul(s)));
+            }
 
             if (part.child(OVERLAY) instanceof Part over) {
                 double shell = limb.shell() * 2;
@@ -334,10 +352,18 @@ public final class Rig {
         return new CFrame(back, turn).mul(CFrame.at(out));
     }
 
+    // a point on a limb, stated from that limb's own joint rather than from the middle of its
+    // box, because a joint is what the game states everything from
+    private static void attach(Character character, Limb limb, String name, Vec3 from) {
+        if (!(character.child(limb.name()) instanceof Part part)) return;
+        Instances.create(Classes.ATTACHMENT, part, name,
+                point -> point.cframe = CFrame.at(limb.box().neg().add(from)));
+    }
+
     private static void grip(Character character, Limb limb) {
         if (!"rightArm".equals(limb.name()) && !"leftArm".equals(limb.name())) return;
         if (!(character.child(limb.name()) instanceof Part arm)) return;
-        Instances.create(Classes.SPATIAL, arm, GRIP, hand -> hand.cframe = hold(limb, character));
+        Instances.create(Classes.ATTACHMENT, arm, GRIP, hand -> hand.cframe = hold(limb, character));
     }
 
     private static void shell(Character character, Limb limb) {
