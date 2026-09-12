@@ -137,8 +137,8 @@ public final class Rig {
     // six by six by one, grown a whole texel on every side, hung off the head's own joint. the
     // rect stays sized for the ungrown box, which is what a grow always does
     private static final Limb[] EAR = {
-            limb("rightEar", 6, 6, 0, -3, -6, -1, 6, 6, 1, 1.0),
-            limb("leftEar", -6, 6, 0, -3, -6, -1, 6, 6, 1, 1.0),
+            limb("rightEar", 6, -6, 0, -3, -6, -1, 6, 6, 1, 1.0),
+            limb("leftEar", -6, -6, 0, -3, -6, -1, 6, 6, 1, 1.0),
     };
 
     private static final Limb[] BODY = {
