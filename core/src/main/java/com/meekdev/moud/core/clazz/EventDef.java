@@ -6,15 +6,18 @@ import java.lang.reflect.Field;
 
 // something a class tells you about
 //
-// every one carries the instance it happened to and nothing else. a handler that wants more reads
-// it off that -- which keeps one shape for every event rather than a payload per signal that the
-// binding would have to know about one at a time
+// most carry the instance it happened to and a handler that wants more reads it off that, which keeps
+// one shape for nearly every event. a channel is the exception and has to be: what arrived was sent by
+// somebody, and there is no instance to read it off
 public record EventDef(String name, Field field) {
 
     @SuppressWarnings("unchecked")
-    public Signal<Instance> on(Instance instance) {
+    // whatever the class said it carries, which is not always an instance: the three built in events
+    // hand over an instance or a property, and a channel hands over a delivery. the binding decides
+    // how to push what it gets, and that is the only place that can know
+    public Signal<Object> on(Instance instance) {
         try {
-            return (Signal<Instance>) field.get(instance);
+            return (Signal<Object>) field.get(instance);
         } catch (IllegalAccessException unreachable) {
             throw new IllegalStateException("cannot reach " + name + " on " + instance, unreachable);
         }

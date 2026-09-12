@@ -6,6 +6,7 @@ import com.meekdev.moud.core.clazz.EventDef;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Hits;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.Remote;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
@@ -26,7 +27,7 @@ import net.hollowcube.luau.LuaType;
 
 public final class Proxies {
 
-    static final int TAG = 1;
+    public static final int TAG = 1;
 
     private static final String METHODS = "moud.methods";
 
@@ -54,6 +55,9 @@ public final class Proxies {
 
         // shared method table, so __index hands back the same function rather than a new closure
         state.newTable();
+        method(state, "fireServer", Proxies::fireServer);
+        method(state, "fireClient", Proxies::fireClient);
+        method(state, "fireAllClients", Proxies::fireAllClients);
         method(state, "add", Proxies::add);
         method(state, "addAll", Proxies::addAll);
         method(state, "children", Proxies::children);
@@ -104,6 +108,25 @@ public final class Proxies {
     // identity is __eq on the instance behind the proxy instead, which is what a place observes
     public static void push(LuaState state, Instance instance) {
         state.newUserDataTaggedWithMetatable(instance, TAG);
+    }
+
+    // a channel's three verbs. they sit on the one metatable every instance shares, like every other
+    // method here, and say so when they are asked of something that is not a channel
+    private static int fireServer(LuaState state) {
+        if (!(self(state) instanceof Remote remote)) throw state.error("fireServer is a Remote's");
+        return Remotes.fireServer(state, remote);
+    }
+
+    private static int fireClient(LuaState state) {
+        if (!(self(state) instanceof Remote remote)) throw state.error("fireClient is a Remote's");
+        return Remotes.fireClient(state, remote);
+    }
+
+    private static int fireAllClients(LuaState state) {
+        if (!(self(state) instanceof Remote remote)) {
+            throw state.error("fireAllClients is a Remote's");
+        }
+        return Remotes.fireAllClients(state, remote);
     }
 
     private static int same(LuaState state) {

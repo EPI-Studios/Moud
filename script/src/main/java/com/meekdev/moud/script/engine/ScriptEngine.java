@@ -5,6 +5,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.api.CameraRef;
 import com.meekdev.moud.script.api.InputRef;
 import com.meekdev.moud.script.api.PlayerRef;
+import com.meekdev.moud.script.api.PostRef;
 import com.meekdev.moud.script.err.ScriptError;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -19,6 +20,10 @@ public interface ScriptEngine extends AutoCloseable {
 
     // the tree and the classes it may name. called once, before anything runs
     void bind(Instance world, ClassRegistry classes);
+
+    // what carries a delivery off this side, and which side it is. a channel's two directions are not
+    // symmetric, so each side has to know which of the two verbs is its own
+    void bindPost(PostRef post, boolean client);
 
     // the client's own three: the camera it draws through, the input it reads, and the body it
     // drives. a server side place never gets these

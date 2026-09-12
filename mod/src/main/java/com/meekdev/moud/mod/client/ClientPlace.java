@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.client;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.core.instance.Camera;
+import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.time.Clock;
@@ -58,6 +59,7 @@ public final class ClientPlace {
         place = Place.client(world, Addons.classes(), vm -> {
             camera = Instances.createLocal(Classes.CAMERA, world, "Camera");
             vm.bindClient(camera, LENS, INPUT, ClientScene::own);
+            vm.bindPost(Post.CLIENT, true);
         });
         place.start();
         MoudMod.LOG.info("the client place is running");

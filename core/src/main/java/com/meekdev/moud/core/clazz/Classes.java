@@ -6,6 +6,14 @@ import com.meekdev.moud.core.instance.Appearance;
 import com.meekdev.moud.core.instance.Animator;
 import com.meekdev.moud.core.instance.Armour;
 import com.meekdev.moud.core.instance.Attachment;
+import com.meekdev.moud.core.instance.BoolValue;
+import com.meekdev.moud.core.instance.NumberValue;
+import com.meekdev.moud.core.instance.ObjectValue;
+import com.meekdev.moud.core.instance.Remote;
+import com.meekdev.moud.core.instance.StringValue;
+import com.meekdev.moud.core.instance.UnreliableRemote;
+import com.meekdev.moud.core.instance.Value;
+import com.meekdev.moud.core.instance.Vector3Value;
 import com.meekdev.moud.core.instance.Camera;
 import com.meekdev.moud.core.instance.Cape;
 import com.meekdev.moud.core.instance.Character;
@@ -43,6 +51,30 @@ public final class Classes {
     public static final ClassDef<Humanoid> HUMANOID =
             ClassDef.of("Humanoid", null, Humanoid.class, Humanoid::new);
     public static final ClassDef<Wings> WINGS = ClassDef.of("Wings", null, Wings.class, Wings::new);
+    // shared state with a name and nowhere else to live
+    //
+    // five, not roblox's dozen. one per type is what a typed property system forces, but a
+    // BrickColorValue and a RayValue are classes to replicate, document and keep working forever for
+    // something almost nobody shares. these five cover what a game actually keeps: a count, a label,
+    // a flag, a place, and a thing
+    public static final ClassDef<Value> VALUE = ClassDef.of("Value", null, Value.class, Value::new);
+    public static final ClassDef<NumberValue> NUMBER_VALUE =
+            ClassDef.of("NumberValue", VALUE, NumberValue.class, NumberValue::new);
+    public static final ClassDef<StringValue> STRING_VALUE =
+            ClassDef.of("StringValue", VALUE, StringValue.class, StringValue::new);
+    public static final ClassDef<BoolValue> BOOL_VALUE =
+            ClassDef.of("BoolValue", VALUE, BoolValue.class, BoolValue::new);
+    public static final ClassDef<Vector3Value> VECTOR3_VALUE =
+            ClassDef.of("Vector3Value", VALUE, Vector3Value.class, Vector3Value::new);
+    public static final ClassDef<ObjectValue> OBJECT_VALUE =
+            ClassDef.of("ObjectValue", VALUE, ObjectValue.class, ObjectValue::new);
+
+    // the two directions of the boundary, as an instance rather than a registry
+    public static final ClassDef<Remote> REMOTE =
+            ClassDef.of("Remote", null, Remote.class, Remote::new);
+    public static final ClassDef<UnreliableRemote> UNRELIABLE_REMOTE =
+            ClassDef.of("UnreliableRemote", REMOTE, UnreliableRemote.class, UnreliableRemote::new);
+
     public static final ClassDef<Joint> JOINT = ClassDef.of("Joint", null, Joint.class, Joint::new);
     public static final ClassDef<Motor> MOTOR = ClassDef.of("Motor", JOINT, Motor.class, Motor::new);
 
@@ -73,6 +105,14 @@ public final class Classes {
         r.register(CAPE);
         r.register(HUMANOID);
         r.register(WINGS);
+        r.register(VALUE);
+        r.register(NUMBER_VALUE);
+        r.register(STRING_VALUE);
+        r.register(BOOL_VALUE);
+        r.register(VECTOR3_VALUE);
+        r.register(OBJECT_VALUE);
+        r.register(REMOTE);
+        r.register(UNRELIABLE_REMOTE);
         r.register(JOINT);
         r.register(MOTOR);
         for (Addon addon : addons) {

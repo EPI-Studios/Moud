@@ -17,6 +17,7 @@ import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
 import com.meekdev.moud.mod.adapter.render.PartLight;
 import net.minecraft.client.Minecraft;
 import com.meekdev.moud.mod.adapter.render.Skins;
+import com.meekdev.moud.mod.transport.Post;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -48,6 +49,11 @@ public final class ClientScene {
     // interpolation then measured the render loop instead of the stream
     public static void tick() {
         Mirror.apply(change -> ClientPhysics.apply(tree(), change));
+        // and whatever the server said, after the tree it talks about has caught up
+        if (Minecraft.getInstance().player instanceof LocalPlayer who) {
+            Post.identify(who.getUUID().toString());
+        }
+        Post.drainToClient(tree());
         InstanceTree tree = tree();
         if (tree == null) return;
         // the body is posed here, on the client, from the handful of numbers the server sent.

@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.place;
 
 import com.meekdev.moud.core.clazz.ClassRegistry;
+import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.mod.MoudMod;
@@ -134,6 +135,8 @@ public final class Place {
 
         ScriptEngine fresh = language.engine();
         fresh.bind(world, classes);
+        // the server's side of a channel, and the server's half of the verbs
+        fresh.bindPost(Post.SERVER, false);
         fresh.onError(Errors::record);
         fresh.persist(carried);
         extend.accept(fresh);

@@ -2,6 +2,7 @@ package com.meekdev.moud.script.bind;
 
 import com.meekdev.moud.core.clazz.EventDef;
 import com.meekdev.moud.core.event.Signal;
+import com.meekdev.moud.core.instance.Remote;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.err.ScriptError;
 import java.util.ArrayList;
@@ -121,7 +122,12 @@ public final class InstanceSignals {
             named.put(event.name(), handlers);
             namedLinks.add(event.on(instance).connect(what ->
                     fire(handlers, s -> {
-                        Proxies.push(s, what);
+                        // a channel hands over however many arguments were sent, and on the server the
+                        // sender first. every other event carries one thing
+                        if (what instanceof Remote.Sent sent) {
+                            return Remotes.pushSent(s, sent, instance.tree());
+                        }
+                        Proxies.push(s, (Instance) what);
                         return 1;
                     })));
             return handlers;
