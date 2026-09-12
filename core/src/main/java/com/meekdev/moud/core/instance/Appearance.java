@@ -1,5 +1,7 @@
 package com.meekdev.moud.core.instance;
 
+import com.meekdev.moud.core.clazz.Prop;
+
 // how a body looks, beside the body itself
 //
 // a character is a shape: limbs, joints, what it carries, how big it is. what it looks like is a
@@ -14,10 +16,10 @@ public final class Appearance extends Instance {
 
     // whether the arms are drawn a texel narrower. it belongs to the sheet and not to the body:
     // nothing a slim body collides with is any different
-    public boolean slim;
+    @Prop(driven = true) public boolean slim;
 
     // a pair cut from the wearer's own sheet
-    public boolean ears;
+    @Prop(driven = true) public boolean ears;
 
     // the model, the volume it really collides with, or nothing. read where the body is drawn --
     // it is a render policy and it says nothing about what a ray can reach, or about which limbs
@@ -26,4 +28,12 @@ public final class Appearance extends Instance {
 
     // what you see of this body when you are the one wearing it
     public FirstPerson firstPerson = FirstPerson.ARM;
+
+    // the two marked driven are read off the wearer rather than chosen: whether that player picked
+    // the slim model, and whether they are the one person the game gives ears to. any client that
+    // can see the player can see both, so sending them would be telling it what it knows
+    @Override
+    protected long propertiesFromElsewhere() {
+        return parent() instanceof Character body && body.worn() ? def().driven() : 0;
+    }
 }

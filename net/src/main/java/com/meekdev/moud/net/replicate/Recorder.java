@@ -30,7 +30,9 @@ public final class Recorder {
             Instance instance = tree.byId(id);
             if (instance == null || instance.parent() == null) continue;
             out.accept(new Change.Created(id, instance.def().name(), instance.parent().id(), instance.name()));
+            long skip = instance.def().unreplicated() | instance.fromElsewhere();
             for (PropertyDef property : instance.def().properties()) {
+                if ((skip & (1L << property.index())) != 0) continue;
                 out.accept(new Change.Wrote(id, property.index(), read(instance, property)));
             }
         }
@@ -47,6 +49,11 @@ public final class Recorder {
 
         tree.drainDirty((instance, mask) -> {
             if (instance.id() > seen) return;
+            // what stays on this side. the class's own never go over at all; the rest are what
+            // somebody else is already telling the other side, which for a body a player is wearing
+            // is most of what changed: the frame, where it is looking and how far it has walked,
+            // twenty times a second, per player
+            mask &= ~(instance.def().unreplicated() | instance.fromElsewhere());
             for (PropertyDef property : instance.def().properties()) {
                 if ((mask & (1L << property.index())) == 0) continue;
                 out.accept(new Change.Wrote(instance.id(), property.index(), read(instance, property)));

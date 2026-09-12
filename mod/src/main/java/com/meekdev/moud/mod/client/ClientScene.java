@@ -64,13 +64,23 @@ public final class ClientScene {
         Character own = own();
         for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
             if (!(instance instanceof Character character)) continue;
-            // yours is driven from your own player rather than from what the mirror carries. the
+            // a body somebody is wearing is driven here, off the player wearing it, and the
+            // server sends none of it
+            //
+            // §4.3: the character *is* the player entity. so the game is already sending that
+            // entity's position, rotation, crouch, swing, held item and walk to every client that
+            // can see it, and every number drive works out comes from exactly those -- ours would
+            // be the same facts a second time, down a channel whose ordering is the wrong promise
+            // for a stream of samples. and for your own body it would be worse than redundant: the
             // mirror is the server's answer to a move you made several ticks ago, and a body that
-            // arrives late is the one thing you are guaranteed to be looking at
-            if (character == own && me != null) Characters.drive(character, me);
-            // what the body looks like, from what this client can see of whoever wears it. the
-            // server has no view of a player's sheet or of the lagging position a cape reads
-            if (Skins.wearerOf(character) instanceof AbstractClientPlayer wearer) {
+            // walks after you do is not the same body
+            //
+            // what the body looks like comes from here too. the server has no view of a player's
+            // sheet, or of the lagging position a cape reads
+            AbstractClientPlayer wearer = Skins.wearerOf(character);
+            Player driver = character == own && me != null ? me : wearer;
+            if (driver != null) Characters.drive(character, driver);
+            if (wearer != null) {
                 Characters.fit(character, wearer);
                 Characters.dress(character, wearer, 1.0f);
             }

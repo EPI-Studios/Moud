@@ -10,31 +10,34 @@ public final class PropertyDef {
     private final PropertyType type;
     private final int index;
     private final boolean replicated;
+    private final boolean driven;
     private final Object defaultValue;
     private final double min;
     private final double max;
     private final VarHandle handle;
 
-    private PropertyDef(String name, PropertyType type, int index, boolean replicated, Object defaultValue,
-                        double min, double max, VarHandle handle) {
+    private PropertyDef(String name, PropertyType type, int index, boolean replicated, boolean driven,
+                        Object defaultValue, double min, double max, VarHandle handle) {
         this.name = name;
         this.type = type;
         this.index = index;
         this.replicated = replicated;
+        this.driven = driven;
         this.defaultValue = defaultValue;
         this.min = min;
         this.max = max;
         this.handle = handle;
     }
 
-    static PropertyDef of(String name, PropertyType type, int index, boolean replicated, Object defaultValue,
-                          double min, double max, VarHandle handle) {
-        return new PropertyDef(name, type, index, replicated, defaultValue, min, max, handle);
+    static PropertyDef of(String name, PropertyType type, int index, boolean replicated, boolean driven,
+                          Object defaultValue, double min, double max, VarHandle handle) {
+        return new PropertyDef(name, type, index, replicated, driven, defaultValue, min, max, handle);
     }
 
     public String name() { return name; }
     public PropertyType type() { return type; }
     public boolean replicated() { return replicated; }
+    public boolean driven() { return driven; }
     public Object defaultValue() { return defaultValue; }
 
     // bit position in the instance dirty mask, so a class caps at 64 properties

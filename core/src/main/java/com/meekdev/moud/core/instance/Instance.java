@@ -84,6 +84,26 @@ public abstract class Instance {
     protected void build() {
     }
 
+    // which of this instance's properties the other side already has by some other route
+    //
+    // sending one of these is sending it twice, and the copy we would send is the one with the wrong
+    // guarantee: a property delta is reliable and ordered, which for something that changes every tick
+    // means a lost packet delays every later one until it is retransmitted -- the newest sample
+    // arriving late is exactly what a stream of samples does not want
+    //
+    // a mask rather than a flag per property, because it is one question asked once per instance per
+    // tick. zero, for almost everything: a colour reaches the other side one way only
+    //
+    // the class named which properties on the fields themselves. a class overrides this when the
+    // answer is conditional -- a body's state comes off its player only while a player is wearing it
+    protected long propertiesFromElsewhere() {
+        return def().driven();
+    }
+
+    public final long fromElsewhere() {
+        return propertiesFromElsewhere();
+    }
+
     // the per tick stages, in Stage order. a class overrides the ones that concern it and ClassDef
     // notices, so nothing here is dispatched on a type test and nothing has to be registered
     //

@@ -42,6 +42,12 @@ public final class ClassDef<T extends Instance> {
     // in the one place someone reads it, and cannot say so without taking part
     private final int stages;
 
+    // the two answers to "where does a write to this go", folded into bits once because the question
+    // is asked per instance per tick: never over the wire, and over the wire unless the instance
+    // says something else is carrying it
+    private final long unreplicated;
+    private final long driven;
+
     private ClassDef(String name, ClassDef<?> parent, Supplier<T> factory, List<PropertyDef> props,
                      Map<String, EventDef> events, int stages) {
         this.name = name;
@@ -52,6 +58,14 @@ public final class ClassDef<T extends Instance> {
         for (PropertyDef p : props) byName.put(p.name(), p);
         this.events = Map.copyOf(events);
         this.stages = stages;
+        long off = 0;
+        long fromElsewhere = 0;
+        for (PropertyDef p : props) {
+            if (!p.replicated()) off |= 1L << p.index();
+            if (p.driven()) fromElsewhere |= 1L << p.index();
+        }
+        this.unreplicated = off;
+        this.driven = fromElsewhere;
     }
 
     public static <T extends Instance> ClassDef<T> of(String name, ClassDef<?> parent, Class<T> type, Supplier<T> factory) {
@@ -142,10 +156,16 @@ public final class ClassDef<T extends Instance> {
 
         Prop opts = field.getAnnotation(Prop.class);
         boolean replicated = opts == null || opts.replicated();
+        boolean driven = opts != null && opts.driven();
+        if (driven && !replicated) {
+            throw new IllegalStateException(owner + "." + field.getName()
+                    + " is both driven and not replicated, and driven means replicated sometimes");
+        }
         double min = opts == null ? Double.NEGATIVE_INFINITY : opts.min();
         double max = opts == null ? Double.POSITIVE_INFINITY : opts.max();
 
-        return PropertyDef.of(field.getName(), kind, index, replicated, handle.get(prototype), min, max, handle);
+        return PropertyDef.of(field.getName(), kind, index, replicated, driven,
+                handle.get(prototype), min, max, handle);
     }
 
     private static PropertyType kindOf(Class<?> t) {
@@ -167,6 +187,12 @@ public final class ClassDef<T extends Instance> {
     public String name() { return name; }
     public ClassDef<?> parent() { return parent; }
     public PropertyDef[] properties() { return byIndex; }
+
+    // never over the wire
+    public long unreplicated() { return unreplicated; }
+
+    // over the wire only while nothing else is carrying it, which the instance answers
+    public long driven() { return driven; }
 
     public EventDef event(String name) { return events.get(name); }
 
