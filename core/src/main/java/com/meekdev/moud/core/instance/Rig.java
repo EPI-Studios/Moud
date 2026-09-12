@@ -47,6 +47,9 @@ public final class Rig {
     // the pair's own state, beside the two boxes that draw it
     public static final String WING_SET = "wings";
 
+    // the living half of a body
+    public static final String HUMANOID = "humanoid";
+
     private static final double PX = 1.0 / 16.0;
 
     // the model is authored from the shoulder down; the feet are twenty four units below it
@@ -109,6 +112,11 @@ public final class Rig {
     // a pose that moves a joint starts from here, never from where it left it last tick: the
     // model states a crouch as an offset applied to the standing pivot, and reading back the
     // offset one would compound it every tick until the body came apart
+    // the living half, or nothing if something took it away
+    public static Humanoid humanoid(Character character) {
+        return character.child(HUMANOID) instanceof Humanoid living ? living : null;
+    }
+
     // the pair this body wears, or nothing
     public static Wings wings(Character character) {
         return character.child(WING_SET) instanceof Wings pair ? pair : null;
@@ -184,6 +192,7 @@ public final class Rig {
             });
         }
 
+        Instances.create(Classes.HUMANOID, character, HUMANOID);
         Instances.create(Classes.WINGS, character, WING_SET);
 
         Instance joints = Instances.create(Classes.FOLDER, character, JOINTS);

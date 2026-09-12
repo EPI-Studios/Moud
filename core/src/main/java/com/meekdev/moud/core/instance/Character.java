@@ -133,31 +133,6 @@ public final class Character extends Spatial {
     // player unless a place says otherwise
     @Prop(min = 0, max = 1) public double whiteFlash;
 
-    @Prop(min = 0) public double walkSpeed = 4.317;
-    @Prop(min = 0) public double sprintMultiplier = 1.3;
-    @Prop(min = 0) public double sneakMultiplier = 0.3;
-
-    // the speed you leave the ground at, not a height
-    @Prop(min = 0) public double jumpPower = 8.4;
-
-    @Prop(min = 0) public double gravityScale = 1.0;
-    @Prop(min = 0) public double groundAcceleration = 36.0;
-    @Prop(min = 0) public double groundDeceleration = 56.0;
-    @Prop(min = 0) public double airSpeed = 4.317;
-    @Prop(min = 0) public double airAcceleration = 8.0;
-
-    // the fraction of speed a second of air leaves you with, so 1 is frictionless
-    @Prop(min = 0, max = 1) public double airDrag = 0.667;
-    @Prop(min = 0, max = 1) public double fallDrag = 0.667;
-
-    @Prop(min = 0) public double stepHeight = 0.6;
-    @Prop(min = 0, max = 90) public double slopeLimit = 45.0;
-    @Prop(min = 0) public double slideAcceleration = 32.0;
-
-    @Prop(min = 0) public double coyoteTime = 0.15;
-    @Prop(min = 0) public double jumpBuffer = 0.15;
-
-    public boolean followSlopes = true;
 
     @Override
     void created() {

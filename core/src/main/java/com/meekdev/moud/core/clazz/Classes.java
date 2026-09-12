@@ -5,6 +5,7 @@ import com.meekdev.moud.core.instance.Camera;
 import com.meekdev.moud.core.instance.Cape;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Folder;
+import com.meekdev.moud.core.instance.Humanoid;
 import com.meekdev.moud.core.instance.Joint;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Spatial;
@@ -21,6 +22,8 @@ public final class Classes {
     public static final ClassDef<Camera> CAMERA = ClassDef.of("Camera", SPATIAL, Camera.class, Camera::new);
     // not a spatial: a joint is not somewhere, it is how two things are held together
     public static final ClassDef<Cape> CAPE = ClassDef.of("Cape", PART, Cape.class, Cape::new);
+    public static final ClassDef<Humanoid> HUMANOID =
+            ClassDef.of("Humanoid", null, Humanoid.class, Humanoid::new);
     public static final ClassDef<Wings> WINGS = ClassDef.of("Wings", null, Wings.class, Wings::new);
     public static final ClassDef<Joint> JOINT = ClassDef.of("Joint", null, Joint.class, Joint::new);
 
@@ -43,6 +46,7 @@ public final class Classes {
         r.register(CHARACTER);
         r.register(CAMERA);
         r.register(CAPE);
+        r.register(HUMANOID);
         r.register(WINGS);
         r.register(JOINT);
         for (Addon addon : addons) {

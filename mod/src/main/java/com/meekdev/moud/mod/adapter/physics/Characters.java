@@ -9,6 +9,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Rig;
+import com.meekdev.moud.core.instance.Humanoid;
 import com.meekdev.moud.core.instance.Wings;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
@@ -77,39 +78,33 @@ public final class Characters {
     // the properties the profile is built from, which is every one the class adds to a spatial.
     // a pose write is not one of them, and follow makes one of those every tick: pushing the
     // profile for it syncs the whole thing to the client twenty times a second
-    private static final boolean[] PROFILE = profileProperties();
 
-    private static boolean[] profileProperties() {
-        PropertyDef[] all = Classes.CHARACTER.properties();
-        boolean[] mine = new boolean[all.length];
-        for (PropertyDef property : all) {
-            mine[property.index()] = Classes.SPATIAL.property(property.name()) == null;
-        }
-        return mine;
-    }
 
     private final Map<UUID, Integer> bound = new HashMap<>();
 
     public static MovementProfile profileOf(Character character) {
+        Humanoid living = Rig.humanoid(character);
+        // a body with nothing living in it does not move. that is a place's doing, not a fault
+        if (living == null) return MovementProfile.builder().build();
         return MovementProfile.builder()
-                .gravityScale(character.gravityScale)
-                .maxGroundSpeed(character.walkSpeed / TICKS)
-                .sprintMultiplier(character.sprintMultiplier)
-                .sneakMultiplier(character.sneakMultiplier)
-                .maxAirSpeed(character.airSpeed / TICKS)
-                .groundAcceleration(character.groundAcceleration / (TICKS * TICKS))
-                .groundDeceleration(character.groundDeceleration / (TICKS * TICKS))
-                .airAcceleration(character.airAcceleration / (TICKS * TICKS))
-                .slideAcceleration(character.slideAcceleration / (TICKS * TICKS))
-                .jumpPower(character.jumpPower / TICKS)
+                .gravityScale(living.gravityScale)
+                .maxGroundSpeed(living.walkSpeed / TICKS)
+                .sprintMultiplier(living.sprintMultiplier)
+                .sneakMultiplier(living.sneakMultiplier)
+                .maxAirSpeed(living.airSpeed / TICKS)
+                .groundAcceleration(living.groundAcceleration / (TICKS * TICKS))
+                .groundDeceleration(living.groundDeceleration / (TICKS * TICKS))
+                .airAcceleration(living.airAcceleration / (TICKS * TICKS))
+                .slideAcceleration(living.slideAcceleration / (TICKS * TICKS))
+                .jumpPower(living.jumpPower / TICKS)
                 // a drag is what a second leaves you with, and it compounds every tick
-                .airDrag(Math.pow(character.airDrag, 1.0 / TICKS))
-                .fallDrag(Math.pow(character.fallDrag, 1.0 / TICKS))
-                .stepHeight(character.stepHeight)
-                .slideThresholdDegrees(character.slopeLimit)
-                .coyoteTicks((int) Math.round(character.coyoteTime * TICKS))
-                .jumpBufferTicks((int) Math.round(character.jumpBuffer * TICKS))
-                .followSlopes(character.followSlopes)
+                .airDrag(Math.pow(living.airDrag, 1.0 / TICKS))
+                .fallDrag(Math.pow(living.fallDrag, 1.0 / TICKS))
+                .stepHeight(living.stepHeight)
+                .slideThresholdDegrees(living.slopeLimit)
+                .coyoteTicks((int) Math.round(living.coyoteTime * TICKS))
+                .jumpBufferTicks((int) Math.round(living.jumpBuffer * TICKS))
+                .followSlopes(living.followSlopes)
                 .moverShape(character.radius, character.height)
                 .build();
     }
@@ -297,17 +292,17 @@ public final class Characters {
     // stored one goes on taking writes nobody can see
     public void apply(InstanceTree source, Change change, MinecraftServer server) {
         if (!(change instanceof Change.Wrote wrote)) return;
-        if (wrote.property() < 0 || wrote.property() >= PROFILE.length
-                || !PROFILE[wrote.property()]) {
+        // the profile lives on the humanoid now, so a write that changes how a body moves is a
+        // write to that. which character it belongs to is its parent -- the tree already says so,
+        // and asking it is cheaper than keeping a second map that can disagree with the first
+        if (!(source.byId(wrote.id()) instanceof Humanoid living)
+                || !(living.parent() instanceof Character character)) {
             return;
         }
         for (Map.Entry<UUID, Integer> entry : bound.entrySet()) {
-            if (entry.getValue() != wrote.id()) continue;
-            Instance instance = source.byId(wrote.id());
+            if (entry.getValue() != character.id()) continue;
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
-            if (instance instanceof Character character && player != null) {
-                Physics.setProfile(player, profileOf(character));
-            }
+            if (player != null) Physics.setProfile(player, profileOf(character));
         }
     }
 }

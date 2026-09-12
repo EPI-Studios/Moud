@@ -5,6 +5,7 @@ import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
+import com.meekdev.moud.core.instance.Humanoids;
 import com.meekdev.moud.core.instance.Joints;
 import com.meekdev.moud.core.instance.Rig;
 import com.meekdev.moud.core.time.Clock;
@@ -64,10 +65,16 @@ public final class MoudServer {
     private static void tick(MinecraftServer server) {
         if (place == null) return;
         if (place.pollReload()) respawnAll(server);
+        // taken once: the clock advances when it is read, so a second read is a second tick as
+        // far as anything measuring seconds is concerned
+        double dt = TICK.tick();
         ScriptEngine vm = place.vm();
-        if (vm != null) vm.step(TICK.tick());
+        if (vm != null) vm.step(dt);
         // after the place has written, before the drain: a body reshaped this tick crosses with
         // the write that reshaped it rather than a tick behind it
+        // life and the walking come before the rig, because a body that walked this tick is at
+        // a different place and the rig has to settle it there
+        Humanoids.follow(ServerScene.tree(), dt);
         Rig.follow(ServerScene.tree());
         Joints.follow(ServerScene.tree());
         Mirror.record(change -> Physics.apply(ServerScene.tree(), change, server));
