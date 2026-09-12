@@ -12,14 +12,14 @@ import com.meekdev.moud.core.clazz.Prop;
 // scales with the limb without being told to
 public final class Armour extends Instance {
 
-    @Prop(driven = true) public String head = "";
-    @Prop(driven = true) public String chest = "";
-    @Prop(driven = true) public String legs = "";
-    @Prop(driven = true) public String feet = "";
+    @Prop(driven = true, asset = true) public String head = "";
+    @Prop(driven = true, asset = true) public String chest = "";
+    @Prop(driven = true, asset = true) public String legs = "";
+    @Prop(driven = true, asset = true) public String feet = "";
 
     // a skull, a pumpkin or somebody's head, which is head equipment the game draws as a box of
     // its own rather than as a piece of armour. wearing one takes the helmet's place
-    @Prop(driven = true) public String hat = "";
+    @Prop(driven = true, asset = true) public String hat = "";
 
     // a player's or a zombie's head has a second layer over it, the way a skin does. a creeper's
     // or a skeleton's does not

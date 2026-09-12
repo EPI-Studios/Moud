@@ -1,5 +1,6 @@
 package com.meekdev.moud.core.instance;
 
+import com.meekdev.moud.core.clazz.Assets;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.clazz.PropertyType;
@@ -124,6 +125,9 @@ public final class Instances {
 
     public static void setObj(Instance i, PropertyDef p, Object value) {
         expect(i, p, !p.isNumeric() && p.type() != PropertyType.BOOL);
+        if (p.asset() && value instanceof String text) {
+            Assets.check(i.def().name() + "." + p.name(), text);
+        }
         Object current = p.getObj(i);
         if (current == null ? value == null : current.equals(value)) return;
         p.writeObj(i, value);

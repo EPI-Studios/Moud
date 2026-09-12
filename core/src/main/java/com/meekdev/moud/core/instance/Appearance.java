@@ -12,7 +12,7 @@ import com.meekdev.moud.core.clazz.Prop;
 public final class Appearance extends Instance {
 
     // the sheet the body is cut from. empty means the wearer's own, and failing that the game's
-    public String skin = "";
+    @Prop(asset = true) public String skin = "";
 
     // whether the arms are drawn a texel narrower. it belongs to the sheet and not to the body:
     // nothing a slim body collides with is any different

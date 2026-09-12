@@ -20,6 +20,11 @@ public @interface Prop {
     // which properties, and the instance says when
     boolean driven() default false;
 
+    // the text names a file, so text that cannot name one is an error at the write rather than a
+    // shrug at the read. §9.2: a range on a number clamps because an extreme is still a number, and
+    // a wrong kind of value raises because it is a typo
+    boolean asset() default false;
+
     double min() default Double.NEGATIVE_INFINITY;
 
     double max() default Double.POSITIVE_INFINITY;

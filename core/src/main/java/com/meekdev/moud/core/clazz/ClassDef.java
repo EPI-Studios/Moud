@@ -157,6 +157,11 @@ public final class ClassDef<T extends Instance> {
         Prop opts = field.getAnnotation(Prop.class);
         boolean replicated = opts == null || opts.replicated();
         boolean driven = opts != null && opts.driven();
+        boolean asset = opts != null && opts.asset();
+        if (asset && kind != PropertyType.STRING && kind != PropertyType.ASSET) {
+            throw new IllegalStateException(owner + "." + field.getName() + " is a " + kind
+                    + ", and only text names a file");
+        }
         if (driven && !replicated) {
             throw new IllegalStateException(owner + "." + field.getName()
                     + " is both driven and not replicated, and driven means replicated sometimes");
@@ -164,7 +169,7 @@ public final class ClassDef<T extends Instance> {
         double min = opts == null ? Double.NEGATIVE_INFINITY : opts.min();
         double max = opts == null ? Double.POSITIVE_INFINITY : opts.max();
 
-        return PropertyDef.of(field.getName(), kind, index, replicated, driven,
+        return PropertyDef.of(field.getName(), kind, index, replicated, driven, asset,
                 handle.get(prototype), min, max, handle);
     }
 

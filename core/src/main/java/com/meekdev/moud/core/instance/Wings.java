@@ -1,5 +1,7 @@
 package com.meekdev.moud.core.instance;
 
+import com.meekdev.moud.core.clazz.Prop;
+
 // a pair of wings a body wears
 //
 // not a part, because there are two of them and they share one state: one is written and the
@@ -23,5 +25,5 @@ public final class Wings extends Instance {
 
     // the sheet they are cut from. empty means the wearer's own elytra, then their cape, then
     // the game's
-    public String skin = "";
+    @Prop(asset = true) public String skin = "";
 }

@@ -649,6 +649,15 @@ public final class Rig {
             Instances.setBool(plated, VISIBLE, !taken && !slot(worn, plate.slot()).isEmpty());
         }
 
+        // what this box is, exactly, because a debug view that is vague about it is worse than none
+        //
+        // it is two volumes at once, and they agree here. the game's own is an axis aligned box of
+        // this width and height -- blocks, arrows and a swung sword test against that one, and the
+        // volume mixin makes it these numbers. the mover the body walks with is a capsule of the
+        // same radius and height, and a capsule's bounding box is this box
+        //
+        // so the only thing drawn wrong is the four rounded corners, top and bottom. showing those
+        // needs lines rather than parts, and a line pass for four corners is not worth a render pass
         if (character.child(HITBOX) instanceof Part box) {
             Instances.setObj(box, SIZE,
                     new Vec3(character.radius * 2, character.height, character.radius * 2));

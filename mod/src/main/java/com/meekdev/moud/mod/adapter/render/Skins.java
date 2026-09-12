@@ -325,7 +325,13 @@ public final class Skins {
     private static Identifier textureOf(Appearance look, @Nullable AbstractClientPlayer wearer) {
         if (!look.skin.isEmpty()) {
             Identifier asked = Identifier.tryParse(look.skin);
-            if (asked != null) return asked;
+            // unreachable: the write checked it, so text that got this far names a file. it throws
+            // rather than quietly falling back to the wearer's skin, because a body drawn in
+            // somebody else's skin is how a typo in a place gets shipped -- it looks like it worked
+            if (asked == null) {
+                throw new IllegalStateException("skin \"" + look.skin + "\" got past the write check");
+            }
+            return asked;
         }
         if (wearer != null) return wearer.getSkin().body().texturePath();
         return DefaultPlayerSkin.getDefaultSkin().body().texturePath();
