@@ -57,6 +57,9 @@ public final class Rig {
     // the living half of a body
     public static final String HUMANOID = "humanoid";
 
+    // where the tracks that pose it live
+    public static final String ANIMATOR = "animator";
+
     private static final double PX = 1.0 / 16.0;
 
     // the model is authored from the shoulder down; the feet are twenty four units below it
@@ -204,6 +207,7 @@ public final class Rig {
         }
 
         Instances.create(Classes.HUMANOID, character, HUMANOID);
+        Instances.create(Classes.ANIMATOR, character, ANIMATOR);
         Instances.create(Classes.WINGS, character, WING_SET);
 
         Instance joints = Instances.create(Classes.FOLDER, character, JOINTS);

@@ -5,6 +5,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Part;
+import com.meekdev.moud.core.instance.Animators;
 import com.meekdev.moud.core.instance.Joints;
 import com.meekdev.moud.core.instance.Pose;
 import com.meekdev.moud.core.instance.Rig;
@@ -57,7 +58,13 @@ public final class ClientScene {
             // mirror is the server's answer to a move you made several ticks ago, and a body that
             // arrives late is the one thing you are guaranteed to be looking at
             if (character == own && me != null) Characters.drive(character, me);
-            if (character.animate) Pose.apply(character, age(character));
+            if (character.animate) {
+                Pose.apply(character, age(character));
+            } else {
+                // the engine's own walk is off, but a track a place is playing is not the
+                // engine's walk. animate says who owns the floor, not who may speak
+                Animators.apply(character);
+            }
         }
         // last, and the only writer of a limb's frame: the rig has settled where the joints are
         // and the pose has settled the turn at them
