@@ -4,7 +4,6 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Remote;
 import com.meekdev.moud.core.instance.Schema;
-import com.meekdev.moud.net.transport.InProcess;
 import com.meekdev.moud.net.transport.Transport;
 import com.meekdev.moud.net.transport.Wire;
 import com.meekdev.moud.script.api.PostRef;
@@ -14,14 +13,15 @@ import org.slf4j.LoggerFactory;
 
 // the one carrier both sides hold, and the two drains that turn a delivery into a signal
 //
-// one instance because the server this client talks to is in the same process today. the seam is what
-// matters: when somebody else is hosting, this holds a packet channel instead and nothing above it
-// finds out
+// it is the game's own connection, in a solo game as much as on somebody else's server. the seam
+// §6.1 names is still the seam -- nothing above this finds out what is underneath it -- but there is
+// one carrier under it rather than two, because a second path that only runs in single player is a
+// path where a bug waits until the first time two people play together
 public final class Post {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("moud/post");
 
-    private static final InProcess CARRIER = new InProcess();
+    private static final Wired CARRIER = new Wired();
 
     // a place's side of it, per side, because the guard on which verb is allowed is per side
     public static final PostRef SERVER = ref();
@@ -29,14 +29,19 @@ public final class Post {
 
     private Post() {}
 
-    public static InProcess carrier() {
+    public static Wired wired() {
         return CARRIER;
     }
 
-    // who this client is. the server never reads it, and a client that could set it to somebody else
-    // would only be lying to itself: the far side stamps every delivery with whoever it came from
-    public static void identify(String player) {
-        CARRIER.identify(player);
+    // the codecs, then the two ends of them. declared once for both directions because both sides
+    // have to be able to read what the other writes
+    public static void install() {
+        Packets.declare();
+        CARRIER.listen();
+    }
+
+    public static void installOnClient() {
+        CARRIER.listenAsClient();
     }
 
     // what clients sent, on the server's tick

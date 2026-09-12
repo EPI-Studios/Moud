@@ -5,6 +5,7 @@ import com.meekdev.moud.mod.features.Features;
 import com.meekdev.moud.mod.level.PlaceChunkGenerator;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.server.MoudServer;
+import com.meekdev.moud.mod.transport.Post;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.Registry;
@@ -31,6 +32,8 @@ public final class MoudMod implements ModInitializer {
         Addons.install();
         Registry.register(BuiltInRegistries.CHUNK_GENERATOR,
                 Identifier.fromNamespaceAndPath(ID, "place"), PlaceChunkGenerator.CODEC);
+        // before anything can send: a payload the far side has no codec for is a blob it drops
+        Post.install();
         MoudServer.install();
         Physics.install();
         LOG.info("moud {} starting", version());

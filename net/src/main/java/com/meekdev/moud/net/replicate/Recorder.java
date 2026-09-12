@@ -61,7 +61,8 @@ public final class Recorder {
         });
     }
 
-    private static Object read(Instance instance, PropertyDef property) {
+    // shared with the audience, which reads exactly the same values for a baseline
+    static Object read(Instance instance, PropertyDef property) {
         if (property.type().isBool()) return property.getBool(instance);
         if (property.isNumeric()) return property.getNum(instance);
         // a reference crosses as the id it points at, never as the instance

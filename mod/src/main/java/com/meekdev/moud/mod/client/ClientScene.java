@@ -49,10 +49,8 @@ public final class ClientScene {
     // interpolation then measured the render loop instead of the stream
     public static void tick() {
         Mirror.apply(change -> ClientPhysics.apply(tree(), change));
-        // and whatever the server said, after the tree it talks about has caught up
-        if (Minecraft.getInstance().player instanceof LocalPlayer who) {
-            Post.identify(who.getUUID().toString());
-        }
+        // and whatever the server said, after the tree it talks about has caught up. who this client
+        // is never has to be said: the connection a delivery came down is the identity
         Post.drainToClient(tree());
         InstanceTree tree = tree();
         if (tree == null) return;

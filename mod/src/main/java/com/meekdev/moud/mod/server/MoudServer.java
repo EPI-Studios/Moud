@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.server;
 
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.mod.transport.Broadcast;
 import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.core.instance.Character;
@@ -13,7 +14,6 @@ import com.meekdev.moud.core.instance.Rig;
 import com.meekdev.moud.core.time.Clock;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.physics.Physics;
-import com.meekdev.moud.mod.client.Mirror;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.script.engine.ScriptEngine;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
@@ -52,6 +52,7 @@ public final class MoudServer {
     }
 
     private static void stopped() {
+        Broadcast.stop();
         place = null;
         ServerScene.stop();
     }
@@ -79,7 +80,7 @@ public final class MoudServer {
         Humanoids.follow(ServerScene.tree(), dt);
         Rig.follow(ServerScene.tree());
         Stages.run(ServerScene.tree(), Stage.COMPOSE, 0);
-        Mirror.record(change -> Physics.apply(ServerScene.tree(), change, server));
+        Broadcast.tick(server, change -> Physics.apply(ServerScene.tree(), change, server));
         Physics.settle();
         // before anything else this tick: a place that hears a client and then steps is a place that
         // acts on this tick's input rather than on last tick's
@@ -125,5 +126,8 @@ public final class MoudServer {
         Character character = Physics.bodies().of(player, ServerScene.tree());
         Physics.bodies().release(player);
         if (character != null) Instances.destroy(character);
+        // and the copy they held. they come back through a fresh one and hear the whole place again,
+        // which is right: nothing says the place they left is the place they will come back to
+        Broadcast.forget(player.getUUID());
     }
 }

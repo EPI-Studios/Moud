@@ -108,6 +108,19 @@ public final class Bytes {
         return Float.intBitsToFloat(bits);
     }
 
+    // the whole double, for the one case where rounding it would be a lie: a number a place sent
+    // down a channel. §9.1 spends float32 on a property because a property is a per tick stream
+    public void f64(double value) {
+        long bits = Double.doubleToLongBits(value);
+        for (int shift = 0; shift < 64; shift += 8) u8((int) (bits >>> shift));
+    }
+
+    public double readF64() {
+        long bits = 0;
+        for (int shift = 0; shift < 64; shift += 8) bits |= (long) readU8() << shift;
+        return Double.longBitsToDouble(bits);
+    }
+
     public void u32(int value) {
         room(4);
         data[size++] = (byte) (value >>> 24);
