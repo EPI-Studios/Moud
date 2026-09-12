@@ -5,7 +5,7 @@ package com.meekdev.moud.core.instance;
 // it started as five properties on Character and pushed that class past the sixty four a dirty
 // mask holds -- which is the guard saying what it was built to say. a body has a shape and a
 // state; what it wears has its own
-public final class Cape extends Part {
+public final class Cape extends Limb {
 
     // how it hangs, in the model's own degrees
     //

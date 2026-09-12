@@ -16,9 +16,11 @@ import com.meekdev.moud.core.instance.FirstPerson;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.CharacterDisplay;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.Limb;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Rig;
+import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Wings;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
@@ -66,32 +68,6 @@ public final class Skins {
     // one body's wash, set once per character and read by each of its twelve parts
     private static final Vector2f OVERLAY = new Vector2f();
 
-    // every player skin, for the last decade, and never mirrored: a player's left limbs carry
-    // their own regions rather than being built off the right ones
-    private static final Vector4f SHEET = new Vector4f(64f, 64f, 0f, 0f);
-
-    // one wing, cut from a sheet half the height of a skin. the right one reads it mirrored,
-    // which is how the model builds it and why one rect serves both
-    private static final SkinLayout.Box WING_RECT = new SkinLayout.Box(22, 0, 10, 20, 2);
-    private static final Vector4f[] WING_SHEET = {
-            new Vector4f(64f, 32f, 1f, 0f),
-            new Vector4f(64f, 32f, 0f, 0f),
-    };
-
-    // every piece of armour, off a sheet half the height of a skin. the left arm and the left leg
-    // are built as mirrors of the right ones, which is why one rect serves both sides
-    private static final Vector4f ARMOUR_SHEET = new Vector4f(64f, 32f, 0f, 0f);
-    private static final Vector4f ARMOUR_MIRRORED = new Vector4f(64f, 32f, 1f, 0f);
-
-    // a mob's head is cut from half the sheet a player's is
-    private static final SkinLayout.Box EAR_RECT = new SkinLayout.Box(24, 0, 6, 6, 1);
-
-    private static final Vector4f HEAD_SHEET = new Vector4f(64f, 32f, 0f, 0f);
-    private static final SkinLayout.Box HEAD_RECT = new SkinLayout.Box(0, 0, 8, 8, 8);
-    private static final SkinLayout.Box HEAD_LAYER_RECT = new SkinLayout.Box(32, 0, 8, 8, 8);
-
-    private static final SkinLayout.Box SPIN_RECT = new SkinLayout.Box(0, 0, 16, 32, 16);
-
     private static final Identifier RIPTIDE =
             Identifier.withDefaultNamespace("textures/entity/trident/trident_riptide.png");
 
@@ -111,22 +87,18 @@ public final class Skins {
 
     // a rig part is drawn here and must not also be drawn flat by the ordinary batches, or the
     // body is painted twice and the skin loses to whichever went second
+    // a rig part is drawn here and must not also be drawn flat by the ordinary batches, or the body
+    // is painted twice and whichever wrote depth second wins
+    //
+    // it used to answer by looking the part's name up in a table of six, so a cape, a wing, a plate
+    // of armour, a worn head and a pair of ears all answered no and were drawn white underneath
+    // their own proper selves. a limb answers for itself
     public static boolean wearsSkin(Part part) {
-        // only the body itself. a sword in a hand hangs off a limb and is still an ordinary part,
-        // and swallowing it here would make it invisible rather than skinned
-        if (SkinLayout.of(bodyName(part), false, false) == null) return false;
-        return characterOf(part) != null;
+        return part instanceof Limb;
     }
 
-    // the overlay shell is named for what it covers, so it answers as its parent does
-    private static String bodyName(Part part) {
-        return Rig.OVERLAY.equals(part.name()) && part.parent() != null
-                ? part.parent().name() : part.name();
-    }
-
-    // gathered once per frame, then handed to whichever batch wears that skin
     public static void gather(float partialTick) {
-        PACKED.values().forEach(List::clear);
+        for (List<Worn> packed : PACKED.values()) packed.clear();
         drawn = 0;
 
         InstanceTree tree = ClientScene.tree();
@@ -141,11 +113,9 @@ public final class Skins {
             // it and hold up a hand instead; a place that asked for the whole body gets the whole
             // body, and sees nothing of the head because its faces point away from the inside
             if (character == mine && inside() && look.firstPerson != FirstPerson.BODY) continue;
+
             AbstractClientPlayer wearer = wearerOf(character);
-            Identifier texture = textureOf(look, wearer);
-            boolean slim = wearer != null
-                    ? wearer.getSkin().model() == PlayerModelType.SLIM
-                    : look.slim;
+            Identifier body = bodySheet(look, wearer);
 
             // an invisible body is not drawn at all to anyone it is invisible to, and drawn at a
             // sixth of solid to anyone it is not -- which includes yourself, so going invisible
@@ -157,22 +127,100 @@ public final class Skins {
                 solid = 39f / 255f;
             }
             OVERLAY.set((float) character.whiteFlash, character.hurt ? 1f : 0f);
+            walk(character, character, wearer, body, solid, partialTick);
+        }
+    }
 
-            List<Worn> into = PACKED.computeIfAbsent(texture, id -> {
-                register(id);
-                return new ArrayList<>();
-            });
-            for (Instance child : character.children()) {
-                if (child instanceof Part part) {
-                    pack(part, slim, solid, wearer, into, partialTick);
+    // every limb under a body, however deep and whatever a place added
+    //
+    // depth first rather than a list of names: a cape hangs off a torso, a plate off the limb it
+    // covers, an ear off the point a hat is worn at, and a seventh limb a place hung on somewhere
+    // nobody planned for is drawn like all of them
+    private static void walk(Character character, Instance under,
+                             @Nullable AbstractClientPlayer wearer, Identifier body,
+                             float solid, float partialTick) {
+        for (Instance child : under.children()) {
+            if (child instanceof Limb limb && limb.visible && shows(wearer, limb)) {
+                Identifier sheet = sheetOf(limb, character, wearer, body);
+                if (sheet != null) {
+                    List<Worn> into = PACKED.computeIfAbsent(sheet, id -> {
+                        register(id);
+                        return new ArrayList<>();
+                    });
+                    emit(limb, solid, into, partialTick);
                 }
             }
-            wings(character, wearer, solid, partialTick);
-            armour(character, solid, partialTick);
-            spin(character, solid, partialTick);
-            wornHead(character, solid, partialTick);
-            ears(character, texture, solid, partialTick);
+            // a limb that is switched off still holds up what hangs on it, so this does not stop
+            if (child instanceof Spatial) walk(character, child, wearer, body, solid, partialTick);
         }
+    }
+
+    // which png, out of what the limb says and what the player is wearing
+    //
+    // the limb names a role rather than a path, because which png a cape or a helmet is depends on
+    // what is worn, and that is a thing this client can see and the engine cannot. a place that
+    // wants a particular png writes the path instead and gets it
+    private static @Nullable Identifier sheetOf(Limb limb, Character character,
+                                                @Nullable AbstractClientPlayer wearer,
+                                                Identifier body) {
+        String asked = limb.sheet;
+        if (asked.isEmpty()) return body;
+        switch (asked) {
+            case Rig.SHEET_RIPTIDE -> {
+                return RIPTIDE;
+            }
+            case Rig.SHEET_CAPE, Rig.SHEET_ELYTRA -> {
+                Wings pair = Rig.wings(character);
+                if (pair != null && !pair.skin.isEmpty()) return Identifier.tryParse(pair.skin);
+                if (wearer != null) {
+                    PlayerSkin skin = wearer.getSkin();
+                    if (Rig.SHEET_ELYTRA.equals(asked) && skin.elytra() != null) {
+                        return skin.elytra().texturePath();
+                    }
+                    if (skin.cape() != null) return skin.cape().texturePath();
+                }
+                // a cape nobody has is nothing rather than a default one. an elytra is a real item
+                // and always has a look
+                return Rig.SHEET_ELYTRA.equals(asked) ? ELYTRA : null;
+            }
+            default -> { }
+        }
+        if (asked.startsWith(Rig.SHEET_ARMOUR)) {
+            Armour worn = Rig.armour(character);
+            if (worn == null) return null;
+            String sheet = Rig.slot(worn, asked.substring(Rig.SHEET_ARMOUR.length()));
+            return sheet.isEmpty() ? null : Identifier.tryParse(sheet);
+        }
+        return Identifier.tryParse(asked);
+    }
+
+    // what a body without a worn head or a place's own png is cut from: the player's skin, then
+    // the game's default
+    private static Identifier bodySheet(Appearance look, @Nullable AbstractClientPlayer wearer) {
+        if (!look.skin.isEmpty()) {
+            Identifier asked = Identifier.tryParse(look.skin);
+            if (asked != null) return asked;
+        }
+        if (wearer != null) return wearer.getSkin().body().texturePath();
+        return DefaultPlayerSkin.getDefaultSkin().body().texturePath();
+    }
+
+    // the second layer is the player's to switch off, one part at a time, in skin customisation.
+    // drawing it anyway puts a hat back on someone who took it off, and a jacket over a skin drawn
+    // to be seen without one
+    private static boolean shows(@Nullable AbstractClientPlayer wearer, Limb limb) {
+        if (wearer == null || !Rig.OVERLAY.equals(limb.name())) return true;
+        Instance covers = limb.parent();
+        PlayerModelPart part = covers == null ? null : switch (covers.name()) {
+            case "head" -> PlayerModelPart.HAT;
+            case "torso" -> PlayerModelPart.JACKET;
+            case "rightArm" -> PlayerModelPart.RIGHT_SLEEVE;
+            case "leftArm" -> PlayerModelPart.LEFT_SLEEVE;
+            case "rightLeg" -> PlayerModelPart.RIGHT_PANTS_LEG;
+            case "leftLeg" -> PlayerModelPart.LEFT_PANTS_LEG;
+            default -> null;
+        };
+        return part == null || wearer.isModelPartShown(part);
     }
 
     // whether the camera is in your own head this frame
@@ -185,210 +233,30 @@ public final class Skins {
         return Minecraft.getInstance().options.getCameraType().isFirstPerson();
     }
 
-    // the pair, cut from the wearer's own skin at a rect nothing else uses
-    private static void ears(Character character, Identifier texture, float solid,
-                             float partialTick) {
-        Appearance look = Rig.appearance(character);
-        if (look == null || !look.ears) return;
-        if (!(character.child("head") instanceof Part head)) return;
-        if (!(head.child(Rig.HAT) instanceof Instance point)) return;
-        List<Worn> into = PACKED.get(texture);
-        if (into == null) return;
-        for (String name : Rig.EARS) {
-            if (!(point.child(name) instanceof Part ear) || !ear.visible) continue;
-            emit(ear, EAR_RECT, false, 0, solid, into, partialTick, SHEET);
-        }
-    }
-
-    // a skull, a pumpkin or somebody's head
-    //
-    // its sheet is half the height of a skin unless it is a head that has a second layer, which
-    // is the same sixty four by sixty four a body is cut from. one box or two, on the point a hat
-    // is worn at
-    private static void wornHead(Character character, float solid, float partialTick) {
-        Armour worn = Rig.armour(character);
-        if (worn == null || worn.hat.isEmpty()) return;
-        if (!(character.child("head") instanceof Part head)) return;
-        if (!(head.child(Rig.HAT) instanceof Instance point)) return;
-
-        Identifier texture = Identifier.tryParse(worn.hat);
-        if (texture == null) return;
-        List<Worn> into = PACKED.computeIfAbsent(texture, id -> {
-            register(id);
-            return new ArrayList<>();
-        });
-        Vector4f sheet = worn.hatLayered ? SHEET : HEAD_SHEET;
-        for (int n = 0; n < Rig.WORN_HEAD.length; n++) {
-            if (!(point.child(Rig.WORN_HEAD[n]) instanceof Part box) || !box.visible) continue;
-            emit(box, n == 0 ? HEAD_RECT : HEAD_LAYER_RECT, false, 0, solid, into,
-                    partialTick, sheet);
-        }
-    }
-
-    // the two shells a riptide throws up
-    //
-    // their net is ninety six texels across a sheet sixty four wide, so the rects run off the
-    // right hand edge and wrap round. that is what the game draws and it is why the texture is a
-    // tiling swirl rather than a picture of anything
-    private static void spin(Character character, float solid, float partialTick) {
-        if (!character.spinning) return;
-        List<Worn> into = PACKED.computeIfAbsent(RIPTIDE, id -> {
-            register(id);
-            return new ArrayList<>();
-        });
-        for (String name : Rig.SPIN) {
-            if (!(character.child(name) instanceof Part shell) || !shell.visible) continue;
-            emit(shell, SPIN_RECT, false, 0, solid, into, partialTick, SHEET);
-        }
-    }
-
-    // the ten boxes four pieces of armour are made of
-    //
-    // each is the limb it covers again, a little bigger, off whatever sheet that slot is wearing.
-    // so a body in an iron helmet and a diamond chestplate lands in two batches and neither knows
-    // about the other
-    private static void armour(Character character, float solid, float partialTick) {
-        Armour worn = Rig.armour(character);
-        if (worn == null) return;
-        for (Rig.Plate plate : Rig.ARMOUR_PLATES) {
-            String sheet = Rig.slot(worn, plate.slot());
-            if (sheet.isEmpty()) continue;
-            if (!(character.child(plate.limb()) instanceof Part limb)) continue;
-            if (!(limb.child(plate.name()) instanceof Part plated) || !plated.visible) continue;
-
-            Identifier texture = Identifier.tryParse(sheet);
-            if (texture == null) continue;
-            List<Worn> into = PACKED.computeIfAbsent(texture, id -> {
-                register(id);
-                return new ArrayList<>();
-            });
-            SkinLayout.Box box = SkinLayout.of(plate.limb(), false, false);
-            if (box == null) continue;
-            emit(plated, new SkinLayout.Box(plate.u(), plate.v(), box.w(), box.h(), box.d()),
-                    false, 0, solid, into, partialTick,
-                    plate.mirrored() ? ARMOUR_MIRRORED : ARMOUR_SHEET);
-        }
-    }
-
-    // the pair on the back, off a sheet of their own
-    //
-    // one is mirrored off the other, exactly as the model builds them, so the two rects are the
-    // same rect read the other way round. and the sheet is half as tall as a skin, which is why
-    // the size of the sheet had to stop being a constant in the shader
-    private static void wings(Character character, @Nullable AbstractClientPlayer wearer,
-                              float solid, float partialTick) {
-        Wings pair = Rig.wings(character);
-        if (pair == null || !pair.worn) return;
-        Identifier texture = wingTexture(pair, wearer);
-        List<Worn> into = PACKED.computeIfAbsent(texture, id -> {
-            register(id);
-            return new ArrayList<>();
-        });
-        for (int side = 0; side < Rig.WINGS.length; side++) {
-            if (!(character.child(Rig.WINGS[side]) instanceof Part wing)) continue;
-            // the right one is the mirror. the model builds it that way and the texture only
-            // carries one wing
-            emit(wing, WING_RECT, false, 0, solid, into, partialTick, WING_SHEET[side]);
-        }
-    }
-
-    private static Identifier wingTexture(Wings pair, @Nullable AbstractClientPlayer wearer) {
-        if (!pair.skin.isEmpty()) {
-            Identifier asked = Identifier.tryParse(pair.skin);
-            if (asked != null) return asked;
-        }
-        if (wearer != null) {
-            PlayerSkin skin = wearer.getSkin();
-            if (skin.elytra() != null) return skin.elytra().texturePath();
-            if (skin.cape() != null) return skin.cape().texturePath();
-        }
-        return ELYTRA;
-    }
-
-    private static void pack(Part part, boolean slim, float solid,
-                             @Nullable AbstractClientPlayer wearer, List<Worn> into,
-                             float partialTick) {
-        SkinLayout.Box box = SkinLayout.of(part.name(), false, slim);
-        if (box == null) return;
-        double narrow = slim ? narrowing(part) : 0;
-        emit(part, box, false, narrow, solid, into, partialTick);
-
-        // the shell is the place's to switch off and the player's to switch off, and it never
-        // outlives the limb it covers
-        if (!part.visible || !shows(wearer, part.name())) return;
-        if (part.child(Rig.OVERLAY) instanceof Part shell) {
-            SkinLayout.Box over = SkinLayout.of(part.name(), true, slim);
-            if (over != null) emit(shell, over, true, narrow, solid, into, partialTick);
-        }
-    }
-
-    // the second layer is the player's to switch off, one part at a time, in skin customisation.
-    // drawing it anyway puts a hat back on someone who took it off, and a jacket over a skin
-    // drawn to be seen without one
-    private static boolean shows(@Nullable AbstractClientPlayer wearer, String name) {
-        if (wearer == null) return true;
-        PlayerModelPart part = switch (name) {
-            case "head" -> PlayerModelPart.HAT;
-            case "torso" -> PlayerModelPart.JACKET;
-            case "rightArm" -> PlayerModelPart.RIGHT_SLEEVE;
-            case "leftArm" -> PlayerModelPart.LEFT_SLEEVE;
-            case "rightLeg" -> PlayerModelPart.RIGHT_PANTS_LEG;
-            case "leftLeg" -> PlayerModelPart.LEFT_PANTS_LEG;
-            default -> null;
-        };
-        return part == null || wearer.isModelPartShown(part);
-    }
-
-    // a slim skin narrows an arm to three texels, and the texel it loses is the one away from the
-    // torso, so the box also slides half a texel inward to stay flush against it
-    //
-    // the tree keeps the wide box on purpose: which skin someone wears is a thing this client can
-    // see and the server cannot, and a body must not collide differently for it. so the narrowing
-    // lives here, on the way to the batch, and never in the rig
-    //
-    // the texel is measured off the arm rather than off the body's scale, because an arm is no
-    // longer the body's scale: a joint scales what it holds on top of it. a quarter of the arm is
-    // one of its four texels whatever made it that wide, and the shell over it loses the same
-    // absolute texel the model takes off its sleeve
-    private static double narrowing(Part arm) {
-        double texel = arm.size.x() / 4.0;
-        if ("rightArm".equals(arm.name())) return -texel;
-        return "leftArm".equals(arm.name()) ? texel : 0;
-    }
-
-    private static void emit(Part part, SkinLayout.Box box, boolean shell, double narrow,
-                             float solid, List<Worn> into, float partialTick) {
-        emit(part, box, shell, narrow, solid, into, partialTick, SHEET);
-    }
-
-    private static void emit(Part part, SkinLayout.Box box, boolean shell, double narrow,
-                             float solid, List<Worn> into, float partialTick, Vector4f sheet) {
-        if (!part.visible) return;
-        // sampled at the frame's own fraction of the tick, the way every other part is. reading
-        // the live property drew the body at twenty a second while the world around it was smooth,
+    private static void emit(Limb limb, float solid, List<Worn> into, float partialTick) {
+        // sampled at the frame's own fraction of the tick, the way every other part is. reading the
+        // live property drew the body at twenty a second while the world around it was smooth,
         // which reads as the body lagging behind the camera rather than as a missing sample
-        CFrame frame = ClientScene.motion().sample(part, partialTick);
-        // the slide is along the arm's own x, so it follows the arm through the swing rather than
-        // drifting sideways in the world when the body turns
-        if (narrow != 0) frame = frame.mul(CFrame.at(narrow * 0.5, 0, 0));
+        CFrame frame = ClientScene.motion().sample(limb, partialTick);
         Vec3 at = frame.position();
         Quat r = frame.rotation();
-        Vec3 size = narrow == 0 ? part.size
-                : new Vec3(part.size.x() - Math.abs(narrow), part.size.y(), part.size.z());
+        Vec3 size = limb.size;
         Matrix4f transform = new Matrix4f()
                 .translationRotateScale(
                         (float) at.x(), (float) at.y(), (float) at.z(),
                         (float) r.x(), (float) r.y(), (float) r.z(), (float) r.w(),
                         (float) size.x(), (float) size.y(), (float) size.z());
-        Color tint = part.color;
+        Color tint = limb.color;
         into.add(new Worn(transform,
                 new Vector4f((float) tint.r(), (float) tint.g(), (float) tint.b(),
-                        (float) (1.0 - part.transparency) * solid),
-                PartLight.of(part, at),
-                new Vector4f(box.u(), box.v(), box.w(), box.h()),
-                new Vector2f(box.d(), shell ? 1f : 0f),
+                        (float) (1.0 - limb.transparency) * solid),
+                PartLight.of(limb, at),
+                new Vector4f((float) limb.u, (float) limb.v,
+                        (float) limb.texels.x(), (float) limb.texels.y()),
+                new Vector2f((float) limb.texels.z(), limb.cutout ? 1f : 0f),
                 new Vector2f(OVERLAY),
-                new Vector4f(sheet)));
+                new Vector4f((float) limb.sheetWidth, (float) limb.sheetHeight,
+                        limb.mirrored ? 1f : 0f, 0f)));
         drawn++;
     }
 

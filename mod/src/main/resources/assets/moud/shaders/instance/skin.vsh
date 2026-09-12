@@ -12,7 +12,7 @@ layout(location = 6) in vec2 InstLight;
 
 // where this box sits on the skin, and how big it is there. u, v, width, height in texels
 layout(location = 7) in vec4 InstUv;
-// depth in texels, and whether this is the shell over a part rather than the part
+// depth in texels, and whether a blank texel on this box is nothing rather than black
 layout(location = 8) in vec2 InstBox;
 // how far the body is washed white, and whether it is washed red
 layout(location = 9) in vec2 InstOverlay;
@@ -33,7 +33,7 @@ out vec4 vColor;
 out vec3 vPos;
 out vec2 vLight;
 out vec2 vUv;
-out float vShell;
+out float vCutout;
 out vec2 vOverlay;
 
 // the unit cube is 24 vertices in six quads and carries neither normals nor texture coordinates,
@@ -115,6 +115,6 @@ void main() {
     vColor = InstColor;
     vPos = pos.xyz;
     vLight = InstLight;
-    vShell = InstBox.y;
+    vCutout = InstBox.y;
     vOverlay = InstOverlay;
 }

@@ -99,6 +99,16 @@ public final class Rig {
             new Plate("leftLeg", "boots", "feet", 0, 16, 0.9, true),
     };
 
+    // what sheet a limb is cut from, when it is not the body's own
+    //
+    // a role rather than a path, because which png a cape or a helmet is depends on what the player
+    // is wearing, and that is a thing the client can see and the engine cannot. a place that wants
+    // a particular png writes the path here instead and it is used as given
+    public static final String SHEET_CAPE = "cape";
+    public static final String SHEET_ELYTRA = "elytra";
+    public static final String SHEET_RIPTIDE = "riptide";
+    public static final String SHEET_ARMOUR = "armour:";
+
     private static final double PX = 1.0 / 16.0;
 
     // the model is authored from the shoulder down; the feet are twenty four units below it
@@ -110,45 +120,53 @@ public final class Rig {
     private static final PropertyDef VISIBLE = Classes.PART.property("visible");
     private static final PropertyDef C0 = Classes.JOINT.property("c0");
     private static final PropertyDef GRIP_FRAME = Classes.SPATIAL.property("cframe");
+    private static final PropertyDef TEXELS = Classes.LIMB.property("texels");
 
-    // a limb: where it turns, the box hung off that, and how far its shell stands proud
-    private record Limb(String name, Vec3 pivot, Vec3 box, Vec3 size, double shell) {}
+    // a limb: where it turns, the box hung off that, how far its shell stands proud, and where on
+    // its sheet the two are cut from
+    //
+    // the rect lives here rather than in a table the renderer looks names up in. that table is what
+    // made everything it did not name -- a cape, a wing, a plate, a worn head -- get drawn twice
+    private record Shape(String name, Vec3 pivot, Vec3 box, Vec3 size, double shell,
+                         Vec3 texels, double u, double v, double shellU, double shellV) {}
 
     // the wing the model builds, in its own units. the box is ten by twenty by two grown by a
     // whole texel on every side, which is why the drawn size and the rect it is cut from are two
     // separate numbers and always will be
-    private static final Limb[] WING = {
-            limb("rightWing", -5, 0, -2, 0, 0, 0, 10, 20, 2, 1.0),
-            limb("leftWing", 5, 0, -2, -10, 0, 0, 10, 20, 2, 1.0),
+    private static final Shape[] WING = {
+            limb("rightWing", -5, 0, -2, 0, 0, 0, 10, 20, 2, 1.0, 22, 0),
+            limb("leftWing", 5, 0, -2, -10, 0, 0, 10, 20, 2, 1.0, 22, 0),
     };
 
     // ten by sixteen by one, hung two texels behind the torso's own joint. no growing: a cape is
     // the one thing the model does not inflate
-    private static final Limb CAPE_BOX = limb("cape", 0, 0, -2, -5, 0, -1, 10, 16, 1, 0);
+    private static final Shape CAPE_BOX = limb("cape", 0, 0, -2, -5, 0, -1, 10, 16, 1, 0, 0, 0);
 
     // sixteen by thirty two by sixteen, twice, at three quarters and one and a half. the two
     // spin at different rates, which is the whole of the effect
-    private static final Limb[] SPINS = {
-            limb("spinInner", 0, 0, 0, -8, -9.6, -8, 16, 32, 16, 0),
-            limb("spinOuter", 0, 0, 0, -8, 0, -8, 16, 32, 16, 0),
+    private static final Shape[] SPINS = {
+            limb("spinInner", 0, 0, 0, -8, -9.6, -8, 16, 32, 16, 0, 0, 0),
+            limb("spinOuter", 0, 0, 0, -8, 0, -8, 16, 32, 16, 0, 0, 0),
     };
 
     private static final double[] SPIN_SCALE = {0.75, 1.5};
 
     // six by six by one, grown a whole texel on every side, hung off the head's own joint. the
     // rect stays sized for the ungrown box, which is what a grow always does
-    private static final Limb[] EAR = {
-            limb("rightEar", 6, -6, 0, -3, -6, -1, 6, 6, 1, 1.0),
-            limb("leftEar", -6, -6, 0, -3, -6, -1, 6, 6, 1, 1.0),
+    private static final Shape[] EAR = {
+            limb("rightEar", 6, -6, 0, -3, -6, -1, 6, 6, 1, 1.0, 24, 0),
+            limb("leftEar", -6, -6, 0, -3, -6, -1, 6, 6, 1, 1.0, 24, 0),
     };
 
-    private static final Limb[] BODY = {
-            limb("head", 0, 0, 0, -4, -8, -4, 8, 8, 8, 0.5),
-            limb("torso", 0, 0, 0, -4, 0, -2, 8, 12, 4, 0.25),
-            limb("rightArm", -5, 2, 0, -3, -2, -2, 4, 12, 4, 0.25),
-            limb("leftArm", 5, 2, 0, -1, -2, -2, 4, 12, 4, 0.25),
-            limb("rightLeg", -1.9, 12, 0, -2, 0, -2, 4, 12, 4, 0.25),
-            limb("leftLeg", 1.9, 12, 0, -2, 0, -2, 4, 12, 4, 0.25),
+    // the six, and where every skin made in the last decade puts them. the second rect is the
+    // layer over it: hat, jacket, sleeves, trousers
+    private static final Shape[] BODY = {
+            limb("head", 0, 0, 0, -4, -8, -4, 8, 8, 8, 0.5, 0, 0, 32, 0),
+            limb("torso", 0, 0, 0, -4, 0, -2, 8, 12, 4, 0.25, 16, 16, 16, 32),
+            limb("rightArm", -5, 2, 0, -3, -2, -2, 4, 12, 4, 0.25, 40, 16, 40, 32),
+            limb("leftArm", 5, 2, 0, -1, -2, -2, 4, 12, 4, 0.25, 32, 48, 48, 48),
+            limb("rightLeg", -1.9, 12, 0, -2, 0, -2, 4, 12, 4, 0.25, 0, 16, 0, 32),
+            limb("leftLeg", 1.9, 12, 0, -2, 0, -2, 4, 12, 4, 0.25, 16, 48, 0, 48),
     };
 
     // the six, in one place. they were strings in three files, so renaming one stopped the pose
@@ -163,13 +181,20 @@ public final class Rig {
 
     // model space is mirrored on x and runs downward on y, which is why every conversion is here
     // and nowhere else
-    private static Limb limb(String name, double px, double py, double pz,
+    private static Shape limb(String name, double px, double py, double pz,
                              double bx, double by, double bz, double w, double h, double d,
-                             double shell) {
+                             double shell, double u, double v) {
+        return limb(name, px, py, pz, bx, by, bz, w, h, d, shell, u, v, 0, 0);
+    }
+
+    private static Shape limb(String name, double px, double py, double pz,
+                             double bx, double by, double bz, double w, double h, double d,
+                             double shell, double u, double v, double shellU, double shellV) {
         Vec3 pivot = new Vec3(-px * PX, (STANDING - py) * PX, pz * PX);
         // the middle of the box, measured from the pivot it hangs on
         Vec3 centre = new Vec3(-(bx + w * 0.5) * PX, -(by + h * 0.5) * PX, (bz + d * 0.5) * PX);
-        return new Limb(name, pivot, centre, new Vec3(w * PX, h * PX, d * PX), shell * PX);
+        return new Shape(name, pivot, centre, new Vec3(w * PX, h * PX, d * PX), shell * PX,
+                new Vec3(w, h, d), u, v, shellU, shellV);
     }
 
     // where a limb turns, at this scale
@@ -193,8 +218,15 @@ public final class Rig {
         };
     }
 
-    private static Limb shapeOf(String name) {
-        for (Limb limb : BODY) {
+    // +1 for the arm that stands at +x and -1 for the other, so the texel comes off the side away
+    // from the torso in both cases. zero for everything that is not an arm
+    private static double arm(String name) {
+        if ("rightArm".equals(name)) return 1;
+        return "leftArm".equals(name) ? -1 : 0;
+    }
+
+    private static Shape shapeOf(String name) {
+        for (Shape limb : BODY) {
             if (limb.name().equals(name)) return limb;
         }
         return null;
@@ -226,7 +258,7 @@ public final class Rig {
     }
 
     public static Vec3 pivot(String name, double scale) {
-        for (Limb limb : BODY) {
+        for (Shape limb : BODY) {
             if (limb.name().equals(name)) return limb.pivot().mul(scale);
         }
         return Vec3.ZERO;
@@ -242,8 +274,8 @@ public final class Rig {
         // a character builds its own body once. asking twice is a caller that did not know it
         // was already done, not a request for a second head
         if (character.child(HITBOX) != null) return;
-        for (Limb limb : BODY) {
-            Instances.create(Classes.PART, character, limb.name(), part -> {
+        for (Shape limb : BODY) {
+            Instances.create(Classes.LIMB, character, limb.name(), part -> {
                 part.size = limb.size();
                 part.cframe = CFrame.at(limb.pivot());
                 // our pivot points from the middle of the box back to where it turns
@@ -251,6 +283,9 @@ public final class Rig {
                 part.color = Color.WHITE;
                 part.collides = false;
                 part.anchored = true;
+                part.u = limb.u();
+                part.v = limb.v();
+                part.texels = limb.texels();
             });
             shell(character, limb);
             grip(character, limb);
@@ -268,20 +303,24 @@ public final class Rig {
 
         if (character.child("head") instanceof Part head
                 && head.child(HAT) instanceof Spatial point) {
-            for (Limb ear : EAR) {
-                Instances.create(Classes.PART, point, ear.name(), part -> {
+            for (Shape ear : EAR) {
+                Instances.create(Classes.LIMB, point, ear.name(), part -> {
                     part.color = Color.WHITE;
                     part.collides = false;
                     part.anchored = true;
                     part.visible = false;
+                    part.u = ear.u();
+                    part.v = ear.v();
+                    part.texels = ear.texels();
+                    part.cutout = true;
                 });
             }
         }
 
         for (int n = 0; n < SPINS.length; n++) {
-            Limb shell = SPINS[n];
+            Shape shell = SPINS[n];
             double at = SPIN_SCALE[n];
-            Instances.create(Classes.PART, character, shell.name(), part -> {
+            Instances.create(Classes.LIMB, character, shell.name(), part -> {
                 part.size = shell.size().mul(at);
                 part.cframe = CFrame.at(shell.pivot());
                 part.pivot = shell.box().neg().mul(at);
@@ -289,11 +328,16 @@ public final class Rig {
                 part.collides = false;
                 part.anchored = true;
                 part.visible = false;
+                part.u = shell.u();
+                part.v = shell.v();
+                part.texels = shell.texels();
+                part.sheet = SHEET_RIPTIDE;
+                part.cutout = true;
             });
         }
 
-        for (Limb wing : WING) {
-            Instances.create(Classes.PART, character, wing.name(), part -> {
+        for (Shape wing : WING) {
+            Instances.create(Classes.LIMB, character, wing.name(), part -> {
                 part.size = wing.size();
                 part.cframe = CFrame.at(wing.pivot());
                 part.pivot = wing.box().neg();
@@ -301,6 +345,15 @@ public final class Rig {
                 part.collides = false;
                 part.anchored = true;
                 part.visible = false;
+                part.u = wing.u();
+                part.v = wing.v();
+                part.texels = wing.texels();
+                // half the height of a skin, and only one wing is on it: the right one reads the
+                // same rect the other way round, which is how the model builds it
+                part.sheetHeight = 32;
+                part.mirrored = WINGS[0].equals(wing.name());
+                part.sheet = SHEET_ELYTRA;
+                part.cutout = true;
             });
         }
 
@@ -312,6 +365,14 @@ public final class Rig {
                 part.collides = false;
                 part.anchored = true;
                 part.visible = false;
+                part.u = CAPE_BOX.u();
+                part.v = CAPE_BOX.v();
+                part.texels = CAPE_BOX.texels();
+                // the model declares it on a sixty four square sheet and then halves the texture
+                // scale on this one cube. same answer, stated the short way
+                part.sheetHeight = 32;
+                part.sheet = SHEET_CAPE;
+                part.cutout = true;
             });
         }
 
@@ -320,22 +381,40 @@ public final class Rig {
         Instances.create(Classes.ARMOUR, character, ARMOUR);
         if (character.child("head") instanceof Part head
                 && head.child(HAT) instanceof Spatial point) {
-            for (String name : WORN_HEAD) {
-                Instances.create(Classes.PART, point, name, part -> {
+            for (int n = 0; n < WORN_HEAD.length; n++) {
+                boolean layer = n == 1;
+                Instances.create(Classes.LIMB, point, WORN_HEAD[n], part -> {
                     part.color = Color.WHITE;
                     part.collides = false;
                     part.anchored = true;
                     part.visible = false;
+                    // a mob's head is cut from half the sheet a player's is, and the second layer
+                    // is the same thirty two across the top that a hat is
+                    part.u = layer ? 32 : 0;
+                    part.v = 0;
+                    part.texels = new Vec3(8, 8, 8);
+                    part.sheet = SHEET_ARMOUR + "head";
+                    part.cutout = true;
                 });
             }
         }
         for (Plate plate : ARMOUR_PLATES) {
             if (!(character.child(plate.limb()) instanceof Part limb)) continue;
-            Instances.create(Classes.PART, limb, plate.name(), part -> {
+            Shape shape = shapeOf(plate.limb());
+            if (shape == null) continue;
+            Instances.create(Classes.LIMB, limb, plate.name(), part -> {
                 part.color = Color.WHITE;
                 part.collides = false;
                 part.anchored = true;
                 part.visible = false;
+                // the limb it covers again, off the plate's own corner of a sheet half as tall
+                part.u = plate.u();
+                part.v = plate.v();
+                part.texels = shape.texels();
+                part.sheetHeight = 32;
+                part.mirrored = plate.mirrored();
+                part.sheet = SHEET_ARMOUR + plate.slot();
+                part.cutout = true;
             });
         }
         Instances.create(Classes.WINGS, character, WING_SET);
@@ -359,19 +438,19 @@ public final class Rig {
                 joint.part1 = torso.child(CAPE);
             });
         }
-        for (Limb shell : SPINS) {
+        for (Shape shell : SPINS) {
             Instances.create(Classes.MOTOR, joints, shell.name(), joint -> {
                 joint.part0 = frame;
                 joint.part1 = character.child(shell.name());
             });
         }
-        for (Limb wing : WING) {
+        for (Shape wing : WING) {
             Instances.create(Classes.MOTOR, joints, wing.name(), joint -> {
                 joint.part0 = frame;
                 joint.part1 = character.child(wing.name());
             });
         }
-        for (Limb limb : BODY) {
+        for (Shape limb : BODY) {
             Instances.create(Classes.MOTOR, joints, limb.name(), joint -> {
                 joint.part0 = frame;
                 joint.part1 = character.child(limb.name());
@@ -405,17 +484,32 @@ public final class Rig {
         // meant a place could never hide one limb of a body it was showing: the next tick put every
         // limb back to whatever the whole body was doing. what a limb shows is the place's
 
-        for (Limb limb : BODY) {
+        boolean slim = look != null && look.slim;
+        for (Shape limb : BODY) {
             if (!(character.child(limb.name()) instanceof Part part)) continue;
             // the limb's own scale, over the body's. a joint that holds nothing bigger than it
             // was leaves this at one and the body is the size the model builds it
             Vec3 own = joint(character, limb.name()) instanceof Joint hinge ? hinge.scale : Vec3.ONE;
             Vec3 grown = limb.size().mul(s).mul(own);
 
+            // a slim sheet narrows an arm to three texels, and the texel it loses is the one away
+            // from the torso -- so the box also slides half a texel inward to stay flush against
+            // it. one place decides it, because the grip on that arm and a ray reaching it have to
+            // agree with what is drawn, and they did not while the renderer narrowed it privately
+            double narrow = slim ? arm(limb.name()) : 0;
+            double texel = narrow == 0 ? 0 : limb.size().x() * 0.25 * s * own.x();
+            if (narrow != 0) grown = new Vec3(grown.x() - texel, grown.y(), grown.z());
+
             Instances.setObj(part, SIZE, grown);
             // the box grows away from its joint rather than about its own middle, so the offset
             // back to the joint grows with it and the limb stays joined where it was
-            Instances.setObj(part, PIVOT, limb.box().neg().mul(s).mul(own));
+            Instances.setObj(part, PIVOT, limb.box().neg().mul(s).mul(own)
+                    .add(new Vec3(narrow * texel * 0.5, 0, 0)));
+            if (part instanceof Limb cut) {
+                Instances.setObj(cut, TEXELS, narrow == 0
+                        ? limb.texels()
+                        : new Vec3(limb.texels().x() - 1, limb.texels().y(), limb.texels().z()));
+            }
             // where the joint stands, which is the engine's half of it. the turn at it is the
             // place's half and is never touched from here
             if (joint(character, limb.name()) instanceof Joint hinge) {
@@ -435,8 +529,16 @@ public final class Rig {
 
             if (part.child(OVERLAY) instanceof Part over) {
                 double shell = limb.shell() * 2;
+                Vec3 wide = limb.size().add(new Vec3(shell, shell, shell)).mul(s).mul(own);
+                // it loses the same absolute texel the model takes off its sleeve, and it rides the
+                // limb's own frame so the inward slide is already in it
                 Instances.setObj(over, SIZE,
-                        limb.size().add(new Vec3(shell, shell, shell)).mul(s).mul(own));
+                        narrow == 0 ? wide : new Vec3(wide.x() - texel, wide.y(), wide.z()));
+                if (over instanceof Limb cut) {
+                    Instances.setObj(cut, TEXELS, narrow == 0
+                            ? limb.texels()
+                            : new Vec3(limb.texels().x() - 1, limb.texels().y(), limb.texels().z()));
+                }
                 // its visibility is the place's. the engine used to write it here every tick, so
                 // a place that took a hat off had it put back on before the frame was drawn
             }
@@ -466,7 +568,7 @@ public final class Rig {
             }
         }
 
-        for (Limb wing : WING) {
+        for (Shape wing : WING) {
             if (!(character.child(wing.name()) instanceof Part part)) continue;
             // grown by a texel on every side, and the rect it is cut from is not
             double grown = wing.shell() * 2;
@@ -480,7 +582,7 @@ public final class Rig {
         }
 
         for (int n = 0; n < SPINS.length; n++) {
-            Limb shell = SPINS[n];
+            Shape shell = SPINS[n];
             if (!(character.child(shell.name()) instanceof Part part)) continue;
             double at = SPIN_SCALE[n] * s;
             Instances.setObj(part, SIZE, shell.size().mul(at));
@@ -493,7 +595,7 @@ public final class Rig {
 
         if (character.child("head") instanceof Part head
                 && head.child(HAT) instanceof Spatial point) {
-            for (Limb ear : EAR) {
+            for (Shape ear : EAR) {
                 if (!(point.child(ear.name()) instanceof Part part)) continue;
                 double out = ear.shell() * 2;
                 Instances.setObj(part, SIZE,
@@ -526,7 +628,7 @@ public final class Rig {
         for (Plate plate : ARMOUR_PLATES) {
             if (!(character.child(plate.limb()) instanceof Part limb)) continue;
             if (!(limb.child(plate.name()) instanceof Part plated)) continue;
-            Limb shape = shapeOf(plate.limb());
+            Shape shape = shapeOf(plate.limb());
             if (shape == null) continue;
 
             double out = plate.grow() * 2 * PX;
@@ -553,13 +655,11 @@ public final class Rig {
     // by one, two and ten sixteenths. the step happens after the turns, so it is in the turned
     // frame, and the whole of it hangs off the arm's joint rather than the middle of its box --
     // which is why the fold back by the box offset is the first thing in it
-    private static CFrame hold(Limb limb, Character character) {
+    private static CFrame hold(Shape limb, Character character) {
         double side = "rightArm".equals(limb.name()) ? 1 : -1;
-        // a slim arm is a texel narrower, and the game slides the hand half a texel inward to
-        // follow it. nothing about the arm itself moves
-        Appearance look = appearance(character);
-        double slim = look != null && look.slim ? -side * 0.5 * PX : 0;
-        Vec3 back = limb.box().neg().mul(character.scale).add(new Vec3(slim, 0, 0));
+        // no slim term: the arm's own box already slid inward, and the grip is a child of it, so
+        // adding it here again would move the hand twice
+        Vec3 back = limb.box().neg().mul(character.scale);
 
         Quat turn = Quat.axisAngle(new Vec3(1, 0, 0), Math.PI / 2)
                 .mul(Quat.axisAngle(Vec3.UP, Math.PI));
@@ -569,25 +669,30 @@ public final class Rig {
 
     // a point on a limb, stated from that limb's own joint rather than from the middle of its
     // box, because a joint is what the game states everything from
-    private static void attach(Character character, Limb limb, String name, Vec3 from) {
+    private static void attach(Character character, Shape limb, String name, Vec3 from) {
         if (!(character.child(limb.name()) instanceof Part part)) return;
         Instances.create(Classes.ATTACHMENT, part, name,
                 point -> point.cframe = CFrame.at(limb.box().neg().add(from)));
     }
 
-    private static void grip(Character character, Limb limb) {
+    private static void grip(Character character, Shape limb) {
         if (!"rightArm".equals(limb.name()) && !"leftArm".equals(limb.name())) return;
         if (!(character.child(limb.name()) instanceof Part arm)) return;
         Instances.create(Classes.ATTACHMENT, arm, GRIP, hand -> hand.cframe = hold(limb, character));
     }
 
-    private static void shell(Character character, Limb limb) {
+    private static void shell(Character character, Shape limb) {
         if (!(character.child(limb.name()) instanceof Part part)) return;
-        Instances.create(Classes.PART, part, OVERLAY, over -> {
+        Instances.create(Classes.LIMB, part, OVERLAY, over -> {
             over.size = part.size;
             over.color = Color.WHITE;
             over.collides = false;
             over.anchored = true;
+            over.u = limb.shellU();
+            over.v = limb.shellV();
+            over.texels = limb.texels();
+            // a blank texel on a hat or a sleeve is nothing, not black
+            over.cutout = true;
         });
     }
 }

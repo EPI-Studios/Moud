@@ -12,6 +12,7 @@ import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Folder;
 import com.meekdev.moud.core.instance.Humanoid;
 import com.meekdev.moud.core.instance.Joint;
+import com.meekdev.moud.core.instance.Limb;
 import com.meekdev.moud.core.instance.Motor;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Spatial;
@@ -37,7 +38,8 @@ public final class Classes {
             ClassDef.of("Armour", null, Armour.class, Armour::new);
     public static final ClassDef<Attachment> ATTACHMENT =
             ClassDef.of("Attachment", SPATIAL, Attachment.class, Attachment::new);
-    public static final ClassDef<Cape> CAPE = ClassDef.of("Cape", PART, Cape.class, Cape::new);
+    public static final ClassDef<Limb> LIMB = ClassDef.of("Limb", PART, Limb.class, Limb::new);
+    public static final ClassDef<Cape> CAPE = ClassDef.of("Cape", LIMB, Cape.class, Cape::new);
     public static final ClassDef<Humanoid> HUMANOID =
             ClassDef.of("Humanoid", null, Humanoid.class, Humanoid::new);
     public static final ClassDef<Wings> WINGS = ClassDef.of("Wings", null, Wings.class, Wings::new);
@@ -67,6 +69,7 @@ public final class Classes {
         r.register(APPEARANCE);
         r.register(ARMOUR);
         r.register(ATTACHMENT);
+        r.register(LIMB);
         r.register(CAPE);
         r.register(HUMANOID);
         r.register(WINGS);
