@@ -9,6 +9,10 @@ import com.meekdev.amnetic.client.instanced.MeshData;
 import com.meekdev.amnetic.client.instanced.RenderState;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Armour;
+import com.meekdev.moud.core.instance.Appearance;
+import com.meekdev.moud.core.instance.Camera;
+import com.meekdev.moud.core.instance.CameraMode;
+import com.meekdev.moud.core.instance.FirstPerson;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.CharacterDisplay;
 import com.meekdev.moud.core.instance.Instance;
@@ -21,6 +25,7 @@ import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vec3;
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.features.Feature;
 import java.util.ArrayList;
@@ -126,15 +131,21 @@ public final class Skins {
 
         InstanceTree tree = ClientScene.tree();
         if (tree == null) return;
+        Character mine = ClientScene.own();
 
         for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
             if (!(instance instanceof Character character)) continue;
-            if (character.display != CharacterDisplay.MODEL) continue;
+            Appearance look = Rig.appearance(character);
+            if (look == null || look.display != CharacterDisplay.MODEL) continue;
+            // your own body, with the camera inside its head. the game's answer is to draw none of
+            // it and hold up a hand instead; a place that asked for the whole body gets the whole
+            // body, and sees nothing of the head because its faces point away from the inside
+            if (character == mine && inside() && look.firstPerson != FirstPerson.BODY) continue;
             AbstractClientPlayer wearer = wearerOf(character);
-            Identifier texture = textureOf(character, wearer);
+            Identifier texture = textureOf(look, wearer);
             boolean slim = wearer != null
                     ? wearer.getSkin().model() == PlayerModelType.SLIM
-                    : character.slim;
+                    : look.slim;
 
             // an invisible body is not drawn at all to anyone it is invisible to, and drawn at a
             // sixth of solid to anyone it is not -- which includes yourself, so going invisible
@@ -164,10 +175,21 @@ public final class Skins {
         }
     }
 
+    // whether the camera is in your own head this frame
+    //
+    // the place's camera decides, and the game's own view decides when the place is not driving it:
+    // a scriptable camera has been taken somewhere, and wherever that is, it is not inside you
+    private static boolean inside() {
+        Camera camera = ClientPlace.camera();
+        if (camera != null && camera.mode != CameraMode.FIRST_PERSON) return false;
+        return Minecraft.getInstance().options.getCameraType().isFirstPerson();
+    }
+
     // the pair, cut from the wearer's own skin at a rect nothing else uses
     private static void ears(Character character, Identifier texture, float solid,
                              float partialTick) {
-        if (!character.ears) return;
+        Appearance look = Rig.appearance(character);
+        if (look == null || !look.ears) return;
         if (!(character.child("head") instanceof Part head)) return;
         if (!(head.child(Rig.HAT) instanceof Instance point)) return;
         List<Worn> into = PACKED.get(texture);
@@ -422,9 +444,9 @@ public final class Skins {
     //
     // there is no fourth case and no flat fallback. a body is a body: it is always drawn through
     // the unwrap, and a place that wants a grey statue hands it a grey png or tints the limbs
-    private static Identifier textureOf(Character character, @Nullable AbstractClientPlayer wearer) {
-        if (!character.skin.isEmpty()) {
-            Identifier asked = Identifier.tryParse(character.skin);
+    private static Identifier textureOf(Appearance look, @Nullable AbstractClientPlayer wearer) {
+        if (!look.skin.isEmpty()) {
+            Identifier asked = Identifier.tryParse(look.skin);
             if (asked != null) return asked;
         }
         if (wearer != null) return wearer.getSkin().body().texturePath();

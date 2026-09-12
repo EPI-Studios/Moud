@@ -22,6 +22,7 @@ public final class Rig {
 
     // where the joints live, so a place reaches one by name the way it reaches a limb
     public static final String JOINTS = "joints";
+    public static final String APPEARANCE = "appearance";
 
     // the joint the whole body hangs from, which is what carries a tilt none of the limbs own
     public static final String ROOT = "root";
@@ -200,6 +201,11 @@ public final class Rig {
     }
 
     // the living half, or nothing if something took it away
+    // how a body looks, which is a child of it like everything else it is made of
+    public static Appearance appearance(Character character) {
+        return character.child(APPEARANCE) instanceof Appearance look ? look : null;
+    }
+
     public static Humanoid humanoid(Character character) {
         return character.child(HUMANOID) instanceof Humanoid living ? living : null;
     }
@@ -333,6 +339,7 @@ public final class Rig {
             });
         }
         Instances.create(Classes.WINGS, character, WING_SET);
+        Instances.create(Classes.APPEARANCE, character, APPEARANCE);
 
         // the frame the whole body hangs from. it is a real point on the character rather than a
         // prefix the composer remembers to apply: every limb joint holds onto this, so the body
@@ -393,6 +400,7 @@ public final class Rig {
     // the same body both times instead of one that grew twice
     public static void apply(Character character) {
         double s = character.scale;
+        Appearance look = appearance(character);
         // display is read where the body is drawn, not written into the limbs from here. writing it
         // meant a place could never hide one limb of a body it was showing: the next tick put every
         // limb back to whatever the whole body was doing. what a limb shows is the place's
@@ -494,7 +502,7 @@ public final class Rig {
                 Instances.setObj(part, CFRAME,
                         CFrame.at(ear.pivot().sub(BODY[0].pivot()).mul(s)));
                 Instances.setObj(part, PIVOT, ear.box().neg().mul(s));
-                Instances.setBool(part, VISIBLE, character.ears);
+                Instances.setBool(part, VISIBLE, look != null && look.ears);
             }
         }
 
@@ -533,7 +541,7 @@ public final class Rig {
             Instances.setObj(box, SIZE,
                     new Vec3(character.radius * 2, character.height, character.radius * 2));
             Instances.setObj(box, CFRAME, CFrame.at(0, character.height * 0.5, 0));
-            Instances.setBool(box, VISIBLE, character.display == CharacterDisplay.HITBOX);
+            Instances.setBool(box, VISIBLE, look != null && look.display == CharacterDisplay.HITBOX);
         }
     }
 
@@ -549,7 +557,8 @@ public final class Rig {
         double side = "rightArm".equals(limb.name()) ? 1 : -1;
         // a slim arm is a texel narrower, and the game slides the hand half a texel inward to
         // follow it. nothing about the arm itself moves
-        double slim = character.slim ? -side * 0.5 * PX : 0;
+        Appearance look = appearance(character);
+        double slim = look != null && look.slim ? -side * 0.5 * PX : 0;
         Vec3 back = limb.box().neg().mul(character.scale).add(new Vec3(slim, 0, 0));
 
         Quat turn = Quat.axisAngle(new Vec3(1, 0, 0), Math.PI / 2)

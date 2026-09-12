@@ -2,6 +2,7 @@ package com.meekdev.moud.core.clazz;
 
 import com.meekdev.moud.core.addon.Addon;
 import com.meekdev.moud.core.instance.AnimationTrack;
+import com.meekdev.moud.core.instance.Appearance;
 import com.meekdev.moud.core.instance.Animator;
 import com.meekdev.moud.core.instance.Armour;
 import com.meekdev.moud.core.instance.Attachment;
@@ -30,6 +31,8 @@ public final class Classes {
             ClassDef.of("Animator", null, Animator.class, Animator::new);
     public static final ClassDef<AnimationTrack> TRACK =
             ClassDef.of("AnimationTrack", null, AnimationTrack.class, AnimationTrack::new);
+    public static final ClassDef<Appearance> APPEARANCE =
+            ClassDef.of("Appearance", null, Appearance.class, Appearance::new);
     public static final ClassDef<Armour> ARMOUR =
             ClassDef.of("Armour", null, Armour.class, Armour::new);
     public static final ClassDef<Attachment> ATTACHMENT =
@@ -61,6 +64,7 @@ public final class Classes {
         r.register(CAMERA);
         r.register(ANIMATOR);
         r.register(TRACK);
+        r.register(APPEARANCE);
         r.register(ARMOUR);
         r.register(ATTACHMENT);
         r.register(CAPE);

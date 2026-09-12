@@ -4,6 +4,7 @@ import com.meekdev.bkun.physics.MovementProfile;
 import com.meekdev.bkun.physics.Physics;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
+import com.meekdev.moud.core.instance.Appearance;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
@@ -87,7 +88,7 @@ public final class Characters {
     private static final PropertyDef SPINNING = Classes.CHARACTER.property("spinning");
     private static final PropertyDef FROZEN = Classes.CHARACTER.property("frozen");
     private static final PropertyDef HURT = Classes.CHARACTER.property("hurt");
-    private static final PropertyDef EARS = Classes.CHARACTER.property("ears");
+    private static final PropertyDef EARS = Classes.APPEARANCE.property("ears");
 
     // the properties the profile is built from, which is every one the class adds to a spatial.
     // a pose write is not one of them, and follow makes one of those every tick: pushing the
@@ -203,7 +204,9 @@ public final class Characters {
         Instances.setBool(character, FROZEN, player.isFullyFrozen());
         // the same condition the model washes a body red on: still bleeding, or already down
         Instances.setBool(character, HURT, player.hurtTime > 0 || player.deathTime > 0);
-        Instances.setBool(character, EARS, "deadmau5".equals(player.getGameProfile().name()));
+        if (Rig.appearance(character) instanceof Appearance look) {
+            Instances.setBool(look, EARS, "deadmau5".equals(player.getGameProfile().name()));
+        }
 
         boolean mainLeft = player.getMainArm() == HumanoidArm.LEFT;
         Instances.setBool(character, MAIN_LEFT, mainLeft);
