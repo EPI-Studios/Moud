@@ -58,14 +58,38 @@ public final class Humanoid extends Instance {
     @Prop(min = 0) public double jumpPower = 8.4;
 
     @Prop(min = 0) public double gravityScale = 1.0;
-    @Prop(min = 0) public double groundAcceleration = 36.0;
-    @Prop(min = 0) public double groundDeceleration = 56.0;
-    @Prop(min = 0) public double airSpeed = 4.317;
-    @Prop(min = 0) public double airAcceleration = 8.0;
+
+    // the six below are the game's own movement, converted rather than chosen
+    //
+    // the game does not accelerate at all: it multiplies your speed by a friction each tick and adds
+    // a fixed step, and the speed you end up at is where the two balance. on the ground the friction
+    // is the block's 0.6 times 0.91 and the step is 0.1, so you settle at 0.1 / (1 - 0.546) = 0.22
+    // blocks a tick -- 4.4 m/s, or the famous 4.317 once the 0.98 on walking forward is in
+    //
+    // the mover here accelerates instead, so what carries over is not the numbers but the *time*: a
+    // decay by 0.546 a tick is within a tenth of where it is going after 0.19 seconds, either way.
+    // so a straight line covering 4.317 m/s in 0.19 s is 22.7 m/s², and the same going down
+    //
+    // they were 36 and 56 before, which is a start half again as fast and a stop nearly three times
+    // as fast. that is what made the walk feel like a different game's -- the top speed was right and
+    // the two ends of it were not
+    @Prop(min = 0) public double groundAcceleration = 22.7;
+    @Prop(min = 0) public double groundDeceleration = 22.7;
+
+    // the same sum in the air, where the friction is 0.91 and the step is 0.02: it settles at 4.44
+    // m/s and takes 1.22 seconds to get there, so 3.64 m/s². air control is *slow* in this game and
+    // that is most of what an air strafe feels like
+    @Prop(min = 0) public double airSpeed = 4.444;
+    @Prop(min = 0) public double airAcceleration = 3.64;
 
     // the fraction of speed a second of air leaves you with, so 1 is frictionless
-    @Prop(min = 0, max = 1) public double airDrag = 0.667;
-    @Prop(min = 0, max = 1) public double fallDrag = 0.667;
+    //
+    // sideways and downward are not the same number in the game and were the same here: it drags
+    // horizontal speed by 0.91 a tick and vertical by 0.98, which over a second is 0.15 and 0.67.
+    // ours had the horizontal at 0.67 too, so a jump carried its run four times further than it
+    // should have
+    @Prop(min = 0, max = 1) public double airDrag = 0.1516;
+    @Prop(min = 0, max = 1) public double fallDrag = 0.6676;
 
     @Prop(min = 0) public double stepHeight = 0.6;
     @Prop(min = 0, max = 90) public double slopeLimit = 45.0;
