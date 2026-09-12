@@ -125,6 +125,9 @@ public final class Character extends Spatial {
     // the way a name nobody says out loud hangs a body
     public boolean upsideDown;
 
+    // and the pair it wears. a place may put them on anybody
+    public boolean ears;
+
     // just hit, which washes the body red. the model carries this and the one below as a pair of
     // coordinates into a sixteen by sixteen table; they are the table's two axes
     public boolean hurt;

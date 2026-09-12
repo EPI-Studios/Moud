@@ -50,6 +50,9 @@ public final class Rig {
     // the two shells a riptide throws up around a body
     public static final String[] SPIN = {"spinInner", "spinOuter"};
 
+    // the pair a name nobody says out loud wears
+    public static final String[] EARS = {"rightEar", "leftEar"};
+
     // hung off the back of the torso rather than off the body, so it leans with a crouch and
     // twists with a swing without being told to
     public static final String CAPE = "cape";
@@ -130,6 +133,13 @@ public final class Rig {
     };
 
     private static final double[] SPIN_SCALE = {0.75, 1.5};
+
+    // six by six by one, grown a whole texel on every side, hung off the head's own joint. the
+    // rect stays sized for the ungrown box, which is what a grow always does
+    private static final Limb[] EAR = {
+            limb("rightEar", 6, 6, 0, -3, -6, -1, 6, 6, 1, 1.0),
+            limb("leftEar", -6, 6, 0, -3, -6, -1, 6, 6, 1, 1.0),
+    };
 
     private static final Limb[] BODY = {
             limb("head", 0, 0, 0, -4, -8, -4, 8, 8, 8, 0.5),
@@ -249,6 +259,18 @@ public final class Rig {
             part.collides = false;
             part.anchored = true;
         });
+
+        if (character.child("head") instanceof Part head
+                && head.child(HAT) instanceof Spatial point) {
+            for (Limb ear : EAR) {
+                Instances.create(Classes.PART, point, ear.name(), part -> {
+                    part.color = Color.WHITE;
+                    part.collides = false;
+                    part.anchored = true;
+                    part.visible = false;
+                });
+            }
+        }
 
         for (int n = 0; n < SPINS.length; n++) {
             Limb shell = SPINS[n];
@@ -444,6 +466,21 @@ public final class Rig {
             Instances.setBool(part, VISIBLE, shown && character.spinning);
             if (joint(character, shell.name()) instanceof Joint hinge) {
                 Instances.setObj(hinge, C0, CFrame.at(shell.pivot().mul(s)));
+            }
+        }
+
+        if (character.child("head") instanceof Part head
+                && head.child(HAT) instanceof Spatial point) {
+            for (Limb ear : EAR) {
+                if (!(point.child(ear.name()) instanceof Part part)) continue;
+                double out = ear.shell() * 2;
+                Instances.setObj(part, SIZE,
+                        ear.size().add(new Vec3(out, out, out)).mul(s));
+                // measured from the head's own joint, which is what the point is
+                Instances.setObj(part, CFRAME,
+                        CFrame.at(ear.pivot().sub(BODY[0].pivot()).mul(s)));
+                Instances.setObj(part, PIVOT, ear.box().neg().mul(s));
+                Instances.setBool(part, VISIBLE, shown && character.ears);
             }
         }
 

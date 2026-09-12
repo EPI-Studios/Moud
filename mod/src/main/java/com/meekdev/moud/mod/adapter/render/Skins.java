@@ -79,6 +79,8 @@ public final class Skins {
     private static final Vector4f ARMOUR_MIRRORED = new Vector4f(64f, 32f, 1f, 0f);
 
     // a mob's head is cut from half the sheet a player's is
+    private static final SkinLayout.Box EAR_RECT = new SkinLayout.Box(24, 0, 6, 6, 1);
+
     private static final Vector4f HEAD_SHEET = new Vector4f(64f, 32f, 0f, 0f);
     private static final SkinLayout.Box HEAD_RECT = new SkinLayout.Box(0, 0, 8, 8, 8);
     private static final SkinLayout.Box HEAD_LAYER_RECT = new SkinLayout.Box(32, 0, 8, 8, 8);
@@ -158,6 +160,21 @@ public final class Skins {
             armour(character, solid, partialTick);
             spin(character, solid, partialTick);
             wornHead(character, solid, partialTick);
+            ears(character, texture, solid, partialTick);
+        }
+    }
+
+    // the pair, cut from the wearer's own skin at a rect nothing else uses
+    private static void ears(Character character, Identifier texture, float solid,
+                             float partialTick) {
+        if (!character.ears) return;
+        if (!(character.child("head") instanceof Part head)) return;
+        if (!(head.child(Rig.HAT) instanceof Instance point)) return;
+        List<Worn> into = PACKED.get(texture);
+        if (into == null) return;
+        for (String name : Rig.EARS) {
+            if (!(point.child(name) instanceof Part ear) || !ear.visible) continue;
+            emit(ear, EAR_RECT, false, 0, solid, into, partialTick, SHEET);
         }
     }
 
