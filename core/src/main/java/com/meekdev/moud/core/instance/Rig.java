@@ -631,10 +631,20 @@ public final class Rig {
             Shape shape = shapeOf(plate.limb());
             if (shape == null) continue;
 
-            double out = plate.grow() * 2 * PX;
+            // a plate is the limb it covers again, a little bigger and sharing its middle. the
+            // armour model is the body's own mesh with a deformation on it, so the two cubes have
+            // the same centre -- and a child of a limb is already stated from that centre, so there
+            // is nothing to offset
+            //
+            // it used to be given the limb's own pivot, which is the offset from the box's middle
+            // back to the joint it turns at. that is the right offset for a limb, whose frame sits
+            // on the joint, and it is exactly wrong for something already inside the limb: it
+            // pushed every plate away from the limb by that vector, which for a chestplate is the
+            // best part of forty centimetres straight up
+            Vec3 own = joint(character, plate.limb()) instanceof Joint hinge ? hinge.scale : Vec3.ONE;
+            double out = plate.grow() * 2 * PX * s;
             Instances.setObj(plated, SIZE,
-                    shape.size().add(new Vec3(out, out, out)).mul(s));
-            Instances.setObj(plated, PIVOT, shape.box().neg().mul(s));
+                    shape.size().mul(s).mul(own).add(new Vec3(out, out, out)));
             boolean taken = "head".equals(plate.slot()) && worn != null && !worn.hat.isEmpty();
             Instances.setBool(plated, VISIBLE, !taken && !slot(worn, plate.slot()).isEmpty());
         }
