@@ -49,6 +49,10 @@ public final class Character extends Spatial {
     public double moveDistance;
     @Prop(min = 0, max = 1) public double moveSpeed;
 
+    // what the limb swing is divided by, which is how a body that covers more ground per step
+    // swings its legs less rather than faster. one unless something scales the body's stride
+    @Prop(min = 0.01) public double speedValue = 1.0;
+
     public boolean crouching;
 
     // the rest of what the body is doing, which is all the model animates from

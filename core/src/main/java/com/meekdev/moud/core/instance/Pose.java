@@ -66,11 +66,13 @@ public final class Pose {
             head.x = rotLerp(character.swimAmount, head.x, -Math.PI / 4);
         }
 
-        // the arms lead the legs by half a cycle, which is what makes a walk look like a walk
-        rightArm.x = Math.cos(phase + Math.PI) * 2.0 * gain * 0.5;
-        leftArm.x = Math.cos(phase) * 2.0 * gain * 0.5;
-        rightLeg.x = Math.cos(phase) * 1.4 * gain;
-        leftLeg.x = Math.cos(phase + Math.PI) * 1.4 * gain;
+        // the arms lead the legs by half a cycle, which is what makes a walk look like a walk.
+        // all four are divided by the stride, exactly as the model divides them
+        double stride = character.speedValue;
+        rightArm.x = Math.cos(phase + Math.PI) * 2.0 * gain * 0.5 / stride;
+        leftArm.x = Math.cos(phase) * 2.0 * gain * 0.5 / stride;
+        rightLeg.x = Math.cos(phase) * 1.4 * gain / stride;
+        leftLeg.x = Math.cos(phase + Math.PI) * 1.4 * gain / stride;
         // a hair of yaw and roll so the two legs are never coplanar and never z fight
         rightLeg.y = 0.005;
         rightLeg.z = 0.005;
