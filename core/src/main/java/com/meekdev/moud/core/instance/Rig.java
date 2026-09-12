@@ -4,6 +4,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
+import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vec3;
 
 // the body, ported rather than invented
@@ -28,6 +29,13 @@ public final class Rig {
     // the second shell every part wears: hat, jacket, sleeves and trousers
     public static final String OVERLAY = "overlay";
 
+    // where a hand holds something. an empty frame under each arm, and anything parented to one
+    // is held: the hierarchy already carries it through the swing, the crouch and the scale
+    //
+    // it sits exactly where the game puts an item in that hand, so a thing built out of parts
+    // lands where a real one would be drawn -- the look is the game's, the mechanism is ours
+    public static final String GRIP = "grip";
+
     private static final double PX = 1.0 / 16.0;
 
     // the model is authored from the shoulder down; the feet are twenty four units below it
@@ -38,6 +46,7 @@ public final class Rig {
     private static final PropertyDef PIVOT = Classes.PART.property("pivot");
     private static final PropertyDef VISIBLE = Classes.PART.property("visible");
     private static final PropertyDef C0 = Classes.JOINT.property("c0");
+    private static final PropertyDef GRIP_FRAME = Classes.SPATIAL.property("cframe");
 
     // a limb: where it turns, the box hung off that, and how far its shell stands proud
     private record Limb(String name, Vec3 pivot, Vec3 box, Vec3 size, double shell) {}
@@ -110,6 +119,7 @@ public final class Rig {
                 part.anchored = true;
             });
             shell(character, limb);
+            grip(character, limb);
         }
         Instances.create(Classes.PART, character, HITBOX, part -> {
             part.size = Vec3.ONE;
@@ -171,6 +181,10 @@ public final class Rig {
                 Instances.setObj(hinge, C0, CFrame.at(limb.pivot().mul(s)));
             }
 
+            if (part.child(GRIP) instanceof Spatial hand) {
+                Instances.setObj(hand, GRIP_FRAME, hold(limb, character));
+            }
+
             if (part.child(OVERLAY) instanceof Part over) {
                 double shell = limb.shell() * 2;
                 Instances.setObj(over, SIZE,
@@ -194,6 +208,31 @@ public final class Rig {
 
     // the shell sits on the part, not on the character: it inherits the swing, the pivot and the
     // scale of whatever it covers
+    // the game's own hand placement, converted once like every other number here
+    //
+    // it states it as: take the arm's frame, turn a quarter back and a half about, then step out
+    // by one, two and ten sixteenths. the step happens after the turns, so it is in the turned
+    // frame, and the whole of it hangs off the arm's joint rather than the middle of its box --
+    // which is why the fold back by the box offset is the first thing in it
+    private static CFrame hold(Limb limb, Character character) {
+        double side = "rightArm".equals(limb.name()) ? 1 : -1;
+        // a slim arm is a texel narrower, and the game slides the hand half a texel inward to
+        // follow it. nothing about the arm itself moves
+        double slim = character.slim ? -side * 0.5 * PX : 0;
+        Vec3 back = limb.box().neg().mul(character.scale).add(new Vec3(slim, 0, 0));
+
+        Quat turn = Quat.axisAngle(new Vec3(1, 0, 0), Math.PI / 2)
+                .mul(Quat.axisAngle(Vec3.UP, Math.PI));
+        Vec3 out = new Vec3(-side * PX, -2 * PX, -10 * PX).mul(character.scale);
+        return new CFrame(back, turn).mul(CFrame.at(out));
+    }
+
+    private static void grip(Character character, Limb limb) {
+        if (!"rightArm".equals(limb.name()) && !"leftArm".equals(limb.name())) return;
+        if (!(character.child(limb.name()) instanceof Part arm)) return;
+        Instances.create(Classes.SPATIAL, arm, GRIP, hand -> hand.cframe = hold(limb, character));
+    }
+
     private static void shell(Character character, Limb limb) {
         if (!(character.child(limb.name()) instanceof Part part)) return;
         Instances.create(Classes.PART, part, OVERLAY, over -> {
