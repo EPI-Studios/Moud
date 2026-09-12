@@ -47,6 +47,9 @@ public final class Rig {
     // root and steps them two texels back, and they are drawn off a sheet of their own
     public static final String[] WINGS = {"rightWing", "leftWing"};
 
+    // the two shells a riptide throws up around a body
+    public static final String[] SPIN = {"spinInner", "spinOuter"};
+
     // hung off the back of the torso rather than off the body, so it leans with a crouch and
     // twists with a swing without being told to
     public static final String CAPE = "cape";
@@ -111,6 +114,15 @@ public final class Rig {
     // ten by sixteen by one, hung two texels behind the torso's own joint. no growing: a cape is
     // the one thing the model does not inflate
     private static final Limb CAPE_BOX = limb("cape", 0, 0, -2, -5, 0, -1, 10, 16, 1, 0);
+
+    // sixteen by thirty two by sixteen, twice, at three quarters and one and a half. the two
+    // spin at different rates, which is the whole of the effect
+    private static final Limb[] SPINS = {
+            limb("spinInner", 0, 0, 0, -8, -9.6, -8, 16, 32, 16, 0),
+            limb("spinOuter", 0, 0, 0, -8, 0, -8, 16, 32, 16, 0),
+    };
+
+    private static final double[] SPIN_SCALE = {0.75, 1.5};
 
     private static final Limb[] BODY = {
             limb("head", 0, 0, 0, -4, -8, -4, 8, 8, 8, 0.5),
@@ -231,6 +243,20 @@ public final class Rig {
             part.anchored = true;
         });
 
+        for (int n = 0; n < SPINS.length; n++) {
+            Limb shell = SPINS[n];
+            double at = SPIN_SCALE[n];
+            Instances.create(Classes.PART, character, shell.name(), part -> {
+                part.size = shell.size().mul(at);
+                part.cframe = CFrame.at(shell.pivot());
+                part.pivot = shell.box().neg().mul(at);
+                part.color = Color.WHITE;
+                part.collides = false;
+                part.anchored = true;
+                part.visible = false;
+            });
+        }
+
         for (Limb wing : WING) {
             Instances.create(Classes.PART, character, wing.name(), part -> {
                 part.size = wing.size();
@@ -276,6 +302,12 @@ public final class Rig {
             Instances.create(Classes.JOINT, joints, CAPE, joint -> {
                 joint.part0 = torso;
                 joint.part1 = torso.child(CAPE);
+            });
+        }
+        for (Limb shell : SPINS) {
+            Instances.create(Classes.JOINT, joints, shell.name(), joint -> {
+                joint.part0 = character;
+                joint.part1 = character.child(shell.name());
             });
         }
         for (Limb wing : WING) {
@@ -382,6 +414,18 @@ public final class Rig {
             Instances.setBool(part, VISIBLE, shown && worn(character));
             if (joint(character, wing.name()) instanceof Joint hinge) {
                 Instances.setObj(hinge, C0, CFrame.at(wing.pivot().mul(s)));
+            }
+        }
+
+        for (int n = 0; n < SPINS.length; n++) {
+            Limb shell = SPINS[n];
+            if (!(character.child(shell.name()) instanceof Part part)) continue;
+            double at = SPIN_SCALE[n] * s;
+            Instances.setObj(part, SIZE, shell.size().mul(at));
+            Instances.setObj(part, PIVOT, shell.box().neg().mul(at));
+            Instances.setBool(part, VISIBLE, shown && character.spinning);
+            if (joint(character, shell.name()) instanceof Joint hinge) {
+                Instances.setObj(hinge, C0, CFrame.at(shell.pivot().mul(s)));
             }
         }
 

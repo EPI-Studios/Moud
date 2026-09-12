@@ -133,6 +133,7 @@ public final class Pose {
         turn(character, "leftLeg", leftLeg, scale);
         wings(character, scale);
         cape(character);
+        spin(character, ageInTicks, scale);
         // the tracks a place is playing go over what this left, and only then do the joints
         // settle. a track that names a joint takes it; one that does not, leaves it walking
         Animators.apply(character);
@@ -440,6 +441,29 @@ public final class Pose {
         }
         turn(character, "rightWing", right, scale);
         turn(character, "leftWing", left, scale);
+    }
+
+    // the two shells a riptide throws up
+    //
+    // they turn at fifty and fifty five degrees a tick, about the body's own up, on top of the
+    // seventy five the body itself is already spinning at. three rates that never line up is what
+    // makes it read as a blur rather than as two boxes
+    private static void spin(Character character, double ageInTicks, double scale) {
+        if (!character.spinning) return;
+        for (int n = 0; n < Rig.SPIN.length; n++) {
+            Limb shell = new Limb();
+            shell.y = -Math.toRadians(wrapDegrees(ageInTicks * -(45.0 + (n + 1) * 5.0)));
+            turn(character, Rig.SPIN[n], shell, scale);
+        }
+    }
+
+    // the model wraps before it converts, which keeps the float small rather than letting it grow
+    // with the age of the world
+    private static double wrapDegrees(double degrees) {
+        double wrapped = degrees % 360.0;
+        if (wrapped >= 180.0) wrapped -= 360.0;
+        if (wrapped < -180.0) wrapped += 360.0;
+        return wrapped;
     }
 
     // how a cape hangs

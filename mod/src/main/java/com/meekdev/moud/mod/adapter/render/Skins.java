@@ -78,6 +78,11 @@ public final class Skins {
     private static final Vector4f ARMOUR_SHEET = new Vector4f(64f, 32f, 0f, 0f);
     private static final Vector4f ARMOUR_MIRRORED = new Vector4f(64f, 32f, 1f, 0f);
 
+    private static final SkinLayout.Box SPIN_RECT = new SkinLayout.Box(0, 0, 16, 32, 16);
+
+    private static final Identifier RIPTIDE =
+            Identifier.withDefaultNamespace("textures/entity/trident/trident_riptide.png");
+
     private static final Identifier ELYTRA =
             Identifier.withDefaultNamespace("textures/entity/equipment/wings/elytra.png");
 
@@ -146,6 +151,24 @@ public final class Skins {
             }
             wings(character, wearer, solid, partialTick);
             armour(character, solid, partialTick);
+            spin(character, solid, partialTick);
+        }
+    }
+
+    // the two shells a riptide throws up
+    //
+    // their net is ninety six texels across a sheet sixty four wide, so the rects run off the
+    // right hand edge and wrap round. that is what the game draws and it is why the texture is a
+    // tiling swirl rather than a picture of anything
+    private static void spin(Character character, float solid, float partialTick) {
+        if (!character.spinning) return;
+        List<Worn> into = PACKED.computeIfAbsent(RIPTIDE, id -> {
+            register(id);
+            return new ArrayList<>();
+        });
+        for (String name : Rig.SPIN) {
+            if (!(character.child(name) instanceof Part shell) || !shell.visible) continue;
+            emit(shell, SPIN_RECT, false, 0, solid, into, partialTick, SHEET);
         }
     }
 
