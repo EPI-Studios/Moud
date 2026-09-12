@@ -16,9 +16,7 @@ import com.meekdev.moud.net.replicate.Change;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.Minecraft;
 import org.joml.Vector3f;
-import com.meekdev.moud.core.math.Vec3;
 import net.minecraft.world.entity.Entity;
-import org.joml.Vector3d;
 import org.joml.Quaternionf;
 import org.jspecify.annotations.Nullable;
 
@@ -49,39 +47,6 @@ public final class ClientPhysics {
                 deck.renderPose(partialTick, new SubLevelPose()).rotation());
         Vector3f forward = new Vector3f(1, 0, 0).rotate(turn);
         return -Math.toDegrees(Math.atan2(-forward.z, forward.x));
-    }
-
-    // the difference between the arc a deck carries a rider along and the straight line between
-    // where it was and where it is
-    //
-    // a tick's two positions are two points on a circle, and interpolating between them cuts the
-    // corner. the error is zero at both ends of a tick and worst in the middle, by about
-    // r * (1 - cos(w/2)) -- so it appears and vanishes twenty times a second, which is a body that
-    // will not sit still
-    //
-    // bkun already does this for the rider's camera. the camera was therefore travelling the arc
-    // while the body it belongs to travelled the chord, and the two disagreed by that much all the
-    // way through every tick: in first person the camera is the thing you judge everything else
-    // against, so it is the body that looks like it is shaking. in third person our own camera is
-    // interpolated the same straight way the body is, they agree, and the shake vanishes -- which
-    // is exactly what sneaking did
-    public static Vec3 deckArc(@Nullable Entity rider, Vec3 was, Vec3 is, float partialTick) {
-        if (rider == null) return Vec3.ZERO;
-        SubLevelEntity deck = SubLevelTracking.of(rider);
-        if (deck == null || deck.isRemoved()) return Vec3.ZERO;
-
-        // all three have to name one frame or the round trip does not cancel
-        SubLevelPose before = deck.previousPose().setOrigin(0, 0, 0);
-        SubLevelPose now = deck.currentPose().setOrigin(0, 0, 0);
-        SubLevelPose drawn = deck.renderPose(partialTick, new SubLevelPose()).setOrigin(0, 0, 0);
-
-        Vector3d from = before.toLocal(was.x(), was.y(), was.z(), new Vector3d());
-        Vector3d to = now.toLocal(is.x(), is.y(), is.z(), new Vector3d());
-        from.lerp(to, partialTick);
-        Vector3d arc = drawn.toWorld(from.x, from.y, from.z, new Vector3d());
-
-        Vec3 chord = was.lerp(is, partialTick);
-        return new Vec3(arc.x - chord.x(), arc.y - chord.y(), arc.z - chord.z());
     }
 
     public static Colliders boxes() {

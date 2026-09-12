@@ -80,7 +80,7 @@ public final class MoudServer {
         Stages.run(ServerScene.tree(), Stage.COMPOSE, 0);
         Mirror.record(change -> Physics.apply(ServerScene.tree(), change, server));
         Physics.settle();
-        Physics.bodies().follow(server, ServerScene.tree());
+        Physics.bodies().follow(server, ServerScene.tree(), Physics.shapes());
     }
 
     // every player gets a character, because a place that never mentions one still has to be

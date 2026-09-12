@@ -128,11 +128,7 @@ public final class Skins {
                 solid = 39f / 255f;
             }
             OVERLAY.set((float) character.whiteFlash, character.hurt ? 1f : 0f);
-            // one correction for the whole body, because a body is a rigid thing: the difference
-            // between the arc and the chord is the same for every limb of it to well under a tenth
-            // of a millimetre. the flat batch asks the same question about the same body
-            Vec3 arc = BodyArc.of(character, partialTick);
-            walk(character, character, wearer, body, solid, partialTick, arc);
+            walk(character, character, wearer, body, solid, partialTick);
         }
     }
 
@@ -143,7 +139,7 @@ public final class Skins {
     // nobody planned for is drawn like all of them
     private static void walk(Character character, Instance under,
                              @Nullable AbstractClientPlayer wearer, Identifier body,
-                             float solid, float partialTick, Vec3 arc) {
+                             float solid, float partialTick) {
         for (Instance child : under.children()) {
             if (child instanceof Limb limb && limb.visible && shows(wearer, limb)) {
                 Identifier sheet = sheetOf(limb, character, wearer, body);
@@ -152,13 +148,11 @@ public final class Skins {
                         register(id);
                         return new ArrayList<>();
                     });
-                    emit(character, limb, solid, into, partialTick, arc);
+                    emit(character, limb, solid, into, partialTick);
                 }
             }
             // a limb that is switched off still holds up what hangs on it, so this does not stop
-            if (child instanceof Spatial) {
-                walk(character, child, wearer, body, solid, partialTick, arc);
-            }
+            if (child instanceof Spatial) walk(character, child, wearer, body, solid, partialTick);
         }
     }
 
@@ -248,12 +242,12 @@ public final class Skins {
     }
 
     private static void emit(Character character, Limb limb, float solid, List<Worn> into,
-                             float partialTick, Vec3 arc) {
+                             float partialTick) {
         // sampled at the frame's own fraction of the tick, the way every other part is. reading the
         // live property drew the body at twenty a second while the world around it was smooth,
         // which reads as the body lagging behind the camera rather than as a missing sample
         CFrame frame = ClientScene.motion().sample(limb, partialTick);
-        Vec3 at = frame.position().add(arc);
+        Vec3 at = frame.position();
         Quat r = frame.rotation();
         Vec3 size = limb.size;
         Matrix4f transform = new Matrix4f()

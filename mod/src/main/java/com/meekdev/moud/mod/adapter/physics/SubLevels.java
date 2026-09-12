@@ -109,6 +109,18 @@ public final class SubLevels {
     // width of the rotation but is a great deal better than no collision and a dead server
     private static boolean available = true;
 
+    // which part a sub-level entity stands for, or zero for one this set never made
+    //
+    // the forward map is keyed by instance id because that is the one thing both sides agree on. a
+    // rider needs the other direction: bkun says which deck is under it, and what has to be known is
+    // which part of the tree that deck is, so a body can be hung off it
+    public int instanceOf(SubLevelEntity deck) {
+        for (Map.Entry<Integer, SubLevelEntity> entry : entities.entrySet()) {
+            if (entry.getValue() == deck) return entry.getKey();
+        }
+        return 0;
+    }
+
     public static boolean available() {
         return available;
     }

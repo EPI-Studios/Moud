@@ -3,7 +3,6 @@ package com.meekdev.moud.mod.client.editor;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.mod.adapter.render.BodyArc;
 import com.meekdev.moud.mod.adapter.physics.Bodies;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
 import net.minecraft.client.Minecraft;
@@ -102,7 +101,7 @@ public final class Shake {
         float pt = client.getDeltaTracker().getGameTimeDeltaPartialTick(true);
         if (body != null && body.child("head") instanceof Instance head) {
             com.meekdev.moud.core.math.Vec3 drawn =
-                    ClientScene.motion().sample(head, pt).position().add(BodyArc.of(head, pt));
+                    ClientScene.motion().sample(head, pt).position();
             REACH[at] = Math.sqrt(
                     Math.pow(drawn.x() - eye.x, 2)
                             + Math.pow(drawn.y() - eye.y, 2)

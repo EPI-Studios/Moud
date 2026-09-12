@@ -68,7 +68,10 @@ public final class Humanoids {
             return;
         }
 
-        Vec3 at = character.cframe.position();
+        // where it is in the world, because that is where walkTo is stated. a body hanging off
+        // something that moves has a frame stated against that, and comparing the two would have it
+        // walking toward a point measured from the wrong origin
+        Vec3 at = Transforms.world(character).position();
         Vec3 toward = living.walkTo.sub(at);
         // height is not a direction to walk in: a body told to go somewhere above it walks to
         // under it rather than into the air
@@ -90,7 +93,8 @@ public final class Humanoids {
         // facing where it is going, the way a body that walks somewhere does. our forward is -z,
         // so the heading is measured from that rather than from +x
         double yaw = Math.atan2(-way.x(), -way.z());
-        Instances.setObj(character, CFRAME, new CFrame(moved, Quat.euler(0, yaw, 0)));
+        Instances.setObj(character, CFRAME, Transforms.localFor(character,
+                new CFrame(moved, Quat.euler(0, yaw, 0))));
 
         // ground covered, not time elapsed: the walk cycle runs on distance, so feeding it the
         // step is what makes the legs match the speed rather than the frame rate

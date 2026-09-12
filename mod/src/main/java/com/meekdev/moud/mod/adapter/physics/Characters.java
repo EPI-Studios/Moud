@@ -39,6 +39,11 @@ import com.meekdev.moud.core.instance.Cape;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.entity.ClientAvatarState;
 import net.minecraft.world.entity.player.PlayerModelType;
+import com.meekdev.bkun.sublevel.SubLevelEntity;
+import com.meekdev.bkun.sublevel.SubLevelTracking;
+import com.meekdev.moud.core.instance.Part;
+import com.meekdev.moud.core.instance.Transforms;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.server.level.ServerPlayer;
@@ -134,18 +139,56 @@ public final class Characters {
         // the body faces where the player does. minecraft's yaw is the opposite way round from a
         // right handed turn and its zero looks down +z, which is half a turn from our forward
         double yaw = Math.PI - Math.toRadians(yawDegrees);
-        Instances.setObj(character, CFRAME, new CFrame(position, Quat.euler(0, yaw, 0)));
+        // stated in the world, written where the body actually hangs
+        //
+        // a body riding something hangs off it, and a frame is a local one. writing a world frame
+        // into it would put the body on the far side of wherever its parent happens to be
+        Instances.setObj(character, CFRAME, Transforms.localFor(character,
+                new CFrame(position, Quat.euler(0, yaw, 0))));
     }
 
-    public void follow(MinecraftServer server, @Nullable InstanceTree tree) {
+    public void follow(MinecraftServer server, @Nullable InstanceTree tree, SubLevels shapes) {
         if (tree == null) return;
         for (Map.Entry<UUID, Integer> entry : bound.entrySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
             if (player == null || !(tree.byId(entry.getValue()) instanceof Character character)) {
                 continue;
             }
+            // first, because where the body hangs decides what a frame written into it means
+            ride(character, player, tree, shapes);
             drive(character, player);
         }
+    }
+
+    // hang a bound body off whatever it is standing on
+    //
+    // engines split on how to say this. unreal keeps a separate movement base and recomposes the
+    // pawn's world transform from it every frame; unity and godot parent the character to the
+    // platform. moud's tree already *is* the transform hierarchy and replication already follows it,
+    // so the parent is the answer that costs nothing new
+    //
+    // and it is the whole fix rather than a correction. hung off the deck, the body's own frame is
+    // not moving while it stands there, and interpolating something that is not moving is exact --
+    // the arc comes out of the deck's rotation being interpolated as a rotation. a body left at the
+    // top of the tree is interpolated in a straight line through the world, which for anything being
+    // carried round is the chord of an arc: right at both ends of a tick, wrong in the middle, and
+    // wrong again twenty times a second
+    //
+    // the server owns this. the client writes its own body's position a tick or two ahead of the
+    // wire, but it reads the parent from it -- two writers deciding where a body hangs would flap
+    public void ride(Character character, Entity player, InstanceTree tree, SubLevels shapes) {
+        Instance want = tree.root();
+        SubLevelEntity deck = SubLevelTracking.of(player);
+        if (deck != null && !deck.isRemoved()) {
+            int id = shapes.instanceOf(deck);
+            if (tree.byId(id) instanceof Part part) want = part;
+        }
+        if (want == null || want == character || character.parent() == want) return;
+
+        // hanging it somewhere else does not move it
+        CFrame world = Transforms.world(character);
+        Instances.reparent(character, want);
+        Instances.setObj(character, CFRAME, Transforms.localFor(character, world));
     }
 
     private static final PropertyDef SLIM = Classes.APPEARANCE.property("slim");
