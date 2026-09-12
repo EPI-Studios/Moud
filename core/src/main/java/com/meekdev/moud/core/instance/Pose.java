@@ -370,32 +370,39 @@ public final class Pose {
         double amount = character.swimAmount;
         if (amount <= 0) return;
 
+        // an arm holding something up is not stroking, and neither is one mid swing: the blow it is
+        // throwing wins. the legs kick through all of it, which is why the guard is here rather
+        // than around the whole of it
+        double arms = character.usingItem ? 0 : amount;
+        double right = character.attackTime > 0 && !character.attackLeft ? 0 : arms;
+        double left = character.attackTime > 0 && character.attackLeft ? 0 : arms;
+
         double pos = character.moveDistance % 26.0;
         if (pos < 14.0) {
-            leftArm.x = rotLerp(amount, leftArm.x, 0);
-            rightArm.x = lerp(amount, rightArm.x, 0);
-            leftArm.y = rotLerp(amount, leftArm.y, Math.PI);
-            rightArm.y = lerp(amount, rightArm.y, Math.PI);
-            leftArm.z = rotLerp(amount, leftArm.z,
+            leftArm.x = rotLerp(left, leftArm.x, 0);
+            rightArm.x = lerp(right, rightArm.x, 0);
+            leftArm.y = rotLerp(left, leftArm.y, Math.PI);
+            rightArm.y = lerp(right, rightArm.y, Math.PI);
+            leftArm.z = rotLerp(left, leftArm.z,
                     Math.PI + 1.8707964 * reach(pos) / reach(14.0));
-            rightArm.z = lerp(amount, rightArm.z,
+            rightArm.z = lerp(right, rightArm.z,
                     Math.PI - 1.8707964 * reach(pos) / reach(14.0));
         } else if (pos < 22.0) {
             double through = (pos - 14.0) / 8.0;
-            leftArm.x = rotLerp(amount, leftArm.x, Math.PI / 2 * through);
-            rightArm.x = lerp(amount, rightArm.x, Math.PI / 2 * through);
-            leftArm.y = rotLerp(amount, leftArm.y, Math.PI);
-            rightArm.y = lerp(amount, rightArm.y, Math.PI);
-            leftArm.z = rotLerp(amount, leftArm.z, 5.012389 - 1.8707964 * through);
-            rightArm.z = lerp(amount, rightArm.z, 1.2707963 + 1.8707964 * through);
+            leftArm.x = rotLerp(left, leftArm.x, Math.PI / 2 * through);
+            rightArm.x = lerp(right, rightArm.x, Math.PI / 2 * through);
+            leftArm.y = rotLerp(left, leftArm.y, Math.PI);
+            rightArm.y = lerp(right, rightArm.y, Math.PI);
+            leftArm.z = rotLerp(left, leftArm.z, 5.012389 - 1.8707964 * through);
+            rightArm.z = lerp(right, rightArm.z, 1.2707963 + 1.8707964 * through);
         } else {
             double through = (pos - 22.0) / 4.0;
-            leftArm.x = rotLerp(amount, leftArm.x, Math.PI / 2 - Math.PI / 2 * through);
-            rightArm.x = lerp(amount, rightArm.x, Math.PI / 2 - Math.PI / 2 * through);
-            leftArm.y = rotLerp(amount, leftArm.y, Math.PI);
-            rightArm.y = lerp(amount, rightArm.y, Math.PI);
-            leftArm.z = rotLerp(amount, leftArm.z, Math.PI);
-            rightArm.z = lerp(amount, rightArm.z, Math.PI);
+            leftArm.x = rotLerp(left, leftArm.x, Math.PI / 2 - Math.PI / 2 * through);
+            rightArm.x = lerp(right, rightArm.x, Math.PI / 2 - Math.PI / 2 * through);
+            leftArm.y = rotLerp(left, leftArm.y, Math.PI);
+            rightArm.y = lerp(right, rightArm.y, Math.PI);
+            leftArm.z = rotLerp(left, leftArm.z, Math.PI);
+            rightArm.z = lerp(right, rightArm.z, Math.PI);
         }
 
         double kick = character.moveDistance * 0.33333334;
@@ -488,8 +495,19 @@ public final class Pose {
     // touched here, which is why a pose can no longer lose one
     private static void turn(Character character, String name, Limb limb, double scale) {
         if (!(Rig.joint(character, name) instanceof Joint hinge)) return;
-        Quat rotation = Quat.axisAngle(Vec3.UP, -limb.y)
-                .mul(Quat.axisAngle(FORWARD, limb.z))
+        // z, then y, then x -- the order the model composes them in, which is rotationZYX. we had
+        // y and z the other way round, and two rotations do not commute
+        //
+        // it was invisible in a walk, where the yaw and roll of a limb are zero or five
+        // thousandths, and wrong by a lot in anything that turns a limb twice: a crawl sets both
+        // the yaw and the roll of an arm to most of a half turn, so swapping the two put the arm
+        // somewhere else entirely
+        //
+        // the signs are the change of basis and the order is not. our frame is the model's turned a
+        // half turn about z, which negates an angle about x and about y and leaves one about z
+        // alone -- and conjugating a product conjugates each term while keeping them in order
+        Quat rotation = Quat.axisAngle(FORWARD, limb.z)
+                .mul(Quat.axisAngle(Vec3.UP, -limb.y))
                 .mul(Quat.axisAngle(RIGHT, -limb.x));
         Vec3 at = Rig.offset(limb.atX, limb.atY, limb.atZ).mul(scale);
         Instances.setObj(hinge, TRANSFORM, new CFrame(at, rotation));
