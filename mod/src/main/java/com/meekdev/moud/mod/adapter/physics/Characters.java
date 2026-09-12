@@ -376,6 +376,7 @@ public final class Characters {
                 case SPYGLASS -> ArmPose.SPYGLASS;
                 case TOOT_HORN -> ArmPose.HORN;
                 case BRUSH -> ArmPose.BRUSH;
+                case SPEAR -> ArmPose.SPEAR;
                 default -> ArmPose.ITEM;
             };
         }

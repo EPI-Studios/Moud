@@ -30,7 +30,10 @@ public enum ArmPose {
 
     HORN(false, false),
 
-    BRUSH(false, false);
+    BRUSH(false, false),
+
+    // a spear held ready. the same two flags the model gives it
+    SPEAR(false, true);
 
     private final boolean twoHanded;
     private final boolean affectsOther;

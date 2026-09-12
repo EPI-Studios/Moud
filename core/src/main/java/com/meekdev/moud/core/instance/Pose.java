@@ -289,7 +289,27 @@ public final class Pose {
                 rightArm.x = rightArm.x * 0.5 - 0.62831855;
                 rightArm.y = 0;
             }
+            case SPEAR -> spear(character, head, rightArm, true);
         }
+    }
+
+    // a spear held ready: the arm up along the look, clamped so it never folds through the body
+    //
+    // the clamps are the model's and they are the whole character of it -- a spear points where you
+    // look up to sixty degrees either side and from a hundred and twenty up to thirty down, and past
+    // that the arm stops rather than following. under a wing or in the water it drops a little
+    //
+    // what is not here is the wind up. the model reads the sway and the raise off the weapon's own
+    // kinetic data -- how long the swing takes, how hard it shakes -- and an item's data components
+    // are not something this tree carries: a body poses from its own state, and how a place's own
+    // spear charges is a place's animation to play. so this is the held pose and not the throw
+    private static void spear(Character character, Turn head, Turn arm, boolean right) {
+        int invert = right ? 1 : -1;
+        arm.y = -0.1 * invert + head.y;
+        arm.x = -1.5707964 + head.x + 0.8;
+        if (character.flying || character.swimAmount > 0) arm.x -= 0.9599311;
+        arm.y = clamp(arm.y, Math.toRadians(-60), Math.toRadians(60));
+        arm.x = clamp(arm.x, Math.toRadians(-120), Math.toRadians(30));
     }
 
     private static void poseLeft(Character character, Turn head, Turn rightArm, Turn leftArm) {
@@ -325,6 +345,7 @@ public final class Pose {
                 leftArm.x = leftArm.x * 0.5 - 0.62831855;
                 leftArm.y = 0;
             }
+            case SPEAR -> spear(character, head, leftArm, false);
         }
     }
 
@@ -409,9 +430,14 @@ public final class Pose {
         // an arm holding something up is not stroking, and neither is one mid swing: the blow it is
         // throwing wins. the legs kick through all of it, which is why the guard is here rather
         // than around the whole of it
+        //
+        // and an arm holding a spear keeps the spear up, which the model states per arm rather than
+        // through usingItem: a spear is held ready without being used
         double arms = character.usingItem ? 0 : amount;
-        double right = character.attackTime > 0 && !character.attackLeft ? 0 : arms;
-        double left = character.attackTime > 0 && character.attackLeft ? 0 : arms;
+        double right = character.rightArmPose == ArmPose.SPEAR
+                || character.attackTime > 0 && !character.attackLeft ? 0 : arms;
+        double left = character.leftArmPose == ArmPose.SPEAR
+                || character.attackTime > 0 && character.attackLeft ? 0 : arms;
 
         double pos = character.moveDistance % 26.0;
         if (pos < 14.0) {
