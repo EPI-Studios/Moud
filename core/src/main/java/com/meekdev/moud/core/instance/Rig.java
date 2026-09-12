@@ -155,8 +155,15 @@ public final class Rig {
 
         for (Limb limb : BODY) {
             if (!(character.child(limb.name()) instanceof Part part)) continue;
-            Instances.setObj(part, SIZE, limb.size().mul(s));
-            Instances.setObj(part, PIVOT, limb.box().neg().mul(s));
+            // the limb's own scale, over the body's. a joint that holds nothing bigger than it
+            // was leaves this at one and the body is the size the model builds it
+            Vec3 own = joint(character, limb.name()) instanceof Joint hinge ? hinge.scale : Vec3.ONE;
+            Vec3 grown = limb.size().mul(s).mul(own);
+
+            Instances.setObj(part, SIZE, grown);
+            // the box grows away from its joint rather than about its own middle, so the offset
+            // back to the joint grows with it and the limb stays joined where it was
+            Instances.setObj(part, PIVOT, limb.box().neg().mul(s).mul(own));
             Instances.setBool(part, VISIBLE, shown);
             // where the joint stands, which is the engine's half of it. the turn at it is the
             // place's half and is never touched from here
@@ -165,9 +172,11 @@ public final class Rig {
             }
 
             if (part.child(OVERLAY) instanceof Part over) {
-                Vec3 grown = new Vec3(limb.shell() * 2, limb.shell() * 2, limb.shell() * 2);
-                Instances.setObj(over, SIZE, limb.size().add(grown).mul(s));
-                Instances.setBool(over, VISIBLE, shown);
+                double shell = limb.shell() * 2;
+                Instances.setObj(over, SIZE,
+                        limb.size().add(new Vec3(shell, shell, shell)).mul(s).mul(own));
+                // its visibility is the place's. the engine used to write it here every tick, so
+                // a place that took a hat off had it put back on before the frame was drawn
             }
         }
 

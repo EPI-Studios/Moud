@@ -132,7 +132,9 @@ public final class Skins {
         double narrow = slim ? narrowing(part.name()) * scale : 0;
         emit(part, box, false, narrow, solid, into, partialTick);
 
-        if (!shows(wearer, part.name())) return;
+        // the shell is the place's to switch off and the player's to switch off, and it never
+        // outlives the limb it covers
+        if (!part.visible || !shows(wearer, part.name())) return;
         if (part.child(Rig.OVERLAY) instanceof Part shell) {
             SkinLayout.Box over = SkinLayout.of(part.name(), true, slim);
             if (over != null) emit(shell, over, true, narrow, solid, into, partialTick);

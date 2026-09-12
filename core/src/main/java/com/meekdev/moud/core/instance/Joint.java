@@ -1,6 +1,7 @@
 package com.meekdev.moud.core.instance;
 
 import com.meekdev.moud.core.math.CFrame;
+import com.meekdev.moud.core.math.Vec3;
 
 // what holds one part onto another and lets it turn there
 //
@@ -26,4 +27,11 @@ public final class Joint extends Instance {
     // the turn at the joint, which is the whole of posing a body. a place writes this, and cannot
     // lose the joint by writing it
     public CFrame transform = CFrame.IDENTITY;
+
+    // how big the limb this holds is drawn, over whatever the body's own scale made it
+    //
+    // it grows about the joint rather than about the middle of the box, so a head twice the size
+    // is still joined at the neck. that is what makes a big headed character and not a floating
+    // one, and it is per axis because a limb is a box
+    public Vec3 scale = Vec3.ONE;
 }
