@@ -17,6 +17,7 @@ import com.meekdev.moud.script.sched.Scheduler;
 import java.util.Map;
 import java.util.function.Consumer;
 import com.meekdev.moud.script.bind.Values;
+import com.meekdev.moud.script.engine.ScriptEngine;
 import com.meekdev.moud.script.err.ScriptError;
 import net.hollowcube.luau.BuilinLibrary;
 import java.util.function.Supplier;
@@ -25,7 +26,7 @@ import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.compiler.LuauCompileException;
 import net.hollowcube.luau.compiler.LuauCompiler;
 
-public final class Vm implements AutoCloseable {
+public final class Vm implements ScriptEngine {
 
     // no io, no os, no package: a place reaches the world through our api or not at all
     private static final BuilinLibrary[] LIBRARIES = {
@@ -89,6 +90,11 @@ public final class Vm implements AutoCloseable {
         }, "players.me"));
         state.rawSetField(-2, "me");
         state.pop(2);
+    }
+
+    @Override
+    public int sleepingTasks() {
+        return scheduler.sleepingCount();
     }
 
     public Scheduler scheduler() {

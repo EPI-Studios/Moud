@@ -5,8 +5,8 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.script.reload.Watcher;
-import com.meekdev.moud.script.types.Types;
-import com.meekdev.moud.script.vm.Vm;
+import com.meekdev.moud.script.engine.ScriptEngine;
+import com.meekdev.moud.script.engine.ScriptLanguage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,12 +26,13 @@ public final class Place {
     private final Path root;
     private final String main;
     private final Predicate<Instance> dropped;
-    private final Consumer<Vm> extend;
-    private @Nullable Vm vm;
+    private final Consumer<ScriptEngine> extend;
+    private @Nullable ScriptEngine vm;
+    private @Nullable ScriptLanguage language;
     private @Nullable Watcher watcher;
 
     private Place(Instance world, ClassRegistry classes, String main,
-                  Predicate<Instance> dropped, Consumer<Vm> extend) {
+                  Predicate<Instance> dropped, Consumer<ScriptEngine> extend) {
         this.world = world;
         this.classes = classes;
         this.root = FabricLoader.getInstance().getGameDir().resolve(ROOT);
@@ -41,16 +42,16 @@ public final class Place {
     }
 
     public static Place server(Instance world, ClassRegistry classes) {
-        return new Place(world, classes, "server/main.luau", instance -> true, vm -> { });
+        return new Place(world, classes, "server/main", instance -> true, vm -> { });
     }
 
     // 8.6: a client reload re-runs the place's local scripts and leaves the mirror alone, so the
     // only things it may destroy are the ones the client made itself. those are the negative ids
-    public static Place client(Instance world, ClassRegistry classes, Consumer<Vm> extend) {
-        return new Place(world, classes, "client/main.luau", instance -> instance.id() < 0, extend);
+    public static Place client(Instance world, ClassRegistry classes, Consumer<ScriptEngine> extend) {
+        return new Place(world, classes, "client/main", instance -> instance.id() < 0, extend);
     }
 
-    public @Nullable Vm vm() {
+    public @Nullable ScriptEngine vm() {
         return vm;
     }
 
@@ -90,19 +91,39 @@ public final class Place {
     // the definitions an editor reads the place against, rewritten on every start so they always
     // describe the engine that is about to run it
     private void types() {
+        if (language == null) return;
         try {
-            Types.write(root, classes);
+            language.writeTypes(root, classes);
         } catch (IOException e) {
-            MoudMod.LOG.warn("could not write the luau definitions, an editor will not know the api", e);
+            MoudMod.LOG.warn("could not write the {} definitions, an editor will not know the api",
+                    language.name(), e);
         }
     }
 
-    private @Nullable Vm load(Map<String, Object> carried) {
-        Path entry = root.resolve(main);
-        if (!Files.isRegularFile(entry)) {
-            MoudMod.LOG.info("no {}, nothing to run", entry);
+    // which language runs this place is the answer to what its main file is called. a folder with
+    // no main file in any known language simply has nothing to run, which is not an error: an
+    // empty place still has to be walkable
+    private @Nullable ScriptLanguage pick() {
+        ScriptLanguage found = null;
+        for (ScriptLanguage language : Languages.all()) {
+            if (!Files.isRegularFile(root.resolve(main + "." + language.extension()))) continue;
+            if (found != null) {
+                throw new IllegalStateException("this place has a " + main + " in two languages, "
+                        + found.name() + " and " + language.name() + ", and cannot choose");
+            }
+            found = language;
+        }
+        return found;
+    }
+
+    private @Nullable ScriptEngine load(Map<String, Object> carried) {
+        language = pick();
+        if (language == null) {
+            MoudMod.LOG.info("no {} in any known language, nothing to run", main);
             return null;
         }
+        String file = main + "." + language.extension();
+        Path entry = root.resolve(file);
         String source;
         try {
             source = Files.readString(entry);
@@ -111,13 +132,13 @@ public final class Place {
             return null;
         }
 
-        Vm fresh = new Vm();
+        ScriptEngine fresh = language.engine();
         fresh.bind(world, classes);
         fresh.onError(Errors::record);
         fresh.persist(carried);
         extend.accept(fresh);
         try {
-            fresh.run(main, source);
+            fresh.run(file, source);
         } catch (RuntimeException e) {
             // a broken edit must not take the client with it, the next save gets another go
             MoudMod.LOG.error("{} failed", entry, e);

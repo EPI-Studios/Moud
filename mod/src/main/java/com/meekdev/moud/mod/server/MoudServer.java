@@ -12,7 +12,7 @@ import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.client.Mirror;
 import com.meekdev.moud.mod.place.Place;
-import com.meekdev.moud.script.vm.Vm;
+import com.meekdev.moud.script.engine.ScriptEngine;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -64,7 +64,7 @@ public final class MoudServer {
     private static void tick(MinecraftServer server) {
         if (place == null) return;
         if (place.pollReload()) respawnAll(server);
-        Vm vm = place.vm();
+        ScriptEngine vm = place.vm();
         if (vm != null) vm.step(TICK.tick());
         // after the place has written, before the drain: a body reshaped this tick crosses with
         // the write that reshaped it rather than a tick behind it
@@ -90,7 +90,7 @@ public final class MoudServer {
         Physics.bodies().bind(player, character);
         player.teleportTo(0.5, 70.0, 0.5);
 
-        Vm vm = place.vm();
+        ScriptEngine vm = place.vm();
         if (vm != null) vm.joined(new JoinedPlayer(player));
     }
 
@@ -107,7 +107,7 @@ public final class MoudServer {
     // the character goes with the player, or a place that has been joined a hundred times holds
     // a hundred of them
     private static void leave(ServerPlayer player) {
-        Vm vm = place == null ? null : place.vm();
+        ScriptEngine vm = place == null ? null : place.vm();
         if (vm != null) vm.leaving(new JoinedPlayer(player));
 
         Character character = Physics.bodies().of(player, ServerScene.tree());

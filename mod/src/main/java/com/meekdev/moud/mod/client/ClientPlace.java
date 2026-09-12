@@ -10,7 +10,7 @@ import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.render.CameraApi;
 import com.meekdev.moud.mod.adapter.render.Cameras;
 import com.meekdev.moud.mod.place.Place;
-import com.meekdev.moud.script.vm.Vm;
+import com.meekdev.moud.script.engine.ScriptEngine;
 import org.jspecify.annotations.Nullable;
 
 // the client's own place: client/main.luau, the camera it draws through, and the input it reads
@@ -47,7 +47,7 @@ public final class ClientPlace {
     public static void frame(float partialTick) {
         if (place == null || camera == null) return;
         INPUT.poll();
-        Vm vm = place.vm();
+        ScriptEngine vm = place.vm();
         if (vm != null) vm.renderStep(FRAME.tick());
         Cameras.frame(camera, partialTick);
     }
