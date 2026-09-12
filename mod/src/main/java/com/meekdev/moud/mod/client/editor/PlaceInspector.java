@@ -63,6 +63,7 @@ public final class PlaceInspector extends Inspector {
         // look. anything under a millimetre is the floating point of a rotation and is not a shake
         Shake.sample();
         text("body y", Shake.body());
+        text("body vs cam", Shake.reach());
         text("camera y", Shake.camera());
         text("camera xz", Shake.cameraFlat());
         text("yaw held", Shake.hold());

@@ -2,6 +2,8 @@ package com.meekdev.moud.mod.client.editor;
 
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.mod.client.ClientScene;
+import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.mod.adapter.render.BodyArc;
 import com.meekdev.moud.mod.adapter.physics.Bodies;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
 import net.minecraft.client.Minecraft;
@@ -25,6 +27,14 @@ public final class Shake {
     private static final int SAMPLES = 60;
 
     private static final double[] BODY = new double[SAMPLES];
+
+    // how far the body is drawn from the camera
+    //
+    // the one number that shows the fault the others could not: BODY below is the body's live tick
+    // position, and a wobble that lives entirely inside a tick's interpolation can never appear in
+    // it. this is the interpolated head, the one actually drawn, measured against the camera -- so a
+    // body that will not sit still in front of your eyes reads here and nowhere else
+    private static final double[] REACH = new double[SAMPLES];
     private static final double[] CAM_Y = new double[SAMPLES];
     private static final double[] CAM_X = new double[SAMPLES];
     private static final double[] CAM_Z = new double[SAMPLES];
@@ -89,6 +99,18 @@ public final class Shake {
         Character body = Bodies.of(ClientScene.tree(), me.getUUID().toString());
         BODY[at] = body == null ? me.getY() : body.cframe.position().y();
 
+        float pt = client.getDeltaTracker().getGameTimeDeltaPartialTick(true);
+        if (body != null && body.child("head") instanceof Instance head) {
+            com.meekdev.moud.core.math.Vec3 drawn =
+                    ClientScene.motion().sample(head, pt).position().add(BodyArc.of(head, pt));
+            REACH[at] = Math.sqrt(
+                    Math.pow(drawn.x() - eye.x, 2)
+                            + Math.pow(drawn.y() - eye.y, 2)
+                            + Math.pow(drawn.z() - eye.z, 2));
+        } else if (filled > 0) {
+            REACH[at] = REACH[was];
+        }
+
         TIME[at] = System.nanoTime() / 1.0e9;
         at = (at + 1) % SAMPLES;
         if (filled < SAMPLES) filled++;
@@ -104,6 +126,12 @@ public final class Shake {
 
     public static String body() {
         return millimetres(spread(BODY));
+    }
+
+    // the body as drawn, against the camera. standing still this is a constant whatever the ground
+    // is doing, so its spread is how far the body moves in front of your eyes
+    public static String reach() {
+        return millimetres(spread(REACH));
     }
 
     public static String camera() {

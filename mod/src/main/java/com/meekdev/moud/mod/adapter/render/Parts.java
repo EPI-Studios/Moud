@@ -132,7 +132,9 @@ public final class Parts {
 
         // how far through the tick this frame is, which is the only clock the stream shares
         CFrame world = motion.sample(part, ctx.deltaTick());
-        Vec3 pos = world.position();
+        // a sword in a hand or a marker on a head is an ordinary part, and it has to travel the same
+        // arc the body does or it leaves the hand twenty times a second
+        Vec3 pos = world.position().add(BodyArc.of(part, (float) ctx.deltaTick()));
         Quat rot = world.rotation();
         Vec3 size = part.size;
 
