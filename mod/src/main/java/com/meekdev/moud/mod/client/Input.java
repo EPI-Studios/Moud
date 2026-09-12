@@ -7,6 +7,7 @@ import java.util.function.Supplier;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
+import com.mojang.blaze3d.platform.Window;
 
 // what a place asks about the player, over minecraft's own bindings so a rebind in the vanilla
 // controls screen is a rebind here too
@@ -19,6 +20,8 @@ public final class Input implements InputRef {
 
     private double lastX;
     private double lastY;
+    private double x;
+    private double y;
     private double dx;
     private double dy;
 
@@ -36,12 +39,21 @@ public final class Input implements InputRef {
     }
 
     public void poll() {
-        double x = Minecraft.getInstance().mouseHandler.xpos();
-        double y = Minecraft.getInstance().mouseHandler.ypos();
-        dx = x - lastX;
-        dy = y - lastY;
-        lastX = x;
-        lastY = y;
+        Minecraft client = Minecraft.getInstance();
+        // the handler answers in window pixels and everything else in the api speaks the scaled
+        // ones, so the conversion happens once, here
+        Window window = client.getWindow();
+        double across = window.getScreenWidth() == 0 ? 1 : window.getScreenWidth();
+        double down = window.getScreenHeight() == 0 ? 1 : window.getScreenHeight();
+        double raw = client.mouseHandler.xpos();
+        double rawDown = client.mouseHandler.ypos();
+
+        dx = raw - lastX;
+        dy = rawDown - lastY;
+        lastX = raw;
+        lastY = rawDown;
+        x = raw * window.getGuiScaledWidth() / across;
+        y = rawDown * window.getGuiScaledHeight() / down;
     }
 
     @Override
@@ -79,11 +91,31 @@ public final class Input implements InputRef {
 
     @Override
     public double mouseX() {
-        return dx;
+        return x;
     }
 
     @Override
     public double mouseY() {
+        return y;
+    }
+
+    @Override
+    public double mouseDeltaX() {
+        return dx;
+    }
+
+    @Override
+    public double mouseDeltaY() {
         return dy;
+    }
+
+    @Override
+    public double screenWidth() {
+        return Minecraft.getInstance().getWindow().getGuiScaledWidth();
+    }
+
+    @Override
+    public double screenHeight() {
+        return Minecraft.getInstance().getWindow().getGuiScaledHeight();
     }
 }

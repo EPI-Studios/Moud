@@ -8,10 +8,25 @@ public interface InputRef {
 
     boolean down(String action);
 
-    // since the last frame, in the units the mouse produced. yaw and pitch are the camera's job
+    // where the pointer is, in the same units worldToScreen answers in and screenToRay asks for,
+    // so the three compose without a conversion nobody would guess at
+    //
+    // it used to be the movement since the last frame under these names, which reads as a
+    // position everywhere it is used and is not one
     double mouseX();
 
     double mouseY();
+
+    // how far it moved since the last frame. yaw and pitch are still the camera's job
+    double mouseDeltaX();
+
+    double mouseDeltaY();
+
+    // what screenToRay and worldToScreen are measured against. without it a place cannot name the
+    // middle of the screen, which is the one point it always wants
+    double screenWidth();
+
+    double screenHeight();
 
     // names an unknown action so a typo is an error rather than a key that never fires
     boolean known(String action);

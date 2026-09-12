@@ -60,6 +60,10 @@ public final class Inputs {
         switch (key) {
             case "mouseX" -> { state.pushNumber(input.mouseX()); return 1; }
             case "mouseY" -> { state.pushNumber(input.mouseY()); return 1; }
+            case "mouseDeltaX" -> { state.pushNumber(input.mouseDeltaX()); return 1; }
+            case "mouseDeltaY" -> { state.pushNumber(input.mouseDeltaY()); return 1; }
+            case "screenWidth" -> { state.pushNumber(input.screenWidth()); return 1; }
+            case "screenHeight" -> { state.pushNumber(input.screenHeight()); return 1; }
             case "mouseLocked" -> { state.pushBoolean(input.mouseLocked()); return 1; }
             case "sensitivity" -> { state.pushNumber(input.sensitivity()); return 1; }
             default -> { }

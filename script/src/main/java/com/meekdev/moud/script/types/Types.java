@@ -144,6 +144,10 @@ public final class Types {
                 declare class Input
                     mouseX: number
                     mouseY: number
+                    mouseDeltaX: number
+                    mouseDeltaY: number
+                    screenWidth: number
+                    screenHeight: number
                     mouseLocked: boolean
                     sensitivity: number
                     function down(self, action: string): boolean
