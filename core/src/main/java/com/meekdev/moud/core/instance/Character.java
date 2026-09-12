@@ -88,6 +88,11 @@ public final class Character extends Spatial {
 
     public boolean sleeping;
 
+    // which way the bed points, in radians. a sleeping body does not lie at its own yaw turned a
+    // bit: the model throws the body's yaw away and uses the bed's, which is why this is a
+    // heading of its own and not an offset on one
+    public double bedYaw;
+
     // flat and low in the swimming pose, which decides where the body is drawn rather than how
     // its limbs are animated
     public boolean crawling;

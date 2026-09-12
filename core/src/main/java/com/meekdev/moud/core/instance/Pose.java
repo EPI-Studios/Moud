@@ -142,8 +142,6 @@ public final class Pose {
     // can see it. what is left is the tilting -- and it goes on the six limbs rather than on the
     // character, because a body lying dead or flat in the water still collides standing up
     //
-    // not ported: sleeping, which replaces the body's yaw with the bed's rather than adding to it,
-    // and needs the bed's direction here to do it
     private static CFrame root(Character character, double ageInTicks) {
         Quat r = Quat.IDENTITY;
         Vec3 at = Vec3.ZERO;
@@ -163,6 +161,11 @@ public final class Pose {
             r = r.mul(spin(FORWARD, fall * 90.0));
         } else if (character.spinning) {
             r = r.mul(spin(RIGHT, -90.0 - pitch)).mul(spin(Vec3.UP, ageInTicks * -75.0));
+        } else if (character.sleeping) {
+            // the heading is already on the character's frame, put there as the bed's rather than
+            // the body's -- which is what the model does by skipping its own yaw here. what is
+            // left is laying the body over and turning it to face along the bed
+            r = r.mul(spin(FORWARD, 90.0)).mul(spin(Vec3.UP, 270.0));
         } else if (character.upsideDown) {
             at = new Vec3(0, character.height + 0.1, 0);
             r = r.mul(spin(FORWARD, 180.0));

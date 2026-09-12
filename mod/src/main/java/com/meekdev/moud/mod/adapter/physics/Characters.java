@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.server.level.ServerPlayer;
@@ -48,6 +49,7 @@ public final class Characters {
     private static final PropertyDef FLYING_YAW = Classes.CHARACTER.property("flyingYaw");
     private static final PropertyDef DEATH_TIME = Classes.CHARACTER.property("deathTime");
     private static final PropertyDef SLEEPING = Classes.CHARACTER.property("sleeping");
+    private static final PropertyDef BED_YAW = Classes.CHARACTER.property("bedYaw");
     private static final PropertyDef CRAWLING = Classes.CHARACTER.property("crawling");
     private static final PropertyDef SPINNING = Classes.CHARACTER.property("spinning");
     private static final PropertyDef FROZEN = Classes.CHARACTER.property("frozen");
@@ -121,8 +123,25 @@ public final class Characters {
         // the aim; yBodyRot lags it and only gets dragged round once the head has turned far
         // enough or the player walks. driving the body from the aim instead snapped it to the
         // mouse and left the head with nothing to turn against
-        place(character, new Vec3(player.getX(), player.getY(), player.getZ()), player.yBodyRot);
+        //
+        // asleep it faces neither: the model throws the body's yaw away and lies it along the
+        // bed, so the bed's heading goes on the frame in place of it rather than on top of it
+        double heading = player.isSleeping() ? 180.0f - bedAngle(player) : player.yBodyRot;
+        place(character, new Vec3(player.getX(), player.getY(), player.getZ()), heading);
         animation(character, player);
+    }
+
+    // the four the model states, by name rather than by ordinal
+    private static float bedAngle(Player player) {
+        Direction bed = player.getBedOrientation();
+        if (bed == null) return 180.0f - player.yBodyRot;
+        return switch (bed) {
+            case SOUTH -> 90.0f;
+            case WEST -> 0.0f;
+            case NORTH -> 270.0f;
+            case EAST -> 180.0f;
+            default -> 0.0f;
+        };
     }
 
     // the four numbers a body is animated from, rather than the six transforms they produce.
@@ -150,6 +169,7 @@ public final class Characters {
         Instances.setNum(character, FLYING_YAW, flyingYaw(player));
         Instances.setNum(character, DEATH_TIME, player.deathTime);
         Instances.setBool(character, SLEEPING, player.isSleeping());
+        Instances.setNum(character, BED_YAW, Math.toRadians(bedAngle(player)));
         Instances.setBool(character, CRAWLING, player.isVisuallySwimming());
         Instances.setBool(character, SPINNING, player.isAutoSpinAttack());
         Instances.setBool(character, FROZEN, player.isFullyFrozen());
