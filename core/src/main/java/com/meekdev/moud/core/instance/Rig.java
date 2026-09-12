@@ -393,7 +393,9 @@ public final class Rig {
     // the same body both times instead of one that grew twice
     public static void apply(Character character) {
         double s = character.scale;
-        boolean shown = character.display == CharacterDisplay.MODEL;
+        // display is read where the body is drawn, not written into the limbs from here. writing it
+        // meant a place could never hide one limb of a body it was showing: the next tick put every
+        // limb back to whatever the whole body was doing. what a limb shows is the place's
 
         for (Limb limb : BODY) {
             if (!(character.child(limb.name()) instanceof Part part)) continue;
@@ -406,7 +408,6 @@ public final class Rig {
             // the box grows away from its joint rather than about its own middle, so the offset
             // back to the joint grows with it and the limb stays joined where it was
             Instances.setObj(part, PIVOT, limb.box().neg().mul(s).mul(own));
-            Instances.setBool(part, VISIBLE, shown);
             // where the joint stands, which is the engine's half of it. the turn at it is the
             // place's half and is never touched from here
             if (joint(character, limb.name()) instanceof Joint hinge) {
@@ -448,7 +449,7 @@ public final class Rig {
             Instances.setObj(cape, PIVOT, CAPE_BOX.box().neg().mul(s));
             // a cape and a pair of wings share a back, and the wings win. whether one is worn
             // at all is the cape's own business, so this only ever takes it away
-            if (!shown || worn(character)) Instances.setBool(cape, VISIBLE, false);
+            if (worn(character)) Instances.setBool(cape, VISIBLE, false);
             if (joint(character, CAPE) instanceof Joint hinge) {
                 // the joint lives inside the torso's frame, whose origin is the middle of its
                 // box rather than the shoulder it turns at. so the fold back comes first
@@ -464,7 +465,7 @@ public final class Rig {
             Instances.setObj(part, SIZE,
                     wing.size().add(new Vec3(grown, grown, grown)).mul(s));
             Instances.setObj(part, PIVOT, wing.box().neg().mul(s));
-            Instances.setBool(part, VISIBLE, shown && worn(character));
+            Instances.setBool(part, VISIBLE, worn(character));
             if (joint(character, wing.name()) instanceof Joint hinge) {
                 Instances.setObj(hinge, C0, CFrame.at(wing.pivot().mul(s)));
             }
@@ -476,7 +477,7 @@ public final class Rig {
             double at = SPIN_SCALE[n] * s;
             Instances.setObj(part, SIZE, shell.size().mul(at));
             Instances.setObj(part, PIVOT, shell.box().neg().mul(at));
-            Instances.setBool(part, VISIBLE, shown && character.spinning);
+            Instances.setBool(part, VISIBLE, character.spinning);
             if (joint(character, shell.name()) instanceof Joint hinge) {
                 Instances.setObj(hinge, C0, CFrame.at(shell.pivot().mul(s)));
             }
@@ -493,7 +494,7 @@ public final class Rig {
                 Instances.setObj(part, CFRAME,
                         CFrame.at(ear.pivot().sub(BODY[0].pivot()).mul(s)));
                 Instances.setObj(part, PIVOT, ear.box().neg().mul(s));
-                Instances.setBool(part, VISIBLE, shown && character.ears);
+                Instances.setBool(part, VISIBLE, character.ears);
             }
         }
 
@@ -511,8 +512,7 @@ public final class Rig {
                         new Vec3(8 * PX + out, 8 * PX + out, 8 * PX + out).mul(at));
                 // its box hangs four texels above the neck it is anchored at
                 Instances.setObj(part, PIVOT, new Vec3(0, -4 * PX, 0).mul(at));
-                Instances.setBool(part, VISIBLE,
-                        shown && wearing && (n == 0 || worn.hatLayered));
+                Instances.setBool(part, VISIBLE, wearing && (n == 0 || worn.hatLayered));
             }
         }
         for (Plate plate : ARMOUR_PLATES) {
@@ -526,8 +526,7 @@ public final class Rig {
                     shape.size().add(new Vec3(out, out, out)).mul(s));
             Instances.setObj(plated, PIVOT, shape.box().neg().mul(s));
             boolean taken = "head".equals(plate.slot()) && worn != null && !worn.hat.isEmpty();
-            Instances.setBool(plated, VISIBLE,
-                    shown && !taken && !slot(worn, plate.slot()).isEmpty());
+            Instances.setBool(plated, VISIBLE, !taken && !slot(worn, plate.slot()).isEmpty());
         }
 
         if (character.child(HITBOX) instanceof Part box) {
