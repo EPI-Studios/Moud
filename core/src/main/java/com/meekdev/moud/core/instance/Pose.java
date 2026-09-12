@@ -137,9 +137,6 @@ public final class Pose {
         // the tracks a place is playing go over what this left, and only then do the joints
         // settle. a track that names a joint takes it; one that does not, leaves it walking
         Animators.apply(character);
-        // a pose that has been applied leaves the body in it, rather than leaving six joints
-        // written and the body still standing where it was
-        Joints.apply(character);
     }
 
     // how the whole body is hung, before any limb is posed

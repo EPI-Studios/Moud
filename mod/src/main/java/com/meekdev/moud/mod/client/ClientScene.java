@@ -6,7 +6,8 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Animators;
-import com.meekdev.moud.core.instance.Joints;
+import com.meekdev.moud.core.instance.Stage;
+import com.meekdev.moud.core.instance.Stages;
 import com.meekdev.moud.core.instance.Pose;
 import com.meekdev.moud.core.instance.Rig;
 import com.meekdev.moud.core.interp.Motion;
@@ -68,7 +69,7 @@ public final class ClientScene {
         }
         // last, and the only writer of a limb's frame: the rig has settled where the joints are
         // and the pose has settled the turn at them
-        Joints.follow(tree);
+        Stages.run(tree, Stage.COMPOSE, 0);
         MOTION.drain(tree);
         // the light a part stands in, once a tick. reading it per frame would be a chunk lookup per
         // part per frame for a value that changes when someone places a torch

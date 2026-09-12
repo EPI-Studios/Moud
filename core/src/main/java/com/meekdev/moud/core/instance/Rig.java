@@ -334,31 +334,39 @@ public final class Rig {
         }
         Instances.create(Classes.WINGS, character, WING_SET);
 
+        // the frame the whole body hangs from. it is a real point on the character rather than a
+        // prefix the composer remembers to apply: every limb joint holds onto this, so the body
+        // tilting is one joint turning and the limbs know nothing about it
+        Instance frame = Instances.create(Classes.ATTACHMENT, character, ROOT);
+
         Instance joints = Instances.create(Classes.FOLDER, character, JOINTS);
-        // the body's own, hanging off nothing: its transform is the tilt the whole body takes,
-        // and every limb joint is composed through it
-        Instances.create(Classes.JOINT, joints, ROOT, joint -> joint.part0 = character);
+        // first, because a stage visits in the order things entered the tree and everything below
+        // is composed through what this one leaves
+        Instances.create(Classes.MOTOR, joints, ROOT, joint -> {
+            joint.part0 = character;
+            joint.part1 = frame;
+        });
         if (character.child("torso") instanceof Part torso && torso.child(CAPE) != null) {
-            Instances.create(Classes.JOINT, joints, CAPE, joint -> {
+            Instances.create(Classes.MOTOR, joints, CAPE, joint -> {
                 joint.part0 = torso;
                 joint.part1 = torso.child(CAPE);
             });
         }
         for (Limb shell : SPINS) {
-            Instances.create(Classes.JOINT, joints, shell.name(), joint -> {
-                joint.part0 = character;
+            Instances.create(Classes.MOTOR, joints, shell.name(), joint -> {
+                joint.part0 = frame;
                 joint.part1 = character.child(shell.name());
             });
         }
         for (Limb wing : WING) {
-            Instances.create(Classes.JOINT, joints, wing.name(), joint -> {
-                joint.part0 = character;
+            Instances.create(Classes.MOTOR, joints, wing.name(), joint -> {
+                joint.part0 = frame;
                 joint.part1 = character.child(wing.name());
             });
         }
         for (Limb limb : BODY) {
-            Instances.create(Classes.JOINT, joints, limb.name(), joint -> {
-                joint.part0 = character;
+            Instances.create(Classes.MOTOR, joints, limb.name(), joint -> {
+                joint.part0 = frame;
                 joint.part1 = character.child(limb.name());
             });
         }
@@ -426,8 +434,13 @@ public final class Rig {
         }
 
         // a rig that has settled leaves the body where it says it is, rather than where it was
-        // before the joints moved
-        Joints.apply(character);
+        // before the joints moved. asked in the order they were made, so the root frame is where
+        // it belongs before anything hanging off it is composed through it
+        if (character.child(JOINTS) instanceof Instance joints) {
+            for (Instance held : joints.children()) {
+                if (held instanceof Joint hinge) hinge.compose();
+            }
+        }
 
         if (character.child("torso") instanceof Part torso
                 && torso.child(CAPE) instanceof Part cape) {

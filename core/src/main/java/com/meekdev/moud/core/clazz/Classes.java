@@ -11,6 +11,7 @@ import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Folder;
 import com.meekdev.moud.core.instance.Humanoid;
 import com.meekdev.moud.core.instance.Joint;
+import com.meekdev.moud.core.instance.Motor;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Wings;
@@ -38,6 +39,7 @@ public final class Classes {
             ClassDef.of("Humanoid", null, Humanoid.class, Humanoid::new);
     public static final ClassDef<Wings> WINGS = ClassDef.of("Wings", null, Wings.class, Wings::new);
     public static final ClassDef<Joint> JOINT = ClassDef.of("Joint", null, Joint.class, Joint::new);
+    public static final ClassDef<Motor> MOTOR = ClassDef.of("Motor", JOINT, Motor.class, Motor::new);
 
     private Classes() {}
 
@@ -65,6 +67,7 @@ public final class Classes {
         r.register(HUMANOID);
         r.register(WINGS);
         r.register(JOINT);
+        r.register(MOTOR);
         for (Addon addon : addons) {
             try {
                 addon.classes(r);

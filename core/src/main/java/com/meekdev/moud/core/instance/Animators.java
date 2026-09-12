@@ -41,7 +41,9 @@ public final class Animators {
         if (playing.isEmpty()) return;
 
         for (Instance instance : joints.children()) {
-            if (!(instance instanceof Joint joint)) continue;
+            // a motor, not a joint: what holds a sword in a hand is not something a wave is
+            // allowed to move, and neither is a limb that physics has taken over
+            if (!(instance instanceof Motor joint)) continue;
             blend(joint, playing);
         }
     }

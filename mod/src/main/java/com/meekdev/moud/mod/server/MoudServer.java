@@ -6,7 +6,8 @@ import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Humanoids;
-import com.meekdev.moud.core.instance.Joints;
+import com.meekdev.moud.core.instance.Stage;
+import com.meekdev.moud.core.instance.Stages;
 import com.meekdev.moud.core.instance.Rig;
 import com.meekdev.moud.core.time.Clock;
 import com.meekdev.moud.mod.MoudMod;
@@ -76,7 +77,7 @@ public final class MoudServer {
         // a different place and the rig has to settle it there
         Humanoids.follow(ServerScene.tree(), dt);
         Rig.follow(ServerScene.tree());
-        Joints.follow(ServerScene.tree());
+        Stages.run(ServerScene.tree(), Stage.COMPOSE, 0);
         Mirror.record(change -> Physics.apply(ServerScene.tree(), change, server));
         Physics.settle();
         Physics.bodies().follow(server, ServerScene.tree());
