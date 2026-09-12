@@ -39,6 +39,11 @@ public final class Trace {
     private static int written;
     private static boolean done;
 
+    // it starts the first time you stand on something that moves and then keeps writing whatever you
+    // do, so stepping off and back on is in the file too. waiting for a deck every row would mean a
+    // file that says nothing about the moment the fault appears or stops
+    private static boolean armed;
+
     private Trace() {}
 
     public static void frame(float partialTick) {
@@ -49,13 +54,18 @@ public final class Trace {
         Character body = ClientScene.own();
         if (body == null) return;
 
-        // only while it is standing on something that moves, which is the only case worth the rows
         String deck = ClientPhysics.deckTrace(me.getX(), me.getY(), me.getZ());
-        if (deck.startsWith("none")) return;
+        if (!armed) {
+            if (deck.startsWith("none")) return;
+            armed = true;
+        }
 
         try {
             if (out == null) open();
             out.write(row(client, me, body, deck, partialTick));
+            // flushed every row, because the usual way a session ends is being killed and a buffered
+            // trace that was never flushed is an empty file
+            out.flush();
             written++;
             if (written >= ROWS) close();
         } catch (IOException failed) {
