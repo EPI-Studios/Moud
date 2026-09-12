@@ -125,6 +125,7 @@ public final class Types {
                     function isA(self, className: string): boolean
                     function raycast(self, from: Vector3, direction: Vector3, range: number?): (Instance?, Vector3?, number?)
                     function destroy(self): ()
+                    function setOwner(self, to: Instance?): ()
                     function fireServer(self, ...: any): ()
                     function fireClient(self, to: Instance, ...: any): ()
                     function fireAllClients(self, ...: any): ()

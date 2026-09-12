@@ -24,10 +24,15 @@ public final class Appearance extends Instance {
     // the model, the volume it really collides with, or nothing. read where the body is drawn --
     // it is a render policy and it says nothing about what a ray can reach, or about which limbs
     // a place has chosen to hide
-    public CharacterDisplay display = CharacterDisplay.MODEL;
+    //
+    // not replicated, and that is the point of it rather than an omission: how a body is drawn is a
+    // question each client answers for itself, the way a place turns on a debug view for whoever
+    // pressed the key. a replicated one would be a place and a client taking turns writing the same
+    // field, and the client would lose on whatever tick the server next touched it
+    @Prop(replicated = false) public CharacterDisplay display = CharacterDisplay.MODEL;
 
     // what you see of this body when you are the one wearing it
-    public FirstPerson firstPerson = FirstPerson.ARM;
+    @Prop(replicated = false) public FirstPerson firstPerson = FirstPerson.ARM;
 
     // the two marked driven are read off the wearer rather than chosen: whether that player picked
     // the slim model, and whether they are the one person the game gives ears to. any client that

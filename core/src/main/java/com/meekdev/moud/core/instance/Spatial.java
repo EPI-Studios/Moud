@@ -27,4 +27,22 @@ public class Spatial extends Instance {
     // be put anywhere, so interest is decided for a whole branch or for none of it -- which is what
     // roblox calls an atomic model, and what our tree being the transform hierarchy forces anyway
     public boolean alwaysRelevant;
+
+    // which player may write this, and whose client may write it locally
+    //
+    // §10.1: an instance may be assigned to a player, that client writes its owned properties
+    // locally, and a client writing a replicated property it does not own is a luau error. empty
+    // means the server owns it, which is almost everything
+    //
+    // it carries down the branch: a limb of a body you own is yours, a crate parented to a cart you
+    // are pushing is yours. the nearest one up the chain wins, so handing over a cart hands over
+    // what is on it, which is what makes a push feel instant
+    //
+    // roblox keeps this off to the side, as SetNetworkOwner on a part, and it is not replicated as a
+    // property there. a property is the better answer here for one reason: the client has to know who
+    // owns a thing to be told off for writing it, and a property already crosses
+    //
+    // on a character it is the player wearing the body -- §10.1 says characters are owned by their
+    // player, so those are the same sentence rather than two fields that can disagree
+    public String owner = "";
 }

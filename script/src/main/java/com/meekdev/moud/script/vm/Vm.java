@@ -190,6 +190,9 @@ public final class Vm implements ScriptEngine {
 
     @Override
     public void close() {
+        // before the state goes, because what is keyed by it cannot be dropped after: a state's
+        // identity is a native pointer, and the next state may be handed the same one
+        Remotes.forget(state);
         state.close();
     }
 }

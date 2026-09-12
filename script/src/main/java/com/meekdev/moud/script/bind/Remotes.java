@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.WeakHashMap;
+import java.util.HashMap;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
@@ -30,20 +30,47 @@ public final class Remotes {
     // per lua state, not global
     //
     // a solo game runs a server vm and a client vm in one process, so "which side am I" cannot be a
-    // static: the server would answer whatever the client installed last. weakly held, because a
-    // reload opens a new state and nothing tells this one that the old one has gone
+    // static: the server would answer whatever the client installed last
     private record Side(PostRef post, boolean client) {}
 
-    private static final Map<LuaState, Side> SIDES = new WeakHashMap<>();
+    // keyed by the vm's main thread, and dropped when the vm closes
+    //
+    // the main thread rather than whatever state a call arrived on, because they are not the same one:
+    // a lua function called from java is handed its own state, and a coroutine has another again. so
+    // the side has to be looked up against the one thing every one of them shares
+    //
+    // and dropped explicitly, because a LuaState's equals and hashCode are its native pointer's. a
+    // closed state and a fresh one allocated at the same address are therefore the *same key* -- so
+    // leaving the entry in handed a new vm the side of the one before it, which on a server is a
+    // server that thinks it is a client. holding the key weakly never helped with that: the entry goes
+    // when the key object is collected, which has nothing to do with when the state closed
+    private static final Map<LuaState, Side> SIDES = new HashMap<>();
 
     private Remotes() {}
 
     public static void install(LuaState state, PostRef carrier, boolean onClient) {
-        SIDES.put(state, new Side(carrier, onClient));
+        SIDES.put(state.mainThread(), new Side(carrier, onClient));
+    }
+
+    // a closed state is not a side any more, and leaving it in is how the next one gets the wrong one
+    public static void forget(LuaState state) {
+        SIDES.remove(state.mainThread());
+    }
+
+    // whether this state is a client's, and who it belongs to. asked by the write guard rather than
+    // by a channel, which is why they are not private to the firing verbs
+    public static boolean onClient(LuaState state) {
+        Side known = SIDES.get(state.mainThread());
+        return known != null && known.client();
+    }
+
+    public static String me(LuaState state) {
+        Side known = SIDES.get(state.mainThread());
+        return known == null ? "" : known.post().me();
     }
 
     private static Side side(LuaState state) {
-        Side known = SIDES.get(state);
+        Side known = SIDES.get(state.mainThread());
         if (known == null) throw state.error("nothing is carrying messages on this side");
         return known;
     }

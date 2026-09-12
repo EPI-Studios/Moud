@@ -8,6 +8,7 @@ import com.meekdev.moud.net.transport.Transport;
 import com.meekdev.moud.net.transport.Wire;
 import com.meekdev.moud.script.api.PostRef;
 import java.util.List;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,9 +24,15 @@ public final class Post {
 
     private static final Wired CARRIER = new Wired();
 
-    // a place's side of it, per side, because the guard on which verb is allowed is per side
-    public static final PostRef SERVER = ref();
-    public static final PostRef CLIENT = ref();
+    // a place's side of it, per side, because the guard on which verb is allowed is per side. and
+    // because who "me" is differs: the server is nobody in particular and owns what it did not hand
+    // out, a client is one player and may write what that player owns
+    // who this client is, handed in by the client side rather than read here: this class is loaded on
+    // a dedicated server too, and a field naming the local player would drag the client's world in
+    private static Supplier<String> who = () -> "";
+
+    public static final PostRef SERVER = ref(() -> "");
+    public static final PostRef CLIENT = ref(() -> who.get());
 
     private Post() {}
 
@@ -40,7 +47,10 @@ public final class Post {
         CARRIER.listen();
     }
 
-    public static void installOnClient() {
+    // asked rather than stored, because a respawn hands out a new player and a stored id would be
+    // the one from before
+    public static void installOnClient(Supplier<String> me) {
+        who = me;
         CARRIER.listenAsClient();
     }
 
@@ -84,8 +94,13 @@ public final class Post {
         }
     }
 
-    private static PostRef ref() {
+    private static PostRef ref(Supplier<String> who) {
         return new PostRef() {
+            @Override
+            public String me() {
+                return who.get();
+            }
+
             @Override
             public void toServer(int remote, List<Object> args, boolean reliable) {
                 CARRIER.toServer(remote, Wire.pack(args), reliable);

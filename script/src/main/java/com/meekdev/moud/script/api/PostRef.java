@@ -9,6 +9,12 @@ import java.util.List;
 // in one process or a packet channel is not a question a place can ask
 public interface PostRef {
 
+    // who this side is, as the player id the tree writes on an owner. empty on the server, which owns
+    // everything it did not hand out
+    default String me() {
+        return "";
+    }
+
     void toServer(int remote, List<Object> args, boolean reliable);
 
     void toClient(String player, int remote, List<Object> args, boolean reliable);

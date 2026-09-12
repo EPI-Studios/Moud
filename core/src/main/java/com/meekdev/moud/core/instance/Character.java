@@ -15,13 +15,6 @@ public final class Character extends Spatial {
     @Prop(min = 0.05) public double radius = 0.3;
     @Prop(min = 0.1) public double height = 1.8;
 
-
-    // the player this body belongs to, so the client can find whose skin to wear. empty for a
-    // character nobody is driving
-    public String owner = "";
-
-
-
     // the rig, over the proportions the engine built it at. the capsule is radius and height and
     // does not follow this: a place that wants a bigger character says so on both, deliberately
     @Prop(min = 0.05) public double scale = 1.0;
@@ -80,8 +73,6 @@ public final class Character extends Spatial {
     // under an elytra, which pitches the head down and the body flat
     @Prop(driven = true) public boolean flying;
 
-
-
     // a body swimming in water pitches to its own look, one in air to straight down
     @Prop(driven = true) public boolean inWater;
 
@@ -115,7 +106,6 @@ public final class Character extends Spatial {
     // the way a name nobody says out loud hangs a body
     public boolean upsideDown;
 
-
     // just hit, which washes the body red. the model carries this and the one below as a pair of
     // coordinates into a sixteen by sixteen table; they are the table's two axes
     @Prop(driven = true) public boolean hurt;
@@ -123,7 +113,6 @@ public final class Character extends Spatial {
     // how far the body is washed white, which is what a mob about to go off does. zero for a
     // player unless a place says otherwise
     @Prop(min = 0, max = 1) public double whiteFlash;
-
 
     // whether a player is wearing this body
     //

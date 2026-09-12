@@ -5,9 +5,11 @@ import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.clazz.EventDef;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Hits;
+import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Remote;
 import com.meekdev.moud.core.instance.Instances;
+import com.meekdev.moud.core.instance.Owners;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
@@ -65,6 +67,7 @@ public final class Proxies {
         method(state, "isA", Proxies::isA);
         method(state, "destroy", Proxies::destroy);
         method(state, "raycast", Proxies::raycast);
+        method(state, "setOwner", Proxies::setOwner);
         state.rawSetField(LuaState.REGISTRY_INDEX, METHODS);
     }
 
@@ -396,6 +399,60 @@ public final class Proxies {
         write(state, instance, property, value);
     }
 
+    // thing:setOwner(body) / thing:setOwner(nil)
+    //
+    // §10.4: ownership can move, and handing a pushed crate to the player pushing it is what makes
+    // the push feel instant. the server's to give, because a client that could give itself ownership
+    // of anything would give itself ownership of everything
+    //
+    // it takes the body rather than a player id, because a body is how a player is named everywhere
+    // else here. and one owner rather than a list: two clients predicting the same crate is two
+    // answers to where it is, which is the thing the engine refuses to have
+    private static int setOwner(LuaState state) {
+        Instance instance = self(state);
+        if (Remotes.onClient(state)) {
+            throw state.error("setOwner is the server's. a client cannot give itself a thing");
+        }
+        if (!(instance instanceof Spatial)) {
+            throw state.error("%s has no owner: ownership is about a thing that is somewhere",
+                    instance.def().name());
+        }
+        PropertyDef owner = instance.def().property("owner");
+        if (state.isNoneOrNil(2)) {
+            Instances.setObj(instance, owner, "");
+            return 0;
+        }
+        Instance who = (Instance) state.toUserDataTagged(2, TAG);
+        if (!(who instanceof Character body)) {
+            throw state.error("setOwner wants the body of whoever it is for, or nil for the server");
+        }
+        Instances.setObj(instance, owner, body.owner);
+        return 0;
+    }
+
+    // §10.1: writing a replicated property on a client without ownership is a luau error, not a
+    // silent revert
+    //
+    // it has to be an error because the alternative is what the previous engine did: the write lands
+    // in the client's own copy, looks like it worked, and is overwritten the next time the server says
+    // anything about that property -- so the bug is a thing that works until it doesn't, with nothing
+    // anywhere naming the moment it stopped
+    //
+    // three ways past it, and each is a real case rather than a loophole. a local instance does not
+    // exist on the other side at all, so nobody else has an opinion about it. a property the class
+    // marked as not replicated is the client's by declaration -- how a body is drawn, what you see of
+    // your own. and a thing this player owns is theirs to write, which is the whole point of ownership
+    private static void allowed(LuaState state, Instance instance, PropertyDef property) {
+        if (!property.replicated() || instance.id() < 0) return;
+        if (!Remotes.onClient(state)) return;
+        String me = Remotes.me(state);
+        if (Owners.owns(me, instance)) return;
+        String owner = Owners.of(instance);
+        throw state.error("%s.%s is the server's to write%s. a client writes what it owns, what is"
+                + " local to it, and what its class keeps to itself", instance.def().name(),
+                property.name(), owner.isEmpty() ? "" : " -- this one belongs to " + owner);
+    }
+
     // a reference to something destroyed reads as nil rather than as a proxy that errors on
     // touch: a place holding a ref to a part someone removed asked a reasonable question
     private static void ref(LuaState state, Instance target) {
@@ -445,6 +502,7 @@ public final class Proxies {
     }
 
     private static void write(LuaState state, Instance instance, PropertyDef property, int value) {
+        allowed(state, instance, property);
         switch (property.type()) {
             case BOOL -> Instances.setBool(instance, property, state.toBoolean(value));
             case INT, NUM -> Instances.setNum(instance, property, state.checkNumber(value));

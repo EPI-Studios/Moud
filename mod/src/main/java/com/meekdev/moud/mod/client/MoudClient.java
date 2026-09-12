@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.client;
 
+import net.minecraft.client.player.LocalPlayer;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.mod.place.Switches;
@@ -16,7 +17,8 @@ public final class MoudClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        Post.installOnClient();
+        Post.installOnClient(() -> Minecraft.getInstance().player instanceof LocalPlayer me
+                ? me.getUUID().toString() : "");
         Switches.install(MoudMod.features());
         Pipeline.install();
         Editor.install();
