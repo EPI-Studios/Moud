@@ -58,13 +58,23 @@ vec4 faceRect(int face, vec2 origin, float w, float h, float d) {
 }
 
 // where this corner sits inside its face, left to right and top to bottom the way a texture reads
+//
+// these are not a choice. the game builds a cube's six quads and hands each corner a texel, and
+// this is that mapping read back out of it: every face's corners, in our axes rather than the
+// model's. the four that are not the front were mirrored, which is the kind of wrong that looks
+// like a texture rather than a bug -- an ear on the wrong side of a head is still an ear
+//
+// the model builds a generic humanoid's left limbs mirrored off the right ones, but a player's
+// are not: they carry their own regions, so one handedness per face is the whole of it
 vec2 faceCoord(int face, vec3 p) {
     if (face == 0) return vec2(0.5 - p.x, 0.5 - p.y);
     if (face == 1) return vec2(p.x + 0.5, 0.5 - p.y);
-    if (face == 2) return vec2(0.5 - p.z, 0.5 - p.y);
-    if (face == 3) return vec2(p.z + 0.5, 0.5 - p.y);
-    if (face == 4) return vec2(p.x + 0.5, 0.5 - p.z);
-    return vec2(p.x + 0.5, p.z + 0.5);
+    if (face == 2) return vec2(p.z + 0.5, 0.5 - p.y);
+    if (face == 3) return vec2(0.5 - p.z, 0.5 - p.y);
+    // the top and the bottom read the same way round: both are laid out as seen from above, which
+    // is why the front of the head is the edge of its rect that touches the face
+    if (face == 4) return vec2(0.5 - p.x, 0.5 - p.z);
+    return vec2(0.5 - p.x, 0.5 - p.z);
 }
 
 void main() {
