@@ -122,6 +122,7 @@ public final class Types {
                     function children(self): { Instance }
                     function find(self, name: string): Instance?
                     function isA(self, className: string): boolean
+                    function raycast(self, from: Vector3, direction: Vector3, range: number?): (Instance?, Vector3?, number?)
                     function destroy(self): ()
                 end
 

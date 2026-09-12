@@ -3,6 +3,7 @@ package com.meekdev.moud.script.bind;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.clazz.PropertyDef;
+import com.meekdev.moud.core.instance.Hits;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Spatial;
@@ -58,6 +59,7 @@ public final class Proxies {
         method(state, "find", Proxies::find);
         method(state, "isA", Proxies::isA);
         method(state, "destroy", Proxies::destroy);
+        method(state, "raycast", Proxies::raycast);
         state.rawSetField(LuaState.REGISTRY_INDEX, METHODS);
     }
 
@@ -268,6 +270,29 @@ public final class Proxies {
         Instance child = self(state).child(state.checkString(2));
         if (child == null) state.pushNil(); else push(state, child);
         return 1;
+    }
+
+    // what a ray runs into under this instance, or nothing
+    //
+    // three answers rather than a table: the part, the point and how far. a place that only wants
+    // to know which limb takes the first and drops the rest, which is the common case
+    //
+    // it is a question about the tree, so it answers about the tree. what a body walks into is a
+    // different question with a different answer, and it is not asked here
+    private static int raycast(LuaState state) {
+        Vec3 from = Values.vec3(state, 2);
+        Vec3 direction = Values.vec3(state, 3);
+        double range = state.isNoneOrNil(4) ? 100.0 : state.checkNumber(4);
+
+        Hits.Hit hit = Hits.cast(self(state), from, direction, range);
+        if (hit == null) {
+            state.pushNil();
+            return 1;
+        }
+        push(state, hit.part());
+        Values.push(state, hit.at());
+        state.pushNumber(hit.distance());
+        return 3;
     }
 
     private static int isA(LuaState state) {

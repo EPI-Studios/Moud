@@ -55,8 +55,6 @@ public final class Skins {
     private static final Map<Identifier, Identifier> BATCHES = new HashMap<>();
     private static final Map<Identifier, List<Worn>> PACKED = new HashMap<>();
 
-    private static final double TEXEL = 1.0 / 16.0;
-
     // one body's wash, set once per character and read by each of its twelve parts
     private static final Vector2f OVERLAY = new Vector2f();
 
@@ -120,18 +118,18 @@ public final class Skins {
             });
             for (Instance child : character.children()) {
                 if (child instanceof Part part) {
-                    pack(part, slim, character.scale, solid, wearer, into, partialTick);
+                    pack(part, slim, solid, wearer, into, partialTick);
                 }
             }
         }
     }
 
-    private static void pack(Part part, boolean slim, double scale, float solid,
+    private static void pack(Part part, boolean slim, float solid,
                              @Nullable AbstractClientPlayer wearer, List<Worn> into,
                              float partialTick) {
         SkinLayout.Box box = SkinLayout.of(part.name(), false, slim);
         if (box == null) return;
-        double narrow = slim ? narrowing(part.name()) * scale : 0;
+        double narrow = slim ? narrowing(part) : 0;
         emit(part, box, false, narrow, solid, into, partialTick);
 
         // the shell is the place's to switch off and the player's to switch off, and it never
@@ -166,9 +164,15 @@ public final class Skins {
     // the tree keeps the wide box on purpose: which skin someone wears is a thing this client can
     // see and the server cannot, and a body must not collide differently for it. so the narrowing
     // lives here, on the way to the batch, and never in the rig
-    private static double narrowing(String name) {
-        if ("rightArm".equals(name)) return -TEXEL;
-        return "leftArm".equals(name) ? TEXEL : 0;
+    //
+    // the texel is measured off the arm rather than off the body's scale, because an arm is no
+    // longer the body's scale: a joint scales what it holds on top of it. a quarter of the arm is
+    // one of its four texels whatever made it that wide, and the shell over it loses the same
+    // absolute texel the model takes off its sleeve
+    private static double narrowing(Part arm) {
+        double texel = arm.size.x() / 4.0;
+        if ("rightArm".equals(arm.name())) return -texel;
+        return "leftArm".equals(arm.name()) ? texel : 0;
     }
 
     private static void emit(Part part, SkinLayout.Box box, boolean shell, double narrow,
