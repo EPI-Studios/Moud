@@ -40,6 +40,13 @@ public final class Rig {
     // root and steps them two texels back, and they are drawn off a sheet of their own
     public static final String[] WINGS = {"rightWing", "leftWing"};
 
+    // hung off the back of the torso rather than off the body, so it leans with a crouch and
+    // twists with a swing without being told to
+    public static final String CAPE = "cape";
+
+    // the pair's own state, beside the two boxes that draw it
+    public static final String WING_SET = "wings";
+
     private static final double PX = 1.0 / 16.0;
 
     // the model is authored from the shoulder down; the feet are twenty four units below it
@@ -62,6 +69,10 @@ public final class Rig {
             limb("rightWing", -5, 0, -2, 0, 0, 0, 10, 20, 2, 1.0),
             limb("leftWing", 5, 0, -2, -10, 0, 0, 10, 20, 2, 1.0),
     };
+
+    // ten by sixteen by one, hung two texels behind the torso's own joint. no growing: a cape is
+    // the one thing the model does not inflate
+    private static final Limb CAPE_BOX = limb("cape", 0, 0, -2, -5, 0, -1, 10, 16, 1, 0);
 
     private static final Limb[] BODY = {
             limb("head", 0, 0, 0, -4, -8, -4, 8, 8, 8, 0.5),
@@ -98,6 +109,16 @@ public final class Rig {
     // a pose that moves a joint starts from here, never from where it left it last tick: the
     // model states a crouch as an offset applied to the standing pivot, and reading back the
     // offset one would compound it every tick until the body came apart
+    // the pair this body wears, or nothing
+    public static Wings wings(Character character) {
+        return character.child(WING_SET) instanceof Wings pair ? pair : null;
+    }
+
+    private static boolean worn(Character character) {
+        Wings pair = wings(character);
+        return pair != null && pair.worn;
+    }
+
     // the joint that drives a limb, or the body's own when asked for the root
     public static Instance joint(Character character, String name) {
         return character.child(JOINTS) instanceof Instance joints ? joints.child(name) : null;
@@ -152,10 +173,29 @@ public final class Rig {
             });
         }
 
+        if (character.child("torso") instanceof Part torso) {
+            Instances.create(Classes.CAPE, torso, CAPE, part -> {
+                part.size = CAPE_BOX.size();
+                part.pivot = CAPE_BOX.box().neg();
+                part.color = Color.WHITE;
+                part.collides = false;
+                part.anchored = true;
+                part.visible = false;
+            });
+        }
+
+        Instances.create(Classes.WINGS, character, WING_SET);
+
         Instance joints = Instances.create(Classes.FOLDER, character, JOINTS);
         // the body's own, hanging off nothing: its transform is the tilt the whole body takes,
         // and every limb joint is composed through it
         Instances.create(Classes.JOINT, joints, ROOT, joint -> joint.part0 = character);
+        if (character.child("torso") instanceof Part torso && torso.child(CAPE) != null) {
+            Instances.create(Classes.JOINT, joints, CAPE, joint -> {
+                joint.part0 = torso;
+                joint.part1 = torso.child(CAPE);
+            });
+        }
         for (Limb wing : WING) {
             Instances.create(Classes.JOINT, joints, wing.name(), joint -> {
                 joint.part0 = character;
@@ -228,6 +268,21 @@ public final class Rig {
         // before the joints moved
         Joints.apply(character);
 
+        if (character.child("torso") instanceof Part torso
+                && torso.child(CAPE) instanceof Part cape) {
+            Instances.setObj(cape, SIZE, CAPE_BOX.size().mul(s));
+            Instances.setObj(cape, PIVOT, CAPE_BOX.box().neg().mul(s));
+            // a cape and a pair of wings share a back, and the wings win. whether one is worn
+            // at all is the cape's own business, so this only ever takes it away
+            if (!shown || worn(character)) Instances.setBool(cape, VISIBLE, false);
+            if (joint(character, CAPE) instanceof Joint hinge) {
+                // the joint lives inside the torso's frame, whose origin is the middle of its
+                // box rather than the shoulder it turns at. so the fold back comes first
+                Instances.setObj(hinge, C0, CFrame.at(
+                        BODY[1].box().neg().add(CAPE_BOX.pivot().sub(BODY[1].pivot())).mul(s)));
+            }
+        }
+
         for (Limb wing : WING) {
             if (!(character.child(wing.name()) instanceof Part part)) continue;
             // grown by a texel on every side, and the rect it is cut from is not
@@ -235,7 +290,7 @@ public final class Rig {
             Instances.setObj(part, SIZE,
                     wing.size().add(new Vec3(grown, grown, grown)).mul(s));
             Instances.setObj(part, PIVOT, wing.box().neg().mul(s));
-            Instances.setBool(part, VISIBLE, shown && character.wings);
+            Instances.setBool(part, VISIBLE, shown && worn(character));
             if (joint(character, wing.name()) instanceof Joint hinge) {
                 Instances.setObj(hinge, C0, CFrame.at(wing.pivot().mul(s)));
             }

@@ -14,6 +14,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Rig;
+import com.meekdev.moud.core.instance.Wings;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
@@ -148,8 +149,9 @@ public final class Skins {
     // the size of the sheet had to stop being a constant in the shader
     private static void wings(Character character, @Nullable AbstractClientPlayer wearer,
                               float solid, float partialTick) {
-        if (!character.wings) return;
-        Identifier texture = wingTexture(character, wearer);
+        Wings pair = Rig.wings(character);
+        if (pair == null || !pair.worn) return;
+        Identifier texture = wingTexture(pair, wearer);
         List<Worn> into = PACKED.computeIfAbsent(texture, id -> {
             register(id);
             return new ArrayList<>();
@@ -162,10 +164,9 @@ public final class Skins {
         }
     }
 
-    private static Identifier wingTexture(Character character,
-                                          @Nullable AbstractClientPlayer wearer) {
-        if (!character.wingSkin.isEmpty()) {
-            Identifier asked = Identifier.tryParse(character.wingSkin);
+    private static Identifier wingTexture(Wings pair, @Nullable AbstractClientPlayer wearer) {
+        if (!pair.skin.isEmpty()) {
+            Identifier asked = Identifier.tryParse(pair.skin);
             if (asked != null) return asked;
         }
         if (wearer != null) {

@@ -8,6 +8,8 @@ import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
+import com.meekdev.moud.core.instance.Rig;
+import com.meekdev.moud.core.instance.Wings;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vec3;
@@ -63,10 +65,10 @@ public final class Characters {
     private static final PropertyDef USING_ITEM = Classes.CHARACTER.property("usingItem");
     private static final PropertyDef USE_LEFT_HAND = Classes.CHARACTER.property("useLeftHand");
     private static final PropertyDef CHARGE = Classes.CHARACTER.property("chargeProgress");
-    private static final PropertyDef WINGS = Classes.CHARACTER.property("wings");
-    private static final PropertyDef WING_X = Classes.CHARACTER.property("wingX");
-    private static final PropertyDef WING_Y = Classes.CHARACTER.property("wingY");
-    private static final PropertyDef WING_Z = Classes.CHARACTER.property("wingZ");
+    private static final PropertyDef WORN = Classes.WINGS.property("worn");
+    private static final PropertyDef WING_X = Classes.WINGS.property("x");
+    private static final PropertyDef WING_Y = Classes.WINGS.property("y");
+    private static final PropertyDef WING_Z = Classes.WINGS.property("z");
     private static final PropertyDef CRAWLING = Classes.CHARACTER.property("crawling");
     private static final PropertyDef SPINNING = Classes.CHARACTER.property("spinning");
     private static final PropertyDef FROZEN = Classes.CHARACTER.property("frozen");
@@ -205,12 +207,14 @@ public final class Characters {
         // the wings are worn, which is not the same as being flown on. and where they are held
         // is smoothed on the entity rather than derived here: the game eases them toward a
         // target at 0.3 a tick, so they open over half a second instead of snapping out
-        Instances.setBool(character, WINGS,
-                player.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA));
-        ElytraAnimationState wings = player.elytraAnimationState;
-        Instances.setNum(character, WING_X, wings.getRotX(1.0f));
-        Instances.setNum(character, WING_Y, wings.getRotY(1.0f));
-        Instances.setNum(character, WING_Z, wings.getRotZ(1.0f));
+        if (Rig.wings(character) instanceof Wings pair) {
+            Instances.setBool(pair, WORN,
+                    player.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA));
+            ElytraAnimationState held = player.elytraAnimationState;
+            Instances.setNum(pair, WING_X, held.getRotX(1.0f));
+            Instances.setNum(pair, WING_Y, held.getRotY(1.0f));
+            Instances.setNum(pair, WING_Z, held.getRotZ(1.0f));
+        }
     }
 
     // what each arm is doing, chosen the way the model chooses it: a two handed main hand takes

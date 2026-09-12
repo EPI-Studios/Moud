@@ -132,6 +132,7 @@ public final class Pose {
         turn(character, "rightLeg", rightLeg, scale);
         turn(character, "leftLeg", leftLeg, scale);
         wings(character, scale);
+        cape(character);
         // a pose that has been applied leaves the body in it, rather than leaving six joints
         // written and the body still standing where it was
         Joints.apply(character);
@@ -418,16 +419,17 @@ public final class Pose {
     // rather than turning together, which is the whole shape of an elytra opening. crouching
     // drops them three texels so they clear the folded body
     private static void wings(Character character, double scale) {
-        if (!character.wings) return;
+        Wings pair = Rig.wings(character);
+        if (pair == null || !pair.worn) return;
         Limb right = new Limb();
         Limb left = new Limb();
 
-        left.x = character.wingX;
-        left.y = character.wingY;
-        left.z = character.wingZ;
-        right.x = character.wingX;
-        right.y = -character.wingY;
-        right.z = -character.wingZ;
+        left.x = pair.x;
+        left.y = pair.y;
+        left.z = pair.z;
+        right.x = pair.x;
+        right.y = -pair.y;
+        right.z = -pair.z;
 
         if (character.crouching) {
             left.atY += 3.0;
@@ -435,6 +437,27 @@ public final class Pose {
         }
         turn(character, "rightWing", right, scale);
         turn(character, "leftWing", left, scale);
+    }
+
+    // how a cape hangs
+    //
+    // four turns in a row, and the first of them undoes the half turn the model hangs it at. the
+    // two lean terms are halved because each is applied twice -- once as a tilt and once as the
+    // yaw that follows it round, which is what makes a cape trail behind a turn instead of
+    // swinging flat
+    private static void cape(Character character) {
+        if (!(Rig.joint(character, Rig.CAPE) instanceof Joint hinge)) return;
+        if (!(hinge.part1 instanceof Cape cape) || !cape.visible) return;
+
+        double tilt = Math.toRadians(6.0 + cape.lean / 2.0 + cape.flap);
+        double roll = Math.toRadians(cape.sway / 2.0);
+        double swing = Math.toRadians(180.0 - cape.sway / 2.0);
+
+        Quat rotation = Quat.axisAngle(Vec3.UP, Math.PI)
+                .mul(Quat.axisAngle(RIGHT, -tilt))
+                .mul(Quat.axisAngle(FORWARD, roll))
+                .mul(Quat.axisAngle(Vec3.UP, -swing));
+        Instances.setObj(hinge, TRANSFORM, new CFrame(Vec3.ZERO, rotation));
     }
 
     // the turn at a joint, and nothing else. where the joint stands is the rig's and is not

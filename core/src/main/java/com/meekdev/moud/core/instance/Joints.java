@@ -32,7 +32,13 @@ public final class Joints {
         for (Instance instance : joints.children()) {
             if (!(instance instanceof Joint joint)) continue;
             if (!(joint.part1 instanceof Part part) || !part.isAlive()) continue;
-            Instances.setObj(part, CFRAME, root.mul(joint.c0).mul(joint.transform).mul(inverse(joint.c1)));
+            // the body's tilt belongs to what hangs off the body, and to nothing else. a joint
+            // that hangs off a limb is already inside that limb's frame, and the limb already
+            // carries the tilt -- applying it again there would lay a cape down twice as far as
+            // the back it is pinned to
+            CFrame from = joint.part0 == character ? root : CFrame.IDENTITY;
+            Instances.setObj(part, CFRAME,
+                    from.mul(joint.c0).mul(joint.transform).mul(inverse(joint.c1)));
         }
     }
 
