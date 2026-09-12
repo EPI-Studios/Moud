@@ -5,6 +5,7 @@ import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Remote;
+import com.meekdev.moud.core.instance.Schema;
 import com.meekdev.moud.core.instance.UnreliableRemote;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
@@ -53,7 +54,7 @@ public final class Remotes {
             throw state.error("fireServer is the client's, and this is the server."
                     + " the server says fireClient or fireAllClients");
         }
-        side.post().toServer(remote.id(), read(state, 2), reliable(remote));
+        side.post().toServer(remote.id(), declared(state, remote, 2), reliable(remote));
         return 0;
     }
 
@@ -64,15 +65,30 @@ public final class Remotes {
         if (!(who instanceof Character body)) {
             throw state.error("fireClient wants the body of whoever it is for, as the first argument");
         }
-        side.post().toClient(body.owner, remote.id(), read(state, 3), reliable(remote));
+        side.post().toClient(body.owner, remote.id(), declared(state, remote, 3), reliable(remote));
         return 0;
     }
 
     public static int fireAllClients(LuaState state, Remote remote) {
         Side side = side(state);
         if (side.client()) throw state.error("fireAllClients is the server's, and this is a client");
-        side.post().toAllClients(remote.id(), read(state, 2), reliable(remote));
+        side.post().toAllClients(remote.id(), declared(state, remote, 2), reliable(remote));
         return 0;
+    }
+
+    // read the stack, then hold it to what the channel says it takes
+    //
+    // here as well as on the server, because the two checks are for different people: this one tells
+    // the place which argument is wrong while it is still looking at the line that sent it, and the
+    // one on receive is the one a tampered client cannot skip
+    private static List<Object> declared(LuaState state, Remote remote, int first) {
+        List<Object> args = read(state, first);
+        try {
+            Schema.check(remote, args);
+        } catch (IllegalArgumentException wrong) {
+            throw state.error("%s", wrong.getMessage());
+        }
+        return args;
     }
 
     private static boolean reliable(Remote remote) {

@@ -21,6 +21,14 @@ import java.util.List;
 // never says who it is. everything else it sends is a claim and has to be treated as one
 public class Remote extends Instance {
 
+    // what this channel takes, as the kinds in order: "instance, number" or "string, number?"
+    //
+    // §10.3 makes it mandatory, and a channel that declares nothing takes nothing -- which is not a
+    // special case to remember, it is the same sentence read with an empty list. a place that forgot
+    // to declare gets told its channel takes no arguments at the first call, which is the moment it
+    // can still be fixed
+    public String accepts = "";
+
     // what a client sent, on the server
     public final Signal<Sent> onServer = new Signal<>();
 

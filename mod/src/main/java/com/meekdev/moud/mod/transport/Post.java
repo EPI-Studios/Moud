@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.transport;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Remote;
+import com.meekdev.moud.core.instance.Schema;
 import com.meekdev.moud.net.transport.InProcess;
 import com.meekdev.moud.net.transport.Transport;
 import com.meekdev.moud.net.transport.Wire;
@@ -56,7 +57,16 @@ public final class Post {
         // a channel that has been destroyed since the delivery left is not an error: it is the
         // ordinary race between one side closing it and the other hearing about it
         if (!(instance instanceof Remote remote)) return;
-        Remote.Sent sent = new Remote.Sent(from, Wire.unpack(args, tree));
+        List<Object> delivered = Wire.unpack(args, tree);
+        // the check that matters, because this side did not write the client. a delivery of the
+        // wrong shape is dropped and said once -- it is not the tick's fault and not a handler's
+        try {
+            Schema.check(remote, delivered);
+        } catch (IllegalArgumentException wrong) {
+            LOGGER.warn("dropped a delivery on {}: {}", remote.name(), wrong.getMessage());
+            return;
+        }
+        Remote.Sent sent = new Remote.Sent(from, delivered);
         // a handler that throws must not take the rest of the batch with it, nor the tick
         try {
             if (toServer) {
