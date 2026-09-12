@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.client;
 
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.core.instance.Camera;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
@@ -54,7 +55,7 @@ public final class ClientPlace {
     // the camera is made per load, not per start: a reload destroys the local instances and a
     // global left pointing at the old one errors the moment the place touches it
     private static void start(Instance world) {
-        place = Place.client(world, Classes.registry(), vm -> {
+        place = Place.client(world, Addons.classes(), vm -> {
             camera = Instances.createLocal(Classes.CAMERA, world, "Camera");
             vm.bindClient(camera, LENS, INPUT, ClientScene::own);
         });

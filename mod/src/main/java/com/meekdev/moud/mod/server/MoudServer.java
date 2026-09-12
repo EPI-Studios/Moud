@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.server;
 
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
@@ -42,7 +43,7 @@ public final class MoudServer {
 
     private static void started(MinecraftServer server) {
         ServerScene.start(server);
-        place = Place.server(ServerScene.world(), Classes.registry());
+        place = Place.server(ServerScene.world(), Addons.classes());
         place.start();
         MoudMod.LOG.info("place is running on the server");
     }

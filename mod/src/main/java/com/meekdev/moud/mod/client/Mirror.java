@@ -1,6 +1,6 @@
 package com.meekdev.moud.mod.client;
 
-import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.server.ServerScene;
 import com.meekdev.moud.net.replicate.Applier;
 import com.meekdev.moud.net.replicate.Change;
@@ -26,7 +26,7 @@ public final class Mirror {
 
     private static final Recorder RECORDER = new Recorder();
     private static final Queue<List<Change>> QUEUE = new ConcurrentLinkedQueue<>();
-    private static final Applier APPLIER = new Applier(Classes.registry());
+    private static final Applier APPLIER = new Applier(Addons.classes());
 
     private Mirror() {}
 

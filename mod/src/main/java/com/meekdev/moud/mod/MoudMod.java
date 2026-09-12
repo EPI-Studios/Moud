@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod;
 
+import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.features.Features;
 import com.meekdev.moud.mod.level.PlaceChunkGenerator;
 import com.meekdev.moud.mod.adapter.physics.Physics;
@@ -26,6 +27,8 @@ public final class MoudMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        // first: everything after this reads a class set they may have added to
+        Addons.install();
         Registry.register(BuiltInRegistries.CHUNK_GENERATOR,
                 Identifier.fromNamespaceAndPath(ID, "place"), PlaceChunkGenerator.CODEC);
         MoudServer.install();
