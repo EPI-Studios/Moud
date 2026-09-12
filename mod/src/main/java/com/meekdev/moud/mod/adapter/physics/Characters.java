@@ -30,6 +30,9 @@ import com.meekdev.moud.core.instance.Armour;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.equipment.Equippable;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.level.block.AbstractSkullBlock;
+import net.minecraft.world.level.block.SkullBlock;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
@@ -74,6 +77,8 @@ public final class Characters {
     private static final PropertyDef ARMOUR_CHEST = Classes.ARMOUR.property("chest");
     private static final PropertyDef ARMOUR_LEGS = Classes.ARMOUR.property("legs");
     private static final PropertyDef ARMOUR_FEET = Classes.ARMOUR.property("feet");
+    private static final PropertyDef ARMOUR_HAT = Classes.ARMOUR.property("hat");
+    private static final PropertyDef ARMOUR_HAT_LAYERED = Classes.ARMOUR.property("hatLayered");
     private static final PropertyDef WORN = Classes.WINGS.property("worn");
     private static final PropertyDef WING_X = Classes.WINGS.property("x");
     private static final PropertyDef WING_Y = Classes.WINGS.property("y");
@@ -213,6 +218,7 @@ public final class Characters {
             Instances.setObj(worn, ARMOUR_LEGS,
                     plate(player, EquipmentSlot.LEGS, "humanoid_leggings"));
             Instances.setObj(worn, ARMOUR_FEET, plate(player, EquipmentSlot.FEET, "humanoid"));
+            head(worn, player);
         }
 
         // the wings are worn, which is not the same as being flown on. and where they are held
@@ -268,6 +274,41 @@ public final class Characters {
         if (max <= 0) return 0;
         double used = held.getUseDuration(player) - player.getUseItemRemainingTicks();
         return Math.max(0, Math.min(1, used / max));
+    }
+
+    // a skull worn on the head, which the game draws as a box of its own rather than as armour
+    //
+    // only the five it has a box for. a pumpkin or any other block worn up there is a block model
+    // and not a box, so it is left to whatever draws blocks
+    private static void head(Armour worn, Player player) {
+        ItemStack hat = player.getItemBySlot(EquipmentSlot.HEAD);
+        SkullBlock.Type type = hat.getItem() instanceof BlockItem block
+                && block.getBlock() instanceof AbstractSkullBlock skull ? skull.getType() : null;
+
+        String texture = "";
+        boolean layered = false;
+        if (type instanceof SkullBlock.Types kind) {
+            switch (kind) {
+                case SKELETON -> texture = "minecraft:textures/entity/skeleton/skeleton.png";
+                case WITHER_SKELETON ->
+                        texture = "minecraft:textures/entity/skeleton/wither_skeleton.png";
+                case CREEPER -> texture = "minecraft:textures/entity/creeper/creeper.png";
+                case ZOMBIE -> {
+                    texture = "minecraft:textures/entity/zombie/zombie.png";
+                    layered = true;
+                }
+                case PLAYER -> {
+                    // whose head it is lives in the item's profile and is resolved by a skin
+                    // cache the server has no part of. this is the face every unresolved one
+                    // falls back to, named rather than fetched so this class stays on both sides
+                    texture = "minecraft:textures/entity/player/wide/steve.png";
+                    layered = true;
+                }
+                default -> { }
+            }
+        }
+        Instances.setObj(worn, ARMOUR_HAT, texture);
+        Instances.setBool(worn, ARMOUR_HAT_LAYERED, layered);
     }
 
     // the sheet a slot is wearing, by the name the equipment itself carries
