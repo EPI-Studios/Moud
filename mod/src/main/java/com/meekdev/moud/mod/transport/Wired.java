@@ -62,6 +62,10 @@ public final class Wired implements Transport {
     // the server's side of the tree stream. one payload per tick per player, which is what the client
     // paces on: a quiet tick is sent too, because it is what says a tick happened and nothing moved
     public void sendDelta(ServerPlayer player, byte[] bytes) {
+        // asked rather than assumed, because a client without the mod is a client that cannot read
+        // this and the game logs a line about every packet it drops. it is also the honest answer to
+        // "can this player see the place": no, and nothing here can change that
+        if (!ServerPlayNetworking.canSend(player, Packets.Delta.TYPE)) return;
         ServerPlayNetworking.send(player, new Packets.Delta(bytes));
     }
 
@@ -81,7 +85,7 @@ public final class Wired implements Transport {
     @Override
     public void toClient(String player, int remote, List<Object> args, boolean reliable) {
         ServerPlayer who = playerOf(player);
-        if (who == null) return;
+        if (who == null || !ServerPlayNetworking.canSend(who, Packets.Down.TYPE)) return;
         ServerPlayNetworking.send(who, new Packets.Down(remote, Args.encode(args)));
     }
 
@@ -92,7 +96,9 @@ public final class Wired implements Transport {
         // encoded once for everybody, because the bytes are the same bytes
         Packets.Down payload = new Packets.Down(remote, Args.encode(args));
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            ServerPlayNetworking.send(player, payload);
+            if (ServerPlayNetworking.canSend(player, Packets.Down.TYPE)) {
+                ServerPlayNetworking.send(player, payload);
+            }
         }
     }
 
