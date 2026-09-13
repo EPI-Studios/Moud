@@ -3,12 +3,10 @@ package com.meekdev.moud.mod.adapter.chat;
 import com.meekdev.amnetic.client.framebuffer.Framebuffer;
 import com.meekdev.amnetic.client.framebuffer.Framebuffers;
 import com.meekdev.amnetic.client.render.GlState;
-import com.meekdev.amnetic.client.render.ImportedTextures;
 import com.meekdev.amnetic.client.render.ShaderProgram;
 import com.meekdev.amnetic.client.surface.HudSurface;
 import com.meekdev.amnetic.client.surface.Surfaces;
 import com.meekdev.amnetic.client.surface.draw.UiDraw;
-import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.clazz.Enums;
 import com.meekdev.moud.core.instance.ChatAnimation;
 import com.meekdev.moud.core.instance.ChatBackdrop;
@@ -23,11 +21,11 @@ import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.text.RichText;
 import com.meekdev.moud.core.tween.Easing;
 import com.meekdev.moud.mod.adapter.ui.UiFonts;
+import com.meekdev.moud.mod.adapter.ui.UiImages;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.script.engine.ScriptEngine;
 import com.mojang.blaze3d.opengl.GlTexture;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -47,7 +45,6 @@ import net.minecraft.client.gui.font.glyphs.BakedGlyph;
 import net.minecraft.client.gui.font.glyphs.BakedSheetGlyph;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.ConfirmLinkScreen;
-import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.FontDescription;
 import net.minecraft.resources.Identifier;
@@ -93,7 +90,6 @@ public final class ChatView {
     private static final List<Hit> HITS = new ArrayList<>();
     private static final List<ItemDraw> ITEMS = new ArrayList<>();
     private static final Map<String, ItemStack> STACKS = new HashMap<>();
-    private static final Map<String, Integer> IMAGES = new HashMap<>();
     private static final long START = System.nanoTime();
 
     private static float scroll;
@@ -327,7 +323,7 @@ public final class ChatView {
         }
         switch (glyph.kind()) {
             case IMAGE -> {
-                int texture = image((String) glyph.extra());
+                int texture = UiImages.texture((String) glyph.extra());
                 if (texture != 0) d.image(texture, x, y, glyph.width(), glyph.height(), argb(Color.WHITE, a));
                 return;
             }
@@ -809,24 +805,6 @@ public final class ChatView {
             if (item == null || !BuiltInRegistries.ITEM.containsKey(item)) return ItemStack.EMPTY;
             return new ItemStack(BuiltInRegistries.ITEM.getValue(item), Math.max(1, count));
         });
-    }
-
-    private static int image(String src) {
-        Integer known = IMAGES.get(src);
-        if (known != null && known != 0) return known;
-        Identifier id;
-        if (src.startsWith(Res.SCHEME)) {
-            Path root = ClientPlace.root();
-            if (root == null) return 0;
-            id = ImportedTextures.idForPath(root.resolve(Res.parse(src)).toAbsolutePath().toString());
-        } else {
-            id = Identifier.tryParse(src);
-        }
-        if (id == null) return 0;
-        AbstractTexture texture = Minecraft.getInstance().getTextureManager().getTexture(id);
-        int gl = texture != null && texture.getTexture() instanceof GlTexture glTexture ? glTexture.glId() : 0;
-        IMAGES.put(src, gl);
-        return gl;
     }
 
     private static double hash(long a, long b) {

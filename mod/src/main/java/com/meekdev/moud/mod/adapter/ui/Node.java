@@ -13,12 +13,9 @@ import com.meekdev.moud.mod.adapter.chat.ChatView;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.amnetic.client.surface.draw.UiDraw;
 import com.meekdev.amnetic.client.surface.widget.Widget;
-import com.mojang.blaze3d.opengl.GlTexture;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.ToDoubleFunction;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.resources.Identifier;
 
 // one instance of an interface, read live every frame, so a write shows on the next one
@@ -63,7 +60,7 @@ final class Node extends Widget {
         }
 
         if (source instanceof ImageLabel image && !image.image.isEmpty()) {
-            int texture = texture(image.image);
+            int texture = UiImages.texture(image.image);
             if (texture != 0) {
                 d.image(texture, x, y, w, h, argb(image.imageColor, (1 - image.imageTransparency) * alpha));
             }
@@ -166,13 +163,6 @@ final class Node extends Widget {
     }
 
     // asked of the game each frame, which loads it the first time and hands back the same one after
-    private static int texture(String name) {
-        Identifier id = Identifier.tryParse(name);
-        if (id == null) return 0;
-        AbstractTexture texture = Minecraft.getInstance().getTextureManager().getTexture(id);
-        return texture != null && texture.getTexture() instanceof GlTexture gl ? gl.glId() : 0;
-    }
-
     private static Color shade(Color c, double amount) {
         float keep = (float) (1 - amount);
         return new Color(c.r() * keep, c.g() * keep, c.b() * keep, c.a());
