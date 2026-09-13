@@ -44,7 +44,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.PlayerModelPart;
 import net.minecraft.world.entity.player.PlayerSkin;
 import org.joml.Matrix4f;
-import org.joml.Quaternionf;
 import org.joml.Vector2f;
 import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
@@ -57,7 +56,6 @@ public final class Skins {
     private record Worn(Matrix4f transform, Vector4f color, Vector2f light,
                         Vector4f uv, Vector2f box, Vector2f overlay, Vector4f sheet) {}
 
-    private static final Map<Identifier, Identifier> BATCHES = new HashMap<>();
     private static final Map<Identifier, List<Worn>> PACKED = new HashMap<>();
 
     private static final Vector2f OVERLAY = new Vector2f();
@@ -67,9 +65,6 @@ public final class Skins {
 
     private static final Identifier ELYTRA =
             Identifier.withDefaultNamespace("textures/entity/equipment/wings/elytra.png");
-
-    private static final Matrix4f MATRIX = new Matrix4f();
-    private static final Quaternionf ROTATION = new Quaternionf();
 
     private static int drawn;
 
@@ -210,7 +205,7 @@ public final class Skins {
                         (float) size.x(), (float) size.y(), (float) size.z());
         Color tint = limb.color;
         into.add(new Worn(transform,
-                new Vector4f((float) tint.r(), (float) tint.g(), (float) tint.b(),
+                new Vector4f(tint.r(), tint.g(), tint.b(),
                         (float) (1.0 - limb.transparency) * solid),
                 PartLight.of(character, at),
                 new Vector4f((float) limb.u, (float) limb.v,
@@ -225,7 +220,6 @@ public final class Skins {
     private static void register(Identifier texture) {
         Identifier id = Identifier.fromNamespaceAndPath("moud",
                 "skin_" + texture.getNamespace() + "_" + texture.getPath().replace('/', '_'));
-        BATCHES.put(texture, id);
         InstancedMesh.Builder<Worn> mesh = InstancedMesh.<Worn>builder(LAYOUT,
                         (inst, p) -> p.putMat4(inst.transform()).putVec4(inst.color())
                                 .putVec2(inst.light().x, inst.light().y)
@@ -253,24 +247,6 @@ public final class Skins {
         List<Worn> worn = PACKED.get(texture);
         if (worn == null) return;
         for (Worn one : worn) batch.add(one);
-    }
-
-    private static Character characterOf(Part part) {
-        return part.parent() instanceof Character character ? character
-                : part.parent() instanceof Part parent && parent.parent() instanceof Character owner
-                        ? owner : null;
-    }
-
-    private static Identifier textureOf(Appearance look, @Nullable AbstractClientPlayer wearer) {
-        if (!look.skin.isEmpty()) {
-            Identifier asked = Identifier.tryParse(look.skin);
-            if (asked == null) {
-                throw new IllegalStateException("skin \"" + look.skin + "\" got past the write check");
-            }
-            return asked;
-        }
-        if (wearer != null) return wearer.getSkin().body().texturePath();
-        return DefaultPlayerSkin.getDefaultSkin().body().texturePath();
     }
 
     public static @Nullable AbstractClientPlayer wearerOf(Character character) {
