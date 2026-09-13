@@ -28,6 +28,11 @@ import com.meekdev.moud.core.instance.InputAction;
 import com.meekdev.moud.core.instance.Joint;
 import com.meekdev.moud.core.instance.Limb;
 import com.meekdev.moud.core.instance.MeshPart;
+import com.meekdev.moud.core.instance.AreaLight;
+import com.meekdev.moud.core.instance.Light;
+import com.meekdev.moud.core.instance.PointLight;
+import com.meekdev.moud.core.instance.SpotLight;
+import com.meekdev.moud.core.instance.TubeLight;
 import com.meekdev.moud.core.instance.LocalScript;
 import com.meekdev.moud.core.instance.Motor;
 import com.meekdev.moud.core.instance.Part;
@@ -63,6 +68,16 @@ public final class Classes {
             ClassDef.of("Attachment", SPATIAL, Attachment.class, Attachment::new);
     public static final ClassDef<Limb> LIMB = ClassDef.of("Limb", PART, Limb.class, Limb::new);
     public static final ClassDef<MeshPart> MESH_PART = ClassDef.of("MeshPart", PART, MeshPart.class, MeshPart::new);
+
+    public static final ClassDef<Light> LIGHT = ClassDef.of("Light", SPATIAL, Light.class, Light::new);
+    public static final ClassDef<PointLight> POINT_LIGHT =
+            ClassDef.of("PointLight", LIGHT, PointLight.class, PointLight::new);
+    public static final ClassDef<SpotLight> SPOT_LIGHT =
+            ClassDef.of("SpotLight", LIGHT, SpotLight.class, SpotLight::new);
+    public static final ClassDef<AreaLight> AREA_LIGHT =
+            ClassDef.of("AreaLight", LIGHT, AreaLight.class, AreaLight::new);
+    public static final ClassDef<TubeLight> TUBE_LIGHT =
+            ClassDef.of("TubeLight", LIGHT, TubeLight.class, TubeLight::new);
     public static final ClassDef<Cape> CAPE = ClassDef.of("Cape", LIMB, Cape.class, Cape::new);
     public static final ClassDef<Humanoid> HUMANOID =
             ClassDef.of("Humanoid", null, Humanoid.class, Humanoid::new);
@@ -146,6 +161,11 @@ public final class Classes {
         r.register(ATTACHMENT);
         r.register(LIMB);
         r.register(MESH_PART);
+        r.register(LIGHT);
+        r.register(POINT_LIGHT);
+        r.register(SPOT_LIGHT);
+        r.register(AREA_LIGHT);
+        r.register(TUBE_LIGHT);
         r.register(CAPE);
         r.register(HUMANOID);
         r.register(WINGS);
