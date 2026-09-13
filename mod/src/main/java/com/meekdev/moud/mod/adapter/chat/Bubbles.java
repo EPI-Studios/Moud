@@ -85,10 +85,12 @@ public final class Bubbles {
                 int backArgb = ChatView.argbOf(back, (1 - transparency) * a);
                 d.roundedRect(bx, by, bw, bh, (float) config.cornerRadius, backArgb);
                 if (tail > 0) {
-                    float side = tail * 1.2f;
+                    float side = tail * (float) Math.sqrt(2);
+                    d.pushClip(bx, by + bh, bw, tail);
                     d.pushTransform(bx + bw / 2, by + bh, 0, 0, 1, (float) (Math.PI / 4));
                     d.rect(bx + bw / 2 - side / 2, by + bh - side / 2, side, side, backArgb);
                     d.popTransform();
+                    d.popClip();
                 }
                 ChatView.Look look = new ChatView.Look(ChatViewNumbers.color(bubble.look, "textColor", config.textColor),
                         font, false, Color.BLACK, 0);
