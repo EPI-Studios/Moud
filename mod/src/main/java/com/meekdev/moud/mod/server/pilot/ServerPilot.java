@@ -1,4 +1,4 @@
-package com.meekdev.moud.mod.server;
+package com.meekdev.moud.mod.server.pilot;
 
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.InstanceTree;
@@ -14,6 +14,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import com.meekdev.moud.mod.transport.payload.PilotDownPayload;
 import com.meekdev.moud.mod.transport.payload.PilotUpPayload;
+import com.meekdev.moud.mod.server.ServerScene;
 
 public final class ServerPilot implements Walkers.Pilot {
 

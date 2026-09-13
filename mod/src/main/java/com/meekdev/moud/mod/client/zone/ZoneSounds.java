@@ -1,4 +1,4 @@
-package com.meekdev.moud.mod.client;
+package com.meekdev.moud.mod.client.zone;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.character.Character;
@@ -11,14 +11,15 @@ import com.meekdev.moud.core.zone.Zones;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.meekdev.moud.mod.client.ClientScene;
 
-final class ZoneSounds {
+public final class ZoneSounds {
 
     private static final Map<Zone, Sound> PLAYING = new HashMap<>();
 
     private ZoneSounds() {}
 
-    static void tick(InstanceTree tree) {
+    public static void tick(InstanceTree tree) {
         Character me = ClientScene.own();
         Zone winner = null;
         if (me != null) {

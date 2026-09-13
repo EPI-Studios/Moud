@@ -1,4 +1,4 @@
-package com.meekdev.moud.mod.client;
+package com.meekdev.moud.mod.client.input;
 
 import com.meekdev.moud.core.math.Vector3;
 import java.util.ArrayList;

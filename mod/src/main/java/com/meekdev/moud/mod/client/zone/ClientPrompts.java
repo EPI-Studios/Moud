@@ -1,4 +1,4 @@
-package com.meekdev.moud.mod.client;
+package com.meekdev.moud.mod.client.zone;
 
 import com.meekdev.amnetic.client.surface.Surfaces;
 import com.meekdev.amnetic.client.surface.WorldSurface;
@@ -15,7 +15,7 @@ import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.text.RichText;
 import com.meekdev.moud.mod.adapter.chat.ChatView;
-import com.meekdev.moud.mod.server.ServerPrompts;
+import com.meekdev.moud.mod.server.zone.ServerPrompts;
 import java.util.List;
 import java.util.Locale;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -27,6 +27,8 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import org.joml.Vector3fc;
 import net.minecraft.world.phys.Vec3;
 import com.meekdev.moud.mod.transport.payload.PromptPayload;
+import com.meekdev.moud.mod.client.input.Actions;
+import com.meekdev.moud.mod.client.ClientScene;
 
 public final class ClientPrompts {
 

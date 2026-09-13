@@ -19,6 +19,9 @@ import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.script.engine.ScriptEngine;
 import java.nio.file.Path;
 import org.jspecify.annotations.Nullable;
+import com.meekdev.moud.mod.client.input.Actions;
+import com.meekdev.moud.mod.client.debug.ClientDebug;
+import com.meekdev.moud.mod.client.input.Input;
 
 public final class ClientPlace {
 

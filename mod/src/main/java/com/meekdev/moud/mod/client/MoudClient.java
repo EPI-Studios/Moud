@@ -21,6 +21,12 @@ import net.minecraft.client.Minecraft;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+import com.meekdev.moud.mod.client.input.Autopilot;
+import com.meekdev.moud.mod.client.debug.ClientDebug;
+import com.meekdev.moud.mod.client.zone.ClientPrompts;
+import com.meekdev.moud.mod.client.debug.CollisionView;
+import com.meekdev.moud.mod.client.input.Input;
+import com.meekdev.moud.mod.client.debug.Trace;
 
 public final class MoudClient implements ClientModInitializer {
 

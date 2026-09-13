@@ -1,6 +1,6 @@
 package com.meekdev.moud.mod.mixin.client;
 
-import com.meekdev.moud.mod.client.Autopilot;
+import com.meekdev.moud.mod.client.input.Autopilot;
 import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.KeyboardInput;
 import org.spongepowered.asm.mixin.Mixin;

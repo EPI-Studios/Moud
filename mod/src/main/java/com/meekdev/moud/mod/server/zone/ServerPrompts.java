@@ -1,4 +1,4 @@
-package com.meekdev.moud.mod.server;
+package com.meekdev.moud.mod.server.zone;
 
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.Instance;
@@ -14,6 +14,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import com.meekdev.moud.mod.transport.payload.PromptPayload;
+import com.meekdev.moud.mod.server.ServerScene;
 
 public final class ServerPrompts {
 

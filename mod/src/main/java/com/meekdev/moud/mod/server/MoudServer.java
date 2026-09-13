@@ -28,6 +28,8 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Abilities;
 import org.jspecify.annotations.Nullable;
+import com.meekdev.moud.mod.server.pilot.ServerPilot;
+import com.meekdev.moud.mod.server.zone.ServerPrompts;
 
 public final class MoudServer {
 

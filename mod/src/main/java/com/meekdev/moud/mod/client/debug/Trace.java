@@ -1,4 +1,4 @@
-package com.meekdev.moud.mod.client;
+package com.meekdev.moud.mod.client.debug;
 
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.Instance;
@@ -20,6 +20,7 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import net.minecraft.world.phys.Vec3;
+import com.meekdev.moud.mod.client.ClientScene;
 
 public final class Trace {
 

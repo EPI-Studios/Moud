@@ -1,4 +1,4 @@
-package com.meekdev.moud.mod.client;
+package com.meekdev.moud.mod.client.input;
 
 import net.minecraft.client.player.ClientInput;
 import net.minecraft.world.phys.Vec2;

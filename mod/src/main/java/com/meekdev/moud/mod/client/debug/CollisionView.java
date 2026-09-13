@@ -1,4 +1,4 @@
-package com.meekdev.moud.mod.client;
+package com.meekdev.moud.mod.client.debug;
 
 import com.meekdev.bkun.collision.BoxCollider;
 import com.meekdev.bkun.physics.MovementProfile;
@@ -25,6 +25,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import org.lwjgl.glfw.GLFW;
+import com.meekdev.moud.mod.client.ClientScene;
 
 public final class CollisionView {
 

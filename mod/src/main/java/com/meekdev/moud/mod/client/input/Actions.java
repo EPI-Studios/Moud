@@ -1,4 +1,4 @@
-package com.meekdev.moud.mod.client;
+package com.meekdev.moud.mod.client.input;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.input.InputAction;
@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
+import com.meekdev.moud.mod.client.ClientScene;
 
 public final class Actions {
 

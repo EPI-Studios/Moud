@@ -1,4 +1,4 @@
-package com.meekdev.moud.mod.server;
+package com.meekdev.moud.mod.server.debug;
 
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
@@ -10,6 +10,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import com.meekdev.moud.mod.transport.payload.DebugPayload;
+import com.meekdev.moud.mod.server.ServerScene;
 
 public final class ServerDebug implements DebugRef {
 
