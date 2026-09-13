@@ -79,19 +79,19 @@ public final class Character extends Spatial {
 
     @Prop(min = 0, max = 1) public double whiteFlash;
 
-    public final boolean worn() {
+    public final boolean hasPlayer() {
         if (owner.isEmpty()) return false;
         try {
             UUID.fromString(owner);
             return true;
-        } catch (IllegalArgumentException notAPlayer) {
+        } catch (IllegalArgumentException ignored) {
             return false;
         }
     }
 
     @Override
-    protected long propertiesFromElsewhere() {
-        if (!worn()) return 0;
+    protected long externalPropertyMask() {
+        if (!hasPlayer()) return 0;
         return def().driven() | (1L << Classes.SPATIAL.property("cframe").index());
     }
 

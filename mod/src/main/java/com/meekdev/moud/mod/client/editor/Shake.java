@@ -89,22 +89,22 @@ public final class Shake {
     }
 
     public static String body() {
-        return millimetres(spread(BODY));
+        return toMillimetres(range(BODY));
     }
 
     public static String reach() {
-        return millimetres(spread(REACH));
+        return toMillimetres(range(REACH));
     }
 
     public static String camera() {
-        return millimetres(spread(CAM_Y));
+        return toMillimetres(range(CAM_Y));
     }
 
     public static String cameraFlat() {
-        return millimetres(Math.max(spread(CAM_X), spread(CAM_Z)));
+        return toMillimetres(Math.max(range(CAM_X), range(CAM_Z)));
     }
 
-    public static String bob() {
+    public static String bobText() {
         return String.format("%.4f", bob);
     }
 
@@ -114,7 +114,7 @@ public final class Shake {
 
     public static String hold() {
         if (!seeded) return "not on a deck";
-        return String.format("%.3f deg", spread(HOLD));
+        return String.format("%.3f deg", range(HOLD));
     }
 
     public static String deckRate() {
@@ -160,7 +160,7 @@ public final class Shake {
         return d;
     }
 
-    private static double spread(double[] window) {
+    private static double range(double[] window) {
         if (filled == 0) return 0;
         double low = Double.MAX_VALUE;
         double high = -Double.MAX_VALUE;
@@ -171,7 +171,7 @@ public final class Shake {
         return high - low;
     }
 
-    private static String millimetres(double blocks) {
+    private static String toMillimetres(double blocks) {
         double mm = blocks * 1000.0;
         if (mm > 500) return "moving";
         return String.format("%.1f mm", mm);

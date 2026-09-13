@@ -89,8 +89,8 @@ public final class Remotes {
         List<Object> args = read(state, first);
         try {
             Schema.check(remote, args);
-        } catch (IllegalArgumentException wrong) {
-            throw state.error("%s", wrong.getMessage());
+        } catch (IllegalArgumentException e) {
+            throw state.error("%s", e.getMessage());
         }
         return args;
     }

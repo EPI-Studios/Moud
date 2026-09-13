@@ -133,7 +133,7 @@ public final class PlayerQueries {
         method(state, "fromName", s -> {
             String name = s.checkString(2);
             for (Character body : tree.ofClass(Classes.CHARACTER)) {
-                if (body.worn() && body.name().equalsIgnoreCase(name)) {
+                if (body.hasPlayer() && body.name().equalsIgnoreCase(name)) {
                     Proxies.push(s, body);
                     return 1;
                 }
@@ -143,7 +143,7 @@ public final class PlayerQueries {
         });
         method(state, "count", s -> {
             int n = 0;
-            for (Character body : tree.ofClass(Classes.CHARACTER)) if (body.worn()) n++;
+            for (Character body : tree.ofClass(Classes.CHARACTER)) if (body.hasPlayer()) n++;
             s.pushNumber(n);
             return 1;
         });
@@ -153,7 +153,7 @@ public final class PlayerQueries {
         double limit = radius * radius;
         List<Found> out = new ArrayList<>();
         for (Character body : tree.ofClass(Classes.CHARACTER)) {
-            if (!body.worn() || body == except || !body.isAlive()) continue;
+            if (!body.hasPlayer() || body == except || !body.isAlive()) continue;
             double d = 0;
             if (at != null) {
                 Vector3 p = Transforms.world(body).position();
@@ -170,7 +170,7 @@ public final class PlayerQueries {
     private static List<Found> filtered(InstanceTree tree, Instance except, Predicate<Character> keep) {
         List<Found> out = new ArrayList<>();
         for (Character body : tree.ofClass(Classes.CHARACTER)) {
-            if (body.worn() && body != except && body.isAlive() && keep.test(body)) out.add(new Found(body, 0));
+            if (body.hasPlayer() && body != except && body.isAlive() && keep.test(body)) out.add(new Found(body, 0));
         }
         return out;
     }

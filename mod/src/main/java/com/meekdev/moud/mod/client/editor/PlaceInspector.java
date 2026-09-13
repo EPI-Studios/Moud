@@ -57,7 +57,7 @@ public final class PlaceInspector extends Inspector {
         text("camera xz", Shake.cameraFlat());
         text("yaw held", Shake.hold());
         text("deck rate", Shake.deckRate());
-        text("bob", Shake.bob());
+        text("bob", Shake.bobText());
         text("riding", Shake.riding());
 
         ImGui.separator();

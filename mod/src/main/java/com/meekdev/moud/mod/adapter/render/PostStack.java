@@ -231,9 +231,9 @@ public final class PostStack {
                 shader.draw();
                 out.end();
                 out.blitColorToMain();
-            } catch (RuntimeException failed) {
+            } catch (RuntimeException e) {
                 program.broken = true;
-                if (WARNED.add(program.source)) MoudMod.LOG.warn("{} cannot be drawn: {}", effect.name(), failed.getMessage());
+                if (WARNED.add(program.source)) MoudMod.LOG.warn("{} cannot be drawn: {}", effect.name(), e.getMessage());
             } finally {
                 GlState.endFullscreen();
             }
@@ -323,7 +323,7 @@ public final class PostStack {
         if (id == null) return null;
         try {
             return ShaderProgram.readSource(id);
-        } catch (RuntimeException missing) {
+        } catch (RuntimeException ignored) {
             return null;
         }
     }

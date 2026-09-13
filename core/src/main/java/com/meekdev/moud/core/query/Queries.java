@@ -92,7 +92,7 @@ public final class Queries {
 
     private Queries() {}
 
-    public static <T> T rewound(Function<Part, CFrame> frames, Supplier<T> query) {
+    public static <T> T withFrames(Function<Part, CFrame> frames, Supplier<T> query) {
         Function<Part, CFrame> before = FRAMES.get();
         FRAMES.set(frames);
         try {

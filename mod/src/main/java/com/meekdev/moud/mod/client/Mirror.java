@@ -35,10 +35,10 @@ public final class Mirror {
             List<Change> batch;
             try {
                 batch = Codec.decode(packet, APPLIER.tree(), Addons.classes());
-            } catch (RuntimeException broken) {
+            } catch (RuntimeException e) {
                 if (!resyncing) {
                     MoudMod.LOG.warn("client tree out of sync ({}), requesting a full resync",
-                            broken.getMessage());
+                            e.getMessage());
                     resyncing = true;
                     if (ClientPlayNetworking.canSend(ResyncPayload.TYPE)) ClientPlayNetworking.send(new ResyncPayload());
                 }

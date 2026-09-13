@@ -175,7 +175,7 @@ public final class Rig {
         return character.child(WING_SET) instanceof Wings pair ? pair : null;
     }
 
-    private static boolean worn(Character character) {
+    private static boolean hasPlayer(Character character) {
         Wings pair = wings(character);
         return pair != null && pair.worn;
     }
@@ -452,7 +452,7 @@ public final class Rig {
                 && torso.child(CAPE) instanceof Part cape) {
             Instances.setObj(cape, SIZE, CAPE_BOX.size().mul(s));
             Instances.setObj(cape, PIVOT, CAPE_BOX.box().neg().mul(s));
-            if (worn(character)) Instances.setBool(cape, VISIBLE, false);
+            if (hasPlayer(character)) Instances.setBool(cape, VISIBLE, false);
             if (joint(character, CAPE) instanceof Joint hinge) {
                 Instances.setObj(hinge, C0, CFrame.at(
                         BODY[1].box().neg().add(CAPE_BOX.pivot().sub(BODY[1].pivot())).mul(s)));
@@ -465,7 +465,7 @@ public final class Rig {
             Instances.setObj(part, SIZE,
                     wing.size().add(new Vector3(grown, grown, grown)).mul(s));
             Instances.setObj(part, PIVOT, wing.box().neg().mul(s));
-            Instances.setBool(part, VISIBLE, worn(character));
+            Instances.setBool(part, VISIBLE, hasPlayer(character));
             if (joint(character, wing.name()) instanceof Joint hinge) {
                 Instances.setObj(hinge, C0, CFrame.at(wing.pivot().mul(s)));
             }

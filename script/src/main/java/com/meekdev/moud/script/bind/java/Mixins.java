@@ -99,10 +99,10 @@ public final class Mixins {
             Dispatch.Hook hook = hook(main, ref, owner, method, onError);
             try {
                 Injections.add(method, hook, head);
-            } catch (RuntimeException failed) {
+            } catch (RuntimeException e) {
                 for (Placed done : placed) Injections.remove(done.method(), done.hook());
                 state.unref(ref);
-                throw state.error("could not hook %s: %s", method, failed.getMessage());
+                throw state.error("could not hook %s: %s", method, e.getMessage());
             }
             placed.add(new Placed(method, hook));
         }
@@ -129,8 +129,8 @@ public final class Mixins {
                     state.newUserDataTaggedWithMetatable(call, CALL);
                     for (Object arg : call.args) Java.push(state, arg);
                     state.call(2 + call.args.length, 0);
-                } catch (RuntimeException broken) {
-                    onError.accept(new ScriptError("mixin " + where, broken.getMessage(), broken));
+                } catch (RuntimeException e) {
+                    onError.accept(new ScriptError("mixin " + where, e.getMessage(), e));
                 } finally {
                     state.top(top);
                 }

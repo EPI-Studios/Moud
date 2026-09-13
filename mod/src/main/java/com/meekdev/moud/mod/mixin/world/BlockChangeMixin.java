@@ -14,6 +14,6 @@ abstract class BlockChangeMixin {
 
     @Inject(method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;II)Z", at = @At("RETURN"))
     private void moud$changed(BlockPos pos, BlockState state, int flags, int recursion, CallbackInfoReturnable<Boolean> cir) {
-        if (cir.getReturnValueZ()) BlockRays.heard((Level) (Object) this, pos, state);
+        if (cir.getReturnValueZ()) BlockRays.onBlockChanged((Level) (Object) this, pos, state);
     }
 }

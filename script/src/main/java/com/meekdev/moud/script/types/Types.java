@@ -35,20 +35,20 @@ public final class Types {
         out.append(Luau.source("types/values.d.luau"));
         out.append(Luau.source("types/instance.d.luau"));
         for (ClassDef<?> def : classes.all()) {
-            out.append(clazz(def));
+            out.append(classDeclaration(def));
         }
         out.append(Luau.source("types/services.d.luau"));
         return out.toString();
     }
 
-    private static String clazz(ClassDef<?> def) {
+    private static String classDeclaration(ClassDef<?> def) {
         StringBuilder out = new StringBuilder(256);
         out.append("declare class ").append(def.name())
                 .append(" extends ").append(def.parent() == null ? "Instance" : def.parent().name())
                 .append('\n');
 
         PropertyDef frame = def.property("cframe");
-        if (frame != null && frame.index() >= inherited(def)) {
+        if (frame != null && frame.index() >= inheritedPropertyCount(def)) {
             out.append("    position: Vector3\n");
             out.append("    rotation: Quat\n");
             out.append("    worldCframe: CFrame\n");
@@ -66,19 +66,19 @@ public final class Types {
         }
 
         PropertyDef[] properties = def.properties();
-        for (int i = inherited(def); i < properties.length; i++) {
+        for (int i = inheritedPropertyCount(def); i < properties.length; i++) {
             out.append("    ").append(properties[i].name())
                     .append(": ").append(luau(properties[i])).append('\n');
         }
-        out.append(verbs(def.name()));
+        out.append(classMethods(def.name()));
         return out.append("end\n\n").toString();
     }
 
-    private static String verbs(String className) {
+    private static String classMethods(String className) {
         return Luau.optional("types/verbs/" + className + ".d.luau");
     }
 
-    private static int inherited(ClassDef<?> def) {
+    private static int inheritedPropertyCount(ClassDef<?> def) {
         return def.parent() == null ? 0 : def.parent().properties().length;
     }
 

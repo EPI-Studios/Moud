@@ -14,7 +14,7 @@ public final class ChatCommand extends Instance {
 
     public final Signal<Invoked> invoked = new Signal<>();
 
-    public List<String> words() {
+    public List<String> triggerWords() {
         List<String> out = new ArrayList<>();
         for (String word : triggers.split("[\\s,]+")) {
             if (word.isBlank()) continue;
@@ -27,7 +27,7 @@ public final class ChatCommand extends Instance {
     public List<String> match(String line) {
         String body = line.startsWith("/") ? line.substring(1) : line;
         String[] parts = body.trim().split("\\s+");
-        if (parts.length == 0 || !words().contains(parts[0].toLowerCase(Locale.ROOT))) return null;
+        if (parts.length == 0 || !triggerWords().contains(parts[0].toLowerCase(Locale.ROOT))) return null;
         List<String> args = new ArrayList<>();
         for (int n = 1; n < parts.length; n++) args.add(parts[n]);
         return args;

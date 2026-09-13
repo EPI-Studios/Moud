@@ -15,7 +15,7 @@ public final class Armour extends Instance {
     @Prop(driven = true) public boolean hatLayered;
 
     @Override
-    protected long propertiesFromElsewhere() {
-        return parent() instanceof Character body && body.worn() ? def().driven() : 0;
+    protected long externalPropertyMask() {
+        return parent() instanceof Character body && body.hasPlayer() ? def().driven() : 0;
     }
 }

@@ -29,8 +29,8 @@ final class Modules {
         String path;
         try {
             path = Res.parse(state.checkString(1));
-        } catch (IllegalArgumentException wrong) {
-            throw state.error("%s", wrong.getMessage());
+        } catch (IllegalArgumentException e) {
+            throw state.error("%s", e.getMessage());
         }
 
         state.rawGetField(LuaState.REGISTRY_INDEX, CACHE);
@@ -45,8 +45,8 @@ final class Modules {
         String code;
         try {
             code = source.read(path);
-        } catch (IllegalArgumentException wrong) {
-            throw state.error("%s", wrong.getMessage());
+        } catch (IllegalArgumentException e) {
+            throw state.error("%s", e.getMessage());
         }
         if (code == null) throw state.error("there is no res://%s", path);
 
@@ -62,8 +62,8 @@ final class Modules {
         try {
             state.load(path, bytecode);
             state.call(0, -1);
-        } catch (LuaError failed) {
-            String why = failed.getMessage();
+        } catch (LuaError e) {
+            String why = e.getMessage();
             if (why != null && why.contains("attempt to yield across")) {
                 throw state.error("res://%s yielded while loading, modules cannot yield at load time", path);
             }

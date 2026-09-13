@@ -64,8 +64,8 @@ public final class Post {
         List<Object> delivered = Wire.unpack(args, tree);
         try {
             Schema.check(remote, delivered);
-        } catch (IllegalArgumentException wrong) {
-            LOGGER.warn("dropped a delivery on {}: {}", remote.name(), wrong.getMessage());
+        } catch (IllegalArgumentException e) {
+            LOGGER.warn("dropped a delivery on {}: {}", remote.name(), e.getMessage());
             return;
         }
         Remote.Sent sent = new Remote.Sent(from, delivered);
@@ -75,8 +75,8 @@ public final class Post {
             } else {
                 remote.onClient.fire(sent);
             }
-        } catch (RuntimeException failed) {
-            LOGGER.warn("a handler on {} threw: {}", remote.name(), failed.toString());
+        } catch (RuntimeException e) {
+            LOGGER.warn("a handler on {} threw: {}", remote.name(), e.toString());
         }
     }
 

@@ -28,7 +28,7 @@ public final class ZoneMethods {
         methods.put("players", s -> {
             List<Instance> out = new ArrayList<>();
             for (Instance occupant : zone(s).occupants()) {
-                if (occupant instanceof Character body && body.worn()) out.add(occupant);
+                if (occupant instanceof Character body && body.hasPlayer()) out.add(occupant);
             }
             Plain.push(s, out);
             return 1;

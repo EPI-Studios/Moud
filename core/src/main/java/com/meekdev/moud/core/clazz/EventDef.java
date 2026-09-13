@@ -10,8 +10,8 @@ public record EventDef(String name, Field field) {
     public Signal<Object> on(Instance instance) {
         try {
             return (Signal<Object>) field.get(instance);
-        } catch (IllegalAccessException unreachable) {
-            throw new IllegalStateException("cannot reach " + name + " on " + instance, unreachable);
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException("cannot reach " + name + " on " + instance, e);
         }
     }
 }

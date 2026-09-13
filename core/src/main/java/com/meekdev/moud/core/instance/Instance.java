@@ -90,12 +90,12 @@ public abstract class Instance {
     protected void build() {
     }
 
-    protected long propertiesFromElsewhere() {
+    protected long externalPropertyMask() {
         return def().driven();
     }
 
-    public final long fromElsewhere() {
-        return propertiesFromElsewhere();
+    public final long externalProperties() {
+        return externalPropertyMask();
     }
 
     protected void shape() {

@@ -42,10 +42,10 @@ public final class CameraApi implements CameraRef {
     @Override
     public CameraRef.Ray screenToRay(double x, double y) {
         var ray = AmneticCamera.screenToRay(x, y);
-        return new CameraRef.Ray(ours(ray.origin()), ours(ray.direction()));
+        return new CameraRef.Ray(toVector3(ray.origin()), toVector3(ray.direction()));
     }
 
-    private static Vector3 ours(Vec3 v) {
+    private static Vector3 toVector3(Vec3 v) {
         return new Vector3(v.x(), v.y(), v.z());
     }
 }

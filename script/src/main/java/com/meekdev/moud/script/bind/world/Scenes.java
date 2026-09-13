@@ -30,8 +30,8 @@ public final class Scenes {
             if (!path.endsWith(".scene")) throw s.error("scene path must end in .scene, got %s", path);
             try {
                 files.write(path, Scene.save(roots(s, 1)));
-            } catch (IllegalArgumentException | IllegalStateException wrong) {
-                throw s.error("%s", wrong.getMessage());
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                throw s.error("%s", e.getMessage());
             }
             return 0;
         });
@@ -45,8 +45,8 @@ public final class Scenes {
     private static List<Instance> decode(LuaState state, String text, Instance parent, ClassRegistry classes, String from) {
         try {
             return Scene.load(text, parent, classes);
-        } catch (IllegalArgumentException wrong) {
-            throw state.error("%s: %s", from, wrong.getMessage());
+        } catch (IllegalArgumentException e) {
+            throw state.error("%s: %s", from, e.getMessage());
         }
     }
 

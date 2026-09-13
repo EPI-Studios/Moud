@@ -322,9 +322,9 @@ public final class Classes {
         for (Addon addon : addons) {
             try {
                 addon.classes(r);
-            } catch (RuntimeException failed) {
+            } catch (RuntimeException e) {
                 throw new IllegalStateException(
-                        "addon '" + addon.id() + "' failed to register its classes", failed);
+                        "addon '" + addon.id() + "' e to register its classes", e);
             }
         }
         return r;

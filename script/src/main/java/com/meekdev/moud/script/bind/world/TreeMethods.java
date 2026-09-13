@@ -106,8 +106,8 @@ public final class TreeMethods {
         Proxies.extraMethod(state, "query", s -> {
             try {
                 Plain.push(s, Selector.parse(s.checkString(2), Proxies.registry()).all(self(s)));
-            } catch (IllegalArgumentException wrong) {
-                throw s.error("%s", wrong.getMessage());
+            } catch (IllegalArgumentException e) {
+                throw s.error("%s", e.getMessage());
             }
             return 1;
         });
@@ -115,8 +115,8 @@ public final class TreeMethods {
             try {
                 List<Instance> found = Selector.parse(s.checkString(2), Proxies.registry()).all(self(s));
                 Plain.push(s, found.isEmpty() ? null : found.getFirst());
-            } catch (IllegalArgumentException wrong) {
-                throw s.error("%s", wrong.getMessage());
+            } catch (IllegalArgumentException e) {
+                throw s.error("%s", e.getMessage());
             }
             return 1;
         });

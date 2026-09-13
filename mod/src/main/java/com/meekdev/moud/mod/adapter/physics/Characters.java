@@ -182,7 +182,7 @@ public final class Characters {
     private static final PropertyDef CAPE_LEAN = Classes.CAPE.property("lean");
     private static final PropertyDef CAPE_SWAY = Classes.CAPE.property("sway");
 
-    public static void dress(Character character, AbstractClientPlayer wearer, float partialTick) {
+    public static void applyAppearance(Character character, AbstractClientPlayer wearer, float partialTick) {
         if (!(character.child("torso") instanceof Instance torso)) return;
         if (!(torso.child(Rig.CAPE) instanceof Cape cape)) return;
 
@@ -212,7 +212,7 @@ public final class Characters {
         Instances.setNum(cape, CAPE_SWAY, sway);
     }
 
-    public static void fit(Character character, AbstractClientPlayer wearer) {
+    public static void applySkinModel(Character character, AbstractClientPlayer wearer) {
         if (!(Rig.appearance(character) instanceof Appearance look)) return;
         Instances.setBool(look, SLIM, wearer.getSkin().model() == PlayerModelType.SLIM);
     }
@@ -281,11 +281,11 @@ public final class Characters {
         Instances.setNum(character, CHARGE, charge(player));
 
         if (Rig.armour(character) instanceof Armour worn) {
-            Instances.setObj(worn, ARMOUR_HEAD, plate(player, EquipmentSlot.HEAD, "humanoid"));
-            Instances.setObj(worn, ARMOUR_CHEST, plate(player, EquipmentSlot.CHEST, "humanoid"));
+            Instances.setObj(worn, ARMOUR_HEAD, armourTexture(player, EquipmentSlot.HEAD, "humanoid"));
+            Instances.setObj(worn, ARMOUR_CHEST, armourTexture(player, EquipmentSlot.CHEST, "humanoid"));
             Instances.setObj(worn, ARMOUR_LEGS,
-                    plate(player, EquipmentSlot.LEGS, "humanoid_leggings"));
-            Instances.setObj(worn, ARMOUR_FEET, plate(player, EquipmentSlot.FEET, "humanoid"));
+                    armourTexture(player, EquipmentSlot.LEGS, "humanoid_leggings"));
+            Instances.setObj(worn, ARMOUR_FEET, armourTexture(player, EquipmentSlot.FEET, "humanoid"));
             head(worn, player);
         }
 
@@ -374,7 +374,7 @@ public final class Characters {
         Instances.setBool(worn, ARMOUR_HAT_LAYERED, layered);
     }
 
-    private static String plate(Player player, EquipmentSlot slot, String shape) {
+    private static String armourTexture(Player player, EquipmentSlot slot, String shape) {
         ItemStack worn = player.getItemBySlot(slot);
         Equippable kit = worn.get(DataComponents.EQUIPPABLE);
         if (kit == null || kit.assetId().isEmpty()) return "";

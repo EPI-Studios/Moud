@@ -50,11 +50,11 @@ public final class Walkers {
         Plan plan = new Plan();
         plan.waypoints = waypoints;
         PLANS.put(body, plan);
-        if (body.worn() && pilot != null) pilot.walk(body, waypoints);
+        if (body.hasPlayer() && pilot != null) pilot.walk(body, waypoints);
     }
 
     public static void jump(Character body) {
-        if (body.worn()) {
+        if (body.hasPlayer()) {
             if (pilot != null) pilot.jump(body);
             return;
         }
@@ -75,7 +75,7 @@ public final class Walkers {
 
     public static void stop(Character body) {
         PLANS.remove(body);
-        if (body.worn() && pilot != null) pilot.stop(body);
+        if (body.hasPlayer() && pilot != null) pilot.stop(body);
         Humanoid living = Rig.humanoid(body);
         if (living != null && body.isAlive()) Instances.setBool(living, Classes.HUMANOID.property("walking"), false);
     }
@@ -110,7 +110,7 @@ public final class Walkers {
                 double reach = plan.resting ? plan.distance + 1.5 : plan.distance;
                 if (goal.sub(at).lengthSq() <= reach * reach) {
                     plan.resting = true;
-                    if (body.worn() && plan.waypoints != null && pilot != null) pilot.stop(body);
+                    if (body.hasPlayer() && plan.waypoints != null && pilot != null) pilot.stop(body);
                     plan.waypoints = null;
                     Instances.setBool(living, Classes.HUMANOID.property("walking"), false);
                     continue;
@@ -125,11 +125,11 @@ public final class Walkers {
                     plan.next = 0;
                     plan.lastRepath = now;
                     plan.lastTarget = goal;
-                    if (body.worn() && pilot != null && plan.waypoints != null) pilot.walk(body, plan.waypoints);
+                    if (body.hasPlayer() && pilot != null && plan.waypoints != null) pilot.walk(body, plan.waypoints);
                 }
             }
-            if (body.worn()) {
-                steer(body, living, plan, at, it);
+            if (body.hasPlayer()) {
+                followPlayerPath(body, living, plan, at, it);
                 continue;
             }
             if (plan.waypoints == null || plan.waypoints.isEmpty()) {
@@ -155,7 +155,7 @@ public final class Walkers {
         }
     }
 
-    private static void steer(Character body, Humanoid living, Plan plan, Vector3 at, Iterator<Map.Entry<Character, Plan>> it) {
+    private static void followPlayerPath(Character body, Humanoid living, Plan plan, Vector3 at, Iterator<Map.Entry<Character, Plan>> it) {
         if (plan.waypoints == null || plan.waypoints.isEmpty()) {
             if (plan.target == null) it.remove();
             return;

@@ -54,8 +54,8 @@ public final class Parts {
     private Parts() {}
 
     public static void register() {
-        mesh(STILL).staticInstances().onRender(Parts::still).register(STILL);
-        mesh(MOVING).onRender(Parts::moving).register(MOVING);
+        mesh(STILL).staticInstances().onRender(Parts::renderStatic).register(STILL);
+        mesh(MOVING).onRender(Parts::renderMoving).register(MOVING);
         InstancedMesh.<Lit>builder(LAYOUT,
                         (inst, p) -> p.putMat4(inst.transform()).putVec4(inst.color())
                                 .putVec2(inst.light().x, inst.light().y))
@@ -70,7 +70,7 @@ public final class Parts {
                 .phase(InstancePhase.WORLD_TRANSLUCENT)
                 .writeGBuffer(false)
                 .worldSpace()
-                .onRender(Parts::glass)
+                .onRender(Parts::renderTransparent)
                 .register(GLASS);
     }
 
@@ -84,7 +84,7 @@ public final class Parts {
         return view != null && view.texture() instanceof GlTexture texture ? texture.glId() : 0;
     }
 
-    public static void invalidateStill() {
+    public static void invalidateStatic() {
         InstancedMesh.invalidate(STILL);
     }
 
@@ -102,7 +102,7 @@ public final class Parts {
                 .castsShadow();
     }
 
-    private static void still(InstanceRenderContext ctx, InstanceBatch<Lit> batch) {
+    private static void renderStatic(InstanceRenderContext ctx, InstanceBatch<Lit> batch) {
         InstanceTree tree = ClientScene.tree();
         if (tree == null) return;
         Motion motion = ClientScene.motion();
@@ -117,14 +117,14 @@ public final class Parts {
 
     private static final List<Part> SEE_THROUGH = new ArrayList<>();
 
-    private static void glass(InstanceRenderContext ctx, InstanceBatch<Lit> batch) {
+    private static void renderTransparent(InstanceRenderContext ctx, InstanceBatch<Lit> batch) {
         InstanceTree tree = ClientScene.tree();
         if (tree == null) return;
         Motion motion = ClientScene.motion();
         var eye = ctx.cameraPos();
         SEE_THROUGH.clear();
         for (Part part : tree.ofClass(Classes.PART)) {
-            if (seeThrough(part)) SEE_THROUGH.add(part);
+            if (isTransparent(part)) SEE_THROUGH.add(part);
         }
         SEE_THROUGH.sort(Comparator.comparingDouble((Part part) -> {
             Vector3 at = motion.sample(part, ctx.deltaTick()).position();
@@ -134,11 +134,11 @@ public final class Parts {
         for (Part part : SEE_THROUGH) write(ctx, batch, motion, part, true, true);
     }
 
-    private static boolean seeThrough(Part part) {
+    private static boolean isTransparent(Part part) {
         return part.transparency > 0.001 && part.transparency < 1.0;
     }
 
-    private static void moving(InstanceRenderContext ctx, InstanceBatch<Lit> batch) {
+    private static void renderMoving(InstanceRenderContext ctx, InstanceBatch<Lit> batch) {
         Motion motion = ClientScene.motion();
         int emitted = 0;
         for (Instance instance : motion.moving()) {
@@ -150,7 +150,7 @@ public final class Parts {
     private static boolean write(InstanceRenderContext ctx, InstanceBatch<Lit> batch,
             Motion motion, Part part, boolean cull, boolean glass) {
         if (!part.visible || part.transparency >= 1.0) return false;
-        if (seeThrough(part) != glass) return false;
+        if (isTransparent(part) != glass) return false;
         if (part instanceof MeshPart) return false;
         if (Skins.wearsSkin(part)) return false;
 

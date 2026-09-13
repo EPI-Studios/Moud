@@ -150,7 +150,7 @@ public final class SceneLights {
         if (resource.isEmpty()) return null;
         try (InputStream in = resource.get().open()) {
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-        } catch (IOException unreadable) {
+        } catch (IOException ignored) {
             return null;
         }
     }

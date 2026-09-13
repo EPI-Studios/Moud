@@ -18,7 +18,7 @@ public final class PlaceFiles {
         try {
             Path file = root.resolve(Res.parse(res));
             return Files.isRegularFile(file) ? Files.readAllBytes(file) : null;
-        } catch (IOException | IllegalArgumentException unreadable) {
+        } catch (IOException | IllegalArgumentException ignored) {
             return null;
         }
     }

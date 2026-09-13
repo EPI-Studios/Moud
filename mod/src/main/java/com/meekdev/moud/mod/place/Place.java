@@ -142,8 +142,8 @@ public final class Place {
                 return;
             }
             Scene.load(text, world, classes);
-        } catch (RuntimeException wrong) {
-            MoudMod.LOG.error("failed to load scene {}: {}", path, wrong.getMessage());
+        } catch (RuntimeException e) {
+            MoudMod.LOG.error("failed to load scene {}: {}", path, e.getMessage());
         }
     }
 

@@ -36,7 +36,7 @@ public final class Motion {
         return moving.contains(instance);
     }
 
-    public boolean takeStillChanged() {
+    public boolean consumeStaticChanged() {
         boolean was = stillChanged;
         stillChanged = false;
         return was;
@@ -71,7 +71,7 @@ public final class Motion {
 
         for (Iterator<Instance> it = stepping.iterator(); it.hasNext(); ) {
             Track track = tracks.get(it.next());
-            if (track == null || track.still()) {
+            if (track == null || track.isStill()) {
                 it.remove();
                 stillChanged = true;
                 carriedStale = true;
@@ -148,11 +148,11 @@ public final class Motion {
 
     private void rebuildCarried() {
         moving.clear();
-        for (Instance instance : stepping) carry(instance);
+        for (Instance instance : stepping) markSubtreeMoving(instance);
     }
 
-    private void carry(Instance instance) {
+    private void markSubtreeMoving(Instance instance) {
         if (instance instanceof Spatial) moving.add(instance);
-        for (Instance child : instance.children()) carry(child);
+        for (Instance child : instance.children()) markSubtreeMoving(child);
     }
 }

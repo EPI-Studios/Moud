@@ -91,7 +91,7 @@ public final class Dispatch {
             for (Hook hook : target.heads) {
                 if (hook.owner() != thread) continue;
                 hook.run(call);
-                if (call.cancelled) return new Cancelled(fit(call.value, target.returns));
+                if (call.cancelled) return new Cancelled(orDefault(call.value, target.returns));
             }
         } finally {
             inside[0]--;
@@ -114,14 +114,14 @@ public final class Dispatch {
         } finally {
             inside[0]--;
         }
-        return fit(call.value, target.returns);
+        return orDefault(call.value, target.returns);
     }
 
     public static Object cancelled(Object entered) {
         return ((Cancelled) entered).value;
     }
 
-    private static Object fit(Object value, Class<?> type) {
+    private static Object orDefault(Object value, Class<?> type) {
         if (value != null || !type.isPrimitive()) return value;
         if (type == boolean.class) return false;
         if (type == char.class) return (char) 0;

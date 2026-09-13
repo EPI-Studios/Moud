@@ -200,8 +200,8 @@ public final class Chat {
             for (Object arg : args) Plain.push(state, arg);
             try {
                 state.call(args.length, -1);
-            } catch (RuntimeException broken) {
-                onError.accept(new ScriptError("chat." + name, broken.getMessage(), broken));
+            } catch (RuntimeException e) {
+                onError.accept(new ScriptError("chat." + name, e.getMessage(), e));
                 return null;
             }
             int count = state.top() - base;
@@ -242,8 +242,8 @@ public final class Chat {
     private static long run(LuaState s, LongSupplier body) {
         try {
             return body.getAsLong();
-        } catch (UnsupportedOperationException | IllegalArgumentException | IllegalStateException wrong) {
-            throw s.error("%s", wrong.getMessage());
+        } catch (UnsupportedOperationException | IllegalArgumentException | IllegalStateException e) {
+            throw s.error("%s", e.getMessage());
         }
     }
 }

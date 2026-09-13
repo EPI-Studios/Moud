@@ -63,7 +63,7 @@ public final class ClientChat implements ChatRef {
         return lines;
     }
 
-    public int unread(TextChannel channel) {
+    public int unreadCount(TextChannel channel) {
         return unread.getOrDefault(channel.id(), 0);
     }
 
@@ -201,7 +201,7 @@ public final class ClientChat implements ChatRef {
         add(line);
     }
 
-    public void typed(String text) {
+    public void sendTyped(String text) {
         Instance channel = target();
         LocalPlayer me = Minecraft.getInstance().player;
         ChatLine line = new ChatLine(0);
@@ -215,7 +215,7 @@ public final class ClientChat implements ChatRef {
         ClientPlayNetworking.send(new ChatUpPayload(line.channel, text));
     }
 
-    public void typing(String text) {
+    public void onTyping(String text) {
         long now = System.currentTimeMillis();
         if (now - lastTyping < 100) return;
         lastTyping = now;
@@ -270,7 +270,7 @@ public final class ClientChat implements ChatRef {
             return line.id;
         }
         if (message.get("channel") instanceof TextChannel channel) target = channel;
-        typed(String.valueOf(message.getOrDefault("text", "")));
+        sendTyped(String.valueOf(message.getOrDefault("text", "")));
         return 0;
     }
 

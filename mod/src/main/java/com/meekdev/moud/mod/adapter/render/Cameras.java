@@ -26,9 +26,9 @@ public final class Cameras {
         if (player == null) return;
 
         switch (camera.mode) {
-            case SCRIPTABLE -> hold(camera);
-            case FIRST_PERSON -> first(camera, player, partialTick);
-            case THIRD_PERSON -> third(camera, player, partialTick);
+            case SCRIPTABLE -> scripted(camera);
+            case FIRST_PERSON -> firstPerson(camera, player, partialTick);
+            case THIRD_PERSON -> thirdPerson(camera, player, partialTick);
         }
         if (camera.fov > 0) {
             AmneticCamera.setFov((float) camera.fov);
@@ -42,18 +42,18 @@ public final class Cameras {
         AmneticCamera.clearFov();
     }
 
-    private static void hold(Camera camera) {
+    private static void scripted(Camera camera) {
         CFrame frame = camera.cframe;
         Vector3 look = frame.lookVector();
         pose(frame.position(), mcYaw(look), mcPitch(look), mcRoll(frame));
     }
 
-    private static void first(Camera camera, LocalPlayer player, float partialTick) {
+    private static void firstPerson(Camera camera, LocalPlayer player, float partialTick) {
         AmneticCamera.clearPose();
         report(camera, eye(camera, player, partialTick), player.getYRot(), player.getXRot());
     }
 
-    private static void third(Camera camera, LocalPlayer player, float partialTick) {
+    private static void thirdPerson(Camera camera, LocalPlayer player, float partialTick) {
         Vector3 at = eye(camera, player, partialTick)
                 .sub(moudLookFromMc(player.getYRot(), player.getXRot()).mul(camera.distance));
         pose(at, player.getYRot(), player.getXRot());

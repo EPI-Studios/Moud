@@ -29,8 +29,8 @@ public final class PlaceToml {
         if (!Files.isRegularFile(file)) return PlaceConfig.DEFAULT;
         try {
             return PlaceConfig.parse(Files.readString(file));
-        } catch (IOException | IllegalArgumentException wrong) {
-            MoudMod.LOG.error("failed to read place.toml, using defaults: {}", wrong.getMessage());
+        } catch (IOException | IllegalArgumentException e) {
+            MoudMod.LOG.error("failed to read place.toml, using defaults: {}", e.getMessage());
             return PlaceConfig.DEFAULT;
         }
     }

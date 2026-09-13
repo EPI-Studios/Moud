@@ -19,7 +19,7 @@ public final class RichText {
         public double number(String key, double fallback) {
             try {
                 return params.containsKey(key) ? Double.parseDouble(params.get(key)) : fallback;
-            } catch (NumberFormatException notANumber) {
+            } catch (NumberFormatException ignored) {
                 return fallback;
             }
         }
@@ -161,7 +161,7 @@ public final class RichText {
                 case 8 -> rgb((int) (Long.parseLong(digits, 16) >> 8), (Long.parseLong(digits, 16) & 255) / 255f);
                 default -> null;
             };
-        } catch (NumberFormatException notHex) {
+        } catch (NumberFormatException ignored) {
             return null;
         }
     }
@@ -241,7 +241,7 @@ public final class RichText {
             if (v == null && key.equals("value")) v = value;
             try {
                 return v == null ? fallback : Double.parseDouble(v);
-            } catch (NumberFormatException notANumber) {
+            } catch (NumberFormatException ignored) {
                 return fallback;
             }
         }

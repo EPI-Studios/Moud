@@ -83,7 +83,7 @@ public final class ServerChat implements ChatRef {
             Set<String> inside = new HashSet<>();
             if (zone.textChannel instanceof TextChannel channel) {
                 for (Instance occupant : zone.occupants()) {
-                    if (!(occupant instanceof Character body) || !body.worn()) continue;
+                    if (!(occupant instanceof Character body) || !body.hasPlayer()) continue;
                     inside.add(body.owner);
                     ServerPlayer player = playerOf(server, body.owner);
                     if (player != null && sourceOf(channel, body.owner) == null) {
@@ -257,7 +257,7 @@ public final class ServerChat implements ChatRef {
         Map<String, Object> asMap = line.toMap(tree);
         if (only != null) {
             ServerPlayer player = server.getPlayerList().getPlayer(only);
-            if (player != null && reaches(tree, channel, asMap, player)) {
+            if (player != null && shouldDeliver(tree, channel, asMap, player)) {
                 send(player, line.packet(ChatDownPayload.LINE));
                 reached.add(only);
             }
@@ -282,7 +282,7 @@ public final class ServerChat implements ChatRef {
         return line.id;
     }
 
-    private static boolean reaches(InstanceTree tree, TextChannel channel, Map<String, Object> message, ServerPlayer player) {
+    private static boolean shouldDeliver(InstanceTree tree, TextChannel channel, Map<String, Object> message, ServerPlayer player) {
         if (channel == null || !channel.shouldDeliver.isSet()) return true;
         TextSource source = sourceOf(channel, player.getUUID().toString());
         return !Boolean.FALSE.equals(channel.shouldDeliver.first(true, message, source));
@@ -300,7 +300,7 @@ public final class ServerChat implements ChatRef {
     private static ServerPlayer playerOf(MinecraftServer server, String id) {
         try {
             return server.getPlayerList().getPlayer(UUID.fromString(id));
-        } catch (IllegalArgumentException notAPlayer) {
+        } catch (IllegalArgumentException ignored) {
             return null;
         }
     }
@@ -346,7 +346,7 @@ public final class ServerChat implements ChatRef {
         if (message.get("to") instanceof Character to) {
             try {
                 only = UUID.fromString(to.owner);
-            } catch (IllegalArgumentException notAPlayer) {
+            } catch (IllegalArgumentException ignored) {
                 throw new IllegalArgumentException("chat:send to expects a player body");
             }
         }

@@ -41,29 +41,29 @@ public final class Humanoids {
         if (health != was) living.healthChanged.fire(living);
 
         if (health <= 0) {
-            became(living, HumanoidState.DEAD);
+            setState(living, HumanoidState.DEAD);
             Instances.setBool(living, WALKING, false);
             Instances.setNum(character, MOVE_SPEED, 0);
             return;
         }
         if (living.state == HumanoidState.DEAD) {
-            became(living, HumanoidState.STANDING);
+            setState(living, HumanoidState.STANDING);
         }
 
         if (!character.owner.isEmpty()) return;
         walk(character, living, dt);
-        hop(character, living, dt);
+        updateJump(character, living, dt);
     }
 
     private static final Map<Character, double[]> HOPS = new WeakHashMap<>();
 
-    private static void hop(Character character, Humanoid living, double dt) {
+    private static void updateJump(Character character, Humanoid living, double dt) {
         double[] hop = HOPS.get(character);
         if (hop == null && living.jump) {
             hop = new double[] {0, 0};
             HOPS.put(character, hop);
             Instances.setBool(living, JUMP, false);
-            became(living, HumanoidState.JUMPING);
+            setState(living, HumanoidState.JUMPING);
         }
         if (hop == null) return;
         double gravity = 32 * living.gravityScale;
@@ -75,9 +75,9 @@ public final class Humanoids {
         Instances.setObj(character, CFRAME, Transforms.localFor(character, frame.withPosition(moved)));
         if (hop[1] <= 0 && hop[0] > 0) {
             HOPS.remove(character);
-            became(living, HumanoidState.STANDING);
+            setState(living, HumanoidState.STANDING);
         } else if (living.jumpPower - gravity * hop[0] < 0) {
-            became(living, HumanoidState.FALLING);
+            setState(living, HumanoidState.FALLING);
         }
     }
 
@@ -104,7 +104,7 @@ public final class Humanoids {
     private static void walk(Character character, Humanoid living, double dt) {
         if (!living.walking || living.state == HumanoidState.SEATED) {
             if (character.moveSpeed != 0) Instances.setNum(character, MOVE_SPEED, 0);
-            if (living.state != HumanoidState.SEATED) became(living, HumanoidState.STANDING);
+            if (living.state != HumanoidState.SEATED) setState(living, HumanoidState.STANDING);
             return;
         }
 
@@ -116,7 +116,7 @@ public final class Humanoids {
         if (away <= living.walkRadius) {
             Instances.setBool(living, WALKING, false);
             Instances.setNum(character, MOVE_SPEED, 0);
-            became(living, HumanoidState.STANDING);
+            setState(living, HumanoidState.STANDING);
             living.arrived.fire(living);
             return;
         }
@@ -143,10 +143,10 @@ public final class Humanoids {
 
         Instances.setNum(character, MOVE_DISTANCE, character.moveDistance + step * 4.0);
         Instances.setNum(character, MOVE_SPEED, Math.min(1.0, living.walkSpeed / 4.317));
-        became(living, HumanoidState.RUNNING);
+        setState(living, HumanoidState.RUNNING);
     }
 
-    private static void became(Humanoid living, HumanoidState next) {
+    private static void setState(Humanoid living, HumanoidState next) {
         if (living.state == next) return;
         Instances.setObj(living, STATE, next);
         living.stateChanged.fire(living);

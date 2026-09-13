@@ -31,8 +31,8 @@ public final class Assets {
         if (value.startsWith(Res.SCHEME)) {
             try {
                 Res.parse(value);
-            } catch (IllegalArgumentException wrong) {
-                throw new IllegalArgumentException(where + ": " + wrong.getMessage());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(where + ": " + e.getMessage());
             }
             return;
         }

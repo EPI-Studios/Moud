@@ -45,7 +45,7 @@ public final class SubLevels {
         for (Map.Entry<Integer, SubLevel> entry : byInstance.entrySet()) {
             Instance instance = tree.byId(entry.getKey());
             if (!(instance instanceof Part part)) continue;
-            if (!wants(part)) {
+            if (!needsSubLevel(part)) {
                 if (square.merge(entry.getKey(), 1, Integer::sum) >= SQUARE_TICKS) {
                     if (letGo == null) letGo = new ArrayList<>(1);
                     letGo.add(entry.getKey());
@@ -105,10 +105,10 @@ public final class SubLevels {
         if (!available) return;
         try {
             refreshOrThrow(id);
-        } catch (Throwable failure) {
+        } catch (Throwable e) {
             available = false;
             clear();
-            MoudMod.LOG.error("sub levels unavailable, rotated parts collide as boxes", failure);
+            MoudMod.LOG.error("sub levels unavailable, rotated parts collide as boxes", e);
         }
     }
 
@@ -116,7 +116,7 @@ public final class SubLevels {
         Instance instance = tree == null ? null : tree.byId(id);
         if (!(instance instanceof Part part)) return;
         CFrame world = Transforms.world(part);
-        if (!wants(part)) {
+        if (!needsSubLevel(part)) {
             SubLevel settled = byInstance.get(id);
             if (settled != null) pose(settled, part, world);
             return;
@@ -153,7 +153,7 @@ public final class SubLevels {
 
     private static final int SQUARE_TICKS = 40;
 
-    private static boolean wants(Part part) {
+    private static boolean needsSubLevel(Part part) {
         return part.collides && (!part.anchored || !Colliders.isAxisAligned(part));
     }
 
@@ -168,11 +168,11 @@ public final class SubLevels {
             case Change.Tagged ignored -> -1;
         };
         if (id < 0) return;
-        if (tree.byId(id) instanceof Part part && wants(part)) PartShapes.of(part.size);
+        if (tree.byId(id) instanceof Part part && needsSubLevel(part)) PartShapes.of(part.size);
     }
 
     static boolean wantsSubLevel(Part part) {
-        return wants(part);
+        return needsSubLevel(part);
     }
 
     private @Nullable SubLevel allocate(int id, CFrame world) {

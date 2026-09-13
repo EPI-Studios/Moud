@@ -23,7 +23,7 @@ final class PlaceSounds implements SoundSource {
             Identifier id;
             try {
                 id = PlaceFiles.idOf(soundId);
-            } catch (IllegalArgumentException wrong) {
+            } catch (IllegalArgumentException ignored) {
                 return unknown(soundId);
             }
             if (PlaceFiles.read(soundId) == null) return unknown(soundId);

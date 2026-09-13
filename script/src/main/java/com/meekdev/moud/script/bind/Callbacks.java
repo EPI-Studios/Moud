@@ -83,9 +83,9 @@ public final class Callbacks {
             Object[] out = new Object[count];
             for (int n = 0; n < count; n++) out[n] = Plain.read(state, base + 1 + n);
             return out;
-        } catch (RuntimeException broken) {
+        } catch (RuntimeException e) {
             Consumer<ScriptError> onError = ERRORS.get(state);
-            if (onError != null) onError.accept(new ScriptError(where, broken.getMessage(), broken));
+            if (onError != null) onError.accept(new ScriptError(where, e.getMessage(), e));
             return null;
         } finally {
             state.top(base);

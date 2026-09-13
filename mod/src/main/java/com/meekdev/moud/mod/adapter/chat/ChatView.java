@@ -421,13 +421,13 @@ public final class ChatView {
     };
 
     public static float[] measure(UiDraw d, String markup, float width, float px, String font) {
-        Laid laid = laid(d, markup, width, px, font);
+        Laid laid = layoutText(d, markup, width, px, font);
         return new float[] {laid.width(), laid.height()};
     }
 
     public static void text(UiDraw d, String markup, float x, float y, float width, float px, Look look, float alpha,
                      HorizontalAlign align) {
-        Laid laid = laid(d, markup, width, px, look.font());
+        Laid laid = layoutText(d, markup, width, px, look.font());
         float time = (float) ((System.nanoTime() - START) / 1e9);
         List<Runnable> shaded = new ArrayList<>();
         float rowTop = y;
@@ -444,7 +444,7 @@ public final class ChatView {
         }
     }
 
-    private static Laid laid(UiDraw d, String markup, float width, float px, String font) {
+    private static Laid layoutText(UiDraw d, String markup, float width, float px, String font) {
         String key = markup + "\u0000" + width + "\u0000" + px + "\u0000" + font;
         Laid laid = LAID.get(key);
         if (laid == null) {
@@ -481,7 +481,7 @@ public final class ChatView {
             try {
                 stamp = DateTimeFormatter.ofPattern(window.timestampFormat).withZone(ZoneId.systemDefault())
                         .format(Instant.ofEpochMilli(shown.line.timestamp));
-            } catch (IllegalArgumentException badPattern) {
+            } catch (IllegalArgumentException ignored) {
                 stamp = "";
             }
             out.append("<color=").append(hex(window.timestampColor)).append(">[").append(RichText.escape(stamp)).append("]</color> ");
@@ -616,7 +616,7 @@ public final class ChatView {
         FontDescription font = FontDescription.DEFAULT;
         for (TextChannel channel : channels) {
             String name = channel.displayName.isEmpty() ? channel.name() : channel.displayName;
-            int unread = ClientChat.INSTANCE.unread(channel);
+            int unread = ClientChat.INSTANCE.unreadCount(channel);
             String label = unread > 0 ? name + " (" + unread + ")" : name;
             float w = plainWidth(font, label, px) + 8;
             boolean selected = channel == target;
@@ -643,8 +643,8 @@ public final class ChatView {
                 program.setVec4("Rect", rect.x() * guiToPixels, rect.y() * guiToPixels, rect.w() * guiToPixels, rect.h() * guiToPixels);
                 program.setFloat("Time", time);
                 program.draw();
-            } catch (RuntimeException broken) {
-                ChatShaders.broke(program, broken);
+            } catch (RuntimeException e) {
+                ChatShaders.logCompileError(program, e);
             } finally {
                 GlState.endFullscreen();
             }
@@ -705,7 +705,7 @@ public final class ChatView {
                 if (link.value().startsWith("/") && client.player != null) {
                     client.player.connection.sendCommand(link.value().substring(1));
                 } else {
-                    ClientChat.INSTANCE.typed(link.value());
+                    ClientChat.INSTANCE.sendTyped(link.value());
                 }
             }
             case "suggest" -> {

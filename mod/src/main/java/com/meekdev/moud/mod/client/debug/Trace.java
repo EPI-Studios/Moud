@@ -56,8 +56,8 @@ public final class Trace {
             out.flush();
             written++;
             if (written >= ROWS) close();
-        } catch (IOException failed) {
-            LOGGER.warn("trace stopped: {}", failed.getMessage());
+        } catch (IOException e) {
+            LOGGER.warn("trace stopped: {}", e.getMessage());
             done = true;
             out = null;
         }

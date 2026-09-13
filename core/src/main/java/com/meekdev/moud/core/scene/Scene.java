@@ -220,10 +220,10 @@ public final class Scene {
                         }
                     }
                 }
-            } catch (ClassCastException | NullPointerException wrong) {
+            } catch (ClassCastException | NullPointerException ignored) {
                 throw new IllegalArgumentException(at + " is not a " + property.type().name().toLowerCase());
-            } catch (IllegalArgumentException wrong) {
-                throw new IllegalArgumentException(at + ": " + wrong.getMessage());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(at + ": " + e.getMessage());
             }
         }
 

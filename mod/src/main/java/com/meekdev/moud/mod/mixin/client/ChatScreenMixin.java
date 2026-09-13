@@ -66,7 +66,7 @@ abstract class ChatScreenMixin {
 
     @Inject(method = "onEdited", at = @At("TAIL"))
     private void moud$typing(String text, CallbackInfo ci) {
-        if (ChatView.active()) ClientChat.INSTANCE.typing(text);
+        if (ChatView.active()) ClientChat.INSTANCE.onTyping(text);
     }
 
     @Inject(method = "handleChatInput", at = @At("HEAD"), cancellable = true)
@@ -75,7 +75,7 @@ abstract class ChatScreenMixin {
         String normal = ((ChatScreen) (Object) this).normalizeChatMessage(message);
         if (normal.isEmpty() || normal.startsWith("/")) return;
         if (addToRecent) Minecraft.getInstance().gui.getChat().addRecentChat(normal);
-        ClientChat.INSTANCE.typed(normal);
+        ClientChat.INSTANCE.sendTyped(normal);
         ci.cancel();
     }
 }

@@ -146,7 +146,7 @@ public final class BlockRays implements BlockRef {
         for (Change change; (change = queue.poll()) != null; ) out.accept(change);
     }
 
-    public static void heard(Level in, BlockPos pos, BlockState state) {
+    public static void onBlockChanged(Level in, BlockPos pos, BlockState state) {
         Queue<Change> queue = in.isClientSide() ? CLIENT_CHANGES : SERVER_CHANGES;
         if (queue.size() > 100_000) queue.poll();
         queue.add(new Change(pos.getX(), pos.getY(), pos.getZ(), BlockStateParser.serialize(state)));
@@ -155,8 +155,8 @@ public final class BlockRays implements BlockRef {
     private static BlockState parse(String block) {
         try {
             return BlockStateParser.parseForBlock(BuiltInRegistries.BLOCK, block, false).blockState();
-        } catch (CommandSyntaxException wrong) {
-            throw new IllegalArgumentException("'" + block + "' is not a block: " + wrong.getMessage());
+        } catch (CommandSyntaxException e) {
+            throw new IllegalArgumentException("'" + block + "' is not a block: " + e.getMessage());
         }
     }
 

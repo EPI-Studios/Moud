@@ -9,8 +9,8 @@ public record CallbackDef(String name, Field field) {
     public Callback on(Instance instance) {
         try {
             return (Callback) field.get(instance);
-        } catch (IllegalAccessException unreachable) {
-            throw new IllegalStateException("cannot reach " + name + " on " + instance, unreachable);
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException("cannot reach " + name + " on " + instance, e);
         }
     }
 }

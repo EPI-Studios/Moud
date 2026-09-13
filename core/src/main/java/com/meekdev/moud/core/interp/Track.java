@@ -36,12 +36,12 @@ public final class Track {
         to = value;
     }
 
-    public boolean still() {
+    public boolean isStill() {
         return from == to || from.equals(to);
     }
 
     public Object sampleAt(double alpha) {
-        if (alpha >= 1.0 || still()) return to;
+        if (alpha >= 1.0 || isStill()) return to;
         if (alpha <= 0.0) return from;
         return Blend.of(type, from, to, alpha);
     }
@@ -58,11 +58,11 @@ public final class Track {
         sinceWrite = 0;
     }
 
-    public boolean settled() {
+    public boolean isSettled() {
         return alpha() >= 1.0;
     }
 
-    public double sinceWrite() {
+    public double secondsSinceWrite() {
         return sinceWrite;
     }
 

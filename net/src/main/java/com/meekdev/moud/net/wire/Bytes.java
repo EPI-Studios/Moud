@@ -39,14 +39,14 @@ public final class Bytes {
         return at < size;
     }
 
-    private void room(int more) {
+    private void ensureCapacity(int more) {
         if (size + more <= data.length) return;
         int want = Math.max(size + more, data.length * 2);
         data = Arrays.copyOf(data, want);
     }
 
     public void u8(int value) {
-        room(1);
+        ensureCapacity(1);
         data[size++] = (byte) value;
     }
 
@@ -87,7 +87,7 @@ public final class Bytes {
 
     public void f32(double value) {
         int bits = Float.floatToIntBits((float) value);
-        room(4);
+        ensureCapacity(4);
         data[size++] = (byte) (bits >>> 24);
         data[size++] = (byte) (bits >>> 16);
         data[size++] = (byte) (bits >>> 8);
@@ -111,7 +111,7 @@ public final class Bytes {
     }
 
     public void u32(int value) {
-        room(4);
+        ensureCapacity(4);
         data[size++] = (byte) (value >>> 24);
         data[size++] = (byte) (value >>> 16);
         data[size++] = (byte) (value >>> 8);
@@ -125,7 +125,7 @@ public final class Bytes {
     public void text(String value) {
         byte[] utf8 = value.getBytes(StandardCharsets.UTF_8);
         varint(utf8.length);
-        room(utf8.length);
+        ensureCapacity(utf8.length);
         System.arraycopy(utf8, 0, data, size, utf8.length);
         size += utf8.length;
     }
@@ -140,7 +140,7 @@ public final class Bytes {
 
     public void flag(boolean value) {
         if (blockAt < 0 || blockBits == 8) {
-            room(1);
+            ensureCapacity(1);
             blockAt = size;
             data[size++] = 0;
             blockBits = 0;

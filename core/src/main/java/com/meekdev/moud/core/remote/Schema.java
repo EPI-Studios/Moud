@@ -85,7 +85,7 @@ public final class Schema {
     public static void check(Remote remote, List<Object> args) {
         List<Takes> takes = parse(remote.accepts);
         if (args.size() > takes.size()) {
-            throw new IllegalArgumentException(said(remote) + " takes " + shape(takes)
+            throw new IllegalArgumentException(remoteName(remote) + " takes " + shape(takes)
                     + " and was given " + args.size());
         }
         for (int n = 0; n < takes.size(); n++) {
@@ -93,19 +93,19 @@ public final class Schema {
             Object value = n < args.size() ? args.get(n) : null;
             if (value == null) {
                 if (want.optional()) continue;
-                throw new IllegalArgumentException(said(remote) + " wants "
+                throw new IllegalArgumentException(remoteName(remote) + " wants "
                         + want.kind().name().toLowerCase() + " as argument " + (n + 1)
                         + " and was given nothing");
             }
             if (!want.kind().holds(value)) {
-                throw new IllegalArgumentException(said(remote) + " wants "
+                throw new IllegalArgumentException(remoteName(remote) + " wants "
                         + want.kind().name().toLowerCase() + " as argument " + (n + 1)
                         + " and was given " + value.getClass().getSimpleName().toLowerCase());
             }
         }
     }
 
-    private static String said(Remote remote) {
+    private static String remoteName(Remote remote) {
         return remote.name();
     }
 

@@ -67,7 +67,7 @@ public final class ServerPilot implements Walkers.Pilot {
             if (player != null && ServerPlayNetworking.canSend(player, PilotDownPayload.TYPE)) {
                 ServerPlayNetworking.send(player, payload);
             }
-        } catch (IllegalArgumentException notAPlayer) {
+        } catch (IllegalArgumentException ignored) {
         }
     }
 }

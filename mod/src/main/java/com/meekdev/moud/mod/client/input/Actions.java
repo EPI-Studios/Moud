@@ -89,7 +89,7 @@ public final class Actions {
         return Arrays.copyOf(keys, n);
     }
 
-    private static Integer typed(char c) {
+    private static Integer keyForChar(char c) {
         long now = System.nanoTime();
         if (TYPED.isEmpty() || now - typedAt > 2_000_000_000L) {
             typedAt = now;
@@ -114,7 +114,7 @@ public final class Actions {
         for (String raw : keys.split(",")) {
             String name = raw.trim().toLowerCase(Locale.ROOT);
             if (name.isEmpty()) continue;
-            Integer code = name.length() == 1 ? typed(name.charAt(0)) : null;
+            Integer code = name.length() == 1 ? keyForChar(name.charAt(0)) : null;
             if (code == null) code = KEYS.get(name);
             if (code == null) {
                 if (UNKNOWN.add(name)) MoudMod.LOG.warn("unknown key '{}' in input action, expected one of {}", raw.trim(), KEYS.keySet());

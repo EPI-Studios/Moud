@@ -29,7 +29,7 @@ public final class Recorder {
             Instance instance = tree.byId(id);
             if (instance == null || instance.parent() == null) continue;
             out.accept(new Change.Created(id, instance.def().name(), instance.parent().id(), instance.name()));
-            long skip = instance.def().unreplicated() | instance.fromElsewhere();
+            long skip = instance.def().unreplicated() | instance.externalProperties();
             for (PropertyDef property : instance.def().properties()) {
                 if ((skip & (1L << property.index())) != 0) continue;
                 out.accept(new Change.Wrote(id, property.index(), read(instance, property)));
@@ -51,7 +51,7 @@ public final class Recorder {
 
         tree.drainDirty((instance, mask) -> {
             if (instance.id() > seen) return;
-            mask &= ~(instance.def().unreplicated() | instance.fromElsewhere());
+            mask &= ~(instance.def().unreplicated() | instance.externalProperties());
             for (PropertyDef property : instance.def().properties()) {
                 if ((mask & (1L << property.index())) == 0) continue;
                 out.accept(new Change.Wrote(instance.id(), property.index(), read(instance, property)));

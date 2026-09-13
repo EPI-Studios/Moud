@@ -85,7 +85,7 @@ public final class Skins {
         return part instanceof Limb;
     }
 
-    public static void gather(float partialTick) {
+    public static void prepareFrame(float partialTick) {
         for (List<Worn> packed : PACKED.values()) packed.clear();
         drawn = 0;
 
@@ -117,7 +117,7 @@ public final class Skins {
                              @Nullable AbstractClientPlayer wearer, Identifier body,
                              float solid, float partialTick) {
         for (Instance child : under.children()) {
-            if (child instanceof Limb limb && limb.visible && shows(wearer, limb)) {
+            if (child instanceof Limb limb && limb.visible && isLimbShown(wearer, limb)) {
                 Identifier sheet = sheetOf(limb, character, wearer, body);
                 if (sheet != null) {
                     List<Worn> into = PACKED.computeIfAbsent(sheet, id -> {
@@ -176,7 +176,7 @@ public final class Skins {
         return DefaultPlayerSkin.getDefaultSkin().body().texturePath();
     }
 
-    private static boolean shows(@Nullable AbstractClientPlayer wearer, Limb limb) {
+    private static boolean isLimbShown(@Nullable AbstractClientPlayer wearer, Limb limb) {
         if (wearer == null) return true;
         if (limb instanceof Cape) return wearer.isModelPartShown(PlayerModelPart.CAPE);
         if (!Rig.OVERLAY.equals(limb.name())) return true;

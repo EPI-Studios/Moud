@@ -138,8 +138,8 @@ public final class TweenMethods {
         state.getField(at, key);
         try {
             return state.isNoneOrNil(-1) ? fallback : (E) Enums.parse(type, state.checkString(state.top()));
-        } catch (IllegalArgumentException wrong) {
-            throw state.error("%s: %s", key, wrong.getMessage());
+        } catch (IllegalArgumentException e) {
+            throw state.error("%s: %s", key, e.getMessage());
         } finally {
             state.pop(1);
         }

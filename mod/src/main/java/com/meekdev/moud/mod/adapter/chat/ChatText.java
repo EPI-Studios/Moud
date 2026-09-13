@@ -51,7 +51,7 @@ public final class ChatText {
                 case "url" -> {
                     try {
                         yield new ClickEvent.OpenUrl(URI.create(s.click().value()));
-                    } catch (IllegalArgumentException notAUrl) {
+                    } catch (IllegalArgumentException ignored) {
                         yield null;
                     }
                 }

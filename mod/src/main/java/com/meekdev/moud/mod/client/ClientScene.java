@@ -61,8 +61,8 @@ public final class ClientScene {
             Player driver = character == own && me != null ? me : wearer;
             if (driver != null) Characters.drive(character, driver);
             if (wearer != null) {
-                Characters.fit(character, wearer);
-                Characters.dress(character, wearer, 1.0f);
+                Characters.applySkinModel(character, wearer);
+                Characters.applyAppearance(character, wearer, 1.0f);
             }
             if (character.animate) {
                 Pose.apply(character, age(character));

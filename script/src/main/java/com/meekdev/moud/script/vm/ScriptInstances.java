@@ -64,8 +64,8 @@ final class ScriptInstances {
         String code;
         try {
             code = source(instance);
-        } catch (IllegalArgumentException wrong) {
-            onError.accept(new ScriptError(name, wrong.getMessage(), wrong));
+        } catch (IllegalArgumentException e) {
+            onError.accept(new ScriptError(name, e.getMessage(), e));
             return;
         }
         if (code == null) {

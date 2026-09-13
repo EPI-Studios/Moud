@@ -61,7 +61,7 @@ public final class Zones {
         Set<Instance> out = new LinkedHashSet<>();
         if (zone.trackPlayers) {
             for (Character body : tree.ofClass(Classes.CHARACTER)) {
-                if (body.worn()) out.add(body);
+                if (body.hasPlayer()) out.add(body);
             }
         }
         if (!zone.trackTag.isEmpty()) {

@@ -64,7 +64,7 @@ public final class MoudClient implements ClientModInitializer {
             ClientScene.frame();
             float partialTick = Minecraft.getInstance().getDeltaTracker()
                     .getGameTimeDeltaPartialTick(true);
-            Skins.gather(partialTick);
+            Skins.prepareFrame(partialTick);
             Ui.frame(partialTick);
             Sounds.frame(partialTick);
             SceneLights.frame(partialTick);
@@ -72,7 +72,7 @@ public final class MoudClient implements ClientModInitializer {
             ClientPrompts.frame();
             PostStack.frame();
             Trace.frame(partialTick);
-            if (ClientScene.motion().takeStillChanged()) Parts.invalidateStill();
+            if (ClientScene.motion().consumeStaticChanged()) Parts.invalidateStatic();
         });
     }
 }

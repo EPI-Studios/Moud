@@ -120,12 +120,12 @@ public final class Selector {
             if (!instance.hasTag(tag)) return false;
         }
         for (Test test : compound.tests()) {
-            if (!passes(instance, test)) return false;
+            if (!matchesTest(instance, test)) return false;
         }
         return true;
     }
 
-    private static boolean passes(Instance instance, Test test) {
+    private static boolean matchesTest(Instance instance, Test test) {
         PropertyDef property = instance.def().property(test.property());
         if (property == null) return false;
         if (test.op().equals("exists")) return true;
@@ -135,7 +135,7 @@ public final class Selector {
             double wanted;
             try {
                 wanted = Double.parseDouble(test.value());
-            } catch (NumberFormatException notANumber) {
+            } catch (NumberFormatException ignored) {
                 return false;
             }
             return switch (test.op()) {

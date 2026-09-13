@@ -60,7 +60,7 @@ public final class Audience {
                 case Change.Created fresh -> {
                     if (!has.get(fresh.parent())) continue;
                     Instance made = tree.byId(fresh.id());
-                    if (made != null && wanted(made, focus, radius)) baseline(made, out);
+                    if (made != null && shouldReceive(made, focus, radius)) baseline(made, out);
                 }
                 case Change.Destroyed gone -> {
                     if (!has.get(gone.id())) continue;
@@ -71,7 +71,7 @@ public final class Audience {
                     if (!has.get(moved.id())) {
                         Instance came = tree.byId(moved.id());
                         if (has.get(moved.parent()) && came != null
-                                && wanted(came, focus, radius)) {
+                                && shouldReceive(came, focus, radius)) {
                             baseline(came, out);
                         }
                         continue;
@@ -99,7 +99,7 @@ public final class Audience {
         if (top.parent() == null || has.get(top.id())) return;
         out.accept(new Change.Created(top.id(), top.def().name(), top.parent().id(), top.name()));
         has.set(top.id());
-        long skip = top.def().unreplicated() | top.fromElsewhere();
+        long skip = top.def().unreplicated() | top.externalProperties();
         for (PropertyDef property : top.def().properties()) {
             if ((skip & (1L << property.index())) != 0) continue;
             out.accept(new Change.Wrote(top.id(), property.index(), Recorder.read(top, property)));
@@ -113,7 +113,7 @@ public final class Audience {
         for (Instance child : top.children()) forget(child);
     }
 
-    private boolean wanted(Instance made, Vector3 focus, double radius) {
+    private boolean shouldReceive(Instance made, Vector3 focus, double radius) {
         return made.parent() != tree.root() || relevant(made, focus, radius);
     }
 

@@ -115,8 +115,8 @@ public final class Meshes {
             Model model = Models.load(id);
             MODELS.put(meshId, new Loaded(model, 0));
             return model;
-        } catch (RuntimeException broken) {
-            return missing(meshId, broken.getMessage());
+        } catch (RuntimeException e) {
+            return missing(meshId, e.getMessage());
         }
     }
 
@@ -142,8 +142,8 @@ public final class Meshes {
             MODELS.put(meshId, new Loaded(model, hash));
             MISSING.remove(meshId);
             return model;
-        } catch (RuntimeException broken) {
-            return known != null ? known.model() : missing(meshId, broken.getMessage());
+        } catch (RuntimeException e) {
+            return known != null ? known.model() : missing(meshId, e.getMessage());
         }
     }
 

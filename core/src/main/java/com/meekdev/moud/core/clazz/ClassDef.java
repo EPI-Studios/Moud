@@ -124,7 +124,7 @@ public final class ClassDef<T extends Instance> {
             type.getDeclaredMethod(stage.method(),
                     stage.timed() ? new Class<?>[] {double.class} : new Class<?>[0]);
             return true;
-        } catch (NoSuchMethodException absent) {
+        } catch (NoSuchMethodException ignored) {
             return false;
         }
     }

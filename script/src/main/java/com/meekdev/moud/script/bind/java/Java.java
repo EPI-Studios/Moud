@@ -267,8 +267,8 @@ public final class Java {
                         : ((Method) candidate).invoke(self, args);
                 push(state, result);
                 return 1;
-            } catch (InvocationTargetException thrown) {
-                throw state.error("%s.%s threw %s", type.getSimpleName(), name, thrown.getCause());
+            } catch (InvocationTargetException e) {
+                throw state.error("%s.%s threw %s", type.getSimpleName(), name, e.getCause());
             } catch (ReflectiveOperationException | RuntimeException e) {
                 throw state.error("%s.%s could not be called: %s", type.getSimpleName(), name, e);
             }
@@ -324,7 +324,7 @@ public final class Java {
             if (!seen.add(shape)) continue;
             try {
                 m.setAccessible(true);
-            } catch (RuntimeException closed) {
+            } catch (RuntimeException ignored) {
                 if (!Modifier.isPublic(m.getModifiers())) continue;
             }
             out.add(m);

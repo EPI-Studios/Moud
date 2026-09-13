@@ -34,7 +34,7 @@ public final class ServerHistory implements HistoryRef {
             ServerPlayer who = server.getPlayerList().getPlayer(UUID.fromString(player));
             if (who == null) return now;
             return now - who.connection.latency() / 1000.0 - (double) VIEW_DELAY_TICKS / Rewind.TICKS_PER_SECOND;
-        } catch (IllegalArgumentException notAPlayer) {
+        } catch (IllegalArgumentException ignored) {
             return now;
         }
     }

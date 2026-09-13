@@ -35,8 +35,8 @@ public final class Blocks {
             Vector3 at = Values.vec3(s, 2);
             try {
                 blocks.set(floor(at.x()), floor(at.y()), floor(at.z()), s.checkString(3));
-            } catch (IllegalArgumentException wrong) {
-                throw s.error("%s", wrong.getMessage());
+            } catch (IllegalArgumentException e) {
+                throw s.error("%s", e.getMessage());
             }
             return 0;
         });
@@ -50,8 +50,8 @@ public final class Blocks {
             if (count > MOST) throw s.error("fill of %d blocks exceeds the limit of %d", count, MOST);
             try {
                 s.pushNumber(blocks.fill(x0, y0, z0, x1, y1, z1, s.checkString(4)));
-            } catch (IllegalArgumentException wrong) {
-                throw s.error("%s", wrong.getMessage());
+            } catch (IllegalArgumentException e) {
+                throw s.error("%s", e.getMessage());
             }
             return 1;
         });
@@ -366,8 +366,8 @@ public final class Blocks {
     private static void set(LuaState s, BlockRef blocks, int x, int y, int z, String block) {
         try {
             blocks.set(x, y, z, block);
-        } catch (IllegalArgumentException wrong) {
-            throw s.error("%s", wrong.getMessage());
+        } catch (IllegalArgumentException e) {
+            throw s.error("%s", e.getMessage());
         }
     }
 

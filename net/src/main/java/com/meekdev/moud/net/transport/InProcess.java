@@ -25,7 +25,7 @@ public final class InProcess implements Transport {
 
     private int droppedUp;
 
-    public void identify(String player) {
+    public void setPlayer(String player) {
         this.me = player;
     }
 

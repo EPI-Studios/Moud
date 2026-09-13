@@ -95,8 +95,8 @@ public final class Wired implements Transport {
             }
             try {
                 sink.deliver(one.from().toString(), one.remote(), Args.decode(one.args()));
-            } catch (RuntimeException bad) {
-                LOGGER.warn("dropped a delivery from {}: {}", one.from(), bad.toString());
+            } catch (RuntimeException e) {
+                LOGGER.warn("dropped a delivery from {}: {}", one.from(), e.toString());
             }
         }
     }
@@ -106,8 +106,8 @@ public final class Wired implements Transport {
         for (RemoteDownPayload one : take(down)) {
             try {
                 sink.deliver(one.remote(), Args.decode(one.args()));
-            } catch (RuntimeException bad) {
-                LOGGER.warn("dropped a delivery: {}", bad.toString());
+            } catch (RuntimeException e) {
+                LOGGER.warn("dropped a delivery: {}", e.toString());
             }
         }
     }
@@ -124,7 +124,7 @@ public final class Wired implements Transport {
         if (server == null || uuid.isEmpty()) return null;
         try {
             return server.getPlayerList().getPlayer(UUID.fromString(uuid));
-        } catch (IllegalArgumentException notAPlayer) {
+        } catch (IllegalArgumentException ignored) {
             return null;
         }
     }

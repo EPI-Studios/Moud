@@ -32,7 +32,7 @@ public final class History {
             if (!s.isFunction(3)) throw s.error("history:rewind expects a time and a function");
             int base = 3;
             s.pushValue(3);
-            Queries.rewound(part -> history.rewind().at(part, seconds), () -> {
+            Queries.withFrames(part -> history.rewind().at(part, seconds), () -> {
                 s.call(0, -1);
                 return null;
             });

@@ -55,7 +55,7 @@ final class ChatShaders {
         return file.isEmpty() ? null : compiled("window:" + file, file, FULLSCREEN, ChatShaders::windowSource);
     }
 
-    static void broke(ShaderProgram program, RuntimeException why) {
+    static void logCompileError(ShaderProgram program, RuntimeException why) {
         for (Compiled one : COMPILED.values()) {
             if (one.program != program || one.broken) continue;
             one.broken = true;
@@ -100,7 +100,7 @@ final class ChatShaders {
         if (id == null) return null;
         try {
             return ShaderProgram.readSource(id);
-        } catch (RuntimeException missing) {
+        } catch (RuntimeException ignored) {
             return null;
         }
     }

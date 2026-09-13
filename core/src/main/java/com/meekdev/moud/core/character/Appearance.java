@@ -16,7 +16,7 @@ public final class Appearance extends Instance {
     @Prop(replicated = false) public FirstPerson firstPerson = FirstPerson.ARM;
 
     @Override
-    protected long propertiesFromElsewhere() {
-        return parent() instanceof Character body && body.worn() ? def().driven() : 0;
+    protected long externalPropertyMask() {
+        return parent() instanceof Character body && body.hasPlayer() ? def().driven() : 0;
     }
 }
