@@ -5,20 +5,14 @@ import com.meekdev.bkun.box3d.LevelPhysics;
 import com.meekdev.bkun.collision.ColliderProvider;
 import com.meekdev.bkun.sublevel.SubLevelEntity;
 import com.meekdev.bkun.sublevel.SubLevelIndex;
-import com.meekdev.bkun.sublevel.SubLevelPose;
-import com.meekdev.bkun.sublevel.SubLevelTracking;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.net.replicate.Change;
-import java.util.Locale;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import org.joml.Quaternionf;
-import org.joml.Vector3d;
-import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 
 public final class ClientPhysics {
@@ -28,51 +22,6 @@ public final class ClientPhysics {
     private static @Nullable ClientLevel attached;
 
     private ClientPhysics() {}
-
-    public static double riddenYaw() {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null) return Double.NaN;
-        SubLevelEntity deck = SubLevelTracking.of(client.player);
-        if (deck == null || deck.isRemoved()) return Double.NaN;
-        float partialTick = client.getDeltaTracker().getGameTimeDeltaPartialTick(true);
-        Quaternionf turn = new Quaternionf(
-                deck.renderPose(partialTick, new SubLevelPose()).rotation());
-        Vector3f forward = new Vector3f(1, 0, 0).rotate(turn);
-        return -Math.toDegrees(Math.atan2(-forward.z, forward.x));
-    }
-
-    public static String deckTrace(double x, double y, double z) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null) return "none\t\t\t\t\t\t\t\t\t\t\t";
-        SubLevelEntity deck = SubLevelTracking.of(client.player);
-        if (deck == null || deck.isRemoved()) return "none\t\t\t\t\t\t\t\t\t\t\t";
-
-        float partialTick = client.getDeltaTracker().getGameTimeDeltaPartialTick(true);
-        SubLevelPose was = deck.previousPose().setOrigin(0, 0, 0);
-        SubLevelPose is = deck.currentPose().setOrigin(0, 0, 0);
-        SubLevelPose drawn = deck.renderPose(partialTick, new SubLevelPose()).setOrigin(0, 0, 0);
-        Vector3d inBody = is.toLocal(x, y, z, new Vector3d());
-
-        return deck.getId()
-                + "\t" + fmt(was.x()) + "\t" + fmt(was.y()) + "\t" + fmt(was.z())
-                + "\t" + fmt(yawOf(was)) + "\t" + fmt(yawOf(is)) + "\t" + fmt(yawOf(drawn))
-                + "\t" + fmt(drawn.x()) + "\t" + fmt(drawn.y()) + "\t" + fmt(drawn.z())
-                + "\t" + fmt(inBody.x) + "\t" + fmt(inBody.z);
-    }
-
-    public static String deckColumns() {
-        return "deck\twasX\twasY\twasZ\twasYaw\tisYaw\tdrawnYaw\tdrawnX\tdrawnY\tdrawnZ"
-                + "\tinBodyX\tinBodyZ";
-    }
-
-    private static double yawOf(SubLevelPose pose) {
-        Vector3f forward = new Vector3f(1, 0, 0).rotate(new Quaternionf(pose.rotation()));
-        return -Math.toDegrees(Math.atan2(-forward.z, forward.x));
-    }
-
-    private static String fmt(double v) {
-        return String.format(Locale.ROOT, "%.6f", v);
-    }
 
     public static Colliders boxes() {
         return BOXES;

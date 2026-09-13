@@ -49,18 +49,6 @@ public final class PlaceInspector extends Inspector {
         row("dirty", tree == null ? 0 : tree.dirtyCount());
 
         ImGui.separator();
-        ImGui.text("steadiness");
-        Shake.sample();
-        text("body y", Shake.body());
-        text("body vs cam", Shake.reach());
-        text("camera y", Shake.camera());
-        text("camera xz", Shake.cameraFlat());
-        text("yaw held", Shake.hold());
-        text("deck rate", Shake.deckRate());
-        text("bob", Shake.bobText());
-        text("riding", Shake.riding());
-
-        ImGui.separator();
         ImGui.text("collision");
         row("boxes (server)", Physics.boxes().size());
         row("boxes (client)", ClientPhysics.boxes().size());

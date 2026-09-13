@@ -15,7 +15,6 @@ import com.meekdev.moud.mod.adapter.render.Skins;
 import com.meekdev.moud.mod.adapter.ui.Ui;
 import com.meekdev.moud.mod.client.debug.ClientDebug;
 import com.meekdev.moud.mod.client.debug.CollisionView;
-import com.meekdev.moud.mod.client.debug.Trace;
 import com.meekdev.moud.mod.client.editor.Editor;
 import com.meekdev.moud.mod.client.input.Autopilot;
 import com.meekdev.moud.mod.client.input.Input;
@@ -71,7 +70,6 @@ public final class MoudClient implements ClientModInitializer {
             Bubbles.frame(partialTick);
             ClientPrompts.frame();
             PostStack.frame();
-            Trace.frame(partialTick);
             if (ClientScene.motion().consumeStaticChanged()) Parts.invalidateStatic();
         });
     }

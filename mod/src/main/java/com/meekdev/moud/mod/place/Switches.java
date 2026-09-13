@@ -19,7 +19,5 @@ public final class Switches {
         features.set(Feature.BLOB_SHADOWS, false);
 
         features.set(Feature.PAUSE_MENU, true);
-
-        features.set(Feature.TRACE, false);
     }
 }

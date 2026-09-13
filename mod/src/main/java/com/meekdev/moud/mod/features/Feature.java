@@ -50,9 +50,7 @@ public enum Feature {
     PLAYER_MODEL,
     NAME_TAGS,
     VANILLA_SOUNDS,
-    VANILLA_MUSIC,
-
-    TRACE;
+    VANILLA_MUSIC;
 
     private final String key = key(name());
 
