@@ -18,7 +18,7 @@ import com.meekdev.moud.mod.server.ServerScene;
 import com.meekdev.moud.mod.transport.payload.ChatDownPayload;
 import com.meekdev.moud.mod.transport.payload.ChatUpPayload;
 import com.meekdev.moud.script.api.ChatRef;
-import com.meekdev.moud.script.engine.ScriptEngine;
+import com.meekdev.moud.script.host.Host;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -196,7 +196,7 @@ public final class ServerChat implements ChatRef {
         line.timestamp = System.currentTimeMillis();
 
         String status = refuse(player, channel, source, text);
-        ScriptEngine vm = vm();
+        Host vm = vm();
         if (status == null && channel != null && Boolean.FALSE.equals(channel.shouldSend.first(true, line.toMap(tree)))) {
             status = "Blocked";
         }
@@ -240,7 +240,7 @@ public final class ServerChat implements ChatRef {
     }
 
     private long deliver(InstanceTree tree, TextChannel channel, ChatLine line, UUID only) {
-        ScriptEngine vm = vm();
+        Host vm = vm();
         if (channel != null) line.apply(channel.onIncoming.first(null, line.toMap(tree)));
         if (vm != null) {
             Object[] changed = vm.chatHook("onIncoming", line.toMap(tree));
@@ -313,9 +313,9 @@ public final class ServerChat implements ChatRef {
         return ran;
     }
 
-    private static ScriptEngine vm() {
+    private static Host vm() {
         Place place = MoudServer.place();
-        return place == null || !ServerScene.running() ? null : place.vm();
+        return place == null || !ServerScene.running() ? null : place.host();
     }
 
     @Override
@@ -354,7 +354,7 @@ public final class ServerChat implements ChatRef {
         if (one == null) throw new IllegalArgumentException("unknown message " + id);
         one.line().apply(changes);
         push(one, ChatDownPayload.EDIT);
-        ScriptEngine vm = vm();
+        Host vm = vm();
         InstanceTree tree = ServerScene.tree();
         if (vm != null && tree != null) vm.chatEvent("edited", one.line().toMap(tree));
     }
@@ -364,7 +364,7 @@ public final class ServerChat implements ChatRef {
         Kept one = kept.remove(id);
         if (one == null) return;
         push(one, ChatDownPayload.DELETE);
-        ScriptEngine vm = vm();
+        Host vm = vm();
         if (vm != null) vm.chatEvent("deleted", (double) id);
     }
 

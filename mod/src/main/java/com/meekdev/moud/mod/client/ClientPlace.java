@@ -18,7 +18,7 @@ import com.meekdev.moud.mod.client.input.Actions;
 import com.meekdev.moud.mod.client.input.Input;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.transport.Post;
-import com.meekdev.moud.script.engine.ScriptEngine;
+import com.meekdev.moud.script.host.Host;
 import java.nio.file.Path;
 import net.minecraft.client.Minecraft;
 import org.jspecify.annotations.Nullable;
@@ -39,8 +39,8 @@ public final class ClientPlace {
         return place == null ? null : place.root();
     }
 
-    public static @Nullable ScriptEngine vm() {
-        return place == null ? null : place.vm();
+    public static @Nullable Host host() {
+        return place == null ? null : place.host();
     }
 
     public static @Nullable Camera camera() {
@@ -65,22 +65,22 @@ public final class ClientPlace {
         if (place == null || camera == null) return;
         INPUT.poll();
         Actions.frame();
-        ScriptEngine vm = place.vm();
-        if (vm != null) vm.renderStep(FRAME.tick());
+        Host host = place.host();
+        if (host != null) host.renderStep(FRAME.tick());
         Cameras.frame(camera, partialTick);
     }
 
     private static void start(Instance world) {
-        place = Place.client(world, Addons.classes(), vm -> {
+        place = Place.client(world, Addons.classes(), host -> {
             camera = Instances.createLocal(Classes.CAMERA, world, "Camera");
-            vm.bindClient(camera, LENS, INPUT, ClientScene::own);
-            vm.bindPost(Post.CLIENT, true);
-            vm.bindBlocks(new BlockRays(() -> Minecraft.getInstance().level, false));
             ResonaAudio.INSTANCE.reset();
             Sounds.stopAll();
-            vm.bindAudio(ResonaAudio.INSTANCE);
-            vm.bindChat(ClientChat.INSTANCE);
-            vm.bindDebug(ClientDebug.INSTANCE);
+            host.clientSide(camera, LENS, INPUT, ClientScene::own)
+                    .post(Post.CLIENT)
+                    .blocks(new BlockRays(() -> Minecraft.getInstance().level, false))
+                    .audio(ResonaAudio.INSTANCE)
+                    .chat(ClientChat.INSTANCE)
+                    .debug(ClientDebug.INSTANCE);
         });
         place.start();
         placeWorld = world;

@@ -23,7 +23,7 @@ import com.meekdev.moud.mod.adapter.text.TextLook;
 import com.meekdev.moud.mod.adapter.text.TextPainter;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.ClientScene;
-import com.meekdev.moud.script.engine.ScriptEngine;
+import com.meekdev.moud.script.host.Host;
 import com.mojang.blaze3d.opengl.GlTexture;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -379,7 +379,7 @@ public final class ChatView {
             ClientChat.INSTANCE.setTarget(hit.tab());
             return true;
         }
-        ScriptEngine vm = ClientPlace.vm();
+        Host vm = ClientPlace.host();
         InstanceTree tree = ClientScene.tree();
         Map<String, Object> message = hit.shown() == null ? Map.of() : hit.shown().line.toMap(tree);
         RichText.Style style = hit.style();
@@ -415,7 +415,7 @@ public final class ChatView {
             case "copy" -> client.keyboardHandler.setClipboard(link.value());
             case "url" -> ConfirmLinkScreen.confirmLinkNow(client.screen, link.value());
             case "callback" -> {
-                ScriptEngine vm = ClientPlace.vm();
+                Host vm = ClientPlace.host();
                 if (vm != null) vm.chatEvent("linkClicked", link.value(), message);
             }
             default -> {}

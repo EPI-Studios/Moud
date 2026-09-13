@@ -14,8 +14,8 @@ import com.meekdev.moud.mod.server.ServerScene;
 import com.meekdev.moud.mod.server.debug.ServerDebug;
 import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.script.engine.PlaceModules;
-import com.meekdev.moud.script.engine.ScriptEngine;
 import com.meekdev.moud.script.engine.ScriptLanguage;
+import com.meekdev.moud.script.host.Host;
 import com.meekdev.moud.script.reload.Watcher;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -35,13 +35,13 @@ public final class Place {
     private final String main;
     private final boolean client;
     private final Predicate<Instance> dropped;
-    private final Consumer<ScriptEngine> extend;
-    private @Nullable ScriptEngine vm;
+    private final Consumer<Host> extend;
+    private @Nullable Host host;
     private @Nullable ScriptLanguage language;
     private @Nullable Watcher watcher;
 
     private Place(Instance world, ClassRegistry classes, String main, boolean client,
-                  Predicate<Instance> dropped, Consumer<ScriptEngine> extend) {
+                  Predicate<Instance> dropped, Consumer<Host> extend) {
         this.client = client;
         this.world = world;
         this.classes = classes;
@@ -55,30 +55,30 @@ public final class Place {
         return new Place(world, classes, entry(PlaceToml.config().server()), false, instance -> true, vm -> { });
     }
 
-    public static Place client(Instance world, ClassRegistry classes, Consumer<ScriptEngine> extend) {
+    public static Place client(Instance world, ClassRegistry classes, Consumer<Host> extend) {
         return new Place(world, classes, entry(PlaceToml.config().client()), true, instance -> instance.id() < 0, extend);
     }
 
     private static String entry(String res) {
-        String path = Res.parse(res);
+        String path = Res.script(res);
         int dot = path.lastIndexOf('.');
-        return dot < 0 ? path : path.substring(0, dot);
+        return dot <= path.lastIndexOf('/') ? path : path.substring(0, dot);
     }
 
     public Path root() {
         return root;
     }
 
-    public @Nullable ScriptEngine vm() {
-        return vm;
+    public @Nullable Host host() {
+        return host;
     }
 
     public void start() {
-        vm = load(Map.of());
-        if (vm != null && FabricLoader.getInstance().isDevelopmentEnvironment()) {
+        host = load(Map.of());
+        if (host != null && FabricLoader.getInstance().isDevelopmentEnvironment()) {
             types();
             try {
-                watcher = new Watcher(root);
+                watcher = new Watcher(root, Languages.extensions());
                 MoudMod.LOG.info("watching {}", root);
             } catch (IOException e) {
                 MoudMod.LOG.warn("could not watch {}, reload is off", root, e);
@@ -87,8 +87,8 @@ public final class Place {
     }
 
     public void close() {
-        if (vm != null) vm.close();
-        vm = null;
+        if (host != null) host.close();
+        host = null;
         if (watcher != null) watcher.close();
         watcher = null;
     }
@@ -97,22 +97,22 @@ public final class Place {
         if (watcher == null || !watcher.take()) return false;
         MoudMod.LOG.info("reloading the place");
 
-        Map<String, Object> carried = vm == null ? Map.of() : vm.persist();
-        if (vm != null) vm.close();
-        vm = null;
+        Map<String, Object> carried = host == null ? Map.of() : host.persist();
+        if (host != null) host.close();
+        host = null;
         for (Instance child : List.copyOf(world.children())) {
             if (dropped.test(child)) Instances.destroy(child);
         }
 
-        vm = load(carried);
-        if (vm != null) vm.reloaded();
+        host = load(carried);
+        if (host != null) host.reloaded();
         return true;
     }
 
     private void types() {
-        if (language == null) return;
+        if (language == null || host == null) return;
         try {
-            language.writeTypes(root, classes);
+            language.writeTypes(root, host.api(), classes);
         } catch (IOException e) {
             MoudMod.LOG.warn("failed to write {} type definitions",
                     language.name(), e);
@@ -122,7 +122,7 @@ public final class Place {
     private @Nullable ScriptLanguage pick() {
         ScriptLanguage found = null;
         for (ScriptLanguage language : Languages.all()) {
-            if (!Files.isRegularFile(root.resolve(main + "." + language.extension()))) continue;
+            if (language.extensions().stream().noneMatch(extension -> Files.isRegularFile(root.resolve(main + "." + extension)))) continue;
             if (found != null) {
                 throw new IllegalStateException("this place has a " + main + " in two languages, "
                         + found.name() + " and " + language.name() + ", and cannot choose");
@@ -147,41 +147,52 @@ public final class Place {
         }
     }
 
-    private @Nullable ScriptEngine load(Map<String, Object> carried) {
+    private @Nullable Host load(Map<String, Object> carried) {
         if (!client) scene();
         language = pick();
         ScriptLanguage running = language != null ? language : Languages.all().getFirst();
-        String file = main + "." + running.extension();
-        Path entry = root.resolve(file);
+        String file = null;
         String source = null;
         if (language != null) {
-            try {
-                source = Files.readString(entry);
-            } catch (IOException e) {
-                MoudMod.LOG.error("could not read {}", entry, e);
+            for (String extension : language.extensions()) {
+                Path entry = root.resolve(main + "." + extension);
+                if (!Files.isRegularFile(entry)) continue;
+                file = main + "." + extension;
+                try {
+                    source = Files.readString(entry);
+                } catch (IOException e) {
+                    MoudMod.LOG.error("could not read {}", entry, e);
+                }
+                break;
             }
         }
 
-        ScriptEngine fresh = running.engine();
-        fresh.bind(world, classes);
-        fresh.bindPost(Post.SERVER, false);
-        fresh.bindBlocks(new BlockRays(Physics::level, true));
-        fresh.bindModules(new PlaceModules(root, client));
-        fresh.bindFiles(new PlaceFileRef(root));
-        if (!client) fresh.bindStore(ServerScene.store());
-        if (!client) fresh.bindChat(ServerChat.INSTANCE);
-        if (!client) fresh.bindHistory(ServerHistory.INSTANCE);
-        if (!client) fresh.bindDebug(ServerDebug.INSTANCE);
-        fresh.onError(Errors::record);
-        fresh.onPrint(line -> MoudMod.LOG.info("[{}] {}", client ? "client" : "server", line));
+        Host fresh = new Host(world, classes, client)
+                .post(Post.SERVER)
+                .blocks(new BlockRays(Physics::level, true))
+                .modules(new PlaceModules(root, client))
+                .files(new PlaceFileRef(root))
+                .onError(Errors::record)
+                .onPrint(line -> MoudMod.LOG.info("[{}] {}", client ? "client" : "server", line));
+        if (!client) {
+            fresh.store(ServerScene.store()).chat(ServerChat.INSTANCE).history(ServerHistory.INSTANCE).debug(ServerDebug.INSTANCE);
+        }
         fresh.persist(carried);
         extend.accept(fresh);
-        vm = fresh;
+        host = fresh;
+        try {
+            fresh.start(running);
+        } catch (RuntimeException e) {
+            MoudMod.LOG.error("{} could not start", running.name(), e);
+            fresh.close();
+            host = null;
+            return null;
+        }
         if (source != null) {
             try {
-                fresh.run(file, source);
+                fresh.engine().run(file, source);
             } catch (RuntimeException e) {
-                MoudMod.LOG.error("{} failed", entry, e);
+                MoudMod.LOG.error("{} failed", root.resolve(file), e);
             }
         }
         fresh.runScripts();

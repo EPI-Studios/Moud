@@ -9,6 +9,7 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -17,8 +18,10 @@ public final class Watcher implements AutoCloseable {
     private final AtomicBoolean dirty = new AtomicBoolean();
     private final WatchService service;
     private final Thread thread;
+    private final Collection<String> extensions;
 
-    public Watcher(Path root) throws IOException {
+    public Watcher(Path root, Collection<String> extensions) throws IOException {
+        this.extensions = extensions;
         service = root.getFileSystem().newWatchService();
         register(root);
 
@@ -43,7 +46,7 @@ public final class Watcher implements AutoCloseable {
             boolean touched = false;
             for (var event : key.pollEvents()) {
                 String file = String.valueOf(event.context());
-                if (file.endsWith(".luau") && !file.endsWith(".d.luau")) touched = true;
+                if (isScript(file)) touched = true;
                 if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE
                         && key.watchable() instanceof Path parent
                         && event.context() instanceof Path name) {
@@ -53,6 +56,13 @@ public final class Watcher implements AutoCloseable {
             key.reset();
             if (touched) dirty.set(true);
         }
+    }
+
+    private boolean isScript(String file) {
+        for (String extension : extensions) {
+            if (file.endsWith("." + extension) && !file.endsWith(".d." + extension)) return true;
+        }
+        return false;
     }
 
     private void register(Path top) throws IOException {

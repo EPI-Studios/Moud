@@ -2,6 +2,7 @@ package com.meekdev.moud.core.place;
 
 import com.meekdev.moud.core.asset.Res;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -16,16 +17,16 @@ public record PlaceConfig(
         String scene,
         Map<String, Boolean> features) {
 
-    private static final Set<String> TOP = Set.of("name", "id", "version", "engine", "maxPlayers", "entry", "features");
+    private static final List<String> TOP = List.of("name", "id", "version", "engine", "maxPlayers", "entry", "features");
     private static final Set<String> ENTRY = Set.of("server", "client", "scene");
 
     public static final PlaceConfig DEFAULT = new PlaceConfig("place", "place", "0.0.0", "", 16,
-            "res://server/main.luau", "res://client/main.luau", "", Map.of());
+            "res://server/main", "res://client/main", "", Map.of());
 
     public static PlaceConfig parse(String text) {
         Map<String, Object> root = Toml.parse(text);
         for (String key : root.keySet()) {
-            if (!TOP.contains(key)) throw new IllegalArgumentException("unknown place.toml setting '" + key + "', expected one of name, id, version, engine, maxPlayers, entry, features");
+            if (!TOP.contains(key)) throw new IllegalArgumentException("unknown place.toml setting '" + key + "', expected one of " + String.join(", ", TOP));
         }
         Map<String, Object> entry = table(root, "entry");
         for (String key : entry.keySet()) {
@@ -76,7 +77,9 @@ public record PlaceConfig(
 
     private static String path(Map<String, Object> table, String key, String fallback) {
         String value = text(table, key, fallback);
-        if (!value.isEmpty()) Res.parse(value);
+        if (!value.isEmpty()) {
+            if (key.equals("scene")) Res.parse(value); else Res.script(value);
+        }
         return value;
     }
 }

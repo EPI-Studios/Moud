@@ -21,7 +21,7 @@ import com.meekdev.moud.mod.server.pilot.ServerPilot;
 import com.meekdev.moud.mod.server.zone.ServerPrompts;
 import com.meekdev.moud.mod.transport.Broadcast;
 import com.meekdev.moud.mod.transport.Post;
-import com.meekdev.moud.script.engine.ScriptEngine;
+import com.meekdev.moud.script.host.Host;
 import java.util.List;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -70,8 +70,8 @@ public final class MoudServer {
         if (place == null) return;
         if (place.pollReload()) respawnAll(server);
         double dt = TICK.tick();
-        ScriptEngine vm = place.vm();
-        if (vm != null) vm.step(dt);
+        Host host = place.host();
+        if (host != null) host.step(dt);
         Humanoids.follow(ServerScene.tree(), dt);
         Rig.follow(ServerScene.tree());
         Stages.run(ServerScene.tree(), Stage.COMPOSE, 0);
@@ -104,8 +104,8 @@ public final class MoudServer {
         Physics.bodies().bind(player, character);
         player.teleportTo(0.5, 70.0, 0.5);
 
-        ScriptEngine vm = place.vm();
-        if (vm != null) vm.joined(new JoinedPlayer(player));
+        Host host = place.host();
+        if (host != null) host.joined(new JoinedPlayer(player));
     }
 
     private static void respawnAll(MinecraftServer server) {
@@ -116,8 +116,8 @@ public final class MoudServer {
     }
 
     private static void leave(ServerPlayer player) {
-        ScriptEngine vm = place == null ? null : place.vm();
-        if (vm != null) vm.leaving(new JoinedPlayer(player));
+        Host host = place == null ? null : place.host();
+        if (host != null) host.leaving(new JoinedPlayer(player));
 
         Character character = Physics.bodies().of(player, ServerScene.tree());
         Physics.bodies().release(player);

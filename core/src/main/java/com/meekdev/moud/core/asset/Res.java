@@ -7,6 +7,15 @@ public final class Res {
     private Res() {}
 
     public static String parse(String text) {
+        String path = script(text);
+        String last = path.substring(path.lastIndexOf('/') + 1);
+        if (last.indexOf('.') <= 0) {
+            throw new IllegalArgumentException("\"" + text + "\" has no file extension");
+        }
+        return path;
+    }
+
+    public static String script(String text) {
         if (!text.startsWith(SCHEME)) {
             throw new IllegalArgumentException("\"" + text + "\" is not a res:// path");
         }
@@ -18,10 +27,6 @@ public final class Res {
             if (segment.isEmpty() || segment.equals(".") || segment.equals("..")) {
                 throw new IllegalArgumentException("\"" + text + "\" contains an empty, . or .. segment");
             }
-        }
-        String last = path.substring(path.lastIndexOf('/') + 1);
-        if (last.indexOf('.') <= 0) {
-            throw new IllegalArgumentException("\"" + text + "\" has no file extension");
         }
         return path;
     }

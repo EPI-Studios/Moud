@@ -1,0 +1,162 @@
+package com.meekdev.moud.script.luau;
+
+import com.meekdev.moud.core.clazz.CallbackDef;
+import com.meekdev.moud.core.clazz.ClassDef;
+import com.meekdev.moud.core.clazz.ClassRegistry;
+import com.meekdev.moud.core.clazz.Enums;
+import com.meekdev.moud.core.clazz.EventDef;
+import com.meekdev.moud.core.clazz.PropertyDef;
+import com.meekdev.moud.core.clazz.PropertyType;
+import com.meekdev.moud.script.host.Api;
+import com.meekdev.moud.script.host.Literals;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+
+public final class LuauTypes {
+
+    private static final String INDENT = "    ";
+    private static final String ROOT = "Instance";
+    private static final String CALLBACK = "((...any) -> ...any)?";
+    private static final String DEFAULT_SIGNAL = "InstanceSignal";
+    private static final String PLACED = LuauResource.text("types/placed.d.luau");
+    private static final Properties CLASS_SIGNALS = LuauResource.properties("types/class-signals.properties");
+
+    private LuauTypes() {}
+
+    public static String declare(Api api, ClassRegistry classes) {
+        StringBuilder out = new StringBuilder(65536);
+        Set<String> instanceClasses = new HashSet<>();
+        for (ClassDef<?> def : classes.all()) instanceClasses.add(def.name());
+
+        for (Map.Entry<String, String> alias : api.aliases().entrySet()) {
+            line(out, "type ", alias.getKey(), " = ", alias.getValue());
+            out.append('\n');
+        }
+        for (Api.Decl decl : api.classes()) {
+            if (instanceClasses.contains(decl.name()) || decl.name().equals(ROOT)) continue;
+            line(out, "declare class ", decl.name());
+            out.append(builtInMembers(decl.name()));
+            members(out, decl);
+            end(out);
+        }
+
+        line(out, "declare class ", ROOT);
+        out.append(builtInMembers(ROOT));
+        Api.Decl shared = api.decl(ROOT);
+        if (shared != null) members(out, shared);
+        end(out);
+
+        for (ClassDef<?> def : classes.all()) classDeclaration(out, api, def);
+
+        for (Map.Entry<String, String> global : api.globals().entrySet()) {
+            String type = global.getValue();
+            if (type.startsWith("(")) {
+                Signature signature = Signature.parse(type);
+                line(out, "declare function ", global.getKey(), "(", signature.params(false), "): ", signature.returns());
+            } else {
+                line(out, "declare ", global.getKey(), ": ", type);
+            }
+        }
+        return out.toString();
+    }
+
+    private static void members(StringBuilder out, Api.Decl decl) {
+        for (Api.Member member : decl.members()) {
+            switch (member.kind()) {
+                case FIELD -> line(out, INDENT, member.name(), ": ", member.type());
+                case METHOD, FUNCTION -> {
+                    Signature signature = Signature.parse(member.type());
+                    String params = signature.params(member.kind() == Api.Kind.METHOD);
+                    line(out, INDENT, "function ", member.name(), "(", params, "): ", signature.returns());
+                }
+            }
+        }
+    }
+
+    private static void classDeclaration(StringBuilder out, Api api, ClassDef<?> def) {
+        String parent = def.parent() == null ? ROOT : def.parent().name();
+        line(out, "declare class ", def.name(), " extends ", parent);
+        PropertyDef frame = def.property("cframe");
+        if (frame != null && frame.index() >= inherited(def)) out.append(PLACED);
+        for (CallbackDef callback : def.callbacks()) {
+            if (def.parent() != null && def.parent().callback(callback.name()) != null) continue;
+            line(out, INDENT, callback.name(), ": ", CALLBACK);
+        }
+        for (EventDef event : def.events()) {
+            line(out, INDENT, event.name(), ": ", signal(def));
+        }
+        PropertyDef[] properties = def.properties();
+        for (int i = inherited(def); i < properties.length; i++) {
+            line(out, INDENT, properties[i].name(), ": ", luau(properties[i]));
+        }
+        Api.Decl methods = api.decl(def.name());
+        if (methods != null) members(out, methods);
+        end(out);
+    }
+
+    private static String signal(ClassDef<?> def) {
+        return CLASS_SIGNALS.getProperty(def.name(), DEFAULT_SIGNAL);
+    }
+
+    private static String builtInMembers(String type) {
+        return LuauResource.textOrEmpty("types/members/" + type + ".d.luau");
+    }
+
+    private static void line(StringBuilder out, String... parts) {
+        for (String part : parts) out.append(part);
+        out.append('\n');
+    }
+
+    private static void end(StringBuilder out) {
+        out.append("end\n\n");
+    }
+
+    private static int inherited(ClassDef<?> def) {
+        return def.parent() == null ? 0 : def.parent().properties().length;
+    }
+
+    private static String luau(PropertyDef property) {
+        if (property.type() != PropertyType.ENUM) {
+            return switch (property.type()) {
+                case BOOL -> "boolean";
+                case INT, NUM -> "number";
+                case STRING, ASSET, ENUM -> "string";
+                case VEC3 -> "Vector3";
+                case QUAT -> "Quat";
+                case CFRAME -> "CFrame";
+                case COLOR -> "Color";
+                case UDIM2 -> "UDim2";
+                case REF -> "Instance?";
+            };
+        }
+        return Literals.union(Enums.names(property.defaultValue().getClass()));
+    }
+
+    record Signature(String rawParams, String returns) {
+
+        static Signature parse(String type) {
+            int depth = 0;
+            for (int i = 0; i < type.length(); i++) {
+                char c = type.charAt(i);
+                if (c == '(' || c == '{' || c == '[') depth++;
+                if (c == ')' || c == '}' || c == ']') depth--;
+                if (depth == 0 && c == ')') {
+                    String params = type.substring(1, i).trim();
+                    String rest = type.substring(i + 1).trim();
+                    String returns = rest.startsWith("->") ? rest.substring(2).trim() : "()";
+                    return new Signature(params, returns);
+                }
+            }
+            return new Signature("...any", "...any");
+        }
+
+        String params(boolean self) {
+            String params = rawParams.startsWith("...") ? "...: " + rawParams.substring(3) : rawParams.replace(", ...", ", ...: ");
+            params = params.replace("...: : ", "...: ");
+            if (!self) return params;
+            return params.isEmpty() ? "self" : "self, " + params;
+        }
+    }
+}

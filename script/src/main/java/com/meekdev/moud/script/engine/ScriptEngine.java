@@ -1,75 +1,24 @@
 package com.meekdev.moud.script.engine;
 
-import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.script.api.AudioRef;
-import com.meekdev.moud.script.api.BlockRef;
-import com.meekdev.moud.script.api.CameraRef;
-import com.meekdev.moud.script.api.ChatRef;
-import com.meekdev.moud.script.api.DebugRef;
-import com.meekdev.moud.script.api.FileRef;
-import com.meekdev.moud.script.api.HistoryRef;
-import com.meekdev.moud.script.api.InputRef;
-import com.meekdev.moud.script.api.ModuleSource;
-import com.meekdev.moud.script.api.PlayerRef;
-import com.meekdev.moud.script.api.PostRef;
-import com.meekdev.moud.script.api.StoreRef;
-import com.meekdev.moud.script.err.ScriptError;
+import com.meekdev.moud.script.host.Callable;
+import com.meekdev.moud.script.host.Fiber;
+import com.meekdev.moud.script.host.ScriptValue;
 import java.util.Map;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 public interface ScriptEngine extends AutoCloseable {
 
-    void bind(Instance world, ClassRegistry classes);
+    void run(String chunk, String source);
 
-    void bindPost(PostRef post, boolean client);
+    Object module(String chunk, String source);
 
-    void bindClient(Instance camera, CameraRef lens, InputRef input, Supplier<Instance> own);
+    Fiber fiber(Callable fn);
 
-    void bindModules(ModuleSource source);
+    Fiber script(String chunk, String source, Instance script);
 
-    void bindAudio(AudioRef audio);
+    ScriptValue table(Map<String, Object> data);
 
-    void bindBlocks(BlockRef blocks);
-
-    void bindFiles(FileRef files);
-
-    void bindStore(StoreRef store);
-
-    void bindChat(ChatRef chat);
-
-    void bindDebug(DebugRef debug);
-
-    Object[] chatHook(String name, Object... args);
-
-    void chatEvent(String name, Object... args);
-
-    void bindHistory(HistoryRef history);
-
-    void runScripts();
-
-    void onError(Consumer<ScriptError> handler);
-
-    void onPrint(Consumer<String> handler);
-
-    void run(String chunkName, String source);
-
-    void step(double dt);
-
-    void renderStep(double dt);
-
-    void reloaded();
-
-    void joined(PlayerRef player);
-
-    void leaving(PlayerRef player);
-
-    Map<String, Object> persist();
-
-    void persist(Map<String, Object> data);
-
-    int sleepingTasks();
+    Map<String, Object> read(ScriptValue table);
 
     @Override
     void close();

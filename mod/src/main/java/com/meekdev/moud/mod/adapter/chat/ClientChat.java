@@ -14,7 +14,7 @@ import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.transport.payload.ChatDownPayload;
 import com.meekdev.moud.mod.transport.payload.ChatUpPayload;
 import com.meekdev.moud.script.api.ChatRef;
-import com.meekdev.moud.script.engine.ScriptEngine;
+import com.meekdev.moud.script.host.Host;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -94,8 +94,8 @@ public final class ClientChat implements ChatRef {
         return ClientScene.tree() != null;
     }
 
-    private static ScriptEngine vm() {
-        return ClientPlace.vm();
+    private static Host vm() {
+        return ClientPlace.host();
     }
 
     public void add(ChatLine line) {
@@ -110,7 +110,7 @@ public final class ClientChat implements ChatRef {
         Map<String, Object> message = line.toMap(tree);
         showBubble(line, message, tree);
         if (tree != null && tree.byId(line.channel) instanceof TextChannel channel) channel.messageReceived.fire(message);
-        ScriptEngine vm = vm();
+        Host vm = vm();
         if (vm != null) vm.chatEvent("messageReceived", message);
     }
 
@@ -120,7 +120,7 @@ public final class ClientChat implements ChatRef {
         Instance body = tree.byId(line.body);
         if (body == null) return;
         Map<String, Object> look = Map.of();
-        ScriptEngine vm = vm();
+        Host vm = vm();
         if (vm != null) {
             Object[] out = vm.chatHook("onBubble", message);
             if (out != null && out.length > 0) {
@@ -138,7 +138,7 @@ public final class ClientChat implements ChatRef {
         if (tree != null && tree.byId(shown.line.channel) instanceof TextChannel channel) {
             merge(look, channel.onIncoming.first(null, message));
         }
-        ScriptEngine vm = vm();
+        Host vm = vm();
         if (vm != null) {
             Object[] out = vm.chatHook("onIncoming", message);
             if (out != null && out.length > 0) merge(look, out[0]);
@@ -159,7 +159,7 @@ public final class ClientChat implements ChatRef {
             shown.line.prefix = changed.prefix;
             shown.line.metadata = changed.metadata;
             style(shown, ClientScene.tree());
-            ScriptEngine vm = vm();
+            Host vm = vm();
             if (vm != null) vm.chatEvent("edited", shown.line.toMap(ClientScene.tree()));
         }
     }
@@ -168,12 +168,12 @@ public final class ClientChat implements ChatRef {
         for (Shown shown : lines) {
             if (shown.line.id == id && shown.removed < 0) shown.removed = System.nanoTime();
         }
-        ScriptEngine vm = vm();
+        Host vm = vm();
         if (vm != null) vm.chatEvent("deleted", (double) id);
     }
 
     private void refused(ChatLine line) {
-        ScriptEngine vm = vm();
+        Host vm = vm();
         Map<String, Object> message = line.toMap(ClientScene.tree());
         if (vm != null) vm.chatEvent("sending", message);
         String why = switch (line.status) {
@@ -210,7 +210,7 @@ public final class ClientChat implements ChatRef {
         line.prefix = me == null ? "" : RichText.escape(me.getGameProfile().name());
         line.status = "Sending";
         line.timestamp = System.currentTimeMillis();
-        ScriptEngine vm = vm();
+        Host vm = vm();
         if (vm != null) vm.chatEvent("sending", line.toMap(ClientScene.tree()));
         ClientPlayNetworking.send(new ChatUpPayload(line.channel, text));
     }
@@ -219,18 +219,18 @@ public final class ClientChat implements ChatRef {
         long now = System.currentTimeMillis();
         if (now - lastTyping < 100) return;
         lastTyping = now;
-        ScriptEngine vm = vm();
+        Host vm = vm();
         if (vm != null) vm.chatEvent("typing", text);
     }
 
     public void opened() {
         if (target != null) unread.remove(target.id());
-        ScriptEngine vm = vm();
+        Host vm = vm();
         if (vm != null) vm.chatEvent("opened");
     }
 
     public void closed() {
-        ScriptEngine vm = vm();
+        Host vm = vm();
         if (vm != null) vm.chatEvent("closed");
     }
 

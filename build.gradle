@@ -110,6 +110,18 @@ tasks.register('checkArchitecture') {
             }
         }
 
+        ['core', 'script', 'net', 'mod'].each { module ->
+            fileTree("${rootDir}/${module}/src/main").matching { include '**/*.java' }.each { file ->
+                def where = file.absolutePath - "${rootDir}/"
+                if (where.contains('/moud/script/luau/')) return
+                file.eachLine { line ->
+                    if (line.trim().startsWith('import net.hollowcube.luau.')) {
+                        broken << "${where}: only script.luau may see luau (${line.trim()})"
+                    }
+                }
+            }
+        }
+
         def qualified = ~/(?<!["\w.])(?:com\.meekdev|net\.minecraft|com\.mojang)\.[a-z][\w.]*\.[A-Z]\w+/
         def taken = [:].withDefault { [] }
         def nested = [:].withDefault { [] as Set }

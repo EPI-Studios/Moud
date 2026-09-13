@@ -20,7 +20,7 @@ import com.meekdev.moud.mod.level.PolarChunks;
 import com.meekdev.moud.mod.place.Errors;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.server.MoudServer;
-import com.meekdev.moud.script.engine.ScriptEngine;
+import com.meekdev.moud.script.host.Host;
 import com.meekdev.moud.script.err.ScriptError;
 import imgui.ImGui;
 import java.util.List;
@@ -109,8 +109,8 @@ public final class PlaceInspector extends Inspector {
 
         ImGui.separator();
         ImGui.text("script");
-        ScriptEngine vm = place == null ? null : place.vm();
-        row("sleeping tasks", vm == null ? 0 : vm.sleepingTasks());
+        Host host = place == null ? null : place.host();
+        row("sleeping tasks", host == null ? 0 : host.sleepingTasks());
 
         List<ScriptError> errors = Errors.recent();
         ImGui.separator();
