@@ -176,7 +176,8 @@ public final class Ui {
             return placed.surface();
         }
         if (placed.surface() != null) placed.surface().remove();
-        WorldSurface surface = Surfaces.world(width, height).resolution(resolution);
+        // drawn straight into the world, so pixelsPerMetre sets how big a pixel of layout is, not how sharp it looks
+        WorldSurface surface = Surfaces.world(width, height).resolution(resolution).direct(true);
         surface.root().add(node(gui));
         PLACED.put(gui, new Placed(surface, width, height, resolution));
         return surface;
