@@ -20,6 +20,9 @@ public class Part extends Spatial {
     // whether it takes part in touched and touchEnded, on either end
     public boolean canTouch = true;
 
+    // the CollisionGroup this part belongs to, by name
+    public String collisionGroup = "default";
+
     // another part began or stopped touching this one. worked out each tick on each side, for parts
     // something is listening on
     public final Signal<Instance> touched = new Signal<>();

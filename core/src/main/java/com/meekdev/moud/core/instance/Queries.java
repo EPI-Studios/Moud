@@ -13,14 +13,21 @@ import java.util.function.Predicate;
 // found but not seen is transparent instead
 public final class Queries {
 
-    // which parts a query may find. listed instances count with everything under them
-    public record Filter(List<Instance> instances, boolean include, boolean respectCollides) implements Predicate<Part> {
+    // which parts a query may find. listed instances count with everything under them, and a group
+    // leaves out the parts that group passes through
+    public record Filter(List<Instance> instances, boolean include, boolean respectCollides,
+                         CollisionGroups groups, String group) implements Predicate<Part> {
 
         public static final Filter ALL = new Filter(List.of(), false, false);
+
+        public Filter(List<Instance> instances, boolean include, boolean respectCollides) {
+            this(instances, include, respectCollides, null, null);
+        }
 
         @Override
         public boolean test(Part part) {
             if (respectCollides && !part.collides) return false;
+            if (groups != null && !groups.collide(group, CollisionGroups.groupOf(part))) return false;
             if (instances.isEmpty()) return !include;
             boolean listed = false;
             for (Instance at = part; at != null && !listed; at = at.parent()) listed = instances.contains(at);

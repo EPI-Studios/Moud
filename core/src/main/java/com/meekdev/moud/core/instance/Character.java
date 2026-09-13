@@ -19,6 +19,9 @@ public final class Character extends Spatial {
     // does not follow this: a place that wants a bigger character says so on both, deliberately
     @Prop(min = 0.05) public double scale = 1.0;
 
+    // the CollisionGroup this body moves in, by name
+    public String collisionGroup = "default";
+
     // the engine poses the body from the state below. a place that wants the limbs to itself
     // turns this off and writes them, rather than fighting a pose that is rewritten every tick
     public boolean animate = true;

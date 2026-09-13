@@ -131,7 +131,7 @@ public final class Types {
                     function state(self): string
                 end
 
-                type QueryOptions = { exclude: { Instance }?, include: { Instance }?, respectCollides: boolean?,
+                type QueryOptions = { exclude: { Instance }?, include: { Instance }?, respectCollides: boolean?, collisionGroup: string?,
                     ignoreBlocks: boolean? }
 
                 declare class Instance

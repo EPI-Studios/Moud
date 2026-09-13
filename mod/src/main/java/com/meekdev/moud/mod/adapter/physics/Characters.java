@@ -6,6 +6,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Appearance;
 import com.meekdev.moud.core.instance.Character;
+import com.meekdev.moud.core.instance.CollisionGroups;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
@@ -61,6 +62,7 @@ public final class Characters {
 
     private static final PropertyDef CFRAME = Classes.CHARACTER.property("cframe");
     private static final PropertyDef OWNER = Classes.CHARACTER.property("owner");
+    private static final PropertyDef COLLISION_GROUP = Classes.CHARACTER.property("collisionGroup");
     private static final PropertyDef LOOK_PITCH = Classes.CHARACTER.property("lookPitch");
     private static final PropertyDef LOOK_YAW = Classes.CHARACTER.property("lookYaw");
     private static final PropertyDef MOVE_DISTANCE = Classes.CHARACTER.property("moveDistance");
@@ -106,7 +108,19 @@ public final class Characters {
 
     private final Map<UUID, Integer> bound = new HashMap<>();
 
-    public static MovementProfile profileOf(Character character) {
+    // the server's boxes, whose groups a profile names. the profile is built here and synced, and the
+    // colliders keep the groups because they already follow every change a group makes
+    private final Colliders boxes;
+
+    Characters(Colliders boxes) {
+        this.boxes = boxes;
+    }
+
+    private CollisionGroups groups() {
+        return boxes.groups();
+    }
+
+    public MovementProfile profileOf(Character character) {
         Humanoid living = Rig.humanoid(character);
         // a body with nothing living in it does not move. that is a place's doing, not a fault
         if (living == null) return MovementProfile.builder().build();
@@ -130,6 +144,8 @@ public final class Characters {
                 .jumpBufferTicks((int) Math.round(living.jumpBuffer * TICKS))
                 .followSlopes(living.followSlopes)
                 .moverShape(character.radius, character.height)
+                .collisionFilter(groups().category(character.collisionGroup),
+                        groups().mask(character.collisionGroup))
                 .build();
     }
 
@@ -478,6 +494,21 @@ public final class Characters {
     // the player is looked up rather than held: a respawn hands out a new ServerPlayer and a
     // stored one goes on taking writes nobody can see
     public void apply(InstanceTree source, Change change, MinecraftServer server) {
+        // a group that changed changes every body's filter, so every bound body is pushed again
+        if (boxes.groupsChanged()) {
+            for (Map.Entry<UUID, Integer> entry : bound.entrySet()) {
+                ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
+                if (player != null && source.byId(entry.getValue()) instanceof Character character) {
+                    Physics.setProfile(player, profileOf(character));
+                }
+            }
+            return;
+        }
+        if (change instanceof Change.Wrote wrote && source.byId(wrote.id()) instanceof Character body
+                && wrote.property() == COLLISION_GROUP.index()) {
+            push(body, server);
+            return;
+        }
         if (!(change instanceof Change.Wrote wrote)) return;
         // the profile lives on the humanoid now, so a write that changes how a body moves is a
         // write to that. which character it belongs to is its parent -- the tree already says so,
@@ -486,6 +517,10 @@ public final class Characters {
                 || !(living.parent() instanceof Character character)) {
             return;
         }
+        push(character, server);
+    }
+
+    private void push(Character character, MinecraftServer server) {
         for (Map.Entry<UUID, Integer> entry : bound.entrySet()) {
             if (entry.getValue() != character.id()) continue;
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());

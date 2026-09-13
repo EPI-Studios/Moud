@@ -18,6 +18,7 @@ import com.meekdev.moud.core.instance.Vector3Value;
 import com.meekdev.moud.core.instance.Camera;
 import com.meekdev.moud.core.instance.Cape;
 import com.meekdev.moud.core.instance.Character;
+import com.meekdev.moud.core.instance.CollisionGroup;
 import com.meekdev.moud.core.instance.Folder;
 import com.meekdev.moud.core.instance.Frame;
 import com.meekdev.moud.core.instance.GuiObject;
@@ -112,6 +113,9 @@ public final class Classes {
     public static final ClassDef<InputAction> INPUT_ACTION =
             ClassDef.of("InputAction", null, InputAction.class, InputAction::new);
 
+    public static final ClassDef<CollisionGroup> COLLISION_GROUP =
+            ClassDef.of("CollisionGroup", null, CollisionGroup.class, CollisionGroup::new);
+
     public static final ClassDef<Joint> JOINT = ClassDef.of("Joint", null, Joint.class, Joint::new);
     public static final ClassDef<Motor> MOTOR = ClassDef.of("Motor", JOINT, Motor.class, Motor::new);
 
@@ -163,6 +167,7 @@ public final class Classes {
         r.register(SCRIPT);
         r.register(LOCAL_SCRIPT);
         r.register(INPUT_ACTION);
+        r.register(COLLISION_GROUP);
         r.register(JOINT);
         r.register(MOTOR);
         for (Addon addon : addons) {

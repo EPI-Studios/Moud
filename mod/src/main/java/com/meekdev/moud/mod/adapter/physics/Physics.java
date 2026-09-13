@@ -15,7 +15,7 @@ public final class Physics {
 
     private static final Colliders BOXES = new Colliders();
     private static final SubLevels SHAPES = new SubLevels();
-    private static final Characters BODIES = new Characters();
+    private static final Characters BODIES = new Characters(BOXES);
     private static @Nullable ServerLevel level;
 
     private Physics() {}

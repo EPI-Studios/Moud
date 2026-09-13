@@ -1,5 +1,6 @@
 package com.meekdev.moud.script.bind;
 
+import com.meekdev.moud.core.instance.CollisionGroups;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Queries;
@@ -34,7 +35,7 @@ final class QueryMethods {
         Vec3 from = Values.vec3(state, 2);
         Vec3 direction = Values.vec3(state, 3);
         double range = state.isNoneOrNil(4) ? 100 : state.checkNumber(4);
-        Params params = params(state, 5);
+        Params params = params(state, 5, root);
         Queries.Cast hit = Queries.raycast(root, from, direction, range, params.filter());
         BlockRef blocks = BLOCKS.get(state.mainThread());
         if (!params.ignoreBlocks() && blocks != null && root.parent() == null) {
@@ -56,7 +57,7 @@ final class QueryMethods {
         double radius = state.checkNumber(3);
         Vec3 direction = Values.vec3(state, 4);
         double range = state.isNoneOrNil(5) ? 100 : state.checkNumber(5);
-        return push(state, Queries.spherecast(root, from, radius, direction, range, params(state, 6).filter()));
+        return push(state, Queries.spherecast(root, from, radius, direction, range, params(state, 6, root).filter()));
     }
 
     static int blockcast(LuaState state, Instance root) {
@@ -64,22 +65,22 @@ final class QueryMethods {
         Vec3 size = Values.vec3(state, 3);
         Vec3 direction = Values.vec3(state, 4);
         double range = state.isNoneOrNil(5) ? 100 : state.checkNumber(5);
-        return push(state, Queries.blockcast(root, frame, size, direction, range, params(state, 6).filter()));
+        return push(state, Queries.blockcast(root, frame, size, direction, range, params(state, 6, root).filter()));
     }
 
     static int partsInBox(LuaState state, Instance root) {
-        return list(state, Queries.inBox(root, Values.cframe(state, 2), Values.vec3(state, 3), params(state, 4).filter()));
+        return list(state, Queries.inBox(root, Values.cframe(state, 2), Values.vec3(state, 3), params(state, 4, root).filter()));
     }
 
     static int partsInRadius(LuaState state, Instance root) {
-        return list(state, Queries.inRadius(root, Values.vec3(state, 2), state.checkNumber(3), params(state, 4).filter()));
+        return list(state, Queries.inRadius(root, Values.vec3(state, 2), state.checkNumber(3), params(state, 4, root).filter()));
     }
 
     static int partsInPart(LuaState state, Instance root) {
         if (!(state.toUserDataTagged(2, Proxies.TAG) instanceof Part part)) {
             throw state.error("partsInPart wants a part");
         }
-        return list(state, Queries.inPart(root, part, params(state, 3).filter()));
+        return list(state, Queries.inPart(root, part, params(state, 3, root).filter()));
     }
 
     private static int push(LuaState state, Queries.Cast hit) {
@@ -105,8 +106,8 @@ final class QueryMethods {
 
     private record Params(Queries.Filter filter, boolean ignoreBlocks) {}
 
-    // { exclude = { ... } } or { include = { ... } }, respectCollides, ignoreBlocks
-    private static Params params(LuaState state, int at) {
+    // { exclude = { ... } } or { include = { ... } }, respectCollides, collisionGroup, ignoreBlocks
+    private static Params params(LuaState state, int at, Instance root) {
         if (state.isNoneOrNil(at)) return new Params(Queries.Filter.ALL, false);
         if (state.type(at) != LuaType.TABLE) throw state.error("query options are a table");
         List<Instance> exclude = instances(state, at, "exclude");
@@ -116,9 +117,14 @@ final class QueryMethods {
         }
         boolean respect = flag(state, at, "respectCollides");
         boolean ignoreBlocks = flag(state, at, "ignoreBlocks");
+        String group = null;
+        state.getField(at, "collisionGroup");
+        if (!state.isNil(-1)) group = state.checkString(-1);
+        state.pop(1);
+        CollisionGroups groups = group == null ? null : CollisionGroups.of(root.tree());
         Queries.Filter filter = include != null
-                ? new Queries.Filter(include, true, respect)
-                : new Queries.Filter(exclude != null ? exclude : List.of(), false, respect);
+                ? new Queries.Filter(include, true, respect, groups, group)
+                : new Queries.Filter(exclude != null ? exclude : List.of(), false, respect, groups, group);
         return new Params(filter, ignoreBlocks);
     }
 
