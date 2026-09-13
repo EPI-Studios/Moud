@@ -56,7 +56,6 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import net.hollowcube.luau.BuilinLibrary;
-import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.compiler.LuauCompileException;
 import net.hollowcube.luau.compiler.LuauCompiler;
