@@ -13,6 +13,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.Queue;
 import java.util.function.Consumer;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -29,12 +32,22 @@ public final class Broadcast {
 
     private static final Map<UUID, Audience> AUDIENCES = new HashMap<>();
 
+    // players whose copy went wrong, heard on the network thread and handled on the server's
+    private static final Queue<UUID> RESYNC = new ConcurrentLinkedQueue<>();
+
     private Broadcast() {}
+
+    public static void listen() {
+        ServerPlayNetworking.registerGlobalReceiver(Packets.ResyncUp.TYPE, (payload, context) ->
+                RESYNC.add(context.player().getUUID()));
+    }
 
     // the server thread's one drain. dirty is cleared by it, so a second consumer that drained for
     // itself would find nothing -- everything that wants the tick reads the same batch
     public static void tick(MinecraftServer server, Consumer<Change> also) {
         if (!ServerScene.running()) return;
+        // a fresh audience holds nothing, so its first drain resets the client and sends the whole place
+        for (UUID player; (player = RESYNC.poll()) != null; ) AUDIENCES.remove(player);
         InstanceTree tree = ServerScene.tree();
         List<Change> batch = new ArrayList<>();
         RECORDER.follow(tree, batch::add);

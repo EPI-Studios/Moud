@@ -51,6 +51,7 @@ public final class Post {
         ServerChat.listen();
         ServerPrompts.listen();
         ServerPilot.listen();
+        Broadcast.listen();
     }
 
     // asked rather than stored, because a respawn hands out a new player and a stored id would be

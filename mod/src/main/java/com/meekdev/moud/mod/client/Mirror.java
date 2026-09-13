@@ -1,5 +1,8 @@
 package com.meekdev.moud.mod.client;
 
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import com.meekdev.moud.mod.transport.Packets;
+import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.net.replicate.Applier;
@@ -31,6 +34,8 @@ public final class Mirror {
 
     private static final Applier APPLIER = new Applier(Addons.classes());
 
+    private static boolean resyncing;
+
     private Mirror() {}
 
     public static Applier applier() {
@@ -46,7 +51,27 @@ public final class Mirror {
         for (int n = 0; n < ticks; n++) {
             byte[] packet = queue.poll();
             if (packet == null) return;
-            List<Change> batch = Codec.decode(packet, APPLIER.tree(), Addons.classes());
+            List<Change> batch;
+            try {
+                batch = Codec.decode(packet, APPLIER.tree(), Addons.classes());
+            } catch (RuntimeException broken) {
+                // a tick this copy cannot read means it has drifted from the server's: every tick after it
+                // would be read against the wrong tree too. the game keeps running, the queue is thrown away
+                // and the server is asked for the whole place again
+                if (!resyncing) {
+                    MoudMod.LOG.warn("the copy of the place drifted from the server's ({}), asking for all of it again",
+                            broken.getMessage());
+                    resyncing = true;
+                    if (ClientPlayNetworking.canSend(Packets.ResyncUp.TYPE)) ClientPlayNetworking.send(new Packets.ResyncUp());
+                }
+                queue.clear();
+                return;
+            }
+            if (resyncing) {
+                // until the server starts over, whatever still arrives was cut for the old copy
+                if (batch.isEmpty() || !(batch.getFirst() instanceof Change.Reset)) continue;
+                resyncing = false;
+            }
             for (int i = 0; i < batch.size(); i++) {
                 APPLIER.apply(batch.get(i));
                 also.accept(batch.get(i));

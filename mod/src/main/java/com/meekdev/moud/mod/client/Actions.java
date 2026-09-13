@@ -4,6 +4,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.InputAction;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.mod.MoudMod;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -71,22 +72,41 @@ public final class Actions {
         }
     }
 
-    // a letter or a digit names what is printed on the key, not where it sits: glfw's key codes are the
-    // positions of a us keyboard, so "m" read as a code was the comma on an azerty one and "q" was its a.
-    // the layout is asked what each printable key types, and asked again when a name is not found in case
-    // the player switched layouts
+    // a letter, digit or symbol names what the key types on this player's keyboard, whatever its layout:
+    // qwerty, azerty, qwertz, dvorak or anything else the system is set to. glfw's key codes are the
+    // positions of a us keyboard, so "m" read as a code was the comma on an azerty one. the system is asked
+    // what each printable key types, and asked again every couple of seconds so switching layouts mid game
+    // follows along
+    private static final int[] PRINTABLE = printable();
     private static final Map<Character, Integer> TYPED = new HashMap<>();
+    private static long typedAt;
+
+    private static int[] printable() {
+        int[] keys = new int[64];
+        int n = 0;
+        keys[n++] = GLFW.GLFW_KEY_APOSTROPHE;
+        for (int key = GLFW.GLFW_KEY_COMMA; key <= GLFW.GLFW_KEY_9; key++) keys[n++] = key;
+        keys[n++] = GLFW.GLFW_KEY_SEMICOLON;
+        keys[n++] = GLFW.GLFW_KEY_EQUAL;
+        for (int key = GLFW.GLFW_KEY_A; key <= GLFW.GLFW_KEY_RIGHT_BRACKET; key++) keys[n++] = key;
+        keys[n++] = GLFW.GLFW_KEY_GRAVE_ACCENT;
+        // the extra keys iso boards have, like the < next to the left shift on an azerty one
+        keys[n++] = GLFW.GLFW_KEY_WORLD_1;
+        keys[n++] = GLFW.GLFW_KEY_WORLD_2;
+        return Arrays.copyOf(keys, n);
+    }
 
     private static Integer typed(char c) {
-        char wanted = Character.toLowerCase(c);
-        Integer code = TYPED.get(wanted);
-        if (code != null) return code;
-        TYPED.clear();
-        for (int key = GLFW.GLFW_KEY_SPACE; key <= GLFW.GLFW_KEY_GRAVE_ACCENT; key++) {
-            String name = GLFW.glfwGetKeyName(key, 0);
-            if (name != null && name.length() == 1) TYPED.putIfAbsent(Character.toLowerCase(name.charAt(0)), key);
+        long now = System.nanoTime();
+        if (TYPED.isEmpty() || now - typedAt > 2_000_000_000L) {
+            typedAt = now;
+            TYPED.clear();
+            for (int key : PRINTABLE) {
+                String name = GLFW.glfwGetKeyName(key, 0);
+                if (name != null && name.length() == 1) TYPED.putIfAbsent(Character.toLowerCase(name.charAt(0)), key);
+            }
         }
-        return TYPED.get(wanted);
+        return TYPED.get(Character.toLowerCase(c));
     }
 
     // null when no action of that name exists, so input can fall back to the built in ones

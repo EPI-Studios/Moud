@@ -236,6 +236,20 @@ public final class Packets {
         }
     }
 
+    // a client whose copy of the tree no longer matches the server's, asking to be sent all of it again
+    public record ResyncUp() implements CustomPacketPayload {
+
+        public static final Type<ResyncUp> TYPE = named("resync_up");
+
+        public static final StreamCodec<FriendlyByteBuf, ResyncUp> CODEC = CustomPacketPayload.codec(
+                (m, out) -> {}, in -> new ResyncUp());
+
+        @Override
+        public Type<ResyncUp> type() {
+            return TYPE;
+        }
+    }
+
     // markup is longer than what it shows, and a place styling a line should not run out of room
     private static final int CHAT_TEXT = 16384;
 
@@ -259,5 +273,6 @@ public final class Packets {
         PayloadTypeRegistry.serverboundPlay().register(ChatUp.TYPE, ChatUp.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(PromptUp.TYPE, PromptUp.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(PilotUp.TYPE, PilotUp.CODEC.cast());
+        PayloadTypeRegistry.serverboundPlay().register(ResyncUp.TYPE, ResyncUp.CODEC.cast());
     }
 }
