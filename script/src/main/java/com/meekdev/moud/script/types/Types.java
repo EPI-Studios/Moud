@@ -561,6 +561,32 @@ public final class Types {
                   & ((position: Vector3) -> CFrame)
                   & ((from: Vector3, to: Vector3) -> CFrame)
 
+                declare class MixinCall
+                    returning: boolean
+                    cancelled: boolean
+                    function cancel(self, result: any?): ()
+                    function setReturn(self, value: any): ()
+                    function getReturn(self): any
+                    function getArg(self, index: number): any
+                    function setArg(self, index: number, value: any): ()
+                end
+
+                declare class Mixin
+                    methods: number
+                    function remove(self): ()
+                end
+
+                declare mixin: {
+                    inject: (className: string, method: string, at: "head" | "return",
+                        handler: (self: any, info: MixinCall, ...any) -> (), options: { descriptor: string?, params: number? }?) -> Mixin,
+                }
+
+                declare java: {
+                    class: (name: string) -> any,
+                    typeof: (value: any) -> string?,
+                    instanceOf: (value: any, className: string) -> boolean,
+                }
+
                 declare task: {
                     wait: (seconds: number?) -> number,
                     spawn: (handler: () -> ()) -> number,

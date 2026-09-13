@@ -31,6 +31,8 @@ import com.meekdev.moud.script.bind.Paths;
 import com.meekdev.moud.core.nav.Walkers;
 import com.meekdev.moud.script.bind.ZoneMethods;
 import com.meekdev.moud.script.bind.Callbacks;
+import com.meekdev.moud.script.bind.Mixins;
+import com.meekdev.moud.script.bind.Java;
 import com.meekdev.moud.script.bind.Chat;
 import com.meekdev.moud.script.bind.DebugBinding;
 import com.meekdev.moud.script.bind.Profiler;
@@ -115,6 +117,8 @@ public final class Vm implements ScriptEngine {
         Signals.install(state);
         Players.install(state);
         InstanceSignals.install(state, e -> onError.accept(e));
+        Java.install(state);
+        Mixins.install(state, e -> onError.accept(e));
         Callbacks.install(state, e -> onError.accept(e));
         Proxies.install(state, registry);
         SoundMethods.install(state);
@@ -366,6 +370,7 @@ public final class Vm implements ScriptEngine {
         // identity is a native pointer, and the next state may be handed the same one
         Remotes.forget(state);
         Callbacks.forget(state);
+        Mixins.forget(state);
         InstanceSignals.forget(state);
         Profiler.forget(state);
         Blocks.forget(state);

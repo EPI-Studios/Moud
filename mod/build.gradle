@@ -30,6 +30,9 @@ loom {
             runDir devRunRelative
             // luau reaches its native library through the ffm api, which is restricted by default
             vmArg '--enable-native-access=ALL-UNNAMED'
+            // mixin.inject attaches an agent to the game itself, which java only allows quietly when asked
+            vmArg '-XX:+EnableDynamicAgentLoading'
+            vmArg '-Djdk.attach.allowAttachSelf=true'
         }
     }
 }
@@ -92,6 +95,8 @@ dependencies {
     include project(':net')
     include 'org.recast4j:recast:1.5.12'
     include 'org.recast4j:detour:1.5.12'
+    include 'net.bytebuddy:byte-buddy:1.18.13'
+    include 'net.bytebuddy:byte-buddy-agent:1.18.13'
 }
 
 processResources {
