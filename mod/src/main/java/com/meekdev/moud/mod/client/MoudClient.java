@@ -5,6 +5,7 @@ import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.mod.adapter.render.Meshes;
 import com.meekdev.moud.mod.adapter.render.Parts;
+import com.meekdev.moud.mod.adapter.render.PostStack;
 import com.meekdev.moud.mod.adapter.render.SceneLights;
 import com.meekdev.moud.mod.adapter.render.Skins;
 import com.meekdev.moud.mod.adapter.audio.ResonaAudio;
@@ -29,6 +30,7 @@ public final class MoudClient implements ClientModInitializer {
         Editor.install();
         Parts.register();
         Meshes.register();
+        PostStack.register();
         frames();
         new Launch(MoudMod.features()).install();
         MoudMod.LOG.info("moud client ready");
@@ -52,6 +54,7 @@ public final class MoudClient implements ClientModInitializer {
             Ui.frame(partialTick);
             Sounds.frame(partialTick);
             SceneLights.frame(partialTick);
+            PostStack.frame();
             // every number behind this frame of your own body, while it is standing on something
             // that moves. it writes itself and stops, so there is nothing to turn on
             Trace.frame(partialTick);

@@ -31,6 +31,30 @@ import com.meekdev.moud.core.instance.Joint;
 import com.meekdev.moud.core.instance.Limb;
 import com.meekdev.moud.core.instance.MeshPart;
 import com.meekdev.moud.core.instance.AreaLight;
+import com.meekdev.moud.core.instance.PostEffect;
+import com.meekdev.moud.core.instance.ScreenEffect;
+import com.meekdev.moud.core.instance.BloomEffect;
+import com.meekdev.moud.core.instance.ColorGradeEffect;
+import com.meekdev.moud.core.instance.AmbientOcclusionEffect;
+import com.meekdev.moud.core.instance.GlobalIlluminationEffect;
+import com.meekdev.moud.core.instance.ReflectionEffect;
+import com.meekdev.moud.core.instance.AntiAliasingEffect;
+import com.meekdev.moud.core.instance.VolumetricEffect;
+import com.meekdev.moud.core.instance.ContactShadowEffect;
+import com.meekdev.moud.core.instance.ShadowQuality;
+import com.meekdev.moud.core.instance.VignetteEffect;
+import com.meekdev.moud.core.instance.ChromaticAberrationEffect;
+import com.meekdev.moud.core.instance.FilmGrainEffect;
+import com.meekdev.moud.core.instance.BlurEffect;
+import com.meekdev.moud.core.instance.DepthOfFieldEffect;
+import com.meekdev.moud.core.instance.MotionBlurEffect;
+import com.meekdev.moud.core.instance.PixelateEffect;
+import com.meekdev.moud.core.instance.PosterizeEffect;
+import com.meekdev.moud.core.instance.SharpenEffect;
+import com.meekdev.moud.core.instance.FogEffect;
+import com.meekdev.moud.core.instance.OutlineEffect;
+import com.meekdev.moud.core.instance.TonemapEffect;
+import com.meekdev.moud.core.instance.PostShader;
 import com.meekdev.moud.core.instance.Light;
 import com.meekdev.moud.core.instance.PointLight;
 import com.meekdev.moud.core.instance.SpotLight;
@@ -70,6 +94,53 @@ public final class Classes {
             ClassDef.of("Attachment", SPATIAL, Attachment.class, Attachment::new);
     public static final ClassDef<Limb> LIMB = ClassDef.of("Limb", PART, Limb.class, Limb::new);
     public static final ClassDef<MeshPart> MESH_PART = ClassDef.of("MeshPart", PART, MeshPart.class, MeshPart::new);
+
+    public static final ClassDef<PostEffect> POST_EFFECT = ClassDef.of("PostEffect", null, PostEffect.class, PostEffect::new);
+    public static final ClassDef<ScreenEffect> SCREEN_EFFECT = ClassDef.of("ScreenEffect", POST_EFFECT, ScreenEffect.class, ScreenEffect::new);
+    public static final ClassDef<BloomEffect> BLOOM_EFFECT =
+            ClassDef.of("BloomEffect", POST_EFFECT, BloomEffect.class, BloomEffect::new);
+    public static final ClassDef<ColorGradeEffect> COLOR_GRADE_EFFECT =
+            ClassDef.of("ColorGradeEffect", POST_EFFECT, ColorGradeEffect.class, ColorGradeEffect::new);
+    public static final ClassDef<AmbientOcclusionEffect> AMBIENT_OCCLUSION_EFFECT =
+            ClassDef.of("AmbientOcclusionEffect", POST_EFFECT, AmbientOcclusionEffect.class, AmbientOcclusionEffect::new);
+    public static final ClassDef<GlobalIlluminationEffect> GLOBAL_ILLUMINATION_EFFECT =
+            ClassDef.of("GlobalIlluminationEffect", POST_EFFECT, GlobalIlluminationEffect.class, GlobalIlluminationEffect::new);
+    public static final ClassDef<ReflectionEffect> REFLECTION_EFFECT =
+            ClassDef.of("ReflectionEffect", POST_EFFECT, ReflectionEffect.class, ReflectionEffect::new);
+    public static final ClassDef<AntiAliasingEffect> ANTI_ALIASING_EFFECT =
+            ClassDef.of("AntiAliasingEffect", POST_EFFECT, AntiAliasingEffect.class, AntiAliasingEffect::new);
+    public static final ClassDef<VolumetricEffect> VOLUMETRIC_EFFECT =
+            ClassDef.of("VolumetricEffect", POST_EFFECT, VolumetricEffect.class, VolumetricEffect::new);
+    public static final ClassDef<ContactShadowEffect> CONTACT_SHADOW_EFFECT =
+            ClassDef.of("ContactShadowEffect", POST_EFFECT, ContactShadowEffect.class, ContactShadowEffect::new);
+    public static final ClassDef<ShadowQuality> SHADOW_QUALITY =
+            ClassDef.of("ShadowQuality", POST_EFFECT, ShadowQuality.class, ShadowQuality::new);
+    public static final ClassDef<VignetteEffect> VIGNETTE_EFFECT =
+            ClassDef.of("VignetteEffect", SCREEN_EFFECT, VignetteEffect.class, VignetteEffect::new);
+    public static final ClassDef<ChromaticAberrationEffect> CHROMATIC_ABERRATION_EFFECT =
+            ClassDef.of("ChromaticAberrationEffect", SCREEN_EFFECT, ChromaticAberrationEffect.class, ChromaticAberrationEffect::new);
+    public static final ClassDef<FilmGrainEffect> FILM_GRAIN_EFFECT =
+            ClassDef.of("FilmGrainEffect", SCREEN_EFFECT, FilmGrainEffect.class, FilmGrainEffect::new);
+    public static final ClassDef<BlurEffect> BLUR_EFFECT =
+            ClassDef.of("BlurEffect", SCREEN_EFFECT, BlurEffect.class, BlurEffect::new);
+    public static final ClassDef<DepthOfFieldEffect> DEPTH_OF_FIELD_EFFECT =
+            ClassDef.of("DepthOfFieldEffect", SCREEN_EFFECT, DepthOfFieldEffect.class, DepthOfFieldEffect::new);
+    public static final ClassDef<MotionBlurEffect> MOTION_BLUR_EFFECT =
+            ClassDef.of("MotionBlurEffect", SCREEN_EFFECT, MotionBlurEffect.class, MotionBlurEffect::new);
+    public static final ClassDef<PixelateEffect> PIXELATE_EFFECT =
+            ClassDef.of("PixelateEffect", SCREEN_EFFECT, PixelateEffect.class, PixelateEffect::new);
+    public static final ClassDef<PosterizeEffect> POSTERIZE_EFFECT =
+            ClassDef.of("PosterizeEffect", SCREEN_EFFECT, PosterizeEffect.class, PosterizeEffect::new);
+    public static final ClassDef<SharpenEffect> SHARPEN_EFFECT =
+            ClassDef.of("SharpenEffect", SCREEN_EFFECT, SharpenEffect.class, SharpenEffect::new);
+    public static final ClassDef<FogEffect> FOG_EFFECT =
+            ClassDef.of("FogEffect", SCREEN_EFFECT, FogEffect.class, FogEffect::new);
+    public static final ClassDef<OutlineEffect> OUTLINE_EFFECT =
+            ClassDef.of("OutlineEffect", SCREEN_EFFECT, OutlineEffect.class, OutlineEffect::new);
+    public static final ClassDef<TonemapEffect> TONEMAP_EFFECT =
+            ClassDef.of("TonemapEffect", SCREEN_EFFECT, TonemapEffect.class, TonemapEffect::new);
+    public static final ClassDef<PostShader> POST_SHADER =
+            ClassDef.of("PostShader", SCREEN_EFFECT, PostShader.class, PostShader::new);
 
     public static final ClassDef<Light> LIGHT = ClassDef.of("Light", SPATIAL, Light.class, Light::new);
     public static final ClassDef<PointLight> POINT_LIGHT =
@@ -168,6 +239,30 @@ public final class Classes {
         r.register(ATTACHMENT);
         r.register(LIMB);
         r.register(MESH_PART);
+        r.register(POST_EFFECT);
+        r.register(SCREEN_EFFECT);
+        r.register(BLOOM_EFFECT);
+        r.register(COLOR_GRADE_EFFECT);
+        r.register(AMBIENT_OCCLUSION_EFFECT);
+        r.register(GLOBAL_ILLUMINATION_EFFECT);
+        r.register(REFLECTION_EFFECT);
+        r.register(ANTI_ALIASING_EFFECT);
+        r.register(VOLUMETRIC_EFFECT);
+        r.register(CONTACT_SHADOW_EFFECT);
+        r.register(SHADOW_QUALITY);
+        r.register(VIGNETTE_EFFECT);
+        r.register(CHROMATIC_ABERRATION_EFFECT);
+        r.register(FILM_GRAIN_EFFECT);
+        r.register(BLUR_EFFECT);
+        r.register(DEPTH_OF_FIELD_EFFECT);
+        r.register(MOTION_BLUR_EFFECT);
+        r.register(PIXELATE_EFFECT);
+        r.register(POSTERIZE_EFFECT);
+        r.register(SHARPEN_EFFECT);
+        r.register(FOG_EFFECT);
+        r.register(OUTLINE_EFFECT);
+        r.register(TONEMAP_EFFECT);
+        r.register(POST_SHADER);
         r.register(LIGHT);
         r.register(POINT_LIGHT);
         r.register(SPOT_LIGHT);
