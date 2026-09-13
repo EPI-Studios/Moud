@@ -1,50 +1,148 @@
 const world = game.world
 const turn = 6.283185307179586
+const centre = vec3(0, 64, 0)
 
-world:add("Part", {
-    name = "floor",
-    size = vec3(40, 1, 40),
-    position = vec3(0, 63.5, 0),
-    color = color(0.18, 0.2, 0.24),
-})
+world:add("BloomEffect", {intensity = 1.6, threshold = 0.55, size = 7})
+world:add("ColorGradeEffect", {exposure = 1.1, contrast = 1.15, saturation = 1.35, temperature = -0.15})
+world:add("VignetteEffect", {intensity = 0.55, radius = 0.7})
 
-const ring = world:add("Folder", {name = "ring"})
-const cubes = {}
-for i in 0..8 do
-    const angle = i / 8 * turn
-    const cube = ring:add("Part", {
-        name = "cube" ~ i,
-        size = vec3(1, 1, 1),
-        position = vec3(math.cos(angle) * 6, 66, math.sin(angle) * 6),
-        color = color(0.95, 0.35 + i * 0.07, 0.2),
-    })
-    cubes:push(cube)
+fn hue(t) do
+    const a = t * turn
+    color(0.5 + 0.5 * math.cos(a), 0.5 + 0.5 * math.cos(a - 2.094), 0.5 + 0.5 * math.cos(a + 2.094))
 end
 
-let spin = 0
+world:add("Part", {
+    name = "ground",
+    size = vec3(24, 1, 24),
+    position = centre:add(vec3(0, -0.2, 0)),
+    color = color(0.02, 0.02, 0.04),
+    transparency = 1,
+})
+
+const tiles = {}
+const half = 10
+for gx in 0..half * 2 do
+    for gz in 0..half * 2 do
+        const x = gx - half
+        const z = gz - half
+        const distance = math.sqrt(x * x + z * z)
+        const tile = world:add("Part", {
+            name = "tile",
+            size = vec3(0.92, 0.4, 0.92),
+            position = centre:add(vec3(x, 0, z)),
+            color = color(0.05, 0.07, 0.12),
+            collides = :false,
+        })
+        tile:tween({position = centre:add(vec3(x, 0.6, z))}, {
+            time = 1.4,
+            easing = "sine",
+            direction = "inOut",
+            repeats = -1,
+            reverses = :true,
+            delay = distance * 0.12,
+        })
+        tiles:push({part = tile, distance = distance})
+    end
+end
+
+const core = world:add("Part", {
+    name = "core",
+    size = vec3(2.4, 2.4, 2.4),
+    position = centre:add(vec3(0, 7, 0)),
+    color = color(1, 0.55, 0.15),
+    collides = :false,
+})
+core:tween({size = vec3(3.2, 3.2, 3.2)}, {time = 0.6, easing = "sine", direction = "inOut", repeats = -1, reverses = :true})
+
+const glow = world:add("PointLight", {
+    position = centre:add(vec3(0, 7, 0)),
+    color = color(1, 0.6, 0.25),
+    brightness = 6,
+    range = 28,
+})
+glow:tween({brightness = 12}, {time = 0.6, easing = "sine", direction = "inOut", repeats = -1, reverses = :true})
+
+const rings = {}
+for r in 0..3 do
+    const radius = 3.5 + r * 1.6
+    const pivot = world:add("Spatial", {name = "ring" ~ r, position = centre:add(vec3(0, 7, 0))})
+    const count = 14 + r * 6
+    for i in 0..count do
+        const angle = i / count * turn
+        pivot:add("Part", {
+            name = "shard",
+            size = vec3(0.45, 0.45, 0.45),
+            position = centre:add(vec3(math.cos(angle) * radius, 7, math.sin(angle) * radius)),
+            color = hue(r / 3 + i / count * 0.3),
+            collides = :false,
+        })
+    end
+    rings:push({pivot = pivot, speed = 0.7 - r * 0.25, tilt = 0.35 + r * 0.45})
+end
+
+for p in 0..6 do
+    const angle = p / 6 * turn
+    const at = centre:add(vec3(math.cos(angle) * 14, 0, math.sin(angle) * 14))
+    const tint = hue(p / 6)
+    world:add("Part", {
+        name = "pylon",
+        size = vec3(0.6, 9, 0.6),
+        position = at:add(vec3(0, 4.5, 0)),
+        color = tint,
+    })
+    const light = world:add("PointLight", {
+        position = at:add(vec3(0, 9.5, 0)),
+        color = tint,
+        brightness = 3,
+        range = 16,
+    })
+    light:tween({brightness = 8}, {time = 1.1, easing = "quad", direction = "inOut", repeats = -1, reverses = :true, delay = p * 0.18})
+end
+
+let clock = 0
 game.stepped:connect(fn(dt) do
-    spin += dt
-    for i in 0..len(cubes) do
-        const angle = i / len(cubes) * turn + spin
-        cubes[i].position = vec3(math.cos(angle) * 6, 66 + math.sin(spin * 2 + i) * 0.5, math.sin(angle) * 6)
+    clock += dt
+    for i in 0..len(rings) do
+        const ring = rings[i]
+        ring.pivot.rotation = quat.euler(ring.tilt * math.sin(clock * 0.4 + i), clock * ring.speed, ring.tilt)
     end
 end)
 
-const beacon = world:add("Part", {
-    name = "beacon",
-    size = vec3(2, 2, 2),
-    position = vec3(0, 66, 0),
-    color = color(0.3, 0.8, 1),
-})
-
-task.every(2, fn() do
-    const lifted = beacon.position:add(vec3(0, 2, 0))
-    beacon:tween({position = lifted}, {time = 1, easing = "sine", reverses = :true})
+let wave = 0
+task.every(3.5, fn() do
+    wave += 1
+    const tint = hue(wave * 0.17)
+    for i in 0..len(tiles) do
+        const tile = tiles[i]
+        tile.part:tween({color = tint}, {time = 0.35, easing = "quad", direction = "out", delay = tile.distance * 0.05})
+        tile.part:tween({color = color(0.05, 0.07, 0.12)}, {time = 1.2, easing = "quad", direction = "in", delay = tile.distance * 0.05 + 0.4})
+    end
+    core.color = tint
 end)
+
+fn fade_out(part, seconds) task.delay(seconds, fn() part:destroy())
+
+fn fireworks(at) do
+    for i in 0..40 do
+        const direction = random.unit()
+        const spark = world:add("Part", {
+            name = "spark",
+            size = vec3(0.3, 0.3, 0.3),
+            position = at,
+            color = hue(i / 40),
+            collides = :false,
+        })
+        spark:tween({position = at:add(direction:mul(random.range(4, 9))), transparency = 1}, {time = 1.6, easing = "expo", direction = "out"})
+        fade_out(spark, 1.7)
+    end
+end
 
 game.players.joined:connect(fn(player) do
     print("revo sees " ~ player.name ~ " join")
-    player:spawn(vec3(0, 66, 10))
+    player:spawn(centre:add(vec3(0, 2, 9)))
+    fireworks(centre:add(vec3(0, 9, 0)))
 end)
 
-print("revo place running with " ~ len(ring:children()) ~ " cubes")
+task.every(6, fn() fireworks(centre:add(vec3(random.range(-8, 8), random.range(10, 14), random.range(-8, 8)))))
+
+print("revo place running with " ~ len(tiles) ~ " tiles and " ~ len(rings) ~ " rings")
