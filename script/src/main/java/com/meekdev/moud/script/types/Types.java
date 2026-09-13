@@ -117,6 +117,11 @@ public final class Types {
                     joined: PlayerSignal
                     leaving: PlayerSignal
                     function me(self): Instance?
+                    function all(self): { Instance }
+                    function near(self, position: Vector3, radius: number, except: Instance?): { Instance }
+                    function nearest(self, position: Vector3, radius: number?, except: Instance?): (Instance?, number?)
+                    function bodyOf(self, player: string): Instance?
+                    function count(self): number
                 end
 
                 """);

@@ -1,6 +1,7 @@
 package com.meekdev.moud.script.api;
 
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.script.bind.PlayerQueries;
 import com.meekdev.moud.script.bind.Proxies;
 import com.meekdev.moud.script.bind.Signals;
 import net.hollowcube.luau.LuaState;
@@ -50,6 +51,7 @@ public final class Game {
         state.rawSetField(-2, "joined");
         Signals.push(state, leaving);
         state.rawSetField(-2, "leaving");
+        PlayerQueries.install(state, world);
         state.rawSetField(-2, "players");
         // a plain table the place owns, carried across a reload as data
         state.newTable();
