@@ -36,15 +36,17 @@ public final class Cameras {
             tracedFov = camera.fov;
             MoudMod.LOG.info("TRACE camera fov {} mode {} amnetic fov now {}", camera.fov, camera.mode, AmneticCamera.fov());
         }
-        if (camera.fov > 0) {
-            AmneticCamera.setFov((float) camera.fov);
-        } else {
-            AmneticCamera.clearFov();
-        }
         switch (camera.mode) {
             case SCRIPTABLE -> hold(camera);
             case FIRST_PERSON -> first(camera, player, partialTick);
             case THIRD_PERSON -> third(camera, player, partialTick);
+        }
+        // after the pose: clearing a pose clears the lens held with it, and first person clears one every
+        // frame, so a fov written before it was gone before anything drew with it
+        if (camera.fov > 0) {
+            AmneticCamera.setFov((float) camera.fov);
+        } else {
+            AmneticCamera.clearFov();
         }
     }
 
