@@ -24,6 +24,7 @@ import com.meekdev.moud.script.bind.Inputs;
 import com.meekdev.moud.script.bind.Players;
 import com.meekdev.moud.script.bind.Proxies;
 import com.meekdev.moud.script.bind.BodyMethods;
+import com.meekdev.moud.script.bind.WorldMethods;
 import com.meekdev.moud.script.bind.Callbacks;
 import com.meekdev.moud.script.bind.Chat;
 import com.meekdev.moud.script.bind.History;
@@ -99,6 +100,7 @@ public final class Vm implements ScriptEngine {
         Proxies.install(state, registry);
         SoundMethods.install(state);
         BodyMethods.install(state, world);
+        WorldMethods.install(state);
         TweenMethods.install(state, tweens, e -> onError.accept(e));
         game.install(state, world);
         tags = new Tags(state, world.tree(), e -> onError.accept(e));
@@ -266,6 +268,7 @@ public final class Vm implements ScriptEngine {
         if (scripts != null) scripts.poll(world.tree());
         if (!client) stepTweens(dt);
         scheduler.advance(dt);
+        Blocks.drain(state, onError);
         fire(game.stepped(), dt);
     }
 
@@ -273,6 +276,7 @@ public final class Vm implements ScriptEngine {
         if (scripts != null && client) scripts.poll(world.tree());
         // per frame on a client, so a tween is as smooth as the screen
         if (client) stepTweens(dt);
+        if (client) Blocks.drain(state, onError);
         if (audio != null) audio.drainBeats(n -> fire(beat, n), n -> fire(bar, n));
         fire(game.renderStepped(), dt);
     }
@@ -322,6 +326,7 @@ public final class Vm implements ScriptEngine {
         // identity is a native pointer, and the next state may be handed the same one
         Remotes.forget(state);
         Callbacks.forget(state);
+        Blocks.forget(state);
         if (scripts != null) scripts.stopAll();
         Ownership.forget(state);
         if (tags != null) tags.close();

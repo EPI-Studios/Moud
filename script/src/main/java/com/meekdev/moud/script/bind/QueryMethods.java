@@ -173,6 +173,14 @@ final class QueryMethods {
         return list(state, shape(Queries.inPart(root, part, params.filter()), Transforms.world(part).position(), params));
     }
 
+    static int pushCast(LuaState state, Queries.Cast hit) {
+        return push(state, hit);
+    }
+
+    static Queries.Filter filter(LuaState state, int at, Instance root) {
+        return params(state, at, root).filter();
+    }
+
     private static int push(LuaState state, Queries.Cast hit) {
         if (hit == null) {
             state.pushNil();
@@ -185,7 +193,7 @@ final class QueryMethods {
         return 4;
     }
 
-    private static int list(LuaState state, List<Part> parts) {
+    static int list(LuaState state, List<Part> parts) {
         state.createTable(parts.size(), 0);
         for (int n = 0; n < parts.size(); n++) {
             Proxies.push(state, parts.get(n));

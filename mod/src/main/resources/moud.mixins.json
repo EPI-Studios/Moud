@@ -16,6 +16,7 @@
     "storage.RegionIoMixin",
     "storage.SavedDataMixin",
     "world.AmbientLightMixin",
+    "world.BlockChangeMixin",
     "world.BlockEntitiesMixin",
     "world.BlocksMixin",
     "world.DropsMixin",

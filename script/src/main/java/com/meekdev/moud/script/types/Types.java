@@ -173,6 +173,17 @@ public final class Types {
                     function partsInPart(self, part: Instance, options: QueryOptions?): { Instance }
                     function raycastAll(self, from: Vector3, direction: Vector3, range: number?, options: QueryOptions?): { RayHit }
                     function raycastMany(self, rays: { { any } }, options: QueryOptions?): { RayHit | false }
+                    function nearestPart(self, position: Vector3, radius: number, options: QueryOptions?): (Instance?, number?)
+                    function nearestTagged(self, position: Vector3, tag: string, radius: number?): (Instance?, number?)
+                    function partsAlongRay(self, from: Vector3, direction: Vector3, range: number?, options: QueryOptions?): { RayHit }
+                    function capsulecast(self, from: Vector3, to: Vector3, radius: number, options: QueryOptions?): (Instance?, Vector3?, number?, Vector3?)
+                    function sweep(self, part: Instance, direction: Vector3, distance: number, options: QueryOptions?): (Instance?, Vector3?, number?, Vector3?)
+                    function partsAtPoint(self, position: Vector3, options: QueryOptions?): { Instance }
+                    function boundsOf(self, instances: { Instance }): (CFrame?, Vector3?)
+                    function groundAt(self, x: number, z: number, from: number?, options: QueryOptions?): (number?, Vector3?)
+                    function surfaceNormal(self, position: Vector3, options: QueryOptions?): Vector3?
+                    function heightmap(self, from: Vector3, to: Vector3, step: number?, options: QueryOptions?): { { number } }
+                    function findFreeSpot(self, near: Vector3, size: Vector3, radius: number?): Vector3?
                     function destroy(self): ()
                     function setOwner(self, to: Instance?): ()
                     function addTag(self, tag: string): ()
@@ -196,6 +207,28 @@ public final class Types {
                     function get(self, at: Vector3): string
                     function set(self, at: Vector3, block: string): ()
                     function fill(self, from: Vector3, to: Vector3, block: string): number
+                    function raycast(self, from: Vector3, direction: Vector3, range: number?, options: { fluids: boolean? }?): (string?, Vector3?, number?, Vector3?)
+                    function isSolid(self, at: Vector3): boolean
+                    function isAir(self, at: Vector3): boolean
+                    function isFluid(self, at: Vector3): boolean
+                    function lightAt(self, at: Vector3): number
+                    function topAt(self, x: number, z: number): number
+                    function find(self, block: string, centre: Vector3, radius: number, limit: number?): { Vector3 }
+                    function count(self, block: string, from: Vector3, to: Vector3): number
+                    function replace(self, from: string, to: string, a: Vector3, b: Vector3): number
+                    function sphere(self, centre: Vector3, radius: number, block: string, hollow: boolean?): number
+                    function cylinder(self, base: Vector3, radius: number, height: number, block: string, hollow: boolean?): number
+                    function line(self, from: Vector3, to: Vector3, block: string): number
+                    function hollowBox(self, from: Vector3, to: Vector3, block: string): number
+                    function copy(self, from: Vector3, to: Vector3): BlockCopy
+                    function paste(self, copy: BlockCopy, at: Vector3, quarterTurns: number?, skipAir: boolean?): number
+                    changed: BlockChangedSignal
+                end
+
+                type BlockCopy = { size: Vector3, palette: { string }, blocks: { number } }
+
+                declare class BlockChangedSignal
+                    function connect(self, handler: (at: Vector3, block: string) -> ()): Connection
                 end
 
                 declare class Tags
@@ -456,6 +489,13 @@ public final class Types {
                         function isMoving(self): boolean
                         function lookDirection(self): Vector3
                         function facing(self, other: Instance, maxAngle: number?): boolean
+                    """;
+            case "Part" -> """
+                        function overlapping(self, options: QueryOptions?): { Instance }
+                        function closestPoint(self, position: Vector3): Vector3
+                        function contains(self, position: Vector3): boolean
+                        function bounds(self): (CFrame, Vector3)
+                        function worldBounds(self): (Vector3, Vector3)
                     """;
             case "Sound" -> """
                         function play(self): ()

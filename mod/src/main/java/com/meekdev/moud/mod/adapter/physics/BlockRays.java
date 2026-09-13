@@ -2,6 +2,9 @@ package com.meekdev.moud.mod.adapter.physics;
 
 import com.meekdev.moud.core.math.Vec3;
 import com.meekdev.moud.script.api.BlockRef;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.Block;
@@ -12,6 +15,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -30,12 +35,17 @@ public final class BlockRays implements BlockRef {
 
     @Override
     public @Nullable Hit raycast(Vec3 from, Vec3 direction, double range) {
+        return raycast(from, direction, range, false);
+    }
+
+    @Override
+    public @Nullable Hit raycast(Vec3 from, Vec3 direction, double range, boolean fluids) {
         Level in = level.get();
         if (in == null || range <= 0 || direction.lengthSq() < 1e-24) return null;
         Vec3 way = direction.normalize();
         Vec3 to = from.add(way.mul(range));
         BlockHitResult hit = in.clip(new ClipContext(vec(from), vec(to), ClipContext.Block.COLLIDER,
-                ClipContext.Fluid.NONE, CollisionContext.empty()));
+                fluids ? ClipContext.Fluid.ANY : ClipContext.Fluid.NONE, CollisionContext.empty()));
         if (hit.getType() == HitResult.Type.MISS || hit.isInside()) return null;
         net.minecraft.world.phys.Vec3 at = hit.getLocation();
         Direction face = hit.getDirection();
@@ -78,6 +88,70 @@ public final class BlockRays implements BlockRef {
             }
         }
         return count;
+    }
+
+    @Override
+    public String id(int x, int y, int z) {
+        Level in = level.get();
+        return in == null ? "minecraft:air" : BuiltInRegistries.BLOCK.getKey(in.getBlockState(new BlockPos(x, y, z)).getBlock()).toString();
+    }
+
+    @Override
+    public boolean solid(int x, int y, int z) {
+        Level in = level.get();
+        return in != null && in.getBlockState(new BlockPos(x, y, z)).blocksMotion();
+    }
+
+    @Override
+    public boolean air(int x, int y, int z) {
+        Level in = level.get();
+        return in == null || in.getBlockState(new BlockPos(x, y, z)).isAir();
+    }
+
+    @Override
+    public boolean fluid(int x, int y, int z) {
+        Level in = level.get();
+        return in != null && !in.getFluidState(new BlockPos(x, y, z)).isEmpty();
+    }
+
+    @Override
+    public int light(int x, int y, int z) {
+        Level in = level.get();
+        return in == null ? 15 : in.getMaxLocalRawBrightness(new BlockPos(x, y, z));
+    }
+
+    @Override
+    public int top(int x, int z) {
+        Level in = level.get();
+        return in == null ? -64 : in.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z) - 1;
+    }
+
+    @Override
+    public String rotate(String block, int quarterTurns) {
+        Rotation turn = switch (Math.floorMod(quarterTurns, 4)) {
+            case 1 -> Rotation.CLOCKWISE_90;
+            case 2 -> Rotation.CLOCKWISE_180;
+            case 3 -> Rotation.COUNTERCLOCKWISE_90;
+            default -> Rotation.NONE;
+        };
+        return BlockStateParser.serialize(parse(block).rotate(turn));
+    }
+
+    // what the level mixin heard, per side, drained by that side's place
+    public static final Queue<Change> SERVER_CHANGES = new ConcurrentLinkedQueue<>();
+    public static final Queue<Change> CLIENT_CHANGES = new ConcurrentLinkedQueue<>();
+
+    @Override
+    public void drainChanges(Consumer<Change> out) {
+        Queue<Change> queue = writable ? SERVER_CHANGES : CLIENT_CHANGES;
+        for (Change change; (change = queue.poll()) != null; ) out.accept(change);
+    }
+
+    public static void heard(Level in, BlockPos pos, BlockState state) {
+        Queue<Change> queue = in.isClientSide() ? CLIENT_CHANGES : SERVER_CHANGES;
+        // a place that never listens should not grow a queue forever
+        if (queue.size() > 100_000) queue.poll();
+        queue.add(new Change(pos.getX(), pos.getY(), pos.getZ(), BlockStateParser.serialize(state)));
     }
 
     private static BlockState parse(String block) {

@@ -1,5 +1,12 @@
 package com.meekdev.moud.script.bind;
 
+import net.hollowcube.luau.LuaType;
+import com.meekdev.moud.script.err.ScriptError;
+import java.util.function.Consumer;
+import java.util.Map;
+import java.util.List;
+import java.util.HashMap;
+import java.util.ArrayList;
 import com.meekdev.moud.core.math.Vec3;
 import com.meekdev.moud.script.api.BlockRef;
 import java.util.function.ToIntFunction;
@@ -47,8 +54,322 @@ public final class Blocks {
             }
             return 1;
         });
+        function(state, "raycast", s -> {
+            Vec3 from = Values.vec3(s, 2);
+            Vec3 direction = Values.vec3(s, 3);
+            double range = s.isNoneOrNil(4) ? 100 : s.checkNumber(4);
+            boolean fluids = false;
+            if (s.type(5) == LuaType.TABLE) {
+                s.getField(5, "fluids");
+                fluids = s.toBoolean(-1);
+                s.pop(1);
+            }
+            BlockRef.Hit hit = blocks.raycast(from, direction, range, fluids);
+            if (hit == null) {
+                s.pushNil();
+                return 1;
+            }
+            s.pushString(hit.block());
+            Values.push(s, hit.at());
+            s.pushNumber(hit.distance());
+            Values.push(s, hit.normal());
+            return 4;
+        });
+        function(state, "isSolid", s -> at(s, blocks::solid));
+        function(state, "isAir", s -> at(s, blocks::air));
+        function(state, "isFluid", s -> at(s, blocks::fluid));
+        function(state, "lightAt", s -> {
+            Vec3 at = Values.vec3(s, 2);
+            s.pushNumber(blocks.light(floor(at.x()), floor(at.y()), floor(at.z())));
+            return 1;
+        });
+        function(state, "topAt", s -> {
+            s.pushNumber(blocks.top(floor(s.checkNumber(2)), floor(s.checkNumber(3))));
+            return 1;
+        });
+        // every block of a kind within radius, nearest first, as block centres
+        function(state, "find", s -> {
+            String id = s.checkString(2);
+            Vec3 centre = Values.vec3(s, 3);
+            int radius = (int) Math.ceil(s.checkNumber(4));
+            int limit = s.isNoneOrNil(5) ? Integer.MAX_VALUE : (int) s.checkNumber(5);
+            if (radius > 64) throw s.error("find reaches at most 64 blocks, and %d was asked", radius);
+            List<Vec3> found = new ArrayList<>();
+            int cx = floor(centre.x()), cy = floor(centre.y()), cz = floor(centre.z());
+            for (int x = cx - radius; x <= cx + radius; x++) {
+                for (int y = cy - radius; y <= cy + radius; y++) {
+                    for (int z = cz - radius; z <= cz + radius; z++) {
+                        Vec3 middle = new Vec3(x + 0.5, y + 0.5, z + 0.5);
+                        if (middle.sub(centre).lengthSq() > (double) radius * radius) continue;
+                        if (blocks.id(x, y, z).equals(id) || blocks.get(x, y, z).equals(id)) found.add(middle);
+                    }
+                }
+            }
+            found.sort((a, b) -> Double.compare(a.sub(centre).lengthSq(), b.sub(centre).lengthSq()));
+            s.createTable(Math.min(found.size(), limit), 0);
+            for (int n = 0; n < found.size() && n < limit; n++) {
+                Values.push(s, found.get(n));
+                s.rawSetI(-2, n + 1);
+            }
+            return 1;
+        });
+        function(state, "count", s -> {
+            String id = s.checkString(2);
+            int[] box = box(s, 3, 4);
+            long count = 0;
+            for (int x = box[0]; x <= box[3]; x++) {
+                for (int y = box[1]; y <= box[4]; y++) {
+                    for (int z = box[2]; z <= box[5]; z++) {
+                        if (blocks.id(x, y, z).equals(id) || blocks.get(x, y, z).equals(id)) count++;
+                    }
+                }
+            }
+            s.pushNumber(count);
+            return 1;
+        });
+        function(state, "replace", s -> {
+            writable(s, blocks);
+            String from = s.checkString(2);
+            String to = s.checkString(3);
+            int[] box = box(s, 4, 5);
+            long count = 0;
+            for (int x = box[0]; x <= box[3]; x++) {
+                for (int y = box[1]; y <= box[4]; y++) {
+                    for (int z = box[2]; z <= box[5]; z++) {
+                        if (!blocks.id(x, y, z).equals(from) && !blocks.get(x, y, z).equals(from)) continue;
+                        set(s, blocks, x, y, z, to);
+                        count++;
+                    }
+                }
+            }
+            s.pushNumber(count);
+            return 1;
+        });
+        function(state, "sphere", s -> {
+            writable(s, blocks);
+            Vec3 centre = Values.vec3(s, 2);
+            double radius = s.checkNumber(3);
+            String block = s.checkString(4);
+            boolean hollow = s.toBoolean(5);
+            int r = (int) Math.ceil(radius);
+            long count = 0;
+            int cx = floor(centre.x()), cy = floor(centre.y()), cz = floor(centre.z());
+            for (int x = -r; x <= r; x++) {
+                for (int y = -r; y <= r; y++) {
+                    for (int z = -r; z <= r; z++) {
+                        double d = Math.sqrt(x * x + y * y + z * z);
+                        if (d > radius || hollow && d < radius - 1) continue;
+                        set(s, blocks, cx + x, cy + y, cz + z, block);
+                        count++;
+                    }
+                }
+            }
+            s.pushNumber(count);
+            return 1;
+        });
+        function(state, "cylinder", s -> {
+            writable(s, blocks);
+            Vec3 base = Values.vec3(s, 2);
+            double radius = s.checkNumber(3);
+            int height = (int) s.checkNumber(4);
+            String block = s.checkString(5);
+            boolean hollow = s.toBoolean(6);
+            int r = (int) Math.ceil(radius);
+            long count = 0;
+            int cx = floor(base.x()), cy = floor(base.y()), cz = floor(base.z());
+            for (int y = 0; y < height; y++) {
+                for (int x = -r; x <= r; x++) {
+                    for (int z = -r; z <= r; z++) {
+                        double d = Math.sqrt(x * x + z * z);
+                        if (d > radius || hollow && d < radius - 1) continue;
+                        set(s, blocks, cx + x, cy + y, cz + z, block);
+                        count++;
+                    }
+                }
+            }
+            s.pushNumber(count);
+            return 1;
+        });
+        function(state, "line", s -> {
+            writable(s, blocks);
+            Vec3 a = Values.vec3(s, 2);
+            Vec3 b = Values.vec3(s, 3);
+            String block = s.checkString(4);
+            int steps = (int) Math.ceil(Math.max(Math.abs(b.x() - a.x()), Math.max(Math.abs(b.y() - a.y()), Math.abs(b.z() - a.z()))));
+            long count = 0;
+            int lx = Integer.MIN_VALUE, ly = 0, lz = 0;
+            for (int n = 0; n <= steps; n++) {
+                Vec3 at = steps == 0 ? a : a.lerp(b, (double) n / steps);
+                int x = floor(at.x()), y = floor(at.y()), z = floor(at.z());
+                if (x == lx && y == ly && z == lz) continue;
+                set(s, blocks, x, y, z, block);
+                lx = x;
+                ly = y;
+                lz = z;
+                count++;
+            }
+            s.pushNumber(count);
+            return 1;
+        });
+        function(state, "hollowBox", s -> {
+            writable(s, blocks);
+            int[] box = box(s, 2, 3);
+            String block = s.checkString(4);
+            long count = 0;
+            for (int x = box[0]; x <= box[3]; x++) {
+                for (int y = box[1]; y <= box[4]; y++) {
+                    for (int z = box[2]; z <= box[5]; z++) {
+                        boolean edge = x == box[0] || x == box[3] || y == box[1] || y == box[4] || z == box[2] || z == box[5];
+                        if (!edge) continue;
+                        set(s, blocks, x, y, z, block);
+                        count++;
+                    }
+                }
+            }
+            s.pushNumber(count);
+            return 1;
+        });
+        // a box of blocks as data: { size = vec3, palette = { "minecraft:stone", ... }, blocks = { 1, 2, 1, ... } }
+        function(state, "copy", s -> {
+            int[] box = box(s, 2, 3);
+            List<String> palette = new ArrayList<>();
+            Map<String, Integer> index = new HashMap<>();
+            List<Integer> cells = new ArrayList<>();
+            for (int y = box[1]; y <= box[4]; y++) {
+                for (int z = box[2]; z <= box[5]; z++) {
+                    for (int x = box[0]; x <= box[3]; x++) {
+                        String block = blocks.get(x, y, z);
+                        Integer at = index.get(block);
+                        if (at == null) {
+                            palette.add(block);
+                            at = palette.size();
+                            index.put(block, at);
+                        }
+                        cells.add(at);
+                    }
+                }
+            }
+            s.createTable(0, 3);
+            Values.push(s, new Vec3(box[3] - box[0] + 1, box[4] - box[1] + 1, box[5] - box[2] + 1));
+            s.rawSetField(-2, "size");
+            s.createTable(palette.size(), 0);
+            for (int n = 0; n < palette.size(); n++) {
+                s.pushString(palette.get(n));
+                s.rawSetI(-2, n + 1);
+            }
+            s.rawSetField(-2, "palette");
+            s.createTable(cells.size(), 0);
+            for (int n = 0; n < cells.size(); n++) {
+                s.pushNumber(cells.get(n));
+                s.rawSetI(-2, n + 1);
+            }
+            s.rawSetField(-2, "blocks");
+            return 1;
+        });
+        // a copy put down with its lowest corner at position, turned by quarter turns about up. air is
+        // pasted too unless skipAir is set
+        function(state, "paste", s -> {
+            writable(s, blocks);
+            if (s.type(2) != LuaType.TABLE) throw s.error("paste wants what copy returned");
+            Vec3 at = Values.vec3(s, 3);
+            int turns = s.isNoneOrNil(4) ? 0 : (int) s.checkNumber(4);
+            boolean skipAir = s.toBoolean(5);
+            s.getField(2, "size");
+            Vec3 size = Values.vec3(s, -1);
+            s.pop(1);
+            s.getField(2, "palette");
+            int paletteAt = s.top();
+            List<String> palette = new ArrayList<>();
+            for (int n = 1; n <= s.len(paletteAt); n++) {
+                s.rawGetI(paletteAt, n);
+                palette.add(blocks.rotate(s.toString(-1), turns));
+                s.pop(1);
+            }
+            s.pop(1);
+            s.getField(2, "blocks");
+            int cellsAt = s.top();
+            int sx = (int) size.x(), sy = (int) size.y(), sz = (int) size.z();
+            int ox = floor(at.x()), oy = floor(at.y()), oz = floor(at.z());
+            long count = 0;
+            int n = 1;
+            for (int y = 0; y < sy; y++) {
+                for (int z = 0; z < sz; z++) {
+                    for (int x = 0; x < sx; x++, n++) {
+                        s.rawGetI(cellsAt, n);
+                        int cell = (int) s.toNumber(-1);
+                        s.pop(1);
+                        if (cell < 1 || cell > palette.size()) continue;
+                        String block = palette.get(cell - 1);
+                        if (skipAir && block.startsWith("minecraft:air")) continue;
+                        int rx, rz;
+                        switch (Math.floorMod(turns, 4)) {
+                            case 1 -> { rx = sz - 1 - z; rz = x; }
+                            case 2 -> { rx = sx - 1 - x; rz = sz - 1 - z; }
+                            case 3 -> { rx = z; rz = sx - 1 - x; }
+                            default -> { rx = x; rz = z; }
+                        }
+                        set(s, blocks, ox + rx, oy + y, oz + rz, block);
+                        count++;
+                    }
+                }
+            }
+            s.pop(1);
+            s.pushNumber(count);
+            return 1;
+        });
+        Signals.Handlers changed = new Signals.Handlers();
+        CHANGED.put(state.mainThread(), new Watch(blocks, changed));
+        Signals.push(state, changed);
+        state.rawSetField(-2, "changed");
         state.rawSetField(-2, "blocks");
         state.pop(1);
+    }
+
+    private record Watch(BlockRef blocks, Signals.Handlers changed) {}
+
+    private static final Map<LuaState, Watch> CHANGED = new HashMap<>();
+
+    // fires changed for each block that changed since the last tick
+    public static void drain(LuaState state, Consumer<ScriptError> onError) {
+        Watch watch = CHANGED.get(state.mainThread());
+        if (watch == null) return;
+        watch.blocks().drainChanges(change -> Signals.fire(state, watch.changed(), onError, s -> {
+            Values.push(s, new Vec3(change.x(), change.y(), change.z()));
+            s.pushString(change.block());
+            return 2;
+        }));
+    }
+
+    public static void forget(LuaState state) {
+        CHANGED.remove(state.mainThread());
+    }
+
+    private interface Test {
+        boolean at(int x, int y, int z);
+    }
+
+    private static int at(LuaState s, Test test) {
+        Vec3 at = Values.vec3(s, 2);
+        s.pushBoolean(test.at(floor(at.x()), floor(at.y()), floor(at.z())));
+        return 1;
+    }
+
+    private static int[] box(LuaState s, int first, int second) {
+        Vec3 a = Values.vec3(s, first);
+        Vec3 b = Values.vec3(s, second);
+        int[] box = {floor(Math.min(a.x(), b.x())), floor(Math.min(a.y(), b.y())), floor(Math.min(a.z(), b.z())),
+                floor(Math.max(a.x(), b.x())), floor(Math.max(a.y(), b.y())), floor(Math.max(a.z(), b.z()))};
+        long count = (long) (box[3] - box[0] + 1) * (box[4] - box[1] + 1) * (box[5] - box[2] + 1);
+        if (count > MOST) throw s.error("that is %d blocks, and one call takes at most %d", count, MOST);
+        return box;
+    }
+
+    private static void set(LuaState s, BlockRef blocks, int x, int y, int z, String block) {
+        try {
+            blocks.set(x, y, z, block);
+        } catch (IllegalArgumentException wrong) {
+            throw s.error("%s", wrong.getMessage());
+        }
     }
 
     private static void writable(LuaState state, BlockRef blocks) {
