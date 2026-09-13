@@ -12,6 +12,8 @@ import com.meekdev.moud.mod.adapter.render.CameraApi;
 import com.meekdev.moud.mod.adapter.render.Cameras;
 import com.meekdev.moud.mod.adapter.audio.ResonaAudio;
 import com.meekdev.moud.mod.adapter.audio.Sounds;
+import com.meekdev.moud.mod.adapter.physics.BlockRays;
+import net.minecraft.client.Minecraft;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.script.engine.ScriptEngine;
 import java.nio.file.Path;
@@ -68,6 +70,8 @@ public final class ClientPlace {
             camera = Instances.createLocal(Classes.CAMERA, world, "Camera");
             vm.bindClient(camera, LENS, INPUT, ClientScene::own);
             vm.bindPost(Post.CLIENT, true);
+            // the client's own level, never the integrated server's: that one belongs to another thread
+            vm.bindBlocks(new BlockRays(() -> Minecraft.getInstance().level));
             // every load, reloads included: whatever the old scripts left playing or bound goes with them
             ResonaAudio.INSTANCE.reset();
             Sounds.stopAll();

@@ -4,7 +4,6 @@ import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.clazz.EventDef;
 import com.meekdev.moud.core.clazz.PropertyDef;
-import com.meekdev.moud.core.instance.Hits;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Remote;
@@ -17,6 +16,7 @@ import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.script.api.BlockRef;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -68,6 +68,11 @@ public final class Proxies {
         method(state, "isA", Proxies::isA);
         method(state, "destroy", Proxies::destroy);
         method(state, "raycast", Proxies::raycast);
+        method(state, "spherecast", s -> QueryMethods.spherecast(s, self(s)));
+        method(state, "blockcast", s -> QueryMethods.blockcast(s, self(s)));
+        method(state, "partsInBox", s -> QueryMethods.partsInBox(s, self(s)));
+        method(state, "partsInRadius", s -> QueryMethods.partsInRadius(s, self(s)));
+        method(state, "partsInPart", s -> QueryMethods.partsInPart(s, self(s)));
         method(state, "setOwner", Proxies::setOwner);
         state.rawSetField(LuaState.REGISTRY_INDEX, METHODS);
     }
@@ -322,20 +327,16 @@ public final class Proxies {
     //
     // it is a question about the tree, so it answers about the tree. what a body walks into is a
     // different question with a different answer, and it is not asked here
-    private static int raycast(LuaState state) {
-        Vec3 from = Values.vec3(state, 2);
-        Vec3 direction = Values.vec3(state, 3);
-        double range = state.isNoneOrNil(4) ? 100.0 : state.checkNumber(4);
+    public static void blocks(LuaState state, BlockRef blocks) {
+        QueryMethods.blocks(state, blocks);
+    }
 
-        Hits.Hit hit = Hits.cast(self(state), from, direction, range);
-        if (hit == null) {
-            state.pushNil();
-            return 1;
-        }
-        push(state, hit.part());
-        Values.push(state, hit.at());
-        state.pushNumber(hit.distance());
-        return 3;
+    public static void forgetBlocks(LuaState state) {
+        QueryMethods.forget(state);
+    }
+
+    private static int raycast(LuaState state) {
+        return QueryMethods.raycast(state, self(state));
     }
 
     private static int isA(LuaState state) {

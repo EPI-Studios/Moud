@@ -5,6 +5,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.api.Game;
 import com.meekdev.moud.script.bind.InstanceSignals;
 import com.meekdev.moud.script.api.AudioRef;
+import com.meekdev.moud.script.api.BlockRef;
 import com.meekdev.moud.script.api.CameraRef;
 import com.meekdev.moud.script.api.InputRef;
 import com.meekdev.moud.script.api.PlayerRef;
@@ -85,6 +86,12 @@ public final class Vm implements ScriptEngine {
     public void bindAudio(AudioRef audio) {
         this.audio = audio;
         Audio.install(state, audio, beat, bar);
+    }
+
+    // the level's blocks, so a ray from the world can stop at a wall
+    @Override
+    public void bindBlocks(BlockRef blocks) {
+        Proxies.blocks(state, blocks);
     }
 
     @Override
@@ -214,6 +221,7 @@ public final class Vm implements ScriptEngine {
         // before the state goes, because what is keyed by it cannot be dropped after: a state's
         // identity is a native pointer, and the next state may be handed the same one
         Remotes.forget(state);
+        Proxies.forgetBlocks(state);
         state.close();
     }
 }

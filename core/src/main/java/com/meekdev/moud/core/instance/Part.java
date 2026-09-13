@@ -11,4 +11,7 @@ public class Part extends Spatial {
     @Prop(min = 0, max = 1) public double transparency;
     public boolean anchored = true;
     public boolean collides = true;
+
+    // whether casts and overlaps can find it
+    public boolean canQuery = true;
 }

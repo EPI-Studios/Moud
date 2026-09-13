@@ -120,6 +120,9 @@ public final class Types {
                 """);
 
         out.append("""
+                type QueryOptions = { exclude: { Instance }?, include: { Instance }?, respectCollides: boolean?,
+                    ignoreBlocks: boolean? }
+
                 declare class Instance
                     name: string
                     className: string
@@ -132,7 +135,12 @@ public final class Types {
                     function children(self): { Instance }
                     function find(self, name: string): Instance?
                     function isA(self, className: string): boolean
-                    function raycast(self, from: Vector3, direction: Vector3, range: number?): (Instance?, Vector3?, number?)
+                    function raycast(self, from: Vector3, direction: Vector3, range: number?, options: QueryOptions?): (Instance?, Vector3?, number?, Vector3?, string?)
+                    function spherecast(self, from: Vector3, radius: number, direction: Vector3, range: number?, options: QueryOptions?): (Instance?, Vector3?, number?, Vector3?)
+                    function blockcast(self, frame: CFrame, size: Vector3, direction: Vector3, range: number?, options: QueryOptions?): (Instance?, Vector3?, number?, Vector3?)
+                    function partsInBox(self, frame: CFrame, size: Vector3, options: QueryOptions?): { Instance }
+                    function partsInRadius(self, position: Vector3, radius: number, options: QueryOptions?): { Instance }
+                    function partsInPart(self, part: Instance, options: QueryOptions?): { Instance }
                     function destroy(self): ()
                     function setOwner(self, to: Instance?): ()
                     function fireServer(self, ...: any): ()

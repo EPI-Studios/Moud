@@ -20,6 +20,10 @@ public final class Physics {
 
     private Physics() {}
 
+    public static @Nullable ServerLevel level() {
+        return level;
+    }
+
     public static Colliders boxes() {
         return BOXES;
     }
