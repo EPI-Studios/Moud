@@ -598,8 +598,9 @@ public final class Types {
 
         for (EventDef event : def.events()) {
             // every event carries the instance it happened to, so one shape covers all of them
-            // a chat command also carries the line and its words
-            String shape = def == Classes.CHAT_COMMAND ? "ChatCommandSignal" : "InstanceSignal";
+            // a chat command also carries the line and its words, and a channel hands over the message
+            String shape = def == Classes.CHAT_COMMAND ? "ChatCommandSignal"
+                    : def == Classes.TEXT_CHANNEL ? "ChatMessageSignal" : "InstanceSignal";
             out.append("    ").append(event.name()).append(": ").append(shape).append("\n");
         }
 

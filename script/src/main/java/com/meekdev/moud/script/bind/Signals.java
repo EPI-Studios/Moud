@@ -73,7 +73,16 @@ public final class Signals {
                 state.pop(1);
                 continue;
             }
-            int pushed = args.push(state);
+            int top = state.top() - 1;
+            int pushed;
+            try {
+                pushed = args.push(state);
+            } catch (RuntimeException e) {
+                // an argument the engine could not hand over is this handler's error, never the server's
+                state.top(top);
+                onError.accept(new ScriptError("signal", e.getMessage(), e));
+                continue;
+            }
             // a handler runs as the script that connected it, so what it connects belongs to that script too
             Object owner = signal.owner(ref);
             Object before = owners.enter(owner);

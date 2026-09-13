@@ -138,7 +138,8 @@ public final class InstanceSignals {
                             }
                             return 3;
                         }
-                        Proxies.push(s, (Instance) what);
+                        // an instance, or a message a channel heard, which goes over as a table
+                        Plain.push(s, what);
                         return 1;
                     })));
             return handlers;
