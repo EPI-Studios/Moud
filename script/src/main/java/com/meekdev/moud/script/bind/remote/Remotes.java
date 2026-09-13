@@ -1,4 +1,4 @@
-package com.meekdev.moud.script.bind;
+package com.meekdev.moud.script.bind.remote;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.character.Character;
@@ -20,6 +20,8 @@ import java.util.Map;
 import java.util.HashMap;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
+import com.meekdev.moud.script.bind.Plain;
+import com.meekdev.moud.script.bind.Proxies;
 
 public final class Remotes {
 

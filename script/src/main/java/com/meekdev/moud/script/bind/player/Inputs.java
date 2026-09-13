@@ -1,4 +1,4 @@
-package com.meekdev.moud.script.bind;
+package com.meekdev.moud.script.bind.player;
 
 import com.meekdev.moud.script.api.InputRef;
 import java.util.Collections;

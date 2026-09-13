@@ -1,4 +1,4 @@
-package com.meekdev.moud.script.bind;
+package com.meekdev.moud.script.bind.player;
 
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.api.PlayerRef;
@@ -9,6 +9,8 @@ import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
+import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.Values;
 
 public final class Players {
 

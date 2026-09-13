@@ -1,4 +1,4 @@
-package com.meekdev.moud.script.bind;
+package com.meekdev.moud.script.bind.player;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.character.Character;
@@ -15,6 +15,9 @@ import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
+import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.world.QueryMethods;
+import com.meekdev.moud.script.bind.Values;
 
 public final class PlayerQueries {
 
@@ -185,7 +188,7 @@ public final class PlayerQueries {
         return instance instanceof Character body ? at.add(new Vector3(0, body.height * body.scale * 0.9, 0)) : at;
     }
 
-    static boolean inside(CFrame frame, Vector3 size, Vector3 point) {
+    public static boolean inside(CFrame frame, Vector3 size, Vector3 point) {
         Vector3 local = frame.inverse().mul(CFrame.at(point)).position();
         return Math.abs(local.x()) <= size.x() / 2 && Math.abs(local.y()) <= size.y() / 2
                 && Math.abs(local.z()) <= size.z() / 2;

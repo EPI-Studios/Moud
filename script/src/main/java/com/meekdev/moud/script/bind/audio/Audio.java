@@ -1,4 +1,4 @@
-package com.meekdev.moud.script.bind;
+package com.meekdev.moud.script.bind.audio;
 
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.api.AudioRef;
@@ -10,6 +10,8 @@ import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
+import com.meekdev.moud.script.bind.Signals;
+import com.meekdev.moud.script.bind.Values;
 
 public final class Audio {
 

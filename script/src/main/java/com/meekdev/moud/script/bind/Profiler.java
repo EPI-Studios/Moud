@@ -25,7 +25,7 @@ public final class Profiler {
         entry.worst = Math.max(entry.worst, nanos);
     }
 
-    static Map<String, Object> take(LuaState state) {
+    public static Map<String, Object> take(LuaState state) {
         Map<String, Entry> times = TIMES.remove(state.mainThread());
         Map<String, Object> out = new LinkedHashMap<>();
         if (times == null) return out;

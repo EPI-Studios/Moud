@@ -1,4 +1,4 @@
-package com.meekdev.moud.script.bind;
+package com.meekdev.moud.script.bind.world;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.character.Character;
@@ -15,6 +15,9 @@ import java.util.Map;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
+import com.meekdev.moud.script.bind.Plain;
+import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.Values;
 
 public final class ZoneMethods {
 

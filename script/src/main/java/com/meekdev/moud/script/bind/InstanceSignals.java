@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import net.hollowcube.luau.LuaState;
+import com.meekdev.moud.script.bind.remote.Remotes;
 
 public final class InstanceSignals {
 

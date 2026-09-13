@@ -1,4 +1,4 @@
-package com.meekdev.moud.script.bind;
+package com.meekdev.moud.script.bind.audio;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instances;
@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaState;
+import com.meekdev.moud.script.bind.Proxies;
 
 public final class SoundMethods {
 

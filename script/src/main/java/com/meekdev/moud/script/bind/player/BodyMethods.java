@@ -1,4 +1,4 @@
-package com.meekdev.moud.script.bind;
+package com.meekdev.moud.script.bind.player;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.character.Character;
@@ -14,6 +14,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaState;
+import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.world.QueryMethods;
+import com.meekdev.moud.script.bind.Values;
 
 public final class BodyMethods {
 
@@ -77,7 +80,7 @@ public final class BodyMethods {
         Proxies.classMethods(state, Classes.CHARACTER, methods);
     }
 
-    static Vector3 look(Character body) {
+    public static Vector3 look(Character body) {
         Quat turn = Transforms.world(body).rotation()
                 .mul(Quat.axisAngle(Vector3.UP, -body.lookYaw))
                 .mul(Quat.axisAngle(Vector3.RIGHT, -body.lookPitch));
@@ -89,7 +92,7 @@ public final class BodyMethods {
         return living == null ? HumanoidState.STANDING : living.state;
     }
 
-    static Character body(LuaState s) {
+    public static Character body(LuaState s) {
         if (!(s.toUserDataTagged(1, Proxies.TAG) instanceof Character body)) throw s.error("expected a body");
         return body;
     }

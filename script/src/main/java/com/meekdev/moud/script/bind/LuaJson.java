@@ -8,13 +8,13 @@ import java.util.Map;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
-final class LuaJson {
+public final class LuaJson {
 
     private static final int DEEPEST = 32;
 
     private LuaJson() {}
 
-    static String read(LuaState state, int at) {
+    public static String read(LuaState state, int at) {
         return Json.write(value(state, state.absIndex(at), 0, "the value"));
     }
 
@@ -58,7 +58,7 @@ final class LuaJson {
         return map;
     }
 
-    static void push(LuaState state, String json) {
+    public static void push(LuaState state, String json) {
         if (json == null) {
             state.pushNil();
             return;

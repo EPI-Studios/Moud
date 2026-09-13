@@ -1,4 +1,4 @@
-package com.meekdev.moud.script.bind;
+package com.meekdev.moud.script.bind.data;
 
 import com.meekdev.moud.script.api.StoreRef;
 import java.util.List;
@@ -6,6 +6,7 @@ import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
+import com.meekdev.moud.script.bind.LuaJson;
 
 public final class Stores {
 

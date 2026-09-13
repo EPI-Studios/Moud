@@ -1,4 +1,4 @@
-package com.meekdev.moud.script.bind;
+package com.meekdev.moud.script.bind.world;
 
 import net.hollowcube.luau.LuaType;
 import com.meekdev.moud.script.err.ScriptError;
@@ -13,6 +13,8 @@ import com.meekdev.moud.script.api.BlockRef;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
+import com.meekdev.moud.script.bind.Signals;
+import com.meekdev.moud.script.bind.Values;
 
 public final class Blocks {
 

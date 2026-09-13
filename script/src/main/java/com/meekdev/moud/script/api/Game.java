@@ -1,7 +1,7 @@
 package com.meekdev.moud.script.api;
 
 import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.script.bind.PlayerQueries;
+import com.meekdev.moud.script.bind.player.PlayerQueries;
 import com.meekdev.moud.script.bind.Proxies;
 import com.meekdev.moud.script.bind.Signals;
 import net.hollowcube.luau.LuaState;

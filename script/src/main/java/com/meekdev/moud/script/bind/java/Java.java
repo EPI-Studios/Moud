@@ -1,4 +1,4 @@
-package com.meekdev.moud.script.bind;
+package com.meekdev.moud.script.bind.java;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -21,6 +21,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
+import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.Values;
 
 public final class Java {
 

@@ -30,6 +30,8 @@ import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
+import com.meekdev.moud.script.bind.world.QueryMethods;
+import com.meekdev.moud.script.bind.remote.Remotes;
 
 public final class Proxies {
 
@@ -148,7 +150,7 @@ public final class Proxies {
         state.rawSetField(-2, name);
     }
 
-    static void extraMethod(LuaState state, String name, ToIntFunction<LuaState> body) {
+    public static void extraMethod(LuaState state, String name, ToIntFunction<LuaState> body) {
         NAMES.add(name);
         state.rawGetField(LuaState.REGISTRY_INDEX, METHODS);
         state.pushFunction(LuaFunc.wrap(body, "Instance:" + name));
@@ -156,11 +158,11 @@ public final class Proxies {
         state.pop(1);
     }
 
-    static ClassRegistry registry() {
+    public static ClassRegistry registry() {
         return classes;
     }
 
-    static void luauMethod(LuaState state, String name, int function) {
+    public static void luauMethod(LuaState state, String name, int function) {
         NAMES.add(name);
         state.rawGetField(LuaState.REGISTRY_INDEX, METHODS);
         state.pushValue(function);
@@ -510,7 +512,7 @@ public final class Proxies {
         }
     }
 
-    static Object parse(LuaState state, PropertyDef property, int value) {
+    public static Object parse(LuaState state, PropertyDef property, int value) {
         return switch (property.type()) {
             case BOOL -> state.toBoolean(value);
             case INT, NUM -> state.checkNumber(value);
@@ -525,7 +527,7 @@ public final class Proxies {
         };
     }
 
-    static void checkWrite(LuaState state, Instance instance, PropertyDef property) {
+    public static void checkWrite(LuaState state, Instance instance, PropertyDef property) {
         allowed(state, instance, property);
     }
 }

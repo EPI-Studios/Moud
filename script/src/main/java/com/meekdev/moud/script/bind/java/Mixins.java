@@ -1,4 +1,4 @@
-package com.meekdev.moud.script.bind;
+package com.meekdev.moud.script.bind.java;
 
 import com.meekdev.moud.script.err.ScriptError;
 import com.meekdev.moud.script.mixin.Dispatch;

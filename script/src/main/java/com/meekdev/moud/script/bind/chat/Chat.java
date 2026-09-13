@@ -1,4 +1,4 @@
-package com.meekdev.moud.script.bind;
+package com.meekdev.moud.script.bind.chat;
 
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.text.RichText;
@@ -13,6 +13,9 @@ import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
+import com.meekdev.moud.script.bind.Plain;
+import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.Signals;
 
 public final class Chat {
 

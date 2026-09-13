@@ -1,4 +1,4 @@
-package com.meekdev.moud.script.bind;
+package com.meekdev.moud.script.bind.debug;
 
 import com.meekdev.moud.core.query.Queries;
 import com.meekdev.moud.core.math.Color;
@@ -8,6 +8,9 @@ import java.util.Map;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
+import com.meekdev.moud.script.bind.Plain;
+import com.meekdev.moud.script.bind.Profiler;
+import com.meekdev.moud.script.bind.Values;
 
 public final class DebugBinding {
 

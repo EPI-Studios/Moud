@@ -1,4 +1,4 @@
-package com.meekdev.moud.script.bind;
+package com.meekdev.moud.script.bind.world;
 
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.part.CollisionGroups;
@@ -15,18 +15,20 @@ import java.util.List;
 import java.util.Map;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
+import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.Values;
 
-final class QueryMethods {
+public final class QueryMethods {
 
     private static final Map<LuaState, BlockRef> BLOCKS = new HashMap<>();
 
     private QueryMethods() {}
 
-    static void blocks(LuaState state, BlockRef blocks) {
+    public static void blocks(LuaState state, BlockRef blocks) {
         BLOCKS.put(state.mainThread(), blocks);
     }
 
-    static boolean clear(LuaState state, Instance root, Vector3 from, Vector3 to, List<Instance> ignore) {
+    public static boolean clear(LuaState state, Instance root, Vector3 from, Vector3 to, List<Instance> ignore) {
         Vector3 way = to.sub(from);
         double length = way.length();
         if (length < 1e-6) return true;
@@ -40,11 +42,11 @@ final class QueryMethods {
         return BLOCKS.get(state.mainThread());
     }
 
-    static void forget(LuaState state) {
+    public static void forget(LuaState state) {
         BLOCKS.remove(state.mainThread());
     }
 
-    static int raycast(LuaState state, Instance root) {
+    public static int raycast(LuaState state, Instance root) {
         Vector3 from = Values.vec3(state, 2);
         Vector3 direction = Values.vec3(state, 3);
         double range = state.isNoneOrNil(4) ? 100 : state.checkNumber(4);
@@ -65,7 +67,7 @@ final class QueryMethods {
         return push(state, hit);
     }
 
-    static int spherecast(LuaState state, Instance root) {
+    public static int spherecast(LuaState state, Instance root) {
         Vector3 from = Values.vec3(state, 2);
         double radius = state.checkNumber(3);
         Vector3 direction = Values.vec3(state, 4);
@@ -73,7 +75,7 @@ final class QueryMethods {
         return push(state, Queries.spherecast(root, from, radius, direction, range, params(state, 6, root).filter()));
     }
 
-    static int blockcast(LuaState state, Instance root) {
+    public static int blockcast(LuaState state, Instance root) {
         CFrame frame = Values.cframe(state, 2);
         Vector3 size = Values.vec3(state, 3);
         Vector3 direction = Values.vec3(state, 4);
@@ -81,13 +83,13 @@ final class QueryMethods {
         return push(state, Queries.blockcast(root, frame, size, direction, range, params(state, 6, root).filter()));
     }
 
-    static int partsInBox(LuaState state, Instance root) {
+    public static int partsInBox(LuaState state, Instance root) {
         CFrame frame = Values.cframe(state, 2);
         Params params = params(state, 4, root);
         return list(state, shape(Queries.inBox(root, frame, Values.vec3(state, 3), params.filter()), frame.position(), params));
     }
 
-    static int partsInRadius(LuaState state, Instance root) {
+    public static int partsInRadius(LuaState state, Instance root) {
         Vector3 centre = Values.vec3(state, 2);
         Params params = params(state, 4, root);
         return list(state, shape(Queries.inRadius(root, centre, state.checkNumber(3), params.filter()), centre, params));
@@ -101,7 +103,7 @@ final class QueryMethods {
         return parts.size() > params.limit() ? new ArrayList<>(parts.subList(0, params.limit())) : parts;
     }
 
-    static int raycastAll(LuaState state, Instance root) {
+    public static int raycastAll(LuaState state, Instance root) {
         Vector3 from = Values.vec3(state, 2);
         Vector3 direction = Values.vec3(state, 3);
         double range = state.isNoneOrNil(4) ? 100 : state.checkNumber(4);
@@ -116,7 +118,7 @@ final class QueryMethods {
         return 1;
     }
 
-    static int raycastMany(LuaState state, Instance root) {
+    public static int raycastMany(LuaState state, Instance root) {
         if (state.type(2) != LuaType.TABLE) throw state.error("raycastMany wants a list of { from, direction, range }");
         Params params = params(state, 3, root);
         int count = state.len(2);
@@ -157,7 +159,7 @@ final class QueryMethods {
         state.rawSetField(-2, "normal");
     }
 
-    static int partsInPart(LuaState state, Instance root) {
+    public static int partsInPart(LuaState state, Instance root) {
         if (!(state.toUserDataTagged(2, Proxies.TAG) instanceof Part part)) {
             throw state.error("partsInPart wants a part");
         }
