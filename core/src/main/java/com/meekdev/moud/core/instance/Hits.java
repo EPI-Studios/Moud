@@ -1,6 +1,7 @@
 package com.meekdev.moud.core.instance;
 
 import com.meekdev.moud.core.math.Vec3;
+import java.util.function.Predicate;
 
 // what a ray runs into
 //
@@ -20,23 +21,29 @@ public final class Hits {
     private Hits() {}
 
     public static Hit cast(Instance root, Vec3 from, Vec3 direction, double range) {
+        return cast(root, from, direction, range, part -> true);
+    }
+
+    // only parts the filter takes can be hit, and the rest are seen through
+    public static Hit cast(Instance root, Vec3 from, Vec3 direction, double range, Predicate<Part> filter) {
         if (root == null || range <= 0) return null;
         double length = direction.length();
         if (length < 1e-12) return null;
-        return nearest(root, from, direction.mul(1.0 / length), range, null);
+        return nearest(root, from, direction.mul(1.0 / length), range, null, filter);
     }
 
-    private static Hit nearest(Instance instance, Vec3 from, Vec3 way, double range, Hit best) {
+    private static Hit nearest(Instance instance, Vec3 from, Vec3 way, double range, Hit best,
+                               Predicate<Part> filter) {
         // a shell is a second coat of paint over a limb, standing a quarter of a texel proud of
         // it. it is in front of everything it covers, so leaving it in means every hit on a body
         // answers "the hat" and never "the head"
-        if (instance instanceof Part part && part.visible && !isShell(part)) {
+        if (instance instanceof Part part && part.visible && !isShell(part) && filter.test(part)) {
             double at = enters(part, from, way, range);
             if (at >= 0 && (best == null || at < best.distance())) {
                 best = new Hit(part, from.add(way.mul(at)), at);
             }
         }
-        for (Instance child : instance.children()) best = nearest(child, from, way, range, best);
+        for (Instance child : instance.children()) best = nearest(child, from, way, range, best, filter);
         return best;
     }
 

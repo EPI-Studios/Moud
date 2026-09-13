@@ -2,6 +2,7 @@ package com.meekdev.moud.script.engine;
 
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.script.api.AudioRef;
 import com.meekdev.moud.script.api.CameraRef;
 import com.meekdev.moud.script.api.InputRef;
 import com.meekdev.moud.script.api.ModuleSource;
@@ -32,6 +33,8 @@ public interface ScriptEngine extends AutoCloseable {
 
     // where a script's failure goes. a broken edit must not take the session with it
     void bindModules(ModuleSource source);
+
+    void bindAudio(AudioRef audio);
 
     void onError(Consumer<ScriptError> handler);
 

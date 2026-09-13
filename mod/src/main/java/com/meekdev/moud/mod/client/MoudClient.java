@@ -6,6 +6,8 @@ import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.mod.place.Switches;
 import com.meekdev.moud.mod.adapter.render.Parts;
 import com.meekdev.moud.mod.adapter.render.Skins;
+import com.meekdev.moud.mod.adapter.audio.ResonaAudio;
+import com.meekdev.moud.mod.adapter.audio.Sounds;
 import com.meekdev.moud.mod.adapter.ui.Ui;
 import com.meekdev.moud.mod.adapter.render.Pipeline;
 import com.meekdev.moud.mod.client.editor.Editor;
@@ -24,6 +26,7 @@ public final class MoudClient implements ClientModInitializer {
         Switches.install(MoudMod.features());
         Pipeline.install();
         Ui.install();
+        ResonaAudio.INSTANCE.install();
         Editor.install();
         Parts.register();
         frames();
@@ -47,6 +50,7 @@ public final class MoudClient implements ClientModInitializer {
                     .getGameTimeDeltaPartialTick(true);
             Skins.gather(partialTick);
             Ui.frame(partialTick);
+            Sounds.frame(partialTick);
             // every number behind this frame of your own body, while it is standing on something
             // that moves. it writes itself and stops, so there is nothing to turn on
             Trace.frame(partialTick);

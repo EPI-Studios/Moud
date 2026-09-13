@@ -4,17 +4,20 @@ import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.api.Game;
 import com.meekdev.moud.script.bind.InstanceSignals;
+import com.meekdev.moud.script.api.AudioRef;
 import com.meekdev.moud.script.api.CameraRef;
 import com.meekdev.moud.script.api.InputRef;
 import com.meekdev.moud.script.api.PlayerRef;
 import com.meekdev.moud.script.bind.CameraMethods;
 import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PostRef;
+import com.meekdev.moud.script.bind.Audio;
 import com.meekdev.moud.script.bind.Remotes;
 import com.meekdev.moud.script.bind.Inputs;
 import com.meekdev.moud.script.bind.Players;
 import com.meekdev.moud.script.bind.Proxies;
 import com.meekdev.moud.script.bind.Signals;
+import com.meekdev.moud.script.bind.SoundMethods;
 import com.meekdev.moud.script.reload.Persist;
 import com.meekdev.moud.script.sched.Scheduler;
 import java.util.Map;
@@ -48,6 +51,9 @@ public final class Vm implements ScriptEngine {
     private final Game game = new Game();
     private Consumer<ScriptError> onError = e -> { throw e; };
     private final Scheduler scheduler;
+    private AudioRef audio;
+    private final Signals.Handlers beat = new Signals.Handlers();
+    private final Signals.Handlers bar = new Signals.Handlers();
 
     public Vm() {
         state = LuaState.newState();
@@ -61,6 +67,7 @@ public final class Vm implements ScriptEngine {
         Players.install(state);
         InstanceSignals.install(state, e -> onError.accept(e));
         Proxies.install(state, registry);
+        SoundMethods.install(state);
         game.install(state, world);
         scheduler.install(state);
         run("task", scheduler.prelude());
@@ -71,6 +78,13 @@ public final class Vm implements ScriptEngine {
     @Override
     public void bindPost(PostRef post, boolean client) {
         Remotes.install(state, post, client);
+    }
+
+    // the client's half only: a server has no speakers
+    @Override
+    public void bindAudio(AudioRef audio) {
+        this.audio = audio;
+        Audio.install(state, audio, beat, bar);
     }
 
     @Override
@@ -152,6 +166,7 @@ public final class Vm implements ScriptEngine {
     }
 
     public void renderStep(double dt) {
+        if (audio != null) audio.drainBeats(n -> fire(beat, n), n -> fire(bar, n));
         fire(game.renderStepped(), dt);
     }
 

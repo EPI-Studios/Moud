@@ -28,6 +28,8 @@ import com.meekdev.moud.core.instance.Limb;
 import com.meekdev.moud.core.instance.Motor;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.ScreenGui;
+import com.meekdev.moud.core.instance.Sound;
+import com.meekdev.moud.core.instance.SoundBus;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.SurfaceGui;
 import com.meekdev.moud.core.instance.TextButton;
@@ -96,6 +98,10 @@ public final class Classes {
     public static final ClassDef<ImageLabel> IMAGE_LABEL =
             ClassDef.of("ImageLabel", GUI_OBJECT, ImageLabel.class, ImageLabel::new);
 
+    public static final ClassDef<Sound> SOUND = ClassDef.of("Sound", null, Sound.class, Sound::new);
+    public static final ClassDef<SoundBus> SOUND_BUS =
+            ClassDef.of("SoundBus", null, SoundBus.class, SoundBus::new);
+
     public static final ClassDef<Joint> JOINT = ClassDef.of("Joint", null, Joint.class, Joint::new);
     public static final ClassDef<Motor> MOTOR = ClassDef.of("Motor", JOINT, Motor.class, Motor::new);
 
@@ -142,6 +148,8 @@ public final class Classes {
         r.register(TEXT_LABEL);
         r.register(TEXT_BUTTON);
         r.register(IMAGE_LABEL);
+        r.register(SOUND);
+        r.register(SOUND_BUS);
         r.register(JOINT);
         r.register(MOTOR);
         for (Addon addon : addons) {

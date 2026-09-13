@@ -175,6 +175,56 @@ public final class Types {
                 declare camera: Camera
                 declare input: Input
 
+                declare class Voice
+                    function stop(self): ()
+                    function setVolume(self, volume: number): ()
+                    function setPitch(self, pitch: number): ()
+                    function fade(self, volume: number, seconds: number): ()
+                    function fadeOut(self, seconds: number): ()
+                    function setPosition(self, at: Vector3): ()
+                    function isPlaying(self): boolean
+                end
+
+                declare class Music
+                    function setState(self, name: string, seconds: number?): ()
+                    function transitionTo(self, name: string, seconds: number?, quantize: string?): ()
+                    function setLayer(self, layer: number, volume: number): ()
+                    function blend(self, intensity: number): ()
+                    function stop(self, seconds: number?): ()
+                end
+
+                type PlayOptions = { volume: number?, pitch: number?, looped: boolean?, bus: string?,
+                    priority: number?, at: Vector3?, minDistance: number?, maxDistance: number?,
+                    rollOff: number?, fadeIn: number?, stream: boolean? }
+
+                declare audio: {
+                    play: (soundId: string, options: PlayOptions?) -> Voice?,
+                    playEvent: (name: string, at: Vector3?) -> Voice?,
+                    stinger: (name: string, quantize: string?) -> Voice?,
+                    defineEvent: (name: string, event: { sounds: { string }, bus: string?, volume: any?,
+                        pitch: any?, looped: boolean? }) -> (),
+                    tempo: (bpm: number, beatsPerBar: number?) -> (),
+                    stopTempo: () -> (),
+                    beats: () -> number,
+                    beat: StepSignal,
+                    bar: StepSignal,
+                    setParameter: (name: string, value: number) -> (),
+                    getParameter: (name: string) -> number,
+                    bindBusVolume: (parameter: string, bus: string, curve: { { number } }) -> (),
+                    setSwitch: (group: string, value: string) -> (),
+                    getSwitch: (group: string) -> string?,
+                    lfo: (parameter: string, shape: string, hertz: number, min: number, max: number) -> (),
+                    snapshot: (volumes: { [string]: number }, seconds: number?) -> (),
+                    clearSnapshot: (seconds: number?) -> (),
+                    sidechain: (sourceBus: string, targetBus: string, amount: number) -> (),
+                    reverb: (decaySeconds: number, wet: number) -> (),
+                    hrtf: (enabled: boolean) -> (),
+                    occlusion: (enabled: boolean) -> (),
+                    music: (music: { layers: { string }, states: { [string]: { number } }?, bus: string? }) -> Music,
+                    voiceChat: (settings: { enabled: boolean?, strength: number?, filters: { any }? }) -> (),
+                    voiceCount: () -> number,
+                }
+
                 declare function require(path: string): any
                 declare function vec3(x: number, y: number, z: number): Vector3
                 declare function color(r: number, g: number, b: number, a: number?): Color
@@ -245,6 +295,10 @@ public final class Types {
                         function clearEffects(self): ()
                         function worldToScreen(self, world: Vector3): Vector3?
                         function screenToRay(self, x: number, y: number): (Vector3, Vector3)
+                    """;
+            case "Sound" -> """
+                        function play(self): ()
+                        function stop(self): ()
                     """;
             default -> "";
         };

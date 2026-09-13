@@ -10,6 +10,8 @@ import com.meekdev.moud.core.time.Clock;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.render.CameraApi;
 import com.meekdev.moud.mod.adapter.render.Cameras;
+import com.meekdev.moud.mod.adapter.audio.ResonaAudio;
+import com.meekdev.moud.mod.adapter.audio.Sounds;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.script.engine.ScriptEngine;
 import java.nio.file.Path;
@@ -66,6 +68,10 @@ public final class ClientPlace {
             camera = Instances.createLocal(Classes.CAMERA, world, "Camera");
             vm.bindClient(camera, LENS, INPUT, ClientScene::own);
             vm.bindPost(Post.CLIENT, true);
+            // every load, reloads included: whatever the old scripts left playing or bound goes with them
+            ResonaAudio.INSTANCE.reset();
+            Sounds.stopAll();
+            vm.bindAudio(ResonaAudio.INSTANCE);
         });
         place.start();
         MoudMod.LOG.info("the client place is running");
