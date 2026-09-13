@@ -1,5 +1,6 @@
 package com.meekdev.moud.script.bind.world;
 
+import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.character.Humanoid;
 import com.meekdev.moud.core.instance.Instance;
@@ -19,13 +20,11 @@ import java.util.LinkedHashMap;
 import java.util.ArrayList;
 import java.util.List;
 import com.meekdev.moud.core.part.Part;
-import com.meekdev.moud.core.query.SpatialIndex;
 import java.util.function.Predicate;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.Random;
 import java.util.function.ToIntFunction;
-import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 import com.meekdev.moud.script.bind.player.BodyMethods;
@@ -106,7 +105,7 @@ public final class Paths {
         if (world.tree() != null) Humanoids.ground(world.tree(), groundOf(state, world));
         state.getGlobal("game");
         state.newTable();
-        function(state, "find", s -> {
+        LuaTables.function(state, "path", "find", s -> {
             List<Vector3> path = mesh(world).find(source(s, world), Values.vec3(s, 2), Values.vec3(s, 3), partial(s, 4));
             if (path == null) {
                 s.pushNil();
@@ -115,11 +114,11 @@ public final class Paths {
             }
             return 1;
         });
-        function(state, "isReachable", s -> {
+        LuaTables.function(state, "path", "isReachable", s -> {
             s.pushBoolean(mesh(world).find(source(s, world), Values.vec3(s, 2), Values.vec3(s, 3), false) != null);
             return 1;
         });
-        function(state, "randomPointNear", s -> {
+        LuaTables.function(state, "path", "randomPointNear", s -> {
             Vector3 point = mesh(world).randomNear(source(s, world), Values.vec3(s, 2), s.checkNumber(3), RANDOM);
             if (point == null) {
                 s.pushNil();
@@ -193,8 +192,4 @@ public final class Paths {
         return value;
     }
 
-    private static void function(LuaState state, String name, ToIntFunction<LuaState> body) {
-        state.pushFunction(LuaFunc.wrap(body::applyAsInt, "path:" + name));
-        state.rawSetField(-2, name);
-    }
 }

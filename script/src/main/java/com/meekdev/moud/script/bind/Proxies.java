@@ -51,14 +51,10 @@ public final class Proxies {
         classes = registry;
 
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(Proxies::index, "Instance.__index"));
-        state.rawSetField(-2, "__index");
-        state.pushFunction(LuaFunc.wrap(Proxies::newIndex, "Instance.__newindex"));
-        state.rawSetField(-2, "__newindex");
-        state.pushFunction(LuaFunc.wrap(Proxies::name, "Instance.__tostring"));
-        state.rawSetField(-2, "__tostring");
-        state.pushFunction(LuaFunc.wrap(Proxies::same, "Instance.__eq"));
-        state.rawSetField(-2, "__eq");
+        LuaTables.function(state, "Instance", "__index", Proxies::index);
+        LuaTables.function(state, "Instance", "__newindex", Proxies::newIndex);
+        LuaTables.function(state, "Instance", "__tostring", Proxies::name);
+        LuaTables.function(state, "Instance", "__eq", Proxies::same);
         state.setUserDataMetaTable(TAG);
 
         state.newTable();
@@ -146,8 +142,7 @@ public final class Proxies {
 
     private static void method(LuaState state, String name, ToIntFunction<LuaState> body) {
         NAMES.add(name);
-        state.pushFunction(LuaFunc.wrap(body, "Instance:" + name));
-        state.rawSetField(-2, name);
+        LuaTables.function(state, "Instance", name, body);
     }
 
     public static void extraMethod(LuaState state, String name, ToIntFunction<LuaState> body) {

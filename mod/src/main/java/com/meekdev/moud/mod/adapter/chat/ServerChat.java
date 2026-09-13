@@ -17,7 +17,6 @@ import com.meekdev.moud.mod.server.MoudServer;
 import com.meekdev.moud.mod.server.ServerScene;
 import com.meekdev.moud.script.api.ChatRef;
 import com.meekdev.moud.script.engine.ScriptEngine;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;

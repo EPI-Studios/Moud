@@ -1,17 +1,15 @@
 package com.meekdev.moud.script.bind.java;
 
+import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.script.err.ScriptError;
 import com.meekdev.moud.script.mixin.Dispatch;
 import com.meekdev.moud.script.mixin.Injections;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import java.util.function.ToIntFunction;
-import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
@@ -30,20 +28,17 @@ public final class Mixins {
 
     public static void install(LuaState state, Consumer<ScriptError> onError) {
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(Mixins::callIndex, "MixinCall.__index"));
-        state.rawSetField(-2, "__index");
+        LuaTables.function(state, "MixinCall", "__index", Mixins::callIndex);
         state.setUserDataMetaTable(CALL);
 
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(Mixins::handleIndex, "Mixin.__index"));
-        state.rawSetField(-2, "__index");
+        LuaTables.function(state, "Mixin", "__index", Mixins::handleIndex);
         state.setUserDataMetaTable(HANDLE);
 
         methods(state);
 
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(s -> inject(s, onError), "mixin.inject"));
-        state.rawSetField(-2, "inject");
+        LuaTables.function(state, "mixin", "inject", s -> inject(s, onError));
         state.setGlobal("mixin");
     }
 
@@ -148,28 +143,28 @@ public final class Mixins {
 
     private static void methods(LuaState state) {
         state.newTable();
-        method(state, "cancel", s -> {
+        LuaTables.function(state, "mixin", "cancel", s -> {
             Dispatch.Call c = call(s);
             if (c.returning) throw s.error("cannot cancel at return, use setReturn");
             c.cancel(s.isNoneOrNil(2) ? null : value(s, 2, c.returns));
             return 0;
         });
-        method(state, "setReturn", s -> {
+        LuaTables.function(state, "mixin", "setReturn", s -> {
             Dispatch.Call c = call(s);
             if (c.returns == void.class) throw s.error("this method returns nothing");
             c.value(value(s, 2, c.returns));
             return 0;
         });
-        method(state, "getReturn", s -> {
+        LuaTables.function(state, "mixin", "getReturn", s -> {
             Java.push(s, call(s).value());
             return 1;
         });
-        method(state, "getArg", s -> {
+        LuaTables.function(state, "mixin", "getArg", s -> {
             Dispatch.Call c = call(s);
             Java.push(s, c.args[slot(s, c)]);
             return 1;
         });
-        method(state, "setArg", s -> {
+        LuaTables.function(state, "mixin", "setArg", s -> {
             Dispatch.Call c = call(s);
             if (c.returning) throw s.error("cannot change arguments at return");
             int n = slot(s, c);
@@ -179,17 +174,13 @@ public final class Mixins {
         state.rawSetField(LuaState.REGISTRY_INDEX, CALL_METHODS);
 
         state.newTable();
-        method(state, "remove", s -> {
+        LuaTables.function(state, "mixin", "remove", s -> {
             if (s.toUserDataTagged(1, HANDLE) instanceof Handle h) remove(h);
             return 0;
         });
         state.rawSetField(LuaState.REGISTRY_INDEX, HANDLE_METHODS);
     }
 
-    private static void method(LuaState state, String name, ToIntFunction<LuaState> body) {
-        state.pushFunction(LuaFunc.wrap(body, "mixin:" + name));
-        state.rawSetField(-2, name);
-    }
 
     private static int callIndex(LuaState state) {
         Dispatch.Call call = call(state);

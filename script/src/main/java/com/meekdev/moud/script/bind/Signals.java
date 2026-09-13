@@ -23,8 +23,7 @@ public final class Signals {
 
     public static void install(LuaState state) {
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(Signals::connect, "Signal:connect"));
-        state.rawSetField(-2, "connect");
+        LuaTables.function(state, "Signal", "connect", Signals::connect);
         state.rawSetField(LuaState.REGISTRY_INDEX, METHODS);
 
         state.pushFunction(LuaFunc.wrap(s -> {
@@ -44,18 +43,15 @@ public final class Signals {
         state.setGlobal("clock");
 
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(Signals::disconnect, "Connection:disconnect"));
-        state.rawSetField(-2, "disconnect");
+        LuaTables.function(state, "Connection", "disconnect", Signals::disconnect);
         state.rawSetField(LuaState.REGISTRY_INDEX, CONNECTION_METHODS);
 
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(s -> members(s, METHODS, "signal"), "Signal.__index"));
-        state.rawSetField(-2, "__index");
+        LuaTables.function(state, "Signal", "__index", s -> members(s, METHODS, "signal"));
         state.setUserDataMetaTable(TAG);
 
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(s -> members(s, CONNECTION_METHODS, "connection"), "Connection.__index"));
-        state.rawSetField(-2, "__index");
+        LuaTables.function(state, "Connection", "__index", s -> members(s, CONNECTION_METHODS, "connection"));
         state.setUserDataMetaTable(CONNECTION);
     }
 

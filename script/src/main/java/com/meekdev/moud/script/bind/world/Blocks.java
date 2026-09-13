@@ -1,5 +1,6 @@
 package com.meekdev.moud.script.bind.world;
 
+import com.meekdev.moud.script.bind.LuaTables;
 import net.hollowcube.luau.LuaType;
 import com.meekdev.moud.script.err.ScriptError;
 import java.util.function.Consumer;
@@ -10,8 +11,6 @@ import java.util.ArrayList;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.api.BlockRef;
-import java.util.function.ToIntFunction;
-import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import com.meekdev.moud.script.bind.Signals;
 import com.meekdev.moud.script.bind.Values;
@@ -25,12 +24,12 @@ public final class Blocks {
     public static void install(LuaState state, BlockRef blocks) {
         state.getGlobal("game");
         state.newTable();
-        function(state, "get", s -> {
+        LuaTables.function(state, "blocks", "get", s -> {
             Vector3 at = Values.vec3(s, 2);
             s.pushString(blocks.get(floor(at.x()), floor(at.y()), floor(at.z())));
             return 1;
         });
-        function(state, "set", s -> {
+        LuaTables.function(state, "blocks", "set", s -> {
             writable(s, blocks);
             Vector3 at = Values.vec3(s, 2);
             try {
@@ -40,7 +39,7 @@ public final class Blocks {
             }
             return 0;
         });
-        function(state, "fill", s -> {
+        LuaTables.function(state, "blocks", "fill", s -> {
             writable(s, blocks);
             Vector3 a = Values.vec3(s, 2);
             Vector3 b = Values.vec3(s, 3);
@@ -55,7 +54,7 @@ public final class Blocks {
             }
             return 1;
         });
-        function(state, "raycast", s -> {
+        LuaTables.function(state, "blocks", "raycast", s -> {
             Vector3 from = Values.vec3(s, 2);
             Vector3 direction = Values.vec3(s, 3);
             double range = s.isNoneOrNil(4) ? 100 : s.checkNumber(4);
@@ -76,19 +75,19 @@ public final class Blocks {
             Values.push(s, hit.normal());
             return 4;
         });
-        function(state, "isSolid", s -> at(s, blocks::solid));
-        function(state, "isAir", s -> at(s, blocks::air));
-        function(state, "isFluid", s -> at(s, blocks::fluid));
-        function(state, "lightAt", s -> {
+        LuaTables.function(state, "blocks", "isSolid", s -> at(s, blocks::solid));
+        LuaTables.function(state, "blocks", "isAir", s -> at(s, blocks::air));
+        LuaTables.function(state, "blocks", "isFluid", s -> at(s, blocks::fluid));
+        LuaTables.function(state, "blocks", "lightAt", s -> {
             Vector3 at = Values.vec3(s, 2);
             s.pushNumber(blocks.light(floor(at.x()), floor(at.y()), floor(at.z())));
             return 1;
         });
-        function(state, "topAt", s -> {
+        LuaTables.function(state, "blocks", "topAt", s -> {
             s.pushNumber(blocks.top(floor(s.checkNumber(2)), floor(s.checkNumber(3))));
             return 1;
         });
-        function(state, "find", s -> {
+        LuaTables.function(state, "blocks", "find", s -> {
             String id = s.checkString(2);
             Vector3 centre = Values.vec3(s, 3);
             int radius = (int) Math.ceil(s.checkNumber(4));
@@ -113,7 +112,7 @@ public final class Blocks {
             }
             return 1;
         });
-        function(state, "count", s -> {
+        LuaTables.function(state, "blocks", "count", s -> {
             String id = s.checkString(2);
             Box box = box(s, 3, 4);
             long count = 0;
@@ -127,7 +126,7 @@ public final class Blocks {
             s.pushNumber(count);
             return 1;
         });
-        function(state, "replace", s -> {
+        LuaTables.function(state, "blocks", "replace", s -> {
             writable(s, blocks);
             String from = s.checkString(2);
             String to = s.checkString(3);
@@ -145,7 +144,7 @@ public final class Blocks {
             s.pushNumber(count);
             return 1;
         });
-        function(state, "sphere", s -> {
+        LuaTables.function(state, "blocks", "sphere", s -> {
             writable(s, blocks);
             Vector3 centre = Values.vec3(s, 2);
             double radius = s.checkNumber(3);
@@ -167,7 +166,7 @@ public final class Blocks {
             s.pushNumber(count);
             return 1;
         });
-        function(state, "cylinder", s -> {
+        LuaTables.function(state, "blocks", "cylinder", s -> {
             writable(s, blocks);
             Vector3 base = Values.vec3(s, 2);
             double radius = s.checkNumber(3);
@@ -190,7 +189,7 @@ public final class Blocks {
             s.pushNumber(count);
             return 1;
         });
-        function(state, "line", s -> {
+        LuaTables.function(state, "blocks", "line", s -> {
             writable(s, blocks);
             Vector3 a = Values.vec3(s, 2);
             Vector3 b = Values.vec3(s, 3);
@@ -211,7 +210,7 @@ public final class Blocks {
             s.pushNumber(count);
             return 1;
         });
-        function(state, "hollowBox", s -> {
+        LuaTables.function(state, "blocks", "hollowBox", s -> {
             writable(s, blocks);
             Box box = box(s, 2, 3);
             String block = s.checkString(4);
@@ -229,7 +228,7 @@ public final class Blocks {
             s.pushNumber(count);
             return 1;
         });
-        function(state, "copy", s -> {
+        LuaTables.function(state, "blocks", "copy", s -> {
             Box box = box(s, 2, 3);
             List<String> palette = new ArrayList<>();
             Map<String, Integer> index = new HashMap<>();
@@ -265,7 +264,7 @@ public final class Blocks {
             s.rawSetField(-2, "blocks");
             return 1;
         });
-        function(state, "paste", s -> {
+        LuaTables.function(state, "blocks", "paste", s -> {
             writable(s, blocks);
             if (s.type(2) != LuaType.TABLE) throw s.error("paste expects what copy returned");
             Vector3 at = Values.vec3(s, 3);
@@ -381,8 +380,4 @@ public final class Blocks {
         return (int) Math.floor(v);
     }
 
-    private static void function(LuaState state, String name, ToIntFunction<LuaState> body) {
-        state.pushFunction(LuaFunc.wrap(body::applyAsInt, "blocks:" + name));
-        state.rawSetField(-2, name);
-    }
 }

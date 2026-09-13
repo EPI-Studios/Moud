@@ -1,5 +1,6 @@
 package com.meekdev.moud.script.bind.tween;
 
+import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.core.clazz.Enums;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instance;
@@ -52,7 +53,7 @@ public final class TweenMethods {
         state.rawSetField(LuaState.REGISTRY_INDEX, METHODS);
 
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(s -> {
+        LuaTables.function(state, "tween", "__index", s -> {
             Handle handle = handle(s);
             String key = s.checkString(2);
             if (key.equals("completed")) {
@@ -65,8 +66,7 @@ public final class TweenMethods {
                 return 1;
             }
             throw s.error("a tween has no member '%s'", key);
-        }, "tween.__index"));
-        state.rawSetField(-2, "__index");
+        });
         state.setUserDataMetaTable(TAG);
 
         Proxies.extraMethod(state, "tween", s -> tween(s, running, onError));

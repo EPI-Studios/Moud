@@ -1,11 +1,11 @@
 package com.meekdev.moud.script.bind.player;
 
+import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.script.api.InputRef;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.function.ToIntFunction;
-import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
@@ -21,10 +21,8 @@ public final class Inputs {
 
     public static void install(LuaState state) {
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(Inputs::index, "input.__index"));
-        state.rawSetField(-2, "__index");
-        state.pushFunction(LuaFunc.wrap(Inputs::newIndex, "input.__newindex"));
-        state.rawSetField(-2, "__newindex");
+        LuaTables.function(state, "input", "__index", Inputs::index);
+        LuaTables.function(state, "input", "__newindex", Inputs::newIndex);
         state.setUserDataMetaTable(TAG);
 
         state.newTable();
@@ -36,8 +34,7 @@ public final class Inputs {
 
     private static void method(LuaState state, String name, ToIntFunction<LuaState> body) {
         NAMES.add(name);
-        state.pushFunction(LuaFunc.wrap(body, "input:" + name));
-        state.rawSetField(-2, name);
+        LuaTables.function(state, "input", name, body);
     }
 
     public static Set<String> methodNames() {

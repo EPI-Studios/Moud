@@ -1,5 +1,6 @@
 package com.meekdev.moud.script.vm;
 
+import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.api.Game;
@@ -214,7 +215,7 @@ public final class Vm implements ScriptEngine {
 
         state.getGlobal("game");
         state.rawGetField(-1, "players");
-        state.pushFunction(LuaFunc.wrap(s -> {
+        LuaTables.function(state, "players", "me", s -> {
             Instance character = own.get();
             if (character == null || !character.isAlive()) {
                 s.pushNil();
@@ -222,8 +223,7 @@ public final class Vm implements ScriptEngine {
                 Proxies.push(s, character);
             }
             return 1;
-        }, "players.me"));
-        state.rawSetField(-2, "me");
+        });
         state.pop(2);
     }
 

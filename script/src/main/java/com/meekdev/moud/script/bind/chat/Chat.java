@@ -1,5 +1,6 @@
 package com.meekdev.moud.script.bind.chat;
 
+import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.text.RichText;
 import com.meekdev.moud.script.api.ChatRef;
@@ -158,30 +159,26 @@ public final class Chat {
             });
             return 0;
         });
-        state.pushFunction(LuaFunc.wrap(s -> {
+        LuaTables.function(state, "chat", "escape", s -> {
             s.pushString(RichText.escape(s.checkString(1)));
             return 1;
-        }, "chat.escape"));
-        state.rawSetField(-2, "escape");
-        state.pushFunction(LuaFunc.wrap(s -> {
+        });
+        LuaTables.function(state, "chat", "plain", s -> {
             s.pushString(RichText.plain(s.checkString(1)));
             return 1;
-        }, "chat.plain"));
-        state.rawSetField(-2, "plain");
-        state.pushFunction(LuaFunc.wrap(s -> {
+        });
+        LuaTables.function(state, "chat", "bodyLink", s -> {
             Instance body = instance(s, 1, "a body");
             String label = s.isNoneOrNil(2) ? body.name() : s.checkString(2);
             s.pushString("<body id=" + body.id() + ">" + RichText.escape(label) + "</body>");
             return 1;
-        }, "chat.bodyLink"));
-        state.rawSetField(-2, "bodyLink");
-        state.pushFunction(LuaFunc.wrap(s -> {
+        });
+        LuaTables.function(state, "chat", "itemLink", s -> {
             String id = s.checkString(1);
             int count = s.isNoneOrNil(2) ? 1 : (int) s.checkNumber(2);
             s.pushString("<item id=\"" + id.replace("\"", "") + "\" count=" + count + "/>");
             return 1;
-        }, "chat.itemLink"));
-        state.rawSetField(-2, "itemLink");
+        });
         for (String name : SIGNALS) {
             Signals.push(state, signals.get(name));
             state.rawSetField(-2, name);

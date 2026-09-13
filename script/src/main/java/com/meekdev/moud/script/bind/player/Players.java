@@ -1,12 +1,12 @@
 package com.meekdev.moud.script.bind.player;
 
+import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.api.PlayerRef;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.function.ToIntFunction;
-import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 import com.meekdev.moud.script.bind.Proxies;
@@ -24,12 +24,9 @@ public final class Players {
 
     public static void install(LuaState state) {
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(Players::index, "Player.__index"));
-        state.rawSetField(-2, "__index");
-        state.pushFunction(LuaFunc.wrap(Players::text, "Player.__tostring"));
-        state.rawSetField(-2, "__tostring");
-        state.pushFunction(LuaFunc.wrap(Players::same, "Player.__eq"));
-        state.rawSetField(-2, "__eq");
+        LuaTables.function(state, "Player", "__index", Players::index);
+        LuaTables.function(state, "Player", "__tostring", Players::text);
+        LuaTables.function(state, "Player", "__eq", Players::same);
         state.setUserDataMetaTable(TAG);
 
         state.newTable();
@@ -47,8 +44,7 @@ public final class Players {
 
     private static void method(LuaState state, String name, ToIntFunction<LuaState> body) {
         NAMES.add(name);
-        state.pushFunction(LuaFunc.wrap(body, "Player:" + name));
-        state.rawSetField(-2, name);
+        LuaTables.function(state, "Player", name, body);
     }
 
     public static Set<String> methodNames() {

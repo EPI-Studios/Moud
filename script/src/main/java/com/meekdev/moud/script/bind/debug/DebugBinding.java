@@ -1,12 +1,11 @@
 package com.meekdev.moud.script.bind.debug;
 
+import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.core.query.Queries;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.api.DebugRef;
 import java.util.Map;
-import java.util.function.ToIntFunction;
-import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import com.meekdev.moud.script.bind.Plain;
 import com.meekdev.moud.script.bind.Profiler;
@@ -21,45 +20,45 @@ public final class DebugBinding {
     public static void install(LuaState state, DebugRef debug) {
         state.getGlobal("game");
         state.newTable();
-        function(state, "drawLine", s -> {
+        LuaTables.function(state, "debug", "drawLine", s -> {
             debug.line(Values.vec3(s, 2), Values.vec3(s, 3), color(s, 4), seconds(s, 5));
             return 0;
         });
-        function(state, "drawRay", s -> {
+        LuaTables.function(state, "debug", "drawRay", s -> {
             Vector3 from = Values.vec3(s, 2);
             debug.line(from, from.add(Values.vec3(s, 3)), color(s, 4), seconds(s, 5));
             return 0;
         });
-        function(state, "drawBox", s -> {
+        LuaTables.function(state, "debug", "drawBox", s -> {
             debug.box(Values.cframe(s, 2), Values.vec3(s, 3), color(s, 4), seconds(s, 5));
             return 0;
         });
-        function(state, "drawSphere", s -> {
+        LuaTables.function(state, "debug", "drawSphere", s -> {
             debug.sphere(Values.vec3(s, 2), s.checkNumber(3), color(s, 4), seconds(s, 5));
             return 0;
         });
-        function(state, "drawPoint", s -> {
+        LuaTables.function(state, "debug", "drawPoint", s -> {
             debug.sphere(Values.vec3(s, 2), 0.1, color(s, 3), seconds(s, 4));
             return 0;
         });
-        function(state, "label", s -> {
+        LuaTables.function(state, "debug", "label", s -> {
             debug.label(Values.vec3(s, 2), s.checkString(3), color(s, 4), seconds(s, 5));
             return 0;
         });
-        function(state, "watch", s -> {
+        LuaTables.function(state, "debug", "watch", s -> {
             debug.watch(s.checkString(2), text(s, 3));
             return 0;
         });
-        function(state, "clear", s -> {
+        LuaTables.function(state, "debug", "clear", s -> {
             debug.clear();
             return 0;
         });
-        function(state, "queryStats", s -> {
+        LuaTables.function(state, "debug", "queryStats", s -> {
             Queries.Stats stats = Queries.takeStats();
             Plain.push(s, Map.of("queries", (double) stats.queries(), "partsTested", (double) stats.partsTested()));
             return 1;
         });
-        function(state, "profile", s -> {
+        LuaTables.function(state, "debug", "profile", s -> {
             Plain.push(s, Profiler.take(s));
             return 1;
         });
@@ -86,8 +85,4 @@ public final class DebugBinding {
         return s.isNoneOrNil(at) ? 0 : s.checkNumber(at);
     }
 
-    private static void function(LuaState state, String name, ToIntFunction<LuaState> body) {
-        state.pushFunction(LuaFunc.wrap(body::applyAsInt, "debug:" + name));
-        state.rawSetField(-2, name);
-    }
 }

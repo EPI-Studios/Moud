@@ -1,5 +1,6 @@
 package com.meekdev.moud.script.bind.java;
 
+import com.meekdev.moud.script.bind.LuaTables;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.lang.reflect.Array;
@@ -40,38 +41,30 @@ public final class Java {
 
     public static void install(LuaState state) {
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(s -> index(s, false), "java.__index"));
-        state.rawSetField(-2, "__index");
-        state.pushFunction(LuaFunc.wrap(s -> assign(s, false), "java.__newindex"));
-        state.rawSetField(-2, "__newindex");
-        state.pushFunction(LuaFunc.wrap(Java::text, "java.__tostring"));
-        state.rawSetField(-2, "__tostring");
-        state.pushFunction(LuaFunc.wrap(s -> {
+        LuaTables.function(state, "java", "__index", s -> index(s, false));
+        LuaTables.function(state, "java", "__newindex", s -> assign(s, false));
+        LuaTables.function(state, "java", "__tostring", Java::text);
+        LuaTables.function(state, "java", "__eq", s -> {
             s.pushBoolean(Objects.equals(s.toUserDataTagged(1, OBJECT), s.toUserDataTagged(2, OBJECT)));
             return 1;
-        }, "java.__eq"));
-        state.rawSetField(-2, "__eq");
+        });
         state.setUserDataMetaTable(OBJECT);
 
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(s -> index(s, true), "javaclass.__index"));
-        state.rawSetField(-2, "__index");
-        state.pushFunction(LuaFunc.wrap(s -> assign(s, true), "javaclass.__newindex"));
-        state.rawSetField(-2, "__newindex");
-        state.pushFunction(LuaFunc.wrap(Java::text, "javaclass.__tostring"));
-        state.rawSetField(-2, "__tostring");
+        LuaTables.function(state, "javaclass", "__index", s -> index(s, true));
+        LuaTables.function(state, "javaclass", "__newindex", s -> assign(s, true));
+        LuaTables.function(state, "javaclass", "__tostring", Java::text);
         state.setUserDataMetaTable(CLASS);
 
         state.newTable();
         state.rawSetField(LuaState.REGISTRY_INDEX, METHODS);
 
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(s -> {
+        LuaTables.function(state, "java", "class", s -> {
             state.newUserDataTaggedWithMetatable(new JavaClass(load(s, s.checkString(1))), CLASS);
             return 1;
-        }, "java.class"));
-        state.rawSetField(-2, "class");
-        state.pushFunction(LuaFunc.wrap(s -> {
+        });
+        LuaTables.function(state, "java", "typeof", s -> {
             Object value = s.toUserDataTagged(1, OBJECT);
             if (value == null) {
                 s.pushNil();
@@ -79,14 +72,12 @@ public final class Java {
                 s.pushString(value.getClass().getName());
             }
             return 1;
-        }, "java.typeof"));
-        state.rawSetField(-2, "typeof");
-        state.pushFunction(LuaFunc.wrap(s -> {
+        });
+        LuaTables.function(state, "java", "instanceOf", s -> {
             Object value = s.toUserDataTagged(1, OBJECT);
             s.pushBoolean(value != null && load(s, s.checkString(2)).isInstance(value));
             return 1;
-        }, "java.instanceOf"));
-        state.rawSetField(-2, "instanceOf");
+        });
         state.setGlobal("java");
     }
 

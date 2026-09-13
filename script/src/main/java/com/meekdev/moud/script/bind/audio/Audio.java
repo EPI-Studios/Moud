@@ -1,5 +1,6 @@
 package com.meekdev.moud.script.bind.audio;
 
+import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.api.AudioRef;
 import java.util.ArrayList;
@@ -28,56 +29,56 @@ public final class Audio {
         methods(state, MUSIC, MUSIC_METHODS, "music", musicMethods());
 
         state.newTable();
-        function(state, "play", s -> {
+        LuaTables.function(state, "audio", "play", s -> {
             push(s, audio.play(s.checkString(1), options(s, 2)));
             return 1;
         });
-        function(state, "playEvent", s -> {
+        LuaTables.function(state, "audio", "playEvent", s -> {
             push(s, audio.playEvent(s.checkString(1), s.isNoneOrNil(2) ? null : Values.vec3(s, 2)));
             return 1;
         });
-        function(state, "stinger", s -> {
+        LuaTables.function(state, "audio", "stinger", s -> {
             push(s, audio.stinger(s.checkString(1), quantize(s, 2)));
             return 1;
         });
-        function(state, "defineEvent", s -> {
+        LuaTables.function(state, "audio", "defineEvent", s -> {
             defineEvent(s, audio);
             return 0;
         });
-        function(state, "tempo", s -> {
+        LuaTables.function(state, "audio", "tempo", s -> {
             audio.tempo(s.checkNumber(1), s.isNoneOrNil(2) ? 4 : (int) s.checkNumber(2));
             return 0;
         });
-        function(state, "stopTempo", s -> {
+        LuaTables.function(state, "audio", "stopTempo", s -> {
             audio.stopTempo();
             return 0;
         });
-        function(state, "beats", s -> {
+        LuaTables.function(state, "audio", "beats", s -> {
             s.pushNumber(audio.beats());
             return 1;
         });
-        function(state, "setParameter", s -> {
+        LuaTables.function(state, "audio", "setParameter", s -> {
             audio.parameter(s.checkString(1), s.checkNumber(2));
             return 0;
         });
-        function(state, "getParameter", s -> {
+        LuaTables.function(state, "audio", "getParameter", s -> {
             s.pushNumber(audio.parameter(s.checkString(1)));
             return 1;
         });
-        function(state, "bindBusVolume", s -> {
+        LuaTables.function(state, "audio", "bindBusVolume", s -> {
             audio.bindBusVolume(s.checkString(1), s.checkString(2), curve(s, 3));
             return 0;
         });
-        function(state, "setSwitch", s -> {
+        LuaTables.function(state, "audio", "setSwitch", s -> {
             audio.switchTo(s.checkString(1), s.checkString(2));
             return 0;
         });
-        function(state, "getSwitch", s -> {
+        LuaTables.function(state, "audio", "getSwitch", s -> {
             String value = audio.switchOf(s.checkString(1));
             if (value == null) s.pushNil(); else s.pushString(value);
             return 1;
         });
-        function(state, "lfo", s -> {
+        LuaTables.function(state, "audio", "lfo", s -> {
             String shape = s.checkString(2);
             if (!List.of("sine", "triangle", "saw", "square").contains(shape)) {
                 throw s.error("unknown lfo shape '%s'", shape);
@@ -85,39 +86,39 @@ public final class Audio {
             audio.lfo(s.checkString(1), shape, s.checkNumber(3), s.checkNumber(4), s.checkNumber(5));
             return 0;
         });
-        function(state, "snapshot", s -> {
+        LuaTables.function(state, "audio", "snapshot", s -> {
             audio.snapshot(volumes(s, 1), s.isNoneOrNil(2) ? 0 : s.checkNumber(2));
             return 0;
         });
-        function(state, "clearSnapshot", s -> {
+        LuaTables.function(state, "audio", "clearSnapshot", s -> {
             audio.clearSnapshot(s.isNoneOrNil(1) ? 0 : s.checkNumber(1));
             return 0;
         });
-        function(state, "sidechain", s -> {
+        LuaTables.function(state, "audio", "sidechain", s -> {
             audio.sidechain(s.checkString(1), s.checkString(2), s.checkNumber(3));
             return 0;
         });
-        function(state, "reverb", s -> {
+        LuaTables.function(state, "audio", "reverb", s -> {
             audio.reverb(s.checkNumber(1), s.checkNumber(2));
             return 0;
         });
-        function(state, "hrtf", s -> {
+        LuaTables.function(state, "audio", "hrtf", s -> {
             audio.hrtf(s.toBoolean(1));
             return 0;
         });
-        function(state, "occlusion", s -> {
+        LuaTables.function(state, "audio", "occlusion", s -> {
             audio.occlusion(s.toBoolean(1));
             return 0;
         });
-        function(state, "music", s -> {
+        LuaTables.function(state, "audio", "music", s -> {
             music(s, audio);
             return 1;
         });
-        function(state, "voiceChat", s -> {
+        LuaTables.function(state, "audio", "voiceChat", s -> {
             voiceChat(s, audio);
             return 0;
         });
-        function(state, "voiceCount", s -> {
+        LuaTables.function(state, "audio", "voiceCount", s -> {
             s.pushNumber(audio.voiceCount());
             return 1;
         });
@@ -210,10 +211,6 @@ public final class Audio {
         state.setUserDataMetaTable(tag);
     }
 
-    private static void function(LuaState state, String name, ToIntFunction<LuaState> body) {
-        state.pushFunction(LuaFunc.wrap(body::applyAsInt, "audio." + name));
-        state.rawSetField(-2, name);
-    }
 
     private static void push(LuaState state, AudioRef.Voice voice) {
         if (voice == null) state.pushNil(); else state.newUserDataTaggedWithMetatable(voice, VOICE);

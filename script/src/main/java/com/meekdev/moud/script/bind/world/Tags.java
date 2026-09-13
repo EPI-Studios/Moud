@@ -1,5 +1,6 @@
 package com.meekdev.moud.script.bind.world;
 
+import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.core.event.Signal;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
@@ -9,7 +10,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import com.meekdev.moud.script.bind.Proxies;
 import com.meekdev.moud.script.bind.Signals;
@@ -32,7 +32,7 @@ public final class Tags {
     public void install() {
         state.getGlobal("game");
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(s -> {
+        LuaTables.function(state, "tags", "tagged", s -> {
             List<Instance> tagged = tree.tagged(s.checkString(2));
             s.createTable(tagged.size(), 0);
             for (int n = 0; n < tagged.size(); n++) {
@@ -40,20 +40,17 @@ public final class Tags {
                 s.rawSetI(-2, n + 1);
             }
             return 1;
-        }, "tags:tagged"));
-        state.rawSetField(-2, "tagged");
-        state.pushFunction(LuaFunc.wrap(s -> {
+        });
+        LuaTables.function(state, "tags", "added", s -> {
             String tag = s.checkString(2);
             Signals.push(s, signal(added, tag, tree.tagAdded(tag)));
             return 1;
-        }, "tags:added"));
-        state.rawSetField(-2, "added");
-        state.pushFunction(LuaFunc.wrap(s -> {
+        });
+        LuaTables.function(state, "tags", "removed", s -> {
             String tag = s.checkString(2);
             Signals.push(s, signal(removed, tag, tree.tagRemoved(tag)));
             return 1;
-        }, "tags:removed"));
-        state.rawSetField(-2, "removed");
+        });
         state.rawSetField(-2, "tags");
         state.pop(1);
     }

@@ -23,29 +23,19 @@ public final class Values {
 
     public static void install(LuaState state) {
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(Values::vec3Index, "vec3.__index"));
-        state.rawSetField(-2, "__index");
-        state.pushFunction(LuaFunc.wrap(Values::vec3Add, "vec3.__add"));
-        state.rawSetField(-2, "__add");
-        state.pushFunction(LuaFunc.wrap(Values::vec3Sub, "vec3.__sub"));
-        state.rawSetField(-2, "__sub");
-        state.pushFunction(LuaFunc.wrap(Values::vec3Mul, "vec3.__mul"));
-        state.rawSetField(-2, "__mul");
-        state.pushFunction(LuaFunc.wrap(Values::vec3Neg, "vec3.__unm"));
-        state.rawSetField(-2, "__unm");
-        state.pushFunction(LuaFunc.wrap(Values::vec3Eq, "vec3.__eq"));
-        state.rawSetField(-2, "__eq");
-        state.pushFunction(LuaFunc.wrap(Values::vec3Text, "vec3.__tostring"));
-        state.rawSetField(-2, "__tostring");
+        LuaTables.function(state, "vec3", "__index", Values::vec3Index);
+        LuaTables.function(state, "vec3", "__add", Values::vec3Add);
+        LuaTables.function(state, "vec3", "__sub", Values::vec3Sub);
+        LuaTables.function(state, "vec3", "__mul", Values::vec3Mul);
+        LuaTables.function(state, "vec3", "__unm", Values::vec3Neg);
+        LuaTables.function(state, "vec3", "__eq", Values::vec3Eq);
+        LuaTables.function(state, "vec3", "__tostring", Values::vec3Text);
         state.setUserDataMetaTable(VEC3);
 
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(Values::colorIndex, "color.__index"));
-        state.rawSetField(-2, "__index");
-        state.pushFunction(LuaFunc.wrap(Values::colorEq, "color.__eq"));
-        state.rawSetField(-2, "__eq");
-        state.pushFunction(LuaFunc.wrap(Values::colorText, "color.__tostring"));
-        state.rawSetField(-2, "__tostring");
+        LuaTables.function(state, "color", "__index", Values::colorIndex);
+        LuaTables.function(state, "color", "__eq", Values::colorEq);
+        LuaTables.function(state, "color", "__tostring", Values::colorText);
         state.setUserDataMetaTable(COLOR);
 
         state.pushFunction(LuaFunc.wrap(Values::newVec3, "vec3"));
@@ -54,28 +44,20 @@ public final class Values {
         state.setGlobal("color");
 
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(Values::cframeIndex, "cframe.__index"));
-        state.rawSetField(-2, "__index");
-        state.pushFunction(LuaFunc.wrap(Values::cframeMul, "cframe.__mul"));
-        state.rawSetField(-2, "__mul");
-        state.pushFunction(LuaFunc.wrap(Values::cframeEq, "cframe.__eq"));
-        state.rawSetField(-2, "__eq");
-        state.pushFunction(LuaFunc.wrap(Values::cframeText, "cframe.__tostring"));
-        state.rawSetField(-2, "__tostring");
+        LuaTables.function(state, "cframe", "__index", Values::cframeIndex);
+        LuaTables.function(state, "cframe", "__mul", Values::cframeMul);
+        LuaTables.function(state, "cframe", "__eq", Values::cframeEq);
+        LuaTables.function(state, "cframe", "__tostring", Values::cframeText);
         state.setUserDataMetaTable(CFRAME);
 
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(Values::quatIndex, "quat.__index"));
-        state.rawSetField(-2, "__index");
-        state.pushFunction(LuaFunc.wrap(Values::quatEq, "quat.__eq"));
-        state.rawSetField(-2, "__eq");
+        LuaTables.function(state, "quat", "__index", Values::quatIndex);
+        LuaTables.function(state, "quat", "__eq", Values::quatEq);
         state.setUserDataMetaTable(QUAT);
 
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(Values::cframeAngles, "cframe.angles"));
-        state.rawSetField(-2, "angles");
-        state.pushFunction(LuaFunc.wrap(Values::cframeLookAt, "cframe.lookAt"));
-        state.rawSetField(-2, "lookAt");
+        LuaTables.function(state, "cframe", "angles", Values::cframeAngles);
+        LuaTables.function(state, "cframe", "lookAt", Values::cframeLookAt);
         push(state, CFrame.IDENTITY);
         state.rawSetField(-2, "identity");
         state.newTable();
@@ -85,43 +67,36 @@ public final class Values {
         state.setGlobal("cframe");
 
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(Values::udim2Index, "udim2.__index"));
-        state.rawSetField(-2, "__index");
-        state.pushFunction(LuaFunc.wrap(s -> {
+        LuaTables.function(state, "udim2", "__index", Values::udim2Index);
+        LuaTables.function(state, "udim2", "__add", s -> {
             push(s, udim2(s, 1).add(udim2(s, 2)));
             return 1;
-        }, "udim2.__add"));
-        state.rawSetField(-2, "__add");
-        state.pushFunction(LuaFunc.wrap(s -> {
+        });
+        LuaTables.function(state, "udim2", "__sub", s -> {
             push(s, udim2(s, 1).sub(udim2(s, 2)));
             return 1;
-        }, "udim2.__sub"));
-        state.rawSetField(-2, "__sub");
-        state.pushFunction(LuaFunc.wrap(s -> {
+        });
+        LuaTables.function(state, "udim2", "__eq", s -> {
             s.pushBoolean(udim2(s, 1).equals(s.toUserDataTagged(2, UDIM2)));
             return 1;
-        }, "udim2.__eq"));
-        state.rawSetField(-2, "__eq");
-        state.pushFunction(LuaFunc.wrap(s -> {
+        });
+        LuaTables.function(state, "udim2", "__tostring", s -> {
             UDim2 u = udim2(s, 1);
             s.pushString("udim2(" + u.xScale() + ", " + u.xOffset() + ", " + u.yScale() + ", "
                     + u.yOffset() + ")");
             return 1;
-        }, "udim2.__tostring"));
-        state.rawSetField(-2, "__tostring");
+        });
         state.setUserDataMetaTable(UDIM2);
 
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(s -> {
+        LuaTables.function(state, "udim2", "fromScale", s -> {
             push(s, UDim2.fromScale(s.checkNumber(1), s.checkNumber(2)));
             return 1;
-        }, "udim2.fromScale"));
-        state.rawSetField(-2, "fromScale");
-        state.pushFunction(LuaFunc.wrap(s -> {
+        });
+        LuaTables.function(state, "udim2", "fromOffset", s -> {
             push(s, UDim2.fromOffset(s.checkNumber(1), s.checkNumber(2)));
             return 1;
-        }, "udim2.fromOffset"));
-        state.rawSetField(-2, "fromOffset");
+        });
         state.newTable();
         state.pushFunction(LuaFunc.wrap(s -> {
             push(s, new UDim2(s.checkNumber(2), s.checkNumber(3), s.checkNumber(4), s.checkNumber(5)));
@@ -166,14 +141,10 @@ public final class Values {
         state.newTable();
         push(state, Quat.IDENTITY);
         state.rawSetField(-2, "identity");
-        state.pushFunction(LuaFunc.wrap(st -> one(st, Quat.axisAngle(vec3(st, 1).normalize(), st.checkNumber(2))), "quat.axisAngle"));
-        state.rawSetField(-2, "axisAngle");
-        state.pushFunction(LuaFunc.wrap(st -> one(st, Quat.euler(st.checkNumber(1), st.checkNumber(2), st.checkNumber(3))), "quat.euler"));
-        state.rawSetField(-2, "euler");
-        state.pushFunction(LuaFunc.wrap(st -> one(st, Quat.lookAt(vec3(st, 1), st.isNoneOrNil(2) ? Vector3.UP : vec3(st, 2))), "quat.lookAt"));
-        state.rawSetField(-2, "lookAt");
-        state.pushFunction(LuaFunc.wrap(st -> one(st, fromTo(vec3(st, 1), vec3(st, 2))), "quat.fromTo"));
-        state.rawSetField(-2, "fromTo");
+        LuaTables.function(state, "quat", "axisAngle", st -> one(st, Quat.axisAngle(vec3(st, 1).normalize(), st.checkNumber(2))));
+        LuaTables.function(state, "quat", "euler", st -> one(st, Quat.euler(st.checkNumber(1), st.checkNumber(2), st.checkNumber(3))));
+        LuaTables.function(state, "quat", "lookAt", st -> one(st, Quat.lookAt(vec3(st, 1), st.isNoneOrNil(2) ? Vector3.UP : vec3(st, 2))));
+        LuaTables.function(state, "quat", "fromTo", st -> one(st, fromTo(vec3(st, 1), vec3(st, 2))));
         state.setGlobal("quat");
     }
 

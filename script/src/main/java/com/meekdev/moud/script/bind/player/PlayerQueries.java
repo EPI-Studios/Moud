@@ -1,5 +1,6 @@
 package com.meekdev.moud.script.bind.player;
 
+import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.Instance;
@@ -12,8 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Predicate;
-import java.util.function.ToIntFunction;
-import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import com.meekdev.moud.script.bind.Proxies;
 import com.meekdev.moud.script.bind.world.QueryMethods;
@@ -27,18 +26,18 @@ public final class PlayerQueries {
 
     public static void install(LuaState state, Instance world) {
         InstanceTree tree = world.tree();
-        method(state, "all", s -> {
+        LuaTables.function(state, "players", "all", s -> {
             push(s, bodies(tree, null, Double.POSITIVE_INFINITY, null));
             return 1;
         });
-        method(state, "near", s -> {
+        LuaTables.function(state, "players", "near", s -> {
             Vector3 at = Values.vec3(s, 2);
             double radius = s.checkNumber(3);
             Instance except = s.isNoneOrNil(4) ? null : (Instance) s.toUserDataTagged(4, Proxies.TAG);
             push(s, bodies(tree, at, radius, except));
             return 1;
         });
-        method(state, "nearest", s -> {
+        LuaTables.function(state, "players", "nearest", s -> {
             Vector3 at = Values.vec3(s, 2);
             double radius = s.isNoneOrNil(3) ? Double.POSITIVE_INFINITY : s.checkNumber(3);
             Instance except = s.isNoneOrNil(4) ? null : (Instance) s.toUserDataTagged(4, Proxies.TAG);
@@ -51,7 +50,7 @@ public final class PlayerQueries {
             s.pushNumber(Math.sqrt(found.getFirst().distanceSq()));
             return 2;
         });
-        method(state, "bodyOf", s -> {
+        LuaTables.function(state, "players", "bodyOf", s -> {
             String player = s.checkString(2);
             for (Character body : tree.ofClass(Classes.CHARACTER)) {
                 if (body.owner.equals(player)) {
@@ -62,21 +61,21 @@ public final class PlayerQueries {
             s.pushNil();
             return 1;
         });
-        method(state, "inBox", s -> {
+        LuaTables.function(state, "players", "inBox", s -> {
             CFrame frame = Values.cframe(s, 2);
             Vector3 size = Values.vec3(s, 3);
             Instance except = optional(s, 4);
             push(s, filtered(tree, except, body -> inside(frame, size, position(body))));
             return 1;
         });
-        method(state, "inPart", s -> {
+        LuaTables.function(state, "players", "inPart", s -> {
             if (!(s.toUserDataTagged(2, Proxies.TAG) instanceof Part part)) throw s.error("inPart expects a part");
             Instance except = optional(s, 3);
             CFrame frame = Transforms.world(part);
             push(s, filtered(tree, except, body -> inside(frame, part.size, position(body))));
             return 1;
         });
-        method(state, "inCone", s -> {
+        LuaTables.function(state, "players", "inCone", s -> {
             Vector3 at = Values.vec3(s, 2);
             Vector3 way = Values.vec3(s, 3).normalize();
             double cos = Math.cos(Math.toRadians(s.checkNumber(4)));
@@ -92,7 +91,7 @@ public final class PlayerQueries {
             push(s, out);
             return 1;
         });
-        method(state, "visibleFrom", s -> {
+        LuaTables.function(state, "players", "visibleFrom", s -> {
             Vector3 at = Values.vec3(s, 2);
             double range = s.checkNumber(3);
             Instance except = optional(s, 4);
@@ -104,12 +103,12 @@ public final class PlayerQueries {
             push(s, out);
             return 1;
         });
-        method(state, "withTag", s -> {
+        LuaTables.function(state, "players", "withTag", s -> {
             String tag = s.checkString(2);
             push(s, filtered(tree, null, body -> body.hasTag(tag)));
             return 1;
         });
-        method(state, "random", s -> {
+        LuaTables.function(state, "players", "random", s -> {
             List<Found> all = bodies(tree, null, Double.POSITIVE_INFINITY, optional(s, 2));
             if (all.isEmpty()) {
                 s.pushNil();
@@ -118,11 +117,11 @@ public final class PlayerQueries {
             }
             return 1;
         });
-        method(state, "sortedByDistance", s -> {
+        LuaTables.function(state, "players", "sortedByDistance", s -> {
             push(s, bodies(tree, Values.vec3(s, 2), Double.POSITIVE_INFINITY, null));
             return 1;
         });
-        method(state, "inRange", s -> {
+        LuaTables.function(state, "players", "inRange", s -> {
             Instance a = (Instance) s.toUserDataTagged(2, Proxies.TAG);
             Instance b = (Instance) s.toUserDataTagged(3, Proxies.TAG);
             if (a == null || b == null) throw s.error("inRange expects two instances and a range");
@@ -130,7 +129,7 @@ public final class PlayerQueries {
             s.pushBoolean(position(a).sub(position(b)).lengthSq() <= range * range);
             return 1;
         });
-        method(state, "fromName", s -> {
+        LuaTables.function(state, "players", "fromName", s -> {
             String name = s.checkString(2);
             for (Character body : tree.ofClass(Classes.CHARACTER)) {
                 if (body.hasPlayer() && body.name().equalsIgnoreCase(name)) {
@@ -141,7 +140,7 @@ public final class PlayerQueries {
             s.pushNil();
             return 1;
         });
-        method(state, "count", s -> {
+        LuaTables.function(state, "players", "count", s -> {
             int n = 0;
             for (Character body : tree.ofClass(Classes.CHARACTER)) if (body.hasPlayer()) n++;
             s.pushNumber(n);
@@ -202,8 +201,4 @@ public final class PlayerQueries {
         }
     }
 
-    private static void method(LuaState state, String name, ToIntFunction<LuaState> body) {
-        state.pushFunction(LuaFunc.wrap(body::applyAsInt, "players:" + name));
-        state.rawSetField(-2, name);
-    }
 }

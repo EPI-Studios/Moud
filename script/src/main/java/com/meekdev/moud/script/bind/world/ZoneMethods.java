@@ -1,5 +1,6 @@
 package com.meekdev.moud.script.bind.world;
 
+import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.Instance;
@@ -13,7 +14,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.ToIntFunction;
-import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import com.meekdev.moud.script.bind.Plain;
 import com.meekdev.moud.script.bind.Proxies;
@@ -45,15 +45,14 @@ public final class ZoneMethods {
 
         state.getGlobal("game");
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(s -> {
+        LuaTables.function(state, "zones", "at", s -> {
             Plain.push(s, new ArrayList<Instance>(Zones.at(world.tree(), Values.vec3(s, 2))));
             return 1;
-        }, "zones:at"));
-        state.rawSetField(-2, "at");
+        });
         state.rawSetField(-2, "zones");
 
         state.newTable();
-        state.pushFunction(LuaFunc.wrap(s -> {
+        LuaTables.function(state, "proximity", "closestInteractable", s -> {
             if (!(s.toUserDataTagged(2, Proxies.TAG) instanceof Instance body)) throw s.error("expects a body");
             Vector3 at = Transforms.world(body).position();
             ProximityPrompt best = null;
@@ -73,8 +72,7 @@ public final class ZoneMethods {
             Proxies.push(s, best);
             s.pushNumber(bestDistance);
             return 2;
-        }, "proximity:closestInteractable"));
-        state.rawSetField(-2, "closestInteractable");
+        });
         state.rawSetField(-2, "proximity");
         state.pop(1);
     }

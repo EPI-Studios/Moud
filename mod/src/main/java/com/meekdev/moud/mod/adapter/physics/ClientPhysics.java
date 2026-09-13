@@ -16,7 +16,6 @@ import com.meekdev.moud.net.replicate.Change;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.Minecraft;
 import org.joml.Vector3f;
-import net.minecraft.world.entity.Entity;
 import org.joml.Vector3d;
 import org.joml.Quaternionf;
 import org.jspecify.annotations.Nullable;

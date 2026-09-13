@@ -4,7 +4,6 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.remote.Remote;
 import com.meekdev.moud.core.remote.Schema;
-import com.meekdev.moud.net.transport.Transport;
 import com.meekdev.moud.net.transport.Wire;
 import com.meekdev.moud.mod.adapter.chat.ServerChat;
 import com.meekdev.moud.mod.server.zone.ServerPrompts;
