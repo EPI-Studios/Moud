@@ -63,6 +63,7 @@ import com.meekdev.moud.core.instance.TonemapEffect;
 import com.meekdev.moud.core.instance.PostShader;
 import com.meekdev.moud.core.instance.Light;
 import com.meekdev.moud.core.instance.Zone;
+import com.meekdev.moud.core.instance.ProximityPrompt;
 import com.meekdev.moud.core.instance.PointLight;
 import com.meekdev.moud.core.instance.SpotLight;
 import com.meekdev.moud.core.instance.TubeLight;
@@ -149,6 +150,8 @@ public final class Classes {
     public static final ClassDef<PostShader> POST_SHADER =
             ClassDef.of("PostShader", SCREEN_EFFECT, PostShader.class, PostShader::new);
 
+    public static final ClassDef<ProximityPrompt> PROXIMITY_PROMPT =
+            ClassDef.of("ProximityPrompt", null, ProximityPrompt.class, ProximityPrompt::new);
     public static final ClassDef<Zone> ZONE = ClassDef.of("Zone", SPATIAL, Zone.class, Zone::new);
 
     public static final ClassDef<Light> LIGHT = ClassDef.of("Light", SPATIAL, Light.class, Light::new);
@@ -285,6 +288,7 @@ public final class Classes {
         r.register(TONEMAP_EFFECT);
         r.register(POST_SHADER);
         r.register(ZONE);
+        r.register(PROXIMITY_PROMPT);
         r.register(LIGHT);
         r.register(POINT_LIGHT);
         r.register(SPOT_LIGHT);

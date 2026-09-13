@@ -47,6 +47,7 @@ public final class MoudClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             ClientScene.tick();
             ClientChat.INSTANCE.tick();
+            ClientPrompts.tick(0.05);
             ClientPlace.tick();
         });
         // the place itself is stepped earlier, from GameRenderer.update, because the camera it
@@ -61,6 +62,7 @@ public final class MoudClient implements ClientModInitializer {
             Sounds.frame(partialTick);
             SceneLights.frame(partialTick);
             Bubbles.frame(partialTick);
+            ClientPrompts.frame();
             PostStack.frame();
             // every number behind this frame of your own body, while it is standing on something
             // that moves. it writes itself and stops, so there is nothing to turn on

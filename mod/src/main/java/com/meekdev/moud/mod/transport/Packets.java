@@ -141,6 +141,28 @@ public final class Packets {
         }
     }
 
+    // a player pressing, holding or letting go of a proximity prompt
+    public record PromptUp(int prompt, int kind) implements CustomPacketPayload {
+
+        public static final int TRIGGERED = 0;
+        public static final int HOLD_BEGAN = 1;
+        public static final int HOLD_ENDED = 2;
+
+        public static final Type<PromptUp> TYPE = named("prompt_up");
+
+        public static final StreamCodec<FriendlyByteBuf, PromptUp> CODEC = CustomPacketPayload.codec(
+                (m, out) -> {
+                    out.writeVarInt(m.prompt());
+                    out.writeVarInt(m.kind());
+                },
+                in -> new PromptUp(in.readVarInt(), in.readVarInt()));
+
+        @Override
+        public Type<PromptUp> type() {
+            return TYPE;
+        }
+    }
+
     // markup is longer than what it shows, and a place styling a line should not run out of room
     private static final int CHAT_TEXT = 16384;
 
@@ -160,5 +182,6 @@ public final class Packets {
         down.register(ChatDown.TYPE, ChatDown.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(Up.TYPE, Up.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(ChatUp.TYPE, ChatUp.CODEC.cast());
+        PayloadTypeRegistry.serverboundPlay().register(PromptUp.TYPE, PromptUp.CODEC.cast());
     }
 }

@@ -3,7 +3,10 @@ package com.meekdev.moud.script.bind;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.ProximityPrompt;
+import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.instance.Zone;
+import com.meekdev.moud.core.math.Vec3;
 import com.meekdev.moud.core.instance.Zones;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -46,6 +49,32 @@ public final class ZoneMethods {
         }, "zones:at"));
         state.rawSetField(-2, "at");
         state.rawSetField(-2, "zones");
+
+        // game.proximity:closestInteractable(body): the nearest enabled prompt in reach of a body
+        state.newTable();
+        state.pushFunction(LuaFunc.wrap(s -> {
+            if (!(s.toUserDataTagged(2, Proxies.TAG) instanceof Instance body)) throw s.error("wants a body");
+            Vec3 at = Transforms.world(body).position();
+            ProximityPrompt best = null;
+            double bestDistance = Double.MAX_VALUE;
+            for (ProximityPrompt prompt : world.tree().ofClass(Classes.PROXIMITY_PROMPT)) {
+                if (!prompt.enabled || prompt.parent() == null) continue;
+                double d = Transforms.world(prompt.parent()).position().add(prompt.offset).distance(at);
+                if (d <= prompt.maxActivationDistance && d < bestDistance) {
+                    best = prompt;
+                    bestDistance = d;
+                }
+            }
+            if (best == null) {
+                s.pushNil();
+                return 1;
+            }
+            Proxies.push(s, best);
+            s.pushNumber(bestDistance);
+            return 2;
+        }, "proximity:closestInteractable"));
+        state.rawSetField(-2, "closestInteractable");
+        state.rawSetField(-2, "proximity");
         state.pop(1);
     }
 

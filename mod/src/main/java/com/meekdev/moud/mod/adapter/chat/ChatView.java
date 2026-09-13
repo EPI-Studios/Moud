@@ -438,12 +438,12 @@ public final class ChatView {
     };
 
     // how big markup is when wrapped to width
-    static float[] measure(UiDraw d, String markup, float width, float px, String font) {
+    public static float[] measure(UiDraw d, String markup, float width, float px, String font) {
         Laid laid = laid(d, markup, width, px, font);
         return new float[] {laid.width(), laid.height()};
     }
 
-    static void text(UiDraw d, String markup, float x, float y, float width, float px, Look look, float alpha,
+    public static void text(UiDraw d, String markup, float x, float y, float width, float px, Look look, float alpha,
                      HorizontalAlign align) {
         Laid laid = laid(d, markup, width, px, look.font());
         float time = (float) ((System.nanoTime() - START) / 1e9);

@@ -276,6 +276,8 @@ public final class Types {
                     function all(...: ChatCheck): ChatCheck
                     function any(...: ChatCheck): ChatCheck
                     function distance(message: ChatMessage, source: Instance): number?
+                    function audible(range: number): ChatCheck
+                    function sameTag(tag: string): ChatCheck
                     onIncoming: ((message: ChatMessage) -> { [string]: any }?)?
                     shouldSend: ((message: ChatMessage) -> boolean?)?
                     messageReceived: ChatMessageSignal
@@ -296,6 +298,19 @@ public final class Types {
                     function rewind<T...>(self, time: number, query: () -> T...): T...
                 end
 
+                declare class ProximityWatcher
+                    entered: ChatAnySignal
+                    left: ChatAnySignal
+                    near: boolean
+                    function stop(self): ()
+                end
+
+                declare class Proximity
+                    function closestInteractable(self, body: Instance): (Instance?, number?)
+                    function watch(self, a: Instance, b: Instance, range: number): ProximityWatcher
+                    function falloff(distance: number, min: number, max: number, rolloff: number?): number
+                end
+
                 declare class Zones
                     function at(self, position: Vector3): { Instance }
                 end
@@ -303,6 +318,7 @@ public final class Types {
                 declare class Game
                     world: Instance
                     zones: Zones
+                    proximity: Proximity
                     history: History
                     players: Players
                     tags: Tags

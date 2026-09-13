@@ -98,6 +98,7 @@ public final class MoudServer {
         // acts on this tick's input rather than on last tick's
         Post.drainToServer(ServerScene.tree());
         ServerChat.INSTANCE.tick(server);
+        ServerPrompts.tick(server);
         Physics.bodies().follow(server, ServerScene.tree(), Physics.shapes());
         // last, once everything this tick has put itself where it is going to be
         ServerHistory.INSTANCE.record(ServerScene.tree());

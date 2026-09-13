@@ -56,3 +56,27 @@ function chat.distance(message, source)
     end
     return (body.position - from).magnitude
 end
+
+-- within range, and nothing solid between the two bodies: walls stop voices
+function chat.audible(range)
+    local near = chat.within(range)
+    return function(message, source)
+        if not near(message, source) then
+            return false
+        end
+        local from = message.body
+        local to = source and source.body
+        if from == nil or to == nil then
+            return true
+        end
+        return from:canSee(to)
+    end
+end
+
+-- only players whose body carries the tag hear it
+function chat.sameTag(tag)
+    return function(message, source)
+        local body = source and source.body
+        return body ~= nil and body:hasTag(tag)
+    end
+end

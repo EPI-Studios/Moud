@@ -109,6 +109,7 @@ public final class Vm implements ScriptEngine {
         tags.install();
         scheduler.install(state);
         run("task", scheduler.prelude());
+        run("proximity", Luau.source("proximity.luau"));
     }
 
     // the client half of the surface, which only exists where there is a screen and someone

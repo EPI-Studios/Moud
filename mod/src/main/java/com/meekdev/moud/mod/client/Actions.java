@@ -76,6 +76,11 @@ public final class Actions {
         return DOWN.get(action);
     }
 
+    // whether any of the keys named is down right now
+    public static boolean pressed(String keys) {
+        return pressed(Minecraft.getInstance().getWindow().handle(), keys);
+    }
+
     private static boolean pressed(long window, String keys) {
         for (String raw : keys.split(",")) {
             String name = raw.trim().toLowerCase(Locale.ROOT);
