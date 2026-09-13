@@ -9,6 +9,7 @@ import com.meekdev.moud.core.instance.ScreenGui;
 import com.meekdev.moud.core.instance.SurfaceGui;
 import com.meekdev.moud.core.instance.TextButton;
 import com.meekdev.moud.core.instance.TextLabel;
+import com.meekdev.moud.mod.adapter.chat.ChatView;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.amnetic.client.surface.draw.UiDraw;
 import com.meekdev.amnetic.client.surface.widget.Widget;
@@ -78,6 +79,10 @@ final class Node extends Widget {
     }
 
     private void text(UiDraw d, TextLabel label, float alpha) {
+        if (label.richText) {
+            rich(d, label, alpha);
+            return;
+        }
         float px = (float) label.textSize;
         int colour = argb(label.textColor, (1 - label.textTransparency) * alpha);
         if ((colour >>> 24) == 0) return;
@@ -116,6 +121,22 @@ final class Node extends Widget {
             }
         }
         if (previous != null) d.font(previous);
+    }
+
+    // laid out and drawn by the same code as a chat line, so a tag means the same thing in both
+    private void rich(UiDraw d, TextLabel label, float alpha) {
+        float px = (float) label.textSize;
+        float fade = (float) (1 - label.textTransparency) * alpha;
+        if (fade <= 0) return;
+        String font = GuiLayout.font(label);
+        float total = ChatView.measure(d, label.text, w, px, font)[1];
+        float top = switch (label.textYAlignment) {
+            case TOP -> y;
+            case CENTER -> y + (h - total) * 0.5f;
+            case BOTTOM -> y + h - total;
+        };
+        ChatView.text(d, label.text, x, top, w, px, new ChatView.Look(label.textColor, font, label.textShadow, Color.BLACK, 0),
+                fade, label.textXAlignment);
     }
 
     private static float width(UiDraw d, UiFonts.Face face, String text, float px) {

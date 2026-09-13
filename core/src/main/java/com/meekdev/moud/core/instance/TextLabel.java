@@ -23,4 +23,8 @@ public class TextLabel extends GuiObject {
     // minecraft:uniform, or a .ttf in the place or a resource pack. empty takes the nearest one set
     // above it first
     @Prop(asset = true) public String font = "";
+
+    // text read as rich text: <b>, <color=gold>, <gradient>, <wave>, <img> and the rest the chat takes.
+    // it wraps inside the label
+    public boolean richText;
 }
