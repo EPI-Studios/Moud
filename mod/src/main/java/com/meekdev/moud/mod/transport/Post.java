@@ -8,6 +8,7 @@ import com.meekdev.moud.net.transport.Transport;
 import com.meekdev.moud.net.transport.Wire;
 import com.meekdev.moud.mod.adapter.chat.ServerChat;
 import com.meekdev.moud.mod.server.ServerPrompts;
+import com.meekdev.moud.mod.server.ServerPilot;
 import com.meekdev.moud.script.api.PostRef;
 import java.util.List;
 import java.util.function.Supplier;
@@ -49,6 +50,7 @@ public final class Post {
         CARRIER.listen();
         ServerChat.listen();
         ServerPrompts.listen();
+        ServerPilot.listen();
     }
 
     // asked rather than stored, because a respawn hands out a new player and a stored id would be

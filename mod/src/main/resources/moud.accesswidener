@@ -14,3 +14,4 @@ accessible field net/minecraft/client/gui/font/glyphs/BakedSheetGlyph left F
 accessible field net/minecraft/client/gui/font/glyphs/BakedSheetGlyph right F
 accessible field net/minecraft/client/gui/font/glyphs/BakedSheetGlyph up F
 accessible field net/minecraft/client/gui/font/glyphs/BakedSheetGlyph down F
+accessible field net/minecraft/client/player/ClientInput moveVector Lnet/minecraft/world/phys/Vec2;

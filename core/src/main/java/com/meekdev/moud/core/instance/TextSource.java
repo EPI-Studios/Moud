@@ -11,4 +11,9 @@ public final class TextSource extends Instance {
 
     // whether they may speak here. a muted player still reads the channel
     public boolean canSend = true;
+
+    // which rich text tags this player's own messages keep, as names split by commas: "b,i,color", or
+    // "*" for all of them. empty, the default, shows whatever they type exactly as typed. a player given
+    // click or body can make links that run commands for whoever clicks them
+    public String richText = "";
 }

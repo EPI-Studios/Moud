@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -168,6 +169,17 @@ public final class ServerChat implements ChatRef {
         });
     }
 
+    private static Set<String> tagsOf(TextChannel channel, TextSource source) {
+        String list = source != null && !source.richText.isBlank() ? source.richText
+                : channel != null ? channel.richText : "";
+        if (list.isBlank()) return Set.of();
+        Set<String> tags = new HashSet<>();
+        for (String name : list.split(",")) {
+            if (!name.isBlank()) tags.add(name.trim().toLowerCase(Locale.ROOT));
+        }
+        return tags;
+    }
+
     private static TextSource sourceOf(TextChannel channel, String player) {
         for (Instance child : channel.children()) {
             if (child instanceof TextSource source && source.player.equals(player)) return source;
@@ -193,7 +205,7 @@ public final class ServerChat implements ChatRef {
         line.channel = channel == null ? -1 : channel.id();
         line.source = source == null ? -1 : source.id();
         line.body = body == null ? -1 : body.id();
-        line.text = RichText.escape(text);
+        line.text = RichText.allow(text, tagsOf(channel, source));
         line.prefix = RichText.escape(player.getGameProfile().name());
         line.timestamp = System.currentTimeMillis();
 

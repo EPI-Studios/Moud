@@ -19,6 +19,7 @@ import com.meekdev.moud.mod.client.editor.Editor;
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.Minecraft;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 
 public final class MoudClient implements ClientModInitializer {
@@ -27,6 +28,9 @@ public final class MoudClient implements ClientModInitializer {
     public void onInitializeClient() {
         Input.register();
         ClientChat.listen();
+        Autopilot.listen();
+        // a plan from the last server must not steer the player on the next one
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> Autopilot.clear());
         ChatView.install();
         ClientDebug.install();
         Post.installOnClient(() -> Minecraft.getInstance().player instanceof LocalPlayer me

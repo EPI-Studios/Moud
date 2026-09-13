@@ -31,12 +31,43 @@ public final class Walkers {
 
     private static final Map<Character, Plan> PLANS = new HashMap<>();
 
+    // moves a body a player is wearing, which the engine cannot walk itself: the player's own client
+    // does the walking, and this is how it is told
+    public interface Pilot {
+        void walk(Character body, List<Vec3> waypoints);
+
+        void jump(Character body);
+
+        void stop(Character body);
+    }
+
+    private static Pilot pilot;
+
+    public static void pilot(Pilot value) {
+        pilot = value;
+    }
+
     private Walkers() {}
 
     public static void walk(Character body, List<Vec3> waypoints) {
         Plan plan = new Plan();
         plan.waypoints = waypoints;
         PLANS.put(body, plan);
+        if (body.worn() && pilot != null) pilot.walk(body, waypoints);
+    }
+
+    public static void jump(Character body) {
+        if (body.worn()) {
+            if (pilot != null) pilot.jump(body);
+            return;
+        }
+        Humanoid living = Rig.humanoid(body);
+        if (living != null) Instances.setBool(living, Classes.HUMANOID.property("jump"), true);
+    }
+
+    // the player took the controls back, or their client gave up
+    public static void cancelled(Character body) {
+        PLANS.remove(body);
     }
 
     public static void follow(Character body, Instance target, double distance) {
@@ -48,6 +79,7 @@ public final class Walkers {
 
     public static void stop(Character body) {
         PLANS.remove(body);
+        if (body.worn() && pilot != null) pilot.stop(body);
         Humanoid living = Rig.humanoid(body);
         if (living != null && body.isAlive()) Instances.setBool(living, Classes.HUMANOID.property("walking"), false);
     }
@@ -75,6 +107,7 @@ public final class Walkers {
                 }
                 Vec3 goal = Transforms.world(plan.target).position();
                 if (goal.sub(at).lengthSq() <= plan.distance * plan.distance) {
+                    if (body.worn() && plan.waypoints != null && pilot != null) pilot.stop(body);
                     plan.waypoints = null;
                     Instances.setBool(living, Classes.HUMANOID.property("walking"), false);
                     continue;
@@ -85,7 +118,12 @@ public final class Walkers {
                     plan.next = 0;
                     plan.lastRepath = now;
                     plan.lastTarget = goal;
+                    if (body.worn() && pilot != null && plan.waypoints != null) pilot.walk(body, plan.waypoints);
                 }
+            }
+            if (body.worn()) {
+                steer(body, living, plan, at, it);
+                continue;
             }
             if (plan.waypoints == null || plan.waypoints.isEmpty()) {
                 if (plan.target == null) it.remove();
@@ -107,6 +145,23 @@ public final class Walkers {
             }
             Instances.setObj(living, Classes.HUMANOID.property("walkTo"), waypoint);
             Instances.setBool(living, Classes.HUMANOID.property("walking"), true);
+        }
+    }
+
+    // a player's body is walked by its client; the server only watches for it getting there
+    private static void steer(Character body, Humanoid living, Plan plan, Vec3 at, Iterator<Map.Entry<Character, Plan>> it) {
+        if (plan.waypoints == null || plan.waypoints.isEmpty()) {
+            if (plan.target == null) it.remove();
+            return;
+        }
+        Vec3 last = plan.waypoints.getLast();
+        Vec3 flat = new Vec3(last.x() - at.x(), 0, last.z() - at.z());
+        if (flat.length() > 0.6 || Math.abs(last.y() - at.y()) > 1.5) return;
+        if (plan.target == null) {
+            it.remove();
+            living.arrived.fire(living);
+        } else {
+            plan.waypoints = null;
         }
     }
 }

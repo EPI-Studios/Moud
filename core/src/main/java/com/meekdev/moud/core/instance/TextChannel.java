@@ -36,4 +36,7 @@ public final class TextChannel extends Instance {
 
     // a message arrived in this channel, on the side that heard it
     public final Signal<Object> messageReceived = new Signal<>();
+
+    // the rich text tags every member's messages keep, unless their own TextSource says otherwise
+    public String richText = "";
 }

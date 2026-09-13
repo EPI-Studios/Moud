@@ -7,6 +7,7 @@ import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Zones;
+import com.meekdev.moud.core.nav.Walkers;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Humanoids;
@@ -40,6 +41,7 @@ public final class MoudServer {
     }
 
     public static void install() {
+        Walkers.pilot(ServerPilot.INSTANCE);
         ServerLifecycleEvents.SERVER_STARTED.register(MoudServer::started);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> stopped());
         ServerTickEvents.START_SERVER_TICK.register(MoudServer::tick);
@@ -99,6 +101,7 @@ public final class MoudServer {
         Post.drainToServer(ServerScene.tree());
         ServerChat.INSTANCE.tick(server);
         ServerPrompts.tick(server);
+        ServerPilot.tick(server);
         Physics.bodies().follow(server, ServerScene.tree(), Physics.shapes());
         // last, once everything this tick has put itself where it is going to be
         ServerHistory.INSTANCE.record(ServerScene.tree());

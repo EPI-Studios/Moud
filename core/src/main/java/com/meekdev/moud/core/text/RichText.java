@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.Locale;
 import java.util.Map;
 
@@ -121,6 +122,34 @@ public final class RichText {
                 case Break ignored -> out.append('\n');
                 default -> {}
             }
+        }
+        return out.toString();
+    }
+
+    // what a player typed, keeping only the tags they are allowed and showing every other one as written.
+    // "*" allows every tag. a comment is a tag too, so one that is not allowed cannot hide the rest
+    public static String allow(String text, Set<String> tags) {
+        if (tags.isEmpty()) return escape(text);
+        boolean all = tags.contains("*");
+        StringBuilder out = new StringBuilder(text.length());
+        int at = 0;
+        while (at < text.length()) {
+            char c = text.charAt(at);
+            if (c == '<') {
+                int close = tagEnd(text, at);
+                Tag tag = close > at ? Tag.read(text.substring(at + 1, close)) : null;
+                if (tag != null && (all || tags.contains(alias(tag.name())) || tags.contains(tag.name()))) {
+                    out.append(text, at, close + 1);
+                    at = close + 1;
+                    continue;
+                }
+                out.append("&lt;");
+            } else if (c == '&') {
+                out.append("&amp;");
+            } else {
+                out.append(c);
+            }
+            at++;
         }
         return out.toString();
     }

@@ -41,6 +41,7 @@
     "client.HeldItemsMixin",
     "client.HudMixin",
     "client.NameTagMixin",
+    "client.PilotMixin",
     "client.ScreensMixin",
     "client.SkyMixin",
     "client.SoundMixin"

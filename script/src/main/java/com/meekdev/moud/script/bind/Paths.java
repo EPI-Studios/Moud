@@ -101,8 +101,7 @@ public final class Paths {
             return 1;
         });
         methods.put("jump", s -> {
-            Humanoid living = Rig.humanoid(BodyMethods.body(s));
-            if (living != null) Instances.setBool(living, Classes.HUMANOID.property("jump"), true);
+            Walkers.jump(BodyMethods.body(s));
             return 0;
         });
         methods.put("lookAt", s -> {

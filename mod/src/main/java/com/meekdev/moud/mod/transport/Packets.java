@@ -191,6 +191,51 @@ public final class Packets {
         }
     }
 
+    // the server moving a player's own body: walk these waypoints, jump, or stop
+    public record PilotDown(int kind, double[] waypoints) implements CustomPacketPayload {
+
+        public static final int WALK = 0;
+        public static final int JUMP = 1;
+        public static final int STOP = 2;
+
+        public static final Type<PilotDown> TYPE = named("pilot_down");
+
+        public static final StreamCodec<FriendlyByteBuf, PilotDown> CODEC = CustomPacketPayload.codec(
+                (m, out) -> {
+                    out.writeVarInt(m.kind());
+                    out.writeVarInt(m.waypoints().length);
+                    for (double n : m.waypoints()) out.writeDouble(n);
+                },
+                in -> {
+                    int kind = in.readVarInt();
+                    int count = Math.min(in.readVarInt(), 3 * 4096);
+                    double[] waypoints = new double[count];
+                    for (int n = 0; n < count; n++) waypoints[n] = in.readDouble();
+                    return new PilotDown(kind, waypoints);
+                });
+
+        @Override
+        public Type<PilotDown> type() {
+            return TYPE;
+        }
+    }
+
+    // a player's client giving the controls back: they moved themselves
+    public record PilotUp(int kind) implements CustomPacketPayload {
+
+        public static final int CANCELLED = 0;
+
+        public static final Type<PilotUp> TYPE = named("pilot_up");
+
+        public static final StreamCodec<FriendlyByteBuf, PilotUp> CODEC = CustomPacketPayload.codec(
+                (m, out) -> out.writeVarInt(m.kind()), in -> new PilotUp(in.readVarInt()));
+
+        @Override
+        public Type<PilotUp> type() {
+            return TYPE;
+        }
+    }
+
     // markup is longer than what it shows, and a place styling a line should not run out of room
     private static final int CHAT_TEXT = 16384;
 
@@ -209,8 +254,10 @@ public final class Packets {
         down.register(Down.TYPE, Down.CODEC.cast());
         down.register(ChatDown.TYPE, ChatDown.CODEC.cast());
         down.register(DebugDown.TYPE, DebugDown.CODEC.cast());
+        down.register(PilotDown.TYPE, PilotDown.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(Up.TYPE, Up.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(ChatUp.TYPE, ChatUp.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(PromptUp.TYPE, PromptUp.CODEC.cast());
+        PayloadTypeRegistry.serverboundPlay().register(PilotUp.TYPE, PilotUp.CODEC.cast());
     }
 }
