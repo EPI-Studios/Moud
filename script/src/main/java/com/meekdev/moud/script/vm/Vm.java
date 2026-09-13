@@ -25,6 +25,8 @@ import com.meekdev.moud.script.bind.Players;
 import com.meekdev.moud.script.bind.Proxies;
 import com.meekdev.moud.script.bind.BodyMethods;
 import com.meekdev.moud.script.bind.WorldMethods;
+import com.meekdev.moud.script.bind.Paths;
+import com.meekdev.moud.core.nav.Walkers;
 import com.meekdev.moud.script.bind.ZoneMethods;
 import com.meekdev.moud.script.bind.Callbacks;
 import com.meekdev.moud.script.bind.Chat;
@@ -105,6 +107,7 @@ public final class Vm implements ScriptEngine {
         TweenMethods.install(state, tweens, e -> onError.accept(e));
         game.install(state, world);
         ZoneMethods.install(state, world);
+        Paths.install(state, world);
         tags = new Tags(state, world.tree(), e -> onError.accept(e));
         tags.install();
         scheduler.install(state);
@@ -273,6 +276,7 @@ public final class Vm implements ScriptEngine {
         if (!client) stepTweens(dt);
         scheduler.advance(dt);
         Blocks.drain(state, onError);
+        Walkers.step(Paths.terrain(state, world), System.nanoTime() / 1e9);
         fire(game.stepped(), dt);
     }
 

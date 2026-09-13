@@ -334,6 +334,14 @@ public final class Types {
                     function falloff(distance: number, min: number, max: number, rolloff: number?): number
                 end
 
+                type PathOptions = { maxNodes: number?, maxDrop: number?, height: number? }
+
+                declare class Path
+                    function find(self, from: Vector3, to: Vector3, options: PathOptions?): { Vector3 }?
+                    function isReachable(self, from: Vector3, to: Vector3, options: PathOptions?): boolean
+                    function randomPointNear(self, point: Vector3, radius: number, options: PathOptions?): Vector3?
+                end
+
                 declare class Zones
                     function at(self, position: Vector3): { Instance }
                 end
@@ -342,6 +350,7 @@ public final class Types {
                     world: Instance
                     zones: Zones
                     proximity: Proximity
+                    path: Path
                     history: History
                     players: Players
                     tags: Tags
@@ -560,6 +569,13 @@ public final class Types {
                         function isMoving(self): boolean
                         function lookDirection(self): Vector3
                         function facing(self, other: Instance, maxAngle: number?): boolean
+                        function walkTo(self, point: Vector3, options: PathOptions?): boolean
+                        function follow(self, target: Instance, distance: number?): ()
+                        function stopWalking(self): ()
+                        function isWalking(self): boolean
+                        function jump(self): ()
+                        function lookAt(self, point: Vector3): ()
+                        function face(self, direction: Vector3): ()
                     """;
             case "Part" -> """
                         function overlapping(self, options: QueryOptions?): { Instance }

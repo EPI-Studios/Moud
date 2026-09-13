@@ -1,5 +1,7 @@
 package com.meekdev.moud.core.instance;
 
+import java.util.Map;
+import java.util.WeakHashMap;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.math.CFrame;
@@ -23,6 +25,7 @@ public final class Humanoids {
     private static final PropertyDef WALKING = Classes.HUMANOID.property("walking");
 
     private static final PropertyDef CFRAME = Classes.CHARACTER.property("cframe");
+    private static final PropertyDef JUMP = Classes.HUMANOID.property("jump");
     private static final PropertyDef MOVE_DISTANCE = Classes.CHARACTER.property("moveDistance");
     private static final PropertyDef MOVE_SPEED = Classes.CHARACTER.property("moveSpeed");
 
@@ -59,6 +62,34 @@ public final class Humanoids {
         // nobody does, which is every body a place made
         if (!character.owner.isEmpty()) return;
         walk(character, living, dt);
+        hop(character, living, dt);
+    }
+
+    // a jump for a body nobody drives: straight up at jumpPower and back down to where it left from
+    private static final Map<Character, double[]> HOPS = new WeakHashMap<>();
+
+    private static void hop(Character character, Humanoid living, double dt) {
+        double[] hop = HOPS.get(character);
+        if (hop == null && living.jump) {
+            hop = new double[] {0, 0};
+            HOPS.put(character, hop);
+            Instances.setBool(living, JUMP, false);
+            became(living, HumanoidState.JUMPING);
+        }
+        if (hop == null) return;
+        double gravity = 32 * living.gravityScale;
+        double before = hop[1];
+        hop[0] += dt;
+        hop[1] = Math.max(0, living.jumpPower * hop[0] - 0.5 * gravity * hop[0] * hop[0]);
+        CFrame frame = Transforms.world(character);
+        Vec3 moved = frame.position().add(new Vec3(0, hop[1] - before, 0));
+        Instances.setObj(character, CFRAME, Transforms.localFor(character, frame.withPosition(moved)));
+        if (hop[1] <= 0 && hop[0] > 0) {
+            HOPS.remove(character);
+            became(living, HumanoidState.STANDING);
+        } else if (living.jumpPower - gravity * hop[0] < 0) {
+            became(living, HumanoidState.FALLING);
+        }
     }
 
     private static void walk(Character character, Humanoid living, double dt) {
@@ -89,6 +120,8 @@ public final class Humanoids {
         double step = Math.min(away, living.walkSpeed * dt);
         Vec3 way = flat.mul(1.0 / away);
         Vec3 moved = at.add(way.mul(step));
+        // up or down a step as it goes, in proportion, so a path over uneven ground does not float
+        moved = new Vec3(moved.x(), at.y() + toward.y() * (step / away), moved.z());
 
         // facing where it is going, the way a body that walks somewhere does. our forward is -z,
         // so the heading is measured from that rather than from +x

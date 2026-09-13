@@ -47,6 +47,9 @@ public final class Humanoid extends Instance {
 
     public boolean walking;
 
+    // set to jump once; the engine clears it. only for bodies a place moves: a player jumps themselves
+    public boolean jump;
+
     // how close counts as arrived
     @Prop(min = 0) public double walkRadius = 0.5;
 

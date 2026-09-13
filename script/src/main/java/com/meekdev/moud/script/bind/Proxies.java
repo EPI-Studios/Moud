@@ -115,6 +115,22 @@ public final class Proxies {
     // client vm can carry the camera's verbs and a server vm never sees them
     public static void classMethods(LuaState state, ClassDef<?> def,
                                     Map<String, ToIntFunction<LuaState>> methods) {
+        classMethods(state, def, methods, false);
+    }
+
+    // adding keeps what the class already carries, for a binding that registers some of its methods
+    public static void classMethods(LuaState state, ClassDef<?> def,
+                                    Map<String, ToIntFunction<LuaState>> methods, boolean adding) {
+        if (adding && state.rawGetField(LuaState.REGISTRY_INDEX, methodsOf(def)) == LuaType.TABLE) {
+            for (Map.Entry<String, ToIntFunction<LuaState>> entry : methods.entrySet()) {
+                CLASS_NAMES.computeIfAbsent(def.name(), name -> new LinkedHashSet<>()).add(entry.getKey());
+                state.pushFunction(LuaFunc.wrap(entry.getValue(), def.name() + ":" + entry.getKey()));
+                state.rawSetField(-2, entry.getKey());
+            }
+            state.pop(1);
+            return;
+        }
+        if (adding) state.pop(1);
         state.newTable();
         for (Map.Entry<String, ToIntFunction<LuaState>> entry : methods.entrySet()) {
             CLASS_NAMES.computeIfAbsent(def.name(), name -> new LinkedHashSet<>())
