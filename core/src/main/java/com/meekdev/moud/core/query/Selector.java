@@ -30,7 +30,7 @@ public final class Selector {
         for (String token : tokens) {
             if (token.isEmpty()) continue;
             if (token.equals(">")) {
-                if (parts.isEmpty()) throw new IllegalArgumentException("a query cannot start with >");
+                if (parts.isEmpty()) throw new IllegalArgumentException("query cannot start with >");
                 nextDirect = true;
                 continue;
             }
@@ -38,7 +38,7 @@ public final class Selector {
             direct.add(nextDirect);
             nextDirect = false;
         }
-        if (parts.isEmpty()) throw new IllegalArgumentException("an empty query finds nothing");
+        if (parts.isEmpty()) throw new IllegalArgumentException("empty query");
         return new Selector(parts, direct);
     }
 
@@ -49,7 +49,7 @@ public final class Selector {
         ClassDef<?> def = null;
         if (!type.isEmpty() && !type.toString().equals("*")) {
             def = classes.find(type.toString());
-            if (def == null) throw new IllegalArgumentException("there is no class called " + type);
+            if (def == null) throw new IllegalArgumentException("unknown class " + type);
         }
         String name = null;
         List<String> tags = new ArrayList<>();
@@ -67,11 +67,11 @@ public final class Selector {
                 }
             } else if (c == '[') {
                 int end = token.indexOf(']', i);
-                if (end < 0) throw new IllegalArgumentException("a [ in a query is never closed");
+                if (end < 0) throw new IllegalArgumentException("unclosed [ in query");
                 tests.add(test(token.substring(i + 1, end)));
                 i = end + 1;
             } else {
-                throw new IllegalArgumentException("a query cannot have " + c + " there");
+                throw new IllegalArgumentException("unexpected " + c + " in query");
             }
         }
         return new Compound(def, name, tags, tests);
@@ -103,7 +103,7 @@ public final class Selector {
     }
 
     private boolean matches(Instance instance, int index, Instance root) {
-        if (!one(instance, parts.get(index))) return false;
+        if (!matchesCompound(instance, parts.get(index))) return false;
         if (index == 0) return true;
         Instance up = instance.parent();
         if (direct.get(index)) return up != null && up != root && matches(up, index - 1, root);
@@ -113,7 +113,7 @@ public final class Selector {
         return false;
     }
 
-    private static boolean one(Instance instance, Compound compound) {
+    private static boolean matchesCompound(Instance instance, Compound compound) {
         if (compound.type() != null && !instance.def().isA(compound.type())) return false;
         if (compound.name() != null && !instance.name().equals(compound.name())) return false;
         for (String tag : compound.tags()) {

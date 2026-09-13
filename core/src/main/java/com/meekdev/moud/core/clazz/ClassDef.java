@@ -33,7 +33,7 @@ public final class ClassDef<T extends Instance> {
 
     private final Map<String, EventDef> events;
 
-    private Map<String, CallbackDef> callbacks = Map.of();
+    private final Map<String, CallbackDef> callbacks;
 
     private final int stages;
 
@@ -41,7 +41,7 @@ public final class ClassDef<T extends Instance> {
     private final long driven;
 
     private ClassDef(String name, ClassDef<?> parent, Supplier<T> factory, List<PropertyDef> props,
-                     Map<String, EventDef> events, int stages) {
+                     Map<String, EventDef> events, Map<String, CallbackDef> callbacks, int stages) {
         this.name = name;
         this.parent = parent;
         this.factory = factory;
@@ -49,15 +49,16 @@ public final class ClassDef<T extends Instance> {
         this.byName = new HashMap<>(props.size() * 2);
         for (PropertyDef p : props) byName.put(p.name(), p);
         this.events = Map.copyOf(events);
+        this.callbacks = Map.copyOf(callbacks);
         this.stages = stages;
-        long off = 0;
-        long fromElsewhere = 0;
+        long unreplicatedMask = 0;
+        long drivenMask = 0;
         for (PropertyDef p : props) {
-            if (!p.replicated()) off |= 1L << p.index();
-            if (p.driven()) fromElsewhere |= 1L << p.index();
+            if (!p.replicated()) unreplicatedMask |= 1L << p.index();
+            if (p.driven()) drivenMask |= 1L << p.index();
         }
-        this.unreplicated = off;
-        this.driven = fromElsewhere;
+        this.unreplicated = unreplicatedMask;
+        this.driven = drivenMask;
     }
 
     public static <T extends Instance> ClassDef<T> of(String name, ClassDef<?> parent, Class<T> type, Supplier<T> factory) {
@@ -100,9 +101,7 @@ public final class ClassDef<T extends Instance> {
             }
             props.add(define(name, type, f, prototype, lookup, props.size()));
         }
-        ClassDef<T> def = new ClassDef<>(name, parent, factory, props, events, stagesOf(type));
-        def.callbacks = Map.copyOf(callbacks);
-        return def;
+        return new ClassDef<>(name, parent, factory, props, events, callbacks, stagesOf(type));
     }
 
     private static int stagesOf(Class<?> type) {
@@ -154,7 +153,7 @@ public final class ClassDef<T extends Instance> {
         double min = opts == null ? Double.NEGATIVE_INFINITY : opts.min();
         double max = opts == null ? Double.POSITIVE_INFINITY : opts.max();
 
-        return PropertyDef.of(field.getName(), kind, index, replicated, driven, asset,
+        return new PropertyDef(field.getName(), kind, index, replicated, driven, asset,
                 handle.get(prototype), min, max, handle);
     }
 

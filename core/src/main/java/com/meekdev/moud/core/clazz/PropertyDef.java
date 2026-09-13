@@ -16,7 +16,7 @@ public final class PropertyDef {
     private final double max;
     private final VarHandle handle;
 
-    private PropertyDef(String name, PropertyType type, int index, boolean replicated, boolean driven,
+    PropertyDef(String name, PropertyType type, int index, boolean replicated, boolean driven,
                         boolean asset, Object defaultValue, double min, double max, VarHandle handle) {
         this.name = name;
         this.type = type;
@@ -28,11 +28,6 @@ public final class PropertyDef {
         this.min = min;
         this.max = max;
         this.handle = handle;
-    }
-
-    static PropertyDef of(String name, PropertyType type, int index, boolean replicated, boolean driven,
-                          boolean asset, Object defaultValue, double min, double max, VarHandle handle) {
-        return new PropertyDef(name, type, index, replicated, driven, asset, defaultValue, min, max, handle);
     }
 
     public String name() { return name; }
@@ -69,7 +64,7 @@ public final class PropertyDef {
     }
 
     public double clamp(double v) {
-        return v < min ? min : (v > max ? max : v);
+        return Math.clamp(v, min, max);
     }
 
     public boolean isNumeric() {
