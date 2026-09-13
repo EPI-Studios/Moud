@@ -10,6 +10,7 @@ import com.meekdev.amnetic.client.instanced.RenderState;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.instance.MeshPart;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.interp.Motion;
 import com.meekdev.moud.core.math.CFrame;
@@ -126,6 +127,8 @@ public final class Parts {
     private static boolean write(InstanceRenderContext ctx, InstanceBatch<Lit> batch,
             Motion motion, Part part, boolean cull) {
         if (!part.visible || part.transparency >= 1.0) return false;
+        // a mesh part is drawn as its model, by the mesh renderer, and not as a box as well
+        if (part instanceof MeshPart) return false;
         // a body wearing a skin is drawn by the batch that holds that skin. drawing it here too
         // paints it flat over the top and the skin loses to whichever went second
         if (Skins.wearsSkin(part)) return false;

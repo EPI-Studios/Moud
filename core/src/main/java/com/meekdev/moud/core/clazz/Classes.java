@@ -27,6 +27,7 @@ import com.meekdev.moud.core.instance.ImageLabel;
 import com.meekdev.moud.core.instance.InputAction;
 import com.meekdev.moud.core.instance.Joint;
 import com.meekdev.moud.core.instance.Limb;
+import com.meekdev.moud.core.instance.MeshPart;
 import com.meekdev.moud.core.instance.LocalScript;
 import com.meekdev.moud.core.instance.Motor;
 import com.meekdev.moud.core.instance.Part;
@@ -61,6 +62,7 @@ public final class Classes {
     public static final ClassDef<Attachment> ATTACHMENT =
             ClassDef.of("Attachment", SPATIAL, Attachment.class, Attachment::new);
     public static final ClassDef<Limb> LIMB = ClassDef.of("Limb", PART, Limb.class, Limb::new);
+    public static final ClassDef<MeshPart> MESH_PART = ClassDef.of("MeshPart", PART, MeshPart.class, MeshPart::new);
     public static final ClassDef<Cape> CAPE = ClassDef.of("Cape", LIMB, Cape.class, Cape::new);
     public static final ClassDef<Humanoid> HUMANOID =
             ClassDef.of("Humanoid", null, Humanoid.class, Humanoid::new);
@@ -143,6 +145,7 @@ public final class Classes {
         r.register(ARMOUR);
         r.register(ATTACHMENT);
         r.register(LIMB);
+        r.register(MESH_PART);
         r.register(CAPE);
         r.register(HUMANOID);
         r.register(WINGS);
