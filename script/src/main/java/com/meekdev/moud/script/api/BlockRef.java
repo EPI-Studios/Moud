@@ -1,13 +1,13 @@
 package com.meekdev.moud.script.api;
 
 import java.util.function.Consumer;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 
 public interface BlockRef {
 
-    record Hit(Vec3 at, Vec3 normal, double distance, String block) {}
+    record Hit(Vector3 at, Vector3 normal, double distance, String block) {}
 
-    Hit raycast(Vec3 from, Vec3 direction, double range);
+    Hit raycast(Vector3 from, Vector3 direction, double range);
 
     String get(int x, int y, int z);
 
@@ -17,7 +17,7 @@ public interface BlockRef {
 
     boolean writable();
 
-    default Hit raycast(Vec3 from, Vec3 direction, double range, boolean fluids) {
+    default Hit raycast(Vector3 from, Vector3 direction, double range, boolean fluids) {
         return raycast(from, direction, range);
     }
 

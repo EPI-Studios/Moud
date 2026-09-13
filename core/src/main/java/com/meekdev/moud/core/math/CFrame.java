@@ -1,26 +1,26 @@
 package com.meekdev.moud.core.math;
 
-public record CFrame(Vec3 position, Quat rotation) {
+public record CFrame(Vector3 position, Quat rotation) {
 
-    public static final CFrame IDENTITY = new CFrame(Vec3.ZERO, Quat.IDENTITY);
+    public static final CFrame IDENTITY = new CFrame(Vector3.ZERO, Quat.IDENTITY);
 
-    public static CFrame at(Vec3 position) {
+    public static CFrame at(Vector3 position) {
         return new CFrame(position, Quat.IDENTITY);
     }
 
     public static CFrame at(double x, double y, double z) {
-        return new CFrame(new Vec3(x, y, z), Quat.IDENTITY);
+        return new CFrame(new Vector3(x, y, z), Quat.IDENTITY);
     }
 
     public static CFrame angles(double pitchX, double yawY, double rollZ) {
-        return new CFrame(Vec3.ZERO, Quat.euler(pitchX, yawY, rollZ));
+        return new CFrame(Vector3.ZERO, Quat.euler(pitchX, yawY, rollZ));
     }
 
-    public static CFrame lookAt(Vec3 from, Vec3 to) {
-        return lookAt(from, to, Vec3.UP);
+    public static CFrame lookAt(Vector3 from, Vector3 to) {
+        return lookAt(from, to, Vector3.UP);
     }
 
-    public static CFrame lookAt(Vec3 from, Vec3 to, Vec3 up) {
+    public static CFrame lookAt(Vector3 from, Vector3 to, Vector3 up) {
         return new CFrame(from, Quat.lookAt(to.sub(from), up));
     }
 
@@ -28,19 +28,19 @@ public record CFrame(Vec3 position, Quat rotation) {
         return new CFrame(position.add(rotation.rotate(o.position)), rotation.mul(o.rotation).normalize());
     }
 
-    public Vec3 pointToWorld(Vec3 local) {
+    public Vector3 pointToWorld(Vector3 local) {
         return position.add(rotation.rotate(local));
     }
 
-    public Vec3 pointToObject(Vec3 world) {
+    public Vector3 pointToObject(Vector3 world) {
         return rotation.inverse().rotate(world.sub(position));
     }
 
-    public Vec3 vectorToWorld(Vec3 local) {
+    public Vector3 vectorToWorld(Vector3 local) {
         return rotation.rotate(local);
     }
 
-    public Vec3 vectorToObject(Vec3 world) {
+    public Vector3 vectorToObject(Vector3 world) {
         return rotation.inverse().rotate(world);
     }
 
@@ -49,28 +49,28 @@ public record CFrame(Vec3 position, Quat rotation) {
         return new CFrame(r.rotate(position).neg(), r);
     }
 
-    public Vec3 lookVector() {
-        return rotation.rotate(Vec3.FORWARD);
+    public Vector3 lookVector() {
+        return rotation.rotate(Vector3.FORWARD);
     }
 
-    public double roll(Vec3 reference) {
-        Vec3 look = lookVector();
-        Vec3 flat = look.cross(reference);
+    public double roll(Vector3 reference) {
+        Vector3 look = lookVector();
+        Vector3 flat = look.cross(reference);
         if (flat.lengthSq() < 1e-12) return 0;
-        Vec3 level = flat.normalize().cross(look).normalize();
-        Vec3 up = upVector();
+        Vector3 level = flat.normalize().cross(look).normalize();
+        Vector3 up = upVector();
         return Math.atan2(level.cross(up).dot(look), level.dot(up));
     }
 
-    public Vec3 rightVector() {
-        return rotation.rotate(Vec3.RIGHT);
+    public Vector3 rightVector() {
+        return rotation.rotate(Vector3.RIGHT);
     }
 
-    public Vec3 upVector() {
-        return rotation.rotate(Vec3.UP);
+    public Vector3 upVector() {
+        return rotation.rotate(Vector3.UP);
     }
 
-    public CFrame withPosition(Vec3 p) {
+    public CFrame withPosition(Vector3 p) {
         return new CFrame(p, rotation);
     }
 

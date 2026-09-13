@@ -1,7 +1,7 @@
 package com.meekdev.moud.script.api;
 
 import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 
 public interface PlayerRef {
 
@@ -9,7 +9,7 @@ public interface PlayerRef {
 
     Instance character();
 
-    void spawn(Vec3 position);
+    void spawn(Vector3 position);
 
     default double ping() {
         return 0;

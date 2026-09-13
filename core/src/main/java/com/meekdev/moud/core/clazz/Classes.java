@@ -61,7 +61,7 @@ import com.meekdev.moud.core.instance.FogEffect;
 import com.meekdev.moud.core.instance.OutlineEffect;
 import com.meekdev.moud.core.instance.TonemapEffect;
 import com.meekdev.moud.core.instance.PostShader;
-import com.meekdev.moud.core.instance.Light;
+import com.meekdev.moud.core.instance.LightSource;
 import com.meekdev.moud.core.instance.Zone;
 import com.meekdev.moud.core.instance.ProximityPrompt;
 import com.meekdev.moud.core.instance.PointLight;
@@ -153,7 +153,7 @@ public final class Classes {
             ClassDef.of("ProximityPrompt", null, ProximityPrompt.class, ProximityPrompt::new);
     public static final ClassDef<Zone> ZONE = ClassDef.of("Zone", SPATIAL, Zone.class, Zone::new);
 
-    public static final ClassDef<Light> LIGHT = ClassDef.of("Light", SPATIAL, Light.class, Light::new);
+    public static final ClassDef<LightSource> LIGHT = ClassDef.of("Light", SPATIAL, LightSource.class, LightSource::new);
     public static final ClassDef<PointLight> POINT_LIGHT =
             ClassDef.of("PointLight", LIGHT, PointLight.class, PointLight::new);
     public static final ClassDef<SpotLight> SPOT_LIGHT =

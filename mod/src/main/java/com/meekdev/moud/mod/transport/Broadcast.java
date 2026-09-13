@@ -1,7 +1,7 @@
 package com.meekdev.moud.mod.transport;
 
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.server.ServerScene;
 import com.meekdev.moud.net.replicate.Audience;
@@ -48,7 +48,7 @@ public final class Broadcast {
             Audience audience = AUDIENCES.computeIfAbsent(player.getUUID(),
                     id -> new Audience(id.toString()));
             List<Change> mine = new ArrayList<>();
-            Vec3 focus = new Vec3(player.getX(), player.getY(), player.getZ());
+            Vector3 focus = new Vector3(player.getX(), player.getY(), player.getZ());
             audience.drain(tree, batch, focus, Audience.RADIUS, mine::add);
             Post.wired().sendDelta(player, Codec.encode(mine, tree, Addons.classes()));
         }

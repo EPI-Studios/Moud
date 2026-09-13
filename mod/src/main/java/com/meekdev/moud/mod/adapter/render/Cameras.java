@@ -8,9 +8,10 @@ import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.phys.Vec3;
 
 public final class Cameras {
 
@@ -43,7 +44,7 @@ public final class Cameras {
 
     private static void hold(Camera camera) {
         CFrame frame = camera.cframe;
-        Vec3 look = frame.lookVector();
+        Vector3 look = frame.lookVector();
         pose(frame.position(), mcYaw(look), mcPitch(look), mcRoll(frame));
     }
 
@@ -53,52 +54,52 @@ public final class Cameras {
     }
 
     private static void third(Camera camera, LocalPlayer player, float partialTick) {
-        Vec3 at = eye(camera, player, partialTick)
+        Vector3 at = eye(camera, player, partialTick)
                 .sub(moudLookFromMc(player.getYRot(), player.getXRot()).mul(camera.distance));
         pose(at, player.getYRot(), player.getXRot());
         report(camera, at, player.getYRot(), player.getXRot());
     }
 
-    private static Vec3 eye(Camera camera, LocalPlayer player, float partialTick) {
+    private static Vector3 eye(Camera camera, LocalPlayer player, float partialTick) {
         if (camera.subject != null && camera.subject.isAlive()) {
             return Transforms.world(camera.subject).position().add(camera.offset);
         }
         double x = player.xOld + (player.getX() - player.xOld) * partialTick;
         double y = player.yOld + (player.getY() - player.yOld) * partialTick;
         double z = player.zOld + (player.getZ() - player.zOld) * partialTick;
-        return new Vec3(x, y, z).add(camera.offset);
+        return new Vector3(x, y, z).add(camera.offset);
     }
 
-    private static Vec3 moudLookFromMc(float mcYaw, float mcPitch) {
+    private static Vector3 moudLookFromMc(float mcYaw, float mcPitch) {
         double yaw = mcYaw / DEGREES;
         double pitch = mcPitch / DEGREES;
         double cosPitch = Math.cos(pitch);
-        return new Vec3(-Math.sin(yaw) * cosPitch, -Math.sin(pitch), Math.cos(yaw) * cosPitch);
+        return new Vector3(-Math.sin(yaw) * cosPitch, -Math.sin(pitch), Math.cos(yaw) * cosPitch);
     }
 
-    private static void pose(Vec3 at, float yaw, float pitch) {
+    private static void pose(Vector3 at, float yaw, float pitch) {
         pose(at, yaw, pitch, 0f);
     }
 
-    private static void pose(Vec3 at, float yaw, float pitch, float roll) {
+    private static void pose(Vector3 at, float yaw, float pitch, float roll) {
         AmneticCamera.setPose(
-                new net.minecraft.world.phys.Vec3(at.x(), at.y(), at.z()), yaw, pitch, roll);
+                new Vec3(at.x(), at.y(), at.z()), yaw, pitch, roll);
     }
 
-    private static void report(Camera camera, Vec3 at, float yaw, float pitch) {
+    private static void report(Camera camera, Vector3 at, float yaw, float pitch) {
         Instances.setObj(camera, CFRAME,
-                new CFrame(at, Quat.lookAt(moudLookFromMc(yaw, pitch), Vec3.UP)));
+                new CFrame(at, Quat.lookAt(moudLookFromMc(yaw, pitch), Vector3.UP)));
     }
 
-    private static float mcYaw(Vec3 look) {
+    private static float mcYaw(Vector3 look) {
         return (float) (Math.atan2(-look.x(), look.z()) * DEGREES);
     }
 
     private static float mcRoll(CFrame frame) {
-        return (float) (-frame.roll(Vec3.UP) * DEGREES);
+        return (float) (-frame.roll(Vector3.UP) * DEGREES);
     }
 
-    private static float mcPitch(Vec3 look) {
+    private static float mcPitch(Vector3 look) {
         return (float) (Math.asin(Math.max(-1.0, Math.min(1.0, -look.y()))) * DEGREES);
     }
 }

@@ -1,7 +1,7 @@
 package com.meekdev.moud.core.instance;
 
 import com.meekdev.moud.core.clazz.Prop;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 
 public class Limb extends Part {
 
@@ -14,7 +14,7 @@ public class Limb extends Part {
     public double u;
     public double v;
 
-    public Vec3 texels = Vec3.ZERO;
+    public Vector3 texels = Vector3.ZERO;
 
     @Prop(min = 1) public double sheetWidth = 64;
     @Prop(min = 1) public double sheetHeight = 64;

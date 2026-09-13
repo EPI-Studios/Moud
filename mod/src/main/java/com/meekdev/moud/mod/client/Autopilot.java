@@ -1,6 +1,6 @@
 package com.meekdev.moud.mod.client;
 
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.transport.Packets;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,7 +16,7 @@ import net.minecraft.world.phys.Vec2;
 public final class Autopilot {
 
     private static final Queue<Packets.PilotDown> INCOMING = new ConcurrentLinkedQueue<>();
-    private static final List<Vec3> WAYPOINTS = new ArrayList<>();
+    private static final List<Vector3> WAYPOINTS = new ArrayList<>();
     private static int next;
     private static boolean jump;
 
@@ -32,7 +32,7 @@ public final class Autopilot {
                 case Packets.PilotDown.WALK -> {
                     WAYPOINTS.clear();
                     double[] n = down.waypoints();
-                    for (int i = 0; i + 2 < n.length; i += 3) WAYPOINTS.add(new Vec3(n[i], n[i + 1], n[i + 2]));
+                    for (int i = 0; i + 2 < n.length; i += 3) WAYPOINTS.add(new Vector3(n[i], n[i + 1], n[i + 2]));
                     next = 0;
                 }
                 case Packets.PilotDown.JUMP -> jump = true;
@@ -54,8 +54,8 @@ public final class Autopilot {
             if (jumpNow) input.keyPresses = new Input(pressed.forward(), pressed.backward(), pressed.left(), pressed.right(), true, pressed.shift(), pressed.sprint());
             return;
         }
-        Vec3 at = new Vec3(player.getX(), player.getY(), player.getZ());
-        Vec3 waypoint = WAYPOINTS.get(next);
+        Vector3 at = new Vector3(player.getX(), player.getY(), player.getZ());
+        Vector3 waypoint = WAYPOINTS.get(next);
         double dx = waypoint.x() - at.x();
         double dz = waypoint.z() - at.z();
         while (Math.sqrt(dx * dx + dz * dz) < 0.35) {

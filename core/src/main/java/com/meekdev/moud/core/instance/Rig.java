@@ -5,7 +5,7 @@ import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 
 public final class Rig {
 
@@ -77,8 +77,8 @@ public final class Rig {
     private static final PropertyDef GRIP_FRAME = Classes.SPATIAL.property("cframe");
     private static final PropertyDef TEXELS = Classes.LIMB.property("texels");
 
-    private record Shape(String name, Vec3 pivot, Vec3 box, Vec3 size, double shell,
-                         Vec3 texels, double u, double v, double shellU, double shellV) {}
+    private record Shape(String name, Vector3 pivot, Vector3 box, Vector3 size, double shell,
+                         Vector3 texels, double u, double v, double shellU, double shellV) {}
 
     private static final Shape[] WING = {
             limb("rightWing", -5, 0, -2, 0, 0, 0, 10, 20, 2, 1.0, 22, 0),
@@ -125,10 +125,10 @@ public final class Rig {
     private static Shape limb(String name, double px, double py, double pz,
                              double bx, double by, double bz, double w, double h, double d,
                              double shell, double u, double v, double shellU, double shellV) {
-        Vec3 pivot = new Vec3(-px * PX, (STANDING - py) * PX, pz * PX);
-        Vec3 centre = new Vec3(-(bx + w * 0.5) * PX, -(by + h * 0.5) * PX, (bz + d * 0.5) * PX);
-        return new Shape(name, pivot, centre, new Vec3(w * PX, h * PX, d * PX), shell * PX,
-                new Vec3(w, h, d), u, v, shellU, shellV);
+        Vector3 pivot = new Vector3(-px * PX, (STANDING - py) * PX, pz * PX);
+        Vector3 centre = new Vector3(-(bx + w * 0.5) * PX, -(by + h * 0.5) * PX, (bz + d * 0.5) * PX);
+        return new Shape(name, pivot, centre, new Vector3(w * PX, h * PX, d * PX), shell * PX,
+                new Vector3(w, h, d), u, v, shellU, shellV);
     }
 
     public static Armour armour(Character character) {
@@ -178,15 +178,15 @@ public final class Rig {
         return character.child(JOINTS) instanceof Instance joints ? joints.child(name) : null;
     }
 
-    public static Vec3 pivot(String name, double scale) {
+    public static Vector3 pivot(String name, double scale) {
         for (Shape limb : BODY) {
             if (limb.name().equals(name)) return limb.pivot().mul(scale);
         }
-        return Vec3.ZERO;
+        return Vector3.ZERO;
     }
 
-    public static Vec3 offset(double x, double y, double z) {
-        return new Vec3(-x * PX, -y * PX, z * PX);
+    public static Vector3 offset(double x, double y, double z) {
+        return new Vector3(-x * PX, -y * PX, z * PX);
     }
 
     private static double swing(String name) {
@@ -222,13 +222,13 @@ public final class Rig {
             });
             shell(character, limb);
             grip(character, limb);
-            if ("head".equals(limb.name())) attach(character, limb, HAT, Vec3.ZERO);
+            if ("head".equals(limb.name())) attach(character, limb, HAT, Vector3.ZERO);
             if ("torso".equals(limb.name())) {
                 attach(character, limb, BACK, CAPE_BOX.pivot().sub(limb.pivot()));
             }
         }
         Instances.create(Classes.PART, character, HITBOX, part -> {
-            part.size = Vec3.ONE;
+            part.size = Vector3.ONE;
             part.color = Color.WHITE;
             part.collides = false;
             part.anchored = true;
@@ -319,7 +319,7 @@ public final class Rig {
                     part.visible = false;
                     part.u = layer ? 32 : 0;
                     part.v = 0;
-                    part.texels = new Vec3(8, 8, 8);
+                    part.texels = new Vector3(8, 8, 8);
                     part.sheet = SHEET_ARMOUR + "head";
                     part.cutout = true;
                 });
@@ -393,20 +393,20 @@ public final class Rig {
         boolean slim = look != null && look.slim;
         for (Shape limb : BODY) {
             if (!(character.child(limb.name()) instanceof Part part)) continue;
-            Vec3 own = joint(character, limb.name()) instanceof Joint hinge ? hinge.scale : Vec3.ONE;
-            Vec3 grown = limb.size().mul(s).mul(own);
+            Vector3 own = joint(character, limb.name()) instanceof Joint hinge ? hinge.scale : Vector3.ONE;
+            Vector3 grown = limb.size().mul(s).mul(own);
 
             double narrow = slim ? arm(limb.name()) : 0;
             double texel = narrow == 0 ? 0 : limb.size().x() * 0.25 * s * own.x();
-            if (narrow != 0) grown = new Vec3(grown.x() - texel, grown.y(), grown.z());
+            if (narrow != 0) grown = new Vector3(grown.x() - texel, grown.y(), grown.z());
 
             Instances.setObj(part, SIZE, grown);
             Instances.setObj(part, PIVOT, limb.box().neg().mul(s).mul(own)
-                    .add(new Vec3(narrow * texel * 0.5, 0, 0)));
+                    .add(new Vector3(narrow * texel * 0.5, 0, 0)));
             if (part instanceof Limb cut) {
                 Instances.setObj(cut, TEXELS, narrow == 0
                         ? limb.texels()
-                        : new Vec3(limb.texels().x() - 1, limb.texels().y(), limb.texels().z()));
+                        : new Vector3(limb.texels().x() - 1, limb.texels().y(), limb.texels().z()));
             }
             if (joint(character, limb.name()) instanceof Joint hinge) {
                 Instances.setObj(hinge, C0, CFrame.at(limb.pivot().mul(s)));
@@ -425,13 +425,13 @@ public final class Rig {
 
             if (part.child(OVERLAY) instanceof Part over) {
                 double shell = limb.shell() * 2;
-                Vec3 wide = limb.size().add(new Vec3(shell, shell, shell)).mul(s).mul(own);
+                Vector3 wide = limb.size().add(new Vector3(shell, shell, shell)).mul(s).mul(own);
                 Instances.setObj(over, SIZE,
-                        narrow == 0 ? wide : new Vec3(wide.x() - texel, wide.y(), wide.z()));
+                        narrow == 0 ? wide : new Vector3(wide.x() - texel, wide.y(), wide.z()));
                 if (over instanceof Limb cut) {
                     Instances.setObj(cut, TEXELS, narrow == 0
                             ? limb.texels()
-                            : new Vec3(limb.texels().x() - 1, limb.texels().y(), limb.texels().z()));
+                            : new Vector3(limb.texels().x() - 1, limb.texels().y(), limb.texels().z()));
                 }
             }
         }
@@ -457,7 +457,7 @@ public final class Rig {
             if (!(character.child(wing.name()) instanceof Part part)) continue;
             double grown = wing.shell() * 2;
             Instances.setObj(part, SIZE,
-                    wing.size().add(new Vec3(grown, grown, grown)).mul(s));
+                    wing.size().add(new Vector3(grown, grown, grown)).mul(s));
             Instances.setObj(part, PIVOT, wing.box().neg().mul(s));
             Instances.setBool(part, VISIBLE, worn(character));
             if (joint(character, wing.name()) instanceof Joint hinge) {
@@ -483,7 +483,7 @@ public final class Rig {
                 if (!(point.child(ear.name()) instanceof Part part)) continue;
                 double out = ear.shell() * 2;
                 Instances.setObj(part, SIZE,
-                        ear.size().add(new Vec3(out, out, out)).mul(s));
+                        ear.size().add(new Vector3(out, out, out)).mul(s));
                 Instances.setObj(part, CFRAME,
                         CFrame.at(ear.pivot().sub(BODY[0].pivot()).mul(s)));
                 Instances.setObj(part, PIVOT, ear.box().neg().mul(s));
@@ -500,8 +500,8 @@ public final class Rig {
                 double out = n == 0 ? 0 : 0.25 * 2 * PX;
                 double at = HEAD_WORN * s;
                 Instances.setObj(part, SIZE,
-                        new Vec3(8 * PX + out, 8 * PX + out, 8 * PX + out).mul(at));
-                Instances.setObj(part, PIVOT, new Vec3(0, -4 * PX, 0).mul(at));
+                        new Vector3(8 * PX + out, 8 * PX + out, 8 * PX + out).mul(at));
+                Instances.setObj(part, PIVOT, new Vector3(0, -4 * PX, 0).mul(at));
                 Instances.setBool(part, VISIBLE, wearing && (n == 0 || worn.hatLayered));
             }
         }
@@ -511,17 +511,17 @@ public final class Rig {
             Shape shape = shapeOf(plate.limb());
             if (shape == null) continue;
 
-            Vec3 own = joint(character, plate.limb()) instanceof Joint hinge ? hinge.scale : Vec3.ONE;
+            Vector3 own = joint(character, plate.limb()) instanceof Joint hinge ? hinge.scale : Vector3.ONE;
             double out = plate.grow() * 2 * PX * s;
             Instances.setObj(plated, SIZE,
-                    shape.size().mul(s).mul(own).add(new Vec3(out, out, out)));
+                    shape.size().mul(s).mul(own).add(new Vector3(out, out, out)));
             boolean taken = "head".equals(plate.slot()) && worn != null && !worn.hat.isEmpty();
             Instances.setBool(plated, VISIBLE, !taken && !slot(worn, plate.slot()).isEmpty());
         }
 
         if (character.child(HITBOX) instanceof Part box) {
             Instances.setObj(box, SIZE,
-                    new Vec3(character.radius * 2, character.height, character.radius * 2));
+                    new Vector3(character.radius * 2, character.height, character.radius * 2));
             Instances.setObj(box, CFRAME, CFrame.at(0, character.height * 0.5, 0));
             Instances.setBool(box, VISIBLE, look != null && look.display == CharacterDisplay.HITBOX);
         }
@@ -529,15 +529,15 @@ public final class Rig {
 
     private static CFrame hold(Shape limb, Character character) {
         double side = "rightArm".equals(limb.name()) ? 1 : -1;
-        Vec3 back = limb.box().neg().mul(character.scale);
+        Vector3 back = limb.box().neg().mul(character.scale);
 
-        Quat turn = Quat.axisAngle(new Vec3(1, 0, 0), Math.PI / 2)
-                .mul(Quat.axisAngle(Vec3.UP, Math.PI));
-        Vec3 out = new Vec3(-side * PX, -2 * PX, -10 * PX).mul(character.scale);
+        Quat turn = Quat.axisAngle(new Vector3(1, 0, 0), Math.PI / 2)
+                .mul(Quat.axisAngle(Vector3.UP, Math.PI));
+        Vector3 out = new Vector3(-side * PX, -2 * PX, -10 * PX).mul(character.scale);
         return new CFrame(back, turn).mul(CFrame.at(out));
     }
 
-    private static void attach(Character character, Shape limb, String name, Vec3 from) {
+    private static void attach(Character character, Shape limb, String name, Vector3 from) {
         if (!(character.child(limb.name()) instanceof Part part)) return;
         Instances.create(Classes.ATTACHMENT, part, name,
                 point -> point.cframe = CFrame.at(limb.box().neg().add(from)));

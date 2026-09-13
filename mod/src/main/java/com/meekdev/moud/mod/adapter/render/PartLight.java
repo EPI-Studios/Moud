@@ -1,7 +1,7 @@
 package com.meekdev.moud.mod.adapter.render;
 
 import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import java.util.Map;
 import java.util.WeakHashMap;
 import net.minecraft.client.Minecraft;
@@ -18,12 +18,12 @@ public final class PartLight {
 
     private PartLight() {}
 
-    public static Vector2f of(Instance part, Vec3 at) {
+    public static Vector2f of(Instance part, Vector3 at) {
         Vector2f known = BY_PART.get(part);
         return known != null ? known : FULL;
     }
 
-    public static void refresh(Instance part, Vec3 at) {
+    public static void refresh(Instance part, Vector3 at) {
         Level level = Minecraft.getInstance().level;
         if (level == null) return;
         int packed = LevelRenderer.getLightCoords(level,

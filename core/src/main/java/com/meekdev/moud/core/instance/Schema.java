@@ -4,7 +4,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +37,7 @@ public final class Schema {
                 case BOOL -> value instanceof Boolean;
                 case NUMBER -> value instanceof Double || value instanceof Integer;
                 case STRING -> value instanceof String;
-                case VEC3 -> value instanceof Vec3;
+                case VEC3 -> value instanceof Vector3;
                 case QUAT -> value instanceof Quat;
                 case CFRAME -> value instanceof CFrame;
                 case COLOR -> value instanceof Color;

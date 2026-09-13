@@ -20,6 +20,7 @@ import net.minecraft.world.entity.Entity;
 import org.joml.Vector3d;
 import org.joml.Quaternionf;
 import org.jspecify.annotations.Nullable;
+import java.util.Locale;
 
 public final class ClientPhysics {
 
@@ -71,7 +72,7 @@ public final class ClientPhysics {
     }
 
     private static String fmt(double v) {
-        return String.format(java.util.Locale.ROOT, "%.6f", v);
+        return String.format(Locale.ROOT, "%.6f", v);
     }
 
     public static Colliders boxes() {

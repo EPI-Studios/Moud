@@ -5,7 +5,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -72,7 +72,7 @@ public final class Plain {
             case Boolean b -> state.pushBoolean(b);
             case Number d -> state.pushNumber(d.doubleValue());
             case String s -> state.pushString(s);
-            case Vec3 v -> Values.push(state, v);
+            case Vector3 v -> Values.push(state, v);
             case Quat q -> Values.push(state, q);
             case CFrame c -> Values.push(state, c);
             case Color c -> Values.push(state, c);

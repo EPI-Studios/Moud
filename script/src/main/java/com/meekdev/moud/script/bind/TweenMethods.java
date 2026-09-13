@@ -6,7 +6,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.tween.Easing;
 import com.meekdev.moud.core.tween.Tween;
 import com.meekdev.moud.script.err.ScriptError;
@@ -100,7 +100,7 @@ public final class TweenMethods {
             CFrame target = key.equals("position")
                     ? Transforms.localFor(instance, world.withPosition(Values.vec3(state, value))).mul(CFrame.at(spatial.pivot))
                     : spatial.cframe.withRotation(Transforms.localFor(instance,
-                            new CFrame(Vec3.ZERO, Values.cframe(state, value).rotation())).rotation());
+                            new CFrame(Vector3.ZERO, Values.cframe(state, value).rotation())).rotation());
             return new Tween.Goal(frame, target);
         }
         PropertyDef property = instance.def().property(key);

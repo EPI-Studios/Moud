@@ -1,7 +1,7 @@
 package com.meekdev.moud.core.instance;
 
 import com.meekdev.moud.core.math.CFrame;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 
 public final class Transforms {
 
@@ -16,7 +16,7 @@ public final class Transforms {
 
     public static CFrame local(Instance i) {
         if (!(i instanceof Spatial s)) return CFrame.IDENTITY;
-        if (s.pivot.equals(Vec3.ZERO)) return s.cframe;
+        if (s.pivot.equals(Vector3.ZERO)) return s.cframe;
         return s.cframe.mul(CFrame.at(s.pivot.neg()));
     }
 

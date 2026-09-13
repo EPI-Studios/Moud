@@ -2,9 +2,10 @@ package com.meekdev.moud.mod.adapter.render;
 
 import com.meekdev.amnetic.client.camera.AmneticCamera;
 import com.meekdev.amnetic.client.camera.CameraEffects;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.api.CameraRef;
 import org.joml.Vector2f;
+import net.minecraft.world.phys.Vec3;
 
 public final class CameraApi implements CameraRef {
 
@@ -29,22 +30,22 @@ public final class CameraApi implements CameraRef {
     }
 
     @Override
-    public Vec3 worldToScreen(Vec3 world) {
+    public Vector3 worldToScreen(Vector3 world) {
         if (!AmneticCamera.isReady()) return null;
-        net.minecraft.world.phys.Vec3 point =
-                new net.minecraft.world.phys.Vec3(world.x(), world.y(), world.z());
+        Vec3 point =
+                new Vec3(world.x(), world.y(), world.z());
         Vector2f screen = AmneticCamera.worldToScreen(point);
         if (screen == null) return null;
-        return new Vec3(screen.x(), screen.y(), AmneticCamera.distanceTo(point));
+        return new Vector3(screen.x(), screen.y(), AmneticCamera.distanceTo(point));
     }
 
     @Override
     public CameraRef.Ray screenToRay(double x, double y) {
-        com.meekdev.amnetic.client.camera.Ray ray = AmneticCamera.screenToRay(x, y);
+        var ray = AmneticCamera.screenToRay(x, y);
         return new CameraRef.Ray(ours(ray.origin()), ours(ray.direction()));
     }
 
-    private static Vec3 ours(net.minecraft.world.phys.Vec3 v) {
-        return new Vec3(v.x(), v.y(), v.z());
+    private static Vector3 ours(Vec3 v) {
+        return new Vector3(v.x(), v.y(), v.z());
     }
 }

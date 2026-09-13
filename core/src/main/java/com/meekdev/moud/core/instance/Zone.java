@@ -2,7 +2,7 @@ package com.meekdev.moud.core.instance;
 
 import com.meekdev.moud.core.clazz.Prop;
 import com.meekdev.moud.core.event.Signal;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -14,7 +14,7 @@ public final class Zone extends Spatial {
 
     public ZoneShape shape = ZoneShape.BOX;
 
-    public Vec3 size = new Vec3(8, 4, 8);
+    public Vector3 size = new Vector3(8, 4, 8);
 
     public boolean trackPlayers = true;
     public String trackTag = "";

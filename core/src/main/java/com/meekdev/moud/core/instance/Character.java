@@ -2,7 +2,7 @@ package com.meekdev.moud.core.instance;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.Prop;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import java.util.UUID;
 
 public final class Character extends Spatial {
@@ -26,7 +26,7 @@ public final class Character extends Spatial {
 
     @Prop(driven = true) public boolean crouching;
 
-    @Prop(driven = true) public Vec3 velocity = Vec3.ZERO;
+    @Prop(driven = true) public Vector3 velocity = Vector3.ZERO;
 
     @Prop(driven = true, min = 0, max = 1) public double attackTime;
 

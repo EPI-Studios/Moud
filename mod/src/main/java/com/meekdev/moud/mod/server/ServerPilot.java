@@ -2,7 +2,7 @@ package com.meekdev.moud.mod.server;
 
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.nav.Walkers;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.transport.Packets;
@@ -37,7 +37,7 @@ public final class ServerPilot implements Walkers.Pilot {
     }
 
     @Override
-    public void walk(Character body, List<Vec3> waypoints) {
+    public void walk(Character body, List<Vector3> waypoints) {
         double[] flat = new double[waypoints.size() * 3];
         for (int n = 0; n < waypoints.size(); n++) {
             flat[n * 3] = waypoints.get(n).x();

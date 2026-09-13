@@ -1,6 +1,6 @@
 package com.meekdev.moud.core.instance;
 
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.clazz.Prop;
 import com.meekdev.moud.core.event.Signal;
 
@@ -20,7 +20,7 @@ public final class Humanoid extends Instance {
 
     public HumanoidState state = HumanoidState.STANDING;
 
-    public Vec3 walkTo = Vec3.ZERO;
+    public Vector3 walkTo = Vector3.ZERO;
 
     public boolean walking;
 

@@ -1,5 +1,7 @@
 package com.meekdev.moud.core.instance;
 
+import java.util.Locale;
+
 public enum Stage {
 
     SHAPE,
@@ -17,7 +19,7 @@ public enum Stage {
     public final int bit = 1 << ordinal();
 
     public String method() {
-        return name().toLowerCase(java.util.Locale.ROOT);
+        return name().toLowerCase(Locale.ROOT);
     }
 
     public boolean timed() {

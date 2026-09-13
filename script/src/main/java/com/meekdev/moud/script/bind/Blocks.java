@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.HashMap;
 import java.util.ArrayList;
 import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.api.BlockRef;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
@@ -24,13 +24,13 @@ public final class Blocks {
         state.getGlobal("game");
         state.newTable();
         function(state, "get", s -> {
-            Vec3 at = Values.vec3(s, 2);
+            Vector3 at = Values.vec3(s, 2);
             s.pushString(blocks.get(floor(at.x()), floor(at.y()), floor(at.z())));
             return 1;
         });
         function(state, "set", s -> {
             writable(s, blocks);
-            Vec3 at = Values.vec3(s, 2);
+            Vector3 at = Values.vec3(s, 2);
             try {
                 blocks.set(floor(at.x()), floor(at.y()), floor(at.z()), s.checkString(3));
             } catch (IllegalArgumentException wrong) {
@@ -40,8 +40,8 @@ public final class Blocks {
         });
         function(state, "fill", s -> {
             writable(s, blocks);
-            Vec3 a = Values.vec3(s, 2);
-            Vec3 b = Values.vec3(s, 3);
+            Vector3 a = Values.vec3(s, 2);
+            Vector3 b = Values.vec3(s, 3);
             int x0 = floor(Math.min(a.x(), b.x())), y0 = floor(Math.min(a.y(), b.y())), z0 = floor(Math.min(a.z(), b.z()));
             int x1 = floor(Math.max(a.x(), b.x())), y1 = floor(Math.max(a.y(), b.y())), z1 = floor(Math.max(a.z(), b.z()));
             long count = (long) (x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1);
@@ -54,8 +54,8 @@ public final class Blocks {
             return 1;
         });
         function(state, "raycast", s -> {
-            Vec3 from = Values.vec3(s, 2);
-            Vec3 direction = Values.vec3(s, 3);
+            Vector3 from = Values.vec3(s, 2);
+            Vector3 direction = Values.vec3(s, 3);
             double range = s.isNoneOrNil(4) ? 100 : s.checkNumber(4);
             boolean fluids = false;
             if (s.type(5) == LuaType.TABLE) {
@@ -78,7 +78,7 @@ public final class Blocks {
         function(state, "isAir", s -> at(s, blocks::air));
         function(state, "isFluid", s -> at(s, blocks::fluid));
         function(state, "lightAt", s -> {
-            Vec3 at = Values.vec3(s, 2);
+            Vector3 at = Values.vec3(s, 2);
             s.pushNumber(blocks.light(floor(at.x()), floor(at.y()), floor(at.z())));
             return 1;
         });
@@ -88,16 +88,16 @@ public final class Blocks {
         });
         function(state, "find", s -> {
             String id = s.checkString(2);
-            Vec3 centre = Values.vec3(s, 3);
+            Vector3 centre = Values.vec3(s, 3);
             int radius = (int) Math.ceil(s.checkNumber(4));
             int limit = s.isNoneOrNil(5) ? Integer.MAX_VALUE : (int) s.checkNumber(5);
             if (radius > 64) throw s.error("find reaches at most 64 blocks, and %d was asked", radius);
-            List<Vec3> found = new ArrayList<>();
+            List<Vector3> found = new ArrayList<>();
             int cx = floor(centre.x()), cy = floor(centre.y()), cz = floor(centre.z());
             for (int x = cx - radius; x <= cx + radius; x++) {
                 for (int y = cy - radius; y <= cy + radius; y++) {
                     for (int z = cz - radius; z <= cz + radius; z++) {
-                        Vec3 middle = new Vec3(x + 0.5, y + 0.5, z + 0.5);
+                        Vector3 middle = new Vector3(x + 0.5, y + 0.5, z + 0.5);
                         if (middle.sub(centre).lengthSq() > (double) radius * radius) continue;
                         if (blocks.id(x, y, z).equals(id) || blocks.get(x, y, z).equals(id)) found.add(middle);
                     }
@@ -145,7 +145,7 @@ public final class Blocks {
         });
         function(state, "sphere", s -> {
             writable(s, blocks);
-            Vec3 centre = Values.vec3(s, 2);
+            Vector3 centre = Values.vec3(s, 2);
             double radius = s.checkNumber(3);
             String block = s.checkString(4);
             boolean hollow = s.toBoolean(5);
@@ -167,7 +167,7 @@ public final class Blocks {
         });
         function(state, "cylinder", s -> {
             writable(s, blocks);
-            Vec3 base = Values.vec3(s, 2);
+            Vector3 base = Values.vec3(s, 2);
             double radius = s.checkNumber(3);
             int height = (int) s.checkNumber(4);
             String block = s.checkString(5);
@@ -190,14 +190,14 @@ public final class Blocks {
         });
         function(state, "line", s -> {
             writable(s, blocks);
-            Vec3 a = Values.vec3(s, 2);
-            Vec3 b = Values.vec3(s, 3);
+            Vector3 a = Values.vec3(s, 2);
+            Vector3 b = Values.vec3(s, 3);
             String block = s.checkString(4);
             int steps = (int) Math.ceil(Math.max(Math.abs(b.x() - a.x()), Math.max(Math.abs(b.y() - a.y()), Math.abs(b.z() - a.z()))));
             long count = 0;
             int lx = Integer.MIN_VALUE, ly = 0, lz = 0;
             for (int n = 0; n <= steps; n++) {
-                Vec3 at = steps == 0 ? a : a.lerp(b, (double) n / steps);
+                Vector3 at = steps == 0 ? a : a.lerp(b, (double) n / steps);
                 int x = floor(at.x()), y = floor(at.y()), z = floor(at.z());
                 if (x == lx && y == ly && z == lz) continue;
                 set(s, blocks, x, y, z, block);
@@ -247,7 +247,7 @@ public final class Blocks {
                 }
             }
             s.createTable(0, 3);
-            Values.push(s, new Vec3(box[3] - box[0] + 1, box[4] - box[1] + 1, box[5] - box[2] + 1));
+            Values.push(s, new Vector3(box[3] - box[0] + 1, box[4] - box[1] + 1, box[5] - box[2] + 1));
             s.rawSetField(-2, "size");
             s.createTable(palette.size(), 0);
             for (int n = 0; n < palette.size(); n++) {
@@ -266,11 +266,11 @@ public final class Blocks {
         function(state, "paste", s -> {
             writable(s, blocks);
             if (s.type(2) != LuaType.TABLE) throw s.error("paste wants what copy returned");
-            Vec3 at = Values.vec3(s, 3);
+            Vector3 at = Values.vec3(s, 3);
             int turns = s.isNoneOrNil(4) ? 0 : (int) s.checkNumber(4);
             boolean skipAir = s.toBoolean(5);
             s.getField(2, "size");
-            Vec3 size = Values.vec3(s, -1);
+            Vector3 size = Values.vec3(s, -1);
             s.pop(1);
             s.getField(2, "palette");
             int paletteAt = s.top();
@@ -330,7 +330,7 @@ public final class Blocks {
         watch.blocks().drainChanges(change -> {
             Paths.blockChanged(world, change.x(), change.y(), change.z());
             Signals.fire(state, watch.changed(), onError, s -> {
-                Values.push(s, new Vec3(change.x(), change.y(), change.z()));
+                Values.push(s, new Vector3(change.x(), change.y(), change.z()));
                 s.pushString(change.block());
                 return 2;
             });
@@ -346,14 +346,14 @@ public final class Blocks {
     }
 
     private static int at(LuaState s, Test test) {
-        Vec3 at = Values.vec3(s, 2);
+        Vector3 at = Values.vec3(s, 2);
         s.pushBoolean(test.at(floor(at.x()), floor(at.y()), floor(at.z())));
         return 1;
     }
 
     private static int[] box(LuaState s, int first, int second) {
-        Vec3 a = Values.vec3(s, first);
-        Vec3 b = Values.vec3(s, second);
+        Vector3 a = Values.vec3(s, first);
+        Vector3 b = Values.vec3(s, second);
         int[] box = {floor(Math.min(a.x(), b.x())), floor(Math.min(a.y(), b.y())), floor(Math.min(a.z(), b.z())),
                 floor(Math.max(a.x(), b.x())), floor(Math.max(a.y(), b.y())), floor(Math.max(a.z(), b.z()))};
         long count = (long) (box[3] - box[0] + 1) * (box[4] - box[1] + 1) * (box[5] - box[2] + 1);

@@ -1,6 +1,6 @@
 package com.meekdev.moud.script.bind;
 
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.api.AudioRef;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -256,9 +256,9 @@ public final class Audio {
                 bool(state, at, "stream", d.stream()));
     }
 
-    private static Vec3 position(LuaState state, int at) {
+    private static Vector3 position(LuaState state, int at) {
         state.getField(at, "at");
-        Vec3 value = state.isNoneOrNil(-1) ? null : Values.vec3(state, state.top());
+        Vector3 value = state.isNoneOrNil(-1) ? null : Values.vec3(state, state.top());
         state.pop(1);
         return value;
     }

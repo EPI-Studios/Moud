@@ -2,7 +2,7 @@ package com.meekdev.moud.core.instance;
 
 import com.meekdev.moud.core.clazz.Prop;
 import com.meekdev.moud.core.math.Color;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 
 public final class BubbleChat extends Instance {
 
@@ -13,7 +13,7 @@ public final class BubbleChat extends Instance {
 
     @Prop(min = 0) public double maxDistance = 48;
 
-    public Vec3 offset = new Vec3(0, 0.35, 0);
+    public Vector3 offset = new Vector3(0, 0.35, 0);
 
     public Color backgroundColor = Color.WHITE;
     @Prop(min = 0, max = 1) public double backgroundTransparency = 0.1;

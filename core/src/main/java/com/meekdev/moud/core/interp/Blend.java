@@ -5,7 +5,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 
 public final class Blend {
 
@@ -25,7 +25,7 @@ public final class Blend {
     public static Object of(PropertyType type, Object from, Object to, double alpha) {
         if (!isContinuous(type)) return alpha < 1.0 ? from : to;
         return switch (type) {
-            case VEC3 -> ((Vec3) from).lerp((Vec3) to, alpha);
+            case VEC3 -> ((Vector3) from).lerp((Vector3) to, alpha);
             case QUAT -> ((Quat) from).slerp((Quat) to, alpha);
             case CFRAME -> ((CFrame) from).lerp((CFrame) to, alpha);
             case COLOR -> ((Color) from).lerp((Color) to, (float) alpha);

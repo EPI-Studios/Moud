@@ -4,8 +4,8 @@ public record Quat(double x, double y, double z, double w) {
 
     public static final Quat IDENTITY = new Quat(0, 0, 0, 1);
 
-    public static Quat axisAngle(Vec3 axis, double radians) {
-        Vec3 a = axis.normalize();
+    public static Quat axisAngle(Vector3 axis, double radians) {
+        Vector3 a = axis.normalize();
         double h = radians * 0.5;
         double s = Math.sin(h);
         return new Quat(a.x() * s, a.y() * s, a.z() * s, Math.cos(h));
@@ -38,8 +38,8 @@ public record Quat(double x, double y, double z, double w) {
         return conjugate();
     }
 
-    public Vec3 rotate(Vec3 v) {
-        Vec3 u = new Vec3(x, y, z);
+    public Vector3 rotate(Vector3 v) {
+        Vector3 u = new Vector3(x, y, z);
         double s = w;
         return u.mul(2.0 * u.dot(v))
                 .add(v.mul(s * s - u.dot(u)))
@@ -75,17 +75,17 @@ public record Quat(double x, double y, double z, double w) {
         return new Quat(x * a + b.x * c, y * a + b.y * c, z * a + b.z * c, w * a + b.w * c);
     }
 
-    public static Quat lookAt(Vec3 forward, Vec3 up) {
-        Vec3 f = forward.normalize();
+    public static Quat lookAt(Vector3 forward, Vector3 up) {
+        Vector3 f = forward.normalize();
         if (f.lengthSq() < 1e-12) return IDENTITY;
-        Vec3 r = f.cross(up);
-        if (r.lengthSq() < 1e-12) r = f.cross(Vec3.FORWARD);
+        Vector3 r = f.cross(up);
+        if (r.lengthSq() < 1e-12) r = f.cross(Vector3.FORWARD);
         r = r.normalize();
-        Vec3 u = r.cross(f);
+        Vector3 u = r.cross(f);
         return fromAxes(r, u, f.neg());
     }
 
-    public static Quat fromAxes(Vec3 xAxis, Vec3 yAxis, Vec3 zAxis) {
+    public static Quat fromAxes(Vector3 xAxis, Vector3 yAxis, Vector3 zAxis) {
         double m00 = xAxis.x(), m01 = yAxis.x(), m02 = zAxis.x();
         double m10 = xAxis.y(), m11 = yAxis.y(), m12 = zAxis.y();
         double m20 = xAxis.z(), m21 = yAxis.z(), m22 = zAxis.z();

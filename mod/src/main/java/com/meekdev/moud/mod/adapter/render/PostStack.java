@@ -45,7 +45,7 @@ import com.meekdev.moud.core.instance.ShadowQuality;
 import com.meekdev.moud.core.instance.Vector3Value;
 import com.meekdev.moud.core.instance.VolumetricEffect;
 import com.meekdev.moud.core.math.Color;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.ClientScene;
@@ -109,7 +109,7 @@ public final class PostStack {
     private static Framebuffer depth;
     private static Framebuffer out;
     private static final Matrix4f PREV_VIEW_PROJ = new Matrix4f();
-    private static Vec3 prevEye = Vec3.ZERO;
+    private static Vector3 prevEye = Vector3.ZERO;
     private static boolean hasPrev;
     private static final long START = System.nanoTime();
 
@@ -204,7 +204,7 @@ public final class PostStack {
         float time = (float) (((System.nanoTime() - START) / 1.0e9) % 3600.0);
         if (!hasPrev) {
             PREV_VIEW_PROJ.set(camera.viewProj);
-            prevEye = new Vec3(camera.eye.x, camera.eye.y, camera.eye.z);
+            prevEye = new Vector3(camera.eye.x, camera.eye.y, camera.eye.z);
         }
         for (ScreenEffect effect : FRAME) {
             Program program = program(effect);
@@ -239,7 +239,7 @@ public final class PostStack {
             }
         }
         PREV_VIEW_PROJ.set(camera.viewProj);
-        prevEye = new Vec3(camera.eye.x, camera.eye.y, camera.eye.z);
+        prevEye = new Vector3(camera.eye.x, camera.eye.y, camera.eye.z);
         hasPrev = true;
     }
 
@@ -250,7 +250,7 @@ public final class PostStack {
                 case BOOL -> shader.setInt(name, property.getBool(effect) ? 1 : 0);
                 case INT, NUM -> shader.setFloat(name, (float) property.getNum(effect));
                 case VEC3 -> {
-                    Vec3 v = (Vec3) property.getObj(effect);
+                    Vector3 v = (Vector3) property.getObj(effect);
                     shader.setVec3(name, (float) v.x(), (float) v.y(), (float) v.z());
                 }
                 case COLOR -> {

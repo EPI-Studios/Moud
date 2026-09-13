@@ -13,15 +13,17 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.levelgen.Heightmap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public final class PolarChunks {
 
     private static final int SECTION = 16;
 
-    private static final java.util.concurrent.atomic.AtomicInteger FILLED =
-            new java.util.concurrent.atomic.AtomicInteger();
-    private static final java.util.concurrent.atomic.AtomicLong BLOCKS =
-            new java.util.concurrent.atomic.AtomicLong();
+    private static final AtomicInteger FILLED =
+            new AtomicInteger();
+    private static final AtomicLong BLOCKS =
+            new AtomicLong();
 
     public static int filled() {
         return FILLED.get();

@@ -26,7 +26,7 @@ import com.meekdev.moud.core.instance.Wings;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.ClientScene;
@@ -202,9 +202,9 @@ public final class Skins {
     private static void emit(Character character, Limb limb, float solid, List<Worn> into,
                              float partialTick) {
         CFrame frame = ClientScene.motion().sample(limb, partialTick);
-        Vec3 at = frame.position();
+        Vector3 at = frame.position();
         Quat r = frame.rotation();
-        Vec3 size = limb.size;
+        Vector3 size = limb.size;
         Matrix4f transform = new Matrix4f()
                 .translationRotateScale(
                         (float) at.x(), (float) at.y(), (float) at.z(),

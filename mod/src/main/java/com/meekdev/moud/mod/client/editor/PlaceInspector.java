@@ -7,7 +7,8 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.mod.adapter.physics.Characters;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
 import com.meekdev.moud.mod.adapter.render.Parts;
 import com.meekdev.moud.mod.adapter.render.Skins;
@@ -81,7 +82,7 @@ public final class PlaceInspector extends Inspector {
         LocalPlayer player = Minecraft.getInstance().player;
         MovementProfile profile = player == null
                 ? null
-                : com.meekdev.bkun.physics.Physics.getProfile(player).orElse(null);
+                : Characters.currentProfile(player);
         ImGui.text("profile");
         ImGui.sameLine(160);
         ImGui.textDisabled(profile == null ? "none, vanilla is driving" : "bkun");
@@ -136,7 +137,7 @@ public final class PlaceInspector extends Inspector {
         if (ImGui.button("clear")) Errors.clear();
     }
 
-    private static String fmt(Vec3 v) {
+    private static String fmt(Vector3 v) {
         return String.format("%.2f %.2f %.2f", v.x(), v.y(), v.z());
     }
 

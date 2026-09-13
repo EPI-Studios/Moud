@@ -7,7 +7,7 @@ import com.meekdev.moud.core.instance.Sound;
 import com.meekdev.moud.core.instance.SoundBus;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.interp.Motion;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.resona.api.PlaySettings;
 import com.meekdev.resona.api.Resona;
@@ -52,7 +52,7 @@ public final class Sounds {
         for (Sound sound : tree.ofClass(Classes.SOUND)) {
             Voice voice = VOICES.computeIfAbsent(sound, s -> new Voice());
             Instance anchor = anchor(sound);
-            Vec3 at = anchor == null ? null : motion.sample(anchor, partialTick).position();
+            Vector3 at = anchor == null ? null : motion.sample(anchor, partialTick).position();
 
             if (!sound.playing && voice.handle != null) {
                 voice.handle.stop();
@@ -97,7 +97,7 @@ public final class Sounds {
         return null;
     }
 
-    private static @Nullable SoundHandle start(Sound sound, @Nullable Vec3 at) {
+    private static @Nullable SoundHandle start(Sound sound, @Nullable Vector3 at) {
         PlaySettings settings;
         if (!sound.event.isEmpty()) {
             Optional<EventDefinition> event = SoundBank.event(sound.event);

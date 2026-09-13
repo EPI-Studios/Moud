@@ -1,6 +1,6 @@
 package com.meekdev.moud.script.api;
 
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 
 public interface CameraRef {
 
@@ -12,9 +12,9 @@ public interface CameraRef {
 
     void clearEffects();
 
-    Vec3 worldToScreen(Vec3 world);
+    Vector3 worldToScreen(Vector3 world);
 
     Ray screenToRay(double x, double y);
 
-    record Ray(Vec3 origin, Vec3 direction) {}
+    record Ray(Vector3 origin, Vector3 direction) {}
 }

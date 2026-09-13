@@ -1,7 +1,7 @@
 package com.meekdev.moud.core.nav;
 
 import com.meekdev.moud.core.math.CFrame;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -35,7 +35,7 @@ public final class NavMeshes {
     public interface World {
         boolean solid(int x, int y, int z);
 
-        void boxes(Vec3 min, Vec3 max, BiConsumer<CFrame, Vec3> out);
+        void boxes(Vector3 min, Vector3 max, BiConsumer<CFrame, Vector3> out);
     }
 
     private static final float RADIUS = 0.3f;
@@ -93,7 +93,7 @@ public final class NavMeshes {
         }
     }
 
-    public List<Vec3> find(World world, Vec3 from, Vec3 to, boolean partial) {
+    public List<Vector3> find(World world, Vector3 from, Vector3 to, boolean partial) {
         if (!prepare(world, from, to)) return null;
         FindNearestPolyResult start = nearest(from);
         FindNearestPolyResult end = nearest(to);
@@ -109,27 +109,27 @@ public final class NavMeshes {
         Result<List<StraightPathItem>> straight = query.findStraightPath(start.getNearestPos(), end.getNearestPos(),
                 corridor.result, 256, 0);
         if (straight.failed() || straight.result == null || straight.result.isEmpty()) return null;
-        List<Vec3> out = new ArrayList<>(straight.result.size());
+        List<Vector3> out = new ArrayList<>(straight.result.size());
         for (StraightPathItem item : straight.result) {
             float[] p = item.getPos();
-            out.add(new Vec3(p[0], p[1], p[2]));
+            out.add(new Vector3(p[0], p[1], p[2]));
         }
-        Vec3 last = out.getLast();
-        boolean reached = new Vec3(last.x() - to.x(), 0, last.z() - to.z()).length() < 1.0 && Math.abs(last.y() - to.y()) < 2.5;
+        Vector3 last = out.getLast();
+        boolean reached = new Vector3(last.x() - to.x(), 0, last.z() - to.z()).length() < 1.0 && Math.abs(last.y() - to.y()) < 2.5;
         if (!reached && !partial) return null;
         if (out.size() > 1) out.removeFirst();
         return out;
     }
 
-    public Vec3 randomNear(World world, Vec3 centre, double radius, Random random) {
-        if (!prepare(world, centre.sub(new Vec3(radius, 0, radius)), centre.add(new Vec3(radius, 0, radius)))) return null;
+    public Vector3 randomNear(World world, Vector3 centre, double radius, Random random) {
+        if (!prepare(world, centre.sub(new Vector3(radius, 0, radius)), centre.add(new Vector3(radius, 0, radius)))) return null;
         FindNearestPolyResult start = nearest(centre);
         if (start == null) return null;
         Result<FindRandomPointResult> found = query.findRandomPointAroundCircle(start.getNearestRef(),
                 start.getNearestPos(), (float) radius, filter, new NavMeshQuery.FRand(random.nextLong()));
         if (found.failed() || found.result == null) return null;
         float[] p = found.result.getRandomPt();
-        return new Vec3(p[0], p[1], p[2]);
+        return new Vector3(p[0], p[1], p[2]);
     }
 
     public int builtTiles() {
@@ -138,14 +138,14 @@ public final class NavMeshes {
         return n;
     }
 
-    private FindNearestPolyResult nearest(Vec3 at) {
+    private FindNearestPolyResult nearest(Vector3 at) {
         Result<FindNearestPolyResult> found = query.findNearestPoly(new float[] {(float) at.x(), (float) at.y(), (float) at.z()},
                 EXTENTS, filter);
         if (found.failed() || found.result == null || found.result.getNearestRef() == 0) return null;
         return found.result;
     }
 
-    private boolean prepare(World world, Vec3 a, Vec3 b) {
+    private boolean prepare(World world, Vector3 a, Vector3 b) {
         int minY = (int) Math.floor(Math.min(a.y(), b.y())) - REACH_Y;
         int maxY = (int) Math.ceil(Math.max(a.y(), b.y())) + REACH_Y;
         int x0 = tile(Math.min(a.x(), b.x()) - 4), x1 = tile(Math.max(a.x(), b.x()) + 4);
@@ -194,7 +194,7 @@ public final class NavMeshes {
             }
         }
         long[] parts = {0};
-        world.boxes(new Vec3(x0, t.minY - 1, z0), new Vec3(x1, t.maxY + 1, z1), (frame, size) -> {
+        world.boxes(new Vector3(x0, t.minY - 1, z0), new Vector3(x1, t.maxY + 1, z1), (frame, size) -> {
             geometry.box(frame, size);
             parts[0] += mix(frame, size);
         });
@@ -247,13 +247,13 @@ public final class NavMeshes {
     private static long signature(World world, int tx, int tz, int minY, int maxY) {
         float border = CONFIG.borderSize * CELL;
         long[] sum = {0};
-        world.boxes(new Vec3(Math.floor(tx * TILE - border) - 1, minY - 1, Math.floor(tz * TILE - border) - 1),
-                new Vec3(Math.ceil((tx + 1) * TILE + border) + 1, maxY + 1, Math.ceil((tz + 1) * TILE + border) + 1),
+        world.boxes(new Vector3(Math.floor(tx * TILE - border) - 1, minY - 1, Math.floor(tz * TILE - border) - 1),
+                new Vector3(Math.ceil((tx + 1) * TILE + border) + 1, maxY + 1, Math.ceil((tz + 1) * TILE + border) + 1),
                 (frame, size) -> sum[0] += mix(frame, size));
         return sum[0];
     }
 
-    private static long mix(CFrame frame, Vec3 size) {
+    private static long mix(CFrame frame, Vector3 size) {
         long h = frame.position().hashCode() * 31L + frame.rotation().hashCode();
         return (h * 31L + size.hashCode()) * 0x9E3779B97F4A7C15L;
     }
@@ -287,13 +287,13 @@ public final class NavMeshes {
             }
         }
 
-        void box(CFrame frame, Vec3 size) {
-            Vec3 half = size.mul(0.5);
-            Vec3 centre = frame.position();
+        void box(CFrame frame, Vector3 size) {
+            Vector3 half = size.mul(0.5);
+            Vector3 centre = frame.position();
             int[] corner = new int[8];
-            Vec3[] at = new Vec3[8];
+            Vector3[] at = new Vector3[8];
             for (int i = 0; i < 8; i++) {
-                Vec3 local = new Vec3((i & 1) == 0 ? -half.x() : half.x(), (i & 2) == 0 ? -half.y() : half.y(),
+                Vector3 local = new Vector3((i & 1) == 0 ? -half.x() : half.x(), (i & 2) == 0 ? -half.y() : half.y(),
                         (i & 4) == 0 ? -half.z() : half.z());
                 at[i] = frame.pointToWorld(local);
                 corner[i] = vertex(at[i].x(), at[i].y(), at[i].z());
@@ -305,9 +305,9 @@ public final class NavMeshes {
             }
         }
 
-        private void outward(Vec3 centre, Vec3[] at, int[] corner, int i, int j, int k) {
-            Vec3 normal = at[j].sub(at[i]).cross(at[k].sub(at[i]));
-            Vec3 middle = at[i].add(at[j]).add(at[k]).mul(1.0 / 3);
+        private void outward(Vector3 centre, Vector3[] at, int[] corner, int i, int j, int k) {
+            Vector3 normal = at[j].sub(at[i]).cross(at[k].sub(at[i]));
+            Vector3 middle = at[i].add(at[j]).add(at[k]).mul(1.0 / 3);
             if (normal.dot(middle.sub(centre)) >= 0) {
                 face(corner[i], corner[j], corner[k]);
             } else {

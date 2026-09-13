@@ -8,7 +8,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.lang.reflect.Field;
@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.Collection;
 
 public final class ClassDef<T extends Instance> {
 
@@ -166,7 +167,7 @@ public final class ClassDef<T extends Instance> {
         if (t == int.class) return PropertyType.INT;
         if (t == boolean.class) return PropertyType.BOOL;
         if (t == String.class) return PropertyType.STRING;
-        if (t == Vec3.class) return PropertyType.VEC3;
+        if (t == Vector3.class) return PropertyType.VEC3;
         if (t == UDim2.class) return PropertyType.UDIM2;
         if (t == Quat.class) return PropertyType.QUAT;
         if (t == CFrame.class) return PropertyType.CFRAME;
@@ -188,13 +189,13 @@ public final class ClassDef<T extends Instance> {
 
     public CallbackDef callback(String name) { return callbacks.get(name); }
 
-    public java.util.Collection<CallbackDef> callbacks() { return callbacks.values(); }
+    public Collection<CallbackDef> callbacks() { return callbacks.values(); }
 
     public boolean takesPart(Stage stage) { return (stages & stage.bit) != 0; }
 
     public int stages() { return stages; }
 
-    public java.util.Collection<EventDef> events() { return events.values(); }
+    public Collection<EventDef> events() { return events.values(); }
 
     public PropertyDef property(String name) {
         return byName.get(name);

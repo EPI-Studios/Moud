@@ -17,7 +17,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.api.BlockRef;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -402,7 +402,7 @@ public final class Proxies {
             }
             if (key.equals("rotation")) {
                 Quat local = Transforms.localFor(instance,
-                        new CFrame(Vec3.ZERO, rotationOf(state, value))).rotation();
+                        new CFrame(Vector3.ZERO, rotationOf(state, value))).rotation();
                 Instances.setObj(instance, frame, spatial.cframe.withRotation(local));
                 return;
             }
@@ -490,7 +490,7 @@ public final class Proxies {
             case BOOL -> state.pushBoolean(property.getBool(instance));
             case INT, NUM -> state.pushNumber(property.getNum(instance));
             case STRING -> state.pushString((String) property.getObj(instance));
-            case VEC3 -> Values.push(state, (Vec3) property.getObj(instance));
+            case VEC3 -> Values.push(state, (Vector3) property.getObj(instance));
             case COLOR -> Values.push(state, (Color) property.getObj(instance));
             case UDIM2 -> Values.push(state, (UDim2) property.getObj(instance));
             case CFRAME -> Values.push(state, (CFrame) property.getObj(instance));

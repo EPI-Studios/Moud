@@ -10,8 +10,8 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
-import com.meekdev.moud.core.math.Quat;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.box3d.Quat;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.net.replicate.Change;
 import java.util.ArrayList;
@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import net.minecraft.server.level.ServerLevel;
 import org.jspecify.annotations.Nullable;
+import com.meekdev.box3d.Vec3;
 
 public final class SubLevels {
 
@@ -65,11 +66,11 @@ public final class SubLevels {
         B3Body body = subLevel.body();
         if (body == null) return;
         CFrame world = Transforms.world(part);
-        Vec3 position = world.position();
-        Quat r = world.rotation();
+        Vector3 position = world.position();
+        var r = world.rotation();
         body.setTransform(
-                new com.meekdev.box3d.Vec3(position.x(), position.y(), position.z()),
-                new com.meekdev.box3d.Quat(
+                new Vec3(position.x(), position.y(), position.z()),
+                new Quat(
                         (float) r.x(), (float) r.y(), (float) r.z(), (float) r.w()));
         body.setAwake(true);
     }
@@ -135,7 +136,7 @@ public final class SubLevels {
     }
 
     private static void pose(SubLevel subLevel, Part part, CFrame world) {
-        Quat rotation = world.rotation();
+        var rotation = world.rotation();
         subLevel.pose().setRotation(
                 (float) rotation.x(), (float) rotation.y(), (float) rotation.z(), (float) rotation.w());
         subLevel.setPosition(world.position().x(), world.position().y(), world.position().z());

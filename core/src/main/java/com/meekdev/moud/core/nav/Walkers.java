@@ -8,7 +8,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Rig;
 import com.meekdev.moud.core.instance.Transforms;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -19,19 +19,19 @@ public final class Walkers {
     private static final double REPATH = 0.5;
 
     private static final class Plan {
-        List<Vec3> waypoints;
+        List<Vector3> waypoints;
         int next;
         Instance target;
         double distance;
         double lastRepath = -1e9;
-        Vec3 lastTarget;
+        Vector3 lastTarget;
         boolean resting;
     }
 
     private static final Map<Character, Plan> PLANS = new HashMap<>();
 
     public interface Pilot {
-        void walk(Character body, List<Vec3> waypoints);
+        void walk(Character body, List<Vector3> waypoints);
 
         void jump(Character body);
 
@@ -46,7 +46,7 @@ public final class Walkers {
 
     private Walkers() {}
 
-    public static void walk(Character body, List<Vec3> waypoints) {
+    public static void walk(Character body, List<Vector3> waypoints) {
         Plan plan = new Plan();
         plan.waypoints = waypoints;
         PLANS.put(body, plan);
@@ -86,7 +86,7 @@ public final class Walkers {
 
     @FunctionalInterface
     public interface Finder {
-        List<Vec3> find(Vec3 from, Vec3 to, boolean partial);
+        List<Vector3> find(Vector3 from, Vector3 to, boolean partial);
     }
 
     public static void step(Finder finder, double now) {
@@ -99,14 +99,14 @@ public final class Walkers {
                 it.remove();
                 continue;
             }
-            Vec3 at = Transforms.world(body).position();
+            Vector3 at = Transforms.world(body).position();
             if (plan.target != null) {
                 if (!plan.target.isAlive()) {
                     it.remove();
                     Instances.setBool(living, Classes.HUMANOID.property("walking"), false);
                     continue;
                 }
-                Vec3 goal = Transforms.world(plan.target).position();
+                Vector3 goal = Transforms.world(plan.target).position();
                 double reach = plan.resting ? plan.distance + 1.5 : plan.distance;
                 if (goal.sub(at).lengthSq() <= reach * reach) {
                     plan.resting = true;
@@ -136,8 +136,8 @@ public final class Walkers {
                 if (plan.target == null) it.remove();
                 continue;
             }
-            Vec3 waypoint = plan.waypoints.get(Math.min(plan.next, plan.waypoints.size() - 1));
-            Vec3 flat = new Vec3(waypoint.x() - at.x(), 0, waypoint.z() - at.z());
+            Vector3 waypoint = plan.waypoints.get(Math.min(plan.next, plan.waypoints.size() - 1));
+            Vector3 flat = new Vector3(waypoint.x() - at.x(), 0, waypoint.z() - at.z());
             if (flat.length() <= living.walkRadius + 0.05) {
                 plan.next++;
                 if (plan.next >= plan.waypoints.size()) {
@@ -155,13 +155,13 @@ public final class Walkers {
         }
     }
 
-    private static void steer(Character body, Humanoid living, Plan plan, Vec3 at, Iterator<Map.Entry<Character, Plan>> it) {
+    private static void steer(Character body, Humanoid living, Plan plan, Vector3 at, Iterator<Map.Entry<Character, Plan>> it) {
         if (plan.waypoints == null || plan.waypoints.isEmpty()) {
             if (plan.target == null) it.remove();
             return;
         }
-        Vec3 last = plan.waypoints.getLast();
-        Vec3 flat = new Vec3(last.x() - at.x(), 0, last.z() - at.z());
+        Vector3 last = plan.waypoints.getLast();
+        Vector3 flat = new Vector3(last.x() - at.x(), 0, last.z() - at.z());
         if (flat.length() > 0.6 || Math.abs(last.y() - at.y()) > 1.5) return;
         if (plan.target == null) {
             it.remove();

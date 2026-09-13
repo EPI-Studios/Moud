@@ -3,7 +3,7 @@ package com.meekdev.moud.core.instance;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.math.Aabb;
 import com.meekdev.moud.core.math.CFrame;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -44,19 +44,19 @@ public final class Queries {
         }
     }
 
-    public record Cast(Part part, Vec3 at, Vec3 normal, double distance) {}
+    public record Cast(Part part, Vector3 at, Vector3 normal, double distance) {}
 
-    record Box(Vec3 centre, Vec3[] axes, Vec3 half) {
+    record Box(Vector3 centre, Vector3[] axes, Vector3 half) {
 
         static Box of(Part part) {
             return of(FRAMES.get().apply(part), part.size);
         }
 
-        static Box of(CFrame frame, Vec3 size) {
-            Vec3[] axes = {
-                frame.rotation().rotate(Vec3.RIGHT),
-                frame.rotation().rotate(Vec3.UP),
-                frame.rotation().rotate(new Vec3(0, 0, 1)),
+        static Box of(CFrame frame, Vector3 size) {
+            Vector3[] axes = {
+                frame.rotation().rotate(Vector3.RIGHT),
+                frame.rotation().rotate(Vector3.UP),
+                frame.rotation().rotate(new Vector3(0, 0, 1)),
             };
             return new Box(frame.position(), axes, size.mul(0.5));
         }
@@ -65,14 +65,14 @@ public final class Queries {
             return axis == 0 ? half.x() : axis == 1 ? half.y() : half.z();
         }
 
-        double reach(Vec3 direction) {
+        double reach(Vector3 direction) {
             return half.x() * Math.abs(direction.dot(axes[0])) + half.y() * Math.abs(direction.dot(axes[1]))
                     + half.z() * Math.abs(direction.dot(axes[2]));
         }
 
-        Vec3 closest(Vec3 point) {
-            Vec3 offset = point.sub(centre);
-            Vec3 result = centre;
+        Vector3 closest(Vector3 point) {
+            Vector3 offset = point.sub(centre);
+            Vector3 result = centre;
             for (int i = 0; i < 3; i++) {
                 double d = Math.clamp(offset.dot(axes[i]), -extent(i), extent(i));
                 result = result.add(axes[i].mul(d));
@@ -96,7 +96,7 @@ public final class Queries {
         }
     }
 
-    public static Cast raycast(Instance root, Vec3 from, Vec3 direction, double range, Predicate<Part> filter) {
+    public static Cast raycast(Instance root, Vector3 from, Vector3 direction, double range, Predicate<Part> filter) {
         return (Cast) remembered(root, List.of("ray", from, direction, range, filter),
                 () -> swept(root, from, direction, range, 0, filter));
     }
@@ -133,14 +133,14 @@ public final class Queries {
         return answer;
     }
 
-    public static Cast spherecast(Instance root, Vec3 from, double radius, Vec3 direction, double range,
+    public static Cast spherecast(Instance root, Vector3 from, double radius, Vector3 direction, double range,
                                   Predicate<Part> filter) {
         return swept(root, from, direction, range, Math.max(0, radius), filter);
     }
 
-    private static Cast swept(Instance root, Vec3 from, Vec3 direction, double range, double grow, Predicate<Part> filter) {
+    private static Cast swept(Instance root, Vector3 from, Vector3 direction, double range, double grow, Predicate<Part> filter) {
         if (root == null || range <= 0 || direction.lengthSq() < 1e-24) return null;
-        Vec3 way = direction.normalize();
+        Vector3 way = direction.normalize();
         Cast best = null;
         for (Part part : parts(root, segment(from, way, range, grow), filter)) {
             Cast hit = sweptHit(part, from, way, range, grow);
@@ -149,10 +149,10 @@ public final class Queries {
         return best;
     }
 
-    public static List<Cast> raycastAll(Instance root, Vec3 from, Vec3 direction, double range, Predicate<Part> filter) {
+    public static List<Cast> raycastAll(Instance root, Vector3 from, Vector3 direction, double range, Predicate<Part> filter) {
         List<Cast> hits = new ArrayList<>();
         if (root == null || range <= 0 || direction.lengthSq() < 1e-24) return hits;
-        Vec3 way = direction.normalize();
+        Vector3 way = direction.normalize();
         for (Part part : parts(root, segment(from, way, range, 0), filter)) {
             Cast hit = sweptHit(part, from, way, range, 0);
             if (hit != null) hits.add(hit);
@@ -161,13 +161,13 @@ public final class Queries {
         return hits;
     }
 
-    private static Aabb segment(Vec3 from, Vec3 way, double range, double grow) {
-        Vec3 to = from.add(way.mul(range));
+    private static Aabb segment(Vector3 from, Vector3 way, double range, double grow) {
+        Vector3 to = from.add(way.mul(range));
         return new Aabb(Math.min(from.x(), to.x()), Math.min(from.y(), to.y()), Math.min(from.z(), to.z()),
                 Math.max(from.x(), to.x()), Math.max(from.y(), to.y()), Math.max(from.z(), to.z())).grow(grow);
     }
 
-    private static Cast sweptHit(Part part, Vec3 from, Vec3 way, double range, double grow) {
+    private static Cast sweptHit(Part part, Vector3 from, Vector3 way, double range, double grow) {
         Box box = Box.of(part);
         double near = 0;
         double far = range;
@@ -199,15 +199,15 @@ public final class Queries {
             if (near > far) return null;
         }
         if (nearAxis < 0) return null;
-        Vec3 normal = box.axes()[nearAxis].mul(nearSign);
-        Vec3 centre = from.add(way.mul(near));
+        Vector3 normal = box.axes()[nearAxis].mul(nearSign);
+        Vector3 centre = from.add(way.mul(near));
         return new Cast(part, centre.sub(normal.mul(grow)), normal, near);
     }
 
-    public static Cast blockcast(Instance root, CFrame frame, Vec3 size, Vec3 direction, double range,
+    public static Cast blockcast(Instance root, CFrame frame, Vector3 size, Vector3 direction, double range,
                                  Predicate<Part> filter) {
         if (root == null || range <= 0 || direction.lengthSq() < 1e-24) return null;
-        Vec3 way = direction.normalize();
+        Vector3 way = direction.normalize();
         Box moving = Box.of(frame, size);
         Cast best = null;
         Aabb start = SpatialIndex.bounds(frame, size);
@@ -219,9 +219,9 @@ public final class Queries {
             Box still = Box.of(part);
             double enter = 0;
             double exit = range;
-            Vec3 enterAxis = null;
+            Vector3 enterAxis = null;
             boolean missed = false;
-            for (Vec3 axis : axes(moving, still)) {
+            for (Vector3 axis : axes(moving, still)) {
                 double gap = still.centre().sub(moving.centre()).dot(axis);
                 double reach = moving.reach(axis) + still.reach(axis);
                 double speed = way.dot(axis);
@@ -251,7 +251,7 @@ public final class Queries {
             }
             if (missed || enterAxis == null) continue;
             if (best == null || enter < best.distance()) {
-                Vec3 centre = moving.centre().add(way.mul(enter));
+                Vector3 centre = moving.centre().add(way.mul(enter));
                 best = new Cast(part, still.closest(centre), enterAxis, enter);
             }
         }
@@ -259,12 +259,12 @@ public final class Queries {
     }
 
     @SuppressWarnings("unchecked")
-    public static List<Part> inBox(Instance root, CFrame frame, Vec3 size, Predicate<Part> filter) {
+    public static List<Part> inBox(Instance root, CFrame frame, Vector3 size, Predicate<Part> filter) {
         return new ArrayList<>((List<Part>) remembered(root, List.of("box", frame, size, filter),
                 () -> List.copyOf(boxed(root, frame, size, filter))));
     }
 
-    private static List<Part> boxed(Instance root, CFrame frame, Vec3 size, Predicate<Part> filter) {
+    private static List<Part> boxed(Instance root, CFrame frame, Vector3 size, Predicate<Part> filter) {
         Box box = Box.of(frame, size);
         List<Part> found = new ArrayList<>();
         for (Part part : parts(root, SpatialIndex.bounds(frame, size), filter)) {
@@ -274,12 +274,12 @@ public final class Queries {
     }
 
     @SuppressWarnings("unchecked")
-    public static List<Part> inRadius(Instance root, Vec3 centre, double radius, Predicate<Part> filter) {
+    public static List<Part> inRadius(Instance root, Vector3 centre, double radius, Predicate<Part> filter) {
         return new ArrayList<>((List<Part>) remembered(root, List.of("radius", centre, radius, filter),
                 () -> List.copyOf(around(root, centre, radius, filter))));
     }
 
-    private static List<Part> around(Instance root, Vec3 centre, double radius, Predicate<Part> filter) {
+    private static List<Part> around(Instance root, Vector3 centre, double radius, Predicate<Part> filter) {
         List<Part> found = new ArrayList<>();
         Aabb around = new Aabb(centre.x() - radius, centre.y() - radius, centre.z() - radius,
                 centre.x() + radius, centre.y() + radius, centre.z() + radius);
@@ -304,20 +304,20 @@ public final class Queries {
     }
 
     static boolean overlap(Box a, Box b, double margin) {
-        Vec3 gap = b.centre().sub(a.centre());
-        for (Vec3 axis : axes(a, b)) {
+        Vector3 gap = b.centre().sub(a.centre());
+        for (Vector3 axis : axes(a, b)) {
             if (Math.abs(gap.dot(axis)) > a.reach(axis) + b.reach(axis) + margin) return false;
         }
         return true;
     }
 
-    private static List<Vec3> axes(Box a, Box b) {
-        List<Vec3> axes = new ArrayList<>(15);
-        for (Vec3 axis : a.axes()) axes.add(axis);
-        for (Vec3 axis : b.axes()) axes.add(axis);
-        for (Vec3 one : a.axes()) {
-            for (Vec3 two : b.axes()) {
-                Vec3 edge = one.cross(two);
+    private static List<Vector3> axes(Box a, Box b) {
+        List<Vector3> axes = new ArrayList<>(15);
+        for (Vector3 axis : a.axes()) axes.add(axis);
+        for (Vector3 axis : b.axes()) axes.add(axis);
+        for (Vector3 one : a.axes()) {
+            for (Vector3 two : b.axes()) {
+                Vector3 edge = one.cross(two);
                 if (edge.lengthSq() > 1e-10) axes.add(edge.normalize());
             }
         }

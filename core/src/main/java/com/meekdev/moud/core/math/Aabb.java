@@ -2,7 +2,7 @@ package com.meekdev.moud.core.math;
 
 public record Aabb(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
 
-    public static Aabb around(Vec3 centre, Vec3 size) {
+    public static Aabb around(Vector3 centre, Vector3 size) {
         double hx = Math.abs(size.x()) * 0.5;
         double hy = Math.abs(size.y()) * 0.5;
         double hz = Math.abs(size.z()) * 0.5;

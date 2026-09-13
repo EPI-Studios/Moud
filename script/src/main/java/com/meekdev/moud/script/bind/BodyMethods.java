@@ -8,7 +8,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Rig;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Quat;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,8 +32,8 @@ public final class BodyMethods {
         methods.put("canSee", s -> {
             Character me = body(s);
             Instance them = other(s, 2);
-            Vec3 from = PlayerQueries.eye(me);
-            Vec3 to = PlayerQueries.eye(them);
+            Vector3 from = PlayerQueries.eye(me);
+            Vector3 to = PlayerQueries.eye(them);
             if (!s.isNoneOrNil(3) && from.sub(to).lengthSq() > Math.pow(s.checkNumber(3), 2)) {
                 s.pushBoolean(false);
                 return 1;
@@ -62,10 +62,10 @@ public final class BodyMethods {
         });
         methods.put("facing", s -> {
             Character me = body(s);
-            Vec3 to = PlayerQueries.position(other(s, 2)).sub(PlayerQueries.position(me));
-            to = new Vec3(to.x(), 0, to.z());
-            Vec3 look = look(me);
-            look = new Vec3(look.x(), 0, look.z());
+            Vector3 to = PlayerQueries.position(other(s, 2)).sub(PlayerQueries.position(me));
+            to = new Vector3(to.x(), 0, to.z());
+            Vector3 look = look(me);
+            look = new Vector3(look.x(), 0, look.z());
             double maxAngle = s.isNoneOrNil(3) ? 45 : s.checkNumber(3);
             if (to.lengthSq() < 1e-9 || look.lengthSq() < 1e-9) {
                 s.pushBoolean(true);
@@ -77,11 +77,11 @@ public final class BodyMethods {
         Proxies.classMethods(state, Classes.CHARACTER, methods);
     }
 
-    static Vec3 look(Character body) {
+    static Vector3 look(Character body) {
         Quat turn = Transforms.world(body).rotation()
-                .mul(Quat.axisAngle(Vec3.UP, -body.lookYaw))
-                .mul(Quat.axisAngle(Vec3.RIGHT, -body.lookPitch));
-        return turn.rotate(Vec3.FORWARD);
+                .mul(Quat.axisAngle(Vector3.UP, -body.lookYaw))
+                .mul(Quat.axisAngle(Vector3.RIGHT, -body.lookPitch));
+        return turn.rotate(Vector3.FORWARD);
     }
 
     private static HumanoidState stateOf(Character body) {

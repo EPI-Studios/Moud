@@ -6,7 +6,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -49,7 +49,7 @@ public final class Wire {
         }
         if (what == null) return null;
         if (what instanceof Double || what instanceof Boolean || what instanceof String
-                || what instanceof Vec3 || what instanceof Quat || what instanceof CFrame
+                || what instanceof Vector3 || what instanceof Quat || what instanceof CFrame
                 || what instanceof Color || what instanceof UDim2) {
             return what;
         }

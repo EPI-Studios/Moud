@@ -7,7 +7,7 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.math.CFrame;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -29,14 +29,14 @@ public final class PlayerQueries {
             return 1;
         });
         method(state, "near", s -> {
-            Vec3 at = Values.vec3(s, 2);
+            Vector3 at = Values.vec3(s, 2);
             double radius = s.checkNumber(3);
             Instance except = s.isNoneOrNil(4) ? null : (Instance) s.toUserDataTagged(4, Proxies.TAG);
             push(s, bodies(tree, at, radius, except));
             return 1;
         });
         method(state, "nearest", s -> {
-            Vec3 at = Values.vec3(s, 2);
+            Vector3 at = Values.vec3(s, 2);
             double radius = s.isNoneOrNil(3) ? Double.POSITIVE_INFINITY : s.checkNumber(3);
             Instance except = s.isNoneOrNil(4) ? null : (Instance) s.toUserDataTagged(4, Proxies.TAG);
             List<Found> found = bodies(tree, at, radius, except);
@@ -61,7 +61,7 @@ public final class PlayerQueries {
         });
         method(state, "inBox", s -> {
             CFrame frame = Values.cframe(s, 2);
-            Vec3 size = Values.vec3(s, 3);
+            Vector3 size = Values.vec3(s, 3);
             Instance except = optional(s, 4);
             push(s, filtered(tree, except, body -> inside(frame, size, position(body))));
             return 1;
@@ -74,15 +74,15 @@ public final class PlayerQueries {
             return 1;
         });
         method(state, "inCone", s -> {
-            Vec3 at = Values.vec3(s, 2);
-            Vec3 way = Values.vec3(s, 3).normalize();
+            Vector3 at = Values.vec3(s, 2);
+            Vector3 way = Values.vec3(s, 3).normalize();
             double cos = Math.cos(Math.toRadians(s.checkNumber(4)));
             double range = s.checkNumber(5);
             Instance except = optional(s, 6);
             List<Found> near = bodies(tree, at, range, except);
             List<Found> out = new ArrayList<>();
             for (Found found : near) {
-                Vec3 to = position(found.body()).sub(at);
+                Vector3 to = position(found.body()).sub(at);
                 double length = to.length();
                 if (length < 1e-6 || to.dot(way) / length >= cos) out.add(found);
             }
@@ -90,7 +90,7 @@ public final class PlayerQueries {
             return 1;
         });
         method(state, "visibleFrom", s -> {
-            Vec3 at = Values.vec3(s, 2);
+            Vector3 at = Values.vec3(s, 2);
             double range = s.checkNumber(3);
             Instance except = optional(s, 4);
             List<Found> out = new ArrayList<>();
@@ -146,14 +146,14 @@ public final class PlayerQueries {
         });
     }
 
-    private static List<Found> bodies(InstanceTree tree, Vec3 at, double radius, Instance except) {
+    private static List<Found> bodies(InstanceTree tree, Vector3 at, double radius, Instance except) {
         double limit = radius * radius;
         List<Found> out = new ArrayList<>();
         for (Character body : tree.ofClass(Classes.CHARACTER)) {
             if (!body.worn() || body == except || !body.isAlive()) continue;
             double d = 0;
             if (at != null) {
-                Vec3 p = Transforms.world(body).position();
+                Vector3 p = Transforms.world(body).position();
                 double dx = p.x() - at.x(), dy = p.y() - at.y(), dz = p.z() - at.z();
                 d = dx * dx + dy * dy + dz * dz;
                 if (d > limit) continue;
@@ -176,17 +176,17 @@ public final class PlayerQueries {
         return s.isNoneOrNil(at) ? null : (Instance) s.toUserDataTagged(at, Proxies.TAG);
     }
 
-    static Vec3 position(Instance instance) {
+    static Vector3 position(Instance instance) {
         return Transforms.world(instance).position();
     }
 
-    static Vec3 eye(Instance instance) {
-        Vec3 at = position(instance);
-        return instance instanceof Character body ? at.add(new Vec3(0, body.height * body.scale * 0.9, 0)) : at;
+    static Vector3 eye(Instance instance) {
+        Vector3 at = position(instance);
+        return instance instanceof Character body ? at.add(new Vector3(0, body.height * body.scale * 0.9, 0)) : at;
     }
 
-    static boolean inside(CFrame frame, Vec3 size, Vec3 point) {
-        Vec3 local = frame.inverse().mul(CFrame.at(point)).position();
+    static boolean inside(CFrame frame, Vector3 size, Vector3 point) {
+        Vector3 local = frame.inverse().mul(CFrame.at(point)).position();
         return Math.abs(local.x()) <= size.x() / 2 && Math.abs(local.y()) <= size.y() / 2
                 && Math.abs(local.z()) <= size.z() / 2;
     }

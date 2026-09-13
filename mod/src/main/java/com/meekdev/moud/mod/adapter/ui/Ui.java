@@ -12,7 +12,7 @@ import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.SurfaceGui;
 import com.meekdev.moud.core.interp.Motion;
 import com.meekdev.moud.core.math.CFrame;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.amnetic.client.surface.HudSurface;
 import com.meekdev.amnetic.client.surface.Surfaces;
@@ -130,7 +130,7 @@ public final class Ui {
             surface.setVisible(false);
             return;
         }
-        Vec3 at = motion.sample(target, partialTick).position().add(gui.offset);
+        Vector3 at = motion.sample(target, partialTick).position().add(gui.offset);
         Vector3fc left = camera.leftVector();
         Vector3fc up = camera.upVector();
         surface.at(at.x(), at.y(), at.z())
@@ -150,9 +150,9 @@ public final class Ui {
         GuiLayout.Plane plane = GuiLayout.face(world, part.size, gui.face);
         WorldSurface surface = ensure(gui, placed, (float) Math.max(0.01, plane.width()),
                 (float) Math.max(0.01, plane.height()), (int) Math.round(gui.pixelsPerMetre));
-        Vec3 c = plane.centre();
-        Vec3 r = plane.right();
-        Vec3 u = plane.up();
+        Vector3 c = plane.centre();
+        Vector3 r = plane.right();
+        Vector3 u = plane.up();
         surface.at(c.x(), c.y(), c.z())
                 .orient((float) r.x(), (float) r.y(), (float) r.z(), (float) u.x(), (float) u.y(), (float) u.z())
                 .alwaysOnTop(gui.alwaysOnTop)

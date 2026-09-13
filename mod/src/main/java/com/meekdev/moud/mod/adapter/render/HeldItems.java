@@ -11,7 +11,7 @@ import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Rig;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.adapter.physics.Characters;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -30,6 +30,7 @@ import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import org.joml.Quaternionf;
+import net.minecraft.world.phys.Vec3;
 
 public final class HeldItems {
 
@@ -40,7 +41,7 @@ public final class HeldItems {
 
     private HeldItems() {}
 
-    public static void submit(PoseStack poses, SubmitNodeCollector out, net.minecraft.world.phys.Vec3 camera) {
+    public static void submit(PoseStack poses, SubmitNodeCollector out, Vec3 camera) {
         InstanceTree tree = ClientScene.tree();
         Minecraft client = Minecraft.getInstance();
         if (tree == null || client.level == null) {
@@ -62,7 +63,7 @@ public final class HeldItems {
     }
 
     private static void hand(Character character, AbstractClientPlayer wearer, boolean left,
-            PoseStack poses, SubmitNodeCollector out, net.minecraft.world.phys.Vec3 camera, float partialTick) {
+            PoseStack poses, SubmitNodeCollector out, Vec3 camera, float partialTick) {
         String forced = left ? character.leftItemOverride : character.rightItemOverride;
         String id = !forced.isEmpty() ? forced : left ? character.leftItem : character.rightItem;
         if (id.isEmpty()) return;
@@ -86,7 +87,7 @@ public final class HeldItems {
         if (state.isEmpty()) return;
 
         CFrame world = ClientScene.motion().sample(grip, partialTick);
-        Vec3 at = world.position();
+        Vector3 at = world.position();
         Quat turn = world.rotation();
         poses.pushPose();
         poses.translate(at.x() - camera.x, at.y() - camera.y, at.z() - camera.z);

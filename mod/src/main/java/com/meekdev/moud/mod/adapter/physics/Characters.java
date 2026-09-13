@@ -15,7 +15,7 @@ import com.meekdev.moud.core.instance.Humanoid;
 import com.meekdev.moud.core.instance.Wings;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.net.replicate.Change;
 import java.util.HashMap;
 import java.util.Map;
@@ -49,8 +49,10 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import org.jspecify.annotations.Nullable;
+import net.minecraft.world.phys.Vec3;
 
 public final class Characters {
 
@@ -112,6 +114,10 @@ public final class Characters {
         return boxes.groups();
     }
 
+    public static MovementProfile currentProfile(LivingEntity entity) {
+        return Physics.getProfile(entity).orElse(null);
+    }
+
     public MovementProfile profileOf(Character character) {
         Humanoid living = Rig.humanoid(character);
         if (living == null) return MovementProfile.builder().build();
@@ -139,7 +145,7 @@ public final class Characters {
                 .build();
     }
 
-    public static void place(Character character, Vec3 position, double yawDegrees) {
+    public static void place(Character character, Vector3 position, double yawDegrees) {
         double yaw = Math.PI - Math.toRadians(yawDegrees);
         Instances.setObj(character, CFRAME, Transforms.localFor(character,
                 new CFrame(position, Quat.euler(0, yaw, 0))));
@@ -217,7 +223,7 @@ public final class Characters {
             player.refreshDimensions();
         }
         double heading = player.isSleeping() ? 180.0f - bedAngle(player) : player.yBodyRot;
-        place(character, new Vec3(player.getX(), player.getY(), player.getZ()), heading);
+        place(character, new Vector3(player.getX(), player.getY(), player.getZ()), heading);
         animation(character, player);
     }
 
@@ -247,8 +253,8 @@ public final class Characters {
         Instances.setBool(character, RIDING, player.isPassenger());
         Instances.setBool(character, FLYING, player.isFallFlying());
         Instances.setBool(character, IN_WATER, player.isInWater());
-        net.minecraft.world.phys.Vec3 motion = player.getDeltaMovement();
-        Instances.setObj(character, VELOCITY, new Vec3(motion.x * 20, motion.y * 20, motion.z * 20));
+        Vec3 motion = player.getDeltaMovement();
+        Instances.setObj(character, VELOCITY, new Vector3(motion.x * 20, motion.y * 20, motion.z * 20));
 
         Instances.setNum(character, FLYING_TIME, player.getFallFlyingTicks());
         Instances.setNum(character, FLYING_YAW, flyingYaw(player));
@@ -378,8 +384,8 @@ public final class Characters {
     }
 
     private static double flyingYaw(Player player) {
-        net.minecraft.world.phys.Vec3 look = player.getViewVector(1.0f);
-        net.minecraft.world.phys.Vec3 move = player.getDeltaMovement();
+        Vec3 look = player.getViewVector(1.0f);
+        Vec3 move = player.getDeltaMovement();
         if (move.horizontalDistanceSqr() <= 1.0E-5 || look.horizontalDistanceSqr() <= 1.0E-5) {
             return 0;
         }

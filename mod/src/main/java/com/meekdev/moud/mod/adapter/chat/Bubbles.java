@@ -14,7 +14,7 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.math.Color;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.tween.Easing;
 import com.meekdev.moud.mod.client.ClientScene;
 import java.util.ArrayList;
@@ -142,7 +142,7 @@ public final class Bubbles {
                 stack.canvasW = canvasW;
                 stack.canvasH = canvasH;
             }
-            Vec3 at = ClientScene.motion().sample(stack.target, partialTick).position();
+            Vector3 at = ClientScene.motion().sample(stack.target, partialTick).position();
             double top = switch (stack.target) {
                 case Character body -> body.height * body.scale;
                 case Part part -> part.size.y() / 2;

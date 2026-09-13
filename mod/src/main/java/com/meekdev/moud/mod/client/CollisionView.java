@@ -10,7 +10,7 @@ import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
 import com.meekdev.moud.mod.adapter.physics.Colliders;
 import com.meekdev.moud.mod.adapter.physics.SubLevels;
@@ -66,7 +66,7 @@ public final class CollisionView {
             if (!(collider instanceof BoxCollider box)) return;
             AABB b = box.bounds();
             debug.box(CFrame.at((b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, (b.minZ + b.maxZ) / 2),
-                    new Vec3(b.getXsize(), b.getYsize(), b.getZsize()), GREEN, LIFE);
+                    new Vector3(b.getXsize(), b.getYsize(), b.getZsize()), GREEN, LIFE);
             boxes[0]++;
         });
 
@@ -75,7 +75,7 @@ public final class CollisionView {
         for (Part part : tree.ofClass(Classes.PART)) {
             if (part.parent() instanceof Character || part.parent() != null && part.parent().parent() instanceof Character) continue;
             CFrame frame = Transforms.world(part);
-            Vec3 at = frame.position();
+            Vector3 at = frame.position();
             if (Math.abs(at.x() - eye.x) > RANGE || Math.abs(at.y() - eye.y) > RANGE || Math.abs(at.z() - eye.z) > RANGE) continue;
             if (!part.collides) {
                 debug.box(frame, part.size, GREY, LIFE);
@@ -94,7 +94,7 @@ public final class CollisionView {
             if (state.isAir()) continue;
             for (AABB b : state.getCollisionShape(client.level, pos, CollisionContext.empty()).toAabbs()) {
                 debug.box(CFrame.at(pos.getX() + (b.minX + b.maxX) / 2, pos.getY() + (b.minY + b.maxY) / 2, pos.getZ() + (b.minZ + b.maxZ) / 2),
-                        new Vec3(b.getXsize(), b.getYsize(), b.getZsize()), WHITE, LIFE);
+                        new Vector3(b.getXsize(), b.getYsize(), b.getZsize()), WHITE, LIFE);
                 blocks++;
             }
         }
@@ -105,12 +105,12 @@ public final class CollisionView {
             MovementProfile profile = Physics.getProfile(living).orElse(null);
             double radius = profile != null ? profile.moverRadius() : entity.getBbWidth() / 2;
             double height = profile != null ? profile.moverHeight() : entity.getBbHeight();
-            capsule(debug, new Vec3(entity.getX(), entity.getY(), entity.getZ()), radius, height);
+            capsule(debug, new Vector3(entity.getX(), entity.getY(), entity.getZ()), radius, height);
             bodies++;
         }
         for (Character character : tree.ofClass(Classes.CHARACTER)) {
             if (!character.owner.isEmpty()) continue;
-            Vec3 at = Transforms.world(character).position();
+            Vector3 at = Transforms.world(character).position();
             if (Math.abs(at.x() - eye.x) > RANGE || Math.abs(at.z() - eye.z) > RANGE) continue;
             capsule(debug, at, character.radius * character.scale, character.height * character.scale);
             bodies++;
@@ -120,22 +120,22 @@ public final class CollisionView {
                 + ", " + ghosts + " not colliding, " + blocks + " block boxes, " + bodies + " bodies");
     }
 
-    private static void capsule(ClientDebug debug, Vec3 feet, double radius, double height) {
+    private static void capsule(ClientDebug debug, Vector3 feet, double radius, double height) {
         int segments = 16;
         double[] rings = {radius, height / 2, height - radius};
         for (double y : rings) {
             for (int i = 0; i < segments; i++) {
                 double a = 2 * Math.PI * i / segments, b = 2 * Math.PI * (i + 1) / segments;
-                debug.line(feet.add(new Vec3(Math.cos(a) * radius, y, Math.sin(a) * radius)),
-                        feet.add(new Vec3(Math.cos(b) * radius, y, Math.sin(b) * radius)), YELLOW, LIFE);
+                debug.line(feet.add(new Vector3(Math.cos(a) * radius, y, Math.sin(a) * radius)),
+                        feet.add(new Vector3(Math.cos(b) * radius, y, Math.sin(b) * radius)), YELLOW, LIFE);
             }
         }
         for (int i = 0; i < 4; i++) {
             double a = Math.PI / 2 * i;
-            Vec3 side = new Vec3(Math.cos(a) * radius, 0, Math.sin(a) * radius);
-            debug.line(feet.add(side).add(new Vec3(0, radius, 0)), feet.add(side).add(new Vec3(0, height - radius, 0)), YELLOW, LIFE);
-            debug.line(feet.add(side).add(new Vec3(0, radius, 0)), feet.add(new Vec3(0, 0, 0)), YELLOW, LIFE);
-            debug.line(feet.add(side).add(new Vec3(0, height - radius, 0)), feet.add(new Vec3(0, height, 0)), YELLOW, LIFE);
+            Vector3 side = new Vector3(Math.cos(a) * radius, 0, Math.sin(a) * radius);
+            debug.line(feet.add(side).add(new Vector3(0, radius, 0)), feet.add(side).add(new Vector3(0, height - radius, 0)), YELLOW, LIFE);
+            debug.line(feet.add(side).add(new Vector3(0, radius, 0)), feet.add(new Vector3(0, 0, 0)), YELLOW, LIFE);
+            debug.line(feet.add(side).add(new Vector3(0, height - radius, 0)), feet.add(new Vector3(0, height, 0)), YELLOW, LIFE);
         }
     }
 }

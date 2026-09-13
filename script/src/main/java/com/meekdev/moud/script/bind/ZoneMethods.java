@@ -6,7 +6,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.ProximityPrompt;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.instance.Zone;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.instance.Zones;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -52,7 +52,7 @@ public final class ZoneMethods {
         state.newTable();
         state.pushFunction(LuaFunc.wrap(s -> {
             if (!(s.toUserDataTagged(2, Proxies.TAG) instanceof Instance body)) throw s.error("wants a body");
-            Vec3 at = Transforms.world(body).position();
+            Vector3 at = Transforms.world(body).position();
             ProximityPrompt best = null;
             double bestDistance = Double.MAX_VALUE;
             for (ProximityPrompt prompt : world.tree().ofClass(Classes.PROXIMITY_PROMPT)) {

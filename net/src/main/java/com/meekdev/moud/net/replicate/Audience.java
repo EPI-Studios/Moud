@@ -5,7 +5,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import java.util.BitSet;
 import java.util.List;
 import java.util.function.Consumer;
@@ -32,7 +32,7 @@ public final class Audience {
         return has.get(id);
     }
 
-    public void drain(InstanceTree from, List<Change> tick, Vec3 focus, double radius,
+    public void drain(InstanceTree from, List<Change> tick, Vector3 focus, double radius,
                       Consumer<Change> out) {
         if (from != tree) {
             tree = from;
@@ -113,15 +113,15 @@ public final class Audience {
         for (Instance child : top.children()) forget(child);
     }
 
-    private boolean wanted(Instance made, Vec3 focus, double radius) {
+    private boolean wanted(Instance made, Vector3 focus, double radius) {
         return made.parent() != tree.root() || relevant(made, focus, radius);
     }
 
-    private static boolean relevant(Instance top, Vec3 focus, double radius) {
+    private static boolean relevant(Instance top, Vector3 focus, double radius) {
         if (!(top instanceof Spatial spatial)) return true;
         if (spatial.alwaysRelevant) return true;
         if (focus == null) return true;
-        Vec3 where = Transforms.world(top).position();
+        Vector3 where = Transforms.world(top).position();
         return where.sub(focus).lengthSq() <= radius * radius;
     }
 }

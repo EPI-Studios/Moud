@@ -12,7 +12,7 @@ import com.meekdev.moud.core.instance.ProximityPrompt;
 import com.meekdev.moud.core.instance.Queries;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Color;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.text.RichText;
 import com.meekdev.moud.mod.adapter.chat.ChatView;
 import com.meekdev.moud.mod.server.ServerPrompts;
@@ -26,6 +26,7 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import org.joml.Vector3fc;
+import net.minecraft.world.phys.Vec3;
 
 public final class ClientPrompts {
 
@@ -117,7 +118,7 @@ public final class ClientPrompts {
             surface = Surfaces.world(WIDTH / PPM, HEIGHT / PPM).resolution(Math.round(PPM)).direct(true);
             surface.root().add(new Label());
         }
-        Vec3 at = ServerPrompts.position(prompt);
+        Vector3 at = ServerPrompts.position(prompt);
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
         Vector3fc left = camera.leftVector();
         Vector3fc up = camera.upVector();
@@ -135,13 +136,13 @@ public final class ClientPrompts {
     }
 
     static ProximityPrompt closest(InstanceTree tree, Character me) {
-        Vec3 eye = Transforms.world(me).position().add(new Vec3(0, me.height * me.scale * 0.9, 0));
+        Vector3 eye = Transforms.world(me).position().add(new Vector3(0, me.height * me.scale * 0.9, 0));
         ProximityPrompt best = null;
         double bestDistance = Double.MAX_VALUE;
         List<ProximityPrompt> prompts = tree.ofClass(Classes.PROXIMITY_PROMPT);
         for (ProximityPrompt prompt : prompts) {
             if (!prompt.enabled || prompt.parent() == null) continue;
-            Vec3 at = ServerPrompts.position(prompt);
+            Vector3 at = ServerPrompts.position(prompt);
             double distance = at.distance(eye);
             if (distance > prompt.maxActivationDistance || distance >= bestDistance) continue;
             if (prompt.requiresLineOfSight && !visible(tree, me, prompt, eye, at)) continue;
@@ -151,16 +152,16 @@ public final class ClientPrompts {
         return best;
     }
 
-    private static boolean visible(InstanceTree tree, Character me, ProximityPrompt prompt, Vec3 eye, Vec3 at) {
-        Vec3 way = at.sub(eye);
+    private static boolean visible(InstanceTree tree, Character me, ProximityPrompt prompt, Vector3 eye, Vector3 at) {
+        Vector3 way = at.sub(eye);
         double length = way.length();
         if (length < 1e-4) return true;
         Queries.Filter filter = new Queries.Filter(List.of(me, prompt.parent()), false, true);
         if (Queries.raycast(tree.root(), eye, way, length, filter) != null) return false;
         var level = Minecraft.getInstance().level;
         if (level == null) return true;
-        var hit = level.clip(new ClipContext(new net.minecraft.world.phys.Vec3(eye.x(), eye.y(), eye.z()),
-                new net.minecraft.world.phys.Vec3(at.x(), at.y(), at.z()), ClipContext.Block.COLLIDER,
+        var hit = level.clip(new ClipContext(new Vec3(eye.x(), eye.y(), eye.z()),
+                new Vec3(at.x(), at.y(), at.z()), ClipContext.Block.COLLIDER,
                 ClipContext.Fluid.NONE, CollisionContext.empty()));
         return hit.getType() == HitResult.Type.MISS;
     }

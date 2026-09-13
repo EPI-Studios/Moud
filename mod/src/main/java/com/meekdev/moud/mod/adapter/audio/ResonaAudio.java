@@ -2,7 +2,7 @@ package com.meekdev.moud.mod.adapter.audio;
 
 import com.meekdev.moud.core.instance.Hits;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.script.api.AudioRef;
 import com.meekdev.resona.api.Bus;
@@ -31,6 +31,7 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import org.jspecify.annotations.Nullable;
+import net.minecraft.world.phys.Vec3;
 
 public final class ResonaAudio implements AudioRef {
 
@@ -75,7 +76,7 @@ public final class ResonaAudio implements AudioRef {
         sounds.forget();
     }
 
-    private float occlusion(net.minecraft.world.phys.Vec3 listener, net.minecraft.world.phys.Vec3 source) {
+    private float occlusion(Vec3 listener, Vec3 source) {
         if (!occluding) return 0;
         Minecraft client = Minecraft.getInstance();
         if (client.level != null && client.player != null) {
@@ -85,19 +86,19 @@ public final class ResonaAudio implements AudioRef {
         }
         InstanceTree tree = ClientScene.tree();
         if (tree == null) return 0;
-        Vec3 from = vec(listener);
-        Vec3 way = vec(source).sub(from);
+        Vector3 from = vec(listener);
+        Vector3 way = vec(source).sub(from);
         double range = way.length() - 0.5;
         Hits.Hit hit = Hits.cast(tree.root(), from, way, range, part -> part.collides && part.transparency < 0.5);
         return hit == null ? 0 : 1;
     }
 
-    static Vec3 vec(net.minecraft.world.phys.Vec3 v) {
-        return new Vec3(v.x, v.y, v.z);
+    static Vector3 vec(Vec3 v) {
+        return new Vector3(v.x, v.y, v.z);
     }
 
-    static net.minecraft.world.phys.Vec3 vec(Vec3 v) {
-        return new net.minecraft.world.phys.Vec3(v.x(), v.y(), v.z());
+    static Vec3 vec(Vector3 v) {
+        return new Vec3(v.x(), v.y(), v.z());
     }
 
     private static @Nullable Voice voice(@Nullable SoundHandle handle) {
@@ -117,7 +118,7 @@ public final class ResonaAudio implements AudioRef {
     }
 
     @Override
-    public @Nullable Voice playEvent(String name, @Nullable Vec3 at) {
+    public @Nullable Voice playEvent(String name, @Nullable Vector3 at) {
         return voice(Resona.playEvent(name, at == null ? null : vec(at)));
     }
 
@@ -293,7 +294,7 @@ public final class ResonaAudio implements AudioRef {
         }
 
         @Override
-        public void position(Vec3 at) {
+        public void position(Vector3 at) {
             handle.setPosition(vec(at));
         }
 

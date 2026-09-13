@@ -9,6 +9,8 @@ import com.meekdev.moud.net.replicate.Applier;
 import com.meekdev.moud.net.replicate.Change;
 import com.meekdev.moud.net.wire.Codec;
 import java.util.List;
+import java.util.Queue;
+import java.util.function.Consumer;
 
 public final class Mirror {
 
@@ -24,8 +26,8 @@ public final class Mirror {
         return APPLIER;
     }
 
-    public static void apply(java.util.function.Consumer<Change> also) {
-        java.util.Queue<byte[]> queue = Post.wired().deltas();
+    public static void apply(Consumer<Change> also) {
+        Queue<byte[]> queue = Post.wired().deltas();
         int ticks = Math.max(1, queue.size() - BACKLOG + 1);
         for (int n = 0; n < ticks; n++) {
             byte[] packet = queue.poll();

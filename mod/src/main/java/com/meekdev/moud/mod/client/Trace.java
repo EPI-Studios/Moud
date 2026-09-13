@@ -4,7 +4,7 @@ import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.features.Feature;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
@@ -19,6 +19,7 @@ import net.minecraft.client.player.LocalPlayer;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import net.minecraft.world.phys.Vec3;
 
 public final class Trace {
 
@@ -92,13 +93,13 @@ public final class Trace {
 
     private static String row(Minecraft client, LocalPlayer me, Character body, String deck,
                               float partialTick) {
-        net.minecraft.world.phys.Vec3 eye = client.gameRenderer.getMainCamera().position();
-        net.minecraft.world.phys.Vec3 vel = me.getDeltaMovement();
+        Vec3 eye = client.gameRenderer.getMainCamera().position();
+        Vec3 vel = me.getDeltaMovement();
 
         Instance hangs = body.parent();
         CFrame world = Transforms.world(body);
         CFrame drawn = ClientScene.motion().sample(body, partialTick);
-        Vec3 head = headAt(body, partialTick);
+        Vector3 head = headAt(body, partialTick);
 
         StringBuilder row = new StringBuilder(512);
         add(row, System.nanoTime());
@@ -144,10 +145,10 @@ public final class Trace {
         return row.toString();
     }
 
-    private static Vec3 headAt(Character body, float partialTick) {
+    private static Vector3 headAt(Character body, float partialTick) {
         return body.child("head") instanceof Instance head
                 ? ClientScene.motion().sample(head, partialTick).position()
-                : Vec3.ZERO;
+                : Vector3.ZERO;
     }
 
     private static void add(StringBuilder row, double value) {

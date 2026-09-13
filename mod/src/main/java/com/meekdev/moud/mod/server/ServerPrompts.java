@@ -5,7 +5,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.ProximityPrompt;
 import com.meekdev.moud.core.instance.Transforms;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.transport.Packets;
 import java.util.Queue;
@@ -47,9 +47,9 @@ public final class ServerPrompts {
         }
     }
 
-    public static Vec3 position(ProximityPrompt prompt) {
+    public static Vector3 position(ProximityPrompt prompt) {
         Instance parent = prompt.parent();
-        Vec3 at = parent == null ? Vec3.ZERO : Transforms.world(parent).position();
+        Vector3 at = parent == null ? Vector3.ZERO : Transforms.world(parent).position();
         return at.add(prompt.offset);
     }
 }

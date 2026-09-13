@@ -7,7 +7,7 @@ import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Queries;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.api.BlockRef;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,8 +26,8 @@ final class QueryMethods {
         BLOCKS.put(state.mainThread(), blocks);
     }
 
-    static boolean clear(LuaState state, Instance root, Vec3 from, Vec3 to, List<Instance> ignore) {
-        Vec3 way = to.sub(from);
+    static boolean clear(LuaState state, Instance root, Vector3 from, Vector3 to, List<Instance> ignore) {
+        Vector3 way = to.sub(from);
         double length = way.length();
         if (length < 1e-6) return true;
         Queries.Filter filter = new Queries.Filter(ignore, false, true);
@@ -45,8 +45,8 @@ final class QueryMethods {
     }
 
     static int raycast(LuaState state, Instance root) {
-        Vec3 from = Values.vec3(state, 2);
-        Vec3 direction = Values.vec3(state, 3);
+        Vector3 from = Values.vec3(state, 2);
+        Vector3 direction = Values.vec3(state, 3);
         double range = state.isNoneOrNil(4) ? 100 : state.checkNumber(4);
         Params params = params(state, 5, root);
         Queries.Cast hit = Queries.raycast(root, from, direction, range, params.filter());
@@ -66,17 +66,17 @@ final class QueryMethods {
     }
 
     static int spherecast(LuaState state, Instance root) {
-        Vec3 from = Values.vec3(state, 2);
+        Vector3 from = Values.vec3(state, 2);
         double radius = state.checkNumber(3);
-        Vec3 direction = Values.vec3(state, 4);
+        Vector3 direction = Values.vec3(state, 4);
         double range = state.isNoneOrNil(5) ? 100 : state.checkNumber(5);
         return push(state, Queries.spherecast(root, from, radius, direction, range, params(state, 6, root).filter()));
     }
 
     static int blockcast(LuaState state, Instance root) {
         CFrame frame = Values.cframe(state, 2);
-        Vec3 size = Values.vec3(state, 3);
-        Vec3 direction = Values.vec3(state, 4);
+        Vector3 size = Values.vec3(state, 3);
+        Vector3 direction = Values.vec3(state, 4);
         double range = state.isNoneOrNil(5) ? 100 : state.checkNumber(5);
         return push(state, Queries.blockcast(root, frame, size, direction, range, params(state, 6, root).filter()));
     }
@@ -88,12 +88,12 @@ final class QueryMethods {
     }
 
     static int partsInRadius(LuaState state, Instance root) {
-        Vec3 centre = Values.vec3(state, 2);
+        Vector3 centre = Values.vec3(state, 2);
         Params params = params(state, 4, root);
         return list(state, shape(Queries.inRadius(root, centre, state.checkNumber(3), params.filter()), centre, params));
     }
 
-    private static List<Part> shape(List<Part> parts, Vec3 from, Params params) {
+    private static List<Part> shape(List<Part> parts, Vector3 from, Params params) {
         if (params.sorted()) {
             parts.sort((a, b) -> Double.compare(Transforms.world(a).position().sub(from).lengthSq(),
                     Transforms.world(b).position().sub(from).lengthSq()));
@@ -102,8 +102,8 @@ final class QueryMethods {
     }
 
     static int raycastAll(LuaState state, Instance root) {
-        Vec3 from = Values.vec3(state, 2);
-        Vec3 direction = Values.vec3(state, 3);
+        Vector3 from = Values.vec3(state, 2);
+        Vector3 direction = Values.vec3(state, 3);
         double range = state.isNoneOrNil(4) ? 100 : state.checkNumber(4);
         Params params = params(state, 5, root);
         List<Queries.Cast> hits = Queries.raycastAll(root, from, direction, range, params.filter());
@@ -126,10 +126,10 @@ final class QueryMethods {
             state.rawGetI(2, n);
             int ray = state.top();
             state.rawGetI(ray, 1);
-            Vec3 from = Values.vec3(state, -1);
+            Vector3 from = Values.vec3(state, -1);
             state.pop(1);
             state.rawGetI(ray, 2);
-            Vec3 direction = Values.vec3(state, -1);
+            Vector3 direction = Values.vec3(state, -1);
             state.pop(1);
             state.rawGetI(ray, 3);
             double range = state.isNumber(-1) ? state.toNumber(-1) : 100;

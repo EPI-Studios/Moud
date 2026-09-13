@@ -1,7 +1,7 @@
 package com.meekdev.moud.script.bind;
 
 import com.meekdev.moud.core.clazz.Classes;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.api.CameraRef;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -31,7 +31,7 @@ public final class CameraMethods {
             return 0;
         });
         methods.put("worldToScreen", s -> {
-            Vec3 screen = camera.worldToScreen(Values.vec3(s, 2));
+            Vector3 screen = camera.worldToScreen(Values.vec3(s, 2));
             if (screen == null) s.pushNil(); else Values.push(s, screen);
             return 1;
         });

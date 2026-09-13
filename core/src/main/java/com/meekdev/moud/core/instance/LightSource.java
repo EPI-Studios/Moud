@@ -3,7 +3,7 @@ package com.meekdev.moud.core.instance;
 import com.meekdev.moud.core.clazz.Prop;
 import com.meekdev.moud.core.math.Color;
 
-public class Light extends Spatial {
+public class LightSource extends Spatial {
 
     public boolean enabled = true;
 

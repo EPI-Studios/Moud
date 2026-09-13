@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.adapter.render;
 
 import com.meekdev.amnetic.client.light.FalloffCurve;
+import com.meekdev.amnetic.client.light.Light;
 import com.meekdev.amnetic.client.light.LightStyles;
 import com.meekdev.amnetic.client.light.LightType;
 import com.meekdev.amnetic.client.light.Lights;
@@ -9,11 +10,11 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.AreaLight;
 import com.meekdev.moud.core.instance.AreaShape;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.instance.Light;
+import com.meekdev.moud.core.instance.LightSource;
 import com.meekdev.moud.core.instance.SpotLight;
 import com.meekdev.moud.core.instance.TubeLight;
 import com.meekdev.moud.core.math.CFrame;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.client.PlaceFiles;
@@ -28,10 +29,11 @@ import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import org.joml.Vector3f;
+import net.minecraft.world.phys.Vec3;
 
 public final class SceneLights {
 
-    private record Held(Light instance, com.meekdev.amnetic.client.light.Light light) {}
+    private record Held(LightSource instance, Light light) {}
 
     private record Style(int id, String body, long checked) {}
 
@@ -45,7 +47,7 @@ public final class SceneLights {
         InstanceTree tree = ClientScene.tree();
         Set<Integer> seen = new HashSet<>();
         if (tree != null) {
-            for (Light light : tree.ofClass(Classes.LIGHT)) {
+            for (LightSource light : tree.ofClass(Classes.LIGHT)) {
                 seen.add(light.id());
                 Held held = LIGHTS.get(light.id());
                 if (held == null || held.instance() != light) {
@@ -64,8 +66,8 @@ public final class SceneLights {
         }
     }
 
-    private static com.meekdev.amnetic.client.light.Light create(Light light) {
-        net.minecraft.world.phys.Vec3 origin = net.minecraft.world.phys.Vec3.ZERO;
+    private static Light create(LightSource light) {
+        Vec3 origin = Vec3.ZERO;
         Vector3f down = new Vector3f(0, 0, -1);
         return switch (light) {
             case SpotLight spot -> Lights.spot(origin, down, 20, 35, 1, 1, 1, 12, 1);
@@ -77,10 +79,10 @@ public final class SceneLights {
         };
     }
 
-    private static void copy(Light from, com.meekdev.amnetic.client.light.Light to, float partialTick) {
+    private static void copy(LightSource from, Light to, float partialTick) {
         CFrame world = ClientScene.motion().sample(from, partialTick);
-        Vec3 at = world.position();
-        Vec3 forward = world.rotation().rotate(Vec3.FORWARD);
+        Vector3 at = world.position();
+        Vector3 forward = world.rotation().rotate(Vector3.FORWARD);
         to.setPosition(at.x(), at.y(), at.z())
                 .setDirection((float) forward.x(), (float) forward.y(), (float) forward.z())
                 .setEnabled(from.enabled)
@@ -109,7 +111,7 @@ public final class SceneLights {
                 to.setAreaSize(w, disc ? w : (float) area.height / 2);
             }
             case TubeLight tube -> {
-                Vec3 along = world.rotation().rotate(Vec3.RIGHT);
+                Vector3 along = world.rotation().rotate(Vector3.RIGHT);
                 to.setTangent((float) along.x(), (float) along.y(), (float) along.z())
                         .setTubeLength((float) tube.length);
             }

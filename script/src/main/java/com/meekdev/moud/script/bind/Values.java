@@ -4,7 +4,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaType;
 import java.util.function.ToIntFunction;
@@ -138,14 +138,14 @@ public final class Values {
                 "cross", st -> one(st, vec3(st, 1).cross(vec3(st, 2))),
                 "lerp", st -> one(st, vec3(st, 1).lerp(vec3(st, 2), st.checkNumber(3))),
                 "angleTo", st -> number(st, angle(vec3(st, 1), vec3(st, 2))),
-                "flat", st -> one(st, new Vec3(vec3(st, 1).x(), 0, vec3(st, 1).z())),
+                "flat", st -> one(st, new Vector3(vec3(st, 1).x(), 0, vec3(st, 1).z())),
                 "clampMagnitude", st -> {
-                    Vec3 v = vec3(st, 1);
+                    Vector3 v = vec3(st, 1);
                     double max = st.checkNumber(2);
                     return one(st, v.lengthSq() > max * max ? v.normalize().mul(max) : v);
                 },
-                "abs", st -> one(st, new Vec3(Math.abs(vec3(st, 1).x()), Math.abs(vec3(st, 1).y()), Math.abs(vec3(st, 1).z()))),
-                "floor", st -> one(st, new Vec3(Math.floor(vec3(st, 1).x()), Math.floor(vec3(st, 1).y()), Math.floor(vec3(st, 1).z())))));
+                "abs", st -> one(st, new Vector3(Math.abs(vec3(st, 1).x()), Math.abs(vec3(st, 1).y()), Math.abs(vec3(st, 1).z()))),
+                "floor", st -> one(st, new Vector3(Math.floor(vec3(st, 1).x()), Math.floor(vec3(st, 1).y()), Math.floor(vec3(st, 1).z())))));
         methods(state, CFRAME_METHODS, Map.of(
                 "inverse", st -> one(st, cframe(st, 1).inverse()),
                 "lerp", st -> one(st, cframe(st, 1).lerp(cframe(st, 2), st.checkNumber(3))),
@@ -156,7 +156,7 @@ public final class Values {
                 "vectorToObjectSpace", st -> one(st, cframe(st, 1).vectorToObject(vec3(st, 2))),
                 "vectorToWorldSpace", st -> one(st, cframe(st, 1).vectorToWorld(vec3(st, 2))),
                 "lookAt", st -> one(st, new CFrame(cframe(st, 1).position(),
-                        Quat.lookAt(vec3(st, 2).sub(cframe(st, 1).position()), Vec3.UP)))));
+                        Quat.lookAt(vec3(st, 2).sub(cframe(st, 1).position()), Vector3.UP)))));
         methods(state, QUAT_METHODS, Map.of(
                 "slerp", st -> one(st, quat(st, 1).slerp(quat(st, 2), st.checkNumber(3))),
                 "inverse", st -> one(st, quat(st, 1).inverse()),
@@ -170,7 +170,7 @@ public final class Values {
         state.rawSetField(-2, "axisAngle");
         state.pushFunction(LuaFunc.wrap(st -> one(st, Quat.euler(st.checkNumber(1), st.checkNumber(2), st.checkNumber(3))), "quat.euler"));
         state.rawSetField(-2, "euler");
-        state.pushFunction(LuaFunc.wrap(st -> one(st, Quat.lookAt(vec3(st, 1), st.isNoneOrNil(2) ? Vec3.UP : vec3(st, 2))), "quat.lookAt"));
+        state.pushFunction(LuaFunc.wrap(st -> one(st, Quat.lookAt(vec3(st, 1), st.isNoneOrNil(2) ? Vector3.UP : vec3(st, 2))), "quat.lookAt"));
         state.rawSetField(-2, "lookAt");
         state.pushFunction(LuaFunc.wrap(st -> one(st, fromTo(vec3(st, 1), vec3(st, 2))), "quat.fromTo"));
         state.rawSetField(-2, "fromTo");
@@ -210,22 +210,22 @@ public final class Values {
         return 1;
     }
 
-    private static double angle(Vec3 a, Vec3 b) {
+    private static double angle(Vector3 a, Vector3 b) {
         double lengths = a.length() * b.length();
         return lengths < 1e-12 ? 0 : Math.acos(Math.clamp(a.dot(b) / lengths, -1, 1));
     }
 
-    static Quat fromTo(Vec3 from, Vec3 to) {
-        Vec3 a = from.normalize();
-        Vec3 b = to.normalize();
+    static Quat fromTo(Vector3 from, Vector3 to) {
+        Vector3 a = from.normalize();
+        Vector3 b = to.normalize();
         double dot = a.dot(b);
         if (dot > 1 - 1e-9) return Quat.IDENTITY;
         if (dot < -1 + 1e-9) {
-            Vec3 axis = Vec3.RIGHT.cross(a);
-            if (axis.lengthSq() < 1e-9) axis = Vec3.UP.cross(a);
+            Vector3 axis = Vector3.RIGHT.cross(a);
+            if (axis.lengthSq() < 1e-9) axis = Vector3.UP.cross(a);
             return Quat.axisAngle(axis.normalize(), Math.PI);
         }
-        Vec3 axis = a.cross(b);
+        Vector3 axis = a.cross(b);
         return new Quat(axis.x(), axis.y(), axis.z(), 1 + dot).normalize();
     }
 
@@ -271,7 +271,7 @@ public final class Values {
         return (CFrame) value;
     }
 
-    public static void push(LuaState state, Vec3 v) {
+    public static void push(LuaState state, Vector3 v) {
         state.newUserDataTaggedWithMetatable(v, VEC3);
     }
 
@@ -279,10 +279,10 @@ public final class Values {
         state.newUserDataTaggedWithMetatable(c, COLOR);
     }
 
-    public static Vec3 vec3(LuaState state, int index) {
+    public static Vector3 vec3(LuaState state, int index) {
         Object value = state.toUserDataTagged(index, VEC3);
         if (value == null) throw state.error("expected a vec3");
-        return (Vec3) value;
+        return (Vector3) value;
     }
 
     public static Color color(LuaState state, int index) {
@@ -305,7 +305,7 @@ public final class Values {
 
     public static boolean push(LuaState state, Object value) {
         switch (value) {
-            case Vec3 v -> push(state, v);
+            case Vector3 v -> push(state, v);
             case Color c -> push(state, c);
             case CFrame c -> push(state, c);
             case Quat q -> push(state, q);
@@ -318,7 +318,7 @@ public final class Values {
     }
 
     private static int newVec3(LuaState state) {
-        push(state, new Vec3(state.checkNumber(1), state.checkNumber(2), state.checkNumber(3)));
+        push(state, new Vector3(state.checkNumber(1), state.checkNumber(2), state.checkNumber(3)));
         return 1;
     }
 
@@ -332,7 +332,7 @@ public final class Values {
     }
 
     private static int vec3Index(LuaState state) {
-        Vec3 v = vec3(state, 1);
+        Vector3 v = vec3(state, 1);
         switch (state.checkString(2)) {
             case "x" -> state.pushNumber(v.x());
             case "y" -> state.pushNumber(v.y());
@@ -378,7 +378,7 @@ public final class Values {
     }
 
     private static int vec3Text(LuaState state) {
-        Vec3 v = vec3(state, 1);
+        Vector3 v = vec3(state, 1);
         state.pushString("vec3(" + v.x() + ", " + v.y() + ", " + v.z() + ")");
         return 1;
     }

@@ -1,6 +1,6 @@
 package com.meekdev.moud.script.api;
 
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import java.util.List;
 import java.util.Map;
 import java.util.function.LongConsumer;
@@ -13,7 +13,7 @@ public interface AudioRef {
         void pitch(double value);
         void fade(double to, double seconds);
         void fadeOut(double seconds);
-        void position(Vec3 at);
+        void position(Vector3 at);
         boolean playing();
     }
 
@@ -25,7 +25,7 @@ public interface AudioRef {
         void stop(double seconds);
     }
 
-    record Options(double volume, double pitch, boolean looped, String bus, int priority, Vec3 at,
+    record Options(double volume, double pitch, boolean looped, String bus, int priority, Vector3 at,
                    double minDistance, double maxDistance, double rollOff, double fadeIn, boolean stream) {
 
         public static final Options DEFAULT = new Options(1, 1, false, "sfx", 0, null, 8, 48, 1, 0, false);
@@ -35,7 +35,7 @@ public interface AudioRef {
 
     Voice play(String soundId, Options options);
 
-    Voice playEvent(String name, Vec3 at);
+    Voice playEvent(String name, Vector3 at);
 
     Voice stinger(String name, String quantize);
 

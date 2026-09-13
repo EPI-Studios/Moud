@@ -11,7 +11,7 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.MeshPart;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.client.PlaceFiles;
@@ -63,7 +63,7 @@ public final class Meshes {
 
     private static void draw(MeshPart part, Model model, float partialTick, float dt) {
         CFrame world = ClientScene.motion().sample(part, partialTick);
-        Vec3 at = world.position();
+        Vector3 at = world.position();
         Quat turn = world.rotation();
         Vector3f min = model.boundsMin();
         Vector3f max = model.boundsMax();

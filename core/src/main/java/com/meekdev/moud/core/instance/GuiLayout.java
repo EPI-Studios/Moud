@@ -1,7 +1,7 @@
 package com.meekdev.moud.core.instance;
 
 import com.meekdev.moud.core.math.CFrame;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -10,7 +10,7 @@ public final class GuiLayout {
 
     public record Box(double x, double y, double w, double h) {}
 
-    public record Plane(Vec3 centre, Vec3 right, Vec3 up, double width, double height) {}
+    public record Plane(Vector3 centre, Vector3 right, Vector3 up, double width, double height) {}
 
     public static final double LIFT = 0.002;
 
@@ -56,10 +56,10 @@ public final class GuiLayout {
         return chosen != null && chosen.isAlive() ? chosen : gui.parent();
     }
 
-    public static Plane face(CFrame world, Vec3 size, SurfaceFace face) {
-        Vec3 x = world.rotation().rotate(Vec3.RIGHT);
-        Vec3 y = world.rotation().rotate(Vec3.UP);
-        Vec3 z = world.rotation().rotate(new Vec3(0, 0, 1));
+    public static Plane face(CFrame world, Vector3 size, SurfaceFace face) {
+        Vector3 x = world.rotation().rotate(Vector3.RIGHT);
+        Vector3 y = world.rotation().rotate(Vector3.UP);
+        Vector3 z = world.rotation().rotate(new Vector3(0, 0, 1));
         return switch (face) {
             case FRONT -> plane(world, z.mul(-1), x.mul(-1), y, size.z(), size.x(), size.y());
             case BACK -> plane(world, z, x, y, size.z(), size.x(), size.y());
@@ -70,9 +70,9 @@ public final class GuiLayout {
         };
     }
 
-    private static Plane plane(CFrame world, Vec3 out, Vec3 right, Vec3 up, double depth,
+    private static Plane plane(CFrame world, Vector3 out, Vector3 right, Vector3 up, double depth,
                                double width, double height) {
-        Vec3 centre = world.position().add(out.mul(depth * 0.5 + LIFT));
+        Vector3 centre = world.position().add(out.mul(depth * 0.5 + LIFT));
         return new Plane(centre, right, up, width, height);
     }
 }

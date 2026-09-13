@@ -10,7 +10,7 @@ import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.nav.NavMeshes;
 import com.meekdev.moud.core.instance.Humanoids;
 import com.meekdev.moud.core.nav.Walkers;
@@ -57,8 +57,8 @@ public final class Paths {
             }
 
             @Override
-            public void boxes(Vec3 min, Vec3 max, BiConsumer<CFrame, Vec3> out) {
-                Vec3 size = max.sub(min);
+            public void boxes(Vector3 min, Vector3 max, BiConsumer<CFrame, Vector3> out) {
+                Vector3 size = max.sub(min);
                 for (Part part : Queries.inBox(world, CFrame.at(min.add(size.mul(0.5))), size, ground)) {
                     out.accept(Transforms.world(part), part.size);
                 }
@@ -79,9 +79,9 @@ public final class Paths {
 
     private static Humanoids.Ground groundOf(LuaState state, Instance world) {
         Predicate<Part> ground = ground();
-        Vec3 down = new Vec3(0, -1, 0);
+        Vector3 down = new Vector3(0, -1, 0);
         return (x, y, z) -> {
-            Vec3 from = new Vec3(x, y + 1.1, z);
+            Vector3 from = new Vector3(x, y + 1.1, z);
             double range = 1.1 + 4;
             Queries.Cast part = Queries.raycast(world, from, down, range, ground);
             BlockRef blocks = QueryMethods.blocksOf(state);
@@ -101,7 +101,7 @@ public final class Paths {
         state.getGlobal("game");
         state.newTable();
         function(state, "find", s -> {
-            List<Vec3> path = mesh(world).find(source(s, world), Values.vec3(s, 2), Values.vec3(s, 3), partial(s, 4));
+            List<Vector3> path = mesh(world).find(source(s, world), Values.vec3(s, 2), Values.vec3(s, 3), partial(s, 4));
             if (path == null) {
                 s.pushNil();
             } else {
@@ -114,7 +114,7 @@ public final class Paths {
             return 1;
         });
         function(state, "randomPointNear", s -> {
-            Vec3 point = mesh(world).randomNear(source(s, world), Values.vec3(s, 2), s.checkNumber(3), RANDOM);
+            Vector3 point = mesh(world).randomNear(source(s, world), Values.vec3(s, 2), s.checkNumber(3), RANDOM);
             if (point == null) {
                 s.pushNil();
             } else {
@@ -128,7 +128,7 @@ public final class Paths {
         Map<String, ToIntFunction<LuaState>> methods = new LinkedHashMap<>();
         methods.put("walkTo", s -> {
             Character body = BodyMethods.body(s);
-            List<Vec3> path = mesh(world).find(source(s, world), Transforms.world(body).position(), Values.vec3(s, 2), partial(s, 3));
+            List<Vector3> path = mesh(world).find(source(s, world), Transforms.world(body).position(), Values.vec3(s, 2), partial(s, 3));
             if (path == null) {
                 s.pushBoolean(false);
                 return 1;
@@ -159,7 +159,7 @@ public final class Paths {
         });
         methods.put("lookAt", s -> {
             Character body = BodyMethods.body(s);
-            Vec3 at = Transforms.world(body).position();
+            Vector3 at = Transforms.world(body).position();
             face(body, Values.vec3(s, 2).sub(at));
             return 0;
         });
@@ -170,8 +170,8 @@ public final class Paths {
         Proxies.classMethods(state, Classes.CHARACTER, methods, true);
     }
 
-    private static void face(Character body, Vec3 direction) {
-        Vec3 flat = new Vec3(direction.x(), 0, direction.z());
+    private static void face(Character body, Vector3 direction) {
+        Vector3 flat = new Vector3(direction.x(), 0, direction.z());
         if (flat.lengthSq() < 1e-9) return;
         double yaw = Math.atan2(-flat.x(), -flat.z());
         CFrame world = Transforms.world(body);

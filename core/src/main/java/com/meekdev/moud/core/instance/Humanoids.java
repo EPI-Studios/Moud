@@ -6,7 +6,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 
 public final class Humanoids {
 
@@ -67,7 +67,7 @@ public final class Humanoids {
         hop[0] += dt;
         hop[1] = Math.max(0, living.jumpPower * hop[0] - 0.5 * gravity * hop[0] * hop[0]);
         CFrame frame = Transforms.world(character);
-        Vec3 moved = frame.position().add(new Vec3(0, hop[1] - before, 0));
+        Vector3 moved = frame.position().add(new Vector3(0, hop[1] - before, 0));
         Instances.setObj(character, CFRAME, Transforms.localFor(character, frame.withPosition(moved)));
         if (hop[1] <= 0 && hop[0] > 0) {
             HOPS.remove(character);
@@ -104,9 +104,9 @@ public final class Humanoids {
             return;
         }
 
-        Vec3 at = Transforms.world(character).position();
-        Vec3 toward = living.walkTo.sub(at);
-        Vec3 flat = new Vec3(toward.x(), 0, toward.z());
+        Vector3 at = Transforms.world(character).position();
+        Vector3 toward = living.walkTo.sub(at);
+        Vector3 flat = new Vector3(toward.x(), 0, toward.z());
         double away = flat.length();
 
         if (away <= living.walkRadius) {
@@ -118,18 +118,18 @@ public final class Humanoids {
         }
 
         double step = Math.min(away, living.walkSpeed * dt);
-        Vec3 way = flat.mul(1.0 / away);
-        Vec3 moved = at.add(way.mul(step));
-        moved = new Vec3(moved.x(), at.y() + toward.y() * (step / away), moved.z());
+        Vector3 way = flat.mul(1.0 / away);
+        Vector3 moved = at.add(way.mul(step));
+        moved = new Vector3(moved.x(), at.y() + toward.y() * (step / away), moved.z());
         Ground ground = GROUNDS.get(character.tree());
         double floor = ground == null ? Double.NaN : ground.below(moved.x(), at.y(), moved.z());
         if (!Double.isNaN(floor)) {
             double y = floor > at.y() ? Math.min(floor, at.y() + RISE * dt) : Math.max(floor, at.y() - SINK * dt);
-            moved = new Vec3(moved.x(), y, moved.z());
+            moved = new Vector3(moved.x(), y, moved.z());
         }
 
         double yaw = Math.atan2(-way.x(), -way.z());
-        Vec3 facing = Transforms.world(character).rotation().rotate(new Vec3(0, 0, -1));
+        Vector3 facing = Transforms.world(character).rotation().rotate(new Vector3(0, 0, -1));
         double now = Math.atan2(-facing.x(), -facing.z());
         double turn = Math.IEEEremainder(yaw - now, Math.PI * 2);
         double most = TURN_RATE * dt;

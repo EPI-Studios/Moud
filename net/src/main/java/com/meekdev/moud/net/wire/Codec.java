@@ -10,12 +10,15 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.net.replicate.Change;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.Set;
+import java.util.TreeMap;
 
 public final class Codec {
 
@@ -32,14 +35,14 @@ public final class Codec {
 
         List<Change> structure = new ArrayList<>();
         Map<Integer, ClassDef<?>> made = new HashMap<>();
-        Map<Integer, Map<Integer, Object>> wrote = new java.util.LinkedHashMap<>();
+        Map<Integer, Map<Integer, Object>> wrote = new LinkedHashMap<>();
         for (Change change : changes) {
             if (change instanceof Change.Created fresh) {
                 ClassDef<?> def = classes.find(fresh.className());
                 if (def != null) made.put(fresh.id(), def);
             }
             if (change instanceof Change.Wrote one) {
-                wrote.computeIfAbsent(one.id(), id -> new java.util.TreeMap<>())
+                wrote.computeIfAbsent(one.id(), id -> new TreeMap<>())
                         .put(one.property(), one.value());
             } else {
                 structure.add(change);
@@ -98,7 +101,7 @@ public final class Codec {
         return out.toArray();
     }
 
-    private static void writeChanged(Bytes out, java.util.Set<Integer> indices) {
+    private static void writeChanged(Bytes out, Set<Integer> indices) {
         long mask = 0;
         int highest = 0;
         for (int index : indices) {
@@ -182,7 +185,7 @@ public final class Codec {
             }
 
             in.endReadFlags();
-            Map<PropertyDef, Object> values = new java.util.LinkedHashMap<>();
+            Map<PropertyDef, Object> values = new LinkedHashMap<>();
             for (PropertyDef property : changed) {
                 if (property.type().isBool()) values.put(property, in.readFlag());
             }
@@ -221,7 +224,7 @@ public final class Codec {
             case NUM -> out.f32((Double) value);
             case STRING, ASSET -> out.text((String) value);
             case VEC3 -> {
-                Vec3 v = (Vec3) value;
+                Vector3 v = (Vector3) value;
                 out.f32(v.x());
                 out.f32(v.y());
                 out.f32(v.z());
@@ -262,10 +265,10 @@ public final class Codec {
             case INT -> (int) in.readZigzag();
             case NUM -> in.readF32();
             case STRING, ASSET -> in.readText();
-            case VEC3 -> new Vec3(in.readF32(), in.readF32(), in.readF32());
+            case VEC3 -> new Vector3(in.readF32(), in.readF32(), in.readF32());
             case QUAT -> Quats.read(in);
             case CFRAME -> new CFrame(
-                    new Vec3(in.readF32(), in.readF32(), in.readF32()), Quats.read(in));
+                    new Vector3(in.readF32(), in.readF32(), in.readF32()), Quats.read(in));
             case COLOR -> new Color(in.readU8() / 255f, in.readU8() / 255f,
                     in.readU8() / 255f, in.readU8() / 255f);
             case UDIM2 -> new UDim2(in.readF32(), in.readF32(), in.readF32(), in.readF32());

@@ -4,7 +4,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.net.transport.Wire;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -70,7 +70,7 @@ public final class Args {
                 out.u8(TEXT);
                 out.text(text);
             }
-            case Vec3 v -> {
+            case Vector3 v -> {
                 out.u8(VEC3);
                 position(out, v);
             }
@@ -119,7 +119,7 @@ public final class Args {
         }
     }
 
-    private static void position(Bytes out, Vec3 v) {
+    private static void position(Bytes out, Vector3 v) {
         out.f32(v.x());
         out.f32(v.y());
         out.f32(v.z());
@@ -138,10 +138,10 @@ public final class Args {
             case INT -> (double) in.readZigzag();
             case NUM -> in.readF64();
             case TEXT -> in.readText();
-            case VEC3 -> new Vec3(in.readF32(), in.readF32(), in.readF32());
+            case VEC3 -> new Vector3(in.readF32(), in.readF32(), in.readF32());
             case QUAT -> Quats.read(in);
             case CFRAME -> new CFrame(
-                    new Vec3(in.readF32(), in.readF32(), in.readF32()), Quats.read(in));
+                    new Vector3(in.readF32(), in.readF32(), in.readF32()), Quats.read(in));
             case COLOR -> new Color(in.readU8() / 255f, in.readU8() / 255f,
                     in.readU8() / 255f, in.readU8() / 255f);
             case REF -> new Wire.Ref((int) in.readVarint());

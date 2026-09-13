@@ -11,7 +11,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -91,7 +91,7 @@ public final class Scene {
         return switch (property.type()) {
             case BOOL, STRING, ASSET -> value;
             case INT, NUM -> ((Number) value).doubleValue();
-            case VEC3 -> vector((Vec3) value);
+            case VEC3 -> vector((Vector3) value);
             case QUAT -> quat((Quat) value);
             case CFRAME -> {
                 Map<String, Object> frame = new LinkedHashMap<>();
@@ -113,7 +113,7 @@ public final class Scene {
         };
     }
 
-    private static List<Object> vector(Vec3 v) {
+    private static List<Object> vector(Vector3 v) {
         return List.of(v.x(), v.y(), v.z());
     }
 
@@ -232,9 +232,9 @@ public final class Scene {
             return s;
         }
 
-        private static Vec3 vec3(Object raw) {
+        private static Vector3 vec3(Object raw) {
             double[] v = numbers(raw, 3);
-            return new Vec3(v[0], v[1], v[2]);
+            return new Vector3(v[0], v[1], v[2]);
         }
 
         private static Quat quat(Object raw) {

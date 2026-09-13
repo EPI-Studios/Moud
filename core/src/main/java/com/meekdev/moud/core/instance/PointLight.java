@@ -1,3 +1,3 @@
 package com.meekdev.moud.core.instance;
 
-public final class PointLight extends Light {}
+public final class PointLight extends LightSource {}

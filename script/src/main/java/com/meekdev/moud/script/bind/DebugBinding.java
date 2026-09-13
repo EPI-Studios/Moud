@@ -2,7 +2,7 @@ package com.meekdev.moud.script.bind;
 
 import com.meekdev.moud.core.instance.Queries;
 import com.meekdev.moud.core.math.Color;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.api.DebugRef;
 import java.util.Map;
 import java.util.function.ToIntFunction;
@@ -23,7 +23,7 @@ public final class DebugBinding {
             return 0;
         });
         function(state, "drawRay", s -> {
-            Vec3 from = Values.vec3(s, 2);
+            Vector3 from = Values.vec3(s, 2);
             debug.line(from, from.add(Values.vec3(s, 3)), color(s, 4), seconds(s, 5));
             return 0;
         });

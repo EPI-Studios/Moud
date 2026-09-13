@@ -2,7 +2,7 @@ package com.meekdev.moud.core.instance;
 
 import com.meekdev.moud.core.clazz.Prop;
 
-public final class AreaLight extends Light {
+public final class AreaLight extends LightSource {
 
     public AreaShape shape = AreaShape.RECTANGLE;
 

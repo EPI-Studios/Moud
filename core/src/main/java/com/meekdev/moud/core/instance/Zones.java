@@ -4,7 +4,7 @@ import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.math.CFrame;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -74,10 +74,10 @@ public final class Zones {
         return out;
     }
 
-    public static boolean contains(Zone zone, Vec3 point) {
+    public static boolean contains(Zone zone, Vector3 point) {
         CFrame frame = Transforms.world(zone);
-        Vec3 local = frame.pointToObject(point);
-        Vec3 half = zone.size.mul(0.5);
+        Vector3 local = frame.pointToObject(point);
+        Vector3 half = zone.size.mul(0.5);
         return switch (zone.shape) {
             case BOX -> Math.abs(local.x()) <= half.x() && Math.abs(local.y()) <= half.y() && Math.abs(local.z()) <= half.z();
             case SPHERE -> local.lengthSq() <= half.x() * half.x();
@@ -86,16 +86,16 @@ public final class Zones {
         };
     }
 
-    private static boolean insideOutline(Zone zone, Vec3 local) {
-        List<Vec3> points = new ArrayList<>();
+    private static boolean insideOutline(Zone zone, Vector3 local) {
+        List<Vector3> points = new ArrayList<>();
         for (Instance child : zone.children()) {
             if (child instanceof Attachment point) points.add(point.cframe.position());
         }
         if (points.size() < 3) return false;
         boolean inside = false;
         for (int i = 0, j = points.size() - 1; i < points.size(); j = i++) {
-            Vec3 a = points.get(i);
-            Vec3 b = points.get(j);
+            Vector3 a = points.get(i);
+            Vector3 b = points.get(j);
             if ((a.z() > local.z()) != (b.z() > local.z())
                     && local.x() < (b.x() - a.x()) * (local.z() - a.z()) / (b.z() - a.z()) + a.x()) {
                 inside = !inside;
@@ -104,7 +104,7 @@ public final class Zones {
         return inside;
     }
 
-    public static List<Zone> at(InstanceTree tree, Vec3 point) {
+    public static List<Zone> at(InstanceTree tree, Vector3 point) {
         List<Zone> out = new ArrayList<>();
         for (Zone zone : tree.ofClass(Classes.ZONE)) {
             if (zone.enabled && zone.isAlive() && contains(zone, point)) out.add(zone);

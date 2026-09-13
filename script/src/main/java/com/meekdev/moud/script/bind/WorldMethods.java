@@ -8,7 +8,7 @@ import com.meekdev.moud.core.instance.SpatialIndex;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Aabb;
 import com.meekdev.moud.core.math.CFrame;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.api.BlockRef;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -28,14 +28,14 @@ public final class WorldMethods {
     public static void install(LuaState state) {
         Proxies.extraMethod(state, "nearestPart", s -> {
             Instance root = self(s);
-            Vec3 at = Values.vec3(s, 2);
+            Vector3 at = Values.vec3(s, 2);
             double radius = s.checkNumber(3);
             Queries.Filter filter = QueryMethods.filter(s, 4, root);
             return nearest(s, Queries.inRadius(root, at, radius, filter), at);
         });
         Proxies.extraMethod(state, "nearestTagged", s -> {
             Instance root = self(s);
-            Vec3 at = Values.vec3(s, 2);
+            Vector3 at = Values.vec3(s, 2);
             String tag = s.checkString(3);
             double radius = s.isNoneOrNil(4) ? 256 : s.checkNumber(4);
             Queries.Filter filter = new Queries.Filter(List.of(), false, false, null, null, tag, null);
@@ -44,8 +44,8 @@ public final class WorldMethods {
         Proxies.extraMethod(state, "partsAlongRay", s -> QueryMethods.raycastAll(s, self(s)));
         Proxies.extraMethod(state, "capsulecast", s -> {
             Instance root = self(s);
-            Vec3 from = Values.vec3(s, 2);
-            Vec3 to = Values.vec3(s, 3);
+            Vector3 from = Values.vec3(s, 2);
+            Vector3 to = Values.vec3(s, 3);
             double radius = s.checkNumber(4);
             Queries.Cast hit = Queries.spherecast(root, from, radius, to.sub(from), to.sub(from).length(),
                     QueryMethods.filter(s, 5, root));
@@ -54,7 +54,7 @@ public final class WorldMethods {
         Proxies.extraMethod(state, "sweep", s -> {
             Instance root = self(s);
             Part part = part(s, 2);
-            Vec3 direction = Values.vec3(s, 3);
+            Vector3 direction = Values.vec3(s, 3);
             double distance = s.checkNumber(4);
             Queries.Filter base = QueryMethods.filter(s, 5, root);
             List<Instance> ignore = new ArrayList<>(base.include() ? List.of() : base.instances());
@@ -65,7 +65,7 @@ public final class WorldMethods {
         });
         Proxies.extraMethod(state, "partsAtPoint", s -> {
             Instance root = self(s);
-            Vec3 at = Values.vec3(s, 2);
+            Vector3 at = Values.vec3(s, 2);
             List<Part> found = Queries.inRadius(root, at, 0, QueryMethods.filter(s, 3, root));
             found.removeIf(p -> !PlayerQueries.inside(Transforms.world(p), p.size, at));
             return QueryMethods.list(s, found);
@@ -83,7 +83,7 @@ public final class WorldMethods {
                 return 1;
             }
             Values.push(s, CFrame.at((box[0] + box[3]) / 2, (box[1] + box[4]) / 2, (box[2] + box[5]) / 2));
-            Values.push(s, new Vec3(box[3] - box[0], box[4] - box[1], box[5] - box[2]));
+            Values.push(s, new Vector3(box[3] - box[0], box[4] - box[1], box[5] - box[2]));
             return 2;
         });
         Proxies.extraMethod(state, "groundAt", s -> {
@@ -91,7 +91,7 @@ public final class WorldMethods {
             double x = s.checkNumber(2);
             double z = s.checkNumber(3);
             double from = s.isNoneOrNil(4) ? SKY : s.checkNumber(4);
-            Hit hit = down(s, root, new Vec3(x, from, z), DEPTH, QueryMethods.filter(s, 5, root));
+            Hit hit = down(s, root, new Vector3(x, from, z), DEPTH, QueryMethods.filter(s, 5, root));
             if (hit == null) {
                 s.pushNil();
                 return 1;
@@ -102,8 +102,8 @@ public final class WorldMethods {
         });
         Proxies.extraMethod(state, "surfaceNormal", s -> {
             Instance root = self(s);
-            Vec3 at = Values.vec3(s, 2);
-            Hit hit = down(s, root, at.add(new Vec3(0, 1, 0)), 3, QueryMethods.filter(s, 3, root));
+            Vector3 at = Values.vec3(s, 2);
+            Hit hit = down(s, root, at.add(new Vector3(0, 1, 0)), 3, QueryMethods.filter(s, 3, root));
             if (hit == null) {
                 s.pushNil();
                 return 1;
@@ -113,8 +113,8 @@ public final class WorldMethods {
         });
         Proxies.extraMethod(state, "heightmap", s -> {
             Instance root = self(s);
-            Vec3 a = Values.vec3(s, 2);
-            Vec3 b = Values.vec3(s, 3);
+            Vector3 a = Values.vec3(s, 2);
+            Vector3 b = Values.vec3(s, 3);
             double step = s.isNoneOrNil(4) ? 1 : Math.max(0.1, s.checkNumber(4));
             double x0 = Math.min(a.x(), b.x()), x1 = Math.max(a.x(), b.x());
             double z0 = Math.min(a.z(), b.z()), z1 = Math.max(a.z(), b.z());
@@ -127,7 +127,7 @@ public final class WorldMethods {
                 s.createTable(0, 0);
                 int column = 1;
                 for (double x = x0; x <= x1 + 1e-9; x += step, column++) {
-                    Hit hit = down(s, root, new Vec3(x, SKY, z), DEPTH, filter);
+                    Hit hit = down(s, root, new Vector3(x, SKY, z), DEPTH, filter);
                     if (hit != null) {
                         s.pushNumber(hit.at().y());
                         s.rawSetI(-2, column);
@@ -139,8 +139,8 @@ public final class WorldMethods {
         });
         Proxies.extraMethod(state, "findFreeSpot", s -> {
             Instance root = self(s);
-            Vec3 centre = Values.vec3(s, 2);
-            Vec3 size = Values.vec3(s, 3);
+            Vector3 centre = Values.vec3(s, 2);
+            Vector3 size = Values.vec3(s, 3);
             double radius = s.isNoneOrNil(4) ? 16 : s.checkNumber(4);
             BlockRef blocks = root.parent() == null ? QueryMethods.blocksOf(s) : null;
             Queries.Filter solid = new Queries.Filter(List.of(), false, true);
@@ -151,12 +151,12 @@ public final class WorldMethods {
                     double angle = 2 * Math.PI * n / around;
                     double x = centre.x() + Math.cos(angle) * ring;
                     double z = centre.z() + Math.sin(angle) * ring;
-                    Hit ground = down(s, root, new Vec3(x, centre.y() + radius, z), radius * 2, solid);
+                    Hit ground = down(s, root, new Vector3(x, centre.y() + radius, z), radius * 2, solid);
                     if (ground == null) continue;
-                    Vec3 spot = new Vec3(x, ground.at().y() + size.y() / 2 + 0.01, z);
+                    Vector3 spot = new Vector3(x, ground.at().y() + size.y() / 2 + 0.01, z);
                     if (!Queries.inBox(root, CFrame.at(spot), size, solid).isEmpty()) continue;
                     if (blocks != null && blocked(blocks, spot, size)) continue;
-                    Values.push(s, new Vec3(x, ground.at().y(), z));
+                    Values.push(s, new Vector3(x, ground.at().y(), z));
                     return 1;
                 }
             }
@@ -172,11 +172,11 @@ public final class WorldMethods {
         });
         parts.put("closestPoint", s -> {
             Part part = part(s, 1);
-            Vec3 at = Values.vec3(s, 2);
+            Vector3 at = Values.vec3(s, 2);
             CFrame frame = Transforms.world(part);
-            Vec3 local = frame.pointToObject(at);
-            Vec3 half = part.size.mul(0.5);
-            Vec3 clamped = new Vec3(Math.clamp(local.x(), -half.x(), half.x()), Math.clamp(local.y(), -half.y(), half.y()),
+            Vector3 local = frame.pointToObject(at);
+            Vector3 half = part.size.mul(0.5);
+            Vector3 clamped = new Vector3(Math.clamp(local.x(), -half.x(), half.x()), Math.clamp(local.y(), -half.y(), half.y()),
                     Math.clamp(local.z(), -half.z(), half.z()));
             Values.push(s, frame.pointToWorld(clamped));
             return 1;
@@ -195,17 +195,17 @@ public final class WorldMethods {
         parts.put("worldBounds", s -> {
             Part part = part(s, 1);
             Aabb box = SpatialIndex.bounds(Transforms.world(part), part.size);
-            Values.push(s, new Vec3(box.minX(), box.minY(), box.minZ()));
-            Values.push(s, new Vec3(box.maxX(), box.maxY(), box.maxZ()));
+            Values.push(s, new Vector3(box.minX(), box.minY(), box.minZ()));
+            Values.push(s, new Vector3(box.maxX(), box.maxY(), box.maxZ()));
             return 2;
         });
         Proxies.classMethods(state, Classes.PART, parts);
     }
 
-    private record Hit(Vec3 at, Vec3 normal) {}
+    private record Hit(Vector3 at, Vector3 normal) {}
 
-    private static Hit down(LuaState s, Instance root, Vec3 from, double depth, Queries.Filter filter) {
-        Vec3 way = new Vec3(0, -1, 0);
+    private static Hit down(LuaState s, Instance root, Vector3 from, double depth, Queries.Filter filter) {
+        Vector3 way = new Vector3(0, -1, 0);
         Queries.Cast part = Queries.raycast(root, from, way, depth, filter);
         BlockRef blocks = root.parent() == null ? QueryMethods.blocksOf(s) : null;
         BlockRef.Hit block = blocks == null ? null : blocks.raycast(from, way, part == null ? depth : part.distance());
@@ -213,7 +213,7 @@ public final class WorldMethods {
         return part == null ? null : new Hit(part.at(), part.normal());
     }
 
-    private static boolean blocked(BlockRef blocks, Vec3 centre, Vec3 size) {
+    private static boolean blocked(BlockRef blocks, Vector3 centre, Vector3 size) {
         int x0 = (int) Math.floor(centre.x() - size.x() / 2), x1 = (int) Math.floor(centre.x() + size.x() / 2 - 1e-6);
         int y0 = (int) Math.floor(centre.y() - size.y() / 2), y1 = (int) Math.floor(centre.y() + size.y() / 2 - 1e-6);
         int z0 = (int) Math.floor(centre.z() - size.z() / 2), z1 = (int) Math.floor(centre.z() + size.z() / 2 - 1e-6);
@@ -227,14 +227,14 @@ public final class WorldMethods {
         return false;
     }
 
-    private static int nearest(LuaState s, List<Part> parts, Vec3 at) {
+    private static int nearest(LuaState s, List<Part> parts, Vector3 at) {
         Part best = null;
         double bestDistance = Double.MAX_VALUE;
         for (Part part : parts) {
             CFrame frame = Transforms.world(part);
-            Vec3 local = frame.pointToObject(at);
-            Vec3 half = part.size.mul(0.5);
-            Vec3 clamped = new Vec3(Math.clamp(local.x(), -half.x(), half.x()), Math.clamp(local.y(), -half.y(), half.y()),
+            Vector3 local = frame.pointToObject(at);
+            Vector3 half = part.size.mul(0.5);
+            Vector3 clamped = new Vector3(Math.clamp(local.x(), -half.x(), half.x()), Math.clamp(local.y(), -half.y(), half.y()),
                     Math.clamp(local.z(), -half.z(), half.z()));
             double d = local.sub(clamped).lengthSq();
             if (d < bestDistance) {

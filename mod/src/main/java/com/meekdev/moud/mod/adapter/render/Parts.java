@@ -16,7 +16,7 @@ import com.meekdev.moud.core.interp.Motion;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.client.ClientScene;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -127,7 +127,7 @@ public final class Parts {
             if (seeThrough(part)) SEE_THROUGH.add(part);
         }
         SEE_THROUGH.sort(Comparator.comparingDouble((Part part) -> {
-            Vec3 at = motion.sample(part, ctx.deltaTick()).position();
+            Vector3 at = motion.sample(part, ctx.deltaTick()).position();
             double dx = at.x() - eye.x, dy = at.y() - eye.y, dz = at.z() - eye.z;
             return dx * dx + dy * dy + dz * dz;
         }).reversed());
@@ -155,9 +155,9 @@ public final class Parts {
         if (Skins.wearsSkin(part)) return false;
 
         CFrame world = motion.sample(part, ctx.deltaTick());
-        Vec3 pos = world.position();
+        Vector3 pos = world.position();
         Quat rot = world.rotation();
-        Vec3 size = part.size;
+        Vector3 size = part.size;
 
         ROTATION.set((float) rot.x(), (float) rot.y(), (float) rot.z(), (float) rot.w());
         MATRIX.translation((float) pos.x(), (float) pos.y(), (float) pos.z())

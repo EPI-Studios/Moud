@@ -4,7 +4,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -12,8 +12,8 @@ public final class Pose {
 
     private static final double SWING = 0.6662;
 
-    private static final Vec3 RIGHT = new Vec3(1, 0, 0);
-    private static final Vec3 FORWARD = new Vec3(0, 0, 1);
+    private static final Vector3 RIGHT = new Vector3(1, 0, 0);
+    private static final Vector3 FORWARD = new Vector3(0, 0, 1);
 
     private static final PropertyDef TRANSFORM = Classes.JOINT.property("transform");
 
@@ -129,12 +129,12 @@ public final class Pose {
 
     private static CFrame root(Character character, double ageInTicks) {
         Quat r = Quat.IDENTITY;
-        Vec3 at = Vec3.ZERO;
+        Vector3 at = Vector3.ZERO;
         double pitch = Math.toDegrees(character.lookPitch);
 
         if (character.frozen) {
             double shake = Math.cos(Math.floor(ageInTicks) * 3.25) * Math.PI * 0.4;
-            r = r.mul(spin(Vec3.UP, -shake));
+            r = r.mul(spin(Vector3.UP, -shake));
         }
 
         if (character.deathTime > 0) {
@@ -142,27 +142,27 @@ public final class Pose {
                     Math.max(0, (character.deathTime - 1.0) / 20.0 * 1.6)));
             r = r.mul(spin(FORWARD, fall * 90.0));
         } else if (character.spinning) {
-            r = r.mul(spin(RIGHT, -90.0 - pitch)).mul(spin(Vec3.UP, ageInTicks * -75.0));
+            r = r.mul(spin(RIGHT, -90.0 - pitch)).mul(spin(Vector3.UP, ageInTicks * -75.0));
         } else if (character.sleeping) {
-            r = r.mul(spin(FORWARD, 90.0)).mul(spin(Vec3.UP, 270.0));
+            r = r.mul(spin(FORWARD, 90.0)).mul(spin(Vector3.UP, 270.0));
         } else if (character.upsideDown) {
-            at = new Vec3(0, character.height + 0.1, 0);
+            at = new Vector3(0, character.height + 0.1, 0);
             r = r.mul(spin(FORWARD, 180.0));
         }
 
         if (character.flying) {
             double onset = Math.min(1.0, character.flyingTime * character.flyingTime / 100.0);
             if (!character.spinning) r = r.mul(spin(RIGHT, onset * (-90.0 - pitch)));
-            r = r.mul(Quat.axisAngle(Vec3.UP, character.flyingYaw));
+            r = r.mul(Quat.axisAngle(Vector3.UP, character.flyingYaw));
         } else if (character.swimAmount > 0) {
             double target = character.inWater ? -90.0 - pitch : -90.0;
             r = r.mul(spin(RIGHT, character.swimAmount * target));
-            if (character.crawling) at = at.add(new Vec3(0, -1, 0.3));
+            if (character.crawling) at = at.add(new Vector3(0, -1, 0.3));
         }
         return new CFrame(at, r);
     }
 
-    private static Quat spin(Vec3 axis, double degrees) {
+    private static Quat spin(Vector3 axis, double degrees) {
         return Quat.axisAngle(axis, Math.toRadians(degrees));
     }
 
@@ -421,19 +421,19 @@ public final class Pose {
         double roll = Math.toRadians(cape.sway / 2.0);
         double swing = Math.toRadians(180.0 - cape.sway / 2.0);
 
-        Quat rotation = Quat.axisAngle(Vec3.UP, Math.PI)
+        Quat rotation = Quat.axisAngle(Vector3.UP, Math.PI)
                 .mul(Quat.axisAngle(RIGHT, -tilt))
                 .mul(Quat.axisAngle(FORWARD, roll))
-                .mul(Quat.axisAngle(Vec3.UP, -swing));
-        Instances.setObj(hinge, TRANSFORM, new CFrame(Vec3.ZERO, rotation));
+                .mul(Quat.axisAngle(Vector3.UP, -swing));
+        Instances.setObj(hinge, TRANSFORM, new CFrame(Vector3.ZERO, rotation));
     }
 
     private static void turn(Character character, String name, Turn limb, double scale) {
         if (!(Rig.joint(character, name) instanceof Joint hinge)) return;
         Quat rotation = Quat.axisAngle(FORWARD, limb.z)
-                .mul(Quat.axisAngle(Vec3.UP, -limb.y))
+                .mul(Quat.axisAngle(Vector3.UP, -limb.y))
                 .mul(Quat.axisAngle(RIGHT, -limb.x));
-        Vec3 at = Rig.offset(limb.atX, limb.atY, limb.atZ).mul(scale);
+        Vector3 at = Rig.offset(limb.atX, limb.atY, limb.atZ).mul(scale);
         Instances.setObj(hinge, TRANSFORM, new CFrame(at, rotation));
     }
 

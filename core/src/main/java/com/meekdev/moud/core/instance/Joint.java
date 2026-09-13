@@ -3,7 +3,7 @@ package com.meekdev.moud.core.instance;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.math.CFrame;
-import com.meekdev.moud.core.math.Vec3;
+import com.meekdev.moud.core.math.Vector3;
 
 public class Joint extends Instance {
 
@@ -17,7 +17,7 @@ public class Joint extends Instance {
 
     public CFrame transform = CFrame.IDENTITY;
 
-    public Vec3 scale = Vec3.ONE;
+    public Vector3 scale = Vector3.ONE;
 
     @Override
     protected void compose() {
