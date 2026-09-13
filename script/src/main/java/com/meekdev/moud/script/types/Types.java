@@ -49,6 +49,16 @@ public final class Types {
                     function __sub(self, other: Vector3): Vector3
                     function __mul(self, scale: number): Vector3
                     function __unm(self): Vector3
+                    function distance(self, other: Vector3): number
+                    function distanceSq(self, other: Vector3): number
+                    function dot(self, other: Vector3): number
+                    function cross(self, other: Vector3): Vector3
+                    function lerp(self, other: Vector3, t: number): Vector3
+                    function angleTo(self, other: Vector3): number
+                    function flat(self): Vector3
+                    function clampMagnitude(self, max: number): Vector3
+                    function abs(self): Vector3
+                    function floor(self): Vector3
                 end
 
                 declare class UDim2
@@ -72,6 +82,10 @@ public final class Types {
                     y: number
                     z: number
                     w: number
+                    function slerp(self, other: Quat, t: number): Quat
+                    function inverse(self): Quat
+                    function rotate(self, v: Vector3): Vector3
+                    function mul(self, other: Quat): Quat
                 end
 
                 declare class CFrame
@@ -81,6 +95,15 @@ public final class Types {
                     rightVector: Vector3
                     upVector: Vector3
                     function __mul(self, other: CFrame): CFrame
+                    function inverse(self): CFrame
+                    function lerp(self, other: CFrame, t: number): CFrame
+                    function toObjectSpace(self, other: CFrame): CFrame
+                    function toWorldSpace(self, other: CFrame): CFrame
+                    function pointToObjectSpace(self, point: Vector3): Vector3
+                    function pointToWorldSpace(self, point: Vector3): Vector3
+                    function vectorToObjectSpace(self, v: Vector3): Vector3
+                    function vectorToWorldSpace(self, v: Vector3): Vector3
+                    function lookAt(self, target: Vector3): CFrame
                 end
 
                 declare class Connection
@@ -424,6 +447,33 @@ public final class Types {
                     encode: (instances: any) -> string,
                     decode: (text: string, parent: Instance?) -> { Instance },
                 }
+                declare quat: {
+                    identity: Quat,
+                    axisAngle: (axis: Vector3, radians: number) -> Quat,
+                    euler: (x: number, y: number, z: number) -> Quat,
+                    lookAt: (forward: Vector3, up: Vector3?) -> Quat,
+                    fromTo: (from: Vector3, to: Vector3) -> Quat,
+                }
+
+                declare angle: {
+                    wrap: (a: number) -> number,
+                    delta: (a: number, b: number) -> number,
+                    lerp: (a: number, b: number, t: number) -> number,
+                }
+
+                declare random: {
+                    range: (min: number, max: number) -> number,
+                    int: (min: number, max: number) -> number,
+                    chance: (probability: number) -> boolean,
+                    pick: <T>(list: { T }) -> T?,
+                    shuffle: <T>(list: { T }) -> { T },
+                    unit: () -> Vector3,
+                    onSphere: (radius: number) -> Vector3,
+                    inSphere: (radius: number) -> Vector3,
+                    inCircle: (radius: number) -> Vector3,
+                    inBox: (size: Vector3) -> Vector3,
+                }
+
                 declare function vec3(x: number, y: number, z: number): Vector3
                 declare function color(r: number, g: number, b: number, a: number?): Color
 

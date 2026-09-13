@@ -6,6 +6,9 @@ import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vec3;
 import net.hollowcube.luau.LuaFunc;
+import net.hollowcube.luau.LuaType;
+import java.util.function.ToIntFunction;
+import java.util.Map;
 import net.hollowcube.luau.LuaState;
 
 // values are immutable userdata, which is what stops a place aliasing a part's size and mutating it
@@ -131,6 +134,112 @@ public final class Values {
         state.rawSetField(-2, "__call");
         state.setMetaTable(-2);
         state.setGlobal("udim2");
+
+        methods(state, VEC3_METHODS, Map.of(
+                "distance", st -> number(st, vec3(st, 1).distance(vec3(st, 2))),
+                "distanceSq", st -> number(st, vec3(st, 1).sub(vec3(st, 2)).lengthSq()),
+                "dot", st -> number(st, vec3(st, 1).dot(vec3(st, 2))),
+                "cross", st -> one(st, vec3(st, 1).cross(vec3(st, 2))),
+                "lerp", st -> one(st, vec3(st, 1).lerp(vec3(st, 2), st.checkNumber(3))),
+                "angleTo", st -> number(st, angle(vec3(st, 1), vec3(st, 2))),
+                "flat", st -> one(st, new Vec3(vec3(st, 1).x(), 0, vec3(st, 1).z())),
+                "clampMagnitude", st -> {
+                    Vec3 v = vec3(st, 1);
+                    double max = st.checkNumber(2);
+                    return one(st, v.lengthSq() > max * max ? v.normalize().mul(max) : v);
+                },
+                "abs", st -> one(st, new Vec3(Math.abs(vec3(st, 1).x()), Math.abs(vec3(st, 1).y()), Math.abs(vec3(st, 1).z()))),
+                "floor", st -> one(st, new Vec3(Math.floor(vec3(st, 1).x()), Math.floor(vec3(st, 1).y()), Math.floor(vec3(st, 1).z())))));
+        methods(state, CFRAME_METHODS, Map.of(
+                "inverse", st -> one(st, cframe(st, 1).inverse()),
+                "lerp", st -> one(st, cframe(st, 1).lerp(cframe(st, 2), st.checkNumber(3))),
+                "toObjectSpace", st -> one(st, cframe(st, 1).inverse().mul(cframe(st, 2))),
+                "toWorldSpace", st -> one(st, cframe(st, 1).mul(cframe(st, 2))),
+                "pointToObjectSpace", st -> one(st, cframe(st, 1).pointToObject(vec3(st, 2))),
+                "pointToWorldSpace", st -> one(st, cframe(st, 1).pointToWorld(vec3(st, 2))),
+                "vectorToObjectSpace", st -> one(st, cframe(st, 1).vectorToObject(vec3(st, 2))),
+                "vectorToWorldSpace", st -> one(st, cframe(st, 1).vectorToWorld(vec3(st, 2))),
+                "lookAt", st -> one(st, new CFrame(cframe(st, 1).position(),
+                        Quat.lookAt(vec3(st, 2).sub(cframe(st, 1).position()), Vec3.UP)))));
+        methods(state, QUAT_METHODS, Map.of(
+                "slerp", st -> one(st, quat(st, 1).slerp(quat(st, 2), st.checkNumber(3))),
+                "inverse", st -> one(st, quat(st, 1).inverse()),
+                "rotate", st -> one(st, quat(st, 1).rotate(vec3(st, 2))),
+                "mul", st -> one(st, quat(st, 1).mul(quat(st, 2)))));
+
+        // quat.identity, quat.axisAngle, quat.euler, quat.lookAt and quat.fromTo
+        state.newTable();
+        push(state, Quat.IDENTITY);
+        state.rawSetField(-2, "identity");
+        state.pushFunction(LuaFunc.wrap(st -> one(st, Quat.axisAngle(vec3(st, 1).normalize(), st.checkNumber(2))), "quat.axisAngle"));
+        state.rawSetField(-2, "axisAngle");
+        state.pushFunction(LuaFunc.wrap(st -> one(st, Quat.euler(st.checkNumber(1), st.checkNumber(2), st.checkNumber(3))), "quat.euler"));
+        state.rawSetField(-2, "euler");
+        state.pushFunction(LuaFunc.wrap(st -> one(st, Quat.lookAt(vec3(st, 1), st.isNoneOrNil(2) ? Vec3.UP : vec3(st, 2))), "quat.lookAt"));
+        state.rawSetField(-2, "lookAt");
+        state.pushFunction(LuaFunc.wrap(st -> one(st, fromTo(vec3(st, 1), vec3(st, 2))), "quat.fromTo"));
+        state.rawSetField(-2, "fromTo");
+        state.setGlobal("quat");
+    }
+
+    private static final String VEC3_METHODS = "moud.vec3.methods";
+    private static final String CFRAME_METHODS = "moud.cframe.methods";
+    private static final String QUAT_METHODS = "moud.quat.methods";
+
+    private static void methods(LuaState state, String key, Map<String, ToIntFunction<LuaState>> methods) {
+        state.newTable();
+        for (Map.Entry<String, ToIntFunction<LuaState>> entry : methods.entrySet()) {
+            state.pushFunction(LuaFunc.wrap(entry.getValue()::applyAsInt, key + ":" + entry.getKey()));
+            state.rawSetField(-2, entry.getKey());
+        }
+        state.rawSetField(LuaState.REGISTRY_INDEX, key);
+    }
+
+    // pushes the method of that name, or nothing when there is none
+    private static boolean method(LuaState state, String table, String name) {
+        state.rawGetField(LuaState.REGISTRY_INDEX, table);
+        if (state.rawGetField(-1, name) == LuaType.NIL) {
+            state.pop(2);
+            return false;
+        }
+        state.remove(-2);
+        return true;
+    }
+
+    private static int number(LuaState state, double value) {
+        state.pushNumber(value);
+        return 1;
+    }
+
+    private static int one(LuaState state, Object value) {
+        push(state, value);
+        return 1;
+    }
+
+    private static double angle(Vec3 a, Vec3 b) {
+        double lengths = a.length() * b.length();
+        return lengths < 1e-12 ? 0 : Math.acos(Math.clamp(a.dot(b) / lengths, -1, 1));
+    }
+
+    // the shortest turn that takes one direction to another
+    static Quat fromTo(Vec3 from, Vec3 to) {
+        Vec3 a = from.normalize();
+        Vec3 b = to.normalize();
+        double dot = a.dot(b);
+        if (dot > 1 - 1e-9) return Quat.IDENTITY;
+        if (dot < -1 + 1e-9) {
+            Vec3 axis = Vec3.RIGHT.cross(a);
+            if (axis.lengthSq() < 1e-9) axis = Vec3.UP.cross(a);
+            return Quat.axisAngle(axis.normalize(), Math.PI);
+        }
+        Vec3 axis = a.cross(b);
+        return new Quat(axis.x(), axis.y(), axis.z(), 1 + dot).normalize();
+    }
+
+    static Quat quat(LuaState state, int index) {
+        Object value = state.toUserDataTagged(index, QUAT);
+        if (value == null) throw state.error("expected a quat");
+        return (Quat) value;
     }
 
     public static void push(LuaState state, UDim2 u) {
@@ -238,7 +347,9 @@ public final class Values {
             case "z" -> state.pushNumber(v.z());
             case "magnitude" -> state.pushNumber(v.length());
             case "unit" -> push(state, v.normalize());
-            default -> throw state.error("vec3 has no member '%s'", state.checkString(2));
+            default -> {
+                if (!method(state, VEC3_METHODS, state.checkString(2))) throw state.error("vec3 has no member '%s'", state.checkString(2));
+            }
         }
         return 1;
     }
@@ -311,7 +422,9 @@ public final class Values {
             case "lookVector" -> push(state, c.lookVector());
             case "rightVector" -> push(state, c.rightVector());
             case "upVector" -> push(state, c.upVector());
-            default -> throw state.error("cframe has no member '%s'", state.checkString(2));
+            default -> {
+                if (!method(state, CFRAME_METHODS, state.checkString(2))) throw state.error("cframe has no member '%s'", state.checkString(2));
+            }
         }
         return 1;
     }
@@ -341,7 +454,9 @@ public final class Values {
             case "y" -> state.pushNumber(q.y());
             case "z" -> state.pushNumber(q.z());
             case "w" -> state.pushNumber(q.w());
-            default -> throw state.error("quat has no member '%s'", state.checkString(2));
+            default -> {
+                if (!method(state, QUAT_METHODS, state.checkString(2))) throw state.error("quat has no member '%s'", state.checkString(2));
+            }
         }
         return 1;
     }
