@@ -11,11 +11,7 @@ public interface PlayerRef {
 
     void spawn(Vector3 position);
 
-    default double ping() {
-        return 0;
-    }
+    double ping();
 
-    default double viewTime() {
-        return 0;
-    }
+    double viewTime();
 }

@@ -4,9 +4,7 @@ import java.util.List;
 
 public interface PostRef {
 
-    default String me() {
-        return "";
-    }
+    String me();
 
     void toServer(int remote, List<Object> args, boolean reliable);
 

@@ -17,9 +17,7 @@ public interface BlockRef {
 
     boolean writable();
 
-    default Hit raycast(Vector3 from, Vector3 direction, double range, boolean fluids) {
-        return raycast(from, direction, range);
-    }
+    Hit raycast(Vector3 from, Vector3 direction, double range, boolean fluids);
 
     default String id(int x, int y, int z) {
         String full = get(x, y, z);
@@ -41,9 +39,7 @@ public interface BlockRef {
         return id.equals("minecraft:water") || id.equals("minecraft:lava");
     }
 
-    default int light(int x, int y, int z) {
-        return 15;
-    }
+    int light(int x, int y, int z);
 
     default int top(int x, int z) {
         for (int y = 319; y >= -64; y--) {
@@ -52,11 +48,9 @@ public interface BlockRef {
         return -64;
     }
 
-    default String rotate(String block, int quarterTurns) {
-        return block;
-    }
+    String rotate(String block, int quarterTurns);
 
     record Change(int x, int y, int z, String block) {}
 
-    default void drainChanges(Consumer<Change> out) {}
+    void drainChanges(Consumer<Change> out);
 }
