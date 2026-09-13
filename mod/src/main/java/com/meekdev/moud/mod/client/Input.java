@@ -30,6 +30,7 @@ public final class Input implements InputRef {
     public static void register() {
         pointer = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.moud.pointer",
                 InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_LEFT_ALT, MOUD));
+        CollisionView.register(MOUD);
     }
 
     private final Map<String, Supplier<KeyMapping>> actions = new LinkedHashMap<>();

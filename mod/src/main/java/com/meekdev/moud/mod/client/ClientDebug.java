@@ -93,6 +93,10 @@ public final class ClientDebug implements DebugRef {
         watched.put(name, value);
     }
 
+    public void unwatch(String name) {
+        watched.remove(name);
+    }
+
     @Override
     public void clear() {
         shapes.clear();

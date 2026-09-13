@@ -54,6 +54,7 @@ public final class MoudClient implements ClientModInitializer {
             ClientChat.INSTANCE.tick();
             ClientPrompts.tick(0.05);
             ClientPlace.tick();
+            CollisionView.tick();
         });
         // the place itself is stepped earlier, from GameRenderer.update, because the camera it
         // writes has to exist before the world is culled against it. what is left here is the

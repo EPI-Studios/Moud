@@ -10,6 +10,7 @@ import com.meekdev.moud.core.instance.CollisionGroups;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Part;
+import com.meekdev.moud.core.instance.SpatialIndex;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Aabb;
 import com.meekdev.moud.core.math.CFrame;
@@ -117,7 +118,9 @@ public final class Colliders {
             return grid.remove(part);
         }
         CFrame world = Transforms.world(part);
-        return grid.put(part, Aabb.around(world.position(), part.size));
+        // the box around the part as it is turned. the size alone is the box of a part that is not, and a
+        // ramp turned a quarter about up collided along the wrong axis
+        return grid.put(part, SpatialIndex.bounds(world, part.size));
     }
 
     private boolean removeById(int id) {

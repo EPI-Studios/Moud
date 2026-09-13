@@ -18,6 +18,8 @@ import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vec3;
 import com.meekdev.moud.mod.client.ClientScene;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import net.minecraft.resources.Identifier;
 import com.mojang.blaze3d.opengl.GlTexture;
@@ -34,6 +36,9 @@ public final class Parts {
     // still parts are emitted once and reused; only what moves is repacked every frame
     private static final Identifier STILL = Identifier.fromNamespaceAndPath("moud", "parts_still");
     private static final Identifier MOVING = Identifier.fromNamespaceAndPath("moud", "parts_moving");
+    // see through parts, drawn after everything solid, furthest first, and never into the depth buffer:
+    // one that wrote depth hid whatever was drawn behind it after it, which was most of the world
+    private static final Identifier GLASS = Identifier.fromNamespaceAndPath("moud", "parts_glass");
 
     // batch.add packs straight into its buffer and keeps no reference, so these are reused
     private static final Matrix4f MATRIX = new Matrix4f();
@@ -59,6 +64,23 @@ public final class Parts {
         // it is drawn whole instead, which is what a static instanced batch is for
         mesh(STILL).staticInstances().onRender(Parts::still).register(STILL);
         mesh(MOVING).onRender(Parts::moving).register(MOVING);
+        InstancedMesh.<Lit>builder(LAYOUT,
+                        (inst, p) -> p.putMat4(inst.transform()).putVec4(inst.color())
+                                .putVec2(inst.light().x, inst.light().y))
+                .shader(Identifier.fromNamespaceAndPath("moud", "instance/part"))
+                .extraSampler("LightMap", Parts::lightMap, 1)
+                .geometry(MeshData.unitCube())
+                // both sides, so standing inside a tinted box still tints the view
+                .renderState(RenderState.builder()
+                        .blend(RenderState.BlendMode.ALPHA)
+                        .depthWrite(false)
+                        .backfaceCulling(false)
+                        .build())
+                .phase(InstancePhase.WORLD_TRANSLUCENT)
+                .writeGBuffer(false)
+                .worldSpace()
+                .onRender(Parts::glass)
+                .register(GLASS);
     }
 
     // one entry per part: its transform, the colour the place asked for, and where it sits in the
@@ -88,12 +110,8 @@ public final class Parts {
                 .shader(Identifier.fromNamespaceAndPath("moud", "instance/part"))
                 .extraSampler("LightMap", Parts::lightMap, 1)
                 .geometry(MeshData.unitCube())
-                // alpha blended, still writing depth. a part at full opacity blends to exactly
-                // itself, so this costs nothing until something asks to be see through -- and
-                // without it transparency was a property that read back and changed nothing
-                .renderState(RenderState.builder()
-                        .blend(RenderState.BlendMode.ALPHA)
-                        .build())
+                // solid only: a see through part goes to the glass batch
+                .renderState(RenderState.DEFAULT)
                 .phase(InstancePhase.WORLD_LAST)
                 .writeGBuffer(true)
                 // absolute positions, because the still batch is uploaded once and a camera
@@ -110,23 +128,48 @@ public final class Parts {
         int emitted = 0;
         for (int n = 0; n < parts.size(); n++) {
             Part part = parts.get(n);
-            if (!motion.isMoving(part) && write(ctx, batch, motion, part, false)) emitted++;
+            if (!motion.isMoving(part) && write(ctx, batch, motion, part, false, false)) emitted++;
         }
         stillCount = emitted;
+    }
+
+    private static final List<Part> SEE_THROUGH = new ArrayList<>();
+
+    private static void glass(InstanceRenderContext ctx, InstanceBatch<Lit> batch) {
+        InstanceTree tree = ClientScene.tree();
+        if (tree == null) return;
+        Motion motion = ClientScene.motion();
+        var eye = ctx.cameraPos();
+        SEE_THROUGH.clear();
+        for (Part part : tree.ofClass(Classes.PART)) {
+            if (seeThrough(part)) SEE_THROUGH.add(part);
+        }
+        // blending is order dependent: the far ones first, so a near one is laid over them
+        SEE_THROUGH.sort(Comparator.comparingDouble((Part part) -> {
+            Vec3 at = motion.sample(part, ctx.deltaTick()).position();
+            double dx = at.x() - eye.x, dy = at.y() - eye.y, dz = at.z() - eye.z;
+            return dx * dx + dy * dy + dz * dz;
+        }).reversed());
+        for (Part part : SEE_THROUGH) write(ctx, batch, motion, part, true, true);
+    }
+
+    private static boolean seeThrough(Part part) {
+        return part.transparency > 0.001 && part.transparency < 1.0;
     }
 
     private static void moving(InstanceRenderContext ctx, InstanceBatch<Lit> batch) {
         Motion motion = ClientScene.motion();
         int emitted = 0;
         for (Instance instance : motion.moving()) {
-            if (instance instanceof Part part && write(ctx, batch, motion, part, true)) emitted++;
+            if (instance instanceof Part part && write(ctx, batch, motion, part, true, false)) emitted++;
         }
         movingCount = emitted;
     }
 
     private static boolean write(InstanceRenderContext ctx, InstanceBatch<Lit> batch,
-            Motion motion, Part part, boolean cull) {
+            Motion motion, Part part, boolean cull, boolean glass) {
         if (!part.visible || part.transparency >= 1.0) return false;
+        if (seeThrough(part) != glass) return false;
         // a mesh part is drawn as its model, by the mesh renderer, and not as a box as well
         if (part instanceof MeshPart) return false;
         // a body wearing a skin is drawn by the batch that holds that skin. drawing it here too
