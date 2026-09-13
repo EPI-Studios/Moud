@@ -62,6 +62,7 @@ import com.meekdev.moud.core.instance.OutlineEffect;
 import com.meekdev.moud.core.instance.TonemapEffect;
 import com.meekdev.moud.core.instance.PostShader;
 import com.meekdev.moud.core.instance.Light;
+import com.meekdev.moud.core.instance.Zone;
 import com.meekdev.moud.core.instance.PointLight;
 import com.meekdev.moud.core.instance.SpotLight;
 import com.meekdev.moud.core.instance.TubeLight;
@@ -147,6 +148,8 @@ public final class Classes {
             ClassDef.of("TonemapEffect", SCREEN_EFFECT, TonemapEffect.class, TonemapEffect::new);
     public static final ClassDef<PostShader> POST_SHADER =
             ClassDef.of("PostShader", SCREEN_EFFECT, PostShader.class, PostShader::new);
+
+    public static final ClassDef<Zone> ZONE = ClassDef.of("Zone", SPATIAL, Zone.class, Zone::new);
 
     public static final ClassDef<Light> LIGHT = ClassDef.of("Light", SPATIAL, Light.class, Light::new);
     public static final ClassDef<PointLight> POINT_LIGHT =
@@ -281,6 +284,7 @@ public final class Classes {
         r.register(OUTLINE_EFFECT);
         r.register(TONEMAP_EFFECT);
         r.register(POST_SHADER);
+        r.register(ZONE);
         r.register(LIGHT);
         r.register(POINT_LIGHT);
         r.register(SPOT_LIGHT);

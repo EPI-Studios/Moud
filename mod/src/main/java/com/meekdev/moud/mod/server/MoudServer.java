@@ -6,6 +6,7 @@ import com.meekdev.moud.mod.transport.Broadcast;
 import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.core.instance.Character;
+import com.meekdev.moud.core.instance.Zones;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Humanoids;
@@ -86,6 +87,8 @@ public final class MoudServer {
         Stages.run(ServerScene.tree(), Stage.COMPOSE, 0);
         // once every frame of the tick has settled, so a touch is between where things really are
         Touches.step(ServerScene.tree());
+        Zones.step(ServerScene.tree(), Addons.classes(), System.nanoTime() / 1e9);
+        ServerChat.INSTANCE.zones(ServerScene.tree());
         Broadcast.tick(server, change -> {
             Physics.apply(ServerScene.tree(), change, server);
             ServerHistory.INSTANCE.note(ServerScene.tree(), change);

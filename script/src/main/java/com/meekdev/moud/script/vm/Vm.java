@@ -25,6 +25,7 @@ import com.meekdev.moud.script.bind.Players;
 import com.meekdev.moud.script.bind.Proxies;
 import com.meekdev.moud.script.bind.BodyMethods;
 import com.meekdev.moud.script.bind.WorldMethods;
+import com.meekdev.moud.script.bind.ZoneMethods;
 import com.meekdev.moud.script.bind.Callbacks;
 import com.meekdev.moud.script.bind.Chat;
 import com.meekdev.moud.script.bind.History;
@@ -103,6 +104,7 @@ public final class Vm implements ScriptEngine {
         WorldMethods.install(state);
         TweenMethods.install(state, tweens, e -> onError.accept(e));
         game.install(state, world);
+        ZoneMethods.install(state, world);
         tags = new Tags(state, world.tree(), e -> onError.accept(e));
         tags.install();
         scheduler.install(state);

@@ -9,6 +9,7 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.TextChannel;
 import com.meekdev.moud.core.instance.TextSource;
+import com.meekdev.moud.core.instance.Zone;
 import com.meekdev.moud.core.text.RichText;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.place.Place;
@@ -74,7 +75,37 @@ public final class ServerChat implements ChatRef {
     private final Set<String> leftOut = new HashSet<>();
     private long nextId = 1;
 
+    // the players each zone put in its channel, so leaving the zone takes them out again
+    private final Map<Zone, Set<String>> zoned = new HashMap<>();
+
     private ServerChat() {}
+
+    public void zones(InstanceTree tree) {
+        MinecraftServer server = ServerScene.server();
+        if (tree == null || server == null) return;
+        zoned.keySet().removeIf(zone -> !zone.isAlive());
+        for (Zone zone : tree.ofClass(Classes.ZONE)) {
+            Set<String> added = zoned.computeIfAbsent(zone, key -> new HashSet<>());
+            Set<String> inside = new HashSet<>();
+            if (zone.textChannel instanceof TextChannel channel) {
+                for (Instance occupant : zone.occupants()) {
+                    if (!(occupant instanceof Character body) || !body.worn()) continue;
+                    inside.add(body.owner);
+                    ServerPlayer player = playerOf(server, body.owner);
+                    if (player != null && sourceOf(channel, body.owner) == null) {
+                        join(channel, player);
+                        added.add(body.owner);
+                    }
+                }
+                for (String player : new ArrayList<>(added)) {
+                    if (inside.contains(player)) continue;
+                    TextSource source = sourceOf(channel, player);
+                    if (source != null) Instances.destroy(source);
+                    added.remove(player);
+                }
+            }
+        }
+    }
 
     public static void listen() {
         ServerPlayNetworking.registerGlobalReceiver(Packets.ChatUp.TYPE, (payload, context) ->

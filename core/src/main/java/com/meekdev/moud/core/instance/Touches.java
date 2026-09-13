@@ -26,29 +26,23 @@ public final class Touches {
     }
 
     private void run(InstanceTree tree) {
-        List<Part> candidates = new ArrayList<>();
         List<Part> listening = new ArrayList<>();
         for (Part part : tree.ofClass(Classes.PART)) {
-            if (!takesPart(part)) continue;
-            candidates.add(part);
-            if (part.touched.count() > 0 || part.touchEnded.count() > 0) listening.add(part);
+            if (takesPart(part) && (part.touched.count() > 0 || part.touchEnded.count() > 0)) listening.add(part);
         }
+        if (listening.isEmpty() && touching.isEmpty()) return;
 
-        // each box once per tick: a world frame is its whole parent chain composed
-        Map<Part, Queries.Box> boxes = new HashMap<>();
-        for (Part part : candidates) boxes.put(part, Queries.Box.of(part));
-
+        // only the parts near each listener, from the tree's index, rather than every part in the place
         Map<Part, Set<Part>> next = new HashMap<>();
+        List<Part> near = new ArrayList<>();
         for (Part part : listening) {
-            Queries.Box box = boxes.get(part);
+            Queries.Box box = Queries.Box.of(part);
+            near.clear();
+            tree.spatial().candidates(SpatialIndex.bounds(Transforms.world(part), part.size).grow(MARGIN), near);
             Set<Part> now = new HashSet<>();
-            for (Part other : candidates) {
-                if (other == part || Queries.isUnder(other, part) || Queries.isUnder(part, other)) continue;
-                Queries.Box against = boxes.get(other);
-                // far apart is most of them, and a distance between centres answers that for free
-                double reach = box.half().length() + against.half().length() + MARGIN;
-                if (box.centre().sub(against.centre()).lengthSq() > reach * reach) continue;
-                if (Queries.overlap(box, against, MARGIN)) now.add(other);
+            for (Part other : near) {
+                if (other == part || !takesPart(other) || Queries.isUnder(other, part) || Queries.isUnder(part, other)) continue;
+                if (Queries.overlap(box, Queries.Box.of(other), MARGIN)) now.add(other);
             }
             next.put(part, now);
         }

@@ -296,8 +296,13 @@ public final class Types {
                     function rewind<T...>(self, time: number, query: () -> T...): T...
                 end
 
+                declare class Zones
+                    function at(self, position: Vector3): { Instance }
+                end
+
                 declare class Game
                     world: Instance
+                    zones: Zones
                     history: History
                     players: Players
                     tags: Tags
@@ -496,6 +501,11 @@ public final class Types {
                         function contains(self, position: Vector3): boolean
                         function bounds(self): (CFrame, Vector3)
                         function worldBounds(self): (Vector3, Vector3)
+                    """;
+            case "Zone" -> """
+                        function players(self): { Instance }
+                        function occupants(self): { Instance }
+                        function contains(self, position: Vector3): boolean
                     """;
             case "Sound" -> """
                         function play(self): ()
