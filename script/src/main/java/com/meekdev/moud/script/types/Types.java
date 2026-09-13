@@ -120,6 +120,17 @@ public final class Types {
                 """);
 
         out.append("""
+                type TweenInfo = { time: number?, easing: string?, direction: string?, repeats: number?,
+                    reverses: boolean?, delay: number? }
+
+                declare class Tween
+                    completed: StepSignal
+                    function pause(self): ()
+                    function resume(self): ()
+                    function cancel(self): ()
+                    function state(self): string
+                end
+
                 type QueryOptions = { exclude: { Instance }?, include: { Instance }?, respectCollides: boolean?,
                     ignoreBlocks: boolean? }
 
@@ -147,6 +158,7 @@ public final class Types {
                     function removeTag(self, tag: string): ()
                     function hasTag(self, tag: string): boolean
                     function getTags(self): { string }
+                    function tween(self, goals: { [string]: any }, info: TweenInfo?): Tween
                     function fireServer(self, ...: any): ()
                     function fireClient(self, to: Instance, ...: any): ()
                     function fireAllClients(self, ...: any): ()

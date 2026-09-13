@@ -25,6 +25,10 @@ import com.meekdev.moud.script.bind.Tags;
 import com.meekdev.moud.script.reload.Persist;
 import com.meekdev.moud.script.sched.Ownership;
 import com.meekdev.moud.script.sched.Scheduler;
+import com.meekdev.moud.core.tween.Tween;
+import com.meekdev.moud.script.bind.TweenMethods;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import com.meekdev.moud.script.bind.Values;
@@ -59,6 +63,7 @@ public final class Vm implements ScriptEngine {
     private AudioRef audio;
     private Tags tags;
     private ScriptInstances scripts;
+    private final List<Tween> tweens = new ArrayList<>();
     private ModuleSource modules;
     private boolean client;
     private final Signals.Handlers beat = new Signals.Handlers();
@@ -82,6 +87,7 @@ public final class Vm implements ScriptEngine {
         InstanceSignals.install(state, e -> onError.accept(e));
         Proxies.install(state, registry);
         SoundMethods.install(state);
+        TweenMethods.install(state, tweens, e -> onError.accept(e));
         game.install(state, world);
         tags = new Tags(state, world.tree(), e -> onError.accept(e));
         tags.install();
@@ -191,6 +197,19 @@ public final class Vm implements ScriptEngine {
 
     // Script instances on a server vm and LocalScript ones on a client, started and stopped as the tree
     // changes. asked for once the vm knows its side and where modules come from
+    private void stepTweens(double dt) {
+        if (tweens.isEmpty()) return;
+        // stepped from a copy, because a completed handler may start another tween
+        for (Tween tween : new ArrayList<>(tweens)) {
+            try {
+                if (!tween.step(dt)) tweens.remove(tween);
+            } catch (RuntimeException e) {
+                tweens.remove(tween);
+                onError.accept(new ScriptError("tween", e.getMessage(), e));
+            }
+        }
+    }
+
     @Override
     public void runScripts() {
         scripts = new ScriptInstances(state, scheduler, modules == null ? path -> null : modules, client,
@@ -200,12 +219,15 @@ public final class Vm implements ScriptEngine {
 
     public void step(double dt) {
         if (scripts != null) scripts.poll(world.tree());
+        if (!client) stepTweens(dt);
         scheduler.advance(dt);
         fire(game.stepped(), dt);
     }
 
     public void renderStep(double dt) {
         if (scripts != null && client) scripts.poll(world.tree());
+        // per frame on a client, so a tween is as smooth as the screen
+        if (client) stepTweens(dt);
         if (audio != null) audio.drainBeats(n -> fire(beat, n), n -> fire(bar, n));
         fire(game.renderStepped(), dt);
     }

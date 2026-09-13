@@ -135,6 +135,15 @@ public final class Proxies {
         state.rawSetField(-2, name);
     }
 
+    // a method every instance has, added after install by a binding that lives elsewhere
+    static void extraMethod(LuaState state, String name, ToIntFunction<LuaState> body) {
+        NAMES.add(name);
+        state.rawGetField(LuaState.REGISTRY_INDEX, METHODS);
+        state.pushFunction(LuaFunc.wrap(body, "Instance:" + name));
+        state.rawSetField(-2, name);
+        state.pop(1);
+    }
+
     public static Set<String> methodNames() {
         return Collections.unmodifiableSet(NAMES);
     }
@@ -540,17 +549,32 @@ public final class Proxies {
 
     private static void write(LuaState state, Instance instance, PropertyDef property, int value) {
         allowed(state, instance, property);
+        Object parsed = parse(state, property, value);
         switch (property.type()) {
-            case BOOL -> Instances.setBool(instance, property, state.toBoolean(value));
-            case INT, NUM -> Instances.setNum(instance, property, state.checkNumber(value));
-            case STRING -> Instances.setObj(instance, property, state.checkString(value));
-            case VEC3 -> Instances.setObj(instance, property, Values.vec3(state, value));
-            case COLOR -> Instances.setObj(instance, property, Values.color(state, value));
-            case UDIM2 -> Instances.setObj(instance, property, Values.udim2(state, value));
-            case CFRAME -> Instances.setObj(instance, property, Values.cframe(state, value));
-            case ENUM -> Instances.setObj(instance, property, enumOf(state, property, value));
-            case REF -> Instances.setObj(instance, property, refOf(state, property, value));
-            default -> throw state.error("%s is not a value luau can write yet", property.name());
+            case BOOL -> Instances.setBool(instance, property, (Boolean) parsed);
+            case INT, NUM -> Instances.setNum(instance, property, (Double) parsed);
+            default -> Instances.setObj(instance, property, parsed);
         }
+    }
+
+    // a luau value as what the property holds, without writing it anywhere
+    static Object parse(LuaState state, PropertyDef property, int value) {
+        return switch (property.type()) {
+            case BOOL -> state.toBoolean(value);
+            case INT, NUM -> state.checkNumber(value);
+            case STRING, ASSET -> state.checkString(value);
+            case VEC3 -> Values.vec3(state, value);
+            case COLOR -> Values.color(state, value);
+            case UDIM2 -> Values.udim2(state, value);
+            case CFRAME -> Values.cframe(state, value);
+            case ENUM -> enumOf(state, property, value);
+            case REF -> refOf(state, property, value);
+            default -> throw state.error("%s is not a value luau can write yet", property.name());
+        };
+    }
+
+    // the check a luau write makes, for anything else that writes on a place's behalf
+    static void checkWrite(LuaState state, Instance instance, PropertyDef property) {
+        allowed(state, instance, property);
     }
 }
