@@ -27,6 +27,24 @@ public final class Signals {
         state.rawSetField(-2, "connect");
         state.rawSetField(LuaState.REGISTRY_INDEX, METHODS);
 
+        // a luau file adds the signal methods that wait or count
+        state.pushFunction(LuaFunc.wrap(s -> {
+            String name = s.checkString(1);
+            s.rawGetField(LuaState.REGISTRY_INDEX, METHODS);
+            s.pushValue(2);
+            s.rawSetField(-2, name);
+            s.pop(1);
+            return 0;
+        }, "__moud_signal_method"));
+        state.setGlobal("__moud_signal_method");
+
+        // seconds on a steady clock, for measuring how long something took
+        state.pushFunction(LuaFunc.wrap(s -> {
+            s.pushNumber(System.nanoTime() / 1e9);
+            return 1;
+        }, "clock"));
+        state.setGlobal("clock");
+
         state.newTable();
         state.pushFunction(LuaFunc.wrap(Signals::disconnect, "Connection:disconnect"));
         state.rawSetField(-2, "disconnect");

@@ -112,22 +112,37 @@ public final class Types {
 
                 declare class ChangedSignal
                     function connect(self, handler: (property: string) -> ()): Connection
+                    function once(self, handler: (...any) -> ()): Connection
+                    function wait(self, timeout: number?): ...any
+                    function every(self, n: number, handler: (...any) -> ()): Connection
                 end
 
                 declare class InstanceSignal
                     function connect(self, handler: (instance: Instance) -> ()): Connection
+                    function once(self, handler: (...any) -> ()): Connection
+                    function wait(self, timeout: number?): ...any
+                    function every(self, n: number, handler: (...any) -> ()): Connection
                 end
 
                 declare class StepSignal
                     function connect(self, handler: (delta: number) -> ()): Connection
+                    function once(self, handler: (...any) -> ()): Connection
+                    function wait(self, timeout: number?): ...any
+                    function every(self, n: number, handler: (...any) -> ()): Connection
                 end
 
                 declare class ReloadedSignal
                     function connect(self, handler: () -> ()): Connection
+                    function once(self, handler: (...any) -> ()): Connection
+                    function wait(self, timeout: number?): ...any
+                    function every(self, n: number, handler: (...any) -> ()): Connection
                 end
 
                 declare class PlayerSignal
                     function connect(self, handler: (player: Player) -> ()): Connection
+                    function once(self, handler: (...any) -> ()): Connection
+                    function wait(self, timeout: number?): ...any
+                    function every(self, n: number, handler: (...any) -> ()): Connection
                 end
 
                 declare class Player
@@ -265,6 +280,9 @@ public final class Types {
 
                 declare class BlockChangedSignal
                     function connect(self, handler: (at: Vector3, block: string) -> ()): Connection
+                    function once(self, handler: (...any) -> ()): Connection
+                    function wait(self, timeout: number?): ...any
+                    function every(self, n: number, handler: (...any) -> ()): Connection
                 end
 
                 declare class Tags
@@ -275,6 +293,9 @@ public final class Types {
 
                 declare class ChatCommandSignal
                     function connect(self, handler: (body: Instance?, text: string, args: { string }) -> ()): Connection
+                    function once(self, handler: (...any) -> ()): Connection
+                    function wait(self, timeout: number?): ...any
+                    function every(self, n: number, handler: (...any) -> ()): Connection
                 end
 
                 type ChatMessage = { id: number, text: string, prefix: string, metadata: string, channel: Instance?, source: Instance?, body: Instance?, position: Vector3?, timestamp: number, status: string, [string]: any }
@@ -282,10 +303,16 @@ public final class Types {
 
                 declare class ChatMessageSignal
                     function connect(self, handler: (message: ChatMessage) -> ()): Connection
+                    function once(self, handler: (...any) -> ()): Connection
+                    function wait(self, timeout: number?): ...any
+                    function every(self, n: number, handler: (...any) -> ()): Connection
                 end
 
                 declare class ChatAnySignal
                     function connect(self, handler: (...any) -> ()): Connection
+                    function once(self, handler: (...any) -> ()): Connection
+                    function wait(self, timeout: number?): ...any
+                    function every(self, n: number, handler: (...any) -> ()): Connection
                 end
 
                 declare class Chat
@@ -469,6 +496,14 @@ public final class Types {
                     encode: (instances: any) -> string,
                     decode: (text: string, parent: Instance?) -> { Instance },
                 }
+                declare function clock(): number
+
+                declare cooldown: {
+                    ready: (self: any, key: any, name: string, seconds: number) -> boolean,
+                    remaining: (self: any, key: any, name: string) -> number,
+                    reset: (self: any, key: any, name: string) -> (),
+                }
+
                 declare quat: {
                     identity: Quat,
                     axisAngle: (axis: Vector3, radians: number) -> Quat,
@@ -517,6 +552,10 @@ public final class Types {
                     spawn: (handler: () -> ()) -> number,
                     delay: (seconds: number, handler: () -> ()) -> number,
                     cancel: (handle: number) -> (),
+                    every: (seconds: number, handler: () -> ()) -> { cancel: (self: any) -> () },
+                    after: (seconds: number, handler: () -> ()) -> { cancel: (self: any) -> () },
+                    debounce: <A...>(handler: (A...) -> (), seconds: number) -> (A...) -> (),
+                    throttle: <A..., R...>(handler: (A...) -> R..., seconds: number) -> (A...) -> R...,
                 }
                 """);
         return out.toString();

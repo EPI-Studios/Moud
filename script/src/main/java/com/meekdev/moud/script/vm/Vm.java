@@ -117,6 +117,7 @@ public final class Vm implements ScriptEngine {
         run("proximity", Luau.source("proximity.luau"));
         run("math", Luau.source("math.luau"));
         run("tree", Luau.source("tree.luau"));
+        run("timing", Luau.source("timing.luau"));
     }
 
     // the client half of the surface, which only exists where there is a screen and someone
