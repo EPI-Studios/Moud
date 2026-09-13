@@ -10,7 +10,7 @@ import net.minecraft.resources.Identifier;
 // the three kinds of thing we put on the game's own connection
 //
 // on the payload cap, which is a real question with a real answer: the game refuses a serverbound
-// custom payload past 32767 bytes and a clientbound one past a megabyte, and fabric's registerLarge
+// custom payload past 32767 bytes and a clientbound one past a megabyte, and registerLarge
 // takes a bigger cap and splits and reassembles for us. so nothing here chunks by hand -- a tick of
 // changes is a few hundred bytes, and the one thing that can be large is a baseline, which is
 // clientbound and declared large

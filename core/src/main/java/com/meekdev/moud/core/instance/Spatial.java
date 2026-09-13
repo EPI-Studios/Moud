@@ -20,12 +20,11 @@ public class Spatial extends Instance {
     // §10.1: interest is per player and by distance, so the thing a player is standing in front of is
     // in their copy and the thing four hundred metres away is not. this is the exemption -- the sky, a
     // boundary, a scoreboard, whatever a place decided is part of the place rather than part of a
-    // place's furniture. roblox spells the same thing Persistent on a model's streaming mode
+    // place's furniture
     //
     // it is read off the top of a subtree only, and it carries the subtree with it: a thing hanging
     // off something relevant is relevant. a child with no parent in your copy is not a thing that can
-    // be put anywhere, so interest is decided for a whole branch or for none of it -- which is what
-    // roblox calls an atomic model, and what our tree being the transform hierarchy forces anyway
+    // be put anywhere, so interest is decided for a whole branch or for none of it
     public boolean alwaysRelevant;
 
     // which player may write this, and whose client may write it locally
@@ -38,9 +37,7 @@ public class Spatial extends Instance {
     // are pushing is yours. the nearest one up the chain wins, so handing over a cart hands over
     // what is on it, which is what makes a push feel instant
     //
-    // roblox keeps this off to the side, as SetNetworkOwner on a part, and it is not replicated as a
-    // property there. a property is the better answer here for one reason: the client has to know who
-    // owns a thing to be told off for writing it, and a property already crosses
+    // a property because the client has to know who owns a thing to be told off for writing it
     //
     // on a character it is the player wearing the body -- §10.1 says characters are owned by their
     // player, so those are the same sentence rather than two fields that can disagree

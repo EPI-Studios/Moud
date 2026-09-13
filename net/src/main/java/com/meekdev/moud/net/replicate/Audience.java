@@ -19,8 +19,7 @@ import java.util.function.Consumer;
 //
 // interest is decided for a whole branch at a time, off the top of it, and the branch goes with it.
 // that is not a simplification -- our tree *is* the transform hierarchy, so a child whose parent is
-// not in your copy has nothing to hang off and no place to be. roblox reaches the same rule from the
-// other end and calls it an atomic model
+// not in your copy has nothing to hang off and no place to be
 public final class Audience {
 
     // how far a player holds the place around them, in metres

@@ -45,8 +45,7 @@ public final class Broadcast {
             Audience audience = AUDIENCES.computeIfAbsent(player.getUUID(),
                     id -> new Audience(id.toString()));
             List<Change> mine = new ArrayList<>();
-            // where this player holds the place around them. roblox calls it a replication focus and
-            // lets a place move it; ours is where the player is, until something needs otherwise
+            // where this player holds the place around them, which is where the player is
             Vec3 focus = new Vec3(player.getX(), player.getY(), player.getZ());
             audience.drain(tree, batch, focus, Audience.RADIUS, mine::add);
             // a quiet tick is sent too, and it is not waste: it is what tells a client that a tick

@@ -187,8 +187,7 @@ public final class Proxies {
             // without being asked: the field is local, so the shortcut matching the field surprised
             // nobody. that premise is gone -- a body standing on something that moves is hung off it
             // by the engine, and a place that never mentioned a parent would start reading positions
-            // in the deck's frame. "where is this" is a world question, and roblox answers it the same
-            // way: a part's Position is world and there is no local one to confuse it with
+            // in the deck's frame. "where is this" is a world question
             //
             // cframe is still the field and still local. it says so, and worldCframe still composes
             if (key.equals("position")) {

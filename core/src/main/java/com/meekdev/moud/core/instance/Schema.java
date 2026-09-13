@@ -11,10 +11,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 // what a channel takes, and the refusal of anything else
 //
-// roblox has no version of this, and it is the hole every exploited roblox game was exploited
-// through: a remote takes whatever arrives, so the handler is the only thing standing between a
-// client and the game, and the handler was written by somebody who was thinking about the happy path.
-// §10.3 makes the declaration mandatory instead, so the wrong shape never reaches a handler
+// a channel that takes whatever arrives leaves the handler as the only thing between a client and
+// the game. the declaration is mandatory, so the wrong shape never reaches a handler
 //
 // declared as text on the channel, because a list of kinds is not one of the property types §9.1
 // allows and a channel's schema has to replicate like everything else about it: a client validates

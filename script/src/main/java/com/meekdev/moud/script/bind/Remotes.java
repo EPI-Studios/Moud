@@ -184,8 +184,7 @@ public final class Remotes {
         throw state.error("that is not something that can be sent");
     }
 
-    // a list or a table keyed by text, never both. roblox allows the mix and then warns you off it;
-    // refusing it is the same advice with teeth
+    // a list or a table keyed by text, never both
     private static Object table(LuaState state, int at, int depth) {
         int length = state.len(at);
         if (length > 0) {

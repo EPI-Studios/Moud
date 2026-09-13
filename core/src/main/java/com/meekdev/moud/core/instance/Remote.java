@@ -5,8 +5,7 @@ import java.util.List;
 
 // a channel across the client and the server boundary
 //
-// it is an instance, which is the best idea in roblox's version of this and the reason to copy it
-// rather than invent: a channel has a name, a parent, a lifetime and an owner, "does this channel
+// it is an instance: a channel has a name, a parent, a lifetime and an owner, "does this channel
 // exist" is the same question as "does this part exist", and destroying whatever it hangs off closes
 // it. a registry keyed by string has none of that and leaks every channel a place ever opened
 //

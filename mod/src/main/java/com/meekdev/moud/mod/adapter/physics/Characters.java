@@ -162,10 +162,8 @@ public final class Characters {
 
     // hang a bound body off whatever it is standing on
     //
-    // engines split on how to say this. unreal keeps a separate movement base and recomposes the
-    // pawn's world transform from it every frame; unity and godot parent the character to the
-    // platform. moud's tree already *is* the transform hierarchy and replication already follows it,
-    // so the parent is the answer that costs nothing new
+    // the tree already is the transform hierarchy and replication already follows it, so the parent
+    // is the answer that costs nothing new
     //
     // and it is the whole fix rather than a correction. hung off the deck, the body's own frame is
     // not moving while it stands there, and interpolating something that is not moving is exact --

@@ -21,11 +21,7 @@ public class Limb extends Part {
     // seventh limb was textured, posable and jointed and then stood perfectly still while the body
     // walked out from under it. a tail is a limb that swings a little, out of phase with the legs,
     // and saying so should be two numbers rather than a change to the engine
-    //
-    // roblox has no procedural walk at all -- their humanoid plays a keyframed animation, and a
-    // seventh limb moves only if the animation names it. a track that names a joint already works
-    // here too (§ the animators), so this is the other half: taking part in the walk the engine
-    // itself runs, without a track
+
     @Prop(min = 0) public double swing;
 
     // in turns, so a half is the opposite leg. anything between is a lag

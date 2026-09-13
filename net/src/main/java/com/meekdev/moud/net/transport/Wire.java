@@ -13,18 +13,9 @@ import java.util.Map;
 
 // what may cross the boundary, and what happens to what may not
 //
-// the type set is roblox's, because it is the right set: numbers, text, flags, nothing, the math
-// types, an instance, and tables of those. where this parts company with roblox is the answer to
-// something that cannot cross
-//
-// roblox drops it quietly -- a function becomes nil on the far side, a metatable is stripped, an
-// instance the other side cannot see becomes nil. every one of those is a bug that ships, because the
-// place that sent it sees no error and the place that receives it sees a hole. rule 8.3.6: a mistake
-// is an error that names what was allowed, never a silent default. so this refuses, by name
-//
-// the limits are here rather than nowhere, which is the other place roblox leaves a hole: it
-// documents no payload cap and no rate, so every game that has ever shipped on it reimplements both,
-// badly, after being exploited once
+// numbers, text, flags, nothing, the math types, an instance, and tables of those. anything else is
+// refused by name rather than turned into nil on the far side, which is a bug that ships because
+// neither side is ever told
 public final class Wire {
 
     // sixteen is more than anything sane sends and it bounds the work a hostile client can ask for
@@ -56,8 +47,8 @@ public final class Wire {
         return packed;
     }
 
-    // the far side's copy. a table arrives as a new table, exactly as it does in roblox: the identity
-    // does not cross, only the shape and the contents
+    // the far side's copy. a table arrives as a new table: the identity does not cross, only the shape
+    // and the contents
     public static List<Object> unpack(List<Object> packed, InstanceTree into) {
         List<Object> args = new ArrayList<>(packed.size());
         for (Object value : packed) args.add(resolve(value, into));
@@ -102,8 +93,7 @@ public final class Wire {
             }
             Map<String, Object> copy = new LinkedHashMap<>(map.size() * 2);
             for (Map.Entry<?, ?> entry : map.entrySet()) {
-                // roblox coerces a non-string key to a string and moves on, which turns one table
-                // into a different table without saying so
+                // coercing the key to text would turn one table into a different one without saying so
                 if (!(entry.getKey() instanceof String key)) {
                     throw new IllegalArgumentException(where + " has a key that is not text: "
                             + entry.getKey() + ". a table that crosses is a list or is keyed by text");

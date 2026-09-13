@@ -53,10 +53,7 @@ public final class Classes {
     public static final ClassDef<Wings> WINGS = ClassDef.of("Wings", null, Wings.class, Wings::new);
     // shared state with a name and nowhere else to live
     //
-    // five, not roblox's dozen. one per type is what a typed property system forces, but a
-    // BrickColorValue and a RayValue are classes to replicate, document and keep working forever for
-    // something almost nobody shares. these five cover what a game actually keeps: a count, a label,
-    // a flag, a place, and a thing
+    // five, covering what a game actually keeps: a count, a label, a flag, a place, and a thing
     public static final ClassDef<Value> VALUE = ClassDef.of("Value", null, Value.class, Value::new);
     public static final ClassDef<NumberValue> NUMBER_VALUE =
             ClassDef.of("NumberValue", VALUE, NumberValue.class, NumberValue::new);
