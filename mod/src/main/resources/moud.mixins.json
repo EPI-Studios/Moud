@@ -3,6 +3,7 @@
   "package": "com.meekdev.moud.mod.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "player.ChatMixin",
     "player.DamageMixin",
     "player.VolumeMixin",
     "player.HungerMixin",
@@ -27,6 +28,8 @@
   ],
   "client": [
     "client.ClickMixin",
+    "client.ChatInputMixin",
+    "client.ChatWindowMixin",
     "client.CloudsMixin",
     "client.DebugScreenMixin",
     "client.EntityRenderMixin",

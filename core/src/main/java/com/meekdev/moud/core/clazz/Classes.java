@@ -18,6 +18,8 @@ import com.meekdev.moud.core.instance.Vector3Value;
 import com.meekdev.moud.core.instance.Camera;
 import com.meekdev.moud.core.instance.Cape;
 import com.meekdev.moud.core.instance.Character;
+import com.meekdev.moud.core.instance.ChatCommand;
+import com.meekdev.moud.core.instance.ChatWindow;
 import com.meekdev.moud.core.instance.CollisionGroup;
 import com.meekdev.moud.core.instance.Folder;
 import com.meekdev.moud.core.instance.Frame;
@@ -130,6 +132,11 @@ public final class Classes {
     public static final ClassDef<InputAction> INPUT_ACTION =
             ClassDef.of("InputAction", null, InputAction.class, InputAction::new);
 
+    public static final ClassDef<ChatWindow> CHAT_WINDOW =
+            ClassDef.of("ChatWindow", null, ChatWindow.class, ChatWindow::new);
+    public static final ClassDef<ChatCommand> CHAT_COMMAND =
+            ClassDef.of("ChatCommand", null, ChatCommand.class, ChatCommand::new);
+
     public static final ClassDef<CollisionGroup> COLLISION_GROUP =
             ClassDef.of("CollisionGroup", null, CollisionGroup.class, CollisionGroup::new);
 
@@ -191,6 +198,8 @@ public final class Classes {
         r.register(LOCAL_SCRIPT);
         r.register(INPUT_ACTION);
         r.register(COLLISION_GROUP);
+        r.register(CHAT_WINDOW);
+        r.register(CHAT_COMMAND);
         r.register(JOINT);
         r.register(MOTOR);
         for (Addon addon : addons) {

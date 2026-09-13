@@ -2,6 +2,7 @@ package com.meekdev.moud.script.bind;
 
 import com.meekdev.moud.core.clazz.EventDef;
 import com.meekdev.moud.core.event.Signal;
+import com.meekdev.moud.core.instance.ChatCommand;
 import com.meekdev.moud.core.instance.Remote;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.err.ScriptError;
@@ -126,6 +127,16 @@ public final class InstanceSignals {
                         // sender first. every other event carries one thing
                         if (what instanceof Remote.Sent sent) {
                             return Remotes.pushSent(s, sent, instance.tree());
+                        }
+                        if (what instanceof ChatCommand.Invoked typed) {
+                            Proxies.push(s, typed.body());
+                            s.pushString(typed.text());
+                            s.createTable(typed.args().size(), 0);
+                            for (int n = 0; n < typed.args().size(); n++) {
+                                s.pushString(typed.args().get(n));
+                                s.rawSetI(-2, n + 1);
+                            }
+                            return 3;
                         }
                         Proxies.push(s, (Instance) what);
                         return 1;

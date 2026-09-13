@@ -8,6 +8,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.time.Clock;
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.adapter.chat.ChatText;
 import com.meekdev.moud.mod.adapter.render.CameraApi;
 import com.meekdev.moud.mod.adapter.render.Cameras;
 import com.meekdev.moud.mod.adapter.audio.ResonaAudio;
@@ -77,6 +78,9 @@ public final class ClientPlace {
             ResonaAudio.INSTANCE.reset();
             Sounds.stopAll();
             vm.bindAudio(ResonaAudio.INSTANCE);
+            // on a client a message only reaches this client's own chat
+            vm.bindChat((markup, player) -> Minecraft.getInstance().gui.getChat()
+                    .addClientSystemMessage(ChatText.of(markup)));
         });
         place.start();
         MoudMod.LOG.info("the client place is running");

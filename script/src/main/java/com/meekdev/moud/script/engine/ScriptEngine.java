@@ -10,6 +10,7 @@ import com.meekdev.moud.script.api.InputRef;
 import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PlayerRef;
 import com.meekdev.moud.script.api.PostRef;
+import com.meekdev.moud.script.api.ChatRef;
 import com.meekdev.moud.script.api.StoreRef;
 import com.meekdev.moud.script.err.ScriptError;
 import java.util.Map;
@@ -45,6 +46,11 @@ public interface ScriptEngine extends AutoCloseable {
 
     // the server's half only
     void bindStore(StoreRef store);
+
+    void bindChat(ChatRef chat);
+
+    // a player typed text. the line to show everyone, or null when the place dropped it
+    String chatted(Instance body, String name, String text);
 
     // starts the script instances of this vm's side, after everything else is bound
     void runScripts();

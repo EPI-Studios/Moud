@@ -3,6 +3,7 @@ package com.meekdev.moud.script.types;
 import com.meekdev.moud.core.clazz.Enums;
 import com.meekdev.moud.core.clazz.EventDef;
 import com.meekdev.moud.core.clazz.ClassDef;
+import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.clazz.PropertyType;
@@ -183,10 +184,26 @@ public final class Types {
                     function removed(self, tag: string): InstanceSignal
                 end
 
+                declare class ChatCommandSignal
+                    function connect(self, handler: (body: Instance?, text: string, args: { string }) -> ()): Connection
+                end
+
+                declare class ChatSignal
+                    function connect(self, handler: (body: Instance?, text: string) -> ()): Connection
+                end
+
+                declare class Chat
+                    function say(self, text: string, to: Instance?): ()
+                    function escape(text: string): string
+                    messaged: ChatSignal
+                    format: ((body: Instance?, text: string) -> string?)?
+                end
+
                 declare class Game
                     world: Instance
                     players: Players
                     tags: Tags
+                    chat: Chat
                     blocks: Blocks
                     stepped: StepSignal
                     renderStepped: StepSignal
@@ -332,7 +349,9 @@ public final class Types {
 
         for (EventDef event : def.events()) {
             // every event carries the instance it happened to, so one shape covers all of them
-            out.append("    ").append(event.name()).append(": InstanceSignal\n");
+            // a chat command also carries the line and its words
+            String shape = def == Classes.CHAT_COMMAND ? "ChatCommandSignal" : "InstanceSignal";
+            out.append("    ").append(event.name()).append(": ").append(shape).append("\n");
         }
 
         PropertyDef[] properties = def.properties();
