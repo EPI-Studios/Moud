@@ -1,6 +1,7 @@
 package com.meekdev.moud.core.nav;
 
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.character.Humanoid;
 import com.meekdev.moud.core.character.HumanoidState;
@@ -17,6 +18,10 @@ import java.util.Map;
 public final class Walkers {
 
     private static final double REPATH = 0.5;
+
+    private static final PropertyDef JUMP = Classes.HUMANOID.property("jump");
+    private static final PropertyDef WALKING = Classes.HUMANOID.property("walking");
+    private static final PropertyDef WALK_TO = Classes.HUMANOID.property("walkTo");
 
     private static final class Plan {
         List<Vector3> waypoints;
@@ -59,7 +64,7 @@ public final class Walkers {
             return;
         }
         Humanoid living = Rig.humanoid(body);
-        if (living != null) Instances.setBool(living, Classes.HUMANOID.property("jump"), true);
+        if (living != null) Instances.setBool(living, JUMP, true);
     }
 
     public static void cancelled(Character body) {
@@ -77,7 +82,7 @@ public final class Walkers {
         PLANS.remove(body);
         if (body.hasPlayer() && pilot != null) pilot.stop(body);
         Humanoid living = Rig.humanoid(body);
-        if (living != null && body.isAlive()) Instances.setBool(living, Classes.HUMANOID.property("walking"), false);
+        if (living != null && body.isAlive()) Instances.setBool(living, WALKING, false);
     }
 
     public static boolean busy(Character body) {
@@ -103,7 +108,7 @@ public final class Walkers {
             if (plan.target != null) {
                 if (!plan.target.isAlive()) {
                     it.remove();
-                    Instances.setBool(living, Classes.HUMANOID.property("walking"), false);
+                    Instances.setBool(living, WALKING, false);
                     continue;
                 }
                 Vector3 goal = Transforms.world(plan.target).position();
@@ -112,7 +117,7 @@ public final class Walkers {
                     plan.resting = true;
                     if (body.hasPlayer() && plan.waypoints != null && pilot != null) pilot.stop(body);
                     plan.waypoints = null;
-                    Instances.setBool(living, Classes.HUMANOID.property("walking"), false);
+                    Instances.setBool(living, WALKING, false);
                     continue;
                 }
                 if (plan.resting) {
@@ -150,8 +155,8 @@ public final class Walkers {
                 }
                 waypoint = plan.waypoints.get(plan.next);
             }
-            Instances.setObj(living, Classes.HUMANOID.property("walkTo"), waypoint);
-            Instances.setBool(living, Classes.HUMANOID.property("walking"), true);
+            Instances.setObj(living, WALK_TO, waypoint);
+            Instances.setBool(living, WALKING, true);
         }
     }
 

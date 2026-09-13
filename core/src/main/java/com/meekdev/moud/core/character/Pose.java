@@ -40,12 +40,12 @@ public final class Pose {
         Map<String, Turn> turns = new LinkedHashMap<>();
         walk(character, turns, phase, gain);
 
-        Turn head = scratch(turns, "head");
-        Turn torso = scratch(turns, "torso");
-        Turn rightArm = scratch(turns, "rightArm");
-        Turn leftArm = scratch(turns, "leftArm");
-        Turn rightLeg = scratch(turns, "rightLeg");
-        Turn leftLeg = scratch(turns, "leftLeg");
+        Turn head = turnFor(turns, "head");
+        Turn torso = turnFor(turns, "torso");
+        Turn rightArm = turnFor(turns, "rightArm");
+        Turn leftArm = turnFor(turns, "leftArm");
+        Turn rightLeg = turnFor(turns, "rightLeg");
+        Turn leftLeg = turnFor(turns, "leftLeg");
 
         head.x = character.lookPitch;
         head.y = character.lookYaw;
@@ -115,7 +115,7 @@ public final class Pose {
         for (Instance child : joints.children()) {
             if (!(child instanceof Joint hinge) || !(hinge.part1 instanceof Limb limb)) continue;
             if (limb.swing == 0) continue;
-            Turn turn = scratch(turns, child.name());
+            Turn turn = turnFor(turns, child.name());
             double swung = Math.cos(phase + limb.swingPhase * Math.PI * 2)
                     * limb.swing * gain / stride;
             if (limb.swingSideways) {
@@ -126,7 +126,7 @@ public final class Pose {
         }
     }
 
-    private static Turn scratch(Map<String, Turn> turns, String joint) {
+    private static Turn turnFor(Map<String, Turn> turns, String joint) {
         return turns.computeIfAbsent(joint, name -> new Turn());
     }
 

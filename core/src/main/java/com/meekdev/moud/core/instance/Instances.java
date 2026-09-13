@@ -5,6 +5,7 @@ import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.clazz.PropertyType;
 import java.util.LinkedHashSet;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 public final class Instances {
@@ -34,7 +35,6 @@ public final class Instances {
         T i = def.create();
         i.id = id;
         i.name = name;
-        if (i.tree != null) i.tree.mutations++;
         i.tree = parent.tree;
         i.parent = parent;
         parent.children.add(i);
@@ -120,7 +120,7 @@ public final class Instances {
 
     private static void checkTag(Instance i, String tag) {
         if (i.tree == null) throw new IllegalStateException(i + " is destroyed");
-        if (tag == null || tag.isBlank()) throw new IllegalArgumentException("a tag is some text, not nothing");
+        if (tag == null || tag.isBlank()) throw new IllegalArgumentException("tag cannot be empty");
     }
 
     public static void rename(Instance i, String name) {
@@ -148,8 +148,7 @@ public final class Instances {
         if (p.asset() && value instanceof String text) {
             Assets.check(i.def().name() + "." + p.name(), text);
         }
-        Object current = p.getObj(i);
-        if (current == null ? value == null : current.equals(value)) return;
+        if (Objects.equals(p.getObj(i), value)) return;
         p.writeObj(i, value);
         touch(i, p);
     }
