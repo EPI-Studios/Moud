@@ -6,6 +6,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vec3;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.WeakHashMap;
 import java.util.Map;
 import java.util.LinkedHashMap;
@@ -356,10 +357,21 @@ public final class Queries {
 
     // the parts under root that may touch region, from the tree's index. a rewind asks where things were,
     // which the index does not know, so that one walks the branch
+    // how many queries ran and how many parts they tested, for a place checking what its queries cost
+    private static final AtomicLong QUERIES = new AtomicLong();
+    private static final AtomicLong TESTED = new AtomicLong();
+
+    // queries and parts tested since the last call, and starts counting again
+    public static long[] takeStats() {
+        return new long[] {QUERIES.getAndSet(0), TESTED.getAndSet(0)};
+    }
+
     static List<Part> parts(Instance root, Aabb region, Predicate<Part> filter) {
+        QUERIES.incrementAndGet();
         if (root == null || root.tree() == null || FRAMES.get() != NOW) return parts(root, filter);
         List<Part> candidates = new ArrayList<>();
         root.tree().spatial().candidates(region, candidates);
+        TESTED.addAndGet(candidates.size());
         List<Part> found = new ArrayList<>(candidates.size());
         boolean everything = root.parent() == null;
         for (Part part : candidates) {

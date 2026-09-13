@@ -163,6 +163,34 @@ public final class Packets {
         }
     }
 
+    // a debug shape or label the server drew, for every client to show
+    public record DebugDown(int kind, double[] numbers, String text, int argb, double seconds) implements CustomPacketPayload {
+
+        public static final Type<DebugDown> TYPE = named("debug_down");
+
+        public static final StreamCodec<FriendlyByteBuf, DebugDown> CODEC = CustomPacketPayload.codec(
+                (m, out) -> {
+                    out.writeVarInt(m.kind());
+                    out.writeVarInt(m.numbers().length);
+                    for (double n : m.numbers()) out.writeDouble(n);
+                    out.writeUtf(m.text(), 1024);
+                    out.writeInt(m.argb());
+                    out.writeDouble(m.seconds());
+                },
+                in -> {
+                    int kind = in.readVarInt();
+                    int count = Math.min(in.readVarInt(), 16);
+                    double[] numbers = new double[count];
+                    for (int n = 0; n < count; n++) numbers[n] = in.readDouble();
+                    return new DebugDown(kind, numbers, in.readUtf(1024), in.readInt(), in.readDouble());
+                });
+
+        @Override
+        public Type<DebugDown> type() {
+            return TYPE;
+        }
+    }
+
     // markup is longer than what it shows, and a place styling a line should not run out of room
     private static final int CHAT_TEXT = 16384;
 
@@ -180,6 +208,7 @@ public final class Packets {
         down.registerLarge(Delta.TYPE, Delta.CODEC.cast(), BASELINE_CAP);
         down.register(Down.TYPE, Down.CODEC.cast());
         down.register(ChatDown.TYPE, ChatDown.CODEC.cast());
+        down.register(DebugDown.TYPE, DebugDown.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(Up.TYPE, Up.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(ChatUp.TYPE, ChatUp.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(PromptUp.TYPE, PromptUp.CODEC.cast());

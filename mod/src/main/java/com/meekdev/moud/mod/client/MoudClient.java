@@ -28,6 +28,7 @@ public final class MoudClient implements ClientModInitializer {
         Input.register();
         ClientChat.listen();
         ChatView.install();
+        ClientDebug.install();
         Post.installOnClient(() -> Minecraft.getInstance().player instanceof LocalPlayer me
                 ? me.getUUID().toString() : "");
         Pipeline.install();

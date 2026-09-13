@@ -84,6 +84,7 @@ public final class ClientPlace {
             vm.bindAudio(ResonaAudio.INSTANCE);
             // on a client a message only reaches this client's own chat
             vm.bindChat(ClientChat.INSTANCE);
+            vm.bindDebug(ClientDebug.INSTANCE);
         });
         place.start();
         MoudMod.LOG.info("the client place is running");

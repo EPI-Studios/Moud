@@ -75,13 +75,16 @@ public final class Signals {
             }
             int pushed = args.push(state);
             // a handler runs as the script that connected it, so what it connects belongs to that script too
-            Object before = owners.enter(signal.owner(ref));
+            Object owner = signal.owner(ref);
+            Object before = owners.enter(owner);
+            long started = System.nanoTime();
             try {
                 state.call(pushed, 0);
             } catch (RuntimeException e) {
                 onError.accept(new ScriptError("signal", e.getMessage(), e));
             } finally {
                 owners.leave(before);
+                Profiler.add(state, Profiler.owner(owner), System.nanoTime() - started);
             }
         }
     }

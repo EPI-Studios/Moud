@@ -79,6 +79,7 @@ public final class Callbacks {
 
     private static Object[] call(LuaState state, int ref, String where, Object[] args) {
         int base = state.top();
+        long started = System.nanoTime();
         state.getRef(ref);
         for (Object arg : args) Plain.push(state, arg);
         try {
@@ -94,6 +95,7 @@ public final class Callbacks {
             return null;
         } finally {
             state.top(base);
+            Profiler.add(state, where, System.nanoTime() - started);
         }
     }
 }

@@ -382,6 +382,19 @@ public final class Types {
                     function randomPointNear(self, point: Vector3, radius: number, options: PathOptions?): Vector3?
                 end
 
+                declare class Debug
+                    function drawLine(self, from: Vector3, to: Vector3, color: Color?, seconds: number?): ()
+                    function drawRay(self, from: Vector3, direction: Vector3, color: Color?, seconds: number?): ()
+                    function drawBox(self, frame: CFrame, size: Vector3, color: Color?, seconds: number?): ()
+                    function drawSphere(self, centre: Vector3, radius: number, color: Color?, seconds: number?): ()
+                    function drawPoint(self, at: Vector3, color: Color?, seconds: number?): ()
+                    function label(self, at: Vector3, text: string, color: Color?, seconds: number?): ()
+                    function watch(self, name: string, value: any): ()
+                    function clear(self): ()
+                    function queryStats(self): { queries: number, partsTested: number }
+                    function profile(self): { [string]: { milliseconds: number, calls: number, worst: number } }
+                end
+
                 declare class Zones
                     function at(self, position: Vector3): { Instance }
                 end
@@ -391,6 +404,7 @@ public final class Types {
                     zones: Zones
                     proximity: Proximity
                     path: Path
+                    debug: Debug
                     history: History
                     players: Players
                     tags: Tags

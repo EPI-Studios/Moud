@@ -12,6 +12,7 @@ import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.chat.ServerChat;
 import com.meekdev.moud.mod.server.ServerHistory;
+import com.meekdev.moud.mod.server.ServerDebug;
 import com.meekdev.moud.script.engine.PlaceModules;
 import com.meekdev.moud.script.reload.Watcher;
 import com.meekdev.moud.script.engine.ScriptEngine;
@@ -178,6 +179,7 @@ public final class Place {
         if (!client) fresh.bindStore(ServerScene.store());
         if (!client) fresh.bindChat(ServerChat.INSTANCE);
         if (!client) fresh.bindHistory(ServerHistory.INSTANCE);
+        if (!client) fresh.bindDebug(ServerDebug.INSTANCE);
         fresh.onError(Errors::record);
         fresh.persist(carried);
         extend.accept(fresh);

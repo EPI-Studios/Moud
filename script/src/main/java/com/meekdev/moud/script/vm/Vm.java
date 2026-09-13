@@ -14,6 +14,7 @@ import com.meekdev.moud.script.bind.CameraMethods;
 import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PostRef;
 import com.meekdev.moud.script.api.ChatRef;
+import com.meekdev.moud.script.api.DebugRef;
 import com.meekdev.moud.script.api.HistoryRef;
 import com.meekdev.moud.script.api.StoreRef;
 import com.meekdev.moud.script.bind.Audio;
@@ -31,6 +32,8 @@ import com.meekdev.moud.core.nav.Walkers;
 import com.meekdev.moud.script.bind.ZoneMethods;
 import com.meekdev.moud.script.bind.Callbacks;
 import com.meekdev.moud.script.bind.Chat;
+import com.meekdev.moud.script.bind.DebugBinding;
+import com.meekdev.moud.script.bind.Profiler;
 import com.meekdev.moud.script.bind.History;
 import com.meekdev.moud.script.bind.Signals;
 import com.meekdev.moud.script.bind.Stores;
@@ -138,6 +141,11 @@ public final class Vm implements ScriptEngine {
     @Override
     public void bindHistory(HistoryRef history) {
         History.install(state, history);
+    }
+
+    @Override
+    public void bindDebug(DebugRef debug) {
+        DebugBinding.install(state, debug);
     }
 
     @Override
@@ -338,6 +346,7 @@ public final class Vm implements ScriptEngine {
         // identity is a native pointer, and the next state may be handed the same one
         Remotes.forget(state);
         Callbacks.forget(state);
+        Profiler.forget(state);
         Blocks.forget(state);
         if (scripts != null) scripts.stopAll();
         Ownership.forget(state);
