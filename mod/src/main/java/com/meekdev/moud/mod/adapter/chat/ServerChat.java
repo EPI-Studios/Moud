@@ -65,7 +65,7 @@ public final class ServerChat implements ChatRef {
             return size() > KEPT;
         }
     };
-    private final Map<UUID, double[]> buckets = new HashMap<>();
+    private final Map<UUID, RateBucket> buckets = new HashMap<>();
     private final Map<String, Long> lastSent = new HashMap<>();
     private final Set<String> leftOut = new HashSet<>();
     private long nextId = 1;
@@ -229,12 +229,22 @@ public final class ServerChat implements ChatRef {
             Long last = lastSent.get(channel.id() + "|" + player.getUUID());
             if (last != null && now - last < channel.slowMode * 1000) return "SlowMode";
         }
-        double[] bucket = buckets.computeIfAbsent(player.getUUID(), key -> new double[] {BURST, now});
-        bucket[0] = Math.min(BURST, bucket[0] + (now - bucket[1]) / 1000.0 * REFILL_PER_SECOND);
-        bucket[1] = now;
-        if (bucket[0] < 1) return "Floodchecked";
-        bucket[0] -= 1;
+        RateBucket bucket = buckets.computeIfAbsent(player.getUUID(), key -> new RateBucket(BURST, now));
+        bucket.tokens = Math.min(BURST, bucket.tokens + (now - bucket.lastRefill) / 1000.0 * REFILL_PER_SECOND);
+        bucket.lastRefill = now;
+        if (bucket.tokens < 1) return "Floodchecked";
+        bucket.tokens -= 1;
         return null;
+    }
+
+    private static final class RateBucket {
+        double tokens;
+        long lastRefill;
+
+        RateBucket(double tokens, long lastRefill) {
+            this.tokens = tokens;
+            this.lastRefill = lastRefill;
+        }
     }
 
     private static TextChannel first(InstanceTree tree, String player) {

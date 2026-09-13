@@ -182,33 +182,34 @@ public final class Ui {
             hud.internalInput().mouseMoved(-1, -1);
             return;
         }
-        float[] at = pointer(client);
-        hud.internalInput().mouseMoved(at[0], at[1]);
+        Pointer at = pointer(client);
+        hud.internalInput().mouseMoved(at.x(), at.y());
     }
 
     public static boolean click(int button, boolean pressed) {
         Minecraft client = Minecraft.getInstance();
         if (hud == null || client.screen != null || client.getOverlay() != null) return false;
-        float[] at = pointer(client);
+        Pointer at = pointer(client);
         if (pressed) {
             if (client.mouseHandler.isMouseGrabbed()) return false;
-            capturing = hud.internalInput().mouseDown(at[0], at[1], button);
+            capturing = hud.internalInput().mouseDown(at.x(), at.y(), button);
             return capturing;
         }
         if (!capturing) return false;
         capturing = false;
-        hud.internalInput().mouseUp(at[0], at[1], button);
+        hud.internalInput().mouseUp(at.x(), at.y(), button);
         return true;
     }
 
-    private static float[] pointer(Minecraft client) {
+    private record Pointer(float x, float y) {}
+
+    private static Pointer pointer(Minecraft client) {
         Window window = client.getWindow();
         double across = Math.max(1, window.getScreenWidth());
         double down = Math.max(1, window.getScreenHeight());
-        return new float[] {
-            (float) (client.mouseHandler.xpos() * window.getGuiScaledWidth() / across),
-            (float) (client.mouseHandler.ypos() * window.getGuiScaledHeight() / down),
-        };
+        return new Pointer(
+                (float) (client.mouseHandler.xpos() * window.getGuiScaledWidth() / across),
+                (float) (client.mouseHandler.ypos() * window.getGuiScaledHeight() / down));
     }
 
     private static void clear() {

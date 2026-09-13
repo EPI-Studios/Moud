@@ -71,9 +71,9 @@ public final class Bubbles {
                 if (a <= 0.003) continue;
 
                 String font = ChatViewNumbers.string(bubble.look, "font", config.font);
-                float[] size = ChatView.measure(d, bubble.markup, (float) config.maxWidth, px, font);
-                float bw = size[0] + pad * 2;
-                float bh = size[1] + pad * 2;
+                ChatView.Size size = ChatView.measure(d, bubble.markup, (float) config.maxWidth, px, font);
+                float bw = size.width() + pad * 2;
+                float bh = size.height() + pad * 2;
                 float bx = x + (w - bw) / 2;
                 float tail = config.tail && n == bubbles.size() - 1 ? px * 0.5f : 0;
                 float by = bottom - bh - tail;
@@ -94,7 +94,7 @@ public final class Bubbles {
                 }
                 ChatView.Look look = new ChatView.Look(ChatViewNumbers.color(bubble.look, "textColor", config.textColor),
                         font, false, Color.BLACK, 0);
-                ChatView.text(d, bubble.markup, bx + pad, by + pad, size[0], px, look, a, HorizontalAlign.CENTER);
+                ChatView.text(d, bubble.markup, bx + pad, by + pad, size.width(), px, look, a, HorizontalAlign.CENTER);
                 if (pop) d.popTransform();
                 bottom = by - pad;
             }

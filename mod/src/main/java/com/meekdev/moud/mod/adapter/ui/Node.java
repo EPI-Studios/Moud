@@ -123,7 +123,7 @@ final class Node extends Widget {
         float fade = (float) (1 - label.textTransparency) * alpha;
         if (fade <= 0) return;
         String font = GuiLayout.font(label);
-        float total = ChatView.measure(d, label.text, w, px, font)[1];
+        float total = ChatView.measure(d, label.text, w, px, font).height();
         float top = switch (label.textYAlignment) {
             case TOP -> y;
             case CENTER -> y + (h - total) * 0.5f;

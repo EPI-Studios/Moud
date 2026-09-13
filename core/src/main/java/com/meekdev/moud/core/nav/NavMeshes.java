@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.function.BiConsumer;
 import org.recast4j.detour.DefaultQueryFilter;
 import org.recast4j.detour.FindNearestPolyResult;
 import org.recast4j.detour.FindRandomPointResult;
@@ -35,7 +34,9 @@ public final class NavMeshes {
     public interface World {
         boolean solid(int x, int y, int z);
 
-        void boxes(Vector3 min, Vector3 max, BiConsumer<CFrame, Vector3> out);
+        record Box(CFrame frame, Vector3 size) {}
+
+        List<Box> boxes(Vector3 min, Vector3 max);
     }
 
     private static final float RADIUS = 0.3f;
@@ -193,15 +194,15 @@ public final class NavMeshes {
                 }
             }
         }
-        long[] parts = {0};
-        world.boxes(new Vector3(x0, t.minY - 1, z0), new Vector3(x1, t.maxY + 1, z1), (frame, size) -> {
-            geometry.box(frame, size);
-            parts[0] += mix(frame, size);
-        });
+        long parts = 0;
+        for (World.Box box : world.boxes(new Vector3(x0, t.minY - 1, z0), new Vector3(x1, t.maxY + 1, z1))) {
+            geometry.box(box.frame(), box.size());
+            parts += mix(box.frame(), box.size());
+        }
 
         long ref = mesh.getTileRefAt(tx, tz, 0);
         if (ref != 0) mesh.removeTile(ref);
-        t.parts = parts[0];
+        t.parts = parts;
         t.dirty = false;
         t.built = true;
         if (geometry.triangles() == 0) return;
@@ -246,11 +247,12 @@ public final class NavMeshes {
 
     private static long signature(World world, int tx, int tz, int minY, int maxY) {
         float border = CONFIG.borderSize * CELL;
-        long[] sum = {0};
-        world.boxes(new Vector3(Math.floor(tx * TILE - border) - 1, minY - 1, Math.floor(tz * TILE - border) - 1),
-                new Vector3(Math.ceil((tx + 1) * TILE + border) + 1, maxY + 1, Math.ceil((tz + 1) * TILE + border) + 1),
-                (frame, size) -> sum[0] += mix(frame, size));
-        return sum[0];
+        long sum = 0;
+        for (World.Box box : world.boxes(new Vector3(Math.floor(tx * TILE - border) - 1, minY - 1, Math.floor(tz * TILE - border) - 1),
+                new Vector3(Math.ceil((tx + 1) * TILE + border) + 1, maxY + 1, Math.ceil((tz + 1) * TILE + border) + 1))) {
+            sum += mix(box.frame(), box.size());
+        }
+        return sum;
     }
 
     private static long mix(CFrame frame, Vector3 size) {

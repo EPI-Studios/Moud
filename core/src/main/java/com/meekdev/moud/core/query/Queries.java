@@ -339,8 +339,10 @@ public final class Queries {
     private static final AtomicLong QUERIES = new AtomicLong();
     private static final AtomicLong TESTED = new AtomicLong();
 
-    public static long[] takeStats() {
-        return new long[] {QUERIES.getAndSet(0), TESTED.getAndSet(0)};
+    public record Stats(long queries, long partsTested) {}
+
+    public static Stats takeStats() {
+        return new Stats(QUERIES.getAndSet(0), TESTED.getAndSet(0));
     }
 
     static List<Part> parts(Instance root, Aabb region, Predicate<Part> filter) {

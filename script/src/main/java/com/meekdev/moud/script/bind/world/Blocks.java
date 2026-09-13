@@ -115,11 +115,11 @@ public final class Blocks {
         });
         function(state, "count", s -> {
             String id = s.checkString(2);
-            int[] box = box(s, 3, 4);
+            Box box = box(s, 3, 4);
             long count = 0;
-            for (int x = box[0]; x <= box[3]; x++) {
-                for (int y = box[1]; y <= box[4]; y++) {
-                    for (int z = box[2]; z <= box[5]; z++) {
+            for (int x = box.minX(); x <= box.maxX(); x++) {
+                for (int y = box.minY(); y <= box.maxY(); y++) {
+                    for (int z = box.minZ(); z <= box.maxZ(); z++) {
                         if (blocks.id(x, y, z).equals(id) || blocks.get(x, y, z).equals(id)) count++;
                     }
                 }
@@ -131,11 +131,11 @@ public final class Blocks {
             writable(s, blocks);
             String from = s.checkString(2);
             String to = s.checkString(3);
-            int[] box = box(s, 4, 5);
+            Box box = box(s, 4, 5);
             long count = 0;
-            for (int x = box[0]; x <= box[3]; x++) {
-                for (int y = box[1]; y <= box[4]; y++) {
-                    for (int z = box[2]; z <= box[5]; z++) {
+            for (int x = box.minX(); x <= box.maxX(); x++) {
+                for (int y = box.minY(); y <= box.maxY(); y++) {
+                    for (int z = box.minZ(); z <= box.maxZ(); z++) {
                         if (!blocks.id(x, y, z).equals(from) && !blocks.get(x, y, z).equals(from)) continue;
                         set(s, blocks, x, y, z, to);
                         count++;
@@ -213,13 +213,13 @@ public final class Blocks {
         });
         function(state, "hollowBox", s -> {
             writable(s, blocks);
-            int[] box = box(s, 2, 3);
+            Box box = box(s, 2, 3);
             String block = s.checkString(4);
             long count = 0;
-            for (int x = box[0]; x <= box[3]; x++) {
-                for (int y = box[1]; y <= box[4]; y++) {
-                    for (int z = box[2]; z <= box[5]; z++) {
-                        boolean edge = x == box[0] || x == box[3] || y == box[1] || y == box[4] || z == box[2] || z == box[5];
+            for (int x = box.minX(); x <= box.maxX(); x++) {
+                for (int y = box.minY(); y <= box.maxY(); y++) {
+                    for (int z = box.minZ(); z <= box.maxZ(); z++) {
+                        boolean edge = x == box.minX() || x == box.maxX() || y == box.minY() || y == box.maxY() || z == box.minZ() || z == box.maxZ();
                         if (!edge) continue;
                         set(s, blocks, x, y, z, block);
                         count++;
@@ -230,13 +230,13 @@ public final class Blocks {
             return 1;
         });
         function(state, "copy", s -> {
-            int[] box = box(s, 2, 3);
+            Box box = box(s, 2, 3);
             List<String> palette = new ArrayList<>();
             Map<String, Integer> index = new HashMap<>();
             List<Integer> cells = new ArrayList<>();
-            for (int y = box[1]; y <= box[4]; y++) {
-                for (int z = box[2]; z <= box[5]; z++) {
-                    for (int x = box[0]; x <= box[3]; x++) {
+            for (int y = box.minY(); y <= box.maxY(); y++) {
+                for (int z = box.minZ(); z <= box.maxZ(); z++) {
+                    for (int x = box.minX(); x <= box.maxX(); x++) {
                         String block = blocks.get(x, y, z);
                         Integer at = index.get(block);
                         if (at == null) {
@@ -249,7 +249,7 @@ public final class Blocks {
                 }
             }
             s.createTable(0, 3);
-            Values.push(s, new Vector3(box[3] - box[0] + 1, box[4] - box[1] + 1, box[5] - box[2] + 1));
+            Values.push(s, new Vector3(box.maxX() - box.minX() + 1, box.maxY() - box.minY() + 1, box.maxZ() - box.minZ() + 1));
             s.rawSetField(-2, "size");
             s.createTable(palette.size(), 0);
             for (int n = 0; n < palette.size(); n++) {
@@ -353,12 +353,14 @@ public final class Blocks {
         return 1;
     }
 
-    private static int[] box(LuaState s, int first, int second) {
+    private record Box(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {}
+
+    private static Box box(LuaState s, int first, int second) {
         Vector3 a = Values.vec3(s, first);
         Vector3 b = Values.vec3(s, second);
-        int[] box = {floor(Math.min(a.x(), b.x())), floor(Math.min(a.y(), b.y())), floor(Math.min(a.z(), b.z())),
-                floor(Math.max(a.x(), b.x())), floor(Math.max(a.y(), b.y())), floor(Math.max(a.z(), b.z()))};
-        long count = (long) (box[3] - box[0] + 1) * (box[4] - box[1] + 1) * (box[5] - box[2] + 1);
+        Box box = new Box(floor(Math.min(a.x(), b.x())), floor(Math.min(a.y(), b.y())), floor(Math.min(a.z(), b.z())),
+                floor(Math.max(a.x(), b.x())), floor(Math.max(a.y(), b.y())), floor(Math.max(a.z(), b.z())));
+        long count = (long) (box.maxX() - box.minX() + 1) * (box.maxY() - box.minY() + 1) * (box.maxZ() - box.minZ() + 1);
         if (count > MOST) throw s.error("%d blocks exceeds the limit of %d", count, MOST);
         return box;
     }

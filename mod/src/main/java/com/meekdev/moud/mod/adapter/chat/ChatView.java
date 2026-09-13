@@ -420,9 +420,11 @@ public final class ChatView {
         }
     };
 
-    public static float[] measure(UiDraw d, String markup, float width, float px, String font) {
+    public record Size(float width, float height) {}
+
+    public static Size measure(UiDraw d, String markup, float width, float px, String font) {
         Laid laid = layoutText(d, markup, width, px, font);
-        return new float[] {laid.width(), laid.height()};
+        return new Size(laid.width(), laid.height());
     }
 
     public static void text(UiDraw d, String markup, float x, float y, float width, float px, Look look, float alpha,

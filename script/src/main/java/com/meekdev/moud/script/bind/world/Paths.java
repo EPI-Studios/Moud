@@ -16,13 +16,13 @@ import com.meekdev.moud.core.character.Humanoids;
 import com.meekdev.moud.core.nav.Walkers;
 import com.meekdev.moud.script.api.BlockRef;
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.query.SpatialIndex;
 import java.util.function.Predicate;
 import java.util.Map;
 import java.util.WeakHashMap;
-import java.util.function.BiConsumer;
 import java.util.Random;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
@@ -61,11 +61,13 @@ public final class Paths {
             }
 
             @Override
-            public void boxes(Vector3 min, Vector3 max, BiConsumer<CFrame, Vector3> out) {
+            public List<Box> boxes(Vector3 min, Vector3 max) {
                 Vector3 size = max.sub(min);
+                List<Box> boxes = new ArrayList<>();
                 for (Part part : Queries.inBox(world, CFrame.at(min.add(size.mul(0.5))), size, ground)) {
-                    out.accept(Transforms.world(part), part.size);
+                    boxes.add(new Box(Transforms.world(part), part.size));
                 }
+                return boxes;
             }
         };
     }

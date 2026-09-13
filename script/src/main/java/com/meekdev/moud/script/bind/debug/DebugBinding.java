@@ -55,8 +55,8 @@ public final class DebugBinding {
             return 0;
         });
         function(state, "queryStats", s -> {
-            long[] stats = Queries.takeStats();
-            Plain.push(s, Map.of("queries", (double) stats[0], "partsTested", (double) stats[1]));
+            Queries.Stats stats = Queries.takeStats();
+            Plain.push(s, Map.of("queries", (double) stats.queries(), "partsTested", (double) stats.partsTested()));
             return 1;
         });
         function(state, "profile", s -> {

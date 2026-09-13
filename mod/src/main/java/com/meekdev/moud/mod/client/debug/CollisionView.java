@@ -24,6 +24,8 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import java.util.ArrayList;
+import java.util.List;
 import org.lwjgl.glfw.GLFW;
 import com.meekdev.moud.mod.client.ClientScene;
 
@@ -61,15 +63,16 @@ public final class CollisionView {
         ClientDebug debug = ClientDebug.INSTANCE;
         var eye = client.player.getEyePosition();
 
-        int[] boxes = {0};
         AABB region = new AABB(eye.x - RANGE, eye.y - RANGE, eye.z - RANGE, eye.x + RANGE, eye.y + RANGE, eye.z + RANGE);
+        List<AABB> collected = new ArrayList<>();
         ClientPhysics.boxes().collect(region, collider -> {
-            if (!(collider instanceof BoxCollider box)) return;
-            AABB b = box.bounds();
+            if (collider instanceof BoxCollider box) collected.add(box.bounds());
+        });
+        for (AABB b : collected) {
             debug.box(CFrame.at((b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, (b.minZ + b.maxZ) / 2),
                     new Vector3(b.getXsize(), b.getYsize(), b.getZsize()), GREEN, LIFE);
-            boxes[0]++;
-        });
+        }
+        int boxes = collected.size();
 
         int turned = 0;
         int ghosts = 0;
@@ -117,7 +120,7 @@ public final class CollisionView {
             bodies++;
         }
 
-        debug.watch("collisions", "F7  " + boxes[0] + " boxes, " + turned + (SubLevels.available() ? " turned (real)" : " turned (as boxes)")
+        debug.watch("collisions", "F7  " + boxes + " boxes, " + turned + (SubLevels.available() ? " turned (real)" : " turned (as boxes)")
                 + ", " + ghosts + " not colliding, " + blocks + " block boxes, " + bodies + " bodies");
     }
 

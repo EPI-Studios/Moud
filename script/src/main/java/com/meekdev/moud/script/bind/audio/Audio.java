@@ -286,17 +286,19 @@ public final class Audio {
         return value;
     }
 
-    private static double[] range(LuaState state, int at, String key) {
+    private record Range(double min, double max) {}
+
+    private static Range range(LuaState state, int at, String key) {
         state.getField(at, key);
-        double[] value;
+        Range value;
         if (state.isNoneOrNil(-1)) {
-            value = new double[] {1, 1};
+            value = new Range(1, 1);
         } else if (state.type(-1) == LuaType.TABLE) {
             int table = state.top();
-            value = new double[] {element(state, table, 1), element(state, table, 2)};
+            value = new Range(element(state, table, 1), element(state, table, 2));
         } else {
             double one = state.checkNumber(state.top());
-            value = new double[] {one, one};
+            value = new Range(one, one);
         }
         state.pop(1);
         return value;
@@ -328,9 +330,9 @@ public final class Audio {
         List<String> sounds = strings(state, state.top());
         state.pop(1);
         if (sounds.isEmpty()) throw state.error("an event needs at least one sound");
-        double[] volume = range(state, 2, "volume");
-        double[] pitch = range(state, 2, "pitch");
-        audio.defineEvent(name, sounds, text(state, 2, "bus", "sfx"), volume[0], volume[1], pitch[0], pitch[1],
+        Range volume = range(state, 2, "volume");
+        Range pitch = range(state, 2, "pitch");
+        audio.defineEvent(name, sounds, text(state, 2, "bus", "sfx"), volume.min(), volume.max(), pitch.min(), pitch.max(),
                 bool(state, 2, "looped", false));
     }
 
