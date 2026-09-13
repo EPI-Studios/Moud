@@ -20,45 +20,52 @@ import net.hollowcube.luau.LuaState;
 // instance a place never mentions carries neither
 public final class InstanceSignals {
 
-    private static LuaState state;
-    private static Consumer<ScriptError> onError;
+    // one lua state per vm, and a client and the server it plays on can be two vms in one process. a single
+    // field here was whichever installed last, so a place reloading on the server handed every signal the
+    // client connected afterwards to the server's state: the handlers were stored in one vm and looked for
+    // in the other, and a key or a button did nothing
+    private static final Map<LuaState, Consumer<ScriptError>> ERRORS = new HashMap<>();
 
     private InstanceSignals() {}
 
     public static void install(LuaState lua, Consumer<ScriptError> errors) {
-        state = lua;
-        onError = errors;
+        ERRORS.put(lua.mainThread(), errors);
     }
 
-    public static Signals.Handlers changed(Instance instance) {
-        return bundle(instance).changed(instance);
+    public static void forget(LuaState lua) {
+        ERRORS.remove(lua.mainThread());
     }
 
-    public static Signals.Handlers childAdded(Instance instance) {
-        return bundle(instance).childAdded(instance);
+    public static Signals.Handlers changed(LuaState lua, Instance instance) {
+        return bundle(lua, instance).changed(instance);
     }
 
-    public static Signals.Handlers destroying(Instance instance) {
-        return bundle(instance).destroying(instance);
+    public static Signals.Handlers childAdded(LuaState lua, Instance instance) {
+        return bundle(lua, instance).childAdded(instance);
+    }
+
+    public static Signals.Handlers destroying(LuaState lua, Instance instance) {
+        return bundle(lua, instance).destroying(instance);
     }
 
     // anything the class declared as an event, by name
     //
     // one bridge for every one of them rather than a method per signal: a class an addon writes
     // gets its events across without this file learning they exist
-    public static Signals.Handlers of(Instance instance, EventDef event) {
-        return bundle(instance).named(instance, event);
+    public static Signals.Handlers of(LuaState lua, Instance instance, EventDef event) {
+        return bundle(lua, instance).named(instance, event);
     }
 
     // a bundle holds refs into one lua state and a reload opens another, so one built for a state
     // that has gone is dropped rather than fired into. core nulls userdata when the instance dies,
     // which is the whole of the lifetime
-    private static Bundle bundle(Instance instance) {
+    private static Bundle bundle(LuaState lua, Instance instance) {
+        LuaState main = lua.mainThread();
         if (instance.userdata instanceof Bundle existing) {
-            if (existing.state == state) return existing;
+            if (existing.state.equals(main)) return existing;
             existing.close();
         }
-        Bundle fresh = new Bundle(state);
+        Bundle fresh = new Bundle(main, ERRORS.getOrDefault(main, error -> {}));
         instance.userdata = fresh;
         return fresh;
     }
@@ -66,6 +73,7 @@ public final class InstanceSignals {
     private static final class Bundle {
 
         private final LuaState state;
+        private final Consumer<ScriptError> onError;
         private Signals.Handlers changed;
         private Signals.Handlers childAdded;
         private Signals.Handlers destroying;
@@ -75,8 +83,9 @@ public final class InstanceSignals {
         private final Map<String, Signals.Handlers> named = new HashMap<>();
         private final List<Signal.Connection> namedLinks = new ArrayList<>();
 
-        Bundle(LuaState state) {
+        Bundle(LuaState state, Consumer<ScriptError> onError) {
             this.state = state;
+            this.onError = onError;
         }
 
         Signals.Handlers changed(Instance instance) {

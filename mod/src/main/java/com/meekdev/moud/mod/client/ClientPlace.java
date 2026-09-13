@@ -29,6 +29,7 @@ public final class ClientPlace {
     private static final Clock FRAME = new Clock();
 
     private static @Nullable Place place;
+    private static @Nullable Instance placed;
     private static @Nullable Camera camera;
     private static final Input INPUT = new Input();
     private static final CameraApi LENS = new CameraApi();
@@ -53,6 +54,13 @@ public final class ClientPlace {
         if (world == null) {
             stop();
             return;
+        }
+        // the server sent its whole tree again, which is a new world: whatever this place made hangs off the
+        // old one, where nothing reads it any more -- the keys went dead and the interface stopped drawing
+        // while the scripts still ran. the place starts over on the world that is drawn
+        if (place != null && placed != world) {
+            MoudMod.LOG.info("the server replaced its tree, the client place starts again");
+            stop();
         }
         if (place == null) start(world);
         if (place != null) place.pollReload();
@@ -87,12 +95,15 @@ public final class ClientPlace {
             vm.bindDebug(ClientDebug.INSTANCE);
         });
         place.start();
+        placed = world;
         MoudMod.LOG.info("the client place is running");
     }
 
     private static void stop() {
         if (place == null) return;
+        place.close();
         place = null;
+        placed = null;
         camera = null;
         Cameras.release();
     }

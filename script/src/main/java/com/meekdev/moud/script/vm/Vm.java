@@ -346,6 +346,7 @@ public final class Vm implements ScriptEngine {
         // identity is a native pointer, and the next state may be handed the same one
         Remotes.forget(state);
         Callbacks.forget(state);
+        InstanceSignals.forget(state);
         Profiler.forget(state);
         Blocks.forget(state);
         if (world != null) Paths.forget(world);

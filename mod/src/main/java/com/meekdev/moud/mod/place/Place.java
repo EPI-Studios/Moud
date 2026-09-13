@@ -90,6 +90,14 @@ public final class Place {
         }
     }
 
+    // the place is done: its scripts stop and its files are no longer watched
+    public void close() {
+        if (vm != null) vm.close();
+        vm = null;
+        if (watcher != null) watcher.close();
+        watcher = null;
+    }
+
     // called at one defined point in the frame, never from inside a script
     //
     // says whether it reloaded, because the tree it tore down held the characters of everyone

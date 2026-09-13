@@ -232,15 +232,15 @@ public final class Proxies {
                 return 1;
             }
             case "changed" -> {
-                Signals.push(state, InstanceSignals.changed(instance));
+                Signals.push(state, InstanceSignals.changed(state, instance));
                 return 1;
             }
             case "childAdded" -> {
-                Signals.push(state, InstanceSignals.childAdded(instance));
+                Signals.push(state, InstanceSignals.childAdded(state, instance));
                 return 1;
             }
             case "destroying" -> {
-                Signals.push(state, InstanceSignals.destroying(instance));
+                Signals.push(state, InstanceSignals.destroying(state, instance));
                 return 1;
             }
             default -> { }
@@ -250,7 +250,7 @@ public final class Proxies {
         // reason a name cannot be both: a class declares each of them once, in the same place
         EventDef event = instance.def().event(key);
         if (event != null) {
-            Signals.push(state, InstanceSignals.of(instance, event));
+            Signals.push(state, InstanceSignals.of(state, instance, event));
             return 1;
         }
         CallbackDef callback = instance.def().callback(key);
