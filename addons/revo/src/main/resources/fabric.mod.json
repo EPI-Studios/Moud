@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "moud-revo",
+  "version": "${version}",
+  "name": "Moud Revo",
+  "description": "write moud places in revo",
+  "authors": ["Meekiavelique"],
+  "license": "All-Rights-Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "moud:addon": ["com.meekdev.moud.addon.revo.RevoAddon"]
+  },
+  "depends": {
+    "moud": "*"
+  }
+}

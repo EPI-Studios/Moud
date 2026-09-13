@@ -5,6 +5,7 @@ import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.place.Languages;
+import com.meekdev.moud.script.engine.LanguageAddon;
 import com.meekdev.moud.script.engine.ScriptLanguage;
 import java.util.List;
 import net.fabricmc.loader.api.FabricLoader;

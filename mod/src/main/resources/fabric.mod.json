@@ -3,7 +3,7 @@
   "id": "moud",
   "version": "${version}",
   "name": "Moud",
-  "description": "build a game inside minecraft in luau",
+  "description": "build a game inside minecraft with scripts",
   "authors": ["Meekiavelique"],
   "license": "All-Rights-Reserved",
   "environment": "*",

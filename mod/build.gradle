@@ -27,6 +27,7 @@ loom {
             vmArg '--enable-native-access=ALL-UNNAMED'
             vmArg '-XX:+EnableDynamicAgentLoading'
             vmArg '-Djdk.attach.allowAttachSelf=true'
+            if (findProperty('place')) vmArg "-Dmoud.place=${file(findProperty('place')).absolutePath}"
         }
     }
 }
@@ -76,6 +77,7 @@ dependencies {
     implementation project(':core')
     implementation project(':script')
     implementation project(':net')
+    localRuntime project(':addons:revo')
     include project(':core')
     include project(':script')
     include project(':net')

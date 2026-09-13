@@ -1,0 +1,10 @@
+.{
+    .name = .moud_revo,
+    .version = "0.0.1",
+    .fingerprint = 0xfedae9f5621a05e9,
+    .minimum_zig_version = "0.16.0",
+    .dependencies = .{
+        .revo = .{ .path = "../../../../revo" },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "moud_revo.zig" },
+}

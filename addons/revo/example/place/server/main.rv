@@ -1,0 +1,50 @@
+const world = game.world
+const turn = 6.283185307179586
+
+world:add("Part", {
+    name = "floor",
+    size = vec3(40, 1, 40),
+    position = vec3(0, 63.5, 0),
+    color = color(0.18, 0.2, 0.24),
+})
+
+const ring = world:add("Folder", {name = "ring"})
+const cubes = {}
+for i in 0..8 do
+    const angle = i / 8 * turn
+    const cube = ring:add("Part", {
+        name = "cube" ~ i,
+        size = vec3(1, 1, 1),
+        position = vec3(math.cos(angle) * 6, 66, math.sin(angle) * 6),
+        color = color(0.95, 0.35 + i * 0.07, 0.2),
+    })
+    cubes:push(cube)
+end
+
+let spin = 0
+game.stepped:connect(fn(dt) do
+    spin += dt
+    for i in 0..len(cubes) do
+        const angle = i / len(cubes) * turn + spin
+        cubes[i].position = vec3(math.cos(angle) * 6, 66 + math.sin(spin * 2 + i) * 0.5, math.sin(angle) * 6)
+    end
+end)
+
+const beacon = world:add("Part", {
+    name = "beacon",
+    size = vec3(2, 2, 2),
+    position = vec3(0, 66, 0),
+    color = color(0.3, 0.8, 1),
+})
+
+task.every(2, fn() do
+    const lifted = beacon.position:add(vec3(0, 2, 0))
+    beacon:tween({position = lifted}, {time = 1, easing = "sine", reverses = :true})
+end)
+
+game.players.joined:connect(fn(player) do
+    print("revo sees " ~ player.name ~ " join")
+    player:spawn(vec3(0, 66, 10))
+end)
+
+print("revo place running with " ~ len(ring:children()) ~ " cubes")

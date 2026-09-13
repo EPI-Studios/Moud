@@ -16,7 +16,9 @@ public final class PlaceToml {
     private PlaceToml() {}
 
     public static Path root() {
-        return FabricLoader.getInstance().getGameDir().resolve("place");
+        String chosen = System.getProperty("moud.place");
+        Path game = FabricLoader.getInstance().getGameDir();
+        return chosen == null || chosen.isBlank() ? game.resolve("place") : game.resolve(chosen);
     }
 
     public static PlaceConfig config() {

@@ -1,0 +1,43 @@
+def zig = findProperty('zig') ?: 'zig'
+def nativeDir = file('native')
+def nativeOut = layout.buildDirectory.dir('native')
+def platform = 'linux-x86_64'
+
+dependencies {
+    compileOnly project(':core')
+    compileOnly project(':script')
+    testImplementation project(':core')
+    testImplementation project(':script')
+}
+
+tasks.register('buildNative', Exec) {
+    group = 'build'
+    description = 'Builds libmoudrevo from the revo checkout next to this repo'
+    workingDir nativeDir
+    inputs.dir(nativeDir).withPropertyName('native').optional()
+    inputs.files(fileTree("${rootDir}/../revo") { include 'build.zig', 'build.zig.zon', 'src/**/*.zig' })
+    outputs.dir(nativeOut)
+    commandLine zig, 'build', '-Doptimize=ReleaseFast', '--prefix', nativeOut.get().asFile.absolutePath
+    doFirst {
+        if (!file("${rootDir}/../revo/build.zig").exists()) {
+            throw new GradleException("the revo addon needs revo cloned next to this repo at ${rootDir}/../revo")
+        }
+    }
+}
+
+processResources {
+    dependsOn 'buildNative'
+    from(nativeOut.map { it.dir('lib') }) {
+        include '*.so'
+        into "natives/${platform}"
+    }
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') {
+        expand 'version': project.version
+    }
+}
+
+tasks.withType(Test).configureEach {
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+    dependsOn 'processResources'
+}

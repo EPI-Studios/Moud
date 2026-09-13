@@ -1,0 +1,14 @@
+let frames = 0
+let seconds = 0
+
+game.renderStepped:connect(fn(dt) do
+    frames += 1
+    seconds += dt
+    if seconds >= 5 do
+        print("revo client at " ~ math.floor(frames / seconds) ~ " frames a second")
+        frames = 0
+        seconds = 0
+    end
+end)
+
+print("revo client place running")

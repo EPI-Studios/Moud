@@ -1,0 +1,1 @@
+global __moud_keys = fn(t) t:keys()

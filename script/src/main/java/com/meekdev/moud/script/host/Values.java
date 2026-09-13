@@ -11,6 +11,11 @@ import java.util.Map;
 public final class Values {
 
     private static final Members VEC3 = new Members("Vector3")
+            .method("add", "(other: Vector3) -> Vector3", a -> self(a, Vector3.class).add(a.vector(1)))
+            .method("sub", "(other: Vector3) -> Vector3", a -> self(a, Vector3.class).sub(a.vector(1)))
+            .method("mul", "(by: number | Vector3) -> Vector3", a -> operate(Host.Op.MUL, self(a, Vector3.class), a.get(1)))
+            .method("div", "(by: number | Vector3) -> Vector3", a -> operate(Host.Op.DIV, self(a, Vector3.class), a.get(1)))
+            .method("neg", "() -> Vector3", a -> self(a, Vector3.class).neg())
             .method("distance", "(other: Vector3) -> number", a -> self(a, Vector3.class).distance(a.vector(1)))
             .method("distanceSq", "(other: Vector3) -> number", a -> self(a, Vector3.class).sub(a.vector(1)).lengthSq())
             .method("dot", "(other: Vector3) -> number", a -> self(a, Vector3.class).dot(a.vector(1)))
@@ -41,6 +46,7 @@ public final class Values {
             .declare("unit", "Vector3");
 
     private static final Members CFRAME = new Members("CFrame")
+            .method("mul", "(other: CFrame) -> CFrame", a -> self(a, CFrame.class).mul(a.cframe(1)))
             .method("inverse", "() -> CFrame", a -> self(a, CFrame.class).inverse())
             .method("lerp", "(goal: CFrame, alpha: number) -> CFrame", a -> self(a, CFrame.class).lerp(a.cframe(1), a.number(2)))
             .method("toObjectSpace", "(other: CFrame) -> CFrame", a -> self(a, CFrame.class).inverse().mul(a.cframe(1)))
