@@ -8,6 +8,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.text.RichText;
+import com.meekdev.moud.mod.adapter.text.TextLayout;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.transport.payload.ChatDownPayload;
@@ -16,7 +17,6 @@ import com.meekdev.moud.script.api.ChatRef;
 import com.meekdev.moud.script.engine.ScriptEngine;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -39,7 +39,7 @@ public final class ClientChat implements ChatRef {
         public final long added = System.nanoTime();
         public long removed = -1;
         public int layoutKey;
-        public Object layout;
+        public TextLayout layout;
 
         Shown(ChatLine line) {
             this.line = line;
@@ -108,14 +108,14 @@ public final class ClientChat implements ChatRef {
         while (lines.size() > max) lines.removeFirst();
         if (line.channel >= 0 && (target == null || target.id() != line.channel)) unread.merge(line.channel, 1, Integer::sum);
         Map<String, Object> message = line.toMap(tree);
-        bubbleFor(line, message, tree);
+        showBubble(line, message, tree);
         if (tree != null && tree.byId(line.channel) instanceof TextChannel channel) channel.messageReceived.fire(message);
         ScriptEngine vm = vm();
         if (vm != null) vm.chatEvent("messageReceived", message);
     }
 
     @SuppressWarnings("unchecked")
-    private void bubbleFor(ChatLine line, Map<String, Object> message, InstanceTree tree) {
+    private void showBubble(ChatLine line, Map<String, Object> message, InstanceTree tree) {
         if (tree == null || line.body < 0 || !"Success".equals(line.status)) return;
         Instance body = tree.byId(line.body);
         if (body == null) return;
@@ -186,19 +186,19 @@ public final class ClientChat implements ChatRef {
             default -> "Your message wasn't sent.";
         };
         if (why.isEmpty()) return;
-        ChatLine notice = new ChatLine(nextLocal--);
-        notice.text = "<color=#ff6b6b>" + RichText.escape(why) + "</color>";
-        notice.status = line.status;
-        notice.timestamp = System.currentTimeMillis();
-        add(notice);
+        add(local("<color=#ff6b6b>" + RichText.escape(why) + "</color>", line.status));
     }
 
     public void vanilla(Component component) {
+        add(local(ChatText.markup(component), "System"));
+    }
+
+    private ChatLine local(String text, String status) {
         ChatLine line = new ChatLine(nextLocal--);
-        line.text = ChatText.markup(component);
-        line.status = "System";
+        line.text = text;
+        line.status = status;
         line.timestamp = System.currentTimeMillis();
-        add(line);
+        return line;
     }
 
     public void sendTyped(String text) {
@@ -259,13 +259,10 @@ public final class ClientChat implements ChatRef {
     @Override
     public long send(Map<String, Object> message) {
         if (Boolean.TRUE.equals(message.get("system"))) {
-            ChatLine line = new ChatLine(nextLocal--);
-            line.text = String.valueOf(message.getOrDefault("text", ""));
+            ChatLine line = local(String.valueOf(message.getOrDefault("text", "")), "System");
             line.prefix = message.get("prefix") instanceof String prefix ? prefix : "";
             line.metadata = message.get("metadata") instanceof String metadata ? metadata : "";
             line.channel = message.get("channel") instanceof TextChannel channel ? channel.id() : -1;
-            line.status = "System";
-            line.timestamp = System.currentTimeMillis();
             add(line);
             return line.id;
         }
@@ -282,7 +279,7 @@ public final class ClientChat implements ChatRef {
             style(shown, ClientScene.tree());
             return;
         }
-        throw new IllegalArgumentException("there is no message " + id + " in this client's chat");
+        throw new IllegalArgumentException("unknown message " + id);
     }
 
     @Override
@@ -292,12 +289,12 @@ public final class ClientChat implements ChatRef {
 
     @Override
     public void addPlayer(Instance channel, Instance body) {
-        throw new UnsupportedOperationException("chat:addPlayer is the server's");
+        throw new UnsupportedOperationException("chat:addPlayer is server-only");
     }
 
     @Override
     public void removePlayer(Instance channel, Instance body) {
-        throw new UnsupportedOperationException("chat:removePlayer is the server's");
+        throw new UnsupportedOperationException("chat:removePlayer is server-only");
     }
 
     @Override
@@ -347,9 +344,9 @@ public final class ClientChat implements ChatRef {
     @Override
     public List<Map<String, Object>> messages() {
         List<Map<String, Object>> out = new ArrayList<>();
-        for (Iterator<Shown> it = lines.iterator(); it.hasNext(); ) {
-            Shown shown = it.next();
-            if (shown.removed < 0) out.add(shown.line.toMap(ClientScene.tree()));
+        InstanceTree tree = ClientScene.tree();
+        for (Shown shown : lines) {
+            if (shown.removed < 0) out.add(shown.line.toMap(tree));
         }
         return out;
     }
