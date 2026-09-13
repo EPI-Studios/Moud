@@ -92,6 +92,9 @@ public final class Humanoids {
         }
     }
 
+    // radians a second a walking body turns at most
+    private static final double TURN_RATE = 10;
+
     private static void walk(Character character, Humanoid living, double dt) {
         if (!living.walking || living.state == HumanoidState.SEATED) {
             if (character.moveSpeed != 0) Instances.setNum(character, MOVE_SPEED, 0);
@@ -126,6 +129,12 @@ public final class Humanoids {
         // facing where it is going, the way a body that walks somewhere does. our forward is -z,
         // so the heading is measured from that rather than from +x
         double yaw = Math.atan2(-way.x(), -way.z());
+        // turned toward it at a person's pace, not snapped: a corner is a curve of the body, not a flick
+        Vec3 facing = Transforms.world(character).rotation().rotate(new Vec3(0, 0, -1));
+        double now = Math.atan2(-facing.x(), -facing.z());
+        double turn = Math.IEEEremainder(yaw - now, Math.PI * 2);
+        double most = TURN_RATE * dt;
+        yaw = now + Math.max(-most, Math.min(most, turn));
         Instances.setObj(character, CFRAME, Transforms.localFor(character,
                 new CFrame(moved, Quat.euler(0, yaw, 0))));
 

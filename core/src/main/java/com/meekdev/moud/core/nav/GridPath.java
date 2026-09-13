@@ -20,6 +20,12 @@ public final class GridPath {
     @FunctionalInterface
     public interface Terrain {
         boolean solid(int x, int y, int z);
+
+        // the height a body standing in this cell stands at: the top of what fills the cell under it.
+        // a whole block's top is the cell's own floor, a part can stop short of it
+        default double floor(int x, int y, int z) {
+            return y;
+        }
     }
 
     public record Options(int maxNodes, int maxDrop, int height) {
@@ -27,6 +33,9 @@ public final class GridPath {
     }
 
     private record Node(int x, int y, int z) {}
+
+    // half a player's width, kept clear on both sides of a straight run
+    private static final double WIDTH = 0.3;
 
     private static final int[][] AROUND = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
 
@@ -47,7 +56,7 @@ public final class GridPath {
         int expanded = 0;
         while (!open.isEmpty() && expanded < options.maxNodes()) {
             Node current = open.poll().node();
-            if (current.equals(goal)) return simplify(walkBack(cameFrom, current));
+            if (current.equals(goal)) return smooth(terrain, walkBack(cameFrom, current), options);
             expanded++;
             double here = cost.get(current);
             for (int[] step : AROUND) {
@@ -76,7 +85,7 @@ public final class GridPath {
             double r = Math.sqrt(random.nextDouble()) * radius;
             Node node = standable(terrain, centre.add(new Vec3(Math.cos(a) * r, 0, Math.sin(a) * r)),
                     new Options(options.maxNodes(), (int) Math.ceil(radius) + options.maxDrop(), options.height()));
-            if (node != null) return middle(node);
+            if (node != null) return middle(terrain, node);
         }
         return null;
     }
@@ -132,24 +141,47 @@ public final class GridPath {
         return path;
     }
 
-    // straight runs on one level become their two ends
-    private static List<Vec3> simplify(List<Node> nodes) {
-        List<Vec3> out = new ArrayList<>();
-        for (int i = 0; i < nodes.size(); i++) {
-            Node node = nodes.get(i);
-            if (i > 0 && i < nodes.size() - 1) {
-                Node before = nodes.get(i - 1);
-                Node after = nodes.get(i + 1);
-                boolean straight = node.x() - before.x() == after.x() - node.x() && node.z() - before.z() == after.z() - node.z()
-                        && before.y() == node.y() && node.y() == after.y();
-                if (straight) continue;
-            }
-            out.add(middle(node));
+    // the corners a body actually has to turn at. from each kept cell, the furthest later cell it can walk
+    // to in a straight line is the next one, so a grid's zigzag becomes the diagonal a person would take.
+    // the cell the body starts in is left out, or every new path would walk it back to its own middle
+    private static List<Vec3> smooth(Terrain terrain, List<Node> nodes, Options options) {
+        List<Node> kept = new ArrayList<>();
+        kept.add(nodes.getFirst());
+        int at = 0;
+        int last = nodes.size() - 1;
+        while (at < last) {
+            int reach = last;
+            while (reach > at + 1 && !straight(terrain, nodes.get(at), nodes.get(reach), options)) reach--;
+            kept.add(nodes.get(reach));
+            at = reach;
         }
+        List<Vec3> out = new ArrayList<>();
+        for (int n = kept.size() > 1 ? 1 : 0; n < kept.size(); n++) out.add(middle(terrain, kept.get(n)));
         return out;
     }
 
-    private static Vec3 middle(Node node) {
-        return new Vec3(node.x() + 0.5, node.y(), node.z() + 0.5);
+    // whether a body as wide as a player can walk from one cell's middle to another's on one level
+    private static boolean straight(Terrain terrain, Node from, Node to, Options options) {
+        if (from.y() != to.y()) return false;
+        double ax = from.x() + 0.5;
+        double az = from.z() + 0.5;
+        double dx = to.x() + 0.5 - ax;
+        double dz = to.z() + 0.5 - az;
+        int steps = (int) Math.ceil(Math.sqrt(dx * dx + dz * dz) / 0.25);
+        for (int n = 1; n < steps; n++) {
+            double t = (double) n / steps;
+            double x = ax + dx * t;
+            double z = az + dz * t;
+            for (int corner = 0; corner < 4; corner++) {
+                int cx = (int) Math.floor(x + ((corner & 1) == 0 ? -WIDTH : WIDTH));
+                int cz = (int) Math.floor(z + ((corner & 2) == 0 ? -WIDTH : WIDTH));
+                if (!stand(terrain, cx, from.y(), cz, options)) return false;
+            }
+        }
+        return true;
+    }
+
+    private static Vec3 middle(Terrain terrain, Node node) {
+        return new Vec3(node.x() + 0.5, terrain.floor(node.x(), node.y(), node.z()), node.z() + 0.5);
     }
 }

@@ -16,6 +16,9 @@ import com.meekdev.moud.core.nav.Walkers;
 import com.meekdev.moud.script.api.BlockRef;
 import java.util.LinkedHashMap;
 import java.util.List;
+import com.meekdev.moud.core.instance.Part;
+import com.meekdev.moud.core.instance.SpatialIndex;
+import java.util.function.Predicate;
 import java.util.Map;
 import java.util.Random;
 import java.util.function.ToIntFunction;
@@ -35,11 +38,25 @@ public final class Paths {
     public static GridPath.Terrain terrain(LuaState state, Instance world) {
         BlockRef blocks = QueryMethods.blocksOf(state);
         Queries.Filter solid = new Queries.Filter(List.of(), false, true, null, null, null, Classes.PART);
-        return (x, y, z) -> {
-            if (blocks != null && blocks.solid(x, y, z)) return true;
-            List<?> parts = Queries.inBox(world, CFrame.at(x + 0.5, y + 0.5, z + 0.5), CELL, part -> solid.test(part)
-                    && !(part.parent() instanceof Character) && !(part.parent() != null && part.parent().parent() instanceof Character));
-            return !parts.isEmpty();
+        Predicate<Part> ground = part -> solid.test(part)
+                && !(part.parent() instanceof Character) && !(part.parent() != null && part.parent().parent() instanceof Character);
+        return new GridPath.Terrain() {
+            @Override
+            public boolean solid(int x, int y, int z) {
+                if (blocks != null && blocks.solid(x, y, z)) return true;
+                return !Queries.inBox(world, CFrame.at(x + 0.5, y + 0.5, z + 0.5), CELL, ground).isEmpty();
+            }
+
+            // a floor part's top is rarely on a block line, and a body stood a block line up floats
+            @Override
+            public double floor(int x, int y, int z) {
+                if (blocks != null && blocks.solid(x, y - 1, z)) return y;
+                double top = Double.NEGATIVE_INFINITY;
+                for (Part part : Queries.inBox(world, CFrame.at(x + 0.5, y - 0.5, z + 0.5), CELL, ground)) {
+                    top = Math.max(top, Math.min(y, SpatialIndex.bounds(Transforms.world(part), part.size).maxY()));
+                }
+                return top == Double.NEGATIVE_INFINITY ? y : top;
+            }
         };
     }
 

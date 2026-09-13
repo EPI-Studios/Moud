@@ -69,6 +69,13 @@ public final class Character extends Spatial {
     @Prop(driven = true, asset = true) public String rightItem = "";
     @Prop(driven = true, asset = true) public String leftItem = "";
 
+    // what the place puts in a hand whatever the player is holding, drawn instead of rightItem or
+    // leftItem while it is set. the server's to write, so it reaches every client: the two above come
+    // off each player's own client and a write to them on a worn body never leaves the server.
+    // minecraft:air shows an empty hand
+    @Prop(asset = true) public String rightItemOverride = "";
+    @Prop(asset = true) public String leftItemOverride = "";
+
     // holding a use down, and in which hand. the model poses the used hand first and only lets
     // the other one have its own pose if the first did not already write it
     @Prop(driven = true) public boolean usingItem;

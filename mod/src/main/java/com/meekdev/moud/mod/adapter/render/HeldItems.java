@@ -69,7 +69,8 @@ public final class HeldItems {
 
     private static void hand(Character character, AbstractClientPlayer wearer, boolean left,
             PoseStack poses, SubmitNodeCollector out, net.minecraft.world.phys.Vec3 camera, float partialTick) {
-        String id = left ? character.leftItem : character.rightItem;
+        String forced = left ? character.leftItemOverride : character.rightItemOverride;
+        String id = !forced.isEmpty() ? forced : left ? character.leftItem : character.rightItem;
         if (id.isEmpty()) return;
         if (!(character.child(left ? "leftArm" : "rightArm") instanceof Part arm)) return;
         if (!arm.visible || arm.transparency >= 1) return;
@@ -96,6 +97,10 @@ public final class HeldItems {
         poses.pushPose();
         poses.translate(at.x() - camera.x, at.y() - camera.y, at.z() - camera.z);
         poses.mulPose(new Quaternionf((float) turn.x(), (float) turn.y(), (float) turn.z(), (float) turn.w()));
+        // the game states a model upside down and mirrored, y down and x flipped, and an item's display
+        // transforms are written for that. the grip is ours, y up, so the half turn about z it lacks goes
+        // back on here, or a blade points at the elbow and a shield faces the chest
+        poses.mulPose(new Quaternionf().rotationZ((float) Math.PI));
         // the grip's offset already grew with the body, and the item grows with it too
         float scale = (float) character.scale;
         poses.scale(scale, scale, scale);

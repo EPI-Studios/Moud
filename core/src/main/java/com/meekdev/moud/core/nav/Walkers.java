@@ -27,6 +27,7 @@ public final class Walkers {
         double distance;
         double lastRepath = -1e9;
         Vec3 lastTarget;
+        boolean resting;
     }
 
     private static final Map<Character, Plan> PLANS = new HashMap<>();
@@ -106,11 +107,19 @@ public final class Walkers {
                     continue;
                 }
                 Vec3 goal = Transforms.world(plan.target).position();
-                if (goal.sub(at).lengthSq() <= plan.distance * plan.distance) {
+                // stopped until the target is a clear step further off, so a follower does not start and
+                // stop on every little move of the one it follows
+                double reach = plan.resting ? plan.distance + 1.5 : plan.distance;
+                if (goal.sub(at).lengthSq() <= reach * reach) {
+                    plan.resting = true;
                     if (body.worn() && plan.waypoints != null && pilot != null) pilot.stop(body);
                     plan.waypoints = null;
                     Instances.setBool(living, Classes.HUMANOID.property("walking"), false);
                     continue;
+                }
+                if (plan.resting) {
+                    plan.resting = false;
+                    plan.waypoints = null;
                 }
                 boolean moved = plan.lastTarget == null || plan.lastTarget.sub(goal).lengthSq() > 1;
                 if (plan.waypoints == null || moved && now - plan.lastRepath >= REPATH) {
