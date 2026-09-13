@@ -47,7 +47,7 @@ public final class Blocks {
             int x0 = floor(Math.min(a.x(), b.x())), y0 = floor(Math.min(a.y(), b.y())), z0 = floor(Math.min(a.z(), b.z()));
             int x1 = floor(Math.max(a.x(), b.x())), y1 = floor(Math.max(a.y(), b.y())), z1 = floor(Math.max(a.z(), b.z()));
             long count = (long) (x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1);
-            if (count > MOST) throw s.error("that fill is %d blocks, and a fill takes at most %d", count, MOST);
+            if (count > MOST) throw s.error("fill of %d blocks exceeds the limit of %d", count, MOST);
             try {
                 s.pushNumber(blocks.fill(x0, y0, z0, x1, y1, z1, s.checkString(4)));
             } catch (IllegalArgumentException wrong) {
@@ -93,7 +93,7 @@ public final class Blocks {
             Vector3 centre = Values.vec3(s, 3);
             int radius = (int) Math.ceil(s.checkNumber(4));
             int limit = s.isNoneOrNil(5) ? Integer.MAX_VALUE : (int) s.checkNumber(5);
-            if (radius > 64) throw s.error("find reaches at most 64 blocks, and %d was asked", radius);
+            if (radius > 64) throw s.error("find radius %d exceeds the limit of 64", radius);
             List<Vector3> found = new ArrayList<>();
             int cx = floor(centre.x()), cy = floor(centre.y()), cz = floor(centre.z());
             for (int x = cx - radius; x <= cx + radius; x++) {
@@ -359,7 +359,7 @@ public final class Blocks {
         int[] box = {floor(Math.min(a.x(), b.x())), floor(Math.min(a.y(), b.y())), floor(Math.min(a.z(), b.z())),
                 floor(Math.max(a.x(), b.x())), floor(Math.max(a.y(), b.y())), floor(Math.max(a.z(), b.z()))};
         long count = (long) (box[3] - box[0] + 1) * (box[4] - box[1] + 1) * (box[5] - box[2] + 1);
-        if (count > MOST) throw s.error("that is %d blocks, and one call takes at most %d", count, MOST);
+        if (count > MOST) throw s.error("%d blocks exceeds the limit of %d", count, MOST);
         return box;
     }
 
@@ -372,7 +372,7 @@ public final class Blocks {
     }
 
     private static void writable(LuaState state, BlockRef blocks) {
-        if (!blocks.writable()) throw state.error("blocks are changed by the server. a client reads them");
+        if (!blocks.writable()) throw state.error("blocks are read-only on the client");
     }
 
     private static int floor(double v) {

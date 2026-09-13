@@ -54,7 +54,7 @@ public final class ClientPlace {
             return;
         }
         if (place != null && placed != world) {
-            MoudMod.LOG.info("the server replaced its tree, the client place starts again");
+            MoudMod.LOG.info("server tree replaced, restarting client place");
             stop();
         }
         if (place == null) start(world);

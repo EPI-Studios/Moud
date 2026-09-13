@@ -30,7 +30,7 @@ public final class PlaceToml {
         try {
             return PlaceConfig.parse(Files.readString(file));
         } catch (IOException | IllegalArgumentException wrong) {
-            MoudMod.LOG.error("place.toml cannot be read, running on the defaults: {}", wrong.getMessage());
+            MoudMod.LOG.error("failed to read place.toml, using defaults: {}", wrong.getMessage());
             return PlaceConfig.DEFAULT;
         }
     }
@@ -39,7 +39,7 @@ public final class PlaceToml {
         Switches.install(features);
         for (Map.Entry<String, Boolean> one : config().features().entrySet()) {
             if (features.lookup(one.getKey()) == null) {
-                MoudMod.LOG.error("place.toml turns on '{}', which is not a feature. the features are {}",
+                MoudMod.LOG.error("unknown feature '{}' in place.toml, expected one of {}",
                         one.getKey(), features.all().stream().map(Features.Switch::key).toList());
                 continue;
             }

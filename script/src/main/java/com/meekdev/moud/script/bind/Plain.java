@@ -22,7 +22,7 @@ public final class Plain {
     }
 
     private static Object one(LuaState state, int at, int depth) {
-        if (depth > 16) throw state.error("a table nested that deep is not a message");
+        if (depth > 16) throw state.error("table nested too deep");
         LuaType type = state.type(at);
         return switch (type) {
             case NIL, NONE -> null;
@@ -40,7 +40,7 @@ public final class Plain {
         if (value != null) return value;
         Object instance = state.toUserDataTagged(at, Proxies.TAG);
         if (instance != null) return instance;
-        throw state.error("that is not something that can be sent");
+        throw state.error("value cannot be sent");
     }
 
     private static Object table(LuaState state, int at, int depth) {
@@ -58,7 +58,7 @@ public final class Plain {
         state.pushNil();
         while (state.next(at < 0 ? at - 1 : at)) {
             if (state.type(-2) != LuaType.STRING) {
-                throw state.error("a table that is sent is a list or is keyed by text");
+                throw state.error("sent tables must be lists or keyed by strings");
             }
             map.put(state.toString(-2), one(state, state.top(), depth + 1));
             state.pop(1);

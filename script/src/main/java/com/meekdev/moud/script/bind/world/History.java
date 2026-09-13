@@ -29,7 +29,7 @@ public final class History {
         state.rawSetField(-2, "viewTime");
         state.pushFunction(LuaFunc.wrap(s -> {
             double seconds = s.checkNumber(2);
-            if (!s.isFunction(3)) throw s.error("history:rewind wants a time and a function");
+            if (!s.isFunction(3)) throw s.error("history:rewind expects a time and a function");
             int base = 3;
             s.pushValue(3);
             Queries.rewound(part -> history.rewind().at(part, seconds), () -> {

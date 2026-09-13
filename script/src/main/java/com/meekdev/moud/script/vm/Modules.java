@@ -39,8 +39,7 @@ final class Modules {
         state.pop(1);
 
         if (loading(state, path)) {
-            throw state.error("res://%s is required again while it is still loading. two modules that"
-                    + " require each other have to move what they share into a third", path);
+            throw state.error("circular require of res://%s", path);
         }
 
         String code;
@@ -66,9 +65,7 @@ final class Modules {
         } catch (LuaError failed) {
             String why = failed.getMessage();
             if (why != null && why.contains("attempt to yield across")) {
-                throw state.error("res://%s waits while it loads, and a module has to finish loading"
-                        + " before require can hand it back. start the waiting from a function it"
-                        + " returns, or from task.spawn", path);
+                throw state.error("res://%s yielded while loading, modules cannot yield at load time", path);
             }
             throw state.error("res://%s: %s", path, why);
         } finally {
@@ -77,7 +74,7 @@ final class Modules {
 
         int returned = state.top() - before;
         if (returned != 1) {
-            throw state.error("res://%s has to return exactly one value and returned %d", path, returned);
+            throw state.error("res://%s must return exactly one value, returned %d", path, returned);
         }
         state.pushValue(-1);
         state.rawSetField(cache, path);

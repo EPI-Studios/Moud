@@ -17,6 +17,6 @@ public final class Editor {
         }
         AmneticEditor.register(new TreeInspector());
         AmneticEditor.register(new PlaceInspector());
-        MoudMod.LOG.info("editor panels registered, right shift opens them");
+        MoudMod.LOG.info("editor ready (right shift)");
     }
 }

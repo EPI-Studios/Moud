@@ -117,7 +117,7 @@ public final class Actions {
             Integer code = name.length() == 1 ? typed(name.charAt(0)) : null;
             if (code == null) code = KEYS.get(name);
             if (code == null) {
-                if (UNKNOWN.add(name)) MoudMod.LOG.warn("an input action names the key '{}', which is not one of {}", raw.trim(), KEYS.keySet());
+                if (UNKNOWN.add(name)) MoudMod.LOG.warn("unknown key '{}' in input action, expected one of {}", raw.trim(), KEYS.keySet());
                 continue;
             }
             boolean down = (code & MOUSE) != 0

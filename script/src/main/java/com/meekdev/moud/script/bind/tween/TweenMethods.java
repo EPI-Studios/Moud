@@ -78,7 +78,7 @@ public final class TweenMethods {
         List<Tween.Goal> goals = new ArrayList<>();
         state.pushNil();
         while (state.next(2)) {
-            if (state.type(-2) != LuaType.STRING) throw state.error("tween goals are keyed by property name");
+            if (state.type(-2) != LuaType.STRING) throw state.error("tween goals must be keyed by property name");
             goals.add(goal(state, instance, state.toString(-2), state.top()));
             state.pop(1);
         }

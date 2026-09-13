@@ -26,12 +26,12 @@ public final class LuaJson {
             case BOOLEAN -> state.toBoolean(at);
             case NUMBER -> {
                 double n = state.toNumber(at);
-                if (Double.isNaN(n) || Double.isInfinite(n)) throw state.error("%s is not a number that can be saved", where);
+                if (Double.isNaN(n) || Double.isInfinite(n)) throw state.error("%s: cannot save this number", where);
                 yield n;
             }
             case STRING -> state.toString(at);
             case TABLE -> table(state, at, depth, where);
-            default -> throw state.error("%s is a %s, which cannot be saved. saved data is numbers, text, true or false, and tables of those",
+            default -> throw state.error("%s: cannot save a %s",
                     where, type.name().toLowerCase());
         };
     }

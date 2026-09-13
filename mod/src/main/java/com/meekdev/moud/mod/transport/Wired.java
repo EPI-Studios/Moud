@@ -89,8 +89,7 @@ public final class Wired implements Transport {
                     .merge(one.remote(), 1, Integer::sum);
             if (already > InProcess.PER_TICK) {
                 if (flooding.merge(one.from(), 1, Integer::sum) == 1) {
-                    LOGGER.warn("{} is sending down one channel faster than {} a tick, dropping"
-                            + " the rest of the tick", one.from(), InProcess.PER_TICK);
+                    LOGGER.warn("{} sent more than {} messages on one remote this tick, dropping the rest", one.from(), InProcess.PER_TICK);
                 }
                 continue;
             }

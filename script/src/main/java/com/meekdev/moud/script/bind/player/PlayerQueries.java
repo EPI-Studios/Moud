@@ -125,7 +125,7 @@ public final class PlayerQueries {
         method(state, "inRange", s -> {
             Instance a = (Instance) s.toUserDataTagged(2, Proxies.TAG);
             Instance b = (Instance) s.toUserDataTagged(3, Proxies.TAG);
-            if (a == null || b == null) throw s.error("inRange wants two instances and a range");
+            if (a == null || b == null) throw s.error("inRange expects two instances and a range");
             double range = s.checkNumber(4);
             s.pushBoolean(position(a).sub(position(b)).lengthSq() <= range * range);
             return 1;

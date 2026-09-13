@@ -122,7 +122,7 @@ public final class WorldMethods {
             double x0 = Math.min(a.x(), b.x()), x1 = Math.max(a.x(), b.x());
             double z0 = Math.min(a.z(), b.z()), z1 = Math.max(a.z(), b.z());
             long cells = (long) ((x1 - x0) / step + 1) * (long) ((z1 - z0) / step + 1);
-            if (cells > 65536) throw s.error("a heightmap takes at most 65536 samples, and that is %d", cells);
+            if (cells > 65536) throw s.error("heightmap of %d samples exceeds the limit of 65536", cells);
             Queries.Filter filter = QueryMethods.filter(s, 5, root);
             s.createTable(0, 0);
             int row = 1;

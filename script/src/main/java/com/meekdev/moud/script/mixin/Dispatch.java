@@ -32,7 +32,7 @@ public final class Dispatch {
         }
 
         public void cancel(Object result) {
-            if (returning) throw new IllegalStateException("the method already ran, set its return value instead");
+            if (returning) throw new IllegalStateException("cannot cancel at return, use setReturn");
             cancelled = true;
             value = result;
         }

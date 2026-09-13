@@ -119,7 +119,7 @@ public final class QueryMethods {
     }
 
     public static int raycastMany(LuaState state, Instance root) {
-        if (state.type(2) != LuaType.TABLE) throw state.error("raycastMany wants a list of { from, direction, range }");
+        if (state.type(2) != LuaType.TABLE) throw state.error("raycastMany expects a list of { from, direction, range }");
         Params params = params(state, 3, root);
         int count = state.len(2);
         state.createTable(count, 0);
@@ -207,7 +207,7 @@ public final class QueryMethods {
         List<Instance> exclude = instances(state, at, "exclude");
         List<Instance> include = instances(state, at, "include");
         if (exclude != null && include != null) {
-            throw state.error("a query takes include or exclude, not both");
+            throw state.error("query options cannot have both include and exclude");
         }
         boolean respect = flag(state, at, "respectCollides");
         boolean ignoreBlocks = flag(state, at, "ignoreBlocks");

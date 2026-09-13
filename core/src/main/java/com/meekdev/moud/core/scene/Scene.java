@@ -128,7 +128,7 @@ public final class Scene {
             throw new IllegalArgumentException("a scene of format " + format + " is not one this engine reads (" + FORMAT + ")");
         }
         if (!(document.get("instances") instanceof List<?> nodes)) {
-            throw new IllegalArgumentException("a scene lists its instances under \"instances\"");
+            throw new IllegalArgumentException("scene has no \"instances\" list");
         }
         Loading loading = new Loading(classes);
         List<Instance> roots = new ArrayList<>();

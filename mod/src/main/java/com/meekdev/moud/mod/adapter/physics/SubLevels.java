@@ -108,7 +108,7 @@ public final class SubLevels {
         } catch (Throwable failure) {
             available = false;
             clear();
-            MoudMod.LOG.error("sub levels are off for this run, parts collide as boxes", failure);
+            MoudMod.LOG.error("sub levels unavailable, rotated parts collide as boxes", failure);
         }
     }
 
@@ -180,7 +180,7 @@ public final class SubLevels {
                 .allocate(world.position().x(), world.position().y(), world.position().z());
         if (subLevel == null) {
             if (!warned) {
-                MoudMod.LOG.error("out of sub level plots at {}, the rest stay axis aligned", size());
+                MoudMod.LOG.error("out of sub level plots at {}", size());
                 warned = true;
             }
             return null;

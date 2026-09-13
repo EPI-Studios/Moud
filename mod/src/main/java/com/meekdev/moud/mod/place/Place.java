@@ -114,7 +114,7 @@ public final class Place {
         try {
             language.writeTypes(root, classes);
         } catch (IOException e) {
-            MoudMod.LOG.warn("could not write the {} definitions, an editor will not know the api",
+            MoudMod.LOG.warn("failed to write {} type definitions",
                     language.name(), e);
         }
     }
@@ -138,12 +138,12 @@ public final class Place {
         try {
             String text = new PlaceFileRef(root).read(path);
             if (text == null) {
-                MoudMod.LOG.error("place.toml opens with {}, which is not there", path);
+                MoudMod.LOG.error("start scene {} from place.toml not found", path);
                 return;
             }
             Scene.load(text, world, classes);
         } catch (RuntimeException wrong) {
-            MoudMod.LOG.error("the scene {} could not be loaded: {}", path, wrong.getMessage());
+            MoudMod.LOG.error("failed to load scene {}: {}", path, wrong.getMessage());
         }
     }
 

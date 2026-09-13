@@ -390,7 +390,7 @@ public final class Proxies {
         }
         if (key.equals("parent")) {
             Instance parent = (Instance) state.toUserDataTagged(value, TAG);
-            if (parent == null) throw state.error("parent wants an instance, use destroy to detach");
+            if (parent == null) throw state.error("parent must be an instance, use destroy() to remove");
             Instances.reparent(instance, parent);
             return;
         }
@@ -422,10 +422,10 @@ public final class Proxies {
     private static int setOwner(LuaState state) {
         Instance instance = self(state);
         if (Remotes.onClient(state)) {
-            throw state.error("setOwner is the server's. a client cannot give itself a thing");
+            throw state.error("setOwner is server-only");
         }
         if (!(instance instanceof Spatial)) {
-            throw state.error("%s has no owner: ownership is about a thing that is somewhere",
+            throw state.error("%s cannot have an owner",
                     instance.def().name());
         }
         PropertyDef owner = instance.def().property("owner");
@@ -435,7 +435,7 @@ public final class Proxies {
         }
         Instance who = (Instance) state.toUserDataTagged(2, TAG);
         if (!(who instanceof Character body)) {
-            throw state.error("setOwner wants the body of whoever it is for, or nil for the server");
+            throw state.error("setOwner expects a body or nil");
         }
         Instances.setObj(instance, owner, body.owner);
         return 0;
@@ -444,7 +444,7 @@ public final class Proxies {
     private static void tagAllowed(LuaState state, Instance instance) {
         if (instance.id() < 0 || !Remotes.onClient(state)) return;
         if (Owners.owns(Remotes.me(state), instance)) return;
-        throw state.error("tagging %s is the server's. a client tags what it owns and what is local to it",
+        throw state.error("cannot tag %s from the client",
                 instance.name());
     }
 
@@ -454,9 +454,8 @@ public final class Proxies {
         String me = Remotes.me(state);
         if (Owners.owns(me, instance)) return;
         String owner = Owners.of(instance);
-        throw state.error("%s.%s is the server's to write%s. a client writes what it owns, what is"
-                + " local to it, and what its class keeps to itself", instance.def().name(),
-                property.name(), owner.isEmpty() ? "" : " -- this one belongs to " + owner);
+        throw state.error("cannot write %s.%s from the client%s", instance.def().name(),
+                property.name(), owner.isEmpty() ? "" : " (owned by " + owner + ")");
     }
 
     private static void ref(LuaState state, Instance target) {
@@ -523,7 +522,7 @@ public final class Proxies {
             case CFRAME -> Values.cframe(state, value);
             case ENUM -> enumOf(state, property, value);
             case REF -> refOf(state, property, value);
-            default -> throw state.error("%s is not a value luau can write yet", property.name());
+            default -> throw state.error("unsupported value type %s", property.name());
         };
     }
 

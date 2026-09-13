@@ -46,7 +46,7 @@ public final class UiFonts {
     }
 
     private static Face missing(String chosen) {
-        if (MISSING.add(chosen)) MoudMod.LOG.warn("font {} cannot be loaded, using the game's", chosen);
+        if (MISSING.add(chosen)) MoudMod.LOG.warn("failed to load font {}, using the default", chosen);
         return DEFAULT;
     }
 

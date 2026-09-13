@@ -94,7 +94,7 @@ public final class TreeMethods {
         Proxies.extraMethod(state, "clone", s -> {
             Instance original = self(s);
             Instance parent = s.isNoneOrNil(2) ? original.parent() : (Instance) s.toUserDataTagged(2, Proxies.TAG);
-            if (parent == null) throw s.error("the root cannot be cloned without somewhere to put it");
+            if (parent == null) throw s.error("cannot clone the root without a parent");
             Instance holder = Instances.create(Classes.FOLDER, parent, "clone");
             List<Instance> made = Scene.load(Scene.save(List.of(original)), holder, Proxies.registry());
             Instance copy = made.isEmpty() ? null : made.getFirst();

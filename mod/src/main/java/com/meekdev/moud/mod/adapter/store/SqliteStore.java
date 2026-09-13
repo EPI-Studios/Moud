@@ -29,7 +29,7 @@ public final class SqliteStore implements StoreRef {
     private Connection open() {
         if (connection != null) return connection;
         Path dir = folder.get();
-        if (dir == null) throw new IllegalStateException("store is only there while a world is running");
+        if (dir == null) throw new IllegalStateException("store is not available without a running world");
         try {
             Files.createDirectories(dir);
             connection = DriverManager.getConnection("jdbc:sqlite:" + dir.resolve("moud.db"));

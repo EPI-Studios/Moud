@@ -273,7 +273,7 @@ public final class Codec {
                     in.readU8() / 255f, in.readU8() / 255f);
             case UDIM2 -> new UDim2(in.readF32(), in.readF32(), in.readF32(), in.readF32());
             case ENUM -> option(property, in.readU8());
-            case BOOL -> throw new IllegalStateException("a flag comes out of the block, not here");
+            case BOOL -> throw new IllegalStateException("flag read outside the flag block");
         };
     }
 

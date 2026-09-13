@@ -27,7 +27,7 @@ public final class Scenes {
         function(state, "decode", s -> push(s, decode(s, s.checkString(1), parent(s, 2, world), classes, "the text")));
         function(state, "save", s -> {
             String path = s.checkString(2);
-            if (!path.endsWith(".scene")) throw s.error("a scene is saved to a .scene file, not %s", path);
+            if (!path.endsWith(".scene")) throw s.error("scene path must end in .scene, got %s", path);
             try {
                 files.write(path, Scene.save(roots(s, 1)));
             } catch (IllegalArgumentException | IllegalStateException wrong) {
@@ -60,13 +60,13 @@ public final class Scenes {
 
     private static List<Instance> roots(LuaState state, int at) {
         if (state.toUserDataTagged(at, Proxies.TAG) instanceof Instance one) return List.of(one);
-        if (state.type(at) != LuaType.TABLE) throw state.error("save an instance or a list of instances");
+        if (state.type(at) != LuaType.TABLE) throw state.error("save expects an instance or a list of instances");
         List<Instance> out = new ArrayList<>();
         int length = state.len(at);
         for (int n = 1; n <= length; n++) {
             state.rawGetI(at, n);
             if (!(state.toUserDataTagged(-1, Proxies.TAG) instanceof Instance instance)) {
-                throw state.error("save an instance or a list of instances");
+                throw state.error("save expects an instance or a list of instances");
             }
             out.add(instance);
             state.pop(1);

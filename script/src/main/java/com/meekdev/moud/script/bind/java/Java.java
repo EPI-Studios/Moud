@@ -275,7 +275,7 @@ public final class Java {
         }
         Set<String> shapes = new LinkedHashSet<>();
         for (Executable candidate : candidates) shapes.add(candidate.toGenericString());
-        throw state.error("no %s.%s takes these %d arguments. there is:\n  %s", type.getName(), name, given,
+        throw state.error("no overload of %s.%s matches %d arguments, candidates:\n  %s", type.getName(), name, given,
                 String.join("\n  ", shapes));
     }
 

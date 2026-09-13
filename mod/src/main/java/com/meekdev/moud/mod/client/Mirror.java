@@ -37,7 +37,7 @@ public final class Mirror {
                 batch = Codec.decode(packet, APPLIER.tree(), Addons.classes());
             } catch (RuntimeException broken) {
                 if (!resyncing) {
-                    MoudMod.LOG.warn("the copy of the place drifted from the server's ({}), asking for all of it again",
+                    MoudMod.LOG.warn("client tree out of sync ({}), requesting a full resync",
                             broken.getMessage());
                     resyncing = true;
                     if (ClientPlayNetworking.canSend(ResyncPayload.TYPE)) ClientPlayNetworking.send(new ResyncPayload());

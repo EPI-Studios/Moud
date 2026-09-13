@@ -38,7 +38,7 @@ final class PlaceSounds implements SoundSource {
     }
 
     private @Nullable Identifier unknown(String soundId) {
-        if (missing.add(soundId)) MoudMod.LOG.warn("sound {} is not in the place or a resource pack", soundId);
+        if (missing.add(soundId)) MoudMod.LOG.warn("sound {} not found", soundId);
         return null;
     }
 

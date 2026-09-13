@@ -80,7 +80,7 @@ public final class Audio {
         function(state, "lfo", s -> {
             String shape = s.checkString(2);
             if (!List.of("sine", "triangle", "saw", "square").contains(shape)) {
-                throw s.error("an lfo is sine, triangle, saw or square, not '%s'", shape);
+                throw s.error("unknown lfo shape '%s'", shape);
             }
             audio.lfo(s.checkString(1), shape, s.checkNumber(3), s.checkNumber(4), s.checkNumber(5));
             return 0;
@@ -235,7 +235,7 @@ public final class Audio {
         if (state.isNoneOrNil(at)) return "immediate";
         String value = state.checkString(at);
         if (!List.of("immediate", "beat", "bar").contains(value)) {
-            throw state.error("quantize is immediate, beat or bar, not '%s'", value);
+            throw state.error("unknown quantize '%s'", value);
         }
         return value;
     }
@@ -322,9 +322,9 @@ public final class Audio {
 
     private static void defineEvent(LuaState state, AudioRef audio) {
         String name = state.checkString(1);
-        if (state.type(2) != LuaType.TABLE) throw state.error("defineEvent wants a name and a table");
+        if (state.type(2) != LuaType.TABLE) throw state.error("defineEvent expects a name and a table");
         state.getField(2, "sounds");
-        if (state.type(-1) != LuaType.TABLE) throw state.error("an event lists its sounds in sounds = { ... }");
+        if (state.type(-1) != LuaType.TABLE) throw state.error("event has no sounds list");
         List<String> sounds = strings(state, state.top());
         state.pop(1);
         if (sounds.isEmpty()) throw state.error("an event needs at least one sound");
@@ -335,7 +335,7 @@ public final class Audio {
     }
 
     private static double[][] curve(LuaState state, int at) {
-        if (state.type(at) != LuaType.TABLE) throw state.error("a curve is a list of {input, output} pairs");
+        if (state.type(at) != LuaType.TABLE) throw state.error("curve must be a list of {input, output} pairs");
         int length = state.len(at);
         double[][] points = new double[length][];
         for (int n = 1; n <= length; n++) {
@@ -348,7 +348,7 @@ public final class Audio {
     }
 
     private static Map<String, Double> volumes(LuaState state, int at) {
-        if (state.type(at) != LuaType.TABLE) throw state.error("a snapshot is a table of bus volumes");
+        if (state.type(at) != LuaType.TABLE) throw state.error("snapshot must be a table of bus volumes");
         Map<String, Double> out = new LinkedHashMap<>();
         state.pushNil();
         while (state.next(at)) {
@@ -360,9 +360,9 @@ public final class Audio {
     }
 
     private static void music(LuaState state, AudioRef audio) {
-        if (state.type(1) != LuaType.TABLE) throw state.error("music wants a table of layers and states");
+        if (state.type(1) != LuaType.TABLE) throw state.error("music expects a table");
         state.getField(1, "layers");
-        if (state.type(-1) != LuaType.TABLE) throw state.error("music lists its sounds in layers = { ... }");
+        if (state.type(-1) != LuaType.TABLE) throw state.error("music has no layers list");
         List<String> layers = strings(state, state.top());
         state.pop(1);
         Map<String, double[]> states = new LinkedHashMap<>();
@@ -396,7 +396,7 @@ public final class Audio {
                 int one = state.top();
                 String kind = text(state, one, "kind", "lowpass");
                 if (!List.of("lowpass", "highpass", "bandpass", "peaking").contains(kind)) {
-                    throw state.error("a filter is lowpass, highpass, bandpass or peaking, not '%s'", kind);
+                    throw state.error("unknown filter '%s'", kind);
                 }
                 filters.add(new AudioRef.Filter(kind, number(state, one, "frequency", 1000),
                         number(state, one, "q", 0.707), number(state, one, "gain", 0)));

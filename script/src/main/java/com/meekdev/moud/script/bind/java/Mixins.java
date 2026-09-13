@@ -51,11 +51,11 @@ public final class Mixins {
         String className = state.checkString(1);
         String name = state.checkString(2);
         String at = state.checkString(3);
-        if (!state.isFunction(4)) throw state.error("mixin.inject wants a function to run, as the fourth argument");
+        if (!state.isFunction(4)) throw state.error("mixin.inject expects a function as the fourth argument");
         boolean head = switch (at) {
             case "head" -> true;
             case "return", "tail" -> false;
-            default -> throw state.error("'%s' is not a place in a method: head or return", at);
+            default -> throw state.error("invalid injection point '%s', expected head or return", at);
         };
         String descriptor = null;
         int params = -1;
@@ -150,7 +150,7 @@ public final class Mixins {
         state.newTable();
         method(state, "cancel", s -> {
             Dispatch.Call c = call(s);
-            if (c.returning) throw s.error("the method already ran: at return, change what it gives with setReturn");
+            if (c.returning) throw s.error("cannot cancel at return, use setReturn");
             c.cancel(s.isNoneOrNil(2) ? null : value(s, 2, c.returns));
             return 0;
         });
@@ -171,7 +171,7 @@ public final class Mixins {
         });
         method(state, "setArg", s -> {
             Dispatch.Call c = call(s);
-            if (c.returning) throw s.error("the method already ran with its arguments");
+            if (c.returning) throw s.error("cannot change arguments at return");
             int n = slot(s, c);
             c.args[n] = value(s, 3, c.parameters[n]);
             return 0;
@@ -200,7 +200,7 @@ public final class Mixins {
             default -> {
                 state.rawGetField(LuaState.REGISTRY_INDEX, CALL_METHODS);
                 if (state.rawGetField(-1, key) == LuaType.NIL) {
-                    throw state.error("a mixin call has no '%s': cancel, setReturn, getReturn, getArg, setArg, returning, cancelled", key);
+                    throw state.error("unknown mixin call member '%s'", key);
                 }
                 state.remove(-2);
             }
@@ -210,7 +210,7 @@ public final class Mixins {
 
     private static int slot(LuaState state, Dispatch.Call call) {
         int n = (int) state.checkNumber(2) - 1;
-        if (n < 0 || n >= call.args.length) throw state.error("the method takes %d arguments, there is no %d", call.args.length, n + 1);
+        if (n < 0 || n >= call.args.length) throw state.error("argument index out of range (%d arguments, got %d)", call.args.length, n + 1);
         return n;
     }
 
@@ -228,7 +228,7 @@ public final class Mixins {
             return 1;
         }
         state.rawGetField(LuaState.REGISTRY_INDEX, HANDLE_METHODS);
-        if (state.rawGetField(-1, key) == LuaType.NIL) throw state.error("a mixin has no '%s': remove, methods", key);
+        if (state.rawGetField(-1, key) == LuaType.NIL) throw state.error("unknown mixin member '%s'", key);
         state.remove(-2);
         return 1;
     }

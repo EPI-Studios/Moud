@@ -21,7 +21,7 @@ abstract class MoveSweepMixin {
             return;
         }
         Entity self = (Entity) (Object) this;
-        MoudMod.LOG.warn("refused a {} move of {},{},{} for {} standing at {},{},{}",
+        MoudMod.LOG.warn("refused {} move {},{},{} for {} at {},{},{}",
                 type, movement.x, movement.y, movement.z, self.getType().toShortString(),
                 self.getX(), self.getY(), self.getZ());
         ci.cancel();

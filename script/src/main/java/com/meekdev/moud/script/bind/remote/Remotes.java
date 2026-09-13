@@ -51,19 +51,17 @@ public final class Remotes {
 
     private static Side side(LuaState state) {
         Side known = SIDES.get(state.mainThread());
-        if (known == null) throw state.error("nothing is carrying messages on this side");
+        if (known == null) throw state.error("no transport bound");
         return known;
     }
 
     public static int fireServer(LuaState state, Remote remote) {
         Side side = side(state);
         if (!side.client()) {
-            throw state.error("fireServer is the client's, and this is the server."
-                    + " the server says fireClient or fireAllClients");
+            throw state.error("fireServer is client-only");
         }
         if (!remote.isAlive()) {
-            throw state.error("the remote '%s' was destroyed, most likely by the server place reloading."
-                    + " look it up again, like game.world:find(\"%s\"), rather than keeping the old one", remote.name(), remote.name());
+            throw state.error("remote '%s' was destroyed, look it up again", remote.name());
         }
         side.post().toServer(remote.id(), declared(state, remote, 2), reliable(remote));
         return 0;
@@ -71,10 +69,10 @@ public final class Remotes {
 
     public static int fireClient(LuaState state, Remote remote) {
         Side side = side(state);
-        if (side.client()) throw state.error("fireClient is the server's, and this is a client");
+        if (side.client()) throw state.error("fireClient is server-only");
         Instance who = (Instance) state.toUserDataTagged(2, Proxies.TAG);
         if (!(who instanceof Character body)) {
-            throw state.error("fireClient wants the body of whoever it is for, as the first argument");
+            throw state.error("fireClient expects a body as the first argument");
         }
         side.post().toClient(body.owner, remote.id(), declared(state, remote, 3), reliable(remote));
         return 0;
@@ -82,7 +80,7 @@ public final class Remotes {
 
     public static int fireAllClients(LuaState state, Remote remote) {
         Side side = side(state);
-        if (side.client()) throw state.error("fireAllClients is the server's, and this is a client");
+        if (side.client()) throw state.error("fireAllClients is server-only");
         side.post().toAllClients(remote.id(), declared(state, remote, 2), reliable(remote));
         return 0;
     }

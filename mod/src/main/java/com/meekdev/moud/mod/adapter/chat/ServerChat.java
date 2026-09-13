@@ -347,7 +347,7 @@ public final class ServerChat implements ChatRef {
             try {
                 only = UUID.fromString(to.owner);
             } catch (IllegalArgumentException notAPlayer) {
-                throw new IllegalArgumentException("chat:send to wants a body a player is wearing");
+                throw new IllegalArgumentException("chat:send to expects a player body");
             }
         }
         return deliver(tree, channel, line, only);
@@ -394,7 +394,7 @@ public final class ServerChat implements ChatRef {
 
     @Override
     public void removePlayer(Instance channel, Instance body) {
-        if (!(channel instanceof TextChannel text)) throw new IllegalArgumentException("chat:removePlayer wants a TextChannel");
+        if (!(channel instanceof TextChannel text)) throw new IllegalArgumentException("chat:removePlayer expects a TextChannel");
         ServerPlayer player = playerOf(body);
         leftOut.add(text.id() + "|" + player.getUUID());
         TextSource source = sourceOf(text, player.getUUID().toString());
