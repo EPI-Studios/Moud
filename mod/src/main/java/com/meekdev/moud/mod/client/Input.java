@@ -33,6 +33,27 @@ public final class Input implements InputRef {
         CollisionView.register(MOUD);
     }
 
+    // whether the pointer is free because the pointer key is held, so letting go takes back only what it gave
+    private static boolean freed;
+
+    // held, the mouse is let go so the interface can be clicked; let go, it is captured again. a screen
+    // being open owns the mouse, and a place that released it itself keeps it released
+    public static void pointerFrame() {
+        Minecraft client = Minecraft.getInstance();
+        if (pointer == null || client.player == null || client.screen != null) {
+            freed = false;
+            return;
+        }
+        boolean held = pointer.isDown();
+        if (held && client.mouseHandler.isMouseGrabbed()) {
+            client.mouseHandler.releaseMouse();
+            freed = true;
+        } else if (!held && freed) {
+            freed = false;
+            if (!client.mouseHandler.isMouseGrabbed()) client.mouseHandler.grabMouse();
+        }
+    }
+
     private final Map<String, Supplier<KeyMapping>> actions = new LinkedHashMap<>();
 
     private double lastX;

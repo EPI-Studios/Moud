@@ -13,7 +13,9 @@ public final class Camera extends Spatial {
 
     public CameraMode mode = CameraMode.FIRST_PERSON;
 
-    @Prop(min = 1, max = 179) public double fov = 70.0;
+    // degrees of view, or 0 for the player's own: their fov setting, widening as they sprint. a number
+    // holds it there in every mode
+    @Prop(min = 0, max = 179) public double fov = 0;
 
     // how far behind the subject the third person camera sits
     @Prop(min = 0) public double distance = 4.0;

@@ -29,7 +29,11 @@ public final class Cameras {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) return;
 
-        AmneticCamera.setFov((float) camera.fov);
+        if (camera.fov > 0) {
+            AmneticCamera.setFov((float) camera.fov);
+        } else {
+            AmneticCamera.clearFov();
+        }
         switch (camera.mode) {
             case SCRIPTABLE -> hold(camera);
             case FIRST_PERSON -> first(camera, player, partialTick);

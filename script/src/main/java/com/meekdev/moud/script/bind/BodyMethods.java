@@ -82,8 +82,11 @@ public final class BodyMethods {
     }
 
     static Vec3 look(Character body) {
+        // the model's angles, so both are negated the way Pose negates them for the head: a head turned right
+        // by the game is a negative turn about up in our frame. adding it instead aimed a still player up to
+        // a hundred degrees off whenever the body lagged the head
         Quat turn = Transforms.world(body).rotation()
-                .mul(Quat.axisAngle(Vec3.UP, body.lookYaw))
+                .mul(Quat.axisAngle(Vec3.UP, -body.lookYaw))
                 .mul(Quat.axisAngle(Vec3.RIGHT, -body.lookPitch));
         return turn.rotate(Vec3.FORWARD);
     }
