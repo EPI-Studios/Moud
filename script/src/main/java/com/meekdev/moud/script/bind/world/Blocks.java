@@ -267,7 +267,7 @@ public final class Blocks {
         });
         function(state, "paste", s -> {
             writable(s, blocks);
-            if (s.type(2) != LuaType.TABLE) throw s.error("paste wants what copy returned");
+            if (s.type(2) != LuaType.TABLE) throw s.error("paste expects what copy returned");
             Vector3 at = Values.vec3(s, 3);
             int turns = s.isNoneOrNil(4) ? 0 : (int) s.checkNumber(4);
             boolean skipAir = s.toBoolean(5);

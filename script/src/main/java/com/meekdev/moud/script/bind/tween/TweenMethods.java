@@ -74,7 +74,7 @@ public final class TweenMethods {
 
     private static int tween(LuaState state, List<Tween> running, Consumer<ScriptError> onError) {
         if (!(state.toUserDataTagged(1, Proxies.TAG) instanceof Instance instance)) throw state.error("expected an instance");
-        if (state.type(2) != LuaType.TABLE) throw state.error("tween wants a table of goals");
+        if (state.type(2) != LuaType.TABLE) throw state.error("tween expects a table of goals");
         List<Tween.Goal> goals = new ArrayList<>();
         state.pushNil();
         while (state.next(2)) {

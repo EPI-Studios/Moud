@@ -145,7 +145,7 @@ public final class Paths {
         });
         methods.put("follow", s -> {
             Character body = BodyMethods.body(s);
-            if (!(s.toUserDataTagged(2, Proxies.TAG) instanceof Instance target)) throw s.error("follow wants something to follow");
+            if (!(s.toUserDataTagged(2, Proxies.TAG) instanceof Instance target)) throw s.error("follow expects something to follow");
             Walkers.follow(body, target, s.isNoneOrNil(3) ? 3 : s.checkNumber(3));
             return 0;
         });

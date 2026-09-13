@@ -325,7 +325,7 @@ public final class ClientChat implements ChatRef {
 
     @Override
     public void setTarget(Instance channel) {
-        if (channel != null && !(channel instanceof TextChannel)) throw new IllegalArgumentException("chat:setTarget wants a TextChannel");
+        if (channel != null && !(channel instanceof TextChannel)) throw new IllegalArgumentException("chat:setTarget expects a TextChannel");
         target = channel;
         if (channel != null) unread.remove(channel.id());
     }

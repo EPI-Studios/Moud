@@ -70,7 +70,7 @@ public final class PlayerQueries {
             return 1;
         });
         method(state, "inPart", s -> {
-            if (!(s.toUserDataTagged(2, Proxies.TAG) instanceof Part part)) throw s.error("inPart wants a part");
+            if (!(s.toUserDataTagged(2, Proxies.TAG) instanceof Part part)) throw s.error("inPart expects a part");
             Instance except = optional(s, 3);
             CFrame frame = Transforms.world(part);
             push(s, filtered(tree, except, body -> inside(frame, part.size, position(body))));

@@ -387,7 +387,7 @@ public final class Audio {
     }
 
     private static void voiceChat(LuaState state, AudioRef audio) {
-        if (state.type(1) != LuaType.TABLE) throw state.error("voiceChat wants a table");
+        if (state.type(1) != LuaType.TABLE) throw state.error("voiceChat expects a table");
         List<AudioRef.Filter> filters = new ArrayList<>();
         state.getField(1, "filters");
         if (state.type(-1) == LuaType.TABLE) {

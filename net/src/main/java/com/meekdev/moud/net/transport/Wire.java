@@ -26,8 +26,7 @@ public final class Wire {
 
     public static List<Object> pack(List<Object> args) {
         if (args.size() > MAX_ARGS) {
-            throw new IllegalArgumentException("a remote takes at most " + MAX_ARGS
-                    + " arguments and was given " + args.size());
+            throw new IllegalArgumentException("too many arguments: " + args.size() + ", limit is " + MAX_ARGS);
         }
         Count count = new Count();
         List<Object> packed = new ArrayList<>(args.size());
@@ -45,7 +44,7 @@ public final class Wire {
 
     private static Object value(Object what, int depth, Count count, String where) {
         if (++count.seen > MAX_VALUES) {
-            throw new IllegalArgumentException("a remote carries at most " + MAX_VALUES + " values");
+            throw new IllegalArgumentException("too many values, limit is " + MAX_VALUES);
         }
         if (what == null) return null;
         if (what instanceof Double || what instanceof Boolean || what instanceof String
@@ -56,12 +55,10 @@ public final class Wire {
         if (what instanceof Integer n) return n.doubleValue();
         if (what instanceof Instance instance) {
             if (!instance.isAlive()) {
-                throw new IllegalArgumentException(where + " is a destroyed instance");
+                throw new IllegalArgumentException(where + ": instance was destroyed");
             }
             if (instance.id() < 0) {
-                throw new IllegalArgumentException(where + " is " + instance
-                        + ", which is local: it was made on one side and does not exist on the other."
-                        + " send something the two sides share, or send its name");
+                throw new IllegalArgumentException(where + ": " + instance + " is local and cannot be sent");
             }
             return new Ref(instance.id());
         }
@@ -82,16 +79,13 @@ public final class Wire {
             Map<String, Object> copy = new LinkedHashMap<>(map.size() * 2);
             for (Map.Entry<?, ?> entry : map.entrySet()) {
                 if (!(entry.getKey() instanceof String key)) {
-                    throw new IllegalArgumentException(where + " has a key that is not text: "
-                            + entry.getKey() + ". a table that crosses is a list or is keyed by text");
+                    throw new IllegalArgumentException(where + ": table keys must be strings, got " + entry.getKey());
                 }
                 copy.put(key, value(entry.getValue(), depth + 1, count, where + "." + key));
             }
             return copy;
         }
-        throw new IllegalArgumentException(where + " is a " + what.getClass().getSimpleName()
-                + ", which cannot cross. what can: a number, text, a flag, nothing, a vector, a"
-                + " rotation, a frame, a colour, an instance, and lists or text keyed tables of those");
+        throw new IllegalArgumentException(where + ": cannot send a " + what.getClass().getSimpleName());
     }
 
     private static Object resolve(Object what, InstanceTree into) {

@@ -37,8 +37,6 @@ public final class Assets {
             return;
         }
         if (names(value)) return;
-        throw new IllegalArgumentException(where + " is \"" + value + "\", which does not name a"
-                + " file. a name is namespace:path or path, in lowercase letters, digits, and"
-                + " . _ - and / -- and empty, which means the engine picks");
+        throw new IllegalArgumentException(where + ": invalid resource id \"" + value + "\"");
     }
 }

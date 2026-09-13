@@ -26,24 +26,21 @@ public record PlaceConfig(
     public static PlaceConfig parse(String text) {
         Map<String, Object> root = Toml.parse(text);
         for (String key : root.keySet()) {
-            if (!TOP.contains(key)) throw new IllegalArgumentException("place.toml has no setting '" + key
-                    + "'. it takes " + String.join(", ", List.of("name", "id", "version", "engine", "maxPlayers"))
-                    + ", [entry] and [features]");
+            if (!TOP.contains(key)) throw new IllegalArgumentException("unknown place.toml setting '" + key + "', expected one of name, id, version, engine, maxPlayers, entry, features");
         }
         Map<String, Object> entry = table(root, "entry");
         for (String key : entry.keySet()) {
-            if (!ENTRY.contains(key)) throw new IllegalArgumentException("[entry] has no '" + key
-                    + "'. it takes server, client and scene");
+            if (!ENTRY.contains(key)) throw new IllegalArgumentException("unknown [entry] setting '" + key + "', expected server, client or scene");
         }
         Map<String, Boolean> features = new LinkedHashMap<>();
         for (Map.Entry<String, Object> one : table(root, "features").entrySet()) {
             if (!(one.getValue() instanceof Boolean on)) {
-                throw new IllegalArgumentException("[features] " + one.getKey() + " is true or false");
+                throw new IllegalArgumentException("[features] " + one.getKey() + " must be true or false");
             }
             features.put(one.getKey(), on);
         }
         long players = number(root, "maxPlayers", DEFAULT.maxPlayers);
-        if (players < 1) throw new IllegalArgumentException("maxPlayers is at least 1");
+        if (players < 1) throw new IllegalArgumentException("maxPlayers must be at least 1");
         return new PlaceConfig(
                 text(root, "name", DEFAULT.name),
                 text(root, "id", DEFAULT.id),
@@ -60,21 +57,21 @@ public record PlaceConfig(
     private static Map<String, Object> table(Map<String, Object> root, String key) {
         Object value = root.get(key);
         if (value == null) return Map.of();
-        if (!(value instanceof Map)) throw new IllegalArgumentException(key + " is a table, written [" + key + "]");
+        if (!(value instanceof Map)) throw new IllegalArgumentException(key + " must be a table");
         return (Map<String, Object>) value;
     }
 
     private static String text(Map<String, Object> table, String key, String fallback) {
         Object value = table.get(key);
         if (value == null) return fallback;
-        if (!(value instanceof String s)) throw new IllegalArgumentException(key + " is text, in quotes");
+        if (!(value instanceof String s)) throw new IllegalArgumentException(key + " must be a string");
         return s;
     }
 
     private static long number(Map<String, Object> table, String key, long fallback) {
         Object value = table.get(key);
         if (value == null) return fallback;
-        if (!(value instanceof Long n)) throw new IllegalArgumentException(key + " is a whole number");
+        if (!(value instanceof Long n)) throw new IllegalArgumentException(key + " must be an integer");
         return n;
     }
 

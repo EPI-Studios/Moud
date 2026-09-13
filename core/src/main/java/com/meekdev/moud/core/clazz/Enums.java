@@ -34,6 +34,6 @@ public final class Enums {
             if (name((Enum<?>) constant).equals(spelled)) return (Enum<?>) constant;
         }
         throw new IllegalArgumentException(
-                "'" + spelled + "' is not one of " + String.join(", ", names(type)));
+                "unknown value '" + spelled + "', expected one of " + String.join(", ", names(type)));
     }
 }

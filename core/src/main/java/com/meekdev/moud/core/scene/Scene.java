@@ -122,10 +122,10 @@ public final class Scene {
     }
 
     public static List<Instance> load(String text, Instance parent, ClassRegistry classes) {
-        if (!(Json.parse(text) instanceof Map<?, ?> document)) throw new IllegalArgumentException("a scene is an object");
+        if (!(Json.parse(text) instanceof Map<?, ?> document)) throw new IllegalArgumentException("scene must be a json object");
         Object format = document.get("format");
         if (!(format instanceof Double f) || f.intValue() != FORMAT) {
-            throw new IllegalArgumentException("a scene of format " + format + " is not one this engine reads (" + FORMAT + ")");
+            throw new IllegalArgumentException("unsupported scene format " + format + ", expected " + FORMAT);
         }
         if (!(document.get("instances") instanceof List<?> nodes)) {
             throw new IllegalArgumentException("scene has no \"instances\" list");
@@ -151,12 +151,12 @@ public final class Scene {
         }
 
         Instance build(Object raw, Instance parent, String path) {
-            if (!(raw instanceof Map<?, ?> node)) throw new IllegalArgumentException(path + ": an instance is an object");
+            if (!(raw instanceof Map<?, ?> node)) throw new IllegalArgumentException(path + ": instance must be an object");
             String className = text(node, "class", path);
             String name = node.get("name") instanceof String n ? n : className;
             String where = path + "/" + name;
             ClassDef<?> def = classes.find(className);
-            if (def == null) throw new IllegalArgumentException(where + ": there is no class " + className);
+            if (def == null) throw new IllegalArgumentException(where + ": unknown class " + className);
 
             Instance existing = parent.child(name);
             Instance instance = existing != null && existing.def() == def && !made.contains(existing)
@@ -168,7 +168,7 @@ public final class Scene {
                 for (Map.Entry<?, ?> entry : properties.entrySet()) {
                     String key = String.valueOf(entry.getKey());
                     PropertyDef property = def.property(key);
-                    if (property == null) throw new IllegalArgumentException(where + ": " + className + " has no property " + key);
+                    if (property == null) throw new IllegalArgumentException(where + ": unknown property " + className + "." + key);
                     write(instance, property, entry.getValue(), where);
                 }
             }
@@ -184,7 +184,7 @@ public final class Scene {
         void resolve() {
             for (Pending one : pending) {
                 Instance target = byId.get(one.id());
-                if (target == null) throw new IllegalArgumentException(one.where() + ": nothing in the scene has id " + one.id());
+                if (target == null) throw new IllegalArgumentException(one.where() + ": no instance with id " + one.id());
                 Instances.setObj(one.instance(), one.property(), target);
             }
         }
@@ -221,14 +221,14 @@ public final class Scene {
                     }
                 }
             } catch (ClassCastException | NullPointerException ignored) {
-                throw new IllegalArgumentException(at + " is not a " + property.type().name().toLowerCase());
+                throw new IllegalArgumentException(at + ": expected " + property.type().name().toLowerCase());
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException(at + ": " + e.getMessage());
             }
         }
 
         private static String text(Map<?, ?> node, String key, String where) {
-            if (!(node.get(key) instanceof String s)) throw new IllegalArgumentException(where + ": an instance names its " + key);
+            if (!(node.get(key) instanceof String s)) throw new IllegalArgumentException(where + ": missing \"" + key + "\"");
             return s;
         }
 

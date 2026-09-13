@@ -61,7 +61,7 @@ public final class Callbacks {
             return;
         }
         if (state.type(value) != LuaType.FUNCTION) {
-            throw state.error("%s.%s wants a function or nil", instance.def().name(), def.name());
+            throw state.error("%s.%s expects a function or nil", instance.def().name(), def.name());
         }
         state.pushValue(value);
         int ref = state.ref(-1);

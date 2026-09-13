@@ -67,13 +67,10 @@ public final class Schema {
                 if (optional) word = word.substring(0, word.length() - 1).trim();
                 Kind kind = Kind.of(word.toLowerCase());
                 if (kind == null) {
-                    throw new IllegalArgumentException("\"" + word + "\" is not a kind a channel can"
-                            + " take. the kinds are bool, number, string, vec3, quat, cframe, color,"
-                            + " udim2, instance, list and table, and a trailing ? means it may be left out");
+                    throw new IllegalArgumentException("unknown argument kind \"" + word + "\", expected bool, number, string, vec3, quat, cframe, color, udim2, instance, list or table");
                 }
                 if (seenOptional && !optional) {
-                    throw new IllegalArgumentException("\"" + text + "\" has a required argument"
-                            + " after one that may be left out, which no caller can satisfy");
+                    throw new IllegalArgumentException("\"" + text + "\": required argument after an optional one");
                 }
                 seenOptional |= optional;
                 takes.add(new Takes(kind, optional));
@@ -85,28 +82,21 @@ public final class Schema {
     public static void check(Remote remote, List<Object> args) {
         List<Takes> takes = parse(remote.accepts);
         if (args.size() > takes.size()) {
-            throw new IllegalArgumentException(remoteName(remote) + " takes " + shape(takes)
-                    + " and was given " + args.size());
+            throw new IllegalArgumentException(remote.name() + " expects (" + shape(takes) + "), got " + args.size() + " arguments");
         }
         for (int n = 0; n < takes.size(); n++) {
             Takes want = takes.get(n);
             Object value = n < args.size() ? args.get(n) : null;
             if (value == null) {
                 if (want.optional()) continue;
-                throw new IllegalArgumentException(remoteName(remote) + " wants "
-                        + want.kind().name().toLowerCase() + " as argument " + (n + 1)
-                        + " and was given nothing");
+                throw new IllegalArgumentException(remote.name() + ": argument " + (n + 1) + " must be "
+                        + want.kind().name().toLowerCase() + ", got nil");
             }
             if (!want.kind().holds(value)) {
-                throw new IllegalArgumentException(remoteName(remote) + " wants "
-                        + want.kind().name().toLowerCase() + " as argument " + (n + 1)
-                        + " and was given " + value.getClass().getSimpleName().toLowerCase());
+                throw new IllegalArgumentException(remote.name() + ": argument " + (n + 1) + " must be "
+                        + want.kind().name().toLowerCase() + ", got " + value.getClass().getSimpleName().toLowerCase());
             }
         }
-    }
-
-    private static String remoteName(Remote remote) {
-        return remote.name();
     }
 
     private static String shape(List<Takes> takes) {

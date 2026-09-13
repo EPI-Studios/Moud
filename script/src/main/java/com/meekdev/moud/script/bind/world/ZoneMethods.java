@@ -54,7 +54,7 @@ public final class ZoneMethods {
 
         state.newTable();
         state.pushFunction(LuaFunc.wrap(s -> {
-            if (!(s.toUserDataTagged(2, Proxies.TAG) instanceof Instance body)) throw s.error("wants a body");
+            if (!(s.toUserDataTagged(2, Proxies.TAG) instanceof Instance body)) throw s.error("expects a body");
             Vector3 at = Transforms.world(body).position();
             ProximityPrompt best = null;
             double bestDistance = Double.MAX_VALUE;

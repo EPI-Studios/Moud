@@ -98,7 +98,7 @@ public final class BodyMethods {
     }
 
     private static Instance other(LuaState s, int at) {
-        if (!(s.toUserDataTagged(at, Proxies.TAG) instanceof Instance other)) throw s.error("wants an instance");
+        if (!(s.toUserDataTagged(at, Proxies.TAG) instanceof Instance other)) throw s.error("expects an instance");
         return other;
     }
 }

@@ -235,7 +235,7 @@ public final class Chat {
     }
 
     private static Instance instance(LuaState s, int at, String what) {
-        if (!(s.toUserDataTagged(at, Proxies.TAG) instanceof Instance instance)) throw s.error("wants %s", what);
+        if (!(s.toUserDataTagged(at, Proxies.TAG) instanceof Instance instance)) throw s.error("expects %s", what);
         return instance;
     }
 

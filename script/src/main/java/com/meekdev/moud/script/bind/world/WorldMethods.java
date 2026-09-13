@@ -74,7 +74,7 @@ public final class WorldMethods {
             return QueryMethods.list(s, found);
         });
         Proxies.extraMethod(state, "boundsOf", s -> {
-            if (s.type(2) != LuaType.TABLE) throw s.error("boundsOf wants a list of instances");
+            if (s.type(2) != LuaType.TABLE) throw s.error("boundsOf expects a list of instances");
             double[] box = {Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE};
             for (int n = 1; n <= s.len(2); n++) {
                 s.rawGetI(2, n);
@@ -273,7 +273,7 @@ public final class WorldMethods {
     }
 
     private static Part part(LuaState s, int at) {
-        if (!(s.toUserDataTagged(at, Proxies.TAG) instanceof Part part)) throw s.error("wants a part");
+        if (!(s.toUserDataTagged(at, Proxies.TAG) instanceof Part part)) throw s.error("expects a part");
         return part;
     }
 }

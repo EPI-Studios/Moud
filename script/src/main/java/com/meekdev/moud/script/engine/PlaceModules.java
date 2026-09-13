@@ -24,12 +24,10 @@ public final class PlaceModules implements ModuleSource {
     public String read(String path) {
         String top = path.substring(0, Math.max(0, path.indexOf('/')));
         if (top.equals(other)) {
-            throw new IllegalArgumentException("res://" + path + " belongs to the " + other + ", and "
-                    + side + " scripts can only require from " + side + "/ and " + SHARED + "/");
+            throw new IllegalArgumentException("cannot require res://" + path + " from the " + side);
         }
         if (!top.equals(side) && !top.equals(SHARED)) {
-            throw new IllegalArgumentException("res://" + path + " is not a module. modules live in "
-                    + side + "/ or " + SHARED + "/");
+            throw new IllegalArgumentException("res://" + path + " is not in " + side + "/ or " + SHARED + "/");
         }
         Path file = root.resolve(path);
         if (!Files.isRegularFile(file)) return null;

@@ -53,7 +53,7 @@ public final class Scheduler {
     }
 
     private int spawn(LuaState state) {
-        if (!state.isFunction(1)) throw state.error("task.spawn wants a function");
+        if (!state.isFunction(1)) throw state.error("task.spawn expects a function");
         LuaState thread = state.newThread();
         int ref = state.ref(-1);
         state.pop(1);

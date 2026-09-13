@@ -396,7 +396,7 @@ public final class ServerChat implements ChatRef {
 
     @Override
     public void addPlayer(Instance channel, Instance body) {
-        if (!(channel instanceof TextChannel text)) throw new IllegalArgumentException("chat:addPlayer wants a TextChannel");
+        if (!(channel instanceof TextChannel text)) throw new IllegalArgumentException("chat:addPlayer expects a TextChannel");
         ServerPlayer player = playerOf(body);
         leftOut.remove(text.id() + "|" + player.getUUID());
         if (sourceOf(text, player.getUUID().toString()) == null) join(text, player);
@@ -414,7 +414,7 @@ public final class ServerChat implements ChatRef {
     private static ServerPlayer playerOf(Instance body) {
         MinecraftServer server = ServerScene.server();
         ServerPlayer player = !(body instanceof Character character) || server == null ? null : playerOf(server, character.owner);
-        if (player == null) throw new IllegalArgumentException("wants a body a player is wearing");
+        if (player == null) throw new IllegalArgumentException("expects a body a player is wearing");
         return player;
     }
 

@@ -161,7 +161,7 @@ public final class QueryMethods {
 
     public static int partsInPart(LuaState state, Instance root) {
         if (!(state.toUserDataTagged(2, Proxies.TAG) instanceof Part part)) {
-            throw state.error("partsInPart wants a part");
+            throw state.error("partsInPart expects a part");
         }
         Params params = params(state, 3, root);
         return list(state, shape(Queries.inPart(root, part, params.filter()), Transforms.world(part).position(), params));

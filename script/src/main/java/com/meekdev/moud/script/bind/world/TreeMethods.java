@@ -59,7 +59,7 @@ public final class TreeMethods {
             return 1;
         });
         Proxies.extraMethod(state, "isDescendantOf", s -> {
-            if (!(s.toUserDataTagged(2, Proxies.TAG) instanceof Instance other)) throw s.error("isDescendantOf wants an instance");
+            if (!(s.toUserDataTagged(2, Proxies.TAG) instanceof Instance other)) throw s.error("isDescendantOf expects an instance");
             Instance up = self(s).parent();
             while (up != null && up != other) up = up.parent();
             s.pushBoolean(up != null);

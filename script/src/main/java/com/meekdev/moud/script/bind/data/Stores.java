@@ -22,7 +22,7 @@ public final class Stores {
             return 0;
         });
         global(state, "__moud_store_update", s -> {
-            if (s.type(3) != LuaType.FUNCTION) throw s.error("update wants a function");
+            if (s.type(3) != LuaType.FUNCTION) throw s.error("update expects a function");
             String result = store.update(s.checkString(1), s.checkString(2), old -> {
                 s.pushValue(3);
                 LuaJson.push(s, old);

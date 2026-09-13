@@ -24,31 +24,31 @@ public final class Zones {
     public static void step(InstanceTree tree, ClassRegistry classes, double now) {
         for (Zone zone : tree.ofClass(Classes.ZONE)) {
             if (!zone.isAlive()) continue;
-            Set<Instance> now_ = new LinkedHashSet<>();
+            Set<Instance> current = new LinkedHashSet<>();
             if (zone.enabled) {
                 for (Instance candidate : candidates(tree, classes, zone)) {
-                    if (candidate != zone && contains(zone, Transforms.world(candidate).position())) now_.add(candidate);
+                    if (candidate != zone && contains(zone, Transforms.world(candidate).position())) current.add(candidate);
                 }
             }
-            List<Instance> came = new ArrayList<>();
-            List<Instance> went = new ArrayList<>();
-            for (Instance instance : now_) {
-                if (!zone.inside.contains(instance) && ready(zone, instance, now)) came.add(instance);
+            List<Instance> arrived = new ArrayList<>();
+            List<Instance> departed = new ArrayList<>();
+            for (Instance instance : current) {
+                if (!zone.inside.contains(instance) && ready(zone, instance, now)) arrived.add(instance);
             }
             for (Instance instance : zone.inside) {
-                if (!now_.contains(instance) && (!instance.isAlive() || ready(zone, instance, now))) went.add(instance);
+                if (!current.contains(instance) && (!instance.isAlive() || ready(zone, instance, now))) departed.add(instance);
             }
-            for (Instance instance : came) {
+            for (Instance instance : arrived) {
                 zone.inside.add(instance);
                 zone.changedAt.put(instance, now);
             }
-            for (Instance instance : went) {
+            for (Instance instance : departed) {
                 zone.inside.remove(instance);
                 zone.changedAt.put(instance, now);
             }
             zone.changedAt.keySet().removeIf(instance -> !instance.isAlive());
-            for (Instance instance : went) zone.left.fire(instance);
-            for (Instance instance : came) zone.entered.fire(instance);
+            for (Instance instance : departed) zone.left.fire(instance);
+            for (Instance instance : arrived) zone.entered.fire(instance);
         }
     }
 

@@ -106,7 +106,7 @@ public final class Signals {
     private static int connect(LuaState state) {
         Handlers signal = (Handlers) state.toUserDataTagged(1, TAG);
         if (signal == null) throw state.error("not a signal");
-        if (!state.isFunction(2)) throw state.error("connect wants a function");
+        if (!state.isFunction(2)) throw state.error("connect expects a function");
         state.pushValue(2);
         int ref = state.ref(-1);
         state.pop(1);

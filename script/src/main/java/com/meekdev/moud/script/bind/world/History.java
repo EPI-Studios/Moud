@@ -21,7 +21,7 @@ public final class History {
         state.rawSetField(-2, "now");
         state.pushFunction(LuaFunc.wrap(s -> {
             if (!(s.toUserDataTagged(2, Proxies.TAG) instanceof Character body)) {
-                throw s.error("history:viewTime wants a body");
+                throw s.error("history:viewTime expects a body");
             }
             s.pushNumber(history.viewTime(body.owner));
             return 1;

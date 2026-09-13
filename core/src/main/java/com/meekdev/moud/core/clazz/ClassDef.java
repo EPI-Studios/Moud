@@ -96,8 +96,7 @@ public final class ClassDef<T extends Instance> {
 
         for (Field f : fields) {
             if (props.size() >= MAX_PROPERTIES) {
-                throw new IllegalStateException(name + " has more than " + MAX_PROPERTIES
-                        + " properties, the class is doing too much");
+                throw new IllegalStateException(name + " has more than " + MAX_PROPERTIES + " properties");
             }
             props.add(define(name, type, f, prototype, lookup, props.size()));
         }
@@ -133,8 +132,7 @@ public final class ClassDef<T extends Instance> {
                                       MethodHandles.Lookup lookup, int index) {
         PropertyType kind = kindOf(field.getType());
         if (kind == null) {
-            throw new IllegalStateException(owner + "." + field.getName() + " is a " + field.getType().getSimpleName()
-                    + ", which is not a property type. make it private, or add the type to PropertyType");
+            throw new IllegalStateException("unsupported property type " + field.getType().getSimpleName() + " for " + owner + "." + field.getName());
         }
         VarHandle handle;
         try {
@@ -148,12 +146,10 @@ public final class ClassDef<T extends Instance> {
         boolean driven = opts != null && opts.driven();
         boolean asset = opts != null && opts.asset();
         if (asset && kind != PropertyType.STRING && kind != PropertyType.ASSET) {
-            throw new IllegalStateException(owner + "." + field.getName() + " is a " + kind
-                    + ", and only text names a file");
+            throw new IllegalStateException(owner + "." + field.getName() + ": asset properties must be strings");
         }
         if (driven && !replicated) {
-            throw new IllegalStateException(owner + "." + field.getName()
-                    + " is both driven and not replicated, and driven means replicated sometimes");
+            throw new IllegalStateException(owner + "." + field.getName() + " cannot be driven and unreplicated");
         }
         double min = opts == null ? Double.NEGATIVE_INFINITY : opts.min();
         double max = opts == null ? Double.POSITIVE_INFINITY : opts.max();

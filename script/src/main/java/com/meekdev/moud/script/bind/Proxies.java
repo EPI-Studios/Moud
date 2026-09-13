@@ -465,7 +465,7 @@ public final class Proxies {
     private static Instance refOf(LuaState state, PropertyDef property, int value) {
         if (state.isNoneOrNil(value)) return null;
         Instance target = (Instance) state.toUserDataTagged(value, TAG);
-        if (target == null) throw state.error("%s wants an instance or nil", property.name());
+        if (target == null) throw state.error("%s expects an instance or nil", property.name());
         if (!target.isAlive()) throw state.error("%s was handed a destroyed instance", property.name());
         return target;
     }
@@ -475,7 +475,7 @@ public final class Proxies {
         if (quat instanceof Quat q) return q;
         Object frame = state.toUserDataTagged(value, Values.CFRAME);
         if (frame instanceof CFrame cf) return cf.rotation();
-        throw state.error("rotation wants a cframe or a quat");
+        throw state.error("rotation expects a cframe or a quat");
     }
 
     private static Enum<?> enumOf(LuaState state, PropertyDef property, int value) {

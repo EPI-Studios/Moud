@@ -169,7 +169,7 @@ public final class Codec {
                         new Change.Moved((int) in.readZigzag(), (int) in.readZigzag()));
                 case DESTROYED -> changes.add(new Change.Destroyed((int) in.readZigzag()));
                 case TAGGED -> changes.add(new Change.Tagged((int) in.readZigzag(), in.readText(), in.readU8() == 1));
-                default -> throw new IllegalStateException("a change of kind " + kind + " is corrupt");
+                default -> throw new IllegalStateException("corrupt change kind " + kind);
             }
         }
 
@@ -211,8 +211,7 @@ public final class Codec {
     private static PropertyType typeOf(ClassDef<?> def, int id, int index) {
         PropertyDef property = def == null ? null : def.property(index);
         if (property == null) {
-            throw new IllegalStateException("property " + index + " of instance " + id
-                    + " is not one this side has. the two sides disagree about its class");
+            throw new IllegalStateException("unknown property " + index + " on instance " + id);
         }
         return property.type();
     }
@@ -252,7 +251,7 @@ public final class Codec {
                 out.f32(u.yOffset());
             }
             case ENUM -> out.u8(((Enum<?>) value).ordinal());
-            case BOOL -> throw new IllegalStateException("a flag goes in the block, not here");
+            case BOOL -> throw new IllegalStateException("flags are written in the flag block");
         }
     }
 
@@ -280,12 +279,12 @@ public final class Codec {
     private static Object option(PropertyDef property, int ordinal) {
         Object fallback = property.defaultValue();
         if (!(fallback instanceof Enum<?> one)) {
-            throw new IllegalStateException(property.name() + " is an enum with no default to read");
+            throw new IllegalStateException(property.name() + ": enum property without a default");
         }
         Object[] all = one.getClass().getEnumConstants();
         if (ordinal < 0 || ordinal >= all.length) {
             throw new IllegalStateException(
-                    property.name() + " has no option " + ordinal + ", so the two sides differ");
+                    property.name() + ": invalid enum ordinal " + ordinal);
         }
         return all[ordinal];
     }
