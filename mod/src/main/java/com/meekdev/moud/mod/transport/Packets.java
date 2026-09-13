@@ -90,8 +90,8 @@ public final class Packets {
     private Packets() {}
 
     private static <T extends CustomPacketPayload> CustomPacketPayload.Type<T> named(String path) {
-        return CustomPacketPayload.createType(
-                Identifier.fromNamespaceAndPath(NAMESPACE, path).toString());
+        // createType takes a bare path and puts the game's own namespace on it
+        return new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(NAMESPACE, path));
     }
 
     // the codecs a connection needs to know, registered on both sides because both sides have to read
