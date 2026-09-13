@@ -13,6 +13,7 @@ import com.meekdev.moud.script.api.PlayerRef;
 import com.meekdev.moud.script.bind.CameraMethods;
 import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PostRef;
+import com.meekdev.moud.script.api.StoreRef;
 import com.meekdev.moud.script.bind.Audio;
 import com.meekdev.moud.script.bind.Blocks;
 import com.meekdev.moud.script.bind.Remotes;
@@ -21,6 +22,7 @@ import com.meekdev.moud.script.bind.Inputs;
 import com.meekdev.moud.script.bind.Players;
 import com.meekdev.moud.script.bind.Proxies;
 import com.meekdev.moud.script.bind.Signals;
+import com.meekdev.moud.script.bind.Stores;
 import com.meekdev.moud.script.bind.SoundMethods;
 import com.meekdev.moud.script.bind.Tags;
 import com.meekdev.moud.script.reload.Persist;
@@ -109,6 +111,12 @@ public final class Vm implements ScriptEngine {
     public void bindAudio(AudioRef audio) {
         this.audio = audio;
         Audio.install(state, audio, beat, bar);
+    }
+
+    @Override
+    public void bindStore(StoreRef store) {
+        Stores.install(state, store);
+        run("store", Luau.source("store.luau"));
     }
 
     @Override

@@ -10,6 +10,7 @@ import com.meekdev.moud.script.api.InputRef;
 import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PlayerRef;
 import com.meekdev.moud.script.api.PostRef;
+import com.meekdev.moud.script.api.StoreRef;
 import com.meekdev.moud.script.err.ScriptError;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -41,6 +42,9 @@ public interface ScriptEngine extends AutoCloseable {
     void bindBlocks(BlockRef blocks);
 
     void bindFiles(FileRef files);
+
+    // the server's half only
+    void bindStore(StoreRef store);
 
     // starts the script instances of this vm's side, after everything else is bound
     void runScripts();

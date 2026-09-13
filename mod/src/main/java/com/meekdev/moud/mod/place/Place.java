@@ -5,6 +5,7 @@ import com.meekdev.moud.core.scene.Scene;
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.mod.adapter.physics.BlockRays;
 import com.meekdev.moud.mod.adapter.physics.Physics;
+import com.meekdev.moud.mod.server.ServerScene;
 import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
@@ -172,6 +173,7 @@ public final class Place {
         fresh.bindBlocks(new BlockRays(Physics::level, true));
         fresh.bindModules(new PlaceModules(root, client));
         fresh.bindFiles(new PlaceFileRef(root));
+        if (!client) fresh.bindStore(ServerScene.store());
         fresh.onError(Errors::record);
         fresh.persist(carried);
         extend.accept(fresh);

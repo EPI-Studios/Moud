@@ -77,6 +77,10 @@ dependencies {
     compileOnly "foundry.imguimc:imguimc-fabric-26.1:${project.imguimc_version}"
     localRuntime "foundry.imguimc:imguimc-fabric-26.1:${project.imguimc_version}"
 
+    // the local backend for store, a file in the world folder. a plain library, so it rides in the jar
+    implementation "org.xerial:sqlite-jdbc:3.46.1.3"
+    include "org.xerial:sqlite-jdbc:3.46.1.3"
+
     // polar is the level format, not a mod, so it shades in the way core does
     implementation files(polar)
 

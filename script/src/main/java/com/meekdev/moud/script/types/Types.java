@@ -265,6 +265,23 @@ public final class Types {
 
                 declare function require(path: string): any
                 declare script: Instance
+
+                declare class StoreSession
+                    data: { [string]: any }
+                    function save(self): ()
+                    function release(self): ()
+                end
+
+                declare class Store
+                    function get(self, key: any): any
+                    function set(self, key: any, value: any): ()
+                    function remove(self, key: any): ()
+                    function update(self, key: any, change: (old: any) -> any): any
+                    function keys(self, prefix: string?, limit: number?): { string }
+                    function session(self, key: any): StoreSession
+                end
+
+                declare function store(name: string): Store
                 declare scene: {
                     load: (path: string, parent: Instance?) -> { Instance },
                     save: (instances: any, path: string) -> (),
