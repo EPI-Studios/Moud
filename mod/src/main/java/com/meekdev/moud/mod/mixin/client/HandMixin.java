@@ -45,6 +45,13 @@ abstract class HandMixin {
         // the game's own hand, its own animations, and whatever it is really holding
         if (look.firstPerson == FirstPerson.HAND) return;
 
+        // holding something, the game draws the item and no arm at all, so our arm has nothing to add
+        // and the game's pass is the one that knows how an item is held up in front of a face
+        if (look.firstPerson == FirstPerson.ARM
+                && (!player.getMainHandItem().isEmpty() || !player.getOffhandItem().isEmpty())) {
+            return;
+        }
+
         // ours, from the body the client owns, before the call that would have drawn the game's
         if (look.firstPerson == FirstPerson.ARM) Hands.draw(tickDelta);
 

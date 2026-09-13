@@ -235,7 +235,7 @@ public final class Skins {
     //
     // the place's camera decides, and the game's own view decides when the place is not driving it:
     // a scriptable camera has been taken somewhere, and wherever that is, it is not inside you
-    private static boolean inside() {
+    static boolean inside() {
         Camera camera = ClientPlace.camera();
         if (camera != null && camera.mode != CameraMode.FIRST_PERSON) return false;
         return Minecraft.getInstance().options.getCameraType().isFirstPerson();

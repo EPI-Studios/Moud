@@ -33,6 +33,7 @@
     "client.FogMixin",
     "client.GameRenderMixin",
     "client.HandMixin",
+    "client.HeldItemsMixin",
     "client.HudMixin",
     "client.NameTagMixin",
     "client.ScreensMixin",

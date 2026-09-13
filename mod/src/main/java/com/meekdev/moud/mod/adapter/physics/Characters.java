@@ -23,6 +23,7 @@ import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
 import com.meekdev.moud.core.instance.ArmPose;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.CrossbowItem;
@@ -82,6 +83,8 @@ public final class Characters {
     private static final PropertyDef MAIN_LEFT = Classes.CHARACTER.property("mainLeft");
     private static final PropertyDef RIGHT_ARM_POSE = Classes.CHARACTER.property("rightArmPose");
     private static final PropertyDef LEFT_ARM_POSE = Classes.CHARACTER.property("leftArmPose");
+    private static final PropertyDef RIGHT_ITEM = Classes.CHARACTER.property("rightItem");
+    private static final PropertyDef LEFT_ITEM = Classes.CHARACTER.property("leftItem");
     private static final PropertyDef USING_ITEM = Classes.CHARACTER.property("usingItem");
     private static final PropertyDef USE_LEFT_HAND = Classes.CHARACTER.property("useLeftHand");
     private static final PropertyDef CHARGE = Classes.CHARACTER.property("chargeProgress");
@@ -341,6 +344,8 @@ public final class Characters {
                 (player.getUsedItemHand() == InteractionHand.OFF_HAND) != mainLeft);
         Instances.setObj(character, RIGHT_ARM_POSE, armPose(player, HumanoidArm.RIGHT));
         Instances.setObj(character, LEFT_ARM_POSE, armPose(player, HumanoidArm.LEFT));
+        Instances.setObj(character, RIGHT_ITEM, itemId(handOf(player, HumanoidArm.RIGHT)));
+        Instances.setObj(character, LEFT_ITEM, itemId(handOf(player, HumanoidArm.LEFT)));
         Instances.setNum(character, CHARGE, charge(player));
 
         if (Rig.armour(character) instanceof Armour worn) {
@@ -374,6 +379,15 @@ public final class Characters {
         ArmPose offPose = poseOf(player, off, InteractionHand.OFF_HAND);
         if (mainPose.twoHanded()) offPose = off.isEmpty() ? ArmPose.EMPTY : ArmPose.ITEM;
         return player.getMainArm() == arm ? mainPose : offPose;
+    }
+
+    // the stack in the hand on that side, which is the main hand only for a right handed player
+    public static ItemStack handOf(Player player, HumanoidArm arm) {
+        return player.getItemInHand(player.getMainArm() == arm ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
+    }
+
+    private static String itemId(ItemStack held) {
+        return held.isEmpty() ? "" : BuiltInRegistries.ITEM.getKey(held.getItem()).toString();
     }
 
     private static ArmPose poseOf(Player player, ItemStack held, InteractionHand hand) {

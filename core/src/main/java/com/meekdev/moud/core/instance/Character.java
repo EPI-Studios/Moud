@@ -59,6 +59,12 @@ public final class Character extends Spatial {
     @Prop(driven = true) public ArmPose rightArmPose = ArmPose.EMPTY;
     @Prop(driven = true) public ArmPose leftArmPose = ArmPose.EMPTY;
 
+    // the item in each hand, as an item id like minecraft:diamond_sword, drawn at that arm's grip.
+    // empty is an empty hand. a place writes these on its own characters; a worn body's come off
+    // the player's hands
+    @Prop(driven = true, asset = true) public String rightItem = "";
+    @Prop(driven = true, asset = true) public String leftItem = "";
+
     // holding a use down, and in which hand. the model poses the used hand first and only lets
     // the other one have its own pose if the first did not already write it
     @Prop(driven = true) public boolean usingItem;
