@@ -5,11 +5,13 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
+import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
+import net.bytebuddy.dynamic.scaffold.TypeValidation;
 import net.bytebuddy.matcher.ElementMatchers;
 
 public final class Injections {
@@ -62,10 +64,10 @@ public final class Injections {
     private static ResettableClassFileTransformer install(Method method) {
         Class<?> advice = method.getReturnType() == void.class ? VoidAdvice.class : ValueAdvice.class;
         Class<?> type = method.getDeclaringClass();
-        return new AgentBuilder.Default()
+        return new AgentBuilder.Default(new ByteBuddy().with(TypeValidation.DISABLED))
                 .disableClassFormatChanges()
                 .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-                .with(AgentBuilder.TypeStrategy.Default.REDEFINE)
+                .with(AgentBuilder.TypeStrategy.Default.DECORATE)
                 .with(AgentBuilder.InitializationStrategy.NoOp.INSTANCE)
                 .ignore(ElementMatchers.none())
                 .with(AgentBuilder.Listener.StreamWriting.toSystemError().withErrorsOnly())
