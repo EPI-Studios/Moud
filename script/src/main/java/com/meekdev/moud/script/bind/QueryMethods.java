@@ -1,9 +1,11 @@
 package com.meekdev.moud.script.bind;
 
+import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.instance.CollisionGroups;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.Queries;
+import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vec3;
 import com.meekdev.moud.script.api.BlockRef;
@@ -69,18 +71,90 @@ final class QueryMethods {
     }
 
     static int partsInBox(LuaState state, Instance root) {
-        return list(state, Queries.inBox(root, Values.cframe(state, 2), Values.vec3(state, 3), params(state, 4, root).filter()));
+        CFrame frame = Values.cframe(state, 2);
+        Params params = params(state, 4, root);
+        return list(state, shape(Queries.inBox(root, frame, Values.vec3(state, 3), params.filter()), frame.position(), params));
     }
 
     static int partsInRadius(LuaState state, Instance root) {
-        return list(state, Queries.inRadius(root, Values.vec3(state, 2), state.checkNumber(3), params(state, 4, root).filter()));
+        Vec3 centre = Values.vec3(state, 2);
+        Params params = params(state, 4, root);
+        return list(state, shape(Queries.inRadius(root, centre, state.checkNumber(3), params.filter()), centre, params));
+    }
+
+    // nearest first when asked, and no more than the limit
+    private static List<Part> shape(List<Part> parts, Vec3 from, Params params) {
+        if (params.sorted()) {
+            parts.sort((a, b) -> Double.compare(Transforms.world(a).position().sub(from).lengthSq(),
+                    Transforms.world(b).position().sub(from).lengthSq()));
+        }
+        return parts.size() > params.limit() ? new ArrayList<>(parts.subList(0, params.limit())) : parts;
+    }
+
+    // every part a ray passes into, nearest first: { { part, position, distance, normal }, ... }
+    static int raycastAll(LuaState state, Instance root) {
+        Vec3 from = Values.vec3(state, 2);
+        Vec3 direction = Values.vec3(state, 3);
+        double range = state.isNoneOrNil(4) ? 100 : state.checkNumber(4);
+        Params params = params(state, 5, root);
+        List<Queries.Cast> hits = Queries.raycastAll(root, from, direction, range, params.filter());
+        int count = Math.min(hits.size(), params.limit());
+        state.createTable(count, 0);
+        for (int n = 0; n < count; n++) {
+            hit(state, hits.get(n));
+            state.rawSetI(-2, n + 1);
+        }
+        return 1;
+    }
+
+    // many rays in one call: { { from, direction, range? }, ... } -> a list of hit tables, false for a miss
+    static int raycastMany(LuaState state, Instance root) {
+        if (state.type(2) != LuaType.TABLE) throw state.error("raycastMany wants a list of { from, direction, range }");
+        Params params = params(state, 3, root);
+        int count = state.len(2);
+        state.createTable(count, 0);
+        int out = state.top();
+        for (int n = 1; n <= count; n++) {
+            state.rawGetI(2, n);
+            int ray = state.top();
+            state.rawGetI(ray, 1);
+            Vec3 from = Values.vec3(state, -1);
+            state.pop(1);
+            state.rawGetI(ray, 2);
+            Vec3 direction = Values.vec3(state, -1);
+            state.pop(1);
+            state.rawGetI(ray, 3);
+            double range = state.isNumber(-1) ? state.toNumber(-1) : 100;
+            state.pop(2);
+            Queries.Cast cast = Queries.raycast(root, from, direction, range, params.filter());
+            if (cast == null) {
+                state.pushBoolean(false);
+            } else {
+                hit(state, cast);
+            }
+            state.rawSetI(out, n);
+        }
+        return 1;
+    }
+
+    private static void hit(LuaState state, Queries.Cast cast) {
+        state.createTable(0, 4);
+        Proxies.push(state, cast.part());
+        state.rawSetField(-2, "part");
+        Values.push(state, cast.at());
+        state.rawSetField(-2, "position");
+        state.pushNumber(cast.distance());
+        state.rawSetField(-2, "distance");
+        Values.push(state, cast.normal());
+        state.rawSetField(-2, "normal");
     }
 
     static int partsInPart(LuaState state, Instance root) {
         if (!(state.toUserDataTagged(2, Proxies.TAG) instanceof Part part)) {
             throw state.error("partsInPart wants a part");
         }
-        return list(state, Queries.inPart(root, part, params(state, 3, root).filter()));
+        Params params = params(state, 3, root);
+        return list(state, shape(Queries.inPart(root, part, params.filter()), Transforms.world(part).position(), params));
     }
 
     private static int push(LuaState state, Queries.Cast hit) {
@@ -104,11 +178,14 @@ final class QueryMethods {
         return 1;
     }
 
-    private record Params(Queries.Filter filter, boolean ignoreBlocks) {}
+    private record Params(Queries.Filter filter, boolean ignoreBlocks, int limit, boolean sorted) {
+
+        static final Params NONE = new Params(Queries.Filter.ALL, false, Integer.MAX_VALUE, false);
+    }
 
     // { exclude = { ... } } or { include = { ... } }, respectCollides, collisionGroup, ignoreBlocks
     private static Params params(LuaState state, int at, Instance root) {
-        if (state.isNoneOrNil(at)) return new Params(Queries.Filter.ALL, false);
+        if (state.isNoneOrNil(at)) return Params.NONE;
         if (state.type(at) != LuaType.TABLE) throw state.error("query options are a table");
         List<Instance> exclude = instances(state, at, "exclude");
         List<Instance> include = instances(state, at, "include");
@@ -122,10 +199,21 @@ final class QueryMethods {
         if (!state.isNil(-1)) group = state.checkString(-1);
         state.pop(1);
         CollisionGroups groups = group == null ? null : CollisionGroups.of(root.tree());
+        String tag = text(state, at, "tag");
+        String className = text(state, at, "className");
+        ClassDef<?> def = null;
+        if (className != null) {
+            def = Proxies.registry().find(className);
+            if (def == null) throw state.error("there is no class called %s", className);
+        }
+        state.getField(at, "limit");
+        int limit = state.isNumber(-1) ? Math.max(0, (int) state.toNumber(-1)) : Integer.MAX_VALUE;
+        state.pop(1);
+        boolean sorted = flag(state, at, "sorted");
         Queries.Filter filter = include != null
-                ? new Queries.Filter(include, true, respect, groups, group)
-                : new Queries.Filter(exclude != null ? exclude : List.of(), false, respect, groups, group);
-        return new Params(filter, ignoreBlocks);
+                ? new Queries.Filter(include, true, respect, groups, group, tag, def)
+                : new Queries.Filter(exclude != null ? exclude : List.of(), false, respect, groups, group, tag, def);
+        return new Params(filter, ignoreBlocks, limit, sorted);
     }
 
     private static List<Instance> instances(LuaState state, int at, String key) {
@@ -148,6 +236,13 @@ final class QueryMethods {
         }
         state.pop(1);
         return out;
+    }
+
+    private static String text(LuaState state, int at, String key) {
+        state.getField(at, key);
+        String value = state.isNil(-1) ? null : state.checkString(-1);
+        state.pop(1);
+        return value;
     }
 
     private static boolean flag(LuaState state, int at, String key) {

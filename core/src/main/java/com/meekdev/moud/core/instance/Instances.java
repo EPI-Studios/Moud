@@ -36,6 +36,7 @@ public final class Instances {
         T i = def.create();
         i.id = id;
         i.name = name;
+        if (i.tree != null) i.tree.mutations++;
         i.tree = parent.tree;
         i.parent = parent;
         parent.children.add(i);
@@ -107,12 +108,18 @@ public final class Instances {
     public static void addTag(Instance i, String tag) {
         checkTag(i, tag);
         if (i.tags == null) i.tags = new LinkedHashSet<>();
-        if (i.tags.add(tag)) i.tree.tag(i, tag, true);
+        if (i.tags.add(tag)) {
+            i.tree.mutations++;
+            i.tree.tag(i, tag, true);
+        }
     }
 
     public static void removeTag(Instance i, String tag) {
         checkTag(i, tag);
-        if (i.tags != null && i.tags.remove(tag)) i.tree.tag(i, tag, false);
+        if (i.tags != null && i.tags.remove(tag)) {
+            i.tree.mutations++;
+            i.tree.tag(i, tag, false);
+        }
     }
 
     private static void checkTag(Instance i, String tag) {
@@ -160,9 +167,17 @@ public final class Instances {
     }
 
     private static void touch(Instance i, PropertyDef p) {
+        if (i instanceof Spatial && moves(p)) i.tree.spatialTouched.add(i);
+        i.tree.mutations++;
         if (i.dirty == 0) i.tree.markDirty(i);
         i.dirty |= 1L << p.index();
         if (i.changed != null) i.changed.fire(p);
+    }
+
+    // the writes that change where a thing is or how big
+    private static boolean moves(PropertyDef p) {
+        String name = p.name();
+        return name.equals("cframe") || name.equals("size") || name.equals("pivot");
     }
 
     private static boolean isAncestor(Instance maybeAncestor, Instance of) {

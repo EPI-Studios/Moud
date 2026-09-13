@@ -1,5 +1,7 @@
 package com.meekdev.moud.core.instance;
 
+import java.util.IdentityHashMap;
+import java.util.Set;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.event.Signal;
 import java.util.ArrayList;
@@ -57,6 +59,22 @@ public final class InstanceTree {
     public boolean mirror() { return mirror; }
 
     public Instance root() { return root; }
+
+    // the spatial branches that moved since the index last looked, and the index itself, made on first use
+    final Set<Instance> spatialTouched = Collections.newSetFromMap(new IdentityHashMap<>());
+    private SpatialIndex spatial;
+
+    // bumped by every write and every change of shape, so a cached answer knows when it is stale
+    long mutations;
+
+    public long mutations() {
+        return mutations + structureEpoch;
+    }
+
+    public SpatialIndex spatial() {
+        if (spatial == null) spatial = new SpatialIndex(this);
+        return spatial;
+    }
 
     public long structureEpoch() { return structureEpoch; }
 

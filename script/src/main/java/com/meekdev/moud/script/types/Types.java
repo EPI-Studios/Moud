@@ -138,7 +138,8 @@ public final class Types {
                     function state(self): string
                 end
 
-                type QueryOptions = { exclude: { Instance }?, include: { Instance }?, respectCollides: boolean?, collisionGroup: string?,
+                type RayHit = { part: Instance, position: Vector3, distance: number, normal: Vector3 }
+                type QueryOptions = { exclude: { Instance }?, include: { Instance }?, respectCollides: boolean?, collisionGroup: string?, tag: string?, className: string?, limit: number?, sorted: boolean?,
                     ignoreBlocks: boolean? }
 
                 declare class Instance
@@ -159,6 +160,8 @@ public final class Types {
                     function partsInBox(self, frame: CFrame, size: Vector3, options: QueryOptions?): { Instance }
                     function partsInRadius(self, position: Vector3, radius: number, options: QueryOptions?): { Instance }
                     function partsInPart(self, part: Instance, options: QueryOptions?): { Instance }
+                    function raycastAll(self, from: Vector3, direction: Vector3, range: number?, options: QueryOptions?): { RayHit }
+                    function raycastMany(self, rays: { { any } }, options: QueryOptions?): { RayHit | false }
                     function destroy(self): ()
                     function setOwner(self, to: Instance?): ()
                     function addTag(self, tag: string): ()

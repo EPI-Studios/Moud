@@ -1,9 +1,15 @@
 package com.meekdev.moud.core.instance;
 
+import com.meekdev.moud.core.clazz.ClassDef;
+import com.meekdev.moud.core.math.Aabb;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vec3;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.WeakHashMap;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.Collections;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -18,17 +24,24 @@ public final class Queries {
     // which parts a query may find. listed instances count with everything under them, and a group
     // leaves out the parts that group passes through
     public record Filter(List<Instance> instances, boolean include, boolean respectCollides,
-                         CollisionGroups groups, String group) implements Predicate<Part> {
+                         CollisionGroups groups, String group, String tag, ClassDef<?> className) implements Predicate<Part> {
 
         public static final Filter ALL = new Filter(List.of(), false, false);
 
         public Filter(List<Instance> instances, boolean include, boolean respectCollides) {
-            this(instances, include, respectCollides, null, null);
+            this(instances, include, respectCollides, null, null, null, null);
+        }
+
+        public Filter(List<Instance> instances, boolean include, boolean respectCollides,
+                      CollisionGroups groups, String group) {
+            this(instances, include, respectCollides, groups, group, null, null);
         }
 
         @Override
         public boolean test(Part part) {
             if (respectCollides && !part.collides) return false;
+            if (tag != null && !part.hasTag(tag)) return false;
+            if (className != null && !part.def().isA(className)) return false;
             if (groups != null && !groups.collide(group, CollisionGroups.groupOf(part))) return false;
             if (instances.isEmpty()) return !include;
             boolean listed = false;
@@ -78,7 +91,8 @@ public final class Queries {
 
     // where a part is as far as a query is concerned: where it is now, unless a rewind says otherwise.
     // per thread, because the server and a client query from their own threads in one process
-    private static final ThreadLocal<Function<Part, CFrame>> FRAMES = ThreadLocal.withInitial(() -> Transforms::world);
+    private static final Function<Part, CFrame> NOW = Transforms::world;
+    private static final ThreadLocal<Function<Part, CFrame>> FRAMES = ThreadLocal.withInitial(() -> NOW);
 
     private Queries() {}
 
@@ -96,7 +110,42 @@ public final class Queries {
 
     // a ray that starts inside a part does not hit that part, so a ray from inside a head passes out of it
     public static Cast raycast(Instance root, Vec3 from, Vec3 direction, double range, Predicate<Part> filter) {
-        return swept(root, from, direction, range, 0, filter);
+        return (Cast) remembered(root, List.of("ray", from, direction, range, filter),
+                () -> swept(root, from, direction, range, 0, filter));
+    }
+
+    // the same question asked twice while nothing in the tree changed gets the answer it got the first
+    // time, which is what a place asking every frame from several scripts mostly does
+    private record Memo(long stamp, Map<List<Object>, Object> answers) {}
+
+    private static final Map<InstanceTree, Memo> MEMOS = Collections.synchronizedMap(new WeakHashMap<>());
+
+    private static Object remembered(Instance root, List<Object> question, Supplier<Object> ask) {
+        if (root == null || root.tree() == null || FRAMES.get() != NOW || !(question.getLast() instanceof Record)) {
+            return ask.get();
+        }
+        InstanceTree tree = root.tree();
+        long stamp = tree.mutations();
+        Memo memo = MEMOS.get(tree);
+        if (memo == null || memo.stamp() != stamp) {
+            memo = new Memo(stamp, new LinkedHashMap<>(64, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<List<Object>, Object> eldest) {
+                    return size() > 256;
+                }
+            });
+            MEMOS.put(tree, memo);
+        }
+        List<Object> key = new ArrayList<>(question);
+        key.add(root);
+        synchronized (memo.answers()) {
+            if (memo.answers().containsKey(key)) return memo.answers().get(key);
+        }
+        Object answer = ask.get();
+        synchronized (memo.answers()) {
+            memo.answers().put(key, answer);
+        }
+        return answer;
     }
 
     // a ball moved along a direction. its edges and corners are met as if the part were a box grown by
@@ -110,47 +159,68 @@ public final class Queries {
         if (root == null || range <= 0 || direction.lengthSq() < 1e-24) return null;
         Vec3 way = direction.normalize();
         Cast best = null;
-        for (Part part : parts(root, filter)) {
-            Box box = Box.of(part);
-            double near = 0;
-            double far = range;
-            int nearAxis = -1;
-            double nearSign = 0;
-            boolean missed = false;
-            for (int i = 0; i < 3 && !missed; i++) {
-                double o = from.sub(box.centre()).dot(box.axes()[i]);
-                double d = way.dot(box.axes()[i]);
-                double h = box.extent(i) + grow;
-                if (Math.abs(d) < 1e-12) {
-                    missed = o < -h || o > h;
-                    continue;
-                }
-                double one = (-h - o) / d;
-                double two = (h - o) / d;
-                double sign = -1;
-                if (one > two) {
-                    double swap = one;
-                    one = two;
-                    two = swap;
-                    sign = 1;
-                }
-                if (one > near) {
-                    near = one;
-                    nearAxis = i;
-                    nearSign = sign;
-                }
-                far = Math.min(far, two);
-                missed = near > far;
-            }
-            // nearAxis stays unset when the start is already inside
-            if (missed || nearAxis < 0) continue;
-            if (best == null || near < best.distance()) {
-                Vec3 normal = box.axes()[nearAxis].mul(nearSign);
-                Vec3 centre = from.add(way.mul(near));
-                best = new Cast(part, centre.sub(normal.mul(grow)), normal, near);
-            }
+        for (Part part : parts(root, segment(from, way, range, grow), filter)) {
+            Cast hit = sweptHit(part, from, way, range, grow);
+            if (hit != null && (best == null || hit.distance() < best.distance())) best = hit;
         }
         return best;
+    }
+
+    // every part a ray passes into, nearest first
+    public static List<Cast> raycastAll(Instance root, Vec3 from, Vec3 direction, double range, Predicate<Part> filter) {
+        List<Cast> hits = new ArrayList<>();
+        if (root == null || range <= 0 || direction.lengthSq() < 1e-24) return hits;
+        Vec3 way = direction.normalize();
+        for (Part part : parts(root, segment(from, way, range, 0), filter)) {
+            Cast hit = sweptHit(part, from, way, range, 0);
+            if (hit != null) hits.add(hit);
+        }
+        hits.sort((a, b) -> Double.compare(a.distance(), b.distance()));
+        return hits;
+    }
+
+    private static Aabb segment(Vec3 from, Vec3 way, double range, double grow) {
+        Vec3 to = from.add(way.mul(range));
+        return new Aabb(Math.min(from.x(), to.x()), Math.min(from.y(), to.y()), Math.min(from.z(), to.z()),
+                Math.max(from.x(), to.x()), Math.max(from.y(), to.y()), Math.max(from.z(), to.z())).grow(grow);
+    }
+
+    private static Cast sweptHit(Part part, Vec3 from, Vec3 way, double range, double grow) {
+        Box box = Box.of(part);
+        double near = 0;
+        double far = range;
+        int nearAxis = -1;
+        double nearSign = 0;
+        for (int i = 0; i < 3; i++) {
+            double o = from.sub(box.centre()).dot(box.axes()[i]);
+            double d = way.dot(box.axes()[i]);
+            double h = box.extent(i) + grow;
+            if (Math.abs(d) < 1e-12) {
+                if (o < -h || o > h) return null;
+                continue;
+            }
+            double one = (-h - o) / d;
+            double two = (h - o) / d;
+            double sign = -1;
+            if (one > two) {
+                double swap = one;
+                one = two;
+                two = swap;
+                sign = 1;
+            }
+            if (one > near) {
+                near = one;
+                nearAxis = i;
+                nearSign = sign;
+            }
+            far = Math.min(far, two);
+            if (near > far) return null;
+        }
+        // nearAxis stays unset when the start is already inside
+        if (nearAxis < 0) return null;
+        Vec3 normal = box.axes()[nearAxis].mul(nearSign);
+        Vec3 centre = from.add(way.mul(near));
+        return new Cast(part, centre.sub(normal.mul(grow)), normal, near);
     }
 
     // a box moved along a direction, met exactly on every face, edge and corner
@@ -160,7 +230,12 @@ public final class Queries {
         Vec3 way = direction.normalize();
         Box moving = Box.of(frame, size);
         Cast best = null;
-        for (Part part : parts(root, filter)) {
+        Aabb start = SpatialIndex.bounds(frame, size);
+        Aabb end = SpatialIndex.bounds(new CFrame(frame.position().add(way.mul(range)), frame.rotation()), size);
+        Aabb swept = new Aabb(Math.min(start.minX(), end.minX()), Math.min(start.minY(), end.minY()),
+                Math.min(start.minZ(), end.minZ()), Math.max(start.maxX(), end.maxX()),
+                Math.max(start.maxY(), end.maxY()), Math.max(start.maxZ(), end.maxZ()));
+        for (Part part : parts(root, swept, filter)) {
             Box still = Box.of(part);
             double enter = 0;
             double exit = range;
@@ -203,18 +278,32 @@ public final class Queries {
         return best;
     }
 
+    @SuppressWarnings("unchecked")
     public static List<Part> inBox(Instance root, CFrame frame, Vec3 size, Predicate<Part> filter) {
+        return new ArrayList<>((List<Part>) remembered(root, List.of("box", frame, size, filter),
+                () -> List.copyOf(boxed(root, frame, size, filter))));
+    }
+
+    private static List<Part> boxed(Instance root, CFrame frame, Vec3 size, Predicate<Part> filter) {
         Box box = Box.of(frame, size);
         List<Part> found = new ArrayList<>();
-        for (Part part : parts(root, filter)) {
+        for (Part part : parts(root, SpatialIndex.bounds(frame, size), filter)) {
             if (overlap(box, Box.of(part), 0)) found.add(part);
         }
         return found;
     }
 
+    @SuppressWarnings("unchecked")
     public static List<Part> inRadius(Instance root, Vec3 centre, double radius, Predicate<Part> filter) {
+        return new ArrayList<>((List<Part>) remembered(root, List.of("radius", centre, radius, filter),
+                () -> List.copyOf(around(root, centre, radius, filter))));
+    }
+
+    private static List<Part> around(Instance root, Vec3 centre, double radius, Predicate<Part> filter) {
         List<Part> found = new ArrayList<>();
-        for (Part part : parts(root, filter)) {
+        Aabb around = new Aabb(centre.x() - radius, centre.y() - radius, centre.z() - radius,
+                centre.x() + radius, centre.y() + radius, centre.z() + radius);
+        for (Part part : parts(root, around, filter)) {
             if (Box.of(part).closest(centre).sub(centre).lengthSq() <= radius * radius) found.add(part);
         }
         return found;
@@ -224,7 +313,7 @@ public final class Queries {
     public static List<Part> inPart(Instance root, Part part, Predicate<Part> filter) {
         Box box = Box.of(part);
         List<Part> found = new ArrayList<>();
-        for (Part other : parts(root, filter)) {
+        for (Part other : parts(root, SpatialIndex.bounds(FRAMES.get().apply(part), part.size), filter)) {
             if (other == part || isUnder(other, part)) continue;
             if (overlap(box, Box.of(other), 0)) found.add(other);
         }
@@ -262,6 +351,21 @@ public final class Queries {
     static List<Part> parts(Instance root, Predicate<Part> filter) {
         List<Part> found = new ArrayList<>();
         collect(root, filter, found);
+        return found;
+    }
+
+    // the parts under root that may touch region, from the tree's index. a rewind asks where things were,
+    // which the index does not know, so that one walks the branch
+    static List<Part> parts(Instance root, Aabb region, Predicate<Part> filter) {
+        if (root == null || root.tree() == null || FRAMES.get() != NOW) return parts(root, filter);
+        List<Part> candidates = new ArrayList<>();
+        root.tree().spatial().candidates(region, candidates);
+        List<Part> found = new ArrayList<>(candidates.size());
+        boolean everything = root.parent() == null;
+        for (Part part : candidates) {
+            if (!part.visible || !part.canQuery || isShell(part) || !filter.test(part)) continue;
+            if (everything || part == root || isUnder(part, root)) found.add(part);
+        }
         return found;
     }
 

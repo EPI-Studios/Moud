@@ -76,6 +76,8 @@ public final class Proxies {
         method(state, "partsInBox", s -> QueryMethods.partsInBox(s, self(s)));
         method(state, "partsInRadius", s -> QueryMethods.partsInRadius(s, self(s)));
         method(state, "partsInPart", s -> QueryMethods.partsInPart(s, self(s)));
+        method(state, "raycastAll", s -> QueryMethods.raycastAll(s, self(s)));
+        method(state, "raycastMany", s -> QueryMethods.raycastMany(s, self(s)));
         method(state, "setOwner", Proxies::setOwner);
         method(state, "addTag", s -> {
             Instance instance = self(s);
@@ -143,6 +145,10 @@ public final class Proxies {
         state.pushFunction(LuaFunc.wrap(body, "Instance:" + name));
         state.rawSetField(-2, name);
         state.pop(1);
+    }
+
+    static ClassRegistry registry() {
+        return classes;
     }
 
     public static Set<String> methodNames() {
