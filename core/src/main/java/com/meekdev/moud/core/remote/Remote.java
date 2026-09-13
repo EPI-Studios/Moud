@@ -1,8 +1,8 @@
 package com.meekdev.moud.core.remote;
 
 import com.meekdev.moud.core.event.Signal;
-import java.util.List;
 import com.meekdev.moud.core.instance.Instance;
+import java.util.List;
 
 public class Remote extends Instance {
 

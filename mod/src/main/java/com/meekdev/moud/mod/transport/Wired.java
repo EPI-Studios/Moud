@@ -1,6 +1,9 @@
 package com.meekdev.moud.mod.transport;
 
 import com.meekdev.moud.mod.server.ServerScene;
+import com.meekdev.moud.mod.transport.payload.DeltaPayload;
+import com.meekdev.moud.mod.transport.payload.RemoteDownPayload;
+import com.meekdev.moud.mod.transport.payload.RemoteUpPayload;
 import com.meekdev.moud.net.transport.InProcess;
 import com.meekdev.moud.net.transport.Transport;
 import com.meekdev.moud.net.wire.Args;
@@ -17,9 +20,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.meekdev.moud.mod.transport.payload.DeltaPayload;
-import com.meekdev.moud.mod.transport.payload.RemoteDownPayload;
-import com.meekdev.moud.mod.transport.payload.RemoteUpPayload;
 
 public final class Wired implements Transport {
 

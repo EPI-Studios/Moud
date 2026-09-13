@@ -1,22 +1,22 @@
 package com.meekdev.moud.script.bind.player;
 
-import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.character.Humanoid;
 import com.meekdev.moud.core.character.HumanoidState;
-import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.character.Rig;
+import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.Values;
+import com.meekdev.moud.script.bind.world.QueryMethods;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaState;
-import com.meekdev.moud.script.bind.Proxies;
-import com.meekdev.moud.script.bind.world.QueryMethods;
-import com.meekdev.moud.script.bind.Values;
 
 public final class BodyMethods {
 

@@ -1,23 +1,23 @@
 package com.meekdev.moud.script.bind.world;
 
-import com.meekdev.moud.script.bind.LuaTables;
-import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.character.Character;
+import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.core.zone.ProximityPrompt;
 import com.meekdev.moud.core.instance.Transforms;
-import com.meekdev.moud.core.zone.Zone;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.zone.ProximityPrompt;
+import com.meekdev.moud.core.zone.Zone;
 import com.meekdev.moud.core.zone.Zones;
+import com.meekdev.moud.script.bind.LuaTables;
+import com.meekdev.moud.script.bind.Plain;
+import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.Values;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaState;
-import com.meekdev.moud.script.bind.Plain;
-import com.meekdev.moud.script.bind.Proxies;
-import com.meekdev.moud.script.bind.Values;
 
 public final class ZoneMethods {
 

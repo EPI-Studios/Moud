@@ -1,6 +1,5 @@
 package com.meekdev.moud.script.bind.tween;
 
-import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.core.clazz.Enums;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instance;
@@ -10,6 +9,10 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.tween.Easing;
 import com.meekdev.moud.core.tween.Tween;
+import com.meekdev.moud.script.bind.LuaTables;
+import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.Signals;
+import com.meekdev.moud.script.bind.Values;
 import com.meekdev.moud.script.err.ScriptError;
 import com.meekdev.moud.script.sched.Ownership;
 import java.util.ArrayList;
@@ -19,9 +22,6 @@ import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
-import com.meekdev.moud.script.bind.Proxies;
-import com.meekdev.moud.script.bind.Signals;
-import com.meekdev.moud.script.bind.Values;
 
 public final class TweenMethods {
 

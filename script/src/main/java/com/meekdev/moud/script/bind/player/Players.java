@@ -1,16 +1,16 @@
 package com.meekdev.moud.script.bind.player;
 
-import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.api.PlayerRef;
+import com.meekdev.moud.script.bind.LuaTables;
+import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.Values;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
-import com.meekdev.moud.script.bind.Proxies;
-import com.meekdev.moud.script.bind.Values;
 
 public final class Players {
 

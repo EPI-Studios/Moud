@@ -1,16 +1,16 @@
 package com.meekdev.moud.core.query;
 
+import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
+import com.meekdev.moud.core.part.Part;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.part.Part;
-import com.meekdev.moud.core.instance.Transforms;
 
 public final class Rewind {
 

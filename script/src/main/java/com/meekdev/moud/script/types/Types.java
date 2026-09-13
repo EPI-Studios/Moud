@@ -1,11 +1,11 @@
 package com.meekdev.moud.script.types;
 
-import com.meekdev.moud.core.clazz.Enums;
-import com.meekdev.moud.core.clazz.EventDef;
 import com.meekdev.moud.core.clazz.CallbackDef;
 import com.meekdev.moud.core.clazz.ClassDef;
-import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.ClassRegistry;
+import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.clazz.Enums;
+import com.meekdev.moud.core.clazz.EventDef;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.clazz.PropertyType;
 import com.meekdev.moud.script.vm.Luau;

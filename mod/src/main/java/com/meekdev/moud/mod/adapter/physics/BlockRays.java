@@ -2,26 +2,26 @@ package com.meekdev.moud.mod.adapter.physics;
 
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.api.BlockRef;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import org.jspecify.annotations.Nullable;
-import net.minecraft.world.phys.Vec3;
 
 public final class BlockRays implements BlockRef {
 

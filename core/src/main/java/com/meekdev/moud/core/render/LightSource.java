@@ -1,8 +1,8 @@
 package com.meekdev.moud.core.render;
 
 import com.meekdev.moud.core.clazz.Prop;
-import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.instance.Spatial;
+import com.meekdev.moud.core.math.Color;
 
 public class LightSource extends Spatial {
 

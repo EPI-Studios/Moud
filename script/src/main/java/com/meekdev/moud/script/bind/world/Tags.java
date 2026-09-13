@@ -1,9 +1,11 @@
 package com.meekdev.moud.script.bind.world;
 
-import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.core.event.Signal;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.script.bind.LuaTables;
+import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.Signals;
 import com.meekdev.moud.script.err.ScriptError;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -11,8 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import net.hollowcube.luau.LuaState;
-import com.meekdev.moud.script.bind.Proxies;
-import com.meekdev.moud.script.bind.Signals;
 
 public final class Tags {
 

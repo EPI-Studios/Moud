@@ -4,8 +4,8 @@ import com.meekdev.amnetic.client.camera.AmneticCamera;
 import com.meekdev.amnetic.client.camera.CameraEffects;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.api.CameraRef;
-import org.joml.Vector2f;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector2f;
 
 public final class CameraApi implements CameraRef {
 

@@ -3,18 +3,18 @@ package com.meekdev.moud.mod.server.zone;
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.zone.ProximityPrompt;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.zone.ProximityPrompt;
 import com.meekdev.moud.mod.adapter.physics.Physics;
+import com.meekdev.moud.mod.server.ServerScene;
+import com.meekdev.moud.mod.transport.payload.PromptPayload;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import com.meekdev.moud.mod.transport.payload.PromptPayload;
-import com.meekdev.moud.mod.server.ServerScene;
 
 public final class ServerPrompts {
 

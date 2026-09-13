@@ -4,13 +4,13 @@ import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.scene.Scene;
 import com.meekdev.moud.script.api.FileRef;
+import com.meekdev.moud.script.bind.Proxies;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
-import com.meekdev.moud.script.bind.Proxies;
 
 public final class Scenes {
 

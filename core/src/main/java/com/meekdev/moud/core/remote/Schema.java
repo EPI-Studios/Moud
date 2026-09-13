@@ -1,5 +1,6 @@
 package com.meekdev.moud.core.remote;
 
+import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
@@ -9,7 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import com.meekdev.moud.core.instance.Instance;
 
 public final class Schema {
 

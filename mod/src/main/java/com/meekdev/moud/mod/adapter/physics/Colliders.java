@@ -5,21 +5,21 @@ import com.meekdev.bkun.collision.ColliderSink;
 import com.meekdev.bkun.collision.SurfaceMaterial;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
-import com.meekdev.moud.core.part.CollisionGroup;
-import com.meekdev.moud.core.part.CollisionGroups;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.part.Part;
-import com.meekdev.moud.core.query.SpatialIndex;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Aabb;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
+import com.meekdev.moud.core.part.CollisionGroup;
+import com.meekdev.moud.core.part.CollisionGroups;
+import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.query.SpatialIndex;
 import com.meekdev.moud.core.space.Broadphase;
 import com.meekdev.moud.net.replicate.Change;
-import net.minecraft.world.phys.AABB;
 import java.util.HashSet;
 import java.util.Set;
+import net.minecraft.world.phys.AABB;
 import org.jspecify.annotations.Nullable;
 
 public final class Colliders {

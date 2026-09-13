@@ -1,61 +1,61 @@
 package com.meekdev.moud.script.vm;
 
-import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.script.api.Game;
-import com.meekdev.moud.script.bind.InstanceSignals;
+import com.meekdev.moud.core.nav.Walkers;
+import com.meekdev.moud.core.tween.Tween;
 import com.meekdev.moud.script.api.AudioRef;
 import com.meekdev.moud.script.api.BlockRef;
 import com.meekdev.moud.script.api.CameraRef;
-import com.meekdev.moud.script.api.FileRef;
-import com.meekdev.moud.script.api.InputRef;
-import com.meekdev.moud.script.api.PlayerRef;
-import com.meekdev.moud.script.bind.player.CameraMethods;
-import com.meekdev.moud.script.api.ModuleSource;
-import com.meekdev.moud.script.api.PostRef;
 import com.meekdev.moud.script.api.ChatRef;
 import com.meekdev.moud.script.api.DebugRef;
+import com.meekdev.moud.script.api.FileRef;
+import com.meekdev.moud.script.api.Game;
 import com.meekdev.moud.script.api.HistoryRef;
+import com.meekdev.moud.script.api.InputRef;
+import com.meekdev.moud.script.api.ModuleSource;
+import com.meekdev.moud.script.api.PlayerRef;
+import com.meekdev.moud.script.api.PostRef;
 import com.meekdev.moud.script.api.StoreRef;
+import com.meekdev.moud.script.bind.Callbacks;
+import com.meekdev.moud.script.bind.InstanceSignals;
+import com.meekdev.moud.script.bind.LuaTables;
+import com.meekdev.moud.script.bind.Profiler;
+import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.Signals;
+import com.meekdev.moud.script.bind.Values;
 import com.meekdev.moud.script.bind.audio.Audio;
-import com.meekdev.moud.script.bind.world.Blocks;
-import com.meekdev.moud.script.bind.remote.Remotes;
-import com.meekdev.moud.script.bind.world.Scenes;
+import com.meekdev.moud.script.bind.audio.SoundMethods;
+import com.meekdev.moud.script.bind.chat.Chat;
+import com.meekdev.moud.script.bind.data.Stores;
+import com.meekdev.moud.script.bind.debug.DebugBinding;
+import com.meekdev.moud.script.bind.java.Java;
+import com.meekdev.moud.script.bind.java.Mixins;
+import com.meekdev.moud.script.bind.player.BodyMethods;
+import com.meekdev.moud.script.bind.player.CameraMethods;
 import com.meekdev.moud.script.bind.player.Inputs;
 import com.meekdev.moud.script.bind.player.Players;
-import com.meekdev.moud.script.bind.Proxies;
-import com.meekdev.moud.script.bind.player.BodyMethods;
-import com.meekdev.moud.script.bind.world.WorldMethods;
-import com.meekdev.moud.script.bind.world.TreeMethods;
-import com.meekdev.moud.script.bind.world.Paths;
-import com.meekdev.moud.core.nav.Walkers;
-import com.meekdev.moud.script.bind.world.ZoneMethods;
-import com.meekdev.moud.script.bind.Callbacks;
-import com.meekdev.moud.script.bind.java.Mixins;
-import com.meekdev.moud.script.bind.java.Java;
-import com.meekdev.moud.script.bind.chat.Chat;
-import com.meekdev.moud.script.bind.debug.DebugBinding;
-import com.meekdev.moud.script.bind.Profiler;
+import com.meekdev.moud.script.bind.remote.Remotes;
+import com.meekdev.moud.script.bind.tween.TweenMethods;
+import com.meekdev.moud.script.bind.world.Blocks;
 import com.meekdev.moud.script.bind.world.History;
-import com.meekdev.moud.script.bind.Signals;
-import com.meekdev.moud.script.bind.data.Stores;
-import com.meekdev.moud.script.bind.audio.SoundMethods;
+import com.meekdev.moud.script.bind.world.Paths;
+import com.meekdev.moud.script.bind.world.Scenes;
 import com.meekdev.moud.script.bind.world.Tags;
+import com.meekdev.moud.script.bind.world.TreeMethods;
+import com.meekdev.moud.script.bind.world.WorldMethods;
+import com.meekdev.moud.script.bind.world.ZoneMethods;
+import com.meekdev.moud.script.engine.ScriptEngine;
+import com.meekdev.moud.script.err.ScriptError;
 import com.meekdev.moud.script.reload.Persist;
 import com.meekdev.moud.script.sched.Ownership;
 import com.meekdev.moud.script.sched.Scheduler;
-import com.meekdev.moud.core.tween.Tween;
-import com.meekdev.moud.script.bind.tween.TweenMethods;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import com.meekdev.moud.script.bind.Values;
-import com.meekdev.moud.script.engine.ScriptEngine;
-import com.meekdev.moud.script.err.ScriptError;
-import net.hollowcube.luau.BuilinLibrary;
 import java.util.function.Supplier;
+import net.hollowcube.luau.BuilinLibrary;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.compiler.LuauCompileException;
@@ -79,6 +79,7 @@ public final class Vm implements ScriptEngine {
     private final Game game = new Game();
     private Chat chat;
     private Consumer<ScriptError> onError = e -> { throw e; };
+    private Consumer<String> printer = System.out::println;
     private final Scheduler scheduler;
     private AudioRef audio;
     private Tags tags;
@@ -88,26 +89,23 @@ public final class Vm implements ScriptEngine {
     private boolean client;
     private final Signals.Handlers beat = new Signals.Handlers();
     private final Signals.Handlers bar = new Signals.Handlers();
+    private Instance world;
+    private ClassRegistry registry;
 
     public Vm() {
         state = LuaState.newState();
         state.openLibs(LIBRARIES);
-        state.pushFunction(LuaFunc.wrap(s -> {
+        LuaTables.global(state, "print", s -> {
             StringBuilder line = new StringBuilder();
-            int count = s.top();
-            for (int n = 1; n <= count; n++) {
+            for (int n = 1; n <= s.top(); n++) {
                 if (n > 1) line.append('\t');
                 line.append(s.toStringRepr(n));
             }
             printer.accept(line.toString());
             return 0;
-        }, "print"));
-        state.setGlobal("print");
+        });
         scheduler = new Scheduler(state, e -> onError.accept(e));
     }
-
-    private Instance world;
-    private ClassRegistry registry;
 
     public void bind(Instance world, ClassRegistry registry) {
         this.world = world;
@@ -265,8 +263,6 @@ public final class Vm implements ScriptEngine {
     public void onError(Consumer<ScriptError> handler) {
         onError = handler;
     }
-
-    private Consumer<String> printer = System.out::println;
 
     @Override
     public void onPrint(Consumer<String> handler) {

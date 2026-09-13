@@ -4,9 +4,9 @@ import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.clazz.Enums;
 import com.meekdev.moud.core.clazz.PropertyDef;
+import com.meekdev.moud.core.instance.Instance;
 import java.util.ArrayList;
 import java.util.List;
-import com.meekdev.moud.core.instance.Instance;
 
 public final class Selector {
 

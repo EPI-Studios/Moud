@@ -1,32 +1,32 @@
 package com.meekdev.moud.mod.client;
 
-import net.minecraft.client.player.LocalPlayer;
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.adapter.audio.ResonaAudio;
+import com.meekdev.moud.mod.adapter.audio.Sounds;
 import com.meekdev.moud.mod.adapter.chat.Bubbles;
 import com.meekdev.moud.mod.adapter.chat.ChatView;
 import com.meekdev.moud.mod.adapter.chat.ClientChat;
-import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.mod.adapter.render.Meshes;
 import com.meekdev.moud.mod.adapter.render.Parts;
+import com.meekdev.moud.mod.adapter.render.Pipeline;
 import com.meekdev.moud.mod.adapter.render.PostStack;
 import com.meekdev.moud.mod.adapter.render.SceneLights;
 import com.meekdev.moud.mod.adapter.render.Skins;
-import com.meekdev.moud.mod.adapter.audio.ResonaAudio;
-import com.meekdev.moud.mod.adapter.audio.Sounds;
 import com.meekdev.moud.mod.adapter.ui.Ui;
-import com.meekdev.moud.mod.adapter.render.Pipeline;
+import com.meekdev.moud.mod.client.debug.ClientDebug;
+import com.meekdev.moud.mod.client.debug.CollisionView;
+import com.meekdev.moud.mod.client.debug.Trace;
 import com.meekdev.moud.mod.client.editor.Editor;
+import com.meekdev.moud.mod.client.input.Autopilot;
+import com.meekdev.moud.mod.client.input.Input;
+import com.meekdev.moud.mod.client.zone.ClientPrompts;
+import com.meekdev.moud.mod.transport.Post;
 import net.fabricmc.api.ClientModInitializer;
-import net.minecraft.client.Minecraft;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
-import com.meekdev.moud.mod.client.input.Autopilot;
-import com.meekdev.moud.mod.client.debug.ClientDebug;
-import com.meekdev.moud.mod.client.zone.ClientPrompts;
-import com.meekdev.moud.mod.client.debug.CollisionView;
-import com.meekdev.moud.mod.client.input.Input;
-import com.meekdev.moud.mod.client.debug.Trace;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 
 public final class MoudClient implements ClientModInitializer {
 

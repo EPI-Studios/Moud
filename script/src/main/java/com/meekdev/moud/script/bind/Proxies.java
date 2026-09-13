@@ -1,14 +1,13 @@
 package com.meekdev.moud.script.bind;
 
-import com.meekdev.moud.core.clazz.Enums;
+import com.meekdev.moud.core.character.Character;
+import com.meekdev.moud.core.clazz.CallbackDef;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.ClassRegistry;
-import com.meekdev.moud.core.clazz.CallbackDef;
+import com.meekdev.moud.core.clazz.Enums;
 import com.meekdev.moud.core.clazz.EventDef;
 import com.meekdev.moud.core.clazz.PropertyDef;
-import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.core.remote.Remote;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Owners;
 import com.meekdev.moud.core.instance.Spatial;
@@ -18,7 +17,10 @@ import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.remote.Remote;
 import com.meekdev.moud.script.api.BlockRef;
+import com.meekdev.moud.script.bind.remote.Remotes;
+import com.meekdev.moud.script.bind.world.QueryMethods;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -30,8 +32,6 @@ import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
-import com.meekdev.moud.script.bind.world.QueryMethods;
-import com.meekdev.moud.script.bind.remote.Remotes;
 
 public final class Proxies {
 

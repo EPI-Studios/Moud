@@ -1,6 +1,8 @@
 package com.meekdev.moud.mod.client.input;
 
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.mod.transport.payload.PilotDownPayload;
+import com.meekdev.moud.mod.transport.payload.PilotUpPayload;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
@@ -11,8 +13,6 @@ import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec2;
-import com.meekdev.moud.mod.transport.payload.PilotDownPayload;
-import com.meekdev.moud.mod.transport.payload.PilotUpPayload;
 
 public final class Autopilot {
 

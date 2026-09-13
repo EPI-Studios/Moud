@@ -1,11 +1,11 @@
 package com.meekdev.moud.script.bind.data;
 
-import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.script.api.StoreRef;
+import com.meekdev.moud.script.bind.LuaJson;
+import com.meekdev.moud.script.bind.LuaTables;
 import java.util.List;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
-import com.meekdev.moud.script.bind.LuaJson;
 
 public final class Stores {
 

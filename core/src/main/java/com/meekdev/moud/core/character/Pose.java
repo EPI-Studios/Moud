@@ -2,14 +2,14 @@ package com.meekdev.moud.core.character;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
+import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.Instances;
+import com.meekdev.moud.core.instance.Joint;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.core.instance.Instances;
-import com.meekdev.moud.core.instance.Joint;
 
 public final class Pose {
 

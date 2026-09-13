@@ -1,8 +1,8 @@
 package com.meekdev.moud.script.bind.java;
 
 import com.meekdev.moud.script.bind.LuaTables;
-import java.math.BigDecimal;
-import java.math.BigInteger;
+import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.Values;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
@@ -10,6 +10,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -22,8 +24,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
-import com.meekdev.moud.script.bind.Proxies;
-import com.meekdev.moud.script.bind.Values;
 
 public final class Java {
 

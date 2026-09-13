@@ -1,20 +1,22 @@
 package com.meekdev.moud.mod.adapter.chat;
 
+import com.meekdev.moud.core.character.Character;
+import com.meekdev.moud.core.chat.ChatCommand;
+import com.meekdev.moud.core.chat.TextChannel;
+import com.meekdev.moud.core.chat.TextSource;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
-import com.meekdev.moud.core.chat.ChatCommand;
-import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
-import com.meekdev.moud.core.chat.TextChannel;
-import com.meekdev.moud.core.chat.TextSource;
-import com.meekdev.moud.core.zone.Zone;
 import com.meekdev.moud.core.text.RichText;
+import com.meekdev.moud.core.zone.Zone;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.server.MoudServer;
 import com.meekdev.moud.mod.server.ServerScene;
+import com.meekdev.moud.mod.transport.payload.ChatDownPayload;
+import com.meekdev.moud.mod.transport.payload.ChatUpPayload;
 import com.meekdev.moud.script.api.ChatRef;
 import com.meekdev.moud.script.engine.ScriptEngine;
 import java.util.ArrayList;
@@ -22,17 +24,15 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import com.meekdev.moud.mod.transport.payload.ChatDownPayload;
-import com.meekdev.moud.mod.transport.payload.ChatUpPayload;
 
 public final class ServerChat implements ChatRef {
 

@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.client.input;
 
+import com.meekdev.moud.mod.client.debug.CollisionView;
 import com.meekdev.moud.script.api.InputRef;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
@@ -12,7 +13,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
-import com.meekdev.moud.mod.client.debug.CollisionView;
 
 public final class Input implements InputRef {
 

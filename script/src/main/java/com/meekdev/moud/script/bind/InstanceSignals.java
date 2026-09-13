@@ -1,10 +1,11 @@
 package com.meekdev.moud.script.bind;
 
+import com.meekdev.moud.core.chat.ChatCommand;
 import com.meekdev.moud.core.clazz.EventDef;
 import com.meekdev.moud.core.event.Signal;
-import com.meekdev.moud.core.chat.ChatCommand;
-import com.meekdev.moud.core.remote.Remote;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.remote.Remote;
+import com.meekdev.moud.script.bind.remote.Remotes;
 import com.meekdev.moud.script.err.ScriptError;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -12,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import net.hollowcube.luau.LuaState;
-import com.meekdev.moud.script.bind.remote.Remotes;
 
 public final class InstanceSignals {
 

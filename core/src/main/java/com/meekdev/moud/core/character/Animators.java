@@ -2,15 +2,15 @@ package com.meekdev.moud.core.character;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
-import com.meekdev.moud.core.math.CFrame;
-import java.util.ArrayList;
-import java.util.List;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Joint;
 import com.meekdev.moud.core.instance.Motor;
 import com.meekdev.moud.core.instance.Spatial;
+import com.meekdev.moud.core.math.CFrame;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class Animators {
 

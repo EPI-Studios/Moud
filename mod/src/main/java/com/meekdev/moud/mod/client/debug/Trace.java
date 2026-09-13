@@ -6,8 +6,9 @@ import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.MoudMod;
-import com.meekdev.moud.mod.features.Feature;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
+import com.meekdev.moud.mod.client.ClientScene;
+import com.meekdev.moud.mod.features.Feature;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Files;
@@ -16,11 +17,10 @@ import java.nio.file.StandardOpenOption;
 import java.util.Locale;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import net.minecraft.world.phys.Vec3;
-import com.meekdev.moud.mod.client.ClientScene;
 
 public final class Trace {
 

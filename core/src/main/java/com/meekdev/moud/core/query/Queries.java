@@ -1,25 +1,25 @@
 package com.meekdev.moud.core.query;
 
+import com.meekdev.moud.core.character.Rig;
 import com.meekdev.moud.core.clazz.ClassDef;
+import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Aabb;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.part.CollisionGroups;
+import com.meekdev.moud.core.part.Part;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.WeakHashMap;
-import java.util.Map;
-import java.util.LinkedHashMap;
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import com.meekdev.moud.core.part.CollisionGroups;
-import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.part.Part;
-import com.meekdev.moud.core.character.Rig;
-import com.meekdev.moud.core.instance.Transforms;
 
 public final class Queries {
 

@@ -1,16 +1,16 @@
 package com.meekdev.moud.core.character;
 
-import java.util.Map;
-import java.util.WeakHashMap;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
-import com.meekdev.moud.core.math.CFrame;
-import com.meekdev.moud.core.math.Quat;
-import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Transforms;
+import com.meekdev.moud.core.math.CFrame;
+import com.meekdev.moud.core.math.Quat;
+import com.meekdev.moud.core.math.Vector3;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 public final class Humanoids {
 

@@ -4,6 +4,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.input.InputAction;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.client.ClientScene;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -13,7 +14,6 @@ import java.util.Map;
 import java.util.Set;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
-import com.meekdev.moud.mod.client.ClientScene;
 
 public final class Actions {
 

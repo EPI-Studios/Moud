@@ -2,13 +2,13 @@ package com.meekdev.moud.core.zone;
 
 import com.meekdev.moud.core.clazz.Prop;
 import com.meekdev.moud.core.event.Signal;
+import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.math.Vector3;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
-import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.core.instance.Spatial;
 
 public final class Zone extends Spatial {
 

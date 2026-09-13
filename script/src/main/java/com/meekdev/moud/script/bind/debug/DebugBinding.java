@@ -1,15 +1,15 @@
 package com.meekdev.moud.script.bind.debug;
 
-import com.meekdev.moud.script.bind.LuaTables;
-import com.meekdev.moud.core.query.Queries;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.query.Queries;
 import com.meekdev.moud.script.api.DebugRef;
-import java.util.Map;
-import net.hollowcube.luau.LuaState;
+import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.script.bind.Plain;
 import com.meekdev.moud.script.bind.Profiler;
 import com.meekdev.moud.script.bind.Values;
+import java.util.Map;
+import net.hollowcube.luau.LuaState;
 
 public final class DebugBinding {
 

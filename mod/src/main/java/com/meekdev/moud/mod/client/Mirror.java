@@ -1,16 +1,16 @@
 package com.meekdev.moud.mod.client;
 
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.transport.Post;
+import com.meekdev.moud.mod.transport.payload.ResyncPayload;
 import com.meekdev.moud.net.replicate.Applier;
 import com.meekdev.moud.net.replicate.Change;
 import com.meekdev.moud.net.wire.Codec;
 import java.util.List;
 import java.util.Queue;
 import java.util.function.Consumer;
-import com.meekdev.moud.mod.transport.payload.ResyncPayload;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 public final class Mirror {
 

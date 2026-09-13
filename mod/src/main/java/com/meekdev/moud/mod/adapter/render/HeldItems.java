@@ -1,17 +1,17 @@
 package com.meekdev.moud.mod.adapter.render;
 
-import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.character.Appearance;
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.character.CharacterDisplay;
 import com.meekdev.moud.core.character.FirstPerson;
+import com.meekdev.moud.core.character.Rig;
+import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.part.Part;
-import com.meekdev.moud.core.character.Rig;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.mod.adapter.physics.Characters;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -29,8 +29,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import org.joml.Quaternionf;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Quaternionf;
 
 public final class HeldItems {
 

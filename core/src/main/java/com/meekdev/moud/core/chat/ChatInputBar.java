@@ -1,8 +1,8 @@
 package com.meekdev.moud.core.chat;
 
 import com.meekdev.moud.core.clazz.Prop;
-import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.math.Color;
 
 public final class ChatInputBar extends Instance {
 

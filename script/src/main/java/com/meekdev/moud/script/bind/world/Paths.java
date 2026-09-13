@@ -1,36 +1,36 @@
 package com.meekdev.moud.script.bind.world;
 
-import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.character.Humanoid;
+import com.meekdev.moud.core.character.Humanoids;
+import com.meekdev.moud.core.character.Rig;
+import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
-import com.meekdev.moud.core.query.Queries;
-import com.meekdev.moud.core.character.Rig;
 import com.meekdev.moud.core.instance.Transforms;
-import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.nav.NavMeshes;
-import com.meekdev.moud.core.character.Humanoids;
 import com.meekdev.moud.core.nav.Walkers;
-import com.meekdev.moud.script.api.BlockRef;
-import java.util.LinkedHashMap;
-import java.util.ArrayList;
-import java.util.List;
 import com.meekdev.moud.core.part.Part;
-import java.util.function.Predicate;
-import java.util.Map;
-import java.util.WeakHashMap;
-import java.util.Random;
-import java.util.function.ToIntFunction;
-import net.hollowcube.luau.LuaState;
-import net.hollowcube.luau.LuaType;
-import com.meekdev.moud.script.bind.player.BodyMethods;
+import com.meekdev.moud.core.query.Queries;
+import com.meekdev.moud.script.api.BlockRef;
+import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.script.bind.Plain;
 import com.meekdev.moud.script.bind.Proxies;
 import com.meekdev.moud.script.bind.Values;
+import com.meekdev.moud.script.bind.player.BodyMethods;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.WeakHashMap;
+import java.util.function.Predicate;
+import java.util.function.ToIntFunction;
+import net.hollowcube.luau.LuaState;
+import net.hollowcube.luau.LuaType;
 
 public final class Paths {
 

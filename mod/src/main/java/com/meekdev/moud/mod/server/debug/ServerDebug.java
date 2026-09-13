@@ -5,12 +5,12 @@ import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.adapter.chat.ChatView;
+import com.meekdev.moud.mod.server.ServerScene;
+import com.meekdev.moud.mod.transport.payload.DebugPayload;
 import com.meekdev.moud.script.api.DebugRef;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import com.meekdev.moud.mod.transport.payload.DebugPayload;
-import com.meekdev.moud.mod.server.ServerScene;
 
 public final class ServerDebug implements DebugRef {
 

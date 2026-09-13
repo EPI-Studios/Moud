@@ -1,15 +1,15 @@
 package com.meekdev.moud.mod.client.editor;
 
 import com.meekdev.moud.core.character.Character;
-import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.adapter.physics.Bodies;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
+import com.meekdev.moud.mod.client.ClientScene;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
-import com.meekdev.moud.core.math.Vector3;
 
 public final class Shake {
 

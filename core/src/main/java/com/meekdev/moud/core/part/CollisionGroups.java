@@ -1,6 +1,9 @@
 package com.meekdev.moud.core.part;
 
+import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.InstanceTree;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -8,9 +11,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import com.meekdev.moud.core.character.Character;
-import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.core.instance.InstanceTree;
 
 public final class CollisionGroups {
 

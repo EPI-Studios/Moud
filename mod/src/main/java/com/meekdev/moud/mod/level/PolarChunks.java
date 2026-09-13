@@ -1,6 +1,8 @@
 package com.meekdev.moud.mod.level;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import net.hollowcube.polar.PolarChunk;
 import net.hollowcube.polar.PolarSection;
 import net.hollowcube.polar.PolarWorld;
@@ -13,8 +15,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.levelgen.Heightmap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 public final class PolarChunks {
 

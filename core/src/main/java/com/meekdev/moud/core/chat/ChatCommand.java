@@ -1,10 +1,10 @@
 package com.meekdev.moud.core.chat;
 
 import com.meekdev.moud.core.event.Signal;
+import com.meekdev.moud.core.instance.Instance;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import com.meekdev.moud.core.instance.Instance;
 
 public final class ChatCommand extends Instance {
 

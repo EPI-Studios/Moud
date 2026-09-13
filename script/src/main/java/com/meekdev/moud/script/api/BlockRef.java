@@ -1,7 +1,7 @@
 package com.meekdev.moud.script.api;
 
-import java.util.function.Consumer;
 import com.meekdev.moud.core.math.Vector3;
+import java.util.function.Consumer;
 
 public interface BlockRef {
 

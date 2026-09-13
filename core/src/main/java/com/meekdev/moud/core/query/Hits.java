@@ -1,9 +1,9 @@
 package com.meekdev.moud.core.query;
 
-import com.meekdev.moud.core.math.Vector3;
-import java.util.function.Predicate;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
+import java.util.function.Predicate;
 
 public final class Hits {
 

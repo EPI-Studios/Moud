@@ -1,8 +1,10 @@
 package com.meekdev.moud.mod.client.editor;
 
 import com.meekdev.amnetic.client.ui.Inspector;
-import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.bkun.physics.MovementProfile;
+import com.meekdev.bkun.sublevel.SubLevelIndex;
 import com.meekdev.moud.core.character.Character;
+import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Spatial;
@@ -10,24 +12,22 @@ import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.adapter.physics.Characters;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
+import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.adapter.render.Parts;
 import com.meekdev.moud.mod.adapter.render.Skins;
-import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.client.ClientScene;
+import com.meekdev.moud.mod.level.PolarChunks;
 import com.meekdev.moud.mod.place.Errors;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.server.MoudServer;
-import com.meekdev.moud.script.err.ScriptError;
 import com.meekdev.moud.script.engine.ScriptEngine;
-import com.meekdev.bkun.physics.MovementProfile;
-import com.meekdev.bkun.sublevel.SubLevelIndex;
-import com.meekdev.moud.mod.level.PolarChunks;
+import com.meekdev.moud.script.err.ScriptError;
 import imgui.ImGui;
+import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
-import java.util.List;
 
 public final class PlaceInspector extends Inspector {
 

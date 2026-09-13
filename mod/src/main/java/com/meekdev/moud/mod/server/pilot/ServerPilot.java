@@ -5,6 +5,9 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.nav.Walkers;
 import com.meekdev.moud.mod.adapter.physics.Physics;
+import com.meekdev.moud.mod.server.ServerScene;
+import com.meekdev.moud.mod.transport.payload.PilotDownPayload;
+import com.meekdev.moud.mod.transport.payload.PilotUpPayload;
 import java.util.List;
 import java.util.Queue;
 import java.util.UUID;
@@ -12,9 +15,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import com.meekdev.moud.mod.transport.payload.PilotDownPayload;
-import com.meekdev.moud.mod.transport.payload.PilotUpPayload;
-import com.meekdev.moud.mod.server.ServerScene;
 
 public final class ServerPilot implements Walkers.Pilot {
 

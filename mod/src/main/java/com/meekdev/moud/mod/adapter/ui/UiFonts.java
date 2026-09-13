@@ -1,9 +1,9 @@
 package com.meekdev.moud.mod.adapter.ui;
 
+import com.meekdev.amnetic.client.surface.text.Fonts;
 import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.PlaceFiles;
-import com.meekdev.amnetic.client.surface.text.Fonts;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;

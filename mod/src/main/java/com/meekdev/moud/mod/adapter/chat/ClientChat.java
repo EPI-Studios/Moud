@@ -1,15 +1,17 @@
 package com.meekdev.moud.mod.adapter.chat;
 
-import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.chat.ChatInputBar;
 import com.meekdev.moud.core.chat.ChatWindow;
-import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.chat.TextChannel;
 import com.meekdev.moud.core.chat.TextSource;
+import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.text.RichText;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.ClientScene;
+import com.meekdev.moud.mod.transport.payload.ChatDownPayload;
+import com.meekdev.moud.mod.transport.payload.ChatUpPayload;
 import com.meekdev.moud.script.api.ChatRef;
 import com.meekdev.moud.script.engine.ScriptEngine;
 import java.util.ArrayList;
@@ -24,8 +26,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
-import com.meekdev.moud.mod.transport.payload.ChatDownPayload;
-import com.meekdev.moud.mod.transport.payload.ChatUpPayload;
 
 public final class ClientChat implements ChatRef {
 

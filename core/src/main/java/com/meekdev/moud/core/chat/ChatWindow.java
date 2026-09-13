@@ -1,11 +1,11 @@
 package com.meekdev.moud.core.chat;
 
 import com.meekdev.moud.core.clazz.Prop;
+import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.tween.Easing;
 import com.meekdev.moud.core.ui.HorizontalAlign;
-import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.ui.VerticalAlign;
 
 public final class ChatWindow extends Instance {

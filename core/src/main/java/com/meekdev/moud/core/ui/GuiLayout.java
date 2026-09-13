@@ -1,11 +1,11 @@
 package com.meekdev.moud.core.ui;
 
+import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import com.meekdev.moud.core.instance.Instance;
 
 public final class GuiLayout {
 

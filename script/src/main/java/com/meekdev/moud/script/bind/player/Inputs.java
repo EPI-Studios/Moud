@@ -1,7 +1,7 @@
 package com.meekdev.moud.script.bind.player;
 
-import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.script.api.InputRef;
+import com.meekdev.moud.script.bind.LuaTables;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;

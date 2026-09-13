@@ -1,16 +1,16 @@
 package com.meekdev.moud.core.query;
 
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Aabb;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.space.Broadphase;
 import java.util.ArrayList;
 import java.util.List;
-import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.part.Part;
-import com.meekdev.moud.core.instance.Transforms;
 
 public final class SpatialIndex {
 

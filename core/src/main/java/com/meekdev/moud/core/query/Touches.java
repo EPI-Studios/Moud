@@ -1,6 +1,10 @@
 package com.meekdev.moud.core.query;
 
+import com.meekdev.moud.core.character.Rig;
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.instance.Transforms;
+import com.meekdev.moud.core.part.Part;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -8,10 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
-import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.part.Part;
-import com.meekdev.moud.core.character.Rig;
-import com.meekdev.moud.core.instance.Transforms;
 
 public final class Touches {
 

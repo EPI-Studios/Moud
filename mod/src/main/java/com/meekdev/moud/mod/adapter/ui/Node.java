@@ -1,18 +1,18 @@
 package com.meekdev.moud.mod.adapter.ui;
 
+import com.meekdev.amnetic.client.surface.draw.UiDraw;
+import com.meekdev.amnetic.client.surface.widget.Widget;
+import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.ui.BillboardGui;
 import com.meekdev.moud.core.ui.GuiLayout;
 import com.meekdev.moud.core.ui.GuiObject;
 import com.meekdev.moud.core.ui.ImageLabel;
-import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.ui.ScreenGui;
 import com.meekdev.moud.core.ui.SurfaceGui;
 import com.meekdev.moud.core.ui.TextButton;
 import com.meekdev.moud.core.ui.TextLabel;
 import com.meekdev.moud.mod.adapter.chat.ChatView;
-import com.meekdev.moud.core.math.Color;
-import com.meekdev.amnetic.client.surface.draw.UiDraw;
-import com.meekdev.amnetic.client.surface.widget.Widget;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.ToDoubleFunction;

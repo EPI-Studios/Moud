@@ -1,7 +1,7 @@
 package com.meekdev.moud.mod.adapter.physics;
 
-import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.character.Character;
+import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import org.jspecify.annotations.Nullable;

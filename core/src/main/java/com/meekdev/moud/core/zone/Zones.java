@@ -1,8 +1,14 @@
 package com.meekdev.moud.core.zone;
 
+import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.instance.Attachment;
+import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.instance.Spatial;
+import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import java.util.ArrayList;
@@ -10,12 +16,6 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import com.meekdev.moud.core.instance.Attachment;
-import com.meekdev.moud.core.character.Character;
-import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.instance.Spatial;
-import com.meekdev.moud.core.instance.Transforms;
 
 public final class Zones {
 

@@ -5,11 +5,11 @@ import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vector3;
-import net.hollowcube.luau.LuaFunc;
-import net.hollowcube.luau.LuaType;
-import java.util.function.ToIntFunction;
 import java.util.Map;
+import java.util.function.ToIntFunction;
+import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
+import net.hollowcube.luau.LuaType;
 
 public final class Values {
 

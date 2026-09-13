@@ -2,9 +2,9 @@ package com.meekdev.moud.core.character;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.Prop;
+import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.math.Vector3;
 import java.util.UUID;
-import com.meekdev.moud.core.instance.Spatial;
 
 public final class Character extends Spatial {
 

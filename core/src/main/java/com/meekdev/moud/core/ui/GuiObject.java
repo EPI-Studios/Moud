@@ -1,9 +1,9 @@
 package com.meekdev.moud.core.ui;
 
 import com.meekdev.moud.core.clazz.Prop;
+import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.UDim2;
-import com.meekdev.moud.core.instance.Instance;
 
 public class GuiObject extends Instance {
 

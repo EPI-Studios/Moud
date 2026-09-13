@@ -7,14 +7,14 @@ import com.meekdev.amnetic.client.light.LightType;
 import com.meekdev.amnetic.client.light.Lights;
 import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.math.CFrame;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.render.AreaLight;
 import com.meekdev.moud.core.render.AreaShape;
-import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.render.LightSource;
 import com.meekdev.moud.core.render.SpotLight;
 import com.meekdev.moud.core.render.TubeLight;
-import com.meekdev.moud.core.math.CFrame;
-import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.client.PlaceFiles;
@@ -28,8 +28,8 @@ import java.util.Map;
 import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
-import org.joml.Vector3f;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3f;
 
 public final class SceneLights {
 

@@ -4,13 +4,15 @@ import com.meekdev.amnetic.client.render.CameraSnapshot;
 import com.meekdev.amnetic.client.surface.Surfaces;
 import com.meekdev.amnetic.client.surface.draw.UiDraw;
 import com.meekdev.amnetic.client.ui.Gizmos;
-import com.meekdev.moud.core.ui.HorizontalAlign;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.text.RichText;
+import com.meekdev.moud.core.ui.HorizontalAlign;
 import com.meekdev.moud.mod.adapter.chat.ChatView;
+import com.meekdev.moud.mod.client.ClientScene;
+import com.meekdev.moud.mod.transport.payload.DebugPayload;
 import com.meekdev.moud.script.api.DebugRef;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -21,8 +23,6 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import org.joml.Vector4f;
-import com.meekdev.moud.mod.transport.payload.DebugPayload;
-import com.meekdev.moud.mod.client.ClientScene;
 
 public final class ClientDebug implements DebugRef {
 

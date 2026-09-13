@@ -1,9 +1,9 @@
 package com.meekdev.moud.core.character;
 
-import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.clazz.Prop;
 import com.meekdev.moud.core.event.Signal;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.math.Vector3;
 
 public final class Humanoid extends Instance {
 

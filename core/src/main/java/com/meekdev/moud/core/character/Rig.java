@@ -3,15 +3,15 @@ package com.meekdev.moud.core.character;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
-import com.meekdev.moud.core.math.CFrame;
-import com.meekdev.moud.core.math.Quat;
-import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Joint;
-import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.instance.Spatial;
+import com.meekdev.moud.core.math.CFrame;
+import com.meekdev.moud.core.math.Quat;
+import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.part.Part;
 
 public final class Rig {
 

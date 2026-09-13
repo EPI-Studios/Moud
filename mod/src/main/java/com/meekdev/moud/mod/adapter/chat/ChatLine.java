@@ -3,9 +3,9 @@ package com.meekdev.moud.mod.adapter.chat;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.text.RichText;
+import com.meekdev.moud.mod.transport.payload.ChatDownPayload;
 import java.util.HashMap;
 import java.util.Map;
-import com.meekdev.moud.mod.transport.payload.ChatDownPayload;
 
 public final class ChatLine {
 

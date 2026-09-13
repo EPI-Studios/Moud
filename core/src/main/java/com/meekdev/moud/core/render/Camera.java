@@ -1,9 +1,9 @@
 package com.meekdev.moud.core.render;
 
 import com.meekdev.moud.core.clazz.Prop;
-import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Spatial;
+import com.meekdev.moud.core.math.Vector3;
 
 public final class Camera extends Spatial {
 

@@ -3,12 +3,12 @@ package com.meekdev.moud.script.bind.player;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.api.CameraRef;
+import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.Values;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaState;
-import com.meekdev.moud.script.bind.Proxies;
-import com.meekdev.moud.script.bind.Values;
 
 public final class CameraMethods {
 

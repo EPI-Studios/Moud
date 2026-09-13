@@ -3,18 +3,21 @@ package com.meekdev.moud.mod.client.debug;
 import com.meekdev.bkun.collision.BoxCollider;
 import com.meekdev.bkun.physics.MovementProfile;
 import com.meekdev.bkun.physics.Physics;
-import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.character.Character;
+import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
 import com.meekdev.moud.mod.adapter.physics.Colliders;
 import com.meekdev.moud.mod.adapter.physics.SubLevels;
+import com.meekdev.moud.mod.client.ClientScene;
 import com.mojang.blaze3d.platform.InputConstants;
+import java.util.ArrayList;
+import java.util.List;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -24,10 +27,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import java.util.ArrayList;
-import java.util.List;
 import org.lwjgl.glfw.GLFW;
-import com.meekdev.moud.mod.client.ClientScene;
 
 public final class CollisionView {
 

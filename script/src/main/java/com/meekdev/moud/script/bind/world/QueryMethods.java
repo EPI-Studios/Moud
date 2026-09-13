@@ -1,22 +1,22 @@
 package com.meekdev.moud.script.bind.world;
 
 import com.meekdev.moud.core.clazz.ClassDef;
-import com.meekdev.moud.core.part.CollisionGroups;
 import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.core.part.Part;
-import com.meekdev.moud.core.query.Queries;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.part.CollisionGroups;
+import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.query.Queries;
 import com.meekdev.moud.script.api.BlockRef;
+import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.Values;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
-import com.meekdev.moud.script.bind.Proxies;
-import com.meekdev.moud.script.bind.Values;
 
 public final class QueryMethods {
 

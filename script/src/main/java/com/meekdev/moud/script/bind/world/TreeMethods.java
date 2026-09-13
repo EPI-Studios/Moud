@@ -6,8 +6,10 @@ import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.query.Selector;
-import com.meekdev.moud.core.value.Value;
 import com.meekdev.moud.core.scene.Scene;
+import com.meekdev.moud.core.value.Value;
+import com.meekdev.moud.script.bind.Plain;
+import com.meekdev.moud.script.bind.Proxies;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -15,8 +17,6 @@ import java.util.Map;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
-import com.meekdev.moud.script.bind.Plain;
-import com.meekdev.moud.script.bind.Proxies;
 
 public final class TreeMethods {
 

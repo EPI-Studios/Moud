@@ -1,11 +1,11 @@
 package com.meekdev.moud.script.bind.world;
 
-import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.query.Queries;
 import com.meekdev.moud.script.api.HistoryRef;
-import net.hollowcube.luau.LuaState;
+import com.meekdev.moud.script.bind.LuaTables;
 import com.meekdev.moud.script.bind.Proxies;
+import net.hollowcube.luau.LuaState;
 
 public final class History {
 
