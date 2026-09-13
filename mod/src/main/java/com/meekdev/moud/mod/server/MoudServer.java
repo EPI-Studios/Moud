@@ -10,6 +10,7 @@ import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Humanoids;
 import com.meekdev.moud.core.instance.Stage;
 import com.meekdev.moud.core.instance.Stages;
+import com.meekdev.moud.core.instance.Touches;
 import com.meekdev.moud.core.instance.Rig;
 import com.meekdev.moud.core.time.Clock;
 import com.meekdev.moud.mod.MoudMod;
@@ -80,6 +81,8 @@ public final class MoudServer {
         Humanoids.follow(ServerScene.tree(), dt);
         Rig.follow(ServerScene.tree());
         Stages.run(ServerScene.tree(), Stage.COMPOSE, 0);
+        // once every frame of the tick has settled, so a touch is between where things really are
+        Touches.step(ServerScene.tree());
         Broadcast.tick(server, change -> Physics.apply(ServerScene.tree(), change, server));
         Physics.settle();
         // before anything else this tick: a place that hears a client and then steps is a place that

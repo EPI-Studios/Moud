@@ -31,7 +31,7 @@ public final class Queries {
     // the first part in the way: where it was met, which way that face looks, and how far along
     public record Cast(Part part, Vec3 at, Vec3 normal, double distance) {}
 
-    private record Box(Vec3 centre, Vec3[] axes, Vec3 half) {
+    record Box(Vec3 centre, Vec3[] axes, Vec3 half) {
 
         static Box of(Part part) {
             return of(Transforms.world(part), part.size);
@@ -211,7 +211,7 @@ public final class Queries {
         return overlap(Box.of(a), Box.of(b), margin);
     }
 
-    private static boolean overlap(Box a, Box b, double margin) {
+    static boolean overlap(Box a, Box b, double margin) {
         Vec3 gap = b.centre().sub(a.centre());
         for (Vec3 axis : axes(a, b)) {
             if (Math.abs(gap.dot(axis)) > a.reach(axis) + b.reach(axis) + margin) return false;
