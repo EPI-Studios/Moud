@@ -27,20 +27,20 @@ public final class Input implements InputRef {
         CollisionView.register(MOUD);
     }
 
-    private static boolean freed;
+    private static boolean pointerReleased;
 
     public static void pointerFrame() {
         Minecraft client = Minecraft.getInstance();
         if (pointer == null || client.player == null || client.screen != null) {
-            freed = false;
+            pointerReleased = false;
             return;
         }
         boolean held = pointer.isDown();
         if (held && client.mouseHandler.isMouseGrabbed()) {
             client.mouseHandler.releaseMouse();
-            freed = true;
-        } else if (!held && freed) {
-            freed = false;
+            pointerReleased = true;
+        } else if (!held && pointerReleased) {
+            pointerReleased = false;
             if (!client.mouseHandler.isMouseGrabbed()) client.mouseHandler.grabMouse();
         }
     }

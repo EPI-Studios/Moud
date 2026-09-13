@@ -28,7 +28,7 @@ public final class ClientPlace {
     private static final Clock FRAME = new Clock();
 
     private static @Nullable Place place;
-    private static @Nullable Instance placed;
+    private static @Nullable Instance placeWorld;
     private static @Nullable Camera camera;
     private static final Input INPUT = new Input();
     private static final CameraApi LENS = new CameraApi();
@@ -53,7 +53,7 @@ public final class ClientPlace {
             stop();
             return;
         }
-        if (place != null && placed != world) {
+        if (place != null && placeWorld != world) {
             MoudMod.LOG.info("server tree replaced, restarting client place");
             stop();
         }
@@ -83,7 +83,7 @@ public final class ClientPlace {
             vm.bindDebug(ClientDebug.INSTANCE);
         });
         place.start();
-        placed = world;
+        placeWorld = world;
         MoudMod.LOG.info("the client place is running");
     }
 
@@ -91,7 +91,7 @@ public final class ClientPlace {
         if (place == null) return;
         place.close();
         place = null;
-        placed = null;
+        placeWorld = null;
         camera = null;
         Cameras.release();
     }
