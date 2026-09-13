@@ -44,10 +44,6 @@ public final class Ui {
 
     private Ui() {}
 
-    public static void install() {
-        if (Surfaces.defaultFont() == null) Surfaces.defaultFont(UiFonts.DEFAULT);
-    }
-
     public static void frame(float partialTick) {
         InstanceTree tree = ClientScene.tree();
         if (tree == null) {

@@ -15,6 +15,7 @@ import com.meekdev.amnetic.client.surface.widget.Widget;
 import com.mojang.blaze3d.opengl.GlTexture;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.ToDoubleFunction;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.resources.Identifier;
@@ -66,14 +67,7 @@ final class Node extends Widget {
                 d.image(texture, x, y, w, h, argb(image.imageColor, (1 - image.imageTransparency) * alpha));
             }
         }
-        if (source instanceof TextLabel label && !label.text.isEmpty()) {
-            // a draw call has no font until it is given one, and without one every text call
-            // quietly draws nothing
-            Identifier previous = d.currentFont();
-            d.font(UiFonts.of(GuiLayout.font(label)));
-            text(d, label, alpha);
-            if (previous != null) d.font(previous);
-        }
+        if (source instanceof TextLabel label && !label.text.isEmpty()) text(d, label, alpha);
 
         if (object.clipsDescendants) d.pushClip(x, y, w, h);
     }
@@ -87,8 +81,14 @@ final class Node extends Widget {
         float px = (float) label.textSize;
         int colour = argb(label.textColor, (1 - label.textTransparency) * alpha);
         if ((colour >>> 24) == 0) return;
-        List<String> lines = label.textWrapped ? wrap(d, label.text, px, w) : List.of(label.text.split("\n", -1));
-        float line = d.lineHeight(px);
+        UiFonts.Face face = UiFonts.of(GuiLayout.font(label));
+        Identifier previous = d.currentFont();
+        if (face instanceof UiFonts.Vector vector) d.font(vector.font());
+
+        List<String> lines = label.textWrapped
+                ? wrap(one -> width(d, face, one, px), label.text, w)
+                : List.of(label.text.split("\n", -1));
+        float line = face instanceof UiFonts.Game ? px : d.lineHeight(px);
         float total = line * lines.size();
         float top = switch (label.textYAlignment) {
             case TOP -> y;
@@ -97,24 +97,42 @@ final class Node extends Widget {
         };
         for (int n = 0; n < lines.size(); n++) {
             String one = lines.get(n);
-            float width = d.textWidth(one, px);
+            float width = width(d, face, one, px);
             float left = switch (label.textXAlignment) {
                 case LEFT -> x;
                 case CENTER -> x + (w - width) * 0.5f;
                 case RIGHT -> x + w - width;
             };
-            d.text(one, left, top + line * n, px, colour);
+            float at = top + line * n;
+            switch (face) {
+                case UiFonts.Game game -> GameText.draw(d, game.font(), one, left, at, px, colour, label.textShadow);
+                case UiFonts.Vector ignored -> {
+                    if (label.textShadow) {
+                        int dark = (colour & 0xFF000000) | ((colour & 0xFCFCFC) >> 2);
+                        d.text(one, left + px / GameText.LINE, at + px / GameText.LINE, px, dark);
+                    }
+                    d.text(one, left, at, px, colour);
+                }
+            }
         }
+        if (previous != null) d.font(previous);
+    }
+
+    private static float width(UiDraw d, UiFonts.Face face, String text, float px) {
+        return switch (face) {
+            case UiFonts.Game game -> GameText.width(game.font(), text, px);
+            case UiFonts.Vector ignored -> d.textWidth(text, px);
+        };
     }
 
     // words onto lines no wider than the box, and a word longer than the box on a line of its own
-    private static List<String> wrap(UiDraw d, String text, float px, float width) {
+    private static List<String> wrap(ToDoubleFunction<String> measure, String text, float width) {
         List<String> lines = new ArrayList<>();
         for (String paragraph : text.split("\n", -1)) {
             StringBuilder current = new StringBuilder();
             for (String word : paragraph.split(" ")) {
                 String tried = current.isEmpty() ? word : current + " " + word;
-                if (!current.isEmpty() && d.textWidth(tried, px) > width) {
+                if (!current.isEmpty() && measure.applyAsDouble(tried) > width) {
                     lines.add(current.toString());
                     current = new StringBuilder(word);
                 } else {

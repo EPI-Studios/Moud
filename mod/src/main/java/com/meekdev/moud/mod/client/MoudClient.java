@@ -25,7 +25,6 @@ public final class MoudClient implements ClientModInitializer {
                 ? me.getUUID().toString() : "");
         Switches.install(MoudMod.features());
         Pipeline.install();
-        Ui.install();
         ResonaAudio.INSTANCE.install();
         Editor.install();
         Parts.register();

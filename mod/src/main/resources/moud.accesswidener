@@ -2,3 +2,15 @@ accessWidener v2 official
 
 # the info bar state is package private, and the xpBar switch has to name a value to return
 accessible class net/minecraft/client/gui/Gui$ContextualInfo
+
+# text on an interface is drawn from the game's own baked glyphs, so it is the game's font exactly
+accessible method net/minecraft/client/gui/Font getGlyphSource (Lnet/minecraft/network/chat/FontDescription;)Lnet/minecraft/client/gui/GlyphSource;
+accessible field net/minecraft/client/gui/font/glyphs/BakedSheetGlyph textureView Lcom/mojang/blaze3d/textures/GpuTextureView;
+accessible field net/minecraft/client/gui/font/glyphs/BakedSheetGlyph u0 F
+accessible field net/minecraft/client/gui/font/glyphs/BakedSheetGlyph u1 F
+accessible field net/minecraft/client/gui/font/glyphs/BakedSheetGlyph v0 F
+accessible field net/minecraft/client/gui/font/glyphs/BakedSheetGlyph v1 F
+accessible field net/minecraft/client/gui/font/glyphs/BakedSheetGlyph left F
+accessible field net/minecraft/client/gui/font/glyphs/BakedSheetGlyph right F
+accessible field net/minecraft/client/gui/font/glyphs/BakedSheetGlyph up F
+accessible field net/minecraft/client/gui/font/glyphs/BakedSheetGlyph down F

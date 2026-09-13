@@ -8,15 +8,19 @@ public class TextLabel extends GuiObject {
     public String text = "";
     public Color textColor = new Color(0.1f, 0.1f, 0.1f, 1f);
 
-    // in pixels
-    @Prop(min = 1) public double textSize = 14;
+    // the height of a line in pixels. nine is the game's own text at its own size
+    @Prop(min = 1) public double textSize = 9;
     @Prop(min = 0, max = 1) public double textTransparency;
 
     public boolean textWrapped;
+
+    // the game's drop shadow, one of its pixels down and right
+    public boolean textShadow;
     public HorizontalAlign textXAlignment = HorizontalAlign.CENTER;
     public VerticalAlign textYAlignment = VerticalAlign.CENTER;
 
-    // the font this text is drawn in: a res:// .ttf in the place, or a font in a resource pack.
-    // empty takes the nearest one set above it, and failing that the default
+    // the font this text is drawn in: empty for the game's own, another of the game's fonts like
+    // minecraft:uniform, or a .ttf in the place or a resource pack. empty takes the nearest one set
+    // above it first
     @Prop(asset = true) public String font = "";
 }
