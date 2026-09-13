@@ -152,21 +152,20 @@ public final class Place {
         // the server's opening scene goes in first, so a script can find it and a place with no script still has it
         if (!client) scene();
         language = pick();
-        if (language == null) {
-            MoudMod.LOG.info("no {} in any known language, nothing to run", main);
-            return null;
-        }
-        String file = main + "." + language.extension();
+        // no main file still gets a vm: the scene and its script instances need one to run in
+        ScriptLanguage running = language != null ? language : Languages.all().getFirst();
+        String file = main + "." + running.extension();
         Path entry = root.resolve(file);
-        String source;
-        try {
-            source = Files.readString(entry);
-        } catch (IOException e) {
-            MoudMod.LOG.error("could not read {}", entry, e);
-            return null;
+        String source = null;
+        if (language != null) {
+            try {
+                source = Files.readString(entry);
+            } catch (IOException e) {
+                MoudMod.LOG.error("could not read {}", entry, e);
+            }
         }
 
-        ScriptEngine fresh = language.engine();
+        ScriptEngine fresh = running.engine();
         fresh.bind(world, classes);
         // the server's side of a channel, and the server's half of the verbs
         fresh.bindPost(Post.SERVER, false);
@@ -176,12 +175,15 @@ public final class Place {
         fresh.onError(Errors::record);
         fresh.persist(carried);
         extend.accept(fresh);
-        try {
-            fresh.run(file, source);
-        } catch (RuntimeException e) {
-            // a broken edit must not take the client with it, the next save gets another go
-            MoudMod.LOG.error("{} failed", entry, e);
+        if (source != null) {
+            try {
+                fresh.run(file, source);
+            } catch (RuntimeException e) {
+                // a broken edit must not take the client with it, the next save gets another go
+                MoudMod.LOG.error("{} failed", entry, e);
+            }
         }
+        fresh.runScripts();
         return fresh;
     }
 }

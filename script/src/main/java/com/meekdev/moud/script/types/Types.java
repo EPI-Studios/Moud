@@ -245,6 +245,7 @@ public final class Types {
                 }
 
                 declare function require(path: string): any
+                declare script: Instance
                 declare scene: {
                     load: (path: string, parent: Instance?) -> { Instance },
                     save: (instances: any, path: string) -> (),

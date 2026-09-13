@@ -23,6 +23,7 @@ import com.meekdev.moud.script.bind.Signals;
 import com.meekdev.moud.script.bind.SoundMethods;
 import com.meekdev.moud.script.bind.Tags;
 import com.meekdev.moud.script.reload.Persist;
+import com.meekdev.moud.script.sched.Ownership;
 import com.meekdev.moud.script.sched.Scheduler;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -57,6 +58,9 @@ public final class Vm implements ScriptEngine {
     private final Scheduler scheduler;
     private AudioRef audio;
     private Tags tags;
+    private ScriptInstances scripts;
+    private ModuleSource modules;
+    private boolean client;
     private final Signals.Handlers beat = new Signals.Handlers();
     private final Signals.Handlers bar = new Signals.Handlers();
 
@@ -89,6 +93,7 @@ public final class Vm implements ScriptEngine {
     // looking at it. a server vm never sees these globals rather than seeing dead ones
     @Override
     public void bindPost(PostRef post, boolean client) {
+        this.client = client;
         Remotes.install(state, post, client);
     }
 
@@ -112,6 +117,7 @@ public final class Vm implements ScriptEngine {
 
     @Override
     public void bindModules(ModuleSource source) {
+        this.modules = source;
         Modules.install(state, source);
     }
 
@@ -183,12 +189,23 @@ public final class Vm implements ScriptEngine {
         onError = handler;
     }
 
+    // Script instances on a server vm and LocalScript ones on a client, started and stopped as the tree
+    // changes. asked for once the vm knows its side and where modules come from
+    @Override
+    public void runScripts() {
+        scripts = new ScriptInstances(state, scheduler, modules == null ? path -> null : modules, client,
+                e -> onError.accept(e));
+        scripts.poll(world.tree());
+    }
+
     public void step(double dt) {
+        if (scripts != null) scripts.poll(world.tree());
         scheduler.advance(dt);
         fire(game.stepped(), dt);
     }
 
     public void renderStep(double dt) {
+        if (scripts != null && client) scripts.poll(world.tree());
         if (audio != null) audio.drainBeats(n -> fire(beat, n), n -> fire(bar, n));
         fire(game.renderStepped(), dt);
     }
@@ -237,6 +254,8 @@ public final class Vm implements ScriptEngine {
         // before the state goes, because what is keyed by it cannot be dropped after: a state's
         // identity is a native pointer, and the next state may be handed the same one
         Remotes.forget(state);
+        if (scripts != null) scripts.stopAll();
+        Ownership.forget(state);
         if (tags != null) tags.close();
         Proxies.forgetBlocks(state);
         state.close();

@@ -25,9 +25,11 @@ import com.meekdev.moud.core.instance.Humanoid;
 import com.meekdev.moud.core.instance.ImageLabel;
 import com.meekdev.moud.core.instance.Joint;
 import com.meekdev.moud.core.instance.Limb;
+import com.meekdev.moud.core.instance.LocalScript;
 import com.meekdev.moud.core.instance.Motor;
 import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.ScreenGui;
+import com.meekdev.moud.core.instance.Script;
 import com.meekdev.moud.core.instance.Sound;
 import com.meekdev.moud.core.instance.SoundBus;
 import com.meekdev.moud.core.instance.Spatial;
@@ -102,6 +104,10 @@ public final class Classes {
     public static final ClassDef<SoundBus> SOUND_BUS =
             ClassDef.of("SoundBus", null, SoundBus.class, SoundBus::new);
 
+    public static final ClassDef<Script> SCRIPT = ClassDef.of("Script", null, Script.class, Script::new);
+    public static final ClassDef<LocalScript> LOCAL_SCRIPT =
+            ClassDef.of("LocalScript", null, LocalScript.class, LocalScript::new);
+
     public static final ClassDef<Joint> JOINT = ClassDef.of("Joint", null, Joint.class, Joint::new);
     public static final ClassDef<Motor> MOTOR = ClassDef.of("Motor", JOINT, Motor.class, Motor::new);
 
@@ -150,6 +156,8 @@ public final class Classes {
         r.register(IMAGE_LABEL);
         r.register(SOUND);
         r.register(SOUND_BUS);
+        r.register(SCRIPT);
+        r.register(LOCAL_SCRIPT);
         r.register(JOINT);
         r.register(MOTOR);
         for (Addon addon : addons) {

@@ -2,6 +2,9 @@ package com.meekdev.moud.script.bind;
 
 import com.meekdev.moud.script.err.ScriptError;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
+import com.meekdev.moud.script.sched.Ownership;
 import java.util.List;
 import java.util.function.Consumer;
 import net.hollowcube.luau.LuaFunc;
@@ -46,16 +49,21 @@ public final class Signals {
 
     // one handler failing does not stop the rest, which is what 8.8 asks for
     public static void fire(LuaState state, Handlers signal, Consumer<ScriptError> onError, Args args) {
+        Ownership owners = Ownership.of(state);
         for (int ref : signal.snapshot()) {
             if (state.getRef(ref) != LuaType.FUNCTION) {
                 state.pop(1);
                 continue;
             }
             int pushed = args.push(state);
+            // a handler runs as the script that connected it, so what it connects belongs to that script too
+            Object before = owners.enter(signal.owner(ref));
             try {
                 state.call(pushed, 0);
             } catch (RuntimeException e) {
                 onError.accept(new ScriptError("signal", e.getMessage(), e));
+            } finally {
+                owners.leave(before);
             }
         }
     }
@@ -77,7 +85,12 @@ public final class Signals {
         state.pushValue(2);
         int ref = state.ref(-1);
         state.pop(1);
-        signal.add(ref);
+        Ownership owners = Ownership.of(state);
+        Object owner = owners.current();
+        signal.add(ref, owner);
+        owners.onRelease(owner, () -> {
+            if (signal.remove(ref)) state.unref(ref);
+        });
         state.newUserDataTaggedWithMetatable(new Connection(signal, ref), CONNECTION);
         return 1;
     }
@@ -97,11 +110,13 @@ public final class Signals {
     // copy on write, so connecting or disconnecting from inside a handler is safe
     public static final class Handlers {
         private List<Integer> refs = List.of();
+        private final Map<Integer, Object> owners = new HashMap<>();
 
-        void add(int ref) {
+        void add(int ref, Object owner) {
             List<Integer> next = new ArrayList<>(refs);
             next.add(ref);
             refs = next;
+            if (owner != null) owners.put(ref, owner);
         }
 
         boolean remove(int ref) {
@@ -109,7 +124,12 @@ public final class Signals {
             List<Integer> next = new ArrayList<>(refs);
             next.remove(Integer.valueOf(ref));
             refs = next;
+            owners.remove(ref);
             return true;
+        }
+
+        Object owner(int ref) {
+            return owners.get(ref);
         }
 
         List<Integer> snapshot() {

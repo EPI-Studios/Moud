@@ -63,7 +63,8 @@ public final class Scheduler {
         state.pushValue(1);
         state.xmove(thread, 1);
 
-        Task task = new Task(nextId++, ref, thread);
+        Task task = new Task(nextId++, ref, thread, Ownership.of(main).current());
+        Ownership.of(main).onRelease(task.owner, () -> stop(task));
         resume(task);
         state.pushInteger(task.id);
         return 1;
@@ -80,14 +81,32 @@ public final class Scheduler {
         return 0;
     }
 
+    // a function started as its own coroutine, running as owner, with args already on its stack
+    public void start(LuaState thread, int ref, int args, Object owner) {
+        Task task = new Task(nextId++, ref, thread, owner);
+        Ownership.of(main).onRelease(owner, () -> stop(task));
+        task.args = args;
+        resume(task);
+    }
+
+    private void stop(Task task) {
+        if (sleeping.remove(task)) main.unref(task.ref);
+    }
+
     private void resume(Task task) {
         LuaStatus status;
+        Ownership owners = Ownership.of(main);
+        Object before = owners.enter(task.owner);
+        int args = task.args;
+        task.args = 0;
         try {
-            status = task.thread.resume(main, 0);
+            status = task.thread.resume(main, args);
         } catch (RuntimeException e) {
             onError.accept(new ScriptError("task " + task.id, e.getMessage(), e));
             main.unref(task.ref);
             return;
+        } finally {
+            owners.leave(before);
         }
 
         if (status == LuaStatus.YIELD) {
@@ -106,12 +125,15 @@ public final class Scheduler {
         final int id;
         final int ref;
         final LuaState thread;
+        final Object owner;
         double remaining;
+        int args;
 
-        Task(int id, int ref, LuaState thread) {
+        Task(int id, int ref, LuaState thread, Object owner) {
             this.id = id;
             this.ref = ref;
             this.thread = thread;
+            this.owner = owner;
         }
     }
 }

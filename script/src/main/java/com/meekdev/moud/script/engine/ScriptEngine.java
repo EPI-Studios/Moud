@@ -42,6 +42,9 @@ public interface ScriptEngine extends AutoCloseable {
 
     void bindFiles(FileRef files);
 
+    // starts the script instances of this vm's side, after everything else is bound
+    void runScripts();
+
     void onError(Consumer<ScriptError> handler);
 
     void run(String chunkName, String source);
