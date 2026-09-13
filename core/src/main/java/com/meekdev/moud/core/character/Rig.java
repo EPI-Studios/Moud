@@ -1,9 +1,9 @@
 package com.meekdev.moud.core.character;
 
+import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.math.CFrame;
-import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.instance.Instance;
@@ -175,7 +175,7 @@ public final class Rig {
         return character.child(WING_SET) instanceof Wings pair ? pair : null;
     }
 
-    private static boolean hasPlayer(Character character) {
+    private static boolean wearsElytra(Character character) {
         Wings pair = wings(character);
         return pair != null && pair.worn;
     }
@@ -217,9 +217,6 @@ public final class Rig {
                 part.size = limb.size();
                 part.cframe = CFrame.at(limb.pivot());
                 part.pivot = limb.box().neg();
-                part.color = Color.WHITE;
-                part.collides = false;
-                part.anchored = true;
                 part.u = limb.u();
                 part.v = limb.v();
                 part.texels = limb.texels();
@@ -229,161 +226,93 @@ public final class Rig {
             shell(character, limb);
             grip(character, limb);
             if ("head".equals(limb.name())) attach(character, limb, HAT, Vector3.ZERO);
-            if ("torso".equals(limb.name())) {
-                attach(character, limb, BACK, CAPE_BOX.pivot().sub(limb.pivot()));
-            }
+            if ("torso".equals(limb.name())) attach(character, limb, BACK, CAPE_BOX.pivot().sub(limb.pivot()));
         }
-        Instances.create(Classes.PART, character, HITBOX, part -> {
-            part.size = Vector3.ONE;
-            part.color = Color.WHITE;
-            part.collides = false;
-            part.anchored = true;
-        });
+        Instances.create(Classes.PART, character, HITBOX, part -> part.collides = false);
 
-        if (character.child("head") instanceof Part head
-                && head.child(HAT) instanceof Spatial point) {
+        Spatial hat = hat(character);
+        if (hat != null) {
             for (Shape ear : EAR) {
-                Instances.create(Classes.LIMB, point, ear.name(), part -> {
-                    part.color = Color.WHITE;
-                    part.collides = false;
-                    part.anchored = true;
-                    part.visible = false;
-                    part.u = ear.u();
-                    part.v = ear.v();
-                    part.texels = ear.texels();
-                    part.cutout = true;
-                });
+                hidden(Classes.LIMB, hat, ear.name(), "", ear.u(), ear.v(), ear.texels());
             }
         }
 
         for (int n = 0; n < SPINS.length; n++) {
             Shape shell = SPINS[n];
             double at = SPIN_SCALE[n];
-            Instances.create(Classes.LIMB, character, shell.name(), part -> {
-                part.size = shell.size().mul(at);
-                part.cframe = CFrame.at(shell.pivot());
-                part.pivot = shell.box().neg().mul(at);
-                part.color = Color.WHITE;
-                part.collides = false;
-                part.anchored = true;
-                part.visible = false;
-                part.u = shell.u();
-                part.v = shell.v();
-                part.texels = shell.texels();
-                part.sheet = SHEET_RIPTIDE;
-                part.cutout = true;
-            });
+            Limb part = hidden(Classes.LIMB, character, shell.name(), SHEET_RIPTIDE, shell.u(), shell.v(), shell.texels());
+            part.size = shell.size().mul(at);
+            part.cframe = CFrame.at(shell.pivot());
+            part.pivot = shell.box().neg().mul(at);
         }
 
         for (Shape wing : WING) {
-            Instances.create(Classes.LIMB, character, wing.name(), part -> {
-                part.size = wing.size();
-                part.cframe = CFrame.at(wing.pivot());
-                part.pivot = wing.box().neg();
-                part.color = Color.WHITE;
-                part.collides = false;
-                part.anchored = true;
-                part.visible = false;
-                part.u = wing.u();
-                part.v = wing.v();
-                part.texels = wing.texels();
-                part.sheetHeight = 32;
-                part.mirrored = WINGS[0].equals(wing.name());
-                part.sheet = SHEET_ELYTRA;
-                part.cutout = true;
-            });
+            Limb part = hidden(Classes.LIMB, character, wing.name(), SHEET_ELYTRA, wing.u(), wing.v(), wing.texels());
+            part.size = wing.size();
+            part.cframe = CFrame.at(wing.pivot());
+            part.pivot = wing.box().neg();
+            part.sheetHeight = 32;
+            part.mirrored = WINGS[0].equals(wing.name());
         }
 
         if (character.child("torso") instanceof Part torso) {
-            Instances.create(Classes.CAPE, torso, CAPE, part -> {
-                part.size = CAPE_BOX.size();
-                part.pivot = CAPE_BOX.box().neg();
-                part.color = Color.WHITE;
-                part.collides = false;
-                part.anchored = true;
-                part.visible = false;
-                part.u = CAPE_BOX.u();
-                part.v = CAPE_BOX.v();
-                part.texels = CAPE_BOX.texels();
-                part.sheetHeight = 32;
-                part.sheet = SHEET_CAPE;
-                part.cutout = true;
-            });
+            Cape cape = hidden(Classes.CAPE, torso, CAPE, SHEET_CAPE, CAPE_BOX.u(), CAPE_BOX.v(), CAPE_BOX.texels());
+            cape.size = CAPE_BOX.size();
+            cape.pivot = CAPE_BOX.box().neg();
+            cape.sheetHeight = 32;
         }
 
         Instances.create(Classes.HUMANOID, character, HUMANOID);
         Instances.create(Classes.ANIMATOR, character, ANIMATOR);
         Instances.create(Classes.ARMOUR, character, ARMOUR);
-        if (character.child("head") instanceof Part head
-                && head.child(HAT) instanceof Spatial point) {
+        if (hat != null) {
             for (int n = 0; n < WORN_HEAD.length; n++) {
-                boolean layer = n == 1;
-                Instances.create(Classes.LIMB, point, WORN_HEAD[n], part -> {
-                    part.color = Color.WHITE;
-                    part.collides = false;
-                    part.anchored = true;
-                    part.visible = false;
-                    part.u = layer ? 32 : 0;
-                    part.v = 0;
-                    part.texels = new Vector3(8, 8, 8);
-                    part.sheet = SHEET_ARMOUR + "head";
-                    part.cutout = true;
-                });
+                hidden(Classes.LIMB, hat, WORN_HEAD[n], SHEET_ARMOUR + "head", n == 1 ? 32 : 0, 0, new Vector3(8, 8, 8));
             }
         }
         for (Plate plate : ARMOUR_PLATES) {
-            if (!(character.child(plate.limb()) instanceof Part limb)) continue;
             Shape shape = shapeOf(plate.limb());
-            if (shape == null) continue;
-            Instances.create(Classes.LIMB, limb, plate.name(), part -> {
-                part.color = Color.WHITE;
-                part.collides = false;
-                part.anchored = true;
-                part.visible = false;
-                part.u = plate.u();
-                part.v = plate.v();
-                part.texels = shape.texels();
-                part.sheetHeight = 32;
-                part.mirrored = plate.mirrored();
-                part.sheet = SHEET_ARMOUR + plate.slot();
-                part.cutout = true;
-            });
+            if (shape == null || !(character.child(plate.limb()) instanceof Part limb)) continue;
+            Limb part = hidden(Classes.LIMB, limb, plate.name(), SHEET_ARMOUR + plate.slot(), plate.u(), plate.v(), shape.texels());
+            part.sheetHeight = 32;
+            part.mirrored = plate.mirrored();
         }
         Instances.create(Classes.WINGS, character, WING_SET);
         Instances.create(Classes.APPEARANCE, character, APPEARANCE);
 
         Instance frame = Instances.create(Classes.ATTACHMENT, character, ROOT);
-
         Instance joints = Instances.create(Classes.FOLDER, character, JOINTS);
-        Instances.create(Classes.MOTOR, joints, ROOT, joint -> {
-            joint.part0 = character;
-            joint.part1 = frame;
-        });
+        motor(joints, ROOT, character, frame);
         if (character.child("torso") instanceof Part torso && torso.child(CAPE) != null) {
-            Instances.create(Classes.MOTOR, joints, CAPE, joint -> {
-                joint.part0 = torso;
-                joint.part1 = torso.child(CAPE);
-            });
+            motor(joints, CAPE, torso, torso.child(CAPE));
         }
-        for (Shape shell : SPINS) {
-            Instances.create(Classes.MOTOR, joints, shell.name(), joint -> {
-                joint.part0 = frame;
-                joint.part1 = character.child(shell.name());
-            });
-        }
-        for (Shape wing : WING) {
-            Instances.create(Classes.MOTOR, joints, wing.name(), joint -> {
-                joint.part0 = frame;
-                joint.part1 = character.child(wing.name());
-            });
-        }
-        for (Shape limb : BODY) {
-            Instances.create(Classes.MOTOR, joints, limb.name(), joint -> {
-                joint.part0 = frame;
-                joint.part1 = character.child(limb.name());
-            });
-        }
+        for (Shape shell : SPINS) motor(joints, shell.name(), frame, character.child(shell.name()));
+        for (Shape wing : WING) motor(joints, wing.name(), frame, character.child(wing.name()));
+        for (Shape limb : BODY) motor(joints, limb.name(), frame, character.child(limb.name()));
         apply(character);
+    }
+
+    private static <T extends Limb> T hidden(ClassDef<T> type, Instance parent, String name,
+                                             String sheet, double u, double v, Vector3 texels) {
+        return Instances.create(type, parent, name, part -> {
+            part.visible = false;
+            part.cutout = true;
+            part.sheet = sheet;
+            part.u = u;
+            part.v = v;
+            part.texels = texels;
+        });
+    }
+
+    private static void motor(Instance joints, String name, Instance part0, Instance part1) {
+        Instances.create(Classes.MOTOR, joints, name, joint -> {
+            joint.part0 = part0;
+            joint.part1 = part1;
+        });
+    }
+
+    private static Spatial hat(Character character) {
+        return character.child("head") instanceof Part head && head.child(HAT) instanceof Spatial point ? point : null;
     }
 
     public static void follow(InstanceTree tree) {
@@ -452,7 +381,7 @@ public final class Rig {
                 && torso.child(CAPE) instanceof Part cape) {
             Instances.setObj(cape, SIZE, CAPE_BOX.size().mul(s));
             Instances.setObj(cape, PIVOT, CAPE_BOX.box().neg().mul(s));
-            if (hasPlayer(character)) Instances.setBool(cape, VISIBLE, false);
+            if (wearsElytra(character)) Instances.setBool(cape, VISIBLE, false);
             if (joint(character, CAPE) instanceof Joint hinge) {
                 Instances.setObj(hinge, C0, CFrame.at(
                         BODY[1].box().neg().add(CAPE_BOX.pivot().sub(BODY[1].pivot())).mul(s)));
@@ -465,7 +394,7 @@ public final class Rig {
             Instances.setObj(part, SIZE,
                     wing.size().add(new Vector3(grown, grown, grown)).mul(s));
             Instances.setObj(part, PIVOT, wing.box().neg().mul(s));
-            Instances.setBool(part, VISIBLE, hasPlayer(character));
+            Instances.setBool(part, VISIBLE, wearsElytra(character));
             if (joint(character, wing.name()) instanceof Joint hinge) {
                 Instances.setObj(hinge, C0, CFrame.at(wing.pivot().mul(s)));
             }
@@ -483,8 +412,8 @@ public final class Rig {
             }
         }
 
-        if (character.child("head") instanceof Part head
-                && head.child(HAT) instanceof Spatial point) {
+        Spatial point = hat(character);
+        if (point != null) {
             for (Shape ear : EAR) {
                 if (!(point.child(ear.name()) instanceof Part part)) continue;
                 double out = ear.shell() * 2;
@@ -498,8 +427,7 @@ public final class Rig {
         }
 
         Armour worn = armour(character);
-        if (character.child("head") instanceof Part head
-                && head.child(HAT) instanceof Spatial point) {
+        if (point != null) {
             boolean wearing = worn != null && !worn.hat.isEmpty();
             for (int n = 0; n < WORN_HEAD.length; n++) {
                 if (!(point.child(WORN_HEAD[n]) instanceof Part part)) continue;
@@ -559,9 +487,6 @@ public final class Rig {
         if (!(character.child(limb.name()) instanceof Part part)) return;
         Instances.create(Classes.LIMB, part, OVERLAY, over -> {
             over.size = part.size;
-            over.color = Color.WHITE;
-            over.collides = false;
-            over.anchored = true;
             over.u = limb.shellU();
             over.v = limb.shellV();
             over.texels = limb.texels();

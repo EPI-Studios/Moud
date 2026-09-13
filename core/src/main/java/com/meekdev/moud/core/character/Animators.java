@@ -52,13 +52,13 @@ public final class Animators {
         if (top == Double.NEGATIVE_INFINITY) return;
 
         CFrame blended = joint.transform;
-        double laid = 0;
+        double totalWeight = 0;
         for (AnimationTrack track : playing) {
             if (track.priority != top) continue;
             if (!(track.child(joint.name()) instanceof Spatial target)) continue;
-            double share = laid == 0 ? track.weight : track.weight / (laid + track.weight);
+            double share = totalWeight == 0 ? track.weight : track.weight / (totalWeight + track.weight);
             blended = blended.lerp(target.cframe, share);
-            laid += track.weight;
+            totalWeight += track.weight;
         }
         Instances.setObj(joint, TRANSFORM, blended);
     }

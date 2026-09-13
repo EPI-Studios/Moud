@@ -25,4 +25,8 @@ public class Limb extends Part {
     public boolean mirrored;
 
     public boolean cutout;
+
+    public Limb() {
+        collides = false;
+    }
 }

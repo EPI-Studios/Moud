@@ -36,7 +36,7 @@ public final class Humanoids {
         if (living == null) return;
 
         double was = living.health;
-        double health = Math.max(0, Math.min(living.maxHealth, living.health));
+        double health = Math.clamp(living.health, 0, living.maxHealth);
         if (health != living.health) Instances.setNum(living, HEALTH, health);
         if (health != was) living.healthChanged.fire(living);
 
@@ -55,28 +55,33 @@ public final class Humanoids {
         updateJump(character, living, dt);
     }
 
-    private static final Map<Character, double[]> HOPS = new WeakHashMap<>();
+    private static final class Jump {
+        double time;
+        double height;
+    }
+
+    private static final Map<Character, Jump> JUMPS = new WeakHashMap<>();
 
     private static void updateJump(Character character, Humanoid living, double dt) {
-        double[] hop = HOPS.get(character);
-        if (hop == null && living.jump) {
-            hop = new double[] {0, 0};
-            HOPS.put(character, hop);
+        Jump jump = JUMPS.get(character);
+        if (jump == null && living.jump) {
+            jump = new Jump();
+            JUMPS.put(character, jump);
             Instances.setBool(living, JUMP, false);
             setState(living, HumanoidState.JUMPING);
         }
-        if (hop == null) return;
+        if (jump == null) return;
         double gravity = 32 * living.gravityScale;
-        double before = hop[1];
-        hop[0] += dt;
-        hop[1] = Math.max(0, living.jumpPower * hop[0] - 0.5 * gravity * hop[0] * hop[0]);
+        double before = jump.height;
+        jump.time += dt;
+        jump.height = Math.max(0, living.jumpPower * jump.time - 0.5 * gravity * jump.time * jump.time);
         CFrame frame = Transforms.world(character);
-        Vector3 moved = frame.position().add(new Vector3(0, hop[1] - before, 0));
+        Vector3 moved = frame.position().add(new Vector3(0, jump.height - before, 0));
         Instances.setObj(character, CFRAME, Transforms.localFor(character, frame.withPosition(moved)));
-        if (hop[1] <= 0 && hop[0] > 0) {
-            HOPS.remove(character);
+        if (jump.height <= 0 && jump.time > 0) {
+            JUMPS.remove(character);
             setState(living, HumanoidState.STANDING);
-        } else if (living.jumpPower - gravity * hop[0] < 0) {
+        } else if (living.jumpPower - gravity * jump.time < 0) {
             setState(living, HumanoidState.FALLING);
         }
     }
@@ -136,8 +141,7 @@ public final class Humanoids {
         Vector3 facing = Transforms.world(character).rotation().rotate(new Vector3(0, 0, -1));
         double now = Math.atan2(-facing.x(), -facing.z());
         double turn = Math.IEEEremainder(yaw - now, Math.PI * 2);
-        double most = TURN_RATE * dt;
-        yaw = now + Math.max(-most, Math.min(most, turn));
+        yaw = now + Math.clamp(turn, -TURN_RATE * dt, TURN_RATE * dt);
         Instances.setObj(character, CFRAME, Transforms.localFor(character,
                 new CFrame(moved, Quat.euler(0, yaw, 0))));
 

@@ -181,50 +181,44 @@ public final class Pose {
             first = rightHanded == twoHandedOffhand;
         }
 
-        if (first) {
-            poseRight(character, head, rightArm, leftArm);
-            if (!character.rightArmPose.affectsOther()) poseLeft(character, head, rightArm, leftArm);
-        } else {
-            poseLeft(character, head, rightArm, leftArm);
-            if (!character.leftArmPose.affectsOther()) poseRight(character, head, rightArm, leftArm);
-        }
+        pose(character, head, rightArm, leftArm, first);
+        ArmPose firstPose = first ? character.rightArmPose : character.leftArmPose;
+        if (!firstPose.affectsOther()) pose(character, head, rightArm, leftArm, !first);
     }
 
-    private static void poseRight(Character character, Turn head, Turn rightArm, Turn leftArm) {
-        switch (character.rightArmPose) {
-            case EMPTY -> rightArm.y = 0;
-            case BLOCK -> block(head, rightArm, true);
-            case ITEM -> {
-                rightArm.x = rightArm.x * 0.5 - 0.31415927;
-                rightArm.y = 0;
-            }
-            case TRIDENT -> {
-                rightArm.x = rightArm.x * 0.5 - 3.1415927;
-                rightArm.y = 0;
-            }
+    private static void pose(Character character, Turn head, Turn rightArm, Turn leftArm, boolean right) {
+        Turn arm = right ? rightArm : leftArm;
+        Turn other = right ? leftArm : rightArm;
+        double side = right ? 1 : -1;
+        switch (right ? character.rightArmPose : character.leftArmPose) {
+            case EMPTY -> arm.y = 0;
+            case BLOCK -> block(head, arm, right);
+            case ITEM -> lower(arm, 0.31415927);
+            case TRIDENT -> lower(arm, 3.1415927);
+            case BRUSH -> lower(arm, 0.62831855);
             case BOW -> {
-                rightArm.y = -0.1 + head.y;
-                leftArm.y = 0.1 + head.y + 0.4;
+                arm.y = -0.1 * side + head.y;
+                other.y = 0.1 * side + head.y + 0.4 * side;
                 rightArm.x = -1.5707964 + head.x;
                 leftArm.x = -1.5707964 + head.x;
             }
-            case CROSSBOW_CHARGE -> charge(character, rightArm, leftArm, true);
-            case CROSSBOW_HOLD -> hold(head, rightArm, leftArm, true);
+            case CROSSBOW_CHARGE -> charge(character, rightArm, leftArm, right);
+            case CROSSBOW_HOLD -> hold(head, rightArm, leftArm, right);
             case SPYGLASS -> {
-                rightArm.x = clamp(head.x - 1.9198622
-                        - (character.crouching ? 0.2617994 : 0), -2.4, 3.3);
-                rightArm.y = head.y - 0.2617994;
+                arm.x = Math.clamp(head.x - 1.9198622 - (character.crouching ? 0.2617994 : 0), -2.4, 3.3);
+                arm.y = head.y - 0.2617994 * side;
             }
             case HORN -> {
-                rightArm.x = clamp(head.x, -1.2, 1.2) - 1.4835298;
-                rightArm.y = head.y - 0.5235988;
+                arm.x = Math.clamp(head.x, -1.2, 1.2) - 1.4835298;
+                arm.y = head.y - 0.5235988 * side;
             }
-            case BRUSH -> {
-                rightArm.x = rightArm.x * 0.5 - 0.62831855;
-                rightArm.y = 0;
-            }
-            case SPEAR -> spear(character, head, rightArm, true);
+            case SPEAR -> spear(character, head, arm, right);
         }
+    }
+
+    private static void lower(Turn arm, double by) {
+        arm.x = arm.x * 0.5 - by;
+        arm.y = 0;
     }
 
     private static void spear(Character character, Turn head, Turn arm, boolean right) {
@@ -232,51 +226,14 @@ public final class Pose {
         arm.y = -0.1 * invert + head.y;
         arm.x = -1.5707964 + head.x + 0.8;
         if (character.flying || character.swimAmount > 0) arm.x -= 0.9599311;
-        arm.y = clamp(arm.y, Math.toRadians(-60), Math.toRadians(60));
-        arm.x = clamp(arm.x, Math.toRadians(-120), Math.toRadians(30));
-    }
-
-    private static void poseLeft(Character character, Turn head, Turn rightArm, Turn leftArm) {
-        switch (character.leftArmPose) {
-            case EMPTY -> leftArm.y = 0;
-            case BLOCK -> block(head, leftArm, false);
-            case ITEM -> {
-                leftArm.x = leftArm.x * 0.5 - 0.31415927;
-                leftArm.y = 0;
-            }
-            case TRIDENT -> {
-                leftArm.x = leftArm.x * 0.5 - 3.1415927;
-                leftArm.y = 0;
-            }
-            case BOW -> {
-                rightArm.y = -0.1 + head.y - 0.4;
-                leftArm.y = 0.1 + head.y;
-                rightArm.x = -1.5707964 + head.x;
-                leftArm.x = -1.5707964 + head.x;
-            }
-            case CROSSBOW_CHARGE -> charge(character, rightArm, leftArm, false);
-            case CROSSBOW_HOLD -> hold(head, rightArm, leftArm, false);
-            case SPYGLASS -> {
-                leftArm.x = clamp(head.x - 1.9198622
-                        - (character.crouching ? 0.2617994 : 0), -2.4, 3.3);
-                leftArm.y = head.y + 0.2617994;
-            }
-            case HORN -> {
-                leftArm.x = clamp(head.x, -1.2, 1.2) - 1.4835298;
-                leftArm.y = head.y + 0.5235988;
-            }
-            case BRUSH -> {
-                leftArm.x = leftArm.x * 0.5 - 0.62831855;
-                leftArm.y = 0;
-            }
-            case SPEAR -> spear(character, head, leftArm, false);
-        }
+        arm.y = Math.clamp(arm.y, Math.toRadians(-60), Math.toRadians(60));
+        arm.x = Math.clamp(arm.x, Math.toRadians(-120), Math.toRadians(30));
     }
 
     private static void block(Turn head, Turn arm, boolean right) {
-        arm.x = arm.x * 0.5 - 0.9424779 + clamp(head.x, -Math.PI * 4.0 / 9.0, 0.43633232);
+        arm.x = arm.x * 0.5 - 0.9424779 + Math.clamp(head.x, -Math.PI * 4.0 / 9.0, 0.43633232);
         arm.y = (right ? -30.0 : 30.0) * (Math.PI / 180.0)
-                + clamp(head.y, -Math.PI / 6, Math.PI / 6);
+                + Math.clamp(head.y, -Math.PI / 6, Math.PI / 6);
     }
 
     private static void charge(Character character, Turn rightArm, Turn leftArm, boolean right) {
@@ -299,10 +256,6 @@ public final class Pose {
         shooting.x = -1.5 + head.x;
     }
 
-    private static double clamp(double value, double low, double high) {
-        return value < low ? low : Math.min(value, high);
-    }
-
     private static void swing(Character character, Turn head, Turn torso,
                               Turn rightArm, Turn leftArm) {
         double attack = character.attackTime;
@@ -321,7 +274,7 @@ public final class Pose {
         leftArm.y += twist;
         leftArm.x += twist;
 
-        double eased = 1.0 - square(square(1.0 - attack));
+        double eased = 1.0 - Math.pow(1.0 - attack, 4);
         double reach = Math.sin(eased * Math.PI);
         double aim = Math.sin(attack * Math.PI) * -(head.x - 0.7) * 0.75;
 
@@ -449,9 +402,5 @@ public final class Pose {
         if (difference >= Math.PI) difference -= Math.PI * 2;
         if (difference < -Math.PI) difference += Math.PI * 2;
         return from + difference * t;
-    }
-
-    private static double square(double x) {
-        return x * x;
     }
 }
