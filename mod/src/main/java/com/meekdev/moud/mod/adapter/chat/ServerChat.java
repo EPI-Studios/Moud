@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.adapter.chat;
 
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.ChatCommand;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Instance;
@@ -41,6 +42,8 @@ public final class ServerChat implements ChatRef {
     public static final ServerChat INSTANCE = new ServerChat();
 
     private static final int KEPT = 2000;
+
+    private static final PropertyDef BODY = Classes.TEXT_SOURCE.property("body");
 
     // how many messages a player may send in a burst, and how fast the burst refills
     private static final int BURST = 6;
@@ -112,6 +115,9 @@ public final class ServerChat implements ChatRef {
                     continue;
                 }
                 present.add(source.player);
+                ServerPlayer wearer = playerOf(server, source.player);
+                Character body = wearer == null ? null : Physics.bodies().of(wearer, tree);
+                if (source.body != body) Instances.setObj(source, BODY, body);
             }
             if (!channel.autoJoin) continue;
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
@@ -124,7 +130,11 @@ public final class ServerChat implements ChatRef {
 
     private static TextSource join(TextChannel channel, ServerPlayer player) {
         String id = player.getUUID().toString();
-        return Instances.create(Classes.TEXT_SOURCE, channel, player.getGameProfile().name(), source -> source.player = id);
+        Character body = Physics.bodies().of(player, channel.tree());
+        return Instances.create(Classes.TEXT_SOURCE, channel, player.getGameProfile().name(), source -> {
+            source.player = id;
+            source.body = body;
+        });
     }
 
     private static TextSource sourceOf(TextChannel channel, String player) {

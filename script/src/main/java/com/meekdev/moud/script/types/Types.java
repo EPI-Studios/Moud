@@ -189,7 +189,8 @@ public final class Types {
                     function connect(self, handler: (body: Instance?, text: string, args: { string }) -> ()): Connection
                 end
 
-                type ChatMessage = { id: number, text: string, prefix: string, metadata: string, channel: Instance?, source: Instance?, body: Instance?, timestamp: number, status: string, [string]: any }
+                type ChatMessage = { id: number, text: string, prefix: string, metadata: string, channel: Instance?, source: Instance?, body: Instance?, position: Vector3?, timestamp: number, status: string, [string]: any }
+                type ChatCheck = (message: ChatMessage, source: Instance) -> boolean
 
                 declare class ChatMessageSignal
                     function connect(self, handler: (message: ChatMessage) -> ()): Connection
@@ -219,6 +220,10 @@ public final class Types {
                     function plain(text: string): string
                     function bodyLink(body: Instance, label: string?): string
                     function itemLink(id: string, count: number?): string
+                    function within(range: number): ChatCheck
+                    function all(...: ChatCheck): ChatCheck
+                    function any(...: ChatCheck): ChatCheck
+                    function distance(message: ChatMessage, source: Instance): number?
                     onIncoming: ((message: ChatMessage) -> { [string]: any }?)?
                     shouldSend: ((message: ChatMessage) -> boolean?)?
                     messageReceived: ChatMessageSignal

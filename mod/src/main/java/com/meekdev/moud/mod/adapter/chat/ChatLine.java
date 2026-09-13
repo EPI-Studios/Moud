@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.adapter.chat;
 
 import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.text.RichText;
 import com.meekdev.moud.mod.transport.Packets;
 import java.util.HashMap;
@@ -53,7 +54,12 @@ public final class ChatLine {
         if (tree != null) {
             if (channel >= 0 && tree.byId(channel) != null) out.put("channel", tree.byId(channel));
             if (source >= 0 && tree.byId(source) != null) out.put("source", tree.byId(source));
-            if (body >= 0 && tree.byId(body) != null) out.put("body", tree.byId(body));
+            if (body >= 0 && tree.byId(body) != null) {
+                out.put("body", tree.byId(body));
+                // where the sender is, read once here so a delivery hook compares numbers rather than
+                // walking the tree for every player it asks about
+                out.put("position", Transforms.world(tree.byId(body)).position());
+            }
         }
         return out;
     }

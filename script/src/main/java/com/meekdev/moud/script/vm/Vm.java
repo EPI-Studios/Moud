@@ -128,6 +128,7 @@ public final class Vm implements ScriptEngine {
     @Override
     public void bindChat(ChatRef chat) {
         chat().install(chat);
+        run("chat", Luau.source("chat.luau"));
     }
 
     @Override
