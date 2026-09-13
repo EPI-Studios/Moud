@@ -75,6 +75,7 @@ public final class ClientChat implements ChatRef {
         if (tree == null) {
             incoming.clear();
             lines.clear();
+            Bubbles.clear();
             return;
         }
         for (Packets.ChatDown down; (down = incoming.poll()) != null; ) {
@@ -110,9 +111,29 @@ public final class ClientChat implements ChatRef {
         while (lines.size() > max) lines.removeFirst();
         if (line.channel >= 0 && (target == null || target.id() != line.channel)) unread.merge(line.channel, 1, Integer::sum);
         Map<String, Object> message = line.toMap(tree);
+        bubbleFor(line, message, tree);
         if (tree != null && tree.byId(line.channel) instanceof TextChannel channel) channel.messageReceived.fire(message);
         ScriptEngine vm = vm();
         if (vm != null) vm.chatEvent("messageReceived", message);
+    }
+
+    // a player's message goes over their head too, unless the place says otherwise
+    @SuppressWarnings("unchecked")
+    private void bubbleFor(ChatLine line, Map<String, Object> message, InstanceTree tree) {
+        if (tree == null || line.body < 0 || !"Success".equals(line.status)) return;
+        Instance body = tree.byId(line.body);
+        if (body == null) return;
+        Map<String, Object> look = Map.of();
+        ScriptEngine vm = vm();
+        if (vm != null) {
+            Object[] out = vm.chatHook("onBubble", message);
+            if (out != null && out.length > 0) {
+                if (Boolean.FALSE.equals(out[0])) return;
+                if (out[0] instanceof Map<?, ?> map) look = (Map<String, Object>) map;
+            }
+        }
+        String text = look.get("text") instanceof String changed ? changed : line.text;
+        Bubbles.add(body, text, look);
     }
 
     // the place decides how it looks, once when it arrives and again when it is edited
@@ -326,6 +347,11 @@ public final class ClientChat implements ChatRef {
         if (bar != null && bar.targetChannel instanceof TextChannel picked) return picked;
         List<TextChannel> mine = channels();
         return mine.isEmpty() ? null : mine.getFirst();
+    }
+
+    @Override
+    public void bubble(Instance target, String text, Map<String, Object> look) {
+        Bubbles.add(target, text, look);
     }
 
     @Override

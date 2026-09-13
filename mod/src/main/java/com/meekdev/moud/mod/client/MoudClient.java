@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.client;
 
 import net.minecraft.client.player.LocalPlayer;
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.adapter.chat.Bubbles;
 import com.meekdev.moud.mod.adapter.chat.ChatView;
 import com.meekdev.moud.mod.adapter.chat.ClientChat;
 import com.meekdev.moud.mod.transport.Post;
@@ -59,6 +60,7 @@ public final class MoudClient implements ClientModInitializer {
             Ui.frame(partialTick);
             Sounds.frame(partialTick);
             SceneLights.frame(partialTick);
+            Bubbles.frame(partialTick);
             PostStack.frame();
             // every number behind this frame of your own body, while it is standing on something
             // that moves. it writes itself and stops, so there is nothing to turn on

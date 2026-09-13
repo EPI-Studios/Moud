@@ -411,6 +411,11 @@ public final class ServerChat implements ChatRef {
     }
 
     @Override
+    public void bubble(Instance target, String text, Map<String, Object> look) {
+        throw clientOnly("bubble");
+    }
+
+    @Override
     public List<Map<String, Object>> messages() {
         InstanceTree tree = ServerScene.tree();
         List<Map<String, Object>> out = new ArrayList<>();

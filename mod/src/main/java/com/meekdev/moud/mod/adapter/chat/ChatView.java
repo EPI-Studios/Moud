@@ -34,6 +34,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -77,6 +78,16 @@ public final class ChatView {
     private record ItemDraw(ItemStack stack, float x, float y, float size) {}
 
     private record Rect(float x, float y, float w, float h) {}
+
+    // what text falls back to where its own tags say nothing
+    public record Look(Color textColor, String font, boolean shadow, Color strokeColor, double strokeAlpha) {
+
+        static Look of(ChatWindow window, Map<String, Object> look) {
+            return new Look(color(look, "textColor", window.textColor), string(look, "font", window.font),
+                    bool(look, "textShadow", window.textShadow), color(look, "textStrokeColor", window.textStrokeColor),
+                    1 - number(look, "textStrokeTransparency", window.textStrokeTransparency));
+        }
+    }
 
     private static HudSurface hud;
     private static final List<Hit> HITS = new ArrayList<>();
@@ -259,6 +270,7 @@ public final class ChatView {
         float innerX = stripX + (float) window.linePaddingX;
         float innerWidth = stripWidth - (float) window.linePaddingX * 2;
         List<Runnable> shaded = new ArrayList<>();
+        Look look = Look.of(window, shown.look);
         for (Row row : laid.rows()) {
             float rowX = switch (window.horizontalAlignment) {
                 case LEFT -> innerX;
@@ -269,17 +281,17 @@ public final class ChatView {
                 if (glyph.index() >= reveal) break;
                 float gx = rowX + glyph.x();
                 float gy = rowTop + row.height() - glyph.height();
-                glyph(d, window, shown, glyph, gx, gy, alpha, time, shaded);
+                glyph(d, look, shown, glyph, gx, gy, alpha, time, shaded);
             }
             rowTop += row.height();
         }
         if (pop) d.popTransform();
     }
 
-    private static void glyph(UiDraw d, ChatWindow window, ClientChat.Shown shown, Glyph glyph, float x, float y,
+    private static void glyph(UiDraw d, Look look, ClientChat.Shown shown, Glyph glyph, float x, float y,
                               float alpha, float time, List<Runnable> shaded) {
         RichText.Style style = glyph.style();
-        if (style.click() != null || style.hover() != null || style.body() >= 0 || glyph.kind() == Kind.ITEM) {
+        if (shown != null && (style.click() != null || style.hover() != null || style.body() >= 0 || glyph.kind() == Kind.ITEM)) {
             HITS.add(new Hit(x, y, x + glyph.width(), y + glyph.height(), style, shown,
                     glyph.kind() == Kind.ITEM ? (ItemStack) glyph.extra() : null, null));
         }
@@ -320,13 +332,13 @@ public final class ChatView {
                 return;
             }
             case ITEM -> {
-                if (a > 0.5) ITEMS.add(new ItemDraw((ItemStack) glyph.extra(), x, y, glyph.height()));
+                if (a > 0.5 && shown != null) ITEMS.add(new ItemDraw((ItemStack) glyph.extra(), x, y, glyph.height()));
                 return;
             }
             default -> {}
         }
 
-        Color base = style.color() != null ? style.color() : color(shown.look, "textColor", window.textColor);
+        Color base = style.color() != null ? style.color() : look.textColor();
         if (style.gradientTo() != null && glyph.spanLength() > 1) {
             float t = (glyph.index() - glyph.spanStart()) / (float) (glyph.spanLength() - 1);
             base = lerp(base, style.gradientTo(), t);
@@ -340,16 +352,15 @@ public final class ChatView {
         int codepoint = glyph.codepoint();
         if (style.obfuscated() && codepoint != ' ') codepoint = 33 + (int) (hash(glyph.index(), (long) (time * 20)) * 93);
 
-        String fontName = style.font() != null ? style.font() : string(shown.look, "font", window.font);
+        String fontName = style.font() != null ? style.font() : look.font();
         UiFonts.Face face = UiFonts.of(fontName);
         float scale = px / LINE;
         ShaderProgram shader = style.shader() == null ? null : ChatShaders.text(style.shader());
 
-        Color strokeColor = style.stroke() != null ? style.stroke() : color(shown.look, "textStrokeColor", window.textStrokeColor);
-        double strokeAlpha = style.stroke() != null ? style.stroke().a()
-                : 1 - number(shown.look, "textStrokeTransparency", window.textStrokeTransparency);
+        Color strokeColor = style.stroke() != null ? style.stroke() : look.strokeColor();
+        double strokeAlpha = style.stroke() != null ? style.stroke().a() : look.strokeAlpha();
         float thickness = (float) (style.stroke() != null ? style.strokeThickness() : 1) * scale;
-        boolean shadow = style.shadow() != null ? style.shadow().a() > 0 : bool(shown.look, "textShadow", window.textShadow);
+        boolean shadow = style.shadow() != null ? style.shadow().a() > 0 : look.shadow();
         int shadowArgb = style.shadow() != null ? argb(style.shadow(), a) : (fill & 0xFF000000) | ((fill & 0xFCFCFC) >> 2);
 
         if (face instanceof UiFonts.Vector vector) {
@@ -415,6 +426,50 @@ public final class ChatView {
         } else {
             draw.run();
         }
+    }
+
+    // --- rich text anywhere else, like a bubble ---
+
+    private static final Map<String, Laid> LAID = new LinkedHashMap<>(64, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Laid> eldest) {
+            return size() > 256;
+        }
+    };
+
+    // how big markup is when wrapped to width
+    static float[] measure(UiDraw d, String markup, float width, float px, String font) {
+        Laid laid = laid(d, markup, width, px, font);
+        return new float[] {laid.width(), laid.height()};
+    }
+
+    static void text(UiDraw d, String markup, float x, float y, float width, float px, Look look, float alpha,
+                     HorizontalAlign align) {
+        Laid laid = laid(d, markup, width, px, look.font());
+        float time = (float) ((System.nanoTime() - START) / 1e9);
+        List<Runnable> shaded = new ArrayList<>();
+        float rowTop = y;
+        for (Row row : laid.rows()) {
+            float rowX = switch (align) {
+                case LEFT -> x;
+                case CENTER -> x + (width - row.width()) / 2;
+                case RIGHT -> x + width - row.width();
+            };
+            for (Glyph glyph : row.glyphs()) {
+                glyph(d, look, null, glyph, rowX + glyph.x(), rowTop + row.height() - glyph.height(), alpha, time, shaded);
+            }
+            rowTop += row.height();
+        }
+    }
+
+    private static Laid laid(UiDraw d, String markup, float width, float px, String font) {
+        String key = markup + "\u0000" + width + "\u0000" + px + "\u0000" + font;
+        Laid laid = LAID.get(key);
+        if (laid == null) {
+            laid = wrap(d, glyphs(d, RichText.parse(markup), px, font), width);
+            LAID.put(key, laid);
+        }
+        return laid;
     }
 
     // --- layout ---
@@ -818,25 +873,19 @@ public final class ChatView {
     }
 
     private static double number(Map<String, Object> look, String key, double fallback) {
-        return look.get(key) instanceof Number n ? n.doubleValue() : fallback;
+        return ChatViewNumbers.number(look, key, fallback);
     }
 
     private static boolean bool(Map<String, Object> look, String key, boolean fallback) {
-        return look.get(key) instanceof Boolean b ? b : fallback;
+        return ChatViewNumbers.bool(look, key, fallback);
     }
 
     private static String string(Map<String, Object> look, String key, String fallback) {
-        return look.get(key) instanceof String s ? s : fallback;
+        return ChatViewNumbers.string(look, key, fallback);
     }
 
     private static Color color(Map<String, Object> look, String key, Color fallback) {
-        Object value = look.get(key);
-        if (value instanceof Color c) return c;
-        if (value instanceof String s) {
-            Color parsed = RichText.color(s);
-            if (parsed != null) return parsed;
-        }
-        return fallback;
+        return ChatViewNumbers.color(look, key, fallback);
     }
 
     private static ChatAnimation animation(Map<String, Object> look, String key, ChatAnimation fallback) {

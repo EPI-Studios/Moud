@@ -37,4 +37,7 @@ public interface ChatRef {
     Instance target();
 
     List<Map<String, Object>> messages();
+
+    // a speech bubble over a body or part, on this client only
+    void bubble(Instance target, String text, Map<String, Object> look);
 }

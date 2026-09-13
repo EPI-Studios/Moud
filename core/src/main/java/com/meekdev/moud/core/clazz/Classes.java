@@ -18,6 +18,7 @@ import com.meekdev.moud.core.instance.Vector3Value;
 import com.meekdev.moud.core.instance.Camera;
 import com.meekdev.moud.core.instance.Cape;
 import com.meekdev.moud.core.instance.Character;
+import com.meekdev.moud.core.instance.BubbleChat;
 import com.meekdev.moud.core.instance.ChatCommand;
 import com.meekdev.moud.core.instance.ChatWindow;
 import com.meekdev.moud.core.instance.TextChannel;
@@ -220,6 +221,8 @@ public final class Classes {
             ClassDef.of("ChatTabs", null, ChatTabs.class, ChatTabs::new);
     public static final ClassDef<ChatTextShader> CHAT_TEXT_SHADER =
             ClassDef.of("ChatTextShader", null, ChatTextShader.class, ChatTextShader::new);
+    public static final ClassDef<BubbleChat> BUBBLE_CHAT =
+            ClassDef.of("BubbleChat", null, BubbleChat.class, BubbleChat::new);
     public static final ClassDef<ChatCommand> CHAT_COMMAND =
             ClassDef.of("ChatCommand", null, ChatCommand.class, ChatCommand::new);
 
@@ -310,6 +313,7 @@ public final class Classes {
         r.register(COLLISION_GROUP);
         r.register(CHAT_WINDOW);
         r.register(CHAT_COMMAND);
+        r.register(BUBBLE_CHAT);
         r.register(TEXT_CHANNEL);
         r.register(TEXT_SOURCE);
         r.register(CHAT_INPUT_BAR);

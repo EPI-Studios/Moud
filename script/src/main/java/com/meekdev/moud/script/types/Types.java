@@ -213,6 +213,8 @@ public final class Types {
                     function setTarget(self, channel: Instance?): ()
                     function getTarget(self): Instance?
                     function messages(self): { ChatMessage }
+                    function bubble(self, target: Instance, text: string, look: { [string]: any }?): ()
+                    onBubble: ((message: ChatMessage) -> (boolean | { [string]: any })?)?
                     function escape(text: string): string
                     function plain(text: string): string
                     function bodyLink(body: Instance, label: string?): string

@@ -150,6 +150,16 @@ public final class Chat {
             Plain.push(s, out[0]);
             return 1;
         });
+        function("bubble", s -> {
+            Instance target = instance(s, 2, "a body or part");
+            String text = s.checkString(3);
+            Map<String, Object> look = options(s, 4);
+            run(s, () -> {
+                chat.bubble(target, text, look);
+                return 0L;
+            });
+            return 0;
+        });
         // the helpers that write markup, so a place does not have to remember the tags
         state.pushFunction(LuaFunc.wrap(s -> {
             s.pushString(RichText.escape(s.checkString(1)));
