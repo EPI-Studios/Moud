@@ -1,12 +1,12 @@
 package com.meekdev.moud.core.nav;
 
 import com.meekdev.moud.core.clazz.Classes;
-import com.meekdev.moud.core.instance.Character;
-import com.meekdev.moud.core.instance.Humanoid;
-import com.meekdev.moud.core.instance.HumanoidState;
+import com.meekdev.moud.core.character.Character;
+import com.meekdev.moud.core.character.Humanoid;
+import com.meekdev.moud.core.character.HumanoidState;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
-import com.meekdev.moud.core.instance.Rig;
+import com.meekdev.moud.core.character.Rig;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Vector3;
 import java.util.HashMap;

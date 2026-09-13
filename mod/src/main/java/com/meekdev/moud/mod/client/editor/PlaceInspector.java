@@ -2,7 +2,7 @@ package com.meekdev.moud.mod.client.editor;
 
 import com.meekdev.amnetic.client.ui.Inspector;
 import com.meekdev.moud.core.clazz.Classes;
-import com.meekdev.moud.core.instance.Character;
+import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Spatial;

@@ -1,9 +1,9 @@
 package com.meekdev.moud.mod.server;
 
-import com.meekdev.moud.core.instance.Character;
+import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.instance.ProximityPrompt;
+import com.meekdev.moud.core.zone.ProximityPrompt;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.adapter.physics.Physics;

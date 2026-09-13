@@ -1,12 +1,12 @@
 package com.meekdev.moud.mod.adapter.chat;
 
 import com.meekdev.moud.core.clazz.Classes;
-import com.meekdev.moud.core.instance.ChatInputBar;
-import com.meekdev.moud.core.instance.ChatWindow;
+import com.meekdev.moud.core.chat.ChatInputBar;
+import com.meekdev.moud.core.chat.ChatWindow;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.instance.TextChannel;
-import com.meekdev.moud.core.instance.TextSource;
+import com.meekdev.moud.core.chat.TextChannel;
+import com.meekdev.moud.core.chat.TextSource;
 import com.meekdev.moud.core.text.RichText;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.ClientScene;

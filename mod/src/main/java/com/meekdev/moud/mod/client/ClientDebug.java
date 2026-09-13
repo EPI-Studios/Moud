@@ -4,7 +4,7 @@ import com.meekdev.amnetic.client.render.CameraSnapshot;
 import com.meekdev.amnetic.client.surface.Surfaces;
 import com.meekdev.amnetic.client.surface.draw.UiDraw;
 import com.meekdev.amnetic.client.ui.Gizmos;
-import com.meekdev.moud.core.instance.HorizontalAlign;
+import com.meekdev.moud.core.ui.HorizontalAlign;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;

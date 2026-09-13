@@ -1,14 +1,14 @@
 package com.meekdev.moud.mod.adapter.render;
 
 import com.meekdev.moud.core.clazz.Classes;
-import com.meekdev.moud.core.instance.Appearance;
-import com.meekdev.moud.core.instance.Character;
-import com.meekdev.moud.core.instance.CharacterDisplay;
-import com.meekdev.moud.core.instance.FirstPerson;
+import com.meekdev.moud.core.character.Appearance;
+import com.meekdev.moud.core.character.Character;
+import com.meekdev.moud.core.character.CharacterDisplay;
+import com.meekdev.moud.core.character.FirstPerson;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.instance.Part;
-import com.meekdev.moud.core.instance.Rig;
+import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.character.Rig;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;

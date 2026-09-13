@@ -2,9 +2,9 @@ package com.meekdev.moud.mod.adapter.chat;
 
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.Classes;
-import com.meekdev.moud.core.instance.ChatInputBar;
-import com.meekdev.moud.core.instance.ChatTabs;
-import com.meekdev.moud.core.instance.ChatWindow;
+import com.meekdev.moud.core.chat.ChatInputBar;
+import com.meekdev.moud.core.chat.ChatTabs;
+import com.meekdev.moud.core.chat.ChatWindow;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.mod.client.ClientScene;

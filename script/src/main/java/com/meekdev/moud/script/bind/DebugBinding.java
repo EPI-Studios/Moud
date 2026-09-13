@@ -1,6 +1,6 @@
 package com.meekdev.moud.script.bind;
 
-import com.meekdev.moud.core.instance.Queries;
+import com.meekdev.moud.core.query.Queries;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.api.DebugRef;

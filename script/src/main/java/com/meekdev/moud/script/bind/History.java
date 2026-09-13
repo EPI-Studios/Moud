@@ -1,7 +1,7 @@
 package com.meekdev.moud.script.bind;
 
-import com.meekdev.moud.core.instance.Character;
-import com.meekdev.moud.core.instance.Queries;
+import com.meekdev.moud.core.character.Character;
+import com.meekdev.moud.core.query.Queries;
 import com.meekdev.moud.script.api.HistoryRef;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;

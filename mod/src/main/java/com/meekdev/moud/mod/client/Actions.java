@@ -1,7 +1,7 @@
 package com.meekdev.moud.mod.client;
 
 import com.meekdev.moud.core.clazz.Classes;
-import com.meekdev.moud.core.instance.InputAction;
+import com.meekdev.moud.core.input.InputAction;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.mod.MoudMod;
 import java.util.Arrays;

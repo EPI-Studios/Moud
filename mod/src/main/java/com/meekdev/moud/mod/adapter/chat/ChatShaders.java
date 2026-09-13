@@ -3,7 +3,7 @@ package com.meekdev.moud.mod.adapter.chat;
 import com.meekdev.amnetic.client.render.ShaderProgram;
 import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.clazz.Classes;
-import com.meekdev.moud.core.instance.ChatTextShader;
+import com.meekdev.moud.core.chat.ChatTextShader;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientScene;

@@ -20,7 +20,7 @@ public class Joint extends Instance {
     public Vector3 scale = Vector3.ONE;
 
     @Override
-    protected void compose() {
+    public void compose() {
         if (!(part1 instanceof Spatial held) || !held.isAlive()) return;
         if (part0 == null || !part0.isAlive()) return;
         Instances.setObj(held, CFRAME, base().mul(c0).mul(transform).mul(inverse(c1)));

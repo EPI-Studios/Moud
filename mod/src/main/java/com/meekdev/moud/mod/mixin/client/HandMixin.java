@@ -1,9 +1,9 @@
 package com.meekdev.moud.mod.mixin.client;
 
-import com.meekdev.moud.core.instance.Appearance;
-import com.meekdev.moud.core.instance.Character;
-import com.meekdev.moud.core.instance.FirstPerson;
-import com.meekdev.moud.core.instance.Rig;
+import com.meekdev.moud.core.character.Appearance;
+import com.meekdev.moud.core.character.Character;
+import com.meekdev.moud.core.character.FirstPerson;
+import com.meekdev.moud.core.character.Rig;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.render.Hands;
 import com.meekdev.moud.mod.client.ClientScene;

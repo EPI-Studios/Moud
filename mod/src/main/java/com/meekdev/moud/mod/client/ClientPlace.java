@@ -2,7 +2,7 @@ package com.meekdev.moud.mod.client;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.mod.addon.Addons;
-import com.meekdev.moud.core.instance.Camera;
+import com.meekdev.moud.core.render.Camera;
 import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;

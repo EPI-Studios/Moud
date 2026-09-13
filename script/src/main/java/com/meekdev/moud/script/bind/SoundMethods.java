@@ -2,7 +2,7 @@ package com.meekdev.moud.script.bind;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instances;
-import com.meekdev.moud.core.instance.Sound;
+import com.meekdev.moud.core.audio.Sound;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.ToIntFunction;

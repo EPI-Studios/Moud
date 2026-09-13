@@ -2,7 +2,7 @@ package com.meekdev.moud.mod.server;
 
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.instance.Rewind;
+import com.meekdev.moud.core.query.Rewind;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.net.replicate.Change;
 import com.meekdev.moud.script.api.HistoryRef;

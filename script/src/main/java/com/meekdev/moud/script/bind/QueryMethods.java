@@ -1,10 +1,10 @@
 package com.meekdev.moud.script.bind;
 
 import com.meekdev.moud.core.clazz.ClassDef;
-import com.meekdev.moud.core.instance.CollisionGroups;
+import com.meekdev.moud.core.part.CollisionGroups;
 import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.core.instance.Part;
-import com.meekdev.moud.core.instance.Queries;
+import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.query.Queries;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;

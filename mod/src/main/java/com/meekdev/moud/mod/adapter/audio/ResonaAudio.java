@@ -1,6 +1,6 @@
 package com.meekdev.moud.mod.adapter.audio;
 
-import com.meekdev.moud.core.instance.Hits;
+import com.meekdev.moud.core.query.Hits;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.client.ClientScene;

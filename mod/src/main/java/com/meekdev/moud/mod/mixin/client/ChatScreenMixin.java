@@ -1,6 +1,6 @@
 package com.meekdev.moud.mod.mixin.client;
 
-import com.meekdev.moud.core.instance.ChatInputBar;
+import com.meekdev.moud.core.chat.ChatInputBar;
 import com.meekdev.moud.mod.adapter.chat.ChatLook;
 import com.meekdev.moud.mod.adapter.chat.ChatText;
 import com.meekdev.moud.mod.adapter.chat.ChatView;

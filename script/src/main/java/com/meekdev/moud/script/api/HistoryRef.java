@@ -1,6 +1,6 @@
 package com.meekdev.moud.script.api;
 
-import com.meekdev.moud.core.instance.Rewind;
+import com.meekdev.moud.core.query.Rewind;
 
 public interface HistoryRef {
 

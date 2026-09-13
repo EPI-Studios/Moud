@@ -2,9 +2,9 @@ package com.meekdev.moud.script.bind;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.core.instance.Part;
-import com.meekdev.moud.core.instance.Queries;
-import com.meekdev.moud.core.instance.SpatialIndex;
+import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.query.Queries;
+import com.meekdev.moud.core.query.SpatialIndex;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Aabb;
 import com.meekdev.moud.core.math.CFrame;

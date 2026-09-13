@@ -1,14 +1,14 @@
 package com.meekdev.moud.mod.adapter.ui;
 
-import com.meekdev.moud.core.instance.BillboardGui;
-import com.meekdev.moud.core.instance.GuiLayout;
-import com.meekdev.moud.core.instance.GuiObject;
-import com.meekdev.moud.core.instance.ImageLabel;
+import com.meekdev.moud.core.ui.BillboardGui;
+import com.meekdev.moud.core.ui.GuiLayout;
+import com.meekdev.moud.core.ui.GuiObject;
+import com.meekdev.moud.core.ui.ImageLabel;
 import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.core.instance.ScreenGui;
-import com.meekdev.moud.core.instance.SurfaceGui;
-import com.meekdev.moud.core.instance.TextButton;
-import com.meekdev.moud.core.instance.TextLabel;
+import com.meekdev.moud.core.ui.ScreenGui;
+import com.meekdev.moud.core.ui.SurfaceGui;
+import com.meekdev.moud.core.ui.TextButton;
+import com.meekdev.moud.core.ui.TextLabel;
 import com.meekdev.moud.mod.adapter.chat.ChatView;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.amnetic.client.surface.draw.UiDraw;

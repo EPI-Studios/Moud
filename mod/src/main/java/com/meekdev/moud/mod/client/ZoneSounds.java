@@ -1,13 +1,13 @@
 package com.meekdev.moud.mod.client;
 
 import com.meekdev.moud.core.clazz.Classes;
-import com.meekdev.moud.core.instance.Character;
+import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.instance.Sound;
+import com.meekdev.moud.core.audio.Sound;
 import com.meekdev.moud.core.instance.Transforms;
-import com.meekdev.moud.core.instance.Zone;
-import com.meekdev.moud.core.instance.Zones;
+import com.meekdev.moud.core.zone.Zone;
+import com.meekdev.moud.core.zone.Zones;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

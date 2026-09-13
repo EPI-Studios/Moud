@@ -1,13 +1,13 @@
 package com.meekdev.moud.script.bind;
 
 import com.meekdev.moud.core.clazz.Classes;
-import com.meekdev.moud.core.instance.Character;
+import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.Instance;
-import com.meekdev.moud.core.instance.ProximityPrompt;
+import com.meekdev.moud.core.zone.ProximityPrompt;
 import com.meekdev.moud.core.instance.Transforms;
-import com.meekdev.moud.core.instance.Zone;
+import com.meekdev.moud.core.zone.Zone;
 import com.meekdev.moud.core.math.Vector3;
-import com.meekdev.moud.core.instance.Zones;
+import com.meekdev.moud.core.zone.Zones;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;

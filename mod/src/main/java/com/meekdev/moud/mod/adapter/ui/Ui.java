@@ -1,15 +1,15 @@
 package com.meekdev.moud.mod.adapter.ui;
 
 import com.meekdev.moud.core.clazz.Classes;
-import com.meekdev.moud.core.instance.BillboardGui;
-import com.meekdev.moud.core.instance.GuiLayout;
-import com.meekdev.moud.core.instance.GuiObject;
+import com.meekdev.moud.core.ui.BillboardGui;
+import com.meekdev.moud.core.ui.GuiLayout;
+import com.meekdev.moud.core.ui.GuiObject;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.instance.Part;
-import com.meekdev.moud.core.instance.ScreenGui;
+import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.ui.ScreenGui;
 import com.meekdev.moud.core.instance.Spatial;
-import com.meekdev.moud.core.instance.SurfaceGui;
+import com.meekdev.moud.core.ui.SurfaceGui;
 import com.meekdev.moud.core.interp.Motion;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;

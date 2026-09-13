@@ -1,12 +1,12 @@
 package com.meekdev.moud.script.bind;
 
 import com.meekdev.moud.core.clazz.Classes;
-import com.meekdev.moud.core.instance.Character;
+import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.instance.Remote;
-import com.meekdev.moud.core.instance.Schema;
-import com.meekdev.moud.core.instance.UnreliableRemote;
+import com.meekdev.moud.core.remote.Remote;
+import com.meekdev.moud.core.remote.Schema;
+import com.meekdev.moud.core.remote.UnreliableRemote;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;

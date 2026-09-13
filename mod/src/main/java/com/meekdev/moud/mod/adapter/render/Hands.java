@@ -7,7 +7,7 @@ import com.meekdev.amnetic.client.instanced.InstancedMesh;
 import com.meekdev.amnetic.client.instanced.MeshData;
 import com.meekdev.amnetic.client.instanced.RenderState;
 import com.meekdev.amnetic.client.instanced.internal.InstanceMeshRegistry;
-import com.meekdev.moud.core.instance.Character;
+import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.mod.client.ClientScene;
 import java.util.ArrayList;
 import java.util.HashMap;

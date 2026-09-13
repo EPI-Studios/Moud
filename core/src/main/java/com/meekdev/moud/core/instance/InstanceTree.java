@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
+import com.meekdev.moud.core.query.SpatialIndex;
 
 public final class InstanceTree {
 
@@ -49,7 +50,7 @@ public final class InstanceTree {
 
     public Instance root() { return root; }
 
-    final Set<Instance> spatialTouched = Collections.newSetFromMap(new IdentityHashMap<>());
+    public final Set<Instance> spatialTouched = Collections.newSetFromMap(new IdentityHashMap<>());
     private SpatialIndex spatial;
 
     long mutations;

@@ -8,7 +8,7 @@ import com.meekdev.amnetic.client.model.internal.ammesh.AmmeshConverter;
 import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.instance.MeshPart;
+import com.meekdev.moud.core.part.MeshPart;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;

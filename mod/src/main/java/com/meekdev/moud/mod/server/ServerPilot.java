@@ -1,6 +1,6 @@
 package com.meekdev.moud.mod.server;
 
-import com.meekdev.moud.core.instance.Character;
+import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.nav.Walkers;

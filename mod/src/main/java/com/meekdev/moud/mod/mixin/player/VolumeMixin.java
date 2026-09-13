@@ -1,6 +1,6 @@
 package com.meekdev.moud.mod.mixin.player;
 
-import com.meekdev.moud.core.instance.Character;
+import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.mod.adapter.physics.Bodies;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.server.ServerScene;

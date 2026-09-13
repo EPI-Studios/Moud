@@ -3,7 +3,7 @@ package com.meekdev.moud.mod.adapter.render;
 import com.meekdev.amnetic.client.camera.AmneticCamera;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
-import com.meekdev.moud.core.instance.Camera;
+import com.meekdev.moud.core.render.Camera;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;

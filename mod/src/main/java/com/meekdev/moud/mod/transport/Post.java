@@ -2,8 +2,8 @@ package com.meekdev.moud.mod.transport;
 
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.instance.Remote;
-import com.meekdev.moud.core.instance.Schema;
+import com.meekdev.moud.core.remote.Remote;
+import com.meekdev.moud.core.remote.Schema;
 import com.meekdev.moud.net.transport.Transport;
 import com.meekdev.moud.net.transport.Wire;
 import com.meekdev.moud.mod.adapter.chat.ServerChat;

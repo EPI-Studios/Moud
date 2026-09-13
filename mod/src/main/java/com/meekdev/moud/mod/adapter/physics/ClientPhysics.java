@@ -8,7 +8,7 @@ import com.meekdev.bkun.sublevel.SubLevelIndex;
 import com.meekdev.bkun.sublevel.SubLevelPose;
 import com.meekdev.bkun.sublevel.SubLevelTracking;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.instance.Part;
+import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;

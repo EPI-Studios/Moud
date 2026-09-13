@@ -1,6 +1,6 @@
 package com.meekdev.moud.mod.client;
 
-import com.meekdev.moud.core.instance.Character;
+import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
