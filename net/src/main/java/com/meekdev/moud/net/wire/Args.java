@@ -3,6 +3,7 @@ package com.meekdev.moud.net.wire;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
+import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vec3;
 import com.meekdev.moud.net.transport.Wire;
 import java.util.ArrayList;
@@ -38,6 +39,7 @@ public final class Args {
     private static final int REF = 10;
     private static final int LIST = 11;
     private static final int MAP = 12;
+    private static final int UDIM2 = 13;
 
     // the largest integer a double holds exactly, past which a whole number is not a whole number
     private static final double EXACT = 9007199254740992.0;
@@ -102,6 +104,13 @@ public final class Args {
                 out.u8(Math.round(Math.clamp(c.b(), 0, 1) * 255));
                 out.u8(Math.round(Math.clamp(c.a(), 0, 1) * 255));
             }
+            case UDim2 u -> {
+                out.u8(UDIM2);
+                out.f32(u.xScale());
+                out.f32(u.xOffset());
+                out.f32(u.yScale());
+                out.f32(u.yOffset());
+            }
             case Wire.Ref ref -> {
                 out.u8(REF);
                 out.varint(ref.id());
@@ -151,6 +160,7 @@ public final class Args {
             case COLOR -> new Color(in.readU8() / 255f, in.readU8() / 255f,
                     in.readU8() / 255f, in.readU8() / 255f);
             case REF -> new Wire.Ref((int) in.readVarint());
+            case UDIM2 -> new UDim2(in.readF32(), in.readF32(), in.readF32(), in.readF32());
             case LIST -> {
                 int size = nested(in, depth, seen);
                 List<Object> list = new ArrayList<>(size);

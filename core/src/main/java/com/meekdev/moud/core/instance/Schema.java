@@ -3,6 +3,7 @@ package com.meekdev.moud.core.instance;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
+import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vec3;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,7 +26,7 @@ public final class Schema {
 
     // a kind, spelled the way a place would say it
     public enum Kind {
-        BOOL, NUMBER, STRING, VEC3, QUAT, CFRAME, COLOR, INSTANCE, LIST, TABLE;
+        BOOL, NUMBER, STRING, VEC3, QUAT, CFRAME, COLOR, UDIM2, INSTANCE, LIST, TABLE;
 
         static Kind of(String word) {
             return switch (word) {
@@ -36,6 +37,7 @@ public final class Schema {
                 case "quat", "quaternion" -> QUAT;
                 case "cframe" -> CFRAME;
                 case "color", "colour" -> COLOR;
+                case "udim2" -> UDIM2;
                 case "instance" -> INSTANCE;
                 case "list", "array" -> LIST;
                 case "table", "map" -> TABLE;
@@ -53,6 +55,7 @@ public final class Schema {
                 case QUAT -> value instanceof Quat;
                 case CFRAME -> value instanceof CFrame;
                 case COLOR -> value instanceof Color;
+                case UDIM2 -> value instanceof UDim2;
                 case INSTANCE -> value instanceof Instance;
                 case LIST -> value instanceof List<?>;
                 case TABLE -> value instanceof Map<?, ?>;
@@ -84,7 +87,7 @@ public final class Schema {
                 if (kind == null) {
                     throw new IllegalArgumentException("\"" + word + "\" is not a kind a channel can"
                             + " take. the kinds are bool, number, string, vec3, quat, cframe, color,"
-                            + " instance, list and table, and a trailing ? means it may be left out");
+                            + " udim2, instance, list and table, and a trailing ? means it may be left out");
                 }
                 if (seenOptional && !optional) {
                     throw new IllegalArgumentException("\"" + text + "\" has a required argument"

@@ -9,6 +9,7 @@ public enum PropertyType {
     QUAT,
     CFRAME,
     COLOR,
+    UDIM2,
     ASSET,
     ENUM,
     REF;

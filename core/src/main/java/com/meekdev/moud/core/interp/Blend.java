@@ -4,6 +4,7 @@ import com.meekdev.moud.core.clazz.PropertyType;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
+import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vec3;
 
 // keyed on the property type, so every property that will ever exist interpolates without a
@@ -14,7 +15,7 @@ public final class Blend {
 
     public static boolean isContinuous(PropertyType type) {
         return switch (type) {
-            case NUM, VEC3, QUAT, CFRAME, COLOR -> true;
+            case NUM, VEC3, QUAT, CFRAME, COLOR, UDIM2 -> true;
             case BOOL, INT, STRING, ASSET, ENUM, REF -> false;
         };
     }
@@ -30,6 +31,7 @@ public final class Blend {
             case QUAT -> ((Quat) from).slerp((Quat) to, alpha);
             case CFRAME -> ((CFrame) from).lerp((CFrame) to, alpha);
             case COLOR -> ((Color) from).lerp((Color) to, (float) alpha);
+            case UDIM2 -> ((UDim2) from).lerp((UDim2) to, alpha);
             default -> alpha < 1.0 ? from : to;
         };
     }

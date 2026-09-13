@@ -15,6 +15,7 @@ import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
+import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vec3;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -493,6 +494,7 @@ public final class Proxies {
             case STRING -> state.pushString((String) property.getObj(instance));
             case VEC3 -> Values.push(state, (Vec3) property.getObj(instance));
             case COLOR -> Values.push(state, (Color) property.getObj(instance));
+            case UDIM2 -> Values.push(state, (UDim2) property.getObj(instance));
             case CFRAME -> Values.push(state, (CFrame) property.getObj(instance));
             case ENUM -> state.pushString(Enums.name((Enum<?>) property.getObj(instance)));
             case REF -> ref(state, (Instance) property.getObj(instance));
@@ -508,6 +510,7 @@ public final class Proxies {
             case STRING -> Instances.setObj(instance, property, state.checkString(value));
             case VEC3 -> Instances.setObj(instance, property, Values.vec3(state, value));
             case COLOR -> Instances.setObj(instance, property, Values.color(state, value));
+            case UDIM2 -> Instances.setObj(instance, property, Values.udim2(state, value));
             case CFRAME -> Instances.setObj(instance, property, Values.cframe(state, value));
             case ENUM -> Instances.setObj(instance, property, enumOf(state, property, value));
             case REF -> Instances.setObj(instance, property, refOf(state, property, value));

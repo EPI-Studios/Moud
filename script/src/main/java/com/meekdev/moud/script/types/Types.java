@@ -49,6 +49,15 @@ public final class Types {
                     function __unm(self): Vector3
                 end
 
+                declare class UDim2
+                    xScale: number
+                    xOffset: number
+                    yScale: number
+                    yOffset: number
+                    function __add(self, other: UDim2): UDim2
+                    function __sub(self, other: UDim2): UDim2
+                end
+
                 declare class Color
                     r: number
                     g: number
@@ -170,6 +179,11 @@ public final class Types {
                 declare function vec3(x: number, y: number, z: number): Vector3
                 declare function color(r: number, g: number, b: number, a: number?): Color
 
+                declare udim2: {
+                    fromScale: (x: number, y: number) -> UDim2,
+                    fromOffset: (x: number, y: number) -> UDim2,
+                } & ((xScale: number, xOffset: number, yScale: number, yOffset: number) -> UDim2)
+
                 declare cframe: {
                     identity: CFrame,
                     angles: (pitch: number, yaw: number, roll: number) -> CFrame,
@@ -258,6 +272,7 @@ public final class Types {
             case QUAT -> "Quat";
             case CFRAME -> "CFrame";
             case COLOR -> "Color";
+            case UDIM2 -> "UDim2";
             case REF -> "Instance?";
         };
     }

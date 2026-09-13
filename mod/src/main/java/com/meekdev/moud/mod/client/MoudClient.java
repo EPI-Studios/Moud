@@ -6,6 +6,7 @@ import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.mod.place.Switches;
 import com.meekdev.moud.mod.adapter.render.Parts;
 import com.meekdev.moud.mod.adapter.render.Skins;
+import com.meekdev.moud.mod.adapter.ui.Ui;
 import com.meekdev.moud.mod.adapter.render.Pipeline;
 import com.meekdev.moud.mod.client.editor.Editor;
 import net.fabricmc.api.ClientModInitializer;
@@ -21,6 +22,7 @@ public final class MoudClient implements ClientModInitializer {
                 ? me.getUUID().toString() : "");
         Switches.install(MoudMod.features());
         Pipeline.install();
+        Ui.install();
         Editor.install();
         Parts.register();
         frames();
@@ -43,6 +45,7 @@ public final class MoudClient implements ClientModInitializer {
             float partialTick = Minecraft.getInstance().getDeltaTracker()
                     .getGameTimeDeltaPartialTick(true);
             Skins.gather(partialTick);
+            Ui.frame(partialTick);
             // every number behind this frame of your own body, while it is standing on something
             // that moves. it writes itself and stops, so there is nothing to turn on
             Trace.frame(partialTick);

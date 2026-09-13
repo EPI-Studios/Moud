@@ -6,6 +6,7 @@ import com.meekdev.moud.core.instance.Stage;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
+import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vec3;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -179,6 +180,7 @@ public final class ClassDef<T extends Instance> {
         if (t == boolean.class) return PropertyType.BOOL;
         if (t == String.class) return PropertyType.STRING;
         if (t == Vec3.class) return PropertyType.VEC3;
+        if (t == UDim2.class) return PropertyType.UDIM2;
         if (t == Quat.class) return PropertyType.QUAT;
         if (t == CFrame.class) return PropertyType.CFRAME;
         if (t == Color.class) return PropertyType.COLOR;

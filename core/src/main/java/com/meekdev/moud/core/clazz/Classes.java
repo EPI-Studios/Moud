@@ -6,6 +6,7 @@ import com.meekdev.moud.core.instance.Appearance;
 import com.meekdev.moud.core.instance.Animator;
 import com.meekdev.moud.core.instance.Armour;
 import com.meekdev.moud.core.instance.Attachment;
+import com.meekdev.moud.core.instance.BillboardGui;
 import com.meekdev.moud.core.instance.BoolValue;
 import com.meekdev.moud.core.instance.NumberValue;
 import com.meekdev.moud.core.instance.ObjectValue;
@@ -18,12 +19,19 @@ import com.meekdev.moud.core.instance.Camera;
 import com.meekdev.moud.core.instance.Cape;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Folder;
+import com.meekdev.moud.core.instance.Frame;
+import com.meekdev.moud.core.instance.GuiObject;
 import com.meekdev.moud.core.instance.Humanoid;
+import com.meekdev.moud.core.instance.ImageLabel;
 import com.meekdev.moud.core.instance.Joint;
 import com.meekdev.moud.core.instance.Limb;
 import com.meekdev.moud.core.instance.Motor;
 import com.meekdev.moud.core.instance.Part;
+import com.meekdev.moud.core.instance.ScreenGui;
 import com.meekdev.moud.core.instance.Spatial;
+import com.meekdev.moud.core.instance.SurfaceGui;
+import com.meekdev.moud.core.instance.TextButton;
+import com.meekdev.moud.core.instance.TextLabel;
 import com.meekdev.moud.core.instance.Wings;
 import java.util.List;
 
@@ -72,6 +80,22 @@ public final class Classes {
     public static final ClassDef<UnreliableRemote> UNRELIABLE_REMOTE =
             ClassDef.of("UnreliableRemote", REMOTE, UnreliableRemote.class, UnreliableRemote::new);
 
+    public static final ClassDef<ScreenGui> SCREEN_GUI =
+            ClassDef.of("ScreenGui", null, ScreenGui.class, ScreenGui::new);
+    public static final ClassDef<BillboardGui> BILLBOARD_GUI =
+            ClassDef.of("BillboardGui", null, BillboardGui.class, BillboardGui::new);
+    public static final ClassDef<SurfaceGui> SURFACE_GUI =
+            ClassDef.of("SurfaceGui", null, SurfaceGui.class, SurfaceGui::new);
+    public static final ClassDef<GuiObject> GUI_OBJECT =
+            ClassDef.of("GuiObject", null, GuiObject.class, GuiObject::new);
+    public static final ClassDef<Frame> FRAME = ClassDef.of("Frame", GUI_OBJECT, Frame.class, Frame::new);
+    public static final ClassDef<TextLabel> TEXT_LABEL =
+            ClassDef.of("TextLabel", GUI_OBJECT, TextLabel.class, TextLabel::new);
+    public static final ClassDef<TextButton> TEXT_BUTTON =
+            ClassDef.of("TextButton", TEXT_LABEL, TextButton.class, TextButton::new);
+    public static final ClassDef<ImageLabel> IMAGE_LABEL =
+            ClassDef.of("ImageLabel", GUI_OBJECT, ImageLabel.class, ImageLabel::new);
+
     public static final ClassDef<Joint> JOINT = ClassDef.of("Joint", null, Joint.class, Joint::new);
     public static final ClassDef<Motor> MOTOR = ClassDef.of("Motor", JOINT, Motor.class, Motor::new);
 
@@ -110,6 +134,14 @@ public final class Classes {
         r.register(OBJECT_VALUE);
         r.register(REMOTE);
         r.register(UNRELIABLE_REMOTE);
+        r.register(SCREEN_GUI);
+        r.register(BILLBOARD_GUI);
+        r.register(SURFACE_GUI);
+        r.register(GUI_OBJECT);
+        r.register(FRAME);
+        r.register(TEXT_LABEL);
+        r.register(TEXT_BUTTON);
+        r.register(IMAGE_LABEL);
         r.register(JOINT);
         r.register(MOTOR);
         for (Addon addon : addons) {

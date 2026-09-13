@@ -10,6 +10,7 @@ import com.meekdev.moud.core.instance.UnreliableRemote;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
+import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vec3;
 import com.meekdev.moud.script.api.PostRef;
 import java.util.ArrayList;
@@ -218,6 +219,7 @@ public final class Remotes {
             case Quat q -> Values.push(state, q);
             case CFrame c -> Values.push(state, c);
             case Color c -> Values.push(state, c);
+            case UDim2 u -> Values.push(state, u);
             case Instance i -> Proxies.push(state, i);
             case List<?> list -> {
                 state.createTable(list.size(), 0);

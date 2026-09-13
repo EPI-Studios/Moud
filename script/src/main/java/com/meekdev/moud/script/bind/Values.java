@@ -3,6 +3,7 @@ package com.meekdev.moud.script.bind;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
+import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vec3;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
@@ -14,6 +15,7 @@ public final class Values {
     static final int COLOR = 3;
     static final int CFRAME = 4;
     static final int QUAT = 5;
+    static final int UDIM2 = 10;
 
     private Values() {}
 
@@ -81,6 +83,76 @@ public final class Values {
         state.rawSetField(-2, "__call");
         state.setMetaTable(-2);
         state.setGlobal("cframe");
+
+        state.newTable();
+        state.pushFunction(LuaFunc.wrap(Values::udim2Index, "udim2.__index"));
+        state.rawSetField(-2, "__index");
+        state.pushFunction(LuaFunc.wrap(s -> {
+            push(s, udim2(s, 1).add(udim2(s, 2)));
+            return 1;
+        }, "udim2.__add"));
+        state.rawSetField(-2, "__add");
+        state.pushFunction(LuaFunc.wrap(s -> {
+            push(s, udim2(s, 1).sub(udim2(s, 2)));
+            return 1;
+        }, "udim2.__sub"));
+        state.rawSetField(-2, "__sub");
+        state.pushFunction(LuaFunc.wrap(s -> {
+            s.pushBoolean(udim2(s, 1).equals(s.toUserDataTagged(2, UDIM2)));
+            return 1;
+        }, "udim2.__eq"));
+        state.rawSetField(-2, "__eq");
+        state.pushFunction(LuaFunc.wrap(s -> {
+            UDim2 u = udim2(s, 1);
+            s.pushString("udim2(" + u.xScale() + ", " + u.xOffset() + ", " + u.yScale() + ", "
+                    + u.yOffset() + ")");
+            return 1;
+        }, "udim2.__tostring"));
+        state.rawSetField(-2, "__tostring");
+        state.setUserDataMetaTable(UDIM2);
+
+        state.newTable();
+        state.pushFunction(LuaFunc.wrap(s -> {
+            push(s, UDim2.fromScale(s.checkNumber(1), s.checkNumber(2)));
+            return 1;
+        }, "udim2.fromScale"));
+        state.rawSetField(-2, "fromScale");
+        state.pushFunction(LuaFunc.wrap(s -> {
+            push(s, UDim2.fromOffset(s.checkNumber(1), s.checkNumber(2)));
+            return 1;
+        }, "udim2.fromOffset"));
+        state.rawSetField(-2, "fromOffset");
+        state.newTable();
+        state.pushFunction(LuaFunc.wrap(s -> {
+            // called as udim2(...), so the table itself is argument one
+            push(s, new UDim2(s.checkNumber(2), s.checkNumber(3), s.checkNumber(4), s.checkNumber(5)));
+            return 1;
+        }, "udim2"));
+        state.rawSetField(-2, "__call");
+        state.setMetaTable(-2);
+        state.setGlobal("udim2");
+    }
+
+    public static void push(LuaState state, UDim2 u) {
+        state.newUserDataTaggedWithMetatable(u, UDIM2);
+    }
+
+    public static UDim2 udim2(LuaState state, int index) {
+        Object value = state.toUserDataTagged(index, UDIM2);
+        if (value == null) throw state.error("expected a udim2");
+        return (UDim2) value;
+    }
+
+    private static int udim2Index(LuaState state) {
+        UDim2 u = udim2(state, 1);
+        switch (state.checkString(2)) {
+            case "xScale" -> state.pushNumber(u.xScale());
+            case "xOffset" -> state.pushNumber(u.xOffset());
+            case "yScale" -> state.pushNumber(u.yScale());
+            case "yOffset" -> state.pushNumber(u.yOffset());
+            default -> throw state.error("udim2 has no member '%s'", state.checkString(2));
+        }
+        return 1;
     }
 
     public static void push(LuaState state, CFrame c) {
@@ -125,6 +197,8 @@ public final class Values {
         if (v != null) return v;
         v = state.toUserDataTagged(index, CFRAME);
         if (v != null) return v;
+        v = state.toUserDataTagged(index, UDIM2);
+        if (v != null) return v;
         return state.toUserDataTagged(index, QUAT);
     }
 
@@ -134,6 +208,7 @@ public final class Values {
             case Color c -> push(state, c);
             case CFrame c -> push(state, c);
             case Quat q -> push(state, q);
+            case UDim2 u -> push(state, u);
             default -> {
                 return false;
             }

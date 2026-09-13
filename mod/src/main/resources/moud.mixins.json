@@ -26,6 +26,7 @@
     "world.WeatherMixin"
   ],
   "client": [
+    "client.ClickMixin",
     "client.CloudsMixin",
     "client.DebugScreenMixin",
     "client.EntityRenderMixin",
