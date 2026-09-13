@@ -77,9 +77,14 @@ public final class Applier {
                     id instanceof Integer at ? tree.byId(at) : null);
             return;
         }
+        // by the property's type rather than the value's: an int comes off the wire as an Integer
+        // and a number held in memory as a Double, and both are numbers
+        if (property.isNumeric()) {
+            if (wrote.value() instanceof Number n) Instances.setNum(instance, property, n.doubleValue());
+            return;
+        }
         switch (wrote.value()) {
             case Boolean b -> Instances.setBool(instance, property, b);
-            case Double d -> Instances.setNum(instance, property, d);
             case null -> { }
             default -> Instances.setObj(instance, property, wrote.value());
         }

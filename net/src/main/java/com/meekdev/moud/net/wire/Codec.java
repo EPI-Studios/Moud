@@ -9,6 +9,7 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
+import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vec3;
 import com.meekdev.moud.net.replicate.Change;
 import java.util.ArrayList;
@@ -243,7 +244,8 @@ public final class Codec {
             // nothing is zero, and an id is never zero: the tree's counter starts at one and a local
             // instance is negative
             case REF -> out.varint(value == null ? 0 : ((Integer) value) + 1L);
-            case INT -> out.zigzag((Integer) value);
+            // the recorder reads every number as a double, whatever the field holds
+            case INT -> out.zigzag(((Number) value).intValue());
             case NUM -> out.f32((Double) value);
             case STRING, ASSET -> out.text((String) value);
             case VEC3 -> {
@@ -267,6 +269,13 @@ public final class Codec {
                 out.u8(Math.round(Math.clamp(c.b(), 0f, 1f) * 255f));
                 out.u8(Math.round(Math.clamp(c.a(), 0f, 1f) * 255f));
             }
+            case UDIM2 -> {
+                UDim2 u = (UDim2) value;
+                out.f32(u.xScale());
+                out.f32(u.xOffset());
+                out.f32(u.yScale());
+                out.f32(u.yOffset());
+            }
             case ENUM -> out.u8(((Enum<?>) value).ordinal());
             case BOOL -> throw new IllegalStateException("a flag goes in the block, not here");
         }
@@ -289,6 +298,7 @@ public final class Codec {
                     new Vec3(in.readF32(), in.readF32(), in.readF32()), Quats.read(in));
             case COLOR -> new Color(in.readU8() / 255f, in.readU8() / 255f,
                     in.readU8() / 255f, in.readU8() / 255f);
+            case UDIM2 -> new UDim2(in.readF32(), in.readF32(), in.readF32(), in.readF32());
             case ENUM -> option(property, in.readU8());
             case BOOL -> throw new IllegalStateException("a flag comes out of the block, not here");
         };
