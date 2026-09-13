@@ -1,5 +1,6 @@
 package com.meekdev.moud.script.bind;
 
+import com.meekdev.moud.core.clazz.Enums;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.clazz.EventDef;

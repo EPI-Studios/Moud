@@ -5,6 +5,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.api.AudioRef;
 import com.meekdev.moud.script.api.BlockRef;
 import com.meekdev.moud.script.api.CameraRef;
+import com.meekdev.moud.script.api.FileRef;
 import com.meekdev.moud.script.api.InputRef;
 import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PlayerRef;
@@ -38,6 +39,8 @@ public interface ScriptEngine extends AutoCloseable {
     void bindAudio(AudioRef audio);
 
     void bindBlocks(BlockRef blocks);
+
+    void bindFiles(FileRef files);
 
     void onError(Consumer<ScriptError> handler);
 

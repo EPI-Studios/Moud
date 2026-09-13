@@ -7,6 +7,7 @@ import com.meekdev.moud.script.bind.InstanceSignals;
 import com.meekdev.moud.script.api.AudioRef;
 import com.meekdev.moud.script.api.BlockRef;
 import com.meekdev.moud.script.api.CameraRef;
+import com.meekdev.moud.script.api.FileRef;
 import com.meekdev.moud.script.api.InputRef;
 import com.meekdev.moud.script.api.PlayerRef;
 import com.meekdev.moud.script.bind.CameraMethods;
@@ -14,6 +15,7 @@ import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PostRef;
 import com.meekdev.moud.script.bind.Audio;
 import com.meekdev.moud.script.bind.Remotes;
+import com.meekdev.moud.script.bind.Scenes;
 import com.meekdev.moud.script.bind.Inputs;
 import com.meekdev.moud.script.bind.Players;
 import com.meekdev.moud.script.bind.Proxies;
@@ -64,7 +66,12 @@ public final class Vm implements ScriptEngine {
         scheduler = new Scheduler(state, e -> onError.accept(e));
     }
 
+    private Instance world;
+    private ClassRegistry registry;
+
     public void bind(Instance world, ClassRegistry registry) {
+        this.world = world;
+        this.registry = registry;
         Values.install(state);
         Signals.install(state);
         Players.install(state);
@@ -90,6 +97,11 @@ public final class Vm implements ScriptEngine {
     public void bindAudio(AudioRef audio) {
         this.audio = audio;
         Audio.install(state, audio, beat, bar);
+    }
+
+    @Override
+    public void bindFiles(FileRef files) {
+        Scenes.install(state, world, registry, files);
     }
 
     // the level's blocks, so a ray from the world can stop at a wall

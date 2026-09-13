@@ -1,4 +1,4 @@
-package com.meekdev.moud.script.bind;
+package com.meekdev.moud.core.clazz;
 
 import java.util.ArrayList;
 import java.util.List;

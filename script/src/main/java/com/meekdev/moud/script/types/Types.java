@@ -1,11 +1,11 @@
 package com.meekdev.moud.script.types;
 
+import com.meekdev.moud.core.clazz.Enums;
 import com.meekdev.moud.core.clazz.EventDef;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.clazz.PropertyType;
-import com.meekdev.moud.script.bind.Enums;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -245,6 +245,12 @@ public final class Types {
                 }
 
                 declare function require(path: string): any
+                declare scene: {
+                    load: (path: string, parent: Instance?) -> { Instance },
+                    save: (instances: any, path: string) -> (),
+                    encode: (instances: any) -> string,
+                    decode: (text: string, parent: Instance?) -> { Instance },
+                }
                 declare function vec3(x: number, y: number, z: number): Vector3
                 declare function color(r: number, g: number, b: number, a: number?): Color
 

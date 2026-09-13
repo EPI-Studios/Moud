@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.place;
 
 import com.meekdev.moud.core.asset.Res;
+import com.meekdev.moud.core.scene.Scene;
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.mod.adapter.physics.BlockRays;
 import com.meekdev.moud.mod.adapter.physics.Physics;
@@ -132,7 +133,24 @@ public final class Place {
         return found;
     }
 
+    private void scene() {
+        String path = PlaceToml.config().scene();
+        if (path.isEmpty()) return;
+        try {
+            String text = new PlaceFileRef(root).read(path);
+            if (text == null) {
+                MoudMod.LOG.error("place.toml opens with {}, which is not there", path);
+                return;
+            }
+            Scene.load(text, world, classes);
+        } catch (RuntimeException wrong) {
+            MoudMod.LOG.error("the scene {} could not be loaded: {}", path, wrong.getMessage());
+        }
+    }
+
     private @Nullable ScriptEngine load(Map<String, Object> carried) {
+        // the server's opening scene goes in first, so a script can find it and a place with no script still has it
+        if (!client) scene();
         language = pick();
         if (language == null) {
             MoudMod.LOG.info("no {} in any known language, nothing to run", main);
@@ -154,6 +172,7 @@ public final class Place {
         fresh.bindPost(Post.SERVER, false);
         fresh.bindBlocks(new BlockRays(Physics::level));
         fresh.bindModules(new PlaceModules(root, client));
+        fresh.bindFiles(new PlaceFileRef(root));
         fresh.onError(Errors::record);
         fresh.persist(carried);
         extend.accept(fresh);
