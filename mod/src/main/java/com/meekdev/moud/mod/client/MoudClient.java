@@ -3,7 +3,6 @@ package com.meekdev.moud.mod.client;
 import net.minecraft.client.player.LocalPlayer;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.transport.Post;
-import com.meekdev.moud.mod.place.Switches;
 import com.meekdev.moud.mod.adapter.render.Parts;
 import com.meekdev.moud.mod.adapter.render.Skins;
 import com.meekdev.moud.mod.adapter.audio.ResonaAudio;
@@ -23,7 +22,6 @@ public final class MoudClient implements ClientModInitializer {
         Input.register();
         Post.installOnClient(() -> Minecraft.getInstance().player instanceof LocalPlayer me
                 ? me.getUUID().toString() : "");
-        Switches.install(MoudMod.features());
         Pipeline.install();
         ResonaAudio.INSTANCE.install();
         Editor.install();

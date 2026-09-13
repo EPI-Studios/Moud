@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.place;
 
+import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.mod.adapter.physics.BlockRays;
 import com.meekdev.moud.mod.adapter.physics.Physics;
@@ -23,36 +24,43 @@ import org.jspecify.annotations.Nullable;
 
 public final class Place {
 
-    private static final String ROOT = "place";
-
     private final Instance world;
     private final ClassRegistry classes;
     private final Path root;
     private final String main;
+    private final boolean client;
     private final Predicate<Instance> dropped;
     private final Consumer<ScriptEngine> extend;
     private @Nullable ScriptEngine vm;
     private @Nullable ScriptLanguage language;
     private @Nullable Watcher watcher;
 
-    private Place(Instance world, ClassRegistry classes, String main,
+    private Place(Instance world, ClassRegistry classes, String main, boolean client,
                   Predicate<Instance> dropped, Consumer<ScriptEngine> extend) {
+        this.client = client;
         this.world = world;
         this.classes = classes;
-        this.root = FabricLoader.getInstance().getGameDir().resolve(ROOT);
+        this.root = PlaceToml.root();
         this.main = main;
         this.dropped = dropped;
         this.extend = extend;
     }
 
     public static Place server(Instance world, ClassRegistry classes) {
-        return new Place(world, classes, "server/main", instance -> true, vm -> { });
+        return new Place(world, classes, entry(PlaceToml.config().server()), false, instance -> true, vm -> { });
     }
 
     // 8.6: a client reload re-runs the place's local scripts and leaves the mirror alone, so the
     // only things it may destroy are the ones the client made itself. those are the negative ids
     public static Place client(Instance world, ClassRegistry classes, Consumer<ScriptEngine> extend) {
-        return new Place(world, classes, "client/main", instance -> instance.id() < 0, extend);
+        return new Place(world, classes, entry(PlaceToml.config().client()), true, instance -> instance.id() < 0, extend);
+    }
+
+    // the entry file without its extension, which is what says which language it is written in
+    private static String entry(String res) {
+        String path = Res.parse(res);
+        int dot = path.lastIndexOf('.');
+        return dot < 0 ? path : path.substring(0, dot);
     }
 
     public Path root() {
@@ -145,7 +153,7 @@ public final class Place {
         // the server's side of a channel, and the server's half of the verbs
         fresh.bindPost(Post.SERVER, false);
         fresh.bindBlocks(new BlockRays(Physics::level));
-        fresh.bindModules(new PlaceModules(root, main.startsWith("client/")));
+        fresh.bindModules(new PlaceModules(root, client));
         fresh.onError(Errors::record);
         fresh.persist(carried);
         extend.accept(fresh);

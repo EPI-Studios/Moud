@@ -4,6 +4,7 @@ import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.features.Features;
 import com.meekdev.moud.mod.level.PlaceChunkGenerator;
 import com.meekdev.moud.mod.adapter.physics.Physics;
+import com.meekdev.moud.mod.place.PlaceToml;
 import com.meekdev.moud.mod.server.MoudServer;
 import com.meekdev.moud.mod.transport.Post;
 import net.fabricmc.api.ModInitializer;
@@ -30,6 +31,8 @@ public final class MoudMod implements ModInitializer {
     public void onInitialize() {
         // first: everything after this reads a class set they may have added to
         Addons.install();
+        // both sides, so a server without a screen still knows hunger is off
+        PlaceToml.apply(FEATURES);
         Registry.register(BuiltInRegistries.CHUNK_GENERATOR,
                 Identifier.fromNamespaceAndPath(ID, "place"), PlaceChunkGenerator.CODEC);
         // before anything can send: a payload the far side has no codec for is a blob it drops
