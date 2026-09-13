@@ -39,22 +39,19 @@ public final class ServerChat implements ChatRef {
     public static final ServerChat INSTANCE = new ServerChat();
 
     private static final int KEPT = 2000;
-
-    private static final PropertyDef BODY = Classes.TEXT_SOURCE.property("body");
-
     private static final int BURST = 6;
     private static final double REFILL_PER_SECOND = 1.5;
+    private static final PropertyDef BODY = Classes.TEXT_SOURCE.property("body");
 
     private record Typed(UUID player, int channel, String text) {}
 
-    private static final class Kept {
-        final ChatLine line;
-        final Set<UUID> reached;
+    private record Kept(ChatLine line, Set<UUID> reached) {}
 
-        Kept(ChatLine line, Set<UUID> reached) {
-            this.line = line;
-            this.reached = reached;
-        }
+    private record Member(int channel, String player) {}
+
+    private static final class RateBucket {
+        double tokens = BURST;
+        long lastRefill = System.currentTimeMillis();
     }
 
     private final Queue<Typed> typed = new ConcurrentLinkedQueue<>();
@@ -65,11 +62,10 @@ public final class ServerChat implements ChatRef {
         }
     };
     private final Map<UUID, RateBucket> buckets = new HashMap<>();
-    private final Map<String, Long> lastSent = new HashMap<>();
-    private final Set<String> leftOut = new HashSet<>();
-    private long nextId = 1;
-
+    private final Map<Member, Long> lastSent = new HashMap<>();
+    private final Set<Member> leftOut = new HashSet<>();
     private final Map<Zone, Set<String>> zoned = new HashMap<>();
+    private long nextId = 1;
 
     private ServerChat() {}
 
@@ -145,7 +141,7 @@ public final class ServerChat implements ChatRef {
             if (!channel.autoJoin) continue;
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 String id = player.getUUID().toString();
-                if (present.contains(id) || leftOut.contains(channel.id() + "|" + id)) continue;
+                if (present.contains(id) || leftOut.contains(new Member(channel.id(), id))) continue;
                 join(channel, player);
             }
         }
@@ -213,7 +209,7 @@ public final class ServerChat implements ChatRef {
             send(player, line.packet(ChatDownPayload.STATUS));
             return;
         }
-        lastSent.put((channel == null ? -1 : channel.id()) + "|" + id, System.currentTimeMillis());
+        lastSent.put(new Member(line.channel, id), System.currentTimeMillis());
         deliver(tree, channel, line, null);
     }
 
@@ -225,25 +221,15 @@ public final class ServerChat implements ChatRef {
         if (text.length() > max) return "TooLong";
         long now = System.currentTimeMillis();
         if (channel != null && channel.slowMode > 0) {
-            Long last = lastSent.get(channel.id() + "|" + player.getUUID());
+            Long last = lastSent.get(new Member(channel.id(), player.getUUID().toString()));
             if (last != null && now - last < channel.slowMode * 1000) return "SlowMode";
         }
-        RateBucket bucket = buckets.computeIfAbsent(player.getUUID(), key -> new RateBucket(BURST, now));
+        RateBucket bucket = buckets.computeIfAbsent(player.getUUID(), key -> new RateBucket());
         bucket.tokens = Math.min(BURST, bucket.tokens + (now - bucket.lastRefill) / 1000.0 * REFILL_PER_SECOND);
         bucket.lastRefill = now;
         if (bucket.tokens < 1) return "Floodchecked";
         bucket.tokens -= 1;
         return null;
-    }
-
-    private static final class RateBucket {
-        double tokens;
-        long lastRefill;
-
-        RateBucket(double tokens, long lastRefill) {
-            this.tokens = tokens;
-            this.lastRefill = lastRefill;
-        }
     }
 
     private static TextChannel first(InstanceTree tree, String player) {
@@ -365,12 +351,12 @@ public final class ServerChat implements ChatRef {
     @Override
     public void edit(long id, Map<String, Object> changes) {
         Kept one = kept.get(id);
-        if (one == null) throw new IllegalArgumentException("there is no message " + id + " to edit, or it is too old");
-        one.line.apply(changes);
+        if (one == null) throw new IllegalArgumentException("unknown message " + id);
+        one.line().apply(changes);
         push(one, ChatDownPayload.EDIT);
         ScriptEngine vm = vm();
         InstanceTree tree = ServerScene.tree();
-        if (vm != null && tree != null) vm.chatEvent("edited", one.line.toMap(tree));
+        if (vm != null && tree != null) vm.chatEvent("edited", one.line().toMap(tree));
     }
 
     @Override
@@ -385,11 +371,9 @@ public final class ServerChat implements ChatRef {
     private void push(Kept one, int kind) {
         MinecraftServer server = ServerScene.server();
         if (server == null) return;
-        for (UUID id : one.reached) {
+        for (UUID id : one.reached()) {
             ServerPlayer player = server.getPlayerList().getPlayer(id);
-            if (player != null && ServerPlayNetworking.canSend(player, ChatDownPayload.TYPE)) {
-                ServerPlayNetworking.send(player, one.line.packet(kind));
-            }
+            if (player != null) send(player, one.line().packet(kind));
         }
     }
 
@@ -397,7 +381,7 @@ public final class ServerChat implements ChatRef {
     public void addPlayer(Instance channel, Instance body) {
         if (!(channel instanceof TextChannel text)) throw new IllegalArgumentException("chat:addPlayer expects a TextChannel");
         ServerPlayer player = playerOf(body);
-        leftOut.remove(text.id() + "|" + player.getUUID());
+        leftOut.remove(new Member(text.id(), player.getUUID().toString()));
         if (sourceOf(text, player.getUUID().toString()) == null) join(text, player);
     }
 
@@ -405,7 +389,7 @@ public final class ServerChat implements ChatRef {
     public void removePlayer(Instance channel, Instance body) {
         if (!(channel instanceof TextChannel text)) throw new IllegalArgumentException("chat:removePlayer expects a TextChannel");
         ServerPlayer player = playerOf(body);
-        leftOut.add(text.id() + "|" + player.getUUID());
+        leftOut.add(new Member(text.id(), player.getUUID().toString()));
         TextSource source = sourceOf(text, player.getUUID().toString());
         if (source != null) Instances.destroy(source);
     }
@@ -413,12 +397,12 @@ public final class ServerChat implements ChatRef {
     private static ServerPlayer playerOf(Instance body) {
         MinecraftServer server = ServerScene.server();
         ServerPlayer player = !(body instanceof Character character) || server == null ? null : playerOf(server, character.owner);
-        if (player == null) throw new IllegalArgumentException("expects a body a player is wearing");
+        if (player == null) throw new IllegalArgumentException("expected a player body");
         return player;
     }
 
     private static UnsupportedOperationException clientOnly(String what) {
-        return new UnsupportedOperationException("chat:" + what + " is a client's, the server has no chat window");
+        return new UnsupportedOperationException("chat:" + what + " is client-only");
     }
 
     @Override
@@ -440,11 +424,8 @@ public final class ServerChat implements ChatRef {
     public void clear() {
         MinecraftServer server = ServerScene.server();
         if (server == null) return;
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (ServerPlayNetworking.canSend(player, ChatDownPayload.TYPE)) {
-                ServerPlayNetworking.send(player, new ChatLine(0).packet(ChatDownPayload.CLEAR));
-            }
-        }
+        ChatDownPayload packet = new ChatLine(0).packet(ChatDownPayload.CLEAR);
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) send(player, packet);
     }
 
     @Override
@@ -467,7 +448,7 @@ public final class ServerChat implements ChatRef {
         InstanceTree tree = ServerScene.tree();
         List<Map<String, Object>> out = new ArrayList<>();
         if (tree == null) return out;
-        for (Kept one : kept.values()) out.add(one.line.toMap(tree));
+        for (Kept one : kept.values()) out.add(one.line().toMap(tree));
         return out;
     }
 }
