@@ -15,6 +15,7 @@ import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.query.Touches;
 import com.meekdev.moud.core.zone.Zones;
 import com.meekdev.moud.mod.adapter.physics.Characters;
+import com.meekdev.moud.mod.adapter.physics.PlayerMirror;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
 import com.meekdev.moud.mod.adapter.render.PartLight;
 import com.meekdev.moud.mod.adapter.render.Skins;
@@ -61,8 +62,8 @@ public final class ClientScene {
             Player driver = character == own && me != null ? me : wearer;
             if (driver != null) Characters.drive(character, driver);
             if (wearer != null) {
-                Characters.applySkinModel(character, wearer);
-                Characters.applyAppearance(character, wearer, 1.0f);
+                PlayerMirror.skinModel(character, wearer);
+                PlayerMirror.cape(character, wearer, 1.0f);
             }
             if (character.animate) {
                 Pose.apply(character, age(character));

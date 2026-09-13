@@ -12,7 +12,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
-import com.meekdev.moud.mod.adapter.physics.Characters;
+import com.meekdev.moud.mod.adapter.physics.PlayerMirror;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.HashMap;
@@ -102,7 +102,7 @@ public final class HeldItems {
 
     private static ItemStack stack(AbstractClientPlayer wearer, boolean left, String id) {
         if (wearer != null) {
-            ItemStack held = Characters.handOf(wearer, left ? HumanoidArm.LEFT : HumanoidArm.RIGHT);
+            ItemStack held = PlayerMirror.handOf(wearer, left ? HumanoidArm.LEFT : HumanoidArm.RIGHT);
             if (!held.isEmpty() && BuiltInRegistries.ITEM.getKey(held.getItem()).toString().equals(id)) return held;
         }
         return STACKS.computeIfAbsent(id, name -> {
