@@ -171,6 +171,12 @@ public final class Types {
         }
 
         out.append("""
+                declare class Blocks
+                    function get(self, at: Vector3): string
+                    function set(self, at: Vector3, block: string): ()
+                    function fill(self, from: Vector3, to: Vector3, block: string): number
+                end
+
                 declare class Tags
                     function tagged(self, tag: string): { Instance }
                     function added(self, tag: string): InstanceSignal
@@ -181,6 +187,7 @@ public final class Types {
                     world: Instance
                     players: Players
                     tags: Tags
+                    blocks: Blocks
                     stepped: StepSignal
                     renderStepped: StepSignal
                     reloaded: ReloadedSignal

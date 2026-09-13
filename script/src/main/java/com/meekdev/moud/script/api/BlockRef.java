@@ -10,4 +10,16 @@ public interface BlockRef {
 
     // null when nothing solid is in the way
     Hit raycast(Vec3 from, Vec3 direction, double range);
+
+    // the block at a position as the game writes it, like minecraft:oak_stairs[facing=north]
+    String get(int x, int y, int z);
+
+    // throws when the text names no block, saying why
+    void set(int x, int y, int z, String block);
+
+    // every block in the box between two corners, both included, and how many that was
+    long fill(int x0, int y0, int z0, int x1, int y1, int z1, String block);
+
+    // whether this side may change blocks at all. a client's copy of the level is the server's to change
+    boolean writable();
 }

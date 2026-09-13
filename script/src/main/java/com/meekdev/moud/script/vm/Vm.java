@@ -14,6 +14,7 @@ import com.meekdev.moud.script.bind.CameraMethods;
 import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PostRef;
 import com.meekdev.moud.script.bind.Audio;
+import com.meekdev.moud.script.bind.Blocks;
 import com.meekdev.moud.script.bind.Remotes;
 import com.meekdev.moud.script.bind.Scenes;
 import com.meekdev.moud.script.bind.Inputs;
@@ -119,6 +120,7 @@ public final class Vm implements ScriptEngine {
     @Override
     public void bindBlocks(BlockRef blocks) {
         Proxies.blocks(state, blocks);
+        Blocks.install(state, blocks);
     }
 
     @Override

@@ -169,7 +169,7 @@ public final class Place {
         fresh.bind(world, classes);
         // the server's side of a channel, and the server's half of the verbs
         fresh.bindPost(Post.SERVER, false);
-        fresh.bindBlocks(new BlockRays(Physics::level));
+        fresh.bindBlocks(new BlockRays(Physics::level, true));
         fresh.bindModules(new PlaceModules(root, client));
         fresh.bindFiles(new PlaceFileRef(root));
         fresh.onError(Errors::record);

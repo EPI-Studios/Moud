@@ -71,7 +71,7 @@ public final class ClientPlace {
             vm.bindClient(camera, LENS, INPUT, ClientScene::own);
             vm.bindPost(Post.CLIENT, true);
             // the client's own level, never the integrated server's: that one belongs to another thread
-            vm.bindBlocks(new BlockRays(() -> Minecraft.getInstance().level));
+            vm.bindBlocks(new BlockRays(() -> Minecraft.getInstance().level, false));
             // every load, reloads included: whatever the old scripts left playing or bound goes with them
             ResonaAudio.INSTANCE.reset();
             Sounds.stopAll();
