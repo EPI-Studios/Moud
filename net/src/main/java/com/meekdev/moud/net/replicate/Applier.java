@@ -41,6 +41,12 @@ public final class Applier {
                 Instance instance = tree == null ? null : tree.byId(destroyed.id());
                 if (instance != null) Instances.destroy(instance);
             }
+            case Change.Tagged tagged -> {
+                Instance instance = tree == null ? null : tree.byId(tagged.id());
+                if (instance == null) return;
+                if (tagged.added()) Instances.addTag(instance, tagged.tag());
+                else Instances.removeTag(instance, tagged.tag());
+            }
         }
     }
 

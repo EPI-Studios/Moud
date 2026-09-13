@@ -119,6 +119,9 @@ public final class Audience {
                 case Change.Wrote wrote -> {
                     if (has.get(wrote.id())) out.accept(wrote);
                 }
+                case Change.Tagged tagged -> {
+                    if (has.get(tagged.id())) out.accept(tagged);
+                }
             }
         }
     }
@@ -134,6 +137,7 @@ public final class Audience {
             if ((skip & (1L << property.index())) != 0) continue;
             out.accept(new Change.Wrote(top.id(), property.index(), Recorder.read(top, property)));
         }
+        for (String tag : top.tags()) out.accept(new Change.Tagged(top.id(), tag, true));
         for (Instance child : top.children()) baseline(child, out);
     }
 

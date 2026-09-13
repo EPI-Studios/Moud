@@ -101,6 +101,7 @@ public final class SubLevels {
             case Change.Created created -> refresh(created.id());
             case Change.Wrote wrote -> refresh(wrote.id());
             case Change.Moved moved -> refresh(moved.id());
+            case Change.Tagged ignored -> { }
         }
     }
 
@@ -205,6 +206,7 @@ public final class SubLevels {
             case Change.Moved moved -> moved.id();
             case Change.Reset ignored -> -1;
             case Change.Destroyed ignored -> -1;
+            case Change.Tagged ignored -> -1;
         };
         if (id < 0) return;
         if (tree.byId(id) instanceof Part part && wants(part)) PartShapes.of(part.size);

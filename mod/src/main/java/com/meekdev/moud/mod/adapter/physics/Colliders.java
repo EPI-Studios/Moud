@@ -51,6 +51,7 @@ public final class Colliders {
             case Change.Wrote wrote -> refresh(wrote.id());
             // a moved part keeps every property and lands somewhere else, so its box is stale
             case Change.Moved moved -> refresh(moved.id());
+            case Change.Tagged ignored -> false;
         };
     }
 

@@ -143,6 +143,10 @@ public final class Types {
                     function partsInPart(self, part: Instance, options: QueryOptions?): { Instance }
                     function destroy(self): ()
                     function setOwner(self, to: Instance?): ()
+                    function addTag(self, tag: string): ()
+                    function removeTag(self, tag: string): ()
+                    function hasTag(self, tag: string): boolean
+                    function getTags(self): { string }
                     function fireServer(self, ...: any): ()
                     function fireClient(self, to: Instance, ...: any): ()
                     function fireAllClients(self, ...: any): ()
@@ -155,9 +159,16 @@ public final class Types {
         }
 
         out.append("""
+                declare class Tags
+                    function tagged(self, tag: string): { Instance }
+                    function added(self, tag: string): InstanceSignal
+                    function removed(self, tag: string): InstanceSignal
+                end
+
                 declare class Game
                     world: Instance
                     players: Players
+                    tags: Tags
                     stepped: StepSignal
                     renderStepped: StepSignal
                     reloaded: ReloadedSignal

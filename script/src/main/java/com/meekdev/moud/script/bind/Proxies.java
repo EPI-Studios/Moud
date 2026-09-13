@@ -17,6 +17,7 @@ import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vec3;
 import com.meekdev.moud.script.api.BlockRef;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -74,6 +75,31 @@ public final class Proxies {
         method(state, "partsInRadius", s -> QueryMethods.partsInRadius(s, self(s)));
         method(state, "partsInPart", s -> QueryMethods.partsInPart(s, self(s)));
         method(state, "setOwner", Proxies::setOwner);
+        method(state, "addTag", s -> {
+            Instance instance = self(s);
+            tagAllowed(s, instance);
+            Instances.addTag(instance, s.checkString(2));
+            return 0;
+        });
+        method(state, "removeTag", s -> {
+            Instance instance = self(s);
+            tagAllowed(s, instance);
+            Instances.removeTag(instance, s.checkString(2));
+            return 0;
+        });
+        method(state, "hasTag", s -> {
+            s.pushBoolean(self(s).hasTag(s.checkString(2)));
+            return 1;
+        });
+        method(state, "getTags", s -> {
+            List<String> tags = new ArrayList<>(self(s).tags());
+            s.createTable(tags.size(), 0);
+            for (int n = 0; n < tags.size(); n++) {
+                s.pushString(tags.get(n));
+                s.rawSetI(-2, n + 1);
+            }
+            return 1;
+        });
         state.rawSetField(LuaState.REGISTRY_INDEX, METHODS);
     }
 
@@ -429,6 +455,14 @@ public final class Proxies {
         }
         Instances.setObj(instance, owner, body.owner);
         return 0;
+    }
+
+    // tags replicate like properties, so a client tags what it owns or what is its own
+    private static void tagAllowed(LuaState state, Instance instance) {
+        if (instance.id() < 0 || !Remotes.onClient(state)) return;
+        if (Owners.owns(Remotes.me(state), instance)) return;
+        throw state.error("tagging %s is the server's. a client tags what it owns and what is local to it",
+                instance.name());
     }
 
     // §10.1: writing a replicated property on a client without ownership is a luau error, not a

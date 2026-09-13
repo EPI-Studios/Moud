@@ -6,6 +6,7 @@ import com.meekdev.moud.core.event.Signal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 public abstract class Instance {
 
@@ -21,6 +22,9 @@ public abstract class Instance {
 
     // whatever the script layer hangs off this instance, cleared when it dies. core never reads it
     public Object userdata;
+
+    // the labels a place hung on it, which replicate like its properties. null until the first one
+    Set<String> tags;
 
     Signal<PropertyDef> changed;
     Signal<Instance> childAdded;
@@ -41,6 +45,14 @@ public abstract class Instance {
 
     public final List<Instance> children() {
         return Collections.unmodifiableList(children);
+    }
+
+    public final Set<String> tags() {
+        return tags == null ? Set.of() : Collections.unmodifiableSet(tags);
+    }
+
+    public final boolean hasTag(String tag) {
+        return tags != null && tags.contains(tag);
     }
 
     public final boolean isAlive() {

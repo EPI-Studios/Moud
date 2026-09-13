@@ -25,6 +25,7 @@ public final class Recorder {
 
         tree.drainRemoved(id -> out.accept(new Change.Destroyed(id)));
 
+        int before = seen;
         int highest = tree.highestId();
         for (int id = seen + 1; id <= highest; id++) {
             Instance instance = tree.byId(id);
@@ -35,6 +36,7 @@ public final class Recorder {
                 if ((skip & (1L << property.index())) != 0) continue;
                 out.accept(new Change.Wrote(id, property.index(), read(instance, property)));
             }
+            for (String tag : instance.tags()) out.accept(new Change.Tagged(id, tag, true));
         }
         seen = highest;
 
@@ -45,6 +47,11 @@ public final class Recorder {
             if (instance != null && instance.parent() != null) {
                 out.accept(new Change.Moved(id, instance.parent().id()));
             }
+        });
+
+        // an instance made this tick already went over with the tags it has now
+        tree.drainTags(tag -> {
+            if (tag.id() <= before) out.accept(new Change.Tagged(tag.id(), tag.tag(), tag.added()));
         });
 
         tree.drainDirty((instance, mask) -> {

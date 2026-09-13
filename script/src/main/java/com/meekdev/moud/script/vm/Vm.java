@@ -19,6 +19,7 @@ import com.meekdev.moud.script.bind.Players;
 import com.meekdev.moud.script.bind.Proxies;
 import com.meekdev.moud.script.bind.Signals;
 import com.meekdev.moud.script.bind.SoundMethods;
+import com.meekdev.moud.script.bind.Tags;
 import com.meekdev.moud.script.reload.Persist;
 import com.meekdev.moud.script.sched.Scheduler;
 import java.util.Map;
@@ -53,6 +54,7 @@ public final class Vm implements ScriptEngine {
     private Consumer<ScriptError> onError = e -> { throw e; };
     private final Scheduler scheduler;
     private AudioRef audio;
+    private Tags tags;
     private final Signals.Handlers beat = new Signals.Handlers();
     private final Signals.Handlers bar = new Signals.Handlers();
 
@@ -70,6 +72,8 @@ public final class Vm implements ScriptEngine {
         Proxies.install(state, registry);
         SoundMethods.install(state);
         game.install(state, world);
+        tags = new Tags(state, world.tree(), e -> onError.accept(e));
+        tags.install();
         scheduler.install(state);
         run("task", scheduler.prelude());
     }
@@ -221,6 +225,7 @@ public final class Vm implements ScriptEngine {
         // before the state goes, because what is keyed by it cannot be dropped after: a state's
         // identity is a native pointer, and the next state may be handed the same one
         Remotes.forget(state);
+        if (tags != null) tags.close();
         Proxies.forgetBlocks(state);
         state.close();
     }

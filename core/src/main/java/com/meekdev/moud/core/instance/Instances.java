@@ -4,6 +4,7 @@ import com.meekdev.moud.core.clazz.Assets;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.clazz.PropertyType;
+import java.util.LinkedHashSet;
 import java.util.function.Consumer;
 
 public final class Instances {
@@ -101,6 +102,22 @@ public final class Instances {
         i.tree.structureEpoch++;
         i.tree.markMoved(i);
         if (newParent.childAdded != null) newParent.childAdded.fire(i);
+    }
+
+    public static void addTag(Instance i, String tag) {
+        checkTag(i, tag);
+        if (i.tags == null) i.tags = new LinkedHashSet<>();
+        if (i.tags.add(tag)) i.tree.tag(i, tag, true);
+    }
+
+    public static void removeTag(Instance i, String tag) {
+        checkTag(i, tag);
+        if (i.tags != null && i.tags.remove(tag)) i.tree.tag(i, tag, false);
+    }
+
+    private static void checkTag(Instance i, String tag) {
+        if (i.tree == null) throw new IllegalStateException(i + " is destroyed");
+        if (tag == null || tag.isBlank()) throw new IllegalArgumentException("a tag is some text, not nothing");
     }
 
     public static void rename(Instance i, String name) {

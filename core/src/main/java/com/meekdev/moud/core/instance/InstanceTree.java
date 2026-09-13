@@ -1,10 +1,13 @@
 package com.meekdev.moud.core.instance;
 
 import com.meekdev.moud.core.clazz.ClassDef;
+import com.meekdev.moud.core.event.Signal;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
 public final class InstanceTree {
@@ -170,6 +173,55 @@ public final class InstanceTree {
         }
         removedList[removedCount++] = i.id;
         structureEpoch++;
+        // gone from the index, and said so, but not journalled: the far side hears it was destroyed
+        if (i.tags != null) {
+            for (String tag : i.tags) {
+                List<Instance> list = byTag.get(tag);
+                if (list != null) list.remove(i);
+                Signal<Instance> signal = tagRemoved.get(tag);
+                if (signal != null) signal.fire(i);
+            }
+        }
+    }
+
+    // one tag going on or coming off one instance, in the order it happened
+    public record TagChange(int id, String tag, boolean added) {}
+
+    private final Map<String, List<Instance>> byTag = new HashMap<>();
+    private final Map<String, Signal<Instance>> tagAdded = new HashMap<>();
+    private final Map<String, Signal<Instance>> tagRemoved = new HashMap<>();
+    private final List<TagChange> tagChanges = new ArrayList<>();
+
+    public List<Instance> tagged(String tag) {
+        List<Instance> list = byTag.get(tag);
+        return list == null ? List.of() : Collections.unmodifiableList(list);
+    }
+
+    // fires when the tag goes on an instance in this tree
+    public Signal<Instance> tagAdded(String tag) {
+        return tagAdded.computeIfAbsent(tag, t -> new Signal<>());
+    }
+
+    // fires when it comes off, including when the instance is destroyed
+    public Signal<Instance> tagRemoved(String tag) {
+        return tagRemoved.computeIfAbsent(tag, t -> new Signal<>());
+    }
+
+    public void drainTags(Consumer<TagChange> visitor) {
+        for (TagChange change : tagChanges) visitor.accept(change);
+        tagChanges.clear();
+    }
+
+    void tag(Instance i, String tag, boolean added) {
+        if (added) {
+            byTag.computeIfAbsent(tag, t -> new ArrayList<>()).add(i);
+        } else {
+            List<Instance> list = byTag.get(tag);
+            if (list != null) list.remove(i);
+        }
+        if (i.id > 0) tagChanges.add(new TagChange(i.id, tag, added));
+        Signal<Instance> signal = (added ? tagAdded : tagRemoved).get(tag);
+        if (signal != null) signal.fire(i);
     }
 
     private int[] movedList = new int[8];
