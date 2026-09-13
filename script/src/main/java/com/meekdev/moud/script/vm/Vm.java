@@ -25,6 +25,7 @@ import com.meekdev.moud.script.bind.Players;
 import com.meekdev.moud.script.bind.Proxies;
 import com.meekdev.moud.script.bind.BodyMethods;
 import com.meekdev.moud.script.bind.WorldMethods;
+import com.meekdev.moud.script.bind.TreeMethods;
 import com.meekdev.moud.script.bind.Paths;
 import com.meekdev.moud.core.nav.Walkers;
 import com.meekdev.moud.script.bind.ZoneMethods;
@@ -104,6 +105,7 @@ public final class Vm implements ScriptEngine {
         SoundMethods.install(state);
         BodyMethods.install(state, world);
         WorldMethods.install(state);
+        TreeMethods.install(state);
         TweenMethods.install(state, tweens, e -> onError.accept(e));
         game.install(state, world);
         ZoneMethods.install(state, world);
@@ -114,6 +116,7 @@ public final class Vm implements ScriptEngine {
         run("task", scheduler.prelude());
         run("proximity", Luau.source("proximity.luau"));
         run("math", Luau.source("math.luau"));
+        run("tree", Luau.source("tree.luau"));
     }
 
     // the client half of the surface, which only exists where there is a screen and someone

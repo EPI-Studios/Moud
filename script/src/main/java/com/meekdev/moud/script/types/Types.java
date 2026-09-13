@@ -207,6 +207,19 @@ public final class Types {
                     function surfaceNormal(self, position: Vector3, options: QueryOptions?): Vector3?
                     function heightmap(self, from: Vector3, to: Vector3, step: number?, options: QueryOptions?): { { number } }
                     function findFreeSpot(self, near: Vector3, size: Vector3, radius: number?): Vector3?
+                    function findFirstDescendant(self, name: string): Instance?
+                    function descendants(self, className: string?): { Instance }
+                    function childrenOfClass(self, className: string): { Instance }
+                    function firstAncestorOfClass(self, className: string): Instance?
+                    function firstAncestor(self, name: string): Instance?
+                    function isDescendantOf(self, other: Instance): boolean
+                    function byTag(self, tag: string): { Instance }
+                    function values(self): { [string]: any }
+                    function clone(self, parent: Instance?): Instance?
+                    function query(self, selector: string): { Instance }
+                    function queryFirst(self, selector: string): Instance?
+                    function waitForChild(self, name: string, timeout: number?): Instance?
+                    function onChild(self, name: string, fn: (child: Instance) -> ()): Connection
                     function destroy(self): ()
                     function setOwner(self, to: Instance?): ()
                     function addTag(self, tag: string): ()

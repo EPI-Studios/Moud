@@ -167,6 +167,15 @@ public final class Proxies {
         return classes;
     }
 
+    // a method written in luau, set straight into the table every instance shares
+    static void luauMethod(LuaState state, String name, int function) {
+        NAMES.add(name);
+        state.rawGetField(LuaState.REGISTRY_INDEX, METHODS);
+        state.pushValue(function);
+        state.rawSetField(-2, name);
+        state.pop(1);
+    }
+
     public static Set<String> methodNames() {
         return Collections.unmodifiableSet(NAMES);
     }
