@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.adapter.render;
 
+import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.amnetic.client.camera.AmneticCamera;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
@@ -23,12 +24,18 @@ public final class Cameras {
 
     private static final double DEGREES = 180.0 / Math.PI;
 
+    private static double tracedFov = -1;
+
     private Cameras() {}
 
     public static void frame(Camera camera, float partialTick) {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) return;
 
+        if (camera.fov != tracedFov) {
+            tracedFov = camera.fov;
+            MoudMod.LOG.info("TRACE camera fov {} mode {} amnetic fov now {}", camera.fov, camera.mode, AmneticCamera.fov());
+        }
         if (camera.fov > 0) {
             AmneticCamera.setFov((float) camera.fov);
         } else {

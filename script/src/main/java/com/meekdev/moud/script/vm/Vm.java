@@ -90,6 +90,18 @@ public final class Vm implements ScriptEngine {
     public Vm() {
         state = LuaState.newState();
         state.openLibs(LIBRARIES);
+        // every argument through tostring, tab separated, the way luau's own print joins them
+        state.pushFunction(LuaFunc.wrap(s -> {
+            StringBuilder line = new StringBuilder();
+            int count = s.top();
+            for (int n = 1; n <= count; n++) {
+                if (n > 1) line.append('\t');
+                line.append(s.toStringRepr(n));
+            }
+            printer.accept(line.toString());
+            return 0;
+        }, "print"));
+        state.setGlobal("print");
         scheduler = new Scheduler(state, e -> onError.accept(e));
     }
 
@@ -259,6 +271,14 @@ public final class Vm implements ScriptEngine {
     // a script error kills its handler, not the game
     public void onError(Consumer<ScriptError> handler) {
         onError = handler;
+    }
+
+    // where print goes. standard out is a terminal nobody running the game is looking at
+    private Consumer<String> printer = System.out::println;
+
+    @Override
+    public void onPrint(Consumer<String> handler) {
+        printer = handler;
     }
 
     // Script instances on a server vm and LocalScript ones on a client, started and stopped as the tree

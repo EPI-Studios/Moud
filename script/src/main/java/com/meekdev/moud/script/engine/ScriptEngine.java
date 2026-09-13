@@ -68,6 +68,9 @@ public interface ScriptEngine extends AutoCloseable {
 
     void onError(Consumer<ScriptError> handler);
 
+    // where a script's print goes
+    void onPrint(Consumer<String> handler);
+
     void run(String chunkName, String source);
 
     void step(double dt);

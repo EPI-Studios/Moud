@@ -66,7 +66,10 @@ public final class Actions {
             DOWN.merge(action.name(), down, Boolean::logicalOr);
             boolean was = WAS.getOrDefault(action, false);
             WAS.put(action, down);
-            if (down && !was) action.began.fire(action);
+            if (down && !was) {
+                MoudMod.LOG.info("TRACE input action {} began, {} java handlers", action.name(), action.began.count());
+                action.began.fire(action);
+            }
             if (!down && was) action.ended.fire(action);
         }
     }

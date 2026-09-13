@@ -192,6 +192,7 @@ public final class Place {
         if (!client) fresh.bindHistory(ServerHistory.INSTANCE);
         if (!client) fresh.bindDebug(ServerDebug.INSTANCE);
         fresh.onError(Errors::record);
+        fresh.onPrint(line -> MoudMod.LOG.info("[{}] {}", client ? "client" : "server", line));
         fresh.persist(carried);
         extend.accept(fresh);
         // the place's vm from here on, since running main calls back into code that asks the place for it
