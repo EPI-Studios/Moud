@@ -58,6 +58,7 @@ public final class ClientPlace {
     public static void frame(float partialTick) {
         if (place == null || camera == null) return;
         INPUT.poll();
+        Actions.frame();
         ScriptEngine vm = place.vm();
         if (vm != null) vm.renderStep(FRAME.tick());
         Cameras.frame(camera, partialTick);

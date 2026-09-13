@@ -75,13 +75,15 @@ public final class Input implements InputRef {
 
     @Override
     public boolean down(String action) {
+        Boolean placed = Actions.down(action);
+        if (placed != null) return placed;
         Supplier<KeyMapping> key = actions.get(action);
         return key != null && key.get() != null && key.get().isDown();
     }
 
     @Override
     public boolean known(String action) {
-        return actions.containsKey(action);
+        return actions.containsKey(action) || Actions.down(action) != null;
     }
 
     @Override
