@@ -14,4 +14,14 @@ public interface PlayerRef {
     Instance character();
 
     void spawn(Vec3 position);
+
+    // the round trip to this player, in seconds
+    default double ping() {
+        return 0;
+    }
+
+    // the server time this player was looking at, for rewinding a hit to what they saw
+    default double viewTime() {
+        return 0;
+    }
 }

@@ -32,6 +32,14 @@ public final class Players {
 
         state.newTable();
         method(state, "spawn", Players::spawn);
+        method(state, "ping", s -> {
+            s.pushNumber(self(s).ping());
+            return 1;
+        });
+        method(state, "viewTime", s -> {
+            s.pushNumber(self(s).viewTime());
+            return 1;
+        });
         state.rawSetField(LuaState.REGISTRY_INDEX, METHODS);
     }
 

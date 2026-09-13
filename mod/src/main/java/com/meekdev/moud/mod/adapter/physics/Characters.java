@@ -69,6 +69,7 @@ public final class Characters {
     private static final PropertyDef MOVE_DISTANCE = Classes.CHARACTER.property("moveDistance");
     private static final PropertyDef MOVE_SPEED = Classes.CHARACTER.property("moveSpeed");
     private static final PropertyDef CROUCHING = Classes.CHARACTER.property("crouching");
+    private static final PropertyDef VELOCITY = Classes.CHARACTER.property("velocity");
     private static final PropertyDef ATTACK_TIME = Classes.CHARACTER.property("attackTime");
     private static final PropertyDef ATTACK_LEFT = Classes.CHARACTER.property("attackLeft");
     private static final PropertyDef SWIM_AMOUNT = Classes.CHARACTER.property("swimAmount");
@@ -322,6 +323,8 @@ public final class Characters {
         Instances.setBool(character, RIDING, player.isPassenger());
         Instances.setBool(character, FLYING, player.isFallFlying());
         Instances.setBool(character, IN_WATER, player.isInWater());
+        net.minecraft.world.phys.Vec3 motion = player.getDeltaMovement();
+        Instances.setObj(character, VELOCITY, new Vec3(motion.x * 20, motion.y * 20, motion.z * 20));
 
         Instances.setNum(character, FLYING_TIME, player.getFallFlyingTicks());
         Instances.setNum(character, FLYING_YAW, flyingYaw(player));

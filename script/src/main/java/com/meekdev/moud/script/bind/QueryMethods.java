@@ -28,6 +28,22 @@ final class QueryMethods {
         BLOCKS.put(state.mainThread(), blocks);
     }
 
+    // whether nothing solid stands between two points: no part that collides, and no block when the
+    // question is asked of the whole world. the ignored instances count with everything under them
+    static boolean clear(LuaState state, Instance root, Vec3 from, Vec3 to, List<Instance> ignore) {
+        Vec3 way = to.sub(from);
+        double length = way.length();
+        if (length < 1e-6) return true;
+        Queries.Filter filter = new Queries.Filter(ignore, false, true);
+        if (Queries.raycast(root, from, way, length, filter) != null) return false;
+        BlockRef blocks = BLOCKS.get(state.mainThread());
+        return blocks == null || root.parent() != null || blocks.raycast(from, way, length) == null;
+    }
+
+    static BlockRef blocksOf(LuaState state) {
+        return BLOCKS.get(state.mainThread());
+    }
+
     static void forget(LuaState state) {
         BLOCKS.remove(state.mainThread());
     }

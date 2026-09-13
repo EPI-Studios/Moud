@@ -2,6 +2,7 @@ package com.meekdev.moud.core.instance;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.Prop;
+import com.meekdev.moud.core.math.Vec3;
 import java.util.UUID;
 
 // what a player controls. these are the movement profile, in metres and seconds like everything
@@ -40,6 +41,9 @@ public final class Character extends Spatial {
     @Prop(min = 0.01) public double speedValue = 1.0;
 
     @Prop(driven = true) public boolean crouching;
+
+    // how fast the body is moving, in metres a second, which a player's own movement fills in
+    @Prop(driven = true) public Vec3 velocity = Vec3.ZERO;
 
     // the rest of what the body is doing, which is all the model animates from
     //

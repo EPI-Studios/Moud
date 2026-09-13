@@ -111,6 +111,8 @@ public final class Types {
                     name: string
                     character: Instance?
                     function spawn(self, position: Vector3): ()
+                    function ping(self): number
+                    function viewTime(self): number
                 end
 
                 declare class Players
@@ -122,6 +124,15 @@ public final class Types {
                     function nearest(self, position: Vector3, radius: number?, except: Instance?): (Instance?, number?)
                     function bodyOf(self, player: string): Instance?
                     function count(self): number
+                    function inBox(self, frame: CFrame, size: Vector3, except: Instance?): { Instance }
+                    function inPart(self, part: Instance, except: Instance?): { Instance }
+                    function inCone(self, position: Vector3, direction: Vector3, angle: number, range: number, except: Instance?): { Instance }
+                    function visibleFrom(self, position: Vector3, range: number, except: Instance?): { Instance }
+                    function withTag(self, tag: string): { Instance }
+                    function random(self, except: Instance?): Instance?
+                    function sortedByDistance(self, position: Vector3): { Instance }
+                    function inRange(self, a: Instance, b: Instance, range: number): boolean
+                    function fromName(self, name: string): Instance?
                 end
 
                 """);
@@ -435,6 +446,16 @@ public final class Types {
                         function clearEffects(self): ()
                         function worldToScreen(self, world: Vector3): Vector3?
                         function screenToRay(self, x: number, y: number): (Vector3, Vector3)
+                    """;
+            case "Character" -> """
+                        function distanceTo(self, other: Instance): number
+                        function distanceSqTo(self, other: Instance): number
+                        function canSee(self, other: Instance, range: number?): boolean
+                        function isGrounded(self): boolean
+                        function isInWater(self): boolean
+                        function isMoving(self): boolean
+                        function lookDirection(self): Vector3
+                        function facing(self, other: Instance, maxAngle: number?): boolean
                     """;
             case "Sound" -> """
                         function play(self): ()

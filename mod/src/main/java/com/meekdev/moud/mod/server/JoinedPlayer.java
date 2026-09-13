@@ -35,4 +35,14 @@ final class JoinedPlayer implements PlayerRef {
         Character character = Physics.bodies().of(player, ServerScene.tree());
         if (character != null) Characters.place(character, position, player.getYRot());
     }
+
+    @Override
+    public double ping() {
+        return player.connection.latency() / 1000.0;
+    }
+
+    @Override
+    public double viewTime() {
+        return ServerHistory.INSTANCE.viewTime(player.getUUID().toString());
+    }
 }

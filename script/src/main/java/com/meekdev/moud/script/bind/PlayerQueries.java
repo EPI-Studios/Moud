@@ -5,9 +5,13 @@ import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Transforms;
+import com.meekdev.moud.core.instance.Part;
+import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vec3;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
@@ -62,6 +66,87 @@ public final class PlayerQueries {
             s.pushNil();
             return 1;
         });
+        method(state, "inBox", s -> {
+            CFrame frame = Values.cframe(s, 2);
+            Vec3 size = Values.vec3(s, 3);
+            Instance except = optional(s, 4);
+            push(s, filtered(tree, except, body -> inside(frame, size, position(body))));
+            return 1;
+        });
+        method(state, "inPart", s -> {
+            if (!(s.toUserDataTagged(2, Proxies.TAG) instanceof Part part)) throw s.error("inPart wants a part");
+            Instance except = optional(s, 3);
+            CFrame frame = Transforms.world(part);
+            push(s, filtered(tree, except, body -> inside(frame, part.size, position(body))));
+            return 1;
+        });
+        // bodies inside a cone: within range, and within angle degrees of direction
+        method(state, "inCone", s -> {
+            Vec3 at = Values.vec3(s, 2);
+            Vec3 way = Values.vec3(s, 3).normalize();
+            double cos = Math.cos(Math.toRadians(s.checkNumber(4)));
+            double range = s.checkNumber(5);
+            Instance except = optional(s, 6);
+            List<Found> near = bodies(tree, at, range, except);
+            List<Found> out = new ArrayList<>();
+            for (Found found : near) {
+                Vec3 to = position(found.body()).sub(at);
+                double length = to.length();
+                if (length < 1e-6 || to.dot(way) / length >= cos) out.add(found);
+            }
+            push(s, out);
+            return 1;
+        });
+        // bodies within range that nothing solid hides from the point
+        method(state, "visibleFrom", s -> {
+            Vec3 at = Values.vec3(s, 2);
+            double range = s.checkNumber(3);
+            Instance except = optional(s, 4);
+            List<Found> out = new ArrayList<>();
+            for (Found found : bodies(tree, at, range, except)) {
+                List<Instance> ignore = except == null ? List.of(found.body()) : List.of(found.body(), except);
+                if (QueryMethods.clear(s, world, at, eye(found.body()), ignore)) out.add(found);
+            }
+            push(s, out);
+            return 1;
+        });
+        method(state, "withTag", s -> {
+            String tag = s.checkString(2);
+            push(s, filtered(tree, null, body -> body.hasTag(tag)));
+            return 1;
+        });
+        method(state, "random", s -> {
+            List<Found> all = bodies(tree, null, Double.POSITIVE_INFINITY, optional(s, 2));
+            if (all.isEmpty()) {
+                s.pushNil();
+            } else {
+                Proxies.push(s, all.get(ThreadLocalRandom.current().nextInt(all.size())).body());
+            }
+            return 1;
+        });
+        method(state, "sortedByDistance", s -> {
+            push(s, bodies(tree, Values.vec3(s, 2), Double.POSITIVE_INFINITY, null));
+            return 1;
+        });
+        method(state, "inRange", s -> {
+            Instance a = (Instance) s.toUserDataTagged(2, Proxies.TAG);
+            Instance b = (Instance) s.toUserDataTagged(3, Proxies.TAG);
+            if (a == null || b == null) throw s.error("inRange wants two instances and a range");
+            double range = s.checkNumber(4);
+            s.pushBoolean(position(a).sub(position(b)).lengthSq() <= range * range);
+            return 1;
+        });
+        method(state, "fromName", s -> {
+            String name = s.checkString(2);
+            for (Character body : tree.ofClass(Classes.CHARACTER)) {
+                if (body.worn() && body.name().equalsIgnoreCase(name)) {
+                    Proxies.push(s, body);
+                    return 1;
+                }
+            }
+            s.pushNil();
+            return 1;
+        });
         method(state, "count", s -> {
             int n = 0;
             for (Character body : tree.ofClass(Classes.CHARACTER)) if (body.worn()) n++;
@@ -86,6 +171,34 @@ public final class PlayerQueries {
         }
         if (at != null) out.sort((a, b) -> Double.compare(a.distanceSq(), b.distanceSq()));
         return out;
+    }
+
+    private static List<Found> filtered(InstanceTree tree, Instance except, Predicate<Character> keep) {
+        List<Found> out = new ArrayList<>();
+        for (Character body : tree.ofClass(Classes.CHARACTER)) {
+            if (body.worn() && body != except && body.isAlive() && keep.test(body)) out.add(new Found(body, 0));
+        }
+        return out;
+    }
+
+    private static Instance optional(LuaState s, int at) {
+        return s.isNoneOrNil(at) ? null : (Instance) s.toUserDataTagged(at, Proxies.TAG);
+    }
+
+    static Vec3 position(Instance instance) {
+        return Transforms.world(instance).position();
+    }
+
+    // roughly where a body looks from, which is what a line of sight is drawn to
+    static Vec3 eye(Instance instance) {
+        Vec3 at = position(instance);
+        return instance instanceof Character body ? at.add(new Vec3(0, body.height * body.scale * 0.9, 0)) : at;
+    }
+
+    static boolean inside(CFrame frame, Vec3 size, Vec3 point) {
+        Vec3 local = frame.inverse().mul(CFrame.at(point)).position();
+        return Math.abs(local.x()) <= size.x() / 2 && Math.abs(local.y()) <= size.y() / 2
+                && Math.abs(local.z()) <= size.z() / 2;
     }
 
     private static void push(LuaState s, List<Found> found) {
