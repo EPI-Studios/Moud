@@ -19,6 +19,7 @@ import java.util.Queue;
 import java.util.function.Consumer;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import com.meekdev.moud.mod.transport.payload.ResyncPayload;
 
 public final class Broadcast {
 
@@ -31,7 +32,7 @@ public final class Broadcast {
     private Broadcast() {}
 
     public static void listen() {
-        ServerPlayNetworking.registerGlobalReceiver(Packets.ResyncUp.TYPE, (payload, context) ->
+        ServerPlayNetworking.registerGlobalReceiver(ResyncPayload.TYPE, (payload, context) ->
                 RESYNC.add(context.player().getUUID()));
     }
 

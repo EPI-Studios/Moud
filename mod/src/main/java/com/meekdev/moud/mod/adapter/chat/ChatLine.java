@@ -3,9 +3,9 @@ package com.meekdev.moud.mod.adapter.chat;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.text.RichText;
-import com.meekdev.moud.mod.transport.Packets;
 import java.util.HashMap;
 import java.util.Map;
+import com.meekdev.moud.mod.transport.payload.ChatDownPayload;
 
 public final class ChatLine {
 
@@ -23,7 +23,7 @@ public final class ChatLine {
         this.id = id;
     }
 
-    public static ChatLine of(Packets.ChatDown down) {
+    public static ChatLine of(ChatDownPayload down) {
         ChatLine line = new ChatLine(down.id());
         line.channel = down.channel();
         line.source = down.source();
@@ -36,8 +36,8 @@ public final class ChatLine {
         return line;
     }
 
-    public Packets.ChatDown packet(int kind) {
-        return new Packets.ChatDown(kind, id, channel, source, body, text, prefix, metadata, timestamp, status);
+    public ChatDownPayload packet(int kind) {
+        return new ChatDownPayload(kind, id, channel, source, body, text, prefix, metadata, timestamp, status);
     }
 
     public Map<String, Object> toMap(InstanceTree tree) {

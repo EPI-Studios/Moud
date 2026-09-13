@@ -5,7 +5,6 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.nav.Walkers;
 import com.meekdev.moud.mod.adapter.physics.Physics;
-import com.meekdev.moud.mod.transport.Packets;
 import java.util.List;
 import java.util.Queue;
 import java.util.UUID;
@@ -13,6 +12,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import com.meekdev.moud.mod.transport.payload.PilotDownPayload;
+import com.meekdev.moud.mod.transport.payload.PilotUpPayload;
 
 public final class ServerPilot implements Walkers.Pilot {
 
@@ -23,7 +24,7 @@ public final class ServerPilot implements Walkers.Pilot {
     private ServerPilot() {}
 
     public static void listen() {
-        ServerPlayNetworking.registerGlobalReceiver(Packets.PilotUp.TYPE, (payload, context) ->
+        ServerPlayNetworking.registerGlobalReceiver(PilotUpPayload.TYPE, (payload, context) ->
                 CANCELLED.add(context.player().getUUID()));
     }
 
@@ -44,25 +45,25 @@ public final class ServerPilot implements Walkers.Pilot {
             flat[n * 3 + 1] = waypoints.get(n).y();
             flat[n * 3 + 2] = waypoints.get(n).z();
         }
-        send(body, new Packets.PilotDown(Packets.PilotDown.WALK, flat));
+        send(body, new PilotDownPayload(PilotDownPayload.WALK, flat));
     }
 
     @Override
     public void jump(Character body) {
-        send(body, new Packets.PilotDown(Packets.PilotDown.JUMP, new double[0]));
+        send(body, new PilotDownPayload(PilotDownPayload.JUMP, new double[0]));
     }
 
     @Override
     public void stop(Character body) {
-        send(body, new Packets.PilotDown(Packets.PilotDown.STOP, new double[0]));
+        send(body, new PilotDownPayload(PilotDownPayload.STOP, new double[0]));
     }
 
-    private static void send(Character body, Packets.PilotDown payload) {
+    private static void send(Character body, PilotDownPayload payload) {
         MinecraftServer server = ServerScene.server();
         if (server == null) return;
         try {
             ServerPlayer player = server.getPlayerList().getPlayer(UUID.fromString(body.owner));
-            if (player != null && ServerPlayNetworking.canSend(player, Packets.PilotDown.TYPE)) {
+            if (player != null && ServerPlayNetworking.canSend(player, PilotDownPayload.TYPE)) {
                 ServerPlayNetworking.send(player, payload);
             }
         } catch (IllegalArgumentException notAPlayer) {

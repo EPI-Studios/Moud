@@ -10,7 +10,6 @@ import com.meekdev.moud.core.instance.TextSource;
 import com.meekdev.moud.core.text.RichText;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.ClientScene;
-import com.meekdev.moud.mod.transport.Packets;
 import com.meekdev.moud.script.api.ChatRef;
 import com.meekdev.moud.script.engine.ScriptEngine;
 import java.util.ArrayList;
@@ -25,6 +24,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
+import com.meekdev.moud.mod.transport.payload.ChatDownPayload;
+import com.meekdev.moud.mod.transport.payload.ChatUpPayload;
 
 public final class ClientChat implements ChatRef {
 
@@ -45,7 +46,7 @@ public final class ClientChat implements ChatRef {
         }
     }
 
-    private final Queue<Packets.ChatDown> incoming = new ConcurrentLinkedQueue<>();
+    private final Queue<ChatDownPayload> incoming = new ConcurrentLinkedQueue<>();
     private final List<Shown> lines = new ArrayList<>();
     private final Map<Integer, Integer> unread = new HashMap<>();
     private Instance target;
@@ -55,7 +56,7 @@ public final class ClientChat implements ChatRef {
     private ClientChat() {}
 
     public static void listen() {
-        ClientPlayNetworking.registerGlobalReceiver(Packets.ChatDown.TYPE, (payload, context) -> INSTANCE.incoming.add(payload));
+        ClientPlayNetworking.registerGlobalReceiver(ChatDownPayload.TYPE, (payload, context) -> INSTANCE.incoming.add(payload));
     }
 
     public List<Shown> lines() {
@@ -74,13 +75,13 @@ public final class ClientChat implements ChatRef {
             Bubbles.clear();
             return;
         }
-        for (Packets.ChatDown down; (down = incoming.poll()) != null; ) {
+        for (ChatDownPayload down; (down = incoming.poll()) != null; ) {
             switch (down.kind()) {
-                case Packets.ChatDown.LINE -> add(ChatLine.of(down));
-                case Packets.ChatDown.EDIT -> edited(ChatLine.of(down));
-                case Packets.ChatDown.DELETE -> remove(down.id());
-                case Packets.ChatDown.STATUS -> refused(ChatLine.of(down));
-                case Packets.ChatDown.CLEAR -> clearLocal();
+                case ChatDownPayload.LINE -> add(ChatLine.of(down));
+                case ChatDownPayload.EDIT -> edited(ChatLine.of(down));
+                case ChatDownPayload.DELETE -> remove(down.id());
+                case ChatDownPayload.STATUS -> refused(ChatLine.of(down));
+                case ChatDownPayload.CLEAR -> clearLocal();
                 default -> {}
             }
         }
@@ -211,7 +212,7 @@ public final class ClientChat implements ChatRef {
         line.timestamp = System.currentTimeMillis();
         ScriptEngine vm = vm();
         if (vm != null) vm.chatEvent("sending", line.toMap(ClientScene.tree()));
-        ClientPlayNetworking.send(new Packets.ChatUp(line.channel, text));
+        ClientPlayNetworking.send(new ChatUpPayload(line.channel, text));
     }
 
     public void typing(String text) {

@@ -7,13 +7,13 @@ import com.meekdev.moud.core.instance.ProximityPrompt;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.adapter.physics.Physics;
-import com.meekdev.moud.mod.transport.Packets;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import com.meekdev.moud.mod.transport.payload.PromptPayload;
 
 public final class ServerPrompts {
 
@@ -26,7 +26,7 @@ public final class ServerPrompts {
     private ServerPrompts() {}
 
     public static void listen() {
-        ServerPlayNetworking.registerGlobalReceiver(Packets.PromptUp.TYPE, (payload, context) ->
+        ServerPlayNetworking.registerGlobalReceiver(PromptPayload.TYPE, (payload, context) ->
                 HEARD.add(new Heard(context.player().getUUID(), payload.prompt(), payload.kind())));
     }
 
@@ -39,9 +39,9 @@ public final class ServerPrompts {
             if (body == null || !(tree.byId(heard.prompt()) instanceof ProximityPrompt prompt) || !prompt.enabled) continue;
             if (position(prompt).distance(Transforms.world(body).position()) > prompt.maxActivationDistance + SLACK) continue;
             switch (heard.kind()) {
-                case Packets.PromptUp.TRIGGERED -> prompt.triggered.fire(body);
-                case Packets.PromptUp.HOLD_BEGAN -> prompt.holdBegan.fire(body);
-                case Packets.PromptUp.HOLD_ENDED -> prompt.holdEnded.fire(body);
+                case PromptPayload.TRIGGERED -> prompt.triggered.fire(body);
+                case PromptPayload.HOLD_BEGAN -> prompt.holdBegan.fire(body);
+                case PromptPayload.HOLD_ENDED -> prompt.holdEnded.fire(body);
                 default -> {}
             }
         }

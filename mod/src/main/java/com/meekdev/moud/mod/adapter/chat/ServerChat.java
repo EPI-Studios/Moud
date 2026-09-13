@@ -15,7 +15,6 @@ import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.server.MoudServer;
 import com.meekdev.moud.mod.server.ServerScene;
-import com.meekdev.moud.mod.transport.Packets;
 import com.meekdev.moud.script.api.ChatRef;
 import com.meekdev.moud.script.engine.ScriptEngine;
 import java.util.ArrayDeque;
@@ -33,6 +32,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import com.meekdev.moud.mod.transport.payload.ChatDownPayload;
+import com.meekdev.moud.mod.transport.payload.ChatUpPayload;
 
 public final class ServerChat implements ChatRef {
 
@@ -101,7 +102,7 @@ public final class ServerChat implements ChatRef {
     }
 
     public static void listen() {
-        ServerPlayNetworking.registerGlobalReceiver(Packets.ChatUp.TYPE, (payload, context) ->
+        ServerPlayNetworking.registerGlobalReceiver(ChatUpPayload.TYPE, (payload, context) ->
                 INSTANCE.typed.add(new Typed(context.player().getUUID(), payload.channel(), payload.text())));
     }
 
@@ -210,7 +211,7 @@ public final class ServerChat implements ChatRef {
         }
         if (status != null) {
             line.status = status;
-            send(player, line.packet(Packets.ChatDown.STATUS));
+            send(player, line.packet(ChatDownPayload.STATUS));
             return;
         }
         lastSent.put((channel == null ? -1 : channel.id()) + "|" + id, System.currentTimeMillis());
@@ -257,7 +258,7 @@ public final class ServerChat implements ChatRef {
         if (only != null) {
             ServerPlayer player = server.getPlayerList().getPlayer(only);
             if (player != null && reaches(tree, channel, asMap, player)) {
-                send(player, line.packet(Packets.ChatDown.LINE));
+                send(player, line.packet(ChatDownPayload.LINE));
                 reached.add(only);
             }
         } else if (channel != null) {
@@ -266,12 +267,12 @@ public final class ServerChat implements ChatRef {
                 ServerPlayer player = playerOf(server, source.player);
                 if (player == null) continue;
                 if (Boolean.FALSE.equals(channel.shouldDeliver.first(true, asMap, source))) continue;
-                send(player, line.packet(Packets.ChatDown.LINE));
+                send(player, line.packet(ChatDownPayload.LINE));
                 reached.add(player.getUUID());
             }
         } else {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-                send(player, line.packet(Packets.ChatDown.LINE));
+                send(player, line.packet(ChatDownPayload.LINE));
                 reached.add(player.getUUID());
             }
         }
@@ -287,10 +288,10 @@ public final class ServerChat implements ChatRef {
         return !Boolean.FALSE.equals(channel.shouldDeliver.first(true, message, source));
     }
 
-    private static void send(ServerPlayer player, Packets.ChatDown packet) {
-        if (ServerPlayNetworking.canSend(player, Packets.ChatDown.TYPE)) {
+    private static void send(ServerPlayer player, ChatDownPayload packet) {
+        if (ServerPlayNetworking.canSend(player, ChatDownPayload.TYPE)) {
             ServerPlayNetworking.send(player, packet);
-        } else if (packet.kind() == Packets.ChatDown.LINE) {
+        } else if (packet.kind() == ChatDownPayload.LINE) {
             String prefix = packet.prefix().isEmpty() ? "" : packet.prefix() + ": ";
             player.sendSystemMessage(ChatText.of(prefix + packet.text()));
         }
@@ -357,7 +358,7 @@ public final class ServerChat implements ChatRef {
         Kept one = kept.get(id);
         if (one == null) throw new IllegalArgumentException("there is no message " + id + " to edit, or it is too old");
         one.line.apply(changes);
-        push(one, Packets.ChatDown.EDIT);
+        push(one, ChatDownPayload.EDIT);
         ScriptEngine vm = vm();
         InstanceTree tree = ServerScene.tree();
         if (vm != null && tree != null) vm.chatEvent("edited", one.line.toMap(tree));
@@ -367,7 +368,7 @@ public final class ServerChat implements ChatRef {
     public void delete(long id) {
         Kept one = kept.remove(id);
         if (one == null) return;
-        push(one, Packets.ChatDown.DELETE);
+        push(one, ChatDownPayload.DELETE);
         ScriptEngine vm = vm();
         if (vm != null) vm.chatEvent("deleted", (double) id);
     }
@@ -377,7 +378,7 @@ public final class ServerChat implements ChatRef {
         if (server == null) return;
         for (UUID id : one.reached) {
             ServerPlayer player = server.getPlayerList().getPlayer(id);
-            if (player != null && ServerPlayNetworking.canSend(player, Packets.ChatDown.TYPE)) {
+            if (player != null && ServerPlayNetworking.canSend(player, ChatDownPayload.TYPE)) {
                 ServerPlayNetworking.send(player, one.line.packet(kind));
             }
         }
@@ -431,8 +432,8 @@ public final class ServerChat implements ChatRef {
         MinecraftServer server = ServerScene.server();
         if (server == null) return;
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (ServerPlayNetworking.canSend(player, Packets.ChatDown.TYPE)) {
-                ServerPlayNetworking.send(player, new ChatLine(0).packet(Packets.ChatDown.CLEAR));
+            if (ServerPlayNetworking.canSend(player, ChatDownPayload.TYPE)) {
+                ServerPlayNetworking.send(player, new ChatLine(0).packet(ChatDownPayload.CLEAR));
             }
         }
     }

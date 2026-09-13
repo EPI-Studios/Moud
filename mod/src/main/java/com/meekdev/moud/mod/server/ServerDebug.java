@@ -5,11 +5,11 @@ import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.adapter.chat.ChatView;
-import com.meekdev.moud.mod.transport.Packets;
 import com.meekdev.moud.script.api.DebugRef;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import com.meekdev.moud.mod.transport.payload.DebugPayload;
 
 public final class ServerDebug implements DebugRef {
 
@@ -52,9 +52,9 @@ public final class ServerDebug implements DebugRef {
     private static void send(int kind, double[] numbers, String text, Color color, double seconds) {
         MinecraftServer server = ServerScene.server();
         if (server == null) return;
-        Packets.DebugDown payload = new Packets.DebugDown(kind, numbers, text, ChatView.argbOf(color, 1), seconds);
+        DebugPayload payload = new DebugPayload(kind, numbers, text, ChatView.argbOf(color, 1), seconds);
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (ServerPlayNetworking.canSend(player, Packets.DebugDown.TYPE)) ServerPlayNetworking.send(player, payload);
+            if (ServerPlayNetworking.canSend(player, DebugPayload.TYPE)) ServerPlayNetworking.send(player, payload);
         }
     }
 }

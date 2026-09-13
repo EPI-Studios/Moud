@@ -1,7 +1,6 @@
 package com.meekdev.moud.mod.client;
 
 import com.meekdev.moud.core.math.Vector3;
-import com.meekdev.moud.mod.transport.Packets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
@@ -12,10 +11,12 @@ import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec2;
+import com.meekdev.moud.mod.transport.payload.PilotDownPayload;
+import com.meekdev.moud.mod.transport.payload.PilotUpPayload;
 
 public final class Autopilot {
 
-    private static final Queue<Packets.PilotDown> INCOMING = new ConcurrentLinkedQueue<>();
+    private static final Queue<PilotDownPayload> INCOMING = new ConcurrentLinkedQueue<>();
     private static final List<Vector3> WAYPOINTS = new ArrayList<>();
     private static int next;
     private static boolean jump;
@@ -23,20 +24,20 @@ public final class Autopilot {
     private Autopilot() {}
 
     public static void listen() {
-        ClientPlayNetworking.registerGlobalReceiver(Packets.PilotDown.TYPE, (payload, context) -> INCOMING.add(payload));
+        ClientPlayNetworking.registerGlobalReceiver(PilotDownPayload.TYPE, (payload, context) -> INCOMING.add(payload));
     }
 
     public static void apply(ClientInput input) {
-        for (Packets.PilotDown down; (down = INCOMING.poll()) != null; ) {
+        for (PilotDownPayload down; (down = INCOMING.poll()) != null; ) {
             switch (down.kind()) {
-                case Packets.PilotDown.WALK -> {
+                case PilotDownPayload.WALK -> {
                     WAYPOINTS.clear();
                     double[] n = down.waypoints();
                     for (int i = 0; i + 2 < n.length; i += 3) WAYPOINTS.add(new Vector3(n[i], n[i + 1], n[i + 2]));
                     next = 0;
                 }
-                case Packets.PilotDown.JUMP -> jump = true;
-                case Packets.PilotDown.STOP -> WAYPOINTS.clear();
+                case PilotDownPayload.JUMP -> jump = true;
+                case PilotDownPayload.STOP -> WAYPOINTS.clear();
                 default -> {}
             }
         }
@@ -46,7 +47,7 @@ public final class Autopilot {
         boolean manual = pressed.forward() || pressed.backward() || pressed.left() || pressed.right();
         if (manual && !WAYPOINTS.isEmpty()) {
             WAYPOINTS.clear();
-            ClientPlayNetworking.send(new Packets.PilotUp(Packets.PilotUp.CANCELLED));
+            ClientPlayNetworking.send(new PilotUpPayload(PilotUpPayload.CANCELLED));
         }
         boolean jumpNow = jump;
         jump = false;

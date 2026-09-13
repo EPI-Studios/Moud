@@ -1,7 +1,6 @@
 package com.meekdev.moud.mod.client;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import com.meekdev.moud.mod.transport.Packets;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.transport.Post;
@@ -11,6 +10,7 @@ import com.meekdev.moud.net.wire.Codec;
 import java.util.List;
 import java.util.Queue;
 import java.util.function.Consumer;
+import com.meekdev.moud.mod.transport.payload.ResyncPayload;
 
 public final class Mirror {
 
@@ -40,7 +40,7 @@ public final class Mirror {
                     MoudMod.LOG.warn("the copy of the place drifted from the server's ({}), asking for all of it again",
                             broken.getMessage());
                     resyncing = true;
-                    if (ClientPlayNetworking.canSend(Packets.ResyncUp.TYPE)) ClientPlayNetworking.send(new Packets.ResyncUp());
+                    if (ClientPlayNetworking.canSend(ResyncPayload.TYPE)) ClientPlayNetworking.send(new ResyncPayload());
                 }
                 queue.clear();
                 return;

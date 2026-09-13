@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.meekdev.moud.mod.transport.payload.Payloads;
 
 public final class Post {
 
@@ -33,7 +34,7 @@ public final class Post {
     }
 
     public static void install() {
-        Packets.declare();
+        Payloads.register();
         CARRIER.listen();
         ServerChat.listen();
         ServerPrompts.listen();

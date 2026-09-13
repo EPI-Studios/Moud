@@ -16,7 +16,6 @@ import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.text.RichText;
 import com.meekdev.moud.mod.adapter.chat.ChatView;
 import com.meekdev.moud.mod.server.ServerPrompts;
-import com.meekdev.moud.mod.transport.Packets;
 import java.util.List;
 import java.util.Locale;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -27,6 +26,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import org.joml.Vector3fc;
 import net.minecraft.world.phys.Vec3;
+import com.meekdev.moud.mod.transport.payload.PromptPayload;
 
 public final class ClientPrompts {
 
@@ -74,7 +74,7 @@ public final class ClientPrompts {
         ProximityPrompt next = tree == null || me == null ? null : closest(tree, me);
         if (next != active) {
             if (active != null) {
-                if (holding) send(active, Packets.PromptUp.HOLD_ENDED);
+                if (holding) send(active, PromptPayload.HOLD_ENDED);
                 if (active.isAlive()) active.hidden.fire(active);
             }
             active = next;
@@ -91,7 +91,7 @@ public final class ClientPrompts {
             if (!holding) {
                 holding = true;
                 active.holdBegan.fire(me);
-                send(active, Packets.PromptUp.HOLD_BEGAN);
+                send(active, PromptPayload.HOLD_BEGAN);
             }
             held += dt;
             if (held >= active.holdDuration) {
@@ -103,7 +103,7 @@ public final class ClientPrompts {
             holding = false;
             held = 0;
             active.holdEnded.fire(me);
-            send(active, Packets.PromptUp.HOLD_ENDED);
+            send(active, PromptPayload.HOLD_ENDED);
         }
         wasDown = down;
     }
@@ -128,11 +128,11 @@ public final class ClientPrompts {
 
     private static void fire(ProximityPrompt prompt, Character me) {
         prompt.triggered.fire(me);
-        send(prompt, Packets.PromptUp.TRIGGERED);
+        send(prompt, PromptPayload.TRIGGERED);
     }
 
     private static void send(ProximityPrompt prompt, int kind) {
-        if (prompt.id() >= 0) ClientPlayNetworking.send(new Packets.PromptUp(prompt.id(), kind));
+        if (prompt.id() >= 0) ClientPlayNetworking.send(new PromptPayload(prompt.id(), kind));
     }
 
     static ProximityPrompt closest(InstanceTree tree, Character me) {

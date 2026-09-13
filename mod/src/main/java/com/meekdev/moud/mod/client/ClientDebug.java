@@ -11,7 +11,6 @@ import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.text.RichText;
 import com.meekdev.moud.mod.adapter.chat.ChatView;
-import com.meekdev.moud.mod.transport.Packets;
 import com.meekdev.moud.script.api.DebugRef;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -22,6 +21,7 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import org.joml.Vector4f;
+import com.meekdev.moud.mod.transport.payload.DebugPayload;
 
 public final class ClientDebug implements DebugRef {
 
@@ -31,13 +31,13 @@ public final class ClientDebug implements DebugRef {
 
     private final List<Shape> shapes = new ArrayList<>();
     private final Map<String, String> watched = new LinkedHashMap<>();
-    private final Queue<Packets.DebugDown> incoming = new ConcurrentLinkedQueue<>();
+    private final Queue<DebugPayload> incoming = new ConcurrentLinkedQueue<>();
     private final Vector4f scratch = new Vector4f();
 
     private ClientDebug() {}
 
     public static void install() {
-        ClientPlayNetworking.registerGlobalReceiver(Packets.DebugDown.TYPE, (payload, context) -> INSTANCE.incoming.add(payload));
+        ClientPlayNetworking.registerGlobalReceiver(DebugPayload.TYPE, (payload, context) -> INSTANCE.incoming.add(payload));
         Surfaces.hud().onDraw(INSTANCE::draw);
     }
 
@@ -108,7 +108,7 @@ public final class ClientDebug implements DebugRef {
     }
 
     private void drain() {
-        for (Packets.DebugDown down; (down = incoming.poll()) != null; ) {
+        for (DebugPayload down; (down = incoming.poll()) != null; ) {
             double[] n = down.numbers();
             Color color = new Color(((down.argb() >> 16) & 255) / 255f, ((down.argb() >> 8) & 255) / 255f,
                     (down.argb() & 255) / 255f, ((down.argb() >>> 24) & 255) / 255f);
