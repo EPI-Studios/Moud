@@ -13,17 +13,8 @@ import java.util.Map;
 import java.util.function.Consumer;
 import net.hollowcube.luau.LuaState;
 
-// changed, childAdded and destroying
-//
-// core fires all three already, so this is only the bridge: one java handler per instance per
-// signal, forwarding to whatever luau connected. both halves are made on the first read, so an
-// instance a place never mentions carries neither
 public final class InstanceSignals {
 
-    // one lua state per vm, and a client and the server it plays on can be two vms in one process. a single
-    // field here was whichever installed last, so a place reloading on the server handed every signal the
-    // client connected afterwards to the server's state: the handlers were stored in one vm and looked for
-    // in the other, and a key or a button did nothing
     private static final Map<LuaState, Consumer<ScriptError>> ERRORS = new HashMap<>();
 
     private InstanceSignals() {}
@@ -48,17 +39,10 @@ public final class InstanceSignals {
         return bundle(lua, instance).destroying(instance);
     }
 
-    // anything the class declared as an event, by name
-    //
-    // one bridge for every one of them rather than a method per signal: a class an addon writes
-    // gets its events across without this file learning they exist
     public static Signals.Handlers of(LuaState lua, Instance instance, EventDef event) {
         return bundle(lua, instance).named(instance, event);
     }
 
-    // a bundle holds refs into one lua state and a reload opens another, so one built for a state
-    // that has gone is dropped rather than fired into. core nulls userdata when the instance dies,
-    // which is the whole of the lifetime
     private static Bundle bundle(LuaState lua, Instance instance) {
         LuaState main = lua.mainThread();
         if (instance.userdata instanceof Bundle existing) {
@@ -132,8 +116,6 @@ public final class InstanceSignals {
             named.put(event.name(), handlers);
             namedLinks.add(event.on(instance).connect(what ->
                     fire(handlers, s -> {
-                        // a channel hands over however many arguments were sent, and on the server the
-                        // sender first. every other event carries one thing
                         if (what instanceof Remote.Sent sent) {
                             return Remotes.pushSent(s, sent, instance.tree());
                         }
@@ -147,7 +129,6 @@ public final class InstanceSignals {
                             }
                             return 3;
                         }
-                        // an instance, or a message a channel heard, which goes over as a table
                         Plain.push(s, what);
                         return 1;
                     })));

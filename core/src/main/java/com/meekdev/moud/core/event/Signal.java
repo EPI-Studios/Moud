@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-// copy on write so connecting or disconnecting from inside a handler is safe
 public final class Signal<T> {
 
     private static final List<?> EMPTY = List.of();

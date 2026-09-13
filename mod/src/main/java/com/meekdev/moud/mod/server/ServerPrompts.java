@@ -15,14 +15,12 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
-// what clients say about prompts, checked before it fires: the prompt is on, and the player is near it
 public final class ServerPrompts {
 
     private record Heard(UUID player, int prompt, int kind) {}
 
     private static final Queue<Heard> HEARD = new ConcurrentLinkedQueue<>();
 
-    // a little past the prompt's own reach, since the client measured a frame or two ago
     private static final double SLACK = 2;
 
     private ServerPrompts() {}

@@ -12,8 +12,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// chat and slash commands, handed to the place before the game gets them. all three run on the server
-// thread, after the game has checked the message is legal and the signature holds
 @Mixin(ServerGamePacketListenerImpl.class)
 abstract class ChatMixin {
 

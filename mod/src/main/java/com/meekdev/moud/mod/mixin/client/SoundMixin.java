@@ -11,8 +11,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// suppresses vanillaSounds and vanillaMusic
-// resona plays through its own device so nothing of ours passes here, only the game's own sounds
 @Mixin(SoundEngine.class)
 abstract class SoundMixin {
 

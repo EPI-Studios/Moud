@@ -10,13 +10,10 @@ import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
-// the server's rewind, fed from the tick's changes and sampled once the tick has settled
 public final class ServerHistory implements HistoryRef {
 
     public static final ServerHistory INSTANCE = new ServerHistory();
 
-    // how many ticks behind the server a client draws its copy: the mirror's backlog of two, and the
-    // tick it is interpolating through
     private static final int VIEW_DELAY_TICKS = 3;
 
     private final Rewind rewind = new Rewind();
@@ -52,7 +49,6 @@ public final class ServerHistory implements HistoryRef {
         if (id < 0) return;
         Instance instance = tree.byId(id);
         if (!(instance instanceof Spatial)) return;
-        // a write that is not the frame or the size does not move anything
         if (change instanceof Change.Wrote wrote) {
             String name = instance.def().properties()[wrote.property()].name();
             if (!name.equals("cframe") && !name.equals("size") && !name.equals("pivot")) return;

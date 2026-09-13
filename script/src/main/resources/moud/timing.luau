@@ -1,9 +1,7 @@
--- waiting, repeating and holding back, on top of task and signals
 
 local signalMethod = __moud_signal_method
 __moud_signal_method = nil
 
--- runs fn the first time the signal fires, then lets go
 signalMethod("once", function(self, fn)
     local connection
     connection = self:connect(function(...)
@@ -13,7 +11,6 @@ signalMethod("once", function(self, fn)
     return connection
 end)
 
--- yields until the signal fires and hands back what it fired with. nil after timeout seconds, when given
 signalMethod("wait", function(self, timeout)
     local fired, args = false, nil
     local connection = self:connect(function(...)
@@ -32,7 +29,6 @@ signalMethod("wait", function(self, timeout)
     return table.unpack(args, 1, args.n)
 end)
 
--- runs fn on every nth firing, like every tenth step
 signalMethod("every", function(self, n, fn)
     local count = 0
     return self:connect(function(...)
@@ -44,7 +40,6 @@ signalMethod("every", function(self, n, fn)
     end)
 end)
 
--- a repeating timer: fn every seconds until the handle is cancelled
 function task.every(seconds, fn)
     local handle = { cancelled = false }
     function handle:cancel()
@@ -62,7 +57,6 @@ function task.every(seconds, fn)
     return handle
 end
 
--- fn once, after seconds, unless cancelled first
 function task.after(seconds, fn)
     local handle = { cancelled = false }
     function handle:cancel()
@@ -77,7 +71,6 @@ function task.after(seconds, fn)
     return handle
 end
 
--- calls fn only once things have been quiet for seconds: each call pushes it back
 function task.debounce(fn, seconds)
     local generation = 0
     return function(...)
@@ -93,7 +86,6 @@ function task.debounce(fn, seconds)
     end
 end
 
--- calls fn at most once every seconds, dropping the calls in between
 function task.throttle(fn, seconds)
     local last = -math.huge
     return function(...)
@@ -106,10 +98,8 @@ function task.throttle(fn, seconds)
     end
 end
 
--- cooldowns kept per key and per name: if cooldown:ready(body, "dash", 2) then ... end
 cooldown = { _until = {} }
 
--- whether it is ready, and if it is, starts the cooldown
 function cooldown:ready(key, name, seconds)
     local id = tostring(key) .. "\0" .. name
     local now = clock()
@@ -121,7 +111,6 @@ function cooldown:ready(key, name, seconds)
     return true
 end
 
--- how long until it is ready, zero when it is
 function cooldown:remaining(key, name)
     local ready = self._until[tostring(key) .. "\0" .. name]
     if ready == nil then

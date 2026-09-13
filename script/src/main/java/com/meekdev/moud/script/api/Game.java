@@ -44,8 +44,6 @@ public final class Game {
         state.rawSetField(-2, "renderStepped");
         Signals.push(state, reloaded);
         state.rawSetField(-2, "reloaded");
-        // players is a table rather than a class, because there is nothing to put in the tree
-        // for a connection and a place only ever asks it who arrived
         state.newTable();
         Signals.push(state, joined);
         state.rawSetField(-2, "joined");
@@ -53,7 +51,6 @@ public final class Game {
         state.rawSetField(-2, "leaving");
         PlayerQueries.install(state, world);
         state.rawSetField(-2, "players");
-        // a plain table the place owns, carried across a reload as data
         state.newTable();
         state.rawSetField(-2, "persist");
         state.setGlobal("game");

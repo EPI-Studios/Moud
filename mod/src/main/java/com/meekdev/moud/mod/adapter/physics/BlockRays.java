@@ -22,7 +22,6 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import org.jspecify.annotations.Nullable;
 
-// the blocks of whichever level this side is in: rays against them, and reading and writing them
 public final class BlockRays implements BlockRef {
 
     private final Supplier<@Nullable Level> level;
@@ -137,7 +136,6 @@ public final class BlockRays implements BlockRef {
         return BlockStateParser.serialize(parse(block).rotate(turn));
     }
 
-    // what the level mixin heard, per side, drained by that side's place
     public static final Queue<Change> SERVER_CHANGES = new ConcurrentLinkedQueue<>();
     public static final Queue<Change> CLIENT_CHANGES = new ConcurrentLinkedQueue<>();
 
@@ -149,7 +147,6 @@ public final class BlockRays implements BlockRef {
 
     public static void heard(Level in, BlockPos pos, BlockState state) {
         Queue<Change> queue = in.isClientSide() ? CLIENT_CHANGES : SERVER_CHANGES;
-        // a place that never listens should not grow a queue forever
         if (queue.size() > 100_000) queue.poll();
         queue.add(new Change(pos.getX(), pos.getY(), pos.getZ(), BlockStateParser.serialize(state)));
     }

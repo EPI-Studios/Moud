@@ -12,10 +12,6 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatchers;
 
-// puts hooks on methods of classes that are already loaded, and takes them off again
-//
-// a method is rewritten once, the first time something hooks it, and put back the moment nothing does. the
-// rewrite only adds code to the method's body, which is the one change the jvm allows on a loaded class
 public final class Injections {
 
     private static Instrumentation instrumentation;
@@ -26,7 +22,6 @@ public final class Injections {
 
     private Injections() {}
 
-    // the id the inlined code knows a method by: its class, its name and its descriptor
     public static String id(Method method) {
         return method.getDeclaringClass().getName() + "." + method.getName()
                 + new MethodDescription.ForLoadedMethod(method).getDescriptor();
@@ -80,7 +75,6 @@ public final class Injections {
                 .installOn(instrumentation());
     }
 
-    // attached on the first hook, not at start: a place that never hooks anything never pays for an agent
     private static Instrumentation instrumentation() {
         if (instrumentation == null) instrumentation = ByteBuddyAgent.install();
         return instrumentation;

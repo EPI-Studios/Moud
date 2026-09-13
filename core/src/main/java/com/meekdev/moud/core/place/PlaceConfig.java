@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-// what place.toml says about a place
 public record PlaceConfig(
         String name,
         String id,
@@ -21,7 +20,6 @@ public record PlaceConfig(
     private static final Set<String> TOP = Set.of("name", "id", "version", "engine", "maxPlayers", "entry", "features");
     private static final Set<String> ENTRY = Set.of("server", "client", "scene");
 
-    // a place with no place.toml still runs, from its two main files
     public static final PlaceConfig DEFAULT = new PlaceConfig("place", "place", "0.0.0", "", 16,
             "res://server/main.luau", "res://client/main.luau", "", Map.of());
 

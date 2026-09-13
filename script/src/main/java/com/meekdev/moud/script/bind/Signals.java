@@ -27,7 +27,6 @@ public final class Signals {
         state.rawSetField(-2, "connect");
         state.rawSetField(LuaState.REGISTRY_INDEX, METHODS);
 
-        // a luau file adds the signal methods that wait or count
         state.pushFunction(LuaFunc.wrap(s -> {
             String name = s.checkString(1);
             s.rawGetField(LuaState.REGISTRY_INDEX, METHODS);
@@ -38,7 +37,6 @@ public final class Signals {
         }, "__moud_signal_method"));
         state.setGlobal("__moud_signal_method");
 
-        // seconds on a steady clock, for measuring how long something took
         state.pushFunction(LuaFunc.wrap(s -> {
             s.pushNumber(System.nanoTime() / 1e9);
             return 1;
@@ -65,7 +63,6 @@ public final class Signals {
         state.newUserDataTaggedWithMetatable(signal, TAG);
     }
 
-    // one handler failing does not stop the rest, which is what 8.8 asks for
     public static void fire(LuaState state, Handlers signal, Consumer<ScriptError> onError, Args args) {
         Ownership owners = Ownership.of(state);
         for (int ref : signal.snapshot()) {
@@ -78,12 +75,10 @@ public final class Signals {
             try {
                 pushed = args.push(state);
             } catch (RuntimeException e) {
-                // an argument the engine could not hand over is this handler's error, never the server's
                 state.top(top);
                 onError.accept(new ScriptError("signal", e.getMessage(), e));
                 continue;
             }
-            // a handler runs as the script that connected it, so what it connects belongs to that script too
             Object owner = signal.owner(ref);
             Object before = owners.enter(owner);
             long started = System.nanoTime();
@@ -137,7 +132,6 @@ public final class Signals {
         int push(LuaState state);
     }
 
-    // copy on write, so connecting or disconnecting from inside a handler is safe
     public static final class Handlers {
         private List<Integer> refs = List.of();
         private final Map<Integer, Object> owners = new HashMap<>();

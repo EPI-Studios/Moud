@@ -26,15 +26,12 @@ import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 
-// the client's chat: the lines in its window, what it sends, and the place's side of it
 public final class ClientChat implements ChatRef {
 
     public static final ClientChat INSTANCE = new ClientChat();
 
-    // one line in the window
     public static final class Shown {
         public final ChatLine line;
-        // what the place's onIncoming said about how it looks
         public Map<String, Object> look = Map.of();
         public List<RichText.Piece> pieces = List.of();
         public String composed = "";
@@ -69,7 +66,6 @@ public final class ClientChat implements ChatRef {
         return unread.getOrDefault(channel.id(), 0);
     }
 
-    // the client tick
     public void tick() {
         InstanceTree tree = ClientScene.tree();
         if (tree == null) {
@@ -117,7 +113,6 @@ public final class ClientChat implements ChatRef {
         if (vm != null) vm.chatEvent("messageReceived", message);
     }
 
-    // a player's message goes over their head too, unless the place says otherwise
     @SuppressWarnings("unchecked")
     private void bubbleFor(ChatLine line, Map<String, Object> message, InstanceTree tree) {
         if (tree == null || line.body < 0 || !"Success".equals(line.status)) return;
@@ -136,7 +131,6 @@ public final class ClientChat implements ChatRef {
         Bubbles.add(body, text, look);
     }
 
-    // the place decides how it looks, once when it arrives and again when it is edited
     private void style(Shown shown, InstanceTree tree) {
         Map<String, Object> look = new HashMap<>();
         Map<String, Object> message = shown.line.toMap(tree);
@@ -198,7 +192,6 @@ public final class ClientChat implements ChatRef {
         add(notice);
     }
 
-    // a message the game itself put in chat: command output, a death, another mod
     public void vanilla(Component component) {
         ChatLine line = new ChatLine(nextLocal--);
         line.text = ChatText.markup(component);
@@ -207,7 +200,6 @@ public final class ClientChat implements ChatRef {
         add(line);
     }
 
-    // what the player typed into the box
     public void typed(String text) {
         Instance channel = target();
         LocalPlayer me = Minecraft.getInstance().player;
@@ -241,7 +233,6 @@ public final class ClientChat implements ChatRef {
         if (vm != null) vm.chatEvent("closed");
     }
 
-    // the channels this player is in, in tree order
     public List<TextChannel> channels() {
         List<TextChannel> out = new ArrayList<>();
         InstanceTree tree = ClientScene.tree();
@@ -263,8 +254,6 @@ public final class ClientChat implements ChatRef {
         lines.clear();
         unread.clear();
     }
-
-    // the place's side
 
     @Override
     public long send(Map<String, Object> message) {

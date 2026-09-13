@@ -10,15 +10,12 @@ import java.util.Set;
 import net.minecraft.network.chat.FontDescription;
 import net.minecraft.resources.Identifier;
 
-// turns what a place wrote in font into a way to draw it: one of the game's own fonts, or a .ttf
 public final class UiFonts {
 
     public sealed interface Face permits Game, Vector {}
 
-    // a font the game loaded, the default one unless a place names another like minecraft:uniform
     public record Game(FontDescription font) implements Face {}
 
-    // a .ttf, drawn as a distance field
     public record Vector(Identifier font) implements Face {}
 
     public static final Game DEFAULT = new Game(FontDescription.DEFAULT);
@@ -53,7 +50,6 @@ public final class UiFonts {
         return DEFAULT;
     }
 
-    // a reload may have changed the files, so they are read again the next time they are asked for
     static void forget() {
         KNOWN.clear();
         MISSING.clear();

@@ -8,16 +8,6 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vec3;
 
-// the living half of every body, once a tick
-//
-// two things happen here and nothing else does. life is kept inside its bounds and a body with
-// none left is put in the state that says so -- the engine does not decide what dying means, it
-// stops driving the body and lets a place decide. and a body that has been told to walk somewhere
-// walks there
-//
-// that second one is what a character could not do at all. a player is driven by an entity; every
-// other body in the world was furniture, posed by hand or standing still. telling one to walk is
-// the difference between a scene and a game
 public final class Humanoids {
 
     private static final PropertyDef HEALTH = Classes.HUMANOID.property("health");
@@ -41,7 +31,6 @@ public final class Humanoids {
         Humanoid living = Rig.humanoid(character);
         if (living == null) return;
 
-        // a place may write either of these to anything. the bound is the engine's job
         double was = living.health;
         double health = Math.max(0, Math.min(living.maxHealth, living.health));
         if (health != living.health) Instances.setNum(living, HEALTH, health);
@@ -54,18 +43,14 @@ public final class Humanoids {
             return;
         }
         if (living.state == HumanoidState.DEAD) {
-            // brought back by a place writing health, which is the only way back out
             became(living, HumanoidState.STANDING);
         }
 
-        // a body somebody else drives is walked by whatever drives it. this is for the ones
-        // nobody does, which is every body a place made
         if (!character.owner.isEmpty()) return;
         walk(character, living, dt);
         hop(character, living, dt);
     }
 
-    // a jump for a body nobody drives: straight up at jumpPower and back down to where it left from
     private static final Map<Character, double[]> HOPS = new WeakHashMap<>();
 
     private static void hop(Character character, Humanoid living, double dt) {
@@ -92,8 +77,6 @@ public final class Humanoids {
         }
     }
 
-    // the height of the ground under a point, looking a little above it and a few blocks below, or NaN when
-    // there is none that close. a tree's place says what counts as ground
     @FunctionalInterface
     public interface Ground {
         double below(double x, double y, double z);
@@ -109,12 +92,9 @@ public final class Humanoids {
         }
     }
 
-    // metres a second a body rises onto a step and sinks toward lower ground. a path corner is only where it
-    // turns, so between two the ground can go up and down and the body follows that, not the straight line
     private static final double RISE = 10;
     private static final double SINK = 14;
 
-    // radians a second a walking body turns at most
     private static final double TURN_RATE = 10;
 
     private static void walk(Character character, Humanoid living, double dt) {
@@ -124,13 +104,8 @@ public final class Humanoids {
             return;
         }
 
-        // where it is in the world, because that is where walkTo is stated. a body hanging off
-        // something that moves has a frame stated against that, and comparing the two would have it
-        // walking toward a point measured from the wrong origin
         Vec3 at = Transforms.world(character).position();
         Vec3 toward = living.walkTo.sub(at);
-        // height is not a direction to walk in: a body told to go somewhere above it walks to
-        // under it rather than into the air
         Vec3 flat = new Vec3(toward.x(), 0, toward.z());
         double away = flat.length();
 
@@ -145,7 +120,6 @@ public final class Humanoids {
         double step = Math.min(away, living.walkSpeed * dt);
         Vec3 way = flat.mul(1.0 / away);
         Vec3 moved = at.add(way.mul(step));
-        // up or down a step as it goes, in proportion, so a path over uneven ground does not float
         moved = new Vec3(moved.x(), at.y() + toward.y() * (step / away), moved.z());
         Ground ground = GROUNDS.get(character.tree());
         double floor = ground == null ? Double.NaN : ground.below(moved.x(), at.y(), moved.z());
@@ -154,10 +128,7 @@ public final class Humanoids {
             moved = new Vec3(moved.x(), y, moved.z());
         }
 
-        // facing where it is going, the way a body that walks somewhere does. our forward is -z,
-        // so the heading is measured from that rather than from +x
         double yaw = Math.atan2(-way.x(), -way.z());
-        // turned toward it at a person's pace, not snapped: a corner is a curve of the body, not a flick
         Vec3 facing = Transforms.world(character).rotation().rotate(new Vec3(0, 0, -1));
         double now = Math.atan2(-facing.x(), -facing.z());
         double turn = Math.IEEEremainder(yaw - now, Math.PI * 2);
@@ -166,14 +137,11 @@ public final class Humanoids {
         Instances.setObj(character, CFRAME, Transforms.localFor(character,
                 new CFrame(moved, Quat.euler(0, yaw, 0))));
 
-        // ground covered, not time elapsed: the walk cycle runs on distance, so feeding it the
-        // step is what makes the legs match the speed rather than the frame rate
         Instances.setNum(character, MOVE_DISTANCE, character.moveDistance + step * 4.0);
         Instances.setNum(character, MOVE_SPEED, Math.min(1.0, living.walkSpeed / 4.317));
         became(living, HumanoidState.RUNNING);
     }
 
-    // the state is written in one place, so the signal cannot be forgotten at one of them
     private static void became(Humanoid living, HumanoidState next) {
         if (living.state == next) return;
         Instances.setObj(living, STATE, next);

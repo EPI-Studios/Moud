@@ -20,17 +20,14 @@ public abstract class Instance {
 
     final List<Instance> children = new ArrayList<>(0);
 
-    // whatever the script layer hangs off this instance, cleared when it dies. core never reads it
     public Object userdata;
 
-    // the labels a place hung on it, which replicate like its properties. null until the first one
     Set<String> tags;
 
     Signal<PropertyDef> changed;
     Signal<Instance> childAdded;
     Signal<Instance> destroying;
 
-    // only ClassDef.create calls this
     public final void attachClass(ClassDef<?> def) {
         this.def = def;
     }
@@ -90,24 +87,9 @@ public abstract class Instance {
         return (def == null ? "?" : def.name()) + "#" + id + (name.isEmpty() ? "" : " '" + name + "'");
     }
 
-    // a class that is made of more than itself builds the rest here, once it is in the tree and
-    // can have children. the mirror never calls this: what a replicated instance is made of
-    // arrives over the wire, and building it twice would give it two of everything
     protected void build() {
     }
 
-    // which of this instance's properties the other side already has by some other route
-    //
-    // sending one of these is sending it twice, and the copy we would send is the one with the wrong
-    // guarantee: a property delta is reliable and ordered, which for something that changes every tick
-    // means a lost packet delays every later one until it is retransmitted -- the newest sample
-    // arriving late is exactly what a stream of samples does not want
-    //
-    // a mask rather than a flag per property, because it is one question asked once per instance per
-    // tick. zero, for almost everything: a colour reaches the other side one way only
-    //
-    // the class named which properties on the fields themselves. a class overrides this when the
-    // answer is conditional -- a body's state comes off its player only while a player is wearing it
     protected long propertiesFromElsewhere() {
         return def().driven();
     }
@@ -116,32 +98,18 @@ public abstract class Instance {
         return propertiesFromElsewhere();
     }
 
-    // the per tick stages, in Stage order. a class overrides the ones that concern it and ClassDef
-    // notices, so nothing here is dispatched on a type test and nothing has to be registered
-    //
-    // the one rule every one of these obeys: write only what this stage owns. where the engine has
-    // to compute something a place also wants hold of, they are two properties and not one -- c0 is
-    // the shoulder line and transform is the turn at it. a stage that re-asserts a whole body from
-    // a table it keeps is the bug the split exists to forbid, because a place can then never take a
-    // limb away, resize one, or hold a pose of its own
-
-    // geometry out of parameters
     protected void shape() {
     }
 
-    // where this is going and what state that puts it in
     protected void drive(double dt) {
     }
 
-    // what poses this, blended
     protected void evaluate() {
     }
 
-    // what physics poses instead
     protected void simulate(double dt) {
     }
 
-    // the frames that come out of the above
     protected void compose() {
     }
 }

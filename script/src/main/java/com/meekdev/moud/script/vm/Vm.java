@@ -62,7 +62,6 @@ import net.hollowcube.luau.compiler.LuauCompiler;
 
 public final class Vm implements ScriptEngine {
 
-    // no io, no os, no package: a place reaches the world through our api or not at all
     private static final BuilinLibrary[] LIBRARIES = {
         BuilinLibrary.BASE,
         BuilinLibrary.COROUTINE,
@@ -92,7 +91,6 @@ public final class Vm implements ScriptEngine {
     public Vm() {
         state = LuaState.newState();
         state.openLibs(LIBRARIES);
-        // every argument through tostring, tab separated, the way luau's own print joins them
         state.pushFunction(LuaFunc.wrap(s -> {
             StringBuilder line = new StringBuilder();
             int count = s.top();
@@ -139,15 +137,12 @@ public final class Vm implements ScriptEngine {
         run("timing", Luau.source("timing.luau"));
     }
 
-    // the client half of the surface, which only exists where there is a screen and someone
-    // looking at it. a server vm never sees these globals rather than seeing dead ones
     @Override
     public void bindPost(PostRef post, boolean client) {
         this.client = client;
         Remotes.install(state, post, client);
     }
 
-    // the client's half only: a server has no speakers
     @Override
     public void bindAudio(AudioRef audio) {
         this.audio = audio;
@@ -196,7 +191,6 @@ public final class Vm implements ScriptEngine {
         Scenes.install(state, world, registry, files);
     }
 
-    // the level's blocks, so a ray from the world can stop at a wall
     @Override
     public void bindBlocks(BlockRef blocks) {
         Proxies.blocks(state, blocks);
@@ -218,9 +212,6 @@ public final class Vm implements ScriptEngine {
         Inputs.push(state, input);
         state.setGlobal("input");
 
-        // the body this client drives, and the only thing that tells it apart from everyone
-        // else's. a call rather than a field: a respawn and a reload both hand out a new one, and
-        // a reference held across either points at something destroyed
         state.getGlobal("game");
         state.rawGetField(-1, "players");
         state.pushFunction(LuaFunc.wrap(s -> {
@@ -253,7 +244,6 @@ public final class Vm implements ScriptEngine {
         Persist.restore(state, data);
     }
 
-    // no delta: a reload is not a step, and a handler that took one was handed a zero to ignore
     public void reloaded() {
         Signals.fire(state, game.reloaded(), onError, s -> 0);
     }
@@ -272,12 +262,10 @@ public final class Vm implements ScriptEngine {
         });
     }
 
-    // a script error kills its handler, not the game
     public void onError(Consumer<ScriptError> handler) {
         onError = handler;
     }
 
-    // where print goes. standard out is a terminal nobody running the game is looking at
     private Consumer<String> printer = System.out::println;
 
     @Override
@@ -285,11 +273,8 @@ public final class Vm implements ScriptEngine {
         printer = handler;
     }
 
-    // Script instances on a server vm and LocalScript ones on a client, started and stopped as the tree
-    // changes. asked for once the vm knows its side and where modules come from
     private void stepTweens(double dt) {
         if (tweens.isEmpty()) return;
-        // stepped from a copy, because a completed handler may start another tween
         for (Tween tween : new ArrayList<>(tweens)) {
             try {
                 if (!tween.step(dt)) tweens.remove(tween);
@@ -318,7 +303,6 @@ public final class Vm implements ScriptEngine {
 
     public void renderStep(double dt) {
         if (scripts != null && client) scripts.poll(world.tree());
-        // per frame on a client, so a tween is as smooth as the screen
         if (client) stepTweens(dt);
         if (client) Blocks.drain(state, world, onError);
         if (audio != null) audio.drainBeats(n -> fire(beat, n), n -> fire(bar, n));
@@ -366,8 +350,6 @@ public final class Vm implements ScriptEngine {
 
     @Override
     public void close() {
-        // before the state goes, because what is keyed by it cannot be dropped after: a state's
-        // identity is a native pointer, and the next state may be handed the same one
         Remotes.forget(state);
         Callbacks.forget(state);
         Mixins.forget(state);

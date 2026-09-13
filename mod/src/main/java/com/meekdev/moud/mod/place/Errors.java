@@ -6,8 +6,6 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 
-// design 8.8 wants the last errors surfaced, not only logged. a place that errors every frame
-// would otherwise fill a log and tell a dev nothing they can act on
 public final class Errors {
 
     private static final int KEEP = 20;

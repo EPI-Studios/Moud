@@ -11,7 +11,6 @@ import java.util.function.ToIntFunction;
 import java.util.Map;
 import net.hollowcube.luau.LuaState;
 
-// values are immutable userdata, which is what stops a place aliasing a part's size and mutating it
 public final class Values {
 
     static final int VEC3 = 2;
@@ -72,8 +71,6 @@ public final class Values {
         state.rawSetField(-2, "__eq");
         state.setUserDataMetaTable(QUAT);
 
-        // cframe is a callable table so cframe(...), cframe.angles and cframe.identity all live
-        // under one name, which is the surface design 8.3 asks for
         state.newTable();
         state.pushFunction(LuaFunc.wrap(Values::cframeAngles, "cframe.angles"));
         state.rawSetField(-2, "angles");
@@ -127,7 +124,6 @@ public final class Values {
         state.rawSetField(-2, "fromOffset");
         state.newTable();
         state.pushFunction(LuaFunc.wrap(s -> {
-            // called as udim2(...), so the table itself is argument one
             push(s, new UDim2(s.checkNumber(2), s.checkNumber(3), s.checkNumber(4), s.checkNumber(5)));
             return 1;
         }, "udim2"));
@@ -167,7 +163,6 @@ public final class Values {
                 "rotate", st -> one(st, quat(st, 1).rotate(vec3(st, 2))),
                 "mul", st -> one(st, quat(st, 1).mul(quat(st, 2)))));
 
-        // quat.identity, quat.axisAngle, quat.euler, quat.lookAt and quat.fromTo
         state.newTable();
         push(state, Quat.IDENTITY);
         state.rawSetField(-2, "identity");
@@ -195,7 +190,6 @@ public final class Values {
         state.rawSetField(LuaState.REGISTRY_INDEX, key);
     }
 
-    // pushes the method of that name, or nothing when there is none
     private static boolean method(LuaState state, String table, String name) {
         state.rawGetField(LuaState.REGISTRY_INDEX, table);
         if (state.rawGetField(-1, name) == LuaType.NIL) {
@@ -221,7 +215,6 @@ public final class Values {
         return lengths < 1e-12 ? 0 : Math.acos(Math.clamp(a.dot(b) / lengths, -1, 1));
     }
 
-    // the shortest turn that takes one direction to another
     static Quat fromTo(Vec3 from, Vec3 to) {
         Vec3 a = from.normalize();
         Vec3 b = to.normalize();
@@ -298,7 +291,6 @@ public final class Values {
         return (Color) value;
     }
 
-    // the value types as plain objects, for anything that has to carry them outside a vm
     public static Object value(LuaState state, int index) {
         Object v = state.toUserDataTagged(index, VEC3);
         if (v != null) return v;
@@ -364,7 +356,6 @@ public final class Values {
         return 1;
     }
 
-    // luau hands __mul its operands in either order, so the scalar can be on either side
     private static int vec3Mul(LuaState state) {
         if (state.isNumber(2)) {
             push(state, vec3(state, 1).mul(state.toNumber(2)));
@@ -392,7 +383,6 @@ public final class Values {
         return 1;
     }
 
-    // arg 1 is the cframe table itself, because this is __call
     private static int newCFrame(LuaState state) {
         if (state.isNumber(2)) {
             push(state, CFrame.at(state.checkNumber(2), state.checkNumber(3), state.checkNumber(4)));

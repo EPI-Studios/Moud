@@ -30,26 +30,16 @@ import org.recast4j.recast.RecastConfig;
 import org.recast4j.recast.RecastConstants;
 import org.recast4j.recast.geom.SimpleInputGeomProvider;
 
-// a navmesh over a place's blocks and parts, built in square tiles as paths ask for them
-//
-// recast voxelises the triangles of what is solid and keeps the surfaces a body of this size can stand on
-// and move between: room overhead, a step it can climb, a slope it can walk, a gap it fits through. detour
-// then finds the corridor of polygons between two points and pulls it tight into the corners a body turns
-// at. a tile is built again only when a block in it changed, a part in it moved, or a path needs it taller
 public final class NavMeshes {
 
-    // what the navmesh is built from
     public interface World {
         boolean solid(int x, int y, int z);
 
-        // every part that collides and overlaps the box, as its world frame and size
         void boxes(Vec3 min, Vec3 max, BiConsumer<CFrame, Vec3> out);
     }
 
-    // one body shape. every body walks the same mesh, sized for a player
     private static final float RADIUS = 0.3f;
     private static final float HEIGHT = 1.8f;
-    // a whole block, and a hair over so the float division does not round it down to nine tenths
     private static final float CLIMB = 1.05f;
     private static final float SLOPE = 50;
     private static final float CELL = 0.25f;
@@ -57,9 +47,7 @@ public final class NavMeshes {
     private static final int TILE_CELLS = 128;
     private static final float TILE = TILE_CELLS * CELL;
     private static final int VERTS_PER_POLY = 6;
-    // how far above and below a path's ends a tile looks for ground
     private static final int REACH_Y = 16;
-    // tiles a single path may build; past that it walks what is already built
     private static final int BUILD_BUDGET = 6;
     private static final int MAX_TILES = 16;
     private static final float[] EXTENTS = {1.5f, 3f, 1.5f};
@@ -95,7 +83,6 @@ public final class NavMeshes {
         query = new NavMeshQuery(mesh);
     }
 
-    // a block changed: the tiles that can see it are built again next time a path crosses them
     public void blockChanged(int x, int y, int z) {
         float border = CONFIG.borderSize * CELL + 1;
         for (int tx = tile(x - border); tx <= tile(x + border); tx++) {
@@ -106,8 +93,6 @@ public final class NavMeshes {
         }
     }
 
-    // the corners from one point to another on the mesh, the first after where the path starts, or null
-    // when there is none. partial lets a path end as close to an unreachable goal as the mesh gets
     public List<Vec3> find(World world, Vec3 from, Vec3 to, boolean partial) {
         if (!prepare(world, from, to)) return null;
         FindNearestPolyResult start = nearest(from);
@@ -132,12 +117,10 @@ public final class NavMeshes {
         Vec3 last = out.getLast();
         boolean reached = new Vec3(last.x() - to.x(), 0, last.z() - to.z()).length() < 1.0 && Math.abs(last.y() - to.y()) < 2.5;
         if (!reached && !partial) return null;
-        // the first corner is where the body already stands
         if (out.size() > 1) out.removeFirst();
         return out;
     }
 
-    // a point on the mesh a body could walk to near a centre, or null
     public Vec3 randomNear(World world, Vec3 centre, double radius, Random random) {
         if (!prepare(world, centre.sub(new Vec3(radius, 0, radius)), centre.add(new Vec3(radius, 0, radius)))) return null;
         FindNearestPolyResult start = nearest(centre);
@@ -162,7 +145,6 @@ public final class NavMeshes {
         return found.result;
     }
 
-    // every tile between the two points, built or brought up to date
     private boolean prepare(World world, Vec3 a, Vec3 b) {
         int minY = (int) Math.floor(Math.min(a.y(), b.y())) - REACH_Y;
         int maxY = (int) Math.ceil(Math.max(a.y(), b.y())) + REACH_Y;
@@ -198,8 +180,6 @@ public final class NavMeshes {
         int z0 = (int) Math.floor(tz * TILE - border) - 1, z1 = (int) Math.ceil((tz + 1) * TILE + border) + 1;
         Geometry geometry = new Geometry();
 
-        // a block's top where it has open air above it, and its underside where it has open air below, which
-        // is the floor and the ceiling a body needs room between. the sides come out of the columns
         int height = t.maxY - t.minY + 3;
         boolean[] column = new boolean[height];
         for (int x = x0; x < x1; x++) {
@@ -264,7 +244,6 @@ public final class NavMeshes {
         if (data != null) mesh.addTile(data, 0, 0);
     }
 
-    // the parts a tile was built from, as one number that changes when any of them moves or goes
     private static long signature(World world, int tx, int tz, int minY, int maxY) {
         float border = CONFIG.borderSize * CELL;
         long[] sum = {0};
@@ -279,8 +258,6 @@ public final class NavMeshes {
         return (h * 31L + size.hashCode()) * 0x9E3779B97F4A7C15L;
     }
 
-    // triangles, wound so their normal points out of what they bound: recast takes a triangle facing up as
-    // ground and anything else as something in the way
     private static final class Geometry {
         private float[] v = new float[3 * 4096];
         private int[] f = new int[3 * 4096];

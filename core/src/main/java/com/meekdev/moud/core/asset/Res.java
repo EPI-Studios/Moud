@@ -1,6 +1,5 @@
 package com.meekdev.moud.core.asset;
 
-// a res:// path, checked and stripped down to where it sits under the place directory
 public final class Res {
 
     public static final String SCHEME = "res://";

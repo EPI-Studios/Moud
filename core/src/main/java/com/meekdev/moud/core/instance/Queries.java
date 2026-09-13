@@ -15,15 +15,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-// what is where: casts that stop at the first part in the way, and overlaps that list every part in
-// a volume. every part is a box with a turn on it
-//
-// a part that is not visible is not there, the way a removed limb is not there. a zone that should be
-// found but not seen is transparent instead
 public final class Queries {
 
-    // which parts a query may find. listed instances count with everything under them, and a group
-    // leaves out the parts that group passes through
     public record Filter(List<Instance> instances, boolean include, boolean respectCollides,
                          CollisionGroups groups, String group, String tag, ClassDef<?> className) implements Predicate<Part> {
 
@@ -51,7 +44,6 @@ public final class Queries {
         }
     }
 
-    // the first part in the way: where it was met, which way that face looks, and how far along
     public record Cast(Part part, Vec3 at, Vec3 normal, double distance) {}
 
     record Box(Vec3 centre, Vec3[] axes, Vec3 half) {
@@ -73,7 +65,6 @@ public final class Queries {
             return axis == 0 ? half.x() : axis == 1 ? half.y() : half.z();
         }
 
-        // how far this box reaches along a direction, either way from its centre
         double reach(Vec3 direction) {
             return half.x() * Math.abs(direction.dot(axes[0])) + half.y() * Math.abs(direction.dot(axes[1]))
                     + half.z() * Math.abs(direction.dot(axes[2]));
@@ -90,15 +81,11 @@ public final class Queries {
         }
     }
 
-    // where a part is as far as a query is concerned: where it is now, unless a rewind says otherwise.
-    // per thread, because the server and a client query from their own threads in one process
     private static final Function<Part, CFrame> NOW = Transforms::world;
     private static final ThreadLocal<Function<Part, CFrame>> FRAMES = ThreadLocal.withInitial(() -> NOW);
 
     private Queries() {}
 
-    // runs query with every part where frames puts it, which is how a shot is tested against where the
-    // shooter saw things rather than where they are now
     public static <T> T rewound(Function<Part, CFrame> frames, Supplier<T> query) {
         Function<Part, CFrame> before = FRAMES.get();
         FRAMES.set(frames);
@@ -109,14 +96,11 @@ public final class Queries {
         }
     }
 
-    // a ray that starts inside a part does not hit that part, so a ray from inside a head passes out of it
     public static Cast raycast(Instance root, Vec3 from, Vec3 direction, double range, Predicate<Part> filter) {
         return (Cast) remembered(root, List.of("ray", from, direction, range, filter),
                 () -> swept(root, from, direction, range, 0, filter));
     }
 
-    // the same question asked twice while nothing in the tree changed gets the answer it got the first
-    // time, which is what a place asking every frame from several scripts mostly does
     private record Memo(long stamp, Map<List<Object>, Object> answers) {}
 
     private static final Map<InstanceTree, Memo> MEMOS = Collections.synchronizedMap(new WeakHashMap<>());
@@ -149,8 +133,6 @@ public final class Queries {
         return answer;
     }
 
-    // a ball moved along a direction. its edges and corners are met as if the part were a box grown by
-    // the radius, which can be early by at most that radius times 0.73 past a corner
     public static Cast spherecast(Instance root, Vec3 from, double radius, Vec3 direction, double range,
                                   Predicate<Part> filter) {
         return swept(root, from, direction, range, Math.max(0, radius), filter);
@@ -167,7 +149,6 @@ public final class Queries {
         return best;
     }
 
-    // every part a ray passes into, nearest first
     public static List<Cast> raycastAll(Instance root, Vec3 from, Vec3 direction, double range, Predicate<Part> filter) {
         List<Cast> hits = new ArrayList<>();
         if (root == null || range <= 0 || direction.lengthSq() < 1e-24) return hits;
@@ -217,14 +198,12 @@ public final class Queries {
             far = Math.min(far, two);
             if (near > far) return null;
         }
-        // nearAxis stays unset when the start is already inside
         if (nearAxis < 0) return null;
         Vec3 normal = box.axes()[nearAxis].mul(nearSign);
         Vec3 centre = from.add(way.mul(near));
         return new Cast(part, centre.sub(normal.mul(grow)), normal, near);
     }
 
-    // a box moved along a direction, met exactly on every face, edge and corner
     public static Cast blockcast(Instance root, CFrame frame, Vec3 size, Vec3 direction, double range,
                                  Predicate<Part> filter) {
         if (root == null || range <= 0 || direction.lengthSq() < 1e-24) return null;
@@ -310,7 +289,6 @@ public final class Queries {
         return found;
     }
 
-    // everything the part's own box overlaps, the part and anything under it left out
     public static List<Part> inPart(Instance root, Part part, Predicate<Part> filter) {
         Box box = Box.of(part);
         List<Part> found = new ArrayList<>();
@@ -321,7 +299,6 @@ public final class Queries {
         return found;
     }
 
-    // overlapping or within margin of it, which is what counts as touching
     public static boolean touching(Part a, Part b, double margin) {
         return overlap(Box.of(a), Box.of(b), margin);
     }
@@ -334,7 +311,6 @@ public final class Queries {
         return true;
     }
 
-    // the fifteen directions two boxes can be told apart along: the faces of each, and every pair of edges
     private static List<Vec3> axes(Box a, Box b) {
         List<Vec3> axes = new ArrayList<>(15);
         for (Vec3 axis : a.axes()) axes.add(axis);
@@ -342,7 +318,6 @@ public final class Queries {
         for (Vec3 one : a.axes()) {
             for (Vec3 two : b.axes()) {
                 Vec3 edge = one.cross(two);
-                // parallel edges give nothing the faces have not already said
                 if (edge.lengthSq() > 1e-10) axes.add(edge.normalize());
             }
         }
@@ -355,13 +330,9 @@ public final class Queries {
         return found;
     }
 
-    // the parts under root that may touch region, from the tree's index. a rewind asks where things were,
-    // which the index does not know, so that one walks the branch
-    // how many queries ran and how many parts they tested, for a place checking what its queries cost
     private static final AtomicLong QUERIES = new AtomicLong();
     private static final AtomicLong TESTED = new AtomicLong();
 
-    // queries and parts tested since the last call, and starts counting again
     public static long[] takeStats() {
         return new long[] {QUERIES.getAndSet(0), TESTED.getAndSet(0)};
     }
@@ -395,8 +366,6 @@ public final class Queries {
         return false;
     }
 
-    // a shell is a second coat of paint over a limb, standing a quarter of a texel proud of it, so a
-    // hit on a body would always answer "the hat" and never "the head"
     private static boolean isShell(Part part) {
         return Rig.OVERLAY.equals(part.name()) && part.parent() instanceof Part;
     }

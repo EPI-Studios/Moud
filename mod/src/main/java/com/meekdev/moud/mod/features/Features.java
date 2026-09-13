@@ -7,25 +7,17 @@ import java.util.Map;
 
 public final class Features {
 
-    // a switch is a name and a bit, and the bit is handed out in the order switches are declared
-    //
-    // the engine's own go first and keep the bits their ordinals had, so nothing that reads one
-    // changes. an addon's follow, which is the whole reason this is a list and not an enum
     public record Switch(String key, int bit) {}
 
     private final Map<String, Switch> byKey = new HashMap<>();
     private final List<Switch> declared = new ArrayList<>();
 
-    // the mixins read this from the render thread, the server thread and the chunk workers, so the
-    // switches have to publish, which a set behind a plain field does not
     private volatile long on;
 
     public Features() {
         for (Feature f : Feature.values()) declare(f.key());
     }
 
-    // what an addon calls to get a switch of its own. declaring one twice is the same switch, so
-    // two sides of the same addon may both ask without coordinating
     public Switch declare(String key) {
         String name = Feature.normalise(key);
         Switch existing = byKey.get(name);

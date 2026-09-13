@@ -10,9 +10,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// suppresses itemDrops
-// blocks, mobs and a player throwing something all end at one item entity reaching the level,
-// which is the only cut that catches every one of them
 @Mixin(ServerLevel.class)
 abstract class DropsMixin {
 

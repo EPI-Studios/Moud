@@ -10,8 +10,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// held items go in with the entities, because that is the one place a submit collector is open and
-// the item renderer needs one. the player's own layer is cancelled with the rest of its model
 @Mixin(LevelRenderer.class)
 abstract class HeldItemsMixin {
 

@@ -18,8 +18,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// suppresses blockBreaking and blockPlacing
-// cutting the action rather than the result also stops the swing and the crack overlay
 @Mixin(ServerPlayerGameMode.class)
 abstract class BlocksMixin {
 

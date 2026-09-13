@@ -16,8 +16,6 @@ import java.util.Map;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
-// casts and overlaps, asked of any instance and answered from under it. blocks are only in the answer
-// when it is asked of the world
 final class QueryMethods {
 
     private static final Map<LuaState, BlockRef> BLOCKS = new HashMap<>();
@@ -28,8 +26,6 @@ final class QueryMethods {
         BLOCKS.put(state.mainThread(), blocks);
     }
 
-    // whether nothing solid stands between two points: no part that collides, and no block when the
-    // question is asked of the whole world. the ignored instances count with everything under them
     static boolean clear(LuaState state, Instance root, Vec3 from, Vec3 to, List<Instance> ignore) {
         Vec3 way = to.sub(from);
         double length = way.length();
@@ -48,7 +44,6 @@ final class QueryMethods {
         BLOCKS.remove(state.mainThread());
     }
 
-    // root, from, direction, range, params -> part, position, distance, normal, block
     static int raycast(LuaState state, Instance root) {
         Vec3 from = Values.vec3(state, 2);
         Vec3 direction = Values.vec3(state, 3);
@@ -98,7 +93,6 @@ final class QueryMethods {
         return list(state, shape(Queries.inRadius(root, centre, state.checkNumber(3), params.filter()), centre, params));
     }
 
-    // nearest first when asked, and no more than the limit
     private static List<Part> shape(List<Part> parts, Vec3 from, Params params) {
         if (params.sorted()) {
             parts.sort((a, b) -> Double.compare(Transforms.world(a).position().sub(from).lengthSq(),
@@ -107,7 +101,6 @@ final class QueryMethods {
         return parts.size() > params.limit() ? new ArrayList<>(parts.subList(0, params.limit())) : parts;
     }
 
-    // every part a ray passes into, nearest first: { { part, position, distance, normal }, ... }
     static int raycastAll(LuaState state, Instance root) {
         Vec3 from = Values.vec3(state, 2);
         Vec3 direction = Values.vec3(state, 3);
@@ -123,7 +116,6 @@ final class QueryMethods {
         return 1;
     }
 
-    // many rays in one call: { { from, direction, range? }, ... } -> a list of hit tables, false for a miss
     static int raycastMany(LuaState state, Instance root) {
         if (state.type(2) != LuaType.TABLE) throw state.error("raycastMany wants a list of { from, direction, range }");
         Params params = params(state, 3, root);
@@ -207,7 +199,6 @@ final class QueryMethods {
         static final Params NONE = new Params(Queries.Filter.ALL, false, Integer.MAX_VALUE, false);
     }
 
-    // { exclude = { ... } } or { include = { ... } }, respectCollides, collisionGroup, ignoreBlocks
     private static Params params(LuaState state, int at, Instance root) {
         if (state.isNoneOrNil(at)) return Params.NONE;
         if (state.type(at) != LuaType.TABLE) throw state.error("query options are a table");

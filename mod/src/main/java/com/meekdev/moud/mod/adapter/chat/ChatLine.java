@@ -7,7 +7,6 @@ import com.meekdev.moud.mod.transport.Packets;
 import java.util.HashMap;
 import java.util.Map;
 
-// one chat message, as both sides keep it
 public final class ChatLine {
 
     public final long id;
@@ -41,7 +40,6 @@ public final class ChatLine {
         return new Packets.ChatDown(kind, id, channel, source, body, text, prefix, metadata, timestamp, status);
     }
 
-    // what a place sees: the instances it names, resolved in this side's tree
     public Map<String, Object> toMap(InstanceTree tree) {
         Map<String, Object> out = new HashMap<>();
         out.put("id", (double) id);
@@ -56,15 +54,12 @@ public final class ChatLine {
             if (source >= 0 && tree.byId(source) != null) out.put("source", tree.byId(source));
             if (body >= 0 && tree.byId(body) != null) {
                 out.put("body", tree.byId(body));
-                // where the sender is, read once here so a delivery hook compares numbers rather than
-                // walking the tree for every player it asks about
                 out.put("position", Transforms.world(tree.byId(body)).position());
             }
         }
         return out;
     }
 
-    // what a hook handed back: a table of the fields it changed
     public void apply(Object changes) {
         if (!(changes instanceof Map<?, ?> map)) return;
         if (map.get("text") instanceof String changed) text = changed;

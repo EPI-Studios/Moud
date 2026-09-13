@@ -21,30 +21,10 @@ import java.util.HashMap;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
-// the place's side of a channel
-//
-// the two directions are separate methods rather than one send with a flag, and each is refused on
-// the side it does not belong to. a place that calls fireServer on the server has made a mistake, and
-// being told so beats a message that goes nowhere
 public final class Remotes {
 
-    // per lua state, not global
-    //
-    // a solo game runs a server vm and a client vm in one process, so "which side am I" cannot be a
-    // static: the server would answer whatever the client installed last
     private record Side(PostRef post, boolean client) {}
 
-    // keyed by the vm's main thread, and dropped when the vm closes
-    //
-    // the main thread rather than whatever state a call arrived on, because they are not the same one:
-    // a lua function called from java is handed its own state, and a coroutine has another again. so
-    // the side has to be looked up against the one thing every one of them shares
-    //
-    // and dropped explicitly, because a LuaState's equals and hashCode are its native pointer's. a
-    // closed state and a fresh one allocated at the same address are therefore the *same key* -- so
-    // leaving the entry in handed a new vm the side of the one before it, which on a server is a
-    // server that thinks it is a client. holding the key weakly never helped with that: the entry goes
-    // when the key object is collected, which has nothing to do with when the state closed
     private static final Map<LuaState, Side> SIDES = new HashMap<>();
 
     private Remotes() {}
@@ -53,13 +33,10 @@ public final class Remotes {
         SIDES.put(state.mainThread(), new Side(carrier, onClient));
     }
 
-    // a closed state is not a side any more, and leaving it in is how the next one gets the wrong one
     public static void forget(LuaState state) {
         SIDES.remove(state.mainThread());
     }
 
-    // whether this state is a client's, and who it belongs to. asked by the write guard rather than
-    // by a channel, which is why they are not private to the firing verbs
     public static boolean onClient(LuaState state) {
         Side known = SIDES.get(state.mainThread());
         return known != null && known.client();
@@ -82,8 +59,6 @@ public final class Remotes {
             throw state.error("fireServer is the client's, and this is the server."
                     + " the server says fireClient or fireAllClients");
         }
-        // a remote the server destroyed has an id nothing answers to any more, and a send down it vanished
-        // without a word. the usual reason is a reload handing out new ones
         if (!remote.isAlive()) {
             throw state.error("the remote '%s' was destroyed, most likely by the server place reloading."
                     + " look it up again, like game.world:find(\"%s\"), rather than keeping the old one", remote.name(), remote.name());
@@ -110,11 +85,6 @@ public final class Remotes {
         return 0;
     }
 
-    // read the stack, then hold it to what the channel says it takes
-    //
-    // here as well as on the server, because the two checks are for different people: this one tells
-    // the place which argument is wrong while it is still looking at the line that sent it, and the
-    // one on receive is the one a tampered client cannot skip
     private static List<Object> declared(LuaState state, Remote remote, int first) {
         List<Object> args = read(state, first);
         try {
@@ -129,11 +99,6 @@ public final class Remotes {
         return !(remote instanceof UnreliableRemote);
     }
 
-    // what arrived, handed to a handler
-    //
-    // on the server the sender comes first and is the *body* of whoever sent it, which is how a
-    // player is addressed everywhere else here -- `game.players:me()` answers with a body too. it is
-    // supplied rather than passed, so it is the one argument a client cannot lie about
     public static int pushSent(LuaState state, Remote.Sent sent, InstanceTree tree) {
         int pushed = 0;
         if (!sent.from().isEmpty()) {
@@ -160,8 +125,6 @@ public final class Remotes {
         return null;
     }
 
-    // the stack from `first` onward, as plain objects. the wire decides what may cross; this only
-    // decides what a lua value is
     private static List<Object> read(LuaState state, int first) {
         int top = state.top();
         List<Object> args = new ArrayList<>(Math.max(0, top - first + 1));

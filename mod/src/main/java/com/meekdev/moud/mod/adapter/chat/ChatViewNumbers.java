@@ -4,7 +4,6 @@ import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.text.RichText;
 import java.util.Map;
 
-// reading what a place's hook handed back: a table where any field may be missing or the wrong kind
 final class ChatViewNumbers {
 
     private ChatViewNumbers() {}

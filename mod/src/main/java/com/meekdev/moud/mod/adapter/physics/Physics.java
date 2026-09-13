@@ -10,7 +10,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import org.jspecify.annotations.Nullable;
 
-// collision is the server's, because the server owns the tree and sub levels only exist there
 public final class Physics {
 
     private static final Colliders BOXES = new Colliders();
@@ -53,8 +52,6 @@ public final class Physics {
         boolean statics = BOXES.apply(tree, change);
         SHAPES.apply(tree, change);
         BODIES.apply(tree, change, server);
-        // the boxes a character sweeps against are baked into box3d and cached there, so a part
-        // that moved has to say so or the world it collides with is the one from the first tick
         if (statics && level != null) {
             LevelPhysics physics = Bkun.physics(level);
             if (physics != null) physics.invalidateProviders();

@@ -7,13 +7,10 @@ import java.util.List;
 import java.util.Map;
 import net.hollowcube.luau.LuaState;
 
-// which script instance is running right now, and what each one left behind: its connections and its
-// sleeping tasks, undone when that script is destroyed or disabled
 public final class Ownership {
 
     private static final Map<LuaState, Ownership> VMS = new HashMap<>();
 
-    // null while the place's own main file or a module is running, which nothing ever stops
     private Object current;
     private final Map<Object, List<Runnable>> undo = new IdentityHashMap<>();
 
@@ -29,7 +26,6 @@ public final class Ownership {
         return current;
     }
 
-    // hands back who was running, to be handed to leave
     public Object enter(Object owner) {
         Object before = current;
         current = owner;

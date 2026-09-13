@@ -1,6 +1,5 @@
 package com.meekdev.moud.core.tween;
 
-// how progress through a tween turns into progress toward the goal
 public enum Easing {
     LINEAR, SINE, QUAD, CUBIC, QUART, QUINT, EXPO, CIRC, BACK, ELASTIC, BOUNCE;
 

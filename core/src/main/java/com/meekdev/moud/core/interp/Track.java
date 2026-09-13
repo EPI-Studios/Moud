@@ -2,12 +2,8 @@ package com.meekdev.moud.core.interp;
 
 import com.meekdev.moud.core.clazz.PropertyType;
 
-// one value moving toward another over a window. the window is however long it took the last two
-// writes to arrive, which is what lets a tick written value and a frame written value share a path
 public final class Track {
 
-    // a value that sat still for ten seconds and then moved would otherwise take ten seconds to
-    // get there. past a couple of ticks the value is not being streamed and should just arrive
     public static final double MAX_AUTO_WINDOW = 0.1;
 
     private final PropertyType type;
@@ -32,14 +28,6 @@ public final class Track {
         return this;
     }
 
-    // the streamed path: a value that arrives once a tick is drawn between the last two ticks and
-    // sampled by how far through the current one the frame is
-    //
-    // the windowed path below measures the gap between two writes on the wall clock, which is the
-    // render loop's clock and not the one the values arrive on. a write that lands a frame late
-    // gives a longer window and a slower leg, one that lands early gives a shorter one, and a leg
-    // that finishes before the next write sits at its end until it comes. that is the judder. a
-    // tick fraction is bounded, arrives on the same clock the writes do, and never runs out
     public void beginLeg() {
         from = to;
     }
@@ -48,7 +36,6 @@ public final class Track {
         to = value;
     }
 
-    // nothing arrived to move it on, so the two ends of its leg are the same place
     public boolean still() {
         return from == to || from.equals(to);
     }
@@ -59,13 +46,10 @@ public final class Track {
         return Blend.of(type, from, to, alpha);
     }
 
-    // the new leg starts wherever the last one had got to, so a write mid flight does not jump
     public void write(Object value) {
         write(value, Math.min(sinceWrite, MAX_AUTO_WINDOW));
     }
 
-    // an explicit window is what a tween uses, where the duration is the point rather than the
-    // gap between two updates
     public void write(Object value, double window) {
         from = sample();
         to = value;

@@ -8,8 +8,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// suppresses mobs
-// both position overloads are named because a bare method name only binds to one of them
 @Mixin(NaturalSpawner.class)
 abstract class MobSpawnMixin {
 

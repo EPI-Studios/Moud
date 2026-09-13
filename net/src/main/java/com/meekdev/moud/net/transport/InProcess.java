@@ -7,19 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
-// both sides in one process, which is what a solo game is
-//
-// the queues are the whole of it. they exist rather than a direct call because the two sides run on
-// different threads and on different clocks: a client firing during its frame must not land in the
-// middle of a server tick, so it waits in a queue the server drains where it drains everything else
-//
-// unreliable is honoured rather than ignored. in one process nothing is ever lost, so what it means
-// here is a queue that drops the oldest when it is full instead of growing -- which is the behaviour
-// that matters, because the caller has to already be correct under loss
 public final class InProcess implements Transport {
 
-    // a tick's worth of input at a generous rate, per direction. past this something is wrong and
-    // growing the queue only delays finding out
     private static final int RELIABLE_DEPTH = 4096;
     private static final int UNRELIABLE_DEPTH = 256;
 
@@ -30,11 +19,8 @@ public final class InProcess implements Transport {
     private final Queue<Up> up = new ArrayDeque<>();
     private final Queue<Down> down = new ArrayDeque<>();
 
-    // who this client is, on the side that is a client. the server never reads it
     private volatile String me = "";
 
-    // how many a client has sent down each remote since the last drain, which is the only rate any
-    // of this needs: the server drains once a tick, so a per drain count *is* a per tick rate
     private final Map<Integer, Integer> sent = new HashMap<>();
 
     private int droppedUp;
@@ -43,8 +29,6 @@ public final class InProcess implements Transport {
         this.me = player;
     }
 
-    // six a tick down one channel is far more than a keypress needs and far less than a script in a
-    // loop can flood with. over it, the rest of the tick is dropped and said so once
     public static final int PER_TICK = 6;
 
     @Override
@@ -79,7 +63,6 @@ public final class InProcess implements Transport {
 
     @Override
     public void toAllClients(int remote, List<Object> args, boolean reliable) {
-        // one process, one client. everybody is the only one there is
         toClient("", remote, args, reliable);
     }
 
@@ -107,7 +90,6 @@ public final class InProcess implements Transport {
             down.clear();
         }
         for (Down one : batch) {
-            // addressed at everybody, or at this one
             if (one.player().isEmpty() || one.player().equals(me)) {
                 sink.deliver(one.remote(), one.args());
             }

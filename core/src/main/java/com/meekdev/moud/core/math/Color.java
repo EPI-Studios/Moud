@@ -1,6 +1,5 @@
 package com.meekdev.moud.core.math;
 
-// linear, not srgb
 public record Color(float r, float g, float b, float a) {
 
     public static final Color WHITE = new Color(1, 1, 1, 1);

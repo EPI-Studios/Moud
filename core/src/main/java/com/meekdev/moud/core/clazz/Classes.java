@@ -89,7 +89,6 @@ public final class Classes {
     public static final ClassDef<Character> CHARACTER =
             ClassDef.of("Character", SPATIAL, Character.class, Character::new);
     public static final ClassDef<Camera> CAMERA = ClassDef.of("Camera", SPATIAL, Camera.class, Camera::new);
-    // not a spatial: a joint is not somewhere, it is how two things are held together
     public static final ClassDef<Animator> ANIMATOR =
             ClassDef.of("Animator", null, Animator.class, Animator::new);
     public static final ClassDef<AnimationTrack> TRACK =
@@ -167,9 +166,6 @@ public final class Classes {
     public static final ClassDef<Humanoid> HUMANOID =
             ClassDef.of("Humanoid", null, Humanoid.class, Humanoid::new);
     public static final ClassDef<Wings> WINGS = ClassDef.of("Wings", null, Wings.class, Wings::new);
-    // shared state with a name and nowhere else to live
-    //
-    // five, covering what a game actually keeps: a count, a label, a flag, a place, and a thing
     public static final ClassDef<Value> VALUE = ClassDef.of("Value", null, Value.class, Value::new);
     public static final ClassDef<NumberValue> NUMBER_VALUE =
             ClassDef.of("NumberValue", VALUE, NumberValue.class, NumberValue::new);
@@ -182,7 +178,6 @@ public final class Classes {
     public static final ClassDef<ObjectValue> OBJECT_VALUE =
             ClassDef.of("ObjectValue", VALUE, ObjectValue.class, ObjectValue::new);
 
-    // the two directions of the boundary, as an instance rather than a registry
     public static final ClassDef<Remote> REMOTE =
             ClassDef.of("Remote", null, Remote.class, Remote::new);
     public static final ClassDef<UnreliableRemote> UNRELIABLE_REMOTE =
@@ -244,11 +239,6 @@ public final class Classes {
         return registry(List.of());
     }
 
-    // the engine's own classes, then everyone else's
-    //
-    // the order matters for nothing on the wire -- an instance crosses as its class name, not an
-    // index -- but it matters for a collision: an addon that names a class Part is told so, by an
-    // error that names the addon
     public static ClassRegistry registry(Iterable<Addon> addons) {
         ClassRegistry r = new ClassRegistry();
         r.register(FOLDER);

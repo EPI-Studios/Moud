@@ -15,14 +15,6 @@ import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
-// mixin.inject: code of a place's own at the head or the return of any method the game has, while it runs
-//
-//   mixin.inject("net.minecraft.world.entity.LivingEntity", "hurtServer", "head", function(self, info, ...) end)
-//
-// the handler gets the object the method was called on (nil for a static one), a call it can cancel or
-// change, and the method's arguments. it runs only on the thread of the side that made it -- the server's
-// hooks on the server thread, a client's on the render thread -- because a luau vm is one thread's, and a
-// method called from anywhere else runs as if nothing were hooked. a reload takes every hook off
 public final class Mixins {
 
     static final int CALL = 22;
@@ -154,7 +146,6 @@ public final class Mixins {
     private static final String CALL_METHODS = "__moud_mixin_call";
     private static final String HANDLE_METHODS = "__moud_mixin_handle";
 
-    // the functions a call and a handle have, made once per vm: each reads what it acts on off its first argument
     private static void methods(LuaState state) {
         state.newTable();
         method(state, "cancel", s -> {
@@ -249,7 +240,6 @@ public final class Mixins {
         handle.state().unref(handle.ref());
     }
 
-    // a vm that closes takes its hooks with it, before its state goes
     public static void forget(LuaState state) {
         List<Handle> handles = HANDLES.remove(state.mainThread());
         if (handles == null) return;

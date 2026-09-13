@@ -26,12 +26,10 @@ public final class Instances {
         return create(def, parent, name, false, null);
     }
 
-    // the initialiser is the one place a field may be written directly, the instance is not in the tree yet
     public static <T extends Instance> T create(ClassDef<T> def, Instance parent, String name, Consumer<T> init) {
         return create(def, parent, name, false, init);
     }
 
-    // the one way a mirror makes an instance: the id comes from the authority, not from a counter
     public static <T extends Instance> T adopt(ClassDef<T> def, Instance parent, int id, String name) {
         T i = def.create();
         i.id = id;
@@ -45,7 +43,6 @@ public final class Instances {
         return i;
     }
 
-    // local instances get negative ids so "is this replicated" is a sign test
     public static <T extends Instance> T createLocal(ClassDef<T> def, Instance parent, String name) {
         return create(def, parent, name, true, null);
     }
@@ -74,7 +71,6 @@ public final class Instances {
         if (i.tree == null) return;
         if (i.tree.root() == i) throw new IllegalArgumentException("cannot destroy the root");
 
-        // depth first so a handler never sees a child whose parent is already gone
         for (int n = i.children.size() - 1; n >= 0; n--) destroy(i.children.get(n));
 
         if (i.destroying != null) i.destroying.fire(i);
@@ -174,7 +170,6 @@ public final class Instances {
         if (i.changed != null) i.changed.fire(p);
     }
 
-    // the writes that change where a thing is or how big
     private static boolean moves(PropertyDef p) {
         String name = p.name();
         return name.equals("cframe") || name.equals("size") || name.equals("pivot");

@@ -15,7 +15,6 @@ import java.util.Map;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaState;
 
-// what a body can be asked about itself and about others
 public final class BodyMethods {
 
     private BodyMethods() {}
@@ -30,7 +29,6 @@ public final class BodyMethods {
             s.pushNumber(PlayerQueries.position(body(s)).sub(PlayerQueries.position(other(s, 2))).lengthSq());
             return 1;
         });
-        // whether nothing solid stands between this body's eyes and the other, within range when given
         methods.put("canSee", s -> {
             Character me = body(s);
             Instance them = other(s, 2);
@@ -58,12 +56,10 @@ public final class BodyMethods {
             s.pushBoolean(me.velocity.lengthSq() > 0.01 || me.moveSpeed > 0.05 || stateOf(me) == HumanoidState.RUNNING);
             return 1;
         });
-        // where the head points, in the world
         methods.put("lookDirection", s -> {
             Values.push(s, look(body(s)));
             return 1;
         });
-        // whether the other is within maxAngle degrees of where this body looks
         methods.put("facing", s -> {
             Character me = body(s);
             Vec3 to = PlayerQueries.position(other(s, 2)).sub(PlayerQueries.position(me));
@@ -82,9 +78,6 @@ public final class BodyMethods {
     }
 
     static Vec3 look(Character body) {
-        // the model's angles, so both are negated the way Pose negates them for the head: a head turned right
-        // by the game is a negative turn about up in our frame. adding it instead aimed a still player up to
-        // a hundred degrees off whenever the body lagged the head
         Quat turn = Transforms.world(body).rotation()
                 .mul(Quat.axisAngle(Vec3.UP, -body.lookYaw))
                 .mul(Quat.axisAngle(Vec3.RIGHT, -body.lookPitch));

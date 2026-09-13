@@ -52,11 +52,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import org.jspecify.annotations.Nullable;
 
-// the character instance drives the player's movement profile
-//
-// a place states metres and seconds and bkun states the same numbers per tick, so every field
-// crossing here is divided by the tick rate. getting that wrong is a character that walks at
-// twenty times the speed it asked for, which reads as a physics bug rather than a units one
 public final class Characters {
 
     private static final double TICKS = 20.0;
@@ -105,15 +100,8 @@ public final class Characters {
     private static final PropertyDef HURT = Classes.CHARACTER.property("hurt");
     private static final PropertyDef EARS = Classes.APPEARANCE.property("ears");
 
-    // the properties the profile is built from, which is every one the class adds to a spatial.
-    // a pose write is not one of them, and follow makes one of those every tick: pushing the
-    // profile for it syncs the whole thing to the client twenty times a second
-
-
     private final Map<UUID, Integer> bound = new HashMap<>();
 
-    // the server's boxes, whose groups a profile names. the profile is built here and synced, and the
-    // colliders keep the groups because they already follow every change a group makes
     private final Colliders boxes;
 
     Characters(Colliders boxes) {
@@ -126,7 +114,6 @@ public final class Characters {
 
     public MovementProfile profileOf(Character character) {
         Humanoid living = Rig.humanoid(character);
-        // a body with nothing living in it does not move. that is a place's doing, not a fault
         if (living == null) return MovementProfile.builder().build();
         return MovementProfile.builder()
                 .gravityScale(living.gravityScale)
@@ -139,7 +126,6 @@ public final class Characters {
                 .airAcceleration(living.airAcceleration / (TICKS * TICKS))
                 .slideAcceleration(living.slideAcceleration / (TICKS * TICKS))
                 .jumpPower(living.jumpPower / TICKS)
-                // a drag is what a second leaves you with, and it compounds every tick
                 .airDrag(Math.pow(living.airDrag, 1.0 / TICKS))
                 .fallDrag(Math.pow(living.fallDrag, 1.0 / TICKS))
                 .stepHeight(living.stepHeight)
@@ -153,16 +139,8 @@ public final class Characters {
                 .build();
     }
 
-    // where the tree says a character is. the entity is authority, this is the view of it a
-    // place reads, written once a tick from the same place everything else is
     public static void place(Character character, Vec3 position, double yawDegrees) {
-        // the body faces where the player does. minecraft's yaw is the opposite way round from a
-        // right handed turn and its zero looks down +z, which is half a turn from our forward
         double yaw = Math.PI - Math.toRadians(yawDegrees);
-        // stated in the world, written where the body actually hangs
-        //
-        // a body riding something hangs off it, and a frame is a local one. writing a world frame
-        // into it would put the body on the far side of wherever its parent happens to be
         Instances.setObj(character, CFRAME, Transforms.localFor(character,
                 new CFrame(position, Quat.euler(0, yaw, 0))));
     }
@@ -174,26 +152,11 @@ public final class Characters {
             if (player == null || !(tree.byId(entry.getValue()) instanceof Character character)) {
                 continue;
             }
-            // first, because where the body hangs decides what a frame written into it means
             ride(character, player, tree, shapes);
             drive(character, player);
         }
     }
 
-    // hang a bound body off whatever it is standing on
-    //
-    // the tree already is the transform hierarchy and replication already follows it, so the parent
-    // is the answer that costs nothing new
-    //
-    // and it is the whole fix rather than a correction. hung off the deck, the body's own frame is
-    // not moving while it stands there, and interpolating something that is not moving is exact --
-    // the arc comes out of the deck's rotation being interpolated as a rotation. a body left at the
-    // top of the tree is interpolated in a straight line through the world, which for anything being
-    // carried round is the chord of an arc: right at both ends of a tick, wrong in the middle, and
-    // wrong again twenty times a second
-    //
-    // the server owns this. the client writes its own body's position a tick or two ahead of the
-    // wire, but it reads the parent from it -- two writers deciding where a body hangs would flap
     public void ride(Character character, Entity player, InstanceTree tree, SubLevels shapes) {
         Instance want = tree.root();
         SubLevelEntity deck = SubLevelTracking.of(player);
@@ -203,7 +166,6 @@ public final class Characters {
         }
         if (want == null || want == character || character.parent() == want) return;
 
-        // hanging it somewhere else does not move it
         CFrame world = Transforms.world(character);
         Instances.reparent(character, want);
         Instances.setObj(character, CFRAME, Transforms.localFor(character, world));
@@ -214,15 +176,6 @@ public final class Characters {
     private static final PropertyDef CAPE_LEAN = Classes.CAPE.property("lean");
     private static final PropertyDef CAPE_SWAY = Classes.CAPE.property("sway");
 
-    // how a cape hangs, which is not animated at all
-    //
-    // the game drags a second, lagging position behind the player and reads the gap between the
-    // two. that one vector is the whole effect: a cape lifts when you fall, flares out when you
-    // run, and swings to the side when you turn, and nobody keyframed any of it
-    //
-    // client only, because the lagging position is. a cape is a thing this client can see and the
-    // server has no opinion about -- so a place on the server that writes these is overwritten on
-    // the next frame, and a place on the client is not
     public static void dress(Character character, AbstractClientPlayer wearer, float partialTick) {
         if (!(character.child("torso") instanceof Instance torso)) return;
         if (!(torso.child(Rig.CAPE) instanceof Cape cape)) return;
@@ -235,17 +188,13 @@ public final class Characters {
         double deltaZ = state.getInterpolatedCloakZ(partialTick)
                 - Mth.lerp(partialTick, wearer.zo, wearer.getZ());
 
-        // the direction the body faces, not the direction it is looking
         float facing = Mth.rotLerp(partialTick, wearer.yBodyRotO, wearer.yBodyRot);
         double forwardX = Mth.sin(facing * (float) (Math.PI / 180.0));
         double forwardZ = -Mth.cos(facing * (float) (Math.PI / 180.0));
 
-        // under a wing the lean is given up: the cape is the wing, and leaning it as well would
-        // fold it into the back
         double wing = Mth.clamp(character.flyingTime * character.flyingTime / 100.0, 0.0, 1.0);
 
         double flap = Mth.clamp(deltaY * 10.0, -6.0, 32.0)
-                // and the bob of a walk on top, which is what makes it ripple rather than trail
                 + Math.sin(state.getInterpolatedWalkDistance(partialTick) * 6.0) * 32.0
                         * state.getInterpolatedBob(partialTick);
         double lean = Mth.clamp((deltaX * forwardX + deltaZ * forwardZ) * 100.0 * (1.0 - wing),
@@ -257,40 +206,21 @@ public final class Characters {
         Instances.setNum(cape, CAPE_SWAY, sway);
     }
 
-    // whether this body's sheet draws slim arms, written where every reader can see it
-    //
-    // the renderer used to work it out privately from the player's skin and narrow the arm on the
-    // way to the batch. so the arm was drawn three texels wide while the tree still said four, and
-    // the hand that holds a sword, and a ray reaching for that arm, both used the four
     public static void fit(Character character, AbstractClientPlayer wearer) {
         if (!(Rig.appearance(character) instanceof Appearance look)) return;
         Instances.setBool(look, SLIM, wearer.getSkin().model() == PlayerModelType.SLIM);
     }
 
-    // where a body is and how it is standing, from the player it belongs to. the client drives
-    // your own through here too, off its own player: the state that went to the server and came
-    // back is several ticks old, and a body that walks after you do is not the same body
     public static void drive(Character character, Player player) {
-        // the game's own volume comes off the body now, so it has to be told when the body changed.
-        // nothing else tells it: a pose change refreshes the box and growing is not a pose change,
-        // so a body that doubled kept the box it had and could only be hit in the shins
         if (Math.abs(player.getBbWidth() - character.radius * 2) > 1e-4
                 || Math.abs(player.getBbHeight() - character.height) > 1e-4) {
             player.refreshDimensions();
         }
-        // the body faces where the body faces, which is not where the player is looking. yRot is
-        // the aim; yBodyRot lags it and only gets dragged round once the head has turned far
-        // enough or the player walks. driving the body from the aim instead snapped it to the
-        // mouse and left the head with nothing to turn against
-        //
-        // asleep it faces neither: the model throws the body's yaw away and lies it along the
-        // bed, so the bed's heading goes on the frame in place of it rather than on top of it
         double heading = player.isSleeping() ? 180.0f - bedAngle(player) : player.yBodyRot;
         place(character, new Vec3(player.getX(), player.getY(), player.getZ()), heading);
         animation(character, player);
     }
 
-    // the four the model states, by name rather than by ordinal
     private static float bedAngle(Player player) {
         Direction bed = player.getBedOrientation();
         if (bed == null) return 180.0f - player.yBodyRot;
@@ -303,11 +233,7 @@ public final class Characters {
         };
     }
 
-    // the four numbers a body is animated from, rather than the six transforms they produce.
-    // the client evaluates the same pose from the same state, which is what keeps a limb off the
-    // wire twenty times a second and what lets the server rewind one for a hit test
     private static void animation(Character character, Player player) {
-        // the head turns against the body, and the game has already clamped how far it may
         double relative = Math.toRadians(Mth.wrapDegrees(player.getYHeadRot() - player.yBodyRot));
         Instances.setNum(character, LOOK_PITCH, Math.toRadians(player.getXRot()));
         Instances.setNum(character, LOOK_YAW, relative);
@@ -315,8 +241,6 @@ public final class Characters {
         Instances.setNum(character, MOVE_SPEED, Math.min(1.0, player.walkAnimation.speed()));
         Instances.setBool(character, CROUCHING, player.isCrouching());
 
-        // the swing runs backward in the entity: attackAnim counts down from one as the arm
-        // returns, and the model reads it as how far through the swing the arm is
         Instances.setNum(character, ATTACK_TIME, player.getAttackAnim(1.0f));
         Instances.setBool(character, ATTACK_LEFT, player.getMainArm() == HumanoidArm.LEFT);
         Instances.setNum(character, SWIM_AMOUNT, player.getSwimAmount(1.0f));
@@ -334,7 +258,6 @@ public final class Characters {
         Instances.setBool(character, CRAWLING, player.isVisuallySwimming());
         Instances.setBool(character, SPINNING, player.isAutoSpinAttack());
         Instances.setBool(character, FROZEN, player.isFullyFrozen());
-        // the same condition the model washes a body red on: still bleeding, or already down
         Instances.setBool(character, HURT, player.hurtTime > 0 || player.deathTime > 0);
         if (Rig.appearance(character) instanceof Appearance look) {
             Instances.setBool(look, EARS, "deadmau5".equals(player.getGameProfile().name()));
@@ -360,9 +283,6 @@ public final class Characters {
             head(worn, player);
         }
 
-        // the wings are worn, which is not the same as being flown on. and where they are held
-        // is smoothed on the entity rather than derived here: the game eases them toward a
-        // target at 0.3 a tick, so they open over half a second instead of snapping out
         if (Rig.wings(character) instanceof Wings pair) {
             Instances.setBool(pair, WORN,
                     player.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA));
@@ -373,8 +293,6 @@ public final class Characters {
         }
     }
 
-    // what each arm is doing, chosen the way the model chooses it: a two handed main hand takes
-    // the off hand over, and an empty off hand behind one is simply empty
     private static ArmPose armPose(Player player, HumanoidArm arm) {
         ItemStack main = player.getItemInHand(InteractionHand.MAIN_HAND);
         ItemStack off = player.getItemInHand(InteractionHand.OFF_HAND);
@@ -384,7 +302,6 @@ public final class Characters {
         return player.getMainArm() == arm ? mainPose : offPose;
     }
 
-    // the stack in the hand on that side, which is the main hand only for a right handed player
     public static ItemStack handOf(Player player, HumanoidArm arm) {
         return player.getItemInHand(player.getMainArm() == arm ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
     }
@@ -414,8 +331,6 @@ public final class Characters {
         return ArmPose.ITEM;
     }
 
-    // the model keeps ticks used and a maximum and reads nothing but their ratio, so that is what
-    // crosses rather than two numbers that only mean something together
     private static double charge(Player player) {
         ItemStack held = player.getUseItem();
         if (held.isEmpty() || !held.is(Items.CROSSBOW)) return 0;
@@ -425,10 +340,6 @@ public final class Characters {
         return Math.max(0, Math.min(1, used / max));
     }
 
-    // a skull worn on the head, which the game draws as a box of its own rather than as armour
-    //
-    // only the five it has a box for. a pumpkin or any other block worn up there is a block model
-    // and not a box, so it is left to whatever draws blocks
     private static void head(Armour worn, Player player) {
         ItemStack hat = player.getItemBySlot(EquipmentSlot.HEAD);
         SkullBlock.Type type = hat.getItem() instanceof BlockItem block
@@ -447,9 +358,6 @@ public final class Characters {
                     layered = true;
                 }
                 case PLAYER -> {
-                    // whose head it is lives in the item's profile and is resolved by a skin
-                    // cache the server has no part of. this is the face every unresolved one
-                    // falls back to, named rather than fetched so this class stays on both sides
                     texture = "minecraft:textures/entity/player/wide/steve.png";
                     layered = true;
                 }
@@ -460,11 +368,6 @@ public final class Characters {
         Instances.setBool(worn, ARMOUR_HAT_LAYERED, layered);
     }
 
-    // the sheet a slot is wearing, by the name the equipment itself carries
-    //
-    // the item does not name a texture, it names an asset -- "iron" -- and the path is built from
-    // that and the shape it is worn on. legs have their own folder because leggings are drawn a
-    // half texel out rather than a whole one
     private static String plate(Player player, EquipmentSlot slot, String shape) {
         ItemStack worn = player.getItemBySlot(slot);
         Equippable kit = worn.get(DataComponents.EQUIPPABLE);
@@ -474,10 +377,7 @@ public final class Characters {
                 "textures/entity/equipment/" + shape + "/" + name + ".png").toString();
     }
 
-    // how far the body is banking under a wing: the angle between where it is going and where it
-    // is looking, signed by which side it is turning toward
     private static double flyingYaw(Player player) {
-        // net.minecraft.world.phys.Vec3 against ours, the one clash 20.1 allows for
         net.minecraft.world.phys.Vec3 look = player.getViewVector(1.0f);
         net.minecraft.world.phys.Vec3 move = player.getDeltaMovement();
         if (move.horizontalDistanceSqr() <= 1.0E-5 || look.horizontalDistanceSqr() <= 1.0E-5) {
@@ -490,7 +390,6 @@ public final class Characters {
 
     public void bind(ServerPlayer player, Character character) {
         bound.put(player.getUUID(), character.id());
-        // the client finds whose skin this body wears by asking the level for this player
         Instances.setObj(character, OWNER, player.getUUID().toString());
         Physics.setProfile(player, profileOf(character));
     }
@@ -505,13 +404,7 @@ public final class Characters {
         return tree.byId(id) instanceof Character character ? character : null;
     }
 
-    // a place that writes walkSpeed in stepped expects to walk faster on the next tick, so the
-    // profile is pushed again from the same change stream everything else follows
-    //
-    // the player is looked up rather than held: a respawn hands out a new ServerPlayer and a
-    // stored one goes on taking writes nobody can see
     public void apply(InstanceTree source, Change change, MinecraftServer server) {
-        // a group that changed changes every body's filter, so every bound body is pushed again
         if (boxes.groupsChanged()) {
             for (Map.Entry<UUID, Integer> entry : bound.entrySet()) {
                 ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
@@ -527,9 +420,6 @@ public final class Characters {
             return;
         }
         if (!(change instanceof Change.Wrote wrote)) return;
-        // the profile lives on the humanoid now, so a write that changes how a body moves is a
-        // write to that. which character it belongs to is its parent -- the tree already says so,
-        // and asking it is cheaper than keeping a second map that can disagree with the first
         if (!(source.byId(wrote.id()) instanceof Humanoid living)
                 || !(living.parent() instanceof Character character)) {
             return;

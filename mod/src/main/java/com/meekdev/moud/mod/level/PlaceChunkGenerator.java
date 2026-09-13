@@ -41,8 +41,6 @@ public final class PlaceChunkGenerator extends ChunkGenerator {
         this(biome, null);
     }
 
-    // terrain is read once here rather than per chunk, because generation runs on worker threads
-    // and it is a load time switch, not a live one
     public PlaceChunkGenerator(Holder<Biome> biome, @Nullable PolarWorld place) {
         super(new FixedBiomeSource(biome));
         this.biome = biome;

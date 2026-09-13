@@ -6,7 +6,6 @@ import com.meekdev.moud.script.vm.Vm;
 import java.io.IOException;
 import java.nio.file.Path;
 
-// the one the engine ships with
 public final class Luau implements ScriptLanguage {
 
     @Override

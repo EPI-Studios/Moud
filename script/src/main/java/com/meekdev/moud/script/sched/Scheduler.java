@@ -9,8 +9,6 @@ import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaStatus;
 
-// task.wait has to yield, and a java frame cannot, so the waiting half is luau and the parking
-// half is here. one place decides when a coroutine runs again
 public final class Scheduler {
 
     private final LuaState main;
@@ -51,7 +49,6 @@ public final class Scheduler {
             }
         }
         if (ready == null) return;
-        // resumed outside the walk, because a resumed task may spawn or cancel another
         for (Task task : ready) resume(task);
     }
 
@@ -81,7 +78,6 @@ public final class Scheduler {
         return 0;
     }
 
-    // a function started as its own coroutine, running as owner, with args already on its stack
     public void start(LuaState thread, int ref, int args, Object owner) {
         Task task = new Task(nextId++, ref, thread, owner);
         Ownership.of(main).onRelease(owner, () -> stop(task));

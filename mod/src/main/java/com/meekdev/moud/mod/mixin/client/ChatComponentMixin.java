@@ -15,8 +15,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// while a place runs, the game's chat keeps its input and history but not its window: messages go to
-// our chat, which draws them, and the game's drawing call is where the items and tooltips go in
 @Mixin(ChatComponent.class)
 abstract class ChatComponentMixin {
 

@@ -16,11 +16,9 @@ import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import org.jspecify.annotations.Nullable;
 
-// store on a sqlite file in the world folder: one table of values, one of leases
 public final class SqliteStore implements StoreRef {
 
     private final Supplier<@Nullable Path> folder;
-    // fresh each run, so a lease this server held before a crash is not mistaken for its own
     private final String owner = UUID.randomUUID().toString();
     private @Nullable Connection connection;
 
@@ -170,7 +168,6 @@ public final class SqliteStore implements StoreRef {
         try {
             connection.close();
         } catch (SQLException ignored) {
-            // closing on the way out has nobody left to tell
         }
         connection = null;
     }

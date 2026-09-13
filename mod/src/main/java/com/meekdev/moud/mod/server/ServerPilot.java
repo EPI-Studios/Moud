@@ -14,7 +14,6 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
-// walking and jumping a player's own body, by telling their client to do it
 public final class ServerPilot implements Walkers.Pilot {
 
     public static final ServerPilot INSTANCE = new ServerPilot();
@@ -67,7 +66,6 @@ public final class ServerPilot implements Walkers.Pilot {
                 ServerPlayNetworking.send(player, payload);
             }
         } catch (IllegalArgumentException notAPlayer) {
-            // a place's own character, which the engine walks itself
         }
     }
 }

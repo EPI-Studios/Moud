@@ -12,14 +12,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 
-// the place's own sound files, under ids the audio engine can cache them by
 final class PlaceSounds implements SoundSource {
 
-    // the engine reads from its own thread
     private final Map<Identifier, String> places = new ConcurrentHashMap<>();
     private final Set<String> missing = new HashSet<>();
 
-    // the id a sound plays under, or null when it names nothing that exists. says so once per name
     @Nullable Identifier id(String soundId) {
         if (soundId.isEmpty()) return null;
         if (soundId.startsWith(Res.SCHEME)) {

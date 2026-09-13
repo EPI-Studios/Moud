@@ -64,30 +64,15 @@ public final class MoudServer {
         ServerScene.stop();
     }
 
-    // the place ticks where its tree lives, which is the only thread allowed to write it, and
-    // before the levels do
-    //
-    // 7.5 puts the stepped signal at 3 and the bkun step at 4, and the end of the server tick is
-    // past both: bkun's sub level tick runs inside tickChildren, so on the end hook it copied the
-    // body to the entity before the script had said where the part was this tick. what was drawn
-    // came from the part and what was collided against came from the entity, one whole tick apart
-    // -- which at seven metres and 2.6 rad/s is most of a block of the deck sitting inside you
     private static void tick(MinecraftServer server) {
         if (place == null) return;
         if (place.pollReload()) respawnAll(server);
-        // taken once: the clock advances when it is read, so a second read is a second tick as
-        // far as anything measuring seconds is concerned
         double dt = TICK.tick();
         ScriptEngine vm = place.vm();
         if (vm != null) vm.step(dt);
-        // after the place has written, before the drain: a body reshaped this tick crosses with
-        // the write that reshaped it rather than a tick behind it
-        // life and the walking come before the rig, because a body that walked this tick is at
-        // a different place and the rig has to settle it there
         Humanoids.follow(ServerScene.tree(), dt);
         Rig.follow(ServerScene.tree());
         Stages.run(ServerScene.tree(), Stage.COMPOSE, 0);
-        // once every frame of the tick has settled, so a touch is between where things really are
         Touches.step(ServerScene.tree());
         Zones.step(ServerScene.tree(), Addons.classes(), System.nanoTime() / 1e9);
         ServerChat.INSTANCE.zones(ServerScene.tree());
@@ -96,19 +81,14 @@ public final class MoudServer {
             ServerHistory.INSTANCE.note(ServerScene.tree(), change);
         });
         Physics.settle();
-        // before anything else this tick: a place that hears a client and then steps is a place that
-        // acts on this tick's input rather than on last tick's
         Post.drainToServer(ServerScene.tree());
         ServerChat.INSTANCE.tick(server);
         ServerPrompts.tick(server);
         ServerPilot.tick(server);
         Physics.bodies().follow(server, ServerScene.tree(), Physics.shapes());
-        // last, once everything this tick has put itself where it is going to be
         ServerHistory.INSTANCE.record(ServerScene.tree());
     }
 
-    // every player gets a character, because a place that never mentions one still has to be
-    // walkable. it lives in the tree like anything else, so a place tunes it by writing to it
     private static void spawn(ServerPlayer player) {
         Instance world = ServerScene.world();
         if (place == null || world == null) return;
@@ -126,9 +106,6 @@ public final class MoudServer {
         if (vm != null) vm.joined(new JoinedPlayer(player));
     }
 
-    // a reload destroys everything under the world, characters included, and the fresh vm has
-    // never seen anyone join. so everyone connected joins again: a new character, a new profile,
-    // and the place's own joined handler deciding where they land
     private static void respawnAll(MinecraftServer server) {
         for (ServerPlayer player : List.copyOf(server.getPlayerList().getPlayers())) {
             Physics.bodies().release(player);
@@ -136,8 +113,6 @@ public final class MoudServer {
         }
     }
 
-    // the character goes with the player, or a place that has been joined a hundred times holds
-    // a hundred of them
     private static void leave(ServerPlayer player) {
         ScriptEngine vm = place == null ? null : place.vm();
         if (vm != null) vm.leaving(new JoinedPlayer(player));
@@ -145,8 +120,6 @@ public final class MoudServer {
         Character character = Physics.bodies().of(player, ServerScene.tree());
         Physics.bodies().release(player);
         if (character != null) Instances.destroy(character);
-        // and the copy they held. they come back through a fresh one and hear the whole place again,
-        // which is right: nothing says the place they left is the place they will come back to
         Broadcast.forget(player.getUUID());
     }
 }

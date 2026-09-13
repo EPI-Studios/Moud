@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
-// engine luau lives in files under resources, never as a string in a java class
 public final class Luau {
 
     private Luau() {}

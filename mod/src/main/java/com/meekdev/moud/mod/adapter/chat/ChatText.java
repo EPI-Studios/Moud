@@ -14,8 +14,6 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.Identifier;
 
-// rich text as the game's own text and back, for what the game draws itself: tooltips, and the chat of a
-// player without the mod
 public final class ChatText {
 
     private ChatText() {}
@@ -64,7 +62,6 @@ public final class ChatText {
         return style;
     }
 
-    // the game's text as markup, keeping its colours, styles, links and hover text
     public static String markup(Component component) {
         StringBuilder out = new StringBuilder();
         component.visit((style, text) -> {

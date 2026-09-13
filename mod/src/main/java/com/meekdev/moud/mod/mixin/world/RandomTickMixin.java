@@ -9,9 +9,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// suppresses the random tick, which follows terrain
-// it had an off switch while the switches were gamerules and lost it when they became mixins,
-// so every loaded section was still being walked for grass, ice and crops in a place with none
 @Mixin(ServerLevel.class)
 abstract class RandomTickMixin {
 

@@ -5,13 +5,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-// a chat command a place answers, like /kick or /team. on the server
 public final class ChatCommand extends Instance {
 
-    // the words that run it, separated by spaces or commas, like "/team /t"
     public String triggers = "";
 
-    // who typed it, the whole line, and the words after the trigger
     public record Invoked(Instance body, String text, List<String> args) {}
 
     public final Signal<Invoked> invoked = new Signal<>();
@@ -26,7 +23,6 @@ public final class ChatCommand extends Instance {
         return out;
     }
 
-    // the words after the trigger when this line runs this command, or null when it does not
     public List<String> match(String line) {
         String body = line.startsWith("/") ? line.substring(1) : line;
         String[] parts = body.trim().split("\\s+");

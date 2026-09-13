@@ -12,9 +12,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// suppresses sky and stars
-// the void dimension already asks for no skybox, this is what makes the switch live rather than
-// something you can only change by reloading the level
 @Mixin(SkyRenderer.class)
 abstract class SkyMixin {
 

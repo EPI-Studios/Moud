@@ -8,8 +8,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// suppresses blockEntities
-// they still exist as data in the place, they just never tick, so a chest is a block and nothing more
 @Mixin(Level.class)
 abstract class BlockEntitiesMixin {
 

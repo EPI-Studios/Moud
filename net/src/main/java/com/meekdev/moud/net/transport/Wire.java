@@ -12,27 +12,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-// what may cross the boundary, and what happens to what may not
-//
-// numbers, text, flags, nothing, the math types, an instance, and tables of those. anything else is
-// refused by name rather than turned into nil on the far side, which is a bug that ships because
-// neither side is ever told
 public final class Wire {
 
-    // sixteen is more than anything sane sends and it bounds the work a hostile client can ask for
     public static final int MAX_ARGS = 16;
 
-    // a table inside a table inside a table is already a design smell; eight is far past it
     public static final int MAX_DEPTH = 8;
 
-    // total values in one delivery, counting into tables. a payload is gameplay, not a file
     public static final int MAX_VALUES = 256;
 
     private Wire() {}
 
-    // an instance crosses as the id it is, resolved on the far side, which is what a REF property
-    // already does. a local instance has a negative id and does not exist over there, so sending one
-    // is a mistake rather than a nil
     public record Ref(int id) {}
 
     public static List<Object> pack(List<Object> args) {
@@ -48,8 +37,6 @@ public final class Wire {
         return packed;
     }
 
-    // the far side's copy. a table arrives as a new table: the identity does not cross, only the shape
-    // and the contents
     public static List<Object> unpack(List<Object> packed, InstanceTree into) {
         List<Object> args = new ArrayList<>(packed.size());
         for (Object value : packed) args.add(resolve(value, into));
@@ -94,7 +81,6 @@ public final class Wire {
             }
             Map<String, Object> copy = new LinkedHashMap<>(map.size() * 2);
             for (Map.Entry<?, ?> entry : map.entrySet()) {
-                // coercing the key to text would turn one table into a different one without saying so
                 if (!(entry.getKey() instanceof String key)) {
                     throw new IllegalArgumentException(where + " has a key that is not text: "
                             + entry.getKey() + ". a table that crosses is a list or is keyed by text");
@@ -110,8 +96,6 @@ public final class Wire {
 
     private static Object resolve(Object what, InstanceTree into) {
         if (what instanceof Ref ref) {
-            // gone by the time it landed is not an error: it is the ordinary race between one side
-            // destroying something and the other hearing about it
             return into == null ? null : into.byId(ref.id());
         }
         if (what instanceof List<?> list) {

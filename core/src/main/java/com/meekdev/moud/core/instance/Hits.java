@@ -3,7 +3,6 @@ package com.meekdev.moud.core.instance;
 import com.meekdev.moud.core.math.Vec3;
 import java.util.function.Predicate;
 
-// the first part a ray runs into
 public final class Hits {
 
     public record Hit(Part part, Vec3 at, double distance) {}

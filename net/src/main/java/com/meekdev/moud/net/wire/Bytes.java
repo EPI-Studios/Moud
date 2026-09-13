@@ -3,18 +3,12 @@ package com.meekdev.moud.net.wire;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-// a growable byte buffer with the handful of encodings §9.1 names, and a reader for the same
-//
-// written by hand rather than over a ByteBuffer because two of these matter and neither is a
-// ByteBuffer primitive: a varint, so a small number costs one byte instead of four, and a bit block,
-// so a flag costs a bit instead of a byte. a tree's delta is mostly small numbers and flags
 public final class Bytes {
 
     private byte[] data;
     private int size;
     private int at;
 
-    // a bit block being filled: where it starts in the array, and how many bits are in it
     private int blockAt = -1;
     private int blockBits;
 
@@ -61,8 +55,6 @@ public final class Bytes {
         return data[at++] & 0xFF;
     }
 
-    // seven bits at a time, high bit set while there is more. a property index, an instance id and a
-    // dirty mask are all small in the ordinary case and cost one byte each
     public void varint(long value) {
         long left = value;
         while ((left & ~0x7FL) != 0) {
@@ -84,7 +76,6 @@ public final class Bytes {
         }
     }
 
-    // a signed number with small magnitudes costing little, which is what a delta of anything is
     public void zigzag(long value) {
         varint((value << 1) ^ (value >> 63));
     }
@@ -108,8 +99,6 @@ public final class Bytes {
         return Float.intBitsToFloat(bits);
     }
 
-    // the whole double, for the one case where rounding it would be a lie: a number a place sent
-    // down a channel. §9.1 spends float32 on a property because a property is a per tick stream
     public void f64(double value) {
         long bits = Double.doubleToLongBits(value);
         for (int shift = 0; shift < 64; shift += 8) u8((int) (bits >>> shift));
@@ -149,10 +138,6 @@ public final class Bytes {
         return value;
     }
 
-    // a run of flags, one bit each, in whatever order they were added
-    //
-    // the block is opened lazily and grows a byte at a time, so however many flags an instance's
-    // delta carries it costs ceil(n/8) bytes rather than n
     public void flag(boolean value) {
         if (blockAt < 0 || blockBits == 8) {
             room(1);
@@ -164,8 +149,6 @@ public final class Bytes {
         blockBits++;
     }
 
-    // a block ends when anything else is written, and the writer has to say so: a flag written after
-    // a value belongs to a new block, and a reader counting bits has to agree about where
     public void endFlags() {
         blockAt = -1;
         blockBits = 0;

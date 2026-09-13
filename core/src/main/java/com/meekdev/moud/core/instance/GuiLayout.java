@@ -6,16 +6,12 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-// where each rectangle of an interface goes, and which plane a surface of one lies on
 public final class GuiLayout {
 
-    // pixels, y down, from the top left of the surface
     public record Box(double x, double y, double w, double h) {}
 
-    // a flat rectangle in the world. right and up are how its reader sees it
     public record Plane(Vec3 centre, Vec3 right, Vec3 up, double width, double height) {}
 
-    // clears the face of the part by a hair so the two never fight over the same depth
     public static final double LIFT = 0.002;
 
     private GuiLayout() {}
@@ -28,7 +24,6 @@ public final class GuiLayout {
         return new Box(x, y, w, h);
     }
 
-    // back to front: lowest zIndex first, ties in the order they were added
     public static List<GuiObject> drawOrder(Instance parent) {
         List<GuiObject> order = new ArrayList<>();
         for (Instance child : parent.children()) {
@@ -38,8 +33,6 @@ public final class GuiLayout {
         return order;
     }
 
-    // the font a label is drawn in: its own, or the nearest one set on anything it sits inside.
-    // empty means nobody chose one
     public static String font(TextLabel label) {
         for (Instance at = label; at != null; at = at.parent()) {
             String chosen = switch (at) {
@@ -54,7 +47,6 @@ public final class GuiLayout {
         return "";
     }
 
-    // what a billboard or surface is stuck to: its adornee, or failing that its parent
     public static Instance adornee(Instance gui) {
         Instance chosen = switch (gui) {
             case BillboardGui billboard -> billboard.adornee;
@@ -64,7 +56,6 @@ public final class GuiLayout {
         return chosen != null && chosen.isAlive() ? chosen : gui.parent();
     }
 
-    // one face of a box whose middle is at world, sized size
     public static Plane face(CFrame world, Vec3 size, SurfaceFace face) {
         Vec3 x = world.rotation().rotate(Vec3.RIGHT);
         Vec3 y = world.rotation().rotate(Vec3.UP);

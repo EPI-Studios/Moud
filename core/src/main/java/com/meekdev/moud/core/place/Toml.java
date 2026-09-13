@@ -5,8 +5,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-// the part of toml a place file uses: tables, dotted keys, strings, numbers, booleans and arrays.
-// values come back as String, Long, Double, Boolean, List and Map
 public final class Toml {
 
     private final String text;

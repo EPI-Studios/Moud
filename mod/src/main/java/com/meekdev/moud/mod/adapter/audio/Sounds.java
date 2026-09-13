@@ -21,10 +21,8 @@ import java.util.Optional;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 
-// plays the sound instances this client holds, and applies the bus instances to the mix
 public final class Sounds {
 
-    // what this client is doing with one sound
     private static final class Voice {
         @Nullable SoundHandle handle;
         int plays;
@@ -60,7 +58,6 @@ public final class Sounds {
                 voice.handle.stop();
                 voice.handle = null;
             }
-            // wanted for the first time, or asked again while already wanted
             if (sound.playing && (!voice.wanted || sound.plays != voice.plays)) {
                 if (voice.handle != null) voice.handle.stop();
                 voice.handle = start(sound, at);
@@ -77,7 +74,6 @@ public final class Sounds {
                 sound.ended.fire(sound);
                 continue;
             }
-            // only pushed when a place changed them, so a fade in is not cut short every frame
             if (sound.volume != voice.volume) voice.handle.setVolume((float) sound.volume);
             if (sound.pitch != voice.pitch) voice.handle.setPitch((float) sound.pitch);
             voice.volume = sound.volume;
@@ -94,7 +90,6 @@ public final class Sounds {
         }
     }
 
-    // the nearest thing above it with a position, which is where it plays from
     private static @Nullable Instance anchor(Sound sound) {
         for (Instance at = sound.parent(); at != null; at = at.parent()) {
             if (at instanceof Spatial && at.parent() != null) return at;

@@ -1,4 +1,3 @@
--- watching two things come near each other and split up, and how loud something is from far away
 
 local proximity = game.proximity
 
@@ -21,7 +20,6 @@ local function newSignal()
     return signal
 end
 
--- a watcher with entered and left, checked every step while it lives. stop() ends it
 function proximity:watch(a, b, range)
     local watcher = { entered = newSignal(), left = newSignal(), near = false }
     local limit = range * range
@@ -51,8 +49,6 @@ function proximity:watch(a, b, range)
     return watcher
 end
 
--- a volume from 0 to 1 at a distance: full inside min, silent past max, falling off in between. rolloff
--- above 1 drops faster near the start
 function proximity.falloff(distance, min, max, rolloff)
     if distance <= min then
         return 1

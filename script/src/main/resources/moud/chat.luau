@@ -1,12 +1,6 @@
--- the delivery helpers a place hands to a channel's shouldDeliver
---
---   general.shouldDeliver = game.chat.within(30)
---   team.shouldDeliver = game.chat.all(game.chat.within(80), function(message, source) ... end)
 
 local chat = game.chat
 
--- a message reaches players whose body is within range metres of where the sender stood. a message with
--- no sender, or a player with no body, is let through
 function chat.within(range)
     local limit = range * range
     return function(message, source)
@@ -21,7 +15,6 @@ function chat.within(range)
     end
 end
 
--- every check has to pass
 function chat.all(...)
     local checks = { ... }
     return function(message, source)
@@ -34,7 +27,6 @@ function chat.all(...)
     end
 end
 
--- any one check is enough
 function chat.any(...)
     local checks = { ... }
     return function(message, source)
@@ -47,7 +39,6 @@ function chat.any(...)
     end
 end
 
--- how far the sender stood from this player, or nil when either has no body
 function chat.distance(message, source)
     local from = message.position
     local body = source and source.body
@@ -57,7 +48,6 @@ function chat.distance(message, source)
     return (body.position - from).magnitude
 end
 
--- within range, and nothing solid between the two bodies: walls stop voices
 function chat.audible(range)
     local near = chat.within(range)
     return function(message, source)
@@ -73,7 +63,6 @@ function chat.audible(range)
     end
 end
 
--- only players whose body carries the tag hear it
 function chat.sameTag(tag)
     return function(message, source)
         local body = source and source.body

@@ -21,9 +21,6 @@ import org.joml.Vector3d;
 import org.joml.Quaternionf;
 import org.jspecify.annotations.Nullable;
 
-// bkun's collide mixin skips its providers for a ServerPlayer, because movement is client
-// authoritative and the player's own client has already resolved it. so a part is only solid to
-// the player if the client level carries the colliders too, fed from the mirror
 public final class ClientPhysics {
 
     private static final Colliders BOXES = new Colliders();
@@ -32,12 +29,6 @@ public final class ClientPhysics {
 
     private ClientPhysics() {}
 
-    // the heading the deck under a player is drawn at, in degrees, or NaN when it is standing on
-    // nothing that moves
-    //
-    // the deck's own pose, read where the frame reads it. a rider's camera is turned from this, so a
-    // shudder in it is a shudder in the view -- and the two are worth telling apart, because one is
-    // the platform arriving unevenly and the other is the turn being applied wrongly
     public static double riddenYaw() {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) return Double.NaN;
@@ -50,12 +41,6 @@ public final class ClientPhysics {
         return -Math.toDegrees(Math.atan2(-forward.z, forward.x));
     }
 
-    // everything the deck under a player is doing this frame, tab joined, for the trace
-    //
-    // it lives here because the sub-level types are the library's and only an adapter may name them.
-    // the columns are the three poses a rider is projected through -- where the deck was at the last
-    // tick, where it is at this one, and where it is being drawn -- plus where the rider sits in its
-    // frame, which is the number that has to stay still while you stand there
     public static String deckTrace(double x, double y, double z) {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) return "none\t\t\t\t\t\t\t\t\t\t\t";
@@ -95,8 +80,6 @@ public final class ClientPhysics {
 
     public static void apply(@Nullable InstanceTree tree, Change change) {
         if (tree == null) return;
-        // the client predicts against its own baked copy of these boxes, so it has to be told
-        // the set moved for the same reason the server does
         if (BOXES.apply(tree, change) && attached != null) {
             LevelPhysics physics = Bkun.physics(attached);
             if (physics != null) physics.invalidateProviders();
@@ -105,12 +88,6 @@ public final class ClientPhysics {
         drive(tree, change);
     }
 
-    // the deck a part stands for is put where the part is, on the tick the part arrives
-    //
-    // its own pose reaches here through entity data, which the tracker has already broadcast by the
-    // time the entity writes it, so it lands a tick late. the part does not: the mirror hands it
-    // over in process. measured at 4.58 degrees behind on a deck turning at 1.6 rad/s, which is
-    // exactly one tick, and half a body of deck standing where nothing is drawn
     private static void drive(InstanceTree tree, Change change) {
         ClientLevel level = attached;
         if (level == null) return;
@@ -134,8 +111,6 @@ public final class ClientPhysics {
         }
     }
 
-    // the level a client is in changes without a load event we can hold a provider across, so the
-    // attachment is rechecked each frame and moved when it differs
     public static void attach(@Nullable ClientLevel level) {
         if (level == attached) return;
         if (attached != null) Bkun.collision(attached).removeProvider(PROVIDER);

@@ -12,8 +12,6 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-// the io thread only ever sets a flag, the owning thread decides when that becomes a reload,
-// because design 8.6 says reload lands at a defined point and never mid script
 public final class Watcher implements AutoCloseable {
 
     private final AtomicBoolean dirty = new AtomicBoolean();
@@ -44,13 +42,8 @@ public final class Watcher implements AutoCloseable {
             if (key == null) continue;
             boolean touched = false;
             for (var event : key.pollEvents()) {
-                // the definitions a place writes for its editor end in .luau too, and a client starting writes
-                // them: the server reloaded every time somebody joined, and handed out new remotes the
-                // client had already looked up the old ones of
                 String file = String.valueOf(event.context());
                 if (file.endsWith(".luau") && !file.endsWith(".d.luau")) touched = true;
-                // a folder made after the watch started is not watched until it is registered, so a
-                // new lib/ full of modules would never reload anything
                 if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE
                         && key.watchable() instanceof Path parent
                         && event.context() instanceof Path name) {
@@ -90,7 +83,6 @@ public final class Watcher implements AutoCloseable {
         try {
             service.close();
         } catch (IOException ignored) {
-            // closing a watch service we are done with has nothing useful to report
         }
     }
 }

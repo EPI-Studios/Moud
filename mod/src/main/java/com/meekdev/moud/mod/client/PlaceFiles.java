@@ -8,7 +8,6 @@ import java.util.Locale;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 
-// the running place's own files, for the client adapters that load them
 public final class PlaceFiles {
 
     private PlaceFiles() {}
@@ -24,7 +23,6 @@ public final class PlaceFiles {
         }
     }
 
-    // the game only takes lowercase letters, digits and ._-/ in an id, so anything else is folded
     public static Identifier idOf(String res) {
         String path = Res.parse(res).toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9/._-]", "_");
         return Identifier.fromNamespaceAndPath("moud", "place/" + path);

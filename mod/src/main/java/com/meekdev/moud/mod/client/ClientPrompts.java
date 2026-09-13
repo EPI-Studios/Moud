@@ -27,8 +27,6 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import org.joml.Vector3fc;
 
-// the one prompt this player is closest to: shown floating over what it is on, its key read, and what
-// happens sent to the server
 public final class ClientPrompts {
 
     private static final float WIDTH = 160;
@@ -136,7 +134,6 @@ public final class ClientPrompts {
         if (prompt.id() >= 0) ClientPlayNetworking.send(new Packets.PromptUp(prompt.id(), kind));
     }
 
-    // the nearest enabled prompt in reach, and in sight when it asks to be
     static ProximityPrompt closest(InstanceTree tree, Character me) {
         Vec3 eye = Transforms.world(me).position().add(new Vec3(0, me.height * me.scale * 0.9, 0));
         ProximityPrompt best = null;

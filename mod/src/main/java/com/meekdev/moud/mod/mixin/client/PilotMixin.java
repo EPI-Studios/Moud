@@ -8,7 +8,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// the server's autopilot, over whatever the keyboard read this tick
 @Mixin(KeyboardInput.class)
 abstract class PilotMixin {
 

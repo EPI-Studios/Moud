@@ -8,7 +8,6 @@ import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.script.api.PlayerRef;
 import net.minecraft.server.level.ServerPlayer;
 
-// what a script gets when someone joins. the entity stops here
 final class JoinedPlayer implements PlayerRef {
 
     private final ServerPlayer player;
@@ -27,8 +26,6 @@ final class JoinedPlayer implements PlayerRef {
         return Physics.bodies().of(player, ServerScene.tree());
     }
 
-    // the entity is moved, not the instance: the character follows the player every tick and a
-    // write to the instance alone would be overwritten by the next one
     @Override
     public void spawn(Vec3 position) {
         player.teleportTo(position.x(), position.y(), position.z());

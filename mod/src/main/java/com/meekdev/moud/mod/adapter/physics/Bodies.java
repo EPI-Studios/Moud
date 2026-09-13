@@ -6,11 +6,6 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import org.jspecify.annotations.Nullable;
 
-// the body a player wears, from either side
-//
-// the server holds a map of its own, keyed on the uuid it bound. a mixin does not: it runs on
-// whichever side it was loaded on, and the client's answer is in the mirror. so the one thing both
-// sides can agree on is the owner written on the body
 public final class Bodies {
 
     private Bodies() {}

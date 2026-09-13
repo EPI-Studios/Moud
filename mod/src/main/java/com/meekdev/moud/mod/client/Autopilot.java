@@ -13,8 +13,6 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec2;
 
-// the server walking or jumping this player: the keys are pressed for them, toward each waypoint in turn,
-// without turning the camera. pressing a movement key takes the controls back
 public final class Autopilot {
 
     private static final Queue<Packets.PilotDown> INCOMING = new ConcurrentLinkedQueue<>();
@@ -28,7 +26,6 @@ public final class Autopilot {
         ClientPlayNetworking.registerGlobalReceiver(Packets.PilotDown.TYPE, (payload, context) -> INCOMING.add(payload));
     }
 
-    // called after the keyboard has read the keys, so what the player pressed is known
     public static void apply(ClientInput input) {
         for (Packets.PilotDown down; (down = INCOMING.poll()) != null; ) {
             switch (down.kind()) {
@@ -72,7 +69,6 @@ public final class Autopilot {
             dx = waypoint.x() - at.x();
             dz = waypoint.z() - at.z();
         }
-        // the way to go, in terms of where the player faces: minecraft's forward at yaw is (-sin, cos)
         double yaw = Math.toRadians(player.getYRot());
         double forwardX = -Math.sin(yaw);
         double forwardZ = Math.cos(yaw);
@@ -81,8 +77,6 @@ public final class Autopilot {
         double wz = dz / length;
         float forward = (float) (wx * forwardX + wz * forwardZ);
         float left = (float) (wx * forwardZ - wz * forwardX);
-        // a corner is only where the path turns, so a step up can come between two of them: walking into
-        // something while on the ground is the step, and a jump takes it
         boolean climb = waypoint.y() > at.y() + 0.5 || player.horizontalCollision && player.onGround();
         input.keyPresses = new Input(forward > 0.3f, forward < -0.3f, left > 0.3f, left < -0.3f, jumpNow || climb, false, false);
         MoveVector.set(input, new Vec2(left, forward).normalized());

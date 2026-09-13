@@ -14,10 +14,8 @@ import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 
-// game.blocks: read and change the level's blocks. a position is floored to the block it is inside
 public final class Blocks {
 
-    // a fill past this is almost certainly two corners typed wrong, and would stall the tick
     public static final long MOST = 4_000_000;
 
     private Blocks() {}
@@ -88,7 +86,6 @@ public final class Blocks {
             s.pushNumber(blocks.top(floor(s.checkNumber(2)), floor(s.checkNumber(3))));
             return 1;
         });
-        // every block of a kind within radius, nearest first, as block centres
         function(state, "find", s -> {
             String id = s.checkString(2);
             Vec3 centre = Values.vec3(s, 3);
@@ -230,7 +227,6 @@ public final class Blocks {
             s.pushNumber(count);
             return 1;
         });
-        // a box of blocks as data: { size = vec3, palette = { "minecraft:stone", ... }, blocks = { 1, 2, 1, ... } }
         function(state, "copy", s -> {
             int[] box = box(s, 2, 3);
             List<String> palette = new ArrayList<>();
@@ -267,8 +263,6 @@ public final class Blocks {
             s.rawSetField(-2, "blocks");
             return 1;
         });
-        // a copy put down with its lowest corner at position, turned by quarter turns about up. air is
-        // pasted too unless skipAir is set
         function(state, "paste", s -> {
             writable(s, blocks);
             if (s.type(2) != LuaType.TABLE) throw s.error("paste wants what copy returned");
@@ -330,7 +324,6 @@ public final class Blocks {
 
     private static final Map<LuaState, Watch> CHANGED = new HashMap<>();
 
-    // fires changed for each block that changed since the last tick
     public static void drain(LuaState state, Instance world, Consumer<ScriptError> onError) {
         Watch watch = CHANGED.get(state.mainThread());
         if (watch == null) return;

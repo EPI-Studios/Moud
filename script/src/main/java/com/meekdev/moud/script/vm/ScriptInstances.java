@@ -21,7 +21,6 @@ import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.compiler.LuauCompileException;
 import net.hollowcube.luau.compiler.LuauCompiler;
 
-// starts the script instances of one side as they appear, and stops them as they go
 final class ScriptInstances {
 
     private final LuaState state;
@@ -75,7 +74,6 @@ final class ScriptInstances {
         }
         byte[] bytecode;
         try {
-            // on the first line, so every line number in an error is the file's own
             bytecode = LuauCompiler.DEFAULT.compile("local script = ...; " + code);
         } catch (LuauCompileException e) {
             onError.accept(new ScriptError(name, e.getMessage(), e));

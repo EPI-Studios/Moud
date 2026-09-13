@@ -28,10 +28,8 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import org.joml.Vector3fc;
 
-// keeps the widgets in step with the interface instances in the client's tree
 public final class Ui {
 
-    // a surface in the world, and the size its canvas was made at
     private record Placed(WorldSurface surface, float width, float height, int resolution) {}
 
     private static final Map<Instance, Node> NODES = new HashMap<>();
@@ -162,14 +160,12 @@ public final class Ui {
                 .setVisible(true);
     }
 
-    // a canvas is made at one size, so a surface that changed size is made again around the same node
     private static WorldSurface ensure(Instance gui, Placed placed, float width, float height, int resolution) {
         if (placed.surface() != null && placed.width() == width && placed.height() == height
                 && placed.resolution() == resolution) {
             return placed.surface();
         }
         if (placed.surface() != null) placed.surface().remove();
-        // drawn straight into the world, so pixelsPerMetre sets how big a pixel of layout is, not how sharp it looks
         WorldSurface surface = Surfaces.world(width, height).resolution(resolution).direct(true);
         surface.root().add(node(gui));
         PLACED.put(gui, new Placed(surface, width, height, resolution));
@@ -190,8 +186,6 @@ public final class Ui {
         hud.internalInput().mouseMoved(at[0], at[1]);
     }
 
-    // a click lands on the interface only while the pointer is free and no screen is open. a click
-    // that misses every button goes on to the game as if nothing were there
     public static boolean click(int button, boolean pressed) {
         Minecraft client = Minecraft.getInstance();
         if (hud == null || client.screen != null || client.getOverlay() != null) return false;

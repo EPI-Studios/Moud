@@ -23,7 +23,6 @@ void main() {
         float r = sqrt((float(i) + 0.5) / float(TAPS));
         float a = float(i) * 2.39996323;
         vec2 uv = vUV + vec2(cos(a), sin(a)) * r * coc * texel;
-        // a sharp thing in front does not bleed into the blur behind it
         float w = blurAt(uv) > 0.0 || linearDepth(uv) > linearDepth(vUV) ? 1.0 : 0.2;
         sum += sceneColor(uv).rgb * w;
         total += w;

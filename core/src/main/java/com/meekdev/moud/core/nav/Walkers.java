@@ -14,10 +14,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-// bodies walking a path or following something, one waypoint at a time through humanoid.walkTo
 public final class Walkers {
 
-    // how often a follower looks again for where its target went, in seconds
     private static final double REPATH = 0.5;
 
     private static final class Plan {
@@ -32,8 +30,6 @@ public final class Walkers {
 
     private static final Map<Character, Plan> PLANS = new HashMap<>();
 
-    // moves a body a player is wearing, which the engine cannot walk itself: the player's own client
-    // does the walking, and this is how it is told
     public interface Pilot {
         void walk(Character body, List<Vec3> waypoints);
 
@@ -66,7 +62,6 @@ public final class Walkers {
         if (living != null) Instances.setBool(living, Classes.HUMANOID.property("jump"), true);
     }
 
-    // the player took the controls back, or their client gave up
     public static void cancelled(Character body) {
         PLANS.remove(body);
     }
@@ -89,7 +84,6 @@ public final class Walkers {
         return PLANS.containsKey(body);
     }
 
-    // where paths come from: the place's navmesh
     @FunctionalInterface
     public interface Finder {
         List<Vec3> find(Vec3 from, Vec3 to, boolean partial);
@@ -113,8 +107,6 @@ public final class Walkers {
                     continue;
                 }
                 Vec3 goal = Transforms.world(plan.target).position();
-                // stopped until the target is a clear step further off, so a follower does not start and
-                // stop on every little move of the one it follows
                 double reach = plan.resting ? plan.distance + 1.5 : plan.distance;
                 if (goal.sub(at).lengthSq() <= reach * reach) {
                     plan.resting = true;
@@ -129,7 +121,6 @@ public final class Walkers {
                 }
                 boolean moved = plan.lastTarget == null || plan.lastTarget.sub(goal).lengthSq() > 1;
                 if (plan.waypoints == null || moved && now - plan.lastRepath >= REPATH) {
-                    // as close as it can get: a follower whose target stands somewhere unreachable still comes over
                     plan.waypoints = finder.find(at, goal, true);
                     plan.next = 0;
                     plan.lastRepath = now;
@@ -164,7 +155,6 @@ public final class Walkers {
         }
     }
 
-    // a player's body is walked by its client; the server only watches for it getting there
     private static void steer(Character body, Humanoid living, Plan plan, Vec3 at, Iterator<Map.Entry<Character, Plan>> it) {
         if (plan.waypoints == null || plan.waypoints.isEmpty()) {
             if (plan.target == null) it.remove();

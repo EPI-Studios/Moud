@@ -11,9 +11,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.resources.Identifier;
 
-// an image a place names, as a gl texture: res:// is a file in the place, anything else a resource pack id
-//
-// a label and a chat line both draw them, and before this only the chat knew a place has files of its own
 public final class UiImages {
 
     private static final Map<String, Integer> KNOWN = new HashMap<>();

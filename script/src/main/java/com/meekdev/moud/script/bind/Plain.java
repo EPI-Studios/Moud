@@ -13,8 +13,6 @@ import java.util.Map;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
-// lua values as plain java objects and back: nil, booleans, numbers, text, the value types, instances,
-// lists and tables keyed by text
 public final class Plain {
 
     private Plain() {}
@@ -45,7 +43,6 @@ public final class Plain {
         throw state.error("that is not something that can be sent");
     }
 
-    // a list or a table keyed by text, never both
     private static Object table(LuaState state, int at, int depth) {
         int length = state.len(at);
         if (length > 0) {

@@ -11,7 +11,6 @@ import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
-// the scene global: branches of the tree to and from scene files
 public final class Scenes {
 
     private Scenes() {}
@@ -58,7 +57,6 @@ public final class Scenes {
         return parent;
     }
 
-    // one instance, or a list of them
     private static List<Instance> roots(LuaState state, int at) {
         if (state.toUserDataTagged(at, Proxies.TAG) instanceof Instance one) return List.of(one);
         if (state.type(at) != LuaType.TABLE) throw state.error("save an instance or a list of instances");

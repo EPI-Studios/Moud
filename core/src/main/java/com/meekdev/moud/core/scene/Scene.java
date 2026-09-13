@@ -22,8 +22,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-// a branch of the tree as a document and back: classes, names, the properties that differ from their
-// defaults, tags, children, and references to anything else in the same document
 public final class Scene {
 
     public static final int FORMAT = 1;
@@ -110,7 +108,6 @@ public final class Scene {
                 yield List.of(u.xScale(), u.xOffset(), u.yScale(), u.yOffset());
             }
             case ENUM -> Enums.name((Enum<?>) value);
-            // a reference out of the document has nothing to point at when it is loaded somewhere else
             case REF -> value instanceof Instance target && ids.containsKey(target)
                     ? Map.of("ref", ids.get(target)) : null;
         };
@@ -124,9 +121,6 @@ public final class Scene {
         return List.of(q.x(), q.y(), q.z(), q.w());
     }
 
-    // builds what the document describes under parent, and hands back the top of each branch. a child
-    // the parent already made for itself under the same name and class, like the limbs of a body, is
-    // written into rather than made twice
     public static List<Instance> load(String text, Instance parent, ClassRegistry classes) {
         if (!(Json.parse(text) instanceof Map<?, ?> document)) throw new IllegalArgumentException("a scene is an object");
         Object format = document.get("format");

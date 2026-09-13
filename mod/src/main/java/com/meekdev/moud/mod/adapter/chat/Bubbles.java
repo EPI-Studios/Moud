@@ -27,7 +27,6 @@ import net.minecraft.client.Minecraft;
 import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
 
-// speech bubbles over whoever spoke, facing the camera, stacked newest at the bottom
 public final class Bubbles {
 
     private static final class Bubble {

@@ -18,33 +18,18 @@ import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// the carrier that goes over the game's own connection
-//
-// this is the one that runs, in a solo game as much as on somebody else's server. §10.2 allows a local
-// server to hand the objects over in memory instead, and that is the wrong reading of it now that the
-// codec exists: the integrated server already talks to its client down a connection, so taking that
-// same path costs a memory copy and removes the entire class of bug that only shows up the first time
-// two people play together. the in memory carrier stays, as what the tests run on
-//
-// the rate limit is counted here, on receive, and that is the whole point of moving it: it used to be
-// counted where a delivery was sent, which on the way up is the client -- so a client that had been
-// tampered with simply did not count. a limit that the far side enforces is a limit
 public final class Wired implements Transport {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("moud/wired");
 
-    // what a client sent, waiting for the server's tick
     private record Sent(UUID from, int remote, byte[] args) {}
 
     private final Queue<Sent> up = new ConcurrentLinkedQueue<>();
     private final Queue<Packets.Down> down = new ConcurrentLinkedQueue<>();
     private final Queue<byte[]> deltas = new ConcurrentLinkedQueue<>();
 
-    // per player per channel, cleared by the drain. the server drains once a tick, so a count since
-    // the last drain *is* a per tick rate
     private final Map<UUID, Map<Integer, Integer>> arrived = new HashMap<>();
 
-    // said once rather than per delivery, or a client that floods also floods the log
     private final Map<UUID, Integer> flooding = new HashMap<>();
 
     public void listen() {
@@ -59,26 +44,17 @@ public final class Wired implements Transport {
                 (payload, context) -> deltas.add(payload.bytes()));
     }
 
-    // the server's side of the tree stream. one payload per tick per player, which is what the client
-    // paces on: a quiet tick is sent too, because it is what says a tick happened and nothing moved
     public void sendDelta(ServerPlayer player, byte[] bytes) {
-        // asked rather than assumed, because a client without the mod is a client that cannot read
-        // this and the game logs a line about every packet it drops. it is also the honest answer to
-        // "can this player see the place": no, and nothing here can change that
         if (!ServerPlayNetworking.canSend(player, Packets.Delta.TYPE)) return;
         ServerPlayNetworking.send(player, new Packets.Delta(bytes));
     }
 
-    // and the client's side of it, drained on the client tick
     public Queue<byte[]> deltas() {
         return deltas;
     }
 
     @Override
     public void toServer(int remote, List<Object> args, boolean reliable) {
-        // reliable is not a choice here: the connection is ordered and lossless either way. it stays
-        // in the signature because the carrier the tests run on honours it, and because a future
-        // channel of our own would
         ClientPlayNetworking.send(new Packets.Up(remote, Args.encode(args)));
     }
 
@@ -93,7 +69,6 @@ public final class Wired implements Transport {
     public void toAllClients(int remote, List<Object> args, boolean reliable) {
         MinecraftServer server = ServerScene.server();
         if (server == null) return;
-        // encoded once for everybody, because the bytes are the same bytes
         Packets.Down payload = new Packets.Down(remote, Args.encode(args));
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             if (ServerPlayNetworking.canSend(player, Packets.Down.TYPE)) {
@@ -116,8 +91,6 @@ public final class Wired implements Transport {
                 }
                 continue;
             }
-            // a packet that does not decode is a client sending something we did not write. it is
-            // dropped and named, never allowed to throw into the tick
             try {
                 sink.deliver(one.from().toString(), one.remote(), Args.decode(one.args()));
             } catch (RuntimeException bad) {
@@ -154,8 +127,6 @@ public final class Wired implements Transport {
         }
     }
 
-    // a queue that is never drained is a leak, and the one case is a client that loaded a place and
-    // then left before a tick ran
     public void forget() {
         up.clear();
         down.clear();

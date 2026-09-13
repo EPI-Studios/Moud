@@ -8,8 +8,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// suppresses debugScreen
-// f3 is read straight off the overlay, nothing about it goes through the hud extract pass
 @Mixin(DebugScreenOverlay.class)
 abstract class DebugScreenMixin {
 

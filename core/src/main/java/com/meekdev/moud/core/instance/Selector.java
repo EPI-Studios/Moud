@@ -7,23 +7,12 @@ import com.meekdev.moud.core.clazz.PropertyDef;
 import java.util.ArrayList;
 import java.util.List;
 
-// finding instances with a short query, the way css finds elements
-//
-//   Part                    every part
-//   Part.lava               parts tagged lava
-//   #door                   anything named door
-//   Folder#enemies > Character    characters directly inside the enemies folder
-//   Model Part[anchored=false]    unanchored parts anywhere under a model
-//   Light[brightness>=2]
-//
-// a class matches its subclasses. * is any class. a space is anywhere below, > is directly below
 public final class Selector {
 
     private record Test(String property, String op, String value) {}
 
     private record Compound(ClassDef<?> type, String name, List<String> tags, List<Test> tests) {}
 
-    // each compound, and whether it has to be the direct parent of the next one
     private final List<Compound> parts;
     private final List<Boolean> direct;
 

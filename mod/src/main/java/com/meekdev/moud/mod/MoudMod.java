@@ -22,20 +22,16 @@ public final class MoudMod implements ModInitializer {
 
     private static final Features FEATURES = new Features();
 
-    // the mixins read the switches from here, they have nowhere else to reach
     public static Features features() {
         return FEATURES;
     }
 
     @Override
     public void onInitialize() {
-        // first: everything after this reads a class set they may have added to
         Addons.install();
-        // both sides, so a server without a screen still knows hunger is off
         PlaceToml.apply(FEATURES);
         Registry.register(BuiltInRegistries.CHUNK_GENERATOR,
                 Identifier.fromNamespaceAndPath(ID, "place"), PlaceChunkGenerator.CODEC);
-        // before anything can send: a payload the far side has no codec for is a blob it drops
         Post.install();
         MoudServer.install();
         Physics.install();

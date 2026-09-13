@@ -17,10 +17,6 @@ import java.util.function.Function;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 
-// the shaders a place draws chat through: one per ChatTextShader for text, and one for the whole window
-//
-// a file is read again at most once a second and recompiled when its text changed, so editing a shader
-// while the game runs shows on the next second
 final class ChatShaders {
 
     private static final Identifier UI_VERTEX = Identifier.fromNamespaceAndPath("amnetic", "shaders/surface/ui.vsh");
@@ -45,7 +41,6 @@ final class ChatShaders {
 
     private ChatShaders() {}
 
-    // the program for <shader=name>, or null when no ChatTextShader has that name or its file cannot be read
     static @Nullable ShaderProgram text(String name) {
         InstanceTree tree = ClientScene.tree();
         if (tree == null) return null;
@@ -110,7 +105,6 @@ final class ChatShaders {
         }
     }
 
-    // the place's file defines vec4 textColor(vec4 color, vec2 uv, vec2 glyph, float time)
     private static String textSource(String body) {
         return part("text_head") + body + part("text_main");
     }

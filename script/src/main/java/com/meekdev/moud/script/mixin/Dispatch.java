@@ -5,22 +5,14 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-// what a rewritten method calls into: the code bytebuddy inlines at its head and at its return comes here,
-// by the method's id, and every hook a script put on it runs
-//
-// public because the inlined code is in the game's classes and has to reach it. nothing but that code and
-// Injections should ever call it
 public final class Dispatch {
 
-    // one hook a script put on a method
     public interface Hook {
-        // the thread the script that made it runs on. a hook only runs there: a luau vm is one thread's
         Thread owner();
 
         void run(Call call);
     }
 
-    // one call of a hooked method, as the hooks see it
     public static final class Call {
         public final Object self;
         public final Object[] args;
@@ -73,7 +65,6 @@ public final class Dispatch {
         }
     }
 
-    // what a head hands the body: run it, or skip it and return this instead
     public static final class Cancelled {
         final Object value;
 
@@ -84,8 +75,6 @@ public final class Dispatch {
 
     static final Map<String, Target> TARGETS = new ConcurrentHashMap<>();
 
-    // a hook that calls back into the game can reach another hooked method, or the same one: hooks do not
-    // run inside hooks on the same thread, which is what keeps a hook from recursing into itself
     private static final ThreadLocal<int[]> INSIDE = ThreadLocal.withInitial(() -> new int[1]);
 
     private Dispatch() {}
@@ -132,7 +121,6 @@ public final class Dispatch {
         return ((Cancelled) entered).value;
     }
 
-    // a primitive return can not be nothing, so nothing is its zero
     private static Object fit(Object value, Class<?> type) {
         if (value != null || !type.isPrimitive()) return value;
         if (type == boolean.class) return false;

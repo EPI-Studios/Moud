@@ -1,6 +1,4 @@
--- math a game reaches for constantly, on top of luau's own math
 
--- a value from one range moved to the same place in another
 function math.remap(value, fromMin, fromMax, toMin, toMax)
     if fromMax == fromMin then
         return toMin
@@ -12,7 +10,6 @@ function math.lerp(a, b, t)
     return a + (b - a) * t
 end
 
--- where value sits between a and b, as 0 to 1
 function math.inverseLerp(a, b, value)
     if a == b then
         return 0
@@ -20,7 +17,6 @@ function math.inverseLerp(a, b, value)
     return (value - a) / (b - a)
 end
 
--- toward target by at most step, never past it
 function math.approach(value, target, step)
     if value < target then
         return math.min(value + step, target)
@@ -28,8 +24,6 @@ function math.approach(value, target, step)
     return math.max(value - step, target)
 end
 
--- a spring toward target that settles in about smoothTime seconds without overshooting. velocity is
--- carried between calls: local v; x, v = math.smoothDamp(x, target, v, 0.3, dt)
 function math.smoothDamp(current, target, velocity, smoothTime, dt, maxSpeed)
     velocity = velocity or 0
     smoothTime = math.max(0.0001, smoothTime)
@@ -52,7 +46,6 @@ function math.smoothDamp(current, target, velocity, smoothTime, dt, maxSpeed)
     return out, velocity
 end
 
--- layered noise: octaves of math.noise, each finer and quieter
 function math.fbm(x, y, z, octaves, lacunarity, gain)
     octaves = octaves or 4
     lacunarity = lacunarity or 2
@@ -67,7 +60,6 @@ function math.fbm(x, y, z, octaves, lacunarity, gain)
     return sum / total
 end
 
--- a point along a bezier curve through any number of control points, numbers or vectors
 function math.bezier(points, t)
     local work = table.clone(points)
     for n = #work, 2, -1 do
@@ -78,7 +70,6 @@ function math.bezier(points, t)
     return work[1]
 end
 
--- a point along a smooth curve that passes through every point, t from 0 at the first to 1 at the last
 function math.catmullRom(points, t)
     local count = #points
     if count == 1 then
@@ -95,15 +86,12 @@ function math.catmullRom(points, t)
     return (p1 * 2 + (p2 - p0) * u + (p0 * 2 - p1 * 5 + p2 * 4 - p3) * u2 + (p1 * 3 - p0 - p2 * 3 + p3) * u3) * 0.5
 end
 
--- angles, in radians
 angle = {}
 
--- into -pi to pi
 function angle.wrap(a)
     return (a + math.pi) % (2 * math.pi) - math.pi
 end
 
--- the shortest turn from a to b
 function angle.delta(a, b)
     return angle.wrap(b - a)
 end
@@ -112,7 +100,6 @@ function angle.lerp(a, b, t)
     return a + angle.delta(a, b) * t
 end
 
--- random points and picks, on luau's own generator
 random = {}
 
 function random.range(min, max)
@@ -142,7 +129,6 @@ function random.shuffle(list)
     return list
 end
 
--- a direction of length one, every direction equally likely
 function random.unit()
     local z = random.range(-1, 1)
     local a = random.range(0, 2 * math.pi)
@@ -158,7 +144,6 @@ function random.inSphere(radius)
     return random.unit() * (radius * math.random() ^ (1 / 3))
 end
 
--- flat on the ground, around the origin
 function random.inCircle(radius)
     local a = random.range(0, 2 * math.pi)
     local r = radius * math.sqrt(math.random())

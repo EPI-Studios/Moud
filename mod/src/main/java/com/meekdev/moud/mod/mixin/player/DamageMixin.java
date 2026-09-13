@@ -11,8 +11,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// suppresses fallDamage, fireDamage and drowning
-// each damage source is its own switch, so the cut has to read the source rather than refuse everything
 @Mixin(Entity.class)
 abstract class DamageMixin {
 

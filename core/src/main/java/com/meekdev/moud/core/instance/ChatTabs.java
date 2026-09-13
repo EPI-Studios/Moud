@@ -2,7 +2,6 @@ package com.meekdev.moud.core.instance;
 
 import com.meekdev.moud.core.math.Color;
 
-// a tab per channel above the window, to switch which one the input bar sends to
 public final class ChatTabs extends Instance {
 
     public boolean enabled = true;

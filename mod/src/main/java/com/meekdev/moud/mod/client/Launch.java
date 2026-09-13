@@ -8,7 +8,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.world.level.levelgen.WorldOptions;
 
-// temporary launch flow until luau owns it, the latch means quitting to title stays there
 public final class Launch {
 
     private final Features features;
@@ -29,8 +28,6 @@ public final class Launch {
         open(client);
     }
 
-    // always fresh, never opened: a level read back from disk gets its generator from the codec,
-    // which has no place attached, and the level would silently come up empty
     private void open(Minecraft client) {
         client.createWorldOpenFlows().createFreshLevel(
                 VoidLevel.NAME,

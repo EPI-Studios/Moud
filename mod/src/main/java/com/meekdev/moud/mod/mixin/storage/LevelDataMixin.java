@@ -10,9 +10,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// no level.dat
-// the level is described by the place, so minecraft's copy would only be a second source of truth
-// that drifts. all four overloads are named because a bare method name only binds to one of them
 @Mixin(LevelStorageSource.LevelStorageAccess.class)
 abstract class LevelDataMixin {
 

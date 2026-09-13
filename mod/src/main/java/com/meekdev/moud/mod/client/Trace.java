@@ -20,30 +20,16 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// every number behind one frame of your own body, written to a file
-//
-// a shake is the one bug that cannot be screenshotted and cannot be described: "it trembles" is true
-// of a millimetre and of a hand's width, and asking someone to read five numbers off an overlay and
-// report them back is a slow way to be wrong twice. this writes the lot -- the entity, the camera,
-// the body, the limbs, the deck and the three poses a rider is projected through -- one row a frame,
-// so whoever is looking can see which column moves and when
-//
-// it starts when you stand on something that moves and stops after ten seconds of it. an unbounded
-// trace is a full disk, and ten seconds at a hundred frames is two hundred turns of a deck
 public final class Trace {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("moud/trace");
 
-    // ten seconds at a hundred frames a second, which is two hundred ticks of anything to look at
     private static final int ROWS = 1000;
 
     private static @Nullable Writer out;
     private static int written;
     private static boolean done;
 
-    // it starts the first time you stand on something that moves and then keeps writing whatever you
-    // do, so stepping off and back on is in the file too. waiting for a deck every row would mean a
-    // file that says nothing about the moment the fault appears or stops
     private static boolean armed;
 
     private Trace() {}
@@ -65,8 +51,6 @@ public final class Trace {
         try {
             if (out == null) open();
             out.write(row(client, me, body, deck, partialTick));
-            // flushed every row, because the usual way a session ends is being killed and a buffered
-            // trace that was never flushed is an empty file
             out.flush();
             written++;
             if (written >= ROWS) close();
@@ -95,19 +79,13 @@ public final class Trace {
 
     private static String columns() {
         return String.join("\t",
-                // the clock this frame was drawn on
                 "nanos", "tick", "partial",
-                // the entity, which is what the game's own camera is placed from
                 "eX", "eY", "eZ", "eOldX", "eOldY", "eOldZ",
                 "eYaw", "eYawO", "eBodyYaw", "eBodyYawO", "eHeadYaw",
                 "eVelX", "eVelY", "eVelZ", "onGround", "eyeHeight",
-                // where the camera actually ended up, after everything had its say
                 "camX", "camY", "camZ",
-                // the body: what it hangs off, its own frame, and where that puts it
                 "parent", "localX", "localY", "localZ", "worldX", "worldY", "worldZ",
                 "drawnX", "drawnY", "drawnZ", "moving",
-                // the head as drawn, and how far that is from the camera. standing still on anything
-                // at all, that distance is a constant -- so this column is the shake itself
                 "headX", "headY", "headZ", "headToCam",
                 ClientPhysics.deckColumns()) + "\n";
     }

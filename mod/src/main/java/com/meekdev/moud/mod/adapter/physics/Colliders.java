@@ -22,8 +22,6 @@ import java.util.HashSet;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 
-// axis aligned parts only. a rotated one is not honestly an aabb, so it goes to a sub level
-// instead where the collision is a real obb (12.1.1)
 public final class Colliders {
 
     private static final double SQUARE = 1.0e-4;
@@ -34,8 +32,6 @@ public final class Colliders {
 
     private @Nullable InstanceTree tree;
 
-    // the groups as bits, rebuilt when a group is made, written or destroyed. the ids are kept
-    // because a destroyed instance is already gone from the tree when the change arrives
     private @Nullable CollisionGroups groups;
     private final Set<Integer> groupIds = new HashSet<>();
     private boolean groupsChanged;
@@ -50,10 +46,6 @@ public final class Colliders {
                 && Math.abs(rotation.z()) < SQUARE;
     }
 
-    // it follows the same change stream the mirror does, so the tick drains dirty exactly once
-    //
-    // returns whether the static set actually moved, because whoever caches it downstream has to
-    // throw that cache away and rebuilding it costs the whole world
     public boolean apply(InstanceTree source, Change change) {
         tree = source;
         groupsChanged = switch (change) {
@@ -73,18 +65,14 @@ public final class Colliders {
             }
             case Change.Destroyed destroyed -> removeById(destroyed.id());
             case Change.Created created -> refresh(created.id());
-            // a part that changes group has the same box and a different category, which is still a
-            // different world to sweep against
             case Change.Wrote wrote -> refresh(wrote.id())
                     || source.byId(wrote.id()) instanceof Part && wrote.property() == GROUP.index();
-            // a moved part keeps every property and lands somewhere else, so its box is stale
             case Change.Moved moved -> refresh(moved.id());
             case Change.Tagged ignored -> false;
         };
         return statics || groupsChanged && grid.size() > 0;
     }
 
-    // whether the last change altered what any group collides with, so a body's filter is stale
     public boolean groupsChanged() {
         return groupsChanged;
     }
@@ -118,8 +106,6 @@ public final class Colliders {
             return grid.remove(part);
         }
         CFrame world = Transforms.world(part);
-        // the box around the part as it is turned. the size alone is the box of a part that is not, and a
-        // ramp turned a quarter about up collided along the wrong axis
         return grid.put(part, SpatialIndex.bounds(world, part.size));
     }
 

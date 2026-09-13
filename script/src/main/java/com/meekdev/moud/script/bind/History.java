@@ -6,10 +6,6 @@ import com.meekdev.moud.script.api.HistoryRef;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 
-// game.history: now, viewTime and rewind. on the server
-//
-// rewind runs a function with every query inside it seeing the world as it was at that time, so a
-// hit check is written the same way it always is and only wrapped
 public final class History {
 
     private History() {}
@@ -36,7 +32,6 @@ public final class History {
             int base = 3;
             s.pushValue(3);
             Queries.rewound(part -> history.rewind().at(part, seconds), () -> {
-                // every value it returns comes back out, however many
                 s.call(0, -1);
                 return null;
             });

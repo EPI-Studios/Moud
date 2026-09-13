@@ -6,7 +6,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import net.hollowcube.luau.LuaState;
 
-// how long each script's handlers and each hook took, since the place last asked
 public final class Profiler {
 
     private static final class Entry {
@@ -26,7 +25,6 @@ public final class Profiler {
         entry.worst = Math.max(entry.worst, nanos);
     }
 
-    // { [where] = { milliseconds, calls, worst } }, and starts counting again
     static Map<String, Object> take(LuaState state) {
         Map<String, Entry> times = TIMES.remove(state.mainThread());
         Map<String, Object> out = new LinkedHashMap<>();

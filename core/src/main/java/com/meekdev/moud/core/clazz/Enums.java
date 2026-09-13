@@ -3,11 +3,6 @@ package com.meekdev.moud.core.clazz;
 import java.util.ArrayList;
 import java.util.List;
 
-// an enum is a string in luau, spelled the way a property is
-//
-// the java constant is SCREAMING_SNAKE because that is what java constants look like, and the
-// place says "thirdPerson" because that is what every other name in the api looks like. the
-// translation lives here so neither side has to hold the other's spelling
 public final class Enums {
 
     private Enums() {}
@@ -34,8 +29,6 @@ public final class Enums {
         return out;
     }
 
-    // a typo is an error that says what was allowed, because the alternative is a place that
-    // silently keeps the default and a developer reading the same four lines for an hour
     public static Enum<?> parse(Class<?> type, String spelled) {
         for (Object constant : type.getEnumConstants()) {
             if (name((Enum<?>) constant).equals(spelled)) return (Enum<?>) constant;

@@ -14,7 +14,6 @@ import java.util.Set;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
-// the input actions a client holds, read off the keyboard and mouse once a frame
 public final class Actions {
 
     private static final Map<String, Integer> KEYS = new HashMap<>();
@@ -58,7 +57,6 @@ public final class Actions {
             return;
         }
         Minecraft client = Minecraft.getInstance();
-        // a screen owns the keyboard: typing an e in chat is not pressing interact
         boolean listening = client.screen == null;
         long window = client.getWindow().handle();
         WAS.keySet().removeIf(action -> !action.isAlive());
@@ -72,11 +70,6 @@ public final class Actions {
         }
     }
 
-    // a letter, digit or symbol names what the key types on this player's keyboard, whatever its layout:
-    // qwerty, azerty, qwertz, dvorak or anything else the system is set to. glfw's key codes are the
-    // positions of a us keyboard, so "m" read as a code was the comma on an azerty one. the system is asked
-    // what each printable key types, and asked again every couple of seconds so switching layouts mid game
-    // follows along
     private static final int[] PRINTABLE = printable();
     private static final Map<Character, Integer> TYPED = new HashMap<>();
     private static long typedAt;
@@ -90,7 +83,6 @@ public final class Actions {
         keys[n++] = GLFW.GLFW_KEY_EQUAL;
         for (int key = GLFW.GLFW_KEY_A; key <= GLFW.GLFW_KEY_RIGHT_BRACKET; key++) keys[n++] = key;
         keys[n++] = GLFW.GLFW_KEY_GRAVE_ACCENT;
-        // the extra keys iso boards have, like the < next to the left shift on an azerty one
         keys[n++] = GLFW.GLFW_KEY_WORLD_1;
         keys[n++] = GLFW.GLFW_KEY_WORLD_2;
         return Arrays.copyOf(keys, n);
@@ -109,12 +101,10 @@ public final class Actions {
         return TYPED.get(Character.toLowerCase(c));
     }
 
-    // null when no action of that name exists, so input can fall back to the built in ones
     public static Boolean down(String action) {
         return DOWN.get(action);
     }
 
-    // whether any of the keys named is down right now
     public static boolean pressed(String keys) {
         return pressed(Minecraft.getInstance().getWindow().handle(), keys);
     }

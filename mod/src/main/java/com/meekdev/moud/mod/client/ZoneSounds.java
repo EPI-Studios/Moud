@@ -12,7 +12,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-// a zone's sound plays while this client's own body is inside the zone that wins where it stands
 final class ZoneSounds {
 
     private static final Map<Zone, Sound> PLAYING = new HashMap<>();

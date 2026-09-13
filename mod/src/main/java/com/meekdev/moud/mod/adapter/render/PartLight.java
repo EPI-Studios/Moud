@@ -10,19 +10,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import org.joml.Vector2f;
 
-// where a part sits in minecraft's light map, as the coordinates its own shaders use
-//
-// the packed value is a block level in the low half and a sky level in the high half, and the light
-// map turns that pair into the colour of the hour. reading it is a chunk lookup, so it is read once
-// a tick per part rather than once a frame: light changes at the speed of a torch being placed, and
-// nothing about it needs to keep up with a frame
 public final class PartLight {
 
     private static final Vector2f FULL = new Vector2f(240f, 240f);
 
-    // weakly held, because nothing ever told it a part had gone. an identity map kept an entry for
-    // every destroyed part and every body a respawn replaced, which is a leak that only ever grows.
-    // an instance has no equals of its own, so a weak map is an identity map that tidies up
     private static final Map<Instance, Vector2f> BY_PART = new WeakHashMap<>();
 
     private PartLight() {}
@@ -32,8 +23,6 @@ public final class PartLight {
         return known != null ? known : FULL;
     }
 
-    // once a tick, for what is on screen. a part that never moves keeps the value it had until the
-    // light around it changes, which is what this is refreshed for
     public static void refresh(Instance part, Vec3 at) {
         Level level = Minecraft.getInstance().level;
         if (level == null) return;

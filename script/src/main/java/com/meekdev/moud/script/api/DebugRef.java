@@ -4,7 +4,6 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vec3;
 
-// drawing to see what code is doing. on a client it draws; on the server it goes to every client
 public interface DebugRef {
 
     void line(Vec3 from, Vec3 to, Color color, double seconds);

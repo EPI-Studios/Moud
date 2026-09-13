@@ -14,10 +14,6 @@ import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
-// game.chat: the functions a place calls, the signals it connects to, and the hooks it assigns
-//
-// hooks are fields on the table rather than instance callbacks because they are about the whole chat,
-// not one channel: game.chat.onIncoming = function(message) ... end
 public final class Chat {
 
     public static final List<String> SIGNALS = List.of("messageReceived", "sending", "edited", "deleted",
@@ -49,7 +45,6 @@ public final class Chat {
             s.pushNumber(run(s, () -> chat.send(message)));
             return 1;
         });
-        // game.chat:system(text, options), a message from nobody
         function("system", s -> {
             Map<String, Object> message = options(s, 3);
             message.put("text", s.checkString(2));
@@ -160,7 +155,6 @@ public final class Chat {
             });
             return 0;
         });
-        // the helpers that write markup, so a place does not have to remember the tags
         state.pushFunction(LuaFunc.wrap(s -> {
             s.pushString(RichText.escape(s.checkString(1)));
             return 1;
@@ -193,7 +187,6 @@ public final class Chat {
         state.pop(1);
     }
 
-    // a hook the place assigned on game.chat, called with plain values. null when there is none or it failed
     public Object[] hook(String name, Object... args) {
         int top = state.top();
         try {

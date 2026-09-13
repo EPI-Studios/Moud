@@ -7,82 +7,43 @@ import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vec3;
 
-// the body, ported rather than invented
-//
-// every number here is the one the game itself builds a player out of: the pivot each limb turns
-// at, the box hung off that pivot, and how far the shell over it is pushed out. they are stated in
-// the space that model is authored in -- sixteen units to the metre, y downward, x mirrored, the
-// shoulder line at zero and the feet twenty four below -- and converted once, here, so the rest of
-// the engine only ever sees metres with y up
-//
-// getting these approximately right is what makes a body look like a bad copy. they are exact
 public final class Rig {
 
     public static final String HITBOX = "hitbox";
 
-    // where the joints live, so a place reaches one by name the way it reaches a limb
     public static final String JOINTS = "joints";
     public static final String APPEARANCE = "appearance";
 
-    // the joint the whole body hangs from, which is what carries a tilt none of the limbs own
     public static final String ROOT = "root";
 
-    // the second shell every part wears: hat, jacket, sleeves and trousers
     public static final String OVERLAY = "overlay";
 
-    // where a hand holds something. an empty frame under each arm, and anything parented to one
-    // is held: the hierarchy already carries it through the swing, the crouch and the scale
-    //
-    // it sits exactly where the game puts an item in that hand, so a thing built out of parts
-    // lands where a real one would be drawn -- the look is the game's, the mechanism is ours
     public static final String GRIP = "grip";
 
-    // where a hat, a helmet or a worn head sits. the game anchors one at the neck and lets it
-    // reach up over the skull, so this is the head's own joint rather than the top of it
     public static final String HAT = "hat";
 
-    // where a cape, a pair of wings or a pack rides
     public static final String BACK = "back";
 
-    // a pair of wings on the back. they are not limbs: the model states them from the body's own
-    // root and steps them two texels back, and they are drawn off a sheet of their own
     public static final String[] WINGS = {"rightWing", "leftWing"};
 
-    // the two shells a riptide throws up around a body
     public static final String[] SPIN = {"spinInner", "spinOuter"};
 
-    // the pair a name nobody says out loud wears
     public static final String[] EARS = {"rightEar", "leftEar"};
 
-    // hung off the back of the torso rather than off the body, so it leans with a crouch and
-    // twists with a swing without being told to
     public static final String CAPE = "cape";
 
-    // the pair's own state, beside the two boxes that draw it
     public static final String WING_SET = "wings";
 
-    // the living half of a body
     public static final String HUMANOID = "humanoid";
 
-    // where the tracks that pose it live
     public static final String ANIMATOR = "animator";
 
-    // what it is wearing
     public static final String ARMOUR = "armour";
 
-    // a worn head, and the second layer some of them carry
     public static final String[] WORN_HEAD = {"wornHead", "wornHeadLayer"};
 
-    // the game draws one at a shade over full size, which is what makes it sit around a head
-    // rather than inside it
     private static final double HEAD_WORN = 1.1875;
 
-    // the ten boxes four pieces of armour are made of, named for the limb they cover and the slot
-    // they belong to
-    //
-    // the grows are not decoration: leggings use half a texel where the other three use a whole
-    // one, and boots take a tenth off the legs. that is exactly what stops each piece coming
-    // through the one under it, and getting it wrong is armour that z fights with itself
     public record Plate(String limb, String name, String slot, float u, float v,
                         double grow, boolean mirrored) {}
 
@@ -99,11 +60,6 @@ public final class Rig {
             new Plate("leftLeg", "boots", "feet", 0, 16, 0.9, true),
     };
 
-    // what sheet a limb is cut from, when it is not the body's own
-    //
-    // a role rather than a path, because which png a cape or a helmet is depends on what the player
-    // is wearing, and that is a thing the client can see and the engine cannot. a place that wants
-    // a particular png writes the path here instead and it is used as given
     public static final String SHEET_CAPE = "cape";
     public static final String SHEET_ELYTRA = "elytra";
     public static final String SHEET_RIPTIDE = "riptide";
@@ -111,7 +67,6 @@ public final class Rig {
 
     private static final double PX = 1.0 / 16.0;
 
-    // the model is authored from the shoulder down; the feet are twenty four units below it
     private static final double STANDING = 24.0;
 
     private static final PropertyDef SIZE = Classes.PART.property("size");
@@ -122,28 +77,16 @@ public final class Rig {
     private static final PropertyDef GRIP_FRAME = Classes.SPATIAL.property("cframe");
     private static final PropertyDef TEXELS = Classes.LIMB.property("texels");
 
-    // a limb: where it turns, the box hung off that, how far its shell stands proud, and where on
-    // its sheet the two are cut from
-    //
-    // the rect lives here rather than in a table the renderer looks names up in. that table is what
-    // made everything it did not name -- a cape, a wing, a plate, a worn head -- get drawn twice
     private record Shape(String name, Vec3 pivot, Vec3 box, Vec3 size, double shell,
                          Vec3 texels, double u, double v, double shellU, double shellV) {}
 
-    // the wing the model builds, in its own units. the box is ten by twenty by two grown by a
-    // whole texel on every side, which is why the drawn size and the rect it is cut from are two
-    // separate numbers and always will be
     private static final Shape[] WING = {
             limb("rightWing", -5, 0, -2, 0, 0, 0, 10, 20, 2, 1.0, 22, 0),
             limb("leftWing", 5, 0, -2, -10, 0, 0, 10, 20, 2, 1.0, 22, 0),
     };
 
-    // ten by sixteen by one, hung two texels behind the torso's own joint. no growing: a cape is
-    // the one thing the model does not inflate
     private static final Shape CAPE_BOX = limb("cape", 0, 0, -2, -5, 0, -1, 10, 16, 1, 0, 0, 0);
 
-    // sixteen by thirty two by sixteen, twice, at three quarters and one and a half. the two
-    // spin at different rates, which is the whole of the effect
     private static final Shape[] SPINS = {
             limb("spinInner", 0, 0, 0, -8, -9.6, -8, 16, 32, 16, 0, 0, 0),
             limb("spinOuter", 0, 0, 0, -8, 0, -8, 16, 32, 16, 0, 0, 0),
@@ -151,15 +94,11 @@ public final class Rig {
 
     private static final double[] SPIN_SCALE = {0.75, 1.5};
 
-    // six by six by one, grown a whole texel on every side, hung off the head's own joint. the
-    // rect stays sized for the ungrown box, which is what a grow always does
     private static final Shape[] EAR = {
             limb("rightEar", 6, -6, 0, -3, -6, -1, 6, 6, 1, 1.0, 24, 0),
             limb("leftEar", -6, -6, 0, -3, -6, -1, 6, 6, 1, 1.0, 24, 0),
     };
 
-    // the six, and where every skin made in the last decade puts them. the second rect is the
-    // layer over it: hat, jacket, sleeves, trousers
     private static final Shape[] BODY = {
             limb("head", 0, 0, 0, -4, -8, -4, 8, 8, 8, 0.5, 0, 0, 32, 0),
             limb("torso", 0, 0, 0, -4, 0, -2, 8, 12, 4, 0.25, 16, 16, 16, 32),
@@ -169,8 +108,6 @@ public final class Rig {
             limb("leftLeg", 1.9, 12, 0, -2, 0, -2, 4, 12, 4, 0.25, 16, 48, 0, 48),
     };
 
-    // the six, in one place. they were strings in three files, so renaming one stopped the pose
-    // finding it and said nothing
     public static String[] limbs() {
         String[] names = new String[BODY.length];
         for (int n = 0; n < BODY.length; n++) names[n] = BODY[n].name();
@@ -179,8 +116,6 @@ public final class Rig {
 
     private Rig() {}
 
-    // model space is mirrored on x and runs downward on y, which is why every conversion is here
-    // and nowhere else
     private static Shape limb(String name, double px, double py, double pz,
                              double bx, double by, double bz, double w, double h, double d,
                              double shell, double u, double v) {
@@ -191,23 +126,15 @@ public final class Rig {
                              double bx, double by, double bz, double w, double h, double d,
                              double shell, double u, double v, double shellU, double shellV) {
         Vec3 pivot = new Vec3(-px * PX, (STANDING - py) * PX, pz * PX);
-        // the middle of the box, measured from the pivot it hangs on
         Vec3 centre = new Vec3(-(bx + w * 0.5) * PX, -(by + h * 0.5) * PX, (bz + d * 0.5) * PX);
         return new Shape(name, pivot, centre, new Vec3(w * PX, h * PX, d * PX), shell * PX,
                 new Vec3(w, h, d), u, v, shellU, shellV);
     }
 
-    // where a limb turns, at this scale
-    //
-    // a pose that moves a joint starts from here, never from where it left it last tick: the
-    // model states a crouch as an offset applied to the standing pivot, and reading back the
-    // offset one would compound it every tick until the body came apart
-    // what this body is wearing, or nothing if something took it away
     public static Armour armour(Character character) {
         return character.child(ARMOUR) instanceof Armour worn ? worn : null;
     }
 
-    // the sheet a slot is wearing, by name rather than by four branches at every call site
     public static String slot(Armour worn, String slot) {
         if (worn == null) return "";
         return switch (slot) {
@@ -218,8 +145,6 @@ public final class Rig {
         };
     }
 
-    // +1 for the arm that stands at +x and -1 for the other, so the texel comes off the side away
-    // from the torso in both cases. zero for everything that is not an arm
     private static double arm(String name) {
         if ("rightArm".equals(name)) return 1;
         return "leftArm".equals(name) ? -1 : 0;
@@ -232,8 +157,6 @@ public final class Rig {
         return null;
     }
 
-    // the living half, or nothing if something took it away
-    // how a body looks, which is a child of it like everything else it is made of
     public static Appearance appearance(Character character) {
         return character.child(APPEARANCE) instanceof Appearance look ? look : null;
     }
@@ -242,7 +165,6 @@ public final class Rig {
         return character.child(HUMANOID) instanceof Humanoid living ? living : null;
     }
 
-    // the pair this body wears, or nothing
     public static Wings wings(Character character) {
         return character.child(WING_SET) instanceof Wings pair ? pair : null;
     }
@@ -252,7 +174,6 @@ public final class Rig {
         return pair != null && pair.worn;
     }
 
-    // the joint that drives a limb, or the body's own when asked for the root
     public static Instance joint(Character character, String name) {
         return character.child(JOINTS) instanceof Instance joints ? joints.child(name) : null;
     }
@@ -264,18 +185,10 @@ public final class Rig {
         return Vec3.ZERO;
     }
 
-    // an offset stated the way the model states one, in its units and its directions, converted
-    // here for the same reason every other number is
     public static Vec3 offset(double x, double y, double z) {
         return new Vec3(-x * PX, -y * PX, z * PX);
     }
 
-    // how far each of the six swings with the stride, and where in it
-    //
-    // stated on the limbs rather than written into the walk, which is what lets a seventh limb take
-    // part: the walk reads these off whatever is hanging on the body instead of off six names. the
-    // numbers are the model's own -- the arms swing an amplitude of one and the legs of 1.4, and the
-    // arms lead the legs by half a cycle, which is what makes a walk look like a walk
     private static double swing(String name) {
         return switch (name) {
             case "rightArm", "leftArm" -> 1.0;
@@ -292,14 +205,11 @@ public final class Rig {
     }
 
     public static void build(Character character) {
-        // a character builds its own body once. asking twice is a caller that did not know it
-        // was already done, not a request for a second head
         if (character.child(HITBOX) != null) return;
         for (Shape limb : BODY) {
             Instances.create(Classes.LIMB, character, limb.name(), part -> {
                 part.size = limb.size();
                 part.cframe = CFrame.at(limb.pivot());
-                // our pivot points from the middle of the box back to where it turns
                 part.pivot = limb.box().neg();
                 part.color = Color.WHITE;
                 part.collides = false;
@@ -371,8 +281,6 @@ public final class Rig {
                 part.u = wing.u();
                 part.v = wing.v();
                 part.texels = wing.texels();
-                // half the height of a skin, and only one wing is on it: the right one reads the
-                // same rect the other way round, which is how the model builds it
                 part.sheetHeight = 32;
                 part.mirrored = WINGS[0].equals(wing.name());
                 part.sheet = SHEET_ELYTRA;
@@ -391,8 +299,6 @@ public final class Rig {
                 part.u = CAPE_BOX.u();
                 part.v = CAPE_BOX.v();
                 part.texels = CAPE_BOX.texels();
-                // the model declares it on a sixty four square sheet and then halves the texture
-                // scale on this one cube. same answer, stated the short way
                 part.sheetHeight = 32;
                 part.sheet = SHEET_CAPE;
                 part.cutout = true;
@@ -411,8 +317,6 @@ public final class Rig {
                     part.collides = false;
                     part.anchored = true;
                     part.visible = false;
-                    // a mob's head is cut from half the sheet a player's is, and the second layer
-                    // is the same thirty two across the top that a hat is
                     part.u = layer ? 32 : 0;
                     part.v = 0;
                     part.texels = new Vec3(8, 8, 8);
@@ -430,7 +334,6 @@ public final class Rig {
                 part.collides = false;
                 part.anchored = true;
                 part.visible = false;
-                // the limb it covers again, off the plate's own corner of a sheet half as tall
                 part.u = plate.u();
                 part.v = plate.v();
                 part.texels = shape.texels();
@@ -443,14 +346,9 @@ public final class Rig {
         Instances.create(Classes.WINGS, character, WING_SET);
         Instances.create(Classes.APPEARANCE, character, APPEARANCE);
 
-        // the frame the whole body hangs from. it is a real point on the character rather than a
-        // prefix the composer remembers to apply: every limb joint holds onto this, so the body
-        // tilting is one joint turning and the limbs know nothing about it
         Instance frame = Instances.create(Classes.ATTACHMENT, character, ROOT);
 
         Instance joints = Instances.create(Classes.FOLDER, character, JOINTS);
-        // first, because a stage visits in the order things entered the tree and everything below
-        // is composed through what this one leaves
         Instances.create(Classes.MOTOR, joints, ROOT, joint -> {
             joint.part0 = character;
             joint.part1 = frame;
@@ -482,50 +380,27 @@ public final class Rig {
         apply(character);
     }
 
-    // every body follows its own character's shape, once a tick, on whichever side is ticking
-    //
-    // scale, radius, height and display each change what the rig is, and a place on the server, a
-    // place on the client or the engine can all write one. hanging the rebuild off the single
-    // write that happened to be a bound player's profile change left two bodies wrong: a statue
-    // that could not be resized at all, and a body scaled by the client with its joints moved to
-    // the new size while its boxes kept the old one, which is a body coming apart at the joints
-    //
-    // a write that changes nothing is already a no-op, so a tick where no shape moved costs six
-    // comparisons and touches nothing
     public static void follow(InstanceTree tree) {
         for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
             if (instance instanceof Character character) apply(character);
         }
     }
 
-    // sizes are recomputed rather than scaled in place, so a place that writes scale twice gets
-    // the same body both times instead of one that grew twice
     public static void apply(Character character) {
         double s = character.scale;
         Appearance look = appearance(character);
-        // display is read where the body is drawn, not written into the limbs from here. writing it
-        // meant a place could never hide one limb of a body it was showing: the next tick put every
-        // limb back to whatever the whole body was doing. what a limb shows is the place's
 
         boolean slim = look != null && look.slim;
         for (Shape limb : BODY) {
             if (!(character.child(limb.name()) instanceof Part part)) continue;
-            // the limb's own scale, over the body's. a joint that holds nothing bigger than it
-            // was leaves this at one and the body is the size the model builds it
             Vec3 own = joint(character, limb.name()) instanceof Joint hinge ? hinge.scale : Vec3.ONE;
             Vec3 grown = limb.size().mul(s).mul(own);
 
-            // a slim sheet narrows an arm to three texels, and the texel it loses is the one away
-            // from the torso -- so the box also slides half a texel inward to stay flush against
-            // it. one place decides it, because the grip on that arm and a ray reaching it have to
-            // agree with what is drawn, and they did not while the renderer narrowed it privately
             double narrow = slim ? arm(limb.name()) : 0;
             double texel = narrow == 0 ? 0 : limb.size().x() * 0.25 * s * own.x();
             if (narrow != 0) grown = new Vec3(grown.x() - texel, grown.y(), grown.z());
 
             Instances.setObj(part, SIZE, grown);
-            // the box grows away from its joint rather than about its own middle, so the offset
-            // back to the joint grows with it and the limb stays joined where it was
             Instances.setObj(part, PIVOT, limb.box().neg().mul(s).mul(own)
                     .add(new Vec3(narrow * texel * 0.5, 0, 0)));
             if (part instanceof Limb cut) {
@@ -533,8 +408,6 @@ public final class Rig {
                         ? limb.texels()
                         : new Vec3(limb.texels().x() - 1, limb.texels().y(), limb.texels().z()));
             }
-            // where the joint stands, which is the engine's half of it. the turn at it is the
-            // place's half and is never touched from here
             if (joint(character, limb.name()) instanceof Joint hinge) {
                 Instances.setObj(hinge, C0, CFrame.at(limb.pivot().mul(s)));
             }
@@ -553,8 +426,6 @@ public final class Rig {
             if (part.child(OVERLAY) instanceof Part over) {
                 double shell = limb.shell() * 2;
                 Vec3 wide = limb.size().add(new Vec3(shell, shell, shell)).mul(s).mul(own);
-                // it loses the same absolute texel the model takes off its sleeve, and it rides the
-                // limb's own frame so the inward slide is already in it
                 Instances.setObj(over, SIZE,
                         narrow == 0 ? wide : new Vec3(wide.x() - texel, wide.y(), wide.z()));
                 if (over instanceof Limb cut) {
@@ -562,14 +433,9 @@ public final class Rig {
                             ? limb.texels()
                             : new Vec3(limb.texels().x() - 1, limb.texels().y(), limb.texels().z()));
                 }
-                // its visibility is the place's. the engine used to write it here every tick, so
-                // a place that took a hat off had it put back on before the frame was drawn
             }
         }
 
-        // a rig that has settled leaves the body where it says it is, rather than where it was
-        // before the joints moved. asked in the order they were made, so the root frame is where
-        // it belongs before anything hanging off it is composed through it
         if (character.child(JOINTS) instanceof Instance joints) {
             for (Instance held : joints.children()) {
                 if (held instanceof Joint hinge) hinge.compose();
@@ -580,12 +446,8 @@ public final class Rig {
                 && torso.child(CAPE) instanceof Part cape) {
             Instances.setObj(cape, SIZE, CAPE_BOX.size().mul(s));
             Instances.setObj(cape, PIVOT, CAPE_BOX.box().neg().mul(s));
-            // a cape and a pair of wings share a back, and the wings win. whether one is worn
-            // at all is the cape's own business, so this only ever takes it away
             if (worn(character)) Instances.setBool(cape, VISIBLE, false);
             if (joint(character, CAPE) instanceof Joint hinge) {
-                // the joint lives inside the torso's frame, whose origin is the middle of its
-                // box rather than the shoulder it turns at. so the fold back comes first
                 Instances.setObj(hinge, C0, CFrame.at(
                         BODY[1].box().neg().add(CAPE_BOX.pivot().sub(BODY[1].pivot())).mul(s)));
             }
@@ -593,7 +455,6 @@ public final class Rig {
 
         for (Shape wing : WING) {
             if (!(character.child(wing.name()) instanceof Part part)) continue;
-            // grown by a texel on every side, and the rect it is cut from is not
             double grown = wing.shell() * 2;
             Instances.setObj(part, SIZE,
                     wing.size().add(new Vec3(grown, grown, grown)).mul(s));
@@ -623,7 +484,6 @@ public final class Rig {
                 double out = ear.shell() * 2;
                 Instances.setObj(part, SIZE,
                         ear.size().add(new Vec3(out, out, out)).mul(s));
-                // measured from the head's own joint, which is what the point is
                 Instances.setObj(part, CFRAME,
                         CFrame.at(ear.pivot().sub(BODY[0].pivot()).mul(s)));
                 Instances.setObj(part, PIVOT, ear.box().neg().mul(s));
@@ -637,13 +497,10 @@ public final class Rig {
             boolean wearing = worn != null && !worn.hat.isEmpty();
             for (int n = 0; n < WORN_HEAD.length; n++) {
                 if (!(point.child(WORN_HEAD[n]) instanceof Part part)) continue;
-                // the second layer stands a quarter texel proud of the first, exactly as a hat
-                // stands off a head
                 double out = n == 0 ? 0 : 0.25 * 2 * PX;
                 double at = HEAD_WORN * s;
                 Instances.setObj(part, SIZE,
                         new Vec3(8 * PX + out, 8 * PX + out, 8 * PX + out).mul(at));
-                // its box hangs four texels above the neck it is anchored at
                 Instances.setObj(part, PIVOT, new Vec3(0, -4 * PX, 0).mul(at));
                 Instances.setBool(part, VISIBLE, wearing && (n == 0 || worn.hatLayered));
             }
@@ -654,16 +511,6 @@ public final class Rig {
             Shape shape = shapeOf(plate.limb());
             if (shape == null) continue;
 
-            // a plate is the limb it covers again, a little bigger and sharing its middle. the
-            // armour model is the body's own mesh with a deformation on it, so the two cubes have
-            // the same centre -- and a child of a limb is already stated from that centre, so there
-            // is nothing to offset
-            //
-            // it used to be given the limb's own pivot, which is the offset from the box's middle
-            // back to the joint it turns at. that is the right offset for a limb, whose frame sits
-            // on the joint, and it is exactly wrong for something already inside the limb: it
-            // pushed every plate away from the limb by that vector, which for a chestplate is the
-            // best part of forty centimetres straight up
             Vec3 own = joint(character, plate.limb()) instanceof Joint hinge ? hinge.scale : Vec3.ONE;
             double out = plate.grow() * 2 * PX * s;
             Instances.setObj(plated, SIZE,
@@ -672,15 +519,6 @@ public final class Rig {
             Instances.setBool(plated, VISIBLE, !taken && !slot(worn, plate.slot()).isEmpty());
         }
 
-        // what this box is, exactly, because a debug view that is vague about it is worse than none
-        //
-        // it is two volumes at once, and they agree here. the game's own is an axis aligned box of
-        // this width and height -- blocks, arrows and a swung sword test against that one, and the
-        // volume mixin makes it these numbers. the mover the body walks with is a capsule of the
-        // same radius and height, and a capsule's bounding box is this box
-        //
-        // so the only thing drawn wrong is the four rounded corners, top and bottom. showing those
-        // needs lines rather than parts, and a line pass for four corners is not worth a render pass
         if (character.child(HITBOX) instanceof Part box) {
             Instances.setObj(box, SIZE,
                     new Vec3(character.radius * 2, character.height, character.radius * 2));
@@ -689,18 +527,8 @@ public final class Rig {
         }
     }
 
-    // the shell sits on the part, not on the character: it inherits the swing, the pivot and the
-    // scale of whatever it covers
-    // the game's own hand placement, converted once like every other number here
-    //
-    // it states it as: take the arm's frame, turn a quarter back and a half about, then step out
-    // by one, two and ten sixteenths. the step happens after the turns, so it is in the turned
-    // frame, and the whole of it hangs off the arm's joint rather than the middle of its box --
-    // which is why the fold back by the box offset is the first thing in it
     private static CFrame hold(Shape limb, Character character) {
         double side = "rightArm".equals(limb.name()) ? 1 : -1;
-        // no slim term: the arm's own box already slid inward, and the grip is a child of it, so
-        // adding it here again would move the hand twice
         Vec3 back = limb.box().neg().mul(character.scale);
 
         Quat turn = Quat.axisAngle(new Vec3(1, 0, 0), Math.PI / 2)
@@ -709,8 +537,6 @@ public final class Rig {
         return new CFrame(back, turn).mul(CFrame.at(out));
     }
 
-    // a point on a limb, stated from that limb's own joint rather than from the middle of its
-    // box, because a joint is what the game states everything from
     private static void attach(Character character, Shape limb, String name, Vec3 from) {
         if (!(character.child(limb.name()) instanceof Part part)) return;
         Instances.create(Classes.ATTACHMENT, part, name,
@@ -733,7 +559,6 @@ public final class Rig {
             over.u = limb.shellU();
             over.v = limb.shellV();
             over.texels = limb.texels();
-            // a blank texel on a hat or a sleeve is nothing, not black
             over.cutout = true;
         });
     }

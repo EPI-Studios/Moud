@@ -12,11 +12,6 @@ import java.util.function.Consumer;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
-// a function a place assigns to an instance's callback, called from java with plain values and answered
-// with plain values
-//
-// one handler per callback per vm, and every one of them let go when the vm closes: a callback left
-// pointing into a closed state would crash the next time the engine asked it anything
 public final class Callbacks {
 
     private record Assigned(Callback callback, int ref) {}
@@ -91,7 +86,6 @@ public final class Callbacks {
         } catch (RuntimeException broken) {
             Consumer<ScriptError> onError = ERRORS.get(state);
             if (onError != null) onError.accept(new ScriptError(where, broken.getMessage(), broken));
-            // a callback that failed answers nothing, and the engine uses its own answer
             return null;
         } finally {
             state.top(base);

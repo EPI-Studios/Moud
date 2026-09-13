@@ -7,7 +7,6 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-// the place's files for a script: read anything under the place, write scenes
 public final class PlaceFileRef implements FileRef {
 
     private final Path root;

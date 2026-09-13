@@ -55,13 +55,10 @@ public final class Place {
         return new Place(world, classes, entry(PlaceToml.config().server()), false, instance -> true, vm -> { });
     }
 
-    // 8.6: a client reload re-runs the place's local scripts and leaves the mirror alone, so the
-    // only things it may destroy are the ones the client made itself. those are the negative ids
     public static Place client(Instance world, ClassRegistry classes, Consumer<ScriptEngine> extend) {
         return new Place(world, classes, entry(PlaceToml.config().client()), true, instance -> instance.id() < 0, extend);
     }
 
-    // the entry file without its extension, which is what says which language it is written in
     private static String entry(String res) {
         String path = Res.parse(res);
         int dot = path.lastIndexOf('.');
@@ -78,7 +75,6 @@ public final class Place {
 
     public void start() {
         vm = load(Map.of());
-        // no watcher in an exported jar: no cost, no path, nothing to go wrong
         if (vm != null && FabricLoader.getInstance().isDevelopmentEnvironment()) {
             types();
             try {
@@ -90,7 +86,6 @@ public final class Place {
         }
     }
 
-    // the place is done: its scripts stop and its files are no longer watched
     public void close() {
         if (vm != null) vm.close();
         vm = null;
@@ -98,17 +93,11 @@ public final class Place {
         watcher = null;
     }
 
-    // called at one defined point in the frame, never from inside a script
-    //
-    // says whether it reloaded, because the tree it tore down held the characters of everyone
-    // connected and 8.6 has them respawned rather than left without one
     public boolean pollReload() {
         if (watcher == null || !watcher.take()) return false;
         MoudMod.LOG.info("reloading the place");
 
         Map<String, Object> carried = vm == null ? Map.of() : vm.persist();
-        // gone before anything else runs: a script of the next vm calling back into the engine must never be
-        // handed this one, whose native state is freed
         if (vm != null) vm.close();
         vm = null;
         for (Instance child : List.copyOf(world.children())) {
@@ -120,8 +109,6 @@ public final class Place {
         return true;
     }
 
-    // the definitions an editor reads the place against, rewritten on every start so they always
-    // describe the engine that is about to run it
     private void types() {
         if (language == null) return;
         try {
@@ -132,9 +119,6 @@ public final class Place {
         }
     }
 
-    // which language runs this place is the answer to what its main file is called. a folder with
-    // no main file in any known language simply has nothing to run, which is not an error: an
-    // empty place still has to be walkable
     private @Nullable ScriptLanguage pick() {
         ScriptLanguage found = null;
         for (ScriptLanguage language : Languages.all()) {
@@ -164,10 +148,8 @@ public final class Place {
     }
 
     private @Nullable ScriptEngine load(Map<String, Object> carried) {
-        // the server's opening scene goes in first, so a script can find it and a place with no script still has it
         if (!client) scene();
         language = pick();
-        // no main file still gets a vm: the scene and its script instances need one to run in
         ScriptLanguage running = language != null ? language : Languages.all().getFirst();
         String file = main + "." + running.extension();
         Path entry = root.resolve(file);
@@ -182,7 +164,6 @@ public final class Place {
 
         ScriptEngine fresh = running.engine();
         fresh.bind(world, classes);
-        // the server's side of a channel, and the server's half of the verbs
         fresh.bindPost(Post.SERVER, false);
         fresh.bindBlocks(new BlockRays(Physics::level, true));
         fresh.bindModules(new PlaceModules(root, client));
@@ -195,13 +176,11 @@ public final class Place {
         fresh.onPrint(line -> MoudMod.LOG.info("[{}] {}", client ? "client" : "server", line));
         fresh.persist(carried);
         extend.accept(fresh);
-        // the place's vm from here on, since running main calls back into code that asks the place for it
         vm = fresh;
         if (source != null) {
             try {
                 fresh.run(file, source);
             } catch (RuntimeException e) {
-                // a broken edit must not take the client with it, the next save gets another go
                 MoudMod.LOG.error("{} failed", entry, e);
             }
         }

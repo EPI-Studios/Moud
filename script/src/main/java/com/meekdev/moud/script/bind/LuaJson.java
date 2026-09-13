@@ -8,7 +8,6 @@ import java.util.Map;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
-// a luau value as json and back: numbers, text, booleans, nil, lists and tables keyed by text
 final class LuaJson {
 
     private static final int DEEPEST = 32;

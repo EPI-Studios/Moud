@@ -21,8 +21,6 @@ import java.util.Map;
 import net.minecraft.server.level.ServerLevel;
 import org.jspecify.annotations.Nullable;
 
-// a part a player has to stand on accurately is a sub level: a real obb with rotation, carrying
-// and ground reporting, which an axis aligned box cannot express (12.1.1)
 public final class SubLevels {
 
     private final Map<Integer, SubLevel> byInstance = new HashMap<>();
@@ -40,19 +38,12 @@ public final class SubLevels {
         level = serverLevel;
     }
 
-    // the same change stream the mirror and the broadphase read, so dirty is drained once
-    // a body is created lazily on the first tick, so the type it wants is settled then, not at
-    // allocation time when body() is still null
     public void settle() {
         if (tree == null) return;
         List<Integer> letGo = null;
         for (Map.Entry<Integer, SubLevel> entry : byInstance.entrySet()) {
             Instance instance = tree.byId(entry.getKey());
             if (!(instance instanceof Part part)) continue;
-            // a turning part passes exactly through square once a revolution, and giving the plot
-            // back there destroys the entity and every rider's tracking with it. a client riding it
-            // then sends a plot frame the server can no longer decode, and lands in the plot. the
-            // count runs here rather than on a write, so a part that stops moving still lets go
             if (!wants(part)) {
                 if (square.merge(entry.getKey(), 1, Integer::sum) >= SQUARE_TICKS) {
                     if (letGo == null) letGo = new ArrayList<>(1);
@@ -70,15 +61,6 @@ public final class SubLevels {
         }
     }
 
-    // the body carries the transform, and sub level tick copies it back over the pose every tick.
-    // writing the pose alone is why every ramp collided as an axis aligned box
-    //
-    // and the body is woken, because a sleeping one does not move its shapes in the broadphase: the
-    // place would draw the part turning while the world kept colliding against where it used to be.
-    // no velocity goes with it. gravimity sets one wherever it drives a body by hand, but it drives
-    // dynamic bodies, which the solver integrates from wherever they were put. an anchored part is
-    // kinematic, so a velocity would be integrated on top of the teleport and leave the deck a tick
-    // ahead of the place that owns it
     private static void drive(SubLevel subLevel, Part part) {
         B3Body body = subLevel.body();
         if (body == null) return;
@@ -105,16 +87,8 @@ public final class SubLevels {
         }
     }
 
-    // box3d is a native library, so it can fail at load rather than at build. one failure turns
-    // sub levels off for the run and the rotated parts fall back to boxes, which is wrong by the
-    // width of the rotation but is a great deal better than no collision and a dead server
     private static boolean available = true;
 
-    // which part a sub-level entity stands for, or zero for one this set never made
-    //
-    // the forward map is keyed by instance id because that is the one thing both sides agree on. a
-    // rider needs the other direction: bkun says which deck is under it, and what has to be known is
-    // which part of the tree that deck is, so a body can be hung off it
     public int instanceOf(SubLevelEntity deck) {
         for (Map.Entry<Integer, SubLevelEntity> entry : entities.entrySet()) {
             if (entry.getValue() == deck) return entry.getKey();
@@ -142,8 +116,6 @@ public final class SubLevels {
         if (!(instance instanceof Part part)) return;
         CFrame world = Transforms.world(part);
         if (!wants(part)) {
-            // settle decides when a square part gives its plot back, so one that is only passing
-            // through square keeps being posed rather than being torn down and rebuilt
             SubLevel settled = byInstance.get(id);
             if (settled != null) pose(settled, part, world);
             return;
@@ -153,23 +125,15 @@ public final class SubLevels {
             subLevel = allocate(id, world);
             if (subLevel == null) return;
             subLevel.setModel(PartShapes.of(part.size));
-            // the origin belongs to the shape's centre, which is what spawnModel does between
-            // setting a model and spawning its entity. createBody would settle it a tick later
             subLevel.recentreOrigin();
             subLevel.markShapesDirty();
-            // the plot is only the shape. collision finds sub levels through their entity, and so
-            // does the client, so a plot nobody spawned is invisible to both
             SubLevelEntity spawned = SubLevelEntity.spawn(level, subLevel);
-            // the part it stands for, so the client can find this deck again and drive it from the
-            // same cframe it draws, rather than from entity data a tick behind
             spawned.setOwner(id);
             entities.put(id, spawned);
         }
         pose(subLevel, part, world);
     }
 
-    // the pose carries the rotation and setPosition is what pushes both into the body, so the
-    // orientation has to be written first or the obb would sit square while the part looks tilted
     private static void pose(SubLevel subLevel, Part part, CFrame world) {
         Quat rotation = world.rotation();
         subLevel.pose().setRotation(
@@ -179,7 +143,6 @@ public final class SubLevels {
         type(subLevel, part);
     }
 
-    // a sub level body is dynamic, so an anchored part would fall out of the world without this
     private static void type(SubLevel subLevel, Part part) {
         B3Body body = subLevel.body();
         if (body == null) return;
@@ -187,17 +150,12 @@ public final class SubLevels {
         if (body.type() != wanted) body.setType(wanted);
     }
 
-    // how long a sub level's part has to stay square before its plot is given back
     private static final int SQUARE_TICKS = 40;
 
-    // rotated or unanchored: the two cases an axis aligned box gets wrong
     private static boolean wants(Part part) {
         return part.collides && (!part.anchored || !Colliders.isAxisAligned(part));
     }
 
-    // only the shape's name reaches the other side, so a client that never baked it resolves null
-    // and the sub level is neither solid nor drawn. singleplayer hides this behind a shared static
-    // map. the name is the size, so the mirror can bake the same shape without being told
     static void mirror(InstanceTree tree, Change change) {
         if (!available) return;
         int id = switch (change) {
@@ -212,8 +170,6 @@ public final class SubLevels {
         if (tree.byId(id) instanceof Part part && wants(part)) PartShapes.of(part.size);
     }
 
-    // whether a part is one the deck machinery takes over, for the client adapter that has to ask
-    // the same question without owning the answer
     static boolean wantsSubLevel(Part part) {
         return wants(part);
     }
@@ -222,7 +178,6 @@ public final class SubLevels {
         SubLevel subLevel = SubLevelContainer.get(level)
                 .allocate(world.position().x(), world.position().y(), world.position().z());
         if (subLevel == null) {
-            // the plot grid is four thousand slots, and a place can ask for more than that
             if (!warned) {
                 MoudMod.LOG.error("out of sub level plots at {}, the rest stay axis aligned", size());
                 warned = true;

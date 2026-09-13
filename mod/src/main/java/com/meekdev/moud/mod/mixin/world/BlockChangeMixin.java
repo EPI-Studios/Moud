@@ -9,7 +9,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// every block that actually changed, whoever changed it, for game.blocks.changed
 @Mixin(Level.class)
 abstract class BlockChangeMixin {
 

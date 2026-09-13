@@ -1,6 +1,5 @@
 package com.meekdev.moud.core.math;
 
-// stored decomposed because replication wants a quaternion and interpolation wants slerp
 public record CFrame(Vec3 position, Quat rotation) {
 
     public static final CFrame IDENTITY = new CFrame(Vec3.ZERO, Quat.IDENTITY);
@@ -25,7 +24,6 @@ public record CFrame(Vec3 position, Quat rotation) {
         return new CFrame(from, Quat.lookAt(to.sub(from), up));
     }
 
-    // this frame then the other one, so base.mul(offset) puts offset in base's space
     public CFrame mul(CFrame o) {
         return new CFrame(position.add(rotation.rotate(o.position)), rotation.mul(o.rotation).normalize());
     }
@@ -55,11 +53,6 @@ public record CFrame(Vec3 position, Quat rotation) {
         return rotation.rotate(Vec3.FORWARD);
     }
 
-    // how far the frame is rolled about its own look, measured against a reference up
-    //
-    // a frame carries roll inside its basis with nothing naming it, and a camera that wants to
-    // tilt has to be able to say by how much. undefined looking straight up or down, where there
-    // is no horizon to be level with, and zero is the answer there rather than a NaN
     public double roll(Vec3 reference) {
         Vec3 look = lookVector();
         Vec3 flat = look.cross(reference);

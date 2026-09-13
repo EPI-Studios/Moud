@@ -6,8 +6,6 @@ import java.util.Map;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
-// game.persist crosses a reload as plain data, because the new vm shares nothing with the old one.
-// scalars, the value types and nested tables travel; functions and instances deliberately do not
 public final class Persist {
 
     private static final int MAX_DEPTH = 16;

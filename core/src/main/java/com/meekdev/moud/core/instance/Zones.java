@@ -11,7 +11,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-// works out, once a tick, what is inside every zone and fires entered and left on the changes
 public final class Zones {
 
     private Zones() {}
@@ -87,7 +86,6 @@ public final class Zones {
         };
     }
 
-    // an even odd test against the outline the zone's attachments draw on its floor
     private static boolean insideOutline(Zone zone, Vec3 local) {
         List<Vec3> points = new ArrayList<>();
         for (Instance child : zone.children()) {
@@ -106,7 +104,6 @@ public final class Zones {
         return inside;
     }
 
-    // every zone a point is in, the one that wins first
     public static List<Zone> at(InstanceTree tree, Vec3 point) {
         List<Zone> out = new ArrayList<>();
         for (Zone zone : tree.ofClass(Classes.ZONE)) {

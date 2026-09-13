@@ -8,10 +8,8 @@ import net.minecraft.client.gui.font.glyphs.BakedGlyph;
 import net.minecraft.client.gui.font.glyphs.BakedSheetGlyph;
 import net.minecraft.network.chat.FontDescription;
 
-// text in one of the game's own fonts, drawn from the glyphs it already baked
 final class GameText {
 
-    // the game's line is nine of its pixels, so a size of nine is its own text at its own size
     static final float LINE = 9f;
 
     private GameText() {}
@@ -28,13 +26,11 @@ final class GameText {
         return pen * scale;
     }
 
-    // x and y are the top left of the line
     static void draw(UiDraw d, FontDescription font, String text, float x, float y, float size, int argb,
                      boolean shadow) {
         GlyphSource glyphs = Minecraft.getInstance().font.getGlyphSource(font);
         float scale = size / LINE;
         if (shadow) {
-            // the game's shadow: one of its pixels down and right, at a quarter of the brightness
             int dark = (argb & 0xFF000000) | ((argb & 0xFCFCFC) >> 2);
             run(d, glyphs, text, x + scale, y + scale, scale, dark);
         }

@@ -40,8 +40,6 @@ public final class PolarChunks {
         long written = 0;
 
         HolderLookup<Block> blocks = BuiltInRegistries.BLOCK;
-        // generation owns these two, and light is computed from them later, so blocks written
-        // without updating them come out unlit and invisible
         Heightmap oceanFloor = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.OCEAN_FLOOR_WG);
         Heightmap worldSurface = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE_WG);
 
@@ -72,7 +70,6 @@ public final class PolarChunks {
                     }
                 }
             }
-            // without this the section can still report itself as air and never render or collide
             target.recalcBlockCounts();
         }
         BLOCKS.addAndGet(written);
@@ -86,7 +83,6 @@ public final class PolarChunks {
         return states;
     }
 
-    // a place that names a block this version does not have gets air rather than a failed level
     private static BlockState parse(HolderLookup<Block> blocks, String key) {
         try {
             return BlockStateParser.parseForBlock(blocks, key, false).blockState();

@@ -10,9 +10,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// suppresses fog
-// the renderer already hands back an empty buffer when its own flag is down, so the switch only has
-// to hold that flag rather than build a second empty buffer of its own
 @Mixin(FogRenderer.class)
 abstract class FogMixin {
 

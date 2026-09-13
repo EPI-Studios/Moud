@@ -11,7 +11,6 @@ import com.meekdev.moud.mod.client.ClientScene;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 
-// the chat's configuration instances the place put in the tree. the first of each is the one used
 public final class ChatLook {
 
     private static final ChatWindow DEFAULT_WINDOW = new ChatWindow();
@@ -23,7 +22,6 @@ public final class ChatLook {
         return first(Classes.CHAT_WINDOW);
     }
 
-    // the window to draw with: the place's, or one with every default
     public static ChatWindow windowOrDefault() {
         ChatWindow window = window();
         return window == null ? DEFAULT_WINDOW : window;

@@ -9,9 +9,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// a move is swept block by block, so a movement of a thousand blocks walks a billion positions and
-// the tick never returns. that is not a slow tick, it is a server that stops answering, and a place
-// that can drive a part can reach it by accident. refusing the move costs one frame of that entity
 @Mixin(Entity.class)
 abstract class MoveSweepMixin {
 

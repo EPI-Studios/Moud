@@ -11,7 +11,6 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
-// debug drawn on the server goes to every client that can show it
 public final class ServerDebug implements DebugRef {
 
     public static final ServerDebug INSTANCE = new ServerDebug();

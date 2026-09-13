@@ -32,7 +32,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import org.jspecify.annotations.Nullable;
 
-// the client's audio, handed to the place
 public final class ResonaAudio implements AudioRef {
 
     public static final ResonaAudio INSTANCE = new ResonaAudio();
@@ -55,7 +54,6 @@ public final class ResonaAudio implements AudioRef {
         Resona.conductor().onBar(bars::add);
     }
 
-    // everything a place set up goes, so a reload starts from silence and an untouched mix
     public void reset() {
         Resona.stopAll();
         Resona.resetMix();
@@ -89,7 +87,6 @@ public final class ResonaAudio implements AudioRef {
         if (tree == null) return 0;
         Vec3 from = vec(listener);
         Vec3 way = vec(source).sub(from);
-        // stops short of the source, so the part a sound hangs inside does not muffle it
         double range = way.length() - 0.5;
         Hits.Hit hit = Hits.cast(tree.root(), from, way, range, part -> part.collides && part.transparency < 0.5);
         return hit == null ? 0 : 1;

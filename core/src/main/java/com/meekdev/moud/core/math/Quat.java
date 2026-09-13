@@ -11,7 +11,6 @@ public record Quat(double x, double y, double z, double w) {
         return new Quat(a.x() * s, a.y() * s, a.z() * s, Math.cos(h));
     }
 
-    // intrinsic y then x then z, the order people expect from euler fields
     public static Quat euler(double pitchX, double yawY, double rollZ) {
         double cx = Math.cos(pitchX * 0.5), sx = Math.sin(pitchX * 0.5);
         double cy = Math.cos(yawY * 0.5), sy = Math.sin(yawY * 0.5);
@@ -65,7 +64,6 @@ public record Quat(double x, double y, double z, double w) {
             b = new Quat(-o.x, -o.y, -o.z, -o.w);
             d = -d;
         }
-        // close enough that sin(theta) loses precision, lerp instead
         if (d > 0.9995) {
             return new Quat(x + (b.x - x) * t, y + (b.y - y) * t,
                     z + (b.z - z) * t, w + (b.w - w) * t).normalize();
@@ -81,15 +79,12 @@ public record Quat(double x, double y, double z, double w) {
         Vec3 f = forward.normalize();
         if (f.lengthSq() < 1e-12) return IDENTITY;
         Vec3 r = f.cross(up);
-        // looking straight up or down leaves no right vector, pick one
         if (r.lengthSq() < 1e-12) r = f.cross(Vec3.FORWARD);
         r = r.normalize();
         Vec3 u = r.cross(f);
-        // forward is -z, so the z axis of the basis points back
         return fromAxes(r, u, f.neg());
     }
 
-    // columns of the rotation matrix, not look vectors
     public static Quat fromAxes(Vec3 xAxis, Vec3 yAxis, Vec3 zAxis) {
         double m00 = xAxis.x(), m01 = yAxis.x(), m02 = zAxis.x();
         double m10 = xAxis.y(), m11 = yAxis.y(), m12 = zAxis.y();

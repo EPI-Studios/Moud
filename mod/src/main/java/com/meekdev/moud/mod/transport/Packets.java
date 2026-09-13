@@ -7,34 +7,14 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
-// the three kinds of thing we put on the game's own connection
-//
-// on the payload cap, which is a real question with a real answer: the game refuses a serverbound
-// custom payload past 32767 bytes and a clientbound one past a megabyte, and registerLarge
-// takes a bigger cap and splits and reassembles for us. so nothing here chunks by hand -- a tick of
-// changes is a few hundred bytes, and the one thing that can be large is a baseline, which is
-// clientbound and declared large
-//
-// the connection is tcp, so everything here arrives, in order. that is worth being plain about: what
-// an unreliable channel buys is not a lossy socket, it is a send queue that drops the stale ones when
-// it falls behind instead of growing -- which is the behaviour that actually matters to a caller
-//
-// the two directions of a delivery are two records rather than one with a flag, because a payload's
-// type() has to answer with the one it was registered as, and a record that had to remember which way
-// it was read is a record that can be wrong about it
 public final class Packets {
 
     public static final String NAMESPACE = "moud";
 
-    // eight megabytes is far past any baseline a place should have, and still a bound -- which is the
-    // point of declaring one
     public static final int BASELINE_CAP = 8 * 1024 * 1024;
 
-    // the game's own cap for a serverbound payload. a channel's own limits are far inside it: sixteen
-    // arguments and two hundred and fifty six values
     private static final int POST_CAP = 32767;
 
-    // a tick of tree changes, or the whole tree on a join
     public record Delta(byte[] bytes) implements CustomPacketPayload {
 
         public static final Type<Delta> TYPE = named("delta");
@@ -49,8 +29,6 @@ public final class Packets {
         }
     }
 
-    // a delivery from a client. it does not say who sent it: the far side knows, and a client that
-    // could say would say whatever it liked
     public record Up(int remote, byte[] args) implements CustomPacketPayload {
 
         public static final Type<Up> TYPE = named("up");
@@ -68,8 +46,6 @@ public final class Packets {
         }
     }
 
-    // and one from the server, to one client or to all of them. which of the two it was is the
-    // server's business and not on the wire: a client hears it either way
     public record Down(int remote, byte[] args) implements CustomPacketPayload {
 
         public static final Type<Down> TYPE = named("down");
@@ -87,8 +63,6 @@ public final class Packets {
         }
     }
 
-    // a chat line, an edit of one, a deletion, a status for the sender, or a clear. one shape for all of
-    // them, since each is a few fields of the same message
     public record ChatDown(int kind, long id, int channel, int source, int body, String text, String prefix,
                            String metadata, long timestamp, String status) implements CustomPacketPayload {
 
@@ -123,7 +97,6 @@ public final class Packets {
         }
     }
 
-    // what a player typed, and the channel they typed it into
     public record ChatUp(int channel, String text) implements CustomPacketPayload {
 
         public static final Type<ChatUp> TYPE = named("chat_up");
@@ -141,7 +114,6 @@ public final class Packets {
         }
     }
 
-    // a player pressing, holding or letting go of a proximity prompt
     public record PromptUp(int prompt, int kind) implements CustomPacketPayload {
 
         public static final int TRIGGERED = 0;
@@ -163,7 +135,6 @@ public final class Packets {
         }
     }
 
-    // a debug shape or label the server drew, for every client to show
     public record DebugDown(int kind, double[] numbers, String text, int argb, double seconds) implements CustomPacketPayload {
 
         public static final Type<DebugDown> TYPE = named("debug_down");
@@ -191,7 +162,6 @@ public final class Packets {
         }
     }
 
-    // the server moving a player's own body: walk these waypoints, jump, or stop
     public record PilotDown(int kind, double[] waypoints) implements CustomPacketPayload {
 
         public static final int WALK = 0;
@@ -220,7 +190,6 @@ public final class Packets {
         }
     }
 
-    // a player's client giving the controls back: they moved themselves
     public record PilotUp(int kind) implements CustomPacketPayload {
 
         public static final int CANCELLED = 0;
@@ -236,7 +205,6 @@ public final class Packets {
         }
     }
 
-    // a client whose copy of the tree no longer matches the server's, asking to be sent all of it again
     public record ResyncUp() implements CustomPacketPayload {
 
         public static final Type<ResyncUp> TYPE = named("resync_up");
@@ -250,18 +218,14 @@ public final class Packets {
         }
     }
 
-    // markup is longer than what it shows, and a place styling a line should not run out of room
     private static final int CHAT_TEXT = 16384;
 
     private Packets() {}
 
     private static <T extends CustomPacketPayload> CustomPacketPayload.Type<T> named(String path) {
-        // createType takes a bare path and puts the game's own namespace on it
         return new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(NAMESPACE, path));
     }
 
-    // the codecs a connection needs to know, registered on both sides because both sides have to read
-    // them. a registry entry is what makes a payload ours rather than an unknown blob the game drops
     public static void declare() {
         PayloadTypeRegistry<RegistryFriendlyByteBuf> down = PayloadTypeRegistry.clientboundPlay();
         down.registerLarge(Delta.TYPE, Delta.CODEC.cast(), BASELINE_CAP);

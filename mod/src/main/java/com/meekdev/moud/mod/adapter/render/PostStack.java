@@ -63,11 +63,6 @@ import net.minecraft.resources.Identifier;
 import org.joml.Matrix4f;
 import org.jspecify.annotations.Nullable;
 
-// the tree's post effects, handed to amnetic
-//
-// the ones amnetic keeps one of take the first enabled instance of their class, and go back to how
-// they were when the tree has none. the screen effects are drawn here, each a fullscreen shader over
-// the picture, in order
 public final class PostStack {
 
     private static final Identifier VERTEX = Identifier.fromNamespaceAndPath("amnetic", "shaders/util/fullscreen.vsh");
@@ -90,7 +85,6 @@ public final class PostStack {
         BUILT_IN.put(Classes.TONEMAP_EFFECT, "tonemap");
     }
 
-    // a compiled shader, and the text it was compiled from so an edit recompiles it
     private static final class Program {
         final ShaderProgram program;
         String source;
@@ -123,11 +117,9 @@ public final class PostStack {
 
     public static void register() {
         DEFAULTS.capture();
-        // after bloom and before the colour grade, so a tonemap sees light before it is clamped
         Pipeline.add(RenderStage.POST, 15, "moud screen effects", ctx -> draw());
     }
 
-    // once a frame, before the pipeline runs
     public static void frame() {
         InstanceTree tree = ClientScene.tree();
         FRAME.clear();
@@ -251,8 +243,6 @@ public final class PostStack {
         hasPrev = true;
     }
 
-    // every property of the effect is a uniform named like it with a capital, and a place's own
-    // shader also gets its value children by their names
     private static void uniforms(ScreenEffect effect, ShaderProgram shader) {
         for (PropertyDef property : effect.def().properties()) {
             String name = Character.toUpperCase(property.name().charAt(0)) + property.name().substring(1);
@@ -282,7 +272,6 @@ public final class PostStack {
         }
     }
 
-    // the shader for an effect, compiled once and again whenever its text changes
     private static @Nullable Program program(ScreenEffect effect) {
         String key;
         String body;
@@ -339,7 +328,6 @@ public final class PostStack {
         }
     }
 
-    // how each amnetic effect was before the tree touched it, so taking an effect out puts it back
     private static final class Defaults {
         boolean bloomEnabled, bloomOcclude; float bloomIntensity, bloomThreshold, bloomKnee, bloomScale; int bloomLevels;
         boolean gradeEnabled; float exposure, contrast, saturation, brightness, temperature, tint, gamma, lutIntensity;

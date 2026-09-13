@@ -13,18 +13,11 @@ import net.minecraft.client.Options;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 
-// what a place asks about the player, over minecraft's own bindings so a rebind in the vanilla
-// controls screen is a rebind here too
-//
-// 7.4 polls this once at the top of the frame and hands the frame an immutable answer. reading the
-// keyboard twice in one frame and getting two answers is how input bugs start
 public final class Input implements InputRef {
 
     private static final KeyMapping.Category MOUD =
             KeyMapping.Category.register(Identifier.fromNamespaceAndPath("moud", "moud"));
 
-    // frees the pointer so an interface can be clicked. registered with the game so it shows in the
-    // controls screen and can be rebound there
     private static KeyMapping pointer;
 
     public static void register() {
@@ -33,11 +26,8 @@ public final class Input implements InputRef {
         CollisionView.register(MOUD);
     }
 
-    // whether the pointer is free because the pointer key is held, so letting go takes back only what it gave
     private static boolean freed;
 
-    // held, the mouse is let go so the interface can be clicked; let go, it is captured again. a screen
-    // being open owns the mouse, and a place that released it itself keeps it released
     public static void pointerFrame() {
         Minecraft client = Minecraft.getInstance();
         if (pointer == null || client.player == null || client.screen != null) {
@@ -79,8 +69,6 @@ public final class Input implements InputRef {
 
     public void poll() {
         Minecraft client = Minecraft.getInstance();
-        // the handler answers in window pixels and everything else in the api speaks the scaled
-        // ones, so the conversion happens once, here
         Window window = client.getWindow();
         double across = window.getScreenWidth() == 0 ? 1 : window.getScreenWidth();
         double down = window.getScreenHeight() == 0 ? 1 : window.getScreenHeight();

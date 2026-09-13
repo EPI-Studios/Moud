@@ -9,7 +9,6 @@ import net.hollowcube.polar.PolarReader;
 import net.hollowcube.polar.PolarWorld;
 import org.jspecify.annotations.Nullable;
 
-// the place's blocks, the polar file beside the game in dev and inside the jar once exported
 public final class Blocks {
 
     private static final String WORLD = "place/world.polar";

@@ -7,7 +7,6 @@ import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.interp.Blend;
 import java.util.List;
 
-// properties of one instance moved from where they were toward goals over time
 public final class Tween {
 
     public record Goal(PropertyDef property, Object to) {}
@@ -18,7 +17,6 @@ public final class Tween {
 
     public enum State { PLAYING, PAUSED, COMPLETED, CANCELLED }
 
-    // fires once with true when it ran out, or false when it was cancelled
     public final Signal<Boolean> completed = new Signal<>();
 
     private final Instance instance;
@@ -57,7 +55,6 @@ public final class Tween {
         completed.fire(false);
     }
 
-    // true while it has more to do
     public boolean step(double dt) {
         if (state == State.COMPLETED || state == State.CANCELLED) return false;
         if (!instance.isAlive()) {
@@ -68,7 +65,6 @@ public final class Tween {
         clock += dt;
         double active = clock - info.delay();
         if (active < 0) return true;
-        // the start is read when it actually starts, so a delayed tween begins from where things are then
         if (from == null) from = current();
 
         double time = Math.max(1e-9, info.time());

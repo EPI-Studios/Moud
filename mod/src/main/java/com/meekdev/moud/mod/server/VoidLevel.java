@@ -25,7 +25,6 @@ public final class VoidLevel {
 
     private VoidLevel() {}
 
-    // one stem, our generator, no world preset and no vanilla worldgen anywhere near it
     public static WorldDimensions dimensions(HolderLookup.Provider registries) {
         LevelStem stem = new LevelStem(
                 registries.lookupOrThrow(Registries.DIMENSION_TYPE).getOrThrow(TYPE),

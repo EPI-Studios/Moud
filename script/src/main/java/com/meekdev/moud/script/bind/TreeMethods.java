@@ -16,7 +16,6 @@ import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
-// walking and copying the tree without writing the loop every time
 public final class TreeMethods {
 
     private TreeMethods() {}
@@ -64,7 +63,6 @@ public final class TreeMethods {
             s.pushBoolean(up != null);
             return 1;
         });
-        // the tagged instances under this one
         Proxies.extraMethod(state, "byTag", s -> {
             Instance root = self(s);
             List<Instance> out = new ArrayList<>();
@@ -79,7 +77,6 @@ public final class TreeMethods {
             Plain.push(s, out);
             return 1;
         });
-        // the value children as one table: { coins = 10, name = "meek" }
         Proxies.extraMethod(state, "values", s -> {
             Map<String, Object> out = new LinkedHashMap<>();
             for (Instance child : self(s).children()) {
@@ -92,13 +89,10 @@ public final class TreeMethods {
             Plain.push(s, out);
             return 1;
         });
-        // a copy of this instance and everything under it, beside it under the same parent
         Proxies.extraMethod(state, "clone", s -> {
             Instance original = self(s);
             Instance parent = s.isNoneOrNil(2) ? original.parent() : (Instance) s.toUserDataTagged(2, Proxies.TAG);
             if (parent == null) throw s.error("the root cannot be cloned without somewhere to put it");
-            // loaded into a folder of its own first: loading beside the original would find the original by
-            // its name and write into it rather than make a second one
             Instance holder = Instances.create(Classes.FOLDER, parent, "clone");
             List<Instance> made = Scene.load(Scene.save(List.of(original)), holder, Proxies.registry());
             Instance copy = made.isEmpty() ? null : made.getFirst();
@@ -107,7 +101,6 @@ public final class TreeMethods {
             Plain.push(s, copy);
             return 1;
         });
-        // everything under this instance a selector matches, like "Part.lava" or "Folder#enemies > Character"
         Proxies.extraMethod(state, "query", s -> {
             try {
                 Plain.push(s, Selector.parse(s.checkString(2), Proxies.registry()).all(self(s)));
@@ -126,7 +119,6 @@ public final class TreeMethods {
             return 1;
         });
 
-        // lets a luau file add a method every instance has, for the ones that wait or connect
         state.pushFunction(LuaFunc.wrap(s -> {
             String name = s.checkString(1);
             if (s.type(2) != LuaType.FUNCTION) throw s.error("a method is a function");

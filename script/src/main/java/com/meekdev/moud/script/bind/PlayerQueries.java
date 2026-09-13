@@ -16,24 +16,18 @@ import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 
-// game.players:all, near, nearest and bodyOf
-//
-// read off the tree's index of characters rather than by walking the world, so the cost is the number of
-// bodies and not the number of things in the place. only bodies a player is wearing count
 public final class PlayerQueries {
 
     private record Found(Character body, double distanceSq) {}
 
     private PlayerQueries() {}
 
-    // expects the players table on top of the stack
     public static void install(LuaState state, Instance world) {
         InstanceTree tree = world.tree();
         method(state, "all", s -> {
             push(s, bodies(tree, null, Double.POSITIVE_INFINITY, null));
             return 1;
         });
-        // every body within radius of a point, nearest first
         method(state, "near", s -> {
             Vec3 at = Values.vec3(s, 2);
             double radius = s.checkNumber(3);
@@ -41,7 +35,6 @@ public final class PlayerQueries {
             push(s, bodies(tree, at, radius, except));
             return 1;
         });
-        // the one nearest body, optionally within radius, and how far it is
         method(state, "nearest", s -> {
             Vec3 at = Values.vec3(s, 2);
             double radius = s.isNoneOrNil(3) ? Double.POSITIVE_INFINITY : s.checkNumber(3);
@@ -80,7 +73,6 @@ public final class PlayerQueries {
             push(s, filtered(tree, except, body -> inside(frame, part.size, position(body))));
             return 1;
         });
-        // bodies inside a cone: within range, and within angle degrees of direction
         method(state, "inCone", s -> {
             Vec3 at = Values.vec3(s, 2);
             Vec3 way = Values.vec3(s, 3).normalize();
@@ -97,7 +89,6 @@ public final class PlayerQueries {
             push(s, out);
             return 1;
         });
-        // bodies within range that nothing solid hides from the point
         method(state, "visibleFrom", s -> {
             Vec3 at = Values.vec3(s, 2);
             double range = s.checkNumber(3);
@@ -189,7 +180,6 @@ public final class PlayerQueries {
         return Transforms.world(instance).position();
     }
 
-    // roughly where a body looks from, which is what a line of sight is drawn to
     static Vec3 eye(Instance instance) {
         Vec3 at = position(instance);
         return instance instanceof Character body ? at.add(new Vec3(0, body.height * body.scale * 0.9, 0)) : at;

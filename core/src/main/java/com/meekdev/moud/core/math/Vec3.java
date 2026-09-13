@@ -1,6 +1,5 @@
 package com.meekdev.moud.core.math;
 
-// right handed, y up, metres
 public record Vec3(double x, double y, double z) {
 
     public static final Vec3 ZERO = new Vec3(0, 0, 0);
@@ -49,7 +48,6 @@ public record Vec3(double x, double y, double z) {
         return sub(o).length();
     }
 
-    // zero length stays zero rather than becoming NaN
     public Vec3 normalize() {
         double len = length();
         return len < 1e-12 ? ZERO : mul(1.0 / len);

@@ -9,7 +9,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// a place that turned typing off keeps the chat key from opening the box
 @Mixin(Minecraft.class)
 abstract class ChatInputMixin {
 

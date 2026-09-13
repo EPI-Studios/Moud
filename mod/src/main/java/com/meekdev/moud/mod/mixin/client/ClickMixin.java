@@ -8,7 +8,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// a click on a button of the interface is the interface's, and never grabs the pointer or swings an arm
 @Mixin(MouseHandler.class)
 abstract class ClickMixin {
 

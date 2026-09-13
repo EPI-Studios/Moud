@@ -8,8 +8,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// suppresses ambientLight
-// the dimension says how much ambient the place wants, the switch says whether any of it applies
 @Mixin(DimensionType.class)
 abstract class AmbientLightMixin {
 

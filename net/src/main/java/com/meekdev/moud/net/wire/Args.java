@@ -11,24 +11,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-// a channel's arguments as bytes
-//
-// tagged rather than driven by the channel's schema, and that is a deliberate choice: the schema is
-// mandatory (§10.3) so the shape *is* known on both sides, and a schema driven encoding would save a
-// byte per value. but a schema declares kinds, not the inside of a table -- and a table's contents are
-// the one thing left that only the sender knows. one byte per value buys the whole type set back, and
-// a channel is gameplay rather than a per tick stream, so a byte is not the thing to save
-//
-// every limit Wire states is checked again here on the way in. the bytes arrived from somewhere else,
-// and a length read off a packet is a claim like any other: a varint saying four billion elements is
-// how a decoder becomes a way to exhaust a server's memory from a client
 public final class Args {
 
     private static final int NIL = 0;
     private static final int FALSE = 1;
     private static final int TRUE = 2;
-    // an exact integer costs a varint and a number that is not costs eight bytes. both arrive as one
-    // lua number, because lua has one -- the split is about what survives the trip, not about types
     private static final int INT = 3;
     private static final int NUM = 4;
     private static final int TEXT = 5;
@@ -41,7 +28,6 @@ public final class Args {
     private static final int MAP = 12;
     private static final int UDIM2 = 13;
 
-    // the largest integer a double holds exactly, past which a whole number is not a whole number
     private static final double EXACT = 9007199254740992.0;
 
     private Args() {}
@@ -128,7 +114,6 @@ public final class Args {
                     write(out, entry.getValue());
                 }
             }
-            // unreachable: Wire.pack already refused everything else, by name
             default -> throw new IllegalArgumentException(
                     value.getClass().getSimpleName() + " got past the pack");
         }
@@ -179,8 +164,6 @@ public final class Args {
         };
     }
 
-    // a claimed length is checked against what is left to read, not only against the limits: a varint
-    // saying a million costs a million allocations before the packet runs out
     private static int nested(Bytes in, int depth, Count seen) {
         if (depth >= Wire.MAX_DEPTH) {
             throw new IllegalArgumentException("a delivery nesting past " + Wire.MAX_DEPTH);

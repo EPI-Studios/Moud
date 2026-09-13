@@ -3,7 +3,6 @@ package com.meekdev.moud.core.clazz;
 import com.meekdev.moud.core.instance.Instance;
 import java.lang.invoke.VarHandle;
 
-// the casts keep numbers and booleans off the boxing path
 public final class PropertyDef {
 
     private final String name;
@@ -43,7 +42,6 @@ public final class PropertyDef {
     public boolean asset() { return asset; }
     public Object defaultValue() { return defaultValue; }
 
-    // bit position in the instance dirty mask, so a class caps at 64 properties
     public int index() { return index; }
 
     public double getNum(Instance i) {
@@ -58,7 +56,6 @@ public final class PropertyDef {
         return handle.get(i);
     }
 
-    // raw writes, everything goes through Instances.set so dirty and signals happen
     public void writeNum(Instance i, double v) {
         if (type == PropertyType.INT) handle.set(i, (int) v); else handle.set(i, v);
     }

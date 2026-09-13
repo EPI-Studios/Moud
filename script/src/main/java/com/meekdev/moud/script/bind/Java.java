@@ -22,12 +22,6 @@ import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
-// java objects and classes as luau values, for the code a mixin is handed
-//
-// obj:method(...) calls a method, obj.field reads a field and obj.field = v writes one, private ones too.
-// Class:method(...) and Class.field are the static ones, and Class:new(...) makes one. numbers, text, flags
-// and nil cross as themselves; everything else stays a java object. an overload is picked by what the
-// arguments can become, the first that takes them all
 public final class Java {
 
     static final int OBJECT = 20;
@@ -102,7 +96,6 @@ public final class Java {
         }
     }
 
-    // a java value onto the stack as the luau value it reads most naturally as
     public static void push(LuaState state, Object value) {
         switch (value) {
             case null -> state.pushNil();
@@ -116,7 +109,6 @@ public final class Java {
         }
     }
 
-    // a luau value as a java value of a type, or MISMATCH when it can not be one
     static final Object MISMATCH = new Object();
 
     public static Object convert(LuaState state, int at, Class<?> want) {
@@ -239,7 +231,6 @@ public final class Java {
         return object.getClass();
     }
 
-    // one function per name for the whole vm: what it calls is looked up on whatever it is called on
     private static void pushMethod(LuaState state, String name) {
         state.rawGetField(LuaState.REGISTRY_INDEX, METHODS);
         if (state.rawGetField(-1, name) == LuaType.FUNCTION) {
@@ -314,7 +305,6 @@ public final class Java {
         return out;
     }
 
-    // every method of a name a class has, its own first and then what it inherits, private ones included
     static List<Method> methods(Class<?> type, String name, boolean statics) {
         return METHOD_CACHE.computeIfAbsent(type, t -> new ConcurrentHashMap<>()).computeIfAbsent(name, n -> {
             List<Method> out = new ArrayList<>();
@@ -351,7 +341,6 @@ public final class Java {
                 known.put(name, f);
                 return f;
             } catch (NoSuchFieldException | RuntimeException ignored) {
-                // up to the parent
             }
         }
         return null;

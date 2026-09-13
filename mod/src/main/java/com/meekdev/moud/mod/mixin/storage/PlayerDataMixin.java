@@ -7,7 +7,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// no playerdata files, a player is whatever the place says they are on join
 @Mixin(PlayerDataStorage.class)
 abstract class PlayerDataMixin {
 

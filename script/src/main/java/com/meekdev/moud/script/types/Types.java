@@ -15,9 +15,6 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Collectors;
 
-// the luau definitions a place is edited against, written from the class registry rather than kept
-// beside it. a property that is not declared cannot appear here, so the api and what an editor
-// believes about it cannot drift (8.7)
 public final class Types {
 
     private static final String DIRECTORY = ".moud";
@@ -50,9 +47,6 @@ public final class Types {
                 .append(" extends ").append(def.parent() == null ? "Instance" : def.parent().name())
                 .append('\n');
 
-        // the frame a place reads and writes without naming a property, from the same branch of
-        // Proxies that serves them. they belong to whichever class introduces cframe, and the rest
-        // inherit them
         PropertyDef frame = def.property("cframe");
         if (frame != null && frame.index() >= inherited(def)) {
             out.append("    position: Vector3\n");
@@ -66,16 +60,12 @@ public final class Types {
         }
 
         for (EventDef event : def.events()) {
-            // every event carries the instance it happened to, so one shape covers all of them
-            // a chat command also carries the line and its words, and a channel hands over the message
             String shape = def == Classes.CHAT_COMMAND ? "ChatCommandSignal"
                     : def == Classes.TEXT_CHANNEL ? "ChatMessageSignal" : "InstanceSignal";
             out.append("    ").append(event.name()).append(": ").append(shape).append("\n");
         }
 
         PropertyDef[] properties = def.properties();
-        // a subclass keeps its parent's property indices, so everything past that count is its own
-        // and everything before it is already declared on the class it extends
         for (int i = inherited(def); i < properties.length; i++) {
             out.append("    ").append(properties[i].name())
                     .append(": ").append(luau(properties[i])).append('\n');
@@ -84,8 +74,6 @@ public final class Types {
         return out.append("end\n\n").toString();
     }
 
-    // methods a single class carries. properties cannot drift because they come from the
-    // registry; these are written by hand in two places and a test is what holds them together
     private static String verbs(String className) {
         return Luau.optional("types/verbs/" + className + ".d.luau");
     }
@@ -94,8 +82,6 @@ public final class Types {
         return def.parent() == null ? 0 : def.parent().properties().length;
     }
 
-    // an enum declares the strings it accepts rather than "string", so an editor completes
-    // them and a typo is red before the place is ever run
     private static String luau(PropertyDef property) {
         if (property.type() != PropertyType.ENUM) return luau(property.type());
         List<String> names = Enums.names(property.defaultValue().getClass());

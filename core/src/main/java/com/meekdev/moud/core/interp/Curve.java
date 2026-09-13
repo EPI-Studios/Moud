@@ -1,7 +1,5 @@
 package com.meekdev.moud.core.interp;
 
-// a curve maps alpha to alpha, so "does not interpolate" and "interpolates in one jump" are the
-// same statement and nothing has to branch on whether a value is animatable
 public enum Curve {
 
     STEP {

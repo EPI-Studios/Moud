@@ -11,12 +11,8 @@ import imgui.flag.ImGuiTreeNodeFlags;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 
-// what the place actually built, which is otherwise only knowable by reading a log.
-// read only on purpose: design 7.8 says the moment this can write a property it is an editor,
-// and that is a decision to take deliberately rather than by accretion
 public final class TreeInspector extends Inspector {
 
-    // a folder of a hundred thousand parts is not a thing to walk in a ui
     private static final int MAX_CHILDREN = 200;
 
     private @Nullable Instance selected;

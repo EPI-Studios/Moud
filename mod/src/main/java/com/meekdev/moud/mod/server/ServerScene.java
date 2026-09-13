@@ -9,7 +9,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.LevelResource;
 import org.jspecify.annotations.Nullable;
 
-// the authoritative tree. the place is built here and the server owns every write to it
 public final class ServerScene {
 
     private static @Nullable InstanceTree tree;

@@ -9,7 +9,6 @@ import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 
-// game.debug: shapes and labels drawn for a while, watched values, what queries cost, and a profile
 public final class DebugBinding {
 
     private static final Color DEFAULT = new Color(1, 0.8f, 0.2f, 1);
@@ -65,7 +64,6 @@ public final class DebugBinding {
         state.pop(1);
     }
 
-    // a value the way luau prints it: 20 rather than 20.0
     private static String text(LuaState s, int at) {
         if (s.isNoneOrNil(at)) return "nil";
         if (s.isNumber(at)) {

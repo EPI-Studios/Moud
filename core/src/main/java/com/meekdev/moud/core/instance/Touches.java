@@ -9,10 +9,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-// which parts touch which, tick to tick, so touched and touchEnded fire on the changes
 public final class Touches {
 
-    // faces resting on each other count, and floating point never lands them exactly together
     public static final double MARGIN = 0.01;
 
     private static final Map<InstanceTree, Touches> TREES = new WeakHashMap<>();
@@ -32,7 +30,6 @@ public final class Touches {
         }
         if (listening.isEmpty() && touching.isEmpty()) return;
 
-        // only the parts near each listener, from the tree's index, rather than every part in the place
         Map<Part, Set<Part>> next = new HashMap<>();
         List<Part> near = new ArrayList<>();
         for (Part part : listening) {
@@ -47,7 +44,6 @@ public final class Touches {
             next.put(part, now);
         }
 
-        // swapped in before anything fires, so a handler that destroys a part finds a consistent state
         Map<Part, Set<Part>> before = new HashMap<>(touching);
         touching.clear();
         touching.putAll(next);

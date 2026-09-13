@@ -52,18 +52,10 @@ public enum Feature {
     VANILLA_SOUNDS,
     VANILLA_MUSIC,
 
-    // one row a frame of everything behind your own body, to a file, while it stands on something
-    // that moves
-    //
-    // a shake is the one bug a screenshot cannot show and a sentence cannot pin down. this wrote the
-    // lot and the answer was in the shape of one column: the extrema of a cubic's overshoot sit at
-    // 0.211 and 0.789 through a tick, and that is where they were. off by default, because a thing
-    // that writes files unasked is not a thing to ship on
     TRACE;
 
     private final String key = key(name());
 
-    // the name a place writes in place.toml, blockBreaking rather than BLOCK_BREAKING
     public String key() {
         return key;
     }

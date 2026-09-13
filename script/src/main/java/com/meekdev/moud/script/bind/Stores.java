@@ -7,7 +7,6 @@ import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
-// the primitives store.luau is built on
 public final class Stores {
 
     private Stores() {}

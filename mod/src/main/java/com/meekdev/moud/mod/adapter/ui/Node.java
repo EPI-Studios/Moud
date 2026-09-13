@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.function.ToDoubleFunction;
 import net.minecraft.resources.Identifier;
 
-// one instance of an interface, read live every frame, so a write shows on the next one
 final class Node extends Widget {
 
     final Instance source;
@@ -29,7 +28,6 @@ final class Node extends Widget {
 
     @Override
     protected void placeChildren() {
-        // stable, so equal zIndex keeps the order children were added in
         children().sort((a, b) -> Integer.compare(z(a), z(b)));
         GuiLayout.Box self = new GuiLayout.Box(x, y, w, h);
         for (Widget child : children()) {
@@ -120,7 +118,6 @@ final class Node extends Widget {
         if (previous != null) d.font(previous);
     }
 
-    // laid out and drawn by the same code as a chat line, so a tag means the same thing in both
     private void rich(UiDraw d, TextLabel label, float alpha) {
         float px = (float) label.textSize;
         float fade = (float) (1 - label.textTransparency) * alpha;
@@ -143,7 +140,6 @@ final class Node extends Widget {
         };
     }
 
-    // words onto lines no wider than the box, and a word longer than the box on a line of its own
     private static List<String> wrap(ToDoubleFunction<String> measure, String text, float width) {
         List<String> lines = new ArrayList<>();
         for (String paragraph : text.split("\n", -1)) {
@@ -162,7 +158,6 @@ final class Node extends Widget {
         return lines;
     }
 
-    // asked of the game each frame, which loads it the first time and hands back the same one after
     private static Color shade(Color c, double amount) {
         float keep = (float) (1 - amount);
         return new Color(c.r() * keep, c.g() * keep, c.b() * keep, c.a());
@@ -186,7 +181,6 @@ final class Node extends Widget {
         return button == 0 && source instanceof TextButton;
     }
 
-    // a press that is let go outside the button is a press taken back
     @Override
     public void onMouseUp(float mx, float my, int button) {
         if (!(source instanceof TextButton pressedButton) || !pressedButton.isAlive()) return;
@@ -194,7 +188,6 @@ final class Node extends Widget {
         pressedButton.activated.fire(pressedButton);
     }
 
-    // a surface's own node fills whatever it is laid out into
     static boolean surface(Instance instance) {
         return instance instanceof ScreenGui || instance instanceof BillboardGui || instance instanceof SurfaceGui;
     }

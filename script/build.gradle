@@ -2,21 +2,16 @@ dependencies {
     implementation project(':core')
     api "dev.hollowcube:luau:${project.luau_version}"
 
-    // rewrites a method of a class the game already loaded, for mixin.inject: bytebuddy's advice, applied by
-    // retransforming through the jdk's own instrumentation, which its agent attaches to the running game
     api "net.bytebuddy:byte-buddy:1.18.13"
     api "net.bytebuddy:byte-buddy-agent:1.18.13"
 
-    // one per platform we ship on, the loader picks the one it finds on the classpath
     runtimeOnly "dev.hollowcube:luau-natives-linux-x64:${project.luau_version}"
     runtimeOnly "dev.hollowcube:luau-natives-windows-x64:${project.luau_version}"
     runtimeOnly "dev.hollowcube:luau-natives-macos-x64:${project.luau_version}"
     runtimeOnly "dev.hollowcube:luau-natives-macos-arm64:${project.luau_version}"
 }
 
-// luau reaches its native library through the ffm api, which is restricted by default
 tasks.withType(Test).configureEach {
     jvmArgs '--enable-native-access=ALL-UNNAMED'
-    // the agent a mixin needs is attached to the vm it runs in
     jvmArgs '-XX:+EnableDynamicAgentLoading', '-Djdk.attach.allowAttachSelf=true'
 }

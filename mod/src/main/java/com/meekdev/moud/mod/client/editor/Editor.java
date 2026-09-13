@@ -4,7 +4,6 @@ import com.meekdev.amnetic.client.ui.AmneticEditor;
 import com.meekdev.moud.mod.MoudMod;
 import net.fabricmc.loader.api.FabricLoader;
 
-// amnetic already owns the window and the toggle, so a place's panels are just inspectors it adopts
 public final class Editor {
 
     private static final String IMGUI = "imguimc";

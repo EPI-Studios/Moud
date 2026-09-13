@@ -5,8 +5,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-// json for scene files: maps keep their order, numbers read back as Double, and writing indents so a
-// scene diffs line by line
 public final class Json {
 
     private final String text;
@@ -38,7 +36,6 @@ public final class Json {
             case Number n -> number(out, n.doubleValue());
             case String s -> string(out, s);
             case List<?> list -> {
-                // a short list of numbers stays on one line, which is what a vector looks like
                 if (list.stream().allMatch(v -> v instanceof Number) && list.size() <= 4) {
                     out.append('[');
                     for (int i = 0; i < list.size(); i++) {

@@ -12,7 +12,6 @@ record ResonaMusic(Music music) implements AudioRef.Music {
         Music.Builder builder = Music.builder(bus);
         for (String layer : layers) {
             Identifier id = sounds.id(layer);
-            // a missing layer still takes its slot, so the volumes in every state keep their meaning
             builder.layer(id != null ? id : Identifier.fromNamespaceAndPath("moud", "missing.ogg"));
         }
         states.forEach((name, volumes) -> {

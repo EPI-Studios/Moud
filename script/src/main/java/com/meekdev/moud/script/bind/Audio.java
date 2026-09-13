@@ -11,7 +11,6 @@ import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
-// the audio global a client place gets: one-off sounds, events, music, the tempo and the mix
 public final class Audio {
 
     static final int VOICE = 11;
@@ -171,7 +170,6 @@ public final class Audio {
             return 0;
         });
         m.put("setLayer", s -> {
-            // counted from one, like everything else a place indexes
             music(s).layer((int) s.checkNumber(2) - 1, s.checkNumber(3));
             return 0;
         });
@@ -286,7 +284,6 @@ public final class Audio {
         return value;
     }
 
-    // a number, or {min, max}
     private static double[] range(LuaState state, int at, String key) {
         state.getField(at, key);
         double[] value;
@@ -335,7 +332,6 @@ public final class Audio {
                 bool(state, 2, "looped", false));
     }
 
-    // {{0, 0}, {1, 1}}: pairs of parameter value and bus volume
     private static double[][] curve(LuaState state, int at) {
         if (state.type(at) != LuaType.TABLE) throw state.error("a curve is a list of {input, output} pairs");
         int length = state.len(at);
@@ -349,7 +345,6 @@ public final class Audio {
         return points;
     }
 
-    // {sfx = 0.2, music = 1}
     private static Map<String, Double> volumes(LuaState state, int at) {
         if (state.type(at) != LuaType.TABLE) throw state.error("a snapshot is a table of bus volumes");
         Map<String, Double> out = new LinkedHashMap<>();
@@ -387,7 +382,6 @@ public final class Audio {
         state.newUserDataTaggedWithMetatable(music, MUSIC);
     }
 
-    // {enabled = true, strength = 1, filters = {{kind = "lowpass", frequency = 3000, q = 0.7}}}
     private static void voiceChat(LuaState state, AudioRef audio) {
         if (state.type(1) != LuaType.TABLE) throw state.error("voiceChat wants a table");
         List<AudioRef.Filter> filters = new ArrayList<>();

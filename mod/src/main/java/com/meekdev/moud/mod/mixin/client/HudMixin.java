@@ -9,9 +9,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// suppresses every named hud switch
-// the hud is one extract pass over private per element methods, so each switch is a cut at the head
-// of its own method and reading the switch there is what makes them live
 @Mixin(Gui.class)
 abstract class HudMixin {
 

@@ -10,21 +10,10 @@ import java.util.Set;
 import java.util.Locale;
 import java.util.Map;
 
-// the markup text is styled with, in chat and anywhere else text is shown
-//
-// tags nest and close by name: <b>, <i>, <u>, <s>, <obf>, <uc>, <sc>, <br/>, <!-- comment -->,
-// <color=#hex>, <font color size face transparency>, <size=1.5>, <alpha=0.5>, <stroke color thickness>,
-// <mark color>, <shadow color>, <gradient from to>, <rainbow speed>, the moving ones <wave>, <shake>,
-// <pulse>, <bounce>, <shader=name>, links <click run|suggest|url|copy|callback>, <hover text>,
-// <body id>, and the pictures <img src width height/> and <item id count/>
-//
-// a tag that is none of these is text, so a player typing a < loses nothing. \< and &lt; are a plain <
 public final class RichText {
 
-    // where a click goes
     public record Link(String action, String value) {}
 
-    // a moving effect on the text inside it, with whatever numbers the tag gave it
     public record Effect(String name, Map<String, String> params) {
 
         public double number(String key, double fallback) {
@@ -58,7 +47,6 @@ public final class RichText {
 
     public record Break(Style style) implements Piece {}
 
-    // sizes in the text's own units, where the line is one
     public record Image(String src, double width, double height, Style style) implements Piece {}
 
     public record Item(String id, int count, Style style) implements Piece {}
@@ -113,7 +101,6 @@ public final class RichText {
         return out;
     }
 
-    // the text with every tag taken out, for a log, a filter or a length check
     public static String plain(String markup) {
         StringBuilder out = new StringBuilder();
         for (Piece piece : parse(markup)) {
@@ -126,8 +113,6 @@ public final class RichText {
         return out.toString();
     }
 
-    // what a player typed, keeping only the tags they are allowed and showing every other one as written.
-    // "*" allows every tag. a comment is a tag too, so one that is not allowed cannot hide the rest
     public static String allow(String text, Set<String> tags) {
         if (tags.isEmpty()) return escape(text);
         boolean all = tags.contains("*");
@@ -154,12 +139,10 @@ public final class RichText {
         return out.toString();
     }
 
-    // text that shows exactly as written, whatever is in it
     public static String escape(String text) {
         return text.replace("&", "&amp;").replace("<", "&lt;");
     }
 
-    // a colour as #rgb, #rrggbb, #rrggbbaa or one of the game's sixteen names
     public static Color color(String value) {
         if (value == null) return null;
         String v = value.trim().toLowerCase(Locale.ROOT);
@@ -197,7 +180,6 @@ public final class RichText {
 
     private record Open(String name, Style style) {}
 
-    // a tag's name, its value after =, and its attributes
     private record Tag(String name, String value, Map<String, String> attrs, boolean closing, boolean selfClosing) {
 
         static Tag read(String inside) {
@@ -236,7 +218,6 @@ public final class RichText {
             return new Tag(name, value, attrs, closing, self);
         }
 
-        // a quoted or bare value, and what is left after it
         private static String[] value(String from) {
             if (from.isEmpty()) return new String[] {"", ""};
             char q = from.charAt(0);
@@ -266,7 +247,6 @@ public final class RichText {
         }
     }
 
-    // a > inside quotes does not end the tag
     private static int tagEnd(String markup, int open) {
         char quote = 0;
         for (int i = open + 1; i < markup.length(); i++) {

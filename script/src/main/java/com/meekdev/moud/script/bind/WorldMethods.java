@@ -18,10 +18,8 @@ import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
-// the questions about the world and its parts that come up over and over, answered through the index
 public final class WorldMethods {
 
-    // how high and low a downward search for the ground starts and gives up
     private static final double SKY = 320;
     private static final double DEPTH = 400;
 
@@ -43,9 +41,7 @@ public final class WorldMethods {
             Queries.Filter filter = new Queries.Filter(List.of(), false, false, null, null, tag, null);
             return nearest(s, Queries.inRadius(root, at, radius, filter), at);
         });
-        // every part a ray goes through, which is raycastAll by the name people look for
         Proxies.extraMethod(state, "partsAlongRay", s -> QueryMethods.raycastAll(s, self(s)));
-        // a ball swept from one point to another
         Proxies.extraMethod(state, "capsulecast", s -> {
             Instance root = self(s);
             Vec3 from = Values.vec3(s, 2);
@@ -55,7 +51,6 @@ public final class WorldMethods {
                     QueryMethods.filter(s, 5, root));
             return QueryMethods.pushCast(s, hit);
         });
-        // a part's own box moved along a direction: what it would hit first, never itself
         Proxies.extraMethod(state, "sweep", s -> {
             Instance root = self(s);
             Part part = part(s, 2);
@@ -68,7 +63,6 @@ public final class WorldMethods {
                     base.tag(), base.className());
             return QueryMethods.pushCast(s, Queries.blockcast(root, Transforms.world(part), part.size, direction, distance, filter));
         });
-        // the parts a point is inside
         Proxies.extraMethod(state, "partsAtPoint", s -> {
             Instance root = self(s);
             Vec3 at = Values.vec3(s, 2);
@@ -76,7 +70,6 @@ public final class WorldMethods {
             found.removeIf(p -> !PlayerQueries.inside(Transforms.world(p), p.size, at));
             return QueryMethods.list(s, found);
         });
-        // the box around a list of instances and everything under them: cframe and size
         Proxies.extraMethod(state, "boundsOf", s -> {
             if (s.type(2) != LuaType.TABLE) throw s.error("boundsOf wants a list of instances");
             double[] box = {Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE};
@@ -93,7 +86,6 @@ public final class WorldMethods {
             Values.push(s, new Vec3(box[3] - box[0], box[4] - box[1], box[5] - box[2]));
             return 2;
         });
-        // the height of whatever stands under a column, parts and blocks, and its normal
         Proxies.extraMethod(state, "groundAt", s -> {
             Instance root = self(s);
             double x = s.checkNumber(2);
@@ -119,7 +111,6 @@ public final class WorldMethods {
             Values.push(s, hit.normal());
             return 1;
         });
-        // heights over a rectangle, one row per z: heights[row][column], nil where nothing is under
         Proxies.extraMethod(state, "heightmap", s -> {
             Instance root = self(s);
             Vec3 a = Values.vec3(s, 2);
@@ -146,8 +137,6 @@ public final class WorldMethods {
             }
             return 1;
         });
-        // somewhere near a point where a box of that size fits: not inside a part or a solid block, and
-        // standing on something. searched outward in rings, the nearest spot first
         Proxies.extraMethod(state, "findFreeSpot", s -> {
             Instance root = self(s);
             Vec3 centre = Values.vec3(s, 2);
@@ -197,14 +186,12 @@ public final class WorldMethods {
             s.pushBoolean(PlayerQueries.inside(Transforms.world(part), part.size, Values.vec3(s, 2)));
             return 1;
         });
-        // the part's own box: where its middle is and how big
         parts.put("bounds", s -> {
             Part part = part(s, 1);
             Values.push(s, Transforms.world(part));
             Values.push(s, part.size);
             return 2;
         });
-        // the box around it lined up with the world: its lowest and highest corners
         parts.put("worldBounds", s -> {
             Part part = part(s, 1);
             Aabb box = SpatialIndex.bounds(Transforms.world(part), part.size);

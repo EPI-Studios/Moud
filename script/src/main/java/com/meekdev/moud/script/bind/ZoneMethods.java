@@ -16,7 +16,6 @@ import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 
-// zone:players, zone:occupants, zone:contains, and game.zones:at
 public final class ZoneMethods {
 
     private ZoneMethods() {}
@@ -50,7 +49,6 @@ public final class ZoneMethods {
         state.rawSetField(-2, "at");
         state.rawSetField(-2, "zones");
 
-        // game.proximity:closestInteractable(body): the nearest enabled prompt in reach of a body
         state.newTable();
         state.pushFunction(LuaFunc.wrap(s -> {
             if (!(s.toUserDataTagged(2, Proxies.TAG) instanceof Instance body)) throw s.error("wants a body");

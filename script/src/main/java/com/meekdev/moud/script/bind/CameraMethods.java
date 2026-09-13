@@ -8,8 +8,6 @@ import java.util.Map;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaState;
 
-// 8.3 rule 1: verbs are methods on the noun, so these hang off the camera instance rather than
-// off a global nobody would think to look for
 public final class CameraMethods {
 
     private CameraMethods() {}
@@ -37,8 +35,6 @@ public final class CameraMethods {
             if (screen == null) s.pushNil(); else Values.push(s, screen);
             return 1;
         });
-        // two returns rather than a table, because a ray is two vectors and a table would
-        // allocate one every time a place asked where the cursor points
         methods.put("screenToRay", s -> {
             CameraRef.Ray ray = camera.screenToRay(s.checkNumber(2), s.checkNumber(3));
             Values.push(s, ray.origin());

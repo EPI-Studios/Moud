@@ -26,20 +26,10 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import org.lwjgl.glfw.GLFW;
 
-// what the physics collides against, drawn over the world: F7 turns it on and off
-//
-// every colour is a different answer to "why did I walk through that" or "why did I stop there":
-//   green   a part's box as the physics got it this tick, the only thing a body is swept against
-//   cyan    a turned part that collides as its real turned box, through a sub level
-//   orange  a turned part that is not available as a sub level, so it collides as the box around it
-//   grey    a part that does not collide at all
-//   white   the collision shape of the blocks near you
-//   yellow  every body's capsule, the shape that is moved
 public final class CollisionView {
 
     private static final double RANGE = 40;
     private static final int BLOCK_RANGE = 5;
-    // longer than a tick, so a frame between two ticks still has the shapes
     private static final double LIFE = 0.08;
 
     private static final Color GREEN = new Color(0.2f, 1f, 0.3f, 1);
@@ -70,7 +60,6 @@ public final class CollisionView {
         ClientDebug debug = ClientDebug.INSTANCE;
         var eye = client.player.getEyePosition();
 
-        // exactly what bkun is handed, not a guess at it
         int[] boxes = {0};
         AABB region = new AABB(eye.x - RANGE, eye.y - RANGE, eye.z - RANGE, eye.x + RANGE, eye.y + RANGE, eye.z + RANGE);
         ClientPhysics.boxes().collect(region, collider -> {
@@ -119,7 +108,6 @@ public final class CollisionView {
             capsule(debug, new Vec3(entity.getX(), entity.getY(), entity.getZ()), radius, height);
             bodies++;
         }
-        // bodies a place walks have no entity, so their capsule comes off the character itself
         for (Character character : tree.ofClass(Classes.CHARACTER)) {
             if (!character.owner.isEmpty()) continue;
             Vec3 at = Transforms.world(character).position();

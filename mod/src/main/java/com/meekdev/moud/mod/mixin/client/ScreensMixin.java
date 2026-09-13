@@ -14,16 +14,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// suppresses pauseMenu, deathScreen, inventory and crafting
-// every vanilla screen arrives here whatever opened it, so one cut covers the key, the block and
-// the packet without three separate patches
 @Mixin(Minecraft.class)
 abstract class ScreensMixin {
 
     @Inject(method = "setScreen", at = @At("HEAD"), cancellable = true)
     private void moud$suppress(Screen screen, CallbackInfo ci) {
         if (screen == null || !refuse(screen)) return;
-        // a refused death screen would leave the player dead with nothing to press
         if (screen instanceof DeathScreen && Minecraft.getInstance().player instanceof LocalPlayer player) {
             player.respawn();
         }

@@ -34,11 +34,6 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
-// the server's chat: channels, who is in them, what is sent, and to whom it goes
-//
-// every message is a line with an id, kept a while with the players it reached, so a place can edit or
-// delete it and only those players hear about it. what a player types is text and never markup: it is
-// escaped before any hook sees it, and a place that wants it styled says so
 public final class ServerChat implements ChatRef {
 
     public static final ServerChat INSTANCE = new ServerChat();
@@ -47,7 +42,6 @@ public final class ServerChat implements ChatRef {
 
     private static final PropertyDef BODY = Classes.TEXT_SOURCE.property("body");
 
-    // how many messages a player may send in a burst, and how fast the burst refills
     private static final int BURST = 6;
     private static final double REFILL_PER_SECOND = 1.5;
 
@@ -72,11 +66,9 @@ public final class ServerChat implements ChatRef {
     };
     private final Map<UUID, double[]> buckets = new HashMap<>();
     private final Map<String, Long> lastSent = new HashMap<>();
-    // a player a place took out of an auto join channel stays out
     private final Set<String> leftOut = new HashSet<>();
     private long nextId = 1;
 
-    // the players each zone put in its channel, so leaving the zone takes them out again
     private final Map<Zone, Set<String>> zoned = new HashMap<>();
 
     private ServerChat() {}
@@ -113,7 +105,6 @@ public final class ServerChat implements ChatRef {
                 INSTANCE.typed.add(new Typed(context.player().getUUID(), payload.channel(), payload.text())));
     }
 
-    // the server tick: what players typed, and channel membership kept in step with who is here
     public void tick(MinecraftServer server) {
         InstanceTree tree = ServerScene.tree();
         if (tree == null || vm() == null) {
@@ -187,7 +178,6 @@ public final class ServerChat implements ChatRef {
         return null;
     }
 
-    // what came in through the game's own chat packet rather than ours, which goes to the first channel
     public static boolean vanilla(ServerPlayer player, String text) {
         InstanceTree tree = ServerScene.tree();
         if (tree == null || vm() == null) return false;
@@ -227,7 +217,6 @@ public final class ServerChat implements ChatRef {
         deliver(tree, channel, line, null);
     }
 
-    // why a player's message does not go out, or null when it does
     private String refuse(ServerPlayer player, TextChannel channel, TextSource source, String text) {
         if (channel != null && source == null) return "NotInChannel";
         if (source != null && !source.canSend) return "Muted";
@@ -254,7 +243,6 @@ public final class ServerChat implements ChatRef {
         return null;
     }
 
-    // the hooks shape it, then each member it should reach gets it
     private long deliver(InstanceTree tree, TextChannel channel, ChatLine line, UUID only) {
         ScriptEngine vm = vm();
         if (channel != null) line.apply(channel.onIncoming.first(null, line.toMap(tree)));
@@ -277,7 +265,6 @@ public final class ServerChat implements ChatRef {
                 if (!(child instanceof TextSource source)) continue;
                 ServerPlayer player = playerOf(server, source.player);
                 if (player == null) continue;
-                // a hook that answers nothing lets it through; only false keeps it back
                 if (Boolean.FALSE.equals(channel.shouldDeliver.first(true, asMap, source))) continue;
                 send(player, line.packet(Packets.ChatDown.LINE));
                 reached.add(player.getUUID());
@@ -317,7 +304,6 @@ public final class ServerChat implements ChatRef {
         }
     }
 
-    // a slash command a ChatCommand in the tree answers. false leaves it to the game's own commands
     public static boolean command(ServerPlayer player, String line) {
         if (vm() == null) return false;
         InstanceTree tree = ServerScene.tree();
@@ -335,8 +321,6 @@ public final class ServerChat implements ChatRef {
         Place place = MoudServer.place();
         return place == null || !ServerScene.running() ? null : place.vm();
     }
-
-    // the place's side
 
     @Override
     public long send(Map<String, Object> message) {

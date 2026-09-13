@@ -17,16 +17,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-// a tick's changes, as bytes and back, in the shape §10.2 asks for
-//
-// structure ahead of properties in the same packet, so a client is never handed a property for an
-// instance it has not been told about. then one section per instance that changed: its id, its dirty
-// mask, and the values the mask names -- which is the same bitmask the tree already keeps, sent as a
-// varint so the ordinary delta of one or two low numbered properties costs a single byte
-//
-// this runs in a solo game too. §10.2 is explicit about it and it is the right call: a bug that only
-// appears once the bytes are real is one nobody finds until the first time two people play together,
-// which is far too late to be discovering the codec
 public final class Codec {
 
     private static final int RESET = 0;
@@ -37,16 +27,11 @@ public final class Codec {
 
     private Codec() {}
 
-    // the tree it is being sent from, for the same reason decode takes the one it is going to: a
-    // property's type is a fact about its class, and INT and REF both arrive here as an Integer. one
-    // of the two would be written wrong if the java type were what decided
     public static byte[] encode(List<Change> changes, InstanceTree tree, ClassRegistry classes) {
         Bytes out = new Bytes(128);
 
         List<Change> structure = new ArrayList<>();
         Map<Integer, ClassDef<?>> made = new HashMap<>();
-        // grouped by instance and ordered by property index, because that is what a mask is: a set,
-        // read back in one order
         Map<Integer, Map<Integer, Object>> wrote = new java.util.LinkedHashMap<>();
         for (Change change : changes) {
             if (change instanceof Change.Created fresh) {
@@ -91,9 +76,6 @@ public final class Codec {
             }
         }
 
-        // an instance this side cannot name a class for has been destroyed since the write was
-        // recorded, which is a race and not a fault: the recorder saw it change and then it went. the
-        // far side would have nothing to apply it to either way
         wrote.keySet().removeIf(id -> classOf(id, made, tree) == null);
 
         out.varint(wrote.size());
@@ -103,8 +85,6 @@ public final class Codec {
             writeChanged(out, entry.getValue().keySet());
             ClassDef<?> def = classOf(id, made, tree);
 
-            // every flag first, in one block, then everything else. a flag is a bit and a byte holds
-            // eight of them
             out.endFlags();
             for (Map.Entry<Integer, Object> one : entry.getValue().entrySet()) {
                 if (typeOf(def, id, one.getKey()).isBool()) out.flag((Boolean) one.getValue());
@@ -118,15 +98,6 @@ public final class Codec {
         return out.toArray();
     }
 
-    // which properties changed: either their indices, or the bitmask, whichever is fewer bytes
-    //
-    // §10.2 asks for the dirty bitmask, and a mask is the right answer when the indices are low or
-    // numerous -- one byte covers the first seven. it is the wrong answer when they are neither: a
-    // varint mask costs a byte per seven indices, so one property at index thirty seven costs six
-    // bytes of mask to say one thing. a character has thirty eight properties and the ones that
-    // change every tick are spread across them
-    //
-    // so both, chosen per instance, and the count says which: nothing means a mask follows
     private static void writeChanged(Bytes out, java.util.Set<Integer> indices) {
         long mask = 0;
         int highest = 0;
@@ -169,9 +140,6 @@ public final class Codec {
         return bytes;
     }
 
-    // the tree is what says which class an instance is, and therefore what type each property is. an
-    // instance created in this same packet is not in it yet, so the classes named here are remembered
-    // as the structure section is read
     public static List<Change> decode(byte[] bytes, InstanceTree tree, ClassRegistry classes) {
         Bytes in = Bytes.reading(bytes);
         List<Change> changes = new ArrayList<>();
@@ -213,7 +181,6 @@ public final class Codec {
                 changed.add(def.property(index));
             }
 
-            // the same order the writer used: flags out of the block, then the rest
             in.endReadFlags();
             Map<PropertyDef, Object> values = new java.util.LinkedHashMap<>();
             for (PropertyDef property : changed) {
@@ -249,10 +216,7 @@ public final class Codec {
 
     private static void write(Bytes out, PropertyType type, Object value) {
         switch (type) {
-            // nothing is zero, and an id is never zero: the tree's counter starts at one and a local
-            // instance is negative
             case REF -> out.varint(value == null ? 0 : ((Integer) value) + 1L);
-            // the recorder reads every number as a double, whatever the field holds
             case INT -> out.zigzag(((Number) value).intValue());
             case NUM -> out.f32((Double) value);
             case STRING, ASSET -> out.text((String) value);
@@ -291,8 +255,6 @@ public final class Codec {
 
     private static Object read(Bytes in, PropertyDef property) {
         return switch (property.type()) {
-            // a reference is the id it points at, and zero is nothing: an id is never zero because
-            // the tree's counter starts at one and a local instance is negative
             case REF -> {
                 long raw = in.readVarint();
                 yield raw == 0 ? null : (int) (raw - 1);
@@ -312,7 +274,6 @@ public final class Codec {
         };
     }
 
-    // the constants of whichever enum the property holds, which its own default is an instance of
     private static Object option(PropertyDef property, int ordinal) {
         Object fallback = property.defaultValue();
         if (!(fallback instanceof Enum<?> one)) {

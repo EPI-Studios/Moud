@@ -5,10 +5,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.LongConsumer;
 
-// everything a client place can ask of the audio engine. only a client has one
 public interface AudioRef {
 
-    // a sound that is playing. calls that find nothing hand back null
     interface Voice {
         void stop();
         void volume(double value);
@@ -19,7 +17,6 @@ public interface AudioRef {
         boolean playing();
     }
 
-    // layered music moved between named mixes of its layers
     interface Music {
         void state(String name, double seconds);
         void transition(String name, double seconds, String quantize);
@@ -28,21 +25,18 @@ public interface AudioRef {
         void stop(double seconds);
     }
 
-    // at is null for a sound that plays everywhere at once
     record Options(double volume, double pitch, boolean looped, String bus, int priority, Vec3 at,
                    double minDistance, double maxDistance, double rollOff, double fadeIn, boolean stream) {
 
         public static final Options DEFAULT = new Options(1, 1, false, "sfx", 0, null, 8, 48, 1, 0, false);
     }
 
-    // one stage of a voice chat filter: lowpass, highpass, bandpass or peaking
     record Filter(String kind, double frequency, double q, double gainDb) {}
 
     Voice play(String soundId, Options options);
 
     Voice playEvent(String name, Vec3 at);
 
-    // an event started on the next beat or bar of the tempo, or at once
     Voice stinger(String name, String quantize);
 
     void defineEvent(String name, List<String> sounds, String bus, double volumeMin, double volumeMax,
@@ -54,14 +48,12 @@ public interface AudioRef {
 
     double beats();
 
-    // the beats and bars that went by since this was last asked
     void drainBeats(LongConsumer beat, LongConsumer bar);
 
     void parameter(String name, double value);
 
     double parameter(String name);
 
-    // curve is pairs of parameter value and bus volume, straight lines between them
     void bindBusVolume(String parameter, String bus, double[][] curve);
 
     void switchTo(String group, String value);

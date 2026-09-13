@@ -7,8 +7,6 @@ public final class Transforms {
 
     private Transforms() {}
 
-    // where the frame itself is, pivot included: cframe turns about the pivot, so the body of the
-    // thing sits back from it by however far the pivot was moved
     public static CFrame world(Instance i) {
         CFrame local = local(i);
         Instance parent = i.parent();

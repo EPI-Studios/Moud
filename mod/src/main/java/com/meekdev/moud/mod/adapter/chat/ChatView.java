@@ -50,12 +50,6 @@ import net.minecraft.network.chat.FontDescription;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 
-// the chat window, drawn by us rather than the game
-//
-// every message is laid out once into glyphs and pictures and kept until its text, look or width changes.
-// each frame the glyphs are drawn with whatever moves on them: the message coming in, fading, the tags
-// that wave or shake, and the shaders a place wrote. what can be clicked or hovered is remembered as boxes
-// for the chat screen to test the mouse against
 public final class ChatView {
 
     private static final float LINE = 9f;
@@ -76,7 +70,6 @@ public final class ChatView {
 
     private record Rect(float x, float y, float w, float h) {}
 
-    // what text falls back to where its own tags say nothing
     public record Look(Color textColor, String font, boolean shadow, Color strokeColor, double strokeAlpha) {
 
         static Look of(ChatWindow window, Map<String, Object> look) {
@@ -112,8 +105,6 @@ public final class ChatView {
     private static boolean focused() {
         return Minecraft.getInstance().screen instanceof ChatScreen;
     }
-
-    // --- drawing ---
 
     private static void draw(UiDraw d) {
         HITS.clear();
@@ -179,7 +170,6 @@ public final class ChatView {
         float contentWidth = rect.w() - padding * 2;
         long now = System.nanoTime();
 
-        // what shows, newest first, with how much of it and how high it is
         record Placed(ClientChat.Shown shown, Laid laid, float alpha, double enter, double exit, float height) {}
         List<Placed> placed = new ArrayList<>();
         float total = 0;
@@ -210,7 +200,6 @@ public final class ChatView {
         if (!bottom) {
             order = new ArrayList<>(placed);
             Collections.reverse(order);
-            // top down, the newest last, and scrolled so the newest shows
             float overflow = Math.max(0, total - (rect.h() - padding * 2));
             y -= overflow - scroll * 2;
         }
@@ -424,8 +413,6 @@ public final class ChatView {
         }
     }
 
-    // --- rich text anywhere else, like a bubble ---
-
     private static final Map<String, Laid> LAID = new LinkedHashMap<>(64, 0.75f, true) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<String, Laid> eldest) {
@@ -433,7 +420,6 @@ public final class ChatView {
         }
     };
 
-    // how big markup is when wrapped to width
     public static float[] measure(UiDraw d, String markup, float width, float px, String font) {
         Laid laid = laid(d, markup, width, px, font);
         return new float[] {laid.width(), laid.height()};
@@ -467,8 +453,6 @@ public final class ChatView {
         }
         return laid;
     }
-
-    // --- layout ---
 
     private static Laid layout(UiDraw d, ChatWindow window, ClientChat.Shown shown, float width) {
         String composed = compose(window, shown);
@@ -560,7 +544,6 @@ public final class ChatView {
         return source.getGlyph(codepoint).info().getAdvance(bold) * size / LINE;
     }
 
-    // words onto rows no wider than the window, a word too long for a row broken where it has to be
     private static Laid wrap(UiDraw d, List<Glyph> glyphs, float width) {
         List<Row> rows = new ArrayList<>();
         List<Glyph> row = new ArrayList<>();
@@ -575,7 +558,6 @@ public final class ChatView {
                 i++;
                 continue;
             }
-            // a word, and the spaces after it
             int end = i;
             float wordWidth = 0;
             while (end < glyphs.size()) {
@@ -620,8 +602,6 @@ public final class ChatView {
         if (height == 0) height = LINE;
         return new Row(glyphs, width, height);
     }
-
-    // --- tabs and the window shader ---
 
     private static void tabs(UiDraw d, ChatWindow window, Rect rect, float alpha) {
         ChatTabs tabs = ChatLook.tabs();
@@ -671,9 +651,6 @@ public final class ChatView {
         });
     }
 
-    // --- input, from the chat screen and the game's own chat drawing ---
-
-    // called where the game would draw its chat: the items go in here, and the tooltip under the mouse
     public static void extract(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY, boolean foreground) {
         for (ItemDraw item : new ArrayList<>(ITEMS)) {
             graphics.pose().pushMatrix();
@@ -759,13 +736,10 @@ public final class ChatView {
         Hit found = null;
         for (Hit hit : HITS) {
             if (x < hit.x0() || y < hit.y0() || x > hit.x1() || y > hit.y1()) continue;
-            // the most specific box wins: a link over the strip it sits on
             if (found == null || hit.style() != null || hit.tab() != null || hit.item() != null) found = hit;
         }
         return found;
     }
-
-    // --- helpers ---
 
     private static GlyphSource glyphs(FontDescription font) {
         return Minecraft.getInstance().font.getGlyphSource(font);

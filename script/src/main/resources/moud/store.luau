@@ -4,7 +4,6 @@ local get, set, update, keys, lease, release, owner =
 __moud_store_get, __moud_store_set, __moud_store_update, __moud_store_keys = nil, nil, nil, nil
 __moud_store_lease, __moud_store_release, __moud_store_owner = nil, nil, nil
 
--- how long a session holds its key without being renewed, and how often it renews
 local LEASE = 60
 local RENEW = 20
 
@@ -48,7 +47,6 @@ function Session:release()
     release(self.store, self.key, owner())
 end
 
--- the key held by this server alone while the session lasts, so two servers never write one save
 function Store:session(key)
     key = tostring(key)
     if not lease(self.name, key, owner(), LEASE) then

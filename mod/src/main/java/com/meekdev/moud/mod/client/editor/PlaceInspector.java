@@ -28,7 +28,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import java.util.List;
 
-// the numbers and the errors, which are otherwise only in a log file nobody reads mid session
 public final class PlaceInspector extends Inspector {
 
     public PlaceInspector() {
@@ -43,24 +42,13 @@ public final class PlaceInspector extends Inspector {
         ImGui.text("instances");
         row("parts", tree == null ? 0 : tree.ofClass(Classes.PART).size());
         row("moving", ClientScene.motion().moving().size());
-        // what the two batches last emitted. a part the tree has but neither batch
-        // drew is a renderer bug, not a place one
         row("drawn still", Parts.stillCount());
         row("drawn moving", Parts.movingCount());
-        // a body wearing a skin leaves the flat batches and lands here, so a zero with a
-        // character in the tree means the skin never resolved
         row("drawn skinned", Skins.count());
         row("dirty", tree == null ? 0 : tree.dirtyCount());
 
         ImGui.separator();
         ImGui.text("steadiness");
-        // the peak to peak of the last second, in millimetres, for the two things that can shake
-        // independently: where the body actually is, and where the camera actually is
-        //
-        // they are separate on purpose. a body that is still under a camera that is not means the
-        // shake is in the view, and the view is drawn by the game in first person and by us in
-        // third -- so which of the two moves, and whether it stops in third person, says where to
-        // look. anything under a millimetre is the floating point of a rotation and is not a shake
         Shake.sample();
         text("body y", Shake.body());
         text("body vs cam", Shake.reach());
@@ -68,19 +56,14 @@ public final class PlaceInspector extends Inspector {
         text("camera xz", Shake.cameraFlat());
         text("yaw held", Shake.hold());
         text("deck rate", Shake.deckRate());
-        // and what the game thinks you are doing, because the view bob is driven from it and bob
-        // is a vertical wobble that only exists in first person
         text("bob", Shake.bob());
         text("riding", Shake.riding());
 
         ImGui.separator();
         ImGui.text("collision");
         row("boxes (server)", Physics.boxes().size());
-        // the client set is the one the player actually collides against
         row("boxes (client)", ClientPhysics.boxes().size());
         row("sub levels (server)", Physics.shapes().size());
-        // what the client can actually collide with: bkun finds sub levels through this index, and
-        // an entity the client never received is not in it
         row("sub levels (client)", clientSubLevels());
 
         ImGui.separator();
@@ -89,8 +72,6 @@ public final class PlaceInspector extends Inspector {
         ImGui.text("blocks written");
         ImGui.sameLine(160);
         ImGui.textDisabled(String.valueOf(PolarChunks.blocks()));
-        // straight off the client's own level: if this is not stone, the client has no floor,
-        // which is both why nothing draws there and why nothing stops the player
         ImGui.text("client block 0,60,0");
         ImGui.sameLine(160);
         ImGui.textDisabled(blockAtSpawn());
@@ -98,7 +79,6 @@ public final class PlaceInspector extends Inspector {
         ImGui.separator();
         ImGui.text("character");
         LocalPlayer player = Minecraft.getInstance().player;
-        // bkun's Physics against our own adapter's, the one clash 20.1 allows for
         MovementProfile profile = player == null
                 ? null
                 : com.meekdev.bkun.physics.Physics.getProfile(player).orElse(null);
@@ -106,15 +86,11 @@ public final class PlaceInspector extends Inspector {
         ImGui.sameLine(160);
         ImGui.textDisabled(profile == null ? "none, vanilla is driving" : "bkun");
         if (player != null && profile != null) {
-            // what the place asked for, back in the units it asked in
             text("walk m/s", String.format("%.2f", profile.maxGroundSpeed() * 20.0));
             text("capsule", String.format("r %.2f h %.2f",
                     profile.moverRadius(), profile.moverHeight()));
             text("at", String.format("%.1f %.1f %.1f", player.getX(), player.getY(), player.getZ()));
             text("on ground", String.valueOf(player.onGround()));
-            // what it is doing against what it was asked for. movement that feels slow off the
-            // line is this climbing to the number above it over several ticks, which is an
-            // acceleration question and not a rendering one
             double dx = player.getX() - player.xOld;
             double dz = player.getZ() - player.zOld;
             text("speed m/s", String.format("%.2f", Math.sqrt(dx * dx + dz * dz) * 20.0));
@@ -122,19 +98,13 @@ public final class PlaceInspector extends Inspector {
 
         ImGui.separator();
         ImGui.text("body");
-        // yours, not whichever came first: a place makes characters of its own and one posed by
-        // hand never moves, so reading that one says the body is stuck when nothing is wrong
         Character mine = ClientScene.own();
         Instance arm = mine == null ? null : mine.child("rightArm");
         if (mine == null) {
             ImGui.textDisabled("no character of yours in the tree");
         } else {
             text("name", mine.name());
-            // against the entity's at, above. the same pair of numbers separates a body the
-            // server never moved from one the mirror never heard about
             text("body at", fmt(Transforms.world(mine).position()));
-            // the two numbers the skin shader washes a body with. a place writes them as readily
-            // as the engine does, so a zero here is a write that never arrived
             text("wash", String.format("white %.2f  red %s",
                     mine.whiteFlash, mine.hurt));
         }
@@ -170,7 +140,6 @@ public final class PlaceInspector extends Inspector {
         return String.format("%.2f %.2f %.2f", v.x(), v.y(), v.z());
     }
 
-    // the panel opens on the title screen too, where there is no level to ask
     private static int clientSubLevels() {
         Level level = clientLevel();
         return level == null ? 0 : SubLevelIndex.in(level).size();

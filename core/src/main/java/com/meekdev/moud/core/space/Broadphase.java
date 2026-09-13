@@ -10,8 +10,6 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-// a uniform grid, because a collision query that scans every part is worse than no collision at
-// all once a place has more than a few thousand of them
 public final class Broadphase {
 
     private final double cell;
@@ -33,8 +31,6 @@ public final class Broadphase {
         entries.clear();
     }
 
-    // says whether the grid actually changed, so a caller that caches what it queried knows
-    // when the cache is stale. a part that went red is a write and is not a move
     public boolean put(Instance instance, Aabb box) {
         Entry current = entries.get(instance);
         if (current != null && current.box.equals(box)) return false;
@@ -64,8 +60,6 @@ public final class Broadphase {
         }
     }
 
-    // an instance sits in every cell it overlaps, so a wide query reaches the same one many times.
-    // the stamp is what makes each one reported once, without allocating a set per query
     public void query(Aabb region, Consumer<Instance> out) {
         int stamp = ++query;
         int minX = floor(region.minX());
@@ -75,10 +69,6 @@ public final class Broadphase {
         int minZ = floor(region.minZ());
         int maxZ = floor(region.maxZ());
 
-        // a caller may ask for the whole world, and walking a region that size costs far more than
-        // there are parts to report: baking every static collider once asked for thirty million
-        // metres a side, which is a hundred million billion cells and never returned. above the
-        // crossover, what is occupied is the smaller set to walk
         if (cellSpan(minX, maxX, minY, maxY, minZ, maxZ) > cells.size()) {
             for (List<Instance> list : cells.values()) {
                 report(list, region, stamp, out);
@@ -105,8 +95,6 @@ public final class Broadphase {
         }
     }
 
-    // multiplied one axis at a time and abandoned as soon as it is past the cell count, so a
-    // region wide enough to overflow the product never gets that far
     private long cellSpan(int minX, int maxX, int minY, int maxY, int minZ, int maxZ) {
         long span = axis(minX, maxX);
         if (span > cells.size()) return span;

@@ -6,9 +6,6 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-// a place's own modules for one side: that side's folder and shared/, never the other side's.
-// server scripts are never shipped to a client, so a client that could require one would be
-// reading something that will not exist once the place is exported
 public final class PlaceModules implements ModuleSource {
 
     public static final String SHARED = "shared";

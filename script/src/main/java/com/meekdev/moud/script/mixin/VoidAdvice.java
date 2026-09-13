@@ -3,7 +3,6 @@ package com.meekdev.moud.script.mixin;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 
-// inlined into a hooked method that returns nothing
 public final class VoidAdvice {
 
     private VoidAdvice() {}

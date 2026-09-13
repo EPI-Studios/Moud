@@ -29,14 +29,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import org.joml.Vector3f;
 
-// the tree's lights, handed to amnetic's lighting each frame
-//
-// matched by instance id, so a light keeps the same amnetic light for as long as it exists and every
-// property is simply copied over again. a copy is a few dozen fields; a light is not something a place
-// has thousands of
 public final class SceneLights {
 
-    // amnetic's light against ours, and the game's vec3 against ours: the clashes 20.1 allows for
     private record Held(Light instance, com.meekdev.amnetic.client.light.Light light) {}
 
     private record Style(int id, String body, long checked) {}
@@ -105,7 +99,6 @@ public final class SceneLights {
         switch (from) {
             case SpotLight spot -> to.setSpotAngles((float) spot.innerAngle, (float) spot.outerAngle);
             case AreaLight area -> {
-                // the shape was chosen when the light was made, so a place that changes it gets a new one
                 boolean disc = to.type() == LightType.AREA_DISC;
                 if (disc != (area.shape == AreaShape.DISC)) {
                     LIGHTS.remove(from.id());
@@ -124,9 +117,6 @@ public final class SceneLights {
         }
     }
 
-    // a shader file as a light style. zero is no style, which is how amnetic lights by default
-    //
-    // read again at most once a second, so editing the file relights the scene while the game runs
     private static int style(String shader) {
         if (shader.isEmpty()) return 0;
         long now = System.currentTimeMillis();

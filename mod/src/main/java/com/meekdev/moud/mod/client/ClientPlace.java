@@ -20,10 +20,6 @@ import com.meekdev.moud.script.engine.ScriptEngine;
 import java.nio.file.Path;
 import org.jspecify.annotations.Nullable;
 
-// the client's own place: client/main.luau, the camera it draws through, and the input it reads
-//
-// it cannot start until the mirror has a world to hang local instances off, which is after the
-// first baseline. so it is started from the tick that finds one rather than from client init
 public final class ClientPlace {
 
     private static final Clock FRAME = new Clock();
@@ -36,7 +32,6 @@ public final class ClientPlace {
 
     private ClientPlace() {}
 
-    // where the running place's files are, or nothing before one has started
     public static @Nullable Path root() {
         return place == null ? null : place.root();
     }
@@ -55,9 +50,6 @@ public final class ClientPlace {
             stop();
             return;
         }
-        // the server sent its whole tree again, which is a new world: whatever this place made hangs off the
-        // old one, where nothing reads it any more -- the keys went dead and the interface stopped drawing
-        // while the scripts still ran. the place starts over on the world that is drawn
         if (place != null && placed != world) {
             MoudMod.LOG.info("the server replaced its tree, the client place starts again");
             stop();
@@ -66,8 +58,6 @@ public final class ClientPlace {
         if (place != null) place.pollReload();
     }
 
-    // 7.4 in order: input first, so everything the frame does reads one answer, then the scripts,
-    // then the camera the adapters draw through
     public static void frame(float partialTick) {
         if (place == null || camera == null) return;
         INPUT.poll();
@@ -77,20 +67,15 @@ public final class ClientPlace {
         Cameras.frame(camera, partialTick);
     }
 
-    // the camera is made per load, not per start: a reload destroys the local instances and a
-    // global left pointing at the old one errors the moment the place touches it
     private static void start(Instance world) {
         place = Place.client(world, Addons.classes(), vm -> {
             camera = Instances.createLocal(Classes.CAMERA, world, "Camera");
             vm.bindClient(camera, LENS, INPUT, ClientScene::own);
             vm.bindPost(Post.CLIENT, true);
-            // the client's own level, never the integrated server's: that one belongs to another thread
             vm.bindBlocks(new BlockRays(() -> Minecraft.getInstance().level, false));
-            // every load, reloads included: whatever the old scripts left playing or bound goes with them
             ResonaAudio.INSTANCE.reset();
             Sounds.stopAll();
             vm.bindAudio(ResonaAudio.INSTANCE);
-            // on a client a message only reaches this client's own chat
             vm.bindChat(ClientChat.INSTANCE);
             vm.bindDebug(ClientDebug.INSTANCE);
         });

@@ -12,7 +12,6 @@ allprojects {
             name = 'Fabric'
             url = 'https://maven.fabricmc.net/'
         }
-        // the imgui bridge the amnetic editor draws through, dev only
         maven {
             name = 'ryanhcode'
             url = 'https://maven.ryanhcode.dev/releases'
@@ -21,8 +20,6 @@ allprojects {
             }
         }
 
-        // release only, and content filtered because gradle otherwise asks it for every
-        // artifact including minecraft, and one dns failure there fails the whole resolve
         maven {
             name = 'meekdev'
             url = 'https://maven.meekhasto.rest'
@@ -57,16 +54,6 @@ subprojects {
     }
 }
 
-// DESIGN.md 5.2 / 6.4 / 20.5: module dependency rules are a build failure, not a convention.
-//
-// what it is really protecting is the bottom three modules. core, script and net contain no library
-// type at all, which is what lets core be tested in a plain junit run with no game -- and it is the
-// thing that rots first if nobody checks. it held perfectly until it was checked, and the check is so
-// that the first slip is a red build rather than a discovery months later
-//
-// inside mod the line is different. a fabric entry point is minecraft by nature and cannot not be, so
-// the allowlist covers the plumbing as well as the translation layers. what stays clean in mod is the
-// engine's own logic: place and features
 tasks.register('checkArchitecture') {
     group = 'verification'
     description = 'Fails on forbidden imports across module boundaries (DESIGN.md 5.2, 6.4, 20.5).'
@@ -75,11 +62,8 @@ tasks.register('checkArchitecture') {
                      'com.meekdev.amnetic', 'com.meekdev.bkun', 'com.meekdev.resona',
                      'com.meekdev.box3d', 'imgui']
 
-    // the loader is not one of them. it is how a mod finds its own files and the entry points it was
-    // asked to load, which is plumbing rather than a seam to somebody else's game
     def loader = ['net.fabricmc']
 
-    // one language binding is script's to hold, because a script vm is what script is
     def scriptLibraries = libraries
 
     def rules = [
@@ -89,8 +73,6 @@ tasks.register('checkArchitecture') {
         net   : libraries + loader + ['com.meekdev.moud.script', 'com.meekdev.moud.mod'],
     ]
 
-    // where a library type may be named inside mod: the seams to somebody else's code, and the
-    // entry points the loader calls
     def modAllowed = ['adapter', 'suppress', 'transport', 'mixin',
                       'client', 'server', 'level', 'MoudMod.java']
 
@@ -128,8 +110,6 @@ tasks.register('checkArchitecture') {
             }
         }
 
-        // 20.5 also: a fully qualified name in the body of a file. an import says where a type comes
-        // from once, at the top, where a reader looks for it
         def qualified = ~/(?<!["\w.])(?:com\.meekdev|net\.minecraft|com\.mojang)\.[a-z][\w.]*\.[A-Z]\w+/
         def taken = [:].withDefault { [] }
         def nested = [:].withDefault { [] as Set }
@@ -158,15 +138,9 @@ tasks.register('checkArchitecture') {
                     if (!hit.find()) return
                     def full = hit.group()
                     def simple = full.substring(full.lastIndexOf('.') + 1)
-                    // java has no import alias, so a file that already imports some other type of
-                    // this name has no way to name this one but in full. that is the rule's own
-                    // exception rather than a hole in it
                     if (taken[file.absolutePath].any { it != full && it.endsWith('.' + simple) }) {
                         return
                     }
-                    // or taken by a nested type in scope. a class that implements an interface
-                    // inherits its member types, and an inherited one shadows a single type import --
-                    // so `Something.Simple` appearing in the file means the short spelling is gone
                     if (nested[file.absolutePath].contains(simple)) return
                     def where = file.absolutePath - "${rootDir}/"
                     broken << "${where}:${number}: a name spelled out in full (${full})"
@@ -181,5 +155,4 @@ tasks.register('checkArchitecture') {
     }
 }
 
-// and it runs with the build rather than when somebody remembers it. a rule nobody runs is a comment
 tasks.matching { it.name == 'check' }.configureEach { dependsOn 'checkArchitecture' }

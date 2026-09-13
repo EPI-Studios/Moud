@@ -29,7 +29,6 @@ public final class MoudClient implements ClientModInitializer {
         Input.register();
         ClientChat.listen();
         Autopilot.listen();
-        // a plan from the last server must not steer the player on the next one
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> Autopilot.clear());
         ChatView.install();
         ClientDebug.install();
@@ -46,8 +45,6 @@ public final class MoudClient implements ClientModInitializer {
         MoudMod.LOG.info("moud client ready");
     }
 
-    // the client does not run the place, it draws what the server says exists. the mirror is
-    // drained on the client tick and nowhere else, and the frame only draws what that left
     private static void frames() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             ClientScene.tick();
@@ -57,9 +54,6 @@ public final class MoudClient implements ClientModInitializer {
             CollisionView.tick();
             Input.pointerFrame();
         });
-        // the place itself is stepped earlier, from GameRenderer.update, because the camera it
-        // writes has to exist before the world is culled against it. what is left here is the
-        // packing, which has to happen as late as possible instead: just before the batches draw
         LevelRenderEvents.START_MAIN.register(context -> {
             ClientScene.frame();
             float partialTick = Minecraft.getInstance().getDeltaTracker()
@@ -71,8 +65,6 @@ public final class MoudClient implements ClientModInitializer {
             Bubbles.frame(partialTick);
             ClientPrompts.frame();
             PostStack.frame();
-            // every number behind this frame of your own body, while it is standing on something
-            // that moves. it writes itself and stops, so there is nothing to turn on
             Trace.frame(partialTick);
             if (ClientScene.motion().takeStillChanged()) Parts.invalidateStill();
         });

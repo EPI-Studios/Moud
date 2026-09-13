@@ -7,8 +7,6 @@ import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vec3;
 
-// keyed on the property type, so every property that will ever exist interpolates without a
-// per call site decision. types with no midpoint step, which is a curve rather than a refusal
 public final class Blend {
 
     private Blend() {}

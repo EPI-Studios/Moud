@@ -9,7 +9,6 @@ import net.hollowcube.luau.LuaType;
 import net.hollowcube.luau.compiler.LuauCompileException;
 import net.hollowcube.luau.compiler.LuauCompiler;
 
-// require(path): runs a module once per vm and hands every caller the same value
 final class Modules {
 
     private static final String CACHE = "moud.modules";
@@ -71,11 +70,8 @@ final class Modules {
                         + " before require can hand it back. start the waiting from a function it"
                         + " returns, or from task.spawn", path);
             }
-            // the error arrives without the file it came from, and a place with ten modules needs it
             throw state.error("res://%s: %s", path, why);
         } finally {
-            // a module that failed is not still loading, so requiring it again fails the same way
-            // rather than claiming a cycle
             mark(state, path, false);
         }
 

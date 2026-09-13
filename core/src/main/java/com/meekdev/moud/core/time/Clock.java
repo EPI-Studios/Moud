@@ -2,8 +2,6 @@ package com.meekdev.moud.core.time;
 
 public final class Clock {
 
-    // a paused window or a loading hitch would otherwise hand a script a dt of several seconds
-    // and teleport whatever it was moving
     public static final double MAX_STEP = 0.25;
 
     private final Source source;

@@ -31,11 +31,6 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import org.joml.Quaternionf;
 
-// what a body holds, drawn by the game's own item renderer at that arm's grip
-//
-// the grip is already the game's hand placement, turns and step included, so the only thing left to
-// do here is stand the item there. a worn body draws the player's real stack, which keeps its glint,
-// its dye and whatever else the id alone cannot say
 public final class HeldItems {
 
     private record Hand(int id, boolean left) {}
@@ -63,7 +58,6 @@ public final class HeldItems {
             hand(character, wearer, false, poses, out, camera, partialTick);
             hand(character, wearer, true, poses, out, camera, partialTick);
         }
-        // a character that went away takes its state with it
         STATES.keySet().removeIf(hand -> tree.byId(hand.id()) == null);
     }
 
@@ -97,11 +91,7 @@ public final class HeldItems {
         poses.pushPose();
         poses.translate(at.x() - camera.x, at.y() - camera.y, at.z() - camera.z);
         poses.mulPose(new Quaternionf((float) turn.x(), (float) turn.y(), (float) turn.z(), (float) turn.w()));
-        // the game states a model upside down and mirrored, y down and x flipped, and an item's display
-        // transforms are written for that. the grip is ours, y up, so the half turn about z it lacks goes
-        // back on here, or a blade points at the elbow and a shield faces the chest
         poses.mulPose(new Quaternionf().rotationZ((float) Math.PI));
-        // the grip's offset already grew with the body, and the item grows with it too
         float scale = (float) character.scale;
         poses.scale(scale, scale, scale);
         int light = LevelRenderer.getLightCoords(client.level, BlockPos.containing(at.x(), at.y(), at.z()));
@@ -109,7 +99,6 @@ public final class HeldItems {
         poses.popPose();
     }
 
-    // the real stack when a player is holding exactly this, and one made from the id otherwise
     private static ItemStack stack(AbstractClientPlayer wearer, boolean left, String id) {
         if (wearer != null) {
             ItemStack held = Characters.handOf(wearer, left ? HumanoidArm.LEFT : HumanoidArm.RIGHT);

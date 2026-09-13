@@ -29,28 +29,24 @@ import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
-// game.path, and the bodies that walk them
 public final class Paths {
 
     private static final Random RANDOM = new Random();
 
     private Paths() {}
 
-    // one navmesh per place, built as its bodies ask for paths
     private static final Map<Instance, NavMeshes> MESHES = new WeakHashMap<>();
 
     private static NavMeshes mesh(Instance world) {
         return MESHES.computeIfAbsent(world, w -> new NavMeshes());
     }
 
-    // parts a body can stand on or bump into, never the body itself
     private static Predicate<Part> ground() {
         Queries.Filter solid = new Queries.Filter(List.of(), false, true, null, null, null, Classes.PART);
         return part -> solid.test(part)
                 && !(part.parent() instanceof Character) && !(part.parent() != null && part.parent().parent() instanceof Character);
     }
 
-    // what the navmesh is built from: the level's blocks and the place's parts
     private static NavMeshes.World source(LuaState state, Instance world) {
         BlockRef blocks = QueryMethods.blocksOf(state);
         Predicate<Part> ground = ground();
@@ -76,13 +72,11 @@ public final class Paths {
         return (from, to, partial) -> mesh.find(source, from, to, partial);
     }
 
-    // a block changed under this place: the navmesh tiles around it are built again
     public static void blockChanged(Instance world, int x, int y, int z) {
         NavMeshes mesh = MESHES.get(world);
         if (mesh != null) mesh.blockChanged(x, y, z);
     }
 
-    // the top of whatever is under a point, from a little above it, so a walking body stays on it
     private static Humanoids.Ground groundOf(LuaState state, Instance world) {
         Predicate<Part> ground = ground();
         Vec3 down = new Vec3(0, -1, 0);
@@ -132,7 +126,6 @@ public final class Paths {
         state.pop(1);
 
         Map<String, ToIntFunction<LuaState>> methods = new LinkedHashMap<>();
-        // walks there along a path around what is in the way. false when there is no way
         methods.put("walkTo", s -> {
             Character body = BodyMethods.body(s);
             List<Vec3> path = mesh(world).find(source(s, world), Transforms.world(body).position(), Values.vec3(s, 2), partial(s, 3));
@@ -177,7 +170,6 @@ public final class Paths {
         Proxies.classMethods(state, Classes.CHARACTER, methods, true);
     }
 
-    // turns the body about up to look along a direction, height ignored
     private static void face(Character body, Vec3 direction) {
         Vec3 flat = new Vec3(direction.x(), 0, direction.z());
         if (flat.lengthSq() < 1e-9) return;
@@ -187,7 +179,6 @@ public final class Paths {
                 Transforms.localFor(body, new CFrame(world.position(), Quat.euler(0, yaw, 0))));
     }
 
-    // { partial = true } ends a path as close to an unreachable goal as the ground gets, instead of none
     private static boolean partial(LuaState s, int at) {
         if (s.isNoneOrNil(at) || s.type(at) != LuaType.TABLE) return false;
         s.getField(at, "partial");

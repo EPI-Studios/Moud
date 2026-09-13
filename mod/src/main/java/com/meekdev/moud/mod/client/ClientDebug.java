@@ -23,7 +23,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import org.joml.Vector4f;
 
-// debug lines, boxes, spheres and labels drawn over the world, and a list of watched values in a corner
 public final class ClientDebug implements DebugRef {
 
     public static final ClientDebug INSTANCE = new ClientDebug();
@@ -103,7 +102,6 @@ public final class ClientDebug implements DebugRef {
         watched.clear();
     }
 
-    // a shape with no time lasts a single frame
     private void add(List<Vec3[]> lines, Vec3 label, String text, Color color, double seconds) {
         long until = System.nanoTime() + (long) (Math.max(0, seconds) * 1e9);
         shapes.add(new Shape(lines, label, text, ChatView.argbOf(color, 1), seconds <= 0 ? 0 : until));

@@ -8,11 +8,6 @@ import com.meekdev.moud.core.space.Broadphase;
 import java.util.ArrayList;
 import java.util.List;
 
-// every part in a tree in a grid, so a query tests the parts near it rather than every part there is
-//
-// kept up to date lazily: nothing happens on a write but a note of which branch moved, and the next
-// query refreshes just those branches. a change to the tree's shape rebuilds the lot, which is rare
-// next to things moving
 public final class SpatialIndex {
 
     private static final double CELL = 8;
@@ -57,7 +52,6 @@ public final class SpatialIndex {
         grid.put(part, bounds(Transforms.world(part), part.size));
     }
 
-    // the box around a turned box
     public static Aabb bounds(CFrame frame, Vec3 size) {
         Vec3 right = frame.rotation().rotate(Vec3.RIGHT);
         Vec3 up = frame.rotation().rotate(Vec3.UP);

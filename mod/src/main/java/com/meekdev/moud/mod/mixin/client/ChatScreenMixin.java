@@ -21,7 +21,6 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// the box a player types in, sending into the place's channels and styled by its ChatInputBar
 @Mixin(ChatScreen.class)
 abstract class ChatScreenMixin {
 
@@ -70,7 +69,6 @@ abstract class ChatScreenMixin {
         if (ChatView.active()) ClientChat.INSTANCE.typing(text);
     }
 
-    // a message rather than a command goes to the place's channel instead of the game's chat
     @Inject(method = "handleChatInput", at = @At("HEAD"), cancellable = true)
     private void moud$send(String message, boolean addToRecent, CallbackInfo ci) {
         if (!ChatView.active()) return;

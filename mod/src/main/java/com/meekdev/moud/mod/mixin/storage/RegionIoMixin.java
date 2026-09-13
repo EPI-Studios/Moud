@@ -11,9 +11,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// no anvil, ever
-// chunks, entities and poi all reach the region files through this one class, chunk map extends it,
-// and every overload is named here because a bare method name only binds to one of them
 @Mixin(SimpleRegionStorage.class)
 abstract class RegionIoMixin {
 

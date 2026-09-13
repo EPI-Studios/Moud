@@ -27,13 +27,8 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 
-// mesh parts, drawn by amnetic's model renderer
-//
-// one model per file, shared by every part that names it, and one animator per part, because two
-// crates playing the same clip are not at the same point in it
 public final class Meshes {
 
-    // a file that loaded, and the bytes it loaded from, so an edit to the file is a new model
     private record Loaded(Model model, int hash) {}
 
     private record Playing(Animator animator, String clip) {}
@@ -72,8 +67,6 @@ public final class Meshes {
         Quat turn = world.rotation();
         Vector3f min = model.boundsMin();
         Vector3f max = model.boundsMax();
-        // the model's own box, stretched onto the part's. a flat model has no depth to stretch, so
-        // that axis keeps its own units rather than dividing by nothing
         float sx = stretch(part.size.x(), max.x - min.x);
         float sy = stretch(part.size.y(), max.y - min.y);
         float sz = stretch(part.size.z(), max.z - min.z);
@@ -127,8 +120,6 @@ public final class Meshes {
         }
     }
 
-    // a place file is read again when it changes, so saving a model in blockbench shows up without a
-    // restart. the bytes are hashed rather than timestamped because the read is what a reload does anyway
     private static final Map<String, Long> CHECKED = new HashMap<>();
 
     private static @Nullable Model fromPlace(String meshId) {

@@ -9,7 +9,6 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
 
-// builds the mirror from a change stream. it never invents an id, so both sides agree on identity
 public final class Applier {
 
     private final ClassRegistry classes;
@@ -72,19 +71,12 @@ public final class Applier {
         if (instance == null) return;
         PropertyDef property = instance.def().property(wrote.property());
         if (property == null) return;
-        // resolved in this tree, by the id the authority sent
-        //
-        // a reference forward to something not created yet lands as nothing. the authority emits
-        // every creation before any write, so that only happens for a target outside the tree --
-        // a local instance, which could never have crossed anyway
         if (property.type() == PropertyType.REF) {
             Object id = wrote.value();
             Instances.setObj(instance, property,
                     id instanceof Integer at ? tree.byId(at) : null);
             return;
         }
-        // by the property's type rather than the value's: an int comes off the wire as an Integer
-        // and a number held in memory as a Double, and both are numbers
         if (property.isNumeric()) {
             if (wrote.value() instanceof Number n) Instances.setNum(instance, property, n.doubleValue());
             return;

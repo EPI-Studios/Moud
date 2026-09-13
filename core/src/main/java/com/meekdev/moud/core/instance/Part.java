@@ -14,17 +14,12 @@ public class Part extends Spatial {
     public boolean anchored = true;
     public boolean collides = true;
 
-    // whether casts and overlaps can find it
     public boolean canQuery = true;
 
-    // whether it takes part in touched and touchEnded, on either end
     public boolean canTouch = true;
 
-    // the CollisionGroup this part belongs to, by name
     public String collisionGroup = "default";
 
-    // another part began or stopped touching this one. worked out each tick on each side, for parts
-    // something is listening on
     public final Signal<Instance> touched = new Signal<>();
     public final Signal<Instance> touchEnded = new Signal<>();
 }

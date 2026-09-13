@@ -9,7 +9,6 @@ import java.nio.file.Path;
 import java.util.Map;
 import net.fabricmc.loader.api.FabricLoader;
 
-// the running place's place.toml, read once at startup on each side
 public final class PlaceToml {
 
     private static PlaceConfig config;
@@ -31,13 +30,11 @@ public final class PlaceToml {
         try {
             return PlaceConfig.parse(Files.readString(file));
         } catch (IOException | IllegalArgumentException wrong) {
-            // a broken file must not take the game down with it, and must not be quiet either
             MoudMod.LOG.error("place.toml cannot be read, running on the defaults: {}", wrong.getMessage());
             return PlaceConfig.DEFAULT;
         }
     }
 
-    // the engine's own starting set, then whatever the place turned on or off
     public static void apply(Features features) {
         Switches.install(features);
         for (Map.Entry<String, Boolean> one : config().features().entrySet()) {

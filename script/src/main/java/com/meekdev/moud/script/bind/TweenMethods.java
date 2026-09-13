@@ -19,13 +19,11 @@ import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 import net.hollowcube.luau.LuaType;
 
-// instance:tween(goals, info) and the handle it returns
 public final class TweenMethods {
 
     static final int TAG = 13;
     private static final String METHODS = "moud.tween.methods";
 
-    // the handle a place holds, and the luau side of its completed signal
     record Handle(Tween tween, Signals.Handlers completed) {}
 
     private TweenMethods() {}
@@ -95,7 +93,6 @@ public final class TweenMethods {
     }
 
     private static Tween.Goal goal(LuaState state, Instance instance, String key, int value) {
-        // position and rotation are world views onto cframe, so the goal is the cframe that puts it there
         if (instance instanceof Spatial spatial && (key.equals("position") || key.equals("rotation"))) {
             PropertyDef frame = instance.def().property("cframe");
             Proxies.checkWrite(state, instance, frame);

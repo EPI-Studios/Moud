@@ -6,8 +6,6 @@ base {
     archivesName = 'moud'
 }
 
-// the libraries are sibling checkouts, same convention bkun uses for amnetic
-// override with -PamneticJar= / -PbkunJar= / -PresonaJar= / -PpolarJar= if yours live elsewhere
 def siblingJar = { String dir, String name, String version, String property ->
     def f = file(findProperty(property) ?: "${rootDir}/../${dir}/build/libs/${name}-${version}.jar")
     if (!f.exists()) {
@@ -17,8 +15,6 @@ def siblingJar = { String dir, String name, String version, String property ->
     return f
 }
 
-// the game runs outside the checkout, so a dev world never lands in the source tree.
-// loom resolves runDir against the project, so it has to be handed a relative path
 def devRun = file(findProperty('runDir') ?: "${rootDir}/../Moud-run")
 def devRunRelative = projectDir.toPath().relativize(devRun.toPath()).toString()
 
@@ -28,9 +24,7 @@ loom {
     runs {
         client {
             runDir devRunRelative
-            // luau reaches its native library through the ffm api, which is restricted by default
             vmArg '--enable-native-access=ALL-UNNAMED'
-            // mixin.inject attaches an agent to the game itself, which java only allows quietly when asked
             vmArg '-XX:+EnableDynamicAgentLoading'
             vmArg '-Djdk.attach.allowAttachSelf=true'
         }
@@ -43,8 +37,6 @@ def resona = siblingJar('Resona', 'resona', project.resona_version, 'resonaJar')
 def polar = siblingJar('polar', 'polar', project.polar_version, 'polarJar')
 def box3d = siblingJar('box3d-java', 'box3d-java', project.box3d_version, 'box3dJar')
 
-// box3d's NativeLoader reads natives/<os>-<arch>/<lib> off the classpath, so the native has to be
-// a resource of ours. no jar ships it, every consumer copies it from the box3d checkout
 def box3dNatives = file(findProperty('box3dNatives') ?: "${rootDir}/../box3d-java/natives")
 
 def nativePlatform = {
@@ -68,23 +60,17 @@ dependencies {
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-    // not `include` — these ship as their own mods, see the engine pack
     compileOnly files(amnetic, bkun, resona)
     runtimeOnly files(amnetic, bkun, resona)
 
-    // box3d ships inside bkun as a nested jar, so it is only needed to compile against
     compileOnly files(box3d)
 
-    // the editor draws through imgui. dev only: it is never on a player's classpath, and the
-    // inspectors check that amnetic brought it before they touch it
     compileOnly "foundry.imguimc:imguimc-fabric-26.1:${project.imguimc_version}"
     localRuntime "foundry.imguimc:imguimc-fabric-26.1:${project.imguimc_version}"
 
-    // the local backend for store, a file in the world folder. a plain library, so it rides in the jar
     implementation "org.xerial:sqlite-jdbc:3.46.1.3"
     include "org.xerial:sqlite-jdbc:3.46.1.3"
 
-    // polar is the level format, not a mod, so it shades in the way core does
     implementation files(polar)
 
     implementation project(':core')

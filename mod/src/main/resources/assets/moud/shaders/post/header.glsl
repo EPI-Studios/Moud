@@ -27,7 +27,6 @@ bool isSky(vec2 uv) {
     return sceneDepth(uv) >= 0.99999;
 }
 
-// from the camera, in metres, in world axes
 vec3 viewPosition(vec2 uv) {
     float d = sceneDepth(uv);
     float z = ZeroToOne == 1 ? d : d * 2.0 - 1.0;
@@ -39,7 +38,6 @@ vec3 worldPosition(vec2 uv) {
     return viewPosition(uv) + CameraPosition;
 }
 
-// how far away, in metres, with the sky a long way off rather than infinitely
 float linearDepth(vec2 uv) {
     return isSky(uv) ? 10000.0 : length(viewPosition(uv));
 }

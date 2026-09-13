@@ -16,31 +16,20 @@ public final class InstanceTree {
 
     private final Map<ClassDef<?>, List<Instance>> byClass = new HashMap<>();
 
-    // what takes part in each stage, so a tick visits the handful that do rather than the thousands
-    // that do not. a part sitting in the world is in none of these lists
     @SuppressWarnings("unchecked")
     private final List<Instance>[] byStage = new List[Stage.ORDER.length];
 
-    // a stage is snapshotted into this before it runs, because a stage may create or destroy: drive
-    // can kill a body, and iterating the live list while it shrinks skips whoever moved into the
-    // gap. one array per tree, grown once, so this costs nothing after the first tick
     private Instance[] scratch = new Instance[32];
 
     Instance[] byId = new Instance[64];
     int nextId = 1;
     int nextLocalId = -1;
 
-    // a mirror holds ids somebody else chose, so nothing made in one may take an id from the
-    // same counter: a client place adding a part would be handed an id the authority is about
-    // to use for something else, and from then on the two are one instance to anything that
-    // looks one up. so everything made in a mirror is local, which it is anyway -- there is
-    // nowhere for it to replicate to
     final boolean mirror;
 
     int[] dirtyList = new int[64];
     int dirtyCount;
 
-    // ids that left the tree since the last drain, which a mirror needs and the renderer does not
     int[] removedList = new int[16];
     int removedCount;
 
@@ -60,11 +49,9 @@ public final class InstanceTree {
 
     public Instance root() { return root; }
 
-    // the spatial branches that moved since the index last looked, and the index itself, made on first use
     final Set<Instance> spatialTouched = Collections.newSetFromMap(new IdentityHashMap<>());
     private SpatialIndex spatial;
 
-    // bumped by every write and every change of shape, so a cached answer knows when it is stale
     long mutations;
 
     public long mutations() {
@@ -107,13 +94,6 @@ public final class InstanceTree {
             byId = grown;
         }
         byId[slot] = i;
-        // under its own class and under every class it is one of
-        //
-        // isA has always been inheritance aware and this was not, which is a trap that goes off the
-        // first time a class gains a subclass: turning every box of a body into a Limb quietly took
-        // all of them out of ofClass(Part), and the one thing that reads that list is what keeps
-        // their lighting up to date. every caller means "everything that is a Part" -- nobody has
-        // ever wanted exactly-this-class, and if they did they would test def() themselves
         for (ClassDef<?> c = i.def(); c != null; c = c.parent()) {
             byClass.computeIfAbsent(c, k -> new ArrayList<>()).add(i);
         }
@@ -126,10 +106,6 @@ public final class InstanceTree {
         structureEpoch++;
     }
 
-    // whoever takes part in a stage, in the order they entered the tree
-    //
-    // that order is the one guarantee: a body builds its root joint before its limb joints, so
-    // composing in this order composes a parent before what hangs off it without anyone sorting
     public List<Instance> inStage(Stage stage) {
         List<Instance> list = byStage[stage.ordinal()];
         return list == null ? List.of() : list;
@@ -141,7 +117,6 @@ public final class InstanceTree {
         return scratch;
     }
 
-    // the highest replicated id handed out so far, which is what lets a mirror spot new instances
     public int highestId() {
         return nextId - 1;
     }
@@ -155,9 +130,6 @@ public final class InstanceTree {
         removedCount = 0;
     }
 
-    // a reparent leaves every property untouched, so the dirty channel cannot carry it: drainDirty
-    // skips an instance whose mask is zero. what changed is where the instance hangs, and the world
-    // frame of everything under it, which is its own thing to say
     public void drainMoved(IntConsumer visitor) {
         for (int n = 0; n < movedCount; n++) visitor.accept(movedList[n]);
         movedCount = 0;
@@ -191,7 +163,6 @@ public final class InstanceTree {
         }
         removedList[removedCount++] = i.id;
         structureEpoch++;
-        // gone from the index, and said so, but not journalled: the far side hears it was destroyed
         if (i.tags != null) {
             for (String tag : i.tags) {
                 List<Instance> list = byTag.get(tag);
@@ -202,7 +173,6 @@ public final class InstanceTree {
         }
     }
 
-    // one tag going on or coming off one instance, in the order it happened
     public record TagChange(int id, String tag, boolean added) {}
 
     private final Map<String, List<Instance>> byTag = new HashMap<>();
@@ -215,12 +185,10 @@ public final class InstanceTree {
         return list == null ? List.of() : Collections.unmodifiableList(list);
     }
 
-    // fires when the tag goes on an instance in this tree
     public Signal<Instance> tagAdded(String tag) {
         return tagAdded.computeIfAbsent(tag, t -> new Signal<>());
     }
 
-    // fires when it comes off, including when the instance is destroyed
     public Signal<Instance> tagRemoved(String tag) {
         return tagRemoved.computeIfAbsent(tag, t -> new Signal<>());
     }

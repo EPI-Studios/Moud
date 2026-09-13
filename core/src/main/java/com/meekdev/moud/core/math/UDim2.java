@@ -1,6 +1,5 @@
 package com.meekdev.moud.core.math;
 
-// a place on a surface, per axis as a fraction of the parent plus a number of pixels
 public record UDim2(double xScale, double xOffset, double yScale, double yOffset) {
 
     public static final UDim2 ZERO = new UDim2(0, 0, 0, 0);

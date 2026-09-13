@@ -12,7 +12,6 @@ import java.util.function.Consumer;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
 
-// game.tags: every instance carrying a tag, and signals for a tag going on and coming off
 public final class Tags {
 
     private final LuaState state;
@@ -20,7 +19,6 @@ public final class Tags {
     private final Consumer<ScriptError> onError;
     private final Map<String, Signals.Handlers> added = new HashMap<>();
     private final Map<String, Signals.Handlers> removed = new HashMap<>();
-    // held so a closed vm stops hearing the tree, which outlives it
     private final List<Signal.Connection> links = new ArrayList<>();
 
     public Tags(LuaState state, InstanceTree tree, Consumer<ScriptError> onError) {

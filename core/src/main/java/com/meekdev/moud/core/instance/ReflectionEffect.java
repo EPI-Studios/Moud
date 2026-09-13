@@ -2,12 +2,10 @@ package com.meekdev.moud.core.instance;
 
 import com.meekdev.moud.core.clazz.Prop;
 
-// what is on screen, reflected in shiny surfaces
 public final class ReflectionEffect extends PostEffect {
 
     @Prop(min = 0) public double intensity = 1;
 
-    // how shiny a surface with no material of its own is
     @Prop(min = 0, max = 1) public double reflectivity = 0.04;
 
     @Prop(min = 0.1) public double maxDistance = 32;
